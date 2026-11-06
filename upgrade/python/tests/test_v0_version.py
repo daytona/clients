@@ -1046,3 +1046,74 @@ def test_a_union_whose_floor_no_alternative_admits_is_kept() -> None:
     assert (
         target_constraint("daytona", constraint, "daytona", "==2.0.0a8") == constraint
     )
+
+
+def test_colliding_poetry_declarations_still_give_the_installed_version(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: a half-done rename declares both names, and poetry.lock resolves a newer minor.
+    pyproject = (
+        '[tool.poetry]\nname = "app"\n\n[tool.poetry.dependencies]\n'
+        'daytona = "0.999.0"\ndaytona-sdk = "0.999.0"\n'
+    )
+    lock = (
+        '[[package]]\nname = "daytona"\nversion = "0.999.0"\n\n'
+        '[[package]]\nname = "daytona-sdk"\nversion = "0.999.0"\n'
+    )
+    _project(tmp_path, {"pyproject.toml": pyproject, "poetry.lock": lock})
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then: refused like the npm tool, nothing written.
+    assert code == 2
+    assert report["refused"]["reason"] == "newer-v0"  # type: ignore[index]
+    assert (tmp_path / "app.py").read_text() == SOURCE
+
+
+def test_a_symlinked_project_is_checked_where_it_lives(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: a uv workspace member reached through a symlink outside the repository.
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "uv.lock").write_text(
+        '[[package]]\nname = "daytona"\nversion = "0.999.0"\n\n'
+        '[[package]]\nname = "app"\nversion = "1"\nsource = { editable = "packages/app" }\n'
+    )
+    _project(
+        repo / "packages" / "app",
+        {
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona"]\n'
+        },
+    )
+    (tmp_path / "link").symlink_to(repo / "packages" / "app")
+    # When
+    code, report = _run(tmp_path / "link", capsys)
+    # Then: the real lockfile's resolution counts.
+    assert code == 2
+    assert report["refused"]["reason"] == "newer-v0"  # type: ignore[index]
+
+
+def test_a_union_floored_on_an_inclusive_alternative_keeps_its_floor() -> None:
+    # Given / When / Then: >=2.0.0a9 || >3.0.0 is pinned to its floor, never lowered.
+    assert (
+        target_constraint("daytona", ">=2.0.0a9 || >3.0.0", "daytona", "==2.0.0a8")
+        == "==2.0.0a9"
+    )
+
+
+def test_hash_locked_guidance_never_names_a_downgrade(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: pip-compile output on a newer alpha range, under an older tool.
+    record = "daytona[v0-sdk]>=2.0.0a9 \\\n    --hash=sha256:" + "0" * 64
+    _, report = _migrate(tmp_path, capsys, monkeypatch, record, "2.0.0a8")
+    # Then: the guidance names the range's own floor.
+    items = report["items"]
+    assert isinstance(items, list)
+    assert [
+        item["message"] for item in items if item["kind"] == "manual-dependency"
+    ] == [
+        "Change this dependency to daytona[v0-sdk]==2.0.0a9 manually and regenerate hashes; the original hash-locked or continued record was preserved."
+    ]

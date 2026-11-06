@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { compare, minVersion, parse, validRange } from 'semver';
 import type { SemVer } from 'semver';
@@ -188,7 +188,18 @@ function zeroX(value: string): SemVer | undefined {
  * unless `allowNewer`, because its added APIs are in neither `.v0` nor the
  * mapping.
  */
-export function checkV0Version(root: string, declared: readonly DeclaredDependency[], pinned: string, allowNewer: boolean): V0VersionCheck {
+/** The real path (a symlinked project is checked where it lives, as the Python tool does). */
+function real(path: string): string {
+  try { return realpathSync(path); }
+  catch (error) {
+    if (error instanceof Error && 'code' in error) return resolve(path);
+    throw error;
+  }
+}
+
+export function checkV0Version(lexicalRoot: string, lexicalDeclared: readonly DeclaredDependency[], pinned: string, allowNewer: boolean): V0VersionCheck {
+  const root = real(lexicalRoot);
+  const declared = lexicalDeclared.map(dependency => ({ ...dependency, file: real(dependency.file) }));
   const pin = parse(pinned);
   if (pin === null) return { warnings: [] };
   // Daytona code with no declaration anywhere up to the Git root.
@@ -271,7 +282,7 @@ export function checkV0Version(root: string, declared: readonly DeclaredDependen
  * root, for a scan root that declares none itself (a partial-root run).
  */
 export function ancestorDeclarations(root: string, names: readonly string[]): readonly DeclaredDependency[] {
-  const start = resolve(root);
+  const start = real(root);
   let boundary: string | undefined;
   for (let directory = start; ; directory = dirname(directory)) {
     if (existsSync(join(directory, '.git'))) { boundary = directory; break; }

@@ -102,7 +102,7 @@ class Migration:
                     self.line,
                     f"Add the {', '.join(self.mapping.extras)} extra to this dependency manually and regenerate hashes; its version already meets this release. The original hash-locked or continued record was preserved."
                     if kept
-                    else f"Change this dependency to {self.mapping.requirement} manually and regenerate hashes; the original hash-locked or continued record was preserved.",
+                    else f"Change this dependency to {self._written(name, specifier)} manually and regenerate hashes; the original hash-locked or continued record was preserved.",
                 )
             )
             return source
@@ -127,6 +127,39 @@ class Migration:
         if result != source:
             self.changes.append((source.strip(), result.strip()))
         return result
+
+    def _written(self, name: str, specifier: str) -> str:
+        """The requirement a rewrite of this declaration would write."""
+        extras = f"[{','.join(self.mapping.extras)}]" if self.mapping.extras else ""
+        return (
+            self.mapping.package_new
+            + extras
+            + target_constraint(
+                name, specifier, self.mapping.package_new, self.mapping.specifier
+            )
+        )
+
+    def _declare_table(self, name: str, versions: list[object]) -> None:
+        """Record each table entry's version constraint ("" without one)."""
+        for entry in versions:
+            version = (
+                entry
+                if isinstance(entry, String)
+                else entry.get("version")
+                if isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
+                else None
+            )
+            # A marker-gated entry may never install: no version evidence, as
+            # for a requirement string.
+            gated = isinstance(
+                entry, (Table, InlineTable, OutOfOrderTableProxy)
+            ) and any(field in entry for field in ("markers", "python", "platform"))
+            self.declared.append(
+                (
+                    name,
+                    str(version) if isinstance(version, String) and not gated else "",
+                )
+            )
 
     def _newer_major(self, name: str, specifier: str) -> bool:
         """Report, and keep, a Daytona declaration in a later major."""
@@ -231,6 +264,14 @@ class Migration:
         # Python 3.9 compatibility precludes structural pattern matching.
         declarations = [name for name in table if _normalized(str(name)) in self.names]
         if len(declarations) > 1:
+            # Colliding declarations are left for manual review, but they still
+            # say which 0.x version the project installs.
+            for name in declarations:
+                original = table[name]
+                self._declare_table(
+                    str(name),
+                    [original] if not isinstance(original, Array) else list(original),
+                )
             self.found = True
             self.manual.append(
                 (
@@ -245,27 +286,7 @@ class Migration:
             self.found = True
             original = table[name]
             versions = [original] if not isinstance(original, Array) else list(original)
-            for entry in versions:
-                version = (
-                    entry
-                    if isinstance(entry, String)
-                    else entry.get("version")
-                    if isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
-                    else None
-                )
-                # A marker-gated entry may never install: no version evidence,
-                # as for a requirement string.
-                gated = isinstance(
-                    entry, (Table, InlineTable, OutOfOrderTableProxy)
-                ) and any(field in entry for field in ("markers", "python", "platform"))
-                self.declared.append(
-                    (
-                        str(name),
-                        str(version)
-                        if isinstance(version, String) and not gated
-                        else "",
-                    )
-                )
+            self._declare_table(str(name), versions)
             if any(
                 self._newer_major(str(name), spec)
                 for _, spec in self.declared[-len(versions) :]

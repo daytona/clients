@@ -115,6 +115,8 @@ it.each([
   ['>2.0.0-alpha.9', '2.0.0-alpha.8', '>2.0.0-alpha.9'],
   // A union is at the target only when every alternative is.
   ['^2.0.0-alpha.3 || >2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],
+  // A union floored on an inclusive alternative keeps that floor.
+  ['>=2.0.0-alpha.9 || >3.0.0', '2.0.0-alpha.8', '2.0.0-alpha.9'],
   // The published 2.0.0-rc.1 is a stale pre-alpha build without .v0: not ahead of an alpha.
   ['2.0.0-rc.1', '2.0.0-alpha.8', '2.0.0-alpha.8'],
   ['^2.0.0-rc.1', '2.0.0-alpha.8', '2.0.0-alpha.8'],

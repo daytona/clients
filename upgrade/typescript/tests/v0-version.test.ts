@@ -420,3 +420,29 @@ it('treats the 1.x shim release as unknown', async () => {
   // Then: the lockfile's 1.x resolution, not the manifest's 0.x floor.
   expect(report.warnings).toEqual([{ file: 'package.json', message: unknownMessage(pinned) }]);
 });
+
+it('colliding declarations still give the installed version', async () => {
+  // Given: a half-done rename declares both names, and the lockfile resolves a newer minor.
+  const files = { 'package.json': JSON.stringify({ dependencies: { '@daytonaio/sdk': '0.999.0', '@daytona/sdk': '0.999.0' } }),
+    'package-lock.json': JSON.stringify({ lockfileVersion: 3, packages: {
+      'node_modules/@daytonaio/sdk': { version: '0.999.0' }, 'node_modules/@daytona/sdk': { version: '0.999.0' } } }), 'index.ts': code };
+  // When
+  const { code: exit, report, root } = await run(files);
+  // Then: refused like the PyPI tool, nothing written.
+  expect(exit).toBe(2);
+  expect(report.refused?.reason).toBe('newer-v0');
+  expect(readFileSync(join(root, 'index.ts'), 'utf8')).toBe(code);
+});
+
+it('checks a symlinked project where it lives', async () => {
+  // Given: a workspace member reached through a symlink outside the repository.
+  const root = temporaryProject({ 'repo/.git/HEAD': '',
+    'repo/package-lock.json': JSON.stringify({ lockfileVersion: 3, packages: { 'packages/app': { name: 'app' }, 'node_modules/@daytonaio/sdk': { version: transitive } } }),
+    'repo/packages/app/package.json': manifest(`^${pinned}`), 'repo/packages/app/index.ts': code });
+  symlinkSync(join(root, 'repo/packages/app'), join(root, 'link'));
+  // When
+  const result = await invoke(join(root, 'link'), ['--json']);
+  // Then: the real lockfile's resolution counts.
+  expect(result.code).toBe(2);
+  expect((JSON.parse(result.output) as Report).refused?.reason).toBe('newer-v0');
+});

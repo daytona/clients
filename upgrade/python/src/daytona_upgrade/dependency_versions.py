@@ -104,6 +104,18 @@ def _exact(constraint: str) -> bool:
     )
 
 
+def _floor_alternative(constraint: str, floor: Version) -> str:
+    """The ``||`` alternative whose lower bound is the constraint's floor."""
+    return next(
+        (
+            alternative
+            for alternative in constraint.split("||")
+            if lower_bound(alternative) == floor
+        ),
+        constraint,
+    )
+
+
 def pinned_floor(constraint: str, target: str) -> str | None:
     """The exact pin to write for a pre-release range at or above a pre-release
     target (">=2.0.0a9" under ==2.0.0a8 -> "==2.0.0a9"): never below the range's
@@ -116,7 +128,8 @@ def pinned_floor(constraint: str, target: str) -> str | None:
         or not floor.is_prerelease
         or _stale_for_target(floor, wanted)
         or _exact(constraint)
-        or ">" in constraint.replace(">=", "")  # An exclusive bound names no release.
+        # An exclusive bound on the floor's alternative names no release.
+        or ">" in _floor_alternative(constraint, floor).replace(">=", "")
     ):
         return None
     if floor.major != wanted.major or floor < wanted:

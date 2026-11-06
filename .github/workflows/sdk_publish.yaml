@@ -1337,7 +1337,7 @@ jobs:
             if [ "$PUBLISH_UPGRADE" != true ] && [ -n "$PYPI_VERSION$NPM_VERSION" ] \
               && { [ -z "$PYPI_VERSION" ] || [ "$PY_PUBLISH" = success ]; } && { [ -z "$NPM_VERSION" ] || [ "$NPM_PUBLISH" = success ]; }; then
               echo
-              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${VERSION}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\` (once both SDKs are published)."
+              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${PYPI_VERSION:-$VERSION}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\` (once both SDKs are published)."
             fi
             echo
             echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-run the failed publish job, or re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."

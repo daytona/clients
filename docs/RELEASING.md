@@ -175,14 +175,19 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 ### The migration tool
 
 `daytona-upgrade` is published by the same run as the SDKs, at the same
-version, and targets that SDK release in the projects it migrates, never
-downgrading a newer declaration (a pre-release range above it is pinned to
-its own floor; and while the target is a pre-release, a range floored on its
-own stable release, such as the pre-lockstep `^2.0.0`, installs nothing yet
-and is replaced) (a
-pre-release is pinned: `daytona[v0-sdk]==2.0.0a8`, `"@daytona/sdk":
-"2.0.0-alpha.8"`; a stable `X.Y.Z` writes `>=X.Y.Z,<X+1` / `^X.Y.Z`). Its
-mapping is checked (by upgrade-tool-ci, on the pull request that changed it)
+version, and targets that SDK release in the projects it migrates:
+
+- a pre-release target is pinned (`daytona[v0-sdk]==2.0.0a8`,
+  `"@daytona/sdk": "2.0.0-alpha.8"`); a stable `X.Y.Z` writes
+  `>=X.Y.Z,<X+1` / `^X.Y.Z`;
+- a newer declaration is never downgraded; a pre-release range above the
+  target is pinned to its own floor (a range would also admit the stale
+  `2.0.0-rc.1`);
+- while the target is a pre-release, a range floored on its own stable
+  release (the pre-lockstep `^2.0.0` / `>=2,<3`) installs nothing yet and is
+  replaced.
+
+Its mapping is checked (by upgrade-tool-ci, on the pull request that changed it)
 against the v2 surface and the pinned v0 bundle of the same tree, so a tool
 release is correct for its own SDK release only. A pinned
 pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /

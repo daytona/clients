@@ -260,8 +260,8 @@ for (const [tagged, expected] of [[false, 1], [true, 0]]) {
   });
 }
 
-for (const [name, version, valid] of [['@daytona/sdk', '2.0.0-alpha.8', true], ['@daytona/upgrade', '2.0.0-alpha.8', false]]) {
-  test(`publishes the SDK tarball only when it is the SDK at this version (${name})`, (context) => {
+for (const [name, version, valid] of [['@daytona/sdk', '2.0.0-alpha.8', true], ['@daytona/upgrade', '2.0.0-alpha.8', false], ['@daytona/sdk', '2.0.0-alpha.7', false]]) {
+  test(`publishes the SDK tarball only when it is the SDK at this version (${name}@${version})`, (context) => {
     // Given: a tarball whose package identity may not match the run.
     const root = fixture(context);
     mkdirSync(join(root, 'pack/package'), { recursive: true });
@@ -284,8 +284,9 @@ for (const [name, version, valid] of [['@daytona/sdk', '2.0.0-alpha.8', true], [
 }
 
 for (const [files, valid] of [[['daytona-2.0.0a8-py3-none-any.whl', 'daytona-2.0.0a8.tar.gz'], true],
-  [['daytona-2.0.0a8-py3-none-any.whl', 'daytona-2.0.0a8.tar.gz', 'daytona_upgrade-2.0.0a8-py3-none-any.whl'], false]]) {
-  test(`checks the SDK's PyPI distributions (${files.length} files)`, (context) => {
+  [['daytona-2.0.0a8-py3-none-any.whl', 'daytona-2.0.0a8.tar.gz', 'daytona_upgrade-2.0.0a8-py3-none-any.whl'], false],
+  [['daytona-2.0.0a7-py3-none-any.whl', 'daytona-2.0.0a7.tar.gz'], false]]) {
+  test(`checks the SDK's PyPI distributions (${files.join(', ')})`, (context) => {
     // Given
     const root = fixture(context);
     mkdirSync(join(root, 'pypi-dist'));

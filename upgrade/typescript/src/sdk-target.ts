@@ -46,8 +46,11 @@ export function targetRange(toolVersion: string, fallback: string): string {
  */
 export function pinnedFloor(range: string, target: string): string | undefined {
   // An exclusive bound (`>2.0.0-alpha.8`) names no release to pin.
-  if (validRange(range) === null || validRange(target) === null || exact(range) || /(?<![<>])>(?!=)/.test(range)) return undefined;
+  if (validRange(range) === null || validRange(target) === null || exact(range)) return undefined;
   const floor = minVersion(range);
+  // An exclusive bound on the floor's alternative names no release to pin.
+  const own = range.split('||').find(alternative => minVersion(alternative)?.version === floor?.version) ?? range;
+  if (/(?<![<>])>(?!=)/.test(own)) return undefined;
   const wanted = minVersion(target);
   if (floor === null || wanted === null || !wanted.prerelease.length || !floor.prerelease.length || staleForTarget(floor, wanted)) return undefined;
   return floor.major === wanted.major && gte(floor, wanted) ? floor.version : undefined;
@@ -65,17 +68,17 @@ function staleForTarget(floor: SemVer, wanted: SemVer): boolean {
   return wanted.prerelease[0] === 'alpha' && floor.version === '2.0.0-rc.1';
 }
 
-/**
- * A `@daytona/sdk` range already at or above the target in the target's major
- * (`2.0.0-alpha.9` for a `2.0.0-alpha.8` tool, `^2.5.0` for `^2.3.1`): left as
- * it is, so an older tool release never downgrades a project.
- */
 /** A range that admits exactly one version: `2.0.0`, `=2.0.0`, `v2.0.0`. */
 function exact(range: string): boolean {
   const normalized = validRange(range);
   return normalized !== null && normalized === minVersion(range)?.version;
 }
 
+/**
+ * A `@daytona/sdk` range already at or above the target in the target's major
+ * (`2.0.0-alpha.9` for a `2.0.0-alpha.8` tool, `^2.5.0` for `^2.3.1`): left as
+ * it is, so an older tool release never downgrades a project.
+ */
 export function atOrAboveTarget(range: string, target: string): boolean {
   if (validRange(range) === null || validRange(target) === null) return false;
   // A union is at or above the target only when every alternative is (a later
