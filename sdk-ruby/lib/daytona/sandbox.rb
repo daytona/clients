@@ -731,18 +731,12 @@ module Daytona
     #
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
     # @return [void]
-    def start(timeout = DEFAULT_TIMEOUT) # rubocop:disable Metrics/MethodLength
+    def start(timeout = DEFAULT_TIMEOUT)
       with_timeout(
         timeout:,
         message: "Sandbox #{id} failed to become ready within the #{timeout} seconds timeout period",
         setup: proc { process_response(sandbox_api.start_sandbox(id)) }
-      ) do |deadline|
-        wait_for_state(
-          target_states: [DaytonaApiClient::SandboxState::STARTED],
-          error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
-          deadline:
-        )
-      end
+      ) { |deadline| wait_for_start(deadline) }
     end
 
     # Recovers the Sandbox from a recoverable error and waits for it to be ready.
@@ -759,13 +753,7 @@ module Daytona
         timeout:,
         message: "Sandbox #{id} failed to recover within the #{timeout} seconds timeout period",
         setup: proc { process_response(sandbox_api.recover_sandbox(id)) }
-      ) do |deadline|
-        wait_for_state(
-          target_states: [DaytonaApiClient::SandboxState::STARTED],
-          error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
-          deadline:
-        )
-      end
+      ) { |deadline| wait_for_start(deadline) }
     rescue *Sdk::API_ERROR_CLASSES => e
       raise Sdk.wrap_error(e, 'Failed to recover sandbox')
     end
@@ -775,7 +763,7 @@ module Daytona
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
     # @param force [Boolean] If true, uses SIGKILL instead of SIGTERM (defaults to false).
     # @return [void]
-    def stop(timeout = DEFAULT_TIMEOUT, force: false) # rubocop:disable Metrics/MethodLength
+    def stop(timeout = DEFAULT_TIMEOUT, force: false)
       with_timeout(
         timeout:,
         message: "Sandbox #{id} failed to become stopped within the #{timeout} seconds timeout period",
@@ -783,13 +771,7 @@ module Daytona
           sandbox_api.stop_sandbox(id, { force: force })
           refresh
         }
-      ) do |deadline|
-        wait_for_state(
-          target_states: [DaytonaApiClient::SandboxState::STOPPED, DaytonaApiClient::SandboxState::DESTROYED],
-          error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
-          deadline:
-        )
-      end
+      ) { |deadline| wait_for_stop(deadline) }
     end
 
     # Resizes the Sandbox resources.
@@ -883,18 +865,12 @@ module Daytona
     #
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
     # @return [void]
-    def wait_for_sandbox_stop(timeout = DEFAULT_TIMEOUT) # rubocop:disable Metrics/MethodLength
+    def wait_for_sandbox_stop(timeout = DEFAULT_TIMEOUT)
       with_timeout(
         timeout:,
         message: "Sandbox #{id} failed to stop within the #{timeout} seconds timeout period",
         setup: nil
-      ) do |deadline|
-        wait_for_state(
-          target_states: [DaytonaApiClient::SandboxState::STOPPED, DaytonaApiClient::SandboxState::DESTROYED],
-          error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
-          deadline:
-        )
-      end
+      ) { |deadline| wait_for_stop(deadline) }
     end
 
     # Forks the Sandbox, creating a new Sandbox with an identical filesystem.
@@ -1231,21 +1207,28 @@ module Daytona
     # @yieldparam deadline [WaitDeadline, nil] When the block must give up; nil when there is no timeout
     # @return [void]
     # @raise [Daytona::Sdk::Error]
-    def with_timeout(message:, setup:, timeout: DEFAULT_TIMEOUT) # rubocop:disable Metrics/MethodLength
-      start_at = Time.now
-      setup&.call
-
-      effective = if setup
-                    remaining = timeout - (Time.now - start_at)
-                    raise Sdk::TimeoutError, message if timeout.positive? && remaining <= 0
-
-                    [NO_TIMEOUT, remaining].max
-                  else
-                    timeout
-                  end
+    def with_timeout(message:, setup:, timeout: DEFAULT_TIMEOUT)
+      effective = setup ? timeout_left_after(setup, timeout:, message:) : timeout
 
       deadline = WaitDeadline.after(effective, message) if effective.positive?
       Timeout.timeout(effective, Sdk::TimeoutError, message) { yield deadline }
+    end
+
+    # Runs +setup+ and returns what is left of +timeout+ after it.
+    #
+    # @param setup [#call]
+    # @param timeout [Numeric] Sandbox::NO_TIMEOUT stays as is
+    # @param message [String] Message of the Sdk::TimeoutError raised when setup used up the whole timeout
+    # @return [Numeric]
+    # @raise [Daytona::Sdk::TimeoutError]
+    def timeout_left_after(setup, timeout:, message:)
+      start_at = Time.now
+      setup.call
+
+      remaining = timeout - (Time.now - start_at)
+      raise Sdk::TimeoutError, message if timeout.positive? && remaining <= 0
+
+      [NO_TIMEOUT, remaining].max
     end
 
     # Waits for the Sandbox to reach one of the target states via WebSocket events
@@ -1258,7 +1241,7 @@ module Daytona
     #   without a limit.
     # @return [void]
     # @raise [Daytona::Sdk::Error]
-    def wait_for_state(target_states:, error_states:, safe_refresh: false, deadline: nil) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/AbcSize
+    def wait_for_state(target_states:, error_states:, safe_refresh: false, deadline: nil) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
       ensure_subscribed
       subscribed = !@sub_id.nil?
 
@@ -1457,6 +1440,14 @@ module Daytona
       def expired? = remaining <= 0
     end
     private_constant :WaitDeadline
+
+    def wait_for_stop(deadline)
+      wait_for_state(
+        target_states: [DaytonaApiClient::SandboxState::STOPPED, DaytonaApiClient::SandboxState::DESTROYED],
+        error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
+        deadline:
+      )
+    end
 
     def wait_for_resize(deadline)
       error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
