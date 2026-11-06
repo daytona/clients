@@ -15,7 +15,7 @@ import pytest
 
 from daytona_upgrade import cli
 from daytona_upgrade.cli import main
-from daytona_upgrade.dependency_versions import at_or_above_target
+from daytona_upgrade.dependency_versions import at_or_above_target, target_constraint
 from daytona_upgrade.manifests import next_step
 from daytona_upgrade.models import load_mapping
 from daytona_upgrade.sdk_target import companion_command, target_specifier
@@ -1037,3 +1037,11 @@ def test_a_poetry_union_is_at_the_target_only_when_every_alternative_is() -> Non
     # Given / When / Then: one alternative below the target is enough to move it.
     assert not at_or_above_target(">2.0.0,<2.0.1 || >=3", ">=2.0.1,<3")
     assert at_or_above_target(">=2.0.1 || >=3", ">=2.0.1,<3")
+
+
+def test_a_union_whose_floor_no_alternative_admits_is_kept() -> None:
+    # Given / When / Then: >=2.0.0a9,!=2.0.0a9 || >=3 admits no 2.0.0a9.
+    constraint = ">=2.0.0a9,!=2.0.0a9 || >=3"
+    assert (
+        target_constraint("daytona", constraint, "daytona", "==2.0.0a8") == constraint
+    )

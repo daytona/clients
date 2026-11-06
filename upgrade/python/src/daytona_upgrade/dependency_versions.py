@@ -60,7 +60,11 @@ def lower_bound(constraint: str) -> Version | None:
 
 
 def _admits(constraint: str, version: Version) -> bool:
-    """Whether a PEP 440 constraint admits a version (Poetry syntax: assumed)."""
+    """Whether a constraint admits a version: a Poetry ``||`` union when any
+    alternative does (other Poetry syntax: assumed)."""
+    alternatives = constraint.split("||")
+    if len(alternatives) > 1:
+        return any(_admits(alternative, version) for alternative in alternatives)
     try:
         return SpecifierSet(constraint.strip()).contains(version, prereleases=True)
     except InvalidSpecifier:
