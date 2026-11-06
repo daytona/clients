@@ -76,7 +76,7 @@ jobs:
             "https://github.com/${GITHUB_REPOSITORY}.git" .v0-src
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
-            -czf "$RUNNER_TEMP/sdk-src.tgz" sdk-python sdk-typescript contract cli scripts upgrade .v0-src
+            -czf "$RUNNER_TEMP/sdk-src.tgz" sdk-python sdk-typescript contract cli scripts .v0-src
           mkdir "$RUNNER_TEMP/unpacked" && cd "$RUNNER_TEMP/unpacked"
           tar -xzf "$RUNNER_TEMP/sdk-src.tgz"
           test ! -e .v0-src/.git

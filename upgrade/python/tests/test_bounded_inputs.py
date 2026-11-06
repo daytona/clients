@@ -36,9 +36,7 @@ def run_cli(root: Path) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         check=False,
-        # A hang guard; the release build raises it (DAYTONA_UPGRADE_SKIP_WALL_CLOCK),
-        # like the npm tool's testTimeout(), so a slow runner blocks no release.
-        timeout=300 if os.environ.get("DAYTONA_UPGRADE_SKIP_WALL_CLOCK") == "1" else 8,
+        timeout=8,
     )
 
 

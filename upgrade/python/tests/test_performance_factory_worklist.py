@@ -16,7 +16,6 @@ from daytona_upgrade.cli import main
 from daytona_upgrade.flow import Flow
 
 
-@pytest.mark.wall_clock
 def test_requires_review_quickly_when_factory_chain_opposes_module_order(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

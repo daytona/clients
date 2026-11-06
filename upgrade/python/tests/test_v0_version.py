@@ -703,7 +703,6 @@ def test_keeps_the_version_warning_on_an_exit_1_report(
     ]
 
 
-@pytest.mark.wall_clock
 def test_reads_a_large_uv_lock_once(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

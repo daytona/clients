@@ -8,7 +8,6 @@ import { ts } from 'ts-morph';
 import { expect, it } from 'vitest';
 import type { Report } from '../src/model.js';
 import { invoke, temporaryProject } from './helpers.js';
-import { expectWithinBudget, testTimeout } from './budget.js';
 
 const sizes = process.env['DAYTONA_UPGRADE_BENCHMARK'] === '1' ? [1, 3] : [1];
 
@@ -38,5 +37,5 @@ main();`, { compilerOptions: { target: ts.ScriptTarget.ES5, module: ts.ModuleKin
   expect(report.changedFiles).toHaveLength(count + 1);
   expect(report.items.filter(item => item.kind === 'fixme').map(item => item.file).sort()).toEqual(
     Array.from({ length: count }, (_, index) => [`main${index}.js`, `main${index}.js`]).flat());
-  expectWithinBudget(elapsed, 10_000);
-}, testTimeout(20_000));
+  expect(elapsed).toBeLessThan(10_000);
+}, 20_000);

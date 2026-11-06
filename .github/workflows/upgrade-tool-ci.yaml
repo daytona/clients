@@ -13,7 +13,6 @@ on:
       - 'sdk-typescript/**'
       - '.github/workflows/upgrade-tool-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
-      - '.github/workflows/v0-pin-bump.yaml'
       - 'scripts/test-upgrade.sh'
   pull_request:
     paths:
@@ -24,7 +23,6 @@ on:
       - 'sdk-typescript/**'
       - '.github/workflows/upgrade-tool-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
-      - '.github/workflows/v0-pin-bump.yaml'
       - 'scripts/test-upgrade.sh'
 
 permissions:
@@ -136,54 +134,6 @@ jobs:
           set -euo pipefail
           npm ci --no-audit --no-fund
           npm test -- --shard="$SHARD/3"
-
-  # The release build (sdk_publish.yaml build-upgrade) runs both suites from
-  # the publish snapshot: no .git above the tree, budget assertions skipped
-  # and timeouts raised (DAYTONA_UPGRADE_SKIP_WALL_CLOCK=1, the Python
-  # `wall_clock` marker deselected). Run them the same way here, so a test
-  # that only fails in that mode fails on its PR.
-  release-mode:
-    name: daytona-upgrade tests as the release build runs them (shard ${{ matrix.shard }}/3)
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '22'
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: '3.12'
-      - name: Snapshot like the publish gate (no .git)
-        run: |
-          set -euo pipefail
-          tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' --exclude='.git' \
-            -czf "$RUNNER_TEMP/src.tgz" upgrade scripts
-          mkdir "$RUNNER_TEMP/snapshot" && tar -xzf "$RUNNER_TEMP/src.tgz" -C "$RUNNER_TEMP/snapshot"
-      - name: npm tool suite, release mode
-        working-directory: ${{ runner.temp }}/snapshot/upgrade/typescript
-        env:
-          SHARD: ${{ matrix.shard }}
-          DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'
-        run: |
-          set -euo pipefail
-          npm ci --no-audit --no-fund
-          npm test -- --shard="$SHARD/3"
-      - name: PyPI tool suite, release mode
-        if: matrix.shard == 1
-        working-directory: ${{ runner.temp }}/snapshot/upgrade/python
-        env:
-          DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'
-        run: |
-          set -euo pipefail
-          python -m pip install --upgrade uv
-          uv sync --locked
-          uv run pytest -q -n auto -m "not wall_clock"
 
   python:
     name: PyPI daytona-upgrade (Python ${{ matrix.python }})

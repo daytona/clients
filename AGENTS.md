@@ -417,11 +417,9 @@ skipping exist only in the TypeScript tool).
   release (`sdk-target.ts` / `sdk_target.py`: a pre-release pins it, a stable
   `X.Y.Z` writes `^X.Y.Z` / `>=X.Y.Z,<X+1`; the placeholder `0.0.0` keeps the
   mapping's `range` / `specifier`). The SDKs' moved-member guidance names the
-  tool release of their own version. In a publish run, `build-upgrade` tests
-  and packs both tools (without the wall-clock budget assertions: TypeScript
-  `expectWithinBudget` in `upgrade/typescript/tests/budget.ts`, Python
-  `@pytest.mark.wall_clock`; assert new time budgets through them) and `upgrade-e2e` runs the packed
-  tools through `check-examples.sh` against that run's SDKs.
+  tool release of their own version. A publish run only builds and packs
+  the tool (`build-upgrade`); each tool package uploads once its SDK version
+  is visible on that registry.
 - **The project's 0.x version** (`v0-version.ts` / `v0_version.py`): read from
   the closest lockfile, else the manifest's lower bound, and compared with the
   mapping's `v0Version` (the pin; `check-v0-surface.mjs` keeps them equal and
@@ -429,8 +427,8 @@ skipping exist only in the TypeScript tool).
   (`warnings` in the report, never a manual item), a newer minor refuses
   (`newer-v0`, exit 2) unless `--allow-newer-v0`. Messages are identical in
   both tools (`upgrade/mapping/v0-version-messages.json` holds shared
-  expectations both suites assert). `v0-pin-bump.yaml` opens the pin bump PR for each new 0.x
-  release.
+  expectations both suites assert). A pin bump is a manual PR
+  (docs/RELEASING.md, "The v0 pin").
 - **Verify:** `scripts/test-upgrade.sh`, and for the pinned 0.x examples end to
   end `bash upgrade/scripts/check-examples.sh --src <0.x checkout> --py-wheel
   <built 2.x wheel> --ts-tarball <packed 2.x tarball>`

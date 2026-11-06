@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { version } from '../src/run.js';
 import { UpgradeError } from '../src/model.js';
-import { testTimeout } from './budget.js';
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 const installed = mkdtempSync(join(tmpdir(), 'daytona-upgrade-pack-'));
@@ -28,7 +27,7 @@ beforeAll(() => {
   copyFileSync(join(packageRoot, 'package-lock.json'), join(installed, 'package-lock.json'));
   const result = spawnSync('npm', ['install', '--offline', '--ignore-scripts', '--omit=dev', '--no-audit', '--no-fund', join(installed, `daytona-upgrade-${version()}.tgz`)], { cwd: installed, encoding: 'utf8', shell });
   expect(result.status, result.stderr + result.stdout).toBe(0);
-}, testTimeout(30_000));
+}, 30_000);
 
 it.each(['bin', 'npx'] as const)('prints the installed version when launched through %s', launcher => {
   // Given

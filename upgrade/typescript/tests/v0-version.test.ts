@@ -8,7 +8,6 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { here, installFakeSdk, invoke, temporaryProject } from './helpers.js';
 import { loadMapping } from '../src/mapping.js';
-import { expectWithinBudget, testTimeout } from './budget.js';
 import { allowedNewerMessage, newerPatchMessage, newerRefusal, olderMessage, unknownMessage } from '../src/v0-version.js';
 
 const pinned = loadMapping().v0Version;
@@ -343,9 +342,9 @@ it('reads only the head of a large pnpm lockfile', async () => {
   // When
   const result = await invoke(root, ['--json', '--dry']);
   // Then
-  expectWithinBudget(performance.now() - started, 15_000);
+  expect(performance.now() - started).toBeLessThan(15_000);
   expect((JSON.parse(result.output) as Report).warnings).toEqual([{ file: 'pnpm-lock.yaml', message: olderMessage('0.100.0', pinned) }]);
-}, testTimeout(60_000));
+}, 60_000);
 
 it('refuses a partial root with no Daytona code as no-daytona, not by version', async () => {
   // Given: the root declares a newer minor; sub/ has no Daytona code.

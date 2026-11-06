@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from time import perf_counter
 
-import pytest
-
 from daytona_upgrade.flow import build_index
 from daytona_upgrade.models import load_mapping
 from daytona_upgrade.prefix_proofs import PrefixProofs
@@ -54,7 +52,6 @@ def test_rechecks_alias_when_only_its_dependency_changes() -> None:
     assert prefixes["Alias"] == "annotation:unproven:client"
 
 
-@pytest.mark.wall_clock
 def test_unrelated_mock_file_is_fast_when_repeated_expressions_share_prefixes() -> None:
     # Given a 1,855-line unlinked mock module whose literal aliases enter prefix joins.
     lines = ["from unittest.mock import patch"]

@@ -9,7 +9,6 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
 
 const workflow = readFileSync(new URL('../../.github/workflows/sdk_publish.yaml', import.meta.url), 'utf8');
 const testUpgrade = readFileSync(new URL('../../scripts/test-upgrade.sh', import.meta.url), 'utf8');
@@ -97,7 +96,7 @@ for (const version of ['1.2.3', '1.2.4']) {
     assert.equal(packed.status, 0, packed.stderr);
     executable(join(root, 'bin/npm'), 'if [ "$1" = pack ]; then cp "$SOURCE_TARBALL" "$RUNNER_TEMP/upgrade-npm/artifact.tgz"; fi');
     // When: executing the publish job's actual packaging and artifact checks.
-    const result = spawnSync('bash', ['-c', step('Build, test and pack the npm migration tool')], {
+    const result = spawnSync('bash', ['-c', step('Build and pack the npm migration tool')], {
       cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
         SOURCE_TARBALL: join(root, 'artifact.tgz'), RUNNER_TEMP: root, NPM_VERSION: '1.2.3' },
     });
@@ -105,19 +104,6 @@ for (const version of ['1.2.3', '1.2.4']) {
     assert.equal(result.status, version === '1.2.3' ? 0 : 1, result.stderr);
   });
 }
-
-test('blocks packaging when the v2 surface gate fails in the mapping step', (context) => {
-  // Given: a stale mapping for which the surface command fails.
-  const root = fixture(context);
-  executable(join(root, 'bin/node'), 'case "$1" in */check-v2-surface.mjs) exit 23 ;; esac');
-  executable(join(root, 'bin/npm'), 'exit 0');
-  // When: running the build job's pre-packaging mapping checks.
-  const result = spawnSync('bash', ['-c', step('Mapping copies, guide and surfaces are current')], {
-    cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}` },
-  });
-  // Then: the failed surface gate propagates, rather than allowing packaging.
-  assert.equal(result.status, 23, result.stderr);
-});
 
 for (const state of ['installed', 'incomplete', 'absent']) {
   test(`preserves SDK dependencies when node_modules is ${state}`, (context) => {
@@ -175,42 +161,31 @@ for (const [title, inputs, codes, expected] of [
   });
 }
 
-test('tests both tools before stamping the release version', () => {
-  // Given: the build steps of the release run.
-  const npmStep = step('Build, test and pack the npm migration tool');
-  const pythonStep = step('Test, then build the PyPI migration tool');
-  // Then: a stamped version changes the SDK release the tool writes, so the
-  // suites (which expect the development range) run on the unstamped tree.
-  assert.ok(npmStep.indexOf('npm test') >= 0 && npmStep.indexOf('npm test') < npmStep.indexOf('npm version'), npmStep);
-  assert.ok(pythonStep.indexOf('uv run pytest') >= 0 && pythonStep.indexOf('uv run pytest') < pythonStep.indexOf('PYPI_VERSION"]'), pythonStep);
-});
+for (const [code, published] of [['200', true], ['404', false]]) {
+  test(`waits for the SDK on its registry before the migration tool publishes (HTTP ${code})`, (context) => {
+    // Given: a registry that answers the SDK version's URL with a fixed status.
+    const root = fixture(context);
+    executable(join(root, 'bin/curl'), `printf ${code}`);
+    executable(join(root, 'bin/sleep'), 'exit 0');
+    executable(join(root, 'bin/date'), 'if [ "$1" = +%s ]; then echo $(( $(cat "$CLOCK") )); echo $(( $(cat "$CLOCK") + 100 )) > "$CLOCK"; else echo 1; fi');
+    writeFileSync(join(root, 'clock'), '0');
+    // When
+    const result = spawnSync('bash', ['-c', step('Wait until @daytona/sdk ${{ needs.gate.outputs.upgrade_npm }} is on npm')], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+        URL: 'https://registry.npmjs.org/@daytona%2fsdk/2.0.0-alpha.8', CLOCK: join(root, 'clock') },
+    });
+    // Then: a visible SDK lets the tool publish; an invisible one fails after the deadline.
+    assert.equal(result.status, published ? 0 : 1, result.stdout + result.stderr);
+  });
+}
 
-test('the release build gets the raised test timeout', () => {
-  // Given: the npm script the release step runs, and the vitest config.
-  const manifest = JSON.parse(readFileSync(new URL('../typescript/package.json', import.meta.url), 'utf8'));
-  const config = readFileSync(new URL('../typescript/vitest.config.ts', import.meta.url), 'utf8');
-  // Then: no command-line timeout overrides the config's release value, and
-  // the release step sets the switch that raises it.
-  assert.doesNotMatch(manifest.scripts.test, /--(test|hook)Timeout/);
-  assert.match(config, /testTimeout: release \? 300_000/);
-  assert.match(step('Build, test and pack the npm migration tool'), /npm test/);
-  assert.match(workflow, /DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'/);
-});
-
-test('the pin bump writes a changelog fragment the changelog check accepts', (context) => {
-  // Given: the fragment path the pin bump workflow builds for a release tag.
-  const bump = readFileSync(new URL('../../.github/workflows/v0-pin-bump.yaml', import.meta.url), 'utf8');
-  const templates = [...bump.matchAll(/"(changelog\.d\/v0-pin-\$\{TAG[^"]*\.changed\.md)"/g)].map((match) => match[1]);
-  assert.equal(templates.length, 2, 'prepare and open-pr build the fragment path');
-  assert.equal(templates[0], templates[1]);
-  const root = fixture(context);
-  const built = spawnSync('bash', ['-c', `TAG=v0.231.0; printf %s "${templates[0]}"`], { encoding: 'utf8' }).stdout;
-  mkdirSync(join(root, 'changelog.d'));
-  writeFileSync(join(root, built), '**Fragment** — text.\n');
-  // When
-  const result = spawnSync('python3', [fileURLToPath(new URL('../../scripts/changelog/assemble.py', import.meta.url)), 'check', '--dir', join(root, 'changelog.d')], { encoding: 'utf8' });
+test('publishes the migration tool only after the SDK it pins, and before the CLI', () => {
+  // Given: the publish job's step order.
+  const at = (name) => workflow.indexOf(`      - name: ${name}`);
   // Then
-  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.ok(at('Publish @daytona/sdk') < at('Wait until daytona') && at('Wait until daytona') < at('Publish daytona-upgrade'));
+  assert.ok(at('Wait until @daytona/sdk') < at('Publish the migration tool to npm (OIDC)'));
+  assert.ok(at('Publish the migration tool to npm (OIDC)') < at('Download the CLI release assets'));
 });
 
 for (const [name, version, published] of [['@daytona/upgrade', '2.0.0-alpha.8', true], ['@daytona/sdk', '2.0.0-alpha.8', false], ['@daytona/upgrade', '2.0.0-alpha.7', false]]) {

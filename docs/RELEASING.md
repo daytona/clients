@@ -38,7 +38,7 @@ See also: [VERSIONING.md](VERSIONING.md) · [CHANGELOG.md](../CHANGELOG.md) ·
 
 | Line | Branch | Workflows |
 |---|---|---|
-| 2.x (this SDK) | `main` | `prepare-release.yaml`, `sdk_publish.yaml` (SDKs, CLI and the migration tool), `v0-pin-bump.yaml` |
+| 2.x (this SDK) | `main` | `prepare-release.yaml`, `sdk_publish.yaml` (SDKs, CLI and the migration tool) |
 | 0.x | `release/v0` | that branch's own `prepare-release.yaml`, `release.yaml`, `sdk_publish.yaml` |
 
 Each line keeps its own copy of the workflows under the **same file names**:
@@ -185,47 +185,35 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
 
 - The tool never publishes without its SDK: with `publish_npm` or
   `publish_pypi` off (a resume), the registry check requires that SDK version
-  to be published already, and in the publish job the tool follows both SDKs.
-- Before the approval, `upgrade-e2e` runs the packed tools on the pinned 0.x
-  examples and type-checks the result against this run's SDK artifacts (or the
-  published SDKs, on a resume).
+  to be published already, and in the publish job each tool package waits
+  until its SDK version is visible on that registry before it uploads, as the
+  0.x line's SDKs wait for their client packages.
+- The publish run only builds the tool; `upgrade-tool-ci.yaml` tests it on
+  every pull request.
 - It refuses to publish beside a `v0_tag` override, from a tree without the v0
   namespace, and while the mapping's `docs.placeholder` is true.
 - Like the SDKs, a tool pre-release may publish any `source_ref` (a stable
   version only a commit on `main`), behind the same `release` approval; the
   former standalone tool workflow published only commits on `main`.
-- **Rollout:** the registries still carry the pre-lockstep `0.1.0` as the
-  tool's npm `latest` (and PyPI's only stable release); deprecate it on npm
-  once the first lockstep alpha is out, drop the "Publishing both packages is
-  pending" line from `upgrade/scripts/gen-guide.mjs`, and keep the quickstarts
-  on `@alpha` / `daytona-upgrade>=2.0.0a0` until 2.x is stable.
+- Until SDK 2.0.0 is out, the tool's `latest` is the pre-lockstep `0.1.0`:
+  tell users to run the exact alpha (`npx @daytona/upgrade@2.0.0-alpha.N`,
+  `uvx daytona-upgrade@2.0.0aN`), as the SDKs' guidance and the READMEs do.
 - A tool fix ships with the next SDK release. Untick `publish_upgrade` to
   leave the tool out of a run; the SDKs still name the tool release of their
   version (the gate warns and the run summary says so), so publish it later at
   that version from the same commit: `-f publish_pypi=false -f
   publish_npm=false -f publish_cli=false -f source_ref=<that commit>` (the
   registry check requires both SDKs to be published already).
-- The release run skips the tool's wall-clock budget assertions (TypeScript:
-  `DAYTONA_UPGRADE_SKIP_WALL_CLOCK`, which `upgrade/typescript/tests/budget.ts`
-  reads and which also raises test timeouts; Python: the `wall_clock` marker,
-  and the same variable raises its subprocess hang guards),
-  so a slow runner cannot block an SDK release; `upgrade-tool-ci.yaml` asserts
-  them on every change.
-- To build and test the tool without publishing it, dispatch the run and
-  reject the `release` approval: every build and check, `upgrade-e2e`
-  included, has run by then.
 
 ### The v0 pin
 
-The tool also refuses projects on a newer 0.x minor than the release SDK 2.x
-bundles as `.v0` (`scripts/v0-sdk-version`), so the pin follows the 0.x line:
-[`v0-pin-bump.yaml`](../.github/workflows/v0-pin-bump.yaml) runs daily, and
-when a newer stable `v0.X.Y` tag exists (and no bump PR is open) it opens a PR
-that moves the pin and regenerates the tool's v0 data (one `release` approval,
-for the bot token; the job holding it runs no repository code). Its body
-carries the 0.x surface check: a 0.x method with no mapping row gets one in
-that PR. Merge it before the next 2.x release; to decline a bump, close the PR
-and keep its branch (a deleted branch is reopened on the next run).
+The tool refuses projects on a newer 0.x minor than the release SDK 2.x
+bundles as `.v0` (`scripts/v0-sdk-version`). Bumping the pin is a manual PR:
+write the new tag and the commit it peels to into `scripts/v0-sdk-version`,
+then run `node upgrade/scripts/check-v0-surface.mjs --src <0.x checkout>
+--write-v0-exports` (updates the tool's `v0Version` / `v0Exports` and names
+any 0.x method without a mapping row), `node upgrade/scripts/sync-mapping.mjs`
+and `node upgrade/scripts/gen-guide.mjs`, and add a changelog fragment.
 
 > **Registries reject re-uploading an existing version.** A version is
 > published once. If a publish half-fails, re-run the failed publish job, or

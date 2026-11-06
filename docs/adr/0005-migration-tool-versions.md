@@ -33,9 +33,9 @@ bound:
   added after the `.v0` release are missing from it and get no FIXME;
 - unknown: a warning.
 
-**Keep the pin current.** A scheduled workflow opens a pull request that moves
-the pin to each new 0.x release and regenerates the tool's v0 data, so a newer
-minor stays rare.
+**Bump the pin by hand.** Few new 0.x releases are expected, so moving the pin
+(and regenerating the tool's v0 data) stays a manual pull request when a
+release needs it.
 
 ## Alternatives
 
@@ -57,7 +57,5 @@ FIXME.
 - Users run the tool release that matches the SDK they want
   (`npx @daytona/upgrade@<version>`, `uvx daytona-upgrade@<version>`); the
   unversioned `latest` of the tool only moves with a stable SDK release.
-- A publish run with the tool checks the packed tool end to end against that
-  run's SDK artifacts before any approval.
-- Pin bump pull requests need a maintainer: approve the run and add mapping
-  rows for new 0.x surface.
+- The publish run builds the tool and uploads each package only once its SDK
+  version is visible on that registry; the tool's tests run on pull requests.

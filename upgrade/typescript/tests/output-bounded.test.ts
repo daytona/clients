@@ -8,7 +8,6 @@ import { performance } from 'node:perf_hooks';
 import { expect, it, vi } from 'vitest';
 import { diff } from '../src/output.js';
 import { contents, temporaryProject } from './helpers.js';
-import { expectWithinBudget } from './budget.js';
 
 it('keeps a precise bounded diff when both ends of 10,000 lines change', () => {
   // Given an unchanged interior that cannot be trimmed from either edge.
@@ -20,7 +19,7 @@ it('keeps a precise bounded diff when both ends of 10,000 lines change', () => {
     // When
     const output = diff([{ file: 'index.ts', before, after }]);
     // Then only changed lines are emitted, without an unbounded matrix.
-    expectWithinBudget(performance.now() - start, 2_000);
+    expect(performance.now() - start).toBeLessThan(2_000);
     expect(allocations.mock.calls.every((args: readonly unknown[]) =>
       typeof args[0] !== 'number' || args[0] <= 4_000_000)).toBe(true);
     expect(output.length).toBeLessThan(5_000);

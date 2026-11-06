@@ -10,7 +10,6 @@ import { Project, SyntaxKind } from 'ts-morph';
 import { Receivers } from '../src/receivers.js';
 import { loadMapping } from '../src/mapping.js';
 import { contents, here, installFakeSdk, invoke, temporaryProject } from './helpers.js';
-import { testTimeout } from './budget.js';
 
 const examplesRoot = process.env['DAYTONA_UPGRADE_V0_EXAMPLES'];
 const examples = join(examplesRoot ?? '', 'typescript');
@@ -36,7 +35,7 @@ it.skipIf(!examplesRoot)('upgrades pinned examples without exceptions or remaini
       if (mapping.movedClientMembers.ts.includes(access.getName())) expect(receivers.client(access.getExpression(), access.getName())).toBe(false);
     }
   }
-}, testTimeout(120_000));
+}, 120_000);
 it.skipIf(!examplesRoot)('leaves examples unchanged when run on upgraded output', async () => {
   // Given
   const root = temporaryProject();
@@ -48,4 +47,4 @@ it.skipIf(!examplesRoot)('leaves examples unchanged when run on upgraded output'
   // Then
   expect(result.errors).toBe('');
   expect(contents(root)).toEqual(before);
-}, testTimeout(120_000));
+}, 120_000);
