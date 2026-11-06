@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -34,7 +34,7 @@ class CompleteBuildContextUploadRequest(BaseModel):
     """
     CompleteBuildContextUploadRequest
     """ # noqa: E501
-    region_id: Optional[StrictStr] = Field(default=None, description="The region the upload was created in. Optional; when set, it must match.")
+    region_id: StrictStr = Field(description="The region the upload was created in, as `POST /build-contexts` returned it. Required: a multi-region deployment routes the request to that region's servers by it.")
     __properties: ClassVar[List[str]] = ["region_id"]
 
     model_config = ConfigDict(
@@ -78,11 +78,6 @@ class CompleteBuildContextUploadRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # set to None if region_id (nullable) is None
-        # and model_fields_set contains the field
-        if self.region_id is None and "region_id" in self.model_fields_set:
-            _dict['region_id'] = None
-
         return _dict
 
     @classmethod
@@ -95,7 +90,7 @@ class CompleteBuildContextUploadRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            **({"region_id": obj["region_id"]} if "region_id" in obj else {})
+            "region_id": obj.get("region_id")
         })
         return _obj
 
