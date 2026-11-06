@@ -1309,7 +1309,8 @@ jobs:
             row "Migration tool \`@daytona/upgrade\` (npm)" "$UPGRADE_NPM" "$(status "$UPGRADE_NPM" "$UPGRADE_BUILD" "$UPGRADE_NPM_PUBLISH")" \
                 "${UPGRADE_NPM:+\`npx @daytona/upgrade@${UPGRADE_NPM}\`}" \
                 "${UPGRADE_NPM:+https://www.npmjs.com/package/@daytona/upgrade/v/${UPGRADE_NPM}}"
-            if [ "$PUBLISH_UPGRADE" != true ] && [ -n "$PYPI_VERSION$NPM_VERSION" ] && [ "$PUBLISH_RESULT" = success ]; then
+            if [ "$PUBLISH_UPGRADE" != true ] && [ -n "$PYPI_VERSION$NPM_VERSION" ] \
+              && { [ -z "$PYPI_VERSION" ] || [ "$PY_PUBLISH" = success ]; } && { [ -z "$NPM_VERSION" ] || [ "$NPM_PUBLISH" = success ]; }; then
               echo
               echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${VERSION}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\` (once both SDKs are published)."
             fi

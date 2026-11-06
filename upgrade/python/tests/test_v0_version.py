@@ -15,6 +15,7 @@ import pytest
 
 from daytona_upgrade import cli
 from daytona_upgrade.cli import main
+from daytona_upgrade.dependency_versions import at_or_above_target
 from daytona_upgrade.manifests import next_step
 from daytona_upgrade.models import load_mapping
 from daytona_upgrade.sdk_target import companion_command, target_specifier
@@ -998,7 +999,7 @@ def test_the_1x_shim_release_counts_as_unknown(
     _project(
         tmp_path,
         {
-            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona"]\n',
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona>=0.100"]\n',
             "uv.lock": '[[package]]\nname = "daytona"\nversion = "1.0.1"\n',
         },
     )
@@ -1008,3 +1009,29 @@ def test_the_1x_shim_release_counts_as_unknown(
     assert report["warnings"] == [
         {"file": "pyproject.toml", "message": unknown_message(PINNED)}
     ]
+
+
+@pytest.mark.parametrize(
+    ("requirement", "expected"),
+    [
+        # A floor the range excludes: the range is kept, never lowered to the target.
+        ("daytona[v0-sdk]>=2.0.0a9,!=2.0.0a9", "daytona[v0-sdk]>=2.0.0a9,!=2.0.0a9"),
+    ],
+)
+def test_never_falls_back_below_a_newer_range(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    requirement: str,
+    expected: str,
+) -> None:
+    # Given / When
+    written, _ = _migrate(tmp_path, capsys, monkeypatch, requirement, "2.0.0a8")
+    # Then
+    assert written == expected
+
+
+def test_a_poetry_union_is_at_the_target_only_when_every_alternative_is() -> None:
+    # Given / When / Then: one alternative below the target is enough to move it.
+    assert not at_or_above_target(">2.0.0,<2.0.1 || >=3", ">=2.0.1,<3")
+    assert at_or_above_target(">=2.0.1 || >=3", ">=2.0.1,<3")

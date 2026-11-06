@@ -348,9 +348,9 @@ def ancestor_guidance(owner: Path, mapping: Mapping) -> str:
         if specifier and above_target_major(specifier, mapping.specifier):
             return f"{name}{specifier} is newer than this daytona-upgrade release targets ({mapping.specifier}); use the daytona-upgrade release of that SDK version."
     requirement = mapping.requirement
-    for _, name, specifier in ancestor_declarations(owner, mapping):
+    for _, _name, specifier in ancestor_declarations(owner, mapping):
         floor = pinned_floor(specifier, mapping.specifier) if specifier else None
-        if _normalized(name) == _normalized(mapping.package_new) and floor is not None:
+        if floor is not None:
             extras = f"[{','.join(mapping.extras)}]" if mapping.extras else ""
             requirement = f"{mapping.package_new}{extras}{floor}"
     return f"no Daytona dependency was updated; verify an unconditional runtime {requirement} requirement where the project declares it"

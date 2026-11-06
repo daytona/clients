@@ -115,9 +115,11 @@ def pinned_floor(constraint: str, target: str) -> str | None:
         or ">" in constraint.replace(">=", "")  # An exclusive bound names no release.
     ):
         return None
-    if floor.major != wanted.major or floor < wanted or not _admits(constraint, floor):
+    if floor.major != wanted.major or floor < wanted:
         return None
-    return f"=={floor}"
+    # A floor the range excludes (">=2.0.0a9,!=2.0.0a9") names no release to
+    # pin: keep the range rather than fall back to an older target.
+    return f"=={floor}" if _admits(constraint, floor) else constraint
 
 
 def _stale_for_target(floor: Version, wanted: Version) -> bool:
@@ -132,6 +134,15 @@ def at_or_above_target(constraint: str, target: str) -> bool:
     """A constraint already at or above the target in the target's major
     (``==2.0.0a9`` for a ``==2.0.0a8`` tool): left as it is, so an older tool
     release never downgrades a project."""
+    alternatives = constraint.split("||")
+    if len(alternatives) > 1:
+        # A union is at or above the target only when every alternative is (a
+        # later major counts: it is never downgraded either).
+        return all(
+            at_or_above_target(alternative.strip(), target)
+            or above_target_major(alternative.strip(), target)
+            for alternative in alternatives
+        )
     floor, wanted = lower_bound(constraint), lower_bound(target)
     exclusive = _exclusive_bound(constraint)
     if (

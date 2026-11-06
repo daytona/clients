@@ -178,3 +178,13 @@ it.each([
   expect((JSON.parse(result.output) as { readonly items: readonly { readonly kind: string; readonly message: string }[] }).items
     .filter(item => item.kind === 'manual-dependency').map(item => item.message)).toEqual([message]);
 });
+
+it('reports a later-major peer range as a peer dependency', async () => {
+  // Given / When
+  const root = temporaryProject({ 'package.json': JSON.stringify({ peerDependencies: { '@daytonaio/sdk': '3.0.0' }, dependencies: { '@daytonaio/sdk': '0.100.0' } }), 'index.ts': client });
+  const result = await invoke(root, ['--json'], withTarget(loadMapping(), '2.0.0-alpha.8'));
+  // Then: the dedicated peer report, not the later-major one.
+  const items = (JSON.parse(result.output) as { readonly items: readonly { readonly kind: string; readonly message: string }[] }).items;
+  expect(items).toContainEqual(expect.objectContaining({ kind: 'peer-dependency' }));
+  expect(items.some(item => item.message.includes('is newer than this daytona-upgrade release targets'))).toBe(false);
+});

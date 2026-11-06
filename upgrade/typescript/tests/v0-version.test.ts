@@ -416,7 +416,7 @@ it('treats the 1.x shim release as unknown', async () => {
   // Given: package-lock.json resolves a 1.x release.
   const lock = JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytonaio/sdk': { version: '1.0.1' } } });
   // When
-  const { report } = await run({ 'package.json': manifest('*'), 'package-lock.json': lock, 'index.ts': code });
-  // Then
+  const { report } = await run({ 'package.json': manifest('^0.100.0'), 'package-lock.json': lock, 'index.ts': code });
+  // Then: the lockfile's 1.x resolution, not the manifest's 0.x floor.
   expect(report.warnings).toEqual([{ file: 'package.json', message: unknownMessage(pinned) }]);
 });
