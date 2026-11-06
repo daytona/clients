@@ -94,7 +94,10 @@ export class Image {
     if (!pkgs.length) return this
 
     const extraArgs = this.formatPipInstallArgs(options)
-    this._dockerfile += `RUN python -m pip install ${quote(pkgs.sort())}${extraArgs}\n`
+    // pip reads an argument beginning with `-` as an option, and shell quoting does not
+    // change that — the escaping covers shell metacharacters, not a leading dash. `--`
+    // closes the option list, so every package is parsed as a requirement.
+    this._dockerfile += `RUN python -m pip install${extraArgs} -- ${quote(pkgs.sort())}\n`
 
     return this
   }
