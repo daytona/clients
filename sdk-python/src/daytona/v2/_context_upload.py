@@ -276,7 +276,10 @@ async def upload_build_context(
     if created.get("state") == "ready":
         return upload_id, region_id
     parts = _parts(created)
-    if sum(part.bytes for part in parts) != source.size:
+    if (
+        any(part.number != index + 1 or part.bytes <= 0 for index, part in enumerate(parts))
+        or sum(part.bytes for part in parts) != source.size
+    ):
         raise DaytonaError("build context upload parts do not cover the archive", source="SDK")
     with _redact_part_urls.active([part.url for part in parts]):
         async with httpx.AsyncClient(

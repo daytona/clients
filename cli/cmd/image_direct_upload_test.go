@@ -46,6 +46,8 @@ type directUploadPeer struct {
 	// completeStatus answers each complete call in turn; 200 once exhausted.
 	completeStatus []int
 	beforeComplete func(index int)
+	// shapeParts rewrites the parts a declaration is answered with.
+	shapeParts func(parts []any) []any
 
 	mu sync.Mutex
 	// violations are what the handlers saw go wrong. FailNow must not run
@@ -153,6 +155,9 @@ func (p *directUploadPeer) serveAPI(w http.ResponseWriter, r *http.Request) {
 					"bytes":       min(p.partSize, size-offset),
 					"url":         fmt.Sprintf("%s/bucket/key?partNumber=%d&X-Amz-Signature=secret", p.storage.URL, n),
 				})
+			}
+			if p.shapeParts != nil {
+				parts = p.shapeParts(parts)
 			}
 			upload["parts"] = parts
 			w.WriteHeader(http.StatusCreated)
@@ -322,6 +327,27 @@ func TestStageImageContext_stopsWhenCancelled(t *testing.T) {
 	left, err := os.ReadDir(tmp)
 	require.NoError(t, err)
 	require.Empty(t, left)
+}
+
+func TestPostImageDirect_refusesAMalformedPartLayout(t *testing.T) {
+	for name, shape := range map[string]func([]any) []any{
+		"out of order": func(parts []any) []any { return []any{parts[1], parts[0], parts[2]} },
+		"with an empty part": func(parts []any) []any {
+			return append(parts, map[string]any{"part_number": len(parts) + 1, "bytes": 0, "url": "http://127.0.0.1:9/"})
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := newDirectUploadPeer(t, 4)
+			p.shapeParts = shape
+			err := p.post(t, writeContextFile(t, []byte("0123456789")))
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitFailure, cerr.ExitCode(err))
+			require.Contains(t, err.Error(), "build context upload parts do not cover the archive")
+			require.Zero(t, p.puts)
+			require.False(t, p.completed)
+			require.Nil(t, p.build)
+		})
+	}
 }
 
 func TestPostImageDirect_givesUpAfterRetries(t *testing.T) {
