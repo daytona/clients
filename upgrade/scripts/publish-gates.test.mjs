@@ -299,3 +299,22 @@ for (const [files, valid] of [[['daytona-2.0.0a8-py3-none-any.whl', 'daytona-2.0
     assert.equal(result.status, valid ? 0 : 1, result.stdout + result.stderr);
   });
 }
+
+for (const [lockstep, expected] of [[true, 0], [false, 1]]) {
+  test(`refuses to publish a migration tool that predates lockstep (lockstep: ${lockstep})`, (context) => {
+    // Given: a source tree with the tool, with or without its lockstep target module.
+    const root = fixture(context);
+    for (const directory of ['sdk-python', 'sdk-typescript', 'upgrade/mapping', 'upgrade/typescript/src', 'upgrade/python/src/daytona_upgrade']) mkdirSync(join(root, directory), { recursive: true });
+    writeFileSync(join(root, 'upgrade/mapping/mapping.json'), '{}');
+    if (lockstep) {
+      writeFileSync(join(root, 'upgrade/typescript/src/sdk-target.ts'), '');
+      writeFileSync(join(root, 'upgrade/python/src/daytona_upgrade/sdk_target.py'), '');
+    }
+    // When
+    const result = spawnSync('bash', ['-c', step('Require the sdk-python/ and sdk-typescript/ layout')], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, PUBLISH_UPGRADE: 'true' },
+    });
+    // Then: an older tool would write its own fixed range, not this release.
+    assert.equal(result.status, expected, result.stdout + result.stderr);
+  });
+}

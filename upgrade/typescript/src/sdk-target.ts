@@ -49,8 +49,8 @@ export function pinnedFloor(range: string, target: string): string | undefined {
   if (validRange(range) === null || validRange(target) === null || exact(range)) return undefined;
   const floor = minVersion(range);
   // An exclusive bound on the floor's alternative names no release to pin.
-  const own = range.split('||').find(alternative => minVersion(alternative)?.version === floor?.version) ?? range;
-  if (/(?<![<>])>(?!=)/.test(own)) return undefined;
+  const owners = range.split('||').filter(alternative => minVersion(alternative)?.version === floor?.version);
+  if (!owners.some(alternative => !/(?<![<>])>(?!=)/.test(alternative))) return undefined;
   const wanted = minVersion(target);
   if (floor === null || wanted === null || !wanted.prerelease.length || !floor.prerelease.length || staleForTarget(floor, wanted)) return undefined;
   return floor.major === wanted.major && gte(floor, wanted) ? floor.version : undefined;

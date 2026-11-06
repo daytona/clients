@@ -368,6 +368,12 @@ jobs:
             echo "::error::source_ref has no upgrade/ migration tool; untick publish_upgrade or rebase it onto main"
             exit 1
           fi
+          # A tool from before lockstep publishing writes its own fixed range
+          # (^2.0.0, which installs no alpha), not this release.
+          if [ "$PUBLISH_UPGRADE" = true ] && { [ ! -f upgrade/typescript/src/sdk-target.ts ] || [ ! -f upgrade/python/src/daytona_upgrade/sdk_target.py ]; }; then
+            echo "::error::source_ref's migration tool predates lockstep publishing (it would not target this release); untick publish_upgrade or rebase it onto main"
+            exit 1
+          fi
       # The v0 namespace: the SDKs vendor the 0.x SDK at the tag PINNED in
       # scripts/v0-sdk-version, resolved once here so the Python and npm builds bundle
       # the same release. `v0_tag` overrides the pin for testing only. Only
@@ -1337,7 +1343,8 @@ jobs:
             if [ "$PUBLISH_UPGRADE" != true ] && [ -n "$PYPI_VERSION$NPM_VERSION" ] \
               && { [ -z "$PYPI_VERSION" ] || [ "$PY_PUBLISH" = success ]; } && { [ -z "$NPM_VERSION" ] || [ "$NPM_PUBLISH" = success ]; }; then
               echo
-              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${PYPI_VERSION:-$VERSION}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\` (once both SDKs are published)."
+              pypi_spelling=$(printf '%s' "$VERSION" | sed -E 's/-alpha\./a/; s/-beta\./b/; s/-rc\./rc/')
+              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${pypi_spelling}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\` (once both SDKs are published)."
             fi
             echo
             echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-run the failed publish job, or re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."

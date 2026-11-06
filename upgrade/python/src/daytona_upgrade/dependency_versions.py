@@ -104,16 +104,13 @@ def _exact(constraint: str) -> bool:
     )
 
 
-def _floor_alternative(constraint: str, floor: Version) -> str:
-    """The ``||`` alternative whose lower bound is the constraint's floor."""
-    return next(
-        (
-            alternative
-            for alternative in constraint.split("||")
-            if lower_bound(alternative) == floor
-        ),
-        constraint,
-    )
+def _floor_alternatives(constraint: str, floor: Version) -> list[str]:
+    """The ``||`` alternatives whose lower bound is the constraint's floor."""
+    return [
+        alternative
+        for alternative in constraint.split("||")
+        if lower_bound(alternative) == floor
+    ] or [constraint]
 
 
 def pinned_floor(constraint: str, target: str) -> str | None:
@@ -128,8 +125,11 @@ def pinned_floor(constraint: str, target: str) -> str | None:
         or not floor.is_prerelease
         or _stale_for_target(floor, wanted)
         or _exact(constraint)
-        # An exclusive bound on the floor's alternative names no release.
-        or ">" in _floor_alternative(constraint, floor).replace(">=", "")
+        # An exclusive bound on every alternative with this floor names no release.
+        or all(
+            ">" in alternative.replace(">=", "")
+            for alternative in _floor_alternatives(constraint, floor)
+        )
     ):
         return None
     if floor.major != wanted.major or floor < wanted:

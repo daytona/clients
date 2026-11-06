@@ -4,7 +4,7 @@
  */
 
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { compare, minVersion, parse, validRange } from 'semver';
 import type { SemVer } from 'semver';
 import { parse as parseYaml } from 'yaml';
@@ -180,14 +180,6 @@ function zeroX(value: string): SemVer | undefined {
   return version;
 }
 
-/**
- * Compare the project's Daytona 0.x version with the 0.x release SDK 2.x
- * bundles as `.v0`. The owning lockfile's resolution for the declaring
- * manifest says what is installed; without one, the manifest range's lower
- * bound stands in. Older and newer-patch versions warn; a newer minor refuses
- * unless `allowNewer`, because its added APIs are in neither `.v0` nor the
- * mapping.
- */
 /** The real path (a symlinked project is checked where it lives, as the Python tool does). */
 function real(path: string): string {
   try { return realpathSync(path); }
@@ -197,9 +189,18 @@ function real(path: string): string {
   }
 }
 
+/**
+ * Compare the project's Daytona 0.x version with the 0.x release SDK 2.x
+ * bundles as `.v0`. The owning lockfile's resolution for the declaring
+ * manifest says what is installed; without one, the manifest range's lower
+ * bound stands in. Older and newer-patch versions warn; a newer minor refuses
+ * unless `allowNewer`, because its added APIs are in neither `.v0` nor the
+ * mapping.
+ */
 export function checkV0Version(lexicalRoot: string, lexicalDeclared: readonly DeclaredDependency[], pinned: string, allowNewer: boolean): V0VersionCheck {
   const root = real(lexicalRoot);
-  const declared = lexicalDeclared.map(dependency => ({ ...dependency, file: real(dependency.file) }));
+  // The directory is canonical; a symlinked manifest file still belongs to the directory it is in.
+  const declared = lexicalDeclared.map(dependency => ({ ...dependency, file: join(real(dirname(dependency.file)), basename(dependency.file)) }));
   const pin = parse(pinned);
   if (pin === null) return { warnings: [] };
   // Daytona code with no declaration anywhere up to the Git root.

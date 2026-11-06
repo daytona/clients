@@ -423,14 +423,15 @@ it('treats the 1.x shim release as unknown', async () => {
 
 it('colliding declarations still give the installed version', async () => {
   // Given: a half-done rename declares both names, and the lockfile resolves a newer minor.
-  const files = { 'package.json': JSON.stringify({ dependencies: { '@daytonaio/sdk': '0.999.0', '@daytona/sdk': '0.999.0' } }),
+  const files = { 'package.json': JSON.stringify({ dependencies: { '@daytonaio/sdk': '0.100.0', '@daytona/sdk': '0.999.0' } }),
     'package-lock.json': JSON.stringify({ lockfileVersion: 3, packages: {
-      'node_modules/@daytonaio/sdk': { version: '0.999.0' }, 'node_modules/@daytona/sdk': { version: '0.999.0' } } }), 'index.ts': code };
+      'node_modules/@daytonaio/sdk': { version: '0.100.0' }, 'node_modules/@daytona/sdk': { version: '0.999.0' } } }), 'index.ts': code };
   // When
   const { code: exit, report, root } = await run(files);
-  // Then: refused like the PyPI tool, nothing written.
+  // Then: both declarations count (the older warns, the newer refuses), nothing written.
   expect(exit).toBe(2);
-  expect(report.refused?.reason).toBe('newer-v0');
+  expect(report.warnings).toEqual([{ file: 'package-lock.json', message: olderMessage('0.100.0', pinned) }]);
+  expect(report.refused?.message).toBe(newerRefusal('0.999.0', 'package-lock.json', pinned));
   expect(readFileSync(join(root, 'index.ts'), 'utf8')).toBe(code);
 });
 

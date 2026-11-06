@@ -1054,18 +1054,23 @@ def test_colliding_poetry_declarations_still_give_the_installed_version(
     # Given: a half-done rename declares both names, and poetry.lock resolves a newer minor.
     pyproject = (
         '[tool.poetry]\nname = "app"\n\n[tool.poetry.dependencies]\n'
-        'daytona = "0.999.0"\ndaytona-sdk = "0.999.0"\n'
+        'daytona = "0.999.0"\ndaytona-sdk = "0.100.0"\n'
     )
     lock = (
         '[[package]]\nname = "daytona"\nversion = "0.999.0"\n\n'
-        '[[package]]\nname = "daytona-sdk"\nversion = "0.999.0"\n'
+        '[[package]]\nname = "daytona-sdk"\nversion = "0.100.0"\n'
     )
     _project(tmp_path, {"pyproject.toml": pyproject, "poetry.lock": lock})
     # When
     code, report = _run(tmp_path, capsys)
-    # Then: refused like the npm tool, nothing written.
+    # Then: both declarations count (the older warns, the newer refuses), nothing written.
     assert code == 2
-    assert report["refused"]["reason"] == "newer-v0"  # type: ignore[index]
+    assert report["warnings"] == [
+        {"file": "poetry.lock", "message": older_message("0.100.0", PINNED)}
+    ]
+    assert report["refused"]["message"] == newer_refusal(  # type: ignore[index]
+        "0.999.0", "poetry.lock", PINNED
+    )
     assert (tmp_path / "app.py").read_text() == SOURCE
 
 
@@ -1116,4 +1121,30 @@ def test_hash_locked_guidance_never_names_a_downgrade(
         item["message"] for item in items if item["kind"] == "manual-dependency"
     ] == [
         "Change this dependency to daytona[v0-sdk]==2.0.0a9 manually and regenerate hashes; the original hash-locked or continued record was preserved."
+    ]
+
+
+def test_a_union_with_an_inclusive_alternative_on_the_floor_keeps_it() -> None:
+    # Given / When / Then: >2.0.0a9 || >=2.0.0a9 still names 2.0.0a9.
+    assert (
+        target_constraint("daytona", ">2.0.0a9 || >=2.0.0a9", "daytona", "==2.0.0a8")
+        == "==2.0.0a9"
+    )
+
+
+def test_hash_locked_guidance_keeps_the_records_extras(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: pip-compile output with its own extra.
+    record = "daytona-sdk[otel]==0.100.0 \\\n    --hash=sha256:" + "0" * 64
+    _, report = _migrate(tmp_path, capsys, monkeypatch, record, "2.0.0a8")
+    # Then
+    items = report["items"]
+    assert isinstance(items, list)
+    assert [
+        item["message"] for item in items if item["kind"] == "manual-dependency"
+    ] == [
+        "Change this dependency to daytona[otel,v0-sdk]==2.0.0a8 manually and regenerate hashes; the original hash-locked or continued record was preserved."
     ]

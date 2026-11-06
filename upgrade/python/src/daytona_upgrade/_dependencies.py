@@ -102,7 +102,7 @@ class Migration:
                     self.line,
                     f"Add the {', '.join(self.mapping.extras)} extra to this dependency manually and regenerate hashes; its version already meets this release. The original hash-locked or continued record was preserved."
                     if kept
-                    else f"Change this dependency to {self._written(name, specifier)} manually and regenerate hashes; the original hash-locked or continued record was preserved.",
+                    else f"Change this dependency to {self._written(name, specifier, parsed['extras'])} manually and regenerate hashes; the original hash-locked or continued record was preserved.",
                 )
             )
             return source
@@ -128,9 +128,14 @@ class Migration:
             self.changes.append((source.strip(), result.strip()))
         return result
 
-    def _written(self, name: str, specifier: str) -> str:
-        """The requirement a rewrite of this declaration would write."""
-        extras = f"[{','.join(self.mapping.extras)}]" if self.mapping.extras else ""
+    def _written(self, name: str, specifier: str, existing: str | None) -> str:
+        """The requirement a rewrite of this declaration would write: its own
+        extras first, then the mapping's (as render_requirement merges them)."""
+        names = [
+            part.strip() for part in (existing or "[]")[1:-1].split(",") if part.strip()
+        ]
+        names.extend(extra for extra in self.mapping.extras if extra not in names)
+        extras = f"[{','.join(names)}]" if names else ""
         return (
             self.mapping.package_new
             + extras
