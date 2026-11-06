@@ -411,3 +411,12 @@ it('a classic yarn.lock with no root manifest owns no nested project', async () 
   expect(report.refused).toBeUndefined();
   expect(report.warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
 });
+
+it('treats the 1.x shim release as unknown', async () => {
+  // Given: package-lock.json resolves a 1.x release.
+  const lock = JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytonaio/sdk': { version: '1.0.1' } } });
+  // When
+  const { report } = await run({ 'package.json': manifest('*'), 'package-lock.json': lock, 'index.ts': code });
+  // Then
+  expect(report.warnings).toEqual([{ file: 'package.json', message: unknownMessage(pinned) }]);
+});

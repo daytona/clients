@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { validRange } from 'semver';
 import type { Item } from './model.js';
 import { relativePath } from './discovery.js';
-import { atOrAboveTarget, pinnedFloor } from './sdk-target.js';
+import { aboveTargetMajor, atOrAboveTarget, pinnedFloor } from './sdk-target.js';
 
 type RuntimeDependency = { readonly name: '@daytonaio/sdk' | '@daytona/sdk'; readonly range: string | null };
 
@@ -57,9 +57,13 @@ export function dependencyScopeItem(root: string, rewritten: string, dependencyD
           return atOrAboveTarget(range, target);
         });
         if (certified) return undefined;
-        // A pre-release range above the target moves to its own floor, as in the project root.
-        const own = declarations.find(({ name }) => name === '@daytona/sdk')?.range;
-        const wanted = (own === null || own === undefined ? undefined : pinnedFloor(own, target)) ?? target;
+        // The same decisions as in the project root: a later major is never
+        // downgraded, a pre-release range above the target keeps its own floor.
+        const own = declarations.find(({ range }) => range !== null && aboveTargetMajor(range, target));
+        if (own !== undefined) return { file: relativePath(base, file), line: 0, column: 0, kind: 'manual-dependency',
+          message: `${own.name}@${own.range ?? ''} is newer than this daytona-upgrade release targets (${target}); use the daytona-upgrade release of that SDK version.` };
+        const range = declarations.find(({ name }) => name === '@daytona/sdk')?.range;
+        const wanted = (range === null || range === undefined ? undefined : pinnedFloor(range, target)) ?? target;
         return { file: relativePath(base, file), line: 0, column: 0, kind: 'manual-dependency',
           message: `no Daytona dependency was updated; change the dependency in this file to "@daytona/sdk": "${wanted}"` };
       }

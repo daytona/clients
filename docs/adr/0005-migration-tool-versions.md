@@ -18,7 +18,7 @@ And what should it do with a project on a 0.x version other than the one
 
 **One version for the tool and the SDKs.** The tool is published by the SDK
 publish workflow, in the same run and at the same version, after both SDKs.
-It writes exactly that SDK release: a pre-release is pinned (`==2.0.0a8`,
+It targets that SDK release, never downgrading a newer declaration: a pre-release is pinned (`==2.0.0a8`,
 `"2.0.0-alpha.8"`), because pre-releases may break; a stable `X.Y.Z` writes
 `>=X.Y.Z,<X+1` / `^X.Y.Z`. The SDKs' runtime guidance for 0.x calls names the
 tool release of their own version. A tool fix ships with the next SDK release.

@@ -104,7 +104,7 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         if (name === mapping.packages.ts.new && sectionName !== 'peerDependencies' && Node.isStringLiteral(version) &&
             atOrAboveTarget(version.getLiteralValue(), mapping.packages.ts.range)) continue;
         // A later major than this tool targets: never downgraded.
-        if (name === mapping.packages.ts.new && Node.isStringLiteral(version) && aboveTargetMajor(version.getLiteralValue(), mapping.packages.ts.range)) {
+        if (!constraint && Node.isStringLiteral(version) && aboveTargetMajor(version.getLiteralValue(), mapping.packages.ts.range)) {
           items.push({ ...detail, kind: 'manual-dependency',
             message: `${name}@${version.getLiteralValue()} is newer than this daytona-upgrade release targets (${mapping.packages.ts.range}); use the daytona-upgrade release of that SDK version.` });
           continue;

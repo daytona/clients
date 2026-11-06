@@ -32,6 +32,7 @@ from .project_result import ProjectResult as ProjectResult
 from .pytest_collection import read_collection
 from .report_items import unique_items
 from .sdk_target import companion_command
+from .v0_version import ancestor_guidance
 
 
 def preflight(
@@ -258,7 +259,7 @@ def preflight(
                 line=0,
                 column=0,
                 kind="manual-dependency",
-                message=f"no Daytona dependency was updated; verify an unconditional runtime {options.mapping.requirement} requirement where the project declares it",
+                message=ancestor_guidance(owner, options.mapping),
             )
         )
     if encoding_items:

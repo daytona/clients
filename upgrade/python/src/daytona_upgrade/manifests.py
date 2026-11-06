@@ -12,6 +12,7 @@ from pathlib import Path
 
 import tomlkit
 from libcst import ParserSyntaxError
+from packaging.requirements import InvalidRequirement, Requirement
 from tomlkit.container import OutOfOrderTableProxy
 from tomlkit.exceptions import TOMLKitError
 from tomlkit.items import Array, InlineTable, String, Table
@@ -229,6 +230,13 @@ def next_step(root: Path, requirement: str | None) -> str:
     ):
         if (root / lockfile).is_file():
             return command
-    if requirement is None or " = " in requirement:
+    if requirement is None or " = " in requirement or "#" in requirement:
         return "Install the updated requirements."
-    return f'pip install -U "{requirement}"'
+    try:
+        parsed = Requirement(requirement)
+    except InvalidRequirement:
+        return "Install the updated requirements."
+    if parsed.marker is not None or parsed.url:
+        return "Install the updated requirements."
+    extras = f"[{','.join(sorted(parsed.extras))}]" if parsed.extras else ""
+    return f'pip install -U "{parsed.name}{extras}{parsed.specifier}"'

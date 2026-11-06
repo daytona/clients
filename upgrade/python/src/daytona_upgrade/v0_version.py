@@ -118,7 +118,11 @@ def _locked(path: Path) -> dict[str, list[str]]:
     for name, version in entries:
         if _normalized(name) in _NAMES and isinstance(version, str):
             found.setdefault(_normalized(name), []).append(version)
-    return found
+    # Several versions of one package (forked resolutions, or projects the lock
+    # does not tie to this manifest) do not say which one this project gets.
+    return {
+        name: versions for name, versions in found.items() if len(set(versions)) == 1
+    }
 
 
 def _uv_members(lockfile: Path) -> frozenset[str]:
@@ -271,8 +275,9 @@ def check_v0_version(
                 if version is not None:
                     observed[(lockfile, version)] = None
                 else:
+                    # A local build, or the 1.x shim release: no 0.x version to compare.
                     try:
-                        local = local or Version(value.lstrip("=").strip()).major == 0
+                        local = local or Version(value.lstrip("=").strip()).major < 2
                     except InvalidVersion:
                         local = True
             if local:
@@ -328,3 +333,24 @@ def _text(version: Version) -> str:
     if version.post is not None:
         text += f".post{version.post}"
     return text
+
+
+def ancestor_guidance(owner: Path, mapping: Mapping) -> str:
+    """The manual item for code whose project declares no SDK 2.x dependency,
+    with the same decisions as a rewrite in the project root: a later major is
+    never downgraded, a pre-release range above the target keeps its floor."""
+    from .dependency_versions import (
+        above_target_major,
+        pinned_floor,
+    )
+
+    for _, name, specifier in ancestor_declarations(owner, mapping):
+        if specifier and above_target_major(specifier, mapping.specifier):
+            return f"{name}{specifier} is newer than this daytona-upgrade release targets ({mapping.specifier}); use the daytona-upgrade release of that SDK version."
+    requirement = mapping.requirement
+    for _, name, specifier in ancestor_declarations(owner, mapping):
+        floor = pinned_floor(specifier, mapping.specifier) if specifier else None
+        if _normalized(name) == _normalized(mapping.package_new) and floor is not None:
+            extras = f"[{','.join(mapping.extras)}]" if mapping.extras else ""
+            requirement = f"{mapping.package_new}{extras}{floor}"
+    return f"no Daytona dependency was updated; verify an unconditional runtime {requirement} requirement where the project declares it"

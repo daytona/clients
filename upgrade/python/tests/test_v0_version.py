@@ -15,6 +15,7 @@ import pytest
 
 from daytona_upgrade import cli
 from daytona_upgrade.cli import main
+from daytona_upgrade.manifests import next_step
 from daytona_upgrade.models import load_mapping
 from daytona_upgrade.sdk_target import companion_command, target_specifier
 from daytona_upgrade.v0_version import (
@@ -574,6 +575,9 @@ def _migrate(
         # The published 2.0.0rc1 is a stale pre-alpha build without .v0: not ahead of an alpha.
         ("daytona[v0-sdk]==2.0.0rc1", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
         ("daytona[v0-sdk]>=2.0.0rc1,<3", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
+        # Any other beta or rc is ahead of an alpha tool: kept, or pinned to its floor.
+        ("daytona[v0-sdk]==2.0.0b1", "2.0.0a8", "daytona[v0-sdk]==2.0.0b1"),
+        ("daytona[v0-sdk]>=2.0.0rc2", "2.0.0a8", "daytona[v0-sdk]==2.0.0rc2"),
         ("daytona[v0-sdk]>=2.5.0", "2.0.0a3", "daytona[v0-sdk]>=2.5.0"),
         ("daytona[v0-sdk]==2.1.0", "2.0.0a3", "daytona[v0-sdk]==2.1.0"),
         ("daytona[v0-sdk]>=2,<3", "2.0.0a3", "daytona[v0-sdk]==2.0.0a3"),
@@ -861,3 +865,146 @@ def test_refuses_an_abbreviated_flag(
     # Then
     assert code == 2
     assert report["refused"]["reason"] == "bad-arguments"
+
+
+def test_an_exclusive_range_that_excludes_the_target_moves_to_it(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given / When: >2.0.0,<2.0.1 admits no 2.0.1.
+    written, _ = _migrate(
+        tmp_path, capsys, monkeypatch, "daytona[v0-sdk]>2.0.0,<2.0.1", "2.0.1"
+    )
+    # Then
+    assert written == "daytona[v0-sdk]>=2.0.1,<3"
+
+
+@pytest.mark.parametrize(
+    ("requirement", "step"),
+    [
+        ("daytona[v0-sdk]==2.0.0a8", 'pip install -U "daytona[v0-sdk]==2.0.0a8"'),
+        (
+            'daytona[v0-sdk]==2.0.0a8 ; python_version >= "3.10"',
+            "Install the updated requirements.",
+        ),
+        ("daytona[v0-sdk]==2.0.0a8  # keep", "Install the updated requirements."),
+    ],
+)
+def test_the_install_step_is_a_plain_requirement_or_generic(
+    tmp_path: Path, requirement: str, step: str
+) -> None:
+    # Given / When / Then: no marker or comment inside a quoted shell argument.
+    assert next_step(tmp_path, requirement) == step
+
+
+def test_a_lockfile_with_several_versions_of_the_sdk_is_no_evidence(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: uv.lock forks daytona by marker; the requirement names 0.100.0.
+    lock = (
+        '[[package]]\nname = "daytona"\nversion = "0.100.0"\n\n'
+        '[[package]]\nname = "daytona"\nversion = "0.999.0"\n'
+    )
+    _project(
+        tmp_path,
+        {
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona==0.100.0"]\n',
+            "uv.lock": lock,
+        },
+    )
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then: the declaration stands in; no refusal from the other fork.
+    assert code == 0
+    assert report["warnings"] == [
+        {"file": "pyproject.toml", "message": older_message("0.100.0", PINNED)}
+    ]
+
+
+def test_reports_an_old_package_name_on_a_later_major(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given / When
+    written, report = _migrate(
+        tmp_path, capsys, monkeypatch, "daytona-sdk>=3", "2.0.0a8"
+    )
+    # Then: never renamed and downgraded across a major.
+    assert written == "daytona-sdk>=3"
+    items = report["items"]
+    assert isinstance(items, list)
+    assert any(
+        item["message"].startswith("daytona-sdk>=3 is newer than") for item in items
+    )
+
+
+def test_a_hash_locked_record_already_at_the_target_needs_nothing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: pip-compile output already on a newer alpha, with the extra.
+    record = "daytona[v0-sdk]==2.0.0a9 \\\n    --hash=sha256:" + "0" * 64
+    _, report = _migrate(tmp_path, capsys, monkeypatch, record, "2.0.0a8")
+    # Then
+    items = report["items"]
+    assert isinstance(items, list)
+    assert [item for item in items if item["kind"] == "manual-dependency"] == []
+
+
+@pytest.mark.parametrize(
+    ("ancestor", "message"),
+    [
+        (
+            "daytona[v0-sdk]>=3",
+            "daytona>=3 is newer than this daytona-upgrade release targets (==2.0.0a8); use the daytona-upgrade release of that SDK version.",
+        ),
+        (
+            "daytona[v0-sdk]>=2.0.0a9",
+            "no Daytona dependency was updated; verify an unconditional runtime daytona[v0-sdk]==2.0.0a9 requirement where the project declares it",
+        ),
+    ],
+)
+def test_ancestor_guidance_never_asks_for_a_downgrade(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    ancestor: str,
+    message: str,
+) -> None:
+    # Given: the repository root declares the SDK above the target; app/ is scanned.
+    monkeypatch.setattr(
+        cli, "load_mapping", partial(load_mapping, tool_version="2.0.0a8")
+    )
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "requirements.txt").write_text(ancestor + "\n")
+    _project(tmp_path / "app", {})
+    # When
+    _, report = _run(tmp_path / "app", capsys)
+    # Then: the same decision as a rewrite in the project root.
+    items = report["items"]
+    assert isinstance(items, list)
+    assert [
+        item["message"] for item in items if item["kind"] == "manual-dependency"
+    ] == [message]
+
+
+def test_the_1x_shim_release_counts_as_unknown(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: uv.lock resolves daytona 1.0.1 (a shim that installs daytona-sdk).
+    _project(
+        tmp_path,
+        {
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona"]\n',
+            "uv.lock": '[[package]]\nname = "daytona"\nversion = "1.0.1"\n',
+        },
+    )
+    # When
+    _, report = _run(tmp_path, capsys)
+    # Then
+    assert report["warnings"] == [
+        {"file": "pyproject.toml", "message": unknown_message(PINNED)}
+    ]

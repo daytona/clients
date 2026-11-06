@@ -59,6 +59,14 @@ def lower_bound(constraint: str) -> Version | None:
     return min(bounds) if bounds else None
 
 
+def _admits(constraint: str, version: Version) -> bool:
+    """Whether a PEP 440 constraint admits a version (Poetry syntax: assumed)."""
+    try:
+        return SpecifierSet(constraint.strip()).contains(version, prereleases=True)
+    except InvalidSpecifier:
+        return True
+
+
 def _exclusive_bound(constraint: str) -> Version | None:
     """The version of a single ``>`` bound, if the constraint has one."""
     try:
@@ -107,17 +115,16 @@ def pinned_floor(constraint: str, target: str) -> str | None:
         or ">" in constraint.replace(">=", "")  # An exclusive bound names no release.
     ):
         return None
-    return f"=={floor}" if floor.major == wanted.major and floor >= wanted else None
+    if floor.major != wanted.major or floor < wanted or not _admits(constraint, floor):
+        return None
+    return f"=={floor}"
 
 
 def _stale_for_target(floor: Version, wanted: Version) -> bool:
-    """While the target is an alpha, a beta or rc floor is not ahead of it: the
-    only such releases are the stale pre-alpha 2.0.0rc1 builds (no v0 namespace)."""
+    """While the target is an alpha, the published 2.0.0rc1 is not ahead of it:
+    a stale pre-alpha build without the v0 namespace. Any other beta or rc is."""
     return (
-        wanted.pre is not None
-        and wanted.pre[0] == "a"
-        and floor.pre is not None
-        and floor.pre[0] != "a"
+        wanted.pre is not None and wanted.pre[0] == "a" and floor == Version("2.0.0rc1")
     )
 
 
@@ -136,6 +143,10 @@ def at_or_above_target(constraint: str, target: str) -> bool:
         # An exclusive bound at or above the target admits only later releases:
         # kept, never rewritten to a version it excludes.
         return True
+    if floor is not None and not _admits(constraint, floor):
+        # The synthetic floor of `>` is outside the range (`>2.0.0,<2.0.1`):
+        # the range does not reach the target.
+        return False
     if (
         floor is not None
         and wanted is not None

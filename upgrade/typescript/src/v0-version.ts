@@ -96,9 +96,9 @@ function manifestWorkspaces(directory: string): readonly RegExp[] | undefined {
   let manifest: Record<string, unknown> | undefined;
   try { manifest = record(JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8').replace(/^\uFEFF/, ''))); }
   catch (error) {
-    // No root manifest: the lockfile's project has no workspaces to match.
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return [];
-    if (error instanceof SyntaxError || error instanceof Error && 'code' in error) return undefined;
+    // No readable root manifest: no workspace can be established, so the
+    // lockfile resolves only its own directory.
+    if (error instanceof SyntaxError || error instanceof Error && 'code' in error) return [];
     throw error;
   }
   const declared = manifest?.['workspaces'];
@@ -232,7 +232,8 @@ export function checkV0Version(root: string, declared: readonly DeclaredDependen
       for (const { file, version } of resolved) {
         const zero = zeroX(version);
         if (zero) observed.set(`${file}\0${zero.version}`, { file, version: zero });
-        else if ((parse(version)?.major ?? 0) === 0) local = true;
+        // A local build, or the 1.x shim release: no 0.x version to compare.
+        else if ((parse(version)?.major ?? 0) < 2) local = true;
       }
       if (local) unknown.add(dependency.file);
       else evidenced.add(dependency.file);

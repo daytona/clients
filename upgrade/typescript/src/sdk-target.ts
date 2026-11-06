@@ -58,12 +58,11 @@ export function withTarget(mapping: Mapping, toolVersion: string): Mapping {
 }
 
 /**
- * While the target is an alpha, a beta or rc floor is not ahead of it: the only
- * such releases are the stale pre-alpha `2.0.0-rc.1` builds, which have no v0
- * namespace.
+ * While the target is an alpha, the published `2.0.0-rc.1` is not ahead of it:
+ * a stale pre-alpha build without the v0 namespace. Any other beta or rc is.
  */
 function staleForTarget(floor: SemVer, wanted: SemVer): boolean {
-  return wanted.prerelease[0] === 'alpha' && floor.prerelease.length > 0 && floor.prerelease[0] !== 'alpha';
+  return wanted.prerelease[0] === 'alpha' && floor.version === '2.0.0-rc.1';
 }
 
 /**
@@ -73,6 +72,11 @@ function staleForTarget(floor: SemVer, wanted: SemVer): boolean {
  */
 export function atOrAboveTarget(range: string, target: string): boolean {
   if (validRange(range) === null || validRange(target) === null) return false;
+  // A union is at or above the target only when every alternative is (a later
+  // major counts: it is never downgraded either).
+  const alternatives = range.split('||');
+  if (alternatives.length > 1) return alternatives.every(alternative =>
+    atOrAboveTarget(alternative.trim(), target) || aboveTargetMajor(alternative.trim(), target));
   // An exclusive bound at or above the target (`>2.0.0-alpha.8`) admits only
   // later releases: kept, never rewritten to a version it excludes.
   const exclusive = /(?<![<>])>(?!=)\s*v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/.exec(range)?.[1];

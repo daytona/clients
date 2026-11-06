@@ -87,6 +87,7 @@ const client = "import { Daytona } from '@daytona/sdk'; const d = new Daytona();
 const migrate = async (range: string, tool: string): Promise<{ readonly written: unknown; readonly items: readonly { readonly kind: string; readonly message: string }[] }> => {
   const root = temporaryProject({ 'package.json': JSON.stringify({ dependencies: { '@daytona/sdk': range } }), 'index.ts': client });
   const result = await invoke(root, ['--json'], withTarget(loadMapping(), tool));
+  expect((JSON.parse(result.output) as { readonly refused?: unknown }).refused).toBeUndefined();
   return { written: (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { readonly dependencies: Record<string, string> }).dependencies['@daytona/sdk'],
     items: (JSON.parse(result.output) as { readonly items: readonly { readonly kind: string; readonly message: string }[] }).items.filter(item => item.kind === 'manual-dependency') };
 };
@@ -108,9 +109,15 @@ it.each([
   // An exclusive bound at or above the target is kept, never rewritten to a version it excludes.
   ['>2.0.0-alpha.8', '2.0.0-alpha.8', '>2.0.0-alpha.8'],
   ['>2.0.0-alpha.9', '2.0.0-alpha.8', '>2.0.0-alpha.9'],
+  // A union is at the target only when every alternative is.
+  ['^2.0.0-alpha.3 || >2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],
   // The published 2.0.0-rc.1 is a stale pre-alpha build without .v0: not ahead of an alpha.
   ['2.0.0-rc.1', '2.0.0-alpha.8', '2.0.0-alpha.8'],
   ['^2.0.0-rc.1', '2.0.0-alpha.8', '2.0.0-alpha.8'],
+  // Any other beta or rc is ahead of an alpha tool: kept, or pinned to its floor.
+  ['2.0.0-beta.1', '2.0.0-alpha.8', '2.0.0-beta.1'],
+  ['^2.0.0-beta.1', '2.0.0-alpha.8', '2.0.0-beta.1'],
+  ['2.0.0-rc.2', '2.0.0-alpha.8', '2.0.0-rc.2'],
 ])('moves %s under a %s tool to %s', async (range, tool, expected) => {
   // Given / When
   const { written, items } = await migrate(range, tool);
@@ -128,7 +135,7 @@ it.each(['3.0.0', '^3.1.0', '>=3'])('keeps a later major %s and reports it', asy
     message: `@daytona/sdk@${range} is newer than this daytona-upgrade release targets (2.0.0-alpha.8); use the daytona-upgrade release of that SDK version.` })]);
 });
 
-it.each([['^2.0.0', true], ['2.0.0-alpha.8', false], ['3.0.0', true]])('ancestor %s under an alpha tool: manual item %s', async (range, reported) => {
+it.each([['^2.0.0', true], ['2.0.0-alpha.8', false]])('ancestor %s under an alpha tool: manual item %s', async (range, reported) => {
   // Given: the workspace root declares the SDK; app/ is scanned.
   // app/index.ts still calls the 0.x root, so the run rewrites it.
   const root = temporaryProject({ '.git/HEAD': '', 'package.json': JSON.stringify({ dependencies: { '@daytona/sdk': range } }),
@@ -147,3 +154,27 @@ it.each([['0.0.0', 'uvx daytona-upgrade'], ['2.0.0-alpha.8', 'uvx daytona-upgrad
     // Given / When / Then: the companion tool of the same release, not the registry's latest.
     expect(companionCommand(toolVersion)).toBe(command);
   });
+
+it('reports an old package name declared on a later major instead of renaming it', async () => {
+  // Given / When
+  const root = temporaryProject({ 'package.json': JSON.stringify({ dependencies: { '@daytonaio/sdk': '3.0.0' } }), 'index.ts': client });
+  const result = await invoke(root, ['--json'], withTarget(loadMapping(), '2.0.0-alpha.8'));
+  // Then: never renamed and downgraded across a major.
+  expect(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))).toEqual({ dependencies: { '@daytonaio/sdk': '3.0.0' } });
+  expect((JSON.parse(result.output) as { readonly items: readonly { readonly kind: string; readonly message: string }[] }).items).toContainEqual(expect.objectContaining({
+    kind: 'manual-dependency', message: '@daytonaio/sdk@3.0.0 is newer than this daytona-upgrade release targets (2.0.0-alpha.8); use the daytona-upgrade release of that SDK version.' }));
+});
+
+it.each([
+  ['3.0.0', '@daytona/sdk@3.0.0 is newer than this daytona-upgrade release targets (2.0.0-alpha.8); use the daytona-upgrade release of that SDK version.'],
+  ['^2.0.0-alpha.9', 'no Daytona dependency was updated; change the dependency in this file to "@daytona/sdk": "2.0.0-alpha.9"'],
+])('ancestor guidance for %s never asks for a downgrade', async (range, message) => {
+  // Given: the workspace root declares the SDK above the target; app/ is scanned.
+  const root = temporaryProject({ '.git/HEAD': '', 'package.json': JSON.stringify({ dependencies: { '@daytona/sdk': range } }),
+    'app/index.ts': client.replace('d.v0.create()', 'd.create()') });
+  // When
+  const result = await invoke(join(root, 'app'), ['--json'], withTarget(loadMapping(), '2.0.0-alpha.8'));
+  // Then: the same decision as a rewrite in the project root.
+  expect((JSON.parse(result.output) as { readonly items: readonly { readonly kind: string; readonly message: string }[] }).items
+    .filter(item => item.kind === 'manual-dependency').map(item => item.message)).toEqual([message]);
+});

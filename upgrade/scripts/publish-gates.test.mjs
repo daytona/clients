@@ -181,10 +181,14 @@ for (const [code, published] of [['200', true], ['404', false]]) {
 
 test('publishes the migration tool only after the SDK it pins, and before the CLI', () => {
   // Given: the publish job's step order.
-  const at = (name) => workflow.indexOf(`      - name: ${name}`);
+  const at = (name) => {
+    const index = workflow.indexOf(`      - name: ${name}`);
+    assert.ok(index >= 0, `missing step ${name}`);
+    return index;
+  };
   // Then
-  assert.ok(at('Publish @daytona/sdk') < at('Wait until daytona') && at('Wait until daytona') < at('Publish daytona-upgrade'));
-  assert.ok(at('Wait until @daytona/sdk') < at('Publish the migration tool to npm (OIDC)'));
+  assert.ok(at('Publish daytona $') < at('Wait until daytona') && at('Wait until daytona') < at('Publish daytona-upgrade'));
+  assert.ok(at('Publish @daytona/sdk') < at('Wait until @daytona/sdk') && at('Wait until @daytona/sdk') < at('Publish the migration tool to npm (OIDC)'));
   assert.ok(at('Publish the migration tool to npm (OIDC)') < at('Download the CLI release assets'));
 });
 

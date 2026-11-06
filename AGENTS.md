@@ -413,7 +413,7 @@ skipping exist only in the TypeScript tool).
   until the migration guide has its own page; `sdk_publish.yaml` refuses to
   publish the tool while `docs.placeholder` is true.
 - **Lockstep versions.** `sdk_publish.yaml` publishes the tool with the SDKs at
-  the same version (`publish_upgrade`), and the tool writes exactly that SDK
+  the same version (`publish_upgrade`), and the tool targets that SDK
   release (`sdk-target.ts` / `sdk_target.py`: a pre-release pins it, a stable
   `X.Y.Z` writes `^X.Y.Z` / `>=X.Y.Z,<X+1`; the placeholder `0.0.0` keeps the
   mapping's `range` / `specifier`). The SDKs' moved-member guidance names the

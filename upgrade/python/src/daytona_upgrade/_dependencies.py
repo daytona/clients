@@ -87,6 +87,16 @@ class Migration:
             kept = _normalized(name) == _normalized(
                 self.mapping.package_new
             ) and at_or_above_target(specifier, self.mapping.specifier)
+            present = {
+                _normalized(extra.strip())
+                for extra in (parsed["extras"] or "[]")[1:-1].split(",")
+                if extra.strip()
+            }
+            if (
+                kept
+                and {_normalized(extra) for extra in self.mapping.extras} <= present
+            ):
+                return source  # Already the target, with the extra: nothing to change.
             self.manual.append(
                 (
                     self.line,
@@ -119,10 +129,8 @@ class Migration:
         return result
 
     def _newer_major(self, name: str, specifier: str) -> bool:
-        """Report, and keep, a new-package declaration in a later major."""
-        if _normalized(name) != _normalized(
-            self.mapping.package_new
-        ) or not above_target_major(specifier, self.mapping.specifier):
+        """Report, and keep, a Daytona declaration in a later major."""
+        if not above_target_major(specifier, self.mapping.specifier):
             return False
         self.manual.append(
             (

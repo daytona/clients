@@ -121,10 +121,11 @@ sees a publishing credential. The publish job is the only job on the
 `release` environment, so a run asks for exactly one approval, after every
 requested build is green; a failed or cancelled build skips it (nothing is
 published, no approval is asked). Inside it the targets run in order — PyPI,
-npm, the CLI's GitHub Release, the Homebrew formula, then the migration tool
-(PyPI, then npm) — and a failed target stops the ones after it. A failed
-Homebrew update therefore also holds back the tool: re-run the publish job to
-finish it (the summary shows the tool rows as not published). The
+npm, the migration tool (PyPI, then npm, each once the SDK version it pins is
+visible on that registry), the CLI's GitHub Release, the Homebrew formula —
+and a failed target stops the ones after it. A failed tool upload therefore
+also holds back the CLI: re-run the publish job to finish it (targets already
+published are skipped). The
 environment's deployment-branch policy still decides whether a run's
 credentials can be used at all.
 
@@ -174,11 +175,13 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 ### The migration tool
 
 `daytona-upgrade` is published by the same run as the SDKs, at the same
-version, and writes exactly that SDK release into the projects it migrates (a
+version, and targets that SDK release in the projects it migrates, never
+downgrading a newer declaration (a
 pre-release is pinned: `daytona[v0-sdk]==2.0.0a8`, `"@daytona/sdk":
 "2.0.0-alpha.8"`; a stable `X.Y.Z` writes `>=X.Y.Z,<X+1` / `^X.Y.Z`). Its
-mapping is checked against this commit's v2 surface and the pinned v0 bundle,
-so a tool release is correct for its own SDK release only. A pinned
+mapping is checked (by upgrade-tool-ci, on the pull request that changed it)
+against the v2 surface and the pinned v0 bundle of the same tree, so a tool
+release is correct for its own SDK release only. A pinned
 pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
 `2.0.0rc1` that a `^2.0.0-alpha.N` range would resolve to
 ([VERSIONING.md](VERSIONING.md), "Release channels").

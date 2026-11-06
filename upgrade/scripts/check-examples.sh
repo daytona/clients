@@ -11,7 +11,7 @@
 #          [--ts-tarball <@daytona/sdk 2.x .tgz>] [--work <dir>]
 # Checks each language whose SDK artifact is given (at least one). The artifacts
 # must carry the v0 bundle (scripts/bundle-v0.sh).
-# Needs git, plus node/npm for TypeScript and python3 with uv for Python, on PATH.
+# Needs git and python3, plus node/npm for TypeScript and uv for Python, on PATH.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -38,13 +38,16 @@ work=$(cd "$work" && pwd)
 
 commit() { git -C "$1" add -A && git -C "$1" -c user.email=ci@daytona.invalid -c user.name=ci commit -qm "$2"; }
 fresh_repo() { rm -rf "$1" && mkdir -p "$1" && git -C "$1" init -q; }
-# The second run's report must not ask for the dependency it just wrote.
+# The second run's report must not ask for the dependency it just wrote (read
+# with python3, which both language checks have).
 target_kept() { # report-json manifest label
-  if ! node -e '
-    const report = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
-    const bad = report.items.filter(item => item.kind === "manual-dependency" && item.file === process.argv[1]);
-    if (bad.length) { console.error(JSON.stringify(bad)); process.exit(1); }
-  ' "$2" <<<"$1"; then
+  if ! python3 -c '
+import json, sys
+bad = [item for item in json.load(sys.stdin)["items"] if item["kind"] == "manual-dependency" and item["file"] == sys.argv[1]]
+if bad:
+    print(json.dumps(bad), file=sys.stderr)
+    sys.exit(1)
+' "$2" <<<"$1"; then
     echo "FAIL: a second $3 run reports the dependency it wrote as a manual item" >&2
     exit 1
   fi

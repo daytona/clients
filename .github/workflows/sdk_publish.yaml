@@ -37,8 +37,8 @@ name: SDK Publish
 # `daytona-upgrade` carries the version of the SDK release it ships with and
 # writes exactly that release into the projects it migrates (a pre-release
 # pins it; a stable X.Y.Z writes ^X.Y.Z / >=X.Y.Z,<X+1), because its mapping is
-# checked against this commit's v2 surface and the pinned v0 bundle and nothing
-# else. The SDKs' runtime guidance names the matching tool release. So the
+# checked (by upgrade-tool-ci, on the pull request that changed it) against the
+# v2 surface and the pinned v0 bundle of the same tree. The SDKs' runtime guidance names the matching tool release. So the
 # tool never ships without its SDK: with publish_pypi or publish_npm off, the
 # registry check requires that SDK version to be published already (a resume),
 # and in the publish job each tool package waits until its SDK is visible on
@@ -839,7 +839,7 @@ jobs:
     outputs:
       pypi: ${{ (steps.pypi_download.outcome == 'failure' && 'failure') || steps.pypi_publish.outcome }}
       npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.npm_download.outcome == 'failure') && 'failure') || steps.npm_publish.outcome }}
-      upgrade_pypi: ${{ ((steps.upgrade_pypi_wait.outcome == 'failure' || steps.upgrade_pypi_download.outcome == 'failure') && 'failure') || steps.upgrade_pypi_publish.outcome }}
+      upgrade_pypi: ${{ ((steps.upgrade_pypi_wait.outcome == 'failure' || steps.upgrade_pypi_download.outcome == 'failure' || steps.upgrade_pypi_files.outcome == 'failure') && 'failure') || steps.upgrade_pypi_publish.outcome }}
       upgrade_npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.upgrade_npm_wait.outcome == 'failure' || steps.upgrade_npm_download.outcome == 'failure') && 'failure') || steps.upgrade_npm_publish.outcome }}
       cli: ${{ (steps.cli_download.outcome == 'failure' && 'failure') || steps.cli_release.outcome }}
       homebrew: ${{ steps.homebrew.outcome }}
@@ -998,6 +998,7 @@ jobs:
           path: upgrade-pypi/
       # Only the tool's two distributions go up under the tool's name.
       - name: The migration tool's PyPI distributions are exactly the tool's
+        id: upgrade_pypi_files
         if: needs.gate.outputs.upgrade_pypi != ''
         env:
           PYPI_VERSION: ${{ needs.gate.outputs.upgrade_pypi }}
@@ -1308,9 +1309,9 @@ jobs:
             row "Migration tool \`@daytona/upgrade\` (npm)" "$UPGRADE_NPM" "$(status "$UPGRADE_NPM" "$UPGRADE_BUILD" "$UPGRADE_NPM_PUBLISH")" \
                 "${UPGRADE_NPM:+\`npx @daytona/upgrade@${UPGRADE_NPM}\`}" \
                 "${UPGRADE_NPM:+https://www.npmjs.com/package/@daytona/upgrade/v/${UPGRADE_NPM}}"
-            if [ "$PUBLISH_UPGRADE" != true ] && [ -n "$PYPI_VERSION$NPM_VERSION" ]; then
+            if [ "$PUBLISH_UPGRADE" != true ] && [ -n "$PYPI_VERSION$NPM_VERSION" ] && [ "$PUBLISH_RESULT" = success ]; then
               echo
-              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${VERSION}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\`."
+              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${VERSION}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\` (once both SDKs are published)."
             fi
             echo
             echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-run the failed publish job, or re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."
