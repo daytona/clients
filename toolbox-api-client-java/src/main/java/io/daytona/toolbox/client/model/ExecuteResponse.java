@@ -60,6 +60,16 @@ public class ExecuteResponse {
   @javax.annotation.Nonnull
   private String result;
 
+  public static final String SERIALIZED_NAME_STDERR = "stderr";
+  @SerializedName(SERIALIZED_NAME_STDERR)
+  @javax.annotation.Nullable
+  private String stderr;
+
+  public static final String SERIALIZED_NAME_STDOUT = "stdout";
+  @SerializedName(SERIALIZED_NAME_STDOUT)
+  @javax.annotation.Nullable
+  private String stdout;
+
   public ExecuteResponse() {
   }
 
@@ -88,7 +98,7 @@ public class ExecuteResponse {
   }
 
   /**
-   * Get result
+   * Combined stdout and stderr in arrival order (interleaved)
    * @return result
    */
   @javax.annotation.Nonnull
@@ -98,6 +108,44 @@ public class ExecuteResponse {
 
   public void setResult(@javax.annotation.Nonnull String result) {
     this.result = result;
+  }
+
+
+  public ExecuteResponse stderr(@javax.annotation.Nullable String stderr) {
+    this.stderr = stderr;
+    return this;
+  }
+
+  /**
+   * Standard error only; omitted by daemons that predate split streams
+   * @return stderr
+   */
+  @javax.annotation.Nullable
+  public String getStderr() {
+    return stderr;
+  }
+
+  public void setStderr(@javax.annotation.Nullable String stderr) {
+    this.stderr = stderr;
+  }
+
+
+  public ExecuteResponse stdout(@javax.annotation.Nullable String stdout) {
+    this.stdout = stdout;
+    return this;
+  }
+
+  /**
+   * Standard output only; omitted by daemons that predate split streams
+   * @return stdout
+   */
+  @javax.annotation.Nullable
+  public String getStdout() {
+    return stdout;
+  }
+
+  public void setStdout(@javax.annotation.Nullable String stdout) {
+    this.stdout = stdout;
   }
 
   /**
@@ -156,13 +204,15 @@ public class ExecuteResponse {
     }
     ExecuteResponse executeResponse = (ExecuteResponse) o;
     return Objects.equals(this.exitCode, executeResponse.exitCode) &&
-        Objects.equals(this.result, executeResponse.result)&&
+        Objects.equals(this.result, executeResponse.result) &&
+        Objects.equals(this.stderr, executeResponse.stderr) &&
+        Objects.equals(this.stdout, executeResponse.stdout)&&
         Objects.equals(this.additionalProperties, executeResponse.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(exitCode, result, additionalProperties);
+    return Objects.hash(exitCode, result, stderr, stdout, additionalProperties);
   }
 
   @Override
@@ -171,6 +221,8 @@ public class ExecuteResponse {
     sb.append("class ExecuteResponse {\n");
     sb.append("    exitCode: ").append(toIndentedString(exitCode)).append("\n");
     sb.append("    result: ").append(toIndentedString(result)).append("\n");
+    sb.append("    stderr: ").append(toIndentedString(stderr)).append("\n");
+    sb.append("    stdout: ").append(toIndentedString(stdout)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -190,7 +242,7 @@ public class ExecuteResponse {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("exitCode", "result"));
+    openapiFields = new HashSet<String>(Arrays.asList("exitCode", "result", "stderr", "stdout"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("result"));
@@ -218,6 +270,12 @@ public class ExecuteResponse {
         JsonObject jsonObj = jsonElement.getAsJsonObject();
       if (!jsonObj.get("result").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `result` to be a primitive type in the JSON string but got `%s`", jsonObj.get("result").toString()));
+      }
+      if ((jsonObj.get("stderr") != null && !jsonObj.get("stderr").isJsonNull()) && !jsonObj.get("stderr").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `stderr` to be a primitive type in the JSON string but got `%s`", jsonObj.get("stderr").toString()));
+      }
+      if ((jsonObj.get("stdout") != null && !jsonObj.get("stdout").isJsonNull()) && !jsonObj.get("stdout").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `stdout` to be a primitive type in the JSON string but got `%s`", jsonObj.get("stdout").toString()));
       }
   }
 

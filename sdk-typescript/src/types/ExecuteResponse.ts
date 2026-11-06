@@ -22,11 +22,15 @@ export interface ExecutionArtifacts {
  *
  * @interface
  * @property exitCode - The exit code from the command execution
- * @property result - The output from the command execution
+ * @property result - Combined stdout and stderr from the command execution (interleaved)
+ * @property stdout - Standard output only; undefined when the sandbox daemon predates split streams
+ * @property stderr - Standard error only; undefined when the sandbox daemon predates split streams
  * @property artifacts - Artifacts from the command execution
  */
 export interface ExecuteResponse {
   exitCode: number
   result: string
+  stdout?: string
+  stderr?: string
   artifacts?: ExecutionArtifacts
 }

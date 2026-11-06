@@ -65,7 +65,9 @@ sandbox's `cpu` and `memory` instead, e.g. `pytest -n 2` rather than `pytest -n 
 
 - `ExecuteResponse` - Command execution results containing:
   - exit_code: The command's exit status
-  - result: Standard output from the command
+  - result: Combined stdout and stderr from the command (interleaved)
+  - stdout: Standard output only; None when the sandbox daemon predates split streams
+  - stderr: Standard error only; None when the sandbox daemon predates split streams
   - artifacts: ExecutionArtifacts object containing `stdout` (same as result)
   and `charts` (matplotlib charts metadata)
   
@@ -76,6 +78,11 @@ sandbox's `cpu` and `memory` instead, e.g. `pytest -n 2` rather than `pytest -n 
 # Simple command
 response = await sandbox.process.exec("echo 'Hello'")
 print(response.artifacts.stdout)  # Prints: Hello
+
+# Split streams
+response = await sandbox.process.exec("echo out; echo err >&2")
+print(response.stdout)  # Prints: out
+print(response.stderr)  # Prints: err
 
 # Command with working directory
 result = await sandbox.process.exec("ls", cwd="workspace/src")
@@ -884,7 +891,9 @@ Response from the command execution.
 **Attributes**:
 
 - `exit_code` _int_ - The exit code from the command execution
-- `result` _str_ - The output from the command execution
+- `result` _str_ - Combined stdout and stderr from the command execution (interleaved)
+- `stdout` _str | None_ - Standard output only; None when the sandbox daemon predates split streams
+- `stderr` _str | None_ - Standard error only; None when the sandbox daemon predates split streams
 - `artifacts` _ExecutionArtifacts | None_ - Artifacts from the command execution
 
 ## SessionExecuteResponse
