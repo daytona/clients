@@ -207,7 +207,8 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
   registry check requires both SDKs to be published already).
 - The release run skips the tool's wall-clock budget assertions (TypeScript:
   `DAYTONA_UPGRADE_SKIP_WALL_CLOCK`, which `upgrade/typescript/tests/budget.ts`
-  reads and which also raises test timeouts; Python: the `wall_clock` marker),
+  reads and which also raises test timeouts; Python: the `wall_clock` marker,
+  and the same variable raises its subprocess hang guards),
   so a slow runner cannot block an SDK release; `upgrade-tool-ci.yaml` asserts
   them on every change.
 - To build and test the tool without publishing it, dispatch the run and

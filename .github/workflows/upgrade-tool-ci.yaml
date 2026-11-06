@@ -177,6 +177,8 @@ jobs:
       - name: PyPI tool suite, release mode
         if: matrix.shard == 1
         working-directory: ${{ runner.temp }}/snapshot/upgrade/python
+        env:
+          DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'
         run: |
           set -euo pipefail
           python -m pip install --upgrade uv

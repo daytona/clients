@@ -798,6 +798,8 @@ jobs:
         working-directory: upgrade/python
         env:
           PYPI_VERSION: ${{ needs.gate.outputs.upgrade_pypi }}
+          # Raises the suite's subprocess hang guards (tests/test_bounded_inputs.py).
+          DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip uv
