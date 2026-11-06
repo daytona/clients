@@ -7,12 +7,13 @@ import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import type { IncomingHttpHeaders, Server } from 'node:http'
 import { once } from 'node:events'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ImagesService } from '../src/v2/Images.js'
 import { createHttpClient } from '../src/v2/http.js'
 import { contextUploadRuntime } from '../src/v2/contextUpload.js'
+import { Sha256 } from '../src/v2/sha256.js'
 import { BadRequestError, ConflictError, ConnectionError, DaytonaError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError.js'
 
 const UPLOAD_ID = '0b6d2c8e-8a1f-4c1e-9d7a-3f0e5b2a9c41'
@@ -31,6 +32,14 @@ let onPut: ((part: number) => Promise<void>) | undefined
 let completeStatuses: number[]
 let completeDelays: number[]
 const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
+const defaultIsNode = contextUploadRuntime.isNode
+const tempDirs: string[] = []
+
+async function tempDir(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'ctx-'))
+  tempDirs.push(dir)
+  return dir
+}
 
 function service(requestTimeoutMs = 5_000): ImagesService {
   return new ImagesService(createHttpClient(baseUrl, 'fixture-key', requestTimeoutMs))
@@ -65,6 +74,7 @@ beforeEach(async () => {
   completeDelays = []
   contextUploadRuntime.sleep = async () => {}
   contextUploadRuntime.completeTimeoutMs = defaultCompleteTimeoutMs
+  contextUploadRuntime.isNode = defaultIsNode
   server = createServer((request, response) => {
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
@@ -113,6 +123,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
   server.closeAllConnections()
   await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
 })
@@ -122,7 +133,7 @@ it.each(['bytes', 'file'] as const)('uploads a %s context in parts, completes it
   const data = archive(10_000)
   let context: Uint8Array | string = data
   if (kind === 'file') {
-    context = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+    context = join(await tempDir(), 'ctx.tar')
     await writeFile(context, data)
   }
   // When it is built from the context.
@@ -154,7 +165,7 @@ it.each(['bytes', 'file'] as const)('retries a %s part after a storage error', a
   const data = archive()
   let context: Uint8Array | string = data
   if (kind === 'file') {
-    context = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+    context = join(await tempDir(), 'ctx.tar')
     await writeFile(context, data)
   }
   await service().buildFromContext(context)
@@ -211,7 +222,7 @@ it.each(['bytes', 'blob', 'file'] as const)('sends each %s part with its own len
   let context: Uint8Array | Blob | string = data
   if (kind === 'blob') context = new Blob([data as Uint8Array<ArrayBuffer>])
   if (kind === 'file') {
-    context = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+    context = join(await tempDir(), 'ctx.tar')
     await writeFile(context, data)
   }
   await service().buildFromContext(context)
@@ -225,7 +236,7 @@ it('refuses a file that changes while it is being uploaded', async () => {
   // Given a context file rewritten after it was declared, with parts longer
   // than the one chunk a part's stream reads before it is sent.
   partSize = 3 << 20
-  const path = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+  const path = join(await tempDir(), 'ctx.tar')
   await writeFile(path, archive(5 << 20))
   const original = contextUploadRuntime.fetch
   contextUploadRuntime.fetch = async (input, init) => {
@@ -263,7 +274,7 @@ it.each(['bytes', 'blob', 'file'] as const)('uploads %s parts in parallel, up to
   let context: Uint8Array | Blob | string = data
   if (kind === 'blob') context = new Blob([data as Uint8Array<ArrayBuffer>])
   if (kind === 'file') {
-    context = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+    context = join(await tempDir(), 'ctx.tar')
     await writeFile(context, data)
   }
   // When a context of more parts than the limit is uploaded.
@@ -342,4 +353,33 @@ it('writes no part URL to the console or the standard streams', async () => {
     for (const spy of spies) spy.mockRestore()
   }
   expect(written.filter((line) => line.includes(SIGNATURE) || line.includes('/bucket/'))).toEqual([])
+})
+
+it('refuses a name with an idle expiry before any request', async () => {
+  await expect(service().buildFromContext(archive(), { name: 'web', idleExpirySeconds: 60 })).rejects.toThrow(
+    new BadRequestError('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds', 400, 'BAD_REQUEST', 'SDK'),
+  )
+  expect(seen).toEqual([])
+})
+
+it('hashes incrementally to the same digest as node:crypto', () => {
+  const data = new Uint8Array(200_003).map((_, i) => (i * 31 + 7) & 0xff)
+  for (const size of [0, 1, 55, 56, 63, 64, 65, 119, 120, 128, 1000, data.byteLength]) {
+    const slice = data.subarray(0, size)
+    const expected = createHash('sha256').update(slice).digest('hex')
+    expect(new Sha256().update(slice).digestHex()).toBe(expected)
+    const split = new Sha256()
+    for (let offset = 0; offset < size; offset += 37) split.update(slice.subarray(offset, offset + 37))
+    expect(split.digestHex()).toBe(expected)
+  }
+})
+
+it('declares the digest of a Blob without node:crypto', async () => {
+  // Given a runtime that is not Node.js, such as a browser.
+  const data = archive(10_000)
+  contextUploadRuntime.isNode = () => false
+  // When a Blob context is built, it is hashed incrementally and declared.
+  await service().buildFromContext(new Blob([Buffer.from(data)]))
+  expect(json('POST', '/build-contexts')).toMatchObject({ sha256: createHash('sha256').update(data).digest('hex') })
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
 })
