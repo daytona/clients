@@ -203,11 +203,13 @@ async function putPart(source: ContextSource, offset: number, part: api.BuildCon
 async function putParts(source: ContextSource, parts: readonly api.BuildContextUploadPart[]): Promise<void> {
   const offsets: number[] = []
   let total = 0
-  for (const part of parts) {
+  let ordered = true
+  parts.forEach((part, index) => {
+    if (part.part_number !== index + 1 || part.bytes <= 0) ordered = false
     offsets.push(total)
     total += part.bytes
-  }
-  if (total !== source.size) throw new DaytonaError('build context upload parts do not cover the archive', undefined, undefined, 'SDK')
+  })
+  if (!ordered || total !== source.size) throw new DaytonaError('build context upload parts do not cover the archive', undefined, undefined, 'SDK')
   const abort = new AbortController()
   let failure: { readonly error: unknown } | undefined
   let next = 0

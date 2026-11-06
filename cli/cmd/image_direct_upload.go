@@ -155,10 +155,14 @@ func postImageDirect(ctx context.Context, client *api.Client, meta map[string]st
 // first failure cancels the parts still in flight and is the one returned.
 func putImageContextParts(ctx context.Context, staged *stagedImageContext, parts []gen.BuildContextUploadPart) error {
 	var total int64
-	for _, part := range parts {
+	ordered := true
+	for i, part := range parts {
+		if int(part.PartNumber) != i+1 || part.Bytes <= 0 {
+			ordered = false
+		}
 		total += part.Bytes
 	}
-	if total != staged.size {
+	if !ordered || total != staged.size {
 		return cerr.New(cerr.ExitFailure, "build context upload parts do not cover the archive")
 	}
 	group, groupCtx := errgroup.WithContext(ctx)
