@@ -27,6 +27,14 @@ function executable(path, body) {
   chmodSync(path, 0o755);
 }
 
+// A real tarball holding package/package.json, as `npm pack` writes it.
+function packTool(root, name, version) {
+  mkdirSync(join(root, 'tool/package'), { recursive: true });
+  writeFileSync(join(root, 'tool/package/package.json'), JSON.stringify({ name, version }));
+  const packed = spawnSync('tar', ['-czf', join(root, 'upgrade-pack/tool.tgz'), 'package'], { cwd: join(root, 'tool'), encoding: 'utf8' });
+  assert.equal(packed.status, 0, packed.stderr);
+}
+
 function step(name) {
   const block = workflow.split(`      - name: ${name}\n`)[1]?.split('\n      - ')[0];
   assert.ok(block, `missing step ${name}`);
@@ -41,7 +49,7 @@ for (const tag of ['alpha', 'beta', 'next', 'latest', '', 'stable', 'latest\ninj
     // Given: one packed artifact and a publisher that records whether it ran.
     const root = fixture(context);
     mkdirSync(join(root, 'upgrade-pack'));
-    writeFileSync(join(root, 'upgrade-pack/tool.tgz'), '');
+    packTool(root, '@daytona/upgrade', '2.0.0-alpha.8');
     executable(join(root, 'bin/npm'), 'echo published > "$PUBLISH_LOG"');
     const log = join(root, 'published');
     const valid = ['alpha', 'beta', 'next', 'latest'].includes(tag);
@@ -62,7 +70,7 @@ for (const [code, published] of [['200', false], ['404', true], ['503', false]])
     // Given: a resumed run and a registry that has, lacks, or cannot answer for the version.
     const root = fixture(context);
     mkdirSync(join(root, 'upgrade-pack'));
-    writeFileSync(join(root, 'upgrade-pack/tool.tgz'), '');
+    packTool(root, '@daytona/upgrade', '2.0.0-alpha.8');
     executable(join(root, 'bin/npm'), 'echo published > "$PUBLISH_LOG"');
     executable(join(root, 'bin/curl'), `printf ${code}`);
     const log = join(root, 'published');
@@ -204,3 +212,39 @@ test('the pin bump writes a changelog fragment the changelog check accepts', (co
   // Then
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
+
+for (const [name, version, published] of [['@daytona/upgrade', '2.0.0-alpha.8', true], ['@daytona/sdk', '2.0.0-alpha.8', false], ['@daytona/upgrade', '2.0.0-alpha.7', false]]) {
+  test(`publishes the migration tool tarball only when it is the tool at this version (${name}@${version})`, (context) => {
+    // Given: a tarball whose package identity may not match the run.
+    const root = fixture(context);
+    mkdirSync(join(root, 'upgrade-pack'));
+    packTool(root, name, version);
+    executable(join(root, 'bin/npm'), 'echo published > "$PUBLISH_LOG"');
+    const log = join(root, 'published');
+    // When
+    const result = spawnSync('bash', ['-c', step('Publish the migration tool to npm (OIDC)')], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+        NPM_DIST_TAG: 'alpha', NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log },
+    });
+    // Then
+    assert.equal(result.status, published ? 0 : 1, result.stdout + result.stderr);
+    if (published) assert.equal(readFileSync(log, 'utf8'), 'published\n');
+    else assert.throws(() => readFileSync(log), { code: 'ENOENT' });
+  });
+}
+
+for (const [files, valid] of [[['daytona_upgrade-2.0.0a8-py3-none-any.whl', 'daytona_upgrade-2.0.0a8.tar.gz'], true],
+  [['daytona_upgrade-2.0.0a8-py3-none-any.whl', 'daytona_upgrade-2.0.0a8.tar.gz', 'daytona-2.0.0a8-py3-none-any.whl'], false]]) {
+  test(`checks the migration tool's PyPI distributions (${files.length} files)`, (context) => {
+    // Given
+    const root = fixture(context);
+    mkdirSync(join(root, 'upgrade-pypi'));
+    for (const file of files) writeFileSync(join(root, 'upgrade-pypi', file), '');
+    // When
+    const result = spawnSync('bash', ['-c', step("The migration tool's PyPI distributions are exactly the tool's")], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, PYPI_VERSION: '2.0.0a8' },
+    });
+    // Then: an SDK distribution never rides along under the tool's publisher.
+    assert.equal(result.status, valid ? 0 : 1, result.stdout + result.stderr);
+  });
+}

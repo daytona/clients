@@ -108,6 +108,9 @@ it.each([
   // An exclusive bound at or above the target is kept, never rewritten to a version it excludes.
   ['>2.0.0-alpha.8', '2.0.0-alpha.8', '>2.0.0-alpha.8'],
   ['>2.0.0-alpha.9', '2.0.0-alpha.8', '>2.0.0-alpha.9'],
+  // The published 2.0.0-rc.1 is a stale pre-alpha build without .v0: not ahead of an alpha.
+  ['2.0.0-rc.1', '2.0.0-alpha.8', '2.0.0-alpha.8'],
+  ['^2.0.0-rc.1', '2.0.0-alpha.8', '2.0.0-alpha.8'],
 ])('moves %s under a %s tool to %s', async (range, tool, expected) => {
   // Given / When
   const { written, items } = await migrate(range, tool);

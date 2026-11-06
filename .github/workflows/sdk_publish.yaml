@@ -437,7 +437,7 @@ jobs:
           name: sdk-src
           path: /tmp/sdk-src.tgz
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7   # upgrade-e2e re-runs ("Re-run failed jobs") need it
 
   # ── Build jobs: run the dispatched code with NO token, NO environment, NO cache ─
   # The already-published check runs in its own job with NO checkout: it only
@@ -1181,6 +1181,16 @@ jobs:
         with:
           name: upgrade-pypi
           path: upgrade-pypi/
+      # Only the tool's two distributions go up under the tool's name.
+      - name: The migration tool's PyPI distributions are exactly the tool's
+        if: needs.gate.outputs.upgrade_pypi != ''
+        env:
+          PYPI_VERSION: ${{ needs.gate.outputs.upgrade_pypi }}
+        run: |
+          set -euo pipefail
+          expected=$(printf '%s\n' "daytona_upgrade-${PYPI_VERSION}-py3-none-any.whl" "daytona_upgrade-${PYPI_VERSION}.tar.gz" | sort)
+          actual=$(find upgrade-pypi -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)
+          [ "$actual" = "$expected" ] || { echo "::error::unexpected migration tool distributions: $actual"; exit 1; }
       - name: Publish daytona-upgrade ${{ needs.gate.outputs.upgrade_pypi }} to PyPI (OIDC)
         id: upgrade_pypi_publish
         if: needs.gate.outputs.upgrade_pypi != ''
@@ -1236,6 +1246,13 @@ jobs:
               *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/upgrade ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
             esac
           fi
+          # The tarball is the tool, at this run's version (read, never executed).
+          # shellcheck disable=SC2016 # JavaScript, not shell, in single quotes
+          tar -xOzf "$tgz" package/package.json | node -e '
+            const manifest = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            if (manifest.name !== "@daytona/upgrade" || manifest.version !== process.env.NPM_VERSION) {
+              console.error(`::error::the migration tool tarball is ${manifest.name}@${manifest.version}`); process.exit(1);
+            }'
           npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
 
   # The version is recorded as a tag on the published commit. The CLI

@@ -571,6 +571,9 @@ def _migrate(
         # An exclusive bound at or above the target is kept, never rewritten to a version it excludes.
         ("daytona[v0-sdk]>2.0.0a8", "2.0.0a8", "daytona[v0-sdk]>2.0.0a8"),
         ("daytona[v0-sdk]>2.0.0a9", "2.0.0a8", "daytona[v0-sdk]>2.0.0a9"),
+        # The published 2.0.0rc1 is a stale pre-alpha build without .v0: not ahead of an alpha.
+        ("daytona[v0-sdk]==2.0.0rc1", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
+        ("daytona[v0-sdk]>=2.0.0rc1,<3", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
         ("daytona[v0-sdk]>=2.5.0", "2.0.0a3", "daytona[v0-sdk]>=2.5.0"),
         ("daytona[v0-sdk]==2.1.0", "2.0.0a3", "daytona[v0-sdk]==2.1.0"),
         ("daytona[v0-sdk]>=2,<3", "2.0.0a3", "daytona[v0-sdk]==2.0.0a3"),

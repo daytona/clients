@@ -102,11 +102,23 @@ def pinned_floor(constraint: str, target: str) -> str | None:
         or wanted is None
         or not wanted.is_prerelease
         or not floor.is_prerelease
+        or _stale_for_target(floor, wanted)
         or _exact(constraint)
         or ">" in constraint.replace(">=", "")  # An exclusive bound names no release.
     ):
         return None
     return f"=={floor}" if floor.major == wanted.major and floor >= wanted else None
+
+
+def _stale_for_target(floor: Version, wanted: Version) -> bool:
+    """While the target is an alpha, a beta or rc floor is not ahead of it: the
+    only such releases are the stale pre-alpha 2.0.0rc1 builds (no v0 namespace)."""
+    return (
+        wanted.pre is not None
+        and wanted.pre[0] == "a"
+        and floor.pre is not None
+        and floor.pre[0] != "a"
+    )
 
 
 def at_or_above_target(constraint: str, target: str) -> bool:
@@ -138,6 +150,7 @@ def at_or_above_target(constraint: str, target: str) -> bool:
         and wanted is not None
         and floor.major == wanted.major
         and floor >= wanted
+        and not _stale_for_target(floor, wanted)
         # While the target is a pre-release, a floor on that same release's
         # stable version (">=2,<3" under ==2.0.0a8, what pre-lockstep releases
         # wrote) installs nothing yet; any later stable floor is a project

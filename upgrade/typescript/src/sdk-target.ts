@@ -5,6 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { gte, minVersion, parse, valid, validRange } from 'semver';
+import type { SemVer } from 'semver';
 import type { Mapping } from './model.js';
 import { UpgradeError } from './model.js';
 
@@ -48,7 +49,7 @@ export function pinnedFloor(range: string, target: string): string | undefined {
   if (validRange(range) === null || validRange(target) === null || valid(range) !== null || /(?<![<>])>(?!=)/.test(range)) return undefined;
   const floor = minVersion(range);
   const wanted = minVersion(target);
-  if (floor === null || wanted === null || !wanted.prerelease.length || !floor.prerelease.length) return undefined;
+  if (floor === null || wanted === null || !wanted.prerelease.length || !floor.prerelease.length || staleForTarget(floor, wanted)) return undefined;
   return floor.major === wanted.major && gte(floor, wanted) ? floor.version : undefined;
 }
 
@@ -61,6 +62,15 @@ export function withTarget(mapping: Mapping, toolVersion: string): Mapping {
  * (`2.0.0-alpha.9` for a `2.0.0-alpha.8` tool, `^2.5.0` for `^2.3.1`): left as
  * it is, so an older tool release never downgrades a project.
  */
+/**
+ * While the target is an alpha, a beta or rc floor is not ahead of it: the only
+ * such releases are the stale pre-alpha `2.0.0-rc.1` builds, which have no v0
+ * namespace.
+ */
+function staleForTarget(floor: SemVer, wanted: SemVer): boolean {
+  return wanted.prerelease[0] === 'alpha' && floor.prerelease.length > 0 && floor.prerelease[0] !== 'alpha';
+}
+
 export function atOrAboveTarget(range: string, target: string): boolean {
   if (validRange(range) === null || validRange(target) === null) return false;
   // An exclusive bound at or above the target (`>2.0.0-alpha.8`) admits only
@@ -70,7 +80,7 @@ export function atOrAboveTarget(range: string, target: string): boolean {
   if (exclusive !== undefined && wantedExact !== null && parse(exclusive)?.major === wantedExact.major && gte(exclusive, wantedExact)) return true;
   const floor = minVersion(range);
   const wanted = minVersion(target);
-  if (floor === null || wanted === null || floor.major !== wanted.major || !gte(floor, wanted)) return false;
+  if (floor === null || wanted === null || floor.major !== wanted.major || !gte(floor, wanted) || staleForTarget(floor, wanted)) return false;
   // While the target is a pre-release, only an exact pre-release counts: a
   // pre-release range (`^2.0.0-alpha.8`) also admits the stale 2.0.0-rc.1.
   if (wanted.prerelease.length && floor.prerelease.length && valid(range) === null) return false;
