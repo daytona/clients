@@ -3,8 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
 import { invoke, temporaryProject } from './helpers.js';
 import { loadMapping } from '../src/mapping.js';
@@ -194,4 +197,24 @@ it('reports a later-major peer range as a peer dependency', async () => {
   const items = (JSON.parse(result.output) as { readonly items: readonly { readonly kind: string; readonly message: string }[] }).items;
   expect(items).toContainEqual(expect.objectContaining({ kind: 'peer-dependency' }));
   expect(items.some(item => item.message.includes('is newer than this daytona-upgrade release targets'))).toBe(false);
+});
+
+it('a stamped release writes the SDK release of its own version', () => {
+  // Given: the built tool under a package.json stamped as the publish job does.
+  const packageRoot = fileURLToPath(new URL('..', import.meta.url));
+  const stamped = mkdtempSync(join(tmpdir(), 'daytona-upgrade-stamped-'));
+  try {
+    cpSync(join(packageRoot, 'dist'), join(stamped, 'dist'), { recursive: true });
+    symlinkSync(join(packageRoot, 'node_modules'), join(stamped, 'node_modules'), 'junction');
+    const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')) as Record<string, unknown>;
+    writeFileSync(join(stamped, 'package.json'), JSON.stringify({ ...manifest, version: '2.0.0-alpha.42' }));
+    const root = temporaryProject({ 'package.json': '{"dependencies":{"@daytonaio/sdk":"^0.230.0"}}', 'index.ts': "import { Daytona } from '@daytonaio/sdk';\n" });
+    // When
+    const result = spawnSync(process.execPath, [join(stamped, 'dist/cli.js'), root, '--json'], { encoding: 'utf8' });
+    // Then: the version reaches the written range (no placeholder ^2.0.0).
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout).dependencies).toEqual([{ file: 'package.json', from: '@daytonaio/sdk@^0.230.0', to: '@daytona/sdk@2.0.0-alpha.42' }]);
+  } finally {
+    rmSync(stamped, { recursive: true, force: true });
+  }
 });

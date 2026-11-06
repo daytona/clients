@@ -214,7 +214,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   source of truth — a moved tag fails `resolve-v0-tag.sh --verify`,
   `bundle-v0.sh` and the publish gate) by `scripts/bundle-v0.sh` at publish time —
   git-ignored, NEVER committed or hand-edited (`scripts/check-no-bundled-v0.sh`
-  is an sdk-ci gate). Bumping the pin is a two-line PR plus a 2.x release;
+  is an sdk-ci gate). Bumping the pin is a manual PR (docs/RELEASING.md, "The v0 pin") plus a 2.x release;
   `scripts/resolve-v0-tag.sh --verify` (sdk-ci) proves the pinned tag exists
   at the pinned commit. `scripts/v0-publish-mode.sh` (run by the publish
   gate) decides per published tree: a tree with neither the namespace

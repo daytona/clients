@@ -376,10 +376,17 @@ it.each(shared.map(entry => [entry.id, entry] as const))('prints the shared %s m
   const fill = (text: string): string => text.replaceAll('{pinned}', pinned).replaceAll('{newerPatch}', newerPatch).replaceAll('{file}', 'package-lock.json');
   const lock = JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytonaio/sdk': { version: fill(entry.version.npm) } } });
   // When
-  const { report } = await run({ 'package.json': manifest('*'), 'package-lock.json': lock, 'index.ts': code }, entry.flags ?? []);
-  // Then
-  if (entry.refusal !== undefined) expect(report.refused?.message).toBe(fill(entry.refusal));
-  if (entry.warning !== undefined) expect(report.warnings).toEqual([{ file: entry.unknownFile ? 'package.json' : 'package-lock.json', message: fill(entry.warning) }]);
+  const { code: exit, report } = await run({ 'package.json': manifest('*'), 'package-lock.json': lock, 'index.ts': code }, entry.flags ?? []);
+  // Then: each case names exactly one expectation (a misspelled key fails here).
+  expect(Object.keys(entry).filter(key => key === 'refusal' || key === 'warning')).toHaveLength(1);
+  if (entry.refusal !== undefined) {
+    expect(exit).toBe(2);
+    expect(report.refused?.message).toBe(fill(entry.refusal));
+  } else {
+    expect(exit).toBe(0);
+    expect(report.refused).toBeUndefined();
+    expect(report.warnings).toEqual([{ file: entry.unknownFile ? 'package.json' : 'package-lock.json', message: fill(entry.warning ?? '') }]);
+  }
 });
 
 it('ignores commented-out bun.lock entries', async () => {
@@ -446,4 +453,13 @@ it('checks a symlinked project where it lives', async () => {
   // Then: the real lockfile's resolution counts.
   expect(result.code).toBe(2);
   expect((JSON.parse(result.output) as Report).refused?.reason).toBe('newer-v0');
+});
+
+it('an unreadable own declaration is unknown, not an ancestor\'s version', async () => {
+  // Given: the root declares a newer minor; app/ installs the SDK from Git.
+  const { code: exit, report } = await run({ '.git/HEAD': '', 'package.json': manifest('0.999.0'),
+    'app/package.json': manifest('github:daytonaio/sdk'), 'app/index.ts': code }, [], 'app');
+  // Then: like the PyPI tool, app's own declaration is unknown.
+  expect(exit).toBe(0);
+  expect(report.warnings).toEqual([{ file: 'package.json', message: unknownMessage(pinned) }]);
 });

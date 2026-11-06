@@ -71,11 +71,13 @@ class Migration:
                 and _normalized(egg[1]) in self.names
                 and not logical.lstrip().startswith("#")
             ):
+                self.declared.append((egg[1], ""))  # No version to read: unknown.
                 self.unparsed_requirement()
             return source
         tail = parsed["tail"]
         hash_locked = bool(re.search(r"(?:^|\s)--hash(?:=|\s)", tail))
         if tail.strip() and tail.lstrip()[0] not in "<>=!~@;#(\\" and not hash_locked:
+            self.declared.append((parsed["name"], ""))  # No version to read: unknown.
             self.unparsed_requirement()
             return source
         self.found = True

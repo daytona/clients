@@ -27,8 +27,10 @@ the constructor in `try` to detect missing credentials, access `.v0` inside that
 | TypeScript | `daytona.create()` | `daytona.v0.create()` |
 | TypeScript | `import { Sandbox } from '@daytonaio/sdk'` | `import { Sandbox } from '@daytona/sdk/v0'` |
 
-For Python, install the v0 SDK extra: `uv add 'daytona[v0-sdk]>=2,<3'`.
-For TypeScript, install `@daytona/sdk@^2.0.0`.
+Install the SDK release you migrate to, with the v0 SDK extra for Python. Until SDK 2.0.0
+is out, that is the exact alpha, e.g. `uv add 'daytona[v0-sdk]==2.0.0a8'` and
+`npm install @daytona/sdk@2.0.0-alpha.8`; after it, `uv add 'daytona[v0-sdk]>=2,<3'` and
+`npm install @daytona/sdk@^2.0.0`.
 SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.
 
 Python only: `DaytonaConfig` is a dataclass in SDK 2.x, not a pydantic model:
@@ -46,7 +48,6 @@ uvx daytona-upgrade  # Python
 Each tool release migrates to the SDK release of the same version. Until SDK 2.0.0
 is out, run the exact alpha you are migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.8`
 or `uvx daytona-upgrade@2.0.0a8`.
-Documentation links are placeholders until the public migration guide is published.
 
 The tools update dependencies and proven client calls. Review each
 `FIXME(daytona-upgrade)` item before running the result.

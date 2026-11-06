@@ -12,6 +12,7 @@ on:
       - 'scripts/v0-sdk-version'
       - '.github/workflows/sdk-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
+      - 'upgrade/mapping/**'
   pull_request:
     paths:
       - 'sdk-python/**'
@@ -21,6 +22,7 @@ on:
       - 'scripts/v0-sdk-version'
       - '.github/workflows/sdk-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
+      - 'upgrade/mapping/**'
 
 # Every job only reads the repository (least-privilege GITHUB_TOKEN).
 permissions:

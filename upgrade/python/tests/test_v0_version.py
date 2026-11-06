@@ -804,11 +804,16 @@ def test_prints_the_shared_message(
     flags = entry.get("flags", [])
     assert isinstance(flags, list)
     # When
-    _, report = _run(tmp_path, capsys, *map(str, flags))
-    # Then: the same text as the TypeScript tool.
+    code, report = _run(tmp_path, capsys, *map(str, flags))
+    # Then: the same text as the TypeScript tool; each case names exactly one
+    # expectation (a misspelled key fails here).
+    assert len({"refusal", "warning"} & entry.keys()) == 1
     if "refusal" in entry:
+        assert code == 2
         assert report["refused"]["message"] == fill(entry["refusal"])  # type: ignore[index]
-    if "warning" in entry:
+    else:
+        assert code == 0
+        assert "refused" not in report
         file = "pyproject.toml" if entry.get("unknownFile") else "uv.lock"
         assert report["warnings"] == [{"file": file, "message": fill(entry["warning"])}]
 
@@ -1147,4 +1152,23 @@ def test_hash_locked_guidance_keeps_the_records_extras(
         item["message"] for item in items if item["kind"] == "manual-dependency"
     ] == [
         "Change this dependency to daytona[otel,v0-sdk]==2.0.0a8 manually and regenerate hashes; the original hash-locked or continued record was preserved."
+    ]
+
+
+def test_an_unreadable_own_declaration_is_unknown_not_an_ancestors_version(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: the root declares a newer minor; app/ installs the SDK from Git.
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "requirements.txt").write_text("daytona==0.999.0\n")
+    _project(
+        tmp_path / "app",
+        {"requirements.txt": "-e git+https://github.com/daytonaio/sdk#egg=daytona\n"},
+    )
+    # When
+    code, report = _run(tmp_path / "app", capsys)
+    # Then: like the npm tool, app's own declaration is unknown.
+    assert code == 0
+    assert report["warnings"] == [
+        {"file": "requirements.txt", "message": unknown_message(PINNED)}
     ]
