@@ -77,6 +77,8 @@ class ArgumentParser(argparse.ArgumentParser):
 def _parser() -> ArgumentParser:
     # stdlib parsing keeps the published package's only dependencies LibCST/tomlkit.
     parser = ArgumentParser(
+        # Flags are spelled out, as the npm tool requires.
+        allow_abbrev=False,
         prog="daytona-upgrade",
         description="Upgrade 0.x code to SDK 2.x on the v0 namespace and bump the dependency.",
     )
@@ -227,7 +229,6 @@ def main(argv: list[str] | None = None) -> int:
                 result.declared or ancestor_declarations(root, mapping),
                 mapping.v0_version,
                 args.allow_newer_v0,
-                result.found,
             )
             if v0.warnings:
                 report["warnings"] = list(v0.warnings)
@@ -246,8 +247,16 @@ def main(argv: list[str] | None = None) -> int:
         if mode == "upgrade" and result.dependencies:
             from .manifests import next_step
 
+            # The requirement written, when every rewrite wrote the same one
+            # (a kept or newer pin is never named as a downgrade target).
+            written = {
+                entry.after
+                for entry in result.dependencies
+                if entry.after.startswith(mapping.package_new)
+            }
+            requirement = next(iter(written)) if len(written) == 1 else None
             report["nextSteps"].append(
-                next_step(root.parent if root.is_file() else root, mapping.requirement)
+                next_step(root.parent if root.is_file() else root, requirement)
             )
         manual = any(
             item["kind"] not in {"suggestion", "workflow"}

@@ -200,7 +200,7 @@ export async function run(options: Options, mapping: Mapping): Promise<RunResult
   }
   const v0 = options.mode === 'upgrade' && found
     ? checkV0Version(options.root, dependency.declared.length ? dependency.declared : ancestorDeclarations(options.root, mapping.packages.ts.old),
-      mapping.v0Version, options.allowNewerV0 ?? false, found) : { warnings: [] };
+      mapping.v0Version, options.allowNewerV0 ?? false) : { warnings: [] };
   const warnings = v0.warnings.length ? { warnings: v0.warnings } : {};
   if (v0.refusal !== undefined) return { changes: [], code: 2, report: { ...base, items, ...warnings, refused: { reason: 'newer-v0', message: v0.refusal } } };
   // A custom API URL (above) refuses with exit 2 before unsupported files exit 1.

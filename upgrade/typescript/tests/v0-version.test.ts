@@ -369,22 +369,23 @@ it('matches a classic yarn workspace glob written with ./', async () => {
 });
 
 // upgrade/mapping/v0-version-messages.json holds the expected text for both tools.
-type SharedCase = { readonly id: string; readonly version: { readonly npm: string }; readonly refusal?: string; readonly warning?: string };
+type SharedCase = { readonly id: string; readonly version: { readonly npm: string }; readonly flags?: readonly string[];
+  readonly unknownFile?: boolean; readonly refusal?: string; readonly warning?: string };
 const shared = (JSON.parse(readFileSync(join(here, '../../mapping/v0-version-messages.json'), 'utf8')) as { readonly cases: readonly SharedCase[] }).cases;
 it.each(shared.map(entry => [entry.id, entry] as const))('prints the shared %s message', async (_, entry) => {
   // Given: package-lock.json resolves the case's version.
-  const lock = JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytonaio/sdk': { version: entry.version.npm } } });
+  const fill = (text: string): string => text.replaceAll('{pinned}', pinned).replaceAll('{newerPatch}', newerPatch).replaceAll('{file}', 'package-lock.json');
+  const lock = JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytonaio/sdk': { version: fill(entry.version.npm) } } });
   // When
-  const { report } = await run({ 'package.json': manifest('*'), 'package-lock.json': lock, 'index.ts': code });
+  const { report } = await run({ 'package.json': manifest('*'), 'package-lock.json': lock, 'index.ts': code }, entry.flags ?? []);
   // Then
-  const fill = (text: string): string => text.replaceAll('{pinned}', pinned).replaceAll('{file}', 'package-lock.json');
   if (entry.refusal !== undefined) expect(report.refused?.message).toBe(fill(entry.refusal));
-  if (entry.warning !== undefined) expect(report.warnings).toEqual([{ file: 'package-lock.json', message: fill(entry.warning) }]);
+  if (entry.warning !== undefined) expect(report.warnings).toEqual([{ file: entry.unknownFile ? 'package.json' : 'package-lock.json', message: fill(entry.warning) }]);
 });
 
 it('ignores commented-out bun.lock entries', async () => {
   // Given: a hand-added comment naming a newer minor.
-  const bun = `{\n  "lockfileVersion": 1,\n  // "@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "x"],\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${pinned}", "", {}, "a"],\n  },\n}\n`;
+  const bun = `{\n  "lockfileVersion": 1,\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${pinned}", "", {}, "a"],\n    // "@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "x"],\n    /* "@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "y"], */\n  },\n}\n`;
   // When
   const { code: exit, report } = await run({ 'package.json': manifest(`^${pinned}`), 'bun.lock': bun, 'index.ts': code });
   // Then

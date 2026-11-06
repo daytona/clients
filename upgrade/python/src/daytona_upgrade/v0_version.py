@@ -216,7 +216,6 @@ def check_v0_version(
     declared: tuple[tuple[Path, str, str], ...],
     pinned: str | None,
     allow_newer: bool,
-    found: bool = True,
 ) -> V0VersionCheck:
     """The owning lockfile's resolution of the declared package says what is
     installed; without one, the constraint's lower bound stands in. Older and
@@ -227,9 +226,7 @@ def check_v0_version(
     _toml_packages.cache_clear()  # Parsed once per run, never reused across runs.
     if not declared:
         # Daytona code with no declaration anywhere up to the Git root.
-        return V0VersionCheck(
-            (Warning(file=".", message=unknown_message(pinned)),) if found else ()
-        )
+        return V0VersionCheck((Warning(file=".", message=unknown_message(pinned)),))
     pin = Version(pinned)
     evidenced: set[Path] = set()
     observed: dict[tuple[Path, Version], None] = {}

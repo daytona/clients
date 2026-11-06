@@ -930,7 +930,7 @@ jobs:
       pypi: ${{ (steps.pypi_download.outcome == 'failure' && 'failure') || steps.pypi_publish.outcome }}
       npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.npm_download.outcome == 'failure') && 'failure') || steps.npm_publish.outcome }}
       upgrade_pypi: ${{ (steps.upgrade_pypi_download.outcome == 'failure' && 'failure') || steps.upgrade_pypi_publish.outcome }}
-      upgrade_npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.upgrade_npm_download.outcome == 'failure') && 'failure') || steps.upgrade_npm_publish.outcome }}
+      upgrade_npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.upgrade_npm_node.outcome == 'failure' || steps.upgrade_npm_tool.outcome == 'failure' || steps.upgrade_npm_download.outcome == 'failure') && 'failure') || steps.upgrade_npm_publish.outcome }}
       cli: ${{ (steps.cli_download.outcome == 'failure' && 'failure') || steps.cli_release.outcome }}
       homebrew: ${{ steps.homebrew.outcome }}
     env:
@@ -992,7 +992,7 @@ jobs:
       # ── npm: @daytona/sdk ──
       - name: Set up Node for npm
         id: npm_node
-        if: needs.gate.outputs.npm != '' || needs.gate.outputs.upgrade_npm != ''
+        if: needs.gate.outputs.npm != ''
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
@@ -1007,7 +1007,7 @@ jobs:
       # `_authToken` placeholder it writes stay as they are.
       - name: Install a Trusted-Publishing-capable npm (pinned)
         id: npm_tool
-        if: needs.gate.outputs.npm != '' || needs.gate.outputs.upgrade_npm != ''
+        if: needs.gate.outputs.npm != ''
         run: |
           set -euo pipefail
           sed -i '/^always-auth=/d' "${NPM_CONFIG_USERCONFIG:?setup-node registry-url did not export NPM_CONFIG_USERCONFIG}"
@@ -1188,6 +1188,23 @@ jobs:
         with:
           packages-dir: upgrade-pypi/
           skip-existing: ${{ env.RESUME }}
+      # The same publisher setup as for @daytona/sdk, here only when this run
+      # publishes no SDK to npm, so a setup failure never holds back the CLI.
+      - name: Set up Node for npm (migration tool only)
+        id: upgrade_npm_node
+        if: needs.gate.outputs.upgrade_npm != '' && needs.gate.outputs.npm == ''
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install a Trusted-Publishing-capable npm (pinned, migration tool only)
+        id: upgrade_npm_tool
+        if: needs.gate.outputs.upgrade_npm != '' && needs.gate.outputs.npm == ''
+        run: |
+          set -euo pipefail
+          sed -i '/^always-auth=/d' "${NPM_CONFIG_USERCONFIG:?setup-node registry-url did not export NPM_CONFIG_USERCONFIG}"
+          npm install -g npm@11.21.1
+          npm --version
       - name: Download the migration tool's npm tarball
         id: upgrade_npm_download
         if: needs.gate.outputs.upgrade_npm != ''

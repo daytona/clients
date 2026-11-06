@@ -59,6 +59,20 @@ def lower_bound(constraint: str) -> Version | None:
     return min(bounds) if bounds else None
 
 
+def _exclusive_bound(constraint: str) -> Version | None:
+    """The version of a single ``>`` bound, if the constraint has one."""
+    try:
+        bounds = [
+            entry for entry in SpecifierSet(constraint.strip()) if entry.operator == ">"
+        ]
+    except InvalidSpecifier:
+        return None
+    try:
+        return Version(bounds[0].version) if len(bounds) == 1 else None
+    except InvalidVersion:
+        return None
+
+
 def _exact(constraint: str) -> bool:
     """A single ``==`` / ``===`` pin, or a bare Poetry version."""
     text = constraint.strip()
@@ -100,6 +114,16 @@ def at_or_above_target(constraint: str, target: str) -> bool:
     (``==2.0.0a9`` for a ``==2.0.0a8`` tool): left as it is, so an older tool
     release never downgrades a project."""
     floor, wanted = lower_bound(constraint), lower_bound(target)
+    exclusive = _exclusive_bound(constraint)
+    if (
+        exclusive is not None
+        and wanted is not None
+        and exclusive.major == wanted.major
+        and exclusive >= wanted
+    ):
+        # An exclusive bound at or above the target admits only later releases:
+        # kept, never rewritten to a version it excludes.
+        return True
     if (
         floor is not None
         and wanted is not None

@@ -188,11 +188,11 @@ function zeroX(value: string): SemVer | undefined {
  * unless `allowNewer`, because its added APIs are in neither `.v0` nor the
  * mapping.
  */
-export function checkV0Version(root: string, declared: readonly DeclaredDependency[], pinned: string, allowNewer: boolean, found = true): V0VersionCheck {
+export function checkV0Version(root: string, declared: readonly DeclaredDependency[], pinned: string, allowNewer: boolean): V0VersionCheck {
   const pin = parse(pinned);
   if (pin === null) return { warnings: [] };
   // Daytona code with no declaration anywhere up to the Git root.
-  if (!declared.length) return { warnings: found ? [{ file: '.', message: unknownMessage(pinned) }] : [] };
+  if (!declared.length) return { warnings: [{ file: '.', message: unknownMessage(pinned) }] };
   const evidenced = new Set<string>();
   const observed = new Map<string, { readonly file: string; readonly version: SemVer }>();
   const unknown = new Set<string>();

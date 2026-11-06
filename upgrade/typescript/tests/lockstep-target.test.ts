@@ -105,7 +105,9 @@ it.each([
   ['>=2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],
   ['^2.0.0-alpha.9', '2.0.0-alpha.8', '2.0.0-alpha.9'],
   ['^2.0.0-alpha.7', '2.0.0-alpha.8', '2.0.0-alpha.8'],
-  ['>2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],
+  // An exclusive bound at or above the target is kept, never rewritten to a version it excludes.
+  ['>2.0.0-alpha.8', '2.0.0-alpha.8', '>2.0.0-alpha.8'],
+  ['>2.0.0-alpha.9', '2.0.0-alpha.8', '>2.0.0-alpha.9'],
 ])('moves %s under a %s tool to %s', async (range, tool, expected) => {
   // Given / When
   const { written, items } = await migrate(range, tool);

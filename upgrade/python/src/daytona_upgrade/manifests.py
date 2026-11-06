@@ -219,7 +219,7 @@ def rewrite_manifest(
     return result.source, list(result.changes)
 
 
-def next_step(root: Path, requirement: str) -> str:
+def next_step(root: Path, requirement: str | None) -> str:
     """Select a lock command from the root lockfile, without running it."""
     for lockfile, command in (
         ("uv.lock", "uv lock"),
@@ -229,4 +229,6 @@ def next_step(root: Path, requirement: str) -> str:
     ):
         if (root / lockfile).is_file():
             return command
+    if requirement is None or " = " in requirement:
+        return "Install the updated requirements."
     return f'pip install -U "{requirement}"'

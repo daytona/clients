@@ -63,6 +63,11 @@ export function withTarget(mapping: Mapping, toolVersion: string): Mapping {
  */
 export function atOrAboveTarget(range: string, target: string): boolean {
   if (validRange(range) === null || validRange(target) === null) return false;
+  // An exclusive bound at or above the target (`>2.0.0-alpha.8`) admits only
+  // later releases: kept, never rewritten to a version it excludes.
+  const exclusive = /(?<![<>])>(?!=)\s*v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/.exec(range)?.[1];
+  const wantedExact = minVersion(target);
+  if (exclusive !== undefined && wantedExact !== null && parse(exclusive)?.major === wantedExact.major && gte(exclusive, wantedExact)) return true;
   const floor = minVersion(range);
   const wanted = minVersion(target);
   if (floor === null || wanted === null || floor.major !== wanted.major || !gte(floor, wanted)) return false;

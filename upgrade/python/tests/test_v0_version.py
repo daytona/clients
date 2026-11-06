@@ -568,7 +568,9 @@ def _migrate(
         ("daytona[v0-sdk]>=2.0.0a9", "2.0.0a8", "daytona[v0-sdk]==2.0.0a9"),
         ("daytona[v0-sdk]>=2.0.0a8", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
         ("daytona[v0-sdk]~=2.0.0a8", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
-        ("daytona[v0-sdk]>2.0.0a8", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
+        # An exclusive bound at or above the target is kept, never rewritten to a version it excludes.
+        ("daytona[v0-sdk]>2.0.0a8", "2.0.0a8", "daytona[v0-sdk]>2.0.0a8"),
+        ("daytona[v0-sdk]>2.0.0a9", "2.0.0a8", "daytona[v0-sdk]>2.0.0a9"),
         ("daytona[v0-sdk]>=2.5.0", "2.0.0a3", "daytona[v0-sdk]>=2.5.0"),
         ("daytona[v0-sdk]==2.1.0", "2.0.0a3", "daytona[v0-sdk]==2.1.0"),
         ("daytona[v0-sdk]>=2,<3", "2.0.0a3", "daytona[v0-sdk]==2.0.0a3"),
@@ -772,29 +774,33 @@ def test_prints_the_shared_message(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], entry: dict[str, object]
 ) -> None:
     # Given: uv.lock resolves the case's version (upgrade/mapping/v0-version-messages.json).
+    def fill(text: object) -> str:
+        assert isinstance(text, str)
+        return (
+            text.replace("{pinned}", PINNED)
+            .replace("{newerPatch}", NEWER_PATCH)
+            .replace("{file}", "uv.lock")
+        )
+
     version = entry["version"]
     assert isinstance(version, dict)
     _project(
         tmp_path,
         {
             "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona"]\n',
-            "uv.lock": f'[[package]]\nname = "daytona"\nversion = "{version["py"]}"\n',
+            "uv.lock": f'[[package]]\nname = "daytona"\nversion = "{fill(version["py"])}"\n',
         },
     )
+    flags = entry.get("flags", [])
+    assert isinstance(flags, list)
     # When
-    _, report = _run(tmp_path, capsys)
-
+    _, report = _run(tmp_path, capsys, *map(str, flags))
     # Then: the same text as the TypeScript tool.
-    def fill(text: object) -> str:
-        assert isinstance(text, str)
-        return text.replace("{pinned}", PINNED).replace("{file}", "uv.lock")
-
     if "refusal" in entry:
         assert report["refused"]["message"] == fill(entry["refusal"])  # type: ignore[index]
     if "warning" in entry:
-        assert report["warnings"] == [
-            {"file": "uv.lock", "message": fill(entry["warning"])}
-        ]
+        file = "pyproject.toml" if entry.get("unknownFile") else "uv.lock"
+        assert report["warnings"] == [{"file": file, "message": fill(entry["warning"])}]
 
 
 @pytest.mark.parametrize("field", ["markers", "python"])
@@ -827,3 +833,29 @@ def test_prints_a_post_release(
             "message": newer_patch_message(f"{PINNED}.post1", PINNED),
         }
     ]
+
+
+def test_the_install_step_names_the_requirement_written(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given / When: an older tool pins a newer pre-release range to its own floor.
+    written, report = _migrate(
+        tmp_path, capsys, monkeypatch, "daytona>=2.0.0a9", "2.0.0a8"
+    )
+    # Then: the step installs what was written, not the older target.
+    assert written == "daytona[v0-sdk]==2.0.0a9"
+    assert report["nextSteps"] == ['pip install -U "daytona[v0-sdk]==2.0.0a9"']
+
+
+def test_refuses_an_abbreviated_flag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given / When: --allow-newer is not --allow-newer-v0 (the npm tool refuses it too).
+    _project(tmp_path, {"requirements.txt": "daytona==0.100.0\n"})
+    code = main([str(tmp_path), "--json", "--allow-newer"])
+    report = json.loads(capsys.readouterr().out)
+    # Then
+    assert code == 2
+    assert report["refused"]["reason"] == "bad-arguments"
