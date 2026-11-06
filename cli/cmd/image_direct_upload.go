@@ -163,7 +163,7 @@ func putImageContextParts(ctx context.Context, staged *stagedImageContext, parts
 // call that timed out or met a server or network failure is sent again.
 func completeImageContextUpload(ctx context.Context, client *api.Client, upload gen.BuildContextUpload) error {
 	long := client.WithTimeoutAtLeast(imageContextCompleteTimeout)
-	complete := gen.CompleteBuildContextUploadRequest{RegionId: &upload.RegionId}
+	complete := gen.CompleteBuildContextUploadRequest{RegionId: upload.RegionId}
 	path := "/build-contexts/" + upload.Id.String() + "/complete"
 	for attempt := 0; ; attempt++ {
 		var completed gen.BuildContextUpload

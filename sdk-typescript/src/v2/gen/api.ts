@@ -3021,8 +3021,12 @@ export interface components {
         ChargeReceiptPdf: string;
         ChargeStatus: ("succeeded" | "pending" | "failed") | (string & {});
         CompleteBuildContextUploadRequest: {
-            /** @description The region the upload was created in. Optional; when set, it must match. */
-            region_id?: string | null;
+            /**
+             * @description The region the upload was created in, as `POST /build-contexts`
+             *     returned it. Required: a multi-region deployment routes the request
+             *     to that region's servers by it.
+             */
+            region_id: string;
         };
         /** @description The `/config` response body. */
         Config: {
@@ -7157,10 +7161,9 @@ export interface operations {
             };
             cookie?: never;
         };
-        /** @description Optional; may be empty. */
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": null | components["schemas"]["CompleteBuildContextUploadRequest"];
+                "application/json": components["schemas"]["CompleteBuildContextUploadRequest"];
             };
         };
         responses: {
@@ -7174,7 +7177,7 @@ export interface operations {
                     "application/json": components["schemas"]["BuildContextUpload"];
                 };
             };
-            /** @description The uploaded archive failed verification, or the request is invalid (`BAD_REQUEST`) */
+            /** @description The uploaded archive failed verification, the region is missing or names another region, or the request is invalid (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];

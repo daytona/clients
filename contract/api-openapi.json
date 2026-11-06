@@ -1816,13 +1816,13 @@
         "additionalProperties": false,
         "properties": {
           "region_id": {
-            "description": "The region the upload was created in. Optional; when set, it must match.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "description": "The region the upload was created in, as `POST /build-contexts`\nreturned it. Required: a multi-region deployment routes the request\nto that region's servers by it.",
+            "type": "string"
           }
         },
+        "required": [
+          "region_id"
+        ],
         "type": "object"
       },
       "Config": {
@@ -9977,18 +9977,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CompleteBuildContextUploadRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/CompleteBuildContextUploadRequest"
               }
             }
           },
-          "description": "Optional; may be empty."
+          "required": true
         },
         "responses": {
           "200": {
@@ -10014,7 +10007,7 @@
                 }
               }
             },
-            "description": "The uploaded archive failed verification, or the request is invalid (`BAD_REQUEST`)",
+            "description": "The uploaded archive failed verification, the region is missing or names another region, or the request is invalid (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"

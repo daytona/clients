@@ -2162,8 +2162,10 @@ type ChargeStatus string
 
 // CompleteBuildContextUploadRequest defines model for CompleteBuildContextUploadRequest.
 type CompleteBuildContextUploadRequest struct {
-	// RegionId The region the upload was created in. Optional; when set, it must match.
-	RegionId *string `json:"region_id,omitempty"`
+	// RegionId The region the upload was created in, as `POST /build-contexts`
+	// returned it. Required: a multi-region deployment routes the request
+	// to that region's servers by it.
+	RegionId string `json:"region_id"`
 }
 
 // Config The `/config` response body.
@@ -6194,9 +6196,6 @@ type TooManyRequests = ErrorBody
 // Unauthorized The JSON error envelope every non-2xx response carries.
 type Unauthorized = ErrorBody
 
-// CompleteBuildContextUploadJSONBody defines parameters for CompleteBuildContextUpload.
-type CompleteBuildContextUploadJSONBody = CompleteBuildContextUploadRequest
-
 // GetCpuCatalogParams defines parameters for GetCpuCatalog.
 type GetCpuCatalogParams struct {
 	// RegionIds Comma-separated list of regions to include. Defaults to all regions.
@@ -6759,7 +6758,7 @@ type ExchangeTokenFormdataRequestBody = ExchangeTokenRequest
 type CreateBuildContextUploadJSONRequestBody = CreateBuildContextUploadRequest
 
 // CompleteBuildContextUploadJSONRequestBody defines body for CompleteBuildContextUpload for application/json ContentType.
-type CompleteBuildContextUploadJSONRequestBody = CompleteBuildContextUploadJSONBody
+type CompleteBuildContextUploadJSONRequestBody = CompleteBuildContextUploadRequest
 
 // CreateImageJSONRequestBody defines body for CreateImage for application/json ContentType.
 type CreateImageJSONRequestBody = CreateImageRequest
