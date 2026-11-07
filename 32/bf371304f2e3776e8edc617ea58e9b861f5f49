@@ -1,0 +1,54 @@
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 79
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 40-41,842,1001,1312,1314
+AGENTS.md
+  h_e7759ddd73fa65 416
+changelog.d/526.changed.md
+  h_e7759ddd73fa65 1
+docs/RELEASING.md
+  h_e7759ddd73fa65 124-128,178-179,182-184
+docs/adr/0005-migration-tool-versions.md
+  h_e7759ddd73fa65 21
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  h_e7759ddd73fa65 90-99,132-133
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 62-69,118-120,124-125,127,146-149
+upgrade/python/src/daytona_upgrade/manifests.py
+  h_e7759ddd73fa65 15,233,235-242
+upgrade/python/src/daytona_upgrade/project.py
+  h_e7759ddd73fa65 35,262
+upgrade/python/src/daytona_upgrade/v0_version.py
+  h_e7759ddd73fa65 121-125,278,280,336-356
+upgrade/python/tests/test_manifests.py
+  h_e7759ddd73fa65 188,198,208
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 18,578-580,868-1010
+upgrade/scripts/check-examples.sh
+  h_e7759ddd73fa65 14,41-42,44-50
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 184-188,190-191
+upgrade/typescript/src/dependency-scope.ts
+  h_e7759ddd73fa65 11,60-66
+upgrade/typescript/src/manifests.ts
+  h_e7759ddd73fa65 107
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 61-62,65,75-79
+upgrade/typescript/src/v0-version.ts
+  h_e7759ddd73fa65 99-101,235-236
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 90,112-113,117-120,138,157-180
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 414-422
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32bf371304f2e3776e8edc617ea58e9b861f5f49",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

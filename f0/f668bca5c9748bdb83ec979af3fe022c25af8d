@@ -1,0 +1,20 @@
+hack/homebrew-tap-dispatch.test.sh
+  s_2e6041b22161fe::t_bfa9a0053d5091 39-41,46,58-66,87,106-120
+  s_2e6041b22161fe::t_cb1b3a484c5efd 121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0f668bca5c9748bdb83ec979af3fe022c25af8d",
+  "prompts": {},
+  "sessions": {
+    "s_2e6041b22161fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e553a139affeVhy9pfmd6KKsqk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

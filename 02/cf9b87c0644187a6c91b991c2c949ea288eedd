@@ -1,0 +1,23 @@
+CHANGELOG.md
+  s_170baf016701c2::t_2bee7b3ef03822 12
+RELEASING.md
+  s_170baf016701c2::t_3194ca5d7a1942 35
+VERSIONING.md
+  s_170baf016701c2::t_e6649f6f85ebd3 187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "02cf9b87c0644187a6c91b991c2c949ea288eedd",
+  "prompts": {},
+  "sessions": {
+    "s_170baf016701c2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179970ffel5mD5rtZsQQcTa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

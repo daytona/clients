@@ -1,0 +1,22 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 801-802
+.github/workflows/upgrade-tool-ci.yaml
+  h_e7759ddd73fa65 180-181
+docs/RELEASING.md
+  h_e7759ddd73fa65 210-211
+upgrade/python/tests/test_bounded_inputs.py
+  h_e7759ddd73fa65 39-41
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 69-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c59489cdde331297f4283e19e023d7bd2562d6e0",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

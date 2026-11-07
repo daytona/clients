@@ -1,0 +1,19 @@
+sdk-typescript/src/__tests__/v1.test.ts
+  s_154bf8a0ae1d14::t_8ded27691a02fb 325-343,345-353,359
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "971f2bdf8252523a51564b6bc77beaa0fdd6a8b7",
+  "prompts": {},
+  "sessions": {
+    "s_154bf8a0ae1d14": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb10e46e2ffe8r3R0l6tmXLorx",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

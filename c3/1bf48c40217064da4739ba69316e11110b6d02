@@ -1,0 +1,30 @@
+artifacts/sdk-docs/ruby-sdk/daytona.mdx
+  h_e7759ddd73fa65 144,153-155,163-171
+poetry.lock
+  h_e7759ddd73fa65 750
+sdk-ruby/README.md
+  h_e7759ddd73fa65 123-150
+sdk-ruby/lib/daytona/daytona.rb
+  h_e7759ddd73fa65 105-107,109-118,130,258,261,263,266,343,348,350,354,362,375,380-382,436-477
+sdk-ruby/lib/daytona/sandbox.rb
+  h_e7759ddd73fa65 21-24
+sdk-ruby/lib/daytona/sdk/errors.rb
+  h_e7759ddd73fa65 77-81,119-120
+sdk-ruby/spec/daytona/daytona_spec.rb
+  h_e7759ddd73fa65 465,476-561,589-626,633,653-673
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  h_e7759ddd73fa65 709-711,793
+sdk-ruby/spec/e2e_spec.rb
+  h_e7759ddd73fa65 189-215
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c31bf48c40217064da4739ba69316e11110b6d02",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

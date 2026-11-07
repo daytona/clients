@@ -1,0 +1,19 @@
+python/tests/test_core.py
+  s_89fcc4ad2dc91f::t_53ad08ca001cb4 93,3373,3385-3417,3562-3563,5675,5677-5678,6565,8016,8020,8030,8038
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0edcb782340900326d9b6b0413b71d7ec826a45e",
+  "prompts": {},
+  "sessions": {
+    "s_89fcc4ad2dc91f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e592b8009ffeCoqgzC0h110igx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+hack/ax-evals/plan.js
+  s_893dbc5d83f0ea::t_e206f122ef9dcf 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d769bd6b61295ce11e280bf08c793b2617dbebfd",
+  "prompts": {},
+  "sessions": {
+    "s_893dbc5d83f0ea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe4ffcJ4ZClJuutSnISc",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

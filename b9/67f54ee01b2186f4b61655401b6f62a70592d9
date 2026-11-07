@@ -1,0 +1,14 @@
+upgrade/scripts/v2-note-surface.test.mjs
+  h_e7759ddd73fa65 83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b967f54ee01b2186f4b61655401b6f62a70592d9",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

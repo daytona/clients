@@ -1,0 +1,21 @@
+.github/workflows/sdk_publish.yaml
+  s_fe86ed71a8edb7::t_7d5d665794273f 46-48,631,665
+RELEASING.md
+  s_fe86ed71a8edb7::t_7134b3a5dd3ca5 73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "22f2d645dbea386624bd9fd7c34b6cf7bef04736",
+  "prompts": {},
+  "sessions": {
+    "s_fe86ed71a8edb7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe4ffdu1zG4EYQ7CPVn6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

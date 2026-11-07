@@ -1,0 +1,16 @@
+sdk-python/README.md
+  h_e7759ddd73fa65 41,48
+sdk-typescript/README.md
+  h_e7759ddd73fa65 47,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c566bc59979ab0e815ffd3ae4c1f986daf94d413",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

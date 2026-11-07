@@ -1,0 +1,28 @@
+artifacts/sdk-docs/python-sdk/root-daytona.mdx
+  h_e7759ddd73fa65 6-7,55-56
+sdk-python/package.json
+  h_e7759ddd73fa65 12
+sdk-python/src/daytona/__init__.py
+  h_e7759ddd73fa65 28-29,228,230
+sdk-python/src/daytona/_root_async.py
+  h_e7759ddd73fa65 6-7,10
+sdk-python/src/daytona/_root_sync.py
+  h_e7759ddd73fa65 1-188
+sdk-python/src/daytona/_versioning.py
+  h_e7759ddd73fa65 59-60,70
+sdk-python/tests/test_v1.py
+  h_e7759ddd73fa65 109,120,144,173,185,197,273,306-307,309,312,365-371,486-500
+tsconfig.base.json
+  h_e7759ddd73fa65 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0cbca694242fb1dceec1a7982a3fd85cf5bbdaf9",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

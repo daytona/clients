@@ -1,0 +1,51 @@
+sdk-typescript/runtime-tests/nextjs/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 15-16
+sdk-typescript/runtime-tests/remix/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 14-15
+sdk-typescript/runtime-tests/workerd/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 41-42
+sdk-typescript/runtime-tests/nextjs-external/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 15-16
+sdk-typescript/runtime-tests/azure-functions/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 27-28
+sdk-typescript/runtime-tests/deno/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 9-10
+sdk-typescript/runtime-tests/node-cjs/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 8-9
+sdk-typescript/runtime-tests/nextjs-webpack/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 15-16
+sdk-typescript/runtime-tests/README.md
+  s_152ef0468dbe7e::t_231af24be1f5fd 146-148
+sdk-typescript/runtime-tests/lib.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 33-35
+sdk-typescript/runtime-tests/vite-browser/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 18-19
+sdk-typescript/runtime-tests/esbuild-cjs/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 15-16
+sdk-typescript/runtime-tests/nuxt/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 15-16
+sdk-typescript/runtime-tests/aws-lambda/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 10-11
+sdk-typescript/runtime-tests/node-esm/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 8-9
+sdk-typescript/runtime-tests/bun/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 10-11
+sdk-typescript/runtime-tests/vite-ssr/run.sh
+  s_152ef0468dbe7e::t_fcf13d54a22aed 16-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91ad85625c75038097a7c5b0c55cfb2ff688b78d",
+  "prompts": {},
+  "sessions": {
+    "s_152ef0468dbe7e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5472b35affenJphhBC356bJDR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

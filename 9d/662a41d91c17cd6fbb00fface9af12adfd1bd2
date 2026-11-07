@@ -1,0 +1,32 @@
+hack/npm-latest-guard.test.sh
+  s_ccb67f64e4fd09::t_721804970cc90c 1-94
+.github/workflows/release.yaml
+  s_ccb67f64e4fd09::t_9e8b52fc017a5d 20-23,121-122,124-127
+cli/hack/stage-release-assets.sh
+  s_ccb67f64e4fd09::t_fc26ca89f52012 1-68
+cli/hack/stage-release-assets.test.sh
+  s_ccb67f64e4fd09::t_8b8a0ed9c446d8 1-132
+  s_ccb67f64e4fd09::t_b031af3585a995 133-135
+.github/workflows/pr_checks.yaml
+  s_ccb67f64e4fd09::t_e0f1a53397183e 184-198
+cli/install-v0.sh
+  s_ccb67f64e4fd09::t_e48573f9ee61c0 1-79
+cli/hack/homebrew/README.md
+  s_ccb67f64e4fd09::t_f37c61c766bce4 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d662a41d91c17cd6fbb00fface9af12adfd1bd2",
+  "prompts": {},
+  "sessions": {
+    "s_ccb67f64e4fd09": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e72908bfeffeS3iwVcpygt9LyM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

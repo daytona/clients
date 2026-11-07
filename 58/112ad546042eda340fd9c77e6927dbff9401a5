@@ -1,0 +1,21 @@
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_process_request.py
+  s_717b45cf151505::t_9564cc96f53212 55
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_717b45cf151505::t_654850e0a4653a 1480,2430,2648,8032,8050
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "58112ad546042eda340fd9c77e6927dbff9401a5",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

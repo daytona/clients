@@ -1,0 +1,14 @@
+upgrade/scripts/check-examples.sh
+  h_e7759ddd73fa65 87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40b3e38548a1569eed322d5d97aed382af6645fa",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

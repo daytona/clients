@@ -1,0 +1,21 @@
+upgrade/python/pyproject.toml
+  s_fb35183cdc4e0a::t_fee46810c435e8 12
+upgrade/python/uv.lock
+  s_fb35183cdc4e0a::t_9b6d5f837c84cb 88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2090dd6d7eb0c86a65424194906dd6334d762988",
+  "prompts": {},
+  "sessions": {
+    "s_fb35183cdc4e0a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e54e363f0ffeLwmqznuZyV2vVQ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

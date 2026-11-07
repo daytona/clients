@@ -1,0 +1,18 @@
+.github/workflows/release.yaml
+  h_e7759ddd73fa65 140-170
+PUBLISHING.md
+  h_e7759ddd73fa65 112-119
+README.md
+  h_e7759ddd73fa65 62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e113929d3d76422318cc79a980663adabc60949b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

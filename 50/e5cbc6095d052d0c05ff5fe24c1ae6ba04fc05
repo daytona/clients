@@ -1,0 +1,50 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 80-82,175-180,803-804
+.github/workflows/v0-pin-bump.yaml
+  h_e7759ddd73fa65 164-165
+AGENTS.md
+  h_e7759ddd73fa65 421-422
+docs/RELEASING.md
+  h_e7759ddd73fa65 193,201-206
+sdk-python/tests/test_root_client.py
+  h_e7759ddd73fa65 299-306,308,311
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 44
+upgrade/python/README.md
+  h_e7759ddd73fa65 10-12,15-16,49-51
+upgrade/python/pyproject.toml
+  h_e7759ddd73fa65 49-50
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  h_e7759ddd73fa65 112,115-117
+upgrade/python/src/daytona_upgrade/cli.py
+  h_e7759ddd73fa65 24,223,225-226,229
+upgrade/python/src/daytona_upgrade/project.py
+  h_e7759ddd73fa65 181-185
+upgrade/python/src/daytona_upgrade/v0_version.py
+  h_e7759ddd73fa65 20-21,123,126-130,135-199,207,215-219,221,246,251,260,284-285
+upgrade/python/tests/test_performance_factory_worklist.py
+  h_e7759ddd73fa65 19
+upgrade/python/tests/test_prefix_proofs.py
+  h_e7759ddd73fa65 10-11,57
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 332-413
+upgrade/scripts/gen-guide.mjs
+  h_e7759ddd73fa65 75
+upgrade/typescript/src/run.ts
+  h_e7759ddd73fa65 35,202-203
+upgrade/typescript/src/v0-version.ts
+  h_e7759ddd73fa65 149,152-154,186,191,193-196,211-212,217-248
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 220-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50e5cbc6095d052d0c05ff5fe24c1ae6ba04fc05",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

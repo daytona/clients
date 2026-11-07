@@ -1,0 +1,44 @@
+examples/README.md
+  h_e7759ddd73fa65 83
+examples/python/_common.py
+  h_e7759ddd73fa65 8,14,21-22,62-82
+examples/python/exec_command.py
+  h_e7759ddd73fa65 13,43
+examples/python/file_operations.py
+  h_e7759ddd73fa65 17,22
+examples/python/git_ops.py
+  h_e7759ddd73fa65 16,24
+examples/python/lifecycle.py
+  h_e7759ddd73fa65 13,20
+examples/python/secrets_env.py
+  h_e7759ddd73fa65 33,73
+examples/python/test_examples.py
+  h_e7759ddd73fa65 69-71,110-115,119-133,137-139,294-323
+examples/typescript/_common.ts
+  h_e7759ddd73fa65 9,17-18,52-72
+examples/typescript/examples.test.ts
+  h_e7759ddd73fa65 73-93
+examples/typescript/exec-command/index.ts
+  h_e7759ddd73fa65 10,37
+examples/typescript/file-operations/index.ts
+  h_e7759ddd73fa65 13,17
+examples/typescript/git/index.ts
+  h_e7759ddd73fa65 12,19
+examples/typescript/lifecycle/index.ts
+  h_e7759ddd73fa65 9,15
+examples/typescript/secrets-env/index.ts
+  h_e7759ddd73fa65 30,71
+examples/typescript/test-support/fake-sdk.ts
+  h_e7759ddd73fa65 38-39,49-50,61-62,69,153-154,181-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2a3b2487df8c44227f1a602e2e9717b43dea06d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

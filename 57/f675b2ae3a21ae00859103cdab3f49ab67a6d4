@@ -1,0 +1,21 @@
+python/src/daytona/v2/sandbox.py
+  s_893dbc5d83f0ea::t_4871980ecc5119 1301-1302
+typescript/src/v2/Sandbox.ts
+  s_893dbc5d83f0ea::t_45fd58fbb99029 1481
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "57f675b2ae3a21ae00859103cdab3f49ab67a6d4",
+  "prompts": {},
+  "sessions": {
+    "s_893dbc5d83f0ea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe4ffcJ4ZClJuutSnISc",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

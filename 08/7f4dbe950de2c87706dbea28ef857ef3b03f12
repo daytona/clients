@@ -1,0 +1,20 @@
+.github/workflows/examples-ci.yaml
+  h_e7759ddd73fa65 12-13,18-19,38,43,46
+examples/README.md
+  h_e7759ddd73fa65 126,130
+examples/python/test_examples.py
+  h_e7759ddd73fa65 13
+examples/run-examples.sh
+  h_e7759ddd73fa65 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "087f4dbe950de2c87706dbea28ef857ef3b03f12",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

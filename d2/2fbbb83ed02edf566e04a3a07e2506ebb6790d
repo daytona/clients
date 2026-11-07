@@ -1,0 +1,16 @@
+sdk-python/src/daytona/_utils/dockerignore.py
+  h_e7759ddd73fa65 134-136
+sdk-python/tests/test_dockerignore.py
+  h_e7759ddd73fa65 61-62,69-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d22fbbb83ed02edf566e04a3a07e2506ebb6790d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

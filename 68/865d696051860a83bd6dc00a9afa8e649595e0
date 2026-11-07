@@ -1,0 +1,33 @@
+python/src/daytona/v2/process.py
+  s_166ed23dfd665d::t_55f447d4faf45a 6,686,691-695
+python/tests/test_process_tags.py
+  s_717b45cf151505::t_09126352f5efb4 165-181
+typescript/src/v2/Process.ts
+  s_717b45cf151505::t_cb06ebd9701e96 121,124-126
+typescript/tests/process-tags.test.ts
+  s_717b45cf151505::t_1fb6df7c0ed098 58-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68865d696051860a83bd6dc00a9afa8e649595e0",
+  "prompts": {},
+  "sessions": {
+    "s_166ed23dfd665d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e54f432ceffer6mz8ukvriSZBh",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+.github/workflows/release.yaml
+  s_8964104b9604db::t_faec0308d88084 31-33,37-38,140,146,155-186,200-202,204
+PUBLISHING.md
+  s_8964104b9604db::t_3bc7d6d5680651 112-113
+  s_8964104b9604db::t_cef014e69342fa 114
+.github/workflows/sdk_publish.yaml
+  s_8964104b9604db::t_beb85df3c96858 49-51,74-77,85,162-194,196,203,209-210,213,215-224
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e266e8d07bf7fcadc8ada0baebb7d4c6212713c3",
+  "prompts": {},
+  "sessions": {
+    "s_8964104b9604db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe6ffeIc139M5L6in7ke",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

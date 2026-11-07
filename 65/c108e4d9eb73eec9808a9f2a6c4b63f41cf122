@@ -1,0 +1,56 @@
+.github/dependabot.yml
+  h_e7759ddd73fa65 233-240,263-268
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 311
+AGENTS.md
+  h_e7759ddd73fa65 246
+changelog.d/522-node-floor.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/522.changed.md
+  h_e7759ddd73fa65 1-8
+scripts/check-no-bundled-v0.sh
+  h_e7759ddd73fa65 49,53
+scripts/v0-sdk-version
+  h_e7759ddd73fa65 1-2
+sdk-python/DEVELOPMENT.md
+  h_e7759ddd73fa65 69
+sdk-python/tests/test_root_client.py
+  h_e7759ddd73fa65 978,1003
+sdk-typescript/DEVELOPMENT.md
+  h_e7759ddd73fa65 105,114-115
+sdk-typescript/README.md
+  h_e7759ddd73fa65 4
+sdk-typescript/package-lock.json
+  h_e7759ddd73fa65 16-17,23,28,1092-1094,1102-1104,1111,1114,1118-1120,1124,1128,1131,1135-1137,1141-1142,1146,1149,1291,1311,1331,1351,1371,1391,1411,1431,1651,1675,1699,1723,1747,1771,2251,2268,2285,2302,2319,2336,2353,2370,2387,2404
+sdk-typescript/package.json
+  h_e7759ddd73fa65 71,80,131-132,143
+sdk-typescript/src/Daytona.ts
+  h_e7759ddd73fa65 269
+sdk-typescript/src/v0-unbundled.ts
+  h_e7759ddd73fa65 25
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 16,3983-3984,7094,7121,7605,7633,7656,7680,7710,7747,7770,7797,7818,7845,7870
+upgrade/python/DEVELOPMENT.md
+  h_e7759ddd73fa65 184
+upgrade/python/src/daytona_upgrade/export_checks.py
+  h_e7759ddd73fa65 69
+upgrade/python/src/daytona_upgrade/module_proofs.py
+  h_e7759ddd73fa65 10
+upgrade/python/tests/test_module_return_proofs.py
+  h_e7759ddd73fa65 129
+upgrade/typescript/src/v0-exports.ts
+  h_e7759ddd73fa65 20
+upgrade/typescript/tests/secondary-upgrade-guidance.test.ts
+  h_e7759ddd73fa65 51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65c108e4d9eb73eec9808a9f2a6c4b63f41cf122",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

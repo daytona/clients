@@ -1,0 +1,21 @@
+artifacts/sdk-docs/typescript-sdk/errors.mdx
+  s_40864550aa5d53::t_049b8fb5984208 2245-2251,2422-2428,2974-2980
+sdk-typescript/src/errors/DaytonaError.ts
+  s_40864550aa5d53::t_1b3a17b3aefec1 78-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "837f273fd87a1be1d800398152bea1d189945fc7",
+  "prompts": {},
+  "sessions": {
+    "s_40864550aa5d53": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a2e7aae0-097c-4c98-a190-bb2ae73590a6",
+        "model": "grok-4.7"
+      },
+      "human_author": "Nikola Radisic <radisicc@yahoo.com>"
+    }
+  }
+}

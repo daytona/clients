@@ -1,0 +1,32 @@
+.github/workflows/v0-pin-bump.yaml
+  h_e7759ddd73fa65 61
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 62-97,103-111,144-147
+upgrade/python/src/daytona_upgrade/requirement_rendering.py
+  h_e7759ddd73fa65 42-43,47
+upgrade/python/src/daytona_upgrade/v0_version.py
+  h_e7759ddd73fa65 331-332
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 567-571,815-829
+upgrade/typescript/src/manifests.ts
+  h_e7759ddd73fa65 15,142-145
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 7,41-54,69-71
+upgrade/typescript/src/v0-version.ts
+  h_e7759ddd73fa65 75-80,99-100
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 63,103-108
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 101-103,394-413
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cbf484b0a60bbedf65ae1c32f2a67a89f42efe8f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

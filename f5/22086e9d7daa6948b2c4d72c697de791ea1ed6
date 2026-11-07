@@ -1,0 +1,18 @@
+sdk-ruby/lib/daytona/sdk.rb
+  h_e7759ddd73fa65 66-68
+sdk-ruby/spec/daytona/root_namespace_spec.rb
+  h_e7759ddd73fa65 42
+sdk-typescript/src/RootDaytona.ts
+  h_e7759ddd73fa65 184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f522086e9d7daa6948b2c4d72c697de791ea1ed6",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

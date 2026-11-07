@@ -1,0 +1,26 @@
+.github/workflows/upgrade-tool-ci.yaml
+  h_e7759ddd73fa65 46-47,83-85,110-137,148-149,157,162-166,169-171,173,176-177,186-214,218,225,231-234,237
+scripts/test-upgrade.sh
+  h_e7759ddd73fa65 19
+upgrade/python/pyproject.toml
+  h_e7759ddd73fa65 22
+upgrade/python/uv.lock
+  h_e7759ddd73fa65 2,80,96,112-120,358-370
+upgrade/scripts/check-examples.sh
+  h_e7759ddd73fa65 10-13,29,31-32,48,79,82,141-142
+upgrade/typescript/package.json
+  h_e7759ddd73fa65 14
+upgrade/typescript/yarn.lock
+  h_e7759ddd73fa65 1-373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7baa0e140a7cfeadc233f40c7f07296f485525e1",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

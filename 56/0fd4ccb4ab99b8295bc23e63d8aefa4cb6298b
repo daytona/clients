@@ -1,0 +1,609 @@
+cli/gen/api/types.gen.go
+  s_717b45cf151505::t_aae6a726c6124e 2336,3272,4573,4795,5358,6488
+cli/gen/toolbox/types.gen.go
+  s_717b45cf151505::t_44ac7d08eb71db 943,950-955,1128,1160-1174,1324-1327,1431-1434,1951-1953,2115-2117
+python/src/daytona/v2/_gen/api/models/accept_invitation_request.py
+  s_717b45cf151505::t_d925ef0053089f 6
+python/src/daytona/v2/_gen/api/models/accept_privacy_policy_request.py
+  s_717b45cf151505::t_c9309e8685194b 6
+python/src/daytona/v2/_gen/api/models/add_project_members_request.py
+  s_717b45cf151505::t_89315d982d7a8a 6
+python/src/daytona/v2/_gen/api/models/add_project_service_account_request.py
+  s_717b45cf151505::t_03ca40c70f885e 6
+python/src/daytona/v2/_gen/api/models/analytics_config.py
+  s_717b45cf151505::t_0bd5ffd41874dc 6
+python/src/daytona/v2/_gen/api/models/api_error_code.py
+  s_717b45cf151505::t_7a141b0a99f8a7 6
+python/src/daytona/v2/_gen/api/models/async_operation.py
+  s_717b45cf151505::t_81b70e15f85858 6
+python/src/daytona/v2/_gen/api/models/audit_action_group.py
+  s_717b45cf151505::t_31b0bbad2d70cd 6
+python/src/daytona/v2/_gen/api/models/audit_action_list.py
+  s_717b45cf151505::t_bcf88deea78206 6
+python/src/daytona/v2/_gen/api/models/audit_config.py
+  s_717b45cf151505::t_06a13e40b6a5ed 6
+python/src/daytona/v2/_gen/api/models/audit_log_entry.py
+  s_717b45cf151505::t_48746e28de8ba6 6
+python/src/daytona/v2/_gen/api/models/audit_log_page.py
+  s_717b45cf151505::t_83c5abe83483ed 6
+python/src/daytona/v2/_gen/api/models/automatic_top_up.py
+  s_717b45cf151505::t_51f3e03106977a 6
+python/src/daytona/v2/_gen/api/models/balance.py
+  s_717b45cf151505::t_ed73ce474e1716 6
+python/src/daytona/v2/_gen/api/models/balance_applicable_to.py
+  s_717b45cf151505::t_c354b082d9388e 6
+python/src/daytona/v2/_gen/api/models/balance_notification.py
+  s_717b45cf151505::t_b4aaa0386e43dd 6
+python/src/daytona/v2/_gen/api/models/balance_page.py
+  s_717b45cf151505::t_738949d1353f08 6
+python/src/daytona/v2/_gen/api/models/balance_type.py
+  s_717b45cf151505::t_79d5f9a44e28e2 6
+python/src/daytona/v2/_gen/api/models/billing_address.py
+  s_717b45cf151505::t_489f29370c2dc0 6
+python/src/daytona/v2/_gen/api/models/billing_contact.py
+  s_717b45cf151505::t_702af5dff4f8ca 6
+python/src/daytona/v2/_gen/api/models/billing_period.py
+  s_717b45cf151505::t_4794407355fb77 6
+python/src/daytona/v2/_gen/api/models/billing_plan.py
+  s_717b45cf151505::t_66bed65eda9fc4 6
+python/src/daytona/v2/_gen/api/models/billing_profile.py
+  s_717b45cf151505::t_b30c292451b524 6
+python/src/daytona/v2/_gen/api/models/billing_session.py
+  s_717b45cf151505::t_45751544321366 6
+python/src/daytona/v2/_gen/api/models/billing_tax_id.py
+  s_717b45cf151505::t_6767e2d27bca48 6
+python/src/daytona/v2/_gen/api/models/billing_tax_id_type.py
+  s_717b45cf151505::t_cc0318850947e8 6
+python/src/daytona/v2/_gen/api/models/billing_type.py
+  s_717b45cf151505::t_70504ba8d57a2d 6
+python/src/daytona/v2/_gen/api/models/billing_usage_period.py
+  s_717b45cf151505::t_b31e3b4b0f5bab 6
+python/src/daytona/v2/_gen/api/models/bucket_credentials.py
+  s_717b45cf151505::t_e4cd2e1163a6b3 6
+python/src/daytona/v2/_gen/api/models/bucket_options.py
+  s_717b45cf151505::t_07a39cde18d9a7 6
+python/src/daytona/v2/_gen/api/models/build_log_chunk.py
+  s_717b45cf151505::t_7ee5bb4de43dbe 6
+python/src/daytona/v2/_gen/api/models/build_log_done.py
+  s_717b45cf151505::t_3450ca7bdaa443 6
+python/src/daytona/v2/_gen/api/models/build_log_done_reason.py
+  s_717b45cf151505::t_819aa4a1dad2ae 6
+python/src/daytona/v2/_gen/api/models/build_log_error.py
+  s_717b45cf151505::t_4726d659c5a77b 6
+python/src/daytona/v2/_gen/api/models/build_log_gap.py
+  s_717b45cf151505::t_335d04a65f25c4 6
+python/src/daytona/v2/_gen/api/models/build_log_gap_reason.py
+  s_717b45cf151505::t_0271b162df030c 6
+python/src/daytona/v2/_gen/api/models/build_log_source_changed.py
+  s_717b45cf151505::t_353f98b2c7572c 6
+python/src/daytona/v2/_gen/api/models/build_log_state.py
+  s_717b45cf151505::t_414bee252f75d9 6
+python/src/daytona/v2/_gen/api/models/build_log_unavailable.py
+  s_717b45cf151505::t_2cf3ae2c536c04 6
+python/src/daytona/v2/_gen/api/models/build_logs_url.py
+  s_717b45cf151505::t_b6624ecb0015e6 6
+python/src/daytona/v2/_gen/api/models/change_impact.py
+  s_717b45cf151505::t_5d71b40c54e415 6
+python/src/daytona/v2/_gen/api/models/charge.py
+  s_717b45cf151505::t_dc48e65ddc286c 6
+python/src/daytona/v2/_gen/api/models/charge_page.py
+  s_717b45cf151505::t_43ada06b2482f1 6
+python/src/daytona/v2/_gen/api/models/charge_status.py
+  s_717b45cf151505::t_5a229bcbe61684 6
+python/src/daytona/v2/_gen/api/models/config.py
+  s_717b45cf151505::t_c9199869a9dba0 6
+python/src/daytona/v2/_gen/api/models/coupon_redemption.py
+  s_717b45cf151505::t_943210f93955e2 6
+python/src/daytona/v2/_gen/api/models/cpu_arch_availability.py
+  s_717b45cf151505::t_2fb69b0f3639c7 6
+python/src/daytona/v2/_gen/api/models/cpu_architecture.py
+  s_717b45cf151505::t_84863c6570d012 6
+python/src/daytona/v2/_gen/api/models/cpu_catalog.py
+  s_717b45cf151505::t_072513e9d2cad2 6
+python/src/daytona/v2/_gen/api/models/cpu_catalog_region.py
+  s_717b45cf151505::t_3d8827d97392c9 6
+python/src/daytona/v2/_gen/api/models/cpu_type.py
+  s_717b45cf151505::t_b91c99e683f90c 6
+python/src/daytona/v2/_gen/api/models/create_image_request.py
+  s_717b45cf151505::t_438b38db66d556 6
+python/src/daytona/v2/_gen/api/models/create_invitation_request.py
+  s_717b45cf151505::t_218700d57f3e5f 6
+python/src/daytona/v2/_gen/api/models/create_macos_sandbox_request.py
+  s_717b45cf151505::t_90631f4718d80d 6,59
+python/src/daytona/v2/_gen/api/models/create_organization_api_key_request.py
+  s_717b45cf151505::t_a96ecc1c6f86d7 6
+python/src/daytona/v2/_gen/api/models/create_organization_request.py
+  s_717b45cf151505::t_1398529db649d0 6
+python/src/daytona/v2/_gen/api/models/create_project_api_key_request.py
+  s_717b45cf151505::t_0dbc681f9c8ed6 6
+python/src/daytona/v2/_gen/api/models/create_project_request.py
+  s_717b45cf151505::t_696206491fb4fb 6
+python/src/daytona/v2/_gen/api/models/create_reservation_request.py
+  s_717b45cf151505::t_3490980c5f9098 6
+python/src/daytona/v2/_gen/api/models/create_reservations_bulk_request.py
+  s_717b45cf151505::t_0e03d4b73b38df 6
+python/src/daytona/v2/_gen/api/models/create_sandbox_from_snapshot_request.py
+  s_717b45cf151505::t_26e65d1ea05b9e 6
+python/src/daytona/v2/_gen/api/models/create_sandbox_image_request.py
+  s_717b45cf151505::t_5f8d54a294cc99 6
+python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  s_717b45cf151505::t_3f6729ead0f35f 6
+python/src/daytona/v2/_gen/api/models/create_sandbox_signed_preview_url_request.py
+  s_717b45cf151505::t_77e8a04b563b31 6
+python/src/daytona/v2/_gen/api/models/create_sandbox_snapshot_request.py
+  s_717b45cf151505::t_5205e1fa88894f 6
+python/src/daytona/v2/_gen/api/models/create_service_account_request.py
+  s_717b45cf151505::t_cf7893bb59fb42 6
+python/src/daytona/v2/_gen/api/models/create_sso_setup_link_request.py
+  s_717b45cf151505::t_4c1ba7a873cd41 6
+python/src/daytona/v2/_gen/api/models/create_top_up_session_request.py
+  s_717b45cf151505::t_815b73d9b37998 6
+python/src/daytona/v2/_gen/api/models/create_v0_sandbox_import_request.py
+  s_717b45cf151505::t_4d13e3d9d7429d 6
+python/src/daytona/v2/_gen/api/models/create_volume_request.py
+  s_717b45cf151505::t_b080648c3612f6 6
+python/src/daytona/v2/_gen/api/models/decline_invitation_request.py
+  s_717b45cf151505::t_8581654e90b1be 6
+python/src/daytona/v2/_gen/api/models/effective_lifecycle_policies.py
+  s_717b45cf151505::t_c2d0ab2c6e03ab 6
+python/src/daytona/v2/_gen/api/models/effective_lifecycle_policy.py
+  s_717b45cf151505::t_4783852e0253c2 6
+python/src/daytona/v2/_gen/api/models/effective_linux_lifecycle_policies.py
+  s_717b45cf151505::t_1c9694cba0e99f 6
+python/src/daytona/v2/_gen/api/models/effective_macos_lifecycle_policies.py
+  s_717b45cf151505::t_ac528fafb8876e 6
+python/src/daytona/v2/_gen/api/models/entitlements.py
+  s_717b45cf151505::t_10d21597a117b5 6
+python/src/daytona/v2/_gen/api/models/ephemeral_lifecycle_defaults.py
+  s_717b45cf151505::t_33610c02b86d91 6
+python/src/daytona/v2/_gen/api/models/error_body.py
+  s_717b45cf151505::t_d017ca7635442b 6
+python/src/daytona/v2/_gen/api/models/exchange_token_request.py
+  s_717b45cf151505::t_90a36457a092b4 6
+python/src/daytona/v2/_gen/api/models/external_bucket_origin.py
+  s_717b45cf151505::t_f6d0cfb0a0ba7b 6
+python/src/daytona/v2/_gen/api/models/fork_sandbox_operation.py
+  s_717b45cf151505::t_673968fddb66e9 6
+python/src/daytona/v2/_gen/api/models/fork_sandbox_request.py
+  s_717b45cf151505::t_556fe94a9984fb 6
+python/src/daytona/v2/_gen/api/models/health.py
+  s_717b45cf151505::t_386ffa58d9679e 6
+python/src/daytona/v2/_gen/api/models/image.py
+  s_717b45cf151505::t_4568f62af9f3db 6
+python/src/daytona/v2/_gen/api/models/image_build_limits.py
+  s_717b45cf151505::t_871b7daed5f703 6
+python/src/daytona/v2/_gen/api/models/image_conversion.py
+  s_717b45cf151505::t_01c334f8daa453 6
+python/src/daytona/v2/_gen/api/models/image_list_item.py
+  s_717b45cf151505::t_b80457defe8146 6
+python/src/daytona/v2/_gen/api/models/image_page.py
+  s_717b45cf151505::t_405368852dd33e 6
+python/src/daytona/v2/_gen/api/models/image_platform_filter.py
+  s_717b45cf151505::t_638fe8b7aa1f54 6
+python/src/daytona/v2/_gen/api/models/image_reference.py
+  s_717b45cf151505::t_a09df3ca216c6d 6
+python/src/daytona/v2/_gen/api/models/image_retention.py
+  s_717b45cf151505::t_be4ea6ab0270cb 6
+python/src/daytona/v2/_gen/api/models/image_source_value.py
+  s_717b45cf151505::t_381db859399e13 6
+python/src/daytona/v2/_gen/api/models/image_source_value_one_of.py
+  s_717b45cf151505::t_bb9141fec08b37 6
+python/src/daytona/v2/_gen/api/models/image_source_value_one_of1.py
+  s_717b45cf151505::t_bc38cdb7c32c6d 6
+python/src/daytona/v2/_gen/api/models/image_source_value_one_of2.py
+  s_717b45cf151505::t_00875149811c1c 6
+python/src/daytona/v2/_gen/api/models/image_source_value_one_of3.py
+  s_717b45cf151505::t_cd37b139c29e3b 6
+python/src/daytona/v2/_gen/api/models/imported_from.py
+  s_717b45cf151505::t_c14a3dccd7d152 6
+python/src/daytona/v2/_gen/api/models/invitation.py
+  s_717b45cf151505::t_9dae9edc1fd2c9 6
+python/src/daytona/v2/_gen/api/models/invitation_lookup.py
+  s_717b45cf151505::t_61492e2cc34635 6
+python/src/daytona/v2/_gen/api/models/invitation_page.py
+  s_717b45cf151505::t_bc7e3152068bec 6
+python/src/daytona/v2/_gen/api/models/invitation_status.py
+  s_717b45cf151505::t_2eb77288ec7157 6
+python/src/daytona/v2/_gen/api/models/invitation_with_token.py
+  s_717b45cf151505::t_ffdbfc008b5396 6
+python/src/daytona/v2/_gen/api/models/invoice.py
+  s_717b45cf151505::t_eef475409deb99 6
+python/src/daytona/v2/_gen/api/models/invoice_page.py
+  s_717b45cf151505::t_7090e6b149442c 6
+python/src/daytona/v2/_gen/api/models/invoice_payment_status.py
+  s_717b45cf151505::t_5410b36e253976 6
+python/src/daytona/v2/_gen/api/models/invoice_status.py
+  s_717b45cf151505::t_38568293c511c4 6
+python/src/daytona/v2/_gen/api/models/invoice_type.py
+  s_717b45cf151505::t_879f5a0118317f 6
+python/src/daytona/v2/_gen/api/models/lifecycle_action.py
+  s_717b45cf151505::t_8ac863c9a52618 6
+python/src/daytona/v2/_gen/api/models/lifecycle_policy.py
+  s_717b45cf151505::t_ee359a8081e494 6,42
+python/src/daytona/v2/_gen/api/models/lookup_invitation_request.py
+  s_717b45cf151505::t_61a47910a6da7e 6
+python/src/daytona/v2/_gen/api/models/mac_catalog.py
+  s_717b45cf151505::t_e7dfee984137c7 6
+python/src/daytona/v2/_gen/api/models/mac_catalog_model.py
+  s_717b45cf151505::t_d31e9b4d97c2c9 6
+python/src/daytona/v2/_gen/api/models/mac_catalog_region.py
+  s_717b45cf151505::t_c4485563668753 6
+python/src/daytona/v2/_gen/api/models/mac_model.py
+  s_717b45cf151505::t_a8433970baea8a 6
+python/src/daytona/v2/_gen/api/models/mac_model_list.py
+  s_717b45cf151505::t_da9bdc1ae03115 6
+python/src/daytona/v2/_gen/api/models/mac_price.py
+  s_717b45cf151505::t_23108ea2084e2b 6
+python/src/daytona/v2/_gen/api/models/mac_reservation.py
+  s_717b45cf151505::t_54c6749ba2874d 6
+python/src/daytona/v2/_gen/api/models/mac_reservation_batch.py
+  s_717b45cf151505::t_ab2073b3d41409 6
+python/src/daytona/v2/_gen/api/models/mac_reservation_end_reason.py
+  s_717b45cf151505::t_d7ca6ee27766f3 6
+python/src/daytona/v2/_gen/api/models/mac_reservation_origin.py
+  s_717b45cf151505::t_0491f590d67ea1 6
+python/src/daytona/v2/_gen/api/models/mac_reservation_status.py
+  s_717b45cf151505::t_1d5f56631853bc 6
+python/src/daytona/v2/_gen/api/models/mac_resources.py
+  s_717b45cf151505::t_03e4081ad5c667 6
+python/src/daytona/v2/_gen/api/models/macos_settings.py
+  s_717b45cf151505::t_c1b702c05957ad 6
+python/src/daytona/v2/_gen/api/models/member_limits.py
+  s_717b45cf151505::t_e9fc41fbecd554 6
+python/src/daytona/v2/_gen/api/models/member_removal_preview.py
+  s_717b45cf151505::t_9dea6cccdea9d1 6
+python/src/daytona/v2/_gen/api/models/mint_sandbox_access_token_request.py
+  s_717b45cf151505::t_287ee3fc7e6973 6
+python/src/daytona/v2/_gen/api/models/network_policy.py
+  s_717b45cf151505::t_2633bd8198c659 6
+python/src/daytona/v2/_gen/api/models/network_policy_rules.py
+  s_717b45cf151505::t_c27bb34103c869 6
+python/src/daytona/v2/_gen/api/models/oidc_provider.py
+  s_717b45cf151505::t_7150313fffc1ed 6
+python/src/daytona/v2/_gen/api/models/oidc_public_config.py
+  s_717b45cf151505::t_46f684d1efaab4 6
+python/src/daytona/v2/_gen/api/models/organization.py
+  s_717b45cf151505::t_a8ba93dae1f814 6
+python/src/daytona/v2/_gen/api/models/organization_api_key.py
+  s_717b45cf151505::t_0c57e308d1a3f9 6
+python/src/daytona/v2/_gen/api/models/organization_api_key_page.py
+  s_717b45cf151505::t_f898aee8fde063 6
+python/src/daytona/v2/_gen/api/models/organization_api_key_with_token.py
+  s_717b45cf151505::t_6868cee271945a 6
+python/src/daytona/v2/_gen/api/models/organization_feature_flags.py
+  s_717b45cf151505::t_3d258a4def0298 6
+python/src/daytona/v2/_gen/api/models/organization_limits.py
+  s_717b45cf151505::t_92b4275bf8dac6 6
+python/src/daytona/v2/_gen/api/models/organization_list_item.py
+  s_717b45cf151505::t_c605ea5377670f 6
+python/src/daytona/v2/_gen/api/models/organization_member.py
+  s_717b45cf151505::t_6a010bdb0f0cfa 6
+python/src/daytona/v2/_gen/api/models/organization_member_page.py
+  s_717b45cf151505::t_ddd0fbfcbb3dc2 6
+python/src/daytona/v2/_gen/api/models/organization_membership.py
+  s_717b45cf151505::t_323a68115a0fed 6
+python/src/daytona/v2/_gen/api/models/organization_page.py
+  s_717b45cf151505::t_60d4b0d45b8314 6
+python/src/daytona/v2/_gen/api/models/organization_service_account.py
+  s_717b45cf151505::t_1215dcafa85172 6
+python/src/daytona/v2/_gen/api/models/organization_service_account_page.py
+  s_717b45cf151505::t_4e69d3f9af97f0 6
+python/src/daytona/v2/_gen/api/models/otel_config.py
+  s_717b45cf151505::t_128bc01507612b 6
+python/src/daytona/v2/_gen/api/models/payment_method.py
+  s_717b45cf151505::t_db044577a77834 6
+python/src/daytona/v2/_gen/api/models/payment_method_brand.py
+  s_717b45cf151505::t_e2beff1e4f3b4b 6
+python/src/daytona/v2/_gen/api/models/payment_method_page.py
+  s_717b45cf151505::t_4c3f63db3dc2c4 6
+python/src/daytona/v2/_gen/api/models/pending_plan_change.py
+  s_717b45cf151505::t_97c25175ebb276 6
+python/src/daytona/v2/_gen/api/models/permission.py
+  s_717b45cf151505::t_4493669eec67ab 6
+python/src/daytona/v2/_gen/api/models/permission_list.py
+  s_717b45cf151505::t_b2a0728ac49ea9 6
+python/src/daytona/v2/_gen/api/models/plan.py
+  s_717b45cf151505::t_a656cd881e5ec7 6
+python/src/daytona/v2/_gen/api/models/plan_limits.py
+  s_717b45cf151505::t_6d559baaa8175c 6
+python/src/daytona/v2/_gen/api/models/plan_list.py
+  s_717b45cf151505::t_1cfaf2d85dc93e 6
+python/src/daytona/v2/_gen/api/models/plan_name.py
+  s_717b45cf151505::t_42b01e88cc4c9f 6
+python/src/daytona/v2/_gen/api/models/port_assignment.py
+  s_717b45cf151505::t_e5a6fc3b77e2e2 6
+python/src/daytona/v2/_gen/api/models/port_mapping.py
+  s_717b45cf151505::t_320613e923cf83 6
+python/src/daytona/v2/_gen/api/models/port_protocol.py
+  s_717b45cf151505::t_ba33ff80fc1ef4 6
+python/src/daytona/v2/_gen/api/models/portal_intent.py
+  s_717b45cf151505::t_9905c32ba314e8 6
+python/src/daytona/v2/_gen/api/models/preview_member_update_request.py
+  s_717b45cf151505::t_3265775ea5358f 6
+python/src/daytona/v2/_gen/api/models/preview_service_account_update_request.py
+  s_717b45cf151505::t_92f1eec07ab6dc 6
+python/src/daytona/v2/_gen/api/models/preview_url.py
+  s_717b45cf151505::t_84fc469e3a952c 6
+python/src/daytona/v2/_gen/api/models/preview_warning.py
+  s_717b45cf151505::t_f1e5b8cee87267 6
+python/src/daytona/v2/_gen/api/models/privacy_policy_status.py
+  s_717b45cf151505::t_29833ce4df0b0f 6
+python/src/daytona/v2/_gen/api/models/project.py
+  s_717b45cf151505::t_e2c21f2e3cf69e 6
+python/src/daytona/v2/_gen/api/models/project_api_key.py
+  s_717b45cf151505::t_85de4a5d2df0dd 6
+python/src/daytona/v2/_gen/api/models/project_api_key_context.py
+  s_717b45cf151505::t_4502586c504cfe 6
+python/src/daytona/v2/_gen/api/models/project_api_key_page.py
+  s_717b45cf151505::t_834c5c449380c1 6
+python/src/daytona/v2/_gen/api/models/project_api_key_with_context.py
+  s_717b45cf151505::t_199ebdfc378557 6
+python/src/daytona/v2/_gen/api/models/project_api_key_with_token.py
+  s_717b45cf151505::t_f5123e11e8a052 6
+python/src/daytona/v2/_gen/api/models/project_budget.py
+  s_717b45cf151505::t_843cc138a2311a 6
+python/src/daytona/v2/_gen/api/models/project_lifecycle_defaults.py
+  s_717b45cf151505::t_566f1ccfb87c9c 6
+python/src/daytona/v2/_gen/api/models/project_lifecycle_policy.py
+  s_717b45cf151505::t_25ab8da1cb2755 6
+python/src/daytona/v2/_gen/api/models/project_member.py
+  s_717b45cf151505::t_99c7598d698c6b 6
+python/src/daytona/v2/_gen/api/models/project_member_list.py
+  s_717b45cf151505::t_97cd8215892b2c 6
+python/src/daytona/v2/_gen/api/models/project_member_page.py
+  s_717b45cf151505::t_341461b32b8c67 6
+python/src/daytona/v2/_gen/api/models/project_page.py
+  s_717b45cf151505::t_1fca9951910b65 6
+python/src/daytona/v2/_gen/api/models/project_service_account.py
+  s_717b45cf151505::t_6900d5fb58bd28 6
+python/src/daytona/v2/_gen/api/models/project_service_account_list.py
+  s_717b45cf151505::t_12a251ccebe603 6
+python/src/daytona/v2/_gen/api/models/project_service_account_page.py
+  s_717b45cf151505::t_a0564003e7f489 6
+python/src/daytona/v2/_gen/api/models/public_image_source.py
+  s_717b45cf151505::t_1da87a6d03055d 6
+python/src/daytona/v2/_gen/api/models/public_image_source_one_of.py
+  s_717b45cf151505::t_c2db7db7a67a26 6
+python/src/daytona/v2/_gen/api/models/public_image_source_one_of1.py
+  s_717b45cf151505::t_9990f82d27b104 6
+python/src/daytona/v2/_gen/api/models/redeem_coupon_request.py
+  s_717b45cf151505::t_990b3dd472132b 6
+python/src/daytona/v2/_gen/api/models/region.py
+  s_717b45cf151505::t_401a30f28a66a3 6,41
+python/src/daytona/v2/_gen/api/models/region_list.py
+  s_717b45cf151505::t_720404070e279a 6
+python/src/daytona/v2/_gen/api/models/region_multiplier.py
+  s_717b45cf151505::t_61644dfad04014 6
+python/src/daytona/v2/_gen/api/models/region_multiplier_list.py
+  s_717b45cf151505::t_90fe6c298454ee 6
+python/src/daytona/v2/_gen/api/models/registry.py
+  s_717b45cf151505::t_e4d5d73fded885 6
+python/src/daytona/v2/_gen/api/models/registry_kind.py
+  s_717b45cf151505::t_710eee7e708452 6
+python/src/daytona/v2/_gen/api/models/registry_page.py
+  s_717b45cf151505::t_f465ed13372cde 6
+python/src/daytona/v2/_gen/api/models/reservation_page.py
+  s_717b45cf151505::t_3738d2f9e157e6 6
+python/src/daytona/v2/_gen/api/models/revoke_sandbox_signed_preview_url_request.py
+  s_717b45cf151505::t_ac78dfabed7147 6
+python/src/daytona/v2/_gen/api/models/role.py
+  s_717b45cf151505::t_2931be3233dff2 6
+python/src/daytona/v2/_gen/api/models/role_list.py
+  s_717b45cf151505::t_5f7ca6deb21516 6
+python/src/daytona/v2/_gen/api/models/sandbox.py
+  s_717b45cf151505::t_de996d40253bfc 6
+python/src/daytona/v2/_gen/api/models/sandbox_access_token.py
+  s_717b45cf151505::t_1009786c2a6ce0 6,39
+python/src/daytona/v2/_gen/api/models/sandbox_class.py
+  s_717b45cf151505::t_0e48e03f36d68f 6
+python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  s_717b45cf151505::t_0f3b2803cfd9d4 6
+python/src/daytona/v2/_gen/api/models/sandbox_event_ticket.py
+  s_717b45cf151505::t_e0e5d6b6f8fc8a 6
+python/src/daytona/v2/_gen/api/models/sandbox_labels.py
+  s_717b45cf151505::t_325b64cf4f70fc 6
+python/src/daytona/v2/_gen/api/models/sandbox_lifecycle_policy.py
+  s_717b45cf151505::t_619a0e966add57 6
+python/src/daytona/v2/_gen/api/models/sandbox_limits.py
+  s_717b45cf151505::t_a47ac355e2ef3b 6
+python/src/daytona/v2/_gen/api/models/sandbox_list.py
+  s_717b45cf151505::t_f712bb2c23efe0 6
+python/src/daytona/v2/_gen/api/models/sandbox_list_item.py
+  s_717b45cf151505::t_4cf9779aa9fb03 6
+python/src/daytona/v2/_gen/api/models/sandbox_page.py
+  s_717b45cf151505::t_f2ec7bc8237070 6
+python/src/daytona/v2/_gen/api/models/sandbox_port.py
+  s_717b45cf151505::t_c77d8cae4387ca 6
+python/src/daytona/v2/_gen/api/models/sandbox_port_page.py
+  s_717b45cf151505::t_41eea6a794b824 6
+python/src/daytona/v2/_gen/api/models/sandbox_resource_limits.py
+  s_717b45cf151505::t_a8f1b523fa9ce1 6
+python/src/daytona/v2/_gen/api/models/sandbox_search_page.py
+  s_717b45cf151505::t_fbcda9839b88fc 6
+python/src/daytona/v2/_gen/api/models/sandbox_search_sort.py
+  s_717b45cf151505::t_07ae7adbd69800 6
+python/src/daytona/v2/_gen/api/models/sandbox_secrets.py
+  s_717b45cf151505::t_36fcff924b9c65 6
+python/src/daytona/v2/_gen/api/models/sandbox_status.py
+  s_717b45cf151505::t_38e338280c23a4 6
+python/src/daytona/v2/_gen/api/models/sandbox_usage.py
+  s_717b45cf151505::t_016fd45ec1650c 6
+python/src/daytona/v2/_gen/api/models/sandbox_usage_history.py
+  s_717b45cf151505::t_fa5721d811a991 6
+python/src/daytona/v2/_gen/api/models/sandbox_usage_sample.py
+  s_717b45cf151505::t_40dcb55d6dc612 6
+python/src/daytona/v2/_gen/api/models/search_total_relation.py
+  s_717b45cf151505::t_e837c58cb1bbb8 6
+python/src/daytona/v2/_gen/api/models/secret.py
+  s_717b45cf151505::t_b26a2c2cff3cf5 6
+python/src/daytona/v2/_gen/api/models/secret_page.py
+  s_717b45cf151505::t_c7e782ddd186a8 6
+python/src/daytona/v2/_gen/api/models/set_automatic_top_up_request.py
+  s_717b45cf151505::t_fdd07a96ce0050 6
+python/src/daytona/v2/_gen/api/models/set_balance_notification_request.py
+  s_717b45cf151505::t_0a1f27c0fef9aa 6
+python/src/daytona/v2/_gen/api/models/set_billing_contact_request.py
+  s_717b45cf151505::t_7e3afecaa35a80 6
+python/src/daytona/v2/_gen/api/models/set_otel_config_request.py
+  s_717b45cf151505::t_2023fa8c4ca569 6
+python/src/daytona/v2/_gen/api/models/set_plan_request.py
+  s_717b45cf151505::t_01a25a8fdd9507 6
+python/src/daytona/v2/_gen/api/models/set_project_budget_request.py
+  s_717b45cf151505::t_49e01398af2398 6
+python/src/daytona/v2/_gen/api/models/set_registry_request.py
+  s_717b45cf151505::t_ea596f9c61aa4b 6
+python/src/daytona/v2/_gen/api/models/set_sandbox_labels_request.py
+  s_717b45cf151505::t_fb6fc4bb384b74 6
+python/src/daytona/v2/_gen/api/models/set_sandbox_network_policy_request.py
+  s_717b45cf151505::t_7d2bfd114284c6 6
+python/src/daytona/v2/_gen/api/models/set_sandbox_port_request.py
+  s_717b45cf151505::t_0ab629da406013 6
+python/src/daytona/v2/_gen/api/models/set_sandbox_secrets_request.py
+  s_717b45cf151505::t_cb1198c5842992 6
+python/src/daytona/v2/_gen/api/models/set_secret_request.py
+  s_717b45cf151505::t_87447ae354ae0e 6
+python/src/daytona/v2/_gen/api/models/sign_sandbox_file_url_request.py
+  s_717b45cf151505::t_c8088b9e634b27 6
+python/src/daytona/v2/_gen/api/models/signed_file_url.py
+  s_717b45cf151505::t_73f67f75811f78 6,42
+python/src/daytona/v2/_gen/api/models/signed_preview_url.py
+  s_717b45cf151505::t_35b0dead10d02a 6
+python/src/daytona/v2/_gen/api/models/snapshot.py
+  s_717b45cf151505::t_780d62182b0dbb 6
+python/src/daytona/v2/_gen/api/models/snapshot_class.py
+  s_717b45cf151505::t_abf09ed37d78a7 6
+python/src/daytona/v2/_gen/api/models/snapshot_kind.py
+  s_717b45cf151505::t_3bfeca5439a20f 6
+python/src/daytona/v2/_gen/api/models/snapshot_list_item.py
+  s_717b45cf151505::t_b3ad37394b5421 6
+python/src/daytona/v2/_gen/api/models/snapshot_page.py
+  s_717b45cf151505::t_9817e60ee0bbe3 6
+python/src/daytona/v2/_gen/api/models/snapshot_reference.py
+  s_717b45cf151505::t_8a6d83e622f9a9 6
+python/src/daytona/v2/_gen/api/models/sort_order.py
+  s_717b45cf151505::t_067fc067657554 6
+python/src/daytona/v2/_gen/api/models/ssh_gateway_config.py
+  s_717b45cf151505::t_4ee74bf1c60c7c 6
+python/src/daytona/v2/_gen/api/models/sso_connection.py
+  s_717b45cf151505::t_865e904b415535 6
+python/src/daytona/v2/_gen/api/models/sso_connection_page.py
+  s_717b45cf151505::t_10ce8c688c3651 6
+python/src/daytona/v2/_gen/api/models/sso_setup_link.py
+  s_717b45cf151505::t_9007a348c13472 6
+python/src/daytona/v2/_gen/api/models/storage_limits.py
+  s_717b45cf151505::t_9b041f3916d1ef 6
+python/src/daytona/v2/_gen/api/models/timeout_source.py
+  s_717b45cf151505::t_ae8f4b751fda85 6
+python/src/daytona/v2/_gen/api/models/token_exchange.py
+  s_717b45cf151505::t_4eb19824a74b3e 6
+python/src/daytona/v2/_gen/api/models/update_audit_config_request.py
+  s_717b45cf151505::t_cfef1bba70c004 6
+python/src/daytona/v2/_gen/api/models/update_ephemeral_lifecycle_defaults.py
+  s_717b45cf151505::t_12f6913c577ec6 6
+python/src/daytona/v2/_gen/api/models/update_image_request.py
+  s_717b45cf151505::t_84ae4372007cd7 6
+python/src/daytona/v2/_gen/api/models/update_macos_settings_request.py
+  s_717b45cf151505::t_96135acd0f8118 6
+python/src/daytona/v2/_gen/api/models/update_member_request.py
+  s_717b45cf151505::t_b171a698c2421f 6
+python/src/daytona/v2/_gen/api/models/update_organization_request.py
+  s_717b45cf151505::t_30645089346f8d 6
+python/src/daytona/v2/_gen/api/models/update_preview_warning_request.py
+  s_717b45cf151505::t_715130475b12d2 6
+python/src/daytona/v2/_gen/api/models/update_project_api_key_request.py
+  s_717b45cf151505::t_a1d3fdc3c0f94a 6
+python/src/daytona/v2/_gen/api/models/update_project_lifecycle_policy_request.py
+  s_717b45cf151505::t_901fd06c57edb7 6
+python/src/daytona/v2/_gen/api/models/update_project_request.py
+  s_717b45cf151505::t_e344f8bd9b59b8 6
+python/src/daytona/v2/_gen/api/models/update_reservation_request.py
+  s_717b45cf151505::t_e06377ae0eea41 6
+python/src/daytona/v2/_gen/api/models/update_sandbox_lifecycle_policy_request.py
+  s_717b45cf151505::t_8ee31401bcfc27 6
+python/src/daytona/v2/_gen/api/models/update_service_account_request.py
+  s_717b45cf151505::t_fbe210ab7ab593 6
+python/src/daytona/v2/_gen/api/models/usage_charge.py
+  s_717b45cf151505::t_990f91e4b4efd1 6
+python/src/daytona/v2/_gen/api/models/usage_history_resolution.py
+  s_717b45cf151505::t_73419117ee8c7e 6
+python/src/daytona/v2/_gen/api/models/usage_limit.py
+  s_717b45cf151505::t_8c9dc76b05f125 6
+python/src/daytona/v2/_gen/api/models/usage_period.py
+  s_717b45cf151505::t_a04dbf194e200a 6
+python/src/daytona/v2/_gen/api/models/usage_period_page.py
+  s_717b45cf151505::t_7228865a7aac9e 6
+python/src/daytona/v2/_gen/api/models/usage_period_status.py
+  s_717b45cf151505::t_f2930d13bf0d46 6
+python/src/daytona/v2/_gen/api/models/usage_report.py
+  s_717b45cf151505::t_27d2e6a2f6321d 6
+python/src/daytona/v2/_gen/api/models/usage_report_entry.py
+  s_717b45cf151505::t_deb3d199075f74 6
+python/src/daytona/v2/_gen/api/models/usage_report_resolution.py
+  s_717b45cf151505::t_6403544c4d257f 6
+python/src/daytona/v2/_gen/api/models/usage_resources.py
+  s_717b45cf151505::t_cc3636514dfc85 6
+python/src/daytona/v2/_gen/api/models/user.py
+  s_717b45cf151505::t_abdc5327fafb47 6
+python/src/daytona/v2/_gen/api/models/v0_migration_summary.py
+  s_717b45cf151505::t_f23db38b202952 6
+python/src/daytona/v2/_gen/api/models/v0_sandbox.py
+  s_717b45cf151505::t_51483e9c63fa4a 6
+python/src/daytona/v2/_gen/api/models/v0_sandbox_import.py
+  s_717b45cf151505::t_97ffdb8b3106d5 6
+python/src/daytona/v2/_gen/api/models/v0_sandbox_page.py
+  s_717b45cf151505::t_ffbaf7a75b4bbf 6
+python/src/daytona/v2/_gen/api/models/volume.py
+  s_717b45cf151505::t_423292a734530b 6
+python/src/daytona/v2/_gen/api/models/volume_mount.py
+  s_717b45cf151505::t_33ff1686813e53 6
+python/src/daytona/v2/_gen/api/models/volume_page.py
+  s_717b45cf151505::t_534a48b1e4ba72 6
+python/src/daytona/v2/_gen/api/models/volume_status.py
+  s_717b45cf151505::t_56dbe9db5bf41c 6
+python/src/daytona/v2/_gen/api/models/volume_type.py
+  s_717b45cf151505::t_6624f70cccbef9 6
+python/src/daytona/v2/_gen/api/models/wallet.py
+  s_717b45cf151505::t_98167d9e7df246 6
+python/src/daytona/v2/_gen/toolbox/__init__.py
+  s_717b45cf151505::t_5e5cef5604355c 85-86
+python/src/daytona/v2/_gen/toolbox/models/create_process_request.py
+  s_717b45cf151505::t_905870e3645374 51,55,59,160-164,205
+python/src/daytona/v2/_gen/toolbox/models/error_code.py
+  s_717b45cf151505::t_fe2785b95229f0 33
+python/src/daytona/v2/_gen/toolbox/models/info_response.py
+  s_717b45cf151505::t_517714000523eb 39
+python/src/daytona/v2/_gen/toolbox/models/kill_processes_request.py
+  s_717b45cf151505::t_17ebb2bd51339c 1-105
+python/src/daytona/v2/_gen/toolbox/models/kill_processes_response.py
+  s_717b45cf151505::t_05079fb30792f9 1-110
+python/src/daytona/v2/_gen/toolbox/models/list_query.py
+  s_717b45cf151505::t_88d85fdd1ae049 43,45,120-124,141-142
+python/src/daytona/v2/_gen/toolbox/models/process_dto.py
+  s_717b45cf151505::t_3d6d5bef932be9 68,77,198-202,263
+python/src/daytona/v2/_gen/toolbox/models/process_record.py
+  s_717b45cf151505::t_fa21fcc07ade94 67,72,195-199,250
+python/src/daytona/v2/_gen/toolbox/models/process_state_event_dto.py
+  s_717b45cf151505::t_db89edabdb38ad 68,78,199-203,259
+typescript/src/v2/gen/api.ts
+  s_717b45cf151505::t_590a0d6536c411 1523,3181,4151,5315,5554,6041,8225,12367,14358
+typescript/src/v2/gen/toolbox-enums.ts
+  s_717b45cf151505::t_b52043b66fe81c 8
+typescript/src/v2/gen/toolbox.ts
+  s_717b45cf151505::t_4cd1f9b67432fd 702,1590,1639-1658,2423,2430-2431,2518,2622,2646-2660,2677-2678,2887-2888,7472-7473,7877,8019-8069
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "560fd4ccb4ab99b8295bc23e63d8aefa4cb6298b",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
