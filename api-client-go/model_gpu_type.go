@@ -24,6 +24,7 @@ const (
 	GPUTYPE_H200 GpuType = "H200"
 	GPUTYPE_B200 GpuType = "B200"
 	GPUTYPE_B300 GpuType = "B300"
+	GPUTYPE_L40S GpuType = "L40S"
 	GPUTYPE_RTX_PRO_6000 GpuType = "RTX-PRO-6000"
 	GPUTYPE_RTX_4090 GpuType = "RTX-4090"
 	GPUTYPE_RTX_5090 GpuType = "RTX-5090"
@@ -37,6 +38,7 @@ var AllowedGpuTypeEnumValues = []GpuType{
 	"H200",
 	"B200",
 	"B300",
+	"L40S",
 	"RTX-PRO-6000",
 	"RTX-4090",
 	"RTX-5090",
