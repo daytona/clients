@@ -14,6 +14,7 @@ from wsproto.events import BytesMessage, CloseConnection, TextMessage
 
 from ..common.errors import DaytonaError
 from ..common.process import MAX_PREFIX_LEN, STDERR_PREFIX, STDOUT_PREFIX, OutputHandler
+from ..internal.http_client import aiohttp_request_timeout
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession, ClientWebSocketResponse
@@ -59,7 +60,13 @@ async def process_streaming_response(
         active_session = session
 
     try:
-        async with active_session.request(method, url, headers=headers) as response:
+        # The stream lasts as long as the build or command, so drop aiohttp's default
+        # 5-minute total/read timeout for this request while keeping the connect and
+        # pool-wait limits. should_terminate and the caller's own timeout bound how
+        # long we keep reading.
+        async with active_session.request(
+            method, url, headers=headers, timeout=aiohttp_request_timeout(None)
+        ) as response:
             response.raise_for_status()
             stream = response.content.iter_any()
             next_chunk: asyncio.Task[bytes | None] | None = None
