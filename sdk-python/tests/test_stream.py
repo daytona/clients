@@ -203,3 +203,27 @@ class TestProcessStreamingResponseTimeout:
         finally:
             await runner.cleanup()
         assert "".join(received) == "".join(f"line {i}\n" for i in range(6))
+
+    @pytest.mark.asyncio
+    async def test_stream_request_keeps_connect_timeouts(self):
+        runner, url = await self._slow_stream_server(chunks=1, delay=0)
+        seen: list[aiohttp.ClientTimeout] = []
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                original = session.request
+
+                def spy(*args, **kwargs):
+                    seen.append(kwargs["timeout"])
+                    return original(*args, **kwargs)
+
+                session.request = spy  # type: ignore[method-assign]
+                await process_streaming_response(url, {}, lambda _: None, lambda: False, session=session)
+        finally:
+            await runner.cleanup()
+
+        assert len(seen) == 1
+        assert seen[0].total is None
+        assert seen[0].sock_read is None
+        assert seen[0].connect is not None
+        assert seen[0].sock_connect is not None
