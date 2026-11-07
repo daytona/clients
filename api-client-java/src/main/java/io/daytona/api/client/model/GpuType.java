@@ -37,6 +37,8 @@ public enum GpuType {
   
   B300("B300"),
   
+  L40S("L40S"),
+  
   RTX_PRO_6000("RTX-PRO-6000"),
   
   RTX_4090("RTX-4090"),
