@@ -96,15 +96,17 @@ Two rules narrow what that covers:
   - the root client (`Daytona`, Python's `AsyncDaytona`) and Python's
     `DaytonaConfig` (in TypeScript the config is a plain object);
   - the error classes;
-  - in Python, the option dataclasses: those a public method accepts as an
-    argument or option and the SDK never returns, such as `Resources`,
-    `VolumeMount`, `TerminalSize` and `ComputerUseRegion` (TypeScript takes
-    plain objects for these).
+  - in Python, the option dataclasses you build to pass to a public method,
+    such as `Resources`, `VolumeMount`, `TerminalSize` and
+    `ComputerUseRegion` (TypeScript takes plain objects for these). Some of
+    them also appear as fields of results (`TerminalSize` in a process's
+    info); that doesn't change their status.
 
   Every other exported class is built by the SDK: by the client, a service, or
   a factory such as `ImageBuilder.from_registry(...)`. That includes the
-  handles, builders and models a method accepts back after the SDK returned
-  them, such as an interpreter context, an `ImageBuilder` or an `Image`.
+  handles, builders and models a method returns, even when another method
+  accepts them back, such as an interpreter context, an `ImageBuilder` or an
+  `Image`.
 
 - **Generated wire types are never public.** The types generated from the
   contracts under [`contract/`](../contract/) (Python `daytona.v2._gen`,
