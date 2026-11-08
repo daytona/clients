@@ -167,9 +167,9 @@ _MAX_SAFE_INTEGER: Final = 2**53 - 1
 
 @dataclass(frozen=True)
 class _TokenExchange:
-    """The two token-exchange fields the SDK reads."""
+    """The two token-exchange fields the SDK reads (the token never in its repr)."""
 
-    access_token: str
+    access_token: str = field(repr=False)
     expires_in: int
 
 
@@ -189,14 +189,22 @@ def _token_exchange(body: bytes) -> _TokenExchange:
     access_token = payload.get("access_token")
     if not isinstance(access_token, str) or access_token == "":
         raise _bad_exchange("access_token must be a non-empty string")
-    expires_in = payload.get("expires_in")
-    if (
-        isinstance(expires_in, bool)
-        or not isinstance(expires_in, int)
-        or not 0 < expires_in <= _MAX_SAFE_INTEGER
-    ):
+    expires_in = _whole_number(payload.get("expires_in"))
+    if expires_in is None or not 0 < expires_in <= _MAX_SAFE_INTEGER:
         raise _bad_exchange("expires_in must be a positive integer")
     return _TokenExchange(access_token=access_token, expires_in=expires_in)
+
+
+def _whole_number(value: object) -> int | None:
+    """A JSON number with an integral value (``60`` or ``60.0``, which JavaScript
+    cannot tell apart), as an ``int``; anything else (``60.5``, ``true``) is ``None``."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return None
 
 
 def _bad_exchange(problem: str) -> DaytonaError:
