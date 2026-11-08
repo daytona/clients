@@ -54,3 +54,58 @@ DaytonaV2Client: type = DaytonaV2
 DaytonaValidationError: alias = DaytonaBadRequestError
 Daytona[Symbol.asyncDispose]: method (): Promise<void>
 V0_API_URL: const 'https://app.daytona.io/api'
+~AbortSignalLike: type = {...}
+~AbortSignalLike.aborted: readonly property boolean
+~AbortSignalLike.addEventListener: optional property (type: 'abort', listener: () => void, options?: boolean | AddEventListenerOptions) => void
+~AbortSignalLike.reason: readonly optional property unknown
+~AbortSignalLike.removeEventListener: optional property (type: 'abort', listener: () => void, options?: boolean | EventListenerOptions) => void
+~Daytona@v2/Daytona: class
+~Daytona@v2/Daytona.close: method (): Promise<void>
+~Daytona@v2/Daytona.constructor: internal-constructor (config?: DaytonaConfig)
+~Daytona@v2/Daytona.create: method (): Promise<Sandbox>
+~Daytona@v2/Daytona.create: method (image: string | undefined, options?: CreateSandboxOptions): Promise<Sandbox>
+~Daytona@v2/Daytona.create: method (options: CreateSandboxOptions): Promise<Sandbox>
+~Daytona@v2/Daytona.createFromBuild: method (builder: ImageBuilder, options?: CreateSandboxOptions & Omit<BuildImageOptions, 'region'>): Promise<Sandbox>
+~Daytona@v2/Daytona.createFromSnapshot: method (snapshot: string, options?: CreateSandboxFromSnapshotOptions): Promise<Sandbox>
+~Daytona@v2/Daytona.createMacos: method (image: string, options?: CreateMacosSandboxOptions): Promise<Sandbox>
+~Daytona@v2/Daytona.currentApiKey: method (): Promise<api.ProjectApiKeyWithContext>
+~Daytona@v2/Daytona.delete: method (sandbox: Sandbox | string): Promise<void>
+~Daytona@v2/Daytona.findByName: method (name: string, options?: { region?: string; }): Promise<Sandbox[]>
+~Daytona@v2/Daytona.get: method (id: string, options?: SandboxConnectOptions): Promise<Sandbox>
+~Daytona@v2/Daytona.getLimits: method (options?: GetLimitsOptions): Promise<OrganizationLimits>
+~Daytona@v2/Daytona.getNetworkPolicy: method (sandbox: Sandbox | string): Promise<NetworkPolicyInfo>
+~Daytona@v2/Daytona.getProjectBudget: method (): Promise<ProjectBudget>
+~Daytona@v2/Daytona.getSandboxSecrets: method (sandbox: Sandbox | string): Promise<SandboxSecretsInfo>
+~Daytona@v2/Daytona.images: readonly property ImagesService
+~Daytona@v2/Daytona.iter: method (options?: ListSandboxesOptions): AsyncIterable<Sandbox>
+~Daytona@v2/Daytona.list: method (options?: ListSandboxesOptions): Promise<ListResult<Sandbox>>
+~Daytona@v2/Daytona.listAuditActions: method (): Promise<api.AuditActionList>
+~Daytona@v2/Daytona.macModels: readonly property MacModelsService
+~Daytona@v2/Daytona.pause: method (sandbox: Sandbox | string, options?: { readonly timeout?: number; }): Promise<void>
+~Daytona@v2/Daytona.replaceSandboxSecrets: method (sandbox: Sandbox | string, secrets: readonly string[], options: { ifMatch: string; }): Promise<SandboxSecretsInfo>
+~Daytona@v2/Daytona.reservations: readonly property ReservationsService
+~Daytona@v2/Daytona.resetNetworkPolicy: method (sandbox: Sandbox | string, options: { ifMatch: string; }): Promise<NetworkPolicyInfo>
+~Daytona@v2/Daytona.resume: method (sandbox: Sandbox | string, options?: { readonly timeout?: number; }): Promise<void>
+~Daytona@v2/Daytona.search: method (options?: SearchSandboxesOptions): Promise<SearchResult<Sandbox>>
+~Daytona@v2/Daytona.secret: readonly property SecretService
+~Daytona@v2/Daytona.snapshots: readonly property SnapshotsService
+~Daytona@v2/Daytona.start: method (sandbox: Sandbox | string, options?: { readonly timeout?: number; }): Promise<void>
+~Daytona@v2/Daytona.stop: method (sandbox: Sandbox | string): Promise<void>
+~Daytona@v2/Daytona.updateNetworkPolicy: method (sandbox: Sandbox | string, networkPolicy: NetworkPolicyInput, options: { ifMatch: string; }): Promise<NetworkPolicyInfo>
+~Daytona@v2/Daytona.volume: readonly property VolumeService
+~HttpAuthProvider: interface
+~HttpAuthProvider.authorizationHeader: method (options?: { readonly forceRefresh?: boolean; readonly rejectedAuthorization?: string; readonly signal?: AbortSignalLike; }): Promise<string>
+~HttpClientOptions: interface
+~HttpClientOptions.auth: readonly optional property TransportAuth
+~HttpClientOptions.authProvider: readonly optional property HttpAuthProvider
+~HttpClientOptions.connectionPoolMaxsize: readonly optional property number
+~HttpClientOptions.otelApi: readonly optional property OtelApiLike
+~HttpClientOptions.otelEnabled: readonly optional property boolean
+~HttpClientOptions.sandboxId: readonly optional property string
+~InternalOptions: type = {...}
+~InternalOptions.v0ModuleLoader: readonly optional property () => V0Exports
+~TransportAuth: interface
+~TransportAuth.bearer: method (): Promise<string | undefined>
+~TransportAuth.onUnauthorized: method (failedToken: string | undefined): Promise<string | undefined>
+~V0Exports: type = {...}
+~V0Exports[]: index readonly [name: string]: unknown

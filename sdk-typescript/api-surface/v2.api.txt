@@ -604,7 +604,6 @@ CreateSessionOptions.name: readonly optional property string
 CreateSessionOptions.shell: readonly optional property string
 CreateTtlOutOfRangeError: class extends MaxBoundError
 CreateTtlOutOfRangeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
-CreateTtlOutOfRangeError.max: readonly optional property number
 CredentialOptions: interface
 CredentialOptions.branch: optional property string
 CredentialOptions.password: optional property string
@@ -1036,7 +1035,6 @@ GoneError: class extends DaytonaError
 GoneError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 IdleOutOfRangeError: class extends MaxBoundError
 IdleOutOfRangeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
-IdleOutOfRangeError.max: readonly optional property number
 Image: class implements ImageDto
 Image.anonymous: readonly property boolean
 Image.availableIn: readonly property string[]
@@ -1127,9 +1125,7 @@ ImageSource: union-member { readonly type: 'named'; readonly name: string; }
 ImageSource: union-member { readonly type: 'registry'; readonly ref: string; }
 ImageStatus: type = (string & {}) | 'pending' | 'failed' | 'ready' | 'building'
 ImageTooLargeError: class extends ArtifactTooLargeError
-ImageTooLargeError.bytes: readonly optional property number
 ImageTooLargeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
-ImageTooLargeError.maxBytes: readonly optional property number
 ImageV2: alias = Image
 ImagesService: class
 ImagesService.build: method (builder: ImageBuilder, options?: BuildImageOptions): Promise<Image>
@@ -2033,9 +2029,7 @@ SnapshotRef: interface
 SnapshotRef.id: readonly property string
 SnapshotRef.name: readonly property string | null
 SnapshotTooLargeError: class extends ArtifactTooLargeError
-SnapshotTooLargeError.bytes: readonly optional property number
 SnapshotTooLargeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
-SnapshotTooLargeError.maxBytes: readonly optional property number
 SnapshotsService: class
 SnapshotsService.constructor: internal-constructor (http: AxiosInstance)
 SnapshotsService.delete: method (snapshotId: string): Promise<void>
@@ -2147,3 +2141,89 @@ WriteManyOptions: interface
 WriteManyOptions.atomic: optional property boolean
 idempotencyKeyForName: function (name: string): Promise<string>
 isKnownErrorCode: function (code: string | undefined): code is ErrorCode
+~ArtifactTooLargeError: class extends ConflictError
+~ArtifactTooLargeError.bytes: readonly optional property number
+~ArtifactTooLargeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
+~ArtifactTooLargeError.maxBytes: readonly optional property number
+~AuthorizationHeaderOptions: type = {...}
+~AuthorizationHeaderOptions.forceRefresh: readonly optional property boolean
+~AuthorizationHeaderOptions.rejectedAuthorization: readonly optional property string
+~CompletionList: type = Omit<{ isIncomplete: boolean; items: components['schemas']['CompletionItem'][]; }, 'items'> & { items: CompletionItem[]; }
+~ErrorEnvelope: interface
+~ErrorEnvelope.actual: readonly optional property string
+~ErrorEnvelope.bytes: readonly optional property unknown
+~ErrorEnvelope.code: readonly optional property string
+~ErrorEnvelope.current: readonly optional property unknown
+~ErrorEnvelope.entitlement: readonly optional property string
+~ErrorEnvelope.error: readonly optional property unknown
+~ErrorEnvelope.feature: readonly optional property string
+~ErrorEnvelope.firstAvailableCursor: readonly optional property string
+~ErrorEnvelope.limit: readonly optional property unknown
+~ErrorEnvelope.max: readonly optional property unknown
+~ErrorEnvelope.max_bytes: readonly optional property unknown
+~ErrorEnvelope.message: readonly optional property unknown
+~ErrorEnvelope.method: readonly optional property unknown
+~ErrorEnvelope.path: readonly optional property unknown
+~ErrorEnvelope.region: readonly optional property string
+~ErrorEnvelope.replacement: readonly optional property string
+~ErrorEnvelope.requestId: readonly optional property unknown
+~ErrorEnvelope.retryAfterMs: readonly optional property unknown
+~ErrorEnvelope.retry_after_seconds: readonly optional property number
+~ErrorEnvelope.source: readonly optional property string
+~ErrorEnvelope.stated: readonly optional property string
+~ErrorEnvelope.statusCode: readonly optional property unknown
+~ErrorEnvelope.timestamp: readonly optional property unknown
+~ErrorEnvelope.trace_id: readonly optional property string
+~FetchRequestInit: interface extends RequestInit
+~FetchRequestInit.bodyFactory: readonly optional property () => BodyInit | Promise<BodyInit>
+~GitConfigOptions: interface
+~GitConfigOptions.path: optional property string
+~GitConfigOptions.scope: optional property GitConfigScope
+~HttpTransport: class
+~HttpTransport.baseUrl: readonly property string
+~HttpTransport.bearerToken: method (options?: AuthorizationHeaderOptions): Promise<string | undefined>
+~HttpTransport.constructor: internal-constructor (baseUrl: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions)
+~HttpTransport.defaultTimeout: readonly property number
+~HttpTransport.delete: method <T>(path: string, config?: AxiosRequestConfig): Promise<T>
+~HttpTransport.fetch: method (path: string, init?: FetchRequestInit, checkStatus?: boolean): Promise<Response>
+~HttpTransport.get: method <T>(path: string, config?: AxiosRequestConfig): Promise<T>
+~HttpTransport.getBytes: method (path: string): Promise<ArrayBuffer>
+~HttpTransport.http: readonly property AxiosInstance
+~HttpTransport.patch: method <T>(path: string, body?: unknown, config?: AxiosRequestConfig): Promise<T>
+~HttpTransport.post: method <T>(path: string, body?: unknown, config?: AxiosRequestConfig): Promise<T>
+~HttpTransport.postRaw: method <T>(path: string, body?: unknown, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>
+~HttpTransport.resolveToken: method (): Promise<string | undefined>
+~HttpTransport.token: readonly property string | undefined
+~HttpTransport.withBaseUrl: method (baseUrl: string): HttpTransport
+~InitOptions: interface
+~InitOptions.bare: optional property boolean
+~InitOptions.initialBranch: optional property string
+~LifecycleWaitOptions: type = {...}
+~LifecycleWaitOptions.timeout: readonly optional property number
+~MacReservationBatch@v2/gen/api-types: type = Omit<{ requested: number; reservations: components['schemas']['MacReservation'][]; reserved: number; }, 'reservations'> & { reservations: MacReservation[]; }
+~MacReservationResources: type = {...}
+~MacReservationResources.cores: property number
+~MacReservationResources.diskMib: property number
+~MacReservationResources.memoryMib: property number
+~MaxBoundError: class extends BadRequestError
+~MaxBoundError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
+~MaxBoundError.max: readonly optional property number
+~OtelCarrier: type = {...}
+~OtelContextLike: type = {...}
+~OtelContextLike.deleteValue: method (key: symbol): OtelContextLike
+~OtelContextLike.getValue: method (key: symbol): unknown
+~OtelContextLike.setValue: method (key: symbol, value: unknown): OtelContextLike
+~OtelSpanContextLike: type = {...}
+~OtelSpanContextLike.spanId: readonly property string
+~OtelSpanContextLike.traceFlags: readonly property number
+~OtelSpanContextLike.traceId: readonly property string
+~OtelSpanLike: interface
+~OtelSpanLike.end: method (): void
+~OtelSpanLike.recordException: method (error: Error): void
+~OtelSpanLike.setAttribute: method (name: string, value: string | number | boolean): void
+~OtelSpanLike.setStatus: method (status: { readonly code: number; readonly message?: string; }): void
+~OtelSpanLike.spanContext: method (): OtelSpanContextLike
+~OtelTracerLike: interface
+~OtelTracerLike.startSpan: method (name: string, options: { readonly kind: number; readonly attributes: Record<string, string | number | boolean>; }): OtelSpanLike
+~WaitProcessOptions: interface
+~WaitProcessOptions.timeout: optional property number

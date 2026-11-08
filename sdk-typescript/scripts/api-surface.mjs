@@ -62,6 +62,14 @@ function isOwnSource(decl) {
   return rel.startsWith('src/') && !rel.includes('node_modules')
 }
 
+// Declarations expanded when a listed signature uses them. The v0 namespace
+// is the bundled 0.x release's surface, versioned by that release; its
+// unbundled stub is not it.
+function isReachableSource(decl) {
+  const rel = relative(root, decl.getSourceFile().fileName).split(sep).join('/')
+  return isOwnSource(decl) && !rel.startsWith('src/v0')
+}
+
 function modifierFlags(decl) {
   return ts.canHaveModifiers(decl) || ts.isPropertySignature(decl) ? ts.getCombinedModifierFlags(decl) : 0
 }
@@ -71,122 +79,15 @@ function typeParams(decl) {
   return params && params.length ? `<${params.map((p) => oneLine(p.getText())).join(', ')}>` : ''
 }
 
-/** @param {ts.TypeChecker} checker */
-function surfaceOf(checker, sourceFile, entry) {
-  const lines = []
-  const moduleSymbol = checker.getSymbolAtLocation(sourceFile)
-  const exportsByTarget = new Map()
-  const exported = checker.getExportsOfModule(moduleSymbol).map((sym) => {
-    const target = sym.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(sym) : sym
-    const list = exportsByTarget.get(target) ?? []
-    list.push(sym.name)
-    exportsByTarget.set(target, list)
-    return { name: sym.name, target }
-  })
-  // Members declared on an exported class or interface are listed under it;
-  // a class extending it lists only what it adds.
-  const exportedContainers = new Set(exportsByTarget.keys())
-
-  const emit = (name, kind, signature = '') => lines.push(`${name}: ${kind}${signature ? ` ${oneLine(signature)}` : ''}`)
-  const typeText = (type, at) => checker.typeToString(type, at, TYPE_FLAGS)
-  const signatureText = (sig, at) => checker.signatureToString(sig, at, TYPE_FLAGS)
-
-  function ownedHere(member, container) {
-    const decl = member.declarations?.[0]
-    if (!decl || !isOwnSource(decl) || isInternal(decl)) return false
-    const flags = modifierFlags(decl)
-    if (flags & (ts.ModifierFlags.Private | ts.ModifierFlags.Protected)) return false
-    if (decl.name && ts.isPrivateIdentifier(decl.name)) return false
-    const owner = decl.parent && decl.parent.symbol
-    if (!owner || owner === container) return true
-    return !exportedContainers.has(owner)
-  }
-
-  function memberName(prefix, member) {
-    const decl = member.declarations?.[0]
-    if (decl?.name && ts.isComputedPropertyName(decl.name)) return `${prefix}[${oneLine(decl.name.expression.getText())}]`
-    return `${prefix}.${member.name}`
-  }
-
-  function emitMembers(prefix, type, container, at, statics = false) {
-    const members = checker.getPropertiesOfType(type).filter((m) => m.name !== 'prototype' && ownedHere(m, container))
-    for (const member of members) {
-      const decl = member.declarations[0]
-      const name = memberName(prefix, member)
-      const memberType = checker.getTypeOfSymbolAtLocation(member, decl)
-      const flags = modifierFlags(decl)
-      const mods = [statics ? 'static' : '', flags & ts.ModifierFlags.Abstract ? 'abstract' : ''].filter(Boolean)
-      const isMethod = member.flags & ts.SymbolFlags.Method
-      if (isMethod) {
-        for (const sig of checker.getSignaturesOfType(memberType, ts.SignatureKind.Call).filter(isPublicSignature)) {
-          emit(name, [...mods, 'method'].join(' '), signatureText(sig, decl))
-        }
-        continue
-      }
-      const getterOnly =
-        member.flags & ts.SymbolFlags.GetAccessor && !(member.flags & ts.SymbolFlags.SetAccessor)
-      if (flags & ts.ModifierFlags.Readonly || getterOnly) mods.push('readonly')
-      let shown = memberType
-      if (member.flags & ts.SymbolFlags.Optional) {
-        mods.push('optional')
-        // `x?: T` reads as T; the checker adds `| undefined` on its own.
-        if (decl.type) shown = checker.getTypeFromTypeNode(decl.type)
-      }
-      emit(name, [...mods, 'property'].join(' '), typeText(shown, decl))
-    }
-    for (const kind of [ts.SignatureKind.Call, ts.SignatureKind.Construct]) {
-      if (statics) continue
-      for (const sig of checker.getSignaturesOfType(type, kind)) {
-        if (!sig.declaration || !isOwnSource(sig.declaration) || isInternal(sig.declaration)) continue
-        emit(`${prefix}()`, kind === ts.SignatureKind.Call ? 'call' : 'new', signatureText(sig, sig.declaration))
-      }
-    }
-    for (const info of checker.getIndexInfosOfType(type)) {
-      if (statics || !info.declaration || !isOwnSource(info.declaration)) continue
-      emit(`${prefix}[]`, 'index', oneLine(info.declaration.getText()))
-    }
-  }
-
-  function emitClass(name, sym) {
-    const decl = sym.declarations.find(ts.isClassDeclaration)
-    const instance = checker.getDeclaredTypeOfSymbol(sym)
-    const parts = [typeParams(decl)]
-    const bases = checker.getBaseTypes(instance)
-    if (bases.length) parts.push(` extends ${bases.map((b) => typeText(b, decl)).join(', ')}`)
-    const impl = decl.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ImplementsKeyword)
-    if (impl) parts.push(` implements ${impl.types.map((t) => oneLine(t.getText())).join(', ')}`)
-    const abstract = modifierFlags(decl) & ts.ModifierFlags.Abstract
-    emit(name, abstract ? 'abstract class' : 'class', parts.join(''))
-    const ctor = decl.members.find(ts.isConstructorDeclaration)
-    const ctorFlags = ctor ? modifierFlags(ctor) : 0
-    // Constructors of exported classes are not public API, except where the
-    // caller builds the instance itself: the root client, the error classes.
-    const isError = [instance, ...bases].some((t) => checker.getPropertiesOfType(t).some((p) => p.name === 'stack'))
-    const ctorKind = isError || entry.publicConstructors ? 'constructor' : 'internal-constructor'
-    if (ctorFlags & ts.ModifierFlags.Private) emit(`${name}.constructor`, `private ${ctorKind}`)
-    else if (ctorFlags & ts.ModifierFlags.Protected) emit(`${name}.constructor`, `protected ${ctorKind}`)
-    else if (!ctor || !isInternal(ctor)) {
-      const staticType = checker.getTypeOfSymbolAtLocation(sym, decl)
-      for (const sig of checker.getSignaturesOfType(staticType, ts.SignatureKind.Construct).filter(isPublicSignature)) {
-        emit(`${name}.constructor`, ctorKind, signatureText(sig, decl).replace(/: [^:]*$/, ''))
-      }
-    }
-    emitMembers(name, instance, sym, decl)
-    emitMembers(name, checker.getTypeOfSymbolAtLocation(sym, decl), sym, decl, true)
-  }
-
-  function emitInterface(name, sym) {
-    const decl = sym.declarations.find(ts.isInterfaceDeclaration)
-    const type = checker.getDeclaredTypeOfSymbol(sym)
-    const ext = decl.heritageClauses?.flatMap((h) => h.types.map((t) => oneLine(t.getText()))) ?? []
-    emit(name, 'interface', `${typeParams(decl)}${ext.length ? ` extends ${ext.join(', ')}` : ''}`)
-    emitMembers(name, type, sym, decl)
-  }
-
-  // A long union or tuple prints one member per line, so adding or removing
-  // one is a one-line change.
-  const LONG = 120
-
+/**
+ * Builds the surface of every entry point. Exported declarations are listed
+ * under their exported name. A declaration of this package that a listed
+ * signature uses but no entry point exports (an options type, the v2 client
+ * reached through the root's `.v2`) is listed too, under `~Name`, in the
+ * file of the first entry point that reaches it, so its members are covered.
+ * @param {ts.TypeChecker} checker
+ */
+function surfaces(checker, program) {
   function expandsToMembers(type) {
     return (
       type.flags & ts.TypeFlags.Object &&
@@ -198,83 +99,285 @@ function surfaceOf(checker, sourceFile, entry) {
       !checker.isArrayType(type)
     )
   }
+  const exportedNames = new Set()
+  const perEntry = ENTRIES.map((entry) => {
+    const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(join(root, entry.file)))
+    const exportsByTarget = new Map()
+    const exported = checker.getExportsOfModule(moduleSymbol).map((sym) => {
+      const target = sym.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(sym) : sym
+      const list = exportsByTarget.get(target) ?? []
+      list.push(sym.name)
+      exportsByTarget.set(target, list)
+      exportedNames.add(sym.name)
+      return { name: sym.name, target }
+    })
+    return { entry, exported, exportsByTarget, lines: [] }
+  })
+  // Every declaration listed under a name of its own: an exported one, or
+  // one reached from a listed signature. Members declared on one are listed
+  // under it only; a class or interface extending it lists only what it adds.
+  const named = new Map()
+  for (const { exportsByTarget } of perEntry) for (const target of exportsByTarget.keys()) named.set(target, target.name)
+  const usedNames = new Set(exportedNames)
 
-  function emitTypeAlias(name, sym) {
-    const decl = sym.declarations.find(ts.isTypeAliasDeclaration)
-    const type = checker.getTypeAtLocation(decl.type)
-    if (ts.isTypeLiteralNode(decl.type) || (!decl.typeParameters && expandsToMembers(type))) {
-      emit(name, 'type', `${typeParams(decl)} = {...}`)
+  // The v2 namespace first, so a declaration both reach is listed with v2.
+  for (const state of [...perEntry].reverse()) emitEntry(state)
+  return perEntry.map(({ entry, lines }) => ({ entry, lines }))
+
+  function emitEntry({ entry, exported, exportsByTarget, lines }) {
+    const queue = []
+    const emit = (name, kind, signature = '') => lines.push(`${name}: ${kind}${signature ? ` ${oneLine(signature)}` : ''}`)
+    const typeText = (type, at) => checker.typeToString(type, at, TYPE_FLAGS)
+    const signatureText = (sig, at) => checker.signatureToString(sig, at, TYPE_FLAGS)
+
+    function want(sym) {
+      if (!sym) return
+      if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
+      if (named.has(sym) || !(sym.flags & (ts.SymbolFlags.Class | ts.SymbolFlags.Interface | ts.SymbolFlags.TypeAlias | ts.SymbolFlags.Enum))) return
+      const decls = sym.declarations ?? []
+      if (!decls.length || !decls.every(isReachableSource) || decls.every(isInternal)) return
+      let name = `~${sym.name}`
+      if (usedNames.has(sym.name) || usedNames.has(name)) {
+        const file = relative(join(root, 'src'), decls[0].getSourceFile().fileName).split(sep).join('/')
+        name = `~${sym.name}@${file.replace(/\.ts$/, '')}`
+      }
+      usedNames.add(name)
+      named.set(sym, name)
+      queue.push(sym)
+    }
+
+    // Records the declarations a printed type refers to by name.
+    function reach(type, seen = new Set(), top = false) {
+      if (!type || seen.has(type)) return
+      seen.add(type)
+      if (type.aliasSymbol && !top) {
+        want(type.aliasSymbol)
+        for (const arg of type.aliasTypeArguments ?? []) reach(arg, seen)
+        return
+      }
+      if (type.flags & (ts.TypeFlags.Union | ts.TypeFlags.Intersection)) {
+        if (type.symbol && type.symbol.flags & ts.SymbolFlags.Enum) want(type.symbol)
+        for (const member of type.types) reach(member, seen)
+        return
+      }
+      if (type.flags & ts.TypeFlags.EnumLiteral && type.symbol) {
+        want(type.symbol.flags & ts.SymbolFlags.EnumMember ? type.symbol.parent : type.symbol)
+        return
+      }
+      if (!(type.flags & ts.TypeFlags.Object)) return
+      if (type.objectFlags & ts.ObjectFlags.Reference) for (const arg of checker.getTypeArguments(type)) reach(arg, seen)
+      const sym = type.symbol
+      if (sym && sym.flags & (ts.SymbolFlags.Class | ts.SymbolFlags.Interface | ts.SymbolFlags.Enum) && !top) {
+        want(sym)
+        return
+      }
+      if (checker.isTupleType(type) || checker.isArrayType(type)) return
+      for (const prop of checker.getPropertiesOfType(type)) {
+        const decl = prop.declarations?.[0]
+        if (decl) reach(checker.getTypeOfSymbolAtLocation(prop, decl), seen)
+      }
+      for (const kind of [ts.SignatureKind.Call, ts.SignatureKind.Construct]) {
+        for (const sig of checker.getSignaturesOfType(type, kind)) reachSignature(sig, seen)
+      }
+      for (const info of checker.getIndexInfosOfType(type)) reach(info.type, seen)
+    }
+
+    function reachSignature(sig, seen = new Set()) {
+      for (const tp of sig.typeParameters ?? []) reach(checker.getBaseConstraintOfType(tp), seen)
+      for (const param of sig.parameters) {
+        const decl = param.valueDeclaration
+        if (decl) reach(checker.getTypeOfSymbolAtLocation(param, decl), seen)
+      }
+      reach(checker.getReturnTypeOfSignature(sig), seen)
+    }
+
+    function ownedHere(member, container) {
+      const decl = member.declarations?.[0]
+      if (!decl || !isOwnSource(decl) || isInternal(decl)) return false
+      const flags = modifierFlags(decl)
+      if (flags & (ts.ModifierFlags.Private | ts.ModifierFlags.Protected)) return false
+      if (decl.name && ts.isPrivateIdentifier(decl.name)) return false
+      const owner = decl.parent && decl.parent.symbol
+      if (!owner || owner === container) return true
+      return !named.has(owner)
+    }
+
+    function memberName(prefix, member) {
+      const decl = member.declarations?.[0]
+      if (decl?.name && ts.isComputedPropertyName(decl.name)) return `${prefix}[${oneLine(decl.name.expression.getText())}]`
+      return `${prefix}.${member.name}`
+    }
+
+    function emitMembers(prefix, type, container, at, statics = false) {
+      const members = checker.getPropertiesOfType(type).filter((m) => m.name !== 'prototype' && ownedHere(m, container))
+      for (const member of members) {
+        const decl = member.declarations[0]
+        const name = memberName(prefix, member)
+        const memberType = checker.getTypeOfSymbolAtLocation(member, decl)
+        const flags = modifierFlags(decl)
+        const mods = [statics ? 'static' : '', flags & ts.ModifierFlags.Abstract ? 'abstract' : ''].filter(Boolean)
+        const isMethod = member.flags & ts.SymbolFlags.Method
+        if (isMethod) {
+          for (const sig of checker.getSignaturesOfType(memberType, ts.SignatureKind.Call).filter(isPublicSignature)) {
+            reachSignature(sig)
+            emit(name, [...mods, 'method'].join(' '), signatureText(sig, decl))
+          }
+          continue
+        }
+        const getterOnly =
+          member.flags & ts.SymbolFlags.GetAccessor && !(member.flags & ts.SymbolFlags.SetAccessor)
+        if (flags & ts.ModifierFlags.Readonly || getterOnly) mods.push('readonly')
+        let shown = memberType
+        if (member.flags & ts.SymbolFlags.Optional) {
+          mods.push('optional')
+          // `x?: T` reads as T; the checker adds `| undefined` on its own.
+          if (decl.type) shown = checker.getTypeFromTypeNode(decl.type)
+        }
+        reach(shown)
+        emit(name, [...mods, 'property'].join(' '), typeText(shown, decl))
+      }
+      for (const kind of [ts.SignatureKind.Call, ts.SignatureKind.Construct]) {
+        if (statics) continue
+        for (const sig of checker.getSignaturesOfType(type, kind)) {
+          if (!sig.declaration || !isOwnSource(sig.declaration) || isInternal(sig.declaration)) continue
+          reachSignature(sig)
+          emit(`${prefix}()`, kind === ts.SignatureKind.Call ? 'call' : 'new', signatureText(sig, sig.declaration))
+        }
+      }
+      for (const info of checker.getIndexInfosOfType(type)) {
+        if (statics || !info.declaration || !isOwnSource(info.declaration)) continue
+        reach(info.type)
+        emit(`${prefix}[]`, 'index', oneLine(info.declaration.getText()))
+      }
+    }
+
+    function emitClass(name, sym, reached) {
+      const decl = sym.declarations.find(ts.isClassDeclaration)
+      const instance = checker.getDeclaredTypeOfSymbol(sym)
+      const parts = [typeParams(decl)]
+      const bases = checker.getBaseTypes(instance)
+      for (const base of bases) reach(base)
+      if (bases.length) parts.push(` extends ${bases.map((b) => typeText(b, decl)).join(', ')}`)
+      const impl = decl.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ImplementsKeyword)
+      if (impl) parts.push(` implements ${impl.types.map((t) => oneLine(t.getText())).join(', ')}`)
+      const abstract = modifierFlags(decl) & ts.ModifierFlags.Abstract
+      emit(name, abstract ? 'abstract class' : 'class', parts.join(''))
+      const ctor = decl.members.find(ts.isConstructorDeclaration)
+      const ctorFlags = ctor ? modifierFlags(ctor) : 0
+      // Constructors of exported classes are not public API, except where the
+      // caller builds the instance itself: the root client, the error classes.
+      const isError = [instance, ...bases].some((t) => checker.getPropertiesOfType(t).some((p) => p.name === 'stack'))
+      const publicCtor = isError || (entry.publicConstructors && !reached)
+      const ctorKind = publicCtor ? 'constructor' : 'internal-constructor'
+      if (ctorFlags & ts.ModifierFlags.Private) emit(`${name}.constructor`, `private ${ctorKind}`)
+      else if (ctorFlags & ts.ModifierFlags.Protected) emit(`${name}.constructor`, `protected ${ctorKind}`)
+      else if (!ctor || !isInternal(ctor)) {
+        const staticType = checker.getTypeOfSymbolAtLocation(sym, decl)
+        for (const sig of checker.getSignaturesOfType(staticType, ts.SignatureKind.Construct).filter(isPublicSignature)) {
+          if (publicCtor) reachSignature(sig)
+          emit(`${name}.constructor`, ctorKind, signatureText(sig, decl).replace(/: [^:]*$/, ''))
+        }
+      }
+      emitMembers(name, instance, sym, decl)
+      emitMembers(name, checker.getTypeOfSymbolAtLocation(sym, decl), sym, decl, true)
+    }
+
+    function emitInterface(name, sym) {
+      const decl = sym.declarations.find(ts.isInterfaceDeclaration)
+      const type = checker.getDeclaredTypeOfSymbol(sym)
+      for (const base of checker.getBaseTypes(type)) reach(base)
+      const ext = decl.heritageClauses?.flatMap((h) => h.types.map((t) => oneLine(t.getText()))) ?? []
+      emit(name, 'interface', `${typeParams(decl)}${ext.length ? ` extends ${ext.join(', ')}` : ''}`)
       emitMembers(name, type, sym, decl)
-      return
     }
-    const text = checker.typeToString(type, decl, TYPE_FLAGS | ts.TypeFormatFlags.InTypeAlias)
-    if (type.flags & ts.TypeFlags.Union && text.length > LONG) {
-      emit(name, 'type', `${typeParams(decl)} = union`)
-      for (const member of type.types) emit(name, 'union-member', typeText(member, decl))
-      return
-    }
-    emit(name, 'type', `${typeParams(decl)} = ${text}`)
-  }
 
-  function emitValue(name, keyword, type, at) {
-    const text = typeText(type, at)
-    if (text.length > LONG && checker.isTupleType(type)) {
-      const readonly = type.target?.readonly ? 'readonly ' : ''
-      emit(name, keyword, `${readonly}tuple`)
-      for (const element of checker.getTypeArguments(type)) emit(name, 'tuple-element', typeText(element, at))
-      return
-    }
-    emit(name, keyword, text)
-  }
-
-  function emitEnum(name, sym) {
-    emit(name, sym.flags & ts.SymbolFlags.ConstEnum ? 'const enum' : 'enum')
-    for (const member of checker.getExportsOfModule(sym)) {
-      const value = checker.getConstantValue(member.declarations[0])
-      emit(`${name}.${member.name}`, 'enum-member', `= ${typeof value === 'string' ? `'${value}'` : String(value)}`)
-    }
-  }
-
-  function emitSymbol(name, sym) {
-    const flags = sym.flags
-    if (flags & ts.SymbolFlags.Class) emitClass(name, sym)
-    else if (flags & ts.SymbolFlags.Enum) emitEnum(name, sym)
-    else if (flags & ts.SymbolFlags.Function) {
-      const decl = sym.declarations[0]
-      const signatures = checker.getSignaturesOfType(checker.getTypeOfSymbolAtLocation(sym, decl), ts.SignatureKind.Call)
-      for (const sig of signatures.filter(isPublicSignature)) {
-        emit(name, 'function', signatureText(sig, decl))
+    function emitTypeAlias(name, sym) {
+      const decl = sym.declarations.find(ts.isTypeAliasDeclaration)
+      const type = checker.getTypeAtLocation(decl.type)
+      if (ts.isTypeLiteralNode(decl.type) || (!decl.typeParameters && expandsToMembers(type))) {
+        emit(name, 'type', `${typeParams(decl)} = {...}`)
+        emitMembers(name, type, sym, decl)
+        return
       }
-    } else if (flags & ts.SymbolFlags.Variable) {
-      const decl = sym.declarations[0]
-      const keyword = ts.getCombinedNodeFlags(decl) & ts.NodeFlags.Const ? 'const' : 'let'
-      emitValue(name, keyword, checker.getTypeOfSymbolAtLocation(sym, decl), decl)
-    } else if (flags & ts.SymbolFlags.ValueModule) {
-      emit(name, 'namespace')
+      reach(type, new Set(), true)
+      const text = checker.typeToString(type, decl, TYPE_FLAGS | ts.TypeFormatFlags.InTypeAlias)
+      if (type.flags & ts.TypeFlags.Union && text.length > LONG) {
+        emit(name, 'type', `${typeParams(decl)} = union`)
+        for (const member of type.types) emit(name, 'union-member', typeText(member, decl))
+        return
+      }
+      emit(name, 'type', `${typeParams(decl)} = ${text}`)
+    }
+
+    function emitValue(name, keyword, type, at) {
+      reach(type)
+      const text = typeText(type, at)
+      if (text.length > LONG && checker.isTupleType(type)) {
+        const readonly = type.target?.readonly ? 'readonly ' : ''
+        emit(name, keyword, `${readonly}tuple`)
+        for (const element of checker.getTypeArguments(type)) emit(name, 'tuple-element', typeText(element, at))
+        return
+      }
+      emit(name, keyword, text)
+    }
+
+    function emitEnum(name, sym) {
+      emit(name, sym.flags & ts.SymbolFlags.ConstEnum ? 'const enum' : 'enum')
       for (const member of checker.getExportsOfModule(sym)) {
-        const target = member.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(member) : member
-        emitSymbol(`${name}.${member.name}`, target)
+        const value = checker.getConstantValue(member.declarations[0])
+        emit(`${name}.${member.name}`, 'enum-member', `= ${typeof value === 'string' ? `'${value}'` : String(value)}`)
       }
     }
-    // A name can be both a value and a type (a const and a type alias).
-    if (flags & ts.SymbolFlags.Interface && !(flags & ts.SymbolFlags.Class)) emitInterface(name, sym)
-    if (flags & ts.SymbolFlags.TypeAlias) emitTypeAlias(name, sym)
-  }
 
-  for (const { name, target } of exported) {
-    // An `@internal` declaration is not in the published declarations.
-    if (target.declarations?.length && target.declarations.every(isInternal)) continue
-    const names = exportsByTarget.get(target)
-    // One name per declaration carries the members; the others point at it.
-    const canonical = names.includes(target.name) ? target.name : [...names].sort()[0]
-    if (name !== canonical) {
-      emit(name, 'alias', `= ${canonical}`)
-      continue
+    function emitSymbol(name, sym, reached = false) {
+      const flags = sym.flags
+      if (flags & ts.SymbolFlags.Class) emitClass(name, sym, reached)
+      else if (flags & ts.SymbolFlags.Enum) emitEnum(name, sym)
+      else if (flags & ts.SymbolFlags.Function) {
+        const decl = sym.declarations[0]
+        const signatures = checker.getSignaturesOfType(checker.getTypeOfSymbolAtLocation(sym, decl), ts.SignatureKind.Call)
+        for (const sig of signatures.filter(isPublicSignature)) {
+          reachSignature(sig)
+          emit(name, 'function', signatureText(sig, decl))
+        }
+      } else if (flags & ts.SymbolFlags.Variable) {
+        const decl = sym.declarations[0]
+        const keyword = ts.getCombinedNodeFlags(decl) & ts.NodeFlags.Const ? 'const' : 'let'
+        emitValue(name, keyword, checker.getTypeOfSymbolAtLocation(sym, decl), decl)
+      } else if (flags & ts.SymbolFlags.ValueModule) {
+        emit(name, 'namespace')
+        for (const member of checker.getExportsOfModule(sym)) {
+          const target = member.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(member) : member
+          emitSymbol(`${name}.${member.name}`, target)
+        }
+      }
+      // A name can be both a value and a type (a const and a type alias).
+      if (flags & ts.SymbolFlags.Interface && !(flags & ts.SymbolFlags.Class)) emitInterface(name, sym)
+      if (flags & ts.SymbolFlags.TypeAlias) emitTypeAlias(name, sym)
     }
-    emitSymbol(name, target)
+
+    for (const { name, target } of exported) {
+      // An `@internal` declaration is not in the published declarations.
+      if (target.declarations?.length && target.declarations.every(isInternal)) continue
+      const names = exportsByTarget.get(target)
+      // One name per declaration carries the members; the others point at it.
+      const canonical = names.includes(target.name) ? target.name : [...names].sort()[0]
+      if (name !== canonical) {
+        emit(name, 'alias', `= ${canonical}`)
+        continue
+      }
+      emitSymbol(name, target)
+    }
+    while (queue.length) {
+      const sym = queue.shift()
+      emitSymbol(named.get(sym), sym, true)
+    }
   }
-  return lines
 }
+
+// A long union or tuple prints one member per line, so adding or removing
+// one is a one-line change.
+const LONG = 120
 
 function sortKey(line) {
   const at = line.indexOf(': ')
@@ -305,8 +408,8 @@ function main(argv) {
   }
   const checker = program.getTypeChecker()
   let stale = 0
-  for (const entry of ENTRIES) {
-    const text = render(entry, surfaceOf(checker, program.getSourceFile(join(root, entry.file)), entry))
+  for (const { entry, lines } of surfaces(checker, program)) {
+    const text = render(entry, lines)
     const target = join(root, entry.out)
     let current = ''
     try {

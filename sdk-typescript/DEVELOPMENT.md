@@ -155,9 +155,13 @@ npm install && npm run typecheck && npm test && npm run build
 (`@daytona/sdk/v2`) list the declaration surface of the entry points, one
 declaration per line: every export with its kind and full type signature, the
 members of exported classes, interfaces and object types, enum members, and
-long unions one member per line. `scripts/api-surface.mjs` reads it with the
-TypeScript compiler API (`@internal` members excluded, as in the published
-declarations). Regenerate after any change to the public surface and commit
+long unions one member per line. A declaration of this package that a listed
+signature uses but no entry point exports (the v2 client behind the root's
+`.v2`, an options type that is not exported) is listed as `~Name`
+(`~Name@path` when the name is taken), in the file of the first entry point
+that reaches it, with its members. `scripts/api-surface.mjs` reads it with the
+TypeScript compiler API (`@internal` exports, members and overloads excluded,
+as `stripInternal` does for the published declarations). Regenerate after any change to the public surface and commit
 the result; CI runs the check:
 
 ```bash
