@@ -64,6 +64,24 @@ _REFUSED: list[tuple[str, Call]] = [
     ("memory_max 0", lambda d, _url: d.create(resources=Resources(memory_max=0))),
     ("disk_max 0", lambda d, _url: d.create(resources=Resources(disk_max=0))),
     ("get(blank id)", lambda d, _url: d.get("  ")),
+    # No reservation option is silently dropped from the body.
+    ("reservations.create region as a number", lambda d, _url: d.reservations.create(region=5)),  # type: ignore[arg-type]
+    (
+        "reservations.create model as an object",
+        lambda d, _url: d.reservations.create(region="r", model=object()),
+    ),  # type: ignore[arg-type]
+    (
+        "reservations.create auto_renew as a string",
+        lambda d, _url: d.reservations.create(region="r", auto_renew="yes"),
+    ),  # type: ignore[arg-type]
+    (
+        "reservations.create_bulk count as a string",
+        lambda d, _url: d.reservations.create_bulk(region="r", count="2"),
+    ),  # type: ignore[arg-type]
+    (
+        "reservations.create_bulk min_count 0",
+        lambda d, _url: d.reservations.create_bulk(region="r", count=2, min_count=0),
+    ),
     ("docker timeout 10**309 is no limit, not an overflow", lambda d, url: _docker_refused_type(d, url)),
     (
         "reservations.update auto_renew as a string",

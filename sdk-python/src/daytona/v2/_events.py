@@ -39,7 +39,7 @@ from weakref import WeakValueDictionary
 
 from . import _clock
 from ._auth import ProjectTokenAuth
-from ._core import RequestSpec, expect_object, sandbox_state
+from ._core import RequestSpec, expect_object, loads_json, sandbox_state
 from ._transport import AsyncTransport, _request_deadline
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .errors import (
@@ -1146,8 +1146,10 @@ class WaitHub:
             sock.last_frame_at = _clock.monotonic()
             sock.client_ping_sent_for_frame_at = None
             try:
-                frame = json.loads(msg)
-            except (json.JSONDecodeError, TypeError):
+                # A frame nested too deeply to decode is skipped like any
+                # undecodable one, never a RecursionError out of the hub.
+                frame = loads_json(msg, "sandbox events frame")
+            except (ValueError, TypeError, DaytonaError):
                 continue
             if not isinstance(frame, dict):
                 continue

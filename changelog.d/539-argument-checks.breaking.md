@@ -4,7 +4,9 @@
 waits); the client lifecycle verbs and `get()` refuse anything but a sandbox
 or a non-blank id; `reservations.update()` needs a boolean `auto_renew` /
 `autoRenew`; `volumes.delete()` takes a non-empty name or id (not a `Volume`);
-`ports.expose()` needs a boolean `public`; `create_access_token()` /
+`ports.expose()` needs a boolean `public`; `reservations.create()` /
+`create_bulk()` (`createBulk()`) check `region`, `model`, `auto_renew` /
+`autoRenew` and the counts, so none is silently left out of the request; `create_access_token()` /
 `createAccessToken()` operations must be strings; a port's `proto` is `tcp`
 or `udp`; the image options of `images.build()` / `pull()`,
 `capture_image()` and `create_from_build()` (checked before the build) must

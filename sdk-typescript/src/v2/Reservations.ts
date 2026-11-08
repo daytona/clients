@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isBlank } from './pyText.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
@@ -24,6 +25,13 @@ const CREATE_RESERVATIONS_BULK_KEYS = optionKeys<CreateReservationsBulkOptions>(
 const LIST_RESERVATIONS_KEYS = optionKeys<ListReservationsOptions>()({ cursor: true, limit: true })
 const RENEW_RESERVATION_KEYS = optionKeys<RenewReservationOptions>()({ idempotencyKey: true })
 const UPDATE_RESERVATION_KEYS = optionKeys<UpdateReservationOptions>()({ autoRenew: true })
+
+/** Every reservation option is checked before any request, as in Python. */
+function checkReservationOptions(options: { readonly region?: unknown; readonly model?: unknown; readonly autoRenew?: unknown }): void {
+  if (typeof options.region !== 'string' || isBlank(options.region)) throw badRequest('region must be a non-empty string')
+  if (options.model !== undefined && typeof options.model !== 'string') throw badRequest('model must be a string')
+  if (options.autoRenew !== undefined && typeof options.autoRenew !== 'boolean') throw badRequest('autoRenew must be a boolean')
+}
 
 function reservation(wire: api.MacReservation): MacReservation {
   const value = checkResponse<api.MacReservation>(wire, MAC_RESERVATION, 'reservation')
@@ -89,6 +97,7 @@ export class ReservationsService {
   public async create(options: CreateReservationOptions): Promise<MacReservation> {
     assertOptionsObject('CreateReservationOptions', options)
     assertKnownOptions('CreateReservationOptions', options, CREATE_RESERVATION_KEYS)
+    checkReservationOptions(options)
     const body: api.CreateReservationRequest = { region_id: options.region }
     if (options.model !== undefined) body.model = options.model
     if (options.autoRenew !== undefined) body.auto_renew = options.autoRenew
@@ -102,6 +111,11 @@ export class ReservationsService {
   public async createBulk(options: CreateReservationsBulkOptions): Promise<MacReservationBatch> {
     assertOptionsObject('CreateReservationsBulkOptions', options)
     assertKnownOptions('CreateReservationsBulkOptions', options, CREATE_RESERVATIONS_BULK_KEYS)
+    checkReservationOptions(options)
+    for (const [name, value] of [['count', options.count], ['minCount', options.minCount]] as const) {
+      if (name === 'minCount' && value === undefined) continue
+      if (!Number.isSafeInteger(value) || (value as number) < 1) throw badRequest(`${name} must be a positive integer`)
+    }
     const body: api.CreateReservationsBulkRequest = { region_id: options.region, count: options.count }
     if (options.minCount !== undefined) body.min_count = options.minCount
     if (options.model !== undefined) body.model = options.model

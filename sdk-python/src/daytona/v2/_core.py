@@ -173,11 +173,25 @@ def parse_error_payload(status_code: int, payload: JsonObject) -> DaytonaError:
     )
 
 
+def _too_deep(description: str) -> DaytonaError:
+    return create_error(f"expected {description}: the JSON is nested too deeply", 400, "BAD_REQUEST", "SDK")
+
+
+def loads_json(text: Union[str, bytes], description: str = "JSON response") -> JsonValue:
+    """``json.loads`` for a response body: a body nested deeper than the
+    decoder's recursion limit is the malformed-response error, never a raw
+    ``RecursionError``. Invalid JSON still raises ``ValueError``."""
+    try:
+        value: JsonValue = json.loads(text)
+    except RecursionError:
+        raise _too_deep(description) from None
+    return value
+
+
 def parse_json_bytes(content: bytes) -> JsonValue:
     if not content:
         return {}
-    value = json.loads(content.decode("utf-8"))
-    return value
+    return loads_json(content.decode("utf-8"))
 
 
 def image_options_body(
@@ -223,13 +237,37 @@ def error_from_response(status_code: int, body: bytes) -> DaytonaError:
 
 
 def is_json_value(value: object) -> TypeGuard[JsonValue]:
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return True
-    if isinstance(value, list):
-        return all(is_json_value(item) for item in value)
-    if isinstance(value, dict):
-        return all(isinstance(key, str) and is_json_value(item) for key, item in value.items())
-    return False
+    """Structural check for a JSON value. Iterative, so a deeply nested value
+    cannot exhaust the stack; a list or dict that contains itself is not
+    JSON, and one shared by several parents is checked once."""
+    # id -> False while a container's children are being checked, True after.
+    checked: Dict[int, bool] = {}
+    pending: List[Tuple[object, bool]] = [(value, False)]
+    while pending:
+        item, leaving = pending.pop()
+        if leaving:
+            checked[id(item)] = True
+            continue
+        if isinstance(item, (str, int, float, bool)) or item is None:
+            continue
+        if not isinstance(item, (list, dict)):
+            return False
+        state = checked.get(id(item))
+        if state is not None:
+            if state:
+                continue
+            return False
+        children: Iterable[object]
+        if isinstance(item, dict):
+            if not all(isinstance(key, str) for key in item):
+                return False
+            children = item.values()
+        else:
+            children = item
+        checked[id(item)] = False
+        pending.append((item, True))
+        pending.extend((child, False) for child in children)
+    return True
 
 
 def json_object_from_mapping(payload: Mapping[str, object]) -> JsonObject:

@@ -2895,3 +2895,23 @@ async def _resolve(sandbox: object) -> object:
 
 async def _resolve_client(impl: object) -> object:
     return impl._acquire_hub()  # type: ignore[attr-defined]
+
+
+@pytest.mark.anyio
+async def test_a_frame_nested_too_deeply_is_skipped_and_the_hub_keeps_reading() -> None:
+    # A frame the decoder cannot unwind is skipped like any undecodable one,
+    # never a RecursionError out of the hub's reader.
+    fc = FakeConnector()
+    hub = make_hub(fc)
+    with respx.mock:
+        ticket_mock("region-a")
+        ws = fc.prepare()
+        task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+        await drain()
+        ws._rx.put_nowait("[" * 100_000 + "]" * 100_000)
+        await drain()
+        ws.inject(
+            {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
+        )
+        result = await task
+    assert result.state == "started"

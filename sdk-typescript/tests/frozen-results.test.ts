@@ -90,3 +90,46 @@ it('freezes preview endpoints and links', async () => {
     await api.close()
   }
 })
+
+describe('deepFrozen', () => {
+  // Imported here so the walk itself is tested on values no response mapper would build.
+  const load = async () => (await import('../src/v2/frozen')).deepFrozen
+
+  it('freezes a value nested 10,000 levels deep without exhausting the stack', async () => {
+    const deepFrozen = await load()
+    let deep: Record<string, unknown> = {}
+    const root = deep
+    for (let level = 0; level < 10_000; level++) {
+      const next: Record<string, unknown> = {}
+      deep.child = next
+      deep = next
+    }
+    expect(deepFrozen(root)).toBe(root)
+    expect(Object.isFrozen(deep)).toBe(true)
+  })
+
+  it('ends on a cycle', async () => {
+    const deepFrozen = await load()
+    const cyclic: Record<string, unknown> = { list: [] }
+    cyclic.self = cyclic
+    ;(cyclic.list as unknown[]).push(cyclic)
+    // A regression would loop forever; the test timeout bounds it.
+    expect(deepFrozen(cyclic)).toBe(cyclic)
+    expect(Object.isFrozen(cyclic) && Object.isFrozen(cyclic.list)).toBe(true)
+  }, 5_000)
+
+  it('freezes a volume whose options are nested 10,000 levels deep', async () => {
+    // Sent as text: the fake server's JSON.stringify would itself recurse.
+    const options = `${'{"child":'.repeat(10_000)}{"leaf":true}${'}'.repeat(10_000)}`
+    const body = JSON.stringify({ ...VOLUME, options: null }).replace('"options":null', `"options":${options}`)
+    const api = await startFakeApi([{ status: 200, body }])
+    const client = clientAt(api.url)
+    try {
+      const volume = await client.v2.volumes.get('vol')
+      expect(Object.isFrozen(volume.options)).toBe(true)
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+})

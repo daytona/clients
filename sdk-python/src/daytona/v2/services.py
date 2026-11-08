@@ -584,6 +584,7 @@ class AsyncReservationsService:
         ``code == "NO_MAC_AVAILABLE"`` when no Mac of that model is free in the
         region.
         """
+        _check_reservation_options(region=region, model=model, auto_renew=auto_renew)
         headers = _idempotency_headers(idempotency_key)
         body: CreateReservationRequest = {"region_id": region}
         if model is not None:
@@ -609,6 +610,9 @@ class AsyncReservationsService:
 
         min_count (default count) is the fewest to accept: with fewer Macs free, the request reserves as many as are free, or none, failing with ConflictError code == "NO_MAC_AVAILABLE" when fewer than min_count are free. The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
         """
+        _check_reservation_options(
+            region=region, model=model, auto_renew=auto_renew, count=count, min_count=min_count
+        )
         headers = _idempotency_headers(idempotency_key)
         body: CreateReservationsBulkRequest = {"region_id": region, "count": count}
         if min_count is not None:
@@ -697,6 +701,28 @@ class AsyncReservationsService:
                 )
             )
         )
+
+
+def _check_reservation_options(
+    *, region: object, model: object, auto_renew: object, count: object = 1, min_count: object = None
+) -> None:
+    """Every reservation option is checked before any request, so none is
+    silently dropped from the body (as in TypeScript)."""
+
+    def refuse(message: str) -> DaytonaError:
+        return create_error(message, 400, "BAD_REQUEST", "SDK")
+
+    if not isinstance(region, str) or not region.strip():
+        raise refuse("region must be a non-empty string")
+    if model is not None and not isinstance(model, str):
+        raise refuse("model must be a string")
+    if auto_renew is not None and not isinstance(auto_renew, bool):
+        raise refuse("auto_renew must be a boolean")
+    for name, value in (("count", count), ("min_count", min_count)):
+        if value is None and name == "min_count":
+            continue
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise refuse(f"{name} must be a positive integer")
 
 
 def _mac_reservation(response: TransportPayload | MacReservationWire) -> MacReservation:

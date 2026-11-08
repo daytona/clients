@@ -85,8 +85,9 @@ function mapVolume(value: api.Volume): Volume {
     sizeGib: volume.size_gib ?? undefined,
     error: volume.error ?? undefined,
     lastUsedAt: volume.last_used_at ?? undefined,
-    // A copy, deep-frozen with the model.
-    options: volume.options == null ? undefined : structuredClone(volume.options),
+    // The parsed response's own value (nothing else holds it), deep-frozen
+    // with the model by an iterative walk: no recursive copy of deep JSON.
+    options: volume.options ?? undefined,
     usedBytes: volume.used_bytes ?? undefined,
     usedBytesAt: volume.used_bytes_at ?? undefined,
   })

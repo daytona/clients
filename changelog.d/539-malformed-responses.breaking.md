@@ -16,7 +16,10 @@ a non-text entrypoint log are `BadRequestError` too (they were 500 with no
 code), and a search page needs its `total`, `total_relation` and a string
 `next_cursor` (a mistyped cursor used to end `search()` / `find_by_name()`
 early). A detail read behind a list item that breaks the contract leaves the
-list item, as an unreadable one does. A required field the contract allows to
+list item, as an unreadable one does. A response or events frame nested
+deeper than the JSON decoder can follow is a malformed response (Python) or
+skipped (an events frame), never a raw `RecursionError`, and nothing the SDK
+does with response data recurses without a bound. A required field the contract allows to
 be null (for example the project budget's `monthly_limit_cents`,
 `period_start_date`, `created_at` and `updated_at`) must be present, while an
 explicit `null` stays valid. Python no longer requires the per-item `cursor`
