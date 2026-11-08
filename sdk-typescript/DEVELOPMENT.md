@@ -165,10 +165,15 @@ An object type callers pass in (named in a parameter of a listed signature, or
 in a property of such a type, and never returned by the SDK) gets a
 `Name: passed-in` line: a new required member of it is a breaking change. So
 do the base interfaces of such a type, whose members are listed under the base
-(`passed-in also-returned` when the SDK also returns the base). A type the SDK
-hands to a callback the caller passes in counts as returned. A member of a
-type that is only passed in may become optional; one of an `also-returned`
-type may not. `scripts/api-surface.mjs` reads it with the
+(`passed-in also-returned` when the SDK also returns the base). Directions
+follow who implements a function: the parameters of a function the SDK
+implements are passed in and its return type is returned; for a callback the
+caller implements and passes in (a function-typed parameter or property, or a
+method of an interface or object type the caller passes in) it is the other
+way round: its parameters are returned and its return type is passed in. Any
+other type that is both passed in and returned gets
+`Name: returned also-passed-in`. A member of a type that is only passed in may
+become optional; one of a type that goes both ways may not. `scripts/api-surface.mjs` reads it with the
 TypeScript compiler API (`@internal` exports, members and overloads excluded,
 as `stripInternal` does for the published declarations). Regenerate after any change to the public surface and commit
 the result; CI runs the check:

@@ -160,20 +160,45 @@ function surfaces(checker, program) {
   // so each gets a `Name: passed-in` line for the breaking-change check. A
   // type the SDK also returns (a return type, a property of a class or of a
   // returned type) is left out: callers hand back what they were given.
-  const inputs = new Set()
-  const outputs = new Set()
+  let inputs = new Set()
+  let outputs = new Set()
   const listedAt = new Map()
+  // Methods of listed interfaces and object types: who implements them
+  // depends on whether the type is passed in (callers implement its methods,
+  // so the SDK supplies their arguments) or handed out (the SDK implements
+  // them), which is known only once every signature is seen.
+  const deferred = []
 
   // The v2 namespace first, so a declaration both reach is listed with v2.
   for (const state of [...perEntry].reverse()) emitEntry(state)
-  for (const into of [inputs, outputs]) {
-    const done = new Set()
-    for (let pending = [...into]; pending.length; pending = [...into].filter((sym) => !done.has(sym))) {
-      for (const sym of pending) {
-        done.add(sym)
-        collectInputs(checker.getDeclaredTypeOfSymbol(sym), new Set(), true, into)
+  const baseInputs = new Set(inputs)
+  const baseOutputs = new Set(outputs)
+  let callerImplemented = new Set()
+  let sdkImplemented = new Set(deferred.map((d) => d.container))
+  for (let round = 0; round < 20; round++) {
+    inputs = new Set(baseInputs)
+    outputs = new Set(baseOutputs)
+    for (const { container, sig } of deferred) {
+      // A type both passed in and handed out: its methods go both ways.
+      if (callerImplemented.has(container)) flowSignature(sig, inputs)
+      if (sdkImplemented.has(container)) flowSignature(sig, outputs)
+    }
+    for (const into of [inputs, outputs]) {
+      const done = new Set()
+      for (let pending = [...into]; pending.length; pending = [...into].filter((sym) => !done.has(sym))) {
+        for (const sym of pending) {
+          done.add(sym)
+          collectInputs(checker.getDeclaredTypeOfSymbol(sym), new Set(), true, into)
+        }
       }
     }
+    const containers = new Set(deferred.map((d) => d.container))
+    const nextCaller = new Set([...containers].filter((sym) => inputs.has(sym)))
+    const nextSdk = new Set([...containers].filter((sym) => !inputs.has(sym) || outputs.has(sym)))
+    const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x))
+    if (same(nextCaller, callerImplemented) && same(nextSdk, sdkImplemented)) break
+    callerImplemented = nextCaller
+    sdkImplemented = nextSdk
   }
   // A base interface's members are listed under the base, so the base is
   // passed in whenever an interface extending it is, even if the SDK also
@@ -195,11 +220,34 @@ function surfaces(checker, program) {
       at.lines.push(`${at.name}: passed-in${outputs.has(sym) ? ' also-returned' : ''}`)
     }
   }
+  // A type callers pass in that the SDK also returns (left out of
+  // `passed-in` so it may gain required members): its members go both ways,
+  // so the check compares them in both directions.
+  for (const sym of inputs) {
+    if (passedIn.has(sym) || !outputs.has(sym)) continue
+    const at = listedAt.get(sym)
+    const head = new RegExp(`^${at?.name.replace(/[.*+?^${}()|[\]\\/@~]/g, '\\$&')}: (interface|type (<.*> )?= \\{\\.\\.\\.\\})`)
+    if (at && at.lines.some((line) => head.test(line))) at.lines.push(`${at.name}: returned also-passed-in`)
+  }
   return perEntry.map(({ entry, lines }) => ({ entry, lines }))
 
-  // Records the named declarations of this package a parameter type uses,
-  // through unions, intersections, type arguments and inline object types;
-  // not through function types (their parameters flow the other way).
+  // A signature whose arguments flow into `into`'s opposite and whose return
+  // value flows into `into`: a function callers implement when `into` is the
+  // inputs (the SDK passes the arguments, the caller returns the value).
+  function flowSignature(sig, into) {
+    const other = into === inputs ? outputs : inputs
+    for (const param of sig.parameters) {
+      const decl = param.valueDeclaration
+      if (decl) collectInputs(checker.getTypeOfSymbolAtLocation(param, decl), new Set(), false, other)
+    }
+    collectInputs(checker.getReturnTypeOfSignature(sig), new Set(), false, into)
+  }
+
+  // Records the named declarations of this package a type uses, in the
+  // direction `into` (inputs: callers supply it; outputs: the SDK does),
+  // through unions, intersections, type arguments and inline object types.
+  // A function type or method met here is implemented by whoever supplies
+  // the value: its parameters flow the other way, its return value this way.
   function collectInputs(type, seen = new Set(), top = false, into = inputs) {
     if (!type || seen.has(type)) return
     seen.add(type)
@@ -227,23 +275,18 @@ function surfaces(checker, program) {
     }
     if (checker.isTupleType(type) || checker.isArrayType(type)) return
     const calls = checker.getSignaturesOfType(type, ts.SignatureKind.Call)
-    if (calls.length) {
-      // A callback the caller passes in: the SDK hands its arguments to the
-      // caller, who reads them, so they are outputs.
-      if (into === inputs) {
-        for (const sig of calls) {
-          for (const param of sig.parameters) {
-            const decl = param.valueDeclaration
-            if (decl) collectInputs(checker.getTypeOfSymbolAtLocation(param, decl), new Set(), false, outputs)
-          }
-        }
-      }
-      return
-    }
+    for (const sig of calls) flowSignature(sig, into)
+    if (calls.length && !checker.getPropertiesOfType(type).length) return
     for (const info of checker.getIndexInfosOfType(type)) collectInputs(info.type, seen, false, into)
     for (const prop of checker.getPropertiesOfType(type)) {
       const decl = prop.declarations?.[0]
-      if (decl && !(prop.flags & ts.SymbolFlags.Method)) collectInputs(checker.getTypeOfSymbolAtLocation(prop, decl), seen, false, into)
+      if (!decl) continue
+      const propType = checker.getTypeOfSymbolAtLocation(prop, decl)
+      if (prop.flags & ts.SymbolFlags.Method) {
+        for (const sig of checker.getSignaturesOfType(propType, ts.SignatureKind.Call)) flowSignature(sig, into)
+      } else {
+        collectInputs(propType, seen, false, into)
+      }
     }
   }
 
@@ -347,7 +390,13 @@ function surfaces(checker, program) {
         if (isMethod) {
           if (member.flags & ts.SymbolFlags.Optional) mods.push('optional')
           for (const sig of checker.getSignaturesOfType(memberType, ts.SignatureKind.Call).filter(isPublicSignature)) {
-            reachSignature(sig)
+            // A class's methods are the SDK's; an interface's or object
+            // type's may be the caller's (decided once all are seen).
+            if (container.flags & ts.SymbolFlags.Class) reachSignature(sig)
+            else {
+              reachSignature(sig, new Set(), false)
+              deferred.push({ container, sig })
+            }
             emit(name, [...mods, 'method'].join(' '), signatureText(sig, decl))
           }
           continue

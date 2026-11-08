@@ -754,6 +754,7 @@ DockerService.status: method (): Promise<DockerStatus>
 DockerService.waitUntilReady: method (options?: DockerWaitOptions): Promise<DockerStatus>
 DockerState: type = 'deferred' | 'disabled' | 'failed' | 'not_present' | 'ready' | 'starting' | 'unknown' | 'unmanaged' | 'unsupported'
 DockerStatus: interface
+DockerStatus: returned also-passed-in
 DockerStatus.owner: property DockerOwner
 DockerStatus.processId: optional property string | null
 DockerStatus.rawOwner: property string
@@ -1184,6 +1185,7 @@ InterpreterContext.run: method (code: string, options?: Omit<InterpreterRunOptio
 InterpreterContext.sandboxId: readonly property string
 InterpreterContext.toJSON: method (): InterpreterContextJSON
 InterpreterContextJSON: interface
+InterpreterContextJSON: returned also-passed-in
 InterpreterContextJSON.contextId: readonly property string
 InterpreterContextJSON.language: readonly property string
 InterpreterContextJSON.sandboxId: readonly property string
@@ -1570,6 +1572,7 @@ ProcessHandle.toJSON: method (): ProcessHandleJSON
 ProcessHandle.wait: method (options?: WaitProcessOptions): Promise<WaitResult>
 ProcessHandle.writeStdin: method (data: Uint8Array | string): Promise<void>
 ProcessHandleJSON: interface
+ProcessHandleJSON: returned also-passed-in
 ProcessHandleJSON.kind: optional property ProcessKind
 ProcessHandleJSON.processId: property string
 ProcessHandleJSON.sandboxId: property string
@@ -2031,6 +2034,7 @@ Session.toJSON: method (): SessionJSON
 SessionEndedError: class extends GoneError
 SessionEndedError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 SessionJSON: interface
+SessionJSON: returned also-passed-in
 SessionJSON.sandboxId: readonly property string
 SessionJSON.sessionId: readonly property string
 SessionNotFoundError: class extends NotFoundError
@@ -2160,6 +2164,7 @@ UploadFileOptions.atomic: readonly optional property boolean
 UploadFileOptions.onProgress: readonly optional property TransferProgressCallback
 UploadFileOptions.signal: readonly optional property AbortSignal
 Volume: interface
+Volume: returned also-passed-in
 Volume.createdAt: readonly property string
 Volume.error: readonly optional property string | null
 Volume.id: readonly property string
@@ -2298,21 +2303,25 @@ isKnownErrorCode: function (code: string | undefined): code is ErrorCode
 ~MaxBoundError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 ~MaxBoundError.max: readonly optional property number
 ~OtelCarrier: type = {...}
+~OtelContextLike: returned also-passed-in
 ~OtelContextLike: type = {...}
 ~OtelContextLike.deleteValue: method (key: symbol): OtelContextLike
 ~OtelContextLike.getValue: method (key: symbol): unknown
 ~OtelContextLike.setValue: method (key: symbol, value: unknown): OtelContextLike
+~OtelSpanContextLike: returned also-passed-in
 ~OtelSpanContextLike: type = {...}
 ~OtelSpanContextLike.spanId: readonly property string
 ~OtelSpanContextLike.traceFlags: readonly property number
 ~OtelSpanContextLike.traceId: readonly property string
 ~OtelSpanLike: interface
+~OtelSpanLike: returned also-passed-in
 ~OtelSpanLike.end: method (): void
 ~OtelSpanLike.recordException: method (error: Error): void
 ~OtelSpanLike.setAttribute: method (name: string, value: boolean | number | string): void
 ~OtelSpanLike.setStatus: method (status: { readonly code: number; readonly message?: string; }): void
 ~OtelSpanLike.spanContext: method (): OtelSpanContextLike
 ~OtelTracerLike: interface
+~OtelTracerLike: passed-in
 ~OtelTracerLike.startSpan: method (name: string, options: { readonly kind: number; readonly attributes: Record<string, boolean | number | string>; }): OtelSpanLike
 ~WaitProcessOptions: interface
 ~WaitProcessOptions: passed-in

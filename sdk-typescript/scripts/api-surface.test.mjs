@@ -39,6 +39,58 @@ test('unions print sorted at every depth, including inside constructs with their
   assert.equal(printSignature(checker, signature, file), "(cb: (event: 'a' | 'b') => 'x' | 'y'): void")
 })
 
+function generateFixture(source) {
+  const dir = mkdtempSync(join(tmpdir(), 'api-surface-'))
+  try {
+    mkdirSync(join(dir, 'src', 'v2'), { recursive: true })
+    writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true, target: 'ES2021', module: 'ESNext', moduleResolution: 'Bundler' } }))
+    writeFileSync(join(dir, 'src', 'index.ts'), 'export const VERSION = 1\n')
+    writeFileSync(join(dir, 'src', 'v2', 'index.ts'), source)
+    return generate(dir)['api-surface/v2.api.txt'].split('\n')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+test('callback directions: arguments are handed out, return values are taken in', () => {
+  const v2 = generateFixture(`
+    export interface Ev1 { name: string }
+    export interface Ev2 { name: string }
+    export interface Ev3 { name: string }
+    export interface Ev4 { name: string }
+    export interface Ev5 { name: string }
+    export interface Result { ok: boolean }
+    export interface Hooks { onEvent(e: Ev1): Result }
+    export interface Handler { (e: Ev2): void }
+    export interface Opts { onEvent?: (e: Ev4) => void; after?: Ev4 }
+    export declare class Handle { subscribe(cb: { handle(e: Ev5): void }): void }
+    export declare function f1(h: Hooks, after?: Ev1): void
+    export declare function f2(h: Handler, after?: Ev2): void
+    export declare function f3(h: (e: Ev3) => void, after?: Ev3): void
+    export declare function f4(o: Opts): void
+    export declare function f5(after?: Ev5): Handle
+  `)
+  // Each event is both handed to a callback and passed in: never passed-in only.
+  for (const name of ['Ev1', 'Ev2', 'Ev3', 'Ev4', 'Ev5']) {
+    assert.ok(!v2.includes(`${name}: passed-in`), v2.join('\n'))
+    assert.ok(v2.includes(`${name}: returned also-passed-in`), v2.join('\n'))
+  }
+  // A method callback's return value is the caller's: passed in.
+  assert.ok(v2.includes('Result: passed-in'), v2.join('\n'))
+  assert.ok(v2.includes('Hooks: passed-in'), v2.join('\n'))
+})
+
+test('a method of a type the SDK hands out takes its arguments from the caller', () => {
+  const v2 = generateFixture(`
+    export interface Query { q: string }
+    export interface Rows { n: number }
+    export interface Db { run(query: Query): Rows }
+    export declare function open(): Db
+  `)
+  assert.ok(v2.includes('Query: passed-in'), v2.join('\n'))
+  assert.ok(!v2.includes('Rows: passed-in'), v2.join('\n'))
+})
+
 // TypeScript lists a type the SDK hands to the caller (a return value, a class
 // property, a callback argument) as returned, never as passed-in only: its
 // members stay required for the readers. (Only a base interface of a passed-in

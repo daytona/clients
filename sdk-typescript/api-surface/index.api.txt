@@ -110,5 +110,6 @@ V0_API_URL: const 'https://app.daytona.io/api'
 ~TransportAuth: interface
 ~TransportAuth.bearer: method (): Promise<string | undefined>
 ~TransportAuth.onUnauthorized: method (failedToken: string | undefined): Promise<string | undefined>
+~V0Exports: passed-in
 ~V0Exports: type = {...}
 ~V0Exports[]: index readonly [name: string]: unknown
