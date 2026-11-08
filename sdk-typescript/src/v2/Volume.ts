@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isBlank } from './pyText.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -166,6 +167,8 @@ export class VolumesService {
   /** Requests deletion and returns once the API accepts it. */
   public async delete(nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> {
     assertKnownOptions('DeleteVolumeOptions', options, DELETE_VOLUME_KEYS)
+    if (typeof nameOrId !== 'string' || isBlank(nameOrId)) throw badRequest('nameOrId must be a non-empty string')
+    if (options.idOnly !== undefined && typeof options.idOnly !== 'boolean') throw badRequest('idOnly must be a boolean')
     await this.api.delete(`/volumes/${strictUriEncode(nameOrId)}`, refConfig(options))
   }
 }

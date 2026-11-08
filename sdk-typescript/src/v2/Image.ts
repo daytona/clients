@@ -291,6 +291,27 @@ export function artifactRefOf(ref: api.ImageReference | api.SnapshotReference | 
   return Object.freeze({ id: ref.id, name: ref.name ?? null })
 }
 
+/**
+ * The image options of a build, pull or capture, each checked before any
+ * request, as in Python; `null` / `undefined` are omitted.
+ * @internal
+ */
+export function imageOptionsBody(options: { readonly name?: unknown; readonly idleExpirySeconds?: unknown; readonly region?: unknown; readonly cpuArch?: unknown }): { name?: string; idle_expiry_seconds?: number; region_id?: string; cpu_arch?: string } {
+  const body: { name?: string; idle_expiry_seconds?: number; region_id?: string; cpu_arch?: string } = {}
+  for (const [key, wire] of [['name', 'name'], ['region', 'region_id'], ['cpuArch', 'cpu_arch']] as const) {
+    const value: unknown = options[key]
+    if (value === undefined || value === null) continue
+    if (typeof value !== 'string') throw badRequest(`${key} must be a string`)
+    body[wire] = value
+  }
+  const idle = options.idleExpirySeconds
+  if (idle !== undefined && idle !== null) {
+    if (!Number.isSafeInteger(idle)) throw badRequest('idleExpirySeconds must be an integer number of seconds')
+    body.idle_expiry_seconds = idle as number
+  }
+  return body
+}
+
 /** @internal */
 export function buildImageRequest(builder: ImageBuilder, options: {
   readonly name?: string
@@ -299,10 +320,7 @@ export function buildImageRequest(builder: ImageBuilder, options: {
   readonly cpuArch?: CpuArch
 } = {}): api.CreateImageRequest {
   return {
-    ...(options.name === undefined ? {} : { name: options.name }),
-    ...(options.idleExpirySeconds === undefined || options.idleExpirySeconds === null ? {} : { idle_expiry_seconds: options.idleExpirySeconds }),
-    ...(options.region === undefined ? {} : { region_id: options.region }),
-    ...(options.cpuArch === undefined ? {} : { cpu_arch: options.cpuArch }),
+    ...imageOptionsBody(options),
     ...builder.toRequestSource(),
   }
 }

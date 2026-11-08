@@ -97,6 +97,10 @@ export class SandboxAuth {
     if (options.ttlSeconds !== undefined && (!Number.isInteger(options.ttlSeconds) || options.ttlSeconds <= 0)) {
       throw badRequest('ttlSeconds must be a positive integer')
     }
+    const operations: unknown = options.operations
+    if (operations !== undefined && (!Array.isArray(operations) || !operations.every((operation) => typeof operation === 'string'))) {
+      throw badRequest('operations must be an array of strings')
+    }
     const body: { operations?: string[]; ports?: number[]; ttl_seconds?: number } = {}
     if (options.operations !== undefined) body.operations = [...options.operations]
     if (options.ports !== undefined) body.ports = [...options.ports]

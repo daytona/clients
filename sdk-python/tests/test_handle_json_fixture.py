@@ -52,7 +52,8 @@ def api(monkeypatch: pytest.MonkeyPatch) -> respx.MockRouter:
 async def test_async_get_and_fork_serialize_the_shared_fixture_byte_for_byte(api: respx.MockRouter) -> None:
     async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
         sandbox = await root.v2.get("sbx-ts")
-        forked = await sandbox.fork(wait_seconds=0)
+        # A positive budget reads the fork's detail (wait_seconds=0 does not).
+        forked = await sandbox.fork(wait_seconds=5)
     expected = _canonical(_FIXTURE["handleJson"])
     assert _canonical(sandbox.to_json()) == expected
     assert _canonical(forked.to_json()) == expected

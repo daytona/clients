@@ -7,7 +7,7 @@ from typing import Final, Sequence
 
 import httpx
 
-from ._core import parse_json_bytes
+from ._core import parse_json_response
 from .errors import create_error
 from .types import JsonObject, JsonValue, SandboxSecretsInfo
 
@@ -26,7 +26,7 @@ def serialize_sandbox_secrets_input(secrets: Sequence[str]) -> JsonObject:
 
 
 def parse_sandbox_secrets_response(response: httpx.Response) -> SandboxSecretsInfo:
-    payload = _expect_response_object(parse_json_bytes(response.content))
+    payload = _expect_response_object(parse_json_response(response.content, what="sandbox secrets response"))
     etag = response.headers.get("etag")
     if not isinstance(etag, str) or not etag:
         raise create_error("sandbox secrets response is missing the ETag header", 400, "BAD_REQUEST", "SDK")

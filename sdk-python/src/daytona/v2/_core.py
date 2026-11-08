@@ -180,6 +180,40 @@ def parse_json_bytes(content: bytes) -> JsonValue:
     return value
 
 
+def image_options_body(
+    *, name: object = None, idle_expiry_seconds: object = None, region: object = None, cpu_arch: object = None
+) -> JsonObject:
+    """The image options of a build, pull or capture as wire fields, each
+    checked before any request (as in TypeScript); ``None`` is omitted."""
+    body: JsonObject = {}
+    for key, wire, value in (
+        ("name", "name", name),
+        ("region", "region_id", region),
+        ("cpu_arch", "cpu_arch", cpu_arch),
+    ):
+        if value is None:
+            continue
+        if not isinstance(value, str):
+            raise create_error(f"{key} must be a string", 400, "BAD_REQUEST", "SDK")
+        body[wire] = value
+    if idle_expiry_seconds is not None:
+        if isinstance(idle_expiry_seconds, bool) or not isinstance(idle_expiry_seconds, int):
+            raise create_error(
+                "idle_expiry_seconds must be an integer number of seconds", 400, "BAD_REQUEST", "SDK"
+            )
+        body["idle_expiry_seconds"] = idle_expiry_seconds
+    return body
+
+
+def parse_json_response(content: bytes, *, what: str) -> JsonValue:
+    """A JSON response body; one that is not JSON (or not UTF-8) breaks the
+    contract: the SDK's :class:`BadRequestError` naming the response."""
+    try:
+        return parse_json_bytes(content)
+    except ValueError as error:
+        raise create_error(f"{what} is not JSON", 400, "BAD_REQUEST", "SDK") from error
+
+
 def error_from_response(status_code: int, body: bytes) -> DaytonaError:
     try:
         payload = expect_object(parse_json_bytes(body))
@@ -281,7 +315,9 @@ def _expect_model_from_dict(
         missing = _missing_required_key(value, model_type, "")
         if missing is not None:
             # A list item's path keeps its index; a nested key reads `a.b`.
-            raise create_error(f"expected {description}: {missing}: Field required", 400, "BAD_REQUEST", "SDK")
+            raise create_error(
+                f"expected {description}: {missing}: Field required", 400, "BAD_REQUEST", "SDK"
+            )
     try:
         parsed = from_dict(value)
     except ValidationError as exc:
@@ -847,6 +883,32 @@ def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
     )
     cursor = obj.get("nextCursor") or obj.get("next_cursor")
     return ListResult(items=items, next_cursor=str(cursor) if isinstance(cursor, str) else None)
+
+
+#: The longest delay a timer can arm, as the transport's bound: a wait budget
+#: above it means no deadline.
+MAX_WAIT_BUDGET_SECONDS: float = 2_147_483.647
+
+
+def wait_budget_seconds(value: object, *, name: str = "timeout") -> float:
+    """A wait budget in seconds: ``0.0`` for no deadline (``0``, or a value
+    above the timer maximum, an integer too large for a float included), else
+    the budget. Anything but a non-negative finite number is the SDK's
+    :class:`BadRequestError`; integers are compared without converting them,
+    so a huge one never overflows.
+    """
+    valid = (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and value >= 0
+        and (isinstance(value, int) or math.isfinite(value))
+    )
+    if not valid:
+        raise create_error(
+            f"{name} must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
+        )
+    assert isinstance(value, (int, float))
+    return 0.0 if value > MAX_WAIT_BUDGET_SECONDS else float(value)
 
 
 def timeout_millis_from_seconds(timeout: Optional[float]) -> Optional[int]:

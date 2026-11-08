@@ -15,7 +15,7 @@ describe('platform input boundaries', () => {
     { name: 'secret options', values: [undefined, null, true] },
     { name: 'volume size', values: [true, NaN, Infinity, -1, 0, 1.5, '4'] },
     { name: 'create timeout', values: [-2, NaN, Infinity, true, 1.5] },
-    { name: 'create labels', values: ['team', ['team'], null, { team: undefined }, { team: 1 }, new Map([['team', 'a']]), Object.create({ team: 'a' }), new (class Labels { team = 'a' })()] },
+    { name: 'create labels', values: ['team', ['team'], { team: undefined }, { team: 1 }, new Map([['team', 'a']]), Object.create({ team: 'a' }), new (class Labels { team = 'a' })()] },
     { name: 'search labels', values: ['team', ['team'], { team: undefined }, { team: 1 }, new Map([['team', 'a']]), Object.create({ team: 'a' })] },
     { name: 'setLabels', values: [new Map([['team', 'a']]), Object.create({ team: 'a' }), { team: 1 }] },
     { name: 'resources', values: [true, NaN, Infinity, 1n, Symbol('size'), '4'] },

@@ -263,7 +263,7 @@ permanent behavior of `name=`. The exact semantics, all server-side:
   makes a new one.
 
 `find_by_name(name, region=…)` returns **all** sandboxes carrying that exact `name`
-label, newest first, as a list (names are not unique); `destroyed`/`destroying`
+label, newest first, as a tuple (names are not unique); `destroyed`/`destroying`
 ones are left out. It is the one list method that is not a single page. It reads sandbox search with an exact `name` label match,
 in the region a create with the same `region` lands in (`region` defaults to
 none, i.e., the server's default, exactly as on `create*()`). A new sandbox
@@ -290,8 +290,9 @@ sandbox = existing[0] if existing else await d.v2.create("py312", name="example-
 
 ### Follow build logs
 
-Image submission still returns immediately; its existing `on_logs` callback
-reports the submitted operation, not build output. Follow that build explicitly:
+`images.build()` returns the submitted `Image` without waiting for the build.
+Follow its output with `images.follow_build_logs(image.id, on_logs=...)`, or
+just wait for the result with `images.get(image.id, wait="ready", timeout=...)`:
 
 ```python
 from daytona.v2 import BuildLogInterruptedError, ImageBuilder
@@ -420,11 +421,11 @@ with (from the create response, a token you pass as
 `d.v2.get(id, access_token=...)`, which the handle never replaces, or one it
 minted); it is `None` until one is known and never serialized.
 
-`sandbox.to_json()` returns a `SandboxHandleJSON`: the handle's metadata as
-camelCase JSON (`sandboxId`, `state`, `sandboxClass`, …, exactly what the
-TypeScript SDK's `toJSON()` writes for the same sandbox, timestamps kept as
-the server's strings), without credentials or URLs. It is a
-snapshot, not a way back: reconnect with `d.v2.get(json["sandboxId"])`.
+`sandbox.to_json()` returns a `SandboxHandleJSON` (exported from `daytona.v2`):
+the handle's metadata as camelCase JSON, exactly what the TypeScript SDK's
+`toJSON()` writes for the same sandbox, timestamps kept as the server's
+strings, without credentials or URLs. It's a snapshot, not a way back:
+reconnect with `d.v2.get(...)` using the sandbox id it carries.
 
 Resource models are frozen, keyword-only dataclasses: for example, images
 expose `sandbox_class`, `layer_count` and `available_in`; snapshots expose

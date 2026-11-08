@@ -7,7 +7,7 @@ import type * as api from './gen/api-types.js'
 import type { CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions } from './types.js'
 import { assertLifecycleClassSupport, lifecycleBody } from './http.js'
 import { assertKnownOptions, badRequest } from './options.js'
-import { assertCreateNestedOptions, CREATE_KEYS, SNAPSHOT_CREATE_KEYS, MACOS_CREATE_KEYS, RESOURCES_KEYS, MACOS_RESOURCES_KEYS } from './clientOptionKeys.js'
+import { assertCreateNestedOptions, withoutNullOptions, CREATE_KEYS, SNAPSHOT_CREATE_KEYS, MACOS_CREATE_KEYS, RESOURCES_KEYS, MACOS_RESOURCES_KEYS } from './clientOptionKeys.js'
 import { createRegion, rejectV0Target, createWaitSeconds, createTimeoutSeconds, gibToMib, imageSourceString, linuxCreateArguments, macosCores, macosMib, resolveIdempotencyKey, snapshotSourceString } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
@@ -38,9 +38,10 @@ export interface PreparedSandboxCreate {
 
 /** @internal */
 export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions | undefined, maybeOptions: CreateSandboxOptions | undefined): PreparedSandboxCreate {
-  const { source, options } = linuxCreateArguments(imageOrOptions, maybeOptions)
-  rejectV0Target(options)
-  assertKnownOptions('CreateSandboxOptions', options, CREATE_KEYS)
+  const { source, options: given } = linuxCreateArguments(imageOrOptions, maybeOptions)
+  rejectV0Target(given)
+  assertKnownOptions('CreateSandboxOptions', given, CREATE_KEYS)
+  const options = withoutNullOptions(given)
   assertKnownOptions('Resources', options.resources, RESOURCES_KEYS)
   assertCreateNestedOptions(options)
   for (const axis of ['cpu', 'cpuMax'] as const) {
@@ -84,6 +85,7 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
 export function snapshotCreateRequest(snapshot: string, options: CreateSandboxFromSnapshotOptions): PreparedSandboxCreate {
   rejectV0Target(options)
   assertKnownOptions('CreateSandboxFromSnapshotOptions', options, SNAPSHOT_CREATE_KEYS)
+  options = withoutNullOptions(options)
   assertCreateNestedOptions(options)
   const source = snapshotSourceString(snapshot)
   const lifecyclePolicy = lifecycleBody(options.lifecyclePolicy, { creating: true }) as api.CreateSandboxFromSnapshotRequest['lifecycle_policy']
@@ -106,6 +108,7 @@ export function snapshotCreateRequest(snapshot: string, options: CreateSandboxFr
 export function macosCreateRequest(image: string, options: CreateMacosSandboxOptions): PreparedSandboxCreate {
   rejectV0Target(options)
   assertKnownOptions('CreateMacosSandboxOptions', options, MACOS_CREATE_KEYS)
+  options = withoutNullOptions(options)
   assertKnownOptions('MacosResources', options.resources, MACOS_RESOURCES_KEYS)
   assertCreateNestedOptions(options)
   const source = imageSourceString(image, 'createMacos')

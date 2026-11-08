@@ -242,8 +242,9 @@ const sandbox = existing ?? (await daytona.v2.create('py312', { name: 'example-u
 
 ### Follow build logs
 
-Image submission returns immediately; its `onLogs` callback reports submission
-progress, not build output. Follow that build explicitly:
+`images.build()` returns the submitted `Image` without waiting for the build.
+Follow its output with `images.followBuildLogs(image.id, { onLogs })`, or just
+wait for the result with `images.get(image.id, { wait: 'ready', timeoutSeconds })`:
 
 These two snippets target **Node.js** (`process.stdout`). In a browser, replace
 `onLogs` with a callback that appends each chunk to your UI. For a CLI that handles
@@ -360,10 +361,11 @@ make asynchronous callback work cancellation-aware when needed.
   create, `get()` or `fork()` call to delete the sandbox on `await using` scope exit
   (explicit resource management: Node 24+, or TypeScript 5.2+ downlevelling;
   on Node 22 call `[Symbol.asyncDispose]()` yourself).
-  `sandbox.toJSON()` returns a `SandboxHandleJSON` snapshot without credentials
-  or URLs, exactly what the Python SDK's `to_json()` writes for the same
-  sandbox (timestamps kept as the server's strings). Reconnect using
-  `await daytona.v2.get(info.sandboxId)`.
+  `sandbox.toJSON()` returns a `SandboxHandleJSON` (exported from
+  `@daytona/sdk/v2`) snapshot without credentials or URLs, exactly what the
+  Python SDK's `to_json()` writes for the same sandbox (timestamps kept as the
+  server's strings). Reconnect with `await daytona.v2.get(...)` using the
+  sandbox id it carries.
   The read-only `sandbox.accessToken` getter is the sandbox-scoped bearer the
   handle currently authenticates with: from create, a caller override, or a
   minted token. It is `undefined` until known and is never serialized.
@@ -746,8 +748,8 @@ is no create option. `sandbox.docker.status()` returns its state (`ready`,
 Docker's output. `sandbox.docker.waitUntilReady({ timeoutSeconds })` polls until the
 state is `ready` and resolves with the status. It throws `DockerNotReadyError`
 (`error.status`) as soon as Docker settles in a state that cannot become
-`ready` (`failed`, `not_present`, `disabled`, `unmanaged`, `unsupported`, or
-a non-recoverable `deferred` reason), and
+`ready` (`failed`, `not_present`, `disabled`, `unmanaged` or `unsupported`;
+it decides on the state alone, so every `deferred` status keeps polling), and
 `DockerWaitTimeoutError` when the budget **(seconds, default 60)**
 runs out while Docker is still `starting` or `deferred`, or a status request
 is still unanswered at the deadline. `timeoutSeconds: 0` waits without a deadline. A

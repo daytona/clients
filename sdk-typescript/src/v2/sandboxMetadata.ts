@@ -32,9 +32,19 @@ function region(id: string, explicit: string | undefined): string | undefined {
   return explicit || (inferred === '_' ? undefined : inferred)
 }
 
-export function parseLabels(value: unknown): Readonly<Record<string, string>> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return Object.freeze({})
-  return Object.freeze(Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string')))
+/**
+ * A label map from the API: absent or null is no labels; a value that is not
+ * a string is a malformed response (`BadRequestError` naming the label), never
+ * silently dropped, as in Python.
+ */
+export function parseLabels(value: unknown, what = 'sandbox'): Readonly<Record<string, string>> {
+  if (value === undefined || value === null) return Object.freeze({})
+  if (typeof value !== 'object' || Array.isArray(value)) throw badRequest(`${what} response has a labels that is not an object`)
+  const entries = Object.entries(value)
+  for (const [key, label] of entries) {
+    if (typeof label !== 'string') throw badRequest(`${what} response has a labels.${key} that is not a string`)
+  }
+  return Object.freeze(Object.fromEntries(entries) as Record<string, string>)
 }
 
 /**

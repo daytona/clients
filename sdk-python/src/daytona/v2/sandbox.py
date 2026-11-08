@@ -28,6 +28,7 @@ from ._api_core import (
 )
 from ._auth import ProjectTokenAuth
 from ._core import (
+    MAX_WAIT_BUDGET_SECONDS,
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     TransportPayload,
@@ -36,6 +37,7 @@ from ._core import (
     assert_lifecycle_class_support,
     enum_str,
     expect_object,
+    image_options_body,
     lifecycle_body,
     mib_to_gib,
     parse_lifecycle,
@@ -43,6 +45,7 @@ from ._core import (
     parse_timestamp,
     rfc3339,
     sandbox_state,
+    wait_budget_seconds,
 )
 from ._events import WaitHub, WaitOutcome, _TargetPredicate, endpoint_from_headers, region_of
 from ._gen.api import (
@@ -750,8 +753,9 @@ class AsyncSandbox:
                 )
             )
         )
-        # The labels route answers `SandboxLabels` ({labels, id}), never a Sandbox.
-        applied = _string_map_or_empty(response.get("labels"))
+        # The labels route answers `SandboxLabels` ({labels, id}), never a Sandbox:
+        # its required label map of strings, or a malformed response, as in TypeScript.
+        applied = _response_labels(response.get("labels"))
         self._update(labels=applied)
         return dict(applied)
 
@@ -1075,7 +1079,7 @@ class AsyncSandbox:
         reaching ``destroying``, ``destroyed`` or ``error`` first raises
         :class:`SandboxTerminalStateError`.
         """
-        _validate_timeout(timeout)
+        timeout = _validate_timeout(timeout)
         await self._wait_for_state(_wait_states(until), timeout=timeout)
         return self
 
@@ -1088,7 +1092,7 @@ class AsyncSandbox:
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
         """
-        _validate_timeout(timeout)
+        timeout = _validate_timeout(timeout)
         await self.refresh_data()
         if self.state == "started":
             return
@@ -1111,7 +1115,7 @@ class AsyncSandbox:
         sandboxes can stop (today: persistent macOS sandboxes) is the API's
         decision; a refusal surfaces as its typed error.
         """
-        _validate_timeout(timeout)
+        timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/stop"))
         await self._wait_for_state(["stopped"], timeout=timeout)
 
@@ -1124,7 +1128,7 @@ class AsyncSandbox:
         keeps its Mac slot but does not keep its reservation renewing. Which
         sandboxes can pause is the API's decision.
         """
-        _validate_timeout(timeout)
+        timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/pause"))
         await self._wait_for_state(["paused"], _PAUSE_TERMINAL_STATES, timeout=timeout)
 
@@ -1135,7 +1139,7 @@ class AsyncSandbox:
         deadline). A resume that cannot finish ends ``stopped``; this then
         raises :class:`SandboxTerminalStateError`.
         """
-        _validate_timeout(timeout)
+        timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/resume"))
         await self._wait_for_state(["started"], _RESUME_TERMINAL_STATES, timeout=timeout)
 
@@ -1166,7 +1170,7 @@ class AsyncSandbox:
         when the budget runs out or the fork fails, it returns the handle —
         check ``fork.state``.
         """
-        _validate_wait_seconds(wait_seconds)
+        wait_seconds = _validate_wait_seconds(wait_seconds)
         if name is not None and (not isinstance(name, str) or not name.strip()):
             raise create_error("fork name must be a non-empty string when given", 400, "BAD_REQUEST", "SDK")
         if memory is not None and not isinstance(memory, bool):
@@ -1212,18 +1216,19 @@ class AsyncSandbox:
         # The fork's detail read counts against the wait budget.
         deadline = _clock.monotonic() + wait_seconds if wait_seconds > 0 else None
         detail: Optional[Mapping[str, JsonValue]] = None
-        try:
-            with anyio.move_on_after(
-                math.inf if deadline is None else max(0.0, deadline - _clock.monotonic())
-            ):
-                detail = sandbox_detail_wire(
-                    await self._require_api().send(
-                        RequestSpec("GET", f"/sandboxes/{quote(fork_id, safe='')}")
+        # wait_seconds=0 is one request, as for create: no detail read, and a
+        # zero budget never becomes an unbounded read.
+        if deadline is not None:
+            try:
+                with anyio.move_on_after(max(0.0, deadline - _clock.monotonic())):
+                    detail = sandbox_detail_wire(
+                        await self._require_api().send(
+                            RequestSpec("GET", f"/sandboxes/{quote(fork_id, safe='')}")
+                        )
                     )
-                )
-        except DaytonaError:
-            # The fork exists; a failed read never costs the caller its handle.
-            detail = None
+            except DaytonaError:
+                # The fork exists; a failed read never costs the caller its handle.
+                detail = None
         accepted = data.to_dict()
         # The fork gets its own toolbox URL from the API; inheriting the
         # parent's override could send its file and process calls to the parent.
@@ -1269,7 +1274,7 @@ class AsyncSandbox:
         that its image can already be deleted: image deletion may still
         answer 409 for a while.
         """
-        _validate_timeout(timeout)
+        timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("DELETE", f"/sandboxes/{quote(self.id, safe='')}"))
         try:
             await self._wait_for_state(["destroyed"], timeout=timeout)
@@ -1447,10 +1452,7 @@ class AsyncSandbox:
         with ``images.get(image.id, wait="ready")``.
         """
         body: JsonObject = {}
-        if name is not None:
-            body["name"] = name
-        if idle_expiry_seconds is not None:
-            body["idle_expiry_seconds"] = idle_expiry_seconds
+        body.update(image_options_body(name=name, idle_expiry_seconds=idle_expiry_seconds))
         operation = expect_create_image_resp(
             await self._require_api().send(
                 RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/images", json_body=body)
@@ -1568,6 +1570,10 @@ class AsyncSandbox:
         """
         body: JsonObject = {}
         if operations is not None:
+            if isinstance(operations, (str, bytes)) or not isinstance(operations, Sequence) or not all(
+                isinstance(operation, str) for operation in operations
+            ):
+                raise create_error("operations must be a list of strings", 400, "BAD_REQUEST", "SDK")
             body["operations"] = list(operations)
         if ports is not None:
             for port in ports:
@@ -1931,6 +1937,20 @@ def _string_map_or_empty(value: object) -> Dict[str, str]:
     return {key: item for key, item in value.items() if isinstance(key, str) and isinstance(item, str)}
 
 
+def _response_labels(value: object) -> Dict[str, str]:
+    def malformed(detail: str) -> DaytonaError:
+        return create_error(f"sandbox labels response {detail}", 400, "BAD_REQUEST", "SDK")
+
+    if value is None:
+        raise malformed("is missing its labels")
+    if not isinstance(value, dict):
+        raise malformed("has a labels that is not an object")
+    for key, label in value.items():
+        if not isinstance(label, str):
+            raise malformed(f"has a labels.{key} that is not a string")
+    return dict(value)
+
+
 def _validated_labels(labels: object) -> Dict[str, str]:
     if not isinstance(labels, MappingABC):
         raise create_error(
@@ -2063,16 +2083,10 @@ def _looks_like_scoped_proxy_toolbox_url(toolbox_url: str, sandbox_id: str) -> b
     return path.endswith((f"/sandboxes/{sandbox_id}", f"/sandboxes/{encoded_id}"))
 
 
-def _validate_timeout(timeout: float) -> None:
-    if (
-        isinstance(timeout, bool)
-        or not isinstance(timeout, (int, float))
-        or not math.isfinite(timeout)
-        or timeout < 0
-    ):
-        raise create_error(
-            "timeout must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
-        )
+def _validate_timeout(timeout: float) -> float:
+    """The checked wait budget: ``0.0`` (no deadline) for ``0`` or a value
+    above the timer maximum, an integer too large for a float included."""
+    return wait_budget_seconds(timeout)
 
 
 _WAIT_STATES: Final[Mapping[str, SandboxWaitState]] = {state: state for state in get_args(SandboxWaitState)}
@@ -2096,23 +2110,20 @@ def _wait_states(until: object) -> list[SandboxWaitState]:
     return states
 
 
-def _validate_wait_seconds(wait_seconds: float) -> None:
-    if (
-        isinstance(wait_seconds, bool)
-        or not isinstance(wait_seconds, (int, float))
-        or not math.isfinite(wait_seconds)
-        or wait_seconds < 0
-    ):
-        raise create_error(
-            "wait_seconds must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
-        )
+def _validate_wait_seconds(wait_seconds: float) -> float:
+    """The checked fork budget; ``0`` returns once the fork is accepted, and a
+    value above the timer maximum waits that maximum (it cannot overflow)."""
+    if wait_seconds == 0 and not isinstance(wait_seconds, bool):
+        return 0.0
+    budget = wait_budget_seconds(wait_seconds, name="wait_seconds")
+    return MAX_WAIT_BUDGET_SECONDS if budget == 0 else budget
 
 
 def _wait_deadline(timeout: Optional[float]) -> Optional[float]:
-    if timeout is None or timeout == 0:
+    if timeout is None:
         return None
-    _validate_timeout(timeout)
-    return _clock.monotonic() + timeout
+    budget = _validate_timeout(timeout)
+    return None if budget == 0 else _clock.monotonic() + budget
 
 
 def _wait_query_state(state: SandboxWaitState) -> str:

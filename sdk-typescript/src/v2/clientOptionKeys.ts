@@ -45,6 +45,42 @@ const PORT_KEYS = optionKeys<PortMapping>()({ port: true, proto: true })
 const VOLUME_KEYS = optionKeys<VolumeMount>()({ volumeId: true, mountPath: true, subpath: true, readOnly: true })
 export const LIFECYCLE_POLICY_KEYS = optionKeys<LifecyclePolicyOptions>()({ timeoutSeconds: true, onTimeout: true, idleExpirySeconds: true, onIdleTimeout: true })
 
+/**
+ * The create and fork options a JavaScript `null` leaves out, exactly where
+ * Python's `None` does for that parameter. `waitSeconds` is not here (Python
+ * refuses `None`), nor `networkPolicy` (Python's `None` sends an explicit
+ * null policy), nor the TypeScript-only `autoDelete` (a boolean).
+ * @internal
+ */
+export const NULL_MEANS_OMITTED: ReadonlySet<string> = new Set([
+  'name', 'labels', 'ports', 'lifecyclePolicy', 'region', 'createTimeoutSeconds', 'idempotencyKey',
+  'volumes', 'env', 'resources', 'secrets', 'spot', 'user', 'cpuArch', 'cpuType', 'persistent',
+  'reservation', 'autoRenew', 'idleExpirySeconds', 'buildTimeoutSeconds', 'memory',
+])
+
+/**
+ * The options with every `null` that Python reads as an omitted `None`
+ * removed (a copy; read through prototypes, as the key check is).
+ * @internal
+ */
+export function withoutNullOptions<T extends object>(options: T): T {
+  if (typeof options !== 'object' || options === null) return options
+  let copy: Record<string, unknown> | undefined
+  for (const key of NULL_MEANS_OMITTED) {
+    if (Reflect.get(options, key) !== null) continue
+    copy ??= Object.fromEntries(enumerableEntries(options))
+    copy[key] = undefined
+  }
+  // SAFETY: the same keys and values, with Python's omitted `None`s left out.
+  return (copy ?? options) as T
+}
+
+function enumerableEntries(options: object): [string, unknown][] {
+  const entries: [string, unknown][] = []
+  for (const key in options) entries.push([key, Reflect.get(options, key)])
+  return entries
+}
+
 /** The create options whose values are checked before any request (shared by every create route). */
 interface CreateValueOptions extends CreateRequestBaseOptions {
   readonly volumes?: readonly VolumeMount[]
@@ -85,7 +121,8 @@ export function assertCreateNestedOptions(options: CreateValueOptions): void {
     assertKnownOptions('PortMapping', port, PORT_KEYS)
     const { port: number, proto } = port as PortMapping
     if (typeof number !== 'number' || !Number.isInteger(number) || number < 1 || number > 65535) throw badRequest('ports[].port must be an integer in 1..65535')
-    if (proto !== undefined && typeof proto !== 'string') throw badRequest('ports[].proto must be a string')
+    // The contract's PortProtocol values only: SDK inputs are closed.
+    if (proto !== undefined && proto !== 'tcp' && proto !== 'udp') throw badRequest("ports[].proto must be 'tcp' or 'udp'")
   }
   for (const volume of arrayOf(options.volumes, 'volumes must be an array of { volumeId, mountPath } objects') ?? []) {
     assertOptionsObject('VolumeMount', volume)

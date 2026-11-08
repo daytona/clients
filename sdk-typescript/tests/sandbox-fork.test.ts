@@ -94,7 +94,6 @@ describe('sandbox fork completion', () => {
     // Given a source using a per-sandbox URL/token and a separate fork toolbox URL.
     const api = await startFakeApi([
       { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
-      { status: 200, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'linux', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url), undefined, undefined, undefined, {
       toolboxUrl: 'https://source-toolbox.invalid', accessToken: 'source-fixture', autoDelete: true,
@@ -103,9 +102,10 @@ describe('sandbox fork completion', () => {
       // When waiting is disabled.
       const fork = await sandbox.fork({ waitSeconds: 0 })
       await fork[Symbol.asyncDispose]()
-      // Then no source refresh, no wait and no implicit deletion occur: only the fork's detail is read.
+      // Then one request, as for create: no source refresh, no detail read,
+      // no wait and no implicit deletion.
       expect(api.requests.map((request) => [request.method, request.path])).toEqual([
-        ['POST', '/sandboxes/source/fork'], ['GET', '/sandboxes/fork'],
+        ['POST', '/sandboxes/source/fork'],
       ])
       expect(fork.state).toBe('creating')
       expect(fork.toolboxProxyUrl).toBe('https://fork-toolbox.invalid/fork')
@@ -119,7 +119,6 @@ describe('sandbox fork completion', () => {
     // Given a persistent source and an explicitly auto-deleting fork.
     const api = await startFakeApi([
       { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
-      { status: 200, body: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
       { status: 202, body: {} },
       { status: 404, body: { code: 'NOT_FOUND' } },
     ])
@@ -129,7 +128,7 @@ describe('sandbox fork completion', () => {
       // When the fork is disposed.
       await fork[Symbol.asyncDispose]()
       // Then only the fork is deleted and waited on.
-      expect(api.requests[2]).toMatchObject({ method: 'DELETE', path: '/sandboxes/fork' })
+      expect(api.requests[1]).toMatchObject({ method: 'DELETE', path: '/sandboxes/fork' })
       expect(fork.state).toBe('destroyed')
     } finally {
       await api.close()

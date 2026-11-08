@@ -96,7 +96,9 @@ describe('options parameters refuse non-object values', () => {
     const api = await startFakeApi([])
     const client = clientAt(api.url)
     try {
-      for (const value of [null, true, 'x', 3, [], () => undefined]) {
+      // A null create resources entry is Python's omitted None (tests/null-options.test.ts).
+      const values = name.endsWith(' resources') && name !== 'sandbox.volumes.pull' ? [true, 'x', 3, [], () => undefined] : [null, true, 'x', 3, [], () => undefined]
+      for (const value of values) {
         const result = calls(client, api.url)[name]?.(value as never)
         const pending = result !== undefined && Symbol.asyncIterator in result
           ? (async () => { for await (const _ of result) break })()

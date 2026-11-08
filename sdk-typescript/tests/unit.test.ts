@@ -3691,7 +3691,7 @@ describe('creation shape', () => {
     expect(post.mock.calls[0]?.[0]).toBe('/images')
     expect(post.mock.calls[0]?.[1]).toMatchObject({ dockerfile: expect.stringContaining('FROM python:3.12') })
     expect(get.mock.calls[1]).toEqual(['/images', { params: { cursor: undefined, limit: undefined, name: undefined, anonymous: true, sandbox_id: 'sbx' } }])
-    expect(get.mock.calls[2]).toEqual(['/images/img_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 20000 }])
+    expect(get.mock.calls[2]).toEqual(['/images/img_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 15000 }])
     expect(patch).toHaveBeenCalledWith('/images/img_123', { name: 'keep-this' })
     expect(del).toHaveBeenCalledWith('/images/img_123')
     expect(listed.items[0]).toBeInstanceOf(ImageHandle)
@@ -3740,7 +3740,7 @@ describe('creation shape', () => {
 
     expect(page.items[0]).toBeInstanceOf(Snapshot)
     expect(get.mock.calls[0]).toEqual(['/snapshots', { params: { cursor: undefined, limit: undefined, name: 'after-setup', sandbox_id: 'sbx' } }])
-    expect(get.mock.calls[1]).toEqual(['/snapshots/snap_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 20000 }])
+    expect(get.mock.calls[1]).toEqual(['/snapshots/snap_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 15000 }])
     expect(del).toHaveBeenCalledWith('/snapshots/snap_999')
     expect(detail).toBeInstanceOf(Snapshot)
   })
@@ -8449,7 +8449,7 @@ describe('toolbox service request shaping', () => {
 
     // Positive budgets share the remaining wait time with the request bound.
     await client.snapshots.get('snap/1', { wait: 'ready', timeoutSeconds: 30 })
-    expect(get.mock.calls[1]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: 30000 }, timeout: 35_000 }])
+    expect(get.mock.calls[1]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: 30000 }, timeout: 30_000 }])
     // No explicit budget: the server picks the hold; the request keeps its root bound.
     await client.snapshots.get('snap/1', { wait: 'ready' })
     expect(get.mock.calls[2]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: undefined }, timeout: 0 }])

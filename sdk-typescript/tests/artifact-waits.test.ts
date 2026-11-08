@@ -35,7 +35,7 @@ describe.each(['image', 'snapshot'] as const)('%s readiness budgets', (kind) => 
     expect(artifact.status).toBe('ready')
     expect(requests).toEqual([
       { at: 0, hold: 60_000, timeout: 65_000 },
-      { at: 60_000, hold: 60_000, timeout: 65_000 },
+      { at: 60_000, hold: 60_000, timeout: 60_000 },
     ])
   })
 
@@ -47,7 +47,7 @@ describe.each(['image', 'snapshot'] as const)('%s readiness budgets', (kind) => 
     await jest.advanceTimersByTimeAsync(1500)
     // Then there is no busy loop and no timeout error replaces the artifact.
     expect((await pending).status).toBe('pending')
-    expect(requests).toEqual([{ at: 0, hold: 1500, timeout: 6500 }, { at: 1000, hold: 500, timeout: 5500 }])
+    expect(requests).toEqual([{ at: 0, hold: 1500, timeout: 1500 }, { at: 1000, hold: 500, timeout: 500 }])
   })
 
   it.each(['failed', 'error'])('returns without another hold when the artifact is %s', async (status) => {
@@ -76,6 +76,6 @@ describe.each(['image', 'snapshot'] as const)('%s readiness budgets', (kind) => 
     // When waiting for readiness.
     await service.get('artifact', { wait: 'ready', timeoutSeconds: 2.0004 })
     // Then the hold is the whole (integer) budget and the read outlives it by the slack.
-    expect(requests).toEqual([{ at: 0, hold: 2001, timeout: 7001 }])
+    expect(requests).toEqual([{ at: 0, hold: 2001, timeout: 2001 }])
   })
 })

@@ -63,6 +63,8 @@ async function sandboxesFromDtos(context: SandboxClientContext, items: readonly 
 export async function getSandbox(context: SandboxClientContext, id: string, options: SandboxConnectOptions): Promise<Sandbox> {
   options = snapshotOptions('SandboxConnectOptions', options, CONNECT_KEYS) ?? {}
   if (options.autoDelete !== undefined && typeof options.autoDelete !== 'boolean') throw badRequest('autoDelete must be a boolean')
+  // A blank id would read the sandbox list: refused before any request, as in Python.
+  if (typeof id !== 'string' || isBlank(id)) throw badRequest('sandboxId must be a non-empty string')
   const sandbox = await context.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(id)}`, undefined).then((response) => response.data)
   assertSandboxResponse(sandbox)
   return context.buildSandbox(sandbox, options)

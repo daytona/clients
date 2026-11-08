@@ -43,10 +43,11 @@ from ._core import (
     TransportPayload,
     _expect_model_from_dict,
     enum_str,
+    image_options_body,
     json_object_from_mapping,
     parse_image,
     parse_snapshot,
-    timeout_millis_from_seconds,
+    wait_budget_seconds,
 )
 from ._gen.api import MacReservation as MacReservationWire
 from ._gen.api import MacReservationBatch as MacReservationBatchWire
@@ -170,15 +171,9 @@ class AsyncImagesService:
                 "SDK",
             )
         resolved_builder = builder
-        body: JsonObject = {}
-        if name is not None:
-            body["name"] = name
-        if idle_expiry_seconds is not None:
-            body["idle_expiry_seconds"] = idle_expiry_seconds
-        if region is not None:
-            body["region_id"] = region
-        if cpu_arch is not None:
-            body["cpu_arch"] = cpu_arch
+        body = image_options_body(
+            name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
+        )
         source, rendered_dockerfile = resolved_builder._request_source()
         if source is not None:
             body["source"] = source
@@ -209,16 +204,14 @@ class AsyncImagesService:
         :class:`ImageBuildFailedError` with the server's recorded error.
         """
         source, _ = ImageBuilder.from_registry(image)._request_source()
-        body: JsonObject = {"source": source}
-        if name is not None:
-            body["name"] = name
-        if idle_expiry_seconds is not None:
-            body["idle_expiry_seconds"] = idle_expiry_seconds
-        if region is not None:
-            body["region_id"] = region
-        if cpu_arch is not None:
-            body["cpu_arch"] = cpu_arch
-        return await ImagePull(self._transport, timeout).run(
+        body: JsonObject = {
+            "source": source,
+            **image_options_body(
+                name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
+            ),
+        }
+        budget = None if timeout is None else wait_budget_seconds(timeout) or None
+        return await ImagePull(self._transport, budget).run(
             RequestSpec("POST", "/images", json_body=body), wait=wait
         )
 
@@ -337,7 +330,11 @@ async def _get_artifact(
 ) -> _Artifact:
     if wait is not None and wait != "ready":
         raise create_error(f'wait must be "ready" or omitted, got {wait!r}', 400, "BAD_REQUEST", "SDK")
-    budget_ms = timeout_millis_from_seconds(timeout) if wait is not None else None
+    # 0 or None reads one hold of the server's length; a budget above the timer
+    # maximum (an integer too large for a float included) does too.
+    budget_ms = (
+        math.ceil(wait_budget_seconds(timeout) * 1000) if wait is not None and timeout is not None else None
+    )
     if wait is None:
         return parse(await transport.send(RequestSpec("GET", path)))
     if not budget_ms:
@@ -543,6 +540,10 @@ class AsyncVolumesService:
 
     async def delete(self, name_or_id: str, *, id_only: bool = False) -> None:
         """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
+        if not isinstance(name_or_id, str) or not name_or_id.strip():
+            raise create_error("name_or_id must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        if not isinstance(id_only, bool):
+            raise create_error("id_only must be a boolean", 400, "BAD_REQUEST", "SDK")
         params: Dict[str, JsonValue] = {"id_only": True} if id_only else {}
         await self._transport.send(RequestSpec("DELETE", f"/volumes/{_path(name_or_id)}", params=params))
 
@@ -684,6 +685,8 @@ class AsyncReservationsService:
         turning it off works without it, so an organization can stop a reservation
         renewing. Raises :class:`ConflictError` when the reservation is no longer live.
         """
+        if not isinstance(auto_renew, bool):
+            raise create_error("auto_renew must be a boolean", 400, "BAD_REQUEST", "SDK")
         body: UpdateReservationRequest = {"auto_renew": auto_renew}
         return _mac_reservation(
             await self._transport.send(

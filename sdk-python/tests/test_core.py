@@ -1179,6 +1179,10 @@ async def test_fork_handle_takes_metadata_from_the_detail_and_toolbox_from_the_f
             },
         )
     )
+    # A waiting fork reads its source's state first, then the fork's detail.
+    respx.get(f"{base_url}/sandboxes/parent").mock(
+        return_value=httpx.Response(200, json=_sandbox_detail_payload("parent", "running"))
+    )
     detail_route = respx.get(f"{base_url}/sandboxes/forked").mock(
         return_value=httpx.Response(200, json=_sandbox_detail_payload("forked", "running", name="the-fork"))
     )
@@ -1201,7 +1205,7 @@ async def test_fork_handle_takes_metadata_from_the_detail_and_toolbox_from_the_f
     try:
         sandbox = lazy_sandbox(client, "parent", toolbox_url="http://10.0.0.7:2280")
         sandbox._update(sandbox_class="linux")
-        forked = await sandbox.fork(wait_seconds=0)
+        forked = await sandbox.fork(wait_seconds=5)
         metrics = await forked.metrics()
     finally:
         await client.close()
@@ -1960,7 +1964,6 @@ async def test_fork_does_not_inherit_the_parent_toolbox_override():
                 "toolbox_proxy_url": "https://proxy.example",
                 "id": "forked",
             },
-            _sandbox_detail_payload("forked", "running"),
         ]
     )
     sandbox._api = api  # type: ignore[attr-defined]
@@ -1969,7 +1972,8 @@ async def test_fork_does_not_inherit_the_parent_toolbox_override():
 
     assert forked._toolbox_proxy_url == "https://proxy.example/forked"
     assert forked._toolbox_proxy_url != sandbox._toolbox_proxy_url
-    assert [spec.path for spec in api.specs] == ["/sandboxes/sbx/fork", "/sandboxes/forked"]
+    # wait_seconds=0 is one request, as for create: no detail read.
+    assert [spec.path for spec in api.specs] == ["/sandboxes/sbx/fork"]
     # ...but the events hub IS inherited: it is per process and identity, not
     # per sandbox. A hub-less fork would long-poll every wait, silently.
     assert sandbox._hub is not None
@@ -1991,14 +1995,12 @@ async def test_fork_sends_memory_only_when_given():
                 "toolbox_proxy_url": "https://proxy.example",
                 "id": "a",
             },
-            _sandbox_detail_payload("a", "running"),
             {
                 "forked_from": "sbx",
                 "status": "pending",
                 "toolbox_proxy_url": "https://proxy.example",
                 "id": "b",
             },
-            _sandbox_detail_payload("b", "running"),
         ]
     )
     sandbox._api = api  # type: ignore[attr-defined]
@@ -2006,7 +2008,7 @@ async def test_fork_sends_memory_only_when_given():
     assert (await sandbox.fork(name="disk", memory=False, wait_seconds=0)).id == "a"
     assert (await sandbox.fork(wait_seconds=0)).id == "b"
     assert api.specs[0].json_body == {"name": "disk", "memory": False}
-    assert api.specs[2].json_body == {}
+    assert api.specs[1].json_body == {}
 
 
 @pytest.mark.anyio
@@ -6192,7 +6194,6 @@ async def test_daytona_create_list_fork_and_delete_are_offline_transport_calls()
                 "toolbox_proxy_url": "http://toolbox",
                 "id": "fork",
             },
-            _sandbox_detail_payload("fork", "running", toolbox_proxy_url="http://toolbox"),
             {},
             _sandbox_detail_payload("sbx", "deleted", toolbox_proxy_url="http://toolbox"),
             _snapshot_operation_payload("snap"),
@@ -6248,9 +6249,8 @@ async def test_daytona_create_list_fork_and_delete_are_offline_transport_calls()
     assert (await sandbox.create_snapshot("snap")).id == "snap"
     assert await sandbox.ports.preview_link(8080) == PreviewLink(url="https://p", token="preview-token")
     assert (await sandbox.ports.expose(9000, public=True)).url == "https://p2"
-    assert [spec.path for spec in api.specs[3:9]] == [
+    assert [spec.path for spec in api.specs[3:8]] == [
         "/sandboxes/sbx/fork",
-        "/sandboxes/fork",
         "/sandboxes/sbx",
         "/sandboxes/sbx",
         "/sandboxes/sbx/snapshots",

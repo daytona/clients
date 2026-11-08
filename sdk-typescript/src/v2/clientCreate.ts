@@ -8,11 +8,11 @@ import { sandboxState, sleep } from './http.js'
 import { eventDestinationFromHeaders } from './events.js'
 import { scopedProxyToolboxUrl } from './Sandbox.js'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
-import { isImageBuilder } from './Image.js'
+import { imageOptionsBody, isImageBuilder } from './Image.js'
 import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
 import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions } from './options.js'
-import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS } from './clientOptionKeys.js'
+import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS, withoutNullOptions } from './clientOptionKeys.js'
 import { createRegion, createWaitSeconds, rejectV0Target } from './clientCreateOptions.js'
 import { linuxCreateRequest } from './clientCreateRequests.js'
 import { createIdempotencyKey } from './clientCreateNames.js'
@@ -49,16 +49,16 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     if (error instanceof ClientTimeoutError) throw new SandboxCreateRequestTimeoutError(idempotencyKey)
     throw error
   })
+  if (typeof created !== 'object' || created === null || typeof created.id !== 'string' || created.id === '') {
+    // The contract requires the new sandbox's id; nothing can follow without it.
+    throw badRequest('sandbox create response is missing the sandbox id')
+  }
   // A create token is refreshable, unlike a caller-supplied one.
   const connectOptions: SandboxConnectOptionsFromCreate = {
     accessToken: created.access_token ?? undefined,
     accessTokenFromCreate: true,
     accessTokenExpiresAt: created.access_token_expires_at ?? undefined,
     autoDelete: metadata.autoDelete,
-  }
-  if (typeof created?.id !== 'string' || created.id === '') {
-    // The contract requires the new sandbox's id; nothing can follow without it.
-    throw badRequest('sandbox create response is missing the sandbox id')
   }
   // The handle holds only what the response carries, plus an `img_` / `snap_`
   // id the caller passed (a name is never an id), and the class only when the
@@ -98,7 +98,7 @@ export async function buildSandboxImage(images: ImagesService, builder: ImageBui
   rejectV0Target(options)
   assertKnownOptions('CreateFromBuildOptions', options, BUILD_CREATE_KEYS, { timeout: 'buildTimeoutSeconds' })
   // An own-key copy read through prototypes: the rest spread below keeps inherited options.
-  options = snapshotOptions('CreateFromBuildOptions', options, BUILD_CREATE_KEYS) ?? options
+  options = withoutNullOptions(snapshotOptions('CreateFromBuildOptions', options, BUILD_CREATE_KEYS) ?? options)
   assertKnownOptions('Resources', options.resources, RESOURCES_KEYS)
   assertCreateNestedOptions(options)
   const region = createRegion(options)
@@ -111,6 +111,8 @@ export async function buildSandboxImage(images: ImagesService, builder: ImageBui
   linuxCreateRequest('img_pending', createOptions)
   // The name-derived key too (it can need Web Crypto), as Python resolves it before the build.
   await createIdempotencyKey({ name: createOptions.name, idempotency_key: createOptions.idempotencyKey })
+  // The options the build takes are checked before the (billed) build too.
+  imageOptionsBody({ region, idleExpirySeconds, cpuArch: options.cpuArch })
   const image = await images.build(builder, { region, idleExpirySeconds, cpuArch: options.cpuArch })
   const deadline = budget === undefined || budget === 0 ? undefined : Date.now() + Math.max(0, Math.ceil(budget * 1000))
   const readyImage = await waitForBuiltImage(images, image, deadline)

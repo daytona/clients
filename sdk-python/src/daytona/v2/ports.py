@@ -166,6 +166,8 @@ class AsyncPortsService:
         :returns: :class:`~daytona.v2.types.PreviewEndpoint` with the URL.
         """
         _assert_port(port)
+        if not isinstance(public, bool):
+            raise create_error("public must be a boolean", 400, "BAD_REQUEST", "SDK")
         payload = expect_preview_endpoint(
             await self._require_api().send(
                 RequestSpec("PUT", self._port_path(port), json_body={"public": public})

@@ -38,13 +38,15 @@ function canonical(value: unknown): string {
 it('get and fork serialize the shared fixture byte for byte, timestamps verbatim', async () => {
   const api = await startFakeApi([
     { status: 200, body: fixture.detail },
+    // A waiting fork re-reads its source, then reads the fork's detail.
+    { status: 200, body: fixture.detail },
     { status: 202, body: { id: 'sbx-ts', status: 'running', forked_from: 'src', toolbox_proxy_url: fixture.detail.toolbox_proxy_url } },
     { status: 200, body: fixture.detail },
   ])
   const client = clientAt(api.url)
   try {
     const sandbox = await client.v2.get('sbx-ts')
-    const forked = await sandbox.fork({ waitSeconds: 0 })
+    const forked = await sandbox.fork({ waitSeconds: 5 })
     expect(canonical(sandbox.toJSON())).toBe(canonical(fixture.handleJson))
     expect(canonical(forked.toJSON())).toBe(canonical(fixture.handleJson))
   } finally {

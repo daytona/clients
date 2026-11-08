@@ -198,6 +198,7 @@ export class PortsService {
   public async expose(port: number, options: ExposePortOptions = {}): Promise<PreviewEndpoint> {
     assertKnownOptions('ExposePortOptions', options, EXPOSE_PORT_KEYS)
     assertPort(port)
+    if (options.public !== undefined && typeof options.public !== 'boolean') throw badRequest('public must be a boolean')
     const isPublic = options.public ?? false
     const body: api.SetSandboxPortRequest = { public: isPublic }
     return this.requireApi().put<api.PreviewEndpoint>(this.portPath(port), body).then((response) => mapPreviewEndpoint(response.data))

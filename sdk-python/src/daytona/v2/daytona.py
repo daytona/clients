@@ -34,7 +34,6 @@ from . import _clock
 from ._api_core import (
     expect_audit_actions,
     expect_current_api_key,
-    expect_list_sandboxes_resp,
     expect_organization_limits,
     expect_project_budget,
     expect_sandbox_detail,
@@ -49,6 +48,7 @@ from ._core import (
     assert_lifecycle_class_support,
     expect_object,
     gib_to_mib,
+    image_options_body,
     lifecycle_body,
     parse_search_page,
     parse_timestamp,
@@ -625,6 +625,7 @@ class AsyncDaytona:
             )
         )
         _resolve_idempotency_key(idempotency_key, name)
+        image_options_body(idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch)
         if build_timeout is not None and (
             isinstance(build_timeout, bool)
             or not isinstance(build_timeout, (int, float))
@@ -663,7 +664,9 @@ class AsyncDaytona:
                 own_timeout = error.source == "SDK" and error.code == "REQUEST_TIMEOUT"
                 # The artifact wait's own timeout (not a client read timer) is
                 # always this deadline running out: the wait shares it.
-                wait_ran_out = not isinstance(error, ClientTimeoutError) or _clock.monotonic() >= (deadline or 0)
+                wait_ran_out = not isinstance(error, ClientTimeoutError) or _clock.monotonic() >= (
+                    deadline or 0
+                )
                 if own_timeout and deadline is not None and wait_ran_out:
                     raise build_timed_out(error) from error
                 raise
@@ -836,6 +839,9 @@ class AsyncDaytona:
         ``access_token`` is a sandbox access token the handle sends to sandbox
         services instead of minting its own; the handle never replaces it.
         """
+        if not isinstance(sandbox_id, str) or not sandbox_id.strip():
+            # A blank id would read the sandbox list: refused before any request.
+            raise create_error("sandbox_id must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         return self._sandbox_from_sandbox(
             sandbox_detail_wire(
                 await self._api.send(RequestSpec("GET", f"/sandboxes/{quote(sandbox_id, safe='')}"))
@@ -960,14 +966,26 @@ class AsyncDaytona:
         if limit is not None:
             params["limit"] = limit
         payload = await self._api.send(RequestSpec("GET", "/sandboxes", params=params))
-        page = expect_list_sandboxes_resp(payload)
-        next_cursor = page.next_cursor
-        if next_cursor is None:
-            candidate = page.additional_properties.get("nextCursor")
-            next_cursor = candidate if isinstance(candidate, str) else None
-        # The validated page's items as their wire objects: strings (timestamps) verbatim.
-        raw_items = expect_object(payload).get("sandboxes")
-        items = [expect_object(item) for item in raw_items] if isinstance(raw_items, list) else []
+        # The page's shape and every item's sandbox fields, as in TypeScript; the
+        # per-item `cursor` is not read, so it is not required.
+        if not isinstance(payload, dict):
+            raise create_error("sandbox list response is not a JSON object", 400, "BAD_REQUEST", "SDK")
+        raw_items = payload.get("sandboxes")
+        if not isinstance(raw_items, list):
+            raise create_error(
+                "sandbox list response is missing the sandboxes array", 400, "BAD_REQUEST", "SDK"
+            )
+        raw_cursor = payload.get("next_cursor")
+        if raw_cursor is not None and not isinstance(raw_cursor, str):
+            raise create_error(
+                "sandbox list response has a next_cursor that is not a string", 400, "BAD_REQUEST", "SDK"
+            )
+        candidate = payload.get("nextCursor")
+        next_cursor = (
+            raw_cursor if raw_cursor is not None else candidate if isinstance(candidate, str) else None
+        )
+        # Wire objects, strings (timestamps) verbatim.
+        items = [sandbox_detail_wire(item) for item in raw_items]
         sandboxes = await self._sandboxes_from_sandboxes(items)
         return ListResult(items=sandboxes, next_cursor=next_cursor)
 
@@ -1879,7 +1897,8 @@ def _is_port_mapping(item: object) -> bool:
         and isinstance(item.port, int)
         and not isinstance(item.port, bool)
         and 1 <= item.port <= 65535
-        and isinstance(item.proto, str)
+        # The contract's PortProtocol values only: SDK inputs are closed.
+        and item.proto in ("tcp", "udp")
     )
 
 

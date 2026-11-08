@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { withoutNullOptions } from './clientOptionKeys.js'
 import { ASYNC_OPERATION, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 import { isBlank } from './pyText.js'
@@ -14,7 +15,7 @@ import { followBuildLogs, readBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { FileSystemService } from './FileSystem.js'
 import type { SignedFileUrl } from './FileSystem.js'
-import { Image, Snapshot } from './Image.js'
+import { Image, Snapshot, imageOptionsBody } from './Image.js'
 import { strictUriEncode } from './http.js'
 import { GitService } from './Git.js'
 import { InterpreterService } from './Interpreter.js'
@@ -735,6 +736,8 @@ export class Sandbox {
    */
   public async fork(options: ForkOptions = {}): Promise<Sandbox> {
     assertKnownOptions('ForkOptions', options, FORK_KEYS, { ...RENAMED_OPTIONS, timeout: 'waitSeconds' })
+    // `null` name / memory are Python's omitted `None`; a null waitSeconds is refused, as there.
+    options = withoutNullOptions(options)
     const waitSeconds = optionalSeconds('waitSeconds', options.waitSeconds) ?? 60
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     // Every argument is checked before any request (the class read included), as in Python.
@@ -786,10 +789,13 @@ export class Sandbox {
       hub: this._hub,
     })
     fork.learnEventDestination(eventDestinationFromHeaders(response.headers))
+    // waitSeconds 0 is one request, as for create: no detail read, and a zero
+    // budget never becomes an unbounded read.
+    if (deadline === undefined) return fork
     try {
-      const timeout = deadline === undefined ? undefined : boundedRequestTimeout(deadline, this.api.defaults.timeout)
-      if (deadline !== undefined && timeout === undefined) return fork
-      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, timeout === undefined ? undefined : { timeout }).then((r) => r.data)
+      const timeout = boundedRequestTimeout(deadline, this.api.defaults.timeout)
+      if (timeout === undefined) return fork
+      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, { timeout }).then((r) => r.data)
       assertSandboxResponse(detail)
       fork.observed = metadataFromSandbox(detail)
       fork.refreshToolbox({ ...detail, toolbox_proxy_url: forked.toolbox_proxy_url || detail.toolbox_proxy_url })
@@ -992,11 +998,9 @@ export class Sandbox {
    */
   public async captureImage(options: CaptureImageOptions = {}): Promise<Image> {
     assertKnownOptions('CaptureImageOptions', options, CAPTURE_KEYS)
+    const body: api.CreateImageCaptureRequest = imageOptionsBody({ name: options.name, idleExpirySeconds: options.idleExpirySeconds })
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
-    const { data } = await this.api.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, {
-      name: options.name,
-      idle_expiry_seconds: options.idleExpirySeconds,
-    } satisfies api.CreateImageCaptureRequest)
+    const { data } = await this.api.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, body)
     const operation = checkResponse<api.AsyncOperation>(data, ASYNC_OPERATION, 'image capture')
     const image = await this.api.get<api.ImageListItem>(`/images/${strictUriEncode(operation.id)}`).then((response) => response.data)
     return new Image(INTERNAL, image)
@@ -1022,8 +1026,8 @@ export class Sandbox {
       `/sandboxes/${strictUriEncode(this.id)}/labels`,
       { labels: body },
       requestConfig,
-    ).then((result) => result.data)
-    this.observed.labels = parseLabels(response.labels)
+    ).then((result) => checkResponse<{ readonly labels: unknown }>(result.data, { labels: 'object' }, 'sandbox labels'))
+    this.observed.labels = parseLabels(response.labels, 'sandbox labels')
     return this.labels
   }
 

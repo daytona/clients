@@ -17,9 +17,9 @@ describe.each([
   beforeEach(() => { jest.useFakeTimers() })
   afterEach(() => { jest.useRealTimers() })
   it.each([
-    { seconds: 0.0001, wire: 1, request: 5001 },
-    { seconds: 1.25, wire: 1250, request: 6250 },
-    { seconds: 60, wire: 60000, request: 65000 },
+    { seconds: 0.0001, wire: 1, request: 1 },
+    { seconds: 1.25, wire: 1250, request: 1250 },
+    { seconds: 60, wire: 60000, request: 60000 },
     { seconds: 86400, wire: 60000, request: 65000 },
     { seconds: 0, wire: undefined, request: 0 },
     { seconds: undefined, wire: undefined, request: 0 },
@@ -29,7 +29,8 @@ describe.each([
     // When waiting for readiness with a seconds-based budget.
     await service.get('artifact/one', { wait: 'ready', timeoutSeconds: seconds })
     // Then the hold is the smaller of the budget and 60 s, whatever the
-    // shorter request timeout, and the read allows the hold plus network slack.
+    // shorter request timeout, and the read allows the hold plus network
+    // slack, never past the wait's deadline.
     expect(requests[0]).toMatchObject({ params: { wait: 'ready', timeout_ms: wire }, timeout: request })
     expect(requests[0]?.path).toContain('artifact%2Fone')
   })

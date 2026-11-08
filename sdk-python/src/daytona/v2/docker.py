@@ -17,9 +17,9 @@ import math
 from typing import Final, Optional
 
 from . import _clock
-from ._core import WAIT_READ_SLACK_SECONDS, RequestSpec, expect_docker_status
+from ._core import WAIT_READ_SLACK_SECONDS, RequestSpec, expect_docker_status, wait_budget_seconds
 from ._transport import AsyncTransport
-from .errors import ClientTimeoutError, DockerNotReadyError, DockerWaitTimeoutError, create_error
+from .errors import ClientTimeoutError, DockerNotReadyError, DockerWaitTimeoutError
 from .types import DockerStatus
 
 #: Default ``wait_until_ready()`` budget in seconds.
@@ -70,14 +70,10 @@ class AsyncDockerService:
         when a status request is still unanswered at the deadline. No request
         runs more than a fraction of a second past the deadline.
         """
-        if (
-            isinstance(timeout, bool)
-            or not isinstance(timeout, (int, float))
-            or not math.isfinite(timeout)
-            or timeout < 0
-        ):
-            raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
-        deadline = None if timeout == 0 else _clock.monotonic() + timeout
+        # 0, or above the timer maximum (an integer too large for a float
+        # included), waits without a deadline.
+        budget = wait_budget_seconds(timeout)
+        deadline = None if budget == 0 else _clock.monotonic() + budget
         last: Optional[DockerStatus] = None
         while True:
             remaining = None if deadline is None else deadline - _clock.monotonic()

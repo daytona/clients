@@ -135,16 +135,15 @@ async def test_linux_fork_waits_for_the_state_the_fork_settles_in(
 async def test_fork_with_wait_seconds_zero_returns_once_accepted() -> None:
     sandbox = lazy_sandbox(_client(), "src")
     sandbox._update(sandbox_class="linux")
-    api = _Api([_fork_response("f"), _detail("f", "pending")])
+    api = _Api([_fork_response("f")])
     sandbox._api = api  # type: ignore[attr-defined]
 
     fork = await sandbox.fork(wait_seconds=0)
 
-    assert fork.state == "creating"
-    assert [(spec.method, spec.path) for spec in api.specs] == [
-        ("POST", "/sandboxes/src/fork"),
-        ("GET", "/sandboxes/f"),
-    ]
+    # One request, as for create: the handle holds what the fork response
+    # carries plus the class the call fixes (the source's).
+    assert (fork.state, fork.sandbox_class, fork.forked_from) == ("creating", "linux", "src")
+    assert [(spec.method, spec.path) for spec in api.specs] == [("POST", "/sandboxes/src/fork")]
 
 
 @pytest.mark.anyio

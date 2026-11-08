@@ -556,7 +556,6 @@ def test_sync_fork_takes_its_toolbox_from_the_fork_response(server: _Server, syn
     assert forked.metrics().cpu_count == 8
     assert server.calls == [
         ("POST", "/sandboxes/parent/fork"),
-        ("GET", "/sandboxes/forked"),
         ("POST", "/sandboxes/forked/access-token"),
         ("GET", "/sandboxes/forked/system/metrics"),
     ]

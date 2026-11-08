@@ -14,7 +14,6 @@ from ._gen.api import (
     ImagePage,
     PreviewUrl,
     Sandbox,
-    SandboxPage,
     SandboxPort,
     SandboxPortPage,
     SecretPage,
@@ -284,10 +283,6 @@ def expect_volume(value: TransportPayload) -> Volume:
 
 def expect_list_volumes_resp(value: TransportPayload) -> VolumePage:
     return _expect_model_from_dict(value, VolumePage, "volume list response", VolumePage.from_dict)
-
-
-def expect_list_sandboxes_resp(value: TransportPayload) -> SandboxPage:
-    return _expect_model_from_dict(value, SandboxPage, "sandbox list response", SandboxPage.from_dict)
 
 
 def expect_preview_endpoint(value: TransportPayload) -> SandboxPort:

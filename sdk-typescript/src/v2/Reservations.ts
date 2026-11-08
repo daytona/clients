@@ -155,6 +155,8 @@ export class ReservationsService {
   public async update(id: string, options: UpdateReservationOptions): Promise<MacReservation> {
     assertOptionsObject('UpdateReservationOptions', options)
     assertKnownOptions('UpdateReservationOptions', options, UPDATE_RESERVATION_KEYS)
+    // The one field to change is required: no empty PATCH is sent.
+    if (typeof options.autoRenew !== 'boolean') throw badRequest('autoRenew must be a boolean')
     const body: api.UpdateReservationRequest = { auto_renew: options.autoRenew }
     const { data } = await this.http.patch<api.MacReservation>(`/reservations/${strictUriEncode(id)}`, body)
     return reservation(data)

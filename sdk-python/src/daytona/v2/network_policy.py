@@ -8,7 +8,7 @@ from typing import Final, Sequence
 import httpx
 
 from . import _codes as codes
-from ._core import parse_json_bytes
+from ._core import parse_json_response
 from .errors import create_error
 from .types import JsonObject, JsonValue, NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput
 
@@ -66,7 +66,8 @@ def serialize_network_policy_input(value: NetworkPolicyInput) -> JsonObject:
 
 def parse_network_policy_response(response: httpx.Response) -> NetworkPolicyInfo:
     payload = _expect_response_object(
-        parse_json_bytes(response.content), field_name="network policy response"
+        parse_json_response(response.content, what="network policy response"),
+        field_name="network policy response",
     )
     etag = response.headers.get("etag")
     if not isinstance(etag, str) or not etag:
