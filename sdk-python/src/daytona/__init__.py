@@ -95,6 +95,12 @@ if TYPE_CHECKING:
 # every attribute as present, which would hide `from daytona import Sandbox`
 # from mypy / pyright.
 if not TYPE_CHECKING:
+    # The two 0.x root error aliases 2.0 dropped, each with the shared category
+    # it named (the migration tool's `rootAliasCategories`, which a test pins).
+    _FORMER_ROOT_ALIASES = {
+        "DaytonaValidationError": "DaytonaBadRequestError",
+        "DaytonaAuthorizationError": "DaytonaForbiddenError",
+    }
 
     def _moved_to(name: str) -> tuple[bool, bool]:
         """Whether a pre-2.0 root name now lives in ``daytona.v0`` / ``daytona.v2``.
@@ -174,6 +180,15 @@ if not TYPE_CHECKING:
                 raise
             return module
         in_v0, in_v2 = _moved_to(name) if not name.startswith("_") else (False, False)
+        category = _FORMER_ROOT_ALIASES.get(name)
+        if category is not None:
+            raise ImportError(
+                f"`{name}` is not exported from the `daytona` package root since SDK 2.0. To catch it in "
+                f"both API versions, use the root `{category}`, the category it named; for the 0.x class "
+                f"itself, `from daytona.v0 import {name}` "
+                f"({_V0_EXTRA_HINT[0].lower()}{_V0_EXTRA_HINT[1:]}).",
+                name=__name__,
+            )
         if in_v0 or in_v2:
             where = []
             if in_v0:

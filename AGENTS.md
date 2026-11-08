@@ -495,11 +495,18 @@ skipping exist only in the TypeScript tool).
   A per-call timeout (a wait's budget plus its slack, a create's server hold
   plus its slack but never less than the request timeout, a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
-  / `transport.request(..., timeout=seconds)`, TS `config.timeout`) replaces
-  the request timeout for that request with the same meaning: total time
-  from sending to the last byte, `0` or a value above the timer maximum
-  meaning no limit (Python `_total_seconds`, TS `armRequestDeadline`).
-  Streams and transfers keep their exemptions.
+  / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
+  `timeout`) replaces the request timeout for that call with the same
+  meaning: one deadline from before credential resolution (the bearer
+  exchange or mint, the request, a 401 refresh and its retry) to the last
+  byte, `0` or a value above the timer maximum meaning no limit (Python
+  `_total_seconds`, TS `armRequestDeadline`). The project-token exchange
+  request is itself also bounded by the client's request timeout (it is
+  shared by concurrent calls), so a per-call timeout longer than the request
+  timeout does not lengthen it. On a stream the per-call timeout likewise
+  bounds only opening it, until its response headers (Python
+  `_stream_open_seconds`, on `open_stream` and `open_exclusive_stream`), and
+  a transfer ignores any timeout it carries.
 - **TypeScript rejects unknown option keys at runtime** (the rule; where it
   applies so far is listed below). A covered options object
   declares its known keys once, with
@@ -512,7 +519,8 @@ skipping exist only in the TypeScript tool).
   argument; a built-in such as a `Date` or a `Map`) is refused (the root
   constructor alone reads `null` as no configuration, as Python does `None`). A key in
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
-  `requestTimeout`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
+  `requestTimeout`, the 0.x `requestTimeoutMs`, `reconcileIntervalMs`,
+  `idleCloseMs`) whose replacement is
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied

@@ -290,11 +290,7 @@ class SyncTransport:
     def open_stream(self, spec: RequestSpec) -> SyncResponseStream:
         try:
             kwargs = _request_kwargs(spec, self._request_timeout_seconds)
-            kwargs["timeout"] = (
-                httpx.Timeout(None)
-                if spec.transfer
-                else _timeout_with_unbounded_read(self._request_timeout_seconds)
-            )
+            kwargs["timeout"] = _stream_timeout(spec, self._request_timeout_seconds)
             kwargs["headers"] = _request_headers(self._source, self.token, spec.headers)
             stream = self._client.stream(
                 spec.method,
@@ -729,10 +725,11 @@ class AsyncTransport:
             await stream.close()
 
     async def open_stream(self, spec: RequestSpec) -> AsyncResponseStream:
-        # The request timeout bounds opening the stream (the bearer, the
-        # request, a 401 refresh and its retry, until the response headers
-        # arrive), never the stream itself; a transfer is not bounded.
-        with _request_deadline(0 if spec.transfer else self._request_timeout_seconds):
+        # The request timeout, or the spec's own timeout in its place, bounds
+        # opening the stream (the bearer, the request, a 401 refresh and its
+        # retry, until the response headers arrive), never the stream itself;
+        # a transfer is not bounded.
+        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
             token = await self._request_token()
             try:
                 return await self._open_stream_once(spec, token)
@@ -747,11 +744,7 @@ class AsyncTransport:
         span: _SpanFinisher | None = None
         try:
             kwargs = _request_kwargs(spec, self._request_timeout_seconds)
-            kwargs["timeout"] = (
-                httpx.Timeout(None)
-                if spec.transfer
-                else _timeout_with_unbounded_read(self._request_timeout_seconds)
-            )
+            kwargs["timeout"] = _stream_timeout(spec, self._request_timeout_seconds)
             built_headers = _request_headers(self._source, token, spec.headers)
             span = (
                 self._otel.start_request_span(method=spec.method, url=url, headers=built_headers)
@@ -805,8 +798,9 @@ class AsyncTransport:
         itself — except a 401 under a refreshable API credential, which gets the same
         single re-mint + retry as ``send``/``request``/``open_stream``, closing
         the failed stream before the retry. Redirects are never followed, so
-        credentials cannot leave the requested origin. ``spec.timeout`` bounds
-        connect and headers; a 2xx response with ``unbounded_read`` (or no
+        credentials cannot leave the requested origin. ``spec.timeout`` (else
+        the request timeout) bounds opening it, until the headers, as a total
+        deadline and per httpx phase; a 2xx response with ``unbounded_read`` (or no
         explicit timeout) then drops only the idle-read timeout, so a healthy
         live stream is never cut off while finite bodies keep theirs.
         Cancelling the reading task releases the response and closes its
@@ -814,21 +808,24 @@ class AsyncTransport:
         request shares the connection.
         """
         self._stream_owners.ensure_open()
-        token = await self._request_token()
-        stream = await self._open_exclusive_once(spec, token)
-        if stream.status_code != 401:
-            return stream
-        try:
-            retry_token = await self._retry_token_after_401(stream.status_code, token)
-        except BaseException:
-            # A raising re-mint (e.g. a FORBIDDEN mint) surfaces, but never
-            # leaks the failed response.
+        # One deadline for opening it, as for ``open_stream``: the bearer, the
+        # request, a 401 refresh and its retry, until the response headers.
+        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+            token = await self._request_token()
+            stream = await self._open_exclusive_once(spec, token)
+            if stream.status_code != 401:
+                return stream
+            try:
+                retry_token = await self._retry_token_after_401(stream.status_code, token)
+            except BaseException:
+                # A raising re-mint (e.g. a FORBIDDEN mint) surfaces, but never
+                # leaks the failed response.
+                await stream.close()
+                raise
+            if retry_token is None:
+                return stream
             await stream.close()
-            raise
-        if retry_token is None:
-            return stream
-        await stream.close()
-        return await self._open_exclusive_once(spec, retry_token)
+            return await self._open_exclusive_once(spec, retry_token)
 
     async def _open_exclusive_once(self, spec: RequestSpec, token: Optional[str]) -> AsyncResponseStream:
         owned_client = self._stream_client_factory() if self._stream_client_factory is not None else None
@@ -842,7 +839,11 @@ class AsyncTransport:
         try:
             kwargs = _request_kwargs(spec, self._request_timeout_seconds)
             kwargs["timeout"] = (
-                spec.timeout if spec.timeout is not None else _client_timeout(self._request_timeout_seconds)
+                _client_timeout(self._request_timeout_seconds)
+                if spec.timeout is None
+                else spec.timeout
+                if _per_call_seconds(spec.timeout)
+                else httpx.Timeout(None)
             )
             built_headers = _request_headers(self._source, token, spec.headers)
             span = (
@@ -1054,6 +1055,26 @@ def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
 def _per_call_seconds(seconds: float) -> float:
     """A per-call timeout as a total bound: ``0`` or above the timer maximum is none."""
     return 0.0 if seconds <= 0 or seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+
+
+def _stream_open_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
+    """The total-time bound on opening a stream, until its headers (``0``: none).
+
+    The spec's own ``timeout`` replaces the request timeout, as for an ordinary
+    request; a transfer is not bounded. The stream's body never is.
+    """
+    if spec.transfer:
+        return 0.0
+    if spec.timeout is not None:
+        return _per_call_seconds(spec.timeout)
+    return request_timeout_seconds
+
+
+def _stream_timeout(spec: RequestSpec, request_timeout_seconds: float) -> httpx.Timeout:
+    """httpx's per-phase timeouts for a stream: the opening bound, no idle-read bound."""
+    if spec.transfer:
+        return httpx.Timeout(None)
+    return _timeout_with_unbounded_read(_stream_open_seconds(spec, request_timeout_seconds))
 
 
 @contextlib.contextmanager

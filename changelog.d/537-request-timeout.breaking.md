@@ -6,8 +6,9 @@ exchange) through the request, a 401 refresh and its retry, to the last byte
 of the response, ending in `ClientTimeoutError`. Requests governed by another
 budget are not cut by it: waits and long polls use their own deadline
 (in Python too that deadline is now total time, like TypeScript's, instead of a
-per-phase httpx timeout; image submissions, `POST /images` for build and
-pull, are ordinary requests, which Python never bounded),
+per-phase httpx timeout, and on a stream it bounds opening it, as the request
+timeout does; Python's image build and pull submissions, `POST /images`,
+which had no time limit, now use the request timeout, as in TypeScript),
 streams (process logs, file watches, build logs, events) are bounded only
 until their response headers arrive, and file transfers (uploads, downloads
 and the bulk read / write calls) are not bounded. `0` disables it, and so

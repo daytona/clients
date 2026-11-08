@@ -228,10 +228,12 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
   is in `RENAMED_OPTIONS` and its replacement is a known key of the type, the
   message names it: "`CreateSandboxOptions: \`timeout\` was renamed to
   \`timeoutSeconds\` (seconds)`". The table covers `timeout`,
-  `executionTimeout`, `escalateAfter`, `requestTimeout`, `reconcileIntervalMs`
-  and `idleCloseMs`. The optional fourth argument supplies per-type mappings:
-  fork maps `timeout` to `waitSeconds`, and `createFromBuild` maps it to
-  `buildTimeoutSeconds`. Removed `envVars` is an unknown key without a rename hint.
+  `executionTimeout`, `escalateAfter`, `requestTimeout`, the 0.x client
+  configuration's `requestTimeoutMs`, `reconcileIntervalMs` and
+  `idleCloseMs`; add a row when another option is renamed. The optional
+  fourth argument supplies per-type mappings: fork maps `timeout` to
+  `waitSeconds`, and `createFromBuild` maps it to `buildTimeoutSeconds`.
+  Removed `envVars` is an unknown key without a rename hint.
 - Check the options object itself, and nested SDK-defined option objects
   (`resources`, `ports`, `volumes`, `networkPolicy`, `lifecyclePolicy`, and
   the root's `events`); never a
