@@ -222,6 +222,17 @@ class OpenAPI(unittest.TestCase):
         errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"], open_enum=False), spec(["a", "b"], open_enum=False))
         self.assertTrue(errors)
 
+    def test_removed_request_parameter_is_a_finding(self) -> None:
+        def with_param(params: list[str]) -> str:
+            doc = json.loads(spec(["a"]))
+            doc["paths"]["/a"]["get"]["parameters"] = [
+                {"name": n, "in": "query", "required": False, "schema": {"type": "string"}} for n in params
+            ]
+            return json.dumps(doc)
+
+        errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", with_param(["q", "r"]), with_param(["q"]))
+        self.assertEqual([dict(f.fields)["rule"] for f in errors], ["request-parameter-removed"])
+
     def test_removed_path_is_an_error(self) -> None:
         errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"]), spec(["a"], paths=("/a",)))
         self.assertEqual(len(errors), 1)

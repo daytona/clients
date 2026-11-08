@@ -11,8 +11,9 @@ highest ``vX.Y.Z`` with ``X >= 2`` and no pre-release suffix):
   command, flag or environment variable, or a changed signature that is not a
   known-compatible change (an added optional parameter, a widened union, an
   added base class);
-- ``contract/*.json``: the OpenAPI contracts with oasdiff (``ERR`` level;
-  enums the contract tags ``x-daytona-open-enum`` may gain values), the error
+- ``contract/*.json``: the OpenAPI contracts with oasdiff (``ERR`` and
+  ``WARN`` levels, such as a removed request parameter; enums the contract
+  tags ``x-daytona-open-enum`` may gain values), the error
   catalogs (a removed code, a changed status) and the other contract files (a
   removed field or a changed identifier).
 
@@ -356,7 +357,9 @@ def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> t
     warnings: set[str] = set()
     for item in json.loads(result.stdout or "[]"):
         where = " ".join(p for p in (item.get("operation"), item.get("path")) if p) or "-"
-        if item.get("level", 0) >= 3:
+        # WARN (2) counts too: it covers removed request parameters and
+        # properties, which an older SDK may still send.
+        if item.get("level", 0) >= 2:
             errors.add(contract_finding(path, str(item.get("id")), where, " ".join(str(item.get("text")).split())))
         else:
             warnings.add(f"{path}: [{item.get('id')}] {where}: {item.get('text')}")
