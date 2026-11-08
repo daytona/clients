@@ -1,0 +1,41 @@
+changelog.d/536-command-renames.breaking.md
+  s_0df31975f3464b::t_5f1e2999eb6387 4-6
+changelog.d/536-whoami.breaking.md
+  s_0df31975f3464b::t_5f1e2999eb6387 1-4
+changelog.d/536-fanout-errors.breaking.md
+  s_0df31975f3464b::t_5f1e2999eb6387 3-4
+  s_0df31975f3464b::t_402f8f48576e52 5-8
+changelog.d/536-region-filter.breaking.md
+  s_0df31975f3464b::t_5f1e2999eb6387 1-6
+changelog.d/536.security.md
+  s_0df31975f3464b::t_5f1e2999eb6387 2-11
+cli/README.md
+  s_0df31975f3464b::t_35adca823ab034 241-243,387-388,505-506
+  s_0df31975f3464b::t_5f1e2999eb6387 125-136,367-369
+  s_0df31975f3464b::t_47b9919e7819a9 412
+  s_0df31975f3464b::t_58b960d01df747 251-256
+  s_0df31975f3464b::t_4589e998c5e389 264-266
+  s_0df31975f3464b::t_0c1c3768623d63 246-248
+changelog.d/536-usage-exit.breaking.md
+  s_0df31975f3464b::t_5f1e2999eb6387 2-6
+changelog.d/536-acknowledgements.breaking.md
+  s_0df31975f3464b::t_5f1e2999eb6387 2-15
+changelog.d/536-unknown-profile.breaking.md
+  s_0df31975f3464b::t_5f1e2999eb6387 4-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cfa0662bc170bc5516b93dc3ae161c9b616213f7",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
