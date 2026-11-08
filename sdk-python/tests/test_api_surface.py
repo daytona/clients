@@ -67,3 +67,24 @@ def test_handles_users_receive_keep_internal_constructors() -> None:
     lines = snapshot("daytona.v2.api.txt")
     assert any(line.startswith("AsyncSandbox.__init__: internal-constructor ") for line in lines)
     assert any(line.startswith("ImageBuilder.__init__: internal-constructor ") for line in lines)
+
+
+def test_typeddict_key_required_ness_comes_from_the_annotation() -> None:
+    from api_surface import key_required
+
+    assert key_required("str", total=True)
+    assert not key_required("str", total=False)
+    assert key_required("Required[str]", total=False)
+    assert not key_required("NotRequired[str]", total=True)
+    assert key_required("ReadOnly[Required[str]]", total=False)
+
+
+def test_types_callers_pass_in_are_marked() -> None:
+    lines = snapshot("daytona.v2.api.txt")
+    for name in ("NetworkPolicyInput", "LifecyclePolicyConfig", "TransferCancelSignal"):
+        assert f"{name}: passed-in" in lines
+
+
+def test_a_base_from_the_other_namespace_is_qualified() -> None:
+    lines = snapshot("daytona.v2.api.txt")
+    assert "DaytonaError: class (daytona.DaytonaError)" in lines

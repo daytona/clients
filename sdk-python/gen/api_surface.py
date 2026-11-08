@@ -363,6 +363,10 @@ class Surface:
         self.named: dict[int, str] = {}
         self.used: set[str] = set()
         self.named_aliases: dict[tuple[str, str], str] = {}
+        # The namespace that exports a declaration: a class another namespace
+        # exports prints qualified (`daytona.DaytonaError` in daytona.v2).
+        self.namespace_of: dict[int, str] = {}
+        self.current_namespace = ""
         for module_name, _, _ in NAMESPACES:
             module = self.modules[module_name]
             for name in sorted(module.__all__):
@@ -370,6 +374,7 @@ class Surface:
                 obj = getattr(module, name)
                 if own_object(obj):
                     self.named.setdefault(id(obj), name)
+                    self.namespace_of.setdefault(id(obj), module_name)
         self.lines: dict[str, list[str]] = {name: [] for name, _, _ in NAMESPACES}
         self.current: list[str] = []
         self.public_constructors = False
@@ -387,11 +392,15 @@ class Surface:
         self.out_refs: dict[int, set[int]] = {}
         self.field_refs: dict[int, set[int]] = {}
         self._alias_classes: dict[tuple[str, str, bool], set[int]] = {}
+        # TypedDicts and protocols, where listed: the members a caller
+        # supplies when passing one in (see `passed-in` lines).
+        self.supplied_at: dict[int, tuple[str, list[str]]] = {}
 
     def run(self) -> dict[str, list[str]]:
         # The v2 namespace first, so a declaration both reach is listed with v2.
         for module_name, _, public_constructors in reversed(NAMESPACES):
             self.current = self.lines[module_name]
+            self.current_namespace = module_name
             self.public_constructors = public_constructors
             self.namespace(self.modules[module_name])
             while self.queue:
@@ -407,6 +416,10 @@ class Surface:
                     public = int(ident) in inputs and int(ident) not in self.factory_built
                     kind = "constructor" if public else "internal-constructor"
                     lines[i] = f"{head}{kind} {tail}"
+        # A new required member of a type callers pass in breaks them.
+        for ident in sorted(inputs & set(self.supplied_at)):
+            name, lines = self.supplied_at[ident]
+            lines.append(f"{name}: passed-in")
         return self.lines
 
     def built_by_callers(self) -> set[int]:
@@ -531,6 +544,9 @@ class Surface:
         if cls.__module__ == "builtins":
             return cls.__qualname__
         if id(cls) in self.named:
+            namespace = self.namespace_of.get(id(cls))
+            if namespace is not None and namespace != self.current_namespace:
+                return f"{namespace}.{self.named[id(cls)]}"
             return self.named[id(cls)]
         if cls.__module__ in ("typing", "collections.abc", "typing_extensions"):
             return cls.__qualname__
@@ -704,6 +720,7 @@ class Surface:
             return
         elif getattr(cls, "_is_protocol", False):
             self.emit(name, "protocol", based)
+            self.supplied_at[id(cls)] = (name, self.current)
         else:
             self.emit(name, "class", based)
             self.constructor(name, cls)
@@ -773,7 +790,9 @@ class Surface:
         self.emit(f"{name}.__init__", f"{CTOR_MARK}{id(cls)}", f"({', '.join(params)}) -> None")
 
     def typeddict(self, name: str, cls: type) -> None:
-        required = getattr(cls, "__required_keys__", frozenset())
+        # Required-ness from the source: under `from __future__ import
+        # annotations`, `__required_keys__` cannot see `Required[...]`.
+        self.supplied_at[id(cls)] = (name, self.current)
         for key in cls.__annotations__:
             node = None
             owner: type = cls
@@ -786,7 +805,8 @@ class Surface:
             ann = ""
             if node is not None:
                 ann = self.annotation(node.annotation, owner.__module__, role="field")
-            self.emit(f"{name}.{key}", "key" if key in required else "optional key", ann)
+            required = key_required(ann, total=bool(getattr(owner, "__total__", True)))
+            self.emit(f"{name}.{key}", "key" if required else "optional key", ann)
 
     def members(self, name: str, cls: type) -> None:
         seen: set[str] = set()
@@ -867,6 +887,16 @@ class Surface:
 
 CTOR_MARK = "\x00ctor:"
 MODULE_LEVEL = 0  # the owner of module-level functions and aliases
+
+
+def key_required(annotation_text: str, *, total: bool) -> bool:
+    """Whether a TypedDict key is required, from its annotation as written."""
+    inner = annotation_text.removeprefix("ReadOnly[")
+    if inner.startswith("Required["):
+        return True
+    if inner.startswith("NotRequired["):
+        return False
+    return total
 
 
 def own_object(obj: object) -> bool:

@@ -357,7 +357,7 @@ AuditActionList.to_dict: def () -> dict[str, Any]
 AuditActionList.to_json: def () -> str
 AuditActionList.to_str: def () -> str
 AutomaticTopUpNotAvailableError: class (ConflictError)
-BadRequestError: class (DaytonaError, DaytonaBadRequestError)
+BadRequestError: class (DaytonaError, daytona.DaytonaBadRequestError)
 BillingAccountConflictError: class (ConflictError)
 BillingDisabledError: class (DaytonaNotSupportedError)
 BillingNotProvisionedError: class (ConflictError)
@@ -447,7 +447,7 @@ BulkWriteResult.errors: field list[str] = list()
 BulkWriteResult.files: field list[BulkWriteFile]
 ChargeNotFoundError: class (DaytonaNotFoundError)
 ChargeNotSucceededError: class (ConflictError)
-ClientTimeoutError: class (DaytonaError, DaytonaTimeoutError)
+ClientTimeoutError: class (DaytonaError, daytona.DaytonaTimeoutError)
 ComputerUseA11yFindResponse: dataclass frozen
 ComputerUseA11yFindResponse.__init__: internal-constructor (matches: list[ComputerUseAccessibilityNode], truncated: bool) -> None
 ComputerUseA11yFindResponse.matches: field list[ComputerUseAccessibilityNode]
@@ -640,8 +640,8 @@ ComputerUseWindow.title: field str
 ComputerUseWindow.width: field int
 ComputerUseWindow.x: field int
 ComputerUseWindow.y: field int
-ConflictError: class (DaytonaError, DaytonaConflictError)
-ConnectionError: class (DaytonaError, DaytonaConnectionError)
+ConflictError: class (DaytonaError, daytona.DaytonaConflictError)
+ConnectionError: class (DaytonaError, daytona.DaytonaConnectionError)
 CouponAlreadyRedeemedError: class (ConflictError)
 CouponExpiredError: class (ConflictError)
 CouponLimitReachedError: class (ConflictError)
@@ -658,7 +658,7 @@ DaytonaConflictError: alias = ConflictError
 DaytonaConflictErrorV2: alias = ConflictError
 DaytonaConnectionError: alias = ConnectionError
 DaytonaConnectionErrorV2: alias = ConnectionError
-DaytonaError: class (DaytonaError)
+DaytonaError: class (daytona.DaytonaError)
 DaytonaError.__init__: constructor (message: str, *, status_code: int | None = None, code: str | None = None, source: str | None = None, details: ErrorDetails | None = None) -> None
 DaytonaError.actual: attribute
 DaytonaError.bytes: attribute
@@ -772,7 +772,7 @@ FilesystemEventType.CREATE: enum-member = 'create'
 FilesystemEventType.REMOVE: enum-member = 'remove'
 FilesystemEventType.RENAME: enum-member = 'rename'
 FilesystemEventType.WRITE: enum-member = 'write'
-ForbiddenError: class (DaytonaError, DaytonaAuthorizationError)
+ForbiddenError: class (DaytonaError, daytona.DaytonaAuthorizationError)
 GitAuthFailedError: class (DaytonaAuthenticationError)
 GitBranchExistsError: class (ConflictError)
 GitBranchNotFoundError: class (DaytonaNotFoundError)
@@ -819,7 +819,7 @@ GitStatus.model_config: attribute dict
 GitStatus.to_dict: def () -> dict[str, Any]
 GitStatus.to_json: def () -> str
 GitStatus.to_str: def () -> str
-GoneError: class (DaytonaError, DaytonaGoneError)
+GoneError: class (DaytonaError, daytona.DaytonaGoneError)
 IdleOutOfRangeError: class (BadRequestError)
 Image: dataclass frozen
 Image.__init__: internal-constructor (id: str, name: str | None, status: str, region: str, anonymous: bool, retention: ArtifactRetention, var_class: str, available_in: list[str], origin: str, created_at: str | None = None, error: str | None = None, expires_at: str | None = None, source: ImageSource | None = None, bytes: int | None = None, layer_count: int | None = None, cursor: str | None = None, format_version: int | None = None, format_outdated: bool = False, platform: bool = False, default: bool = False, deprecated: bool = False, updated_at: str | None = None, disk_mib: int | None = None, *, raw_retention: str = '') -> None
@@ -930,7 +930,7 @@ ImageService.pull: def (image: str, *, name: str | None = None, region: str | No
 ImageSource: type = ~RegistryImageSource | ~DockerfileImageSource | ~NamedImageSource | ~ManifestImageSource
 ImageTooLargeError: class (ConflictError)
 ImageV2: alias = Image
-InternalServerError: class (DaytonaError, DaytonaInternalServerError)
+InternalServerError: class (DaytonaError, daytona.DaytonaInternalServerError)
 InterpreterContext: class
 InterpreterContext.__enter__: def () -> Self
 InterpreterContext.__exit__: def (*exc: object) -> None
@@ -940,6 +940,7 @@ InterpreterContext.context_id: readonly property str
 InterpreterContext.language: readonly property str
 InterpreterContext.run: def (code: str, *, cwd: str | None = None, env: Mapping[str, str] | None = None, timeout: float | None = None) -> InterpreterResult
 InterpreterContext.sandbox_id: readonly property str
+InterpreterContextJSON: passed-in
 InterpreterContextJSON: typeddict total
 InterpreterContextJSON.context_id: key str
 InterpreterContextJSON.language: key str
@@ -1000,6 +1001,7 @@ KeyboardService.hotkey: def (*, keys: str) -> None
 KeyboardService.key: def (*, key: str, modifiers: Sequence[ComputerUseKeyboardModifier] | None = None) -> None
 KeyboardService.type: def (*, text: str, delay: int | None = None) -> None
 LifecycleAction: type = Literal['stop', 'pause', 'delete']
+LifecyclePolicyConfig: passed-in
 LifecyclePolicyConfig: typeddict total=False
 LifecyclePolicyConfig.idle_expiry_seconds: optional key int
 LifecyclePolicyConfig.on_idle_timeout: optional key LifecycleAction
@@ -1231,11 +1233,12 @@ NetworkPolicyInfo.error: field str | None = None
 NetworkPolicyInfo.etag: field str
 NetworkPolicyInfo.http_status: field int
 NetworkPolicyInfo.status: field str | None = None
+NetworkPolicyInput: passed-in
 NetworkPolicyInput: typeddict total=False
 NetworkPolicyInput.allow_cidrs: optional key Sequence[str]
 NetworkPolicyInput.allow_domains: optional key Sequence[str] | None
 NetworkPolicyInput.block_all: optional key bool | None
-NotFoundError: class (DaytonaError, DaytonaNotFoundError)
+NotFoundError: class (DaytonaError, daytona.DaytonaNotFoundError)
 NotSupportedError: class (InternalServerError)
 NotSupportedForClassError: class (ConflictError)
 OrgSuspendedError: class (DaytonaError)
@@ -1438,7 +1441,7 @@ PullVolumeResult.raw_status: field str | None = None
 PullVolumeResult.request_id: field str
 PullVolumeResult.status: field PullVolumeStatus
 PullVolumeStatus: type = Literal['pulled', 'unchanged', 'pending', 'unknown']
-RateLimitError: class (DaytonaError, DaytonaRateLimitError)
+RateLimitError: class (DaytonaError, daytona.DaytonaRateLimitError)
 RateLimitedError: class (DaytonaRateLimitError)
 ReadOnlyUnsupportedError: class (BadRequestError)
 RecordingService: class
@@ -1449,7 +1452,7 @@ RecordingService.get: def (id: str) -> ComputerUseRecording
 RecordingService.list: def () -> ComputerUseRecordingList
 RecordingService.start: def (*, label: str | None = None) -> ComputerUseRecording
 RecordingService.stop: def (*, id: str) -> ComputerUseRecording
-RequestTimeoutError: class (DaytonaError, DaytonaTimeoutError)
+RequestTimeoutError: class (DaytonaError, daytona.DaytonaTimeoutError)
 ReservationService: class
 ReservationService.__init__: internal-constructor (impl: _async.AsyncReservationService, bridge: SyncBridge) -> None
 ReservationService.create: def (*, region: str, model: str | None = None, idempotency_key: str | None = None, auto_renew: bool | None = None) -> MacReservation
@@ -1737,7 +1740,7 @@ SecretService.iter: def (*, cursor: str | None = None, limit: int | None = None)
 SecretService.list: def (*, cursor: str | None = None, limit: int | None = None) -> ListResult[Secret]
 SecretService.set: def (name: str, value: str, *, allowed_domains: Sequence[str], description: str | None = None, if_not_exists: bool = False) -> Secret
 SecretV2: alias = Secret
-ServiceUnavailableError: class (DaytonaError, DaytonaServiceUnavailableError)
+ServiceUnavailableError: class (DaytonaError, daytona.DaytonaServiceUnavailableError)
 Session: class
 Session.__enter__: def () -> Self
 Session.__exit__: def (*exc: object) -> None
@@ -1832,13 +1835,14 @@ TerminalSize: dataclass frozen
 TerminalSize.__init__: constructor (cols: int, rows: int) -> None
 TerminalSize.cols: field int
 TerminalSize.rows: field int
+TransferCancelSignal: passed-in
 TransferCancelSignal: protocol
 TransferCancelSignal.is_set: def () -> bool
 TransferCancelledError: class (DaytonaError)
 TransferProgressCallback: type = Callable[[int, int | None], None]
-UnauthorizedError: class (DaytonaError, DaytonaAuthenticationError)
+UnauthorizedError: class (DaytonaError, daytona.DaytonaAuthenticationError)
 UnknownPlanError: class (BadRequestError)
-UnprocessableEntityError: class (DaytonaError, DaytonaUnprocessableEntityError)
+UnprocessableEntityError: class (DaytonaError, daytona.DaytonaUnprocessableEntityError)
 UnsupportedMediaTypeError: class (DaytonaError)
 UnsupportedOperationError: class (BadRequestError)
 UnsupportedVolumeTypeError: class (BadRequestError)
