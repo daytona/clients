@@ -776,23 +776,6 @@ def process_list_spec(
     return RequestSpec("GET", "/processes", params=params)
 
 
-def parse_process_list(payload: ProcessPagePayload) -> List[ProcessInfo]:
-    if isinstance(payload, ProcessListResponse):
-        return [parse_process(item) for item in payload.items]
-    if isinstance(payload, list):
-        if all(isinstance(item, ProcessDto) for item in payload):
-            return [parse_process(item) for item in payload]
-        return [parse_process(expect_process_dto(item)) for item in payload]
-    if isinstance(payload, dict):
-        obj = payload
-    else:
-        obj = expect_object(payload)
-    raw_items = obj.get("items") or obj.get("processes") or []
-    if not isinstance(raw_items, list):
-        return []
-    return [parse_process(expect_process_dto(item)) for item in raw_items]
-
-
 def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
     """A ``ProcessListResponse``: ``items`` is required; anything else is the
     malformed-response error."""
