@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import AsyncIterator
+from typing import AsyncIterator, Sequence
 
 import httpx
 import pytest
@@ -34,13 +34,29 @@ async def _late(payload: object) -> httpx.Response:
     return httpx.Response(200, json=payload)
 
 
-def _trickle() -> httpx.Response:
+def _trickle(
+    chunks: list[bytes] = [b"x"] * 7, content_type: str = "application/octet-stream"
+) -> httpx.Response:
     async def body() -> AsyncIterator[bytes]:
-        for _ in range(7):
-            await asyncio.sleep(SLOW / 7)
-            yield b"x"
+        for chunk in chunks:
+            await asyncio.sleep(SLOW / len(chunks))
+            yield chunk
 
-    return httpx.Response(200, content=body(), headers={"content-type": "application/octet-stream"})
+    return httpx.Response(200, content=body(), headers={"content-type": content_type})
+
+
+async def _late_trickle(chunks: Sequence[bytes], content_type: str) -> httpx.Response:
+    # Headers late too: a streamed download is otherwise bounded until its
+    # headers arrive, so only a late start proves its marker.
+    await asyncio.sleep(SLOW)
+    return _trickle(chunks, content_type)
+
+
+_BOUNDARY = "transfer-boundary"
+_MULTIPART = (
+    f'--{_BOUNDARY}\r\nContent-Disposition: form-data; name="file"; filename="/a"\r\n'
+    f"Content-Type: application/octet-stream\r\n\r\nxyz\r\n--{_BOUNDARY}--\r\n"
+).encode()
 
 
 def _mock_toolbox(router: respx.MockRouter) -> None:
@@ -52,6 +68,15 @@ def _mock_toolbox(router: respx.MockRouter) -> None:
     )
     router.get(url__regex=rf"{TOOLBOX}/computeruse/recordings/rec-1/download.*").mock(
         side_effect=lambda _r: _trickle()
+    )
+    router.get(url__regex=rf"{TOOLBOX}/files/download.*").mock(
+        side_effect=lambda _r: _late_trickle([b"d"] * 7, "application/octet-stream")
+    )
+    router.post(url__regex=rf"{TOOLBOX}/files/bulk-download.*").mock(
+        side_effect=lambda _r: _late_trickle(
+            [_MULTIPART[i : i + 16] for i in range(0, len(_MULTIPART), 16)],
+            f"multipart/form-data; boundary={_BOUNDARY}",
+        )
     )
     router.get(url__regex=rf"{TOOLBOX}/files\?.*").mock(side_effect=lambda _r: _late({"items": []}))
 
@@ -70,6 +95,9 @@ async def test_async_transfers_outlast_the_request_timeout(tmp_path: Path) -> No
             assert [file.path for file in result.files] == ["/a", "/b"]
             await sandbox.fs.upload_file(local, "/remote.bin")
             assert await sandbox.computer_use.recording.download("rec-1") == b"xxxxxxx"
+            await sandbox.fs.download_file("/remote.bin", tmp_path / "down.bin")
+            assert (tmp_path / "down.bin").read_bytes() == b"ddddddd"
+            assert (await sandbox.fs.read_many(["/a"])).files["/a"] == b"xyz"
             # The same client cuts an ordinary call at the request timeout.
             with pytest.raises(ClientTimeoutError):
                 await sandbox.fs.list("/")
@@ -91,5 +119,7 @@ def test_sync_transfers_outlast_the_request_timeout(tmp_path: Path) -> None:
             ]
             sandbox.fs.upload_file(local, "/remote.bin")
             assert sandbox.computer_use.recording.download("rec-1") == b"xxxxxxx"
+            sandbox.fs.download_file("/remote.bin", tmp_path / "down.bin")
+            assert (tmp_path / "down.bin").read_bytes() == b"ddddddd"
             with pytest.raises(ClientTimeoutError):
                 sandbox.fs.list("/")
