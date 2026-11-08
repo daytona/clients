@@ -556,3 +556,14 @@ async def test_a_create_response_without_the_sandbox_id_is_a_contract_error(
     assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
     # Nothing follows: no read of a sandbox called "None".
     assert [spec.method for spec in api.specs] == ["POST"]
+
+
+@pytest.mark.anyio
+async def test_an_explicit_empty_network_policy_is_sent_and_an_omitted_one_is_not() -> None:
+    # The omission sentinel is compared by identity: a caller's own `{}` is sent.
+    client = _client()
+    api = _Api([{"id": "a", "status": "running"}, {"id": "b", "status": "running"}])
+    client._api = api  # type: ignore[assignment]
+    await client.create("img_1", network_policy={}, wait_seconds=0)
+    await client.create("img_1", wait_seconds=0)
+    assert [spec.json_body.get("network_policy", "absent") for spec in api.specs] == [{}, "absent"]  # type: ignore[union-attr]

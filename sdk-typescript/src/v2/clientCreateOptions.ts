@@ -40,7 +40,9 @@ interface LinuxCreateArguments {
  * @internal
  */
 export function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptions | null | undefined, options: CreateSandboxOptions | undefined): LinuxCreateArguments {
-  // Only an omitted options argument defaults; `null` is refused like any non-object.
+  // No image (`undefined`, or `null` as Python's `None`) boots the platform
+  // default. Only an omitted options argument defaults; a `null` options
+  // argument is refused like any non-object.
   if (imageOrOptions === undefined || imageOrOptions === null) return { source: undefined, options: options === undefined ? {} : options }
   if (typeof imageOrOptions === 'object' && !isImageBuilder(imageOrOptions) && !(imageOrOptions instanceof Image) && !Array.isArray(imageOrOptions)) {
     if (options !== undefined) throw badRequest('daytona.create() takes options once: create(options) or create(image, options)')
