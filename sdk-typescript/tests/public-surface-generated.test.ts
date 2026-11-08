@@ -249,6 +249,24 @@ function generatedOnThePublicSurface(): Set<string> {
       visit(position, propertyType, annotation, depth)
     }
     for (const signature of type.getCallSignatures()) visitSignature(`${owner}()`, signature, depth)
+    // `{ [key: string]: T }` exposes T as much as a named property does.
+    for (const index of checker.getIndexInfosOfType(type)) {
+      const declaration = index.declaration
+      if (declaration !== undefined && !inSdk(declaration)) continue
+      visit(`${owner}[${checker.typeToString(index.keyType)}]`, index.type, declaration?.type, depth)
+    }
+    // A base type (`extends` / `implements`) is part of the surface too; its
+    // members are walked above, a generated base is reported here.
+    const symbol = type.getSymbol()
+    for (const declaration of symbol?.declarations ?? []) {
+      if (!inSdk(declaration) || !(ts.isInterfaceDeclaration(declaration) || ts.isClassDeclaration(declaration))) continue
+      for (const clause of declaration.heritageClauses ?? []) {
+        for (const heritage of clause.types) {
+          const generated = symbolGenerated(checker.getSymbolAtLocation(heritage.expression))
+          if (generated !== undefined) record(`${owner} extends`, generated)
+        }
+      }
+    }
   }
 
   function walkSymbol(owner: string, symbol: ts.Symbol): void {
