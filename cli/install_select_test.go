@@ -30,7 +30,8 @@ type releaseIndex struct {
 	pageSize   int
 	prerelease []string
 	draft      []string
-	reordered  bool // flags before tag_name, as another API version might send them
+	reordered  bool     // flags before tag_name, as another API version might send them
+	raw        []string // page bodies served as they are, instead of tags
 }
 
 // githubRelease keeps the field order of GitHub's release objects; the
@@ -60,6 +61,9 @@ type reorderedRelease struct {
 // write stores the index as page-N.json files in dir.
 func (r releaseIndex) write(t *testing.T, dir string) {
 	t.Helper()
+	for i, body := range r.raw {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("page-%d.json", i+1)), []byte(body), 0o644))
+	}
 	size := r.pageSize
 	if size == 0 {
 		size = 100
@@ -311,6 +315,28 @@ func TestInstallSh_rejectsUsageErrors(t *testing.T) {
 			require.Empty(t, got)
 		})
 	}
+}
+
+func TestInstallSh_failsOnAPageItCannotRead(t *testing.T) {
+	// Given a first page of releases whose objects lack the fields the
+	// installer reads, which must not pass for the end of the list.
+	index := releaseIndex{raw: []string{`[{"tag_name":"v2.1.0"},{"name":"v2.0.0"}]`, `[{"tag_name":"v2.0.0","draft":false,"prerelease":false}]`}}
+
+	out, got, err := runInstallSh(t, "sh install.sh", index)
+
+	require.Error(t, err, out)
+	require.Contains(t, out, "could not read the release list of daytona/clients (page 1)")
+	require.Empty(t, got)
+}
+
+func TestInstallSh_anEmptyPageWithWhitespaceEndsTheList(t *testing.T) {
+	index := releaseIndex{raw: []string{`[{"tag_name":"v2.0.0","draft":false,"prerelease":false}]`, " [\n ]\n"}}
+
+	out, got, requests, err := runInstallShRequests(t, "sh install.sh", index)
+
+	require.NoError(t, err, out)
+	require.Equal(t, "2.0.0", got)
+	require.Equal(t, 2, requests)
 }
 
 func TestInstallSh_failsWhenTheReleasesCannotBeListed(t *testing.T) {

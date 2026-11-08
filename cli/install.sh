@@ -111,7 +111,13 @@ if [ -z "$VERSION" ]; then
         }
         instr = 1; str = ""; keep = depth == 2 && (!value || key == "tag_name")
       }')"
-    [ -n "$found" ] || break
+    # Only an empty page ends the list; a page whose releases could not be
+    # read is an error, never a shorter list.
+    if [ -z "$found" ]; then
+      [ "$(printf '%s' "$body" | tr -d ' \t\r\n')" = "[]" ] && break
+      echo "could not read the release list of ${REPO} (page ${page}); pass --version X.Y.Z" >&2
+      exit 1
+    fi
     tags="${tags}${found}
 "
     page=$((page + 1))
