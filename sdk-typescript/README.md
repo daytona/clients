@@ -723,8 +723,10 @@ the observed lifecycle state. A sandbox with volumes attached stays
 seconds, but minutes when a lot of volume data is written at the end. If that
 takes too long, the sandbox reports `error` and the wait throws
 `SandboxTerminalStateError`; its `reason` says why the deletion did not
-finish. Such a sandbox can still reach `destroyed` later; to keep waiting for
-it through `error`, pass `terminalStates: []` with a `timeout`.
+finish. Such a sandbox can still reach `destroyed` later. To keep waiting
+for it, catch the error, pause for a few seconds and call
+`waitForState(['destroyed'])` again: while the sandbox still reports `error`,
+the call throws again at once.
 
 Reaching `destroyed` does not guarantee that deleting an image or snapshot
 will succeed: deleting the image or snapshot immediately afterwards can still

@@ -704,11 +704,20 @@ class AsyncSandbox:
         wait_timeout_ms: int | None = None,
     ) -> None:
         """Refresh sandbox fields from the API."""
+        await self._refresh_data(timeout=timeout, wait=wait, wait_timeout_ms=wait_timeout_ms)
+
+    async def _refresh_data(
+        self,
+        *,
+        timeout: Optional[float] = None,
+        wait: SandboxWaitState | None = None,
+        wait_timeout_ms: int | None = None,
+        exact: bool = False,
+    ) -> None:
         api = self._require_api()
         params: Dict[str, JsonValue] = {}
         if wait is not None:
-            wire = _wait_query_state(wait)
-            params[wait_query_key(wire)] = wire
+            params["wait_exact" if exact else "wait"] = _wait_query_state(wait)
         if wait_timeout_ms is not None:
             params["timeout_ms"] = wait_timeout_ms
         # A long-poll read is bounded by its server slice plus a little slack —
@@ -823,6 +832,10 @@ class AsyncSandbox:
         terminal_state_set = frozenset(terminal_states)
         wait_target = states[0] if len(target_states) == 1 else None
         effective_terminal = terminal_state_set - ({"destroying"} if "destroyed" in target_states else set())
+        exact = (
+            wait_target is not None
+            and wait_query_key(_wait_query_state(wait_target), effective_terminal) == "wait_exact"
+        )
 
         hub = self._events_hub()
         if hub is not None and hub.enabled:
@@ -859,10 +872,11 @@ class AsyncSandbox:
                     if remaining is None
                     else min(WAIT_FOR_STATE_SLICE_MS, max(1, math.ceil(remaining * 1000)))
                 )
-                await self.refresh_data(
+                await self._refresh_data(
                     timeout=None if remaining is None else ms / 1000,
                     wait=wait_target,
                     wait_timeout_ms=ms if wait_target is not None else None,
+                    exact=exact,
                 )
                 last_poll_end = _clock.monotonic()
                 refreshed_by_poll = True
@@ -907,7 +921,7 @@ class AsyncSandbox:
                     and (remaining is None or remaining > 0)
                 ):
                     with contextlib.suppress(DaytonaError):
-                        await self.refresh_data(timeout=remaining)
+                        await self._refresh_data(timeout=remaining)
                         fresh_read = True
                 # The hub reports only the state. When the read that followed
                 # still shows that state, name the server's explanation for it
@@ -932,7 +946,7 @@ class AsyncSandbox:
                         "REQUEST_TIMEOUT",
                         "SDK",
                     )
-                await self.refresh_data(timeout=remaining)
+                await self._refresh_data(timeout=remaining)
             return
 
         fresh = False
@@ -941,7 +955,9 @@ class AsyncSandbox:
                 if self.state in target_states:
                     return
                 if self.state in effective_terminal:
-                    raise _sandbox_terminal_state_error(self.id, self.state, reason=self.error_reason)
+                    raise _sandbox_terminal_state_error(
+                        self.id, self.state, raw_state=self._raw_state or None, reason=self.error_reason
+                    )
             remaining_timeout = None if deadline is None else deadline - _clock.monotonic()
             if remaining_timeout is not None and remaining_timeout <= 0:
                 raise create_error(
@@ -959,16 +975,19 @@ class AsyncSandbox:
                 )
             )
             poll_started = _clock.monotonic()
-            await self.refresh_data(
+            await self._refresh_data(
                 timeout=None if remaining_timeout is None else wait_timeout_ms / 1000,
                 wait=wait_target,
                 wait_timeout_ms=wait_timeout_ms if wait_target is not None else None,
+                exact=exact,
             )
             fresh = True
             if self.state in target_states:
                 return
             if self.state in effective_terminal:
-                raise _sandbox_terminal_state_error(self.id, self.state, reason=self.error_reason)
+                raise _sandbox_terminal_state_error(
+                    self.id, self.state, raw_state=self._raw_state or None, reason=self.error_reason
+                )
             elapsed = _clock.monotonic() - poll_started
             if elapsed < WAIT_FOR_STATE_MIN_INTERVAL_S:
                 pause = WAIT_FOR_STATE_MIN_INTERVAL_S - elapsed
@@ -1905,9 +1924,9 @@ def _wait_query_state(state: SandboxWaitState) -> str:
 
 
 def _sandbox_terminal_state_error(
-    sandbox_id: str, state: SandboxState, *, reason: Optional[str] = None
+    sandbox_id: str, state: SandboxState, *, raw_state: Optional[str] = None, reason: Optional[str] = None
 ) -> Exception:
-    return SandboxTerminalStateError(sandbox_id, state, reason=reason)
+    return SandboxTerminalStateError(sandbox_id, state, raw_state=raw_state, reason=reason)
 
 
 def _known_sandbox_class(value: str) -> Optional[SandboxClass]:

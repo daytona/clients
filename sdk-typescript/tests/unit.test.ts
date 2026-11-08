@@ -2671,6 +2671,44 @@ describe('V2 model', () => {
     }
   })
 
+  it('waitForState keeps the loose long poll for destroyed when another terminal state is named', async () => {
+    // The exact form answers only on deleted, failed and lost: a wait that also
+    // rejects on stopped must keep the loose form to see stopped at once.
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', status: 'stopped' } })
+    await expect(sandbox.waitForState(['destroyed'], { terminalStates: ['stopped', 'error'], timeout: 10_000 })).rejects.toMatchObject({ state: 'stopped' })
+    const params = (get.mock.calls[0]?.[1] as { params?: Record<string, unknown> } | undefined)?.params
+    expect(params).toMatchObject({ wait: 'deleted' })
+    expect(params).not.toHaveProperty('wait_exact')
+  })
+
+  it('never attaches a reason it did not just read after a hub rejection', async () => {
+    const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
+    process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
+    const sandbox = new Sandbox({ id: 'sbx', status: 'deleting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    // The follow-up read fails; the handle still holds an explanation from an
+    // earlier read, which says nothing about this outcome.
+    sandbox.errorReason = 'an earlier start failure'
+    const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', 503, 'SERVICE_UNAVAILABLE', 'DAYTONA_API'))
+    jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error', 'failed'))
+    try {
+      const error = await sandbox.waitForState(['destroyed'], { timeout: 1_000 }).then(() => undefined, (e: unknown) => e)
+      expect(error).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      expect(get).toHaveBeenCalledTimes(1)
+      expect((error as { reason?: string }).reason).toBeUndefined()
+      expect((error as Error).message).toBe('sandbox sbx reached terminal state error')
+    } finally {
+      get.mockRestore()
+      if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
+      else process.env['DAYTONA_SANDBOX_EVENTS'] = savedEnv
+    }
+  })
+
   it('SandboxTerminalStateError without a reason keeps its message', () => {
     const error = new publicSdk.SandboxTerminalStateError('sbx', 'error', 'failed', '')
     expect(error.message).toBe('sandbox sbx reached terminal state error')

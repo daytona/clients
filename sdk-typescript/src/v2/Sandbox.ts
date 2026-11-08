@@ -728,10 +728,10 @@ export class Sandbox {
     await this.refreshDataWithin()
   }
 
-  private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState): Promise<void> {
+  private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState, exact = false): Promise<void> {
     if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
     const waitValue = waitQueryState(wait)
-    const waitKey = waitValue === undefined ? 'wait' : waitQueryKey(waitValue)
+    const waitKey = exact ? 'wait_exact' : 'wait'
     const config = timeout === undefined
       ? waitValue === undefined ? undefined : { timeout: WAIT_FOR_STATE_SLICE_MS + WAIT_READ_SLACK_MS, params: { [waitKey]: waitValue, timeout_ms: WAIT_FOR_STATE_SLICE_MS } }
       : waitValue === undefined ? { timeout } : { timeout: timeout + WAIT_READ_SLACK_MS, params: { [waitKey]: waitValue, timeout_ms: timeout } }
@@ -1088,6 +1088,8 @@ export class Sandbox {
     const deadline = timeout === undefined || timeout === 0 ? undefined : Date.now() + timeout
     const waitTarget = new Set(states).size === 1 ? states[0] : undefined
     const effectiveTerminal = states.includes('destroyed') ? terminalStates.filter((s) => s !== 'destroying') : terminalStates
+    const waitValue = waitQueryState(waitTarget)
+    const exact = waitValue !== undefined && waitQueryKey(waitValue, effectiveTerminal) === 'wait_exact'
 
     if (this._hub !== undefined && this._hub.enabled) {
       const predicate = targetPredicate(
@@ -1113,7 +1115,7 @@ export class Sandbox {
           throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
         }
         const sliceMs = remaining === undefined ? WAIT_FOR_STATE_SLICE_MS : Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(remaining))
-        await this.refreshDataWithin(sliceMs, waitTarget)
+        await this.refreshDataWithin(sliceMs, waitTarget, exact)
         lastPollEnd = Date.now()
         refreshedByPoll = true
         return { state: this.state ?? 'unknown', rawState: this.rawState ?? '' }
@@ -1185,7 +1187,7 @@ export class Sandbox {
       }
       const requestTimeout = deadline === undefined ? WAIT_FOR_STATE_SLICE_MS : Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(refreshTimeout ?? 0))
       const pollStarted = Date.now()
-      await this.refreshDataWithin(requestTimeout, waitTarget)
+      await this.refreshDataWithin(requestTimeout, waitTarget, exact)
       fresh = true
       if (this.state !== undefined && includesWaitState(states, this.state)) return
       if (this.state !== undefined && effectiveTerminal.includes(this.state)) {

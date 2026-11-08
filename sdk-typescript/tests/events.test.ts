@@ -1468,6 +1468,19 @@ describe('WaitHub: 404 ticket → long-poll fallback', () => {
       expect(call[1]?.params).not.toHaveProperty('wait')
     }
   })
+
+  test('fallbackWait keeps the loose poll for destroyed when another terminal state is named', async () => {
+    const fc = makeFakeConnector()
+    const api = mockAxios({ ticketStatus: 404 })
+    const get = jest.spyOn(api, 'get')
+      .mockResolvedValueOnce({ data: { id: SANDBOX_ID, status: 'stopped' }, headers: {} })
+    const hub = new WaitHub(API_URL, API_KEY, { enabled: true, reconcileIntervalMs: 0 }, fc.factory.bind(fc) as never, api)
+    const waiting = hub.wait(SANDBOX_ID, targetPredicate(new Set(['destroyed']), new Set(['stopped', 'error'])), { timeout: 5000 })
+    await expect(waiting).rejects.toMatchObject({ state: 'stopped' })
+    const sandboxGets = get.mock.calls.filter((call) => String(call[0]).startsWith('/sandboxes/'))
+    expect(sandboxGets[0]?.[1]?.params).toMatchObject({ wait: 'deleted' })
+    expect(sandboxGets[0]?.[1]?.params).not.toHaveProperty('wait_exact')
+  })
 })
 
 // ---------------------------------------------------------------------------

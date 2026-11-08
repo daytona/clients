@@ -781,8 +781,9 @@ platform has finished with its volumes: usually seconds, but minutes when a
 lot of volume data is written at the end. If that takes too long, the sandbox
 reports `error` and the wait raises `SandboxTerminalStateError`; its `reason`
 says why the deletion did not finish. Such a sandbox can still reach
-`destroyed` later; to keep waiting for it through `error`, pass
-`terminal_states=()` with a `timeout`.
+`destroyed` later. To keep waiting for it, catch the error, pause for a few
+seconds and call `wait_for_state(['destroyed'])` again: while the sandbox
+still reports `error`, the call raises again at once.
 
 Deleting the image or snapshot immediately afterwards can still raise
 `ConflictError` (409). A missing sandbox during a state wait raises

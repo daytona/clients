@@ -386,15 +386,23 @@ function predicateFallbackWaitState(predicate: Predicate): string | undefined {
   return undefined
 }
 
+/** The terminal states the exact `wait_exact=deleted` long poll still answers
+ *  on: `deleted` itself and `failed`/`lost` (public `error`). */
+const EXACT_DELETED_ANSWERS: ReadonlySet<SandboxState> = new Set<SandboxState>(['destroyed', 'error'])
+
 /**
- * The query parameter that long-polls for `wireState`. `deleted` uses the
- * exact form: the loose `wait=deleted` is already met by `deleting`, so a
- * deletion that takes a while to finish would answer every poll at once
- * instead of holding it. The exact form still answers on `failed` and `lost`,
- * which can never become `deleted`.
+ * The query parameter that long-polls for `wireState` in a wait that rejects
+ * on `terminalStates`. `deleted` uses the exact form: the loose
+ * `wait=deleted` is already met by `deleting`, so a deletion that takes a
+ * while to finish would answer every poll at once instead of holding it. The
+ * exact form answers on `failed` and `lost` too, but on no other state, so a
+ * wait that also rejects on another state keeps the loose form and sees it at
+ * once.
  */
-export function waitQueryKey(wireState: string): 'wait' | 'wait_exact' {
-  return wireState === 'deleted' ? 'wait_exact' : 'wait'
+export function waitQueryKey(wireState: string, terminalStates: Iterable<SandboxState>): 'wait' | 'wait_exact' {
+  if (wireState !== 'deleted') return 'wait'
+  for (const state of terminalStates) if (!EXACT_DELETED_ANSWERS.has(state)) return 'wait'
+  return 'wait_exact'
 }
 
 // ---------------------------------------------------------------------------
@@ -1133,7 +1141,7 @@ export class WaitHub {
 
       const params: Record<string, string | number> = {}
       if (waitWire !== undefined) {
-        params[waitQueryKey(waitWire)] = waitWire
+        params[waitQueryKey(waitWire, predicate.terminalStates)] = waitWire
         params['timeout_ms'] = sliceMs
       }
 

@@ -1025,6 +1025,29 @@ class TestHubReconcile:
             "sandbox abc-region-a reached terminal state error: sandbox deletion did not finish"
         )
 
+    async def test_fallback_wait_for_destroyed_keeps_the_loose_poll_for_another_terminal_state(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        requests: List[RequestSpec] = []
+
+        async def fake_send(request: RequestSpec) -> dict[str, object]:
+            requests.append(request)
+            return {"id": "abc-region-a", "status": "stopped"}
+
+        monkeypatch.setattr(hub._api, "send", fake_send)
+        predicate = _TargetPredicate(
+            states=frozenset({"destroyed"}), terminal_states=frozenset({"stopped", "error"})
+        )
+
+        with pytest.raises(SandboxTerminalStateError) as exc_info:
+            await hub._fallback_wait("abc-region-a", predicate, timeout=5)
+
+        assert exc_info.value.state == "stopped"
+        assert requests[0].params.get("wait") == "deleted"
+        assert "wait_exact" not in requests[0].params
+
 
 @pytest.mark.anyio
 class TestHubSharing:

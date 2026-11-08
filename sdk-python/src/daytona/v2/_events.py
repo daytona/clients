@@ -25,6 +25,7 @@ from typing import (
     Dict,
     Final,
     FrozenSet,
+    Iterable,
     List,
     Literal,
     Mapping,
@@ -214,14 +215,23 @@ def _predicate_fallback_wait_state(predicate: _Predicate) -> Optional[str]:
     return None
 
 
-def wait_query_key(wire_state: str) -> str:
-    """The query parameter that long-polls for ``wire_state``.
+# The terminal states the exact ``wait_exact=deleted`` long poll still answers
+# on: ``deleted`` itself and ``failed``/``lost`` (public ``error``).
+_EXACT_DELETED_ANSWERS: FrozenSet[str] = frozenset({"destroyed", "error"})
+
+
+def wait_query_key(wire_state: str, terminal_states: Iterable[str]) -> str:
+    """The query parameter that long-polls for ``wire_state`` in a wait that
+    rejects on ``terminal_states``.
 
     ``deleted`` uses the exact form: the loose ``wait=deleted`` is already met
     by ``deleting``, so a deletion that takes a while to finish would answer
-    every poll at once instead of holding it. The exact form still answers on
-    ``failed`` and ``lost``, which can never become ``deleted``."""
-    return "wait_exact" if wire_state == "deleted" else "wait"
+    every poll at once instead of holding it. The exact form answers on
+    ``failed`` and ``lost`` too, but on no other state, so a wait that also
+    rejects on another state keeps the loose form and sees it at once."""
+    if wire_state == "deleted" and set(terminal_states) <= _EXACT_DELETED_ANSWERS:
+        return "wait_exact"
+    return "wait"
 
 
 # ---------------------------------------------------------------------------
@@ -791,7 +801,7 @@ class WaitHub:
             )
             params: Dict[str, Union[str, int]] = {}
             if wait_wire is not None:
-                params[wait_query_key(wait_wire)] = wait_wire
+                params[wait_query_key(wait_wire, predicate.terminal_states)] = wait_wire
                 params["timeout_ms"] = slice_ms
             poll_start = _clock.monotonic()
             data = expect_object(
@@ -1591,7 +1601,7 @@ async def _run_poll_loop(
         if result == "resolve":
             return outcome
         if result == "reject":
-            raise SandboxTerminalStateError(sandbox_id, outcome.state)
+            raise SandboxTerminalStateError(sandbox_id, outcome.state, raw_state=outcome.raw_state or None)
 
 
 # ---------------------------------------------------------------------------
