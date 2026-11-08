@@ -488,11 +488,18 @@ skipping exist only in the TypeScript tool).
   call of one of those kinds must opt out the same way in both SDKs.
   A per-call timeout (a wait's budget plus its slack, a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
-  / `transport.request(..., timeout=seconds)`, TS `config.timeout`) replaces
-  the request timeout for that request with the same meaning: total time
-  from sending to the last byte, `0` or a value above the timer maximum
-  meaning no limit (Python `_total_seconds`, TS `armRequestDeadline`).
-  Streams and transfers keep their exemptions.
+  / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
+  `timeout`) replaces the request timeout for that call with the same
+  meaning: one deadline from before credential resolution (the bearer
+  exchange or mint, the request, a 401 refresh and its retry) to the last
+  byte, `0` or a value above the timer maximum meaning no limit (Python
+  `_total_seconds`, TS `armRequestDeadline`). The project-token exchange
+  request is itself also bounded by the client's request timeout (it is
+  shared by concurrent calls), so a per-call timeout longer than the request
+  timeout does not lengthen it. On a stream the per-call timeout likewise
+  bounds only opening it, until its response headers (Python
+  `_stream_open_seconds`, on `open_stream` and `open_exclusive_stream`), and
+  a transfer ignores any timeout it carries.
 - **TypeScript rejects unknown option keys at runtime** (the rule; applied so
   far to the client configuration, see below). A covered options object
   declares its known keys once, with

@@ -225,6 +225,12 @@ export interface FetchRequestInit extends RequestInit {
   readonly bodyFactory?: () => BodyInit | Promise<BodyInit>
   /** A file transfer: the request timeout does not apply (only the caller's `signal` ends it). */
   readonly transfer?: boolean
+  /**
+   * Replaces the request timeout (milliseconds) for this call, with the same
+   * meaning: it bounds the call until the response headers arrive (a stream's
+   * body is never bounded); `0` or above the timer maximum is no limit.
+   */
+  readonly timeout?: number
 }
 
 interface OTelImportOverride {
@@ -561,7 +567,7 @@ async function fetchRequestForAttempt(
   readonly requestInit: RequestInit
   readonly canRetryUnauthorized: boolean
 }> {
-  const { bodyFactory, transfer: _transfer, ...requestInitWithoutFactory } = init ?? {}
+  const { bodyFactory, transfer: _transfer, timeout: _timeout, ...requestInitWithoutFactory } = init ?? {}
   const body = bodyFactory
     ? await abortableWait(Promise.resolve().then(() => bodyFactory()), signal)
     : requestInitWithoutFactory.body
@@ -584,7 +590,7 @@ function fetchRequestWithoutFactory(
   readonly requestInit: RequestInit
   readonly canRetryUnauthorized: boolean
 } {
-  const { bodyFactory: _ignored, transfer: _transfer, ...requestInitWithoutFactory } = init ?? {}
+  const { bodyFactory: _ignored, transfer: _transfer, timeout: _timeout, ...requestInitWithoutFactory } = init ?? {}
   return {
     requestInit: {
       ...requestInitWithoutFactory,
@@ -1423,9 +1429,10 @@ export class HttpTransport {
   public async fetch(path: string, init?: FetchRequestInit, checkStatus = true): Promise<Response> {
     const relativePath = assertRelativeRequestPath(path)
     const meta = requestMeta({ url: relativePath }, this.options ?? {})
-    // Until the response headers arrive (a stream's body is not bounded);
-    // never for a file transfer, whose upload body is sent before them.
-    const timeout = timeoutSignal(init?.transfer === true ? 0 : this.defaultTimeout, init?.signal)
+    // Until the response headers arrive (a stream's body is not bounded), by
+    // the call's own timeout or else the request timeout; never for a file
+    // transfer, whose upload body is sent before them.
+    const timeout = timeoutSignal(init?.transfer === true ? 0 : init?.timeout ?? this.defaultTimeout, init?.signal)
     // A successful response with a streaming body keeps its span open until
     // the body is fully read (or errors/cancels): a read failure after the
     // headers is still a failed request from the caller's point of view.

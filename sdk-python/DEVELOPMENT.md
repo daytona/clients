@@ -176,8 +176,13 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   `0` or above the timer maximum = none), or `unbounded_read` for a hold
   with no budget; file
   transfers set `RequestSpec(transfer=True)` or call
-  `transport.request(..., transfer=True)` and are not bounded; streams are
-  bounded only until their response headers arrive. The TypeScript transport
+  `transport.request(..., transfer=True)` and are not bounded, whatever
+  timeout they carry; streams (`open_stream`, `open_exclusive_stream`) are
+  bounded only until their response headers arrive, by the spec's own
+  `timeout` when it has one, else the request timeout
+  (`_transport._stream_open_seconds`; `0` or above the timer maximum =
+  none). The deadline starts before the bearer is resolved; the project-token
+  exchange request is also bounded by the client's request timeout. The TypeScript transport
   implements the same rule.
 - Build logs use URL-only discovery (`{"url": "https://…/build-logs/…"}`).
   `build_logs()` reads the discovered endpoint with `follow=false&format=text`;

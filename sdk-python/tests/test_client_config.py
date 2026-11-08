@@ -204,6 +204,56 @@ async def test_a_per_call_timeout_is_a_total_bound_like_the_request_timeout() ->
     await transport.close()
 
 
+def _exchange_then(exchange_delay: float, thing_delay: float):
+    async def respond(request: httpx.Request) -> httpx.Response:
+        exchange = request.url.path == "/auth/token"
+        await asyncio.sleep(exchange_delay if exchange else thing_delay)
+        return httpx.Response(
+            200, json={"access_token": "t", "expires_in": 3600} if exchange else {"ok": True}
+        )
+
+    return respond
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("request_timeout", "per_call", "exchange_delay", "thing_delay", "succeeds"),
+    [
+        # A shorter per-call timeout covers the exchange.
+        (5.0, 0.1, 0.4, 0.0, False),
+        # A longer one does not lengthen the exchange past the request timeout,
+        # which bounds the exchange request itself (concurrent calls share it).
+        (0.2, 5.0, 1.0, 0.0, False),
+        # A longer one lets the request itself outlast the request timeout.
+        (0.5, 5.0, 0.05, 0.8, True),
+    ],
+)
+async def test_a_per_call_timeout_starts_before_credential_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+    request_timeout: float,
+    per_call: float,
+    exchange_delay: float,
+    thing_delay: float,
+    succeeds: bool,
+) -> None:
+    # The TypeScript SDK's client-config.test.ts checks the same three cases.
+    monkeypatch.setenv("DAYTONA_V2_API_URL", BASE)
+    with respx.mock(assert_all_called=False) as router:
+        router.route(url__startswith=BASE).mock(side_effect=_exchange_then(exchange_delay, thing_delay))
+        client = AsyncDaytona(
+            DaytonaConfig(jwt_token="jwt", project_id="p", request_timeout=request_timeout)
+        ).v2
+        try:
+            call = client._api.send(RequestSpec("GET", "/thing", timeout=per_call))  # type: ignore[attr-defined]
+            if succeeds:
+                assert await call == {"ok": True}
+            else:
+                with pytest.raises(ClientTimeoutError):
+                    await call
+        finally:
+            await client.close()
+
+
 @pytest.mark.anyio
 async def test_image_submissions_are_bounded_by_the_request_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     # POST /images is an ordinary request (no hold): build, pull and
@@ -263,6 +313,38 @@ async def test_streams_are_bounded_until_their_headers_only() -> None:
     with pytest.raises(ClientTimeoutError):
         await transport.open_stream(RequestSpec("GET", "/stalled"))
     await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
+@pytest.mark.parametrize("opener", ["open_stream", "open_exclusive_stream"])
+async def test_a_per_call_timeout_bounds_opening_a_stream_in_place_of_the_request_timeout(
+    opener: str,
+) -> None:
+    # Headers after 0.4 s, then a body over 0.3 s.
+    async def late_stream(_request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(0.4)
+        return _trickle(chunks=6, every=0.05)
+
+    respx.get(f"{BASE}/logs").mock(side_effect=late_stream)
+    transport = AsyncTransport(BASE, "k", request_timeout=0.1)
+    open_ = getattr(transport, opener)
+    # Longer than the request timeout: it replaces it, and the body is never bounded.
+    stream = await open_(RequestSpec("GET", "/logs", timeout=5.0))
+    assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"xxxxxx"
+    await stream.close()
+    # 0 means no limit, as for the request timeout.
+    stream = await open_(RequestSpec("GET", "/logs", timeout=0))
+    await stream.close()
+    # Shorter than the headers: a total bound on opening.
+    roomy = AsyncTransport(BASE, "k", request_timeout=10)
+    with pytest.raises(ClientTimeoutError):
+        await getattr(roomy, opener)(RequestSpec("GET", "/logs", timeout=0.15))
+    # Without one, the request timeout bounds opening the exclusive stream too.
+    with pytest.raises(ClientTimeoutError):
+        await open_(RequestSpec("GET", "/logs"))
+    await transport.close()
+    await roomy.close()
 
 
 def test_the_synchronous_client_enforces_the_same_total_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
