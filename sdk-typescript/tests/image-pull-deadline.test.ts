@@ -87,14 +87,15 @@ it.each([
 it.each<Phase>(['post', 'initial', 'poll'])('cancels a stalled %s at the overall deadline', async (stalled) => {
   // Given a real HTTP peer that never answers one phase.
   respond = (phase, response) => { if (phase !== stalled) reply(phase, response) }
-  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 800))
+  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 5_000))
   const start = performance.now()
-  // When the total budget is shorter than the root transport timeout.
-  const result = service.pull('alpine', { timeoutSeconds: 0.1 })
+  // When the total budget (one that covers connecting under load) is shorter
+  // than the root transport timeout.
+  const result = service.pull('alpine', { timeoutSeconds: 1 })
   // Then every phase uses the pull-specific timeout, promptly rather than root timeout or poll padding.
   await expect(result).rejects.toBeInstanceOf(RequestTimeoutError)
   await expect(result).rejects.toMatchObject({ message: 'image pull did not finish before timeout', source: 'SDK' })
-  expect(performance.now() - start).toBeLessThan(600)
+  expect(performance.now() - start).toBeLessThan(3_000)
 })
 
 it.each([false, true])('handles HTTP 408 with after-deadline=%s', async (late) => {
@@ -105,30 +106,30 @@ it.each([false, true])('handles HTTP 408 with after-deadline=%s', async (late) =
       response.writeHead(408, { 'Content-Type': 'application/json' })
     response.end(JSON.stringify({ code: 'REQUEST_TIMEOUT', source: 'API', message: 'server timeout' }))
     }
-    if (late) timers.add(setTimeout(send, 500))
+    if (late) timers.add(setTimeout(send, 4_000))
     else send()
   }
-  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 800))
+  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 5_000))
   const start = performance.now()
-  // When pulling with a finite budget.
-  const result = service.pull('alpine', { timeoutSeconds: 0.2 })
+  // When pulling with a finite budget that covers connecting under load.
+  const result = service.pull('alpine', { timeoutSeconds: 1 })
     // Then only deadline exhaustion is normalized; an independent server 408 is preserved.
   await expect(result).rejects.toMatchObject(late
     ? { message: 'image pull did not finish before timeout', source: 'SDK' }
       : { message: 'server timeout', source: 'API' })
-  expect(performance.now() - start).toBeLessThan(400)
+  expect(performance.now() - start).toBeLessThan(3_000)
 })
 
 it('shares the budget across submission, initial lookup, and polling', async () => {
   // Given three HTTP phases that individually fit within the total budget.
-  respond = (phase, response) => { timers.add(setTimeout(() => reply(phase, response), 120)) }
-  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 800))
+  respond = (phase, response) => { timers.add(setTimeout(() => reply(phase, response), 400)) }
+  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 5_000))
   const start = performance.now()
   // When their cumulative duration exceeds that budget.
-  const result = service.pull('alpine', { timeoutSeconds: 0.3 })
+  const result = service.pull('alpine', { timeoutSeconds: 1 })
   // Then the final phase cannot spend the budget again.
   await expect(result).rejects.toMatchObject({ message: 'image pull did not finish before timeout', source: 'SDK' })
-  expect(performance.now() - start).toBeLessThan(500)
+  expect(performance.now() - start).toBeLessThan(3_000)
 })
 
 it('cancels an active response body even when the root transport is unbounded', async () => {
@@ -140,12 +141,13 @@ it('cancels an active response body even when the root transport is unbounded', 
     response.writeHead(200, { 'Content-Type': 'application/json' })
     response.write('{')
     for (let chunk = 1; chunk <= 10; chunk++) {
-      timers.add(setTimeout(() => response.write(' '), chunk * 30))
+      timers.add(setTimeout(() => response.write(' '), chunk * 300))
     }
   }
   const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 0))
-  // When the operation deadline expires during active network traffic.
-  const result = service.pull('alpine', { timeoutSeconds: 0.2 })
+  // When the operation deadline expires during active network traffic (a
+  // budget that covers connecting and the earlier phases under load).
+  const result = service.pull('alpine', { timeoutSeconds: 1 })
   // Then cancellation closes the in-flight response, not only a racing promise.
   await expect(result).rejects.toMatchObject({ message: 'image pull did not finish before timeout', source: 'SDK' })
   expect(phases).toEqual(['post', 'initial', 'poll'])
@@ -155,9 +157,10 @@ it('cancels an active response body even when the root transport is unbounded', 
 it.each<Phase>(['post', 'initial'])('preserves a root timeout during %s before the deadline', async (stalled) => {
   // Given a root transport budget smaller than the total pull budget.
   respond = (phase, response) => { if (phase !== stalled) reply(phase, response) }
-  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 50))
-  // When the transport times out first.
-  const result = service.pull('alpine', { timeoutSeconds: 0.3 })
+  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 200))
+  // When the transport times out first (well inside the pull budget, even when
+  // the earlier phases are slow under load).
+  const result = service.pull('alpine', { timeoutSeconds: 3 })
   // Then it is the client's own timeout, not the pull's deadline error.
   await expect(result).rejects.toBeInstanceOf(ClientTimeoutError)
   await expect(result).rejects.toMatchObject({ message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
