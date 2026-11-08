@@ -1,0 +1,21 @@
+scripts/breaking/test_breaking_changes.py
+  s_a3ea68093feda0::t_407ac62bd43bb5 225-235
+scripts/breaking/breaking_changes.py
+  s_a3ea68093feda0::t_407ac62bd43bb5 14-16,360-362
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "47ad95f8d134dffaad35ec1a4abb3d31d6c40084",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
