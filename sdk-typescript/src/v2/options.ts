@@ -85,3 +85,17 @@ export function optionalSeconds(name: string, value: number | undefined): number
   }
   return value
 }
+
+/**
+ * The largest delay a JavaScript timer can arm: a larger one fires after
+ * about 1 ms instead (Node clamps it, browsers overflow).
+ */
+export const MAX_TIMER_DELAY_MS = 2_147_483_647
+
+/**
+ * A request-timeout budget in milliseconds as a timer delay: `0` (and any
+ * value above {@link MAX_TIMER_DELAY_MS}, about 24.8 days) means no bound.
+ */
+export function boundedTimerDelay(timeoutMs: number): number {
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 && timeoutMs <= MAX_TIMER_DELAY_MS ? timeoutMs : 0
+}

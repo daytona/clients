@@ -161,6 +161,17 @@ describe('request timeout', () => {
     expect(new Daytona({ apiKey: 'k', requestTimeoutSeconds: 0 }).v2['api'].defaults.timeout).toBe(0)
   })
 
+  it.each([2_147_484, 30 * 24 * 3600, 1e300])('reads %p seconds (above the timer maximum) as no limit', (huge) => {
+    expect(new Daytona({ apiKey: 'k', requestTimeoutSeconds: huge }).v2['api'].defaults.timeout).toBe(0)
+    expect(new Daytona({ apiKey: 'k', requestTimeoutSeconds: 2_147_483 }).v2['api'].defaults.timeout).toBe(2_147_483_000)
+  })
+
+  it.each(['reconcileIntervalSeconds', 'idleCloseSeconds'])('rejects an invalid events.%s', (field) => {
+    for (const bad of [-1, Number.POSITIVE_INFINITY, Number.NaN, '5']) {
+      expectBadRequest(() => new Daytona({ apiKey: 'k', events: { [field]: bad } as never }).v2, `events.${field} must be a non-negative number of seconds`)
+    }
+  })
+
   it.each([-1, Number.POSITIVE_INFINITY, Number.NaN, '60'])('rejects %p', (bad) => {
     expectBadRequest(() => new Daytona({ apiKey: 'k', requestTimeoutSeconds: bad as number }).v2, 'requestTimeoutSeconds must be a non-negative number of seconds')
   })
@@ -309,6 +320,15 @@ describe('request timeout meaning', () => {
       if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
       else process.env.DAYTONA_V2_API_URL = previous
     }
+  })
+
+  it('arms no timer that would fire at once for a budget above the timer maximum', async () => {
+    const huge = 2_200_000_000
+    handle = late(60)
+    await expect(new HttpTransport(base, 'k', huge).get('/slow')).resolves.toEqual({ ok: true })
+    await expect(createHttpClient(base, 'k', huge).get('/slow')).resolves.toMatchObject({ data: { ok: true } })
+    const response = await new HttpTransport(base, 'k', huge).fetch('/slow')
+    expect(await response.json()).toEqual({ ok: true })
   })
 
   it('bounds a stream only until its headers arrive', async () => {

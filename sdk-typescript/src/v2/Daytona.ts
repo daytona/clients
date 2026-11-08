@@ -5,7 +5,7 @@
 
 import type { AxiosInstance } from 'axios'
 import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
-import { assertKnownOptions, optionalSeconds } from './options.js'
+import { assertKnownOptions, boundedTimerDelay, optionalSeconds } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { ClientTimeoutError, ConnectionError, DaytonaError, AuthenticationError, BadRequestError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
@@ -487,7 +487,8 @@ export class Daytona {
       : config.jwtToken ?? (config.apiKey ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
     const projectId = config.projectId ?? optionalNonBlankEnv('DAYTONA_PROJECT_ID')
     const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
-    const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : requestTimeoutSeconds * 1000
+    // Above the timer maximum (about 24.8 days) means no bound, like 0.
+    const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : boundedTimerDelay(requestTimeoutSeconds * 1000)
     const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
     const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
     if (!apiKey && !jwtToken) {

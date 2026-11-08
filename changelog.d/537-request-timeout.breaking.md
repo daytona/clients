@@ -6,7 +6,10 @@ response, ending in `ClientTimeoutError`. Requests governed by another budget
 are not cut by it: waits and long polls use their own deadline, streams
 (process logs, file watches, build logs, events) are bounded only until their
 response headers arrive, and file transfers (uploads, downloads and the bulk
-read / write calls) are not bounded. `0` disables it; a negative or
-non-finite value is a `BadRequestError`. TypeScript: the root option
+read / write calls) are not bounded. `0` disables it, and so does a value
+above 2,147,483 seconds (about 24.8 days, the longest timer JavaScript can
+arm); a negative or non-finite value is a `BadRequestError`. The events hub
+durations (`reconcile_interval` / `idle_close`, TypeScript
+`reconcileIntervalSeconds` / `idleCloseSeconds`) are validated the same way. TypeScript: the root option
 `requestTimeout` (milliseconds) is renamed `requestTimeoutSeconds` (seconds);
 Python keeps `request_timeout` (seconds).

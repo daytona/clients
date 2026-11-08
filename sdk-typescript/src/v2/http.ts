@@ -7,6 +7,7 @@ import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
 import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
+import { boundedTimerDelay } from './options.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -972,12 +973,13 @@ function timeoutSignal(timeoutMs: number, signal: AbortSignalLike | null | undef
   } else {
     signal?.addEventListener?.('abort', relayAbort, { once: true })
   }
-  const timer = timeoutMs === 0
+  const delay = boundedTimerDelay(timeoutMs)
+  const timer = delay === 0
     ? undefined
     : setTimeout(() => {
       didTimeout = true
       controller.abort(new DOMException('operation timed out', 'AbortError'))
-    }, timeoutMs)
+    }, delay)
   // A pending deadline must not keep the Node event loop alive on its own
   // (a 24 h default would pin every worker that still has an exchange in
   // flight); the request promise itself keeps the process running.
@@ -1043,7 +1045,7 @@ export function resetFetchCacheModeProbeForTests(): void {
 function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions): AxiosInstance {
   const instance = axios.create({
     baseURL: baseURL.replace(/\/$/, ''),
-    timeout: requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    timeout: boundedTimerDelay(requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS),
     headers: authHeaders(apiKey),
     fetchOptions: fetchCacheModeOptions(),
   })
@@ -1098,8 +1100,11 @@ const callerSignals = new WeakMap<AbortSignal, AbortSignalLike | undefined>()
  */
 function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, instance: AxiosInstance): T {
   disarmRequestDeadline(config)
-  const timeoutMs = timeoutFromAxiosRequest(config, instance)
-  if (!(timeoutMs > 0)) return config
+  // axios hands its timeout to a platform timer too: one above the timer
+  // maximum would fire at once, so it means no bound there as well.
+  if (typeof config.timeout === 'number') config.timeout = boundedTimerDelay(config.timeout)
+  const timeoutMs = boundedTimerDelay(timeoutFromAxiosRequest(config, instance))
+  if (timeoutMs === 0) return config
   const current = config.signal as AbortSignal | undefined
   const callerSignal: AbortSignalLike | undefined = current !== undefined && callerSignals.has(current) ? callerSignals.get(current) : current
   const controller = new AbortController()

@@ -770,9 +770,7 @@ class AsyncTransport:
                 body = await response.aread()
             except httpx.TimeoutException as exc:
                 if span is not None:
-                    span.finish(
-                        status_code=response.status_code, error=ClientTimeoutError()
-                    )
+                    span.finish(status_code=response.status_code, error=ClientTimeoutError())
                 raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
                 if span is not None:

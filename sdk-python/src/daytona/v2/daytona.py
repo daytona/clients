@@ -84,6 +84,7 @@ from .types import (
     ProjectBudget,
     Resources,
     SandboxClass,
+    SandboxEventsConfig,
     SandboxInfo,
     SandboxSecretsInfo,
     SearchOrder,
@@ -161,7 +162,7 @@ class AsyncDaytona:
         self._target = "local"
         self._request_timeout = resolved.request_timeout
         shared_hub = config.shared_hub if config is not None else True
-        events_config = config.events if config is not None else None
+        events_config = _resolve_events_config(config.events if config is not None else None)
         # `_source` is the X-Daytona-Source label; Daytona passes "sdk-python"
         # because it drives this class through a bridge and would otherwise be
         # indistinguishable from async callers in usage tracking.
@@ -1343,22 +1344,47 @@ def _ambient(env_var: str) -> Optional[str]:
     return (os.environ.get(env_var) or "").strip() or None
 
 
+# The largest request timeout that is still a bound, in seconds (about 24.8
+# days): the TypeScript SDK's timers cannot arm a longer one, so both SDKs read
+# a larger value as no limit, like 0.
+_MAX_BOUNDED_TIMEOUT_SECONDS: Final = 2_147_483.647
+
+
 def _resolve_request_timeout(value: Optional[float]) -> float:
     if value is None:
         return DEFAULT_REQUEST_TIMEOUT_SECONDS
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or not math.isfinite(value)
-        or value < 0
-    ):
+    seconds = _non_negative_seconds("request_timeout", value)
+    return 0.0 if seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+
+
+def _non_negative_seconds(name: str, value: object) -> float | int:
+    """A finite, non-negative number of seconds, or the SDK's ``BadRequestError``.
+
+    Integers are compared without converting them to float, so an integer
+    too large for a float is rejected cleanly rather than overflowing.
+    """
+    valid = (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and value >= 0
+        and (isinstance(value, int) or math.isfinite(value))
+    )
+    if not valid:
         raise create_error(
-            "request_timeout must be a non-negative number of seconds (0 = no limit)",
-            400,
-            "BAD_REQUEST",
-            "SDK",
+            f"{name} must be a non-negative number of seconds (0 = no limit)", 400, "BAD_REQUEST", "SDK"
         )
-    return float(value)
+    assert isinstance(value, (int, float))
+    return value
+
+
+def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[SandboxEventsConfig]:
+    """Validate the events hub durations at construction (``None`` keeps the default)."""
+    if config is not None:
+        for name in ("reconcile_interval", "idle_close"):
+            value = getattr(config, name)
+            if value is not None:
+                _non_negative_seconds(f"events.{name}", value)
+    return config
 
 
 def _env_truthy(env_var: str) -> bool:

@@ -238,3 +238,27 @@ async def test_the_client_timeout_has_one_shape_on_every_path() -> None:
     refused = ConnectionError("refused")
     assert (refused.source, refused.status_code, refused.code) == ("SDK", None, None)
     await transport.close()
+
+
+@pytest.mark.parametrize("huge", [2_147_484, 30 * 24 * 3600, 10**400, 1e300])
+def test_a_request_timeout_above_the_timer_maximum_means_no_limit(huge: float) -> None:
+    v2 = _v2(DaytonaConfig(api_key="k", request_timeout=huge))
+    assert v2._api.request_timeout_seconds == 0  # type: ignore[attr-defined]
+    assert (
+        _v2(DaytonaConfig(api_key="k", request_timeout=2_147_483))._api.request_timeout_seconds == 2_147_483
+    )  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("field", ["reconcile_interval", "idle_close"])
+@pytest.mark.parametrize("bad", [-1, float("inf"), float("nan"), "5", True])
+def test_invalid_events_durations_are_rejected(field: str, bad: object) -> None:
+    from daytona.v2 import SandboxEventsConfig
+
+    events = SandboxEventsConfig(**{field: bad})  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match=f"events.{field} must be a non-negative number") as excinfo:
+        _v2(DaytonaConfig(api_key="k", events=events))
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )

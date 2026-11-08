@@ -5,6 +5,7 @@
 
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
+import { boundedTimerDelay } from './options.js'
 import { HttpTransport } from './http.js'
 import type * as api from './gen/api-types.js'
 import { sameBuildLogResource } from './buildLogIdentity.js'
@@ -358,7 +359,8 @@ function destination(api: HttpTransport, payload: api.BuildLogsUrl, discoveryPat
   return api.withBaseUrl(url.toString())
 }
 function requestDeadline(timeout: number): number | undefined {
-  return timeout > 0 ? performance.now() + timeout : undefined
+  const delay = boundedTimerDelay(timeout)
+  return delay > 0 ? performance.now() + delay : undefined
 }
 
 async function finiteBody(response: Response, deadline: number | undefined, kind: 'discovery' | 'error'): Promise<string> {
@@ -457,7 +459,8 @@ async function readOneShotBody(response: Response): Promise<string> {
 
 export async function readBuildLogs(api: HttpTransport, path: string): Promise<string> {
   const controller = new AbortController()
-  const timer = api.defaultTimeout > 0 ? setTimeout(() => controller.abort(), api.defaultTimeout) : undefined
+  const readTimeout = boundedTimerDelay(api.defaultTimeout)
+  const timer = readTimeout > 0 ? setTimeout(() => controller.abort(), readTimeout) : undefined
   try {
     const payload = await discovery(api, path, controller.signal, false)
     const target = destination(api, payload, path)
