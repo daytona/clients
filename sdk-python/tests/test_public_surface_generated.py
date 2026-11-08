@@ -29,6 +29,13 @@ import daytona
 from daytona import v2
 
 _GENERATED = "daytona.v2._gen"
+# The bundled 0.x SDK (present only in a bundled build) is not this surface.
+_V0 = "daytona.v0"
+
+
+def _is_v2_sdk(module: str) -> bool:
+    return module.startswith("daytona") and not module.startswith((_GENERATED, _V0))
+
 
 # Today's violations, as "<owner>.<member>: <generated class>" or
 # "export <name>". Remove an entry when its type becomes SDK-owned.
@@ -202,7 +209,7 @@ def _generated_on_the_public_surface() -> set[str]:
             module = getattr(cls, "__module__", "") or ""
             if module.startswith(_GENERATED):
                 found.add(f"{owner}.{member}: {cls.__name__}")
-            elif module.startswith("daytona") and cls not in seen:
+            elif _is_v2_sdk(module) and cls not in seen:
                 queue.append(cls)
 
     for module, names in ((v2, v2.__all__), (daytona, daytona.__all__)):
@@ -213,7 +220,7 @@ def _generated_on_the_public_surface() -> set[str]:
             value_module = getattr(value, "__module__", "") or ""
             if value_module.startswith(_GENERATED):
                 found.add(f"export {name}")
-            elif isinstance(value, type) and value_module.startswith("daytona"):
+            elif isinstance(value, type) and _is_v2_sdk(value_module):
                 queue.append(value)
 
     while queue:
