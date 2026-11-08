@@ -165,7 +165,8 @@ An object type callers pass in (named in a parameter of a listed signature, or
 in a property of such a type, and never returned by the SDK) gets a
 `Name: passed-in` line: a new required member of it is a breaking change. So
 do the base interfaces of such a type, whose members are listed under the base
-(`passed-in also-returned` when the SDK also returns the base). A member of a
+(`passed-in also-returned` when the SDK also returns the base). A type the SDK
+hands to a callback the caller passes in counts as returned. A member of a
 type that is only passed in may become optional; one of an `also-returned`
 type may not. `scripts/api-surface.mjs` reads it with the
 TypeScript compiler API (`@internal` exports, members and overloads excluded,

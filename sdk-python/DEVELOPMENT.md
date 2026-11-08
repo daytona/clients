@@ -199,7 +199,9 @@ line (`passed-in also-returned` when users also read it): a new required key
 or member of it is a breaking change, and a key of a type only passed in may
 become optional (required-ness
 of TypedDict keys is read from `Required[...]` / `NotRequired[...]` and
-`total=` in the source). Class lines carry their generic parameters
+`total=` in the source, and the key's annotation is printed without the
+`Required[...]` / `NotRequired[...]` wrapper). A class users read as a
+callback argument (`Callable[[X], None]`) counts as also returned. Class lines carry their generic parameters
 (`ListResult: dataclass frozen <T>`). Annotations and defaults come from the source, so the text is the
 same on every supported Python. Regenerate after any change
 to the public surface and commit the result; CI runs the check:

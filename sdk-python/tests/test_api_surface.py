@@ -93,3 +93,62 @@ def test_a_base_from_the_other_namespace_is_qualified() -> None:
 def test_generic_parameters_are_printed() -> None:
     lines = snapshot("daytona.v2.api.txt")
     assert "ListResult: dataclass frozen <T>" in lines
+
+
+PROBE = """
+from __future__ import annotations
+
+from typing import Callable, TypedDict
+
+from typing_extensions import NotRequired, Required
+
+
+class Event(TypedDict):
+    name: str
+
+
+class Filter(TypedDict, total=False):
+    name: Required[str]
+    label: NotRequired[str]
+
+
+class Service:
+    def watch(self, on_event: Callable[[Event], None], *, after: Event | None = None) -> None: ...
+
+    def find(self, flt: Filter) -> None: ...
+
+
+__all__ = ["Event", "Filter", "Service"]
+"""
+
+
+def probe_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    import importlib.util
+    import sys
+
+    from api_surface import Surface
+
+    path = tmp_path / "surface_probe.py"
+    path.write_text(PROBE)
+    spec = importlib.util.spec_from_file_location("daytona._surface_probe", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, "daytona._surface_probe", module)
+    spec.loader.exec_module(module)
+    return Surface((("daytona._surface_probe", "probe.api.txt", False),)).run()["daytona._surface_probe"]
+
+
+def test_a_type_also_handed_to_a_callback_is_passed_in_also_returned(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lines = probe_surface(tmp_path, monkeypatch)
+    assert "Event: passed-in also-returned" in lines
+    assert "Filter: passed-in" in lines
+
+
+def test_typeddict_keys_print_without_the_required_wrappers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lines = probe_surface(tmp_path, monkeypatch)
+    assert "Filter.name: key str" in lines
+    assert "Filter.label: optional key str" in lines

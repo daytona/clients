@@ -357,8 +357,9 @@ class Surface:
     alias, the v2 client behind the root's ``.v2``) is listed too, under
     ``~Name``, in the file of the first namespace that reaches it."""
 
-    def __init__(self) -> None:
-        self.modules = {name: importlib.import_module(name) for name, _, _ in NAMESPACES}
+    def __init__(self, namespaces: tuple[tuple[str, str, bool], ...] = NAMESPACES) -> None:
+        self.namespaces = namespaces
+        self.modules = {name: importlib.import_module(name) for name, _, _ in namespaces}
         # Declarations listed under a name of their own, by identity.
         self.named: dict[int, str] = {}
         self.used: set[str] = set()
@@ -367,7 +368,7 @@ class Surface:
         # exports prints qualified (`daytona.DaytonaError` in daytona.v2).
         self.namespace_of: dict[int, str] = {}
         self.current_namespace = ""
-        for module_name, _, _ in NAMESPACES:
+        for module_name, _, _ in namespaces:
             module = self.modules[module_name]
             for name in sorted(module.__all__):
                 self.used.add(name)
@@ -375,7 +376,7 @@ class Surface:
                 if own_object(obj):
                     self.named.setdefault(id(obj), name)
                     self.namespace_of.setdefault(id(obj), module_name)
-        self.lines: dict[str, list[str]] = {name: [] for name, _, _ in NAMESPACES}
+        self.lines: dict[str, list[str]] = {name: [] for name, _, _ in namespaces}
         self.current: list[str] = []
         self.public_constructors = False
         self.queue: list[tuple[str, object]] = []
@@ -396,10 +397,11 @@ class Surface:
         # supplies when passing one in (see `passed-in` lines).
         self.supplied_at: dict[int, tuple[str, list[str]]] = {}
         self.returned: set[int] = set()
+        self.callback_refs: dict[int, set[int]] = {}
 
     def run(self) -> dict[str, list[str]]:
         # The v2 namespace first, so a declaration both reach is listed with v2.
-        for module_name, _, public_constructors in reversed(NAMESPACES):
+        for module_name, _, public_constructors in reversed(self.namespaces):
             self.current = self.lines[module_name]
             self.current_namespace = module_name
             self.public_constructors = public_constructors
@@ -436,7 +438,9 @@ class Surface:
 
         callable_by_users = closure(self.roots, self.out_refs)
         # Read by users: named in an output position of something they reach.
-        self.returned = set().union(*(self.out_refs.get(o, set()) for o in callable_by_users))
+        self.returned = set().union(
+            *(self.out_refs.get(o, set()) | self.callback_refs.get(o, set()) for o in callable_by_users)
+        )
         passed_in = set(self.public_init)
         for owner in callable_by_users:
             passed_in |= self.param_refs.get(owner, set())
@@ -522,7 +526,13 @@ class Surface:
         classes = self.classes_in(node, module_name)
         owner = self.owner
         if role == "param":
-            self.param_refs.setdefault(owner, set()).update(self.classes_in(node, module_name, skip_callables=True))
+            passed = self.classes_in(node, module_name, skip_callables=True)
+            self.param_refs.setdefault(owner, set()).update(passed)
+            # Classes inside a callback the caller passes in (`Callable[[X],
+            # None]`) are handed to the caller, who reads them: outputs.
+            # Kept apart from out_refs: they mark what users read, not
+            # what they can call methods on.
+            self.callback_refs.setdefault(owner, set()).update(classes - passed)
         elif role == "field":
             self.field_refs.setdefault(owner, set()).update(classes)
             self.out_refs.setdefault(owner, set()).update(classes)
@@ -815,7 +825,7 @@ class Surface:
             if node is not None:
                 ann = self.annotation(node.annotation, owner.__module__, role="field")
             required = key_required(ann, total=bool(getattr(owner, "__total__", True)))
-            self.emit(f"{name}.{key}", "key" if required else "optional key", ann)
+            self.emit(f"{name}.{key}", "key" if required else "optional key", strip_required(ann))
 
     def members(self, name: str, cls: type) -> None:
         seen: set[str] = set()
@@ -906,6 +916,18 @@ def key_required(annotation_text: str, *, total: bool) -> bool:
     if inner.startswith("NotRequired["):
         return False
     return total
+
+
+def strip_required(annotation_text: str) -> str:
+    """A TypedDict key's annotation without ``Required[...]`` /
+    ``NotRequired[...]``: the key line's ``optional`` word says that."""
+    readonly = annotation_text.startswith("ReadOnly[")
+    inner = annotation_text[len("ReadOnly[") : -1] if readonly else annotation_text
+    for wrapper in ("Required[", "NotRequired["):
+        if inner.startswith(wrapper) and inner.endswith("]"):
+            inner = inner[len(wrapper) : -1]
+            break
+    return f"ReadOnly[{inner}]" if readonly else inner
 
 
 def own_object(obj: object) -> bool:
