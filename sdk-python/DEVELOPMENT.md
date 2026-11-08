@@ -200,8 +200,12 @@ or member of it is a breaking change, and a key of a type only passed in may
 become optional (required-ness
 of TypedDict keys is read from `Required[...]` / `NotRequired[...]` and
 `total=` in the source, and the key's annotation is printed without the
-`Required[...]` / `NotRequired[...]` wrapper). A class users read as a
-callback argument (`Callable[[X], None]`) counts as also returned. Class lines carry their generic parameters
+`Required[...]` / `NotRequired[...]` wrapper). Directions follow who
+implements a function: the parameters of a function the SDK implements are
+passed in and its return type is returned; for a callback the caller
+implements (a `Callable[...]` parameter or field, or the methods and
+`__call__` of a protocol the caller passes in) it is the other way round: its
+arguments are returned and its return type is passed in. Class lines carry their generic parameters
 (`ListResult: dataclass frozen <T>`). Annotations and defaults come from the source, so the text is the
 same on every supported Python. Regenerate after any change
 to the public surface and commit the result; CI runs the check:

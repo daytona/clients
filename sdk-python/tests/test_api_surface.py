@@ -98,7 +98,7 @@ def test_generic_parameters_are_printed() -> None:
 PROBE = """
 from __future__ import annotations
 
-from typing import Callable, TypedDict
+from typing import Callable, Protocol, TypedDict
 
 from typing_extensions import NotRequired, Required
 
@@ -112,13 +112,37 @@ class Filter(TypedDict, total=False):
     label: NotRequired[str]
 
 
+class Delivered(TypedDict):
+    name: str
+
+
+class Reply(TypedDict):
+    ok: bool
+
+
+class FieldEvent(TypedDict):
+    name: str
+
+
+class Hooks(TypedDict, total=False):
+    on_event: Callable[[FieldEvent], Reply]
+
+
+class Handler(Protocol):
+    def __call__(self, ev: Delivered) -> None: ...
+
+
 class Service:
     def watch(self, on_event: Callable[[Event], None], *, after: Event | None = None) -> None: ...
 
     def find(self, flt: Filter) -> None: ...
 
+    def subscribe(self, handler: Handler) -> None: ...
 
-__all__ = ["Event", "Filter", "Service"]
+    def hook(self, hooks: Hooks, *, after: FieldEvent | None = None) -> None: ...
+
+
+__all__ = ["Event", "Filter", "Delivered", "Reply", "FieldEvent", "Service"]
 """
 
 
@@ -126,7 +150,18 @@ def probe_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
     import importlib.util
     import sys
 
+    import api_surface
     from api_surface import Surface
+
+    # The generator caches sources and names by module; each test loads a
+    # fresh copy of the probe module.
+    for cached in (
+        api_surface.module_body,
+        api_surface.module_imports,
+        api_surface.resolve_name,
+        api_surface.class_body,
+    ):
+        cached.cache_clear()
 
     path = tmp_path / "surface_probe.py"
     path.write_text(PROBE)
@@ -152,3 +187,14 @@ def test_typeddict_keys_print_without_the_required_wrappers(
     lines = probe_surface(tmp_path, monkeypatch)
     assert "Filter.name: key str" in lines
     assert "Filter.label: optional key str" in lines
+
+
+def test_callback_directions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    lines = probe_surface(tmp_path, monkeypatch)
+    # A protocol callback's argument is only handed to the caller.
+    assert not any(line.startswith("Delivered: passed-in") for line in lines)
+    # A callable field of a passed-in TypedDict: its argument is handed out,
+    # its return value is taken in.
+    assert "FieldEvent: passed-in also-returned" in lines
+    assert "Reply: passed-in" in lines
+    assert "~Hooks: passed-in" in lines

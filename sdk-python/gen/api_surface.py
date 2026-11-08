@@ -30,6 +30,7 @@ import sys
 import textwrap
 import types
 import typing
+from collections.abc import Iterable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -305,11 +306,12 @@ def resolve_name(module_name: str, name: str) -> Resolved | None:
     return None
 
 
-def referenced_names(node: ast.expr | None, *, skip_callables: bool = False) -> list[list[str]]:
-    """The dotted names an annotation uses (string forward references parsed,
-    ``Literal`` values skipped; with ``skip_callables``, the inside of
-    ``Callable[...]`` too, whose argument types flow out, not in)."""
-    found: list[list[str]] = []
+def polar_names(node: ast.expr | None) -> list[tuple[list[str], int]]:
+    """The dotted names an annotation uses, each with its direction relative
+    to the annotation's: +1, or -1 inside the argument list of a
+    ``Callable[[...], R]`` (whoever supplies the callable receives its
+    arguments). ``Literal`` values are skipped."""
+    found: list[tuple[list[str], int]] = []
 
     def dotted(expr: ast.expr) -> list[str] | None:
         if isinstance(expr, ast.Name):
@@ -319,31 +321,36 @@ def referenced_names(node: ast.expr | None, *, skip_callables: bool = False) -> 
             return None if head is None else [*head, expr.attr]
         return None
 
-    def walk(expr: ast.AST | None) -> None:
+    def walk(expr: ast.AST | None, sign: int) -> None:
         if expr is None:
             return
         if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
             try:
-                walk(ast.parse(expr.value, mode="eval").body)
+                walk(ast.parse(expr.value, mode="eval").body, sign)
             except SyntaxError:
                 pass
             return
         if isinstance(expr, ast.Subscript):
             head = dotted(expr.value)
             last = head[-1] if head else ""
-            if last == "Literal" or (skip_callables and last == "Callable"):
+            if last == "Literal":
                 return
-            walk(expr.value)
-            walk(expr.slice)
+            if last == "Callable" and isinstance(expr.slice, ast.Tuple) and len(expr.slice.elts) == 2:
+                args, returns = expr.slice.elts
+                walk(args, -sign)
+                walk(returns, sign)
+                return
+            walk(expr.value, sign)
+            walk(expr.slice, sign)
             return
         name = dotted(expr) if isinstance(expr, (ast.Name, ast.Attribute)) else None
         if name is not None:
-            found.append(name)
+            found.append((name, sign))
             return
         for child in ast.iter_child_nodes(expr):
-            walk(child)
+            walk(child, sign)
 
-    walk(node)
+    walk(node, 1)
     return found
 
 
@@ -392,12 +399,14 @@ class Surface:
         self.param_refs: dict[int, set[int]] = {}
         self.out_refs: dict[int, set[int]] = {}
         self.field_refs: dict[int, set[int]] = {}
-        self._alias_classes: dict[tuple[str, str, bool], set[int]] = {}
         # TypedDicts and protocols, where listed: the members a caller
         # supplies when passing one in (see `passed-in` lines).
         self.supplied_at: dict[int, tuple[str, list[str]]] = {}
         self.returned: set[int] = set()
         self.callback_refs: dict[int, set[int]] = {}
+        self.field_callback_refs: dict[int, set[int]] = {}
+        self.protocol_ids: set[int] = set()
+        self._alias_polar: dict[tuple[str, str], tuple[set[int], set[int]]] = {}
 
     def run(self) -> dict[str, list[str]]:
         # The v2 namespace first, so a declaration both reach is listed with v2.
@@ -436,15 +445,28 @@ class Surface:
                         frontier.append(ref)
             return found
 
+        def refs(edges: dict[int, set[int]], owners: Iterable[int]) -> set[int]:
+            return set().union(*(edges.get(o, set()) for o in owners))
+
         callable_by_users = closure(self.roots, self.out_refs)
-        # Read by users: named in an output position of something they reach.
-        self.returned = set().union(
-            *(self.out_refs.get(o, set()) | self.callback_refs.get(o, set()) for o in callable_by_users)
-        )
-        passed_in = set(self.public_init)
-        for owner in callable_by_users:
-            passed_in |= self.param_refs.get(owner, set())
-        return closure(passed_in, self.field_refs)
+        # Protocols users implement (they pass one in): the SDK calls their
+        # methods, so the arguments are handed to users and the return
+        # values are passed in. Known only once `passed_in` is, so iterate.
+        implemented: set[int] = set()
+        for _ in range(20):
+            passed_in = set(self.public_init) | refs(self.param_refs, callable_by_users)
+            passed_in |= refs(self.out_refs, implemented) | refs(self.callback_refs, implemented)
+            passed_in = closure(passed_in, self.field_refs)
+            # Read by users: what they reach handed out, what the SDK passes
+            # to their callables and to the methods of what they implement.
+            returned = refs(self.out_refs, callable_by_users) | refs(self.callback_refs, callable_by_users)
+            returned |= refs(self.param_refs, implemented) | refs(self.field_callback_refs, passed_in)
+            following = self.protocol_ids & passed_in
+            if following == implemented:
+                break
+            implemented = following
+        self.returned = returned
+        return passed_in
 
     def emit(self, name: str, kind: str, detail: str = "") -> None:
         detail = " ".join(detail.split())
@@ -491,53 +513,62 @@ class Surface:
         self.used.add(key)
         return key
 
-    def classes_in(self, node: ast.expr | None, module_name: str, *, skip_callables: bool = False) -> set[int]:
-        """List every unlisted declaration an annotation names; return the
-        classes it names, through the type aliases it uses."""
-        classes: set[int] = set()
-        for dotted in referenced_names(node, skip_callables=skip_callables):
+    def polar_classes(self, node: ast.expr | None, module_name: str) -> tuple[set[int], set[int]]:
+        """The classes an annotation names, split by direction: those that
+        flow like the annotation, and those inside a callable's argument
+        list, which flow the other way (through the type aliases it uses)."""
+        same: set[int] = set()
+        other: set[int] = set()
+        for dotted, sign in polar_names(node):
             found = resolve(module_name, dotted)
             if found is None:
                 continue
             self.want(found)
             if isinstance(found.obj, type):
-                classes.add(id(found.obj))
+                (same if sign > 0 else other).add(id(found.obj))
             elif not isinstance(found.obj, types.ModuleType) and found.home.startswith("daytona"):
-                classes |= self.alias_classes(found.home, found.name, skip_callables)
-        return classes
+                alias_same, alias_other = self.alias_polar(found.home, found.name)
+                same |= alias_same if sign > 0 else alias_other
+                other |= alias_other if sign > 0 else alias_same
+        return same, other
 
-    def alias_classes(self, home: str, name: str, skip_callables: bool) -> set[int]:
-        key = (home, name, skip_callables)
-        if key in self._alias_classes:
-            return self._alias_classes[key]
-        self._alias_classes[key] = set()  # a self-referencing alias ends here
-        found: set[int] = set()
+    def alias_polar(self, home: str, name: str) -> tuple[set[int], set[int]]:
+        key = (home, name)
+        if key in self._alias_polar:
+            return self._alias_polar[key]
+        self._alias_polar[key] = (set(), set())  # a self-referencing alias ends here
+        same: set[int] = set()
+        other: set[int] = set()
         for stmt in module_body(home).get(name, []):
             value = stmt.value if isinstance(stmt, (ast.Assign, ast.AnnAssign)) else None
             if value is not None:
-                found |= self.classes_in(value, home, skip_callables=skip_callables)
-        self._alias_classes[key] = found
-        return found
+                s, o = self.polar_classes(value, home)
+                same |= s
+                other |= o
+        self._alias_polar[key] = (same, other)
+        return same, other
 
     def reach(self, node: ast.expr | None, module_name: str, *, role: str) -> None:
         """Reach what an annotation names. ``role`` says how a caller meets
         it on the declaration being listed: ``param`` (passed in), ``out``
         (read or returned) or ``field`` (a dataclass or TypedDict field)."""
-        classes = self.classes_in(node, module_name)
+        same, other = self.polar_classes(node, module_name)
         owner = self.owner
         if role == "param":
-            passed = self.classes_in(node, module_name, skip_callables=True)
-            self.param_refs.setdefault(owner, set()).update(passed)
-            # Classes inside a callback the caller passes in (`Callable[[X],
-            # None]`) are handed to the caller, who reads them: outputs.
-            # Kept apart from out_refs: they mark what users read, not
-            # what they can call methods on.
-            self.callback_refs.setdefault(owner, set()).update(classes - passed)
+            # Passed in; a callable passed in is the caller's, so its
+            # arguments are handed to the caller (`callback_refs`).
+            self.param_refs.setdefault(owner, set()).update(same)
+            self.callback_refs.setdefault(owner, set()).update(other)
         elif role == "field":
-            self.field_refs.setdefault(owner, set()).update(classes)
-            self.out_refs.setdefault(owner, set()).update(classes)
+            # Callables in a field: whoever builds the object implements them.
+            self.field_refs.setdefault(owner, set()).update(same)
+            self.out_refs.setdefault(owner, set()).update(same)
+            self.field_callback_refs.setdefault(owner, set()).update(other)
         else:
-            self.out_refs.setdefault(owner, set()).update(classes)
+            # Handed out; a callable handed out is the SDK's, so callers
+            # pass its arguments in.
+            self.out_refs.setdefault(owner, set()).update(same)
+            self.param_refs.setdefault(owner, set()).update(other)
 
     def annotation(self, node: ast.expr | None, module_name: str, *, role: str = "out") -> str:
         self.reach(node, module_name, role=role)
@@ -739,6 +770,7 @@ class Surface:
             return
         elif getattr(cls, "_is_protocol", False):
             self.emit(name, "protocol", based)
+            self.protocol_ids.add(id(cls))
             self.supplied_at[id(cls)] = (name, self.current)
         else:
             self.emit(name, "class", based)

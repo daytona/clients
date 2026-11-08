@@ -950,16 +950,16 @@ InterpreterDisplay.__init__: internal-constructor (mime: str, data: str) -> None
 InterpreterDisplay.data: field str
 InterpreterDisplay.mime: field str
 InterpreterError: dataclass frozen
-InterpreterError.__init__: internal-constructor (name: str, value: str, traceback: list[str] = list()) -> None
+InterpreterError.__init__: constructor (name: str, value: str, traceback: list[str] = list()) -> None
 InterpreterError.name: field str
 InterpreterError.traceback: field list[str] = list()
 InterpreterError.value: field str
 InterpreterLogs: dataclass frozen
-InterpreterLogs.__init__: internal-constructor (stdout: str = '', stderr: str = '') -> None
+InterpreterLogs.__init__: constructor (stdout: str = '', stderr: str = '') -> None
 InterpreterLogs.stderr: field str = ''
 InterpreterLogs.stdout: field str = ''
 InterpreterOutput: dataclass frozen
-InterpreterOutput.__init__: internal-constructor (data: JsonObject, is_main_result: bool, text: str | None = None, html: str | None = None, png: str | None = None, svg: str | None = None, json: JsonValue | None = None) -> None
+InterpreterOutput.__init__: constructor (data: JsonObject, is_main_result: bool, text: str | None = None, html: str | None = None, png: str | None = None, svg: str | None = None, json: JsonValue | None = None) -> None
 InterpreterOutput.data: field JsonObject
 InterpreterOutput.html: field str | None = None
 InterpreterOutput.is_main_result: field bool
@@ -968,14 +968,14 @@ InterpreterOutput.png: field str | None = None
 InterpreterOutput.svg: field str | None = None
 InterpreterOutput.text: field str | None = None
 InterpreterProcess: dataclass frozen
-InterpreterProcess.__init__: internal-constructor (process_id: str, exit_code: int | None, signal: str | None, reason: WaitReason | None, raw_reason: str | None = None) -> None
+InterpreterProcess.__init__: constructor (process_id: str, exit_code: int | None, signal: str | None, reason: WaitReason | None, raw_reason: str | None = None) -> None
 InterpreterProcess.exit_code: field int | None
 InterpreterProcess.process_id: field str
 InterpreterProcess.raw_reason: field str | None = None
 InterpreterProcess.reason: field WaitReason | None
 InterpreterProcess.signal: field str | None
 InterpreterResult: dataclass frozen
-InterpreterResult.__init__: internal-constructor (process: InterpreterProcess, results: list[InterpreterOutput] = list(), logs: InterpreterLogs = InterpreterLogs(), error: InterpreterError | None = None) -> None
+InterpreterResult.__init__: constructor (process: InterpreterProcess, results: list[InterpreterOutput] = list(), logs: InterpreterLogs = InterpreterLogs(), error: InterpreterError | None = None) -> None
 InterpreterResult.error: field InterpreterError | None = None
 InterpreterResult.logs: field InterpreterLogs = InterpreterLogs()
 InterpreterResult.process: field InterpreterProcess
