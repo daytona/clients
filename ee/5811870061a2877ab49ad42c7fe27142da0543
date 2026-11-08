@@ -1,0 +1,27 @@
+sdk-typescript/tests/client-config.test.ts
+  s_f23bcae77f0e63::t_5ebbc8d120b1e8 130-136
+  s_f23bcae77f0e63::t_3ca43f732f0681 129,137-151
+sdk-typescript/src/v2/options.ts
+  s_f23bcae77f0e63::t_5ebbc8d120b1e8 114
+  s_f23bcae77f0e63::t_3ca43f732f0681 101-107,113
+AGENTS.md
+  s_f23bcae77f0e63::t_5a1df5a04604c2 498-499
+changelog.d/537-ts-config-keys.breaking.md
+  s_f23bcae77f0e63::t_bf59a36ee7ebf3 4-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee5811870061a2877ab49ad42c7fe27142da0543",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
