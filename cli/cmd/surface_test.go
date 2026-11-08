@@ -375,20 +375,21 @@ func envSurface(moduleRoot string) ([]string, error) {
 		return nil
 	}
 	readers := map[string]bool{}
-	isOSReader := func(e ast.Expr) bool {
+	// os.Getenv / os.LookupEnv under whatever name the file imports "os" as.
+	isOSReader := func(f *ast.File, e ast.Expr) bool {
 		sel, ok := e.(*ast.SelectorExpr)
 		if !ok {
 			return false
 		}
 		pkg, ok := sel.X.(*ast.Ident)
-		return ok && pkg.Name == "os" && (sel.Sel.Name == "Getenv" || sel.Sel.Name == "LookupEnv")
+		return ok && imports[f][pkg.Name] == "os" && (sel.Sel.Name == "Getenv" || sel.Sel.Name == "LookupEnv")
 	}
-	isReader := func(e ast.Expr) bool {
+	isReader := func(f *ast.File, e ast.Expr) bool {
 		switch x := e.(type) {
 		case *ast.Ident:
 			return readers[x.Name]
 		case *ast.SelectorExpr:
-			return isOSReader(x) || readers[x.Sel.Name]
+			return isOSReader(f, x) || readers[x.Sel.Name]
 		}
 		return false
 	}
@@ -415,7 +416,7 @@ func envSurface(moduleRoot string) ([]string, error) {
 				switch x := n.(type) {
 				case *ast.CallExpr:
 					for i, arg := range x.Args {
-						if !isReader(arg) {
+						if !isReader(f, arg) {
 							continue
 						}
 						for _, names := range callees(f, x.Fun) {
@@ -426,18 +427,18 @@ func envSurface(moduleRoot string) ([]string, error) {
 					}
 				case *ast.AssignStmt:
 					for i, rhs := range x.Rhs {
-						if i < len(x.Lhs) && isReader(rhs) {
+						if i < len(x.Lhs) && isReader(f, rhs) {
 							changed = add(nameOf(x.Lhs[i])) || changed
 						}
 					}
 				case *ast.ValueSpec:
 					for i, value := range x.Values {
-						if i < len(x.Names) && isReader(value) {
+						if i < len(x.Names) && isReader(f, value) {
 							changed = add(x.Names[i].Name) || changed
 						}
 					}
 				case *ast.KeyValueExpr:
-					if isReader(x.Value) {
+					if isReader(f, x.Value) {
 						changed = add(nameOf(x.Key)) || changed
 					}
 				}
@@ -451,7 +452,7 @@ func envSurface(moduleRoot string) ([]string, error) {
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
-			if !ok || !isReader(call.Fun) {
+			if !ok || !isReader(f, call.Fun) {
 				return true
 			}
 			var value string
@@ -511,7 +512,10 @@ func TestEnvSurfaceFollowsReaders(t *testing.T) {
 	}
 	dir := write(t, `package x
 
-import "os"
+import (
+	"os"
+	operating "os"
+)
 
 const name = "VIA_CONST"
 
@@ -529,6 +533,7 @@ func two(_ int, get func(string) string) { get("VIA_SECOND") }
 
 func f() {
 	os.Getenv("DIRECT")
+	operating.Getenv("VIA_RENAMED_OS")
 	read := os.Getenv
 	read("VIA_ALIAS")
 	again := read
@@ -545,7 +550,7 @@ func f() {
 		t.Fatal(err)
 	}
 	sort.Strings(got)
-	want := []string{"$DIRECT: env", "$VIA_ALIAS: env", "$VIA_CONST: env", "$VIA_FIELD: env", "$VIA_METHOD: env", "$VIA_PARAM: env", "$VIA_SECOND: env"}
+	want := []string{"$DIRECT: env", "$VIA_ALIAS: env", "$VIA_CONST: env", "$VIA_FIELD: env", "$VIA_METHOD: env", "$VIA_PARAM: env", "$VIA_RENAMED_OS: env", "$VIA_SECOND: env"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("got %v, want %v", got, want)
 	}
