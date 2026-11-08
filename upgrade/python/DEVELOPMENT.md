@@ -271,3 +271,19 @@ Root flow mappings remain recognizable after comments, blank lines and document
 markers; quoted root block keys receive the same loader checks.
 `test_compose_provenance.py` and `test_file_boundaries.py` cover
 these discovery boundaries, including the FIFO replacement race.
+
+## Public-surface snapshot
+
+`upgrade/api-surface/daytona-upgrade.api.txt` lists what scripts depend on, for
+both tools: every field of the `--json` report with its type and whether it is
+always present, each vocabulary's listed values (read from the schema's
+`examples` or `enum`), and the flags read from both argument parsers (this
+package's argparse parser and the npm tool's `parseArgs` options). Regenerate
+after changing any of them and commit the result; the Upgrade tool CI runs the
+check, and the `Breaking changes` workflow compares the file with the last
+stable release:
+
+```bash
+uv run python ../scripts/api_surface.py            # regenerate
+uv run python ../scripts/api_surface.py --check    # exit 1 when stale
+```
