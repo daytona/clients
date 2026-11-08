@@ -1232,8 +1232,8 @@ InterpreterRunOptions.language: optional property string
 InterpreterRunOptions.sessionId: optional property string
 InterpreterRunOptions.timeout: optional property number
 InterpreterService: class
-InterpreterService.connectContext: method (context: InterpreterContextJSON): InterpreterContext
 InterpreterService.connectContext: method (sessionId: string, language: string): InterpreterContext
+InterpreterService.connectContext: method (context: InterpreterContextJSON): InterpreterContext
 InterpreterService.constructor: internal-constructor (transport: HttpTransport, process: ProcessService)
 InterpreterService.createContext: method (options: InterpreterContextOptions): Promise<InterpreterContext>
 InterpreterService.deleteContext: method (sessionIdOrContext: InterpreterContext | InterpreterContextJSON | string): Promise<void>

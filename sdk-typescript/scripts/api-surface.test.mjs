@@ -179,3 +179,12 @@ test('a call signature the caller implements gaining an overload is reported, en
   assert.equal(found.status, 0, found.stderr)
   assert.equal(found.stdout.trim(), '2', `${base.join('\n')}\n---\n${head.join('\n')}`)
 })
+
+test('the overloads of one name keep their declaration order', () => {
+  const lines = (order) =>
+    generateFixture(order.map((sig) => `export declare function probe${sig}`).join('\n')).filter((l) => l.startsWith('probe: '))
+  const narrow = '(key: string): string'
+  const wide = '(key: unknown): number'
+  assert.deepEqual(lines([narrow, wide]), [`probe: function ${narrow}`, `probe: function ${wide}`])
+  assert.deepEqual(lines([wide, narrow]), [`probe: function ${wide}`, `probe: function ${narrow}`])
+})
