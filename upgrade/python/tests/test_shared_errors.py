@@ -17,9 +17,13 @@ from daytona_upgrade.flow import SourceContext, build_index
 from daytona_upgrade.models import Mode, SourceResult, TransformOptions, load_mapping
 from daytona_upgrade.transform import transform_source
 
-ERRORS: Final = tuple(
+# The 0.x root aliases of two shared categories. The 2.x root no longer
+# exports them, but bundled v0 does, so they route to v0 like any other error.
+FORMER_ROOT_ALIASES: Final = ("DaytonaValidationError", "DaytonaAuthorizationError")
+ROOT_ERRORS: Final = tuple(
     name for name in load_mapping().root_names if name.endswith("Error")
 )
+ERRORS: Final = (*ROOT_ERRORS, *FORMER_ROOT_ALIASES)
 FORMS: Final = (
     ("from {module} import {name}\n", "from daytona.v0 import {name}\n"),
     (
@@ -110,7 +114,9 @@ def test_cli_moves_provider_when_project_reexports_unused_shared_error(
     assert consumer.read_text() == "from barrel import Failure\n"
 
 
-@pytest.mark.parametrize("name", ERRORS)
+# Guidance names the root category to import, which the former aliases are not
+# (like the other 0.x-only errors, they get none).
+@pytest.mark.parametrize("name", ROOT_ERRORS)
 def test_suggests_root_errors_when_v0_error_is_imported(name: str) -> None:
     # Given a legacy error import, including its local alias.
     source = f"from daytona.v0 import {name} as Failure\n"
@@ -153,3 +159,18 @@ def test_suggests_root_errors_when_v0_module_is_star_imported() -> None:
     # Then the same error-import note attaches to the star import.
     assert result.source.startswith("# daytona-v2: when moving these calls to v2")
     assert ast.dump(ast.parse(result.source)) == ast.dump(ast.parse(source))
+
+
+@pytest.mark.parametrize("name", FORMER_ROOT_ALIASES)
+def test_former_root_aliases_are_v0_exports_not_root_names(name: str) -> None:
+    mapping = load_mapping()
+    assert name not in mapping.root_names
+    assert name in mapping.v0_exports
+
+
+@pytest.mark.parametrize("name", FORMER_ROOT_ALIASES)
+def test_former_root_aliases_get_no_root_import_guidance(name: str) -> None:
+    source = f"from daytona.v0 import {name}\n"
+    result = transform(source, "suggest-v2")
+    assert result.source == source
+    assert result.items == ()
