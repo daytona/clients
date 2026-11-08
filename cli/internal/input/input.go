@@ -124,127 +124,90 @@ func sortedKeys(m map[string]any) []string {
 }
 
 // rejectFieldCaseVariants refuses two keys in one object of b that decode
-// into the same struct field of T. Only keys that fold alike are candidates;
-// for each such group it decodes b with one key of the group left in and
-// encodes the result again: a map keeps the key as given, a struct field
-// comes back under its own name. So a key that does not come back verbatim
-// was matched to a field, and two of them would compete for it.
+// into the same struct field of T. Only keys that fold alike are candidates.
+// When there are any, b is decoded into T once and encoded again: a map keeps
+// every key as given, while a struct field comes back once, under its own
+// name. So a group of keys that does not all come back named a struct field,
+// and its keys would compete for it.
 func rejectFieldCaseVariants[T any](b Body) error {
-	return walkCaseGroups(b, nil, func(path []any, group []string) error {
-		for _, keep := range group {
-			verbatim, ok := keyComesBack[T](b, path, group, keep)
-			if !ok {
-				return nil // the body does not decode; Decode reports why
-			}
-			if !verbatim {
-				return caseVariantError(group[0], group[1], pathText(path))
-			}
-		}
-		return nil
+	type caseGroup struct {
+		path []any
+		keys []string
+	}
+	var groups []caseGroup
+	walkCaseGroups(map[string]any(b), nil, func(path []any, keys []string) {
+		groups = append(groups, caseGroup{path: append([]any(nil), path...), keys: keys})
 	})
-}
-
-// walkCaseGroups calls fn for every object in v (at path) that holds two or
-// more keys folding alike, outermost first.
-func walkCaseGroups(v any, path []any, fn func(path []any, group []string) error) error {
-	switch node := v.(type) {
-	case Body:
-		return walkCaseGroups(map[string]any(node), path, fn)
-	case map[string]any:
-		groups := map[string][]string{}
-		keys := sortedKeys(node)
-		for _, key := range keys {
-			groups[foldKey(key)] = append(groups[foldKey(key)], key)
-		}
-		for _, key := range keys {
-			if group := groups[foldKey(key)]; len(group) > 1 && group[0] == key {
-				if err := fn(path, group); err != nil {
-					return err
-				}
-			}
-		}
-		for _, key := range keys {
-			if err := walkCaseGroups(node[key], append(append([]any(nil), path...), key), fn); err != nil {
-				return err
-			}
-		}
-	case []any:
-		for i, child := range node {
-			if err := walkCaseGroups(child, append(append([]any(nil), path...), i), fn); err != nil {
-				return err
+	if len(groups) == 0 {
+		return nil
+	}
+	encoded, ok := roundTrip[T](b)
+	if !ok {
+		return nil // the body does not decode; Decode reports why
+	}
+	for _, g := range groups {
+		object, found := lookupPath(encoded, g.path)
+		for _, key := range g.keys {
+			if _, kept := object[key]; !found || !kept {
+				return caseVariantError(g.keys[0], g.keys[1], pathText(g.path))
 			}
 		}
 	}
 	return nil
 }
 
-// keyComesBack decodes b into T with only keep of group left at path,
-// encodes T again and reports whether keep is still a key at path. ok is
-// false when the probe does not decode.
-func keyComesBack[T any](b Body, path []any, group []string, keep string) (verbatim, ok bool) {
-	probe := withoutKeys(map[string]any(b), path, group, keep)
-	raw, err := json.Marshal(probe)
+// walkCaseGroups calls fn for every object in v that holds two or more keys
+// folding alike, outermost first. path is a stack shared by the calls: fn
+// copies it to keep it.
+func walkCaseGroups(v any, path []any, fn func(path []any, keys []string)) {
+	switch node := v.(type) {
+	case Body:
+		walkCaseGroups(map[string]any(node), path, fn)
+	case map[string]any:
+		keys := sortedKeys(node)
+		groups := make(map[string][]string, len(keys))
+		for _, key := range keys {
+			groups[foldKey(key)] = append(groups[foldKey(key)], key)
+		}
+		for _, key := range keys {
+			if group := groups[foldKey(key)]; len(group) > 1 && group[0] == key {
+				fn(path, group)
+			}
+		}
+		for _, key := range keys {
+			walkCaseGroups(node[key], append(path, key), fn)
+		}
+	case []any:
+		for i, child := range node {
+			walkCaseGroups(child, append(path, i), fn)
+		}
+	}
+}
+
+// roundTrip decodes b into T (refusing unknown fields) and encodes it again
+// as a generic value; ok is false when b does not decode.
+func roundTrip[T any](b Body) (any, bool) {
+	raw, err := json.Marshal(b)
 	if err != nil {
-		return false, false
+		return nil, false
 	}
 	var typed T
 	strict := json.NewDecoder(bytes.NewReader(raw))
 	strict.DisallowUnknownFields()
 	if err := strict.Decode(&typed); err != nil {
-		return false, false
+		return nil, false
 	}
 	again, err := json.Marshal(typed)
 	if err != nil {
-		return false, false
+		return nil, false
 	}
 	dec := json.NewDecoder(bytes.NewReader(again))
 	dec.UseNumber()
 	var generic any
 	if err := dec.Decode(&generic); err != nil {
-		return false, false
+		return nil, false
 	}
-	object, found := lookupPath(generic, path)
-	if !found {
-		return false, true // the object is gone (an empty value omitted): a struct
-	}
-	_, verbatim = object[keep]
-	return verbatim, true
-}
-
-// withoutKeys copies v along path and drops the keys of group other than
-// keep from the object at path.
-func withoutKeys(v any, path []any, group []string, keep string) any {
-	if len(path) == 0 {
-		object, _ := asObject(v)
-		out := make(map[string]any, len(object))
-		for k, child := range object {
-			out[k] = child
-		}
-		for _, k := range group {
-			if k != keep {
-				delete(out, k)
-			}
-		}
-		return out
-	}
-	switch step := path[0].(type) {
-	case string:
-		object, _ := asObject(v)
-		out := make(map[string]any, len(object))
-		for k, child := range object {
-			out[k] = child
-		}
-		out[step] = withoutKeys(object[step], path[1:], group, keep)
-		return out
-	case int:
-		items, _ := v.([]any)
-		out := append([]any(nil), items...)
-		if step < len(out) {
-			out[step] = withoutKeys(out[step], path[1:], group, keep)
-		}
-		return out
-	}
-	return v
+	return generic, true
 }
 
 // lookupPath finds the object at path in an encoded value; an object key on
@@ -292,16 +255,6 @@ func pathText(path []any) string {
 		parts = append(parts, fmt.Sprint(step))
 	}
 	return fmt.Sprintf(" (in %q)", strings.Join(parts, "."))
-}
-
-func asObject(v any) (map[string]any, bool) {
-	switch node := v.(type) {
-	case Body:
-		return node, true
-	case map[string]any:
-		return node, true
-	}
-	return nil, false
 }
 
 // Set writes a field unconditionally. Decode matches keys

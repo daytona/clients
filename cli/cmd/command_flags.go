@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"regexp"
 
 	"strings"
 
@@ -127,7 +128,29 @@ var renamedFlags = map[string]map[string]string{
 	},
 	"daytona sandbox create-from-snapshot": {"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)"},
 	"daytona sandbox create-macos":         {"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)"},
-	"daytona sandbox update":               {"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)"},
+	"daytona sandbox update": {
+		"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)",
+		"timeout":    "--lifecycle-timeout DURATION (e.g. 1h) for the sandbox's lifetime",
+	},
+}
+
+// lifecycleCommands took the sandbox lifetime as --timeout SECONDS before
+// 2.x; their --timeout is now the CLI's own wait.
+var lifecycleCommands = map[string]bool{
+	"daytona sandbox create":               true,
+	"daytona sandbox create-from-snapshot": true,
+	"daytona sandbox create-macos":         true,
+}
+
+var bareTimeoutValue = regexp.MustCompile(`^invalid argument "-?[0-9]+" for "--timeout" flag`)
+
+// lifecycleTimeoutHint explains a bare-number --timeout on the commands
+// where it used to be the sandbox lifetime in seconds.
+func lifecycleTimeoutHint(cmd *cobra.Command, err error) string {
+	if !lifecycleCommands[cmd.CommandPath()] || !bareTimeoutValue.MatchString(err.Error()) {
+		return ""
+	}
+	return "the sandbox lifetime is now --lifecycle-timeout DURATION (e.g. 1h); --timeout is how long the CLI waits for the sandbox to start"
 }
 
 // renamedFlagHint names the replacement of a renamed flag in an
@@ -190,4 +213,20 @@ func runsWithoutConfig(cmd *cobra.Command) bool {
 		return cmd.Parent() == cmd.Root()
 	}
 	return cmd.Parent() != nil && cmd.Parent().Name() == "completion" && cmd.Parent().Parent() == cmd.Root()
+}
+
+// validateFlagRules runs cobra's required-flag and flag-group checks before
+// anything else, as usage errors (exit 2): cobra runs them after the
+// pre-run hooks and returns plain errors, which would exit 1.
+func validateFlagRules(cmd *cobra.Command) error {
+	if err := cmd.ValidateRequiredFlags(); err != nil {
+		return cerr.Usage("%s", err.Error())
+	}
+	if err := cmd.ValidateFlagGroups(); err != nil {
+		return cerr.Usage("%s", err.Error())
+	}
+	if f := cmd.Flags().Lookup("region"); f != nil && f.Changed && strings.TrimSpace(f.Value.String()) == "" {
+		return cerr.Usage("--region is empty").WithHint("pass a region id (`daytona region list` shows them), or omit --region")
+	}
+	return nil
 }

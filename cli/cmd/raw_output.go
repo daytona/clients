@@ -6,6 +6,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -28,7 +29,7 @@ func listOutRaw[T any](p output.Printer, l output.List[api.Raw[T]], tbl func([]T
 
 // rawIndex remembers the API's JSON of list items for lists whose merging
 // and paging work on the decoded values (the region fan-out). An item is
-// keyed by its whole decoded value, so the JSON paired with a row is a copy
+// keyed by a digest of its whole decoded value, so the JSON paired with a row is a copy
 // of that row (the same id fetched from two regions can differ in
 // `region_id` or `cursor`); among copies that decode alike the smallest JSON
 // is kept, so the choice does not depend on which region answered first.
@@ -39,12 +40,15 @@ type rawIndex struct {
 
 func newRawIndex() *rawIndex { return &rawIndex{byKey: map[string]json.RawMessage{}} }
 
+// rawKey is a fixed-size digest of v's encoding, so the index does not hold
+// a second copy of every row.
 func rawKey(v any) string {
-	key, err := json.Marshal(v)
+	encoded, err := json.Marshal(v)
 	if err != nil {
 		return ""
 	}
-	return string(key)
+	sum := sha256.Sum256(encoded)
+	return string(sum[:])
 }
 
 // addRaw remembers item's JSON.

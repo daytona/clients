@@ -6,6 +6,7 @@ package regions
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -109,7 +110,19 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 	}
 	if failed == len(results) {
 		// Nothing answered: the failure is the command's, not a partial list.
-		return output.List[T]{}, firstErr
+		// Its exit code, code, source and trace id are the first region's;
+		// the message names every region's failure.
+		if len(results) == 1 {
+			return output.List[T]{}, firstErr
+		}
+		parts := make([]string, 0, len(results))
+		for _, r := range results {
+			parts = append(parts, regionFailureText(toRegionError(r.region, r.err)))
+		}
+		first := cerr.DetailsOf(firstErr)
+		e := cerr.Wrap(cerr.ExitCode(firstErr), firstErr, "every region failed — %s", strings.Join(parts, "; "))
+		e.Hint = first.Hint
+		return output.List[T]{}, e
 	}
 	l := output.List[T]{Items: []T{}}
 	for _, r := range results {

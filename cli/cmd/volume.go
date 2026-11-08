@@ -163,7 +163,7 @@ func newVolumeGetCommand() *cobra.Command {
 
 func newVolumeDeleteCommand() *cobra.Command {
 	return &cobra.Command{
-		Use: "delete <id>", Short: "Delete a volume", Long: "Delete a volume.\nExample:\n  daytona volume delete <id> --yes", Args: cobra.ExactArgs(1),
+		Use: "delete <id-or-name>", Short: "Delete a volume", Long: "Delete a volume by id or name. It prints the accepted deletion, or an acknowledgement naming the volume's id when the volume was already deleted.\nExample:\n  daytona volume delete <id-or-name> --yes", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			if err := a.Confirm("delete", args[0]); err != nil {
@@ -173,12 +173,16 @@ func newVolumeDeleteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			id, err := resolveResourceID(cmd.Context(), client, "/volumes/", args[0], func(v gen.Volume) string { return v.Id })
+			if err != nil {
+				return err
+			}
 			var resp api.Raw[gen.AsyncOperation]
-			if err := client.Do(cmd.Context(), http.MethodDelete, "/volumes/"+url.PathEscape(args[0]), nil, nil, &resp); err != nil {
+			if err := client.Do(cmd.Context(), http.MethodDelete, "/volumes/"+url.PathEscape(id), idOnly, nil, &resp); err != nil {
 				return err
 			}
 			if resp.V.Id == "" {
-				return printAck(a, "id", args[0], "deleted", "")
+				return printAck(a, "id", id, "deleted", "")
 			}
 			return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id}, {"status", string(resp.V.Status)}})
 		},

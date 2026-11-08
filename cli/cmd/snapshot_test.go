@@ -36,9 +36,12 @@ func TestSnapshotCommands_routeAndRenderJSON(t *testing.T) {
 			},
 		},
 		{
-			name:     "delete snapshot",
-			args:     []string{"snapshot", "delete", "33333333-3333-3333-3333-333333333333", "--yes"},
-			expected: []expectedRequest{{method: http.MethodDelete, path: "/snapshots/33333333-3333-3333-3333-333333333333", status: 204, response: ``}},
+			name: "delete snapshot",
+			args: []string{"snapshot", "delete", "33333333-3333-3333-3333-333333333333", "--yes"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/snapshots/33333333-3333-3333-3333-333333333333", status: 200, response: snapshotFixture("33333333-3333-3333-3333-333333333333", "full", "ready")},
+				{method: http.MethodDelete, path: "/snapshots/33333333-3333-3333-3333-333333333333", query: "id_only=true", status: 204, response: ``},
+			},
 		},
 		{
 			name:     "list snapshots",

@@ -204,7 +204,7 @@ func PartialError[T any](l output.List[T]) error {
 	}
 	msg := fmt.Sprintf("incomplete results — %d region(s) failed: %s", len(l.Errors), strings.Join(parts, "; "))
 	return cerr.Wrap(cerr.ExitPartial, partialFailure{msg}, "%s", msg).
-		WithHint("the items shown are from the regions that answered; with -o json the list's `errors` holds each failure")
+		WithHint("the items shown are from the regions that answered; with -o json or -o yaml the list's `errors` holds each failure")
 }
 
 // regionFailureText is one region's failure for the human-readable message:
@@ -216,6 +216,9 @@ func regionFailureText(e output.RegionError) string {
 	}
 	if e.Code != "" {
 		text += " (" + e.Code + ")"
+	}
+	if e.TraceID != "" {
+		text += " [trace " + e.TraceID + "]"
 	}
 	if e.Region != "" {
 		text = e.Region + ": " + text

@@ -62,7 +62,7 @@ func TestRegionalLists_regionSelectsOnlyItsEndpointAndPreservesCursor(t *testing
 				if r.URL.Query().Get("cursor") != "start" {
 					t.Errorf("cursor = %q", r.URL.Query().Get("cursor"))
 				}
-				writeListItems(t, w, resource, []listTestItem{{"one", "east", "c1"}}, "c1")
+				writeListItems(t, w, resource, []listTestItem{{"one", "north", "c1"}, {"two", "east", "c1"}}, "c1")
 			}))
 			defer regional.Close()
 			catalog := []gen.Region{listTestRegion("east", regional.URL), listTestRegion("north", regional.URL+"/"), listTestRegion("west", "http://127.0.0.1:1")}

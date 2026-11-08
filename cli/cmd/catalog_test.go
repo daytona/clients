@@ -291,7 +291,11 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 			_, stderr, err := runCLIWithOutput(t, "table", []string{"cpu-type", "list", "--region", value}, nil)
 			require.Error(t, err, value)
 			require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), value)
-			require.Contains(t, err.Error(), "--region takes one region slug", value)
+			if strings.TrimSpace(value) == "" {
+				require.Contains(t, err.Error(), "--region is empty", value)
+			} else {
+				require.Contains(t, err.Error(), "--region takes one region slug", value)
+			}
 			require.Empty(t, stderr, value)
 		}
 	})

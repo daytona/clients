@@ -78,15 +78,19 @@ func renderDynamicValue(a *app.App, payload any, listKey string) error {
 	if items, ok := rowsFromDynamic(generic); ok {
 		return renderDynamicRows(a.Printer(), items)
 	}
-	if node, ok := generic.(map[string]any); ok {
-		if raw, ok := node[listKey]; ok && listKey != "" {
-			if raw == nil {
-				return renderDynamicRows(a.Printer(), []map[string]any{}) // a null list is an empty one
-			}
-			if items, ok := rowsFromDynamic(raw); ok {
-				return renderDynamicRows(a.Printer(), items)
-			}
+	if listKey != "" {
+		// A list command always prints the list envelope: a missing or null
+		// list is an empty one.
+		node, _ := generic.(map[string]any)
+		if items, ok := rowsFromDynamic(node[listKey]); ok {
+			return renderDynamicRows(a.Printer(), items)
 		}
+		if node[listKey] == nil {
+			return renderDynamicRows(a.Printer(), []map[string]any{})
+		}
+		return cerr.New(cerr.ExitFailure, "the %s in the response is not a list of objects", listKey)
+	}
+	if node, ok := generic.(map[string]any); ok {
 		return a.Printer().Object(node, sortedKVFromMap(node))
 	}
 	return a.Printer().Object(payload, nil)

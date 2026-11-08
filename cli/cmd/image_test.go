@@ -62,9 +62,13 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 			expected: []expectedRequest{{method: http.MethodPatch, path: "/images/11111111-1111-1111-1111-111111111111", status: 200, bodyJSON: `{"name":"keep-this"}`, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")}},
 		},
 		{
-			name:     "delete image",
-			args:     []string{"image", "delete", "11111111-1111-1111-1111-111111111111", "--yes"},
-			expected: []expectedRequest{{method: http.MethodDelete, path: "/images/11111111-1111-1111-1111-111111111111", status: 204}},
+			name: "delete image",
+			// A name is resolved first: the acknowledgement names the id.
+			args: []string{"image", "delete", "py312", "--yes"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/images/py312", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
+				{method: http.MethodDelete, path: "/images/11111111-1111-1111-1111-111111111111", query: "id_only=true", status: 204},
+			},
 		},
 	}
 	for _, tt := range tests {

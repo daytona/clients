@@ -78,6 +78,9 @@ Get started:
 		SilenceErrors: true,
 		Version:       app.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateFlagRules(cmd); err != nil {
+				return err
+			}
 			if err := checkFlagCombinations(cmd); err != nil {
 				return err
 			}
@@ -106,6 +109,8 @@ Get started:
 	root.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
 		e := cerr.Usage("%s", err.Error())
 		if hint := renamedFlagHint(cmd, err); hint != "" {
+			e = e.WithHint("%s", hint)
+		} else if hint := lifecycleTimeoutHint(cmd, err); hint != "" {
 			e = e.WithHint("%s", hint)
 		}
 		return e

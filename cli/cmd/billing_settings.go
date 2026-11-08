@@ -27,7 +27,7 @@ func newBillingAutomaticTopUpCmd() *cobra.Command {
 func newBillingAutomaticTopUpSetCmd() *cobra.Command {
 	var thresholdCents int64
 	var targetCents int64
-	cmd := &cobra.Command{Use: "set", Short: "Set automatic top-up", Long: "Set automatic top-up using integer-cent thresholds. It charges the organization's payment method, so it asks for confirmation; off a terminal pass --yes. Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	cmd := &cobra.Command{Use: "set", Short: "Set automatic top-up", Long: "Set automatic top-up using integer-cent thresholds. It charges the organization's payment method, so it asks for confirmation; in non-interactive mode (no terminal, -o json|yaml, or CI) pass --yes or set DAYTONA_YES=1. Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		if err := requireBillingFlag(cmd, "threshold-cents"); err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func requireBillingFlag(cmd *cobra.Command, name string) error {
 }
 
 func newBillingDeleteCmd(use, suffix, short, target string) *cobra.Command {
-	return &cobra.Command{Use: use, Short: short, Long: short + ". Asks for confirmation; off a terminal pass --yes. Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	return &cobra.Command{Use: use, Short: short, Long: short + ". Asks for confirmation; in non-interactive mode (no terminal, -o json|yaml, or CI) pass --yes or set DAYTONA_YES=1. Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		a := FromContext(cmd.Context())
 		if err := a.PreflightConfirm("delete", target); err != nil {
 			return err
@@ -137,7 +137,7 @@ func newBillingPlanCmd() *cobra.Command {
 	cmd.AddCommand(
 		newBillingGetCmd[gen.BillingPlan]("get", "/plan", ""),
 		newBillingGetCmd[gen.PlanList]("list", "/plans", "plans"),
-		&cobra.Command{Use: "set <starter|team|enterprise>", Short: "Set the billing plan", Long: "Set the organization's billing plan. It changes what the organization is billed, so it asks for confirmation; off a terminal pass --yes. Requires write:billing.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "set <starter|team|enterprise>", Short: "Set the billing plan", Long: "Set the organization's billing plan. It changes what the organization is billed, so it asks for confirmation; in non-interactive mode (no terminal, -o json|yaml, or CI) pass --yes or set DAYTONA_YES=1. Requires write:billing.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 			plan := strings.ToLower(args[0])
 			if plan != "starter" && plan != "team" && plan != "enterprise" {
 				return cerr.Usage("plan must be starter, team, or enterprise")

@@ -83,10 +83,12 @@ name could not be resolved to an ID.`,
 			ctx := cmd.Context()
 			scope := whoamiScopeRefs(ctx, a)
 			out := map[string]any{
-				"profile":           a.Profile.Name,
-				"api_url":           a.Profile.APIURL,
-				"credential_source": a.CredentialSource,
-				"context_resolved":  scope.resolved,
+				"profile":          a.Profile.Name,
+				"api_url":          a.Profile.APIURL,
+				"context_resolved": scope.resolved,
+			}
+			if a.CredentialSource != "" { // omitted with no credential
+				out["credential_source"] = a.CredentialSource
 			}
 			if scope.orgID != "" {
 				out["org_id"] = scope.orgID

@@ -69,10 +69,27 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 		{"image", "import", "img", "--ref", "python:3.12"}, // the alias is gone
 		{"invite", "show", "dtni_x"},                       // renamed to `invite get`
 		{"sandbox", "preview-url", "sbx", "8080"},          // moved under `sandbox port`
+		{"registry", "set", "ghcr.io"},                     // a required flag is missing
+		{"login", "--token", "dtn_x", "--device"},          // mutually exclusive flags
+		{"login", "--device", "--browser"},
+		{"sandbox", "list", "--region="}, // an empty --region is refused everywhere
+		{"sandbox", "search", "q", "--region", " "},
+		{"image", "list", "--region="},
+		{"sandbox", "create", "--region="},
 	} {
 		_, stderr, code := runReported(t, cfgDir(t), nil, args...)
 		require.Equal(t, cerr.ExitUsage, code, "%v: %s", args, stderr)
 		require.Equal(t, float64(cerr.ExitUsage), errorObject(t, stderr)["exit_code"], args)
+	}
+	// Removed and moved commands name their replacement.
+	for args, want := range map[string]string{
+		"invite show dtni_x":      "invite get",
+		"sandbox preview-url s 1": "sandbox port preview-url",
+		"image import img":        "image create",
+	} {
+		_, stderr, code := runReported(t, cfgDir(t), nil, strings.Fields(args)...)
+		require.Equal(t, cerr.ExitUsage, code, args)
+		require.Contains(t, errorObject(t, stderr)["hint"], want, args)
 	}
 	// A bare group prints its help and succeeds.
 	stdout, _, code := runReported(t, cfgDir(t), nil, "sandbox")
@@ -595,7 +612,27 @@ func TestFanOutListFailures(t *testing.T) {
 		require.Equal(t, float64(cerr.ExitPartial), obj["exit_code"])
 		require.NotContains(t, obj, "source", "a partial list is not the CLI's own failure")
 		// Table output prints no `errors`: the message keeps status and code.
+		require.Contains(t, obj["message"], "region-b: 403 no access (FORBIDDEN) [trace tr-b]")
+	})
+	t.Run("every region fails", func(t *testing.T) {
+		bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"code":"FORBIDDEN","message":"no access","source":"DAYTONA_API"}`))
+		}))
+		defer bad.Close()
+		f := newFakeAPI(t)
+		f.on(http.MethodGet, "/regions", 200, `{"regions":[{"id":"region-a","name":"A","available":true,"parent_region_ids":[]},`+regionalAPIRow("region-b", bad.URL)+`],"default_region_id":null}`)
+		f.on(http.MethodGet, "/sandboxes", 401, `{"code":"UNAUTHORIZED","message":"bad key","source":"DAYTONA_API","trace_id":"tr-a"}`)
+		stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list")
+		require.Equal(t, cerr.ExitAuth, code, stderr)
+		require.Empty(t, stdout)
+		obj := errorObject(t, stderr)
+		require.Equal(t, "UNAUTHORIZED", obj["code"], "the first region's attribution")
+		require.Equal(t, "tr-a", obj["trace_id"])
+		require.Contains(t, obj["message"], "region-a: 401 bad key (UNAUTHORIZED)")
 		require.Contains(t, obj["message"], "region-b: 403 no access (FORBIDDEN)")
+		require.NotEmpty(t, obj["hint"])
 	})
 }
 
@@ -674,4 +711,50 @@ func TestFanOutListPrintsEachRowsOwnJSON(t *testing.T) {
 		}
 		require.Equal(t, want, item["copy"], item)
 	}
+}
+
+// whoami omits what it does not know: with no credential there is no
+// credential_source.
+func TestWhoamiWithoutACredentialOmitsCredentialSource(t *testing.T) {
+	stdout, stderr, code := runReported(t, cfgDir(t), nil, "--api-url", "http://127.0.0.1:1", "whoami")
+	require.Equal(t, 0, code, stderr)
+	out := mustJSON(t, stdout)
+	require.NotContains(t, out, "credential_source")
+	require.Equal(t, "default", out["profile"])
+}
+
+// --region narrows the list to that region even when regions share one API.
+func TestRegionFlagFiltersListsOnASharedAPI(t *testing.T) {
+	regionsBody := `{"regions":[{"id":"earth","name":"Earth","available":false,"parent_region_ids":[]},{"id":"us","name":"US","available":true,"parent_region_ids":["earth"]},{"id":"eu","name":"EU","available":true,"parent_region_ids":["earth"]}],"default_region_id":null}`
+	f := newFakeAPI(t)
+	f.on(http.MethodGet, "/regions", 200, regionsBody)
+	f.handle(http.MethodGet, "/sandboxes", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"sandboxes":[{"id":"a-us","name":"a","status":"running","region_id":"us"},{"id":"b-eu","name":"b","status":"running","region_id":"eu"}],"next_cursor":"c2"}`))
+	})
+	f.handle(http.MethodGet, "/images", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"images":[{"id":"i-us","status":"ready","region_id":"us","region_ids":["us"]},{"id":"i-eu","status":"ready","region_id":"eu","region_ids":["eu"]},{"id":"i-both","status":"ready","region_id":"eu","region_ids":["eu","us"]}]}`))
+	})
+	ids := func(stdout string) []string {
+		var out []string
+		for _, item := range mustJSON(t, stdout)["items"].([]any) {
+			out = append(out, item.(map[string]any)["id"].(string))
+		}
+		return out
+	}
+	env := map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}
+	stdout, stderr, code := runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list", "--region", "us")
+	require.Equal(t, 0, code, stderr)
+	require.Equal(t, []string{"a-us"}, ids(stdout))
+	require.NotEmpty(t, mustJSON(t, stdout)["next_cursor"], "the cursor still advances over the API's page")
+	stdout, stderr, code = runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "image", "list", "--region", "us")
+	require.Equal(t, 0, code, stderr)
+	require.ElementsMatch(t, []string{"i-us", "i-both"}, ids(stdout))
+	// A parent region selects the regions inside it.
+	stdout, stderr, code = runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list", "--region", "earth")
+	require.Equal(t, 0, code, stderr)
+	require.ElementsMatch(t, []string{"a-us", "b-eu"}, ids(stdout))
+	// Without --region nothing is filtered.
+	stdout, stderr, code = runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list")
+	require.Equal(t, 0, code, stderr)
+	require.ElementsMatch(t, []string{"a-us", "b-eu"}, ids(stdout))
 }

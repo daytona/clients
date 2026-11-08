@@ -142,9 +142,9 @@ func newSnapshotGetCommand() *cobra.Command {
 
 func newSnapshotDeleteCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
+		Use:   "delete <id-or-name>",
 		Short: "Delete a snapshot",
-		Long:  "Delete a snapshot.\nExample:\n  daytona snapshot delete <id> --yes",
+		Long:  "Delete a snapshot by id or name; the acknowledgement names its id.\nExample:\n  daytona snapshot delete <id-or-name> --yes",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -155,10 +155,14 @@ func newSnapshotDeleteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := client.Do(cmd.Context(), http.MethodDelete, "/snapshots/"+url.PathEscape(args[0]), nil, nil, nil); err != nil {
+			id, err := resolveResourceID(cmd.Context(), client, "/snapshots/", args[0], func(v gen.Snapshot) string { return v.Id })
+			if err != nil {
 				return err
 			}
-			return printAck(a, "id", args[0], "deleted", "")
+			if err := client.Do(cmd.Context(), http.MethodDelete, "/snapshots/"+url.PathEscape(id), idOnly, nil, nil); err != nil {
+				return err
+			}
+			return printAck(a, "id", id, "deleted", "")
 		},
 	}
 }

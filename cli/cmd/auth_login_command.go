@@ -54,9 +54,6 @@ Examples:
 				}
 				return loginToken(cmd.Context(), a, token)
 			}
-			if device && browser {
-				return cerr.Usage("--device and --browser are mutually exclusive")
-			}
 			return loginOIDC(cmd.Context(), a, device, browser, clientID)
 		},
 	}
@@ -64,6 +61,10 @@ Examples:
 	c.Flags().BoolVar(&browser, "browser", false, "force the browser (loopback) flow even inside an SSH session — for when you forward the callback port with `ssh -L`")
 	c.Flags().StringVar(&token, "token", "", "store this static credential instead of signing in")
 	c.Flags().StringVar(&clientID, "client-id", "", "OIDC client id override (default: discovered from the API, or DAYTONA_OIDC_CLIENT_ID)")
+	c.MarkFlagsMutuallyExclusive("device", "browser")
+	c.MarkFlagsMutuallyExclusive("token", "device")
+	c.MarkFlagsMutuallyExclusive("token", "browser")
+	c.MarkFlagsMutuallyExclusive("token", "client-id")
 	return c
 }
 

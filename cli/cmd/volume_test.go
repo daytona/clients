@@ -40,9 +40,12 @@ func TestVolumeCommands_routeAndRenderJSON(t *testing.T) {
 			expected: []expectedRequest{{method: http.MethodGet, path: "/volumes/55555555-5555-5555-5555-555555555555", status: 200, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")}},
 		},
 		{
-			name:     "delete volume",
-			args:     []string{"volume", "delete", "55555555-5555-5555-5555-555555555555", "--yes"},
-			expected: []expectedRequest{{method: http.MethodDelete, path: "/volumes/55555555-5555-5555-5555-555555555555", status: 202, response: `{"id":"55555555-5555-5555-5555-555555555555","status":"deleting"}`}},
+			name: "delete volume",
+			args: []string{"volume", "delete", "55555555-5555-5555-5555-555555555555", "--yes"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/volumes/55555555-5555-5555-5555-555555555555", status: 200, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")},
+				{method: http.MethodDelete, path: "/volumes/55555555-5555-5555-5555-555555555555", query: "id_only=true", status: 202, response: `{"id":"55555555-5555-5555-5555-555555555555","status":"deleting"}`},
+			},
 		},
 	}
 	for _, tt := range tests {

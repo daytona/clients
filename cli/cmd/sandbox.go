@@ -10,6 +10,7 @@ import (
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/daytona/clients/cli/internal/regions"
 	"github.com/daytona/clients/cli/internal/workload"
@@ -51,6 +52,11 @@ func newSandboxListCommand() *cobra.Command {
 				return err
 			}
 			list.Items = regions.Unique(list.Items, func(item gen.SandboxListItem) string { return item.Id })
+			inRegion, err := source.regionFilter(cmd.Context())
+			if err != nil {
+				return err
+			}
+			list.Items = keepItems(list.Items, func(item gen.SandboxListItem) bool { return inRegion(item.RegionId) })
 			if err := listOutRaw(a.Printer(), rawList(source.raws, list), sandboxListTable); err != nil {
 				return err
 			}
@@ -58,7 +64,7 @@ func newSandboxListCommand() *cobra.Command {
 		},
 	}
 	addPageFlags(cmd, &flags)
-	addRegionFlag(cmd, "list only this region's sandboxes (default: every region)")
+	addRegionFlag(cmd, "list only the sandboxes in this region or a region inside it (default: every region); a page can then hold fewer than --limit items")
 	return cmd
 }
 
@@ -251,4 +257,50 @@ func printSandboxDetail(ctx context.Context, id string) error {
 		return err
 	}
 	return a.Printer().Object(resolved.Raw, sandboxDetailKV(resolved.Detail))
+}
+
+// regionFilter reports whether a region id is the --region the list was
+// narrowed to or a region inside it; every region matches without --region.
+// The list API has no region filter, and regions without their own API base
+// URL share one: the CLI drops the other regions' items after the request,
+// while the cursor still advances over the API's whole page.
+func (source regionalListSource) regionFilter(ctx context.Context) (func(string) bool, error) {
+	if source.region == "" {
+		return func(string) bool { return true }, nil
+	}
+	cat, err := source.catalog.Fetch(ctx, source.home)
+	if err != nil {
+		return nil, err
+	}
+	selected := cat.Find(source.region)
+	if selected == nil {
+		return nil, cerr.Usage("unknown region %q", source.region).WithHint("`daytona region list` shows the regions")
+	}
+	return func(id string) bool {
+		if strings.EqualFold(id, selected.Id) {
+			return true
+		}
+		if r := cat.Find(id); r != nil {
+			for _, parent := range r.ParentRegionIds {
+				if strings.EqualFold(parent, selected.Id) {
+					return true
+				}
+			}
+		}
+		return false
+	}, nil
+}
+
+// keepItems returns the items keep accepts, in order.
+func keepItems[T any](items []T, keep func(T) bool) []T {
+	out := items[:0:0]
+	for _, item := range items {
+		if keep(item) {
+			out = append(out, item)
+		}
+	}
+	if out == nil {
+		out = []T{}
+	}
+	return out
 }

@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -73,7 +74,7 @@ func newBillingGetCmd[T any](use string, suffix string, listKey string) *cobra.C
 }
 
 func addBillingPageFlags(cmd *cobra.Command, flags *pageFlags, defaultLimit, maxLimit int64) {
-	cmd.Flags().Int64Var(&flags.limit, "limit", defaultLimit, "max items to return")
+	cmd.Flags().Int64Var(&flags.limit, "limit", defaultLimit, fmt.Sprintf("items per page, 1 to %d", maxLimit))
 	cmd.Flags().StringVar(&flags.cursor, "cursor", "", "opaque continuation token")
 	cmd.Flags().BoolVar(&flags.all, "all", false, "follow every page until exhausted")
 	cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {

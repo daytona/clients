@@ -69,6 +69,17 @@ func TestToolboxProcessCommands_routeAndRender(t *testing.T) {
 		require.Equal(t, float64(9), requireJSONStdout(t, stdout)["exit_code"])
 	})
 
+	t.Run("a process ended by SIGINT exits 130, by another signal 1", func(t *testing.T) {
+		for signal, want := range map[string]int{"SIGINT": cerr.ExitInterrupted, "SIGTERM": cerr.ExitFailure} {
+			_, _, err := runToolboxCLI(t, []string{"sandbox", "process", "wait", "sbx", "p1", "--timeout", "1s"}, []toolboxExpectedRequest{
+				{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
+				{method: http.MethodGet, path: "/test-tools/sbx/processes/p1/wait", status: 200, auth: true, response: `{"reason":"signaled","signal":"` + signal + `"}`},
+			})
+			require.Equal(t, want, cerr.ExitCode(err), signal)
+			require.Equal(t, cerr.SourceProcess, cerr.DetailsOf(err).Source, signal)
+		}
+	})
+
 	t.Run("signal", func(t *testing.T) {
 		_, _, err := runToolboxCLI(t, []string{"sandbox", "process", "signal", "sbx", "p1", "TERM", "--escalate-after", "5s", "--escalate-to", "KILL"}, []toolboxExpectedRequest{
 			{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},

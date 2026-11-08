@@ -956,5 +956,5 @@ func TestEmptyAPIKeyFlagIsAUsageError(t *testing.T) {
 	}
 	out, errb, code := run(t, d, map[string]string{"DAYTONA_API_KEY": "   "}, "whoami", "-o", "json")
 	require.Equal(t, 0, code, errb)
-	require.Equal(t, "", mustJSON(t, out)["credential_source"], "a blank DAYTONA_API_KEY counts as unset")
+	require.NotContains(t, mustJSON(t, out), "credential_source", "a blank DAYTONA_API_KEY counts as unset")
 }

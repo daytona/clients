@@ -58,6 +58,21 @@ func newImageListCommand() *cobra.Command {
 				return err
 			}
 			list.Items = regions.Unique(list.Items, func(item gen.ImageListItem) string { return item.Id })
+			inRegion, err := source.regionFilter(cmd.Context())
+			if err != nil {
+				return err
+			}
+			list.Items = keepItems(list.Items, func(item gen.ImageListItem) bool {
+				if inRegion(item.RegionId) {
+					return true
+				}
+				for _, id := range item.RegionIds {
+					if inRegion(id) {
+						return true
+					}
+				}
+				return false
+			})
 			if err := listOutRaw(a.Printer(), rawList(source.raws, list), func(items []gen.ImageListItem) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
@@ -71,7 +86,7 @@ func newImageListCommand() *cobra.Command {
 		},
 	}
 	addPageFlags(cmd, &flags.pageFlags)
-	addRegionFlag(cmd, "list only this region's images (default: every region)")
+	addRegionFlag(cmd, "list only the images available in this region or a region inside it (region_id or region_ids; default: every region); a page can then hold fewer than --limit items")
 	cmd.Flags().StringVar(&flags.name, "name", "", "filter by exact image name")
 	cmd.Flags().StringVar(&flags.anonymous, "anonymous", "", "true lists only anonymous images, false only named ones (the default)")
 	cmd.Flags().StringVar(&flags.platform, "platform", "", "platform images: true (only platform images)|false (only the project's, the default)|any (both)")

@@ -136,18 +136,20 @@ func writeTestJSON(t *testing.T, w http.ResponseWriter, value any) {
 	require.NoError(t, json.NewEncoder(w).Encode(value))
 }
 
-func TestBillingPlanList_nullPlansIsAnEmptyList(t *testing.T) {
-	t.Setenv("DAYTONA_TEST_SKIP_CONTRACT", "1") // the contract says plans is never null
-	api := newFakeAPI(t)
-	api.handle(http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/billing/plans", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"plans":null}`))
-	})
+func TestBillingPlanList_nullOrMissingPlansIsAnEmptyList(t *testing.T) {
+	t.Setenv("DAYTONA_TEST_SKIP_CONTRACT", "1") // the contract says plans is always a list
+	for _, body := range []string{`{"plans":null}`, `{}`, `null`} {
+		api := newFakeAPI(t)
+		api.handle(http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/billing/plans", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(body))
+		})
 
-	stdout, stderr, code := runMgmt(t, api, cfgDir(t), "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "json", "billing", "plan", "list")
+		stdout, stderr, code := runMgmt(t, api, cfgDir(t), "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "json", "billing", "plan", "list")
 
-	require.Equal(t, 0, code, stderr)
-	require.Equal(t, []any{}, mustJSON(t, stdout)["items"])
+		require.Equal(t, 0, code, stderr)
+		require.Equal(t, map[string]any{"items": []any{}, "incomplete": false}, mustJSON(t, stdout), body)
+	}
 }
 
 // Changing the plan or automatic top-up changes what the organization is

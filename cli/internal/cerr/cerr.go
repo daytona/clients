@@ -173,7 +173,7 @@ func CodeForStatus(status int) int {
 // RefuseWithoutYes is the non-interactive destructive-verb refusal.
 func RefuseWithoutYes(verb, target string) *Error {
 	return New(ExitUsage, "refusing to %s %s without --yes in non-interactive mode (or DAYTONA_YES=1)", verb, target).
-		WithHint("pass --yes to confirm, or set DAYTONA_YES=1")
+		WithHint("in non-interactive mode (no terminal, -o json|yaml, or CI) pass --yes to confirm, or set DAYTONA_YES=1")
 }
 
 // MissingArg is the non-interactive "would have shown a picker" refusal.

@@ -37,10 +37,21 @@ func rejectUnknownSubcommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	e := cerr.Usage("unknown command %q for %q", args[0], cmd.CommandPath())
+	if next, ok := renamedCommands[cmd.CommandPath()+" "+args[0]]; ok {
+		return e.WithHint("use `daytona %s`", next)
+	}
 	if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
 		return e.WithHint("did you mean %q? Run `%s --help` for the available commands", suggestions[0], cmd.CommandPath())
 	}
 	return e.WithHint("run `%s --help` for the available commands", cmd.CommandPath())
+}
+
+// renamedCommands maps a command path the 2.x CLI no longer has to its
+// replacement.
+var renamedCommands = map[string]string{
+	"daytona invite show":         "invite get",
+	"daytona sandbox preview-url": "sandbox port preview-url (and `sandbox port preview-url expire`)",
+	"daytona image import":        "image create NAME --ref REF",
 }
 
 // normalizeTree makes every arity error, unknown command and unknown
