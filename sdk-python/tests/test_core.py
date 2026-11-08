@@ -11357,6 +11357,18 @@ _TOKEN_EXCHANGE_CASES = [
         b'{"access_token": "t", "expires_in": 1.5}',
         "token exchange response expires_in must be a positive integer",
     ),
+    (
+        b'{"access_token": "t", "expires_in": 60.5}',
+        "token exchange response expires_in must be a positive integer",
+    ),
+    (
+        b'{"access_token": "t", "expires_in": true}',
+        "token exchange response expires_in must be a positive integer",
+    ),
+    (
+        b'{"access_token": "t", "expires_in": 9007199254740992.0}',
+        "token exchange response expires_in must be a positive integer",
+    ),
 ]
 
 
@@ -11382,6 +11394,32 @@ async def test_project_token_exchange_reads_only_the_fields_it_uses() -> None:
     finally:
         await http.aclose()
     assert (exchange.access_token, exchange.expires_in) == ("t", 9007199254740991)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("raw", [b"60", b"60.0", b"1e2"])
+async def test_project_token_exchange_takes_an_integral_float_like_typescript(raw: bytes) -> None:
+    # JSON.parse cannot tell 60.0 from 60, so TypeScript reads them alike; the
+    # TypeScript SDK's unit.test.ts pins the same cases.
+    http = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, content=b'{"access_token": "t", "expires_in": ' + raw + b"}")
+        ),
+        base_url="http://api.invalid",
+    )
+    auth = ProjectTokenAuth(
+        api_url="http://api.invalid",
+        jwt_token="jwt",
+        project_id="project-1",
+        source="sdk-python-async",
+        client=http,
+    )
+    try:
+        exchange = await auth._exchange_token()
+    finally:
+        await http.aclose()
+    assert exchange.expires_in == int(float(raw))
+    assert type(exchange.expires_in) is int
 
 
 @pytest.mark.anyio

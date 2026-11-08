@@ -2,14 +2,42 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
+from collections.abc import Generator
 from pathlib import Path
 
+import pluggy
 import pytest
 
 # The generator is imported by tests for the rules it shares with them
 # (_LOOP_FREE, _is_internal_binder, the type transform). Make it importable
 # before collection so the test modules use ordinary top-level imports.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "gen"))
+
+
+# The SDK's own tree (an sdist unpacks just this) and the repository around it.
+_SDK_ROOT = Path(__file__).resolve().parents[1]
+_REPO_ROOT = _SDK_ROOT.parent
+# Whether the tests run in a repository checkout, with the contracts, the
+# TypeScript SDK, scripts/ and upgrade/ next to the SDK. An sdist has none of them.
+IN_REPO_CHECKOUT = (_REPO_ROOT / "contract").is_dir() and (_REPO_ROOT / "scripts").is_dir()
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item: pytest.Item) -> Generator[None, pluggy.Result[None], None]:
+    """Skip, outside a repository checkout, a test that reads a repository file.
+
+    Drift and parity tests read files next to the SDK (``contract/``,
+    ``sdk-typescript/``, ``scripts/``, ``upgrade/``). From an sdist those are
+    absent: such a test is skipped rather than failed. In a checkout a missing
+    file still fails the test.
+    """
+    outcome = yield
+    error = outcome.exception
+    if IN_REPO_CHECKOUT or not isinstance(error, FileNotFoundError) or error.filename is None:
+        return
+    missing = Path(str(error.filename)).resolve()
+    if missing.is_relative_to(_REPO_ROOT) and not missing.is_relative_to(_SDK_ROOT):
+        outcome.force_exception(pytest.skip.Exception(f"repository file not in this tree: {missing}"))
 
 
 @pytest.fixture

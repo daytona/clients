@@ -998,6 +998,20 @@ function unrefTimer(timer: ReturnType<typeof setTimeout>): void {
   }
 }
 
+/**
+ * A per-call timeout in milliseconds, held to the request-timeout rule:
+ * `undefined` keeps the request timeout, a negative or non-finite value is a
+ * `BadRequestError`, and `0` or above the timer maximum means no limit (the
+ * timer helpers read both as unbounded).
+ */
+function perCallTimeoutMs(timeout: number | undefined): number | undefined {
+  if (timeout === undefined) return undefined
+  if (typeof timeout !== 'number' || !Number.isFinite(timeout) || timeout < 0) {
+    throw badRequest('timeout must be a non-negative finite number of milliseconds (0 = no limit)')
+  }
+  return timeout
+}
+
 function timeoutSignal(timeoutMs: number, signal: AbortSignalLike | null | undefined): {
   readonly signal: AbortSignal
   readonly clearTimer: () => void
@@ -1432,7 +1446,7 @@ export class HttpTransport {
     // Until the response headers arrive (a stream's body is not bounded), by
     // the call's own timeout or else the request timeout; never for a file
     // transfer, whose upload body is sent before them.
-    const timeout = timeoutSignal(init?.transfer === true ? 0 : init?.timeout ?? this.defaultTimeout, init?.signal)
+    const timeout = timeoutSignal(init?.transfer === true ? 0 : perCallTimeoutMs(init?.timeout) ?? this.defaultTimeout, init?.signal)
     // A successful response with a streaming body keeps its span open until
     // the body is fully read (or errors/cancels): a read failure after the
     // headers is still a failed request from the caller's point of view.
