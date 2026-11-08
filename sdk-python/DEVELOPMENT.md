@@ -181,7 +181,10 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   bounded only until their response headers arrive, by the spec's own
   `timeout` when it has one, else the request timeout
   (`_transport._stream_open_seconds`; `0` or above the timer maximum =
-  none). The deadline starts before the bearer is resolved; the project-token
+  none). Neither bounds a stream's body as a total, but
+  `open_exclusive_stream` keeps the timeout as httpx's idle-read bound on a
+  finite body unless the spec sets `unbounded_read` (a real-socket test in
+  `test_client_config.py` pins both openers). The deadline starts before the bearer is resolved; the project-token
   exchange request is also bounded by the client's request timeout. The TypeScript transport
   implements the same rule.
 - Build logs use URL-only discovery (`{"url": "https://…/build-logs/…"}`).
