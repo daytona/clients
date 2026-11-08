@@ -57,6 +57,17 @@ describe('platform volumes', () => {
     ])
   })
 
+  it('refuses the former positional create flag instead of ignoring it', async () => {
+    // Given the 0.x-style call get(name, true).
+    // SAFETY: a plain-JS caller can still pass the old positional boolean.
+    const pending = service.get('data', true as never)
+    // Then it names the options form and sends nothing, rather than a lookup that 404s.
+    await expect(pending).rejects.toMatchObject({
+      statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'volumes.get takes options; pass { create: true }',
+    })
+    expect(requests).toEqual([])
+  })
+
   it('keeps a missing ID missing when create and idOnly are both requested', async () => {
     // Given
     responses.push({ status: 404, body: { code: 'NOT_FOUND', message: 'absent' } })
