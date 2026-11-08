@@ -54,11 +54,12 @@ const WINDOW = { id: 1, title: 't', x: 0, y: 0, width: 1, height: 1, isActive: t
  */
 function respond(request: IncomingMessage): unknown {
   const raw = (request.url ?? '').split('?')[0] ?? ''
-  const prefix = /^\/(envelope|ready|starting)(?=\/)/.exec(raw)?.[1]
+  const prefix = /^\/(envelope|ready|starting|novel)(?=\/)/.exec(raw)?.[1]
   const envelope = prefix === 'envelope'
   const path = prefix === undefined ? raw : raw.slice(prefix.length + 1)
   // The contract's three desktop states (`/ready`, `/starting`, else failed).
   if (path === '/computeruse/status' && prefix === 'ready') return { status: 'active', desktop: 'ready', extra: { a: [1] } }
+  if (path === '/computeruse/status' && prefix === 'novel') return { status: 'paused', desktop: 'dimmed', extra: { a: [1] } }
   if (path === '/computeruse/status' && prefix === 'starting') return { status: 'inactive', desktop: 'starting', cause: null, extra: { a: [1] } }
   const routes: Record<string, unknown> = {
     'POST /processes': { ...RECORD, logs: PAGE },
@@ -263,6 +264,7 @@ describe('toolbox results are frozen at run time', () => {
     ['computerUse.status (failed, with its cause)', () => cu().status()],
     ['computerUse.status (ready)', () => new ComputerUseService(INTERNAL, at('/ready')).status()],
     ['computerUse.status (starting)', () => new ComputerUseService(INTERNAL, at('/starting')).status()],
+    ['computerUse.status (a pair this release does not know)', () => new ComputerUseService(INTERNAL, at('/novel')).status()],
     ['computerUse.start', () => cu().start()],
     ['computerUse.stop', () => cu().stop()],
     ['computerUse.restart', () => cu().restart()],
