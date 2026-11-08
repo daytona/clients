@@ -40,7 +40,7 @@ def sh(sandbox: Sandbox, command: str) -> str:
 
 
 def main() -> int:
-    daytona = Daytona(DaytonaConfig(api_key=os.environ.get("DAYTONA_API_KEY", ""))).v2
+    daytona = Daytona(DaytonaConfig(api_key=os.environ.get("DAYTONA_API_KEY"))).v2
     volume = daytona.volume.create(name=f"shared-vol-{RUN}")
     print(f"volume id={volume.id} name={volume.name} status={volume.status}")
     boxes: list[Sandbox] = []

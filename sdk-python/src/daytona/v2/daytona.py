@@ -1299,19 +1299,23 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     # the 0.x SDK). Ambient values are trimmed and a blank one is unset; a
     # slash-only URL is unset too.
     api_url = (_ambient("DAYTONA_V2_API_URL") or "").rstrip("/") or DEFAULT_V2_API_URL
-    # Explicit values are used as given. An explicit credential wins over the
-    # ambient environment: jwt_token suppresses DAYTONA_API_KEY and api_key
-    # suppresses DAYTONA_JWT_TOKEN, so an exported key never collides with the
-    # credential the caller chose.
-    api_key = config.api_key or (None if config.jwt_token else _ambient("DAYTONA_API_KEY"))
-    if config.jwt_token == "" and not api_key:
-        raise create_error("jwt_token must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
-    if config.project_id == "":
-        raise create_error("project_id must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
+    # Explicit values are used as given; an explicitly empty one is an error,
+    # never "unset". An explicit credential wins over the ambient environment:
+    # jwt_token suppresses DAYTONA_API_KEY and api_key suppresses
+    # DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
+    # the caller chose.
+    for name in ("api_key", "jwt_token", "project_id"):
+        if getattr(config, name) == "":
+            raise create_error(f"{name} must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
+    api_key = (
+        config.api_key
+        if config.api_key is not None
+        else (None if config.jwt_token is not None else _ambient("DAYTONA_API_KEY"))
+    )
     jwt_token = (
-        (config.jwt_token or None)
+        config.jwt_token
         if config.jwt_token is not None
-        else (None if config.api_key else _ambient("DAYTONA_JWT_TOKEN"))
+        else (None if config.api_key is not None else _ambient("DAYTONA_JWT_TOKEN"))
     )
     if api_key and jwt_token:
         raise create_error(
@@ -1321,7 +1325,9 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
             "SDK",
         )
     if not api_key and not jwt_token:
-        raise AuthenticationError("api_key or jwt_token is required", status_code=401, source="SDK")
+        raise AuthenticationError(
+            "api_key or jwt_token is required", status_code=401, code="UNAUTHORIZED", source="SDK"
+        )
     project_id = config.project_id if config.project_id is not None else _ambient("DAYTONA_PROJECT_ID")
     if jwt_token and not project_id:
         raise create_error("jwt_token requires project_id", 400, "BAD_REQUEST", "SDK")

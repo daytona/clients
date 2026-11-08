@@ -99,7 +99,7 @@ def main() -> int:
     # The v2 client reads DAYTONA_V2_API_URL itself (default: https://api.daytona.com).
     daytona = RootDaytona(
         DaytonaConfig(
-            api_key=os.environ.get("DAYTONA_API_KEY", ""),
+            api_key=os.environ.get("DAYTONA_API_KEY"),
         )
     ).v2
 

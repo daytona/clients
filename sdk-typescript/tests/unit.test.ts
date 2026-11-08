@@ -7065,18 +7065,23 @@ describe('toolbox service request shaping', () => {
     }
   })
 
-  it('treats explicit empty jwtToken and projectId as invalid instead of falling back to env', () => {
+  it('treats explicit empty credentials and projectId as invalid instead of falling back to env', () => {
     const previousJwt = process.env.DAYTONA_JWT_TOKEN
     const previousProject = process.env.DAYTONA_PROJECT_ID
+    const previousKey = process.env.DAYTONA_API_KEY
     try {
       process.env.DAYTONA_JWT_TOKEN = 'env-jwt'
       process.env.DAYTONA_PROJECT_ID = 'env-project'
-      expect(() => new Daytona({ apiKey: 'key', jwtToken: '' })).not.toThrow()
+      process.env.DAYTONA_API_KEY = 'env-key'
+      expect(() => new Daytona({ apiKey: 'key', jwtToken: '' })).toThrow('jwtToken must be a non-empty string when provided')
       expect(() => new Daytona({ jwtToken: '' })).toThrow('jwtToken must be a non-empty string when provided')
+      expect(() => new Daytona({ apiKey: '' })).toThrow('apiKey must be a non-empty string when provided')
       expect(() => new Daytona({ jwtToken: 'jwt-token', projectId: '' })).toThrow('projectId must be a non-empty string when provided')
     } finally {
       if (previousJwt === undefined) delete process.env.DAYTONA_JWT_TOKEN
       else process.env.DAYTONA_JWT_TOKEN = previousJwt
+      if (previousKey === undefined) delete process.env.DAYTONA_API_KEY
+      else process.env.DAYTONA_API_KEY = previousKey
       if (previousProject === undefined) delete process.env.DAYTONA_PROJECT_ID
       else process.env.DAYTONA_PROJECT_ID = previousProject
     }

@@ -262,3 +262,13 @@ def test_invalid_events_durations_are_rejected(field: str, bad: object) -> None:
         "BAD_REQUEST",
         "SDK",
     )
+
+
+def test_missing_credentials_carry_the_catalog_status_and_code(clean_env: pytest.MonkeyPatch) -> None:
+    with pytest.raises(AuthenticationError) as excinfo:
+        _v2(DaytonaConfig())
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        401,
+        "UNAUTHORIZED",
+        "SDK",
+    )

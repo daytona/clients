@@ -68,8 +68,32 @@ describe('option keys', () => {
     expectBadRequest(() => new DaytonaV2({ apiKey: 'k', bogus: true } as never), 'DaytonaConfig has no option `bogus`')
   })
 
-  it('keeps the URL fields TypeError with its guidance', () => {
-    expect(() => new Daytona({ apiKey: 'k', apiUrl: 'https://self.example' } as never)).toThrow(TypeError)
+  it.each(['apiUrl', 'serverUrl', 'toolboxUrl'])('rejects %s as a BadRequestError with the custom-URL guidance', (field) => {
+    expectBadRequest(() => new Daytona({ apiKey: 'k', [field]: 'https://self.example' } as never), `DaytonaConfig does not take '${field}': SDK 2.x targets Daytona Cloud`)
+    expectBadRequest(() => new DaytonaV2({ apiKey: 'k', apiUrl: 'https://self.example' } as never), "does not take 'apiUrl'")
+  })
+
+  it('rejects an unknown key inherited through the prototype', () => {
+    const config = Object.create({ requestTimeout: 5_000 }) as Record<string, unknown>
+    config.apiKey = 'k'
+    expectBadRequest(() => new Daytona(config as never), 'was renamed to `requestTimeoutSeconds`')
+  })
+
+  it('copies the nested events config, so later changes do not reach the client', () => {
+    const events: { enabled?: boolean; idleCloseSeconds?: number } = { idleCloseSeconds: 5 }
+    const daytona = new Daytona({ apiKey: 'k', events })
+    events.idleCloseSeconds = 99
+    events.enabled = false
+    expect(daytona.v2['hubEventsConfig']).toEqual({ enabled: undefined, reconcileIntervalMs: undefined, idleCloseMs: 5_000 })
+  })
+
+  it('validates the events value it keeps, read once', () => {
+    let reads = 0
+    const config = { apiKey: 'k', get events() { reads += 1; return reads === 1 ? { idleCloseSeconds: 1 } : { bogus: true } } }
+    const daytona = new Daytona(config as never)
+    expect(reads).toBe(1)
+    expect(daytona.v2['hubEventsConfig']).toMatchObject({ idleCloseMs: 1_000 })
+    expectBadRequest(() => new Daytona({ apiKey: 'k', events: 'on' } as never), 'SandboxEventsConfig must be an object')
   })
 
   it('reports a renamed key only where its replacement exists', () => {
@@ -269,14 +293,14 @@ describe('request timeout meaning', () => {
   })
 
   it('gives the client timeout one shape on the axios and the fetch paths', async () => {
-    const shape = { message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }
+    const clientTimeout = { message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }
     const transport = new HttpTransport(base, 'k', 100)
     handle = late(400)
-    await expect(transport.get('/slow')).rejects.toMatchObject(shape)
-    await expect(transport.fetch('/stalled')).rejects.toMatchObject(shape)
+    await expect(transport.get('/slow')).rejects.toMatchObject(clientTimeout)
+    await expect(transport.fetch('/stalled')).rejects.toMatchObject(clientTimeout)
     handle = trickle(8, 50)
-    await expect(transport.get('/slow-body', { responseType: 'text' })).rejects.toMatchObject(shape)
-    expect(new ClientTimeoutError()).toMatchObject(shape)
+    await expect(transport.get('/slow-body', { responseType: 'text' })).rejects.toMatchObject(clientTimeout)
+    expect(new ClientTimeoutError()).toMatchObject(clientTimeout)
     expect(new ConnectionError('refused')).toMatchObject({ source: 'SDK', statusCode: undefined, code: undefined })
   })
 
@@ -338,5 +362,30 @@ describe('request timeout meaning', () => {
     expect(await response.text()).toBe('xxxxxx')
     handle = late(400)
     await expect(transport.fetch('/stalled')).rejects.toBeInstanceOf(ClientTimeoutError)
+  })
+})
+
+describe('missing credentials', () => {
+  it('throws AuthenticationError with the catalog status and code', () => {
+    const saved = { key: process.env.DAYTONA_API_KEY, jwt: process.env.DAYTONA_JWT_TOKEN }
+    delete process.env.DAYTONA_API_KEY
+    delete process.env.DAYTONA_JWT_TOKEN
+    try {
+      expect(() => new DaytonaV2({})).toThrow(expect.objectContaining({ statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' }))
+    } finally {
+      if (saved.key !== undefined) process.env.DAYTONA_API_KEY = saved.key
+      if (saved.jwt !== undefined) process.env.DAYTONA_JWT_TOKEN = saved.jwt
+    }
+  })
+
+  it.each([{ apiKey: '' }, { apiKey: 'k', jwtToken: '' }, { jwtToken: '', projectId: 'p' }])('rejects the explicitly empty value in %j instead of reading the environment', (config) => {
+    const saved = process.env.DAYTONA_API_KEY
+    process.env.DAYTONA_API_KEY = 'env-key'
+    try {
+      expectBadRequest(() => new DaytonaV2(config), 'must be a non-empty string when provided')
+    } finally {
+      if (saved === undefined) delete process.env.DAYTONA_API_KEY
+      else process.env.DAYTONA_API_KEY = saved
+    }
   })
 })

@@ -5,7 +5,7 @@
 
 import type { AxiosInstance } from 'axios'
 import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
-import { assertKnownOptions, boundedTimerDelay, optionalSeconds } from './options.js'
+import { assertKnownOptions, badRequest, boundedTimerDelay, optionalSeconds, snapshotOptions } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { ClientTimeoutError, ConnectionError, DaytonaError, AuthenticationError, BadRequestError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
@@ -221,8 +221,8 @@ function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function assertPresentStringOption(name: 'jwtToken' | 'projectId', value: string | undefined): void {
-  if (value !== undefined && value.length === 0) {
+function assertPresentStringOption(name: 'apiKey' | 'jwtToken' | 'projectId', value: string | undefined): void {
+  if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
     throw new BadRequestError(`${name} must be a non-empty string when provided`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
@@ -456,7 +456,7 @@ export class Daytona {
     // get a compile error), as Python's v2 config rejects them.
     for (const unsupported of ['apiUrl', 'target', 'toolboxUrl']) {
       if (unsupported in config) {
-        throw new TypeError(
+        throw badRequest(
           unsupported === 'apiUrl'
             ? "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL to select an API endpoint"
             : unsupported === 'target'
@@ -466,25 +466,22 @@ export class Daytona {
       }
     }
     assertKnownOptions('DaytonaConfig', config, V2_CONFIG_KEYS)
-    assertKnownOptions('SandboxEventsConfig', config.events, SANDBOX_EVENTS_CONFIG_KEYS)
+    const events = snapshotOptions('SandboxEventsConfig', config.events, SANDBOX_EVENTS_CONFIG_KEYS)
     // Only DAYTONA_V2_API_URL selects the endpoint (DAYTONA_API_URL belongs to
     // the 0.x SDK); read through the computed-key env lookup (bundler-safe).
     // Ambient values are trimmed and a blank one is unset; a slash-only URL
     // is unset too.
     const apiUrl = optionalNonBlankEnv('DAYTONA_V2_API_URL')?.replace(/\/+$/, '') || DEFAULT_V2_API_URL
-    // Explicit values are used as given. An explicit credential wins over the
-    // ambient environment: config.jwtToken suppresses DAYTONA_API_KEY and
-    // config.apiKey suppresses DAYTONA_JWT_TOKEN, so an exported key never
-    // collides with the credential the caller chose.
-    const apiKey = config.apiKey || (config.jwtToken ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
-    const ignoreBlankJwtToken = config.jwtToken === '' && typeof apiKey === 'string' && apiKey.length > 0
-    if (!ignoreBlankJwtToken) {
-      assertPresentStringOption('jwtToken', config.jwtToken)
-    }
+    // Explicit values are used as given; an explicitly empty one is an error,
+    // never "unset". An explicit credential wins over the ambient environment:
+    // config.jwtToken suppresses DAYTONA_API_KEY and config.apiKey suppresses
+    // DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
+    // the caller chose.
+    assertPresentStringOption('apiKey', config.apiKey)
+    assertPresentStringOption('jwtToken', config.jwtToken)
     assertPresentStringOption('projectId', config.projectId)
-    const jwtToken = ignoreBlankJwtToken
-      ? undefined
-      : config.jwtToken ?? (config.apiKey ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
+    const apiKey = config.apiKey ?? (config.jwtToken !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
+    const jwtToken = config.jwtToken ?? (config.apiKey !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
     const projectId = config.projectId ?? optionalNonBlankEnv('DAYTONA_PROJECT_ID')
     const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
     // Above the timer maximum (about 24.8 days) means no bound, like 0.
@@ -492,7 +489,7 @@ export class Daytona {
     const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
     const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
     if (!apiKey && !jwtToken) {
-      throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, source: 'SDK' })
+      throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
     }
     if (apiKey && jwtToken) {
       throw new BadRequestError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
@@ -530,7 +527,7 @@ export class Daytona {
     this.reservations = new ReservationsService(this.api)
     this.macModels = new MacModelsService(this.api)
     this.hubShared = config.sharedHub ?? true
-    this.hubEventsConfig = eventsHubConfig(config.events)
+    this.hubEventsConfig = eventsHubConfig(events)
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
   }
 

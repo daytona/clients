@@ -25,7 +25,7 @@ const RUN = randomUUID().replace(/-/g, '').slice(0, 8)
 const sleep = (seconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, seconds * 1000))
 
 async function main(): Promise<number> {
-  const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY ?? '' }).v2
+  const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY }).v2
   const volume = await daytona.volume.create(`shared-vol-${RUN}`)
   console.log(`volume id=${volume.id} name=${volume.name} status=${volume.status}`)
   const boxes: Sandbox[] = []
