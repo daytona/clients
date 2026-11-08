@@ -234,6 +234,10 @@ func TestInstallSh_selectsTheReleaseOfItsChannel(t *testing.T) {
 			}
 			require.NoError(t, err, out)
 			require.Equal(t, tc.note, strings.Contains(out, "no stable 2.x release yet"), out)
+			if tc.note {
+				require.Contains(t, out, "installing the newest pre-release, v"+tc.want+";")
+				require.Contains(t, out, "from 2.0.0 on the default is the highest stable release (--channel alpha keeps pre-releases)")
+			}
 		})
 	}
 }
@@ -356,6 +360,10 @@ func TestInstallPs1_selectsTheReleaseOfItsChannel(t *testing.T) {
 			}
 			require.NotContains(t, out, "INSTALL_FAILED", out)
 			require.Equal(t, tc.note, strings.Contains(out, "no stable 2.x release yet"), out)
+			if tc.note {
+				require.Contains(t, out, "installing the newest pre-release, v"+tc.want+";")
+				require.Contains(t, out, "from 2.0.0 on the default is the highest stable release (DAYTONA_CHANNEL=alpha keeps pre-releases)")
+			}
 		})
 	}
 }
