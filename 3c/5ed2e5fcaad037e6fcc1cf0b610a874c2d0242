@@ -1,0 +1,21 @@
+AGENTS.md
+  s_f23bcae77f0e63::t_35fe13ecdb6c17 486-488
+sdk-typescript/src/v2/options.ts
+  s_f23bcae77f0e63::t_5ebc18a12eb5c5 14-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c5ed2e5fcaad037e6fcc1cf0b610a874c2d0242",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
