@@ -165,6 +165,7 @@ def test_suggests_root_errors_when_v0_module_is_star_imported() -> None:
 def test_former_root_aliases_are_v0_exports_not_root_names(name: str) -> None:
     mapping = load_mapping()
     assert name not in mapping.root_names
+    assert mapping.v0_exports is not None
     assert name in mapping.v0_exports
 
 
