@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import inspect
 from types import MappingProxyType
+from typing import Callable
 
 import pytest
 
@@ -154,3 +155,29 @@ def test_build_log_interrupted_error_takes_the_shared_options() -> None:
         "t-1",
         503,
     )
+
+
+@pytest.mark.parametrize(
+    ("make", "expected"),
+    [
+        (
+            lambda: v2.ClientTimeoutError("x", status_code=None, code=None, source=None),
+            (408, "REQUEST_TIMEOUT", "SDK"),
+        ),
+        (lambda: v2.ConnectionError("x", source=None), (None, None, "SDK")),
+        (
+            lambda: v2.TransferCancelledError("x", status_code=None, code=None, source=None),
+            (499, "REQUEST_CANCELLED", "SDK"),
+        ),
+        (lambda: v2.LimitExceededError("x", code=None), (None, "LIMIT_EXCEEDED", None)),
+        (
+            lambda: v2.BuildLogInterruptedError("x", code=None, source=None),
+            (None, "BUILD_LOG_INTERRUPTED", "SDK"),
+        ),
+    ],
+)
+def test_an_explicit_none_takes_the_default_like_typescript_undefined(
+    make: Callable[[], v2.DaytonaError], expected: tuple[object, ...]
+) -> None:
+    error = make()
+    assert (error.status_code, error.code, error.source) == expected
