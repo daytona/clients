@@ -85,8 +85,9 @@ func newReservationRenewCommand() *cobra.Command {
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
-			target := "reservation " + args[0] + " for another period, billed to the organization"
-			if err := a.PreflightConfirm("renew", target); err != nil {
+			// Consent comes before anything else: resolving the client can
+			// exchange a token or mint a project key.
+			if err := a.Confirm("renew", "reservation "+args[0]+" for another period, billed to the organization"); err != nil {
 				return err
 			}
 			if !cmd.Flags().Changed("idempotency-key") {
@@ -94,9 +95,6 @@ func newReservationRenewCommand() *cobra.Command {
 			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
-				return err
-			}
-			if err := a.Confirm("renew", target); err != nil {
 				return err
 			}
 			var reservation gen.MacReservation

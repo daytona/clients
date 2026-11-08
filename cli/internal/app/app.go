@@ -47,10 +47,14 @@ type Globals struct {
 	// never a fall-through to DAYTONA_API_KEY or the saved login.
 	APIKeySet bool
 	Profile   string
-	// ProfileMayBeNew lets an explicitly selected profile that does not
-	// exist yet through (`login --profile NAME` creates it); everywhere else
-	// an explicit unknown profile is "not found".
+	// ProfileMayBeNew lets a profile named by the --profile flag that does
+	// not exist yet through (`login --profile NAME` creates it); everywhere
+	// else an explicit unknown profile is "not found".
 	ProfileMayBeNew bool
+	// ProfileOptional marks a command that does not act on the selected
+	// profile (help, completion, docs, `profile *`, `config *`): an unknown
+	// --profile / DAYTONA_PROFILE does not stop it.
+	ProfileOptional bool
 	Org             string
 	Project         string
 	Region          string
@@ -155,17 +159,22 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 	a.Mode = ui.Resolve(ui.Options{OutputFormat: string(f), YesFlag: g.Yes, ConfirmOff: !cfg.Settings.ConfirmEnabled(), Getenv: getenv, StdoutTTY: &stdoutTTY, StdinTTY: ForceTTY})
 
 	// Profile selection: --profile > DAYTONA_PROFILE > active > "default".
-	// A profile named explicitly must exist (except for `login --profile`,
-	// which creates it); the active or implicit `default` profile of a fresh
-	// install is synthesized.
+	// A profile named explicitly must exist, except for `login --profile`,
+	// which creates it, and for commands that do not use the selected
+	// profile; the active or implicit `default` profile of a fresh install is
+	// synthesized.
+	fromFlag := strings.TrimSpace(g.Profile) != ""
 	explicit := firstNonEmpty(g.Profile, getenv("DAYTONA_PROFILE"))
 	name := firstNonEmpty(explicit, cfg.ActiveProfile, "default")
 	if p, ok := cfg.Profile(name); ok {
 		cp := *p
 		a.Profile = &cp
-	} else if explicit != "" && !g.ProfileMayBeNew {
-		return nil, cerr.New(cerr.ExitNotFound, "no profile %q", name).
-			WithHint("`daytona profile list` shows the saved profiles; `daytona login --profile %s` creates one", name)
+	} else if explicit != "" && !g.ProfileOptional && !(g.ProfileMayBeNew && fromFlag) {
+		e := cerr.New(cerr.ExitNotFound, "no profile %q", name)
+		if fromFlag {
+			return nil, e.WithHint("`daytona profile list` shows the saved profiles; `daytona login --profile %s` creates one", name)
+		}
+		return nil, e.WithHint("DAYTONA_PROFILE names a profile that does not exist: unset it, or create the profile with `daytona login --profile %s`; `daytona profile list` shows the saved ones", name)
 	} else {
 		a.Profile = &config.Profile{Name: name}
 	}

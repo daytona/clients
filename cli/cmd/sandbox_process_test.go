@@ -248,6 +248,7 @@ func TestSandboxProcessLogsFollow_cancelAfterStreamEstablishedReturnsInterrupted
 	t.Setenv("DAYTONA_PROJECT", "")
 	t.Setenv("DAYTONA_REGION", "")
 	t.Setenv("DAYTONA_OIDC_CLIENT_ID", "")
+	t.Setenv("DAYTONA_YES", "")
 	t.Setenv("CI", "1")
 
 	stdout := &bytes.Buffer{}

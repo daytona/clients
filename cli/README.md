@@ -121,13 +121,16 @@ whose logs hold Docker's output. Add `--wait` to poll until Docker is `ready`;
 `--timeout` bounds that wait (default `60s`).
 
 `daytona image build <name> --context DIR` uploads the directory without what
-its ignore file excludes, with Docker's rules: `<Dockerfile>.dockerignore` next
-to the Dockerfile when it exists, otherwise `.dockerignore` at the context
-root; `#` comments, `*`, `?`, `**` and character classes, `!` exceptions, and a
-pattern that matches a directory excludes everything inside it. The
-Dockerfile and the ignore file are always uploaded. The 64 MiB context limit
-counts what is uploaded. A `--context` tar file is uploaded as is, and
-`sandbox cp` never filters.
+its ignore file excludes: `<Dockerfile>.dockerignore` next to the Dockerfile
+when it exists, otherwise `.dockerignore` at the context root. Matching
+follows Docker's pattern matcher, the one its classic builder uses: `#`
+comments, `*`, `?`, `**` and character classes; patterns are evaluated in
+order and the last one that matches a path decides; a pattern that matches a
+parent directory applies to everything inside it; `!` re-includes. BuildKit's
+context walker treats a few exception patterns for parent directories
+differently. The Dockerfile and the ignore file are always uploaded. The
+64 MiB context limit counts what is uploaded. A `--context` tar file is
+uploaded as is, and `sandbox cp` never filters.
 
 ### macOS sandboxes
 
@@ -214,9 +217,13 @@ Stop and pause need a persistent sandbox (`--persistent`). Stop keeps the disk o
 | `version`, `docs`, `completion` | the CLI's and the API's versions, the reference, shell completion scripts |
 
 Flags every command takes: `--api-url`, `--api-key`, `--profile`, `--org`,
-`--project`, `--region`, `-o/--output`, `-y/--yes`, `-q/--quiet`, `--debug`.
-`--file/-f`, `--no-wait` and `--timeout` exist only on the commands that use
-them; any other command rejects them as unknown flags (exit 2).
+`--project`, `-o/--output`, `-y/--yes`, `-q/--quiet`, `--debug`.
+`--file/-f`, `--no-wait`, `--timeout` and `--region` exist only on the
+commands that use them; any other command rejects them as unknown flags
+(exit 2). `--region` is on `sandbox create*`, `sandbox list`, `sandbox
+search`, `image list`, `image create`, `image build`, `reservation create`,
+`cpu-type list` and `mac-model list`. A renamed flag's old spelling is
+refused with a hint that names the new one.
 
 ## Scripts and agents
 
@@ -247,6 +254,10 @@ never prompts:
 - Billing amounts are integer cents plus a currency. One-time top-ups use
   `--amount-cents`; automatic top-up and low-balance settings use
   `--threshold-cents` (and automatic top-up also uses `--target-cents`).
+- `secret set` takes the value from `--value`, `--from-file` or `--stdin`
+  (one trailing newline is stripped from a file or stdin). An empty value is
+  refused: the stored value cannot be read back, so an unset variable or an
+  empty file would otherwise erase it silently.
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also
   `--permission`, `--label`, `--env`, `--allow-domain`, …).
 - Long operations wait for completion by default; `--no-wait` returns the
@@ -286,7 +297,7 @@ whole seconds where the API stores seconds:
 |---|---|---|
 | `--timeout` | commands that wait (`sandbox create*`, `start`, `stop`, `pause`, `resume`, `fork`, `delete`, `wait`, `exec`, `process wait`, `process logs --follow`, `docker status --wait`, `snapshot create`, `image create`, `build`, `capture`, `logs --follow`) | how long the CLI waits; never sent to the server |
 | `--lifecycle-timeout` / `--on-lifecycle-timeout ACTION` | `sandbox create*`, `sandbox update` | the sandbox's wall-clock lifetime and the action when it ends |
-| `--idle-timeout` / `--on-idle-timeout ACTION` | `sandbox create*`, `sandbox update` | idle time before the action; `sandbox update --idle-timeout off` clears it |
+| `--idle-timeout` / `--on-idle-timeout ACTION` | `sandbox create*`, `sandbox update` | idle time before the action, at least `1m` (the API's minimum); `sandbox update --idle-timeout off` clears it |
 | `--wait` | `sandbox create*` | how long the server holds the create response (`0s` returns at once; server default `3s`) |
 | `--create-ttl` | `sandbox create*` | how long the sandbox may take to reach `running` before the server deletes it; `max` asks for the server's maximum (server default `1h`) |
 | `--ttl` | `sandbox port preview-url --signed` | lifetime of a signed preview URL (default `60s`) |
@@ -325,8 +336,9 @@ request.
   is one JSON line on stderr:
   `{"error": {"exit_code": 4, "code": "FORBIDDEN", "message": "…", "source": "DAYTONA_API", "trace_id": "…", "hint": "…"}}`.
   `code`, `source` and `trace_id` come from the server when it sent them and
-  are omitted otherwise; a local error has `source` `CLI`. Both `code` and
-  `source` are open vocabularies. With table output errors are an `error:`
+  are omitted otherwise, so a server error is never attributed to the CLI; a
+  local error has `source` `CLI`, and a passed-through exit status `PROCESS`
+  or `SSH`. Both `code` and `source` are open vocabularies. With table output errors are an `error:`
   line and an optional `hint:` line.
 
 ### Exit codes
@@ -335,10 +347,10 @@ request.
 |---|---|
 | `0` | success |
 | `1` | failure: a network error, HTTP 5xx (except 501 and 504), HTTP 429 other than `LIMIT_EXCEEDED`, anything not listed below |
-| `2` | usage: wrong number of arguments, unknown command or flag, an invalid flag value or `--file` body, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
+| `2` | usage: wrong number of arguments, unknown command, flag or help topic, an invalid flag value or `--file` body, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
 | `3` | authentication: no credential, or HTTP 401 |
 | `4` | permission denied: HTTP 403 |
-| `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE` that does not exist |
+| `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE` that does not exist (on the commands that use the selected profile) |
 | `6` | conflict: HTTP 409, 412 and 501, and HTTP 429 `LIMIT_EXCEEDED` (an organization limit) |
 | `7` | partial result: some regions or items failed; the rest is printed |
 | `8` | timed out: `--timeout` passed, a request timed out, or HTTP 408 / 504 |
@@ -367,8 +379,8 @@ API's request fields:
 | `sandbox create-macos` | `image`, `name`, `cores`, `memory_mib`, `disk_mib`, `persistent`, `reservation`, `auto_renew`, `env`, `labels`, `ports`, `volumes`, `secrets`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox update` | `{"labels": {...}, "lifecycle_policy": {...}}` only: `labels` replaces the label set, `lifecycle_policy` takes `timeout_seconds`, `on_timeout`, `idle_expiry_seconds` (`-1` clears), `on_idle_timeout`. The CLI sends them as two requests (labels first) |
 | `snapshot create` | `name` |
-| `image create` | `name` (the positional argument wins), `source` (`{"type": "registry", "ref": "..."}`), `region_id`, `cpu_arch`, `idle_expiry_seconds` |
-| `image build` | the CLI's own descriptor, all strings: `dockerfile`, `context` (local paths), `region_id`, `cpu_arch` |
+| `image create` | `name` (the positional argument wins), `source` (`{"type": "registry", "ref": "..."}`), `region_id`, `cpu_arch`, `idle_expiry_seconds`; a `dockerfile` field is refused (use `image build`) |
+| `image build` | the CLI's own descriptor, all strings: `dockerfile`, `context` (local paths), `region_id`, `cpu_arch`; `--dockerfile` and `--context` win even when given empty (then refused) |
 | `volume create` | `name` (the positional argument wins), `type`, `size_gib`, `bucket` (`name`, `origin`, `endpoint`, `region`, `prefix`, `path_style`, `credentials`) |
 | `reservation create` | `region_id`, `model`, `auto_renew`; with `--count` the bulk request, which adds `count` and `min_count`. `--count` selects the bulk request; a `count` field alone is rejected |
 
@@ -422,7 +434,7 @@ IDs; a selection given by name appears in `org_ref` / `project_ref`, and
 | Variable | Meaning |
 |---|---|
 | `DAYTONA_API_KEY` | credential, below `--api-key`; blank counts as unset |
-| `DAYTONA_PROFILE` | profile, below `--profile`; it must exist |
+| `DAYTONA_PROFILE` | profile, below `--profile`; it must exist (`profile`, `config`, `help`, `docs` and completion still run when it does not) |
 | `DAYTONA_ORG`, `DAYTONA_PROJECT` | organization and project for this call (ID or name), below `--org` / `--project` |
 | `DAYTONA_YES` | `1` or `true` confirms destructive and billable commands, like `--yes` |
 | `DAYTONA_V2_API_URL` | another API, for test environments only; below `--api-url`, above the profile's saved URL |
@@ -431,10 +443,12 @@ IDs; a selection given by name appears in `org_ref` / `project_ref`, and
 | `CI` | any value makes the CLI non-interactive |
 | `NO_COLOR`, `TERM=dumb` | no colour |
 
-The CLI does not read `DAYTONA_API_URL` (it belongs to the 0.x CLI and SDKs)
-or `DAYTONA_REGION` (pass `--region`). A login saves the API URL it used in
-its profile; unset `DAYTONA_V2_API_URL` and drop `--api-url` to use the
-default Daytona API.
+The CLI does not read `DAYTONA_API_URL` (a value set for the 0.x CLI does not
+redirect it) or `DAYTONA_REGION` (pass `--region`). A login saves the API URL
+it used in its profile, and the CLI keeps using that URL when neither
+`--api-url` nor `DAYTONA_V2_API_URL` is set. To use the default Daytona API
+with such a profile, pass `--api-url https://api.daytona.com` or log in again
+without a test URL.
 
 Configuration lives in `~/.config/daytona/` (`$XDG_CONFIG_HOME/daytona`), in
 files readable only by you.

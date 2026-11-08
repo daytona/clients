@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"encoding/json"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -69,6 +71,9 @@ func buildSandboxCreateBody(cmd *cobra.Command, a *app.App, flags sandboxCreateF
 			return nil, err
 		}
 		body.Set("volumes", volumes)
+	}
+	if err := checkCPUMax(body); err != nil {
+		return nil, err
 	}
 	if err := setNetworkPolicy(cmd, body, flags); err != nil {
 		return nil, err
@@ -168,6 +173,32 @@ func setNetworkPolicy(cmd *cobra.Command, body input.Body, flags sandboxCreateFl
 	// reads like an allow list.
 	if changed("allow-cidr") && policy["block_all"] != true && policy["allow_domains"] == nil {
 		return cerr.Usage("--allow-cidr restricts egress only with --block-all or --allow-domain; without them the policy is open")
+	}
+	return nil
+}
+
+// checkCPUMax refuses a CPU limit that is not a positive multiple of 0.5
+// cores (from --cpu-max or the file's cores_max) before any request.
+func checkCPUMax(body input.Body) error {
+	raw, ok := lookupFold(body, "cores_max")
+	if !ok || raw == nil {
+		return nil
+	}
+	var v float64
+	switch n := raw.(type) {
+	case float64:
+		v = n
+	case json.Number:
+		f, err := n.Float64()
+		if err != nil {
+			return cerr.Usage("cores_max must be a number")
+		}
+		v = f
+	default:
+		return nil // the typed decode reports a wrong type
+	}
+	if v <= 0 || math.Mod(v*2, 1) != 0 {
+		return cerr.Usage("--cpu-max must be a positive multiple of 0.5 cores, got %v", v)
 	}
 	return nil
 }

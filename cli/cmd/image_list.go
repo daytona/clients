@@ -71,6 +71,7 @@ func newImageListCommand() *cobra.Command {
 		},
 	}
 	addPageFlags(cmd, &flags.pageFlags)
+	addRegionFlag(cmd, "list only this region's images (default: every region)")
 	cmd.Flags().StringVar(&flags.name, "name", "", "filter by exact image name")
 	cmd.Flags().StringVar(&flags.anonymous, "anonymous", "", "true lists only anonymous images, false only named ones (the default)")
 	cmd.Flags().StringVar(&flags.platform, "platform", "", "platform images: true (only platform images)|false (only the project's, the default)|any (both)")

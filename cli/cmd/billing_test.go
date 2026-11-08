@@ -134,7 +134,7 @@ func TestBillingInvoices_lastPageDoesNotHintNextPageWhenTruncated(t *testing.T) 
 		"invoices":    []map[string]any{invoiceFixture("inv_123")},
 		"next_cursor": nil,
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "-o", "table")
 	require.Equal(t, 0, code, stderr)
 	require.NotContains(t, stdout, "--cursor")
 }

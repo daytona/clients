@@ -234,7 +234,7 @@ func derefString(value *string) string {
 func exitResultKV(processID string, result tbgen.ExitResult) [][2]string {
 	kv := [][2]string{{"id", processID}}
 	if result.Reason != nil {
-		kv = append(kv, [2]string{"reason", string(*result.Reason)})
+		kv = append(kv, [2]string{"exit_reason", string(*result.Reason)})
 	}
 	if result.ExitCode != nil {
 		kv = append(kv, [2]string{"exit_code", strconv.Itoa(int(*result.ExitCode))})

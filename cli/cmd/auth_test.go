@@ -475,10 +475,10 @@ func TestDestructiveRefusalPrecedesNetwork(t *testing.T) {
 			t.Errorf("%v: exit %d (want 2 before any network call): %s", c, code, errb)
 		}
 	}
-	// --preview on member remove is read-only and must not be gated.
-	_, errb, code := run(t, d, nil, "member", "remove", "u-1", "--preview", "--api-url", dead, "--api-key", "k", "--org", "o-1")
-	if code == cerr.ExitUsage && has(errb, "--yes") {
-		t.Fatalf("--preview must not require --yes: %s", errb)
+	// --dry-run on member remove is read-only and must not be gated.
+	_, errb, code := run(t, d, nil, "member", "remove", "u-1", "--dry-run", "--api-url", dead, "--api-key", "k", "--org", "o-1")
+	if code == cerr.ExitUsage {
+		t.Fatalf("--dry-run must not require --yes: %s", errb)
 	}
 }
 

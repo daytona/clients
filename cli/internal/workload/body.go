@@ -17,6 +17,18 @@ import (
 func DecodeBody[T any](body input.Body) (T, error) { return input.Decode[T](body) }
 
 func NestedBody(body input.Body, key string) input.Body {
+	// Decode matches keys case-insensitively: adopt a differently cased key
+	// from --file under the canonical name, so a flag merges into it instead
+	// of leaving two competing copies.
+	if _, ok := body[key]; !ok {
+		for existing, value := range body {
+			if strings.EqualFold(existing, key) {
+				delete(body, existing)
+				body[key] = value
+				break
+			}
+		}
+	}
 	if cur, ok := body[key].(input.Body); ok {
 		return cur
 	}

@@ -137,7 +137,7 @@ func runCLIWithResponseReplacement(t *testing.T, args []string, expected []expec
 	serverURL = server.URL
 
 	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	stdout := &bytes.Buffer{}

@@ -48,22 +48,34 @@ func snakeKeys(v any) any {
 }
 
 // SnakeCaseKey converts one camelCase key: an upper-case letter starts a new
-// word, and a run of capitals is one word (`processID` → `process_id`).
+// word, and a run of capitals is one word (`processID` → `process_id`). The
+// last capital of a run starts the next word only when at least two
+// lower-case letters follow (`HTTPStatus` → `http_status`), so a plural or
+// suffixed acronym stays whole (`userIDs` → `user_ids`, `IPv4` → `ipv4`).
 func SnakeCaseKey(key string) string {
 	runes := []rune(key)
+	lowerRun := func(from int) int {
+		n := 0
+		for from+n < len(runes) && unicode.IsLower(runes[from+n]) {
+			n++
+		}
+		return n
+	}
 	var b strings.Builder
 	for i, r := range runes {
-		if unicode.IsUpper(r) {
-			prevLower := i > 0 && (unicode.IsLower(runes[i-1]) || unicode.IsDigit(runes[i-1]))
-			nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
-			prevUpper := i > 0 && unicode.IsUpper(runes[i-1])
-			if i > 0 && runes[i-1] != '_' && (prevLower || (prevUpper && nextLower)) {
-				b.WriteByte('_')
-			}
-			b.WriteRune(unicode.ToLower(r))
+		if !unicode.IsUpper(r) {
+			b.WriteRune(r)
 			continue
 		}
-		b.WriteRune(r)
+		if i > 0 && runes[i-1] != '_' {
+			prev := runes[i-1]
+			startsWord := unicode.IsLower(prev) || unicode.IsDigit(prev) ||
+				(unicode.IsUpper(prev) && lowerRun(i+1) >= 2)
+			if startsWord {
+				b.WriteByte('_')
+			}
+		}
+		b.WriteRune(unicode.ToLower(r))
 	}
 	return b.String()
 }

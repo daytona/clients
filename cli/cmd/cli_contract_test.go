@@ -6,13 +6,17 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 )
@@ -280,3 +284,198 @@ func TestProcessExitStatusPassesThroughWithSourceProcess(t *testing.T) {
 func reasonPtr(r tbgen.Reason) *tbgen.Reason { return &r }
 
 func int32Ptr(v int32) *int32 { return &v }
+
+// A renamed flag is an unknown flag whose hint names the replacement; the
+// old bucket-region spelling on `volume create` is not taken by another
+// --region.
+func TestRenamedFlagsNameTheirReplacement(t *testing.T) {
+	cases := map[string][]string{
+		"--bucket-region":        {"volume", "create", "v", "--type", "bucket", "--region", "us-east-1"},
+		"--size-gib":             {"volume", "create", "v", "--size-gb", "10"},
+		"--dry-run":              {"member", "remove", "u", "--preview"},
+		"--cpu-max":              {"sandbox", "create", "--cores-max", "2"},
+		"--memory-max":           {"sandbox", "create", "--mem-max", "2048"},
+		"--on-lifecycle-timeout": {"sandbox", "update", "s", "--on-timeout", "delete"},
+	}
+	for want, args := range cases {
+		f := newFakeAPI(t)
+		_, stderr, code := runReported(t, cfgDir(t), nil, append([]string{"--api-url", f.srv.URL, "--api-key", "k"}, args...)...)
+		require.Equal(t, cerr.ExitUsage, code, "%v: %s", args, stderr)
+		require.Contains(t, errorObject(t, stderr)["hint"], want, args)
+		require.Empty(t, f.requests)
+	}
+}
+
+// --region exists only on the commands that place or list by region.
+func TestRegionFlagIsScoped(t *testing.T) {
+	for _, args := range [][]string{
+		{"volume", "list", "--region", "r"},
+		{"snapshot", "list", "--region", "r"},
+		{"config", "path", "--region", "r"},
+		{"sandbox", "get", "s", "--region", "r"},
+	} {
+		_, stderr, code := runReported(t, cfgDir(t), nil, args...)
+		require.Equal(t, cerr.ExitUsage, code, "%v: %s", args, stderr)
+		require.Contains(t, errorObject(t, stderr)["message"], "unknown flag: --region")
+	}
+	for _, path := range [][]string{
+		{"sandbox", "create"}, {"sandbox", "create-from-snapshot"}, {"sandbox", "create-macos"},
+		{"sandbox", "list"}, {"sandbox", "search"}, {"image", "list"}, {"image", "create"},
+		{"image", "build"}, {"reservation", "create"}, {"cpu-type", "list"}, {"mac-model", "list"},
+	} {
+		cmd, _, err := NewRoot(io.Discard, io.Discard).Find(path)
+		require.NoError(t, err)
+		require.NotNil(t, cmd.Flags().Lookup("region"), path)
+	}
+}
+
+// An unknown DAYTONA_PROFILE / --profile stops only the commands that act on
+// the selected profile.
+func TestUnknownProfileStopsOnlyProfileCommands(t *testing.T) {
+	ghost := map[string]string{"DAYTONA_PROFILE": "ghost"}
+	for _, args := range [][]string{
+		{"profile", "list"}, {"config", "get", "confirm"}, {"config", "path"},
+		{"help"}, {"help", "sandbox"}, {"docs"}, {"completion", "bash"},
+		{"__complete", "sand"}, {"__complete", "sandbox", "get", ""},
+	} {
+		_, stderr, code := runReported(t, cfgDir(t), ghost, args...)
+		require.Equal(t, 0, code, "%v: %s", args, stderr)
+	}
+	stdout, _, code := runReported(t, cfgDir(t), ghost, "__complete", "sand")
+	require.Equal(t, 0, code)
+	require.Contains(t, stdout, "sandbox")
+
+	_, stderr, code := runReported(t, cfgDir(t), ghost, "whoami")
+	require.Equal(t, cerr.ExitNotFound, code)
+	require.Contains(t, errorObject(t, stderr)["hint"], "DAYTONA_PROFILE")
+
+	// Only an explicit `login --profile NAME` creates a profile.
+	d := cfgDir(t)
+	_, stderr, code = runReported(t, d, ghost, "login", "--token", "dtn_fixture")
+	require.Equal(t, cerr.ExitNotFound, code, stderr)
+	_, stderr, code = runReported(t, d, ghost, "login", "--profile", "ghost", "--token", "dtn_fixture")
+	require.Equal(t, 0, code, stderr)
+	stdout, _, code = runReported(t, d, ghost, "whoami")
+	require.Equal(t, 0, code)
+	require.Equal(t, "ghost", mustJSON(t, stdout)["profile"])
+}
+
+func TestHelpForAnUnknownTopicIsAUsageError(t *testing.T) {
+	for _, args := range [][]string{{"help", "nope"}, {"help", "sandbox", "nope"}} {
+		_, stderr, code := runReported(t, cfgDir(t), nil, args...)
+		require.Equal(t, cerr.ExitUsage, code, "%v: %s", args, stderr)
+	}
+	stdout, _, code := runReported(t, cfgDir(t), nil, "help", "sandbox", "get")
+	require.Equal(t, 0, code)
+	require.Contains(t, stdout, "Usage:")
+}
+
+// A server error that names no source is never attributed to the CLI.
+func TestServerErrorsWithoutASourceAreNotTheCLIs(t *testing.T) {
+	f := newFakeAPI(t)
+	f.handle(http.MethodGet, "/snapshots/snap_1", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("upstream failed"))
+	})
+	_, stderr, code := runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "snapshot", "get", "snap_1")
+	require.Equal(t, cerr.ExitFailure, code)
+	obj := errorObject(t, stderr)
+	require.NotContains(t, obj, "source")
+	require.Contains(t, obj["message"], "upstream failed")
+}
+
+func TestWithSourceWinsOverAWrappedServerSource(t *testing.T) {
+	err := cerr.Wrap(6, &api.APIError{Status: 409, Code: "CONFLICT", Source: "DAYTONA_API"}, "conflict").WithSource(cerr.SourceProcess)
+	d := cerr.DetailsOf(err)
+	require.Equal(t, cerr.SourceProcess, d.Source)
+	require.Equal(t, "CONFLICT", d.Code)
+}
+
+// A resolver that passes an unknown name through unchanged does not make it
+// an ID.
+func TestWhoamiTreatsAPassedThroughNameAsUnresolved(t *testing.T) {
+	f := newFakeAPI(t)
+	f.on("GET", "/orgs", 404, `{"code":"NOT_FOUND","message":"not found","source":"DAYTONA_API"}`)
+	stdout, stderr, code := runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "--org", "Acme", "whoami")
+	require.Equal(t, 0, code, stderr)
+	out := mustJSON(t, stdout)
+	require.NotContains(t, out, "org_id")
+	require.Equal(t, "Acme", out["org_ref"])
+	require.Equal(t, false, out["context_resolved"])
+}
+
+func TestSecretSetRefusesAnEmptyValueFromAnySource(t *testing.T) {
+	empty := filepath.Join(t.TempDir(), "empty.txt")
+	require.NoError(t, os.WriteFile(empty, []byte("\n"), 0o600))
+	f := newFakeAPI(t)
+	for _, args := range [][]string{
+		{"--value", ""},
+		{"--from-file", empty},
+	} {
+		_, stderr, code := runMgmt(t, f, cfgDir(t), append([]string{"--project", "proj-1", "secret", "set", "API_KEY"}, args...)...)
+		require.Equal(t, cerr.ExitUsage, code, "%v: %s", args, stderr)
+		require.Contains(t, stderr, "the secret value is empty")
+	}
+	require.Empty(t, f.requests)
+}
+
+func TestCreateLimitsAreCheckedBeforeAnyRequest(t *testing.T) {
+	body := filepath.Join(t.TempDir(), "create.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"cores_max":0.75}`), 0o600))
+	for _, args := range [][]string{
+		{"sandbox", "create", "--cpu-max", "1.3"},
+		{"sandbox", "create", "--cpu-max", "0"},
+		{"sandbox", "create", "--file", body},
+		{"sandbox", "create", "--idle-timeout", "30s"},
+		{"sandbox", "update", "s", "--idle-timeout", "59s"},
+	} {
+		f := newFakeAPI(t)
+		_, stderr, code := runReported(t, cfgDir(t), nil, append([]string{"--api-url", f.srv.URL, "--api-key", "k"}, args...)...)
+		require.Equal(t, cerr.ExitUsage, code, "%v: %s", args, stderr)
+		require.Empty(t, f.requests, args)
+	}
+}
+
+// image create takes a registry source; a Dockerfile goes through image build.
+func TestImageCreateFileRefusesDockerfile(t *testing.T) {
+	body := filepath.Join(t.TempDir(), "image.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"dockerfile":"FROM scratch","source":{"type":"registry","ref":"python:3.12"}}`), 0o600))
+	_, _, err := runCLI(t, []string{"image", "create", "img", "--file", body}, nil)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "dockerfile")
+}
+
+// An explicit flag wins over --file even when it is empty.
+func TestImageBuildExplicitEmptyFlagsDoNotFallBackToTheFile(t *testing.T) {
+	dir := t.TempDir()
+	body := filepath.Join(dir, "build.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"context":"`+dir+`","dockerfile":"Dockerfile"}`), 0o600))
+	for _, args := range [][]string{{"--context", ""}, {"--dockerfile", ""}} {
+		_, _, err := runCLI(t, append([]string{"image", "build", "img", "--file", body}, args...), nil)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), args)
+	}
+}
+
+// A lifecycle flag merges into a differently cased lifecycle_policy from
+// --file instead of competing with it.
+func TestSandboxCreateLifecycleFlagMergesIntoACaseVariantFileKey(t *testing.T) {
+	body := filepath.Join(t.TempDir(), "create.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"Lifecycle_Policy":{"on_timeout":"delete"}}`), 0o600))
+	_, _, err := runCLI(t, []string{"sandbox", "create", "--file", body, "--lifecycle-timeout", "1h", "--no-wait"}, []expectedRequest{{
+		method:   http.MethodPost,
+		path:     "/sandboxes",
+		status:   202,
+		bodyJSON: `{"lifecycle_policy":{"on_timeout":"delete","timeout_seconds":3600}}`,
+		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
+	}})
+	require.NoError(t, err)
+}
+
+func TestSandboxUpdateRefusesANonObjectLifecyclePolicyEvenWithFlags(t *testing.T) {
+	body := filepath.Join(t.TempDir(), "update.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"lifecycle_policy":"never"}`), 0o600))
+	_, _, err := runCLI(t, []string{"sandbox", "update", "s", "--file", body, "--idle-timeout", "1m", "--on-idle-timeout", "delete"}, nil)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "must be an object")
+}

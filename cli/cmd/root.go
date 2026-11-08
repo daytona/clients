@@ -100,8 +100,12 @@ Get started:
 	// argument mistake — each command registers only the flags its request
 	// type has, so "unknown flag" is how a flag from another create surface
 	// is reported.
-	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return cerr.Usage("%s", err.Error())
+	root.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		e := cerr.Usage("%s", err.Error())
+		if hint := renamedFlagHint(cmd, err); hint != "" {
+			e = e.WithHint("%s", hint)
+		}
+		return e
 	})
 
 	pf := root.PersistentFlags()
@@ -110,7 +114,6 @@ Get started:
 	pf.StringVar(&globals.Profile, "profile", "", "saved profile to use; it must exist (env DAYTONA_PROFILE)")
 	pf.StringVar(&globals.Org, "org", "", "organization id or name for this call (env DAYTONA_ORG)")
 	pf.StringVar(&globals.Project, "project", "", "project id or name for this call (env DAYTONA_PROJECT)")
-	pf.StringVar(&globals.Region, "region", "", "region slug; filters lists and places creates")
 	pf.StringVarP(&globals.Output, "output", "o", "", "output format: table|json|yaml (default table at a terminal, json otherwise)")
 	pf.BoolVarP(&globals.Yes, "yes", "y", false, "confirm destructive and billable actions; required off a terminal (env DAYTONA_YES=1)")
 	pf.BoolVarP(&globals.Quiet, "quiet", "q", false, "suppress progress and informational output on stderr")
@@ -128,6 +131,7 @@ Get started:
 	for _, reg := range registry {
 		root.AddCommand(reg())
 	}
+	root.SetHelpCommand(newHelpCommand())
 	root.InitDefaultHelpCmd()
 	root.InitDefaultCompletionCmd()
 	normalizeTree(root)

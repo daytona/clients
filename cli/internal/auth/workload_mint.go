@@ -119,7 +119,7 @@ func (m keyMint) mint(ctx context.Context) (string, error) {
 
 func (m keyMint) matches(k config.WorkloadKey, profileBase string) bool {
 	// Entries with a Source were exchanged from a static credential by an
-	// earlier CLI release; nothing uses them any more.
+	// earlier CLI release; nothing uses them, and the next save drops them.
 	if k.ProjectID != m.project || k.Source != "" {
 		return false
 	}

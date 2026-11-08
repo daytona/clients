@@ -7,6 +7,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -142,4 +144,23 @@ func TestLoginKeyMintedUnderOverrideStaysWithThatOrigin(t *testing.T) {
 	cr, err = a.Store.LoadCredentials()
 	require.NoError(t, err)
 	require.Len(t, cr.Profiles[a.Profile.Name].WorkloadKeys, 2)
+}
+
+func TestLoginMintCacheFailureRevokesTheUntrackedKey(t *testing.T) {
+	// Given persistence fails only after the server has minted the key.
+	f := &lifecycleAPI{}
+	srv := httptest.NewServer(http.HandlerFunc(f.serve))
+	defer srv.Close()
+	a := lifecycleApp(t, srv.URL)
+	f.onMint = func() {
+		path := filepath.Join(a.Store.Dir, "credentials.yaml")
+		require.NoError(t, os.Rename(path, path+".bak"))
+		require.NoError(t, os.Mkdir(path, 0o700))
+	}
+	// When the login mint cannot persist its reconciliation result.
+	key, err := WorkloadCredential(t.Context(), a, lifecycleProject, "")
+	// Then no untracked credential is returned and the minted key is revoked.
+	require.Error(t, err)
+	require.Empty(t, key)
+	require.Equal(t, []string{"33333333-3333-3333-3333-000000000001"}, f.revoked)
 }

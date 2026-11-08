@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/app"
@@ -28,6 +29,10 @@ func newImageImportCommand() *cobra.Command {
 			body, err := input.Load(a.Globals.File, os.Stdin, false)
 			if err != nil {
 				return err
+			}
+			if _, ok := lookupFold(body, "dockerfile"); ok {
+				return cerr.Usage("--file: \"dockerfile\" is not a field of image create").
+					WithHint("build from a Dockerfile with `daytona image build <name> --context DIR`")
 			}
 			body.Set("name", args[0])
 			if a.Globals.Region != "" {
@@ -56,6 +61,7 @@ func newImageImportCommand() *cobra.Command {
 	cmd.Flags().StringVar(&ref, "ref", "", "registry ref to import")
 	// Not MarkFlagRequired: `source` may come from --file (the RunE checks
 	// the merged body).
+	addRegionFlag(cmd, "region to create the image in (default: the project's, then the organization's, then the platform's)")
 	addFileFlag(cmd, "")
 	addWaitFlags(cmd)
 	return cmd
@@ -95,6 +101,7 @@ func newImageBuildCommand() *cobra.Command {
 	// Not MarkFlagRequired: both may come from --file
 	// (buildImageMultipartMeta checks the merged values).
 	addFileFlag(cmd, `JSON object {"name", "region_id", "cpu_arch", "dockerfile", "context"} (strings) from a file (or - for stdin); explicit flags override its fields`)
+	addRegionFlag(cmd, "region to build the image in (default: the project's, then the organization's, then the platform's)")
 	addWaitFlags(cmd)
 	return cmd
 }
@@ -124,16 +131,24 @@ func buildImageMultipartMeta(cmd *cobra.Command, a *app.App, name, dockerfilePat
 	if value, ok := body["cpu_arch"].(string); ok && value != "" {
 		meta["cpu_arch"] = value
 	}
-	if value, ok := body["dockerfile"].(string); ok && value != "" && dockerfilePath == "" {
+	// An explicit flag wins over --file, even an explicitly empty one (which
+	// is then refused rather than replaced by the file's value).
+	if cmd.Flags().Changed("dockerfile") {
+		if strings.TrimSpace(dockerfilePath) == "" {
+			return nil, "", "", cerr.Usage("--dockerfile is empty; omit it to use Dockerfile")
+		}
+	} else if value, ok := body["dockerfile"].(string); ok && value != "" {
 		dockerfilePath = value
 	}
-	if value, ok := body["context"].(string); ok && value != "" && contextPath == "" {
-		contextPath = value
+	if !cmd.Flags().Changed("context") {
+		if value, ok := body["context"].(string); ok {
+			contextPath = value
+		}
 	}
 	if dockerfilePath == "" {
 		dockerfilePath = "Dockerfile"
 	}
-	if contextPath == "" {
+	if strings.TrimSpace(contextPath) == "" {
 		return nil, "", "", cerr.Usage("--context is required")
 	}
 	return meta, dockerfilePath, contextPath, nil

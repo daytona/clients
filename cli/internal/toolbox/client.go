@@ -171,9 +171,9 @@ func mapError(method, path string, resp *http.Response) error {
 	if env.TraceId != nil && traceID == "" {
 		traceID = *env.TraceId
 	}
-	if code := strings.TrimSpace(env.Code); code != "" || env.Source != "" || traceID != "" {
-		e.Err = &DaemonError{Code: code, Status: resp.StatusCode, Source: strings.TrimSpace(env.Source), TraceID: traceID}
-	}
+	// Always attached: the error came from the server, even without an
+	// envelope, so it is never reported as the CLI's own.
+	e.Err = &DaemonError{Code: strings.TrimSpace(env.Code), Status: resp.StatusCode, Source: strings.TrimSpace(env.Source), TraceID: traceID}
 	return e
 }
 
@@ -186,7 +186,12 @@ type DaemonError struct {
 	TraceID string
 }
 
-func (d *DaemonError) Error() string { return d.Code }
+func (d *DaemonError) Error() string {
+	if d.Code != "" {
+		return d.Code
+	}
+	return fmt.Sprintf("%d %s", d.Status, http.StatusText(d.Status))
+}
 
 // ErrorCode, ErrorSource and ErrorTraceID implement cerr.Detailed.
 func (d *DaemonError) ErrorCode() string    { return d.Code }

@@ -96,7 +96,7 @@ func newBillingDeleteCmd(use, suffix, short, target string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if err := a.Confirm("delete", target); err != nil {
+		if err := a.Confirm("delete", target+" of organization "+orgID); err != nil {
 			return err
 		}
 		return mc.Do(cmd.Context(), http.MethodDelete, billingBasePath(orgID)+suffix, nil, nil, nil)

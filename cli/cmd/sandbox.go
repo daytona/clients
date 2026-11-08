@@ -57,6 +57,7 @@ func newSandboxListCommand() *cobra.Command {
 		},
 	}
 	addPageFlags(cmd, &flags)
+	addRegionFlag(cmd, "list only this region's sandboxes (default: every region)")
 	return cmd
 }
 

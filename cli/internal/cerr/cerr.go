@@ -93,23 +93,25 @@ type Details struct {
 }
 
 // DetailsOf collects the exit code, message, hint and any server metadata
-// of err.
+// of err. The source is, in order: one set with WithSource; the server's
+// (omitted when a server error names none, so it is never reported as the
+// CLI's); CLI for a local error.
 func DetailsOf(err error) Details {
-	d := Details{ExitCode: ExitCode(err), Message: err.Error(), Source: SourceCLI}
+	d := Details{ExitCode: ExitCode(err), Message: err.Error()}
+	var de Detailed
+	if errors.As(err, &de) {
+		d.Code = de.ErrorCode()
+		d.Source = de.ErrorSource()
+		d.TraceID = de.ErrorTraceID()
+	} else {
+		d.Source = SourceCLI
+	}
 	var ce *Error
 	if errors.As(err, &ce) {
 		d.Hint = ce.Hint
 		if ce.Source != "" {
 			d.Source = ce.Source
 		}
-	}
-	var de Detailed
-	if errors.As(err, &de) {
-		d.Code = de.ErrorCode()
-		if src := de.ErrorSource(); src != "" {
-			d.Source = src
-		}
-		d.TraceID = de.ErrorTraceID()
 	}
 	return d
 }

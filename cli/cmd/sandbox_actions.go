@@ -171,7 +171,8 @@ func newSandboxUpdateCommand() *cobra.Command {
 	addSecondsFlag(f, &flags.lifecycleTTL, "lifecycle-timeout", "", "wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; restarts the countdown from now")
 	f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, or stop on a persistent macOS sandbox")
 	flags.idleTimeout.keywords = map[string]int64{"off": -1}
-	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, e.g. 30m) until --on-idle-timeout fires; off clears the idle expiry")
+	flags.idleTimeout.min = minIdleSeconds
+	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, at least 1m) until --on-idle-timeout fires; off clears the idle expiry")
 	f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete, or stop on a persistent macOS sandbox")
 	flagPlaceholder(f, "on-lifecycle-timeout", "ACTION")
 	flagPlaceholder(f, "on-idle-timeout", "ACTION")
@@ -312,11 +313,14 @@ func buildSandboxLifecycleBody(cmd *cobra.Command, fileBody input.Body, flags sa
 			break
 		}
 	}
-	if existing, ok := fileBody["lifecycle_policy"]; ok && !hasOverride {
-		if existing == nil {
-			return gen.UpdateSandboxLifecyclePolicyRequest{}, cerr.Usage("\"lifecycle_policy\" is not nullable; omit it to keep the current value")
-		}
+	// A null policy is replaced by the lifecycle flags when there are any; a
+	// value that is not an object is malformed either way.
+	if existing, ok := fileBody["lifecycle_policy"]; ok {
 		switch existing.(type) {
+		case nil:
+			if !hasOverride {
+				return gen.UpdateSandboxLifecyclePolicyRequest{}, cerr.Usage("\"lifecycle_policy\" is not nullable; omit it to keep the current value")
+			}
 		case map[string]any, input.Body:
 		default:
 			return gen.UpdateSandboxLifecyclePolicyRequest{}, cerr.Usage("\"lifecycle_policy\" must be an object")

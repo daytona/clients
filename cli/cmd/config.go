@@ -14,7 +14,7 @@ import (
 
 func init() {
 	Register(func() *cobra.Command {
-		c := &cobra.Command{Use: "config", Short: "Read and change CLI settings", GroupID: GroupOther}
+		c := &cobra.Command{Use: "config", Short: "Read and change CLI settings", GroupID: GroupOther, Annotations: map[string]string{annotationProfileOptional: "true"}}
 		c.AddCommand(&cobra.Command{
 			Use:   "get <key>",
 			Short: "Print a setting (confirm)",

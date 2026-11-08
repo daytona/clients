@@ -90,6 +90,7 @@ func newSandboxSearchCommand() *cobra.Command {
 		},
 	}
 	addPageFlags(cmd, &flags.pageFlags)
+	addRegionFlag(cmd, "search only this region")
 	cmd.Flags().StringVar(&flags.namePrefix, "name-prefix", "", "filter by sandbox name prefix")
 	cmd.Flags().StringVar(&flags.idPrefix, "id-prefix", "", "filter by sandbox id prefix")
 	cmd.Flags().StringSliceVar(&flags.status, "status", nil, "filter by status (queued|pending|assigned|booting|running|pausing|paused|stopping|stopped|deleting|deleted|failed|lost; repeatable or comma-separated)")

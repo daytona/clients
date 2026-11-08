@@ -128,6 +128,11 @@ func TestToolboxCP_recursiveUploadRemoteExtractFailureStillRemovesArchive(t *tes
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "tar failed")
+	// The remote tar's status passes through with its source.
+	require.Equal(t, 2, cerr.ExitCode(err))
+	var buf bytes.Buffer
+	printErrorJSON(&buf, err)
+	require.Contains(t, buf.String(), `"source":"PROCESS"`)
 }
 
 // Download: archive output arrives as base64url frames, and

@@ -50,13 +50,19 @@ func newSecretSetCmd() *cobra.Command {
 		if cmd.Flags().Changed("from-file") && strings.TrimSpace(fromFile) == "" {
 			return cerr.Usage("--from-file is empty; pass the path of the file that holds the value")
 		}
-		if cmd.Flags().Changed("value") {
-			a := FromContext(cmd.Context())
-			a.Info("note: --value puts the secret in the process list and shell history; prefer --stdin or --from-file")
-		}
 		secretValue, err := secretInputValue(value, fromFile, cmd.Flags().Changed("from-file"), useStdin)
 		if err != nil {
 			return err
+		}
+		// An empty value is never meant: it usually comes from an unset
+		// variable or an empty file, and would overwrite the stored value,
+		// which cannot be read back.
+		if secretValue == "" {
+			return cerr.Usage("the secret value is empty").
+				WithHint("pass the value with --value, --from-file or --stdin; `daytona secret delete` removes a secret")
+		}
+		if cmd.Flags().Changed("value") {
+			FromContext(cmd.Context()).Info("note: --value puts the secret in the process list and shell history; prefer --stdin or --from-file")
 		}
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()

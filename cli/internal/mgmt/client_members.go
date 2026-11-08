@@ -13,14 +13,14 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// MembersPage reads one page of "/orgs/"+url.PathEscape(orgID)+"/members".
+// MembersPage reads one page of GET /orgs/{org_id}/members.
 func MembersPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.OrganizationMember], error) {
 	return getPage(ctx, c, "/orgs/"+url.PathEscape(orgID)+"/members", cursor, limit, func(resp gen.OrganizationMemberPage) ([]gen.OrganizationMember, *string) {
 		return resp.Members, resp.NextCursor
 	})
 }
 
-// ListMembers collects every page (resolvers and pickers; the list commands read one page).
+// ListMembers collects every page (name resolvers and pickers; the list commands read one page).
 func ListMembers(ctx context.Context, c *api.Client, orgID string) ([]gen.OrganizationMember, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationMember, *string, error) {
 		page, err := MembersPage(ctx, c, orgID, cursor, 0)
@@ -57,17 +57,9 @@ func RemoveMember(ctx context.Context, c *api.Client, orgID, userID string) erro
 	return c.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(orgID)+"/members/"+url.PathEscape(userID), nil, nil, nil)
 }
 
-// ProjectMembersPage reads one page of "/projects/"+url.PathEscape(projectID)+"/members".
+// ProjectMembersPage reads one page of GET /projects/{project_id}/members.
 func ProjectMembersPage(ctx context.Context, c *api.Client, projectID string, cursor string, limit int64) (Page[gen.ProjectMember], error) {
 	return getPage(ctx, c, "/projects/"+url.PathEscape(projectID)+"/members", cursor, limit, func(resp gen.ProjectMemberPage) ([]gen.ProjectMember, *string) { return resp.Members, resp.NextCursor })
-}
-
-// ListProjectMembers collects every page (resolvers and pickers; the list commands read one page).
-func ListProjectMembers(ctx context.Context, c *api.Client, projectID string) ([]gen.ProjectMember, error) {
-	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.ProjectMember, *string, error) {
-		page, err := ProjectMembersPage(ctx, c, projectID, cursor, 0)
-		return page.Items, &page.NextCursor, err
-	})
 }
 
 func AddProjectMember(ctx context.Context, c *api.Client, projectID string, userID gen.OrganizationMember) (*gen.ProjectMemberList, error) {

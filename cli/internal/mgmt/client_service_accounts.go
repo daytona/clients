@@ -20,14 +20,14 @@ func CreateServiceAccount(ctx context.Context, c *api.Client, orgID string, req 
 	return &resp, nil
 }
 
-// ServiceAccountsPage reads one page of "/orgs/"+url.PathEscape(orgID)+"/service-accounts".
+// ServiceAccountsPage reads one page of GET /orgs/{org_id}/service-accounts.
 func ServiceAccountsPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.OrganizationServiceAccount], error) {
 	return getPage(ctx, c, "/orgs/"+url.PathEscape(orgID)+"/service-accounts", cursor, limit, func(resp gen.OrganizationServiceAccountPage) ([]gen.OrganizationServiceAccount, *string) {
 		return resp.ServiceAccounts, resp.NextCursor
 	})
 }
 
-// ListServiceAccounts collects every page (resolvers and pickers; the list commands read one page).
+// ListServiceAccounts collects every page (name resolvers and pickers; the list commands read one page).
 func ListServiceAccounts(ctx context.Context, c *api.Client, orgID string) ([]gen.OrganizationServiceAccount, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationServiceAccount, *string, error) {
 		page, err := ServiceAccountsPage(ctx, c, orgID, cursor, 0)
@@ -55,18 +55,10 @@ func DeleteServiceAccount(ctx context.Context, c *api.Client, orgID, saID string
 	return c.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(orgID)+"/service-accounts/"+url.PathEscape(saID), nil, nil, nil)
 }
 
-// ProjectServiceAccountsPage reads one page of "/projects/"+url.PathEscape(projectID)+"/service-accounts".
+// ProjectServiceAccountsPage reads one page of GET /projects/{project_id}/service-accounts.
 func ProjectServiceAccountsPage(ctx context.Context, c *api.Client, projectID string, cursor string, limit int64) (Page[gen.ProjectServiceAccount], error) {
 	return getPage(ctx, c, "/projects/"+url.PathEscape(projectID)+"/service-accounts", cursor, limit, func(resp gen.ProjectServiceAccountPage) ([]gen.ProjectServiceAccount, *string) {
 		return resp.ServiceAccounts, resp.NextCursor
-	})
-}
-
-// ListProjectServiceAccounts collects every page (resolvers and pickers; the list commands read one page).
-func ListProjectServiceAccounts(ctx context.Context, c *api.Client, projectID string) ([]gen.ProjectServiceAccount, error) {
-	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.ProjectServiceAccount, *string, error) {
-		page, err := ProjectServiceAccountsPage(ctx, c, projectID, cursor, 0)
-		return page.Items, &page.NextCursor, err
 	})
 }
 

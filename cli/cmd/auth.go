@@ -169,8 +169,10 @@ func whoamiScopeRefs(ctx context.Context, a *app.App) whoamiScope {
 			scope.resolved = false
 			break
 		}
+		// A resolver passes a name it cannot resolve through unchanged; only
+		// an ID it returns counts as resolved.
 		resolvedOrgID, err := a.OrgResolver(ctx, rawOrg)
-		if err != nil {
+		if err != nil || !looksLikeUUIDRef(resolvedOrgID) {
 			scope.resolved = false
 			break
 		}
@@ -198,7 +200,7 @@ func whoamiScopeRefs(ctx context.Context, a *app.App) whoamiScope {
 			break
 		}
 		resolvedProjectID, err := a.ProjectResolver(ctx, scope.orgID, rawProject)
-		if err != nil {
+		if err != nil || !looksLikeUUIDRef(resolvedProjectID) {
 			scope.resolved = false
 			break
 		}

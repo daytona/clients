@@ -103,7 +103,7 @@ func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected
 	defer server.Close()
 
 	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	stdout := &bytes.Buffer{}
@@ -359,7 +359,7 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 		defer home.Close()
 
 		t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-		for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+		for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 			t.Setenv(key, "")
 		}
 		stdout := &bytes.Buffer{}

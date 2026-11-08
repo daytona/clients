@@ -103,3 +103,28 @@ func TestExcluded_escapedMetacharacters(t *testing.T) {
 	require.True(t, m.Excluded("v1.0"))
 	require.False(t, m.Excluded("v1x0"))
 }
+
+// The cases below pin where Docker's pattern matcher (the classic builder's)
+// behaves unexpectedly; the CLI follows it rather than BuildKit's walker.
+func TestExcluded_followsDockersPatternMatcher(t *testing.T) {
+	// A leading `**` without `/` is a suffix match.
+	m := matcher(t, "**foo\n")
+	for _, rel := range []string{"foo", "x/foo", "barfoo", "x/barfoo"} {
+		require.True(t, m.Excluded(rel), rel)
+	}
+	// `^` is not escaped: the pattern can never match.
+	m = matcher(t, "*.log^\n")
+	require.False(t, m.Excluded("app.log^"))
+	require.False(t, m.Excluded("app.log"))
+	// A pattern that matches a parent directory applies to its contents, and
+	// the last matching pattern wins, also against an exception for a parent.
+	require.False(t, matcher(t, "**/*.key\n!certs\n").Excluded("certs/server.key"))
+	require.True(t, matcher(t, "docs\n!docs/README.md\ndocs\n").Excluded("docs/README.md"))
+	require.False(t, matcher(t, "*/*.log\n!build\n").Excluded("build/x.log"))
+}
+
+func TestNew_rejectsAnEscapeTheMatcherCannotCompile(t *testing.T) {
+	// Docker's matcher fails with "syntax error in pattern" on `foo\q`.
+	_, err := New([]string{`foo\q`})
+	require.Error(t, err)
+}

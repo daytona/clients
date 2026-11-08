@@ -143,7 +143,7 @@ func TestKeyMint_interactiveProjectPickerCarriesPickedOrgIntoServiceAccountResol
 	t.Cleanup(func() { selectPrompt = prevSelect })
 	t.Setenv("CI", "")
 	t.Setenv("DAYTONA_CONFIG_DIR", cfgDir(t))
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	api := newFakeAPI(t)

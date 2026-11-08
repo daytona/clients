@@ -25,15 +25,14 @@ func GetMe(ctx context.Context, c *api.Client) (*gen.User, error) {
 	return &me, nil
 }
 
-// ListOrgs calls GET /orgs.
-// OrgsPage reads one page of "/orgs".
+// OrgsPage reads one page of GET /orgs.
 func OrgsPage(ctx context.Context, c *api.Client, cursor string, limit int64) (Page[gen.OrganizationListItem], error) {
 	return getPage(ctx, c, "/orgs", cursor, limit, func(resp gen.OrganizationPage) ([]gen.OrganizationListItem, *string) {
 		return resp.Organizations, resp.NextCursor
 	})
 }
 
-// ListOrgs collects every page (resolvers and pickers; the list commands read one page).
+// ListOrgs collects every page (name resolvers and pickers; the list commands read one page).
 func ListOrgs(ctx context.Context, c *api.Client) ([]gen.OrganizationListItem, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationListItem, *string, error) {
 		page, err := OrgsPage(ctx, c, cursor, 0)
@@ -49,13 +48,12 @@ func GetOrg(ctx context.Context, c *api.Client, orgID string) (*gen.Organization
 	return &org, nil
 }
 
-// ListProjects calls GET /orgs/{org_id}/projects.
-// ProjectsPage reads one page of "/orgs/"+url.PathEscape(orgID)+"/projects".
+// ProjectsPage reads one page of GET /orgs/{org_id}/projects.
 func ProjectsPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.Project], error) {
 	return getPage(ctx, c, "/orgs/"+url.PathEscape(orgID)+"/projects", cursor, limit, func(resp gen.ProjectPage) ([]gen.Project, *string) { return resp.Projects, resp.NextCursor })
 }
 
-// ListProjects collects every page (resolvers and pickers; the list commands read one page).
+// ListProjects collects every page (name resolvers and pickers; the list commands read one page).
 func ListProjects(ctx context.Context, c *api.Client, orgID string) ([]gen.Project, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.Project, *string, error) {
 		page, err := ProjectsPage(ctx, c, orgID, cursor, 0)

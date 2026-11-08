@@ -134,8 +134,10 @@ func TestImageListAll_oneAPIServingSeveralRegionsLosesNoTrimmedItem(t *testing.T
 
 func TestImageImport_missingRef(t *testing.T) {
 	_, _, err := runCLI(t, []string{"image", "create", "img"}, nil)
-	require.Error(t, err)
-	// cobra marks --ref as required, so this is a usage error
+	// RunE checks the merged body: without --ref (or a source in --file) it
+	// is a usage error before any request.
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "--ref is required")
 }
 
 func TestImageImport_rejectsNullSourceFromFile(t *testing.T) {
@@ -674,7 +676,7 @@ func runCLIText(t *testing.T, args []string, expected []expectedRequest) (string
 	defer server.Close()
 
 	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	stdout := &bytes.Buffer{}

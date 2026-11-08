@@ -16,6 +16,10 @@ import (
 // maxWireSeconds is the largest duration the API stores (an int32 of seconds).
 const maxWireSeconds = math.MaxInt32
 
+// minIdleSeconds is the shortest idle expiry the API honours; it raises any
+// shorter value to this one.
+const minIdleSeconds = 60
+
 // secondsFlag is a duration flag sent to the API as whole seconds. It takes a
 // Go duration (`90s`, `10m`, `1h30m`) and, where the API has a sentinel, a
 // keyword such as `max` or `off`. A value that is not a whole number of
@@ -25,6 +29,8 @@ type secondsFlag struct {
 	seconds   int64
 	set       bool
 	allowZero bool
+	// min is the smallest accepted value in seconds (0 = none).
+	min int64
 	// keywords maps a case-insensitive keyword to the wire value it sends.
 	keywords map[string]int64
 	def      string
@@ -60,6 +66,8 @@ func (f *secondsFlag) Set(raw string) error {
 		return fmt.Errorf("must be a whole number of seconds")
 	case d/time.Second > maxWireSeconds:
 		return fmt.Errorf("must not exceed %d seconds", maxWireSeconds)
+	case f.min > 0 && int64(d/time.Second) < f.min:
+		return fmt.Errorf("must be at least %ds", f.min)
 	}
 	f.seconds, f.set = int64(d/time.Second), true
 	return nil

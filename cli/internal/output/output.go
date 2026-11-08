@@ -305,21 +305,8 @@ func (s *StreamSanitizer) Write(p []byte) (int, error) {
 		data = append(append([]byte{}, s.utf8Tail...), p...)
 		s.utf8Tail = nil
 	}
-	// Hold back an incomplete final rune (up to 3 bytes) for the next write.
-	cut := len(data)
-	for back := 1; back <= 3 && back <= len(data); back++ {
-		tail := data[len(data)-back:]
-		if utf8.RuneStart(tail[0]) {
-			if !utf8.FullRune(tail) {
-				cut = len(data) - back
-			}
-			break
-		}
-	}
-	if cut < len(data) {
-		s.utf8Tail = append([]byte{}, data[cut:]...)
-		data = data[:cut]
-	}
+	// Hold back an incomplete final rune for the next write.
+	data, s.utf8Tail = splitIncompleteRune(data)
 	chunk := s.sanitizeChunk(string(data))
 	if chunk == "" {
 		return len(p), nil
@@ -514,19 +501,7 @@ func NewNDJSONDataWriter(w io.Writer) *NDJSONDataWriter {
 func (n *NDJSONDataWriter) Write(p []byte) (int, error) {
 	data := append(n.tail, p...)
 	n.tail = nil
-	cut := len(data)
-	for back := 1; back <= 3 && back <= len(data); back++ {
-		if tail := data[len(data)-back:]; utf8.RuneStart(tail[0]) {
-			if !utf8.FullRune(tail) {
-				cut = len(data) - back
-			}
-			break
-		}
-	}
-	if cut < len(data) {
-		n.tail = append([]byte{}, data[cut:]...)
-		data = data[:cut]
-	}
+	data, n.tail = splitIncompleteRune(data)
 	if len(data) == 0 {
 		return len(p), nil
 	}
@@ -544,4 +519,22 @@ func (n *NDJSONDataWriter) Flush() error {
 	tail := n.tail
 	n.tail = nil
 	return n.enc.Encode(map[string]string{"data": string(tail)})
+}
+
+// splitIncompleteRune splits data before an incomplete final UTF-8 sequence
+// (at most 3 bytes) that a read split across writes; rest is a copy, nil when
+// data ends on a whole rune.
+func splitIncompleteRune(data []byte) (complete, rest []byte) {
+	for back := 1; back <= 3 && back <= len(data); back++ {
+		tail := data[len(data)-back:]
+		if !utf8.RuneStart(tail[0]) {
+			continue
+		}
+		if utf8.FullRune(tail) {
+			return data, nil
+		}
+		cut := len(data) - back
+		return data[:cut], append([]byte{}, data[cut:]...)
+	}
+	return data, nil
 }

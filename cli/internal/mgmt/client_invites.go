@@ -20,17 +20,9 @@ func CreateInvitation(ctx context.Context, c *api.Client, orgID string, req gen.
 	return &resp, nil
 }
 
-// OrgInvitationsPage reads one page of "/orgs/"+url.PathEscape(orgID)+"/invitations".
+// OrgInvitationsPage reads one page of GET /orgs/{org_id}/invitations.
 func OrgInvitationsPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.Invitation], error) {
 	return getPage(ctx, c, "/orgs/"+url.PathEscape(orgID)+"/invitations", cursor, limit, func(resp gen.InvitationPage) ([]gen.Invitation, *string) { return resp.Invitations, resp.NextCursor })
-}
-
-// ListOrgInvitations collects every page (resolvers and pickers; the list commands read one page).
-func ListOrgInvitations(ctx context.Context, c *api.Client, orgID string) ([]gen.Invitation, error) {
-	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.Invitation, *string, error) {
-		page, err := OrgInvitationsPage(ctx, c, orgID, cursor, 0)
-		return page.Items, &page.NextCursor, err
-	})
 }
 
 func RevokeInvitation(ctx context.Context, c *api.Client, orgID, invitationID string) error {

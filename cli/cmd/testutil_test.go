@@ -172,7 +172,7 @@ func (f *fakeAPI) handle(method, path string, h func(w http.ResponseWriter, r *h
 func run(t *testing.T, cfgDir string, env map[string]string, args ...string) (string, string, int) {
 	t.Helper()
 	var out, errb bytes.Buffer
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	for k, v := range env {

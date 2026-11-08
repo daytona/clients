@@ -59,7 +59,7 @@ func inviteStatus(item gen.Invitation) string {
 // error and not a 404 that reads as "ask for a re-invite".
 var invitationTokenRe = regexp.MustCompile(`^dtni_[A-Za-z0-9_-]{43}$`)
 
-// invitationTokenArg turns the positional argument of show/accept/decline
+// invitationTokenArg turns the positional argument of get/accept/decline
 // into the `dtni_` token the invitee routes take: a link carrying
 // `?token=…` — the absolute one from the invitation email, the relative
 // `/dashboard/user/invitations?token=…` that `invite create` prints when the

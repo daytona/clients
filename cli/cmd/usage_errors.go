@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -66,4 +67,38 @@ func normalizeTree(c *cobra.Command) {
 		c.Args = cobra.ArbitraryArgs
 	}
 	c.Args = usageArgs(c.Args)
+}
+
+// newHelpCommand is Cobra's help command, except that an unknown topic is a
+// usage error (exit 2) like an unknown command.
+func newHelpCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:     "help [command]",
+		Short:   "Help about any command",
+		Long:    "Help provides help for any command in the application.\nSimply type daytona help [path to command] for full details.",
+		GroupID: GroupOther,
+		ValidArgsFunction: func(c *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+			cmd, _, err := c.Root().Find(args)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			var completions []cobra.Completion
+			for _, sub := range cmd.Commands() {
+				if (sub.IsAvailableCommand() || sub.Name() == "help") && strings.HasPrefix(sub.Name(), toComplete) {
+					completions = append(completions, cobra.CompletionWithDesc(sub.Name(), sub.Short))
+				}
+			}
+			return completions, cobra.ShellCompDirectiveNoFileComp
+		},
+		RunE: func(c *cobra.Command, args []string) error {
+			cmd, rest, err := c.Root().Find(args)
+			if err != nil || len(rest) > 0 {
+				return cerr.Usage("unknown help topic %q", strings.Join(args, " ")).
+					WithHint("run `daytona --help` for the available commands")
+			}
+			cmd.InitDefaultHelpFlag()
+			cmd.InitDefaultVersionFlag()
+			return cmd.Help()
+		},
+	}
 }

@@ -124,6 +124,7 @@ func newReservationCreateCommand() *cobra.Command {
 	flagPlaceholder(f, "count", "N")
 	flagPlaceholder(f, "min-count", "M")
 	flagPlaceholder(f, "idempotency-key", "KEY")
+	addRegionFlag(cmd, "region whose Macs to reserve (required unless region_id is in --file)")
 	addFileFlag(cmd, "")
 	return cmd
 }

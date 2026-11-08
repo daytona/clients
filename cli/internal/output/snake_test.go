@@ -21,6 +21,10 @@ func TestSnakeCaseKey(t *testing.T) {
 		"id":                   "id",
 		"already_snake":        "already_snake",
 		"HTTPStatus":           "http_status",
+		"userIDs":              "user_ids",
+		"IPv4":                 "ipv4",
+		"URLs":                 "urls",
+		"ABTest":               "ab_test",
 	} {
 		if got := SnakeCaseKey(in); got != want {
 			t.Errorf("SnakeCaseKey(%q) = %q, want %q", in, got, want)

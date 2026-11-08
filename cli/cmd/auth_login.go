@@ -103,13 +103,7 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 		cleanup = auth.SnapshotLoginKeys(previous, pc)
 		// KeySession fences in-flight writers, not cache hits. Revoke every
 		// old login key atomically with the new tokens, before /me can block.
-		kept := make([]config.WorkloadKey, 0, len(pc.WorkloadKeys))
-		for _, key := range pc.WorkloadKeys {
-			if key.Source != "" {
-				kept = append(kept, key)
-			}
-		}
-		pc.WorkloadKeys, pc.PlatformTokens = kept, nil
+		pc.WorkloadKeys, pc.PlatformTokens = nil, nil
 		pc.KeySession = loginSession
 		pc.Token = ""
 		pc.OIDC = &config.Tokens{AccessToken: ts.AccessToken, RefreshToken: ts.RefreshToken, IDToken: ts.IDToken, ExpiresAt: ts.ExpiresAt(now), ClientID: p.ClientID}

@@ -155,7 +155,8 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	f.StringArrayVar(&flags.labels, "label", nil, "label KEY=VALUE (repeatable)")
 	f.StringArrayVar(&flags.ports, "port", nil, "port as PORT or PORT/PROTO (repeatable)")
 	addSecondsFlag(f, &flags.lifecycleTTL, "lifecycle-timeout", "", "wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; re-arms on every start")
-	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, e.g. 30m) until --on-idle-timeout fires")
+	flags.idleTimeout.min = minIdleSeconds
+	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, at least 1m) until --on-idle-timeout fires")
 	if sf.macos {
 		macosCreateLifecycleFlags(f, flags)
 	} else {
@@ -205,6 +206,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 		f.StringArrayVar(&flags.allowCIDRs, "allow-cidr", nil, "network policy: allowed IPv4 address or CIDR, any port (repeatable; needs --block-all or --allow-domain)")
 		f.BoolVar(&flags.blockAll, "block-all", false, "network policy: deny all egress not explicitly allowed")
 	}
+	addRegionFlag(cmd, "region to create the sandbox in (default: the project's, then the organization's, then earth)")
 	addFileFlag(cmd, "")
 	addWaitFlags(cmd)
 	return cmd
