@@ -85,10 +85,13 @@ def python_flags() -> list[str]:
     for action in _parser()._actions:
         longs = [o for o in action.option_strings if o.startswith("--")]
         shorts = [o for o in action.option_strings if not o.startswith("--")]
+        value = "switch" if action.nargs == 0 else "value"
         for flag in longs:
-            value = "switch" if action.nargs == 0 else "value"
             short = f" {' '.join(shorts)}" if shorts else ""
             lines.append(f"pypi {flag}: flag {value}{short}")
+        if not longs:
+            # A short-only flag is listed under its short name.
+            lines.extend(f"pypi {flag}: flag {value}" for flag in shorts)
     return lines
 
 
