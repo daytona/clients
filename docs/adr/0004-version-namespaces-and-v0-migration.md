@@ -142,7 +142,10 @@ point keeps configuration in one place.
   importing types from `@daytona/sdk/v2` doesn't change what the root pulls
   in. A browser app that needs no v0 can alias the root's package-internal
   `#v0-loader` import to a stub module in its bundler configuration; its
-  bundle then carries no v0, and `.v0` is unavailable in it.
+  bundle then carries no v0. The stub exports a `loadV0()` that returns
+  `{ __daytonaV0Unbundled: true }`, so `.v0` throws the "not included in this
+  build" error. The hook is internal: its shape may change in any release
+  ([`../VERSIONING.md`](../VERSIONING.md), "Public API surface").
 - In Python, `hasattr(daytona, "Sandbox")` raises `ImportError` instead of
   returning `False`, the cost of guiding `from daytona import Sandbox`.
 - The shared error classes are a public contract between both namespaces.
