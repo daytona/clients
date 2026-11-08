@@ -5,7 +5,7 @@
 
 import { createServer } from 'node:http'
 import { once } from 'node:events'
-import { BadRequestError, RequestTimeoutError } from '../src/v2/index'
+import { BadRequestError, ImageBuilder, RequestTimeoutError } from '../src/v2/index'
 import { createHttpClient } from '../src/v2/http'
 import { Image } from '../src/v2/Image'
 import { INTERNAL } from '../src/v2/internal'
@@ -54,6 +54,18 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   ['sandbox.volumes.pull(id)', (_client, api) => withToolbox(api).volumes.pull('vol', undefined as never)],
   ['updateLifecyclePolicy()', (_client, api) => handle(api).updateLifecyclePolicy(undefined as never)],
   ['images.followBuildLogs(id)', (client) => client.v2.images.followBuildLogs('img', undefined as never)],
+  ['get(blank id)', (client) => client.v2.get('  ')],
+  ['reservations.update without autoRenew', (client) => client.v2.reservations.update('res', {} as never)],
+  ['reservations.update autoRenew as a string', (client) => client.v2.reservations.update('res', { autoRenew: 'yes' as never })],
+  ['volumes.delete(a Volume object)', (client) => client.v2.volumes.delete({ id: 'vol' } as never)],
+  ['volumes.delete(blank)', (client) => client.v2.volumes.delete(' ')],
+  ['ports.expose public as a string', (_client, api) => handle(api).ports.expose(8080, { public: 'false' as never })],
+  ['createAccessToken operations not an array', (_client, api) => handle(api).createAccessToken({ operations: 'toolbox' as never })],
+  ['createAccessToken operations with a number', (_client, api) => handle(api).createAccessToken({ operations: [1] as never })],
+  ['ports[].proto sctp', (client) => client.v2.create({ ports: [{ port: 3000, proto: 'sctp' as never }] })],
+  ['createFromBuild idleExpirySeconds as a string', (client) => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: '60' as never })],
+  ['images.build cpuArch as a number', (client) => client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { cpuArch: 5 as never })],
+  ['captureImage idleExpirySeconds 1.5', (_client, api) => handle(api).captureImage({ idleExpirySeconds: 1.5 })],
 ]
 
 it.each(REFUSED)('refuses %s with BadRequestError before any request', async (_name, call) => {
@@ -148,7 +160,6 @@ it('keeps a server 408 during the build wait as the server error, as Python does
       await new Promise((resolve) => setTimeout(resolve, 80))
       throw new RequestTimeoutError('server timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'DAYTONA_API' })
     })
-    const { ImageBuilder } = await import('../src/v2/Image')
     await expect(client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { buildTimeoutSeconds: 0.02 })).rejects.toMatchObject({
       message: 'server timeout', source: 'DAYTONA_API',
     })

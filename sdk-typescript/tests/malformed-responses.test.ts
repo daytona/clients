@@ -136,3 +136,26 @@ it.each([
     await api.close()
   }
 })
+
+it.each([
+  ['a sandbox label', (client: Daytona) => client.v2.get('sbx'), { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], labels: { team: 1 } }, 'sandbox response has a labels.team that is not a string'],
+  ['a create body that is null', (client: Daytona) => client.v2.create('img_1', { waitSeconds: 0 }), null, 'sandbox create response is missing the sandbox id'],
+] as const)('refuses %s with BadRequestError', async (_name, call, body, message) => {
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('refuses a setLabels answer with a non-string label', async () => {
+  const api = await startFakeApi([{ status: 200, body: { id: 'src', labels: { team: 1 } } }])
+  try {
+    await expect(source(api).setLabels({ team: 'a' })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox labels response has a labels.team that is not a string' })
+  } finally {
+    await api.close()
+  }
+})

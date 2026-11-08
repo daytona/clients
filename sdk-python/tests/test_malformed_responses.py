@@ -231,3 +231,42 @@ async def test_an_explicit_null_is_valid_where_the_contract_allows_it(
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             assert await call(root.v2) is not None
+
+
+async def test_a_non_string_label_is_a_contract_error() -> None:
+    with FakeApi(
+        [
+            PlannedResponse(200, {**_DETAIL, "labels": {"team": 1}}),  # type: ignore[dict-item]
+            PlannedResponse(200, {"id": "src", "labels": {"team": 1}}),
+        ]
+    ) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match="labels"):
+                await root.v2.get("src")
+            with pytest.raises(
+                BadRequestError, match=r"^sandbox labels response has a labels\.team that is not a string$"
+            ):
+                await lazy_sandbox(root.v2, "src").set_labels(labels={"team": "a"})
+
+
+@pytest.mark.parametrize("call", ["get_network_policy", "get_secrets"])
+async def test_a_policy_body_that_is_not_json_is_a_contract_error(call: str) -> None:
+    with FakeApi(
+        [PlannedResponse(200, b"<html>", {"ETag": '"e"', "Content-Type": "application/json"})]
+    ) as api:  # type: ignore[arg-type]
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match="is not JSON") as raised:
+                await getattr(lazy_sandbox(root.v2, "src"), call)()
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.parametrize("port", [2**31, 10**20])
+async def test_a_port_beyond_int32_is_a_contract_error(port: int) -> None:
+    with FakeApi([PlannedResponse(200, {"ports": [3000, port]})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = lazy_sandbox(root.v2, "src", toolbox_url=api.url, access_token="tok")
+            with pytest.raises(BadRequestError, match=r"ports\[1\] that is not a 32-bit integer"):
+                await sandbox.ports.list()

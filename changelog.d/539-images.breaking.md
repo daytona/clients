@@ -7,9 +7,9 @@ submission is an ordinary request, bounded by the request timeout.
 `BadRequestError` (Python raised `TypeError`). `images.get()` /
 `snapshots.get()` with `wait="ready"` and a timeout repeat the server's long
 poll until the artifact settles or the whole budget is spent; the wait
-budget, not the request timeout, governs each hold (at most 60 s), and a
-first hold still unanswered at the deadline is `RequestTimeoutError` (source
-`SDK`); their `wait` must be `"ready"` or omitted. `images.pull()` takes a
+budget, not the request timeout, governs each hold (at most 60 s), and no read
+runs past the wait's deadline: a read the deadline cuts returns the last
+observation, or `RequestTimeoutError` (source `SDK`) when there is none; their `wait` must be `"ready"` or omitted. `images.pull()` takes a
 boolean `wait` instead (Python `wait: bool = True`, TypeScript
 `wait?: boolean`), waits for the image with the same bounded holds and pauses
 up to a second between early non-terminal answers.

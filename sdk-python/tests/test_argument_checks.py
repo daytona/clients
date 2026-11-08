@@ -23,7 +23,7 @@ from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona import AsyncDaytona, DaytonaConfig
-from daytona.v2 import BadRequestError, ImageBuilder, RequestTimeoutError, Resources
+from daytona.v2 import BadRequestError, ImageBuilder, PortMapping, RequestTimeoutError, Resources
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
 from daytona.v2.errors import create_error
 from daytona.v2.types import Image, JsonObject
@@ -63,7 +63,51 @@ _REFUSED: list[tuple[str, Call]] = [
     ("disk -1", lambda d, _url: d.create(resources=Resources(disk=-1))),
     ("memory_max 0", lambda d, _url: d.create(resources=Resources(memory_max=0))),
     ("disk_max 0", lambda d, _url: d.create(resources=Resources(disk_max=0))),
+    ("get(blank id)", lambda d, _url: d.get("  ")),
+    ("docker timeout 10**309 is no limit, not an overflow", lambda d, url: _docker_refused_type(d, url)),
+    (
+        "reservations.update auto_renew as a string",
+        lambda d, _url: d.reservations.update("res", auto_renew="yes"),
+    ),  # type: ignore[arg-type]
+    ("volumes.delete(non-string)", lambda d, _url: d.volumes.delete(object())),  # type: ignore[arg-type]
+    ("volumes.delete(blank)", lambda d, _url: d.volumes.delete(" ")),
+    (
+        "ports.expose public as a string",
+        lambda d, _url: lazy_sandbox(d, "sbx").ports.expose(8080, public="false"),
+    ),  # type: ignore[arg-type]
+    (
+        "create_access_token operations not a list",
+        lambda d, _url: lazy_sandbox(d, "sbx").create_access_token(operations="toolbox"),
+    ),
+    (
+        "create_access_token operations with a number",
+        lambda d, _url: lazy_sandbox(d, "sbx").create_access_token(operations=[1]),  # type: ignore[list-item]
+    ),
+    ("ports proto sctp", lambda d, _url: d.create(ports=[PortMapping(port=3000, proto="sctp")])),
+    (
+        "create_from_build idle_expiry_seconds as a string",
+        lambda d, _url: d.create_from_build(ImageBuilder.from_registry("alpine"), idle_expiry_seconds="60"),  # type: ignore[arg-type]
+    ),
+    (
+        "images.build cpu_arch as a number",
+        lambda d, _url: d.images.build(ImageBuilder.from_registry("alpine"), cpu_arch=5),  # type: ignore[arg-type]
+    ),
+    (
+        "capture_image idle_expiry_seconds 1.5",
+        lambda d, _url: lazy_sandbox(d, "sbx").capture_image(idle_expiry_seconds=1.5),
+    ),  # type: ignore[arg-type]
 ]
+
+
+async def _docker_refused_type(d: AsyncDaytonaV2, url: str) -> object:
+    # An integer too large for a float is accepted (no limit) without an
+    # OverflowError; the refusal then comes from the mistyped value after it.
+    from daytona.v2._core import wait_budget_seconds
+
+    assert wait_budget_seconds(10**309) == 0.0
+    return await lazy_sandbox(d, "sbx", toolbox_url=url, access_token="tok").docker.wait_until_ready(
+        timeout=[1]
+    )  # type: ignore[arg-type]
 
 
 @pytest.fixture
