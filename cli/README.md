@@ -297,8 +297,8 @@ go test ./cmd -run TestPublicSurface -update   # regenerate api-surface/daytona.
 ```
 
 `api-surface/daytona.api.txt` lists the CLI's public surface: every command
-path with its aliases, every flag with its type, shorthand and default, and
-the environment variables the CLI reads. `go test` fails when it is stale;
+path with its aliases and positional arguments, every flag with its type,
+shorthand and default, and the environment variables the CLI reads. `go test` fails when it is stale;
 regenerate it after changing any of them and commit the result.
 
 Wire types are generated from the public `contract/` OpenAPI artifacts and

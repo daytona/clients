@@ -18,6 +18,7 @@ $SSH_TTY: env
 $TERM: env
 $XDG_CONFIG_HOME: env
 daytona: command
+daytona: usage
 daytona --api-key: persistent flag string default=""
 daytona --api-url: persistent flag string default=""
 daytona --debug: persistent flag bool default="false"
@@ -33,7 +34,9 @@ daytona --timeout: persistent flag string default="10m"
 daytona --version: flag bool -v default="false"
 daytona --yes: persistent flag bool -y default="false"
 daytona audit: command
+daytona audit: usage
 daytona audit list: command
+daytona audit list: usage
 daytona audit list --action: flag string default=""
 daytona audit list --action-not-in: flag string default=""
 daytona audit list --actor: flag string default=""
@@ -46,94 +49,146 @@ daytona audit list --status: flag int default="0"
 daytona audit list --target-id: flag string default=""
 daytona audit list --target-type: flag string default=""
 daytona billing: command
+daytona billing: usage
 daytona billing automatic-top-up: command
+daytona billing automatic-top-up: usage
 daytona billing automatic-top-up delete: command
+daytona billing automatic-top-up delete: usage
 daytona billing automatic-top-up get: command
+daytona billing automatic-top-up get: usage
 daytona billing automatic-top-up set: command
+daytona billing automatic-top-up set: usage
 daytona billing automatic-top-up set --target-cents: flag int64 default="0"
 daytona billing automatic-top-up set --threshold-cents: flag int64 default="0"
 daytona billing balance-notification: command
+daytona billing balance-notification: usage
 daytona billing balance-notification delete: command
+daytona billing balance-notification delete: usage
 daytona billing balance-notification get: command
+daytona billing balance-notification get: usage
 daytona billing balance-notification set: command
+daytona billing balance-notification set: usage
 daytona billing balance-notification set --threshold-cents: flag int64 default="0"
 daytona billing balances: command
+daytona billing balances: usage
 daytona billing balances --all: flag bool default="false"
 daytona billing balances --cursor: flag string default=""
 daytona billing balances --limit: flag int64 default="25"
 daytona billing charges: command
+daytona billing charges: usage
 daytona billing charges --all: flag bool default="false"
 daytona billing charges --cursor: flag string default=""
 daytona billing charges --limit: flag int64 default="25"
 daytona billing contact: command
+daytona billing contact: usage
 daytona billing contact get: command
+daytona billing contact get: usage
 daytona billing contact set: command
+daytona billing contact set: usage
 daytona billing contact set --clear: flag bool default="false"
 daytona billing contact set --email: flag string default=""
 daytona billing coupon: command
+daytona billing coupon: usage
 daytona billing coupon redeem: command
+daytona billing coupon redeem: usage <code>
 daytona billing invoice: command
+daytona billing invoice: usage
 daytona billing invoice payment-session: command
+daytona billing invoice payment-session: usage <id>
 daytona billing invoice pdf: command
+daytona billing invoice pdf: usage <id>
 daytona billing invoice pdf --out: flag string default=""
 daytona billing invoices: command
+daytona billing invoices: usage
 daytona billing invoices --all: flag bool default="false"
 daytona billing invoices --cursor: flag string default=""
 daytona billing invoices --limit: flag int64 default="25"
 daytona billing invoices --unpaid: flag bool default="false"
 daytona billing payment-method-session: command
+daytona billing payment-method-session: usage
 daytona billing payment-method-session --open: flag bool default="false"
 daytona billing payment-methods: command
+daytona billing payment-methods: usage
 daytona billing payment-methods --all: flag bool default="false"
 daytona billing payment-methods --cursor: flag string default=""
 daytona billing payment-methods --limit: flag int64 default="20"
 daytona billing plan: command
+daytona billing plan: usage
 daytona billing plan get: command
+daytona billing plan get: usage
 daytona billing plan list: command
+daytona billing plan list: usage
 daytona billing plan set: command
+daytona billing plan set: usage <starter|team|enterprise>
 daytona billing portal-session: command
+daytona billing portal-session: usage
 daytona billing portal-session --open: flag bool default="false"
 daytona billing profile: command
+daytona billing profile: usage
 daytona billing top-up: command
+daytona billing top-up: usage [amount-cents]
 daytona billing top-up --amount-cents: flag int64 default="0"
 daytona billing usage: command
+daytona billing usage: usage
 daytona billing usage-periods: command
+daytona billing usage-periods: usage
 daytona billing usage-periods --all: flag bool default="false"
 daytona billing usage-periods --cursor: flag string default=""
 daytona billing usage-periods --limit: flag int64 default="12"
 daytona billing wallet: command
+daytona billing wallet: usage
 daytona completion: command
+daytona completion: usage
 daytona completion bash: command
+daytona completion bash: usage
 daytona completion bash --no-descriptions: flag bool default="false"
 daytona completion fish: command
+daytona completion fish: usage
 daytona completion fish --no-descriptions: flag bool default="false"
 daytona completion powershell: command
+daytona completion powershell: usage
 daytona completion powershell --no-descriptions: flag bool default="false"
 daytona completion zsh: command
+daytona completion zsh: usage
 daytona completion zsh --no-descriptions: flag bool default="false"
 daytona config: command
+daytona config: usage
 daytona config get: command
+daytona config get: usage <key>
 daytona config path: command
+daytona config path: usage
 daytona config set: command
+daytona config set: usage <key> <value>
 daytona cpu-type: command
+daytona cpu-type: usage
 daytona cpu-type list: command
+daytona cpu-type list: usage
 daytona cpu-type list --region: flag string default=""
 daytona docs: command
+daytona docs: usage
 daytona docs --dir: flag string default=""
 daytona docs --full: flag bool default="false"
 daytona help: command
+daytona help: usage [command]
 daytona image: command
+daytona image: usage
 daytona image build: command
+daytona image build: usage <name>
 daytona image build --context: flag string default=""
 daytona image build --dockerfile: flag string default=""
 daytona image capture: command
+daytona image capture: usage <sandbox>
 daytona image capture --name: flag string default=""
 daytona image create: alias import
 daytona image create: command
+daytona image create: usage <name>
 daytona image create --ref: flag string default=""
 daytona image delete: command
+daytona image delete: usage <id>
 daytona image get: command
+daytona image get: usage <id>
 daytona image list: command
+daytona image list: usage
 daytona image list --all: flag bool default="false"
 daytona image list --anonymous: flag string default=""
 daytona image list --cursor: flag string default=""
@@ -142,100 +197,166 @@ daytona image list --name: flag string default=""
 daytona image list --platform: flag string default=""
 daytona image list --sandbox: flag string default=""
 daytona image logs: command
+daytona image logs: usage <id>
 daytona image logs --follow: flag bool default="false"
 daytona image promote: command
+daytona image promote: usage <image> <name>
 daytona invite: command
+daytona invite: usage
 daytona invite accept: command
+daytona invite accept: usage <token|link>
 daytona invite create: command
+daytona invite create: usage <email>
 daytona invite create --role: flag string default=""
 daytona invite decline: command
+daytona invite decline: usage <token|link>
 daytona invite list: command
+daytona invite list: usage
 daytona invite revoke: command
+daytona invite revoke: usage <id>
 daytona invite show: command
+daytona invite show: usage <token|link>
 daytona key: command
+daytona key: usage
 daytona key list: command
+daytona key list: usage
 daytona key mint: command
+daytona key mint: usage
 daytona key mint --expires: flag string default=""
 daytona key mint --name: flag string default=""
 daytona key mint --permission: flag string default=""
 daytona key mint --service-account: flag string default=""
 daytona key revoke: command
+daytona key revoke: usage <id>
 daytona login: command
+daytona login: usage
 daytona login --browser: flag bool default="false"
 daytona login --client-id: flag string default=""
 daytona login --device: flag bool default="false"
 daytona login --token: flag string default=""
 daytona logout: command
+daytona logout: usage
 daytona mac-model: command
+daytona mac-model: usage
 daytona mac-model list: command
+daytona mac-model list: usage
 daytona mac-model list --region: flag R default=""
 daytona member: command
+daytona member: usage
 daytona member list: command
+daytona member list: usage
 daytona member remove: command
+daytona member remove: usage <user>
 daytona member remove --preview: flag bool default="false"
 daytona member update: command
+daytona member update: usage <user>
 daytona member update --dry-run: flag bool default="false"
 daytona member update --role: flag string default=""
 daytona org: command
+daytona org: usage
 daytona org create: command
+daytona org create: usage <name>
 daytona org delete: command
+daytona org delete: usage <id|name>
 daytona org get: command
+daytona org get: usage [id|name]
 daytona org leave: command
+daytona org leave: usage [id|name]
 daytona org limits: command
+daytona org limits: usage [id|name]
 daytona org list: command
+daytona org list: usage
 daytona org update: command
+daytona org update: usage <id|name> --name <new>
 daytona org update --name: flag string default=""
 daytona org use: command
+daytona org use: usage [id|name]
 daytona org-key: command
+daytona org-key: usage
 daytona org-key list: command
+daytona org-key list: usage
 daytona org-key mint: command
+daytona org-key mint: usage
 daytona org-key mint --expires: flag string default=""
 daytona org-key mint --name: flag string default=""
 daytona org-key mint --permission: flag string default=""
 daytona org-key revoke: command
+daytona org-key revoke: usage <id>
 daytona profile: command
+daytona profile: usage
 daytona profile delete: command
+daytona profile delete: usage <name>
 daytona profile list: command
+daytona profile list: usage
 daytona profile use: command
+daytona profile use: usage <name>
 daytona project: command
+daytona project: usage
 daytona project budget: command
+daytona project budget: usage
 daytona project budget get: command
+daytona project budget get: usage [id|name]
 daytona project budget remove: command
+daytona project budget remove: usage [id|name]
 daytona project budget set: command
+daytona project budget set: usage [id|name] --monthly-usd <amount>
 daytona project budget set --monthly-usd: flag string default=""
 daytona project create: command
+daytona project create: usage <name>
 daytona project delete: command
+daytona project delete: usage <id|name>
 daytona project get: command
+daytona project get: usage [id|name]
 daytona project list: command
+daytona project list: usage
 daytona project member: command
+daytona project member: usage
 daytona project member add: command
+daytona project member add: usage <user>
 daytona project member add --bulk: flag string default=""
 daytona project member list: command
+daytona project member list: usage
 daytona project member remove: command
+daytona project member remove: usage <user>
 daytona project service-account: command
+daytona project service-account: usage
 daytona project service-account add: command
+daytona project service-account add: usage <service-account>
 daytona project service-account list: command
+daytona project service-account list: usage
 daytona project service-account remove: command
+daytona project service-account remove: usage <service-account>
 daytona project update: command
+daytona project update: usage <id|name> --name <new>
 daytona project update --name: flag string default=""
 daytona project use: command
+daytona project use: usage [id|name]
 daytona region: command
+daytona region: usage
 daytona region list: command
+daytona region list: usage
 daytona registry: command
+daytona registry: usage
 daytona registry delete: command
+daytona registry delete: usage <host>
 daytona registry get: command
+daytona registry get: usage <host>
 daytona registry list: command
+daytona registry list: usage
 daytona registry list --all: flag bool default="false"
 daytona registry list --cursor: flag string default=""
 daytona registry list --limit: flag int64 default="100"
 daytona registry set: command
+daytona registry set: usage <host>
 daytona registry set --description: flag string default=""
 daytona registry set --kind: flag string default="basic"
 daytona registry set --password: flag string default=""
 daytona registry set --password-stdin: flag bool default="false"
 daytona registry set --username: flag string required default=""
 daytona reservation: command
+daytona reservation: usage
 daytona reservation create: command
+daytona reservation create: usage
 daytona reservation create --auto-renew: flag bool default="false"
 daytona reservation create --count: flag N default="0"
 daytona reservation create --dry-run: flag bool default="false"
@@ -243,20 +364,29 @@ daytona reservation create --idempotency-key: flag KEY default=""
 daytona reservation create --min-count: flag M default="0"
 daytona reservation create --model: flag MODEL default=""
 daytona reservation get: command
+daytona reservation get: usage ID
 daytona reservation list: command
+daytona reservation list: usage
 daytona reservation list --all: flag bool default="false"
 daytona reservation list --cursor: flag string default=""
 daytona reservation list --limit: flag int64 default="100"
 daytona reservation renew: command
+daytona reservation renew: usage ID
 daytona reservation renew --idempotency-key: flag KEY default=""
 daytona reservation update: command
+daytona reservation update: usage ID
 daytona reservation update --auto-renew: flag bool default="false"
 daytona role: command
+daytona role: usage
 daytona role list: command
+daytona role list: usage
 daytona sandbox: command
+daytona sandbox: usage
 daytona sandbox cp: command
+daytona sandbox cp: usage <src> <dst>
 daytona sandbox cp --recursive: flag bool -r default="false"
 daytona sandbox create: command
+daytona sandbox create: usage
 daytona sandbox create --allow-cidr: flag stringArray default="[]"
 daytona sandbox create --allow-domain: flag stringArray default="[]"
 daytona sandbox create --block-all: flag bool default="false"
@@ -285,6 +415,7 @@ daytona sandbox create --user: flag string default=""
 daytona sandbox create --volume: flag stringArray default="[]"
 daytona sandbox create --wait: flag int64 default="0"
 daytona sandbox create-from-snapshot: command
+daytona sandbox create-from-snapshot: usage <snapshot-name-or-snap_id>
 daytona sandbox create-from-snapshot --create-ttl: flag int64 default="0"
 daytona sandbox create-from-snapshot --idempotency-key: flag string default=""
 daytona sandbox create-from-snapshot --idle-timeout: flag int64 default="0"
@@ -296,6 +427,7 @@ daytona sandbox create-from-snapshot --port: flag stringArray default="[]"
 daytona sandbox create-from-snapshot --timeout: flag int64 default="0"
 daytona sandbox create-from-snapshot --wait: flag int64 default="0"
 daytona sandbox create-macos: command
+daytona sandbox create-macos: usage
 daytona sandbox create-macos --allow-cidr: flag stringArray default="[]"
 daytona sandbox create-macos --allow-domain: flag stringArray default="[]"
 daytona sandbox create-macos --auto-renew: flag bool default="false"
@@ -320,53 +452,76 @@ daytona sandbox create-macos --timeout: flag int64 default="0"
 daytona sandbox create-macos --volume: flag stringArray default="[]"
 daytona sandbox create-macos --wait: flag int64 default="0"
 daytona sandbox delete: command
+daytona sandbox delete: usage <id>
 daytona sandbox docker: command
+daytona sandbox docker: usage
 daytona sandbox docker status: command
+daytona sandbox docker status: usage <sandbox-id>
 daytona sandbox docker status --wait: flag bool default="false"
 daytona sandbox exec: command
+daytona sandbox exec: usage <sandbox-id> -- <command> [args...]
 daytona sandbox exec --cwd: flag string default=""
 daytona sandbox exec --env: flag stringArray default="[]"
 daytona sandbox exec --tty: flag bool default="false"
 daytona sandbox exec --user: flag string default=""
 daytona sandbox fork: command
+daytona sandbox fork: usage <id>
 daytona sandbox fork --name: flag string default=""
 daytona sandbox get: command
+daytona sandbox get: usage <id>
 daytona sandbox list: command
+daytona sandbox list: usage
 daytona sandbox list --all: flag bool default="false"
 daytona sandbox list --cursor: flag string default=""
 daytona sandbox list --limit: flag int64 default="100"
 daytona sandbox logs: command
+daytona sandbox logs: usage <id>
 daytona sandbox logs --entrypoint: flag bool default="false"
 daytona sandbox logs --follow: flag bool default="false"
 daytona sandbox pause: command
+daytona sandbox pause: usage <id>
 daytona sandbox port: command
+daytona sandbox port: usage
 daytona sandbox port list: command
+daytona sandbox port list: usage <sandbox-id>
 daytona sandbox preview-url: command
+daytona sandbox preview-url: usage <id> <port>
 daytona sandbox preview-url --signed: flag bool default="false"
 daytona sandbox preview-url --ttl: flag int64 default="60"
 daytona sandbox preview-url expire: command
+daytona sandbox preview-url expire: usage <id> <port> <token>
 daytona sandbox process: command
+daytona sandbox process: usage
 daytona sandbox process attach: command
+daytona sandbox process attach: usage <sandbox-id> <process-id>
 daytona sandbox process attach --cursor: flag string default=""
 daytona sandbox process get: command
+daytona sandbox process get: usage <sandbox-id> <process-id>
 daytona sandbox process kill: command
+daytona sandbox process kill: usage <sandbox-id> <process-id>
 daytona sandbox process list: command
+daytona sandbox process list: usage <sandbox-id>
 daytona sandbox process list --kind: flag string default=""
 daytona sandbox process list --name: flag string default=""
 daytona sandbox process list --pid: flag int default="0"
 daytona sandbox process list --session-id: flag string default=""
 daytona sandbox process list --state: flag string default=""
 daytona sandbox process logs: command
+daytona sandbox process logs: usage <sandbox-id> <process-id>
 daytona sandbox process logs --cursor: flag string default=""
 daytona sandbox process logs --encoding: flag string default="text"
 daytona sandbox process logs --follow: flag bool default="false"
 daytona sandbox process logs --limit: flag int default="0"
 daytona sandbox process signal: command
+daytona sandbox process signal: usage <sandbox-id> <process-id> <signal>
 daytona sandbox process signal --escalate-after: flag string default=""
 daytona sandbox process signal --escalate-to: flag string default=""
 daytona sandbox process wait: command
+daytona sandbox process wait: usage <sandbox-id> <process-id>
 daytona sandbox resume: command
+daytona sandbox resume: usage <id>
 daytona sandbox search: command
+daytona sandbox search: usage [query]
 daytona sandbox search --all: flag bool default="false"
 daytona sandbox search --class: flag stringSlice default="[]"
 daytona sandbox search --created-end-at: flag string default=""
@@ -394,9 +549,13 @@ daytona sandbox search --status: flag stringSlice default="[]"
 daytona sandbox search --updated-end-at: flag string default=""
 daytona sandbox search --updated-start-at: flag string default=""
 daytona sandbox ssh: command
+daytona sandbox ssh: usage <sandbox-id> [ssh-args...] [command]
 daytona sandbox start: command
+daytona sandbox start: usage <id>
 daytona sandbox stop: command
+daytona sandbox stop: usage <id>
 daytona sandbox update: command
+daytona sandbox update: usage <id>
 daytona sandbox update --clear-labels: flag bool default="false"
 daytona sandbox update --idle-timeout: flag int64 default="0"
 daytona sandbox update --label: flag stringArray default="[]"
@@ -404,43 +563,64 @@ daytona sandbox update --on-idle-timeout: flag string default=""
 daytona sandbox update --on-timeout: flag string default=""
 daytona sandbox update --timeout: flag int64 default="0"
 daytona sandbox usage: command
+daytona sandbox usage: usage <id>
 daytona sandbox usage --history: flag bool default="false"
 daytona sandbox wait: command
+daytona sandbox wait: usage <id>
 daytona sandbox wait --for: flag string default="running"
 daytona secret: command
+daytona secret: usage
 daytona secret delete: command
+daytona secret delete: usage <name>
 daytona secret get: command
+daytona secret get: usage <name>
 daytona secret list: command
+daytona secret list: usage
 daytona secret list --all: flag bool default="false"
 daytona secret list --cursor: flag string default=""
 daytona secret list --limit: flag int64 default="100"
 daytona secret set: command
+daytona secret set: usage <name>
 daytona secret set --allowed-domain: flag stringSlice default="[]"
 daytona secret set --description: flag string default=""
 daytona secret set --from-file: flag string default=""
 daytona secret set --stdin: flag bool default="false"
 daytona secret set --value: flag string default=""
 daytona service-account: command
+daytona service-account: usage
 daytona service-account create: command
+daytona service-account create: usage <name>
 daytona service-account create --role: flag string default=""
 daytona service-account delete: command
+daytona service-account delete: usage <id>
 daytona service-account get: command
+daytona service-account get: usage <id>
 daytona service-account list: command
+daytona service-account list: usage
 daytona service-account update: command
+daytona service-account update: usage <id>
 daytona service-account update --name: flag string default=""
 daytona service-account update --role: flag string default=""
 daytona snapshot: command
+daytona snapshot: usage
 daytona snapshot create: command
+daytona snapshot create: usage <sandbox>
 daytona snapshot create --name: flag string default=""
 daytona snapshot delete: command
+daytona snapshot delete: usage <id>
 daytona snapshot get: command
+daytona snapshot get: usage <id>
 daytona snapshot list: command
+daytona snapshot list: usage
 daytona snapshot list --all: flag bool default="false"
 daytona snapshot list --cursor: flag string default=""
 daytona snapshot list --limit: flag int64 default="100"
 daytona version: command
+daytona version: usage
 daytona volume: command
+daytona volume: usage
 daytona volume create: command
+daytona volume create: usage <name>
 daytona volume create --access-key-secret: flag string default=""
 daytona volume create --bucket: flag string default=""
 daytona volume create --endpoint: flag string default=""
@@ -451,9 +631,13 @@ daytona volume create --secret-key-secret: flag string default=""
 daytona volume create --size-gb: flag int32 default="100"
 daytona volume create --type: flag string default="disk"
 daytona volume delete: command
+daytona volume delete: usage <id>
 daytona volume get: command
+daytona volume get: usage <id>
 daytona volume list: command
+daytona volume list: usage
 daytona volume list --all: flag bool default="false"
 daytona volume list --cursor: flag string default=""
 daytona volume list --limit: flag int64 default="100"
 daytona whoami: command
+daytona whoami: usage

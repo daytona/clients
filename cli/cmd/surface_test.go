@@ -100,6 +100,9 @@ func commandSurface(root *cobra.Command) []string {
 			kind = "hidden " + kind
 		}
 		lines = append(lines, path+": "+kind)
+		// The positional arguments, as the usage line spells them.
+		_, args, _ := strings.Cut(c.Use, " ")
+		lines = append(lines, strings.TrimSpace(path+": usage "+strings.TrimSpace(args)))
 		for _, alias := range c.Aliases {
 			lines = append(lines, path+": alias "+alias)
 		}
@@ -195,24 +198,60 @@ func envSurface(moduleRoot string) ([]string, error) {
 		}
 	}
 
-	params := map[string][]string{} // function or method name -> parameter names
+	// Parameter lists by declaration: "pkg.Func" for a function, ".Method"
+	// for every method of that name (a method call does not say its
+	// receiver's type, so all of them are candidates).
+	params := map[string][][]string{}
 	for _, f := range files {
 		for _, decl := range f.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
 			if !ok {
 				continue
 			}
+			var names []string
 			for _, field := range fn.Type.Params.List {
-				names := []string{"_"}
-				if len(field.Names) > 0 {
-					names = names[:0]
-					for _, name := range field.Names {
-						names = append(names, name.Name)
-					}
+				if len(field.Names) == 0 {
+					names = append(names, "_")
 				}
-				params[fn.Name.Name] = append(params[fn.Name.Name], names...)
+				for _, name := range field.Names {
+					names = append(names, name.Name)
+				}
 			}
+			key := f.Name.Name + "." + fn.Name.Name
+			if fn.Recv != nil {
+				key = "." + fn.Name.Name
+			}
+			params[key] = append(params[key], names)
 		}
+	}
+	// The package each file's import names refer to.
+	imports := map[*ast.File]map[string]string{}
+	for _, f := range files {
+		local := map[string]string{}
+		for _, spec := range f.Imports {
+			path, _ := strconv.Unquote(spec.Path.Value)
+			pkg := path[strings.LastIndex(path, "/")+1:]
+			name := pkg
+			if spec.Name != nil {
+				name = spec.Name.Name
+			}
+			local[name] = pkg
+		}
+		imports[f] = local
+	}
+	callees := func(f *ast.File, fun ast.Expr) [][]string {
+		switch x := fun.(type) {
+		case *ast.Ident:
+			return params[f.Name.Name+"."+x.Name]
+		case *ast.SelectorExpr:
+			if pkg, ok := x.X.(*ast.Ident); ok {
+				if name, ok := imports[f][pkg.Name]; ok {
+					return params[name+"."+x.Sel.Name]
+				}
+			}
+			return params["."+x.Sel.Name]
+		}
+		return nil
 	}
 	readers := map[string]bool{}
 	isOSReader := func(e ast.Expr) bool {
@@ -255,8 +294,13 @@ func envSurface(moduleRoot string) ([]string, error) {
 				switch x := n.(type) {
 				case *ast.CallExpr:
 					for i, arg := range x.Args {
-						if names := params[nameOf(x.Fun)]; isReader(arg) && i < len(names) {
-							changed = add(names[i]) || changed
+						if !isReader(arg) {
+							continue
+						}
+						for _, names := range callees(f, x.Fun) {
+							if i < len(names) {
+								changed = add(names[i]) || changed
+							}
 						}
 					}
 				case *ast.AssignStmt:
@@ -354,6 +398,14 @@ type opts struct{ Lookup func(string) string }
 
 func helper(get func(string) (string, bool)) { get("VIA_PARAM") }
 
+type other struct{}
+
+// A method named like the function above, its reader in another position:
+// the call below binds os.Getenv to the method's parameter.
+func (other) helper(n int, lookup func(string) string) { lookup("VIA_METHOD") }
+
+func two(_ int, get func(string) string) { get("VIA_SECOND") }
+
 func f() {
 	os.Getenv("DIRECT")
 	read := os.Getenv
@@ -363,6 +415,8 @@ func f() {
 	o := opts{Lookup: os.Getenv}
 	o.Lookup("VIA_FIELD")
 	helper(os.LookupEnv)
+	other{}.helper(1, os.Getenv)
+	two(0, os.Getenv)
 }
 `)
 	got, err := envSurface(dir)
@@ -370,7 +424,7 @@ func f() {
 		t.Fatal(err)
 	}
 	sort.Strings(got)
-	want := []string{"$DIRECT: env", "$VIA_ALIAS: env", "$VIA_CONST: env", "$VIA_FIELD: env", "$VIA_PARAM: env"}
+	want := []string{"$DIRECT: env", "$VIA_ALIAS: env", "$VIA_CONST: env", "$VIA_FIELD: env", "$VIA_METHOD: env", "$VIA_PARAM: env", "$VIA_SECOND: env"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("got %v, want %v", got, want)
 	}
