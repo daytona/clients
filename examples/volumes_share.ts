@@ -9,7 +9,7 @@
  *
  *   DAYTONA_API_KEY=dtn_... npx tsx volumes_share.ts
  *
- * DAYTONA_V2_API_URL (test environments only) defaults to https://api.daytona.com. DAYTONA_IMAGE defaults
+ * DAYTONA_V2_API_URL (a regional endpoint or test environment) defaults to https://api.daytona.com. DAYTONA_IMAGE defaults
  * to python:3.12-slim. Set DAYTONA_KEEP=1 to retain resources for inspection.
  */
 

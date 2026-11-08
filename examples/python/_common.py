@@ -4,7 +4,7 @@ Every example builds its ``Daytona`` client from the same environment variables
 so they can all use the same Daytona deployment:
 
     DAYTONA_V2_API_URL   Daytona API base          (default https://api.daytona.com;
-                         test environments only)
+                         regional endpoint or test environment)
     DAYTONA_API_KEY      bearer api key (dtn_...)   (required)
     DAYTONA_IMAGE        default sandbox image     (default python:3.12-slim)
 """

@@ -35,8 +35,8 @@ type LinuxCreateRequest = Omit<api.CreateSandboxRequest, 'image'> & {
 
 
 /**
- * The default Daytona Cloud v2 API, used unless `DAYTONA_V2_API_URL` (test
- * environments only) selects another endpoint. `DAYTONA_API_URL` belongs to
+ * The default Daytona Cloud v2 API, used unless `DAYTONA_V2_API_URL` (a
+ * regional endpoint or a test environment) selects another one. `DAYTONA_API_URL` belongs to
  * the 0.x SDK; SDK 2.x never reads it.
  */
 export const DEFAULT_V2_API_URL = 'https://api.daytona.com'

@@ -5,7 +5,7 @@ TypeScript `AuthorizationError` → `ForbiddenError` and `TimeoutError` →
 `DaytonaAuthenticationError`, `DaytonaAuthorizationError`,
 `DaytonaConflictError`, `DaytonaValidationError`, `DaytonaRateLimitError`,
 `DaytonaTimeoutError`, `DaytonaConnectionError`, `DaytonaNotSupportedError`
-and their `…V2` aliases are removed from `daytona.v2` / `@daytona/sdk/v2`
+and the `…V2` aliases of the first eight are removed from `daytona.v2` / `@daytona/sdk/v2`
 (use `NotFoundError`, `AuthenticationError`, `ForbiddenError`,
 `ConflictError`, `BadRequestError`, `RateLimitError`, `ClientTimeoutError`,
 `ConnectionError`, `NotSupportedError`); `DaytonaError` / `DaytonaErrorV2`

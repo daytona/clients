@@ -56,11 +56,18 @@ type AssertExact<T extends true> = T
 export interface SandboxEventsConfig {
   /** Enable WebSocket-based waiting; default `true`. */
   readonly enabled?: boolean
-  /** Reconcile timer interval in seconds; default 60; `0` disables. Values above about 24 days clamp to that maximum. */
+  /**
+   * Reconcile timer interval in seconds; default 60; `0` disables. A negative
+   * or non-finite value is a `BadRequestError`; values above about 24 days
+   * clamp to that maximum.
+   */
   readonly reconcileIntervalSeconds?: number
-  /** Close an idle events socket after this many seconds; default never (10
-   *  where an idle socket would keep the process alive); `0` = never. Values
-   *  above about 24 days clamp to that maximum. */
+  /**
+   * Close an idle events socket after this many seconds. Default: never,
+   * except 10 seconds where an idle socket would keep the process alive.
+   * `0` = never. A negative or non-finite value is a `BadRequestError`;
+   * values above about 24 days clamp to that maximum.
+   */
   readonly idleCloseSeconds?: number
 }
 
@@ -73,8 +80,8 @@ export const SANDBOX_EVENTS_CONFIG_KEYS = optionKeys<SandboxEventsConfig>()({
 
 /**
  * The v2 client's configuration (built by the root `Daytona` from its own
- * config). There is no API URL field: `DAYTONA_V2_API_URL` (test environments
- * only) selects the endpoint.
+ * config). There is no API URL field: `DAYTONA_V2_API_URL` (a regional
+ * endpoint or a test environment) selects the endpoint.
  */
 export interface DaytonaConfig {
   /** Bearer API key for API and sandbox requests. */

@@ -137,10 +137,11 @@ must preserve `manifestId: null` rather than optionalizing it.
 
 ### Options objects
 
-Every public options object (constructor configs and per-call options)
-rejects unknown keys at runtime, because a JavaScript caller's typo or an
-option renamed in 2.x would otherwise be ignored silently. `src/v2/options.ts`
-provides the pieces; applying them to a new options type takes two lines:
+Public options objects reject unknown keys at runtime, because a JavaScript
+caller's typo or an option renamed in 2.x would otherwise be ignored silently.
+Today the client configuration does (`DaytonaConfig`, `SandboxEventsConfig`);
+per-call options adopt it area by area. `src/v2/options.ts` provides the
+pieces; applying them to a new options type takes two lines:
 
 ```ts
 import { assertKnownOptions, optionKeys } from './options.js'
@@ -172,8 +173,15 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
 - Check the options object itself, and nested SDK-defined option objects
   (the root checks `config.events` as `SandboxEventsConfig`); never a
   pass-through map (`env`, `labels`, request headers).
-- A duration in seconds is validated with `optionalSeconds(name, value)`
-  (finite, non-negative) and converted to milliseconds only at the transport.
+- A duration option in seconds that the SDK converts itself (the request
+  timeout, the events durations) is validated with `optionalSeconds(name,
+  value)` (finite, non-negative) and converted to milliseconds where it is
+  used; a timer delay goes through `boundedTimerDelay` (above
+  `MAX_TIMER_DELAY_MS` means no bound). Per-call options keep their own
+  validation until their area moves to seconds.
+- A nested options object the SDK keeps (the root's `events`) is copied with
+  `snapshotOptions`, so later changes to the caller's object do not reach the
+  client.
 - Test both the rejection and the rename hint for every type you cover (see
   `tests/client-config.test.ts`).
 
@@ -188,6 +196,13 @@ from the caller's deadline. File transfers pass `timeout: 0` (axios) or
 `transfer: true` (`HttpTransport.fetch`); other `fetch` calls are streams and
 are bounded only until their response headers arrive. The Python transport
 implements the same rule (`_request_deadline`, `RequestSpec.transfer`).
+
+The deadline is absolute (`config.daytona.deadlineAt`): the project-token
+exchange runs under the request's signal, a 401 refresh gets only the
+remaining budget, and the retry re-arms the same deadline. `withAuth`
+(sandbox tokens) sets `deadlineAt` before minting, and `fetch` bounds the
+bearer and the refresh with the same timeout signal.
+
 - Signals: bare names on the surface (`TERM`, `INT`, …), `SIG*` on the wire.
 - Reserved sandbox `env` names: platform-reserved prefixes plus every
   `DAYTONA_*` name other than

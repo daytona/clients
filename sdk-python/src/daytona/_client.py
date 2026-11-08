@@ -165,7 +165,7 @@ class DaytonaConfig:
     are read from the environment by each namespace.
 
     There is no region or API URL field here. Pass ``region=`` to a v2 create.
-    ``DAYTONA_V2_API_URL`` (test environments only) selects the v2 API
+    ``DAYTONA_V2_API_URL`` (a regional endpoint or a test environment) selects the v2 API
     endpoint and never reaches v0; ``DAYTONA_API_URL`` belongs to the 0.x SDK
     and SDK 2.x never reads it.
 

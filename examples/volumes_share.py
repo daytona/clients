@@ -10,7 +10,7 @@ before deleting a writer (default 20). Run from the repository root:
 
     DAYTONA_API_KEY=dtn_... python examples/volumes_share.py
 
-DAYTONA_V2_API_URL (test environments only) defaults to https://api.daytona.com. DAYTONA_IMAGE defaults to
+DAYTONA_V2_API_URL (a regional endpoint or test environment) defaults to https://api.daytona.com. DAYTONA_IMAGE defaults to
 python:3.12-slim. Set DAYTONA_KEEP=1 to retain the resources for inspection.
 """
 

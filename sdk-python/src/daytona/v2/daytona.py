@@ -111,8 +111,9 @@ CreateConfig = dict[str, CreateConfigValue]
 CreateBody = JsonObject
 
 
-# The default Daytona Cloud v2 API. `DAYTONA_V2_API_URL` (test environments
-# only) selects another endpoint; `DAYTONA_API_URL` belongs to the 0.x SDK.
+# The default Daytona Cloud v2 API. `DAYTONA_V2_API_URL` (a regional endpoint
+# or a test environment) selects another one; `DAYTONA_API_URL` belongs to the
+# 0.x SDK.
 DEFAULT_V2_API_URL: Final[str] = "https://api.daytona.com"
 CLOSE_GRACE_SECONDS: Final[float] = 5.0
 _DAYTONA_OTEL_TRUE_VALUES: Final[frozenset[str]] = frozenset({"1", "true"})
