@@ -320,14 +320,12 @@ function stringMime(data: Record<string, unknown>, mime: string): string | undef
   return typeof value === 'string' ? value : undefined
 }
 
-type ContextRunner = (code: string, cwd: string | undefined, timeoutMs: number | undefined) => Promise<InterpreterResult>
-/** The service runs a context with a budget already in milliseconds. */
-const contextRunners = new WeakMap<InterpreterContext, ContextRunner>()
-
+/** Run a context with a caller budget the service already holds in milliseconds (`0` = unbounded). */
 function runContext(context: InterpreterContext, code: string, cwd: string | undefined, timeoutMs: number | undefined): Promise<InterpreterResult> {
-  const runner = contextRunners.get(context)
-  if (runner === undefined) throw badRequest('interpreter context is not bound to a sandbox')
-  return runner(code, cwd, timeoutMs)
+  return context.run(code, {
+    ...(cwd === undefined ? {} : { cwd }),
+    ...(timeoutMs === undefined ? {} : { timeoutSeconds: timeoutMs / 1000 }),
+  })
 }
 
 /**
@@ -360,7 +358,6 @@ export class InterpreterContext {
     this.sandboxId = sandboxId
     this.contextId = contextId
     this.language = language
-    contextRunners.set(this, (code, cwd, timeoutMs) => this.#runMs(code, cwd, timeoutMs))
   }
 
   /** The context's JSON-safe identity, for `interpreter.connectContext()`. */
