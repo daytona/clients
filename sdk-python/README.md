@@ -108,14 +108,15 @@ asyncio.run(main())
 `DaytonaConfig` reads `DAYTONA_API_KEY` and `DAYTONA_JWT_TOKEN` from the
 environment when the fields are omitted. Both credentials serve `d.v0` and
 `d.v2`. Environment values are trimmed, and a blank one counts as unset;
-values you pass in `DaytonaConfig` are used as given (an empty `project_id`
-is rejected). `Daytona(config)` copies the config when it is built: changing
+values you pass in `DaytonaConfig` are used as given, and an empty one
+(`api_key=""`, …) raises `BadRequestError` instead of falling back to the
+environment. `Daytona(config)` copies the config when it is built: changing
 the object afterwards has no effect on the client. Additional env vars:
 
 - `DAYTONA_ORGANIZATION_ID` — scopes a JWT for the v0 namespace.
 - `DAYTONA_PROJECT_ID` — scopes a JWT for the v2 namespace.
-- `DAYTONA_V2_API_URL` — test environments only: selects another v2 API
-  endpoint. When unset, the SDK connects to the Daytona API. `d.v0` always
+- `DAYTONA_V2_API_URL` — selects another v2 API endpoint (a regional endpoint
+  from `GET /regions`, or a test environment). When unset, the SDK connects to the Daytona API. `d.v0` always
   uses its own production URL. SDK 2.x never reads `DAYTONA_API_URL`, the 0.x
   SDK's variable.
 - Credentials: `d.v2` reads `DAYTONA_*` variables from the process
@@ -125,7 +126,8 @@ the object afterwards has no effect on the client. Additional env vars:
 - `DAYTONA_OTEL_ENABLED` — enable client spans when `daytona[otel]` is
   installed.
 
-Set `request_timeout=` **(seconds; default 60, `0` = no limit)** to change
+Set `request_timeout=` **(seconds; default 60; `0`, or a value above about
+24.8 days, means no limit)** to change
 the total time one ordinary request may take before it raises
 `ClientTimeoutError`. Waits and long polls use their own budget, streams are
 bounded only until their response arrives, and file transfers are not bounded.
@@ -863,9 +865,9 @@ Import the v2 errors by name rather than with `from daytona.v2 import *`:
 shadow Python's built-ins. Version-specific errors are imported from
 `daytona.v2` (or `daytona.v0`).
 
-The constructors take the message plus keyword-only fields
-(`NotFoundError("missing", status_code=404, code="NOT_FOUND", source="SDK")`),
-so tests can build the errors your code handles.
+The constructors take the message plus keyword-only fields (`status_code`,
+`code`, `source`, `trace_id`, …), so tests can build the errors your code
+handles.
 
 A request refused because your organization has hit one of its limits (for
 example the maximum number of concurrent sandboxes) raises

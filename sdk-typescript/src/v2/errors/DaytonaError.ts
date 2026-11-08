@@ -299,10 +299,26 @@ export class ImageTooLargeError extends ConflictError {}
 export class SnapshotTooLargeError extends ConflictError {}
 
 export class PreconditionRequiredError extends DaytonaError {}
-/** The API or the sandbox could not be reached. */
-export class ConnectionError extends DaytonaError {}
-/** The client gave up waiting for a response (its own deadline, not an HTTP 408). */
-export class ClientTimeoutError extends DaytonaError {}
+/**
+ * The API or the sandbox could not be reached (no HTTP response). `source`
+ * defaults to `SDK`; there is no status or code.
+ */
+export class ConnectionError extends DaytonaError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super(message, { ...options, source: options.source ?? 'SDK' })
+  }
+}
+/**
+ * The client gave up waiting for a response: its request timeout or a call's
+ * own deadline expired. Not the server's HTTP 408 (`RequestTimeoutError`).
+ * Defaults: message `'operation timed out'`, `statusCode` 408, `code`
+ * `REQUEST_TIMEOUT`, `source` `SDK` (the same in the Python SDK).
+ */
+export class ClientTimeoutError extends DaytonaError {
+  constructor(message = 'operation timed out', options: ErrorOptions = {}) {
+    super(message, { ...options, statusCode: options.statusCode ?? 408, code: options.code ?? 'REQUEST_TIMEOUT', source: options.source ?? 'SDK' })
+  }
+}
 /**
  * A local file transfer was cancelled before completion. Defaults: message
  * `'file transfer cancelled'`, `statusCode` 499, `code` `REQUEST_CANCELLED`,
@@ -746,8 +762,8 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
   const extra = errorOptionsFromEnvelope(envelope)
-  if (isAxiosTimeoutError(error)) return new ClientTimeoutError('Operation timed out', { ...extra, statusCode: status, code, source })
-  if (!error.response && (error.request || error.code)) return new ConnectionError(error.message, { ...extra, statusCode: status, code, source })
+  if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
+  if (!error.response && (error.request || error.code)) return new ConnectionError(error.message)
   const fallback = typeof error.response?.data === 'string' ? error.response.data : error.message
   return createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, errorOptionsFromEnvelope(envelope))
 }

@@ -6,9 +6,13 @@
 // The v2 error surface: names, constructors, defaults and the codes catalog.
 // sdk-python/tests/test_error_contract.py asserts the same facts.
 
+import { INTERNAL } from '../src/v2/internal'
 import * as root from '../src/index'
 import * as v2 from '../src/v2/index'
 import { errorFromEnvelopeBody } from '../src/v2/errors/DaytonaError'
+import { HttpTransport } from '../src/v2/http'
+import { GitService } from '../src/v2/Git'
+import { ProcessService } from '../src/v2/Process'
 
 describe('v2 error surface', () => {
   it('uses the same category names as the Python SDK', () => {
@@ -125,5 +129,18 @@ describe('codes namespace', () => {
     expect(v2.codes.CODE_STATUS.NOT_FOUND).toBe(404)
     expect(v2.codes.isKnownErrorCode('PROCESS_NOT_FOUND')).toBe(true)
     expect(v2.codes.isKnownErrorCode(undefined)).toBe(false)
+  })
+})
+
+describe('errors the SDK raises itself', () => {
+  it('carry source SDK and the catalog status, code and class', async () => {
+    const transport = new HttpTransport('http://toolbox.invalid')
+    const git = new GitService(INTERNAL, transport)
+    await expect(git.commit('/repo', 'msg', { author: '', email: '' })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(git.commit('/repo', 'msg', { author: '', email: '' })).rejects.toBeInstanceOf(v2.BadRequestError)
+    const processes = new ProcessService(INTERNAL, transport, 'sbx-1')
+    const foreign = () => processes.connect({ sandboxId: 'sbx-2', processId: 'p', kind: 'exec' } as never)
+    expect(foreign).toThrow(v2.BadRequestError)
+    expect(foreign).toThrow(expect.objectContaining({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }))
   })
 })

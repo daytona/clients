@@ -79,7 +79,7 @@ it.each([
   // Then rounding does not misclassify an overall-bound timeout or a genuinely shorter root timer.
   await expect(result).rejects.toMatchObject(normalized
     ? { message: 'image pull did not finish before timeout', source: 'SDK' }
-    : { message: 'Operation timed out', code: undefined })
+    : { message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
 })
 
 it.each<Phase>(['post', 'initial', 'poll'])('cancels a stalled %s at the overall deadline', async (stalled) => {
@@ -154,11 +154,11 @@ it.each<Phase>(['post', 'initial'])('preserves a root timeout during %s before t
   // Given a root transport budget smaller than the total pull budget.
   respond = (phase, response) => { if (phase !== stalled) reply(phase, response) }
   const service = new ImagesService(createHttpClient(baseUrl, undefined, 50))
-  // When the transport times out first, without an assumed REQUEST_TIMEOUT code.
+  // When the transport times out first.
   const result = service.pull('alpine', { timeout: 300 })
-  // Then the real Axios timeout remains a generic transport timeout.
+  // Then it is the client's own timeout, not the pull's deadline error.
   await expect(result).rejects.toBeInstanceOf(ClientTimeoutError)
-  await expect(result).rejects.toMatchObject({ message: 'Operation timed out', code: undefined })
+  await expect(result).rejects.toMatchObject({ message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
 })
 
 it.each([undefined, 0, 1000])('waits past the root timeout when pull timeout is %s', async (timeout) => {

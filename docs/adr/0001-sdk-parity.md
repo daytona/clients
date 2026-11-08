@@ -25,16 +25,20 @@ have the same structure and the same method set in both languages. Compare
 with [`../../sdk-typescript/src/v2/Sandbox.ts`](../../sdk-typescript/src/v2/Sandbox.ts).
 
 **Naming follows each language.** Python uses `snake_case` and keyword-only
-arguments; TypeScript uses `camelCase` and options objects. Every duration is
-in seconds in both SDKs: Python keeps the bare name (`timeout`,
+arguments; TypeScript uses `camelCase` and options objects. Durations are in
+seconds in both SDKs: Python keeps the bare name (`timeout`,
 `request_timeout`), TypeScript adds the unit to it (`timeoutSeconds`,
 `requestTimeoutSeconds`), and a TypeScript options object rejects a key it does
-not define at runtime, naming the replacement of a renamed one. These are
-spelling differences, not shape differences: `sandbox.run_code(...)` and
+not define at runtime, naming the replacement of a renamed one. The client
+configuration and the in-sandbox toolbox follow this rule today; TypeScript
+per-call `timeout` options that still take milliseconds move to it area by
+area. These are spelling
+differences, not shape differences: `sandbox.run_code(...)` and
 `sandbox.runCode(...)` take the same inputs and return the same result. The
 client's request timeout means the same in both: the total time one ordinary
-request may take (default 60 s); waits, streams and file transfers are not cut
-by it.
+call may take (default 60 s), the credential exchange and a 401 retry
+included. Waits and long polls are bounded by their own budget, streams only
+until their response headers arrive, and file transfers not at all.
 Timestamps are not durations; the toolbox's Unix-millisecond ones carry the
 unit in the name (`timestamp_ms` / `timestampMs`). Serialized identities
 (`ProcessHandleJSON`, `SessionJSON`, `InterpreterContextJSON`) are one
@@ -81,9 +85,10 @@ and fails when the SDK falls out of step with it:
 Wire types are generated from the same contract for both SDKs
 (`sdk-typescript/src/v2/gen/`, `sdk-python/src/daytona/v2/_gen/`) by
 [`../../scripts/gen-contract-types.sh`](../../scripts/gen-contract-types.sh),
-and CI checks that the generated files are current. They type the HTTP
-boundary only: no public export and no type in a public signature comes from
-them, which a test in each SDK enforces.
+and CI checks that the generated files are current. They are meant for the
+HTTP boundary only: a test in each SDK fails when a public export or a type in
+a public signature comes from them, apart from an explicit list of remaining
+exceptions that only shrinks.
 
 **Python is async-native, with a generated sync surface.** Python code is
 written once, as `async def` methods on classes named `Async*`

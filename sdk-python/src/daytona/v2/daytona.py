@@ -84,6 +84,7 @@ from .types import (
     ProjectBudget,
     Resources,
     SandboxClass,
+    SandboxEventsConfig,
     SandboxInfo,
     SandboxSecretsInfo,
     SearchOrder,
@@ -110,8 +111,9 @@ CreateConfig = dict[str, CreateConfigValue]
 CreateBody = JsonObject
 
 
-# The default Daytona Cloud v2 API. `DAYTONA_V2_API_URL` (test environments
-# only) selects another endpoint; `DAYTONA_API_URL` belongs to the 0.x SDK.
+# The default Daytona Cloud v2 API. `DAYTONA_V2_API_URL` (a regional endpoint
+# or a test environment) selects another one; `DAYTONA_API_URL` belongs to the
+# 0.x SDK.
 DEFAULT_V2_API_URL: Final[str] = "https://api.daytona.com"
 CLOSE_GRACE_SECONDS: Final[float] = 5.0
 _DAYTONA_OTEL_TRUE_VALUES: Final[frozenset[str]] = frozenset({"1", "true"})
@@ -161,7 +163,7 @@ class AsyncDaytona:
         self._target = "local"
         self._request_timeout = resolved.request_timeout
         shared_hub = config.shared_hub if config is not None else True
-        events_config = config.events if config is not None else None
+        events_config = _resolve_events_config(config.events if config is not None else None)
         # `_source` is the X-Daytona-Source label; Daytona passes "sdk-python"
         # because it drives this class through a bridge and would otherwise be
         # indistinguishable from async callers in usage tracking.
@@ -1298,19 +1300,23 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     # the 0.x SDK). Ambient values are trimmed and a blank one is unset; a
     # slash-only URL is unset too.
     api_url = (_ambient("DAYTONA_V2_API_URL") or "").rstrip("/") or DEFAULT_V2_API_URL
-    # Explicit values are used as given. An explicit credential wins over the
-    # ambient environment: jwt_token suppresses DAYTONA_API_KEY and api_key
-    # suppresses DAYTONA_JWT_TOKEN, so an exported key never collides with the
-    # credential the caller chose.
-    api_key = config.api_key or (None if config.jwt_token else _ambient("DAYTONA_API_KEY"))
-    if config.jwt_token == "" and not api_key:
-        raise create_error("jwt_token must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
-    if config.project_id == "":
-        raise create_error("project_id must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
+    # Explicit values are used as given; an explicitly empty one is an error,
+    # never "unset". An explicit credential wins over the ambient environment:
+    # jwt_token suppresses DAYTONA_API_KEY and api_key suppresses
+    # DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
+    # the caller chose.
+    for name in ("api_key", "jwt_token", "project_id"):
+        if getattr(config, name) == "":
+            raise create_error(f"{name} must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
+    api_key = (
+        config.api_key
+        if config.api_key is not None
+        else (None if config.jwt_token is not None else _ambient("DAYTONA_API_KEY"))
+    )
     jwt_token = (
-        (config.jwt_token or None)
+        config.jwt_token
         if config.jwt_token is not None
-        else (None if config.api_key else _ambient("DAYTONA_JWT_TOKEN"))
+        else (None if config.api_key is not None else _ambient("DAYTONA_JWT_TOKEN"))
     )
     if api_key and jwt_token:
         raise create_error(
@@ -1320,7 +1326,9 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
             "SDK",
         )
     if not api_key and not jwt_token:
-        raise AuthenticationError("api_key or jwt_token is required", status_code=401, source="SDK")
+        raise AuthenticationError(
+            "api_key or jwt_token is required", status_code=401, code="UNAUTHORIZED", source="SDK"
+        )
     project_id = config.project_id if config.project_id is not None else _ambient("DAYTONA_PROJECT_ID")
     if jwt_token and not project_id:
         raise create_error("jwt_token requires project_id", 400, "BAD_REQUEST", "SDK")
@@ -1343,22 +1351,47 @@ def _ambient(env_var: str) -> Optional[str]:
     return (os.environ.get(env_var) or "").strip() or None
 
 
+# The largest request timeout that is still a bound, in seconds (about 24.8
+# days): the TypeScript SDK's timers cannot arm a longer one, so both SDKs read
+# a larger value as no limit, like 0.
+_MAX_BOUNDED_TIMEOUT_SECONDS: Final = 2_147_483.647
+
+
 def _resolve_request_timeout(value: Optional[float]) -> float:
     if value is None:
         return DEFAULT_REQUEST_TIMEOUT_SECONDS
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or not math.isfinite(value)
-        or value < 0
-    ):
+    seconds = _non_negative_seconds("request_timeout", value)
+    return 0.0 if seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+
+
+def _non_negative_seconds(name: str, value: object) -> float | int:
+    """A finite, non-negative number of seconds, or the SDK's ``BadRequestError``.
+
+    Integers are compared without converting them to float, so an integer
+    too large for a float is rejected cleanly rather than overflowing.
+    """
+    valid = (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and value >= 0
+        and (isinstance(value, int) or math.isfinite(value))
+    )
+    if not valid:
         raise create_error(
-            "request_timeout must be a non-negative number of seconds (0 = no limit)",
-            400,
-            "BAD_REQUEST",
-            "SDK",
+            f"{name} must be a non-negative number of seconds (0 = no limit)", 400, "BAD_REQUEST", "SDK"
         )
-    return float(value)
+    assert isinstance(value, (int, float))
+    return value
+
+
+def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[SandboxEventsConfig]:
+    """Validate the events hub durations at construction (``None`` keeps the default)."""
+    if config is not None:
+        for name in ("reconcile_interval", "idle_close"):
+            value = getattr(config, name)
+            if value is not None:
+                _non_negative_seconds(f"events.{name}", value)
+    return config
 
 
 def _env_truthy(env_var: str) -> bool:

@@ -84,7 +84,7 @@ describe('aborts rejected by a fetch polyfill', () => {
     await expect(pending).rejects.toBeInstanceOf(PolyfillAbortError)
   })
 
-  it('maps an abort at the request deadline to TimeoutError', async () => {
+  it('maps an abort at the request deadline to ClientTimeoutError', async () => {
     pendingPolyfillFetch()
     const transport = new HttpTransport('http://toolbox.invalid/sandbox', 'key', 20)
 

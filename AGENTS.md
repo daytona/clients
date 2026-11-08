@@ -287,10 +287,15 @@ Both packages are a thin ROOT over one namespace per API major version:
 - **Ambient configuration is normalised the same way in both SDKs.**
   `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`, `DAYTONA_PROJECT_ID` and
   `DAYTONA_V2_API_URL` are trimmed and a blank value is unset; explicit config
-  values are used as given; an explicitly empty `project_id` / `projectId` (or
-  an empty JWT without an API key) is a `BadRequestError` (400, `BAD_REQUEST`,
-  source `SDK`), like every invalid-configuration error. The deprecated root
-  `target` stays, deprecated, for all of 2.x.
+  values are used as given (checked against `undefined` / `None`, never
+  truthiness); an explicitly empty `api_key` / `jwt_token` / `project_id`
+  (`apiKey` / `jwtToken` / `projectId`) is a `BadRequestError` (400,
+  `BAD_REQUEST`, source `SDK`), like every invalid-configuration error,
+  including TS's refused `apiUrl` / `serverUrl` / `toolboxUrl` keys. Missing
+  credentials are `AuthenticationError` (401, `UNAUTHORIZED`, `SDK`). The
+  TS root validates the copy it keeps: every enumerable key (own or
+  inherited) must be known, each known key and the nested `events` are read
+  once. The deprecated root `target` stays, deprecated, for all of 2.x.
 - **TS `d.v0` is the real v0 client, loaded synchronously.** The getter
   builds the 0.x SDK's `Daytona` on first access through the package-internal
   `#v0-loader` import (package.json `"imports"`): `loaders/v0-node.cjs`
@@ -450,7 +455,7 @@ skipping exist only in the TypeScript tool).
   implement interpreter `timeout` CLIENT-side — wait to the deadline, then
   interrupt the kernel (INT, ^C semantics) and return the interrupted result
   (`wait_or_interrupt` / `waitOrInterrupt`).
-- **Every duration is in seconds.** Python keeps bare names (`timeout`,
+- **Every duration is in seconds** (the rule; the TypeScript exceptions are listed below). Python keeps bare names (`timeout`,
   `execution_timeout`, `request_timeout`, `escalate_after`,
   `reconcile_interval`, `idle_close`, ...); API-stored durations keep their
   `_seconds` names. TypeScript names end in `Seconds` (`timeoutSeconds`,
@@ -460,27 +465,39 @@ skipping exist only in the TypeScript tool).
   are validated). The wire keeps its own units (`timeoutMs` for toolbox
   process execs/waits). Timestamps are not durations: the toolbox's Unix
   millisecond timestamps are named `timestamp_ms` / `timestampMs` (log frames,
-  filesystem events). (Options not yet renamed in TypeScript still take
-  milliseconds until their area moves.)
+  filesystem events). The toolbox namespaces follow the rule (TypeScript
+  converts with `secondsToMs` in `ProcessWire.ts`, Python with
+  `timeout_millis_from_seconds`: a positive value is at least 1 ms, a value
+  above the longest timer is no limit). Known exceptions at this point: the
+  per-call TypeScript `timeout` options of the docker, build-log, image,
+  snapshot and volume calls still take milliseconds until their area is
+  renamed.
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
-  `new Daytona({ requestTimeoutSeconds })`), default 60 s, `0` = no limit. It
-  bounds one ordinary request from sending it to reading the last byte of the
-  response (Python `_request_deadline` around httpx, TS an abort-signal timer
-  armed in the axios interceptor; httpx's and axios' own timeouts are per
-  phase or idle timers, not this). Not cut by it: waits, long polls and holds
+  `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
+  above 2,147,483 s (the longest JavaScript timer), means no limit. It bounds
+  one ordinary call from sending it to reading the last byte of the response,
+  with ONE deadline for the whole call: resolving the bearer (a token
+  exchange or sandbox-token mint), the request, a 401 refresh and its retry
+  share it (Python `_request_deadline` around the transport call, TS an
+  abort-signal timer armed in the axios interceptor whose `deadlineAt` survives
+  the retry; httpx's and axios' own timeouts are per phase or idle timers, not
+  this). Every timer the SDK arms for it treats a delay above
+  `MAX_TIMER_DELAY_MS` as no bound (`boundedTimerDelay`). Not cut by it: waits, long polls and holds
   (they pass their own `timeout`, or `0`; Python `/wait` paths and
   `unbounded_read`), streams (bounded only until their response headers
   arrive), and file transfers (Python `RequestSpec(transfer=True)` /
   `transport.request(..., transfer=True)`, TS `timeout: 0` on axios or
   `fetch(..., { transfer: true })`), which run until done or cancelled. A new
   call of one of those kinds must opt out the same way in both SDKs.
-- **TypeScript rejects unknown option keys at runtime.** Every public options
-  object the SDK defines declares its known keys once, with
+- **TypeScript rejects unknown option keys at runtime** (the rule; applied so
+  far to the client configuration and the toolbox, see below). A covered options object
+  declares its known keys once, with
   `optionKeys<T>()({ ... })` from `src/v2/options.ts` (a compile error when the
   list misses a key of `T` or names one `T` lacks), and its entry point calls
-  `assertKnownOptions('TypeName', options, KEYS)`, which throws
-  `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) naming the key. A key in
+  `assertKnownOptions('TypeName', options, KEYS)` (or `snapshotOptions`, which
+  also copies it), which throws `BadRequestError` (400, `BAD_REQUEST`, source
+  `SDK`) naming the key; inherited enumerable keys count. A key in
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
   `requestTimeout`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
@@ -501,13 +518,20 @@ skipping exist only in the TypeScript tool).
   `new XError(message, options?: ErrorOptions)`, Python
   `XError(message, *, status_code=None, code=None, source=None, ...)`, with the
   same defaults (`TransferCancelledError()` → "file transfer cancelled", 499,
-  `REQUEST_CANCELLED`, `SDK`). SDK-raised errors set `source='SDK'` and the
-  catalog's status and code. Python callers should not star-import
+  `REQUEST_CANCELLED`, `SDK`; `ClientTimeoutError()` → "operation timed out",
+  408, `REQUEST_TIMEOUT`, `SDK`, on every transport path; `ConnectionError`
+  → source `SDK`). Errors the SDK raises itself carry `source='SDK'`, and the
+  catalog's status, code and class where the catalog has one (an invalid
+  argument is `BadRequestError` 400 `BAD_REQUEST`; build them with
+  `create_error` / `createDaytonaError(message, status, code, 'SDK')`); local
+  I/O and protocol failures carry the source only. Python callers should not star-import
   `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
   built-ins.
-- **Generated wire types never reach the public surface.** No public export,
+- **Generated wire types must not reach the public surface** (the rule; the
+  remaining exceptions are the guards' `ALLOWED` lists). No public export,
   and no type in a public signature, comes from `daytona.v2._gen` /
-  `src/v2/gen` (alias layers included). `tests/test_public_surface_generated.py`
+  `src/v2/gen` (alias layers included). Inherited members, index signatures
+  and base types count. `tests/test_public_surface_generated.py`
   and `tests/public-surface-generated.test.ts` walk everything reachable from
   the entry points and fail on a new violation or a stale entry in their
   `ALLOWED` lists, which only shrink.

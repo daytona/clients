@@ -9,7 +9,7 @@ import type {
   ProcessStartOptions, PtyStartOptions, RunOptions,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import type { PtyDuplex } from './ProcessHandle.js'
 import { bodyFor, commandSpec, invalidPtyVerbError, knownProcessKind, processFromWire, terminalSpec } from './ProcessWire.js'

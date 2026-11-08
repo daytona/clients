@@ -57,21 +57,62 @@ export const RENAMED_OPTIONS: Readonly<Record<string, string>> = Object.freeze({
   idleCloseMs: 'idleCloseSeconds',
 })
 
+/** The SDK's own invalid-input error: status 400, code `BAD_REQUEST`, source `SDK`. */
+export function badRequest(message: string): BadRequestError {
+  return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+}
+
 /**
- * Throw `BadRequestError` (status 400, code `BAD_REQUEST`, source `SDK`) when
- * `options` has an own key `known` does not list. A renamed key names its
- * replacement. `undefined` / `null` options pass (callers default them).
+ * Every enumerable key of `options`, own or inherited (`for...in`), so an
+ * unknown key on a prototype is reported like an own one.
+ */
+export function enumerableKeys<T>(options: NonNullable<T>): string[] {
+  const keys: string[] = []
+  for (const key in options) keys.push(key)
+  return keys
+}
+
+/**
+ * Throw `BadRequestError` (status 400, code `BAD_REQUEST`, source `SDK`) for
+ * the first key `known` does not list. A renamed key names its replacement.
+ */
+export function assertKnownKeys<T>(typeName: string, keys: Iterable<string>, known: OptionKeys<T>): void {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(known, key)) continue
+    const renamed = RENAMED_OPTIONS[key]
+    throw badRequest(renamed !== undefined && Object.prototype.hasOwnProperty.call(known, renamed)
+      ? `${typeName}: \`${key}\` was renamed to \`${renamed}\` (seconds)`
+      : `${typeName} has no option \`${key}\``)
+  }
+}
+
+/**
+ * Throw `BadRequestError` when `options` has an enumerable key (own or
+ * inherited) `known` does not list. `undefined` / `null` options pass
+ * (callers default them).
  */
 export function assertKnownOptions<T>(typeName: string, options: T | null | undefined, known: OptionKeys<T>): void {
   if (options === undefined || options === null || typeof options !== 'object') return
-  for (const key of Object.keys(options)) {
-    if (Object.prototype.hasOwnProperty.call(known, key)) continue
-    const renamed = RENAMED_OPTIONS[key]
-    const message = renamed !== undefined && Object.prototype.hasOwnProperty.call(known, renamed)
-      ? `${typeName}: \`${key}\` was renamed to \`${renamed}\` (seconds)`
-      : `${typeName} has no option \`${key}\``
-    throw new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  assertKnownKeys(typeName, enumerableKeys(options), known)
+}
+
+/**
+ * A validated copy of a nested options object: its enumerable keys are
+ * checked once, then each known key is read once (through prototypes and
+ * getters), so later changes to the caller's object do not reach the copy.
+ * `undefined` stays `undefined`; anything but an object is a
+ * `BadRequestError`.
+ */
+export function snapshotOptions<T>(typeName: string, options: T | undefined, known: OptionKeys<T>): T | undefined {
+  if (options === undefined) return undefined
+  if (options === null || typeof options !== 'object') throw badRequest(`${typeName} must be an object`)
+  assertKnownKeys(typeName, enumerableKeys(options), known)
+  const copy: Record<string, unknown> = {}
+  for (const key of Object.keys(known)) {
+    const value: unknown = Reflect.get(options, key)
+    if (value !== undefined) copy[key] = value
   }
+  return Object.freeze(copy) as T
 }
 
 /**
@@ -81,7 +122,21 @@ export function assertKnownOptions<T>(typeName: string, options: T | null | unde
 export function optionalSeconds(name: string, value: number | undefined): number | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw new BadRequestError(`${name} must be a non-negative number of seconds`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest(`${name} must be a non-negative number of seconds`)
   }
   return value
+}
+
+/**
+ * The largest delay a JavaScript timer can arm: a larger one fires after
+ * about 1 ms instead (Node clamps it, browsers overflow).
+ */
+export const MAX_TIMER_DELAY_MS = 2_147_483_647
+
+/**
+ * A request-timeout budget in milliseconds as a timer delay: `0` (and any
+ * value above {@link MAX_TIMER_DELAY_MS}, about 24.8 days) means no bound.
+ */
+export function boundedTimerDelay(timeoutMs: number): number {
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 && timeoutMs <= MAX_TIMER_DELAY_MS ? timeoutMs : 0
 }

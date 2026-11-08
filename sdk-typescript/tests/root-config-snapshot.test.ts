@@ -7,6 +7,7 @@ import { createServer } from 'node:http'
 
 import { Daytona, resetTargetDeprecationWarningForTests } from '../src/Daytona'
 import type { DaytonaConfig } from '../src/types'
+import { BadRequestError } from '../src/v2/errors/DaytonaError'
 
 afterEach(() => jest.restoreAllMocks())
 
@@ -57,7 +58,7 @@ describe('root config snapshot', () => {
       get: (_target, property) => property === field ? 'https://custom.example' : undefined,
     })
     // When / Then: the root still refuses the custom endpoint.
-    expect(() => new Daytona(config)).toThrow(TypeError)
+    expect(() => new Daytona(config)).toThrow(BadRequestError)
   })
 
   it.each(['apiUrl', 'serverUrl', 'toolboxUrl'])('refuses %s when a Proxy exposes it after a credential read', (field) => {
@@ -75,7 +76,7 @@ describe('root config snapshot', () => {
     })
 
     // When / Then: construction refuses the URL before building a namespace client.
-    expect(() => new Daytona(config)).toThrow(TypeError)
+    expect(() => new Daytona(config)).toThrow(BadRequestError)
   })
 
   it('reads target once when deciding whether to warn about its snapshotted value', () => {

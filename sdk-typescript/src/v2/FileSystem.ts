@@ -170,7 +170,7 @@ function filesystemEventType(value: unknown): FilesystemEventType {
     case FilesystemEventType.CHMOD:
       return value
     default:
-      throw new DaytonaError(`invalid filesystem event type: ${String(value)}`)
+      throw new DaytonaError(`invalid filesystem event type: ${String(value)}`, { source: 'SDK' })
   }
 }
 
@@ -179,16 +179,16 @@ function parseFilesystemEvent(data: string): FilesystemEvent {
   try {
     parsed = data ? JSON.parse(data) : {}
   } catch (error) {
-    throw new DaytonaError(error instanceof Error ? error.message : String(error))
+    throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
   }
   if (typeof parsed !== 'object' || parsed === null) {
-    throw new DaytonaError('filesystem watch event must be an object')
+    throw new DaytonaError('filesystem watch event must be an object', { source: 'SDK' })
   }
   const raw = parsed as Record<string, unknown>
-  if (typeof raw.name !== 'string') throw new DaytonaError('filesystem watch event name must be a string')
-  if (typeof raw.isDir !== 'boolean') throw new DaytonaError('filesystem watch event isDir must be a boolean')
+  if (typeof raw.name !== 'string') throw new DaytonaError('filesystem watch event name must be a string', { source: 'SDK' })
+  if (typeof raw.isDir !== 'boolean') throw new DaytonaError('filesystem watch event isDir must be a boolean', { source: 'SDK' })
   if (typeof raw.timestamp !== 'number' || !Number.isFinite(raw.timestamp)) {
-    throw new DaytonaError('filesystem watch event timestamp must be a finite number')
+    throw new DaytonaError('filesystem watch event timestamp must be a finite number', { source: 'SDK' })
   }
   return {
     type: filesystemEventType(raw.type),

@@ -168,9 +168,12 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   the code tables (`v2/_codes.py`, public read-only view `daytona.v2.codes`)
   are drift-tested against the committed catalogs under `../contract/`.
   Constructors are `XError(message, *, status_code=None, code=None,
-  source=None, ...)`; SDK-raised errors pass the catalog's status and code
-  with `source="SDK"` (`create_error(message, status, code, source)`
-  dispatches a `(source, code)` pair).
+  source=None, ...)`. Errors the SDK raises itself carry `source="SDK"`, and
+  the catalog's status and code where it has one (`create_error(message,
+  status, code, "SDK")` dispatches a `(source, code)` pair); client timeouts
+  default to 408 `REQUEST_TIMEOUT`, connection failures carry the source only.
+  One deadline covers the whole call (the bearer, the request, a 401 refresh
+  and its retry): `AsyncTransport.send` / `request` / `open_stream` hold it.
 - Request timeout: `request_timeout` (default 60 s, `0` = none) bounds the
   total time of one ordinary request (`_transport._request_deadline`, an
   `anyio.fail_after` around the httpx call, whose own timeouts are per phase).

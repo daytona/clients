@@ -7,6 +7,7 @@ import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
 import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
+import { boundedTimerDelay } from './options.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -145,6 +146,12 @@ type PlatformToken = {
 }
 
 type DaytonaRequestMeta = {
+  /**
+   * When the request's total deadline expires (`nowMs()` clock). Set when the
+   * deadline is first armed and kept across a 401 refresh and its retry, so
+   * one call never gets a second full budget.
+   */
+  readonly deadlineAt?: number
   readonly routeTemplate?: string
   readonly sandboxId?: string
   readonly retryOnUnauthorized?: boolean
@@ -277,7 +284,7 @@ function errorName(error: unknown): string | undefined {
 function timeoutErrorFromAbortSignal(signal: AbortSignalLike | undefined, error: unknown): ClientTimeoutError | undefined {
   const reason = errorName(error) === 'TimeoutError' ? error : signal?.reason
   if (errorName(reason) === 'TimeoutError') {
-    return new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    return new ClientTimeoutError()
   }
   return undefined
 }
@@ -469,10 +476,11 @@ async function authorizationHeaderForAxiosRequest(
 ): Promise<string> {
   const timeout = timeoutSignal(timeoutMs, options.signal)
   try {
-    return await provider.authorizationHeader({ ...options, signal: timeout.signal })
+    // Bounded even when a provider ignores the signal it is given.
+    return await abortableWait(provider.authorizationHeader({ ...options, signal: timeout.signal }), timeout.signal)
   } catch (error) {
     if (isAbortError(error) && timeout.timedOut()) {
-      throw new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      throw new ClientTimeoutError()
     }
     const timeoutError = timeoutErrorFromAbortSignal(timeout.signal, error)
     if (timeoutError) throw timeoutError
@@ -690,7 +698,9 @@ async function prepareAxiosRequest(
   // (set by finishAxiosError); resolving again here could hand back the token
   // the provider has not yet rotated.
   if (options.authProvider && !options.auth && meta.retriedAfterUnauthorized !== true) {
-    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: callerSignalOf(config.signal) }, timeoutFromAxiosRequest(config, instance)))
+    // Inside the request's deadline: its signal aborts the exchange when the
+    // budget runs out (and relays the caller's own abort).
+    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: config.signal }, remainingBudgetMs(config, instance)))
   }
   if (typeof options.connectionPoolMaxsize === 'number' && !inBrowser()) {
     const agents = await nodeAgentsFor(options.connectionPoolMaxsize)
@@ -755,10 +765,13 @@ async function finishAxiosError(
   ) {
     const retryMeta = meta ?? requestMeta(config, options)
     const rejectedAuthorization = getAxiosHeader(config, 'Authorization')
+    // The refresh and the retry spend what is left of the original deadline.
+    const refreshBudget = remainingBudgetMs(config, instance)
+    if (refreshBudget < 0) throw new ClientTimeoutError()
     const refreshedAuthorization = await authorizationHeaderForAxiosRequest(
       options.authProvider,
       { forceRefresh: true, rejectedAuthorization, signal: callerSignal },
-      timeoutFromAxiosRequest(config, instance),
+      refreshBudget,
     )
     // A one-shot body (stream) was consumed by the first dispatch; replaying it
     // would send an empty or partial body. The token is rotated for the next
@@ -772,7 +785,7 @@ async function finishAxiosError(
   // The request's own deadline expired: the same error axios' own timeout
   // gives (and the Python SDK's transport timeout), with no status or code.
   const reason: unknown = signal?.aborted ? (signal as AbortSignalLike).reason : undefined
-  if (typeof reason === 'object' && reason !== null && deadlineReasons.has(reason)) throw new ClientTimeoutError('Operation timed out')
+  if (typeof reason === 'object' && reason !== null && deadlineReasons.has(reason)) throw new ClientTimeoutError()
   const timeoutError = timeoutErrorFromAbortSignal(signal, error)
   if (timeoutError) throw timeoutError
   const abortError = abortErrorFromSignal(signal)
@@ -780,7 +793,7 @@ async function finishAxiosError(
   if (isAbortError(error)) throw error
   if (error instanceof DaytonaError) throw error
   if (error instanceof AxiosError) throw createAxiosDaytonaError(error)
-  throw new DaytonaError(error instanceof Error ? error.message : String(error))
+  throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
 }
 
 class PlatformTokenProvider implements HttpAuthProvider {
@@ -902,7 +915,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
       // A non-positive lifetime is a broken exchange, not a token to cache.
       const expiresIn = typeof payload.expires_in === 'number' && Number.isFinite(payload.expires_in) && payload.expires_in > 0 ? payload.expires_in : undefined
       if (!accessToken || expiresIn === undefined) {
-        const error = new AuthenticationError('auth/token returned an invalid token-exchange payload')
+        const error = new AuthenticationError('auth/token returned an invalid token-exchange payload', { source: 'SDK' })
         finalize(response.status, error)
         throw error
       }
@@ -919,7 +932,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
         throw error
       }
       if (isAbortError(error) && timeout.timedOut()) {
-        const timeoutError = new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        const timeoutError = new ClientTimeoutError()
         finalize(timeoutError.statusCode, timeoutError)
         throw timeoutError
       }
@@ -972,12 +985,13 @@ function timeoutSignal(timeoutMs: number, signal: AbortSignalLike | null | undef
   } else {
     signal?.addEventListener?.('abort', relayAbort, { once: true })
   }
-  const timer = timeoutMs === 0
+  const delay = boundedTimerDelay(timeoutMs)
+  const timer = delay === 0
     ? undefined
     : setTimeout(() => {
       didTimeout = true
       controller.abort(new DOMException('operation timed out', 'AbortError'))
-    }, timeoutMs)
+    }, delay)
   // A pending deadline must not keep the Node event loop alive on its own
   // (a 24 h default would pin every worker that still has an exchange in
   // flight); the request promise itself keeps the process running.
@@ -1000,7 +1014,7 @@ function timeoutSignal(timeoutMs: number, signal: AbortSignalLike | null | undef
 
 function assertRelativeRequestPath(path: string): string {
   if (ABSOLUTE_REQUEST_URL.test(path)) {
-    throw new DaytonaError(RELATIVE_PATH_ERROR, { statusCode: 400, code: 'BAD_REQUEST' })
+    throw createDaytonaError(RELATIVE_PATH_ERROR, 400, 'BAD_REQUEST', 'SDK')
   }
   return path
 }
@@ -1043,7 +1057,7 @@ export function resetFetchCacheModeProbeForTests(): void {
 function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions): AxiosInstance {
   const instance = axios.create({
     baseURL: baseURL.replace(/\/$/, ''),
-    timeout: requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    timeout: boundedTimerDelay(requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS),
     headers: authHeaders(apiKey),
     fetchOptions: fetchCacheModeOptions(),
   })
@@ -1055,7 +1069,17 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
       () => ({ type: 'HttpTransportConfig', requestTimeout })),
     configurable: true,
   })
-  instance.interceptors.request.use((config) => prepareAxiosRequest(armRequestDeadline(config as DaytonaAxiosRequestConfig, instance), instance.defaults.baseURL, instance, options))
+  instance.interceptors.request.use(async (config) => {
+    const armed = armRequestDeadline(config as DaytonaAxiosRequestConfig, instance)
+    try {
+      return await prepareAxiosRequest(armed, instance.defaults.baseURL, instance, options)
+    } catch (error) {
+      // A setup failure (the bearer, OTel) never reaches the response
+      // interceptors' AxiosError path: release the deadline here.
+      disarmRequestDeadline(armed)
+      throw error
+    }
+  })
   instance.interceptors.response.use(
     (response) => {
       disarmRequestDeadline(response.config)
@@ -1098,8 +1122,16 @@ const callerSignals = new WeakMap<AbortSignal, AbortSignalLike | undefined>()
  */
 function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, instance: AxiosInstance): T {
   disarmRequestDeadline(config)
-  const timeoutMs = timeoutFromAxiosRequest(config, instance)
-  if (!(timeoutMs > 0)) return config
+  // axios hands its timeout to a platform timer too: one above the timer
+  // maximum would fire at once, so it means no bound there as well.
+  if (typeof config.timeout === 'number') config.timeout = boundedTimerDelay(config.timeout)
+  const timeoutMs = boundedTimerDelay(timeoutFromAxiosRequest(config, instance))
+  // A retry (or a caller that already spent part of the budget) keeps the
+  // original deadline instead of starting a new one.
+  const deadlineAt = config.daytona?.deadlineAt ?? (timeoutMs === 0 ? undefined : nowMs() + timeoutMs)
+  if (deadlineAt === undefined) return config
+  config.daytona = { ...config.daytona, deadlineAt }
+  const delay = Math.max(0, Math.ceil(deadlineAt - nowMs()))
   const current = config.signal as AbortSignal | undefined
   const callerSignal: AbortSignalLike | undefined = current !== undefined && callerSignals.has(current) ? callerSignals.get(current) : current
   const controller = new AbortController()
@@ -1107,18 +1139,32 @@ function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, inst
   const relay = (): void => controller.abort(callerSignal?.reason)
   if (callerSignal?.aborted) relay()
   else callerSignal?.addEventListener?.('abort', relay, { once: true })
-  const timer = setTimeout(() => {
+  const expire = (): void => {
     const reason = new DOMException('request timed out', 'TimeoutError')
     deadlineReasons.add(reason)
     controller.abort(reason)
-  }, timeoutMs)
-  unrefTimer(timer)
+  }
+  // A retry whose deadline already passed is aborted before it is sent.
+  if (delay === 0) expire()
+  const timer = delay === 0 ? undefined : setTimeout(expire, delay)
+  if (timer !== undefined) unrefTimer(timer)
   requestDeadlines.set(config, () => {
-    clearTimeout(timer)
+    if (timer !== undefined) clearTimeout(timer)
     callerSignal?.removeEventListener?.('abort', relay)
   })
   config.signal = controller.signal
   return config
+}
+
+/**
+ * What is left of a request's budget, in ms: its deadline's remainder (below
+ * zero once it has passed), else its configured timeout (`0` = unbounded).
+ */
+function remainingBudgetMs(config: DaytonaAxiosRequestConfig, instance: AxiosInstance): number {
+  const deadlineAt = config.daytona?.deadlineAt
+  if (deadlineAt === undefined) return boundedTimerDelay(timeoutFromAxiosRequest(config, instance))
+  const remaining = Math.ceil(deadlineAt - nowMs())
+  return remaining > 0 ? remaining : -1
 }
 
 /** The caller's own signal behind a request's deadline signal (or the signal itself). */
@@ -1168,6 +1214,39 @@ export function boundedRequestTimeout(deadline: number | undefined, configuredTi
 export interface TransportAuth {
   bearer(): Promise<string | undefined>
   onUnauthorized(failedToken: string | undefined): Promise<string | undefined>
+}
+
+/**
+ * `promise`, or `ClientTimeoutError` once the absolute deadline (`nowMs()`
+ * clock) passes. The work itself is not cancelled; a missing deadline waits.
+ */
+async function withinDeadline<T>(promise: Promise<T>, deadlineAt: number | undefined): Promise<T> {
+  if (deadlineAt === undefined) return promise
+  const remaining = deadlineAt - nowMs()
+  if (remaining <= 0) {
+    promise.catch(() => undefined)
+    throw new ClientTimeoutError()
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expired = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new ClientTimeoutError()), Math.ceil(remaining))
+    unrefTimer(timer)
+  })
+  try {
+    return await Promise.race([promise, expired])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Map an abort caused by the request's own deadline to `ClientTimeoutError`. */
+async function timeoutOnAbort<T>(promise: Promise<T>, timeout: { readonly timedOut: () => boolean }): Promise<T> {
+  try {
+    return await promise
+  } catch (error) {
+    if (isAbortError(error) && timeout.timedOut()) throw new ClientTimeoutError()
+    throw error
+  }
 }
 
 /** Merge a resolved bearer into a request config (overriding the instance default). */
@@ -1226,15 +1305,22 @@ export class HttpTransport {
    * the request runs untouched on the instance's static credential.
    */
   private async withAuth<T>(config: AxiosRequestConfig | undefined, run: (config?: AxiosRequestConfig) => Promise<T>): Promise<T> {
-    if (!this.options?.auth) return run(config)
-    const token = await this.options.auth.bearer()
+    const auth = this.options?.auth
+    if (!auth) return run(config)
+    // One deadline for the whole call: the bearer (a token mint), the request,
+    // a 401 refresh and its retry. The request interceptor keeps `deadlineAt`.
+    const budget = boundedTimerDelay(typeof config?.timeout === 'number' ? config.timeout : this.defaultTimeout)
+    const deadlineAt = budget === 0 ? undefined : nowMs() + budget
+    const bounded = (requestConfig: AxiosRequestConfig | undefined): AxiosRequestConfig | undefined =>
+      deadlineAt === undefined ? requestConfig : { ...requestConfig, daytona: { deadlineAt } } as DaytonaAxiosRequestConfig
+    const token = await withinDeadline(auth.bearer(), deadlineAt)
     try {
-      return await run(withBearer(config, token))
+      return await run(bounded(withBearer(config, token)))
     } catch (error) {
       if (!(error instanceof DaytonaError) || error.statusCode !== 401) throw error
-      const fresh = await this.options.auth.onUnauthorized(token)
+      const fresh = await withinDeadline(auth.onUnauthorized(token), deadlineAt)
       if (fresh === undefined || fresh === token) throw error
-      return run(withBearer(config, fresh))
+      return run(bounded(withBearer(config, fresh)))
     }
   }
 
@@ -1316,7 +1402,7 @@ export class HttpTransport {
         currentAuthToken = retryToken
         sdkAuthorization = `Bearer ${retryToken}`
       } else if (this.options?.auth) {
-        currentAuthToken = await this.options.auth.bearer()
+        currentAuthToken = await timeoutOnAbort(abortableWait(this.options.auth.bearer(), timeout.signal), timeout)
         if (currentAuthToken !== undefined) sdkAuthorization = `Bearer ${currentAuthToken}`
       } else if (this.options?.authProvider) {
         try {
@@ -1325,7 +1411,7 @@ export class HttpTransport {
           // The request deadline can fire while the token exchange is still
           // pending; that is the same timeout `send` maps below, not a raw abort.
           if (isAbortError(error) && timeout.timedOut()) {
-            throw new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+            throw new ClientTimeoutError()
           }
           throw error
         }
@@ -1369,15 +1455,15 @@ export class HttpTransport {
         if (response.status === 401 && this.options?.auth && retryToken === undefined && !retriedUnauthorized && request.canRetryUnauthorized) {
           let freshToken: string | undefined
           try {
-            freshToken = await this.options.auth.onUnauthorized(currentAuthToken)
+            freshToken = await timeoutOnAbort(abortableWait(this.options.auth.onUnauthorized(currentAuthToken), timeout.signal), timeout)
           } catch (err) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error'))
-            throw err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error')
+            finalize(response.status, err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error', { source: 'SDK' }))
+            throw err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error', { source: 'SDK' })
           }
           if (freshToken !== undefined && freshToken !== currentAuthToken) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, new AuthenticationError('request rejected before token refresh retry'))
+            finalize(response.status, new AuthenticationError('request rejected before token refresh retry', { source: 'SDK' }))
             retriedUnauthorized = true
             return send(false, undefined, freshToken)
           }
@@ -1385,7 +1471,7 @@ export class HttpTransport {
           const rejectedAuthorization = headers.Authorization
           if (request.canRetryUnauthorized) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, new AuthenticationError('request rejected before token refresh retry'))
+            finalize(response.status, new AuthenticationError('request rejected before token refresh retry', { source: 'SDK' }))
             retriedUnauthorized = true
             return send(true, rejectedAuthorization)
           }
@@ -1413,7 +1499,7 @@ export class HttpTransport {
           throw error
         }
         if (isAbortError(error) && timeout.timedOut()) {
-          const timeoutError = new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+          const timeoutError = new ClientTimeoutError()
           finalize(timeoutError.statusCode, timeoutError)
           throw timeoutError
         }

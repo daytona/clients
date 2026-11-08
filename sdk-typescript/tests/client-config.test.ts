@@ -12,7 +12,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { once } from 'node:events'
 import { Daytona } from '../src/index'
 import { Daytona as DaytonaV2 } from '../src/v2/Daytona'
-import { BadRequestError, AuthenticationError, ClientTimeoutError } from '../src/v2/index'
+import { BadRequestError, AuthenticationError, ClientTimeoutError, ConnectionError, RequestTimeoutError, SandboxCreateRequestTimeoutError } from '../src/v2/index'
 import { DEFAULT_REQUEST_TIMEOUT_MS, HttpTransport, createHttpClient } from '../src/v2/http'
 import { RENAMED_OPTIONS, assertKnownOptions, optionKeys } from '../src/v2/options'
 import { eventsHubConfig } from '../src/v2/events'
@@ -20,6 +20,12 @@ import { FileSystemService } from '../src/v2/FileSystem'
 
 const ENV = ['DAYTONA_API_KEY', 'DAYTONA_JWT_TOKEN', 'DAYTONA_PROJECT_ID'] as const
 const saved = Object.fromEntries(ENV.map((name) => [name, process.env[name]]))
+
+// Every test starts from no ambient credentials: a developer's or CI's
+// exported values must not change what a test observes.
+beforeEach(() => {
+  for (const name of ENV) delete process.env[name]
+})
 
 afterEach(() => {
   for (const name of ENV) {
@@ -69,8 +75,32 @@ describe('option keys', () => {
     expectBadRequest(() => new DaytonaV2({ apiKey: 'k', bogus: true } as never), 'DaytonaConfig has no option `bogus`')
   })
 
-  it('keeps the URL fields TypeError with its guidance', () => {
-    expect(() => new Daytona({ apiKey: 'k', apiUrl: 'https://self.example' } as never)).toThrow(TypeError)
+  it.each(['apiUrl', 'serverUrl', 'toolboxUrl'])('rejects %s as a BadRequestError with the custom-URL guidance', (field) => {
+    expectBadRequest(() => new Daytona({ apiKey: 'k', [field]: 'https://self.example' } as never), `DaytonaConfig does not take '${field}': SDK 2.x targets Daytona Cloud`)
+    expectBadRequest(() => new DaytonaV2({ apiKey: 'k', apiUrl: 'https://self.example' } as never), "does not take 'apiUrl'")
+  })
+
+  it('rejects an unknown key inherited through the prototype', () => {
+    const config = Object.create({ requestTimeout: 5_000 }) as Record<string, unknown>
+    config.apiKey = 'k'
+    expectBadRequest(() => new Daytona(config as never), 'was renamed to `requestTimeoutSeconds`')
+  })
+
+  it('copies the nested events config, so later changes do not reach the client', () => {
+    const events: { enabled?: boolean; idleCloseSeconds?: number } = { idleCloseSeconds: 5 }
+    const daytona = new Daytona({ apiKey: 'k', events })
+    events.idleCloseSeconds = 99
+    events.enabled = false
+    expect(daytona.v2['hubEventsConfig']).toEqual({ enabled: undefined, reconcileIntervalMs: undefined, idleCloseMs: 5_000 })
+  })
+
+  it('validates the events value it keeps, read once', () => {
+    let reads = 0
+    const config = { apiKey: 'k', get events() { reads += 1; return reads === 1 ? { idleCloseSeconds: 1 } : { bogus: true } } }
+    const daytona = new Daytona(config as never)
+    expect(reads).toBe(1)
+    expect(daytona.v2['hubEventsConfig']).toMatchObject({ idleCloseMs: 1_000 })
+    expectBadRequest(() => new Daytona({ apiKey: 'k', events: 'on' } as never), 'SandboxEventsConfig must be an object')
   })
 
   it('reports a renamed key only where its replacement exists', () => {
@@ -141,8 +171,10 @@ describe('environment', () => {
     try {
       expect(new DaytonaV2({ apiKey: 'k' })['apiUrl']).toBe('https://api.daytona.com')
     } finally {
-      process.env.DAYTONA_V2_API_URL = previous.v2
-      process.env.DAYTONA_API_URL = previous.v0sdk
+      if (previous.v2 === undefined) delete process.env.DAYTONA_V2_API_URL
+      else process.env.DAYTONA_V2_API_URL = previous.v2
+      if (previous.v0sdk === undefined) delete process.env.DAYTONA_API_URL
+      else process.env.DAYTONA_API_URL = previous.v0sdk
     }
   })
 })
@@ -160,6 +192,17 @@ describe('request timeout', () => {
     const v2 = new Daytona({ apiKey: 'k', requestTimeoutSeconds: 2.5 }).v2
     expect(v2['api'].defaults.timeout).toBe(2_500)
     expect(new Daytona({ apiKey: 'k', requestTimeoutSeconds: 0 }).v2['api'].defaults.timeout).toBe(0)
+  })
+
+  it.each([2_147_484, 30 * 24 * 3600, 1e300])('reads %p seconds (above the timer maximum) as no limit', (huge) => {
+    expect(new Daytona({ apiKey: 'k', requestTimeoutSeconds: huge }).v2['api'].defaults.timeout).toBe(0)
+    expect(new Daytona({ apiKey: 'k', requestTimeoutSeconds: 2_147_483 }).v2['api'].defaults.timeout).toBe(2_147_483_000)
+  })
+
+  it.each(['reconcileIntervalSeconds', 'idleCloseSeconds'])('rejects an invalid events.%s', (field) => {
+    for (const bad of [-1, Number.POSITIVE_INFINITY, Number.NaN, '5']) {
+      expectBadRequest(() => new Daytona({ apiKey: 'k', events: { [field]: bad } as never }).v2, `events.${field} must be a non-negative number of seconds`)
+    }
   })
 
   it.each([-1, Number.POSITIVE_INFINITY, Number.NaN, '60'])('rejects %p', (bad) => {
@@ -258,6 +301,154 @@ describe('request timeout meaning', () => {
     await expect(transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: 'data', transfer: true })).resolves.toMatchObject({ status: 200 })
   })
 
+  it('gives the client timeout one shape on the axios and the fetch paths', async () => {
+    const clientTimeout = { message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }
+    const transport = new HttpTransport(base, 'k', 100)
+    handle = late(400)
+    await expect(transport.get('/slow')).rejects.toMatchObject(clientTimeout)
+    await expect(transport.fetch('/stalled')).rejects.toMatchObject(clientTimeout)
+    handle = trickle(8, 50)
+    await expect(transport.get('/slow-body', { responseType: 'text' })).rejects.toMatchObject(clientTimeout)
+    expect(new ClientTimeoutError()).toMatchObject(clientTimeout)
+    expect(new ConnectionError('refused')).toMatchObject({ source: 'SDK', statusCode: undefined, code: undefined })
+  })
+
+  it('turns a create POST that hits the request timeout into SandboxCreateRequestTimeoutError', async () => {
+    const keys: (string | undefined)[] = []
+    handle = (request, response) => {
+      keys.push(request.headers['idempotency-key'] as string | undefined)
+      late(400)(request, response)
+    }
+    const previous = process.env.DAYTONA_V2_API_URL
+    process.env.DAYTONA_V2_API_URL = base
+    try {
+      const daytona = new Daytona({ apiKey: 'k', requestTimeoutSeconds: 0.1 })
+      const error = await daytona.v2.create('python:3.12', { idempotencyKey: 'run-42' }).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(SandboxCreateRequestTimeoutError)
+      expect(error).toBeInstanceOf(ClientTimeoutError)
+      expect(error).toMatchObject({ idempotencyKey: 'run-42', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      expect(keys).toEqual(['run-42'])
+      await daytona.close()
+    } finally {
+      if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+      else process.env.DAYTONA_V2_API_URL = previous
+    }
+  })
+
+  it('keeps a server 408 on the create POST a RequestTimeoutError', async () => {
+    handle = (request, response) => {
+      request.resume()
+      response.writeHead(408, { 'Content-Type': 'application/json' })
+      response.end(JSON.stringify({ code: 'REQUEST_TIMEOUT', source: 'DAYTONA_API', message: 'slow' }))
+    }
+    const previous = process.env.DAYTONA_V2_API_URL
+    process.env.DAYTONA_V2_API_URL = base
+    try {
+      const daytona = new Daytona({ apiKey: 'k' })
+      const error = await daytona.v2.create('python:3.12').catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(RequestTimeoutError)
+      expect(error).not.toBeInstanceOf(SandboxCreateRequestTimeoutError)
+      await daytona.close()
+    } finally {
+      if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+      else process.env.DAYTONA_V2_API_URL = previous
+    }
+  })
+
+  it('arms no timer that would fire at once for a budget above the timer maximum', async () => {
+    const huge = 2_200_000_000
+    handle = late(60)
+    await expect(new HttpTransport(base, 'k', huge).get('/slow')).resolves.toEqual({ ok: true })
+    await expect(createHttpClient(base, 'k', huge).get('/slow')).resolves.toMatchObject({ data: { ok: true } })
+    const response = await new HttpTransport(base, 'k', huge).fetch('/slow')
+    expect(await response.json()).toEqual({ ok: true })
+  })
+
+  describe('one deadline for the bearer, a 401 refresh and the retry', () => {
+    // Each step fits the 150 ms timeout on its own; together (about 260 ms)
+    // they do not, so a fresh window per step would let the call succeed.
+    const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+    const unauthorizedThenOk = (request: IncomingMessage, response: ServerResponse): void => {
+      request.resume()
+      setTimeout(() => {
+        const stale = request.headers.authorization === 'Bearer stale'
+        response.writeHead(stale ? 401 : 200, { 'Content-Type': 'application/json' })
+        response.end(JSON.stringify(stale ? { code: 'UNAUTHORIZED', message: 'expired' } : { ok: true }))
+      }, 50)
+    }
+    const slowSandboxAuth = (delay: number) => ({
+      bearer: async () => { await sleep(delay); return 'stale' },
+      onUnauthorized: async () => { await sleep(delay); return 'fresh' },
+    })
+    const slowProvider = (delay: number) => ({
+      authorizationHeader: async (options?: { readonly forceRefresh?: boolean; readonly signal?: AbortSignal }) => {
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, delay)
+          options?.signal?.addEventListener('abort', () => { clearTimeout(timer); reject(options.signal?.reason) }, { once: true })
+        })
+        return options?.forceRefresh ? 'Bearer fresh' : 'Bearer stale'
+      },
+    })
+
+    it('aborts a project-token refresh that ignores its signal at the remaining budget, and sends no retry', async () => {
+      const seen: (string | undefined)[] = []
+      handle = (request, response) => {
+        seen.push(request.headers.authorization)
+        unauthorizedThenOk(request, response)
+      }
+      const deaf = {
+        authorizationHeader: async (options?: { readonly forceRefresh?: boolean }) => {
+          if (options?.forceRefresh) await sleep(300)
+          return options?.forceRefresh ? 'Bearer fresh' : 'Bearer stale'
+        },
+      }
+      const started = performance.now()
+      await expect(new HttpTransport(base, undefined, 150, { authProvider: deaf }).get('/thing')).rejects.toBeInstanceOf(ClientTimeoutError)
+      expect(performance.now() - started).toBeLessThan(250)
+      await sleep(250)
+      expect(seen).toEqual(['Bearer stale'])
+    })
+
+    it.each(['get', 'fetch'] as const)('does not give a sandbox-token retry a fresh window (%s)', async (method) => {
+      // bearer 40 ms + 401 after 50 ms + refresh 10 ms + a 100 ms retry is
+      // about 200 ms: past the 150 ms deadline, though the retry alone fits.
+      let calls = 0
+      handle = (request, response) => {
+        request.resume()
+        calls += 1
+        const stale = request.headers.authorization === 'Bearer stale'
+        setTimeout(() => {
+          response.writeHead(stale ? 401 : 200, { 'Content-Type': 'application/json' })
+          response.end(JSON.stringify(stale ? { code: 'UNAUTHORIZED', message: 'expired' } : { ok: true }))
+        }, stale ? 50 : 100)
+      }
+      const auth = {
+        bearer: async () => { await sleep(40); return 'stale' },
+        onUnauthorized: async () => { await sleep(10); return 'fresh' },
+      }
+      const transport = new HttpTransport(base, undefined, 150, { auth })
+      const call = method === 'get' ? transport.get('/thing') : transport.fetch('/thing').then((response) => response.json())
+      const started = performance.now()
+      await expect(call).rejects.toBeInstanceOf(ClientTimeoutError)
+      expect(performance.now() - started).toBeLessThan(190)
+      expect(calls).toBe(2)
+    })
+
+    it.each([
+      ['a sandbox token on the axios path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'get'],
+      ['a sandbox token on the fetch path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'fetch'],
+      ['a project token on the axios path', (delay: number) => new HttpTransport(base, undefined, 150, { authProvider: slowProvider(delay) }), 'get'],
+      ['a project token on the fetch path', (delay: number) => new HttpTransport(base, undefined, 150, { authProvider: slowProvider(delay) }), 'fetch'],
+    ] as const)('with %s', async (_label, transport, method) => {
+      handle = unauthorizedThenOk
+      const call = (t: HttpTransport) => method === 'get' ? t.get('/thing') : t.fetch('/thing').then((response) => response.json())
+      const started = performance.now()
+      await expect(call(transport(80))).rejects.toBeInstanceOf(ClientTimeoutError)
+      expect(performance.now() - started).toBeLessThan(250)
+      await expect(call(transport(10))).resolves.toEqual({ ok: true })
+    })
+  })
+
   it('bounds a stream only until its headers arrive', async () => {
     const transport = new HttpTransport(base, 'k', 100)
     handle = trickle(6, 50)
@@ -265,5 +456,30 @@ describe('request timeout meaning', () => {
     expect(await response.text()).toBe('xxxxxx')
     handle = late(400)
     await expect(transport.fetch('/stalled')).rejects.toBeInstanceOf(ClientTimeoutError)
+  })
+})
+
+describe('missing credentials', () => {
+  it('throws AuthenticationError with the catalog status and code', () => {
+    const saved = { key: process.env.DAYTONA_API_KEY, jwt: process.env.DAYTONA_JWT_TOKEN }
+    delete process.env.DAYTONA_API_KEY
+    delete process.env.DAYTONA_JWT_TOKEN
+    try {
+      expect(() => new DaytonaV2({})).toThrow(expect.objectContaining({ statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' }))
+    } finally {
+      if (saved.key !== undefined) process.env.DAYTONA_API_KEY = saved.key
+      if (saved.jwt !== undefined) process.env.DAYTONA_JWT_TOKEN = saved.jwt
+    }
+  })
+
+  it.each([{ apiKey: '' }, { apiKey: 'k', jwtToken: '' }, { jwtToken: '', projectId: 'p' }])('rejects the explicitly empty value in %j instead of reading the environment', (config) => {
+    const saved = process.env.DAYTONA_API_KEY
+    process.env.DAYTONA_API_KEY = 'env-key'
+    try {
+      expectBadRequest(() => new DaytonaV2(config), 'must be a non-empty string when provided')
+    } finally {
+      if (saved === undefined) delete process.env.DAYTONA_API_KEY
+      else process.env.DAYTONA_API_KEY = saved
+    }
   })
 })

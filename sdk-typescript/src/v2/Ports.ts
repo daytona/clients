@@ -7,7 +7,7 @@ import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics, credentialSafeInspection } from '../diagnostics.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import type * as api from './gen/api-types.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import { HttpTransport } from './http.js'
 import type { ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, SignedPreviewLink } from './types.js'
@@ -293,21 +293,21 @@ export class PortsService {
 
   private requireApi(): AxiosInstance {
     if (!this.api) {
-      throw new DaytonaError('API is not available for preview endpoint operations', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+      throw createDaytonaError('API is not available for preview endpoint operations', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     }
     return this.api
   }
 
   private requireToolbox(): HttpTransport {
     if (!this.transport) {
-      throw new DaytonaError('toolbox transport is not available for sandbox port inspection', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+      throw createDaytonaError('toolbox transport is not available for sandbox port inspection', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     }
     return this.transport
   }
 
   private requireSandboxId(): string {
     if (!this.sandboxId) {
-      throw new DaytonaError('sandbox id is required for preview endpoint operations', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+      throw createDaytonaError('sandbox id is required for preview endpoint operations', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     }
     return this.sandboxId
   }

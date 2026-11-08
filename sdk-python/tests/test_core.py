@@ -4753,8 +4753,8 @@ def test_create_body_sends_every_limit():
 
 
 def test_public_optional_params_are_keyword_only():
+    import daytona.v2.http as http_module
     from daytona.v2.daytona import AsyncDaytona
-    from daytona.v2.http import HttpClient
     from daytona.v2.http import gb_to_mib as http_gb_to_mib
     from daytona.v2.http import mib_to_gb as http_mib_to_gb
     from daytona.v2.http import sandbox_state as http_sandbox_state
@@ -4772,7 +4772,8 @@ def test_public_optional_params_are_keyword_only():
         inspect.signature(AsyncDaytona.create_from_build).parameters["builder"].kind
         is inspect.Parameter.POSITIONAL_ONLY
     )
-    assert HttpClient is SyncTransport
+    # The blocking transport is internal: the module exports only helpers.
+    assert not hasattr(http_module, "HttpClient")
     assert http_gb_to_mib(1) == 1024
     assert http_mib_to_gb(1536) == 2
     assert http_sandbox_state("running") == "started"
@@ -10726,25 +10727,28 @@ def test_daytona_config_explicit_credential_wins_over_the_other_env_credential(
         AsyncDaytona(DaytonaConfig())
 
 
-def test_daytona_config_blank_api_key_falls_back_to_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    "config",
+    [
+        DaytonaConfig(api_key=""),
+        DaytonaConfig(api_key="key", jwt_token="", project_id="project-1"),
+        DaytonaConfig(jwt_token="", project_id="project-1"),
+        DaytonaConfig(api_key="key", project_id=""),
+    ],
+)
+def test_daytona_config_rejects_explicitly_empty_values_instead_of_reading_the_environment(
+    monkeypatch: pytest.MonkeyPatch, config: DaytonaConfig
+) -> None:
     monkeypatch.setenv("DAYTONA_API_KEY", "env-key")
-    monkeypatch.delenv("DAYTONA_JWT_TOKEN", raising=False)
-    client = AsyncDaytona(DaytonaConfig(api_key=""))
-    try:
-        assert client._api.token == "env-key"
-    finally:
-        asyncio.run(client.close())
-
-
-def test_daytona_config_treats_blank_explicit_jwt_as_absent_when_api_key_is_configured() -> None:
-    client = AsyncDaytona(DaytonaConfig(api_key="key", jwt_token="", project_id="project-1"))
-
-    try:
-        assert client._api._auth is None
-        assert client._toolbox._auth is None
-        assert client._api.token == "key"
-    finally:
-        asyncio.run(client.close())
+    monkeypatch.setenv("DAYTONA_JWT_TOKEN", "env-jwt")
+    monkeypatch.setenv("DAYTONA_PROJECT_ID", "env-project")
+    with pytest.raises(BadRequestError, match="must be a non-empty string when provided") as excinfo:
+        AsyncDaytona(config)
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
 
 
 def test_daytona_config_treats_blank_env_jwt_as_absent_when_api_key_is_configured(
@@ -10759,16 +10763,6 @@ def test_daytona_config_treats_blank_env_jwt_as_absent_when_api_key_is_configure
         assert client._api.token == "key"
     finally:
         asyncio.run(client.close())
-
-
-def test_daytona_config_rejects_blank_explicit_jwt_without_api_key() -> None:
-    with pytest.raises(BadRequestError, match="jwt_token must be a non-empty string") as excinfo:
-        AsyncDaytona(DaytonaConfig(jwt_token="", project_id="project-1"))
-    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
-        400,
-        "BAD_REQUEST",
-        "SDK",
-    )
 
 
 @pytest.mark.anyio

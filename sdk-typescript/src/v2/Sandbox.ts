@@ -38,7 +38,7 @@ import {
   sleep,
 } from './http.js'
 import type { TransportAuth } from './http.js'
-import { BadRequestError, DaytonaError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError, UnsupportedOperationError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders, regionOf, targetPredicate } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
@@ -128,7 +128,7 @@ function sandboxAccessTokenFromPayload(payload: SandboxAccessTokenPayload | null
   const accessToken = payload?.access_token
   const expiresAt = payload?.expires_at
   if (typeof accessToken !== 'string' || accessToken.length === 0 || typeof expiresAt !== 'string') {
-    throw new DaytonaError('API returned an invalid access token payload', { statusCode: 500 })
+    throw createDaytonaError('API returned an invalid access token payload', 500, undefined, 'SDK')
   }
   return credentialSafeInspection({
     accessToken,
@@ -322,7 +322,7 @@ function waitQueryState(state: SandboxWaitState | undefined): string | undefined
 
 function validateTimeout(timeout: number): void {
   if (!Number.isFinite(timeout) || timeout < 0) {
-    throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST' })
+    throw createDaytonaError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
   }
 }
 
@@ -565,7 +565,7 @@ export class Sandbox {
   }
 
   private createApiTransport(): HttpTransport {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     return new HttpTransport(this.api.defaults.baseURL ?? '', this.apiKey, this.requestTimeout, this.httpOptions)
   }
 
@@ -731,7 +731,7 @@ export class Sandbox {
   }
 
   private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const waitValue = waitQueryState(wait)
     const config = timeout === undefined
       ? waitValue === undefined ? undefined : { timeout: WAIT_FOR_STATE_SLICE_MS + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: WAIT_FOR_STATE_SLICE_MS } }
@@ -846,7 +846,7 @@ export class Sandbox {
   }
 
   private requireApiForPresignedUrls(): AxiosInstance {
-    if (!this.api) throw new DaytonaError('API is not available for pre-signed file URLs', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for pre-signed file URLs', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     return this.api
   }
 
@@ -921,7 +921,7 @@ export class Sandbox {
    * silent narrowing.
    */
   public async createAccessToken(options: CreateAccessTokenOptions = {}): Promise<SandboxAccessToken> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     if (options.ports !== undefined) {
       for (const port of options.ports) {
         if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -1199,7 +1199,7 @@ export class Sandbox {
 
   /** Start a stopped sandbox, or resume a paused one, and wait until it is started. */
   public async start(options: LifecycleWaitOptions = {}): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const timeout = options.timeout ?? 60_000
     validateTimeout(timeout)
     await this.refreshData()
@@ -1219,7 +1219,7 @@ export class Sandbox {
 
   /** Stop a persistent macOS sandbox. */
   public async stop(): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     await this.requirePersistentMacos('stop')
     const r = await this.api.post(`/sandboxes/${strictUriEncode(this.id)}/stop`)
     this.learnEventDestination(eventDestinationFromHeaders(r.headers))
@@ -1232,7 +1232,7 @@ export class Sandbox {
    * but does not keep its reservation renewing.
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const timeout = options.timeout ?? 60_000
     validateTimeout(timeout)
     await this.requirePersistentMacos('pause')
@@ -1247,7 +1247,7 @@ export class Sandbox {
    * `SandboxTerminalStateError`.
    */
   public async resume(options: LifecycleWaitOptions = {}): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const timeout = options.timeout ?? 60_000
     validateTimeout(timeout)
     await this.requirePersistentMacos('resume')
@@ -1274,7 +1274,7 @@ export class Sandbox {
    * as a create does; insufficient capacity can return `NO_FREE_SLOT`.
    */
   public async fork(options: { name?: string; memory?: boolean; timeout?: number } = {}): Promise<Sandbox> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const sandboxClass = await this.requireSandboxClass()
     const body: LinuxForkRequest = {}
     if (options.name) body.name = options.name
@@ -1312,7 +1312,7 @@ export class Sandbox {
    * the image can already be deleted. Image deletion may still return 409.
    */
   public async delete(): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const r = await this.api.delete(`/sandboxes/${strictUriEncode(this.id)}`)
     this.learnEventDestination(eventDestinationFromHeaders(r.headers))
     try {
@@ -1327,7 +1327,7 @@ export class Sandbox {
   }
 
   public async getNetworkPolicy(): Promise<NetworkPolicyInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api.get(`/sandboxes/${encodeURIComponent(this.id)}/network-policy`)
     return parseNetworkPolicyResponse(response)
   }
@@ -1336,7 +1336,7 @@ export class Sandbox {
     networkPolicy: NetworkPolicyInput,
     options: { ifMatch: string },
   ): Promise<NetworkPolicyInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api.put(
       `/sandboxes/${encodeURIComponent(this.id)}/network-policy`,
       serializeNetworkPolicyInput(networkPolicy),
@@ -1346,7 +1346,7 @@ export class Sandbox {
   }
 
   public async resetNetworkPolicy(options: { ifMatch: string }): Promise<NetworkPolicyInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api.put(`/sandboxes/${encodeURIComponent(this.id)}/network-policy`, 'null', {
       headers: { 'If-Match': options.ifMatch, 'Content-Type': 'application/json' },
     })
@@ -1359,7 +1359,7 @@ export class Sandbox {
    * `replaceSecrets`; `status` is `pending` until the sandbox has applied `desiredRevision`.
    */
   public async getSecrets(): Promise<SandboxSecretsInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this rehydrated sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this rehydrated sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api.get(`/sandboxes/${encodeURIComponent(this.id)}/secrets`)
     return parseSandboxSecretsResponse(response)
   }
@@ -1372,7 +1372,7 @@ export class Sandbox {
    * environment; processes started afterwards see the new names.
    */
   public async replaceSecrets(secrets: readonly string[], options: { ifMatch: string }): Promise<SandboxSecretsInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this rehydrated sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this rehydrated sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api.put(
       `/sandboxes/${encodeURIComponent(this.id)}/secrets`,
       serializeSandboxSecretsInput(secrets),
@@ -1400,8 +1400,8 @@ export class Sandbox {
    */
   public async updateLifecyclePolicy(options: LifecyclePolicyOptions): Promise<SandboxLifecycle> {
     const body = lifecycleBody(options)
-    if (!body) throw new DaytonaError('updateLifecyclePolicy requires at least one lifecycle field', { statusCode: 400, code: 'BAD_REQUEST' })
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!body) throw createDaytonaError('updateLifecyclePolicy requires at least one lifecycle field', 400, 'BAD_REQUEST', 'SDK')
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const sandboxClass = await this.requireSandboxClass()
     if (sandboxClass === 'macos' && this.persistent === undefined) await this.refreshData()
     assertLifecycleClassSupport(options, {
@@ -1434,7 +1434,7 @@ export class Sandbox {
    * keeps the clock, and what comes back is the state that won.
    */
   public async resetIdleTimer(): Promise<SandboxLifecycle> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api
       .post<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(`/sandboxes/${strictUriEncode(this.id)}/reset-idle-timer`)
       .then((r) => r.data)
@@ -1484,7 +1484,7 @@ export class Sandbox {
    * stopped; it cannot start until the snapshot is `ready`.
    */
   public async snapshotFilesystem(options: CaptureImageOptions = {}): Promise<Image> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const { data } = await this.api.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, {
       name: options.name,
       idle_expiry_seconds: options.idleExpirySeconds,
@@ -1494,7 +1494,7 @@ export class Sandbox {
   }
 
   public async createSnapshot(name: string): Promise<Snapshot> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     // The snapshot response carries its class.
     const http = this.api
     const encodedId = strictUriEncode(this.id)
@@ -1505,7 +1505,7 @@ export class Sandbox {
 
   /** Replace the sandbox's full label set. Pass `{}` to clear all labels; resolves to the applied labels. */
   public async setLabels(labels: Record<string, string>): Promise<Record<string, string>> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const body = labelsBody(labels)
     const requestConfig = { daytona: { routeTemplate: '/sandboxes/{id}/labels', sandboxId: this.id } } as AxiosRequestConfig
     const response = await this.api.put<{ labels?: unknown }>(
@@ -1520,7 +1520,7 @@ export class Sandbox {
 
   /** Return the sandbox entrypoint log as plain text. */
   public async entrypointLogs(): Promise<string> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const requestConfig = {
       responseType: 'text',
       daytona: { routeTemplate: '/sandboxes/{id}/logs', sandboxId: this.id },
@@ -1542,7 +1542,7 @@ export class Sandbox {
    * Use followBuildLogs for live output and completeness metadata.
    */
   public async buildLogs(): Promise<string> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     return readBuildLogs(this.createApiTransport(), `/sandboxes/${strictUriEncode(this.id)}/build-logs-url`)
   }
 
@@ -1553,7 +1553,7 @@ export class Sandbox {
    * They do not fall back to another log source.
    */
   public async followBuildLogs(options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     return followBuildLogs(this.createApiTransport(), `/sandboxes/${strictUriEncode(this.id)}/build-logs-url`, options)
   }
 }
@@ -1570,5 +1570,5 @@ function readSignedFileUrl(payload: api.SignedFileUrlResponse | unknown): Signed
       return { signature, expiresAt }
     }
   }
-  throw new DaytonaError('API returned an invalid signed file URL payload', { statusCode: 500 })
+  throw createDaytonaError('API returned an invalid signed file URL payload', 500, undefined, 'SDK')
 }

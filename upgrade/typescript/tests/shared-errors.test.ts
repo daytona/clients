@@ -11,7 +11,10 @@ import { loadMapping } from '../src/mapping.js';
 import { suggest } from '../src/suggestions.js';
 
 const mapping = loadMapping();
-const errors = mapping.rootNames.ts.filter(name => /^Daytona.*Error$/.test(name));
+// The 0.x root aliases of two shared categories. The 2.x root no longer
+// exports them, but bundled v0 does, so they route to v0 like any other error.
+const formerRootAliases = ['DaytonaValidationError', 'DaytonaAuthorizationError'] as const;
+const errors = [...mapping.rootNames.ts.filter(name => /^Daytona.*Error$/.test(name)), ...formerRootAliases];
 const forms = [
   ['named', (name: string) => `import { ${name} as E } from '@daytonaio/sdk';`],
   ['commonjs', (name: string) => `const { ${name}: E } = require('@daytonaio/sdk');`],
@@ -76,4 +79,16 @@ it('leaves unrelated resource imports without error guidance', () => {
   const result = suggest(source, mapping, '/');
   // Then
   expect(result.after).toBe(input);
+});
+
+it.each(formerRootAliases)('keeps %s a v0 export, not a root name', name => {
+  expect(mapping.rootNames.ts).not.toContain(name);
+  expect(mapping.v0Exports?.ts).toContain(name);
+});
+
+it.each(formerRootAliases)('attaches no root-import guidance to a v0 import of %s', name => {
+  // Guidance names the root category to import, which the former aliases are not.
+  const input = `import { ${name} } from '@daytona/sdk/v0';`;
+  const source = new Project({ useInMemoryFileSystem: true }).createSourceFile('/input.ts', input);
+  expect(suggest(source, mapping, '/').after).toBe(input);
 });

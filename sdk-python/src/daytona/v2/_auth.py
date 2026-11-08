@@ -137,7 +137,7 @@ class ProjectTokenAuth:
         except httpx.TimeoutException as error:
             if span is not None:
                 span.finish(error=error)
-            raise ClientTimeoutError("operation timed out") from error
+            raise ClientTimeoutError() from error
         except httpx.HTTPError as error:
             if span is not None:
                 span.finish(error=error)
