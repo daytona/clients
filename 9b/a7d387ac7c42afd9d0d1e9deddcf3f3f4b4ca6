@@ -1,0 +1,23 @@
+cli/internal/dockerignore/dockerignore_test.go
+  s_0df31975f3464b::t_a0c3bbdaca834e 85-89
+cli/internal/dockerignore/dockerignore.go
+  s_0df31975f3464b::t_a0c3bbdaca834e 149-151,158-161
+cli/cmd/image_dockerignore_test.go
+  s_0df31975f3464b::t_a0c3bbdaca834e 126-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ba7d387ac7c42afd9d0d1e9deddcf3f3f4b4ca6",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
