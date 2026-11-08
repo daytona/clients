@@ -309,6 +309,59 @@ class Directions(unittest.TestCase):
         both = "Ev: interface\nEv: returned also-passed-in\nEv.name: property 'a'"
         self.assertEqual(self.breaks(self.TS, both, both.replace("'a'", "'a' | undefined")), 1)
 
+    def test_new_overloads_of_signatures_callers_implement(self) -> None:
+        passed = "O: interface\nO: passed-in\n"
+        cases = [
+            # TypeScript method gaining an overload
+            (self.TS, passed + "O.m: method (a: string): void", "\nO.m: method (a: number): void", 1),
+            # a call signature gaining an overload (existing `O()` key)
+            (self.TS, passed + "O(): call (bytes: number): void", "\nO(): call (event: { bytes: number; }): void", 1),
+            # a first call signature (new `O()` key)
+            (self.TS, passed + "O.m: method (a: string): void", "\nO(): call (bytes: number): void", 1),
+            # Python protocol: a `def` overload, and `__call__` gaining a line
+            (self.PY, "P: protocol\nP: passed-in\nP.a: def (x: int) -> None", "\nP.a: def (x: str) -> None", 1),
+            (self.PY, "P: protocol\nP: passed-in\nP.__call__: def (x: int) -> None", "\nP.__call__: def (x: str) -> None", 1),
+            # a type going both ways
+            (self.TS, "O: interface\nO: returned also-passed-in\nO.m: method (a: string): void", "\nO.m: method (a: number): void", 1),
+            # an overload of a function the SDK implements is compatible
+            (self.TS, "S: class\nS.m: method (a: string): void", "\nS.m: method (a: number): void", 0),
+            (self.TS, "Db: interface\nDb.run: method (q: string): void", "\nDb.run: method (q: number): void", 0),
+        ]
+        for area, old, added, expected in cases:
+            with self.subTest(old=old, added=added):
+                self.assertEqual(self.breaks(area, old, old + added), expected)
+        # A changed line that is itself compatible does not also count as new.
+        old = passed + "O.m: method (a: string): void"
+        self.assertEqual(self.breaks(self.TS, old, old.replace("(a: string)", "(a: string, b: number)")), 0)
+
+    def test_new_required_member_of_a_two_way_type(self) -> None:
+        ts = "Ev: interface\nEv: returned also-passed-in\nEv.name: property string"
+        self.assertEqual(self.breaks(self.TS, ts, ts + "\nEv.team: property string"), 1)
+        self.assertEqual(self.breaks(self.TS, ts, ts + "\nEv.team: optional property string"), 0)
+        py = "Ev: typeddict total\nEv: passed-in also-returned\nEv.name: key str"
+        self.assertEqual(self.breaks(self.PY, py, py + "\nEv.team: key str"), 1)
+        self.assertEqual(self.breaks(self.PY, py, py + "\nEv.team: optional key str"), 0)
+
+    def test_literal_none_is_nullish(self) -> None:
+        out = "C: class\nC.state: readonly property Literal['a', 'b']"
+        self.assertEqual(self.breaks(self.PY, out, out.replace("'b']", "'b', None]")), 1)
+        self.assertEqual(self.breaks(self.PY, out, out.replace("'b']", "'b', 'c']")), 0)
+        alias = "S: type = Literal['a', 'b']"
+        self.assertEqual(self.breaks(self.PY, alias, alias.replace("'b']", "'b', None]")), 1)
+        long_alias = "S: type = Literal\nS: union-member 'a'\nS: union-member 'b'"
+        self.assertEqual(self.breaks(self.PY, long_alias, long_alias + "\nS: union-member None"), 1)
+        # In a parameter, an absent value may be accepted.
+        param = "C: class\nC.m: def (x: Literal['a']) -> None"
+        self.assertEqual(self.breaks(self.PY, param, param.replace("Literal['a']", "Literal['a', None]")), 0)
+
+    def test_output_member_made_required(self) -> None:
+        out = "R: interface\nR.f: readonly optional property string"
+        self.assertEqual(self.breaks(self.TS, out, out.replace("optional ", "")), 0)
+        passed = "O: interface\nO: passed-in\nO.f: optional property string"
+        self.assertEqual(self.breaks(self.TS, passed, passed.replace("optional ", "")), 1)
+        both = "O: interface\nO: returned also-passed-in\nO.f: optional property string"
+        self.assertEqual(self.breaks(self.TS, both, both.replace("optional ", "")), 1)
+
     def test_python_protocol_and_callable_field(self) -> None:
         proto = "Handler: protocol\nHandler: passed-in\nHandler.__call__: def (ev: Ev) -> None"
         self.assertEqual(self.breaks(self.PY, proto, proto.replace("(ev: Ev)", "(ev: Ev | str)")), 1)
@@ -567,10 +620,6 @@ class CompareSurface(unittest.TestCase):
         ):
             report = bc.Report()
             bc.compare_surface("upgrade/api-surface/daytona-upgrade.api.txt", old_line, new_line, report)
-            self.assertEqual(len(report.breaking), expected)
-        for new_line, expected in ():
-            report = bc.Report()
-            bc.compare_surface("upgrade/api-surface/daytona-upgrade.api.txt", "npm --yes: flag switch", new_line, report)
             self.assertEqual(len(report.breaking), expected)
         # New fields, values and flags still pass there.
         report = bc.Report()

@@ -360,7 +360,8 @@ def union_set(text: str) -> set[str]:
     for member in split_top(text.strip(), "|"):
         literal = re.fullmatch(r"(?:typing\.)?Literal\[(.*)\]", member)
         if literal:
-            members |= {f"Literal:{value}" for value in split_top(literal[1], ",")}
+            # `Literal[None]` is `None`: an absent value, not a literal.
+            members |= {"None" if v == "None" else f"Literal:{v}" for v in split_top(literal[1], ",")}
         else:
             members.add(member)
     return members
@@ -754,6 +755,12 @@ def compatible_change(
     if o and n:
         return o[1] == n[1] and type_compatible(o[2], n[2], BOTH)
     o, n = MEMBER_LINE.fullmatch(old), MEMBER_LINE.fullmatch(new)
+    # A member the SDK supplies that is now always present: narrower.
+    if o and n and direction == OUT and o[1].split(" ").count("optional") == 1:
+        if n[1] == " ".join(w for w in o[1].split(" ") if w != "optional"):
+            o_parts, n_parts = split_top(o[2], " = "), split_top(n[2], " = ")
+            if o_parts[1:] == n_parts[1:] and type_compatible(o_parts[0], n_parts[0], OUT):
+                return True
     if o and n and o[1] == n[1]:
         old_parts, new_parts = split_top(o[2], " = "), split_top(n[2], " = ")
         if old_parts[1:] == new_parts[1:] and type_compatible(old_parts[0], new_parts[0], direction):
@@ -856,6 +863,19 @@ def moved_key(key: str, old: dict[str, list[str]], new: dict[str, list[str]]) ->
 # required member breaks those callers. A dataclass's new required field
 # shows in its constructor line instead.
 SUPPLIED_HEADS = ("interface", "type = {...}", "typeddict", "protocol")
+# The direction markers the generators print under a declaration.
+PASS_ONLY_MARKER = "passed-in"
+TWO_WAY_MARKERS = ("passed-in also-returned", "returned also-passed-in")
+
+
+def marker_of(rests: Iterable[str]) -> str | None:
+    """``pass-only``, ``two-way`` or None, from a declaration's lines."""
+    rests = list(rests)
+    if any(r in TWO_WAY_MARKERS for r in rests):
+        return "two-way"
+    if PASS_ONLY_MARKER in rests:
+        return "pass-only"
+    return None
 
 
 def required_member(head: str, rest: str) -> bool:
@@ -874,15 +894,20 @@ def new_required_members(name: str, old: dict[str, list[str]], new: dict[str, li
     supplied = {
         key: next(r for r in rests if r.startswith(SUPPLIED_HEADS))
         for key, rests in new.items()
-        if any(r.startswith("passed-in") for r in rests) and key in old and any(r.startswith(SUPPLIED_HEADS) for r in rests)
+        if marker_of(rests) and key in old and any(r.startswith(SUPPLIED_HEADS) for r in rests)
     }
     for key in sorted(set(new) - set(old)):
-        parent = next((p for p in supplied if key.startswith(p) and key[len(p) : len(p) + 1] in ".["), None)
-        if parent is None or "." in key[len(parent) + 1 :] or key[len(parent)] == "[":
+        parent = next((p for p in supplied if key.startswith(p) and key[len(p) : len(p) + 1] in ".(["), None)
+        if parent is None:
             continue
+        suffix = key[len(parent) :]
+        marker = next(r for r in new[parent] if r == PASS_ONLY_MARKER or r in TWO_WAY_MARKERS)
         for rest in new[key]:
-            if required_member(supplied[parent], rest):
-                report.breaking.append(snapshot_finding(name, f"{parent}: passed-in", [f"{key}: {rest}"]))
+            # A new call or construct signature (`X()`) is one more thing every
+            # implementation must accept; a new member must be supplied when
+            # it is required.
+            if suffix == "()" or ("." not in suffix[1:] and suffix[0] == "." and required_member(supplied[parent], rest)):
+                report.breaking.append(snapshot_finding(name, f"{parent}: {marker}", [f"{key}: {rest}"]))
 
 
 def compare_surface(name: str, old_text: str, new_text: str | None, report: Report) -> None:
@@ -896,17 +921,14 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
     # values, never change one: no widening there.
     allow_widening = not name.startswith("upgrade/")
     # Types callers only pass in (never returned): a member may become optional.
-    pass_only = {k for k, rests in new.items() if "passed-in" in rests and "passed-in" in old.get(k, [])}
+    pass_only = {k for k, rests in new.items() if marker_of(rests) == "pass-only" and marker_of(old.get(k, [])) == "pass-only"}
     # Types that go both ways (at the release or now).
-    two_way = {
-        k
-        for entries in (old, new)
-        for k, rests in entries.items()
-        if "passed-in also-returned" in rests or "returned also-passed-in" in rests
-    }
+    two_way = {k for entries in (old, new) for k, rests in entries.items() if marker_of(rests) == "two-way"}
     removed_keys: list[str] = []
     for key in sorted(old):
         news = new.get(key)
+        # New lines that stand in for an old line accepted as compatible.
+        consumed: set[str] = set()
         if news is None:
             if is_child(key, removed_keys):
                 continue
@@ -940,14 +962,25 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                 report.notices.append(f"{name}: compatible change of {line}")
             elif rest.split(" ", 1)[0] in SET_KINDS:
                 report.breaking.append(snapshot_finding(name, line, added))
-            elif grew_into_lines(rest, news) or any(
-                compatible_change(rest, candidate, typescript=typescript, **position(key, rest, old, pass_only, two_way))
-                for candidate in news
-            ):
+            elif grew_into_lines(rest, news):
                 report.notices.append(f"{name}: compatible change of {line}")
-            elif parent_of(key, pass_only) and any(
-                made_optional(rest, candidate, typescript=typescript) for candidate in news
-            ):
+            elif (
+                match := next(
+                    (
+                        c
+                        for c in news
+                        if c not in old[key]
+                        and compatible_change(rest, c, typescript=typescript, **position(key, rest, old, pass_only, two_way))
+                    ),
+                    None,
+                )
+            ) is not None:
+                consumed.add(match)
+                report.notices.append(f"{name}: compatible change of {line}")
+            elif parent_of(key, pass_only) and (
+                match := next((c for c in news if made_optional(rest, c, typescript=typescript)), None)
+            ) is not None:
+                consumed.add(match)
                 report.notices.append(f"{name}: member of a passed-in type made optional {line}")
             else:
                 report.breaking.append(snapshot_finding(name, line, added))
@@ -966,11 +999,26 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             # A nullish member joining a long union alias (see compatible_change).
             elif not reported and rest.split(" ", 1)[0] == "union-member" and rest.split(" ", 1)[1] in NULLISH:
                 report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}", [f"{key}: {rest}"]))
+            # A new overload of a signature callers implement: every
+            # implementation must now accept it too.
+            elif (
+                not reported
+                and rest not in consumed
+                and is_signature(rest)
+                and position(key, rest, new, pass_only, two_way)["implementer"] in ("caller", "both")
+            ):
+                anchor = next((r for r in old[key] if is_signature(r)), old[key][0])
+                report.breaking.append(snapshot_finding(name, f"{key}: {anchor}", [f"{key}: {rest}"]))
     new_required_members(name, old, new, report)
     new_required_flags(name, old, new, report)
 
 
 MEMBER_KINDS = ("property", "attribute", "key", "field")
+
+
+def is_signature(rest: str) -> bool:
+    at = rest.find("(")
+    return at > 0 and SIGNATURE_HEAD.fullmatch(rest[:at]) is not None
 
 
 def owner_of(key: str, entries: dict[str, list[str]]) -> str | None:
