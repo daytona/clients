@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
-from types import MappingProxyType
+import json
 
 import httpx
 import pytest
@@ -168,8 +168,12 @@ async def test_a_slow_build_submission_ends_at_the_request_timeout(call: str) ->
 
 
 def test_list_and_search_envelopes_are_immutable() -> None:
-    page: ListResult[int] = ListResult([1, 2], "next")
-    found: SearchResult[int] = SearchResult([3], None, 1, "eq", "eq")
+    page: ListResult[int] = ListResult(items=[1, 2], next_cursor="next")
+    found: SearchResult[int] = SearchResult(items=[3], total=1, total_relation="eq", raw_total_relation="eq")
+    with pytest.raises(TypeError):
+        SearchResult([3], None, 1)  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        iter(found)  # type: ignore[call-overload]
     assert (page.items, found.items) == ((1, 2), (3,))
     assert not hasattr(page, "total")
     with pytest.raises(dataclasses.FrozenInstanceError):
@@ -179,7 +183,7 @@ def test_list_and_search_envelopes_are_immutable() -> None:
 
 
 @pytest.mark.anyio
-async def test_volume_options_are_read_only() -> None:
+async def test_volume_options_are_a_plain_copy_owned_by_the_volume() -> None:
     api = _Api(
         [
             {
@@ -194,10 +198,10 @@ async def test_volume_options_are_read_only() -> None:
         ]
     )
     volume = await AsyncVolumesService(api).get("vol")  # type: ignore[arg-type]
-    assert isinstance(volume.options, MappingProxyType)
+    # A plain dict (Mapping to type checkers): it serializes like any model field.
+    assert type(volume.options) is dict
     assert volume.options == {"bucket": "b"}
-    with pytest.raises(TypeError):
-        volume.options["bucket"] = "other"  # type: ignore[index]
+    assert json.loads(json.dumps(volume.options)) == {"bucket": "b"}
 
 
 @pytest.mark.anyio

@@ -6514,7 +6514,7 @@ async def test_find_by_name_returns_every_live_match_across_pages_and_empty_when
     )
     bind_api(client, api)
 
-    assert await client.find_by_name("nobody") == []
+    assert await client.find_by_name("nobody") == ()
     assert [sandbox.id for sandbox in await client.find_by_name("duplicate")] == ["a", "b"]
     with pytest.raises(BadRequestError):
         await client.find_by_name("  ")
@@ -9714,9 +9714,13 @@ def test_list_and_search_options_are_keyword_only_and_list_has_no_filters():
     with pytest.raises(TypeError):
         ListSandboxesOptions("c", 10)  # type: ignore[misc]
 
-    # ListResult accepts items and next_cursor positionally.
-    result: ListResult[str] = ListResult(["a"], "next")
+    # ListResult is keyword-only and not iterable: `.items` is the one way in.
+    result: ListResult[str] = ListResult(items=["a"], next_cursor="next")
     assert (result.items, result.next_cursor) == (("a",), "next")
+    with pytest.raises(TypeError):
+        ListResult(["a"], "next")  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        iter(result)  # type: ignore[call-overload]
     assert not hasattr(result, "total") and not hasattr(result, "total_relation")
 
     # SearchSandboxesOptions is fully keyword-only.
@@ -12057,7 +12061,7 @@ async def test_reservations_namespace_paths_idempotency_header_and_parsing():
     assert created.period_started_at == datetime(2026, 9, 22, tzinfo=timezone.utc)
     assert created.pending_mac_started_at == datetime(2026, 9, 21, 23, 30, tzinfo=timezone.utc)
     # `list()` hands back exactly one page: its items plus the server's cursor.
-    assert ([item.id for item in listed], listed.next_cursor) == (["res-1"], "page-2")
+    assert ([item.id for item in listed.items], listed.next_cursor) == (["res-1"], "page-2")
     assert dict(list_route.calls.last.request.url.params) == {"limit": "1"}
     assert fetched.slots_used == 1
     assert renewed.period_n == 2

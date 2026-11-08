@@ -842,11 +842,11 @@ class AsyncDaytona:
             access_token_caller_supplied=access_token is not None,
         )
 
-    async def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> list[AsyncSandbox]:
-        """Sandboxes created with ``name=name``, newest first; ``[]`` when none.
+    async def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> tuple[AsyncSandbox, ...]:
+        """Sandboxes created with ``name=name``, newest first; ``()`` when none.
 
         Exact match on the ``labels["name"]`` every ``create*(name=…)`` stamps,
-        read through sandbox search. Names are not unique, so this is a list —
+        read through sandbox search. Names are not unique, so this is a tuple —
         every match, read page by page: the one list method that is not a
         single page. A get-or-create caller takes ``[0]`` when it is non-empty
         and calls ``create(..., name=name)`` otherwise — and because that create
@@ -882,7 +882,7 @@ class AsyncDaytona:
             live = [item for item in items if item.get("status") not in ("deleted", "deleting")]
             found.extend(await self._sandboxes_from_sandboxes(live))
             if not next_cursor or next_cursor in seen_cursors:
-                return found
+                return tuple(found)
             seen_cursors.add(next_cursor)
             params["cursor"] = next_cursor
 
@@ -966,7 +966,7 @@ class AsyncDaytona:
         raw_items = expect_object(payload).get("sandboxes")
         items = [expect_object(item) for item in raw_items] if isinstance(raw_items, list) else []
         sandboxes = await self._sandboxes_from_sandboxes(items)
-        return ListResult(sandboxes, next_cursor)
+        return ListResult(items=sandboxes, next_cursor=next_cursor)
 
     async def search(
         self,
@@ -1071,8 +1071,8 @@ class AsyncDaytona:
             payload, expect_sandbox_detail
         )
         return SearchResult(
-            await self._sandboxes_from_sandboxes(items),
-            next_cursor,
+            items=await self._sandboxes_from_sandboxes(items),
+            next_cursor=next_cursor,
             total=total,
             total_relation=total_relation,
             raw_total_relation=raw_total_relation,

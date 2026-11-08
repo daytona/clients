@@ -271,8 +271,10 @@ def test_handle_metadata_is_read_only_in_both_surfaces() -> None:
     ):
         with pytest.raises(AttributeError):
             setattr(sandbox, name, None)
-    with pytest.raises(TypeError):
-        sandbox.labels["team"] = "other"  # type: ignore[index]
+    # Each read is a fresh copy: changing it does not change the handle.
+    labels = sandbox.labels
+    labels["team"] = "other"  # type: ignore[index]
+    assert sandbox.labels != labels
     assert not hasattr(sandbox, "target")
     assert not hasattr(sandbox, "error_reason")
     assert not hasattr(sandbox, "from_api")

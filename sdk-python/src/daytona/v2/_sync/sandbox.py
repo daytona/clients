@@ -345,7 +345,7 @@ class Sandbox:
 
     @property
     def labels(self) -> Mapping[str, str]:
-        """The sandbox labels (a read-only view); replace them with :meth:`set_labels`."""
+        """The sandbox labels: a fresh copy on every read (changing it changes"""
         return self._impl.labels
 
     @property

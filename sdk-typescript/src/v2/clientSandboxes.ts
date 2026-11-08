@@ -97,7 +97,7 @@ export async function searchSandboxes(context: SandboxClientContext, options: Se
 }
 
 /** @internal */
-export async function findSandboxesByName(context: SandboxClientContext, name: string, options: FindByNameOptions): Promise<Sandbox[]> {
+export async function findSandboxesByName(context: SandboxClientContext, name: string, options: FindByNameOptions): Promise<readonly Sandbox[]> {
   rejectV0Target(options)
   options = snapshotOptions('FindByNameOptions', options, FIND_KEYS) ?? {}
   if (typeof name !== 'string' || isBlank(name)) throw badRequest('name must be a non-blank string')
@@ -114,7 +114,7 @@ export async function findSandboxesByName(context: SandboxClientContext, name: s
     const sandboxes = await sandboxesFromDtos(context, live)
     found.push(...sandboxes)
     const nextCursor = page.next_cursor ?? undefined
-    if (!nextCursor || seen.has(nextCursor)) return found
+    if (!nextCursor || seen.has(nextCursor)) return Object.freeze(found)
     seen.add(nextCursor)
     cursor = nextCursor
   }

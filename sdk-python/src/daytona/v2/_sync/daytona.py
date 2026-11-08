@@ -298,13 +298,9 @@ class Daytona:
         """Delete a sandbox by handle or id and wait until it is destroyed; see :meth:`Sandbox.delete`."""
         return self._bridge.call(lambda: self._impl.delete(_rt.unwrap(sandbox), timeout=timeout))
 
-    def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> list[Sandbox]:
-        """Sandboxes created with ``name=name``, newest first; ``[]`` when none."""
-        from .sandbox import Sandbox
-
-        return _rt.wrap_list(
-            self._bridge.call(lambda: self._impl.find_by_name(name, region=region)), self._bridge, Sandbox
-        )
+    def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> tuple[Sandbox, ...]:
+        """Sandboxes created with ``name=name``, newest first; ``()`` when none."""
+        return _rt.wrap(self._bridge.call(lambda: self._impl.find_by_name(name, region=region)), self._bridge)  # type: ignore[return-value]
 
     def get(
         self, sandbox_id: str, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None

@@ -41,6 +41,30 @@ describe('sandbox wait budgets', () => {
     }
   }, 10_000)
 
+  it('bounds each finite slice by what is left of the wait budget', async () => {
+    // Given a wait that sees a non-target state first, then the target.
+    jest.useFakeTimers({ now: 0 })
+    const api = createHttpClient('http://api.invalid')
+    const detail = { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] }
+    const get = jest.spyOn(api, 'get')
+      .mockImplementationOnce(async () => { jest.setSystemTime(10_000); return { data: { ...detail, status: 'pending' } } })
+      .mockImplementationOnce(async () => ({ data: { ...detail, status: 'running' } }))
+    const sandbox = createSandbox('sbx', api)
+    // When the first held read takes ten seconds of a 31 s budget.
+    const waiting = sandbox.wait({ timeoutSeconds: 31 })
+    await jest.advanceTimersByTimeAsync(1_000)
+    await waiting
+    // Then each read asks for the smaller of the slice and what is left, its
+    // read bounded by that hold plus slack and never past the deadline.
+    const requests = get.mock.calls.map(([, config]) => config as { readonly timeout: number; readonly params: { readonly timeout_ms: number } })
+    expect(requests).toHaveLength(2)
+    expect(requests[0]).toMatchObject({ timeout: 31_000, params: { wait: 'running', timeout_ms: 30_000 } })
+    const second = requests[1] as { readonly timeout: number; readonly params: { readonly timeout_ms: number } }
+    expect(second.params.timeout_ms).toBeLessThanOrEqual(21_000)
+    expect(second.params.timeout_ms).toBeGreaterThan(19_000)
+    expect(second.timeout).toBeLessThanOrEqual(21_000)
+  })
+
   it.each([
     { timeoutSeconds: 0.05, wireTimeout: 50, requestTimeout: 50 },
     { timeoutSeconds: 31, wireTimeout: 30_000, requestTimeout: 31_000 },

@@ -124,8 +124,8 @@ describe('sandbox fork completion', () => {
       { status: 404, body: { code: 'NOT_FOUND' } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'linux', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
-    const fork = await sandbox.fork({ waitSeconds: 0, autoDelete: true })
     try {
+      const fork = await sandbox.fork({ waitSeconds: 0, autoDelete: true })
       // When the fork is disposed.
       await fork[Symbol.asyncDispose]()
       // Then only the fork is deleted and waited on.

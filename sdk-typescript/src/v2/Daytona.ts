@@ -269,7 +269,7 @@ export class Daytona {
    * `region` scopes the read the way it scopes a create; omit it or pass
    * `'local'` to use the default region.
    */
-  public async findByName(name: string, options: FindByNameOptions = {}): Promise<Sandbox[]> {
+  public async findByName(name: string, options: FindByNameOptions = {}): Promise<readonly Sandbox[]> {
     return findSandboxesByName(this.sandboxContext, name, options)
   }
 

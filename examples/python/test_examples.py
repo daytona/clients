@@ -88,7 +88,7 @@ class FakeWorld:
         secret.set.side_effect = self._secret_set
         secret.delete.side_effect = self._secret_delete
         secret.list.side_effect = lambda **_: ListResult(
-            [SimpleNamespace(name=n) for n in self.secrets], None
+            items=[SimpleNamespace(name=n) for n in self.secrets]
         )
         secret.iter.side_effect = lambda **_: iter(
             [SimpleNamespace(name=n) for n in self.secrets]

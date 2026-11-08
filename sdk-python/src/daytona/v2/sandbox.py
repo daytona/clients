@@ -12,7 +12,6 @@ from collections.abc import Mapping as MappingABC
 from collections.abc import Sequence as SequenceABC
 from datetime import datetime, timezone
 from enum import Enum
-from types import MappingProxyType
 from typing import Callable, ClassVar, Dict, Final, Literal, Mapping, Optional, Sequence, get_args
 from urllib.parse import quote, urlsplit
 
@@ -341,8 +340,9 @@ class AsyncSandbox:
 
     @property
     def labels(self) -> Mapping[str, str]:
-        """The sandbox labels (a read-only view); replace them with :meth:`set_labels`."""
-        return MappingProxyType(dict(self._info.labels))
+        """The sandbox labels: a fresh copy on every read (changing it changes
+        nothing); replace them with :meth:`set_labels`."""
+        return dict(self._info.labels)
 
     @property
     def cpu(self) -> Optional[float]:

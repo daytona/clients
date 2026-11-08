@@ -1070,7 +1070,6 @@ export class Sandbox {
   }
 }
 
-export { createHttpClient }
 
 function readSignedFileUrl(payload: api.SignedFileUrlResponse | unknown): SignedFileUrl {
   // Typed against the vendored wire model, but still checked at runtime: a

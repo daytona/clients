@@ -580,7 +580,7 @@ export interface SandboxDto {
   /** Sandbox class (`linux` | `macos`); the authoritative class when present. */
   class?: SandboxClass | string
   name?: string
-  image?: api.ImageReference | null
+  image?: { readonly id: string; readonly name?: string | null } | null
   status?: string
   /** Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs). */
   cpu?: number
@@ -599,7 +599,7 @@ export interface SandboxDto {
   region_id?: string
   image_build_id?: string | null
   user?: string | null
-  snapshot?: api.SnapshotReference | null
+  snapshot?: { readonly id: string; readonly name?: string | null } | null
   /** macOS only: set on the `running` that ends a resume; null otherwise. */
   mac_boot_mode?: string | null
   /** macOS only: the reservation selected for this sandbox. `GET /sandboxes/search` items omit it. */
@@ -622,6 +622,7 @@ export interface SandboxDto {
   cursor?: string
 }
 
+/** @internal */
 export type CreateSandboxResponse = api.CreateSandboxResponse
 
 /** Options for {@link Sandbox.createAccessToken}. */

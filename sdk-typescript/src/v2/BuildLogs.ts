@@ -179,7 +179,10 @@ async function cancelResponse(response?: Response): Promise<void> {
     // Preserve the primary failure on an already errored response.
   }
 }
-/** Byte framing bounds both complete and unfinished events before decoding. */
+/**
+ * Byte framing bounds both complete and unfinished events before decoding.
+ * @internal
+ */
 export async function* buildLogMessages(response: Response): AsyncIterable<Message> {
   if (!response.body) return
   const reader = response.body.getReader()
@@ -462,6 +465,7 @@ async function readOneShotBody(response: Response): Promise<string> {
   }
 }
 
+/** @internal */
 export async function readBuildLogs(api: HttpTransport, path: string): Promise<string> {
   const controller = new AbortController()
   const readTimeout = boundedTimerDelay(api.defaultTimeout)
@@ -486,6 +490,7 @@ export async function readBuildLogs(api: HttpTransport, path: string): Promise<s
   }
 }
 
+/** @internal */
 export async function followBuildLogs(api: HttpTransport, path: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
   assertOptionsObject('BuildLogFollowOptions', options)
   assertKnownOptions('BuildLogFollowOptions', options, BUILD_LOG_FOLLOW_OPTION_KEYS)

@@ -92,7 +92,7 @@ class AsyncGitService:
         payload = expect_branch_list(
             await _json_payload(self._transport, RequestSpec("GET", "/git/branches", params={"path": path}))
         )
-        return ListResult(list(payload.branches), None)
+        return ListResult(items=list(payload.branches))
 
     async def list_remotes(self, path: str) -> ListResult[JsonObject]:
         payload = expect_object(
@@ -100,14 +100,16 @@ class AsyncGitService:
         )
         raw = payload.get("remotes")
         items = [expect_object(remote) for remote in raw] if isinstance(raw, list) else []
-        return ListResult(items, None)
+        return ListResult(items=items)
 
     async def history(self, path: str) -> ListResult:
         """List commits, newest first."""
         items, next_cursor = list_shape(
             await _json_payload(self._transport, RequestSpec("GET", "/git/history", params={"path": path})),
         )
-        return ListResult([_commit_info_to_json(_expect_commit_info(item)) for item in items], next_cursor)
+        return ListResult(
+            items=[_commit_info_to_json(_expect_commit_info(item)) for item in items], next_cursor=next_cursor
+        )
 
     async def create_branch(self, path: str, name: str) -> None:
         """Create a branch."""

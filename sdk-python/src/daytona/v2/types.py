@@ -15,7 +15,6 @@ from typing import (
     Dict,
     Generic,
     Iterable,
-    Iterator,
     List,
     Literal,
     Mapping,
@@ -311,18 +310,16 @@ class LifecyclePolicyOptions(TypedDict, total=False):
 class ListResult(Generic[T]):
     """One page of a cursor-paginated list: ``items`` and the ``next_cursor``
     to pass for the next page (``None`` on the last one). Immutable: ``items``
-    is a tuple (any iterable passed in is copied into one).
+    is a tuple (any iterable passed in is copied into one). Keyword-only, and
+    not iterable: ``.items`` is the one way to the entries, as in TypeScript.
     """
 
     items: Tuple[T, ...]
     next_cursor: Optional[str] = None
 
-    def __init__(self, items: Iterable[T], next_cursor: Optional[str] = None) -> None:
+    def __init__(self, *, items: Iterable[T], next_cursor: Optional[str] = None) -> None:
         object.__setattr__(self, "items", tuple(items))
         object.__setattr__(self, "next_cursor", next_cursor)
-
-    def __iter__(self) -> Iterator[T]:
-        return iter(self.items)
 
 
 @dataclass(frozen=True, init=False)
@@ -342,6 +339,7 @@ class SearchResult(Generic[T]):
 
     def __init__(
         self,
+        *,
         items: Iterable[T],
         next_cursor: Optional[str] = None,
         total: int = 0,
@@ -353,9 +351,6 @@ class SearchResult(Generic[T]):
         object.__setattr__(self, "total", total)
         object.__setattr__(self, "total_relation", total_relation)
         object.__setattr__(self, "raw_total_relation", raw_total_relation)
-
-    def __iter__(self) -> Iterator[T]:
-        return iter(self.items)
 
 
 @dataclass(frozen=True)

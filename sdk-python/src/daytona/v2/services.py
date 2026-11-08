@@ -6,7 +6,6 @@ from __future__ import annotations
 import math
 import uuid
 from collections.abc import Sequence as SequenceABC
-from types import MappingProxyType
 from typing import (
     AsyncIterator,
     Awaitable,
@@ -292,7 +291,7 @@ class AsyncImagesService:
             params["limit"] = limit
         response = await self._transport.send(RequestSpec("GET", "/images", params=params))
         page = expect_images_page(response)
-        return ListResult([parse_image(item) for item in page.images], page.next_cursor)
+        return ListResult(items=[parse_image(item) for item in page.images], next_cursor=page.next_cursor)
 
     async def iter(
         self,
@@ -410,7 +409,9 @@ class AsyncSnapshotsService:
             params["limit"] = limit
         response = await self._transport.send(RequestSpec("GET", "/snapshots", params=params))
         page = expect_list_snapshots_resp(response)
-        return ListResult([parse_snapshot(item) for item in page.snapshots], page.next_cursor)
+        return ListResult(
+            items=[parse_snapshot(item) for item in page.snapshots], next_cursor=page.next_cursor
+        )
 
     async def iter(
         self,
@@ -481,7 +482,7 @@ class AsyncVolumesService:
             params["limit"] = limit
         response = await self._transport.send(RequestSpec("GET", "/volumes", params=params))
         page = expect_list_volumes_resp(response)
-        return ListResult([_volume(volume) for volume in page.volumes], page.next_cursor)
+        return ListResult(items=[_volume(volume) for volume in page.volumes], next_cursor=page.next_cursor)
 
     async def iter(
         self,
@@ -634,7 +635,9 @@ class AsyncReservationsService:
         page = _expect_model_from_dict(
             response, ReservationPage, "reservation list response", ReservationPage.model_validate
         )
-        return ListResult([_mac_reservation(item) for item in page.reservations], page.next_cursor)
+        return ListResult(
+            items=[_mac_reservation(item) for item in page.reservations], next_cursor=page.next_cursor
+        )
 
     async def iter(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
@@ -738,9 +741,9 @@ def _volume(value: VolumeWire) -> Volume:
         size_gib=value.size_gib,
         error=value.error,
         last_used_at=value.last_used_at,
-        options=MappingProxyType(json_object_from_mapping(value.options))
-        if value.options is not None
-        else None,
+        # A plain dict owned by this volume (read-only to type checkers), so
+        # asdict / deepcopy / pickle / json.dumps work on the model.
+        options=json_object_from_mapping(value.options) if value.options is not None else None,
         used_bytes=value.used_bytes,
         used_bytes_at=value.used_bytes_at,
     )
@@ -831,7 +834,9 @@ class AsyncSecretsService:
             params["limit"] = limit
         response = await self._transport.send(RequestSpec("GET", "/secrets", params=params))
         payload = expect_list_secrets_resp(response)
-        return ListResult([secret_from_wire(item) for item in payload.secrets], payload.next_cursor)
+        return ListResult(
+            items=[secret_from_wire(item) for item in payload.secrets], next_cursor=payload.next_cursor
+        )
 
     async def iter(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None

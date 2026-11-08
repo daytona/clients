@@ -23,8 +23,8 @@ describe('secret metadata', () => {
       data: config.url === '/secrets' ? { secrets: [wire], next_cursor: null } : wire }) })
     // When
     const result = await operation(new SecretsService(INTERNAL, http))
-    // Then
-    expect(result).toEqual(expected)
+    // Then: strict, so the description null -> undefined mapping is checked.
+    expect(result).toStrictEqual(expected)
   })
 
   it('sends a readonly domain list and creation guard when setting a secret', async () => {

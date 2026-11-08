@@ -453,12 +453,12 @@ class AsyncFileSystemService:
             RequestSpec("GET", "/files/search", params={"path": path, "pattern": pattern})
         )
         if isinstance(payload, list):
-            return ListResult([str(item) for item in payload], None)
+            return ListResult(items=[str(item) for item in payload])
         obj = expect_object(payload)
         raw = obj.get("items") if isinstance(obj.get("items"), list) else obj.get("files")
         items = [str(item) for item in raw] if isinstance(raw, list) else []
         next_cursor = obj.get("nextCursor") or obj.get("next_cursor")
-        return ListResult(items, str(next_cursor) if isinstance(next_cursor, str) else None)
+        return ListResult(items=items, next_cursor=str(next_cursor) if isinstance(next_cursor, str) else None)
 
     async def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult:
         """Replace text in files."""
