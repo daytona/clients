@@ -590,9 +590,12 @@ skipping exist only in the TypeScript tool).
   `INTERNAL` token from `src/v2/internal.ts` (not reachable through the
   package `exports`) and throw a `TypeError` without it; their published
   declaration is `constructor(token: Internal, ...init: never[])` (the real
-  signature is `@internal`), so no `.d.ts` names an internal construction
-  input (`tests/public-declarations.test.ts`). Tests import the token from
-  the module.
+  signature is `@internal`): it names only the opaque `Internal` token type,
+  never the internal transport or wire inputs (`HttpTransport`,
+  `ComputerUseTransport`, axios, generated types), which
+  `tests/public-declarations.test.ts` checks in the emitted declarations,
+  with an `ALLOWED` list for classes of other areas. Tests import the token
+  from the module.
 - **Watches are callback-only.** `watch_dir(path, on_event, ...)` /
   `watchDir(path, onEvent, ...)`: callbacks run one at a time and are
   awaited; a failing event or overflow callback ends the watch with that

@@ -574,7 +574,8 @@ and pty handles, `delete()` (stopping it first if running; a running interpreter
 execution, or a session command that does not stop within 5 s, is refused:
 delete its context or session), signal-aware `kill()` with escalation,
 `resize()` and a websocket `attach()`. `streamLogs()` yields one
-`StreamLogEvent` per server event, each carrying its resume `cursor`
+`StreamLogEvent` per server event of a supported type (an event of another
+type is skipped), each carrying its resume `cursor`, and stops after `eof`
 (`StreamLogFrameEvent`, `StreamLogStateEvent`, `StreamLogWarningEvent`,
 `StreamLogEofEvent`, told apart by `type`); a stream error throws its typed
 error and a stream cut short throws `ConnectionError`. An iteration that ends
@@ -725,7 +726,7 @@ exported from `@daytona/sdk/v2`) with its requests.
 `lsp.start(languageId, pathToProject)` returns an `LspServer` handle with
 `openDocument()`, `closeDocument()`, `completions(uri, position, { context })`,
 `documentSymbols()`, `workspaceSymbols()` and `stop()`. A completion item's
-`documentation` is a string or an `LspMarkupContent`.
+`documentation` is absent, a string or an `LspMarkupContent`.
 `computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a

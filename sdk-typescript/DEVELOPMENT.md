@@ -113,7 +113,9 @@ must preserve `manifestId: null` rather than optionalizing it.
   built-in global `WebSocket` (Node 22.4+); the package's floor is Node 22.15,
   which the bundled v0's OpenTelemetry 3.x dependencies declare. Public
   `executionTimeoutSeconds` is translated to the API's `timeoutMs` (whole
-  milliseconds, rounded up, by `secondsToMs` in `ProcessWire.ts`) only on the
+  milliseconds, rounded up, by `exactMs` in `ProcessWire.ts`; a value above
+  the timer maximum, checked first by `aboveTimerMaximum`, omits it: no
+  deadline) only on the
   process routes that support a server-managed kill deadline; code execution
   stays client-timed and interrupts on expiry instead.
 - `interpreter`: one-shot `run()` (`kind:"code"`) and stateful contexts.
@@ -232,9 +234,11 @@ directly (`new ProcessService(INTERNAL, transport, 'sbx')`). The real
 signature is an `/** @internal */` overload (removed by `stripInternal`); the
 published one is `constructor(token: Internal, ...init: never[])`, so no
 declaration names `HttpTransport`, `ComputerUseTransport` or another internal
-input. `tests/public-declarations.test.ts` emits the declarations and holds
-every public class to that (its `ALLOWED` list of the other areas only
-shrinks).
+input. `tests/public-declarations.test.ts` emits the declarations and fails
+when a public class member names one of a selected set of leaked types (the
+transports and their options, axios types, `ProcessBinding`,
+`ContextExecutionQueue`, generated `api.` / `toolbox.` types); classes of
+other areas that still do are on its `ALLOWED` list, which only shrinks.
 
 ## Verification
 

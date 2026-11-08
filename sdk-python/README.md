@@ -628,7 +628,8 @@ or `"until_cleanup"`, not `"none"`.
 `stream_logs()`, `wait()`, `write_stdin()`, `close_stdin()`, signal-aware `kill()`,
 `delete()` and `resize()`. `write_stdin()` / `close_stdin()` are for exec and
 PTY handles only. `stream_logs()` yields one `StreamLogEvent` per server
-event, each carrying its resume `cursor`: `StreamLogFrameEvent` (a
+event of a supported type (an event of another type is skipped), each
+carrying its resume `cursor`, and stops after the `eof` event: `StreamLogFrameEvent` (a
 `LogFrame` on `.frame`), `StreamLogStateEvent` (the process ended),
 `StreamLogWarningEvent` (older frames were evicted) and `StreamLogEofEvent`;
 a stream error raises its typed error and a stream cut short raises
@@ -783,7 +784,7 @@ exported from `daytona.v2`) with its requests.
 `open_document(uri)`, `close_document(uri)`, `completions(uri, position,
 context=LspCompletionContext(...))`, `document_symbols(uri)`,
 `workspace_symbols(query)` and `stop()`. A completion item's `documentation`
-is a plain string or an `LspMarkupContent`.
+is `None`, a plain string or an `LspMarkupContent`.
 `computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
