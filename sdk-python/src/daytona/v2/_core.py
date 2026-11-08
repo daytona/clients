@@ -227,21 +227,36 @@ def error_from_response(status_code: int, body: bytes) -> DaytonaError:
 
 
 def is_json_value(value: object) -> TypeGuard[JsonValue]:
-    """Structural check for a decoded JSON value, iterative so a deeply nested
-    response value cannot exhaust the stack."""
-    pending: List[object] = [value]
+    """Structural check for a JSON value. Iterative, so a deeply nested value
+    cannot exhaust the stack; a list or dict that contains itself is not
+    JSON, and one shared by several parents is checked once."""
+    # id -> False while a container's children are being checked, True after.
+    checked: Dict[int, bool] = {}
+    pending: List[Tuple[object, bool]] = [(value, False)]
     while pending:
-        item = pending.pop()
+        item, leaving = pending.pop()
+        if leaving:
+            checked[id(item)] = True
+            continue
         if isinstance(item, (str, int, float, bool)) or item is None:
             continue
-        if isinstance(item, list):
-            pending.extend(item)
-        elif isinstance(item, dict):
+        if not isinstance(item, (list, dict)):
+            return False
+        state = checked.get(id(item))
+        if state is not None:
+            if state:
+                continue
+            return False
+        children: Iterable[object]
+        if isinstance(item, dict):
             if not all(isinstance(key, str) for key in item):
                 return False
-            pending.extend(item.values())
+            children = item.values()
         else:
-            return False
+            children = item
+        checked[id(item)] = False
+        pending.append((item, True))
+        pending.extend((child, False) for child in children)
     return True
 
 
@@ -304,7 +319,9 @@ _ContainerField = Tuple[str, str, Optional[type]]
 @functools.cache
 def _container_fields(model_type: type) -> Tuple[_ContainerField, ...]:
     """The list, map and nested-model fields of a generated model, read from
-    its field types."""
+    its field types. A oneOf wrapper (a model holding ``actual_instance``) is
+    no nested object: its value may be a string or a list, which the model
+    itself decides."""
     found: List[_ContainerField] = []
     model_fields = getattr(model_type, "model_fields", {})
     for name, info in model_fields.items():
@@ -319,15 +336,23 @@ def _container_fields(model_type: type) -> Tuple[_ContainerField, ...]:
         origin = typing.get_origin(annotation)
         args = typing.get_args(annotation)
         inner = args[-1] if args else None
-        inner_model = inner if isinstance(inner, type) and issubclass(inner, BaseModel) else None
+        inner_model = inner if _plain_model(inner) else None
         key = info.alias or name
         if origin is list:
             found.append((key, "list", inner_model))
         elif origin is dict:
             found.append((key, "dict", inner_model))
-        elif isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        elif _plain_model(annotation):
             found.append((key, "model", annotation))
     return tuple(found)
+
+
+def _plain_model(annotation: object) -> TypeGuard[type]:
+    return (
+        isinstance(annotation, type)
+        and issubclass(annotation, BaseModel)
+        and "actual_instance" not in annotation.model_fields
+    )
 
 
 # A field's path as a parent-linked chain, rendered only for an error, so a
@@ -345,11 +370,13 @@ def _render_path(path: _FieldPath) -> str:
 
 
 def _check_container_fields(value: JsonObject, model_type: type, description: str) -> None:
-    """Every list or map field of a generated model, nested models included,
-    has its JSON shape before the model decodes it: the generated
-    ``from_dict`` iterates whatever is there (``{}`` or ``""`` would become
-    ``[]``, a number a raw ``TypeError``). Walks the payload with an explicit
-    stack, never recursing."""
+    """Every list, map and nested-object field of a generated model, nested
+    models included, has its JSON shape before the model decodes it, named in
+    the error: the generated ``from_dict`` iterates whatever is there (``{}``
+    or ``""`` would become ``[]``, a number a raw ``TypeError``), and a nested
+    model's own error would not name the field. Field values themselves are
+    left to the models. Walks the payload with an explicit stack, never
+    recursing."""
     stack: List[Tuple[Mapping[str, JsonValue], type, _FieldPath]] = [(value, model_type, None)]
     while stack:
         raw, model, parent = stack.pop()
@@ -386,8 +413,16 @@ def _check_container_fields(value: JsonObject, model_type: type, description: st
                         for name, element in item.items()
                         if isinstance(element, dict)
                     )
-            elif isinstance(item, dict) and inner is not None:
-                stack.append((item, inner, path))
+            elif isinstance(item, dict):
+                if inner is not None:
+                    stack.append((item, inner, path))
+            else:
+                raise create_error(
+                    f"expected {description}: {_render_path(path)} must be an object",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
 
 
 LIFECYCLE_DURATION_FIELDS: Tuple[str, ...] = ("timeout_seconds", "idle_expiry_seconds")

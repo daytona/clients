@@ -6690,6 +6690,46 @@ def test_interpreter_result_json_check_survives_deeply_nested_sandbox_output() -
     assert _is_json_value({"bad": object()}) is False
 
 
+def _is_json_value_within(value: object, seconds: float = 5.0) -> bool:
+    """is_json_value(value), run in a thread so a walk that never ends fails
+    the test instead of hanging it."""
+    import threading
+
+    from daytona.v2._core import is_json_value
+
+    outcome: list[bool] = []
+    worker = threading.Thread(target=lambda: outcome.append(is_json_value(value)), daemon=True)
+    worker.start()
+    worker.join(seconds)
+    assert outcome, f"is_json_value did not finish within {seconds} s"
+    return outcome[0]
+
+
+def test_is_json_value_refuses_a_cycle_and_accepts_shared_acyclic_values() -> None:
+    import json
+    import time
+
+    cyclic_list: list[object] = [1]
+    cyclic_list.append(cyclic_list)
+    cyclic_dict: dict[str, object] = {"a": 1}
+    cyclic_dict["self"] = {"inner": [cyclic_dict]}
+    assert _is_json_value_within(cyclic_list) is False
+    assert _is_json_value_within(cyclic_dict) is False
+
+    shared: dict[str, object] = {"x": [1, 2]}
+    value = {"a": shared, "b": shared, "c": [shared, shared]}
+    json.dumps(value)  # valid JSON: a shared sub-value is not a cycle
+    assert _is_json_value_within(value) is True
+
+    # 24 dicts each referencing the next twice: 2^24 paths, checked once each.
+    chain: dict[str, object] = {"leaf": True}
+    for _ in range(24):
+        chain = {"left": chain, "right": chain}
+    started = time.monotonic()
+    assert _is_json_value_within(chain) is True
+    assert time.monotonic() - started < 1
+
+
 def test_interpreter_output_nested_past_the_json_decoder_limit_is_the_malformed_response_error() -> None:
     from daytona.v2.interpreter import _parse_error, _parse_output
 

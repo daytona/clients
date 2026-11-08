@@ -1989,3 +1989,31 @@ async def test_a_recording_duration_that_is_not_a_finite_number_is_a_malformed_r
 
     with pytest.raises(BadRequestError, match="durationSeconds must be a number"):
         await cu.recording.list()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("malformed", ["x", 42, []])
+async def test_a_nested_object_field_that_is_not_an_object_is_a_malformed_response_naming_it(
+    malformed: JsonValue,
+) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    process = AsyncProcessService(
+        "sbx", Transport([_process(state="terminal", reason="exited", logs=malformed)])
+    )  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="expected process response: logs must be an object") as info:
+        await process.run("true")
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+    screenshot: JsonValue = {"screenshot": "a", "sizeBytes": 1, "cursorPosition": malformed}
+    cu = AsyncComputerUseService(Transport([screenshot]))  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="cursorPosition must be an object"):
+        await cu.screen.screenshot(show_cursor=True)
+
+
+def test_a_one_of_field_keeps_its_non_object_values() -> None:
+    from daytona.v2._core import _check_container_fields
+    from daytona.v2._gen.toolbox import CompletionItem
+
+    # documentation is a string or a markup object: the model decides.
+    _check_container_fields({"label": "x", "documentation": "plain text"}, CompletionItem, "completion item")
