@@ -1,0 +1,41 @@
+changelog.d/535-cli-installer-channels.changed.md
+  s_4d9fba4bce0dac::t_0d3a5814399fe3 7
+AGENTS.md
+  s_4d9fba4bce0dac::t_0d3a5814399fe3 186
+docs/VERSIONING.md
+  s_4d9fba4bce0dac::t_84185425129bd3 194-198
+  s_4d9fba4bce0dac::t_0d3a5814399fe3 189
+cli/install.sh
+  s_4d9fba4bce0dac::t_0d3a5814399fe3 16,143
+cli/install.ps1
+  s_4d9fba4bce0dac::t_0d3a5814399fe3 14,68
+cli/install_select_test.go
+  s_4d9fba4bce0dac::t_0d3a5814399fe3 140,275,486
+docs/RELEASING.md
+  s_4d9fba4bce0dac::t_1263e0273e5648 109-110,124-125,133-134,351-360
+cli/README.md
+  s_4d9fba4bce0dac::t_0d3a5814399fe3 25
+docs/adr/0003-cli.md
+  s_4d9fba4bce0dac::t_0d3a5814399fe3 46
+cli/install_test.go
+  s_4d9fba4bce0dac::t_4f3d02fb125de6 203-221
+cli/hack/homebrew/README.md
+  s_4d9fba4bce0dac::t_1263e0273e5648 29-31
+  s_4d9fba4bce0dac::t_3c43aa1eb0825b 33-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0f3a19e839d6866a81b2557a1190d1852c2d6bab",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
