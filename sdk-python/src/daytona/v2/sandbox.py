@@ -51,7 +51,7 @@ from ._core import (
     sandbox_state,
     wait_budget_seconds,
 )
-from ._events import WaitHub, WaitOutcome, _TargetPredicate, endpoint_from_headers, region_of
+from ._events import WaitHub, WaitOutcome, _TargetPredicate, endpoint_from_headers, region_of, wait_query_key
 from ._gen.api import (
     Sandbox as SandboxDto,
 )
@@ -843,18 +843,21 @@ class AsyncSandbox:
         wait: SandboxWaitState | None = None,
         wait_timeout_ms: int | None = None,
         deadline: Optional[float] = None,
+        exact: bool = False,
     ) -> None:
         """Read the sandbox's metadata; with ``wait``, as one long-poll slice.
 
         ``deadline`` (a ``_clock.monotonic()`` instant) is the caller's wait
         deadline: the read never outlives it, and a read the deadline cut is the
         wait running out (:class:`RequestTimeoutError`, source ``SDK``), as in
-        TypeScript's ``refreshDataWithin``.
+        TypeScript's ``refreshDataWithin``. ``exact`` holds the long poll with
+        ``wait_exact`` instead of ``wait`` (a wait for ``destroyed`` alone,
+        :func:`wait_query_key`).
         """
         api = self._require_api()
         params: Dict[str, JsonValue] = {}
         if wait is not None:
-            params["wait"] = _wait_query_state(wait)
+            params["wait_exact" if exact else "wait"] = _wait_query_state(wait)
         root = getattr(api, "request_timeout_seconds", 0) or 0
         request_timeout = timeout if timeout is None or root <= 0 else min(timeout, root)
         if wait_timeout_ms is not None:
@@ -960,6 +963,10 @@ class AsyncSandbox:
         terminal_state_set = frozenset(terminal_states)
         wait_target = states[0] if len(target_states) == 1 else None
         effective_terminal = terminal_state_set - ({"destroying"} if "destroyed" in target_states else set())
+        exact = (
+            wait_target is not None
+            and wait_query_key(_wait_query_state(wait_target), effective_terminal) == "wait_exact"
+        )
 
         hub = self._events_hub()
         if hub is not None and hub.enabled:
@@ -1001,6 +1008,7 @@ class AsyncSandbox:
                     wait=wait_target,
                     wait_timeout_ms=ms if wait_target is not None else None,
                     deadline=deadline,
+                    exact=exact,
                 )
                 last_poll_end = _clock.monotonic()
                 refreshed_by_poll = True
@@ -1025,6 +1033,8 @@ class AsyncSandbox:
                     on_observed=_on_observed,
                 )
             except SandboxTerminalStateError as error:
+                # What the handle last read, before the report overwrites it.
+                seen = (self.state, self.raw_state, self.error)
                 self._update(state=error.state)
                 if error.raw_state is not None:
                     self._update(raw_state=error.raw_state)
@@ -1040,7 +1050,9 @@ class AsyncSandbox:
                     or error.state == "destroyed"
                     or (remaining is not None and remaining <= 0)
                 ):
-                    raise
+                    raise _terminal_error_with_reason(
+                        self.id, error, seen if refreshed_by_poll else None
+                    ) from None
                 try:
                     await self._refresh_data_within(timeout=remaining, deadline=deadline)
                 except NotFoundError:
@@ -1054,7 +1066,9 @@ class AsyncSandbox:
                 if self.state in target_states:
                     return
                 if self.state in effective_terminal:
-                    raise SandboxTerminalStateError(self.id, self.state, raw_state=self.raw_state) from None
+                    raise _sandbox_terminal_state_error(
+                        self.id, self.state, raw_state=self.raw_state or None, reason=self.error
+                    ) from None
                 # Neither a target nor terminal: the hub's report was stale.
                 # Poll for the rest of the budget, under the same deadline.
             else:
@@ -1079,7 +1093,9 @@ class AsyncSandbox:
                 if self.state in target_states:
                     return
                 if self.state in effective_terminal:
-                    raise _sandbox_terminal_state_error(self.id, self.state)
+                    raise _sandbox_terminal_state_error(
+                        self.id, self.state, raw_state=self.raw_state or None, reason=self.error
+                    )
             remaining_timeout = None if deadline is None else deadline - _clock.monotonic()
             if remaining_timeout is not None and remaining_timeout <= 0:
                 raise create_error(
@@ -1102,12 +1118,15 @@ class AsyncSandbox:
                 wait=wait_target,
                 wait_timeout_ms=wait_timeout_ms if wait_target is not None else None,
                 deadline=deadline,
+                exact=exact,
             )
             fresh = True
             if self.state in target_states:
                 return
             if self.state in effective_terminal:
-                raise _sandbox_terminal_state_error(self.id, self.state)
+                raise _sandbox_terminal_state_error(
+                    self.id, self.state, raw_state=self.raw_state or None, reason=self.error
+                )
             elapsed = _clock.monotonic() - poll_started
             if elapsed < WAIT_FOR_STATE_MIN_INTERVAL_S:
                 pause = WAIT_FOR_STATE_MIN_INTERVAL_S - elapsed
@@ -2260,8 +2279,34 @@ def _wait_query_state(state: SandboxWaitState) -> str:
             raise AssertionError(f"unexpected wait state: {unreachable}")
 
 
-def _sandbox_terminal_state_error(sandbox_id: str, state: SandboxState) -> Exception:
-    return SandboxTerminalStateError(sandbox_id, state)
+def _terminal_error_with_reason(
+    sandbox_id: str,
+    error: SandboxTerminalStateError,
+    seen: Optional[tuple[Optional[SandboxState], str, Optional[str]]],
+) -> SandboxTerminalStateError:
+    """The terminal error a hub report raises when no read confirms it.
+
+    ``seen`` is the state, wire status and reason of the full read the
+    reported state came from (``None`` when it came from a socket frame).
+    When that read shows the reported state and wire status, name the
+    server's explanation for it (why a deletion did not finish, say).
+    `failed` and `lost` share the public `error`; matching the wire status
+    too keeps one's explanation from labelling the other.
+    """
+    if seen is None or error.reason is not None:
+        return error
+    state, raw_state, reason = seen
+    if not reason or state != error.state or (error.raw_state is not None and raw_state != error.raw_state):
+        return error
+    return SandboxTerminalStateError(
+        sandbox_id, error.state, raw_state=error.raw_state or raw_state or None, reason=reason
+    )
+
+
+def _sandbox_terminal_state_error(
+    sandbox_id: str, state: SandboxState, *, raw_state: Optional[str] = None, reason: Optional[str] = None
+) -> Exception:
+    return SandboxTerminalStateError(sandbox_id, state, raw_state=raw_state, reason=reason)
 
 
 def _sandbox_access_token_from_payload(payload: JsonObject) -> SandboxAccessToken:

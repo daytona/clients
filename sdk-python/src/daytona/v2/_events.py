@@ -25,6 +25,7 @@ from typing import (
     Dict,
     Final,
     FrozenSet,
+    Iterable,
     List,
     Literal,
     Mapping,
@@ -213,6 +214,25 @@ def _predicate_fallback_wait_state(predicate: _Predicate) -> Optional[str]:
         if s in predicate.states:
             return wire
     return None
+
+
+# The terminal states the exact ``wait_exact=deleted`` long poll still answers
+# on: ``deleted`` itself and ``failed``/``lost`` (public ``error``).
+_EXACT_DELETED_ANSWERS: FrozenSet[str] = frozenset({"destroyed", "error"})
+
+
+def wait_query_key(wire_state: str, terminal_states: Iterable[str]) -> str:
+    """The query parameter that long-polls for ``wire_state`` in a wait that
+    rejects on ``terminal_states``.
+
+    ``deleted`` uses the exact form: the loose ``wait=deleted`` is already met
+    by ``deleting``, so a deletion that takes a while to finish would answer
+    every poll at once instead of holding it. The exact form answers on
+    ``failed`` and ``lost`` too, but on no other state, so a wait that also
+    rejects on another state keeps the loose form and sees it at once."""
+    if wire_state == "deleted" and set(terminal_states) <= _EXACT_DELETED_ANSWERS:
+        return "wait_exact"
+    return "wait"
 
 
 # ---------------------------------------------------------------------------
@@ -685,17 +705,19 @@ class WaitHub:
             if sandbox_id in sock.subscriptions and sandbox_id not in sock.snapshot_pending
             else None
         )
-        have_snapshot = held is not None
-        if have_snapshot:
-            verdict = _evaluate(predicate, held, sandbox_id)  # type: ignore[arg-type]
+        if held is not None:
+            verdict = _evaluate(predicate, held, sandbox_id)
             if verdict == "resolve":
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
-                return WaitOutcome(held, sock.raw_states.get(sandbox_id, ""))  # type: ignore[arg-type]
+                return WaitOutcome(held, sock.raw_states.get(sandbox_id, ""))
             if verdict == "reject":
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
-                raise SandboxTerminalStateError(sandbox_id, held)  # type: ignore[arg-type]
+                # The wire status the hub holds with the state, as TypeScript.
+                raise SandboxTerminalStateError(
+                    sandbox_id, held, raw_state=sock.raw_states.get(sandbox_id) or None
+                )
         waiter.registered_at = _clock.monotonic()
 
         if sandbox_id not in sock.subscriptions:
@@ -782,7 +804,7 @@ class WaitHub:
             )
             params: Dict[str, Union[str, int]] = {}
             if wait_wire is not None:
-                params["wait"] = wait_wire
+                params[wait_query_key(wait_wire, predicate.terminal_states)] = wait_wire
                 params["timeout_ms"] = slice_ms
             poll_start = _clock.monotonic()
             data = expect_object(
@@ -802,7 +824,10 @@ class WaitHub:
             if result == "resolve":
                 return WaitOutcome(state, raw)
             if result == "reject":
-                raise SandboxTerminalStateError(sandbox_id, state)
+                reason = data.get("error")
+                raise SandboxTerminalStateError(
+                    sandbox_id, state, raw_state=raw, reason=reason if isinstance(reason, str) else None
+                )
             elapsed = _clock.monotonic() - poll_start
             if elapsed < _FALLBACK_MIN_INTERVAL_S:
                 pause = _FALLBACK_MIN_INTERVAL_S - elapsed
@@ -1585,7 +1610,7 @@ async def _run_poll_loop(
         if result == "resolve":
             return outcome
         if result == "reject":
-            raise SandboxTerminalStateError(sandbox_id, outcome.state)
+            raise SandboxTerminalStateError(sandbox_id, outcome.state, raw_state=outcome.raw_state or None)
 
 
 # ---------------------------------------------------------------------------

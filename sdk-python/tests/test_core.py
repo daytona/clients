@@ -7798,6 +7798,176 @@ async def test_sandbox_wait_for_destroyed_treats_destroying_as_progress(monkeypa
     assert exc_info.value.state == "destroying"
 
 
+# The wait engine's long polls and terminal errors (carried from main into
+# this engine): a wait for `destroyed` alone holds `wait_exact=deleted`, and a
+# terminal error carries the read's wire status and the server's reason.
+class _RejectingHub:
+    enabled = True
+
+    async def wait(self, *args: object, **kwargs: object) -> object:
+        raise SandboxTerminalStateError("sbx", "error", raw_state="failed")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("call", ["wait", "delete"])
+async def test_sandbox_wait_for_destroyed_holds_an_exact_long_poll_and_names_a_failed_deletion(
+    monkeypatch, call: str
+) -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    failed = _sandbox_detail_payload("sbx", "failed")
+    failed["error"] = "sandbox deletion did not finish"
+    api = RecordingTransport(
+        ([{}] if call == "delete" else []) + [_sandbox_detail_payload("sbx", "deleting"), failed]
+    )
+    bind_api(client, api)
+    monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
+    sandbox = lazy_sandbox(client, "sbx")
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        if call == "wait":
+            await sandbox.wait(until="destroyed", timeout=10)
+        else:
+            await sandbox.delete(timeout=10)
+
+    reads = [spec for spec in api.specs if spec.method == "GET"]
+    # `wait=deleted` is already met by `deleting`, so every poll would answer at
+    # once while the deletion finishes; the exact form holds it.
+    assert [spec.params.get("wait_exact") for spec in reads] == ["deleted", "deleted"]
+    assert all("wait" not in spec.params for spec in reads)
+    assert exc_info.value.state == "error"
+    assert exc_info.value.raw_state == "failed"
+    assert exc_info.value.reason == "sandbox deletion did not finish"
+    assert str(exc_info.value) == "sandbox sbx reached terminal state error: sandbox deletion did not finish"
+    assert sandbox.error == "sandbox deletion did not finish"
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_keeps_other_targets_on_the_loose_long_poll() -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport([_sandbox_detail_payload("sbx", "running")])
+    bind_api(client, api)
+    await lazy_sandbox(client, "sbx").wait(until="started", timeout=10)
+    assert api.specs[0].params.get("wait") == "running"
+    assert "wait_exact" not in api.specs[0].params
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_names_the_server_reason_after_a_hub_rejection() -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    failed = _sandbox_detail_payload("sbx", "failed")
+    failed["error"] = "sandbox deletion did not finish"
+    api = RecordingTransport([failed])
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait(until="destroyed", timeout=10)
+
+    assert exc_info.value.state == "error"
+    assert exc_info.value.raw_state == "failed"
+    assert exc_info.value.reason == "sandbox deletion did not finish"
+    assert str(exc_info.value).endswith(": sandbox deletion did not finish")
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_raises_the_state_the_confirming_read_found_with_its_reason() -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    # A late finish turned the row deleted between the frame and the read: the
+    # read decides, so the error is the read's state with the read's reason.
+    moved_on = _sandbox_detail_payload("sbx", "deleted")
+    moved_on["error"] = "stale"
+    api = RecordingTransport([moved_on])
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait(until="started", timeout=10)
+
+    assert (exc_info.value.state, exc_info.value.raw_state, exc_info.value.reason) == (
+        "destroyed",
+        "deleted",
+        "stale",
+    )
+    assert str(exc_info.value) == "sandbox sbx reached terminal state destroyed: stale"
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_for_destroyed_keeps_the_loose_long_poll_for_another_terminal_state() -> None:
+    # The exact form answers only on deleted, failed and lost: a wait that also
+    # rejects on stopped must keep the loose form to see stopped at once.
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport([_sandbox_detail_payload("sbx", "stopped")])
+    bind_api(client, api)
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await lazy_sandbox(client, "sbx")._wait_for_state(["destroyed"], ["stopped", "error"], timeout=10)
+    assert (exc_info.value.state, exc_info.value.raw_state) == ("stopped", "stopped")
+    assert api.specs[0].params.get("wait") == "deleted"
+    assert "wait_exact" not in api.specs[0].params
+
+
+@pytest.mark.anyio
+async def test_sandbox_read_without_exact_keeps_the_loose_wait() -> None:
+    # Only a wait for `destroyed` alone holds the exact form; a plain long-poll
+    # read for `destroyed` keeps `wait`.
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport([_sandbox_detail_payload("sbx", "deleting")])
+    bind_api(client, api)
+    await lazy_sandbox(client, "sbx")._refresh_data_within(wait="destroyed", wait_timeout_ms=1000)
+    assert api.specs[0].params.get("wait") == "deleted"
+    assert "wait_exact" not in api.specs[0].params
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_never_labels_a_failed_report_with_a_lost_reason() -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    # `failed` and `lost` both read as public `error`: the read decides, so the
+    # error is the read's `lost`, with lost's explanation, never `failed` with it.
+    lost = _sandbox_detail_payload("sbx", "lost")
+    lost["error"] = "the host stopped responding"
+    api = RecordingTransport([lost])
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait(until="destroyed", timeout=10)
+
+    assert (exc_info.value.state, exc_info.value.raw_state) == ("error", "lost")
+    assert exc_info.value.reason == "the host stopped responding"
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_never_attaches_a_reason_it_did_not_just_read() -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    # The follow-up read fails; the handle still holds an explanation from an
+    # earlier read, which says nothing about this outcome.
+    earlier = _sandbox_detail_payload("sbx", "failed")
+    earlier["error"] = "an earlier start failure"
+    api = RecordingTransport(
+        [earlier, create_error("unavailable", 503, "SERVICE_UNAVAILABLE", "DAYTONA_API")]
+    )
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    await sandbox.refresh_data()
+    assert sandbox.error == "an earlier start failure"
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait(until="destroyed", timeout=10)
+
+    assert len(api.specs) == 2
+    assert exc_info.value.reason is None
+    assert str(exc_info.value) == "sandbox sbx reached terminal state error"
+
+
+def test_sandbox_terminal_state_error_without_a_reason_keeps_its_message() -> None:
+    error = SandboxTerminalStateError("sbx", "error", reason="")
+    assert str(error) == "sandbox sbx reached terminal state error"
+    assert error.reason is None
+
+
 @pytest.mark.anyio
 async def test_sandbox_wait_for_state_updates_the_cached_terminal_state_before_raising() -> None:
     class _RejectingHub:
@@ -8945,8 +9115,9 @@ async def test_delete_by_id_waits_until_destroyed_and_counts_a_404_as_done():
     await client.delete("sb-123", timeout=10)
     assert [spec.method for spec in api.specs] == ["DELETE", "GET", "GET"]
     assert all(spec.path == "/sandboxes/sb-123" for spec in api.specs)
-    # The wait long-polls for the destroyed state.
-    assert api.specs[1].params["wait"] == "deleted"
+    # The wait holds its long poll for the destroyed state exactly.
+    assert api.specs[1].params["wait_exact"] == "deleted"
+    assert "wait" not in api.specs[1].params
 
     handle = lazy_sandbox(client, "sb-456")
     handle._api = RecordingTransport([{}, _sandbox_detail_payload("sb-456", "deleted")])  # type: ignore[attr-defined]

@@ -169,17 +169,30 @@ class SandboxTerminalStateError(ConflictError):
     """A lifecycle wait (``wait()``, ``start()``, ``stop()``, ...) saw the sandbox reach a terminal state first.
 
     ``state`` is the observed public sandbox state (e.g. ``"destroyed"``).
+    ``reason`` is the server's explanation of that state, when it gave one
+    (for example why a deletion did not finish); the message ends with it.
     """
 
-    def __init__(self, sandbox_id: str, state: SandboxState, *, raw_state: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        sandbox_id: str,
+        state: SandboxState,
+        *,
+        raw_state: Optional[str] = None,
+        reason: Optional[str] = None,
+    ) -> None:
+        message = f"sandbox {sandbox_id} reached terminal state {state}"
+        if reason:
+            message = f"{message}: {reason}"
         super().__init__(
-            f"sandbox {sandbox_id} reached terminal state {state}",
+            message,
             status_code=409,
             code="CONFLICT",
             source="SDK",
         )
         self.state: SandboxState = state
         self.raw_state: Optional[str] = raw_state
+        self.reason: Optional[str] = reason or None
 
 
 class PreconditionFailedError(DaytonaError):

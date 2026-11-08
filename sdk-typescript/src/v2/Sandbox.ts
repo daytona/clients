@@ -540,7 +540,7 @@ export class Sandbox {
     await this.refreshDataWithin()
   }
 
-  private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState, requestDeadline?: number): Promise<void> {
+  private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState, requestDeadline?: number, exact = false): Promise<void> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const waitValue = waitQueryState(wait)
     // A long poll is governed by the wait budget, not the request timeout:
@@ -550,7 +550,7 @@ export class Sandbox {
     const rootMs = typeof rootTimeout === 'number' && rootTimeout > 0 ? rootTimeout : Infinity
     const hold = waitValue === undefined ? undefined : Math.ceil(timeout ?? WAIT_FOR_STATE_SLICE_MS)
     const config = hold !== undefined
-      ? { timeout: hold + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: hold } }
+      ? { timeout: hold + WAIT_READ_SLACK_MS, params: { [exact ? 'wait_exact' : 'wait']: waitValue, timeout_ms: hold } }
       : timeout === undefined ? undefined : { timeout: Math.min(timeout, rootMs) }
     const remaining = requestDeadline === undefined ? undefined : requestDeadline - Date.now()
     if (remaining !== undefined && remaining <= 0) {
@@ -675,10 +675,11 @@ export class Sandbox {
       id: this.id,
       region: this.region,
       hub: this._hub,
-      read: async (timeoutMs, wait, requestDeadline) => {
-        await this.refreshDataWithin(timeoutMs, wait, requestDeadline)
-        return { state: this.state ?? 'unknown', rawState: this.rawState ?? '' }
+      read: async (timeoutMs, wait, requestDeadline, exact) => {
+        await this.refreshDataWithin(timeoutMs, wait, requestDeadline, exact)
+        return { state: this.state ?? 'unknown', rawState: this.rawState ?? '', reason: this.error }
       },
+      current: () => ({ state: this.state ?? 'unknown', rawState: this.rawState ?? '', reason: this.error }),
       observe: (outcome) => {
         this.observed.state = outcome.state
         this.observed.rawState = outcome.rawState

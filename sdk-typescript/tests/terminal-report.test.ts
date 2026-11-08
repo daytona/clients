@@ -4,7 +4,8 @@
  */
 
 import { createHttpClient } from '../src/v2/http'
-import { WaitHub } from '../src/v2/events'
+import { WaitHub, runPollLoop } from '../src/v2/events'
+import type { WaitOutcome } from '../src/v2/events'
 import { SandboxTerminalStateError } from '../src/v2/errors/DaytonaError'
 import { createSandbox } from './helpers/sandbox'
 import { sentRequest, startFakeApi } from './networkPolicyTestServer'
@@ -104,4 +105,55 @@ it('keeps the reported terminal state for a 404 outside a delete', async () => {
   if (outcome.ok) throw new Error('expected the wait to throw')
   expect(outcome.error).toBeInstanceOf(SandboxTerminalStateError)
   expect(outcome.error).toMatchObject({ state: 'error' })
+})
+
+// Every terminal error raised from a read of the sandbox carries that read's
+// wire status as `rawState` and the server's explanation as `reason`.
+it.each(['off', 'on'] as const)('carries the wire status and reason of a polled terminal state (hub %s)', async (hubMode) => {
+  const api = await startFakeApi([{ status: 200, body: { ...detail('failed'), error: 'why' } }])
+  try {
+    const http = createHttpClient(api.url, 'key')
+    let hub: WaitHub | undefined
+    if (hubMode === 'on') {
+      hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, http)
+      // Decides from its poll function, as the real hub's fallback does.
+      jest.spyOn(hub, 'wait').mockImplementation(async (id, predicate, options) => runPollLoop(id, predicate, { deadline: undefined, fn: options!.sandboxPollFn! }))
+    }
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'booting' }, http, undefined, 'key', undefined, {}, undefined, undefined, hub)
+    const error: unknown = await sandbox.wait({ until: 'started', timeoutSeconds: 5 }).catch((caught: unknown) => caught)
+    expect(sentRequest(api, 1, 0).method).toBe('GET')
+    expect(error).toBeInstanceOf(SandboxTerminalStateError)
+    expect(error).toMatchObject({ state: 'error', rawState: 'failed', reason: 'why' })
+    expect((error as Error).message.endsWith(': why')).toBe(true)
+    expect([sandbox.state, sandbox.rawState]).toEqual(['error', 'failed'])
+  } finally {
+    await api.close()
+  }
+})
+
+it('raises a held failed report confirmed by a read with that read\'s reason', async () => {
+  const { outcome } = await run([{ status: 200, body: {} }, { status: 200, body: { ...detail('failed'), error: 'deletion did not finish' } }], 'delete')
+  if (outcome.ok) throw new Error('expected the delete to throw')
+  expect(outcome.error).toMatchObject({ state: 'error', rawState: 'failed', reason: 'deletion did not finish' })
+})
+
+it.each([['lost', 'failed'], ['failed', 'lost']] as const)('never labels a %s reason onto a %s report', async (read, reported) => {
+  // The state came from a full read (the hub's poll), so no confirming read
+  // follows; the handle's reason belongs to `read`, not to the reported status.
+  const api = await startFakeApi([{ status: 200, body: { ...detail(read), error: `${read} reason` } }])
+  try {
+    const http = createHttpClient(api.url, 'key')
+    const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, http)
+    jest.spyOn(hub, 'wait').mockImplementation(async (id, _predicate, options): Promise<WaitOutcome> => {
+      await options!.sandboxPollFn!()
+      throw new SandboxTerminalStateError(id, 'error', { rawState: reported })
+    })
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'booting' }, http, undefined, 'key', undefined, {}, undefined, undefined, hub)
+    const error: unknown = await sandbox.wait({ until: 'started', timeoutSeconds: 5 }).catch((caught: unknown) => caught)
+    expect(sentRequest(api, 1, 0).method).toBe('GET')
+    expect(error).toMatchObject({ rawState: reported })
+    expect((error as { reason?: string }).reason).toBeUndefined()
+  } finally {
+    await api.close()
+  }
 })

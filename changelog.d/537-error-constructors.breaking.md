@@ -21,8 +21,9 @@ idempotency key, as Python does, and a server 408 on it stays a
 `build_error` is the image's recorded build error, when it has one, separate
 from `message` (TypeScript used to copy the message into it). TypeScript
 `BuildLogInterruptedError` takes `(message, { cursor, code, … })`, and
-`SandboxTerminalStateError` takes `(sandboxId, state, { rawState })` (Python
-`raw_state=` is keyword-only; `rawState` was positional). A TypeScript
+`SandboxTerminalStateError` takes `(sandboxId, state, { rawState, reason })`
+(Python `raw_state=` / `reason=` are keyword-only; `rawState` was
+positional). A TypeScript
 error constructor given a second argument that is not an options object
 (`new NotFoundError('x', 404)` from plain JavaScript) throws `BadRequestError`
 instead of dropping it, and reads every enumerable field of the options,

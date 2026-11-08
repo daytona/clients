@@ -19,12 +19,13 @@ hub reports is confirmed with one read while the wait has budget left, unless
 that state already came from a full read or is `destroyed` (without that read,
 or when it fails, the reported state raises); the read decides, in both SDKs:
 a target state returns (for `delete()` a 404 too), a terminal state raises
-with the read state, and any other state keeps waiting under the same
-deadline, so a `delete()` right after a sandbox ended in `error` returns once
-the sandbox is gone. Once the target state has been observed, a failed
-metadata refresh afterwards no longer turns that success into an error. The
-lifecycle methods no longer refuse calls by sandbox class or persistence
-before sending them: the API decides. `wait_for_state()` / `waitForState()` is
-no longer public: use `wait(until=...)`, whose states are checked before any
-request (an invalid one is a `BadRequestError`). Python `wait(timeout=None)`
-is gone: pass `0` to wait without a deadline.
+with the read state, its wire status (`raw_state` / `rawState`) and the
+server's `reason`, and any other state keeps waiting under the same deadline,
+so a `delete()` right after a sandbox ended in `error` returns once the
+sandbox is gone. Once the target state has been observed, a failed metadata
+refresh afterwards no longer turns that success into an error. The lifecycle
+methods no longer refuse calls by sandbox class or persistence before sending
+them: the API decides. `wait_for_state()` / `waitForState()` is no longer
+public: use `wait(until=...)`, whose states are checked before any request (an
+invalid one is a `BadRequestError`). Python `wait(timeout=None)` is gone: pass
+`0` to wait without a deadline.

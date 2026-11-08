@@ -224,3 +224,84 @@ async def test_a_stale_error_snapshot_on_the_real_hub_ends_the_delete_once_the_s
 async def _until(predicate: Callable[[], bool]) -> None:
     while not predicate():
         await asyncio.sleep(0.01)
+
+
+# Every terminal error raised from a read of the sandbox carries that read's
+# wire status as `raw_state` and the server's explanation as `reason`.
+
+
+class _PollingHub:
+    """A hub that decides from its poll function, as the real hub's fallback does."""
+
+    enabled = True
+
+    async def wait(self, sandbox_id: str, predicate: object, **kwargs: object) -> WaitOutcome:
+        from daytona.v2._events import _Predicate, _run_poll_loop
+
+        poll = kwargs["sandbox_poll_fn"]
+        assert isinstance(predicate, _Predicate) and callable(poll)
+        return await _run_poll_loop(sandbox_id, predicate, deadline=None, fn=poll)
+
+
+@pytest.mark.parametrize("hub", ["off", "on"])
+async def test_a_polled_terminal_state_carries_its_wire_status_and_reason(
+    monkeypatch: pytest.MonkeyPatch, hub: str
+) -> None:
+    failed = _detail("failed")
+    failed["error"] = "why"
+    with FakeApi([PlannedResponse(200, failed)]) as fake:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
+        monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "0")
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = lazy_sandbox(root.v2, "sbx")
+            if hub == "on":
+                sandbox._hub = _PollingHub()  # type: ignore[assignment]
+            with pytest.raises(SandboxTerminalStateError) as raised:
+                await sandbox.wait(until="started", timeout=5)
+    assert len(fake.requests) == 1
+    assert (raised.value.state, raised.value.raw_state, raised.value.reason) == ("error", "failed", "why")
+    assert str(raised.value).endswith(": why")
+    assert (sandbox.state, sandbox.raw_state) == ("error", "failed")
+
+
+async def test_a_held_failed_report_confirmed_by_a_read_with_a_reason_raises_with_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    failed = _detail("failed")
+    failed["error"] = "deletion did not finish"
+    with pytest.raises(SandboxTerminalStateError) as raised:
+        await _run(monkeypatch, [PlannedResponse(200, {}), PlannedResponse(200, failed)])
+    assert (raised.value.state, raised.value.raw_state, raised.value.reason) == (
+        "error",
+        "failed",
+        "deletion did not finish",
+    )
+
+
+@pytest.mark.parametrize(("read", "reported"), [("lost", "failed"), ("failed", "lost")])
+async def test_a_reason_read_for_one_wire_status_never_labels_the_other(
+    monkeypatch: pytest.MonkeyPatch, read: str, reported: str
+) -> None:
+    # The state came from a full read (the hub's poll), so no confirming read
+    # follows; the handle's reason belongs to `read`, not to the `reported`
+    # status, so the error carries none.
+    class _ReportingHub:
+        enabled = True
+
+        async def wait(self, sandbox_id: str, predicate: object, **kwargs: object) -> WaitOutcome:
+            poll = kwargs["sandbox_poll_fn"]
+            assert callable(poll)
+            await poll()
+            raise SandboxTerminalStateError(sandbox_id, "error", raw_state=reported)
+
+    detail = _detail(read)
+    detail["error"] = f"{read} reason"
+    with FakeApi([PlannedResponse(200, detail)]) as fake:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = lazy_sandbox(root.v2, "sbx")
+            sandbox._hub = _ReportingHub()  # type: ignore[assignment]
+            with pytest.raises(SandboxTerminalStateError) as raised:
+                await sandbox.wait(until="started", timeout=5)
+    assert len(fake.requests) == 1
+    assert (raised.value.raw_state, raised.value.reason) == (reported, None)

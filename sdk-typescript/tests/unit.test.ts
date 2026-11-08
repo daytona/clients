@@ -2661,6 +2661,142 @@ describe('V2 model', () => {
     await expect(other.wait({ until: 'started', timeoutSeconds: 10 })).rejects.toMatchObject({ state: 'destroying' })
   })
 
+  // The wait engine's long polls and terminal errors (carried from main into
+  // this engine): a wait for `destroyed` alone holds `wait_exact=deleted`, and
+  // a terminal error carries the read's wire status and the server's reason.
+  const wire = (status: string, extra: Record<string, unknown> = {}) => ({ data: { id: 'sbx', class: 'linux', status, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], ...extra } })
+  const engine = (sandbox: Sandbox) => sandbox as unknown as { waitForState(states: readonly string[], options: { timeoutSeconds?: number; terminalStates?: readonly string[] }): Promise<void> }
+
+  it.each(['wait', 'delete'] as const)('holds an exact long poll for destroyed and names a failed deletion (%s)', async (call) => {
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const sandbox = createSandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    jest.spyOn(api, 'delete').mockResolvedValue({ data: {}, headers: {} })
+    const get = jest.spyOn(api, 'get')
+      .mockResolvedValueOnce(wire('deleting'))
+      .mockResolvedValueOnce(wire('failed', { error: 'sandbox deletion did not finish' }))
+    const waiting = (call === 'wait' ? sandbox.wait({ until: 'destroyed', timeoutSeconds: 10 }) : sandbox.delete({ timeoutSeconds: 10 })).then(() => undefined, (e: unknown) => e)
+    await jest.advanceTimersByTimeAsync(200)
+    const error = await waiting
+    expect(error).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+    expect(error).toMatchObject({ state: 'error', rawState: 'failed', reason: 'sandbox deletion did not finish' })
+    expect((error as Error).message).toBe('sandbox sbx reached terminal state error: sandbox deletion did not finish')
+    expect(sandbox.error).toBe('sandbox deletion did not finish')
+    // `wait=deleted` is already met by `deleting`, so every poll would answer
+    // at once while the deletion finishes; the exact form holds it.
+    expect(get).toHaveBeenCalledTimes(2)
+    for (const getCall of get.mock.calls) {
+      const params = (getCall[1] as { params?: Record<string, unknown> } | undefined)?.params
+      expect(params).toMatchObject({ wait_exact: 'deleted' })
+      expect(params).not.toHaveProperty('wait')
+    }
+  })
+
+  it('keeps other targets on the loose long poll', async () => {
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, undefined, 'key')
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce(wire('running'))
+    await sandbox.wait({ until: 'started', timeoutSeconds: 10 })
+    const params = (get.mock.calls[0]?.[1] as { params?: Record<string, unknown> } | undefined)?.params
+    expect(params).toMatchObject({ wait: 'running' })
+    expect(params).not.toHaveProperty('wait_exact')
+  })
+
+  it('names the reason of the state the confirming read finds after a hub rejection', async () => {
+    const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
+    process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
+    const sandbox = createSandbox({ id: 'sbx', status: 'deleting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const get = jest.spyOn(api, 'get')
+      .mockResolvedValueOnce(wire('failed', { error: 'sandbox deletion did not finish' }))
+      // A late finish turned the row deleted between the frame and the read:
+      // the read decides, so the error is the read's state with the read's reason.
+      .mockResolvedValueOnce(wire('deleted', { error: 'stale' }))
+    jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error', { rawState: 'failed' }))
+    try {
+      const named = await sandbox.wait({ until: 'destroyed', timeoutSeconds: 1 }).then(() => undefined, (e: unknown) => e)
+      expect(named).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      expect(named).toMatchObject({ state: 'error', rawState: 'failed', reason: 'sandbox deletion did not finish' })
+
+      const moved = await sandbox.wait({ until: 'started', timeoutSeconds: 1 }).then(() => undefined, (e: unknown) => e)
+      expect(moved).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      expect(moved).toMatchObject({ state: 'destroyed', rawState: 'deleted', reason: 'stale' })
+      expect((moved as Error).message).toBe('sandbox sbx reached terminal state destroyed: stale')
+    } finally {
+      get.mockRestore()
+      if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
+      else process.env['DAYTONA_SANDBOX_EVENTS'] = savedEnv
+    }
+  })
+
+  it('keeps the loose long poll for destroyed when another terminal state is named', async () => {
+    // The exact form answers only on deleted, failed and lost: a wait that also
+    // rejects on stopped must keep the loose form to see stopped at once.
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const sandbox = createSandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce(wire('stopped'))
+    await expect(engine(sandbox).waitForState(['destroyed'], { terminalStates: ['stopped', 'error'], timeoutSeconds: 10 })).rejects.toMatchObject({ state: 'stopped', rawState: 'stopped' })
+    const params = (get.mock.calls[0]?.[1] as { params?: Record<string, unknown> } | undefined)?.params
+    expect(params).toMatchObject({ wait: 'deleted' })
+    expect(params).not.toHaveProperty('wait_exact')
+  })
+
+  it('never labels a failed report with a lost reason', async () => {
+    const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
+    process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
+    const sandbox = createSandbox({ id: 'sbx', status: 'deleting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    // `failed` and `lost` both read as public `error`: the read decides, so the
+    // error is the read's `lost`, with lost's explanation, never `failed` with it.
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce(wire('lost', { error: 'the host stopped responding' }))
+    jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error', { rawState: 'failed' }))
+    try {
+      const error = await sandbox.wait({ until: 'destroyed', timeoutSeconds: 1 }).then(() => undefined, (e: unknown) => e)
+      expect(error).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      expect(error).toMatchObject({ state: 'error', rawState: 'lost', reason: 'the host stopped responding' })
+    } finally {
+      get.mockRestore()
+      if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
+      else process.env['DAYTONA_SANDBOX_EVENTS'] = savedEnv
+    }
+  })
+
+  it('never attaches a reason it did not just read after a hub rejection', async () => {
+    const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
+    process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
+    // The handle holds an explanation from an earlier read, which says
+    // nothing about this outcome; the follow-up read fails.
+    const sandbox = createSandbox({ id: 'sbx', status: 'failed', error: 'an earlier start failure' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_API' }))
+    jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error', { rawState: 'failed' }))
+    try {
+      const error = await sandbox.wait({ until: 'destroyed', timeoutSeconds: 1 }).then(() => undefined, (e: unknown) => e)
+      expect(error).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      expect(get).toHaveBeenCalledTimes(1)
+      expect((error as { reason?: string }).reason).toBeUndefined()
+      expect((error as Error).message).toBe('sandbox sbx reached terminal state error')
+    } finally {
+      get.mockRestore()
+      if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
+      else process.env['DAYTONA_SANDBOX_EVENTS'] = savedEnv
+    }
+  })
+
+  it('SandboxTerminalStateError without a reason keeps its message', () => {
+    const error = new publicSdk.SandboxTerminalStateError('sbx', 'error', { rawState: 'failed', reason: '' })
+    expect(error.message).toBe('sandbox sbx reached terminal state error')
+    expect(error.reason).toBeUndefined()
+  })
+
   it('updates the cached state before rethrowing a hub terminal-state rejection', async () => {
     const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
     process.env['DAYTONA_SANDBOX_EVENTS'] = '1'

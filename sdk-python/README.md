@@ -849,7 +849,9 @@ lifecycle state. `until` also accepts a list of states. The default is
 `started`, with a 60-second budget; `timeout=0`, or a value above about
 24.8 days (the timer maximum), waits without a deadline. Running out raises `RequestTimeoutError`; a terminal state (`destroying`,
 `destroyed`, `error`) reached first raises `SandboxTerminalStateError`, with
-the observed public state as `error.state`.
+the observed public state as `error.state` and the wire status as
+`error.raw_state`. When the server explains that state, the explanation is
+`error.reason` and ends the error message.
 
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` take `timeout=`
 (seconds) with the same default and unbounded form. They wait for
@@ -868,9 +870,22 @@ ends. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk and settle at `started` or `stopped`.
 
-After sandbox deletion completes, deleting its image or snapshot can still
-raise `ConflictError` while references are being released. Handle that
-conflict when cleaning up those resources.
+`sandbox.delete()` and `d.v2.delete(sandbox)` wait until the sandbox is
+`destroyed` (a 404 while waiting counts as destroyed). A sandbox with volumes
+attached stays `destroying` until the platform has finished with its volumes:
+usually seconds, but minutes when a lot of volume data is written at the end,
+so give `delete(timeout=600)` a budget that covers it. If that takes too
+long, the sandbox reports `error` and the wait raises
+`SandboxTerminalStateError`; when the server explains why the deletion did not
+finish, that is its `reason`. Such a sandbox can still reach `destroyed`
+later. To keep waiting for it, catch the error, pause for a few seconds and
+call `sandbox.wait(until="destroyed", timeout=600)`: while the sandbox still
+reports `error`, the call raises again at once.
+
+Deleting the image or snapshot immediately afterwards can still raise
+`ConflictError` (409) while references are being released. A missing sandbox
+during `wait()` raises `NotFoundError`; only `delete()` maps a 404 to
+`destroyed`.
 
 ## Errors
 

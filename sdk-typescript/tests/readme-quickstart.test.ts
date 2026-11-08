@@ -38,7 +38,7 @@ it('runs the README quickstart through registry readiness, named create, exec an
     {},
     { code: 'NOT_FOUND', message: 'deleted' },
   ]
-  const requests: { readonly method: string | undefined; readonly path: string; readonly wait: string | null; readonly body: unknown }[] = []
+  const requests: { readonly method: string | undefined; readonly path: string; readonly wait: string | null; readonly waitExact: string | null; readonly body: unknown }[] = []
   let base = ''
   const server = createServer((request, response) => {
     let body = ''
@@ -46,7 +46,7 @@ it('runs the README quickstart through registry readiness, named create, exec an
     request.on('data', (chunk: string) => { body += chunk })
     request.on('end', () => {
       const url = new URL(request.url ?? '/', base)
-      requests.push({ method: request.method, path: url.pathname, wait: url.searchParams.get('wait'), body: body ? JSON.parse(body) : undefined })
+      requests.push({ method: request.method, path: url.pathname, wait: url.searchParams.get('wait'), waitExact: url.searchParams.get('wait_exact'), body: body ? JSON.parse(body) : undefined })
       const payload = responses.shift()
       const status = requests.length === 9 ? 404 : 200
       response.writeHead(payload === undefined ? 500 : status, { 'Content-Type': 'application/json' })
@@ -67,7 +67,7 @@ it('runs the README quickstart through registry readiness, named create, exec an
     await run(require, { log: (...values: unknown[]) => output.push(values) }, {})
 
     // Then only a ready image is used, and delete has observed disappearance before returning.
-    expect(requests.map(({ method, path, wait }) => ({ method, path, wait }))).toEqual([
+    expect(requests.map(({ method, path, wait, waitExact }) => ({ method, path, wait, ...(waitExact === null ? {} : { waitExact }) }))).toEqual([
       { method: 'POST', path: '/images', wait: null },
       { method: 'GET', path: '/images/img-pull', wait: null },
       { method: 'GET', path: '/images/img-pull', wait: 'ready' },
@@ -76,7 +76,8 @@ it('runs the README quickstart through registry readiness, named create, exec an
       { method: 'POST', path: '/sandboxes/sbx-quickstart/access-token', wait: null },
       { method: 'POST', path: '/sandbox-api/sbx-quickstart/processes', wait: null },
       { method: 'DELETE', path: '/sandboxes/sbx-quickstart', wait: null },
-      { method: 'GET', path: '/sandboxes/sbx-quickstart', wait: 'deleted' },
+      // delete() holds its long poll for `deleted` exactly.
+      { method: 'GET', path: '/sandboxes/sbx-quickstart', wait: null, waitExact: 'deleted' },
     ])
     expect(requests[0]?.body).toMatchObject({ name: 'py312', source: { type: 'registry', ref: 'python:3.12' } })
     expect(requests[4]?.body).toMatchObject({ image: 'py312' })

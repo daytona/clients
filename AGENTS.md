@@ -694,7 +694,16 @@ skipping exist only in the TypeScript tool).
   the read decides: a target state returns (for delete a 404 too), a terminal
   state raises with the read state, and any other state keeps polling under
   the same deadline. Without that read, or when it fails, the reported state
-  raises. Once the target was observed, a failed
+  raises; when the reported state came from a full read that shows the same
+  state and wire status, the error names that read's reason. Every
+  `SandboxTerminalStateError` carries the wire status it knows as `raw_state`
+  / `rawState`, and one raised from a read the server's `reason` too
+  (`failed` and `lost` share the public `error`, so a reason read for one
+  never labels the other). A wait for `destroyed` whose terminal states are
+  only `destroyed` / `error` (`delete()`, `wait(until="destroyed")`) holds
+  its long polls with `wait_exact=deleted` (Python `wait_query_key`,
+  TypeScript `waitQueryKey`); the confirming read is a plain read. Once the
+  target was observed, a failed
   metadata refresh afterwards does not turn that success into an error.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
   return the handle however their `wait_seconds` / `waitSeconds` wait ends:

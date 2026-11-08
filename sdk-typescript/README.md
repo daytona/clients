@@ -780,7 +780,9 @@ Use `sandbox.wait({ until: 'started', timeoutSeconds: 120 })` to wait for a
 public lifecycle state. `until` also accepts an array of states. The default
 is `started`, with a 60-second budget; `timeoutSeconds: 0`, or a value above
 about 24.8 days (the timer maximum), waits without a deadline. Timeout throws `RequestTimeoutError`; a terminal state reached
-first throws `SandboxTerminalStateError`.
+first throws `SandboxTerminalStateError`, with the observed public state as
+`error.state` and the wire status as `error.rawState`. When the server explains
+that state, the explanation is `error.reason` and ends the error message.
 
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` accept
 `{ timeoutSeconds }` with the same default and unbounded form. They wait for
@@ -801,9 +803,23 @@ and an unexpected non-SDK error during the wait. A running Linux source produces
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk and settle at `started` or `stopped`.
 
-After sandbox deletion completes, deleting its image or snapshot can still
-throw `ConflictError` while references are being released. Handle that
-conflict when cleaning up those resources.
+`await sandbox.delete()` and `await daytona.v2.delete(sandbox)` wait until the
+sandbox is `destroyed` (a 404 while waiting counts as destroyed). A sandbox
+with volumes attached stays `destroying` until the platform has finished with
+its volumes: usually seconds, but minutes when a lot of volume data is written
+at the end, so give `delete({ timeoutSeconds: 600 })` a budget that covers it.
+If that takes too long, the sandbox reports `error` and the wait throws
+`SandboxTerminalStateError`; when the server explains why the deletion did not
+finish, that is its `reason`. Such a sandbox can still reach `destroyed`
+later. To keep waiting for it, catch the error, pause for a few seconds and
+call `sandbox.wait({ until: 'destroyed', timeoutSeconds: 600 })`: while the
+sandbox still reports `error`, the call throws again at once.
+
+Reaching `destroyed` does not guarantee that deleting an image or snapshot
+will succeed: deleting the image or snapshot immediately afterwards can still
+throw `ConflictError` (409) while references are being released. A missing
+sandbox during `wait()` throws `NotFoundError`; only `delete()` maps a 404 to
+`destroyed`.
 
 ## Errors
 
