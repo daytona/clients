@@ -10,21 +10,23 @@ highest ``vX.Y.Z`` with ``X >= 2`` and no pre-release suffix; with
 - the committed public-surface snapshots (``sdk-typescript/api-surface/``,
   ``sdk-python/api-surface/``, ``cli/api-surface/``, ``upgrade/api-surface/``):
   a removed declaration, command, flag, environment variable, report field or
-  value, or a changed signature or type that is not a
-  known-compatible change (an added optional parameter, a widened union, an
-  added base class);
+  value, or a changed signature or type that is not a known-compatible change
+  (an added optional parameter, an object type that gained optional members, a
+  widened union, an added base class, a flag that gained a shorthand or turned
+  persistent, hidden or deprecated, a usage that gained optional arguments);
 - ``contract/*.json``: the OpenAPI contracts with oasdiff (``ERR`` and
   ``WARN`` levels, such as a removed request parameter; enums the contract
-  tags ``x-daytona-open-enum`` may gain values), the error
-  catalogs (a changed source, a removed code, a changed status) and the other
-  contract files (a removed field, or a changed value outside the fields
-  listed as documentation).
+  tags ``x-daytona-open-enum`` may gain values) plus their embedded error
+  catalogs, the standalone error catalogs (a changed source, a removed code,
+  a changed status, a removed extra) and the other contract files (a removed
+  field, or a changed value outside the fields listed as documentation).
 
 A breaking change passes only when a ``changelog.d/*.breaking.md`` fragment
 announces it; the maintainer then decides the major bump. A change the check
 reports but that is in fact compatible goes into
 ``scripts/breaking/compatible-changes.txt`` instead, copied exactly as the
-check prints it, with a one-line reason; it then passes in every mode. With ``--base REV``
+check prints it, with a one-line reason; it then passes in every mode.
+With ``--base REV``
 (a pull request's base), only the breaking changes that are new since REV
 count, and the fragment must be added since REV; without it, every breaking
 change since the release counts and any unreleased breaking fragment
@@ -48,6 +50,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 from fnmatch import fnmatchcase
 from dataclasses import dataclass, field
@@ -122,8 +125,11 @@ def prerelease_tags(repo: str, token: str | None) -> set[str]:
             f"https://api.github.com/repos/{repo}/releases?per_page=100&page={page}",
             headers={"Accept": "application/vnd.github+json", **({"Authorization": f"Bearer {token}"} if token else {})},
         )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            releases = json.loads(response.read())
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                releases = json.loads(response.read())
+        except (OSError, ValueError) as error:
+            raise SystemExit(f"could not list the GitHub releases of {repo}: {error}") from None
         for release in releases:
             if release.get("prerelease") or release.get("draft"):
                 flagged.add(str(release.get("tag_name")))
@@ -250,8 +256,77 @@ def is_optional_param(param: str) -> bool:
     )
 
 
-def param_compatible(old: str, new: str) -> bool:
+def object_parts(text: str) -> list[str | list[str]]:
+    """``text`` cut into plain chunks and the member lists of the object
+    type literals in it (``{ a: T; b?: U; }``), at any depth."""
+    parts: list[str | list[str]] = []
+    start, i, quote = 0, 0, ""
+    while i < len(text):
+        ch = text[i]
+        if quote:
+            if ch == "\\":
+                i += 1
+            elif ch == quote:
+                quote = ""
+        elif ch in "'\"`":
+            quote = ch
+        elif ch == "{":
+            end = matching_paren(text, i)
+            if end < 0:
+                break
+            parts.append(text[start:i])
+            parts.append(split_top(text[i + 1 : end], ";"))
+            start = i = end + 1
+            continue
+        i += 1
+    parts.append(text[start:])
+    return parts
+
+
+def member_key(member: str) -> tuple[str, str]:
+    """``(name, type)`` of one object-literal member; the name keeps ``?``."""
+    depth, quote = 0, ""
+    for i, ch in enumerate(member):
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in "'\"`":
+            quote = ch
+        elif ch in OPENS:
+            depth += 1
+        elif ch in CLOSES and not (ch == ">" and member[i - 1 : i] == "="):
+            depth -= 1
+        elif ch == ":" and depth == 0:
+            return member[:i].strip(), member[i + 1 :].strip()
+    return member.strip(), ""
+
+
+def object_compatible(old: str, new: str) -> bool:
+    """``new`` equals ``old`` except that object type literals in it gained
+    optional members (members kept with the same optionality and a
+    compatible type)."""
     if old == new:
+        return True
+    old_parts, new_parts = object_parts(old), object_parts(new)
+    if len(old_parts) != len(new_parts) or len(old_parts) == 1:
+        return False
+    for a, b in zip(old_parts, new_parts):
+        if isinstance(a, str) or isinstance(b, str):
+            if a != b:
+                return False
+            continue
+        old_members = dict(member_key(m) for m in a)
+        new_members = dict(member_key(m) for m in b)
+        for name, kind in old_members.items():
+            if name not in new_members or not object_compatible(kind, new_members[name]):
+                return False
+        if any(not name.endswith("?") for name in set(new_members) - set(old_members)):
+            return False
+    return True
+
+
+def param_compatible(old: str, new: str) -> bool:
+    if old == new or object_compatible(old, new):
         return True
     if not is_optional_param(old) and new.startswith(old + " = "):
         return True  # a required parameter gained a default
@@ -271,7 +346,7 @@ def compatible_call(old: str, new: str) -> bool:
     if o < 0 or n < 0 or old[:o] != new[:n]:
         return False
     oc, nc = matching_paren(old, o), matching_paren(new, n)
-    if oc < 0 or nc < 0 or old[oc + 1 :] != new[nc + 1 :]:
+    if oc < 0 or nc < 0 or not object_compatible(old[oc + 1 :], new[nc + 1 :]):
         return False
     old_params, new_params = split_top(old[o + 1 : oc], ","), split_top(new[n + 1 : nc], ",")
     # Old parameters from here on are keyword-only (Python): an insertion
@@ -298,9 +373,83 @@ def union_members(detail: str) -> list[str]:
 CLASS_LINE = re.compile(r"([a-z][a-z ]*?) \((.*)\)")
 
 
+FLAG_LINE = re.compile(r"((?:[a-z]+ )*)flag (\S+)((?: -\S+(?: \(deprecated\))?)?)( required)? default=(.*)")
+COMMAND_LINE = re.compile(r"((?:[a-z]+ )*)command")
+# Still accepted: a flag or command that turned hidden or deprecated works.
+STILL_ACCEPTED = {"hidden", "deprecated"}
+
+
+def compatible_cli(old: str, new: str) -> bool:
+    """A CLI command or flag line that still accepts every old invocation:
+    hidden or deprecated now, a flag that gained a shorthand or became
+    persistent, or a usage that gained trailing optional arguments."""
+    o, n = COMMAND_LINE.fullmatch(old), COMMAND_LINE.fullmatch(new)
+    if o and n:
+        return set(n[1].split()) - set(o[1].split()) <= STILL_ACCEPTED and set(o[1].split()) <= set(n[1].split()) | STILL_ACCEPTED
+    o, n = FLAG_LINE.fullmatch(old), FLAG_LINE.fullmatch(new)
+    if o and n:
+        old_mods, new_mods = set(o[1].split()), set(n[1].split())
+        if o[2] != n[2] or o[5] != n[5] or (n[4] and not o[4]):
+            return False
+        if "persistent" in old_mods and "persistent" not in new_mods:
+            return False
+        if new_mods - old_mods - STILL_ACCEPTED - {"persistent"}:
+            return False
+        old_short, new_short = o[3].strip(), n[3].strip()
+        return not old_short or new_short in (old_short, f"{old_short} (deprecated)")
+    if old.startswith("usage") and new.startswith(old):
+        return re.fullmatch(r"(?: \[[^\[\]]*\](?:\.\.\.)?)+", new[len(old) :]) is not None
+    return False
+
+
+# A one-line union, Literal, tuple or set that grew past the one-line limit
+# prints as a head line plus one line per member.
+GROWN = (
+    (re.compile(r"type = (.*)"), ("type = union", "type = Literal"), "union-member"),
+    (re.compile(r"const (readonly )?\[(.*)\]"), ("const readonly tuple", "const tuple"), "tuple-element"),
+    (re.compile(r"const (frozenset|set|tuple|list)\((.*)\)"), None, "element"),
+)
+
+
+def grew_into_lines(old: str, news: list[str]) -> bool:
+    for pattern, heads, member_kind in GROWN:
+        match = pattern.fullmatch(old)
+        if not match:
+            continue
+        if member_kind == "union-member":
+            members = union_members(f"= {match[1]}")
+        else:
+            members = split_top(match[2], ",")
+        expected = heads or (f"const {match[1]}",)
+        if not any(head in news for head in expected):
+            continue
+        listed = {n.split(" ", 1)[1] for n in news if n.startswith(f"{member_kind} ")}
+        return bool(members) and set(members) <= listed
+    return False
+
+
+def moved_to_persistent_ancestor(key: str, rests: list[str], new: dict[str, list[str]]) -> bool:
+    """A CLI flag removed from a command but now a persistent flag of one of
+    its parents: the command still accepts it."""
+    match = re.fullmatch(r"(.+) --(\S+)", key)
+    if not match:
+        return False
+    path, flag = match[1], match[2]
+    old = FLAG_LINE.fullmatch(rests[0])
+    while " " in path:
+        path = path.rsplit(" ", 1)[0]
+        for rest in new.get(f"{path} --{flag}", []):
+            now = FLAG_LINE.fullmatch(rest)
+            if old and now and "persistent" in now[1].split() and old[2] == now[2] and old[5] == now[5]:
+                return True
+    return False
+
+
 def compatible_change(old: str, new: str) -> bool:
     """A known-compatible change of one line's rest (kind + signature)."""
-    if compatible_call(old, new):
+    if object_compatible(old, new) or compatible_call(old, new):
+        return True
+    if compatible_cli(old, new):
         return True
     old_kind, new_kind = old.split(" ", 1)[0], new.split(" ", 1)[0]
     # A union or Literal alias that only gained members.
@@ -336,6 +485,8 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             removed_keys.append(key)
             if all(informational(r) for r in old[key]):
                 report.notices.append(f"{name}: removed {key}: {old[key][0]}")
+            elif moved_to_persistent_ancestor(key, old[key], new):
+                report.notices.append(f"{name}: {key} now inherited from a parent's persistent flag")
             else:
                 report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}"))
             continue
@@ -347,7 +498,7 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                 report.notices.append(f"{name}: changed (not public API) {line}")
             elif rest.split(" ", 1)[0] in SET_KINDS:
                 report.breaking.append(snapshot_finding(name, line))
-            elif any(compatible_change(rest, candidate) for candidate in news):
+            elif grew_into_lines(rest, news) or any(compatible_change(rest, candidate) for candidate in news):
                 report.notices.append(f"{name}: compatible change of {line}")
             else:
                 added = [f"{key}: {r}" for r in news if r not in old[key]]
@@ -393,6 +544,31 @@ def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> t
         else:
             warnings.add(f"{path}: [{item.get('id')}] {where}: {item.get('text')}")
     return errors, warnings
+
+
+EMBEDDED_CATALOGS = ("x-daytona-error-codes", "x-daytona-generic-codes")
+
+
+def embedded_catalog_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
+    """The error catalogs an OpenAPI contract carries as extensions, which
+    oasdiff does not compare: a removed code, a changed status or source, a
+    removed extra."""
+    old_doc, new_doc = json.loads(old_text), json.loads(new_text)
+    found: set[Finding] = set()
+    for extension in EMBEDDED_CATALOGS:
+        old, new = old_doc.get(extension) or {}, new_doc.get(extension) or {}
+        for code, entry in old.items():
+            at = f"{extension}:{code}"
+            if code not in new:
+                found.add(contract_finding(path, "code-removed", at))
+                continue
+            for field_name, rule in (("status", "status-changed"), ("source", "source-changed")):
+                if entry.get(field_name) != new[code].get(field_name):
+                    change = f"{json.dumps(entry.get(field_name))} -> {json.dumps(new[code].get(field_name))}"
+                    found.add(contract_finding(path, rule, at, change))
+            for extra in set(map(str, entry.get("extras") or [])) - set(map(str, new[code].get("extras") or [])):
+                found.add(contract_finding(path, "extra-removed", at, extra))
+    return found
 
 
 def catalog_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
@@ -503,7 +679,7 @@ def findings(root: Path, baseline: str, side: str | None, oasdiff: Callable[[], 
             continue
         elif path in OPENAPI:
             errors, warnings = oasdiff_findings(oasdiff(), path, old_text, new_text)
-            found |= errors
+            found |= errors | embedded_catalog_findings(path, old_text, new_text)
             local.notices.extend(sorted(warnings))
         elif path in CATALOGS:
             found |= catalog_findings(path, old_text, new_text)
@@ -610,6 +786,8 @@ def main(argv: Sequence[str] | None = None, out: TextIO = sys.stdout) -> int:
     # Validated on every run, so a malformed entry fails before a release exists.
     acks = load_acknowledgments(root / ACKNOWLEDGMENTS)
     skip = prerelease_tags(args.github_repo, os.environ.get("GH_TOKEN")) if args.github_repo else set()
+    if not (args.baseline or args.fetch or git(root, "tag", "--list", "v*").stdout.strip()):
+        raise SystemExit("no release tags in this clone: fetch them (git fetch --tags) or pass --fetch origin")
     baseline = args.baseline or latest_stable_tag(root, args.fetch, skip)
     if baseline is not None and args.fetch:
         git(root, "fetch", "--quiet", "--no-tags", "--depth=1", args.fetch, f"+refs/tags/{baseline}:refs/tags/{baseline}")

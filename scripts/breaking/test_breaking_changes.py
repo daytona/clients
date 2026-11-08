@@ -81,6 +81,75 @@ class CompatibleCall(unittest.TestCase):
         self.assertFalse(bc.compatible_change("class (A, B)", "class (B)"))
 
 
+class InlineObjects(unittest.TestCase):
+    def test_options_object_gained_an_optional_member(self) -> None:
+        old = "method (path: string, options?: { depth?: number; }): Promise<FileInfo[]>"
+        self.assertTrue(
+            bc.compatible_change(old, old.replace("{ depth?: number; }", "{ depth?: number; followSymlinks?: boolean; }"))
+        )
+        self.assertFalse(bc.compatible_change(old, old.replace("{ depth?: number; }", "{ depth?: number; recursive: boolean; }")))
+        self.assertFalse(bc.compatible_change(old, old.replace("{ depth?: number; }", "{ }")))
+        self.assertFalse(bc.compatible_change(old, old.replace("depth?: number", "depth?: string")))
+        self.assertFalse(bc.compatible_change(old, old.replace("depth?: number", "depth: number")))
+
+    def test_one_line_alias_and_nested_property(self) -> None:
+        alias = "type = { id: string; name: string; } & { project: { id: string; }; }"
+        grown = "type = { id: string; name: string; label?: string | null; } & { project: { id: string; region?: string; }; }"
+        self.assertTrue(bc.compatible_change(alias, grown))
+        prop = "readonly property { images: { used: number; }; }"
+        self.assertTrue(bc.compatible_change(prop, "readonly property { images: { used: number; limit?: number; }; }"))
+        self.assertFalse(bc.compatible_change(prop, "readonly property { images: { limit?: number; }; }"))
+
+    def test_with_an_added_optional_parameter(self) -> None:
+        old = "method (options?: { a?: string; }): void"
+        self.assertTrue(bc.compatible_change(old, "method (options?: { a?: string; b?: number; }, signal?: AbortSignal): void"))
+
+    def test_strings_with_braces_are_not_objects(self) -> None:
+        self.assertFalse(bc.compatible_change("const '{ a }'", "const '{ a; b?: c }'"))
+
+
+class CliLines(unittest.TestCase):
+    def test_flag_changes_that_keep_old_invocations(self) -> None:
+        flag = 'flag string default="disk"'
+        for new in (
+            'flag string -t default="disk"',
+            'deprecated flag string default="disk"',
+            'hidden flag string default="disk"',
+            'persistent flag string default="disk"',
+        ):
+            with self.subTest(new=new):
+                self.assertTrue(bc.compatible_change(flag, new))
+        for new in (
+            'flag int default="disk"',
+            'flag string default="ssd"',
+            'flag string required default="disk"',
+        ):
+            with self.subTest(new=new):
+                self.assertFalse(bc.compatible_change(flag, new))
+        self.assertFalse(bc.compatible_change('flag string -t default=""', 'flag string -T default=""'))
+        self.assertFalse(bc.compatible_change('flag string -t default=""', 'flag string default=""'))
+        self.assertTrue(bc.compatible_change('flag string -t default=""', 'flag string -t (deprecated) default=""'))
+        self.assertFalse(bc.compatible_change('persistent flag bool default="false"', 'flag bool default="false"'))
+
+    def test_command_and_usage(self) -> None:
+        self.assertTrue(bc.compatible_change("command", "deprecated command"))
+        self.assertTrue(bc.compatible_change("command", "hidden command"))
+        self.assertTrue(bc.compatible_change("usage <id>", "usage <id> [path]"))
+        self.assertTrue(bc.compatible_change("usage", "usage [name]..."))
+        self.assertFalse(bc.compatible_change("usage <id>", "usage <id> <path>"))
+        self.assertFalse(bc.compatible_change("usage [id]", "usage <id>"))
+
+    def test_flag_moved_to_a_persistent_parent_flag(self) -> None:
+        old = 'daytona: command\ndaytona sandbox: command\ndaytona sandbox create: command\ndaytona sandbox create --wait: flag bool default="false"'
+        new = 'daytona: command\ndaytona --wait: persistent flag bool default="false"\ndaytona sandbox: command\ndaytona sandbox create: command'
+        report = bc.Report()
+        bc.compare_surface("cli.txt", old, new, report)
+        self.assertEqual(report.breaking, [])
+        report = bc.Report()
+        bc.compare_surface("cli.txt", old, new.replace("persistent flag", "flag"), report)
+        self.assertEqual(len(report.breaking), 1)
+
+
 class CompareSurface(unittest.TestCase):
     OLD = "\n".join(
         [
@@ -152,6 +221,28 @@ class CompareSurface(unittest.TestCase):
         report = self.compare(self.OLD.replace("report.mode: field string required", "report.mode: field string optional"))
         self.assertEqual(len(report.breaking), 1)
 
+    def test_member_list_grown_past_one_line(self) -> None:
+        cases = [
+            ("State: type = 'a' | 'b'", ["State: type = union", "State: union-member 'a'", "State: union-member 'b'", "State: union-member 'c'"]),
+            ("State: type = Literal['a', 'b']", ["State: type = Literal", "State: union-member 'a'", "State: union-member 'b'", "State: union-member 'c'"]),
+            ("CODES: const readonly ['A', 'B']", ["CODES: const readonly tuple", "CODES: tuple-element 'A'", "CODES: tuple-element 'B'", "CODES: tuple-element 'C'"]),
+            ("CODES: const frozenset('A', 'B')", ["CODES: const frozenset", "CODES: element 'A'", "CODES: element 'B'", "CODES: element 'C'"]),
+        ]
+        for old, new in cases:
+            with self.subTest(old=old):
+                report = bc.Report()
+                bc.compare_surface("s.txt", old, "\n".join(new), report)
+                self.assertEqual(report.breaking, [])
+                report = bc.Report()
+                bc.compare_surface("s.txt", old, "\n".join(line for line in new if "'b'" not in line and "'B'" not in line), report)
+                self.assertEqual(len(report.breaking), 1)
+
+    def test_public_constructor_field_order_swap_breaks(self) -> None:
+        old = "TerminalSize.__init__: constructor (cols: int, rows: int) -> None"
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, old.replace("cols: int, rows: int", "rows: int, cols: int"), report)
+        self.assertEqual(len(report.breaking), 1)
+
     def test_internal_constructor_is_a_notice(self) -> None:
         report = self.compare(self.OLD.replace("internal-constructor (a: string)", "internal-constructor (a: number)"))
         self.assertEqual(report.breaking, [])
@@ -181,6 +272,32 @@ class ContractFiles(unittest.TestCase):
         self.assertEqual([dict(f.fields)["rule"] for f in found], ["source-changed"])
 
     EVENTS = "contract/sandbox-events-protocol.json"
+
+    def test_embedded_catalogs(self) -> None:
+        old = {
+            "x-daytona-error-codes": {"A": {"status": 409, "source": "S", "extras": ["x"]}, "B": {"status": 404}},
+            "x-daytona-generic-codes": {"G": {"status": 400}},
+        }
+        grown = json.loads(json.dumps(old))
+        grown["x-daytona-error-codes"]["C"] = {"status": 400}
+        grown["x-daytona-error-codes"]["A"]["extras"].append("y")
+        self.assertEqual(bc.embedded_catalog_findings("api.json", json.dumps(old), json.dumps(grown)), set())
+        broken = {
+            "x-daytona-error-codes": {"A": {"status": 400, "source": "T", "extras": []}},
+            "x-daytona-generic-codes": {},
+        }
+        found = bc.embedded_catalog_findings("api.json", json.dumps(old), json.dumps(broken))
+        rules = sorted((dict(f.fields)["rule"], dict(f.fields)["at"]) for f in found)
+        self.assertEqual(
+            rules,
+            [
+                ("code-removed", "x-daytona-error-codes:B"),
+                ("code-removed", "x-daytona-generic-codes:G"),
+                ("extra-removed", "x-daytona-error-codes:A"),
+                ("source-changed", "x-daytona-error-codes:A"),
+                ("status-changed", "x-daytona-error-codes:A"),
+            ],
+        )
 
     def test_json(self) -> None:
         old = {
@@ -307,6 +424,25 @@ class Repository(RepoCase):
         self.assertEqual(code, 0)
         self.assertIn("no stable release yet", out)
 
+    def test_no_tags_at_all_is_an_error(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            self.run_check()
+        self.assertIn("no release tags", str(raised.exception))
+
+    def test_failing_release_listing_is_one_line(self) -> None:
+        def failing(request: object, timeout: float) -> object:
+            raise bc.urllib.error.URLError("unreachable")
+
+        original = bc.urllib.request.urlopen
+        bc.urllib.request.urlopen = failing  # type: ignore[assignment]
+        try:
+            with self.assertRaises(SystemExit) as raised:
+                bc.prerelease_tags("o/r", None)
+        finally:
+            bc.urllib.request.urlopen = original
+        self.assertIn("could not list the GitHub releases of o/r", str(raised.exception))
+        self.assertNotIn("\n", str(raised.exception))
+
     def test_latest_stable_tag(self) -> None:
         for tag in ("v0.230.0", "v2.0.0", "v2.1.0-rc.1", "v2.0.10", "v2.0.9"):
             self.git("tag", tag)
@@ -406,20 +542,20 @@ class Acknowledgments(RepoCase):
     RENAME = """
 - area: cli/api-surface/daytona.api.txt
   old: daytona --yes: flag bool default="false"
-  new: daytona --yes: flag bool -y default="false"
-  reason: only a shorthand was added
+  new: daytona --yes: flag bool default="true"
+  reason: the default only describes the prompt-free mode CI already uses
 """
 
     def acknowledge(self, text: str) -> None:
         self.write(bc.ACKNOWLEDGMENTS, "# header\n" + text)
 
-    def shorthand(self, short: str = "-y") -> None:
-        self.write("cli/api-surface/daytona.api.txt", f'daytona: command\ndaytona --yes: flag bool {short} default="false"\n')
+    def change_default(self, default: str = "true") -> None:
+        self.write("cli/api-surface/daytona.api.txt", f'daytona: command\ndaytona --yes: flag bool default="{default}"\n')
 
     def test_acknowledged_finding_passes_in_push_and_pr_mode(self) -> None:
         self.git("tag", "v2.0.0")
         base = self.git("rev-parse", "HEAD").strip()
-        self.shorthand()
+        self.change_default()
         code, out = self.run_check()
         self.assertEqual(code, 1, out)
         self.acknowledge(self.RENAME)
@@ -428,7 +564,7 @@ class Acknowledgments(RepoCase):
                 code, out = self.run_check(*args)
                 self.assertEqual(code, 0, out)
                 self.assertIn("acknowledged as compatible", out)
-                self.assertIn("reason: only a shorthand was added", out)
+                self.assertIn("reason: the default only describes the prompt-free mode CI already uses", out)
                 self.assertIn("No breaking change", out)
         # Push mode on the merged result: the base now carries it.
         self.commit("merged")
@@ -438,10 +574,10 @@ class Acknowledgments(RepoCase):
     def test_a_different_change_to_the_same_declaration_still_fails(self) -> None:
         self.git("tag", "v2.0.0")
         self.acknowledge(self.RENAME)
-        self.shorthand("-Y")
+        self.change_default("1")
         code, out = self.run_check()
         self.assertEqual(code, 1, out)
-        self.assertIn("new: daytona --yes: flag bool -Y", out)
+        self.assertIn('new: daytona --yes: flag bool default="1"', out)
         self.assertIn("matches no finding (stale", out)
 
     def test_contract_finding_is_acknowledged_by_rule_and_location(self) -> None:
@@ -466,11 +602,11 @@ class Acknowledgments(RepoCase):
 
     def test_malformed_entries_fail(self) -> None:
         cases = {
-            "no reason": self.RENAME.replace("  reason: only a shorthand was added\n", ""),
-            "empty reason": self.RENAME.replace("only a shorthand was added", " "),
+            "no reason": self.RENAME.replace("  reason: the default only describes the prompt-free mode CI already uses\n", ""),
+            "empty reason": self.RENAME.replace("the default only describes the prompt-free mode CI already uses", " "),
             "unknown key": self.RENAME.replace("  reason:", "  why: x\n  reason:"),
             "no area first": self.RENAME.replace("- area: cli/api-surface/daytona.api.txt\n  old:", "- old:"),
-            "snapshot without new": self.RENAME.replace('  new: daytona --yes: flag bool -y default="false"\n', ""),
+            "snapshot without new": self.RENAME.replace('  new: daytona --yes: flag bool default="true"\n', ""),
             "mixed kinds": self.RENAME.replace("  reason:", "  rule: x\n  reason:"),
             "duplicate": self.RENAME + self.RENAME,
             "stray line": "area: x\n",
