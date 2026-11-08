@@ -102,6 +102,17 @@ class ImageBuilder:
                 )
                 for key, entry_value in name_or_values.items()
             )
+            # Keys are stripped: two that collide afterwards would silently keep one.
+            seen: set[str] = set()
+            for key, _ in entries:
+                if key in seen:
+                    raise create_error(
+                        f"ImageBuilder.env key {json.dumps(key, ensure_ascii=False)} appears more than once after stripping",
+                        400,
+                        "BAD_REQUEST",
+                        "SDK",
+                    )
+                seen.add(key)
         else:
             raise create_error(
                 "ImageBuilder.env takes a name and a value, or a mapping of names to values",

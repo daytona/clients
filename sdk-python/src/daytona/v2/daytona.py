@@ -51,6 +51,7 @@ from ._core import (
     expect_object,
     finite_number,
     gib_to_mib,
+    header_text,
     image_options_body,
     lifecycle_body,
     page_params,
@@ -1040,8 +1041,9 @@ class AsyncDaytona:
         inclusive, ``*_start_at`` timestamp bounds are inclusive, and
         ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 strings or
         ``datetime`` objects (naive values are taken as UTC). ``sort`` defaults
-        to ``created_at`` and ``order`` to ``desc``; ``limit`` is clamped to
-        1..200 by the server. Returns a :class:`SearchResult` whose ``items``
+        to ``created_at`` and ``order`` to ``desc``; ``limit`` must be an
+        integer from 1 to 200, else :class:`BadRequestError` before any
+        request. Returns a :class:`SearchResult` whose ``items``
         are the same :class:`AsyncSandbox` handles :meth:`list` returns.
 
         Consistency: search is **eventually consistent**. Results may be briefly
@@ -1583,7 +1585,7 @@ def _resolve_idempotency_key(idempotency_key: Optional[str], name: CreateConfigV
     if idempotency_key is not None:
         if not isinstance(idempotency_key, str):
             raise create_error("idempotency_key must be a string", 400, "BAD_REQUEST", "SDK")
-        return idempotency_key
+        return header_text(idempotency_key, "idempotency_key")
     named = _named_create(name)
     if named is not None:
         return _idempotency_key_for_name(named)
@@ -1816,6 +1818,9 @@ def _create_wait_budget(config: CreateConfig) -> int:
 def _check_region(region: object) -> None:
     if region is not None and not isinstance(region, str):
         raise create_error("region must be a string", 400, "BAD_REQUEST", "SDK")
+    # It is sent as the x-daytona-region header.
+    if region is not None:
+        header_text(region, "region")
 
 
 def _validate_wait(wait_seconds: object) -> None:

@@ -23,11 +23,11 @@ the contract leaves the list item, as an unreadable one does. A response or
 events frame nested deeper than the JSON decoder can follow is a malformed
 response naming the response (Python) or skipped (an events frame), never a
 raw `RecursionError`, and nothing the SDK does with response data recurses
-without a bound. An integer a double cannot carry (Python read `10**400` that
-TypeScript's `JSON.parse` turns into `Infinity`) is refused in both SDKs,
-while an integer above 2^53 that a double carries (a search `total` of 2^60)
-is accepted in both. A required field the contract allows to be null (for
-example the project budget's `monthly_limit_cents`, `period_start_date`,
-`created_at` and `updated_at`) must be present, while an explicit `null` stays
-valid. Python no longer requires the per-item `cursor` of a list page; neither
-SDK reads it.
+without a bound. An integer too large for a double, which overflows to
+infinity (`10**400`; Python read it, TypeScript's `JSON.parse` turns it into
+`Infinity`), is refused in both SDKs; an integer above 2^53 within a double's
+range (2^53 + 1, a search `total` of 2^60) is accepted in both, and TypeScript
+may round it. A required field the contract allows to be null (for example the
+project budget's `monthly_limit_cents`, `period_start_date`, `created_at` and
+`updated_at`) must be present, while an explicit `null` stays valid. Python no
+longer requires the per-item `cursor` of a list page; neither SDK reads it.

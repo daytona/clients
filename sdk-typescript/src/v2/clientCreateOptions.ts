@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { headerText } from './pageParams.js'
 import { badRequest } from './options.js'
 import { gibToMib } from './resources.js'
 export { gibToMib } from './resources.js'
@@ -134,7 +135,7 @@ export function macosMib(gib: number | undefined, axis: 'memory' | 'disk', floor
 export function resolveIdempotencyKey(idempotencyKey: string | undefined): string | undefined {
   if (idempotencyKey == null) return undefined
   if (typeof idempotencyKey !== 'string') throw badRequest('idempotencyKey must be a string')
-  return idempotencyKey
+  return headerText(idempotencyKey, 'idempotencyKey')
 }
 
 /**
@@ -154,5 +155,7 @@ export function createRegion(options: { readonly region?: string }): string | un
   const resolved: unknown = options.region
   // `null` is Python's `None`: no region.
   if (resolved !== undefined && resolved !== null && typeof resolved !== 'string') throw badRequest('region must be a string')
+  // It is sent as the x-daytona-region header.
+  if (typeof resolved === 'string') headerText(resolved, 'region')
   return typeof resolved === 'string' && resolved !== '' && strip(resolved).toLowerCase() !== 'local' ? resolved : undefined
 }

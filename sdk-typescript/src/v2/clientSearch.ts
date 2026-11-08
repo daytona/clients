@@ -6,7 +6,7 @@
 import { BadRequestError, createDaytonaError } from './errors/DaytonaError.js'
 import type { SandboxDto, SandboxState, SearchSandboxesOptions, SearchTimestamp } from './types.js'
 import { assertLabels, badRequest } from './options.js'
-import { optionalQueryText, pageParams } from './pageParams.js'
+import { optionalQueryText, pageParams, queryText } from './pageParams.js'
 import { SandboxSearchSort, SortOrder } from './gen/api-enums.js'
 import { assertSandboxResponse } from './sandboxMetadata.js'
 
@@ -87,8 +87,8 @@ function choiceParam<T extends string>(value: unknown, name: string, choices: re
   return value as T
 }
 
-function timestampParam(value: SearchTimestamp | undefined): string | undefined {
-  return value === undefined ? undefined : searchTimestamp(value)
+function timestampParam(value: SearchTimestamp | undefined, name: string): string | undefined {
+  return value === undefined ? undefined : queryText(searchTimestamp(value), name)
 }
 
 export type SearchQueryParams = Record<string, string | number>
@@ -104,8 +104,8 @@ export function searchQueryParams(input: SearchSandboxesOptions): SearchQueryPar
     name_prefix: optionalQueryText(options.namePrefix, 'namePrefix'),
     id_prefix: optionalQueryText(options.idPrefix, 'idPrefix'),
     status: options.states === undefined ? undefined : searchStates(options.states),
-    class: options.sandboxClass === undefined ? undefined : commaList('sandboxClass', options.sandboxClass),
-    region_ids: options.region === undefined ? undefined : commaList('region', options.region),
+    class: options.sandboxClass === undefined ? undefined : queryText(commaList('sandboxClass', options.sandboxClass), 'sandboxClass'),
+    region_ids: options.region === undefined ? undefined : queryText(commaList('region', options.region), 'region'),
     image_ref: optionalQueryText(options.imageRef, 'imageRef'),
     image_ref_prefix: optionalQueryText(options.imageRefPrefix, 'imageRefPrefix'),
     labels: options.labels === undefined ? undefined : labelsParam(options.labels),
@@ -117,12 +117,12 @@ export function searchQueryParams(input: SearchSandboxesOptions): SearchQueryPar
     max_memory_mib: integerParam(options.maxMemoryMib, 'maxMemoryMib'),
     min_disk_mib: integerParam(options.minDiskMib, 'minDiskMib'),
     max_disk_mib: integerParam(options.maxDiskMib, 'maxDiskMib'),
-    created_start_at: timestampParam(options.createdStartAt),
-    created_end_at: timestampParam(options.createdEndAt),
-    updated_start_at: timestampParam(options.updatedStartAt),
-    updated_end_at: timestampParam(options.updatedEndAt),
-    last_activity_start_at: timestampParam(options.lastActivityStartAt),
-    last_activity_end_at: timestampParam(options.lastActivityEndAt),
+    created_start_at: timestampParam(options.createdStartAt, 'createdStartAt'),
+    created_end_at: timestampParam(options.createdEndAt, 'createdEndAt'),
+    updated_start_at: timestampParam(options.updatedStartAt, 'updatedStartAt'),
+    updated_end_at: timestampParam(options.updatedEndAt, 'updatedEndAt'),
+    last_activity_start_at: timestampParam(options.lastActivityStartAt, 'lastActivityStartAt'),
+    last_activity_end_at: timestampParam(options.lastActivityEndAt, 'lastActivityEndAt'),
     sort: choiceParam(options.sort, 'sort', SandboxSearchSort),
     order: choiceParam(options.order, 'order', SortOrder),
     ...pageParams(options.cursor, options.limit),

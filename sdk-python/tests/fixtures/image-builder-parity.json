@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs.",
+  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs. Each \"refused\" case is a BadRequestError with that message in both SDKs.",
   "cases": [
     {
       "name": "padded registry ref",
@@ -133,6 +133,24 @@
       "request": {
         "dockerfile": "FROM alpine\nWORKDIR /app\n"
       }
+    }
+  ],
+  "refused": [
+    {
+      "name": "env keys that collide after stripping",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "1",
+            " A": "2"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env key \"A\" appears more than once after stripping"
     }
   ]
 }

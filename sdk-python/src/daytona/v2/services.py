@@ -43,6 +43,7 @@ from ._core import (
     TransportPayload,
     _expect_model_from_dict,
     enum_str,
+    header_text,
     image_options_body,
     json_object_from_mapping,
     optional_query_text,
@@ -845,7 +846,9 @@ def _mac_reservation_origin(value: str) -> MacReservationOrigin:
 def _idempotency_headers(idempotency_key: Optional[str]) -> Dict[str, str]:
     if idempotency_key is not None and not isinstance(idempotency_key, str):
         raise create_error("idempotency_key must be a string", 400, "BAD_REQUEST", "SDK")
-    return {"Idempotency-Key": str(uuid.uuid4()) if idempotency_key is None else idempotency_key}
+    if idempotency_key is None:
+        return {"Idempotency-Key": str(uuid.uuid4())}
+    return {"Idempotency-Key": header_text(idempotency_key, "idempotency_key")}
 
 
 class AsyncMacModelsService:

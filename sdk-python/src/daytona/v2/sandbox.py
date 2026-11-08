@@ -41,6 +41,7 @@ from ._core import (
     enum_str,
     expect_object,
     finite_number,
+    header_text,
     image_options_body,
     lifecycle_body,
     mib_to_gib,
@@ -2287,6 +2288,7 @@ def _require_if_match(if_match: object) -> None:
         raise create_error(
             "if_match must be a non-empty string (the etag of the last read)", 400, "BAD_REQUEST", "SDK"
         )
+    header_text(if_match, "if_match")
 
 
 def _mint_route_unsupported(exc: Exception) -> bool:

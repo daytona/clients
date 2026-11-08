@@ -70,8 +70,9 @@ function checkField(value: unknown, spec: FieldSpec, path: string, what: string)
   const kind = spec.replace('?', '').replace('|null', '')
   const ok = kind === 'string' ? typeof value === 'string'
     : kind === 'number' ? typeof value === 'number' && Number.isFinite(value)
-      // Any integral double: an int64 above 2^53 that a double carries is accepted,
-      // as in Python; only a value JSON.parse turns into Infinity is refused.
+      // Any integral finite number (an int64 above 2^53 within a double's range
+      // included, as in Python); a non-integral or non-finite one (JSON.parse
+      // reads an integer too large for a double as Infinity) is refused.
       : kind === 'integer' ? Number.isInteger(value)
         // The contract's int32 format: its type rules out anything wider.
         : kind === 'int32' ? Number.isInteger(value) && (value as number) >= -2_147_483_648 && (value as number) <= 2_147_483_647

@@ -729,7 +729,7 @@ export interface SearchSandboxesOptions extends SandboxSearchFilters {
   readonly namePrefix?: string
   /** Server-side prefix on the id. */
   readonly idPrefix?: string
-  /** Clamped to 1..200 by the server. */
+  /** An integer from 1 to 200; anything else is `BadRequestError` before any request. */
   readonly limit?: number
   /** Opaque; bound to the filter + sort that produced it. */
   readonly cursor?: string

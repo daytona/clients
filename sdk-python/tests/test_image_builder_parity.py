@@ -56,6 +56,13 @@ def test_the_builder_renders_the_shared_fixture(case: dict[str, object]) -> None
     assert ({"source": source} if source is not None else {"dockerfile": dockerfile}) == case["request"]
 
 
+@pytest.mark.parametrize("case", _FIXTURE["refused"], ids=[case["name"] for case in _FIXTURE["refused"]])
+def test_the_builder_refuses_the_shared_fixture(case: dict[str, object]) -> None:
+    with pytest.raises(BadRequestError) as raised:
+        _build(case)
+    assert str(raised.value) == case["error"]
+
+
 @pytest.mark.parametrize(
     "call",
     [

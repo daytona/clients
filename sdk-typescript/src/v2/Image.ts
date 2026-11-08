@@ -127,9 +127,16 @@ export class ImageBuilder {
     if (typeof given !== 'string' && (typeof given !== 'object' || given === null || Array.isArray(given))) {
       throw badRequest('ImageBuilder.env takes a name and a value, or an object of names to values')
     }
-    const entries = typeof nameOrValues === 'string'
-      ? { [rawText(nameOrValues, 'ImageBuilder.env name')]: assertText(value, 'ImageBuilder.env value') }
-      : Object.fromEntries(Object.entries(nameOrValues).map(([key, entryValue]) => [rawText(key, 'ImageBuilder.env key'), assertText(entryValue, 'ImageBuilder.env value')]))
+    const pairs: ReadonlyArray<readonly [string, string]> = typeof nameOrValues === 'string'
+      ? [[rawText(nameOrValues, 'ImageBuilder.env name'), assertText(value, 'ImageBuilder.env value')]]
+      : Object.entries(nameOrValues).map(([key, entryValue]) => [rawText(key, 'ImageBuilder.env key'), assertText(entryValue, 'ImageBuilder.env value')] as const)
+    // Keys are stripped: two that collide afterwards would silently keep one.
+    const seen = new Set<string>()
+    for (const [key] of pairs) {
+      if (seen.has(key)) throw badRequest(`ImageBuilder.env key ${JSON.stringify(key)} appears more than once after stripping`)
+      seen.add(key)
+    }
+    const entries = Object.fromEntries(pairs)
     return new ImageBuilder(this.source, [...this.steps, { type: 'env', entries }])
   }
 

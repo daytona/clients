@@ -319,7 +319,8 @@ export class Daytona {
    * inclusive and the `*EndAt` bounds are exclusive, timestamps as RFC 3339
    * strings or `Date` objects (a `Date` is serialized in UTC — a whole day is
    * `createdStartAt` that day and `createdEndAt` the next). `sort` defaults to `created_at` and
-   * `order` to `desc`; `limit` is clamped to 1..200 by the server. Resolves to a
+   * `order` to `desc`; `limit` must be an integer from 1 to 200, else
+   * `BadRequestError` before any request. Resolves to a
    * {@link SearchResult} whose `items` are the same {@link Sandbox} handles
    * {@link list} returns.
    *

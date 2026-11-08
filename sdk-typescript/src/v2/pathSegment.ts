@@ -20,7 +20,8 @@ export function pathSegment(value: unknown, name: string): string {
   return strictUriEncode(value)
 }
 
-function hasLoneSurrogate(value: string): boolean {
+/** Whether `value` holds a UTF-16 surrogate without its pair (it has no UTF-8 form). @internal */
+export function hasLoneSurrogate(value: string): boolean {
   for (let index = 0; index < value.length; index++) {
     const unit = value.charCodeAt(index)
     if (unit >= 0xd800 && unit <= 0xdbff) {

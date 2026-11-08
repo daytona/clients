@@ -108,6 +108,18 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   ['volumes.list cursor a number', (client) => client.v2.volumes.list({ cursor: 5 as never })],
   ['reservations.list limit 0', (client) => client.v2.reservations.list({ limit: 0 })],
   ['ports.listEndpoints limit 0', (_client, api) => handle(api).ports.listEndpoints({ limit: 0 })],
+  // A lone surrogate in a query value, and a header value outside printable
+  // ASCII (the Python twin pins the same rows).
+  ['list cursor with a lone surrogate', (client) => client.v2.list({ cursor: 'a\ud800b' })],
+  ['search namePrefix with a lone surrogate', (client) => client.v2.search({ namePrefix: 'a\ud800b' })],
+  ['images.list name with a lone surrogate', (client) => client.v2.images.list({ name: 'a\ud800b' })],
+  ['create idempotencyKey non-ASCII', (client) => client.v2.create({ idempotencyKey: 'k\u00e9y' })],
+  ['create region non-ASCII', (client) => client.v2.create({ region: 'r\u00e9gion' })],
+  ['findByName region with a newline', (client) => client.v2.findByName('x', { region: 'a\nb' })],
+  ['reservations.renew idempotencyKey non-ASCII', (client) => client.v2.reservations.renew('res', { idempotencyKey: 'k\u00e9y' })],
+  ['resetNetworkPolicy ifMatch non-ASCII', (_client, api) => handle(api).resetNetworkPolicy({ ifMatch: '\u00e9' })],
+  // Python's `anonymous` default is False and it refuses None.
+  ['images.list anonymous null', (client) => client.v2.images.list({ anonymous: null as never })],
   ['images.get timeoutSeconds -1 without wait', (client) => client.v2.images.get('img', { timeoutSeconds: -1 })],
   ['images.get timeoutSeconds -1 with wait', (client) => client.v2.images.get('img', { wait: 'ready', timeoutSeconds: -1 })],
   ['images.get timeoutSeconds NaN without wait', (client) => client.v2.images.get('img', { timeoutSeconds: Number.NaN })],

@@ -577,8 +577,9 @@ class Daytona:
         inclusive, ``*_start_at`` timestamp bounds are inclusive, and
         ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 strings or
         ``datetime`` objects (naive values are taken as UTC). ``sort`` defaults
-        to ``created_at`` and ``order`` to ``desc``; ``limit`` is clamped to
-        1..200 by the server. Returns a :class:`SearchResult` whose ``items``
+        to ``created_at`` and ``order`` to ``desc``; ``limit`` must be an
+        integer from 1 to 200, else :class:`BadRequestError` before any
+        request. Returns a :class:`SearchResult` whose ``items``
         are the same :class:`Sandbox` handles :meth:`list` returns.
 
         Consistency: search is **eventually consistent**. Results may be briefly

@@ -1373,6 +1373,29 @@ def _comma_list(name: str, value: Union[str, Sequence[str]]) -> str:
     return ",".join(items)
 
 
+def has_surrogate(value: str) -> bool:
+    """Whether ``value`` holds a surrogate code point, which has no UTF-8 form
+    (the HTTP client would raise ``UnicodeEncodeError`` encoding it)."""
+    return any("\ud800" <= char <= "\udfff" for char in value)
+
+
+def query_text(value: str, name: str) -> str:
+    """A caller string sent as a query value: one with a lone surrogate is
+    :class:`BadRequestError` naming ``name``, before any request, as in TypeScript."""
+    if has_surrogate(value):
+        raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
+    return value
+
+
+def header_text(value: str, name: str) -> str:
+    """A caller string sent as a header value: printable ASCII only (the HTTP
+    clients cannot send anything else in both SDKs), else
+    :class:`BadRequestError` naming ``name``, before any request."""
+    if not all(" " <= char <= "~" for char in value):
+        raise create_error(f"{name} must be printable ASCII", 400, "BAD_REQUEST", "SDK")
+    return value
+
+
 def page_params(cursor: object, limit: object) -> Dict[str, JsonValue]:
     """The ``cursor`` / ``limit`` query of a list: a string cursor and an
     integer limit from 1 to 200 (the contract's range), else
@@ -1381,7 +1404,7 @@ def page_params(cursor: object, limit: object) -> Dict[str, JsonValue]:
     if cursor is not None:
         if not isinstance(cursor, str):
             raise create_error("cursor must be a string", 400, "BAD_REQUEST", "SDK")
-        params["cursor"] = cursor
+        params["cursor"] = query_text(cursor, "cursor")
     if limit is not None:
         if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
             raise create_error("limit must be an integer from 1 to 200", 400, "BAD_REQUEST", "SDK")
@@ -1391,9 +1414,11 @@ def page_params(cursor: object, limit: object) -> Dict[str, JsonValue]:
 
 def optional_query_text(value: object, name: str) -> Optional[str]:
     """A string query filter, or ``None``; anything else is :class:`BadRequestError`."""
-    if value is not None and not isinstance(value, str):
+    if value is None:
+        return None
+    if not isinstance(value, str):
         raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
-    return value
+    return query_text(value, name)
 
 
 def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
@@ -1407,7 +1432,7 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
         if f.name == "states":
             params[wire] = _wire_statuses(value)
         elif f.name in _SEARCH_LIST_FIELDS:
-            params[wire] = _comma_list(f.name, value)
+            params[wire] = query_text(_comma_list(f.name, value), f.name)
         elif f.name == "labels":
             if not isinstance(value, Mapping) or not all(
                 isinstance(key, str) and isinstance(item, str) for key, item in value.items()
@@ -1417,7 +1442,7 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
                 raise create_error("labels must name at least one pair", 400, "BAD_REQUEST", "SDK")
             params[wire] = json.dumps(dict(value), separators=(",", ":"))
         elif f.name in _SEARCH_TIMESTAMP_FIELDS:
-            params[wire] = search_timestamp(value)
+            params[wire] = query_text(search_timestamp(value), f.name)
         elif f.name in _SEARCH_BOOLEAN_FIELDS:
             if not isinstance(value, bool):
                 raise create_error(f"{f.name} must be a boolean", 400, "BAD_REQUEST", "SDK")

@@ -143,12 +143,29 @@ _REFUSED: list[tuple[str, Call]] = [
     ("search order bogus", lambda d, _url: d.search(order="up")),  # type: ignore[arg-type]
     ("images.list limit a string", lambda d, _url: d.images.list(limit="x")),  # type: ignore[arg-type]
     ("images.list name a number", lambda d, _url: d.images.list(name=5)),  # type: ignore[arg-type]
+    ("images.list anonymous None", lambda d, _url: d.images.list(anonymous=None)),  # type: ignore[arg-type]
     ("images.list platform bogus", lambda d, _url: d.images.list(platform="yes")),  # type: ignore[arg-type]
     ("snapshots.list name a number", lambda d, _url: d.snapshots.list(name=5)),  # type: ignore[arg-type]
     ("secrets.list limit -1", lambda d, _url: d.secrets.list(limit=-1)),
     ("volumes.list cursor a number", lambda d, _url: d.volumes.list(cursor=5)),  # type: ignore[arg-type]
     ("reservations.list limit 0", lambda d, _url: d.reservations.list(limit=0)),
     ("ports.list_endpoints limit 0", lambda d, _url: lazy_sandbox(d, "sbx").ports.list_endpoints(limit=0)),
+    # A lone surrogate in a query value, and a header value outside printable
+    # ASCII (the TypeScript twin pins the same rows).
+    ("list cursor with a lone surrogate", lambda d, _url: d.list(cursor="a\ud800b")),
+    ("search name_prefix with a lone surrogate", lambda d, _url: d.search(name_prefix="a\ud800b")),
+    ("images.list name with a lone surrogate", lambda d, _url: d.images.list(name="a\ud800b")),
+    ("create idempotency_key non-ASCII", lambda d, _url: d.create(idempotency_key="k\u00e9y")),
+    ("create region non-ASCII", lambda d, _url: d.create(region="r\u00e9gion")),
+    ("find_by_name region with a newline", lambda d, _url: d.find_by_name("x", region="a\nb")),
+    (
+        "reservations.renew idempotency_key non-ASCII",
+        lambda d, _url: d.reservations.renew("res", idempotency_key="k\u00e9y"),
+    ),
+    (
+        "reset_network_policy if_match non-ASCII",
+        lambda d, _url: lazy_sandbox(d, "sbx").reset_network_policy(if_match="\u00e9"),
+    ),
     ("create memory 10**400", lambda d, _url: d.create(resources=Resources(memory=10**400))),
     ("docker timeout 10**309 is no limit, not an overflow", lambda d, url: _docker_refused_type(d, url)),
     (

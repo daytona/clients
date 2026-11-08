@@ -76,6 +76,8 @@ export function assertIfMatchOptions(options: IfMatchOptions | undefined): void 
   if (typeof options?.ifMatch !== 'string' || options.ifMatch.length === 0) {
     throw badRequest('ifMatch must be a non-empty string')
   }
+  // It is sent as the If-Match header: printable ASCII only, as in Python.
+  if (!/^[\x20-\x7e]*$/.test(options.ifMatch)) throw badRequest('ifMatch must be printable ASCII')
 }
 
 /**

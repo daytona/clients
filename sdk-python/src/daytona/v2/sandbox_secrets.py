@@ -64,7 +64,8 @@ def _required_string_list(value: JsonValue, *, field_name: str) -> list[str]:
 
 
 def _required_int(value: JsonValue, *, field_name: str) -> int:
-    # An integer a double cannot carry is refused, as TypeScript's JSON.parse refuses it.
+    # An integer too large for a double is refused, as in TypeScript, whose
+    # JSON.parse reads it as Infinity, which its integer check then refuses.
     if isinstance(value, int) and finite_number(value):
         return value
     raise create_error(f"{field_name} must be an integer", 400, "BAD_REQUEST", "SDK")

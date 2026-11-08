@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { pageParams } from './pageParams.js'
+import { headerText, pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -190,5 +190,5 @@ function idempotencyHeaders(idempotencyKey: string | undefined) {
   if (idempotencyKey != null && typeof idempotencyKey !== 'string') {
     throw badRequest('idempotencyKey must be a string')
   }
-  return { headers: { 'Idempotency-Key': idempotencyKey ?? runtimeUniqueId() } }
+  return { headers: { 'Idempotency-Key': idempotencyKey == null ? runtimeUniqueId() : headerText(idempotencyKey, 'idempotencyKey') } }
 }

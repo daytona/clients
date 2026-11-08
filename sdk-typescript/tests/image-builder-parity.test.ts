@@ -21,9 +21,15 @@ interface Case {
   readonly dockerfile: string
   readonly request: unknown
 }
-const fixture = JSON.parse(readFileSync(join(__dirname, '..', '..', 'sdk-python', 'tests', 'fixtures', 'image-builder-parity.json'), 'utf8')) as { readonly cases: readonly Case[] }
+interface Refused {
+  readonly name: string
+  readonly source: Case['source']
+  readonly steps: Case['steps']
+  readonly error: string
+}
+const fixture = JSON.parse(readFileSync(join(__dirname, '..', '..', 'sdk-python', 'tests', 'fixtures', 'image-builder-parity.json'), 'utf8')) as { readonly cases: readonly Case[]; readonly refused: readonly Refused[] }
 
-function build(testCase: Case): ImageBuilder {
+function build(testCase: Pick<Case, 'source' | 'steps'>): ImageBuilder {
   let builder = testCase.source.registry !== undefined ? ImageBuilder.fromRegistry(testCase.source.registry) : ImageBuilder.fromDockerfile(testCase.source.dockerfile ?? '')
   for (const [op, argument] of testCase.steps) {
     if (op === 'run') builder = builder.runCommands(...(argument as string[]))
@@ -38,6 +44,13 @@ it.each(fixture.cases.map((testCase) => [testCase.name, testCase] as const))('re
   const builder = build(testCase)
   expect(builder.toDockerfile()).toBe(testCase.dockerfile)
   expect(builder.toRequestSource()).toEqual(testCase.request)
+})
+
+it.each(fixture.refused.map((testCase) => [testCase.name, testCase] as const))('refuses the shared fixture: %s', (_name, testCase) => {
+  let error: unknown
+  try { build(testCase) } catch (failure) { error = failure }
+  expect(error).toBeInstanceOf(BadRequestError)
+  expect(error).toMatchObject({ message: testCase.error })
 })
 
 // SAFETY: every `as never` below is a deliberately invalid plain-JavaScript argument.

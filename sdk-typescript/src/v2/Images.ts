@@ -50,8 +50,10 @@ const IMAGE_LONGPOLL_MAX_MS = 60_000
 const IMAGE_POLL_MIN_INTERVAL_MS = 1_000
 const IMAGE_HOLD_READ_SLACK_MS = 5_000
 
+// Python's `anonymous` defaults to `False` (the contract's default) and refuses
+// `None`, so `null` is refused here too; only an omitted value takes the default.
 function listImagesAnonymous(value: unknown): boolean | undefined {
-  if (value === undefined || value === null) return undefined
+  if (value === undefined) return undefined
   if (typeof value !== 'boolean') throw badRequest('anonymous must be a boolean')
   return value
 }
