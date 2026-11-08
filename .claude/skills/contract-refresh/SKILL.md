@@ -72,9 +72,9 @@ new contract files; this skill turns them into a working SDK change.
    against this PR's base, so only the breaks this refresh adds count:
 
    ```bash
-   git fetch --tags origin main
+   git fetch origin main
    OASDIFF=$(scripts/breaking/install-oasdiff.sh) \
-     python3 scripts/breaking/breaking_changes.py --github-repo daytona/clients \
+     python3 scripts/breaking/breaking_changes.py --fetch origin --github-repo daytona/clients \
        --base "$(git merge-base HEAD origin/main)"
    ```
 

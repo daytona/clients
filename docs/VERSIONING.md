@@ -190,8 +190,9 @@ not done by any workflow.
 ## Breaking-change check
 
 From the first stable release on, every pull request is compared with the
-latest stable release tag (the highest `vX.Y.Z` without a pre-release suffix)
-by the `Breaking changes` workflow (`scripts/breaking/breaking_changes.py`).
+latest stable release tag (the highest `vX.Y.Z` with X ≥ 2 and no pre-release
+suffix, skipping any release GitHub flags as a pre-release) by the
+`Breaking changes` workflow (`scripts/breaking/breaking_changes.py`).
 It diffs the committed public-surface snapshots (`sdk-typescript/api-surface/`,
 `sdk-python/api-surface/`, `cli/api-surface/`, and `upgrade/api-surface/` for
 the migration tool's flags and `--json` report fields and values; each kept
@@ -203,8 +204,10 @@ needs a `changelog.d/<id>.breaking.md` fragment in the pull request; the
 maintainer publishing the next release then decides the MAJOR bump. A change
 the check misreads as breaking is acknowledged in
 `scripts/breaking/compatible-changes.txt` instead, with a one-line reason, and
-puts nothing in the changelog. Until a stable tag exists the check reports "no
-stable release yet" and passes.
+puts nothing in the changelog. A pull request counts only the breaks it adds,
+so one that deletes a breaking fragment while the base branch already carries
+that break is caught by the run on `main` after it merges. Until a stable tag
+exists the check reports "no stable release yet" and passes.
 
 ## See also
 

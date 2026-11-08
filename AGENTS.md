@@ -535,9 +535,12 @@ scripts/gen-contract-types.sh --check     # only after touching contract/ or a g
 
 **Public-surface snapshots.** Each area commits its public surface, one
 declaration per line (`<name>: <kind>[ <signature>]`): exported names with
-their kinds and signatures and the members of classes and options types
-(`sdk-typescript/api-surface/`, `sdk-python/api-surface/`), the CLI's
-commands, flags and environment variables (`cli/api-surface/`), the migration
+their kinds and signatures and the members of classes and options types, plus
+every declaration a public signature uses without exporting it (the v2 client
+behind the root's `.v2`, non-exported options types and `Literal` aliases),
+listed as `~Name` (`sdk-typescript/api-surface/`, `sdk-python/api-surface/`),
+the CLI's commands with their positional arguments, flags and environment
+variables (`cli/api-surface/`), the migration
 tool's `--json` report fields and values and both tools' flags
 (`upgrade/api-surface/`). CI fails when a snapshot is stale; regenerate after
 any change to the public surface and commit the diff, which is how the change
@@ -557,10 +560,14 @@ shows up in review:
 ```
 
 The `Breaking changes` workflow compares these snapshots and `contract/*.json`
-(oasdiff for the OpenAPI files) with the last stable release tag
-(`python3 scripts/breaking/breaking_changes.py --github-repo daytona/clients
---base "$(git merge-base HEAD origin/main)"` locally, oasdiff from
-`scripts/breaking/install-oasdiff.sh`). A real break (a removal or an
+(oasdiff for the OpenAPI files) with the last stable release tag. Locally:
+
+```bash
+OASDIFF=$(scripts/breaking/install-oasdiff.sh) python3 scripts/breaking/breaking_changes.py \
+  --fetch origin --github-repo daytona/clients --base "$(git merge-base HEAD origin/main)"
+```
+
+A real break (a removal or an
 incompatible change) needs a `changelog.d/*.breaking.md` fragment in the PR.
 A change the check misreads as breaking goes into
 `scripts/breaking/compatible-changes.txt` instead: the entry exactly as the
