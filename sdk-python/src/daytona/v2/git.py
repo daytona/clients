@@ -20,7 +20,7 @@ from ._core import (
 )
 from ._gen.toolbox import CommitInfo
 from ._timestamps import parse_timestamp
-from ._transport import AsyncTransport, _request_deadline
+from ._transport import AsyncTransport
 from .errors import create_error
 from .types import GitCommit, GitCommitResponse, GitRemote, GitStatus, JsonObject, JsonValue, ListResult
 
@@ -323,10 +323,9 @@ def _git_remote_timeout(timeout: Optional[float]) -> float:
 
 async def _send_remote(transport: AsyncTransport, spec: RequestSpec, timeout: Optional[float]) -> None:
     """Send a clone / pull / push bounded by one total deadline for the whole
-    request, as the TypeScript SDK does, instead of the client's request timeout."""
-    deadline = _git_remote_timeout(timeout)
-    with _request_deadline(deadline):
-        await transport.send(dataclasses.replace(spec, unbounded_read=True))
+    request (a per-call timeout replaces the client's request timeout), as the
+    TypeScript SDK does."""
+    await transport.send(dataclasses.replace(spec, timeout=_git_remote_timeout(timeout)))
 
 
 def _git_clone_depth(depth: int) -> int:

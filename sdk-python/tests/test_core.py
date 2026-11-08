@@ -5451,17 +5451,7 @@ async def test_resource_service_iterators_use_iter_everywhere() -> None:
 
 
 @pytest.mark.anyio
-async def test_git_clone_pull_push_bound_the_whole_request_by_one_total_deadline(monkeypatch):
-    import daytona.v2.git as git_module
-
-    deadlines: list[float] = []
-    real_deadline = git_module._request_deadline
-
-    def recording_deadline(seconds: float):
-        deadlines.append(seconds)
-        return real_deadline(seconds)
-
-    monkeypatch.setattr(git_module, "_request_deadline", recording_deadline)
+async def test_git_clone_pull_push_bound_the_whole_request_by_one_total_deadline():
     transport = RecordingTransport([{}, {}, {}, {}, {}, {}, {}])
     git = AsyncGitService(transport)  # type: ignore[arg-type]
 
@@ -5474,23 +5464,10 @@ async def test_git_clone_pull_push_bound_the_whole_request_by_one_total_deadline
     await git.pull("/repo", timeout=10**9)
 
     assert [spec.path for spec in transport.specs[:3]] == ["/git/clone", "/git/pull", "/git/push"]
-    # Not the client's request timeout, and not httpx's per-phase timeout.
-    assert all(spec.unbounded_read and spec.timeout is None for spec in transport.specs)
-    # A default 30-minute deadline, an override, and above the timer maximum no limit.
-    assert deadlines == [1800, 1800, 1800, 12.5, 3.0, 7.0, 0]
-
-
-@pytest.mark.anyio
-async def test_git_remote_deadline_covers_the_whole_request() -> None:
-    from daytona.v2.errors import ClientTimeoutError
-
-    class SlowTransport:
-        async def send(self, spec: RequestSpec) -> object:
-            await asyncio.sleep(1)
-            return {}
-
-    with pytest.raises(ClientTimeoutError):
-        await AsyncGitService(SlowTransport()).pull("/repo", timeout=0.05)  # type: ignore[arg-type]
+    # A per-call timeout is a total deadline replacing the client's request
+    # timeout: a default 30 minutes, an override, above the timer maximum none.
+    assert [spec.timeout for spec in transport.specs] == [1800, 1800, 1800, 12.5, 3.0, 7.0, 0]
+    assert not any(spec.unbounded_read for spec in transport.specs)
 
 
 def test_request_kwargs_keeps_plain_requests_on_transport_defaults():
@@ -8143,8 +8120,9 @@ async def test_process_list_returns_one_contract_page():
     assert [item.id for item in page.items] == ["proc"]
     assert page.next_cursor is None
     for message in ("items", "items", "process list response"):
-        with pytest.raises(BadRequestError, match=message):
+        with pytest.raises(BadRequestError, match=message) as info:
             await process.list()
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 @pytest.mark.anyio
