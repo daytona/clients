@@ -210,18 +210,6 @@ func archivedDirectorySize(dir string, filter toolboxclient.ArchiveFilter) (int6
 	return total, nil
 }
 
-// buildContextFilter keeps what the context's ignore file does not exclude.
-type buildContextFilter struct {
-	matcher *dockerignore.Matcher
-}
-
-func (f buildContextFilter) Keep(rel string, isDir bool) (bool, bool) {
-	if !f.matcher.Excluded(rel) {
-		return true, true
-	}
-	return false, isDir && f.matcher.MayReinclude(rel)
-}
-
 // loadBuildContextFilter reads the context's ignore file as Docker does:
 // `<Dockerfile>.dockerignore` next to the Dockerfile when it exists, else
 // `.dockerignore` at the context root. The Dockerfile and the ignore files
@@ -249,15 +237,9 @@ func loadBuildContextFilter(contextDir, dockerfilePath string) (toolboxclient.Ar
 		if err != nil {
 			return nil, cerr.Usage("%s: %v", name, err)
 		}
-		for _, always := range []string{".dockerignore", name, dockerfile} {
-			if matcher.Excluded(always) {
-				patterns = append(patterns, "!"+always)
-			}
-		}
-		if matcher, err = dockerignore.New(patterns); err != nil {
-			return nil, cerr.Usage("%s: %v", name, err)
-		}
-		return buildContextFilter{matcher: matcher}, nil
+		// Kept by path, not by a `!` pattern: a name with `[`, `*` or `?`
+		// would be read as a pattern.
+		return dockerignore.NewFilter(matcher, ".dockerignore", name, dockerfile), nil
 	}
 	return nil, nil
 }

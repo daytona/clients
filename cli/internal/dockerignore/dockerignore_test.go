@@ -104,9 +104,11 @@ func TestExcluded_escapedMetacharacters(t *testing.T) {
 	require.False(t, m.Excluded("v1x0"))
 }
 
-// The cases below pin Docker's pattern rules where they are surprising.
-// Which directories are walked (MayReinclude) follows BuildKit.
-func TestExcluded_followsDockersPatternMatcher(t *testing.T) {
+// A pattern counts for a path's parent directories only if it was evaluated
+// at that directory (BuildKit's MatchesUsingParentResults): an exception
+// that re-includes a directory does not re-include what other patterns
+// exclude inside it, while an exception skipped at the parent stays skipped.
+func TestExcluded_carriesParentResultsLikeBuildKit(t *testing.T) {
 	// A leading `**` without `/` is a suffix match.
 	m := matcher(t, "**foo\n")
 	for _, rel := range []string{"foo", "x/foo", "barfoo", "x/barfoo"} {
@@ -116,11 +118,66 @@ func TestExcluded_followsDockersPatternMatcher(t *testing.T) {
 	m = matcher(t, "*.log^\n")
 	require.False(t, m.Excluded("app.log^"))
 	require.False(t, m.Excluded("app.log"))
-	// A pattern that matches a parent directory applies to its contents, and
-	// the last matching pattern wins, also against an exception for a parent.
-	require.False(t, matcher(t, "**/*.key\n!certs\n").Excluded("certs/server.key"))
-	require.True(t, matcher(t, "docs\n!docs/README.md\ndocs\n").Excluded("docs/README.md"))
-	require.False(t, matcher(t, "*/*.log\n!build\n").Excluded("build/x.log"))
+	// `!config` re-includes the directory, not the secrets inside it.
+	secrets := matcher(t, "**/*.pem\n**/.env\n!config\n")
+	require.False(t, secrets.Excluded("config"))
+	require.False(t, secrets.Excluded("config/app.yaml"))
+	require.True(t, secrets.Excluded("config/server.pem"))
+	require.True(t, secrets.Excluded("config/.env"))
+	require.True(t, matcher(t, "**/*.key\n!certs\n").Excluded("certs/server.key"))
+	// The second `docs` is skipped at `docs` (already excluded there), so it
+	// does not count for what is inside.
+	require.False(t, matcher(t, "docs\n!docs/README.md\ndocs\n").Excluded("docs/README.md"))
+	require.True(t, matcher(t, "*/*.log\n!build\n").Excluded("build/x.log"))
+	// A pattern that matched a parent directory applies to its contents.
+	require.True(t, matcher(t, "a/b\n!a\n").Excluded("a/b/c"))
+}
+
+func TestExcluded_wildcards(t *testing.T) {
+	// `**` in the middle spans zero or more segments.
+	m := matcher(t, "a/**/c\n")
+	for rel, want := range map[string]bool{"a/c": true, "a/b/c": true, "a/b/d/c": true, "a/b/x": false} {
+		require.Equal(t, want, m.Excluded(rel), rel)
+	}
+	// `?` is one character other than `/`.
+	m = matcher(t, "a?c\n")
+	require.True(t, m.Excluded("abc"))
+	require.False(t, m.Excluded("a/c"))
+}
+
+func TestReadPatterns_likeDockersIgnorefile(t *testing.T) {
+	// Only a line that starts with `#` is a comment: " #x" is the pattern "#x".
+	patterns, err := ReadPatterns(strings.NewReader(" #x\n#y\n"))
+	require.NoError(t, err)
+	require.Equal(t, []string{"#x"}, patterns)
+	// A byte order mark is dropped on the first line only.
+	patterns, err = ReadPatterns(strings.NewReader("\n\xEF\xBB\xBF*.log\n"))
+	require.NoError(t, err)
+	require.Equal(t, []string{"\uFEFF*.log"}, patterns)
+	// The matcher then skips it, as Docker's does: the pattern is `*.log`.
+	require.True(t, matcher(t, "\n\xEF\xBB\xBF*.log\n").Excluded("a.log"))
+	// A line longer than 64 KiB is an error.
+	_, err = ReadPatterns(strings.NewReader(strings.Repeat("a", 70*1024) + "\n"))
+	require.Error(t, err)
+}
+
+func TestNew_cleansTheWholeLineBeforeReadingTheExclamationMark(t *testing.T) {
+	// `!../../*` cleans to `*`, an inclusion.
+	require.True(t, matcher(t, "!../../*\n").Excluded("anything"))
+	// `!/` cleans to the illegal `!`.
+	patterns, err := ReadPatterns(strings.NewReader("!/\n"))
+	require.NoError(t, err)
+	_, err = New(patterns)
+	require.Error(t, err)
+}
+
+func TestMayReinclude_followsBuildKit(t *testing.T) {
+	// A trailing `/**` keeps an exception a path prefix.
+	m := matcher(t, "build\n!build/keep/**\n")
+	require.True(t, m.MayReinclude("build"))
+	require.False(t, m.MayReinclude("other"))
+	// Any other wildcard in an exception may match below any directory.
+	require.True(t, matcher(t, "build\n!*.txt\n").MayReinclude("other"))
 }
 
 func TestNew_rejectsAnEscapeTheMatcherCannotCompile(t *testing.T) {

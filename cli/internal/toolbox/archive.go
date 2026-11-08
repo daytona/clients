@@ -5,8 +5,10 @@ package toolbox
 
 import (
 	"archive/tar"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +34,9 @@ type ArchiveFilter interface {
 	// Keep reports whether the entry is archived and, for a directory that is
 	// not, whether the walk still looks inside it (something below it may be
 	// kept; its directory entry is then written before the first kept child).
-	Keep(rel string, isDir bool) (keep, descend bool)
+	// parent is the state Keep returned for the entry's directory (nil for an
+	// entry at the top); state is handed to the directory's own entries.
+	Keep(rel string, isDir bool, parent any) (keep, descend bool, state any)
 }
 
 // ArchiveDirectory streams dir as a tar archive with every entry.
@@ -107,47 +111,83 @@ func ArchiveDirectoryFiltered(dir string, filter ArchiveFilter) (io.ReadCloser, 
 // filter keeps (all of them when filter is nil): rel is the slash-separated
 // archive name, current the local path. A directory that is not kept but
 // holds kept entries is reported just before the first of them, so the
-// archive never names a child without its parent.
+// archive never names a child without its parent. A directory that is not
+// kept and that the filter does not descend into is never read, and a
+// permission error on a directory that is not kept is ignored.
 func WalkArchiveEntries(dir string, filter ArchiveFilter, fn func(rel, current string, info os.FileInfo) error) error {
-	type pendingDir struct {
+	type openDir struct {
 		rel, current string
-		info         os.FileInfo
+		entry        fs.DirEntry
+		state        any
+		kept         bool
+		reported     bool
 	}
-	var pending []pendingDir
-	return filepath.Walk(dir, func(current string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
+	var open []openDir // the directories on the path to the current entry
+	return filepath.WalkDir(dir, func(current string, entry fs.DirEntry, walkErr error) error {
 		rel, err := filepath.Rel(dir, current)
 		if err != nil {
 			return err
 		}
 		if rel == "." {
-			return nil
+			return walkErr
 		}
 		rel = filepath.ToSlash(rel)
-		// Drop pending directories the walk has left.
-		for len(pending) > 0 && !strings.HasPrefix(rel, pending[len(pending)-1].rel+"/") {
-			pending = pending[:len(pending)-1]
+		// Drop the directories the walk has left.
+		for len(open) > 0 {
+			top := open[len(open)-1].rel
+			if top == rel || strings.HasPrefix(rel, top+"/") {
+				break
+			}
+			open = open[:len(open)-1]
 		}
-		if filter != nil {
-			keep, descend := filter.Keep(rel, info.IsDir())
-			if !keep {
-				if info.IsDir() {
-					if !descend {
-						return filepath.SkipDir
-					}
-					pending = append(pending, pendingDir{rel: rel, current: current, info: info})
-				}
+		if walkErr != nil {
+			// A directory that could not be read (it was reported first).
+			if len(open) > 0 && open[len(open)-1].rel == rel && !open[len(open)-1].kept && errors.Is(walkErr, fs.ErrPermission) {
 				return nil
 			}
+			return walkErr
 		}
-		for _, p := range pending {
-			if err := fn(p.rel, p.current, p.info); err != nil {
+		var parent any
+		if len(open) > 0 {
+			parent = open[len(open)-1].state
+		}
+		keep, descend, state := true, true, any(nil)
+		if filter != nil {
+			keep, descend, state = filter.Keep(rel, entry.IsDir(), parent)
+		}
+		if entry.IsDir() {
+			if !keep && !descend {
+				return filepath.SkipDir
+			}
+			open = append(open, openDir{rel: rel, current: current, entry: entry, state: state, kept: keep})
+		}
+		if !keep {
+			return nil
+		}
+		last := len(open)
+		if entry.IsDir() {
+			last-- // the entry itself is reported below
+		}
+		for i := 0; i < last; i++ {
+			if open[i].reported {
+				continue
+			}
+			info, err := open[i].entry.Info()
+			if err != nil {
 				return err
 			}
+			if err := fn(open[i].rel, open[i].current, info); err != nil {
+				return err
+			}
+			open[i].reported = true
 		}
-		pending = pending[:0]
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			open[len(open)-1].reported = true
+		}
 		return fn(rel, current, info)
 	})
 }

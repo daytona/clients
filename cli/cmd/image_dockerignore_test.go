@@ -154,3 +154,35 @@ func TestImageBuildContext_invalidPatternIsAUsageError(t *testing.T) {
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.Contains(t, err.Error(), ".dockerignore")
 }
+
+// `!config` re-includes the directory, not the secrets the other patterns
+// exclude inside it: what `docker build` (BuildKit) sends.
+func TestImageBuildContext_exceptionForADirectoryKeepsItsSecretsOut(t *testing.T) {
+	root := t.TempDir()
+	writeContextFiles(t, root, map[string]string{
+		".dockerignore":     "**/*.pem\n**/.env\n!config\n",
+		"Dockerfile":        "FROM scratch\n",
+		"config/server.pem": "fixture",
+		"config/.env":       "fixture",
+		"config/app.yaml":   "a: 1\n",
+	})
+	upload, err := imageContextUploadForPath(root, "Dockerfile")
+	require.NoError(t, err)
+	names, _ := uploadedEntries(t, upload)
+	require.Equal(t, []string{".dockerignore", "Dockerfile", "config/", "config/app.yaml"}, names)
+}
+
+// The Dockerfile is uploaded even when its name holds pattern characters and
+// an ignore pattern excludes its directory.
+func TestImageBuildContext_dockerfileWithPatternCharactersIsAlwaysUploaded(t *testing.T) {
+	root := t.TempDir()
+	writeContextFiles(t, root, map[string]string{
+		".dockerignore":   "d\n",
+		"d/Docker[1]file": "FROM scratch\n",
+		"d/other":         "x",
+	})
+	upload, err := imageContextUploadForPath(root, "d/Docker[1]file")
+	require.NoError(t, err)
+	names, _ := uploadedEntries(t, upload)
+	require.Equal(t, []string{".dockerignore", "d/", "d/Docker[1]file"}, names)
+}

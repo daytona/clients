@@ -1,11 +1,12 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: AGPL-3.0
 
-// Package dockerignore reads .dockerignore files and matches build-context
-// paths against them with Docker's semantics: patterns are evaluated in
-// order, a later pattern overrides an earlier one, `!pattern` re-includes,
-// a pattern that matches a directory excludes everything below it, `*` and
-// `?` stay within one path segment, and `**` spans any number of segments.
+// Package dockerignore reads .dockerignore files and decides which paths of a
+// build context are uploaded, the way `docker build` (BuildKit) does: the
+// file is read like moby's ignorefile.ReadAll, every pattern is compiled like
+// moby/patternmatcher, and a path is matched with the results of its parent
+// directory carried down the walk (patternmatcher's
+// MatchesUsingParentResults, which BuildKit's context walker uses).
 package dockerignore
 
 import (
@@ -40,15 +41,25 @@ const (
 type Matcher struct {
 	patterns   []*Pattern
 	exclusions bool
+	// wildcardExceptions: some `!` pattern is more than a path prefix, so
+	// it may re-include something below any directory.
+	wildcardExceptions bool
 }
 
-// ReadPatterns parses an ignore file: one pattern per line, `#` starts a
-// comment line, surrounding whitespace is ignored, a leading `/` is dropped
-// (every pattern is relative to the context root), and paths are cleaned.
+// Results are one directory's per-pattern match results, handed to the
+// entries inside it. The zero value means "no parent information".
+type Results struct {
+	matched []bool
+}
+
+// ReadPatterns parses an ignore file as moby's ignorefile.ReadAll does: a
+// UTF-8 BOM on the first line is dropped, a line starting with `#` is a
+// comment, surrounding whitespace is trimmed, and each pattern (after a
+// leading `!`) is cleaned and loses a leading `/`. A line longer than 64 KiB
+// is an error.
 func ReadPatterns(r io.Reader) ([]string, error) {
 	var out []string
 	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	first := true
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -93,6 +104,10 @@ func New(patterns []string) (*Matcher, error) {
 		if text == "" {
 			continue
 		}
+		// Like patternmatcher.New: the whole line is cleaned before a leading
+		// `!` is read, so `!../x` cleans to `x` (an inclusion) and `!/` to
+		// the illegal `!`.
+		text = path.Clean(text)
 		p := &Pattern{}
 		if text[0] == '!' {
 			if len(text) == 1 {
@@ -102,7 +117,6 @@ func New(patterns []string) (*Matcher, error) {
 			m.exclusions = true
 			text = text[1:]
 		}
-		text = path.Clean(text)
 		if _, err := path.Match(text, "."); err != nil {
 			return nil, fmt.Errorf("invalid pattern %q: %w", raw, err)
 		}
@@ -111,54 +125,93 @@ func New(patterns []string) (*Matcher, error) {
 			return nil, fmt.Errorf("invalid pattern %q: %w", raw, err)
 		}
 		m.patterns = append(m.patterns, p)
+		if p.exclusion && strings.ContainsAny(withoutTrailingGlob(p.text), patternChars) {
+			m.wildcardExceptions = true
+		}
 	}
 	return m, nil
 }
 
-// Excluded reports whether the slash-separated context path rel is excluded:
-// the last pattern that matches rel or one of its parent directories decides.
+// patternChars are the characters that make an exception more than a path
+// prefix (BuildKit's list).
+const patternChars = "*[]?^\\"
+
+// withoutTrailingGlob drops a trailing `/**` or `/*`.
+func withoutTrailingGlob(text string) string {
+	text = strings.TrimSuffix(text, "/**")
+	return strings.TrimSuffix(text, "/*")
+}
+
+// Match decides one path given its parent directory's results (the zero
+// Results for a path at the context root), as MatchesUsingParentResults
+// does: a pattern that matched the parent directory matches the path too,
+// and every other pattern is evaluated against the path alone, in order,
+// while it can still change the outcome. It returns whether the path is
+// excluded and the results to hand to the entries inside it.
+func (m *Matcher) Match(rel string, parent Results) (bool, Results) {
+	rel = path.Clean(rel)
+	results := Results{matched: make([]bool, len(m.patterns))}
+	known := len(parent.matched) == len(m.patterns) && len(m.patterns) > 0
+	excluded := false
+	for i, p := range m.patterns {
+		match := known && parent.matched[i]
+		if !match {
+			// An inclusion line only matters while the path is included, an
+			// exclusion (`!`) line only while it is excluded.
+			if p.exclusion != excluded {
+				continue
+			}
+			match = p.match(rel)
+			if !match && !known {
+				// No parent information: check every parent directory.
+				if parent := path.Dir(rel); parent != "." {
+					dirs := strings.Split(parent, "/")
+					for i := 0; !match && i < len(dirs); i++ {
+						match = p.match(strings.Join(dirs[:i+1], "/"))
+					}
+				}
+			}
+		}
+		results.matched[i] = match
+		if match {
+			excluded = !p.exclusion
+		}
+	}
+	return excluded, results
+}
+
+// Excluded reports whether the slash-separated context path rel is excluded
+// when the walk reaches it: each parent directory is matched first and its
+// results are carried down, as in a walk of the context.
 func (m *Matcher) Excluded(rel string) bool {
 	rel = path.Clean(rel)
 	if rel == "." {
 		return false
 	}
-	parent := path.Dir(rel)
-	var parents []string
-	if parent != "." {
-		parents = strings.Split(parent, "/")
-	}
+	var results Results
 	excluded := false
-	for _, p := range m.patterns {
-		// An inclusion line only matters while the path is included, an
-		// exclusion (`!`) line only while it is excluded.
-		if p.exclusion != excluded {
-			continue
-		}
-		match := p.match(rel)
-		for i := 0; !match && i < len(parents); i++ {
-			match = p.match(strings.Join(parents[:i+1], "/"))
-		}
-		if match {
-			excluded = !p.exclusion
-		}
+	parts := strings.Split(rel, "/")
+	for i := range parts {
+		excluded, results = m.Match(strings.Join(parts[:i+1], "/"), results)
 	}
 	return excluded
 }
 
 // MayReinclude reports whether an excluded directory must still be walked
-// because a `!` pattern may name something inside it: an exception that is a
-// plain path below the directory, or any exception with a wildcard (such as
-// `!**/keep.txt`), which can match anywhere.
+// because a `!` pattern may name something inside it, as BuildKit decides:
+// never without exceptions; always when an exception has a wildcard (other
+// than a trailing `/*` or `/**`); otherwise when an exception is a path below
+// the directory.
 func (m *Matcher) MayReinclude(dir string) bool {
 	if !m.exclusions {
 		return false
 	}
+	if m.wildcardExceptions {
+		return true
+	}
 	prefix := path.Clean(dir) + "/"
 	for _, p := range m.patterns {
-		if !p.exclusion {
-			continue
-		}
-		if p.kind != matchExact || strings.HasPrefix(p.text+"/", prefix) {
+		if p.exclusion && strings.HasPrefix(withoutTrailingGlob(p.text)+"/", prefix) {
 			return true
 		}
 	}
@@ -172,7 +225,7 @@ func (p *Pattern) match(rel string) bool {
 	case matchPrefix:
 		return strings.HasPrefix(rel, strings.TrimSuffix(p.text, "**"))
 	case matchSuffix:
-		suffix := strings.TrimPrefix(p.text, "**")
+		suffix := p.text[2:] // as patternmatcher: the bytes after the leading `**`
 		return strings.HasSuffix(rel, suffix) || (strings.HasPrefix(suffix, "/") && rel == suffix[1:])
 	default:
 		return p.re.MatchString(rel)
@@ -187,8 +240,10 @@ func (p *Pattern) compile() error {
 	var re strings.Builder
 	re.WriteString("^")
 	kind := matchExact
-	runes := []rune(p.text)
-	for i := 0; i < len(runes); i++ {
+	// patternmatcher reads the pattern with text/scanner, which skips a
+	// leading byte order mark.
+	runes := []rune(strings.TrimPrefix(p.text, "\uFEFF"))
+	for i, token := 0, 0; i < len(runes); i, token = i+1, token+1 {
 		ch := runes[i]
 		switch {
 		case ch == '*' && i+1 < len(runes) && runes[i+1] == '*':
@@ -207,7 +262,7 @@ func (p *Pattern) compile() error {
 				re.WriteString("(.*/)?")
 				kind = matchRegexp
 			}
-			if i <= 2 && strings.HasPrefix(p.text, "**") {
+			if token == 0 {
 				kind = matchSuffix
 			}
 		case ch == '*':
@@ -244,4 +299,45 @@ func (p *Pattern) compile() error {
 	}
 	p.re = compiled
 	return nil
+}
+
+// Filter decides which entries of a build context are uploaded: what the
+// matcher does not exclude, plus the paths given to NewFilter, which are
+// always kept (the Dockerfile and the ignore file). It fits
+// toolbox.ArchiveFilter.
+type Filter struct {
+	matcher *Matcher
+	always  map[string]bool
+	// alwaysDirs are the parent directories of the always-kept paths.
+	alwaysDirs map[string]bool
+}
+
+// NewFilter returns a filter over m that always keeps the slash-separated
+// context paths in always, without matching them.
+func NewFilter(m *Matcher, always ...string) *Filter {
+	f := &Filter{matcher: m, always: map[string]bool{}, alwaysDirs: map[string]bool{}}
+	for _, rel := range always {
+		rel = path.Clean(rel)
+		f.always[rel] = true
+		for dir := path.Dir(rel); dir != "." && dir != "/"; dir = path.Dir(dir) {
+			f.alwaysDirs[dir] = true
+		}
+	}
+	return f
+}
+
+// Keep reports whether the entry is uploaded and, for a directory that is
+// not, whether the walk still looks inside it. parent is the state Keep
+// returned for the entry's directory (nil at the context root); state is
+// handed to the directory's own entries.
+func (f *Filter) Keep(rel string, isDir bool, parent any) (keep, descend bool, state any) {
+	parentResults, _ := parent.(Results)
+	excluded, results := f.matcher.Match(rel, parentResults)
+	if isDir {
+		state = results
+	}
+	if !excluded || f.always[rel] {
+		return true, true, state
+	}
+	return false, isDir && (f.alwaysDirs[rel] || f.matcher.MayReinclude(rel)), state
 }
