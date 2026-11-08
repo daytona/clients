@@ -35,6 +35,11 @@ spelling differences, not shape differences: `sandbox.run_code(...)` and
 client's request timeout means the same in both: the total time one ordinary
 request may take (default 60 s); waits, streams and file transfers are not cut
 by it.
+Timestamps are not durations; the toolbox's Unix-millisecond ones carry the
+unit in the name (`timestamp_ms` / `timestampMs`). Serialized identities
+(`ProcessHandleJSON`, `SessionJSON`, `InterpreterContextJSON`) are one
+camelCase JSON shape that both SDKs write and read, so a handle stored by a
+Python worker reconnects in TypeScript and the reverse.
 
 **One error hierarchy.** Both SDKs root every error at `DaytonaError`. Below
 it sits one base class per HTTP status category (`NotFoundError`,

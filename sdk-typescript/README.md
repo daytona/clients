@@ -555,20 +555,38 @@ space; insufficient resources can produce `NO_FREE_SLOT` or `MAC_DISK_FULL`.
 ### Processes
 
 `sandbox.exec()` is the root alias of `process.run()`. `process.run()` awaits a
-command; `process.start()` returns a detached
-`ProcessHandle` you can serialize (`toJSON()`) and reconnect to
-(`process.connect()`). Handles offer cursor-replayable `logs()`, `streamLogs()`
-with resume, `wait()`, `writeStdin()` / `closeStdin()` for exec and pty handles,
-`delete()` (stopping it first if running; a running interpreter execution, or a session
-command that does not stop within 5 s, is refused: delete its context or
-session), signal-aware `kill()` with
- escalation, `resize()` and a websocket `attach()`. `timeout=0` waits
-unbounded. `timeout` is the caller
-wait budget **(milliseconds)**; `executionTimeout` is the process deadline
-**(milliseconds)** for
-server-managed runs that support one. Rehydrated `kind:'code'` handles remain replay/control
-handles (`logs()` / `wait()` / `kill()`), not a way to recover a parsed
-`InterpreterResult` on another worker. `pty.list()` is the PTY-only view of
+command and returns a `ProcessResult`: `stdout`, `stderr`, `output`, the log
+frames it read them from (`logs`), and how the process ended (`reason`,
+`exitCode`, `signal`). `exitCode` and `signal` are set only when the sandbox
+reported them; `reason` is always set (`'unknown'` with the value on
+`rawReason` for one this release does not know). `run()` reads the output back
+from the process log, so its `keepLogs` takes `'on_exit_ttl'` (default) or
+`'until_cleanup'`, not `'none'`.
+
+`process.start()` returns a detached `ProcessHandle` you can serialize
+(`toJSON()`, a `ProcessHandleJSON` the Python SDK reads too) and reconnect to
+on any worker (`process.connect(json or id)`); handles come from the SDK,
+never from a constructor. Handles offer cursor-replayable `logs()`,
+`streamLogs()` with resume, `wait()`, `writeStdin()` / `closeStdin()` for exec
+and pty handles, `delete()` (stopping it first if running; a running interpreter
+execution, or a session command that does not stop within 5 s, is refused:
+delete its context or session), signal-aware `kill()` with escalation,
+`resize()` and a websocket `attach()`. `streamLogs()` yields one event per
+server event (`{ type: 'log', frame }`, `{ type: 'state', result }`,
+`{ type: 'warning', message }`, `{ type: 'eof' }`); a stream error throws its
+typed error. Every duration is in seconds: `timeoutSeconds` is the caller wait
+budget (omitted or `0` waits unbounded), `executionTimeoutSeconds` the process
+deadline for server-managed runs that support one, and
+`kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
+(`'TERM'`), in `kill()` and in what `wait()` and `get()` report. Reconnected
+`kind:'code'` handles remain replay/control handles (`logs()` / `wait()` /
+`kill()`), not a way to recover a parsed `InterpreterResult` on another worker.
+
+`pty.start(command?, { terminal: { cols, rows }, cwd, env, name, user, shell,
+login, stdin, executionTimeoutSeconds, keepLogs })` starts an interactive
+terminal (80×24 when `terminal` is omitted; `stdin` defaults to `'open'`,
+`keepLogs` to `'until_cleanup'`); `pty.attach()` takes the same options and also
+connects to it. `pty.list()` is the PTY-only view of
 `process.list({ kind: 'pty' })`, and `pty.delete(id)` kills then cleans up that
 PTY record.
 
@@ -581,7 +599,7 @@ at a time, in order; `cd`, exports, and functions carry over. Set `cwd`, `env`,
 ```ts
 const session = await sandbox.process.createSession({ cwd: '/app', env: { CI: '1' } })
 await session.run('export GREETING=hello')
-const result = await session.run('echo "$GREETING"', { timeout: 10_000, executionTimeout: 30_000 })
+const result = await session.run('echo "$GREETING"', { timeoutSeconds: 10, executionTimeoutSeconds: 30 })
 const handle = await session.start('npm run dev')
 await handle.kill({ signal: 'INT' }) // interrupts this command; the session survives
 const info = await session.get() // includes the shell's current cwd
@@ -589,10 +607,10 @@ const reconnected = sandbox.process.connectSession(session.toJSON()) // or sessi
 await reconnected.delete() // ends the shell and removes its commands
 ```
 
-`session.run()` returns `RunResult`; `session.start()` returns `ProcessHandle`.
-`timeout` is the caller's wait budget; `executionTimeout` stops the command,
-not the session (a command that has not stopped 5 seconds after its timeout
-ends the session instead of blocking it). Both are milliseconds. `await using session = ...` deletes
+`session.run()` returns `ProcessResult`; `session.start()` returns `ProcessHandle`.
+`timeoutSeconds` is the caller's wait budget; `executionTimeoutSeconds` stops the
+command, not the session (a command that has not stopped 5 seconds after its
+timeout ends the session instead of blocking it). `await using session = ...` deletes
 the session on scope exit. List sessions with `process.list({ kind: 'session' })`
 or commands with `process.list({ sessionId: session.id })`. Plain `process.run()`,
 `process.start()`, and `sandbox.exec()` do not accept `sessionId`.
@@ -605,8 +623,7 @@ innermost shell function or sourced file; bash and zsh leave the whole command
 ### Files
 
 `readBytes` / `readText`, `writeBytes` / `writeText`, bulk `readMany` / `writeMany`,
-`remove()`, `grep()` (file contents) / `glob()` (file names), `watchDir()` for directory watches (sequential callback delivery, optional
-overflow hook, exactly-once `onExit`, `waitForExit()` / `exitError`), and
+`remove()`, `grep()` (file contents) / `glob()` (file names), `watchDir()` for directory watches, and
 `presignedDownloadUrl` / `presignedUploadUrl` for direct transfers. The
 platform mints the link; `expiresInSeconds` (default 3600) must be between 1
 and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
@@ -617,7 +634,18 @@ services (`daytona`, `images`, `snapshots`, `volume`, `secret`, `reservations`)
 return one page
 from `list()` and can lazily drain all pages with `iter()`; `ports.listEndpoints()`
 uses `iterEndpoints()`, while non-pageable `ports.list()` and `listContexts()`
-stay one-shot.
+stay one-shot. The filesystem's `list()`, `grep()`, `glob()` and `replace()`
+return one `{ items, nextCursor }` page of typed items (`FileInfo`, `FileMatch`,
+`ReplaceResult`). `readText()` decodes strictly as UTF-8 (invalid bytes throw)
+and keeps a leading byte-order mark. Writes take no `mode`; use `chmod()`.
+
+`watchDir(path, onEvent, { recursive, onOverflow, onExit })` calls `onEvent`
+for each change (a `FilesystemEvent`; `timestampMs` is Unix milliseconds).
+Callbacks may return promises; they run one at a time and are awaited. A
+failing `onEvent` or `onOverflow` ends the watch with that error, which
+`exitError` / `waitForExit()` report and `onExit` receives; a failing `onExit`
+is ignored. `stop()` resolves once a callback that is already running has
+finished, and a callback may stop its own watch.
 
 `writeBytes()`, `writeText()` and `writeMany()` accept `atomic: true` to write via a
 temporary file + rename when the sandbox supports it. For `writeBytes()` and
@@ -641,11 +669,15 @@ that exact temp file. `signal` aborts the transfer with
 `sandbox.runCode()` is the root alias of `interpreter.run()`. Runs without an
 explicit context share one per-language interpreter state inside the sandbox,
 and that state's `env` is fixed when it is first created. Pass `isolated: true`
-for a throwaway run or use `createContext()` / `connectContext()` /
-`listContexts()` for an independent named context. If an explicit named context vanished,
-`interpreter.run(..., { sessionId })` / `context.run()` surface the typed
+for a throwaway run or use `createContext({ language, contextId, cwd, env })` /
+`connectContext()` / `listContexts()` for an independent named context. Select a
+context with `run(code, { context })`: a handle, its `toJSON()` identity
+(`InterpreterContextJSON`, `{ sandboxId, contextId, language }`) or a context
+id together with `language`. A context's `run(code, { cwd, timeoutSeconds })`
+takes no `env`: set it when the context is created. If an explicit named context
+vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
-`timeout` is enforced client-side **(milliseconds)**. Results are split into
+`timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded). Results are split into
 `results[]`, `logs{stdout,stderr}`, `error`, and `process`. That rich result
 shape comes from the interpreter run path itself; reconnecting a serialized
 code-process handle later does not recreate it.
@@ -653,8 +685,8 @@ code-process handle later does not recreate it.
 ### Git
 
 `clone()`, `pull()` and `push()` use a dedicated **30-minute** remote-operation
-deadline by default, and each accepts a positive per-call `timeout`
-override **(milliseconds)**.
+deadline by default, and each accepts a positive per-call `timeoutSeconds`
+override.
 
 `git.clone(url, { path, branch, commitId, depth, insecureSkipTls, username,
 password })` adds optional shallow-clone depth and per-call TLS verification
@@ -663,7 +695,9 @@ skipping. `git.pull(path, { username, password, branch, remote })` and
 the additional remote/branch controls to the sandbox.
 
 `git.commit(path, message, { author, email, allowEmpty })` forwards
-`allowEmpty: true` when you need an empty commit.
+`allowEmpty: true` when you need an empty commit. `status()`, `history()`,
+`listRemotes()` and `listBranches()` return typed results (`GitStatus`,
+`GitCommit`, `GitRemote`, branch names).
 
 ### Ports, LSP, computer use
 
@@ -677,8 +711,9 @@ To skip the preview warning page when a headless browser opens a preview URL,
 send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (both
 exported from `@daytona/sdk/v2`) with its requests.
 `lsp.start(languageId, pathToProject)` returns an `LspServer` handle with
-`openDocument()`, `closeDocument()`, `completions()`, `documentSymbols()`,
-`workspaceSymbols()` and `stop()`.
+`openDocument()`, `closeDocument()`, `completions(uri, position, { context })`,
+`documentSymbols()`, `workspaceSymbols()` and `stop()`. A completion item's
+`documentation` is a string or an `LspMarkupContent`.
 `computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a

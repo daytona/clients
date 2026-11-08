@@ -655,7 +655,7 @@
       },
       "notes": [
         "Python: async and sync method names match; async PTY create/connect require on_data while sync variants do not",
-        "TypeScript: v0 process timeouts use seconds; v2 timeout and executionTimeout use milliseconds",
+        "TypeScript: v0 and v2 process timeouts both take seconds; v2 names them timeoutSeconds and executionTimeoutSeconds",
         "TypeScript: getSessionCommandLogs and getEntrypointLogs each have collected and callback-streaming overloads"
       ]
     },
@@ -691,7 +691,7 @@
       "notes": [
         "Python: AsyncCodeInterpreter exposes the same method names with await",
         "Python and TypeScript: v0 contexts are generated metadata DTOs rather than executable SDK handles",
-        "TypeScript: v0 interpreter timeouts use seconds; v2 uses milliseconds"
+        "TypeScript: v0 and v2 interpreter timeouts both take seconds; v2 names it timeoutSeconds"
       ]
     },
     "sandbox.computerUse": {
@@ -1786,7 +1786,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Read remotes from result.items; each item is a dict, so use remote[\"name\"] and remote[\"url\"] instead of attributes; request_timeout is removed"
+          "Read remotes from result.items; each item is a GitRemote with name and url attributes; request_timeout is removed"
         ],
         "ts": [
           "Read remotes from result.items"
@@ -1898,7 +1898,7 @@
       },
       "v2": {
         "py": "{sandbox}.interpreter.run(code, language=language, isolated=True, env=env, timeout=timeout)",
-        "ts": "{sandbox}.interpreter.run(code, { language, isolated: true, env, timeout: timeoutSeconds * 1000 })"
+        "ts": "{sandbox}.interpreter.run(code, { language, isolated: true, env, timeoutSeconds: timeout })"
       },
       "category": "differs",
       "notes": {
@@ -1910,7 +1910,7 @@
         "ts": [
           "Select the language explicitly rather than relying on the v0 sandbox language",
           "CodeRunParams.env becomes env; argv has no interpreter equivalent",
-          "Returns InterpreterResult; convert timeout seconds to milliseconds"
+          "Returns InterpreterResult; timeout becomes timeoutSeconds (still seconds)"
         ]
       },
       "anchor": "sandbox-process",
@@ -1951,14 +1951,14 @@
         "ts": "createPty"
       },
       "v2": {
-        "py": "handle = {sandbox}.pty.start(name=pty_name, cwd=cwd, env=envs, cols=cols, rows=rows)",
+        "py": "handle = {sandbox}.pty.start(name=pty_name, cwd=cwd, env=envs, terminal=TerminalSize(cols=cols, rows=rows))",
         "ts": "const handle = await {sandbox}.pty.start(undefined, { name: ptyName, cwd, env: envs, terminal: { cols, rows } }); const connection = await handle.attach()"
       },
       "category": "differs",
       "notes": {
         "py": [
           "v0 id becomes a name alias; the process receives a new generated id",
-          "Expand pty_size into cols and rows; defaults are 80 by 24",
+          "pty_size becomes terminal=TerminalSize(cols=..., rows=...) (import TerminalSize from daytona.v2); omitted, it is 80 by 24",
           "Replace on_data or handle iteration with handle.stream_logs()",
           "On AsyncDaytona this call must be awaited"
         ],
@@ -2033,7 +2033,7 @@
       },
       "v2": {
         "py": "{sandbox}.process.run(command, cwd=cwd, env=env, execution_timeout=timeout)",
-        "ts": "{sandbox}.process.run(command, { cwd, env, executionTimeout: timeoutSeconds * 1000 })"
+        "ts": "{sandbox}.process.run(command, { cwd, env, executionTimeoutSeconds: timeout })"
       },
       "category": "differs",
       "notes": {
@@ -2043,7 +2043,7 @@
           "Check the returned reason as well as exit_code"
         ],
         "ts": [
-          "Move cwd and env into options; convert timeout seconds to executionTimeout milliseconds",
+          "Move cwd and env into options; timeout becomes executionTimeoutSeconds (still seconds), not the caller wait timeout",
           "Read output or stdout instead of result",
           "Check the returned reason as well as exitCode"
         ]
@@ -2060,7 +2060,7 @@
       },
       "v2": {
         "py": "{sandbox}.process.connect_session(session_id).run(command, timeout=timeout)",
-        "ts": "{sandbox}.process.connectSession(sessionId).run(command, { timeout: timeoutSeconds * 1000 })"
+        "ts": "{sandbox}.process.connectSession(sessionId).run(command, { timeoutSeconds: timeout })"
       },
       "category": "differs",
       "notes": {
@@ -2073,7 +2073,7 @@
         "ts": [
           "Extract command from SessionExecuteRequest",
           "For runAsync=true use session.start(command), which returns a ProcessHandle",
-          "timeout and executionTimeout use milliseconds; suppressInputEcho has no matching option",
+          "timeoutSeconds bounds the caller wait and executionTimeoutSeconds stops the command (both seconds); suppressInputEcho has no matching option",
           "The result is a ProcessResult: v0 cmdId becomes processId"
         ]
       },
@@ -2170,7 +2170,7 @@
           "Returns ProcessInfo rather than PtySessionInfo; request_timeout is removed"
         ],
         "ts": [
-          "Returns ProcessDto rather than PtySessionInfo"
+          "Returns ProcessInfo rather than PtySessionInfo"
         ]
       },
       "anchor": "sandbox-process",
@@ -2195,7 +2195,7 @@
           "connect_session only binds identity; get() fetches metadata"
         ],
         "ts": [
-          "Returns shell ProcessDto rather than a session containing command history",
+          "Returns shell ProcessInfo rather than a session containing command history",
           "For commands use process.list({ sessionId: session.id })",
           "connectSession only binds identity; get() fetches metadata"
         ]
@@ -2222,7 +2222,7 @@
         ],
         "ts": [
           "Use the v2 command handle's id; no sessionId argument is needed",
-          "Returns ProcessDto rather than Command"
+          "Returns ProcessInfo rather than Command"
         ]
       },
       "anchor": "sandbox-process",
@@ -2318,7 +2318,7 @@
           "Read ProcessInfo rows from result.items; request_timeout is removed"
         ],
         "ts": [
-          "Read ProcessDto rows from result.items"
+          "Read ProcessInfo rows from result.items"
         ]
       },
       "anchor": "sandbox-process",
@@ -2484,7 +2484,7 @@
       },
       "v2": {
         "py": "{sandbox}.interpreter.run(code, language=\"python\", context=context, timeout=timeout)",
-        "ts": "{sandbox}.interpreter.run(code, { language: 'python', context, timeout: timeoutSeconds * 1000 })"
+        "ts": "{sandbox}.interpreter.run(code, { language: 'python', context, timeoutSeconds: timeout })"
       },
       "category": "differs",
       "notes": {
@@ -2494,7 +2494,7 @@
           "envs becomes env, but per-run env is refused with an explicit context"
         ],
         "ts": [
-          "Pass a v2 context handle; convert timeout seconds to milliseconds",
+          "Pass a v2 context handle; timeout becomes timeoutSeconds (still seconds)",
           "No onStdout, onStderr or onError callbacks; inspect InterpreterResult",
           "envs becomes env, but per-run env is refused with an explicit context"
         ]

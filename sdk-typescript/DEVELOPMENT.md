@@ -112,11 +112,13 @@ must preserve `manifestId: null` rather than optionalizing it.
   `Last-Event-ID` resume, `wait()` long-poll; PTY `attach()` relies on Node's
   built-in global `WebSocket` (Node 22.4+); the package's floor is Node 22.15,
   which the bundled v0's OpenTelemetry 3.x dependencies declare. Public
-  `executionTimeout` is translated to the API's `timeoutMs` only on the
+  `executionTimeoutSeconds` is translated to the API's `timeoutMs` (whole
+  milliseconds, rounded up, by `secondsToMs` in `ProcessWire.ts`) only on the
   process routes that support a server-managed kill deadline; code execution
   stays client-timed and interrupts on expiry instead.
 - `interpreter`: one-shot `run()` (`kind:"code"`) and stateful contexts.
-  Public `timeout` is client-side only. Context-free runs share per-language
+  Public `timeoutSeconds` is client-side only; an explicit `0` also leaves the
+  setup requests (context creation, the code POST) unbounded. Context-free runs share per-language
   state whose `env` is fixed on first use; `isolated: true` creates a throwaway
   context. Explicit contexts surface `SessionNotFoundError` when lost, rather
   than silently recreating state.
@@ -170,8 +172,9 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
   `executionTimeout`, `escalateAfter`, `requestTimeout`, `reconcileIntervalMs`
   and `idleCloseMs`; add a row when another option is renamed.
 - Check the options object itself, and nested SDK-defined option objects
-  (the root checks `config.events` as `SandboxEventsConfig`); never a
-  pass-through map (`env`, `labels`, request headers).
+  (the root checks `config.events` as `SandboxEventsConfig`, `pty.start()`
+  checks `terminal` as `TerminalSize`); never a pass-through map (`env`,
+  `labels`, request headers).
 - A duration in seconds is validated with `optionalSeconds(name, value)`
   (finite, non-negative) and converted to milliseconds only at the transport.
 - Test both the rejection and the rename hint for every type you cover (see
@@ -194,6 +197,16 @@ implements the same rule (`_request_deadline`, `RequestSpec.transfer`).
   `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
   `DAYTONA_DOCKER_START`. The API rejects the create with `400` naming the
   key.
+
+### Construction of toolbox handles and services
+
+`ProcessService`, `ProcessHandle`, `Session`, `PtyService`,
+`InterpreterService`, `InterpreterContext`, `FileSystemService`, `GitService`,
+`LspService`, `LspServer` and the computer-use services take `INTERNAL`
+(`src/v2/internal.ts`) as their first constructor argument and throw a
+`TypeError` without it. The module is not reachable through the package
+`exports`, so callers get these objects from a sandbox; tests import the token
+directly (`new ProcessService(INTERNAL, transport, 'sbx')`).
 
 ## Verification
 

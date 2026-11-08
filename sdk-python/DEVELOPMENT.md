@@ -141,8 +141,14 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
 
 - Interpreter runs code through
   `POST /processes {kind:"code", code, language, sessionId?}`.
-  `timeout_ms` is client-side only. Context-free runs omit `sessionId` and
-  share per-language interpreter state, whose `env` is fixed on first use.
+  The caller's `timeout` (seconds) is client-side only. Context-free runs omit
+  `sessionId` and share per-language interpreter state, whose `env` is fixed on
+  first use. Isolated runs create their throwaway context with the private
+  `_create_context(..., request_timeout=)`, which spends the run's budget.
+- Toolbox constructors take `_`-prefixed parameters (`AsyncProcessService(
+  _sandbox_id, _transport, ...)`): construction is internal, and tests build
+  services positionally. Handles reconnect through their namespace
+  (`process.connect`, `process.connect_session`, `interpreter.connect_context`).
 - Pre-signed file URLs are minted server-side: the SDK POSTs
   `{method, path, expires_at}` to `/sandboxes/{id}/files/sign`
   and composes the link from its own toolbox

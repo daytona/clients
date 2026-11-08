@@ -455,11 +455,13 @@ skipping exist only in the TypeScript tool).
   `reconcile_interval`, `idle_close`, ...); API-stored durations keep their
   `_seconds` names. TypeScript names end in `Seconds` (`timeoutSeconds`,
   `executionTimeoutSeconds`, `requestTimeoutSeconds`,
-  `reconcileIntervalSeconds`, `idleCloseSeconds`, ...). Fractions are allowed
-  unless the wire needs whole seconds (then they are validated). The wire
-  keeps its own units (`timeoutMs` for toolbox process execs/waits).
-  Timestamps are not durations. (Options not yet renamed in TypeScript still
-  take milliseconds until their area moves.)
+  `reconcileIntervalSeconds`, `idleCloseSeconds`, `escalateAfterSeconds`,
+  ...). Fractions are allowed unless the wire needs whole seconds (then they
+  are validated). The wire keeps its own units (`timeoutMs` for toolbox
+  process execs/waits). Timestamps are not durations: the toolbox's Unix
+  millisecond timestamps are named `timestamp_ms` / `timestampMs` (log frames,
+  filesystem events). (Options not yet renamed in TypeScript still take
+  milliseconds until their area moves.)
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
   `new Daytona({ requestTimeoutSeconds })`), default 60 s, `0` = no limit. It
@@ -484,8 +486,12 @@ skipping exist only in the TypeScript tool).
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
-  so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`);
-  per-call options adopt it area by area, each with its duration renames.
+  so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`)
+  and to every toolbox options object (process, session, PTY, interpreter,
+  filesystem, git, LSP, computer use, including nested `TerminalSize` /
+  `ComputerUseRegion` / `LspCompletionContext` and the `{ cmd }` / `{ argv }`
+  command); the other per-call options adopt it area by area, each with its
+  duration renames.
 - **Errors have one shape.** v2 category names are identical in both SDKs
   (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
@@ -507,7 +513,45 @@ skipping exist only in the TypeScript tool).
   `ALLOWED` lists, which only shrink.
 - **Signals are bare names on the surface, `SIG*` on the wire** — the mapping
   lives in exactly one place per SDK (`signal_spec` / `signalWire`), and wait
-  results strip the prefix on the way back.
+  results and process metadata strip the prefix on the way back
+  (`bare_signal` / `bareSignal`).
+- **Process results report what the sandbox reported.** `WaitResult` (and
+  `ProcessResult`, `InterpreterProcess`, which extend it) always has a
+  normalized `reason` (`unknown` + `raw_reason` / `rawReason` for an unlisted
+  or absent one); `exit_code` / `exitCode` and `signal` are optional in every
+  case and never filled in by the SDK. `run()` / `session.run()` / `exec()`
+  take `RunKeepLogs` and refuse `none`, since they read the output back from
+  the log. `stream_logs()` / `streamLogs()` yield the tagged
+  `StreamLogEvent` union (`log`, `state`, `warning`, `eof`) and raise the
+  typed error of a stream `error` event.
+- **Toolbox identities are one camelCase JSON in both SDKs.**
+  `ProcessHandleJSON` `{sandboxId, processId, kind?}`, `SessionJSON`
+  `{sandboxId, sessionId}`, `InterpreterContextJSON`
+  `{sandboxId, contextId, language}` (Python also reads the snake_case keys
+  of earlier pre-releases). Handles reconnect through their namespace
+  (`process.connect`, `process.connect_session` / `connectSession`,
+  `interpreter.connect_context` / `connectContext`), never through a
+  constructor or a `from_json`.
+- **Construction of toolbox services and handles is internal.** Python
+  constructor parameters are `_`-prefixed; TypeScript constructors take the
+  `INTERNAL` token from `src/v2/internal.ts` (not reachable through the
+  package `exports`) and throw a `TypeError` without it. Tests import the
+  token from the module.
+- **Watches are callback-only.** `watch_dir(path, on_event, ...)` /
+  `watchDir(path, onEvent, ...)`: callbacks run one at a time and are
+  awaited; a failing event or overflow callback ends the watch with that
+  error (`exit_error` / `exitError`); a failing exit callback is contained;
+  `stop()` returns after an active delivery finishes, and a callback stopping
+  its own watch does not wait for itself (Python: the reader task; TS: an
+  AsyncLocalStorage where the runtime has one, else the callback's
+  synchronous part, with a bounded wait).
+- **Toolbox results are SDK-owned models.** File info, grep / replace items,
+  git status / commits / remotes, system metrics, the LSP types and the
+  computer-use results are hand-written (Python frozen keyword-only
+  dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
+  timestamps as RFC 3339 strings), with every field the contract requires
+  required: a response missing one is a `BadRequestError` from the SDK, never
+  a placeholder value.
 - **Output is channel-filtered.** `stdout`/`stderr` come from their frame
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are
@@ -521,7 +565,8 @@ skipping exist only in the TypeScript tool).
   `sandbox.runCode(...)` delegates to `interpreter.run(...)`.
 - **Context-free interpreter runs share state.** `interpreter.run()` /
   `sandbox.run_code()` / `sandbox.runCode()` send no `sessionId` unless the
-  caller names one or asks for `isolated`. Repeated runs share state within
+  caller selects a `context` (handle, JSON identity, or id plus `language`)
+  or asks for `isolated`. Repeated runs share state within
   each language. `create_context` / `createContext` is how callers get independent
   state.
 - **Explicit interpreter contexts surface loss, they do not self-heal.** If a

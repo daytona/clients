@@ -210,18 +210,14 @@ class FakeWorld:
 
     def _interpret(self, code: str) -> InterpreterResult:
         return InterpreterResult(
-            process=InterpreterProcess(
-                process_id="p", exit_code=self.interpreter_exit_code, signal=None, reason=None
-            ),
+            process=InterpreterProcess(process_id="p", exit_code=self.interpreter_exit_code, reason="exited"),
             logs=InterpreterLogs(stdout="Hello World from code!\n"),
             error=self.interpreter_error,
         )
 
 
 def _result(exit_code: int, output: str) -> ProcessResult:
-    return ProcessResult(
-        process_id="p", exit_code=exit_code, signal=None, reason=None, stdout=output, output=output
-    )
+    return ProcessResult(process_id="p", exit_code=exit_code, reason="exited", stdout=output, output=output)
 
 
 @pytest.fixture

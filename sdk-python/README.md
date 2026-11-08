@@ -614,17 +614,39 @@ the macOS fork is `started` or `stopped`.
 ### Processes
 
 `sandbox.exec()` is the root alias of `process.run()`. `process.run()` executes
-a command and awaits the result. `process.start()` returns a detached,
-serializable `ProcessHandle(sandbox_id, process_id)` with `logs()`,
+a command and returns a `ProcessResult`: `stdout`, `stderr`, `output`, the log
+frames it read them from (`logs`), and how the process ended (`reason`,
+`exit_code`, `signal`). `exit_code` and `signal` are set only when the sandbox
+reported them; `reason` is always set (`"unknown"` with the value on
+`raw_reason` for one this release does not know). `run()` reads the output
+back from the process log, so its `keep_logs=` takes `"on_exit_ttl"` (default)
+or `"until_cleanup"`, not `"none"`.
+
+`process.start()` returns a detached `ProcessHandle` with `logs()`,
 `stream_logs()`, `wait()`, `write_stdin()`, `close_stdin()`, signal-aware `kill()`,
 `delete()` and `resize()`. `write_stdin()` / `close_stdin()` are for exec and
-PTY handles only. `timeout=` is the caller wait budget **(seconds)**, and
-`timeout=0` means wait unbounded. `execution_timeout=` is the process deadline
-**(seconds)** for server-managed runs that support one. Rehydrated `kind='code'`
+PTY handles only. `stream_logs()` yields one event per server event:
+`StreamLogFrameEvent` (`type="log"`, a `LogFrame`), `StreamLogStateEvent`
+(the process ended), `StreamLogWarningEvent` (older frames were evicted) and
+`StreamLogEofEvent`; a stream error raises its typed error. `timeout=` is the
+caller wait budget **(seconds)**, and `timeout=0` means wait unbounded.
+`execution_timeout=` is the process deadline **(seconds)** for server-managed
+runs that support one; `kill(escalate_after=)` is in seconds too. Signals are
+bare names (`"TERM"`), in `kill()` and in what `wait()` and `get()` report.
+
+Handles come from the SDK, never from a constructor: `handle.to_json()` returns
+a `ProcessHandleJSON` (`{"sandboxId", "processId", "kind"}`, the same shape the
+TypeScript SDK writes), and `sandbox.process.connect(value)` reconnects it, or a
+bare process id, on any worker without a request. Reconnected `kind='code'`
 handles remain replay/control handles (`logs()` / `wait()` / `kill()`), not a
-way to recover a parsed `InterpreterResult` on another worker. `pty.list()` is
-the PTY-only view of `process.list(kind="pty")`, and `pty.delete(id)` kills
-then cleans up that PTY record.
+way to recover a parsed `InterpreterResult` on another worker.
+
+`pty.start(command=None, *, terminal=TerminalSize(cols=..., rows=...), ...)`
+starts an interactive terminal (80×24 when `terminal` is omitted); it also
+takes `cwd`, `env`, `name`, `user`, `shell`, `login`, `stdin` (default
+`"open"`), `execution_timeout` and `keep_logs` (default `"until_cleanup"`).
+`pty.list()` is the PTY-only view of `process.list(kind="pty")`, and
+`pty.delete(id)` kills then cleans up that PTY record.
 
 On `AsyncDaytona`, `process.start()` returns `AsyncProcessHandle` and methods
 that return results require `await`.
@@ -650,8 +672,8 @@ and await `AsyncSession` network methods. `timeout` bounds the caller's wait;
 `execution_timeout` stops the command without ending the session (both seconds);
 a command that has not stopped 5 seconds after its timeout ends the session
 instead of blocking it.
-Use `session.to_json()` and `sandbox.process.connect_session(identity)` to
-reconnect without a request. `process.list(kind="session")` lists sessions;
+Use `session.to_json()` (a `SessionJSON`) and
+`sandbox.process.connect_session(identity)` to reconnect without a request. `process.list(kind="session")` lists sessions;
 `process.list(session_id=session.id)` lists their commands. Sessions survive
 pause/resume but not a sandbox stop/start. In dash, BusyBox `sh` and mksh, an interrupt leaves only the
 innermost shell function or sourced file; bash and zsh leave the whole command
@@ -661,16 +683,24 @@ innermost shell function or sourced file; bash and zsh leave the whole command
 
 `read_text` / `write_text`, `read_bytes` / `write_bytes`, `upload_file()` /
 `download_file()`, bulk `read_many` / `write_many`, `remove()`, `grep()` (file
-contents) / `glob()` (file names), `watch_dir()` for directory
-watches (`get_new_events()`, a single exit notification via `on_exit=` /
-`wait_for_exit()`), and
+contents) / `glob()` (file names), `watch_dir()` for directory watches, and
 `presigned_download_url` / `presigned_upload_url` for direct transfers. The
 platform mints the link; `expires_in_seconds` (default 3600) must be between 1
 and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
 `sandbox.rotate_signing_key()` retires every pre-signed URL minted so far;
 new URLs use the new key, which is never
-returned to the client. List-like APIs return `{items, next_cursor}` objects;
-`iter()` lazily drains every page.
+returned to the client. `list()`, `grep()`, `glob()` and `replace()` return one
+`{items, next_cursor}` page of typed items (`FileInfo`, `FileMatch`,
+`ReplaceResult`); there is no iterator and no cursor to pass back. `read_text()`
+decodes strictly as UTF-8 and keeps a leading byte-order mark.
+
+`watch_dir(path, on_event, *, recursive=False, on_overflow=None, on_exit=None)`
+calls `on_event` for each change (a `FilesystemEvent`; `timestamp_ms` is Unix
+milliseconds). Callbacks may be plain or coroutine functions; they run one at
+a time and are awaited. A failing `on_event` or `on_overflow` ends the watch
+with that error, which `exit_error` / `wait_for_exit()` report and `on_exit`
+receives; a failing `on_exit` is ignored. `stop()` returns once a callback that
+is already running has finished, and a callback may stop its own watch.
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
@@ -690,8 +720,13 @@ partial-success contract and reports those entries in the returned `errors`
 `sandbox.run_code()` is the root alias of `interpreter.run()`. Runs without an
 explicit context share one per-language interpreter state inside the sandbox,
 and that state's `env` is fixed when it is first created. Pass `isolated=True`
-for a throwaway run or use `create_context()` / `connect_context()` /
-`list_contexts()` for an independent named context. If an explicit named
+for a throwaway run or use `create_context(language=..., context_id=None,
+cwd=None, env=None)` / `connect_context()` / `list_contexts()` for an
+independent named context. Select a context with `run(..., context=...)`: a
+handle, its `to_json()` identity (`InterpreterContextJSON`,
+`{"sandboxId", "contextId", "language"}`) or a context id with `language=`.
+A context's `run(code, *, cwd=None, timeout=None)` takes no `env`: set it when
+the context is created. If an explicit named
 context vanished, `interpreter.run(..., context=...)` / `context.run()` surface
 the typed `SessionNotFoundError`; recreate the context yourself and decide what
 to rerun. `timeout=` is enforced client-side **(seconds)**: on expiry the kernel
@@ -710,7 +745,9 @@ deadline by default, and each accepts a positive per-call `timeout=` override
 `branch=` and `remote=`; `push()` also accepts `set_upstream=True`.
 `commit(path, message, *, author=..., email=...)` keeps the identity fields
 keyword-only. Pass `allow_empty=True` to create an empty commit when Git would
-otherwise refuse it.
+otherwise refuse it. `status()`, `history()`, `list_remotes()` and
+`list_branches()` return typed results (`GitStatus`, `GitCommit`, `GitRemote`,
+branch names).
 
 ### Ports, LSP, computer use
 
@@ -724,8 +761,10 @@ To skip the preview warning page when a headless browser opens a preview URL,
 send `{PREVIEW_WARNING_SKIP_HEADER: PREVIEW_WARNING_SKIP_HEADER_VALUE}` (both
 exported from `daytona.v2`) with its requests.
 `lsp.start(language_id, path_to_project)` returns an `LspServer` handle with
-`open_document(uri)`, `close_document(uri)`, `completions(uri, position)`,
-`document_symbols(uri)`, `workspace_symbols(query)` and `stop()`.
+`open_document(uri)`, `close_document(uri)`, `completions(uri, position,
+context=LspCompletionContext(...))`, `document_symbols(uri)`,
+`workspace_symbols(query)` and `stop()`. A completion item's `documentation`
+is a plain string or an `LspMarkupContent`.
 `computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
