@@ -1612,6 +1612,8 @@ class TestProtocolParity:
     """Parity test: verify the hub correctly parses every fixture frame."""
 
     def test_fixture_exists(self) -> None:
+        if not _CONTRACT_PATH.parent.is_dir():
+            pytest.skip("the contracts are not in this tree (an sdist)")
         assert _CONTRACT_PATH.exists(), f"fixture not found: {_CONTRACT_PATH}"
 
     async def test_server_frames_parsed(self) -> None:
