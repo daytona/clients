@@ -11,11 +11,10 @@ import type { CreateReservationOptions, CreateReservationsBulkOptions, ListReser
 import type { ListResult } from './types.js'
 import type * as api from './gen/api-types.js'
 import { runtimeUniqueId, strictUriEncode } from './http.js'
-import { BadRequestError } from './errors/DaytonaError.js'
 import { MacReservationEndReason as END_REASONS, MacReservationOrigin as ORIGINS, MacReservationStatus as STATUSES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { mapMacResources } from './macMappers.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 
 const CREATE_RESERVATION_KEYS = optionKeys<CreateReservationOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true })
 const CREATE_RESERVATIONS_BULK_KEYS = optionKeys<CreateReservationsBulkOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true, count: true, minCount: true })
@@ -153,7 +152,7 @@ export class ReservationsService {
 // Every purchase and renewal carries a key: the caller's, or a fresh one per call.
 function idempotencyHeaders(idempotencyKey: string | undefined) {
   if (idempotencyKey != null && typeof idempotencyKey !== 'string') {
-    throw new BadRequestError('idempotencyKey must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('idempotencyKey must be a string')
   }
   return { headers: { 'Idempotency-Key': idempotencyKey ?? runtimeUniqueId() } }
 }

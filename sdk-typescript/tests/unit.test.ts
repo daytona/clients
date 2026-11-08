@@ -7285,7 +7285,8 @@ describe('toolbox service request shaping', () => {
     clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
     jest.spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(JSON.stringify({ access_token: 'platform', expires_in: expiresIn, token_type: 'Bearer', issued_token_type: 'urn:ietf:params:oauth:token-type:access_token' }), { headers: { 'content-type': 'application/json' } }))
-    await expect(client.listAuditActions()).rejects.toBeInstanceOf(AuthenticationError)
+    // A broken exchange response is the SDK's BadRequestError, as in Python.
+    await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   it('re-exchanges once after a 401 and retries with the new token', async () => {

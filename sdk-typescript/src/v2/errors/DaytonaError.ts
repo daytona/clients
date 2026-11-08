@@ -99,6 +99,36 @@ export interface ErrorOptions {
 }
 
 /**
+ * How a value that is not an options object reads in an error message, or
+ * `undefined` when it is one: an object literal, a class instance or a
+ * prototype-based object. `null`, primitives, functions, arrays and other
+ * built-ins (`Date`, `Map`, ...: their contents are not enumerable keys) are
+ * not. Internal: `assertOptionsObject` and the error constructors share it.
+ */
+export function nonOptionsDescription(value: unknown): string | undefined {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return 'an array'
+  if (typeof value !== 'object') return `a ${typeof value}`
+  const tag = Object.prototype.toString.call(value).slice(8, -1)
+  return tag === 'Object' ? undefined : `a built-in ${tag}`
+}
+
+/**
+ * `options` as given, refused with `BadRequestError` when it is not an options
+ * object: `new NotFoundError('x', 404)` (a positional status from plain
+ * JavaScript) would otherwise lose the status silently. Internal: every error
+ * constructor that reads options runs it first.
+ */
+export function errorOptions<T extends object>(options: T | undefined): T | undefined {
+  if (options === undefined) return undefined
+  const given = nonOptionsDescription(options)
+  if (given !== undefined) {
+    throw new BadRequestError(`error options must be an options object, got ${given}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  return options
+}
+
+/**
  * Base class of every v2 error.
  *
  * `code` and `source` are open vocabularies: the server may send a code or
@@ -129,9 +159,10 @@ export class DaytonaError extends Error {
   public readonly retryAfterMs?: number
   public readonly cause?: unknown
 
-  constructor(message: string, options: ErrorOptions = {}) {
+  constructor(message: string, options?: ErrorOptions) {
     super(message)
     this.name = new.target.name
+    options = errorOptions(options) ?? {}
     this.statusCode = options.statusCode
     this.code = options.code
     this.source = options.source
@@ -275,7 +306,8 @@ export class RateLimitError extends DaytonaError {}
  */
 export class LimitExceededError extends RateLimitError {
   /** `code` defaults to `LIMIT_EXCEEDED`. */
-  constructor(message: string, options: ErrorOptions = {}) {
+  constructor(message: string, options?: ErrorOptions) {
+    options = errorOptions(options) ?? {}
     super(message, { ...options, code: options.code ?? 'LIMIT_EXCEEDED' })
   }
 }
@@ -291,7 +323,8 @@ export class PreconditionRequiredError extends DaytonaError {}
  * defaults to `SDK`; there is no status or code.
  */
 export class ConnectionError extends DaytonaError {
-  constructor(message: string, options: ErrorOptions = {}) {
+  constructor(message: string, options?: ErrorOptions) {
+    options = errorOptions(options) ?? {}
     super(message, { ...options, source: options.source ?? 'SDK' })
   }
 }
@@ -302,7 +335,8 @@ export class ConnectionError extends DaytonaError {
  * `REQUEST_TIMEOUT`, `source` `SDK` (the same in the Python SDK).
  */
 export class ClientTimeoutError extends DaytonaError {
-  constructor(message = 'operation timed out', options: ErrorOptions = {}) {
+  constructor(message = 'operation timed out', options?: ErrorOptions) {
+    options = errorOptions(options) ?? {}
     super(message, { ...options, statusCode: options.statusCode ?? 408, code: options.code ?? 'REQUEST_TIMEOUT', source: options.source ?? 'SDK' })
   }
 }
@@ -312,7 +346,8 @@ export class ClientTimeoutError extends DaytonaError {
  * `source` `SDK`.
  */
 export class TransferCancelledError extends DaytonaError {
-  constructor(message = 'file transfer cancelled', options: ErrorOptions = {}) {
+  constructor(message = 'file transfer cancelled', options?: ErrorOptions) {
+    options = errorOptions(options) ?? {}
     super(message, { ...options, statusCode: options.statusCode ?? 499, code: options.code ?? 'REQUEST_CANCELLED', source: options.source ?? 'SDK' })
   }
 }
@@ -421,8 +456,8 @@ export class ImageBuildFailedError extends ConflictError {
   public readonly imageId?: string
   public readonly buildError?: string
 
-  constructor(message: string, options: ImageBuildFailedErrorOptions = {}) {
-    const { imageId, buildError, ...rest } = options
+  constructor(message: string, options?: ImageBuildFailedErrorOptions) {
+    const { imageId, buildError, ...rest } = errorOptions(options) ?? {}
     super(message, rest)
     this.imageId = imageId
     this.buildError = buildError

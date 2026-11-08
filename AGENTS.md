@@ -529,8 +529,15 @@ skipping exist only in the TypeScript tool).
   → source `SDK`). Errors the SDK raises itself carry `source='SDK'`, and the
   catalog's status, code and class where the catalog has one (an invalid
   argument is `BadRequestError` 400 `BAD_REQUEST`; build them with
-  `create_error` / `createDaytonaError(message, status, code, 'SDK')`); local
-  I/O and protocol failures carry the source only. Python callers should not star-import
+  `create_error` / `badRequest(message)` / `createDaytonaError(message,
+  status, code, 'SDK')`, never `new DaytonaError(...)`, which a TS guard test,
+  `tests/sdk-raised-errors.test.ts`, holds to a shrinking list); local
+  I/O and protocol failures carry the source only. A response that breaks the
+  contract is `BadRequestError` 400 `BAD_REQUEST` `SDK` naming the field (the
+  rule; network policy, sandbox secrets and sandbox objects follow it; known
+  exceptions at this point, which still raise `InternalServerError` 500 with
+  no code: the computer-use status mappers, and the filesystem signed URL and
+  watch events, until their areas adopt it). Python callers should not star-import
   `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
   built-ins.
 - **Generated wire types must not reach the public surface** (the rule; the

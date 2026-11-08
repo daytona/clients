@@ -4,8 +4,8 @@
 2.x. Ambient values (`DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 `DAYTONA_PROJECT_ID`, `DAYTONA_V2_API_URL`) are trimmed in both SDKs and a
 blank one counts as unset. Explicit config values are used as given, and an
-explicitly empty one (`api_key` / `apiKey`, `jwt_token` / `jwtToken`,
-`project_id` / `projectId`) is a `BadRequestError` (400, `BAD_REQUEST`, source
+explicitly empty or non-string one (`api_key` / `apiKey`, `jwt_token` /
+`jwtToken`, `project_id` / `projectId`) is a `BadRequestError` (400, `BAD_REQUEST`, source
 `SDK`) in both, never a reason to read the environment. Missing credentials
 raise `AuthenticationError` with status 401, code `UNAUTHORIZED` and source
 `SDK`. Python `Daytona(config)` / `AsyncDaytona(config)` now copy the config

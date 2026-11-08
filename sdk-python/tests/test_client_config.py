@@ -75,6 +75,22 @@ def test_an_explicitly_empty_project_id_is_rejected(clean_env: pytest.MonkeyPatc
     )
 
 
+@pytest.mark.parametrize("name", ["api_key", "jwt_token", "project_id"])
+@pytest.mark.parametrize("value", [5, b"key", True, ["key"]])
+def test_a_non_string_credential_field_is_rejected_like_typescript(
+    clean_env: pytest.MonkeyPatch, name: str, value: object
+) -> None:
+    fields: dict[str, object] = {"api_key": "dtn_key"} if name == "project_id" else {}
+    fields[name] = value
+    with pytest.raises(BadRequestError, match=f"{name} must be a non-empty string when provided") as excinfo:
+        _v2(DaytonaConfig(**fields))  # type: ignore[arg-type]
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
+
+
 def test_explicit_values_are_used_as_given(clean_env: pytest.MonkeyPatch) -> None:
     v2 = _v2(DaytonaConfig(jwt_token=" jwt ", project_id=" p "))
     assert v2._auth._jwt_token == " jwt "  # type: ignore[attr-defined]

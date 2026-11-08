@@ -25,6 +25,7 @@ import pytest
 from _handles import lazy_sandbox
 
 from daytona.v2 import (
+    BadRequestError,
     BuildLogEvent,
     BuildLogGapEvent,
     BuildLogInterruptedError,
@@ -42,7 +43,7 @@ from daytona.v2.build_logs import (
     follow_build_logs,
     read_build_logs,
 )
-from daytona.v2.errors import BadRequestError, _interrupt_error_of
+from daytona.v2.errors import _interrupt_error_of
 from daytona.v2.sandbox import AsyncSandbox
 from daytona.v2.services import AsyncImagesService
 from daytona.v2.types import DaytonaConfig
@@ -1203,9 +1204,13 @@ async def test_caller_timeout_cancels_a_blocked_callback_and_keeps_checkpoint():
 @pytest.mark.parametrize("timeout", [-1.0, float("inf"), float("nan")])
 async def test_invalid_caller_timeout_is_rejected_before_any_request(timeout):
     api, requests, _ = setup([])
-    with pytest.raises(BadRequestError) as raised:
+    with pytest.raises(BadRequestError, match="timeout must be a non-negative finite number") as excinfo:
         await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None, timeout=timeout)
-    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
     assert requests == []
 
 

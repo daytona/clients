@@ -5,9 +5,9 @@
 
 // allow: SIZE_OK — One resumable build-log state machine owns discovery, cursors, and cancellation.
 
-import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
+import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
-import { boundedTimerDelay } from './options.js'
+import { boundedTimerDelay, badRequest } from './options.js'
 import { HttpTransport } from './http.js'
 import type * as api from './gen/api-types.js'
 import { sameBuildLogResource } from './buildLogIdentity.js'
@@ -58,8 +58,8 @@ export interface BuildLogInterruptedErrorOptions extends ErrorOptions {
 export class BuildLogInterruptedError extends DaytonaError {
   public readonly cursor?: string
 
-  constructor(message: string, options: BuildLogInterruptedErrorOptions = {}) {
-    const { cursor, ...rest } = options
+  constructor(message: string, options?: BuildLogInterruptedErrorOptions) {
+    const { cursor, ...rest } = errorOptions(options) ?? {}
     super(message, { ...rest, code: rest.code ?? 'BUILD_LOG_INTERRUPTED', source: rest.source ?? 'SDK' })
     this.cursor = cursor
   }
@@ -478,7 +478,7 @@ export async function readBuildLogs(api: HttpTransport, path: string): Promise<s
     // diagnostic body was interrupted by our abort timer.
     if (error instanceof DaytonaError && error.statusCode !== undefined && !(error instanceof ClientTimeoutError || error instanceof ConnectionError)) throw error
     if (controller.signal.aborted) throw new ClientTimeoutError('build log read timed out')
-    if (error instanceof ProtocolError) throw new DaytonaError(error.message, { code: 'BUILD_LOG_PROTOCOL_ERROR', source: 'SDK' })
+    if (error instanceof ProtocolError) throw createDaytonaError(error.message, undefined, 'BUILD_LOG_PROTOCOL_ERROR', 'SDK')
     throw error
   } finally {
     clearTimeout(timer)

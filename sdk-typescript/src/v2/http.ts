@@ -7,7 +7,7 @@ import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
 import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
-import { boundedTimerDelay } from './options.js'
+import { boundedTimerDelay, badRequest } from './options.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -800,7 +800,17 @@ async function finishAxiosError(
     if (mapped instanceof ClientTimeoutError) requestBudgetTimeouts.add(mapped)
     throw mapped
   }
-  throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
+  throw createDaytonaError(error instanceof Error ? error.message : String(error), undefined, undefined, 'SDK')
+}
+
+/** A token-exchange body as an object, or `undefined` when it is not a JSON object. */
+function parseTokenExchange(body: string): TokenExchangeResponse | undefined {
+  try {
+    const parsed: unknown = JSON.parse(body)
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as TokenExchangeResponse : undefined
+  } catch {
+    return undefined
+  }
 }
 
 class PlatformTokenProvider implements HttpAuthProvider {
@@ -917,12 +927,12 @@ class PlatformTokenProvider implements HttpAuthProvider {
         finalize(response.status, error)
         throw error
       }
-      const payload = await response.json() as TokenExchangeResponse
-      const accessToken = typeof payload.access_token === 'string' ? payload.access_token : undefined
+      const payload = parseTokenExchange(await response.text())
+      const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : undefined
       // A non-positive lifetime is a broken exchange, not a token to cache.
-      const expiresIn = typeof payload.expires_in === 'number' && Number.isFinite(payload.expires_in) && payload.expires_in > 0 ? payload.expires_in : undefined
+      const expiresIn = typeof payload?.expires_in === 'number' && Number.isFinite(payload.expires_in) && payload.expires_in > 0 ? payload.expires_in : undefined
       if (!accessToken || expiresIn === undefined) {
-        const error = new AuthenticationError('auth/token returned an invalid token-exchange payload', { source: 'SDK' })
+        const error = badRequest('auth/token returned an invalid token-exchange payload')
         finalize(response.status, error)
         throw error
       }
@@ -1486,12 +1496,12 @@ export class HttpTransport {
             freshToken = await timeoutOnAbort(abortableWait(this.options.auth.onUnauthorized(currentAuthToken), timeout.signal), timeout)
           } catch (err) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error', { source: 'SDK' }))
-            throw err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error', { source: 'SDK' })
+            finalize(response.status, err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' }))
+            throw err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
           }
           if (freshToken !== undefined && freshToken !== currentAuthToken) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, new AuthenticationError('request rejected before token refresh retry', { source: 'SDK' }))
+            finalize(response.status, new AuthenticationError('request rejected before token refresh retry', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' }))
             retriedUnauthorized = true
             return send(false, undefined, freshToken)
           }
@@ -1499,7 +1509,7 @@ export class HttpTransport {
           const rejectedAuthorization = headers.Authorization
           if (request.canRetryUnauthorized) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, new AuthenticationError('request rejected before token refresh retry', { source: 'SDK' }))
+            finalize(response.status, new AuthenticationError('request rejected before token refresh retry', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' }))
             retriedUnauthorized = true
             return send(true, rejectedAuthorization)
           }

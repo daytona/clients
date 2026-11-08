@@ -6,7 +6,7 @@
 import { encodeQuery, HttpTransport, sseMessages, strictUriEncode } from './http.js'
 import type { KillOptions, LogsOptions, LogsPage, ProcessDto, ProcessHandleJSON, ProcessKind, StreamLogEvent, StreamLogsOptions, WaitResult } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { ConnectionError, DaytonaError, ClientTimeoutError, createDaytonaError } from './errors/DaytonaError.js'
+import { ConnectionError, ClientTimeoutError, createDaytonaError } from './errors/DaytonaError.js'
 import {
   base64Encode, frameFromWire, invalidPtyVerbError, invalidStdinVerbError, processFromWire,
   remainingWaitBudgetMs, signalWire, streamEvent, waitDeadline, waitResult,
@@ -167,7 +167,7 @@ export class ProcessHandle {
     socket.binaryType = 'arraybuffer'
     await new Promise<void>((resolve, reject) => {
       socket.addEventListener('open', resolve)
-      socket.addEventListener('error', () => reject(new DaytonaError('WebSocket attach failed', { source: 'SDK' })))
+      socket.addEventListener('error', () => reject(createDaytonaError('WebSocket attach failed', undefined, undefined, 'SDK')))
     })
     const queue: Uint8Array[] = []
     const waiters: Array<(value: IteratorResult<Uint8Array>) => void> = []
