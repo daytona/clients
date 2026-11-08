@@ -9,7 +9,11 @@ The TypeScript SDK's tests/client-config.test.ts asserts the same behaviour.
 from __future__ import annotations
 
 import asyncio
-from typing import AsyncIterator, Optional
+import contextlib
+import http.server
+import threading
+import time
+from typing import AsyncIterator, Iterator, Optional
 
 import httpx
 import pytest
@@ -340,17 +344,79 @@ async def test_a_per_call_timeout_bounds_opening_a_stream_in_place_of_the_reques
     roomy = AsyncTransport(BASE, "k", request_timeout=10)
     with pytest.raises(ClientTimeoutError):
         await getattr(roomy, opener)(RequestSpec("GET", "/logs", timeout=0.15))
-    # Headers inside a short per-call timeout: the body, which takes twice as
-    # long as that timeout, is never cut by it.
-    respx.get(f"{BASE}/fast-headers").mock(side_effect=lambda _request: _trickle(chunks=6, every=0.05))
-    stream = await getattr(roomy, opener)(RequestSpec("GET", "/fast-headers", timeout=0.15))
-    assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"xxxxxx"
-    await stream.close()
     # Without one, the request timeout bounds opening the exclusive stream too.
     with pytest.raises(ClientTimeoutError):
         await open_(RequestSpec("GET", "/logs"))
     await transport.close()
     await roomy.close()
+
+
+@contextlib.contextmanager
+def _gapped_body_server(gap: float, chunks: int) -> Iterator[str]:
+    """A real HTTP server: headers at once, then ``chunks`` bytes ``gap`` seconds apart.
+
+    respx never applies httpx's per-read timeouts; a real socket does.
+    """
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *_args: object) -> None:
+            pass
+
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(chunks))
+            self.end_headers()
+            self.wfile.flush()
+            try:
+                for _ in range(chunks):
+                    time.sleep(gap)
+                    self.wfile.write(b"x")
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@pytest.mark.anyio
+async def test_a_stream_body_outlasts_a_per_call_timeout_on_a_real_socket() -> None:
+    # Headers at once, then 3 bytes 0.3 s apart under a 0.15 s per-call
+    # timeout: every gap is longer than the timeout.
+    with _gapped_body_server(gap=0.3, chunks=3) as base:
+        transport = AsyncTransport(base, "k", request_timeout=10)
+        try:
+            # open_stream: the per-call timeout bounds opening it only; the
+            # body has no bound at all.
+            stream = await transport.open_stream(RequestSpec("GET", "/logs", timeout=0.15))
+            assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"xxx"
+            await stream.close()
+            # open_exclusive_stream: a live stream (unbounded_read) is not
+            # bounded either...
+            stream = await transport.open_exclusive_stream(
+                RequestSpec("GET", "/logs", timeout=0.15, unbounded_read=True)
+            )
+            assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"xxx"
+            await stream.close()
+            # ...while a finite body keeps an idle-read bound of that timeout.
+            stream = await transport.open_exclusive_stream(RequestSpec("GET", "/logs", timeout=0.15))
+            try:
+                with pytest.raises(ClientTimeoutError):
+                    b"".join([chunk async for chunk in stream.iter_bytes()])
+            finally:
+                await stream.close()
+        finally:
+            await transport.close()
 
 
 def test_the_synchronous_client_enforces_the_same_total_deadline(monkeypatch: pytest.MonkeyPatch) -> None:

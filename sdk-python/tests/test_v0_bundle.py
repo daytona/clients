@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from _repo import _repo_file
 
 if TYPE_CHECKING:
     from daytona.v0 import _Daytona  # type: ignore[import-not-found]
@@ -115,17 +116,13 @@ def test_a_per_call_region_id_is_sent_in_the_snapshot_create_body(
 
 def test_the_bundle_is_the_pinned_release() -> None:
     import os
-    from pathlib import Path
 
     from daytona.v0._bundle import BUNDLED_FROM  # type: ignore[import-not-found]
 
     # The publish job passes the tag its gate approved (the pin, or an
     # allow_unpinned_v0 override); otherwise the bundle must be the pin.
     expected = os.environ.get("DAYTONA_V0_EXPECTED_TAG") or (
-        (Path(__file__).resolve().parents[2] / "scripts" / "v0-sdk-version")
-        .read_text()
-        .splitlines()[0]
-        .strip()
+        (_repo_file("scripts/v0-sdk-version")).read_text().splitlines()[0].strip()
     )
     assert expected == BUNDLED_FROM.rsplit("@", 1)[1]
 

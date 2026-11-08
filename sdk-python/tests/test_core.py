@@ -26,6 +26,7 @@ import httpx
 import pytest
 import respx
 from _handles import lazy_sandbox
+from _repo import _repo_file
 
 from daytona.v2 import (
     AuditActionGroup,
@@ -317,9 +318,7 @@ _DEFAULT_TIME = "2026-08-24T00:00:00Z"
 
 
 def _read_contract_operations(contract_name: str) -> list[tuple[str, str]]:
-    spec = json.loads(
-        (Path(__file__).resolve().parents[2] / "contract" / f"{contract_name}-openapi.json").read_text()
-    )
+    spec = json.loads(_repo_file(f"contract/{contract_name}-openapi.json").read_text())
     operations: list[tuple[str, str]] = []
     for route_path, route_item in spec["paths"].items():
         for method in route_item:
@@ -1412,9 +1411,7 @@ def test_package_all_symbols_resolve_and_computer_use_names_match_typescript_exp
 
     typescript_exports = {
         name
-        for name in _typescript_export_names(
-            Path(__file__).resolve().parents[2].joinpath("sdk-typescript", "src", "v2", "index.ts")
-        )
+        for name in _typescript_export_names(_repo_file("sdk-typescript/src/v2/index.ts"))
         if name.startswith("ComputerUse")
         and name not in {"ComputerUse", "ComputerUseTransport"}
         and not name.endswith(hidden_suffixes)
@@ -4838,7 +4835,7 @@ PROXY_GENERIC_CODES = frozenset(
 @pytest.mark.anyio
 async def test_codes_module_matches_toolbox_error_catalog():
     # The committed toolbox contract is the source of truth.
-    contract = Path(__file__).resolve().parents[2] / "contract" / "toolbox-openapi.json"
+    contract = _repo_file("contract/toolbox-openapi.json")
     spec = json.loads(contract.read_text())
     domain = spec["x-daytona-error-codes"]
     generic = spec["x-daytona-generic-codes"]
@@ -4863,7 +4860,7 @@ async def test_codes_module_matches_toolbox_error_catalog():
 
 
 def test_codes_module_matches_api_error_catalog():
-    contract = Path(__file__).resolve().parents[2] / "contract" / "api-openapi.json"
+    contract = _repo_file("contract/api-openapi.json")
     spec = json.loads(contract.read_text())
     domain = spec["x-daytona-error-codes"]
     generic = spec["x-daytona-generic-codes"]
@@ -4888,7 +4885,7 @@ def test_codes_module_matches_api_error_catalog():
 
 
 def test_codes_module_matches_proxy_error_catalog():
-    contract = Path(__file__).resolve().parents[2] / "contract" / "proxy-errors.json"
+    contract = _repo_file("contract/proxy-errors.json")
     spec = json.loads(contract.read_text())
     domain = {entry["code"]: entry["status"] for entry in spec["codes"]}
     generic = {entry["code"]: entry["status"] for entry in spec["generic"]}
@@ -4905,7 +4902,7 @@ def test_codes_module_matches_proxy_error_catalog():
 
 
 def test_codes_module_matches_router_error_catalog():
-    contract = Path(__file__).resolve().parents[2] / "contract" / "router-errors.json"
+    contract = _repo_file("contract/router-errors.json")
     spec = json.loads(contract.read_text())
     domain = {entry["code"]: entry["status"] for entry in spec["codes"]}
     generic = {entry["code"]: entry["status"] for entry in spec["generic"]}
@@ -4938,7 +4935,7 @@ def test_router_source_dispatches_by_source_and_code():
 
 # SDK lifecycle bounds must agree with the committed API contract.
 def test_lifecycle_bounds_match_the_api_contract():
-    contract = Path(__file__).resolve().parents[2] / "contract" / "api-openapi.json"
+    contract = _repo_file("contract/api-openapi.json")
     spec = json.loads(contract.read_text())
     props = spec["components"]["schemas"]["UpdateSandboxLifecyclePolicyRequest"]["properties"]
 
@@ -4954,7 +4951,7 @@ def test_lifecycle_bounds_match_the_api_contract():
 
 @pytest.mark.anyio
 async def test_log_channel_extension_matches_known_vocabulary() -> None:
-    contract = Path(__file__).resolve().parents[2] / "contract" / "toolbox-openapi.json"
+    contract = _repo_file("contract/toolbox-openapi.json")
     spec = json.loads(contract.read_text())
     assert set(spec["x-daytona-log-channels"]) == {
         "display",

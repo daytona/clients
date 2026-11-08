@@ -13,13 +13,13 @@ import asyncio
 import contextlib
 import gc
 import json
-import pathlib
 from typing import Callable, Dict, List, Optional, Tuple
 
 import httpx
 import pytest
 import respx
 from _handles import lazy_sandbox
+from _repo import _repo_file
 from test_core import RecordingTransport, _sandbox_detail_payload, bind_api
 
 from daytona.v2._events import (
@@ -66,7 +66,7 @@ def _v2_api_url_is_the_test_host(monkeypatch: pytest.MonkeyPatch) -> None:
 
 _API_KEY = "dtn_test_key"
 
-_CONTRACT_PATH = pathlib.Path(__file__).parent.parent.parent / "contract" / "sandbox-events-protocol.json"
+_CONTRACT = "contract/sandbox-events-protocol.json"
 
 
 # ---------------------------------------------------------------------------
@@ -1612,15 +1612,11 @@ class TestProtocolParity:
     """Parity test: verify the hub correctly parses every fixture frame."""
 
     def test_fixture_exists(self) -> None:
-        if not _CONTRACT_PATH.parent.is_dir():
-            pytest.skip("the contracts are not in this tree (an sdist)")
-        assert _CONTRACT_PATH.exists(), f"fixture not found: {_CONTRACT_PATH}"
+        contract = _repo_file(_CONTRACT)
+        assert contract.exists(), f"fixture not found: {contract}"
 
     async def test_server_frames_parsed(self) -> None:
-        if not _CONTRACT_PATH.exists():
-            pytest.skip("contract fixture not found")
-
-        fixture = json.loads(_CONTRACT_PATH.read_text())
+        fixture = json.loads(_repo_file(_CONTRACT).read_text())
         server_frames = fixture["server_frames"]
         sdk_state_decoding = fixture["sdk_state_decoding"]
 

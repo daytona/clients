@@ -203,7 +203,10 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   bounded only until their response headers arrive, by the spec's own
   `timeout` when it has one, else the request timeout
   (`_transport._stream_open_seconds`; `0` or above the timer maximum =
-  none). The deadline starts before the bearer is resolved; the project-token
+  none). Neither bounds a stream's body as a total, but
+  `open_exclusive_stream` keeps the timeout as httpx's idle-read bound on a
+  finite body unless the spec sets `unbounded_read` (a real-socket test in
+  `test_client_config.py` pins both openers). The deadline starts before the bearer is resolved; the project-token
   exchange request is also bounded by the client's request timeout. The TypeScript transport
   implements the same rule.
 - Build logs use URL-only discovery (`{"url": "https://…/build-logs/…"}`).
@@ -225,6 +228,14 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
 ```bash
 uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q
 ```
+
+The suite also runs from the sdist, which carries only `sdk-python/` (plus
+the two `gen/` scripts the tests import). A test that reads a file outside
+`sdk-python/` (a contract under `contract/`, the TypeScript SDK, `scripts/`,
+`upgrade/`) gets its path from `_repo_file("contract/…")` or
+`_repo_scripts()` in `tests/_repo.py`: in a checkout they return the path (a
+missing file still fails), outside one they skip that test, naming the file.
+Never build such a path from `Path(__file__).parents[…]` directly.
 
 ## Streaming response ownership
 

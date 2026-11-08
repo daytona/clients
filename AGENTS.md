@@ -502,9 +502,13 @@ skipping exist only in the TypeScript tool).
   request is itself also bounded by the client's request timeout (it is
   shared by concurrent calls), so a per-call timeout longer than the request
   timeout does not lengthen it. On a stream the per-call timeout likewise
-  bounds only opening it, until its response headers (Python
-  `_stream_open_seconds`, on `open_stream` and `open_exclusive_stream`), and
-  a transfer ignores any timeout it carries.
+  bounds opening it, until its response headers (Python
+  `_stream_open_seconds`, on `open_stream` and `open_exclusive_stream`);
+  neither it nor the request timeout bounds the body as a total. One
+  exception: Python's `open_exclusive_stream` keeps that timeout as an
+  idle-read bound on a finite body (build-log discovery and one-shot reads)
+  unless the spec sets `unbounded_read` (the build-log follower does). A
+  transfer ignores any timeout it carries.
 - **TypeScript rejects unknown option keys at runtime** (the rule; applied so
   far to the client configuration and the toolbox, see below). A covered options object
   declares its known keys once, with
