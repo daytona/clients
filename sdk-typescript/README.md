@@ -649,7 +649,7 @@ later sandbox adds, passed through as its string).
 Callbacks may return promises; they run one at a time and are awaited. A
 failing `onEvent` or `onOverflow` ends the watch with that error, which
 `exitError` / `waitForExit()` report and `onExit` receives; a failing `onExit`
-is ignored. `stop()` resolves once a callback that is already running, and
+is ignored. A watch whose stream drops ends with `ConnectionError`. `stop()` resolves once a callback that is already running, and
 `onExit`, have finished, and a callback (or `onExit`) may stop its own watch and await
 `waitForExit()` without waiting for itself. In runtimes without
 `AsyncLocalStorage` (browsers), a callback that stops its own watch after an

@@ -704,7 +704,8 @@ milliseconds; `type` is `"create"`, `"write"`, `"remove"`, `"rename"`,
 `"chmod"` or a kind a later sandbox adds, passed through as its string). Callbacks may be plain or coroutine functions; they run one at
 a time and are awaited. A failing `on_event` or `on_overflow` ends the watch
 with that error, which `exit_error` / `wait_for_exit()` report and `on_exit`
-receives; a failing `on_exit` is ignored. `stop()` returns once a callback that
+receives; a failing `on_exit` is ignored. A watch whose stream drops ends with
+`ConnectionError`. `stop()` returns once a callback that
 is already running, and `on_exit`, have finished, and a callback (or
 `on_exit`) may stop its own watch, also from a task it started.
 With the synchronous `Daytona` client the callbacks run on the SDK's

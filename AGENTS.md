@@ -532,8 +532,10 @@ skipping exist only in the TypeScript tool).
   status, code, 'SDK')`, never `new DaytonaError(...)`, which a TS guard test,
   `tests/sdk-raised-errors.test.ts`, holds to a shrinking list); local
   I/O and protocol failures carry the source only. A response that breaks the
-  contract is `BadRequestError` 400 `BAD_REQUEST` `SDK` naming the field (the
-  rule; known exceptions at this point, which still raise
+  contract in a field the SDK reads or returns is `BadRequestError` 400
+  `BAD_REQUEST` `SDK` naming the field (fields it neither reads nor returns,
+  such as a pre-signed URL response's `url`, are not checked; known
+  exceptions to the rule at this point, which still raise
   `InternalServerError` 500 with no code: network policy and sandbox
   secrets, until their areas adopt it). Python callers should not star-import
   `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
@@ -587,16 +589,21 @@ skipping exist only in the TypeScript tool).
   synchronous part counts). The event `type` is an open string (the contract
   declares no enum); an unknown SSE event is skipped without parsing its
   data, and a known one whose data is not JSON is the malformed-response
-  error.
+  error; an SSE block without a `data:` line, or an unterminated final one,
+  dispatches nothing. A watch whose stream ends on its own (or is cut short)
+  ends with `ConnectionError` (source `SDK`), and a close failure after the
+  caller's own `stop()` is not an exit error.
 - **Toolbox results are SDK-owned models.** File info, grep / replace items,
   git status / commits / remotes, system metrics, the LSP types and the
   computer-use results are hand-written (Python frozen keyword-only
   dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
   timestamps as RFC 3339 strings), as are log pages and bulk-write results,
   with every field the contract requires
-  required: a response that breaks the contract (a missing required field, a
-  wrong type, a negative value under `minimum: 0`, a malformed timestamp, a
-  list shape the contract does not have) is the malformed-response
+  required: a response that breaks the contract in a field the SDK reads or
+  returns (a missing required field, a wrong type, a value outside the
+  contract's `minimum` / `maximum`, a malformed timestamp, a list or map shape
+  the contract does not have, an unparsable bulk-download error part) is the
+  malformed-response
   `BadRequestError` (400, `BAD_REQUEST`, source `SDK`, naming the field),
   never a placeholder value; unknown fields are dropped (computer-use keeps
   them in its named `extraFields` bags).
