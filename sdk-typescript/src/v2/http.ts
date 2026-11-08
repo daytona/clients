@@ -4,7 +4,7 @@
  */
 
 import axios, { AxiosError } from 'axios'
-import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
+import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
 import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
 import { boundedTimerDelay, badRequest } from './options.js'
@@ -162,6 +162,10 @@ type DaytonaRequestMeta = {
 
 type DaytonaAxiosRequestConfig = InternalAxiosRequestConfig & {
   daytona?: DaytonaRequestMeta
+  /** The SDK reads this body as bytes and decodes it itself (`decodeResponseBody`). */
+  daytonaDecodesBody?: boolean
+  /** Set on a 2xx response that declares JSON and does not decode. */
+  daytonaUndecodableBody?: boolean
 }
 
 const AXIOS_TRANSPORT_CONFIG = Symbol('daytonaAxiosTransportConfig')
@@ -744,6 +748,16 @@ function finishAxiosSuccess(response: { readonly status: number; readonly config
   })
 }
 
+/** Ends a response's span with the SDK's own error (a body it refuses). */
+function finishAxiosFailure(response: { readonly config: AxiosRequestConfig }, error: DaytonaError, options: HttpClientOptions | undefined): void {
+  if (!options?.otelEnabled) return
+  const span = (response.config as DaytonaAxiosRequestConfig).daytona?.span
+  if (!span) return
+  loadOtelBundle(options.otelApi).then((bundle) => finalizeSpan(bundle, span, error.statusCode, error)).catch(() => {
+    span.end()
+  })
+}
+
 async function finishAxiosError(
   instance: AxiosInstance,
   error: unknown,
@@ -942,7 +956,16 @@ class PlatformTokenProvider implements HttpAuthProvider {
         finalize(response.status, error)
         throw error
       }
-      const exchange = tokenExchange(await response.text())
+      // Decoded strictly, as the Python SDK does: a body that is not UTF-8
+      // is no JSON object.
+      const bytes = new Uint8Array(await response.arrayBuffer())
+      let body: string
+      try {
+        body = STRICT_UTF8.decode(bytes)
+      } catch {
+        body = ''
+      }
+      const exchange = tokenExchange(body)
       if (exchange instanceof BadRequestError) {
         finalize(response.status, exchange)
         throw exchange
@@ -1097,6 +1120,56 @@ export function resetFetchCacheModeProbeForTests(): void {
   fetchCacheModeOverride = undefined
 }
 
+const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+const LENIENT_UTF8 = new TextDecoder('utf-8', { ignoreBOM: true })
+
+function responseBytes(data: unknown): Uint8Array | undefined {
+  if (data instanceof ArrayBuffer) return new Uint8Array(data)
+  if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+  return undefined
+}
+
+function declaresJson(headers: AxiosResponseHeaders | undefined): boolean {
+  const value = headers?.['content-type']
+  return typeof value === 'string' && value.toLowerCase().includes('application/json')
+}
+
+/**
+ * The SDK's own response decoding, for requests that set no `responseType`
+ * (read as bytes): a body that declares JSON is decoded strictly (UTF-8, a
+ * byte-order mark kept, `JSON.parse`), as the Python SDK does, and a 2xx one
+ * that does not decode is marked for the response interceptor to refuse. Any
+ * other body is decoded as axios would (text, parsed when it happens to be
+ * JSON). An error response's body is left to the error mapping.
+ */
+function decodeResponseBody(this: DaytonaAxiosRequestConfig, data: unknown, headers: AxiosResponseHeaders | undefined, status?: number): unknown {
+  if (this.daytonaDecodesBody !== true) return data
+  const bytes = responseBytes(data)
+  const json = declaresJson(headers)
+  const ok = status !== undefined && status >= 200 && status < 300
+  let text: string
+  if (bytes === undefined) {
+    if (typeof data !== 'string') return data
+    text = data
+  } else if (json) {
+    try {
+      text = STRICT_UTF8.decode(bytes)
+    } catch {
+      if (ok) this.daytonaUndecodableBody = true
+      return LENIENT_UTF8.decode(bytes)
+    }
+  } else {
+    text = LENIENT_UTF8.decode(bytes)
+  }
+  if (text === '') return text
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    if (json && ok) this.daytonaUndecodableBody = true
+    return text
+  }
+}
+
 function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions): AxiosInstance {
   const instance = axios.create({
     baseURL: baseURL.replace(/\/$/, ''),
@@ -1104,6 +1177,11 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
     headers: authHeaders(apiKey),
     fetchOptions: fetchCacheModeOptions(),
   })
+  const axiosTransforms = instance.defaults.transformResponse
+  instance.defaults.transformResponse = [
+    decodeResponseBody,
+    ...(axiosTransforms === undefined ? [] : Array.isArray(axiosTransforms) ? axiosTransforms : [axiosTransforms]),
+  ]
   credentialSafeDiagnostics(instance, () => ({ type: 'HttpClient' }))
   credentialSafeDiagnostics(instance.defaults, () => ({ timeout: instance.defaults.timeout }))
   credentialSafeDiagnostics(instance.defaults.headers, () => ({ type: 'HttpHeaders' }))
@@ -1113,7 +1191,14 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
     configurable: true,
   })
   instance.interceptors.request.use(async (config) => {
-    const armed = armRequestDeadline(config as DaytonaAxiosRequestConfig, instance)
+    const daytonaConfig = config as DaytonaAxiosRequestConfig
+    // No responseType: the SDK reads the bytes and decodes them itself (kept
+    // on a retry, whose config already says arraybuffer).
+    if (daytonaConfig.responseType === undefined || daytonaConfig.daytonaDecodesBody === true) {
+      daytonaConfig.responseType = 'arraybuffer'
+      daytonaConfig.daytonaDecodesBody = true
+    }
+    const armed = armRequestDeadline(daytonaConfig, instance)
     try {
       return await prepareAxiosRequest(armed, instance.defaults.baseURL, instance, options)
     } catch (error) {
@@ -1137,6 +1222,13 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
           new AxiosError('Request failed with status code 401', AxiosError.ERR_BAD_REQUEST, response.config, response.request, response),
           options,
         ) as Promise<AxiosResponse>
+      }
+      if ((response.config as DaytonaAxiosRequestConfig).daytonaUndecodableBody === true) {
+        // A 2xx body that declares JSON and does not decode is malformed,
+        // whether or not the caller reads it (as in the Python SDK).
+        const error = badRequest('expected JSON response: the body is not valid JSON')
+        finishAxiosFailure(response, error, options)
+        throw error
       }
       finishAxiosSuccess(response, options)
       return response

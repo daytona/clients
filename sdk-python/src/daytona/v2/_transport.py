@@ -1175,7 +1175,15 @@ def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
         raise error_from_response(response.status_code, response.content)
     content_type = response.headers.get("content-type", "")
     if "application/json" in content_type:
-        return parse_json_bytes(response.content)
+        try:
+            return parse_json_bytes(response.content)
+        except ValueError:
+            # Invalid JSON, invalid UTF-8 (UnicodeDecodeError is a ValueError)
+            # or a non-standard constant: malformed, whether or not the caller
+            # reads the body.
+            raise create_error(
+                "expected JSON response: the body is not valid JSON", 400, "BAD_REQUEST", "SDK"
+            ) from None
     if not response.content:
         return b""
     return response.content

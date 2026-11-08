@@ -660,11 +660,17 @@ skipping exist only in the TypeScript tool).
   required: a response that breaks the contract in a field the SDK reads or
   returns (a missing required field, a wrong type, a value outside the
   contract's `minimum` / `maximum`, a malformed timestamp, a list or map shape
-  the contract does not have, an unparsable bulk-download error part) is the
-  malformed-response
+  the contract does not have, an unparsable bulk-download error part, a
+  number a double cannot carry, which `JSON.parse` reads as `Infinity`:
+  Python checks every number field at the typed-model boundary with the
+  shared `finite_number`) is the malformed-response
   `BadRequestError` (400, `BAD_REQUEST`, source `SDK`, naming the field),
   never a placeholder value; unknown fields are dropped (computer-use keeps
-  them in its named `extraFields` bags).
+  them in its named `extraFields` bags). A 2xx response that declares JSON
+  and does not decode (invalid JSON, invalid UTF-8, the non-standard `NaN` /
+  `Infinity` constants) is that error at the transport, whether or not the
+  call reads the body (TS reads such bodies as bytes and decodes them
+  itself, `decodeResponseBody` in `http.ts`).
 - **Output is channel-filtered.** `stdout`/`stderr` come from their frame
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are
