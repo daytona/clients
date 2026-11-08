@@ -180,6 +180,24 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
 uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q
 ```
 
+### Public-surface snapshot
+
+`api-surface/daytona.api.txt` and `api-surface/daytona.v2.api.txt` list every
+name in `daytona.__all__` / `daytona.v2.__all__` with its kind and signature
+(classes with their constructor, methods marked `def` / `async def`,
+properties, attributes, dataclass fields, enum members and TypedDict keys),
+one declaration per line. Annotations and defaults come from the source, so
+the text is the same on every supported Python. Regenerate after any change
+to the public surface and commit the result; CI runs the check:
+
+```bash
+.venv/bin/python gen/api_surface.py            # regenerate
+.venv/bin/python gen/api_surface.py --check    # exit 1 when stale
+```
+
+The `Breaking changes` workflow compares the snapshot with the last stable
+release (see `docs/VERSIONING.md`, "Breaking-change check").
+
 ## Streaming response ownership
 
 Build-log discovery, follow and one-shot reads go through
