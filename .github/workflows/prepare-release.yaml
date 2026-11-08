@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to prepare (vX.Y.Z or vX.Y.Z-alpha.N / -beta.N / -rc.N)'
+        description: 'Version to prepare (vX.Y.Z, vX.Y.Z-rc.N or vX.Y.Z-alpha.N)'
         required: true
         type: string
 
@@ -46,6 +46,8 @@ jobs:
         run: |
           set -euo pipefail
           derived=$(scripts/sdk-version.sh "$VERSION_INPUT")
+          # Only a version the publish workflow takes (alpha, rc, stable).
+          scripts/release-channel.sh "$VERSION_INPUT" >/dev/null
           version=$(sed -n 's/^version=//p' <<<"$derived")
           case "$version" in
             0.*) echo "::error::${version} is a 0.x version — prepare it from release/v0"; exit 1 ;;
