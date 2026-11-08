@@ -610,7 +610,7 @@ def compatible_change(old: str, new: str, *, typescript: bool = False) -> bool:
             return True
         # A dataclass field that gained a default (its constructor parameter
         # became optional; the attribute reads the same).
-        if o[1].startswith("field") and len(old_parts) == 1 and len(new_parts) == 2 and old_parts[0] == new_parts[0]:
+        if o[1] in ("field", "field kw_only") and len(old_parts) == 1 and len(new_parts) == 2 and old_parts[0] == new_parts[0]:
             return True
     # A one-line constant collection that only gained elements.
     if old_kind == new_kind == "const" and collection_grew(old[6:], new[6:]):
@@ -622,15 +622,27 @@ def compatible_change(old: str, new: str, *, typescript: bool = False) -> bool:
     return bool(o and n and o[1] == n[1] and set(split_top(o[2], ",")) <= set(split_top(n[2], ",")))
 
 
-def made_optional(old: str, new: str) -> bool:
-    """A member that only became optional: TypeScript ``property`` /
-    ``method`` gaining ``optional``, a TypedDict ``key`` becoming
-    ``optional key``. Compatible for a type callers only pass in."""
+def made_optional(old: str, new: str, *, typescript: bool = False) -> bool:
+    """A member that became optional: TypeScript ``property`` / ``method``
+    gaining ``optional``, a TypedDict ``key`` becoming ``optional key``,
+    possibly with a compatible change of its type too. Compatible for a type
+    callers only pass in."""
     for kind in ("property ", "method ", "key "):
         at = old.find(kind)
-        if at >= 0 and (at == 0 or old[at - 1] == " ") and new == f"{old[:at]}optional {old[at:]}":
-            return True
+        if at < 0 or (at > 0 and old[at - 1] != " ") or "optional " in old[:at]:
+            continue
+        marker = f"{old[:at]}optional {kind}"
+        if not new.startswith(marker):
+            continue
+        required_again = old[:at] + new[len(old[:at]) + len("optional ") :]
+        return required_again == old or compatible_change(old, required_again, typescript=typescript)
     return False
+
+
+def gained_short_alias(old: str, new: str) -> bool:
+    """A migration-tool flag line that only gained a short alias:
+    ``flag switch`` -> ``flag switch -y``."""
+    return old.startswith("flag ") and " -" not in old and re.fullmatch(re.escape(old) + r" -\S+", new) is not None
 
 
 def group_line(rest: str) -> tuple[str, frozenset[str]] | None:
@@ -759,7 +771,11 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             elif rest.startswith("flag-group "):
                 report.notices.append(f"{name}: flag group dropped or loosened (compatible) {line}")
             elif not allow_widening:
-                report.breaking.append(snapshot_finding(name, line, added))
+                # Only a flag gaining a short alias, as on the CLI surface.
+                if any(gained_short_alias(rest, candidate) for candidate in news):
+                    report.notices.append(f"{name}: compatible change of {line}")
+                else:
+                    report.breaking.append(snapshot_finding(name, line, added))
             elif rest.startswith("item ") and any(item_grew(rest, candidate) for candidate in news):
                 report.notices.append(f"{name}: compatible change of {line}")
             elif rest.split(" ", 1)[0] in SET_KINDS:
@@ -768,7 +784,9 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                 compatible_change(rest, candidate, typescript=typescript) for candidate in news
             ):
                 report.notices.append(f"{name}: compatible change of {line}")
-            elif parent_of(key, pass_only) and any(made_optional(rest, candidate) for candidate in news):
+            elif parent_of(key, pass_only) and any(
+                made_optional(rest, candidate, typescript=typescript) for candidate in news
+            ):
                 report.notices.append(f"{name}: member of a passed-in type made optional {line}")
             else:
                 report.breaking.append(snapshot_finding(name, line, added))
@@ -782,7 +800,8 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             if group is not None:
                 olds = [g for g in map(group_line, old[key]) if g is not None]
                 if not any(group_loosened(o, group) for o in olds):
-                    report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}", [f"{key}: {rest}"]))
+                    anchor = next((r for r in old[key] if COMMAND_LINE.fullmatch(r)), old[key][0])
+                    report.breaking.append(snapshot_finding(name, f"{key}: {anchor}", [f"{key}: {rest}"]))
             # A nullish member joining a long union alias (see compatible_change).
             elif not reported and rest.split(" ", 1)[0] == "union-member" and rest.split(" ", 1)[1] in NULLISH:
                 report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}", [f"{key}: {rest}"]))

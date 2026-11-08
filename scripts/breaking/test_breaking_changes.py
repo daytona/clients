@@ -446,7 +446,17 @@ class CompareSurface(unittest.TestCase):
         bc.compare_surface("s.txt", td, td.replace("T.k: key str", "T.k: optional key str"), report)
         self.assertEqual(report.breaking, [])
 
+    def test_member_of_a_passed_in_type_made_optional_and_widened(self) -> None:
+        old = "O: interface\nO.f: property 'a'\nO: passed-in"
+        report = bc.Report()
+        bc.compare_surface("sdk-typescript/s.txt", old, old.replace("O.f: property 'a'", "O.f: optional property 'a' | 'b'"), report)
+        self.assertEqual(report.breaking, [])
+        report = bc.Report()
+        bc.compare_surface("sdk-typescript/s.txt", old, old.replace("O.f: property 'a'", "O.f: optional property 'b'"), report)
+        self.assertEqual(len(report.breaking), 1)
+
     def test_dataclass_field_gained_a_default(self) -> None:
+        self.assertFalse(bc.compatible_change("field init=False int", "field init=False int = 0"))
         self.assertTrue(bc.compatible_change("field int", "field int = 0"))
         self.assertTrue(bc.compatible_change("field kw_only str | None", "field kw_only str | None = None"))
         self.assertFalse(bc.compatible_change("field int = 0", "field int"))
@@ -461,6 +471,11 @@ class CompareSurface(unittest.TestCase):
         report = bc.Report()
         bc.compare_surface("sdk-python/api-surface/daytona.v2.api.txt", "X.f: attribute int", "X.f: attribute int | str", report)
         self.assertEqual(report.breaking, [])
+        # A flag gaining a short alias is compatible there too; a changed flag is not.
+        for new_line, expected in (("npm --yes: flag switch -y", 0), ("npm --yes: flag value", 1)):
+            report = bc.Report()
+            bc.compare_surface("upgrade/api-surface/daytona-upgrade.api.txt", "npm --yes: flag switch", new_line, report)
+            self.assertEqual(len(report.breaking), expected)
         # New fields, values and flags still pass there.
         report = bc.Report()
         bc.compare_surface(
@@ -520,9 +535,15 @@ class CompareSurface(unittest.TestCase):
             with self.subTest(before=before, after=after):
                 report = bc.Report()
                 bc.compare_surface(
-                    "cli.txt", f"{base}\ndaytona x: flag-group {before}", f"{base}\ndaytona x: flag-group {after}", report
+                    "cli.txt",
+                    f"daytona x: args 0\n{base}\ndaytona x: flag-group {before}",
+                    f"daytona x: args 0\n{base}\ndaytona x: flag-group {after}",
+                    report,
                 )
                 self.assertEqual(len(report.breaking), expected, report.breaking)
+                # The finding names the command, whatever its first line is.
+                for finding in report.breaking:
+                    self.assertEqual(dict(finding.fields)["old"], "daytona x: command")
 
     def test_flag_groups(self) -> None:
         old = 'daytona x: command\ndaytona x --json: flag bool default="false"\ndaytona x --yaml: flag bool default="false"'
