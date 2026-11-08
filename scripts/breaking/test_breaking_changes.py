@@ -337,7 +337,9 @@ class Directions(unittest.TestCase):
     def test_dropping_a_narrower_overload(self) -> None:
         old = "C: class\nC.m: method (a: string): void\nC.m: method (a: number | string): void"
         new = "C: class\nC.m: method (a: number | string): void"
-        self.assertEqual(self.breaks(self.TS, old, new), 0)
+        # Reported even next to a wider one: acknowledge it when the wider
+        # overload takes all its calls.
+        self.assertEqual(self.breaks(self.TS, old, new), 1)
         # Callers implementing it: the dropped overload is not standing in.
         passed = "O: interface\nO: passed-in\nO.m: method (a: string): void\nO.m: method (a: number | string): void"
         report = bc.Report()
@@ -400,7 +402,9 @@ class Directions(unittest.TestCase):
         swapped = "P: interface\nP: returned also-passed-in\nP.m: method (a: unknown): number\nP.m: method (a: string): string"
         self.assertEqual(self.breaks(self.TS, old, swapped), 1)
         # Callers implement a passed-in type's methods: the order is theirs.
-        self.assertEqual(self.breaks(self.TS, old.replace("returned also-passed-in", "passed-in"), swapped.replace("returned also-passed-in", "passed-in")), 0)
+        passed_old = old.replace("returned also-passed-in", "passed-in")
+        passed_swapped = swapped.replace("returned also-passed-in", "passed-in")
+        self.assertEqual(self.breaks(self.TS, passed_old, passed_swapped), 0)
 
     def test_only_the_last_overload_may_widen(self) -> None:
         two = "f: function (a: string): string\nf: function (a: unknown): number"
@@ -415,16 +419,34 @@ class Directions(unittest.TestCase):
         py = "f: def (a: str) -> str\nf: def (a: object) -> int"
         self.assertEqual(self.breaks(self.PY, py, py.replace("(a: str) -> str", "(a: str | int) -> str")), 1)
 
-    def test_a_dropped_overload_needs_a_surviving_stand_in(self) -> None:
-        self.assertEqual(
-            self.breaks(self.TS, "f: function (a: string): string\nf: function (a: unknown): number", "f: function (a: unknown): number"), 1
-        )
-        self.assertEqual(
-            self.breaks(
-                self.TS, "f: function (a: string): string\nf: function (a: number | string): string", "f: function (a: number | string): string"
+    def test_a_dropped_overload_is_always_reported(self) -> None:
+        cases = [
+            # [narrow, wide] -> [wide]
+            (self.TS, "f: function (a: string): string\nf: function (a: number | string): string", "f: function (a: number | string): string"),
+            # [A, B, C] -> [B, C]: A's calls now reach B, not C
+            (
+                self.TS,
+                "f: function (a: string): string\nf: function (a: number | string): number\nf: function (a: boolean | number | string): string",
+                "f: function (a: number | string): number\nf: function (a: boolean | number | string): string",
             ),
-            0,
-        )
+            (
+                self.PY,
+                "f: def (a: str) -> str\nf: def (a: int | str) -> int\nf: def (a: bool | int | str) -> str",
+                "f: def (a: int | str) -> int\nf: def (a: bool | int | str) -> str",
+            ),
+        ]
+        for area, old, new in cases:
+            with self.subTest(old=old):
+                self.assertEqual(self.breaks(area, old, new), 1)
+
+    def test_earlier_overload_parameters_compare_by_meaning(self) -> None:
+        two = "f: function (a: string): string\nf: function (b: unknown): number"
+        self.assertEqual(self.breaks(self.TS, two, two.replace("(a: string)", "(x: string)")), 0)
+        opt = "f: function (o?: X): string\nf: function (b: unknown): number"
+        self.assertEqual(self.breaks(self.TS, opt, opt.replace("(o?: X)", "(o?: X | undefined)")), 0)
+        self.assertEqual(self.breaks(self.TS, opt, opt.replace("(o?: X)", "(o?: X | Y)")), 1)
+        py = "f: def (*, a: str) -> str\nf: def (*, b: object) -> int"
+        self.assertEqual(self.breaks(self.PY, py, py.replace("(*, a: str)", "(*, x: str)")), 1)
 
     def test_new_index_signature_on_a_passed_in_type(self) -> None:
         passed = "O: interface\nO: passed-in\nO.a: property string"

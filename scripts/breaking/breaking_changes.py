@@ -957,11 +957,6 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
         news = new.get(key)
         # New lines that stand in for an old line accepted as compatible.
         consumed: set[str] = set()
-        # The key only lost lines (an overload dropped, none changed): an
-        # unchanged sibling may then stand in for a dropped one. When it also
-        # gained a line, an old overload was changed, and a call that matched
-        # it now resolves to the changed one.
-        dropped_only = news is not None and all(c in old[key] for c in news)
         # The new line each old line survives as (itself, or a compatible
         # change of it), for the overload order below.
         survives_as: dict[str, str] = {}
@@ -1011,19 +1006,20 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                     (
                         c
                         for c in news
-                        # An unchanged sibling overload may stand in for a
-                        # dropped one of a function the SDK implements:
-                        # callers only call it. Callers implementing it
-                        # must accept every overload.
-                        if (c not in old[key] or (here["implementer"] == "sdk" and dropped_only))
+                        # Only a new line stands in for an old one, and only
+                        # for one: a dropped overload is never credited to a
+                        # sibling (which overload its calls now reach is not
+                        # modelled; acknowledge it when a later one takes
+                        # them all).
+                        if c not in old[key]
+                        and c not in consumed
                         and compatible_change(rest, c, typescript=typescript, **here)
                     ),
                     None,
                 )
             ) is not None:
                 consumed.add(match)
-                if match not in old[key]:
-                    survives_as[rest] = match
+                survives_as[rest] = match
                 report.notices.append(f"{name}: compatible change of {line}")
             elif parent_of(key, pass_only) and (
                 match := next((c for c in news if made_optional(rest, c, typescript=typescript)), None)
@@ -1058,7 +1054,7 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             ):
                 anchor = next((r for r in old[key] if is_signature(r)), old[key][0])
                 report.breaking.append(snapshot_finding(name, f"{key}: {anchor}", [f"{key}: {rest}"]))
-        overload_order(name, key, old[key], news, survives_as, pass_only, two_way, old, report)
+        overload_order(name, key, old[key], news, survives_as, pass_only, two_way, old, report, typescript)
     new_required_members(name, old, new, report)
     new_required_flags(name, old, new, report)
 
@@ -1125,6 +1121,7 @@ def overload_order(
     two_way: set[str],
     entries: dict[str, list[str]],
     report: Report,
+    typescript: bool = False,
 ) -> None:
     """The overloads of a function callers call (the SDK implements it, or
     it belongs to a type that goes both ways), in declaration order (the
@@ -1137,6 +1134,11 @@ def overload_order(
       type: widening or adding parameters (optional ones included) can
       capture calls a later overload answered. The last overload follows
       the normal rules.
+    - no overload is dropped: which overload its calls reach now is not
+      modelled, so a drop is always reported (acknowledge it when a later
+      overload takes all its calls).
+    An earlier overload's parameters compare by meaning, not text: a
+    TypeScript positional name is not part of a call.
     Stops at the first finding for the key: a second, independent break
     under the same key is not listed (the exit status is the same)."""
     old_sig = [r for r in olds if is_signature(r)]
@@ -1152,7 +1154,7 @@ def overload_order(
         if now is None or now == old_line:
             continue
         o, n = split_signature(old_line), split_signature(now)
-        if o is None or n is None or o[:2] != n[:2]:
+        if o is None or n is None or o[0] != n[0] or not params_equivalent(o[1], n[1], typescript=typescript):
             report.breaking.append(snapshot_finding(name, f"{key}: {old_line}", [f"{key}: {now}"]))
             return
         old_ret, new_ret = o[2], n[2]
@@ -1170,6 +1172,31 @@ def overload_order(
     added = [i for i, line in enumerate(new_sig) if line not in taken]
     if positions != sorted(positions) or (positions and any(i < max(positions) for i in added)):
         report.breaking.append(snapshot_finding(name, f"{key}: {old_sig[0]}", [f"{key}: {r}" for r in new_sig]))
+
+
+def params_equivalent(old: str, new: str, *, typescript: bool) -> bool:
+    """Two parameter lists that accept exactly the same calls: the same
+    markers, defaults and optionality, the same types (an optional
+    parameter's explicit ``| undefined`` aside), and the same names where
+    callers can use them (Python; TypeScript has no keyword arguments)."""
+    old_params, new_params = split_top(old, ","), split_top(new, ",")
+    if len(old_params) != len(new_params):
+        return False
+    for a, b in zip(old_params, new_params):
+        if a in ("*", "/") or b in ("*", "/"):
+            if a != b:
+                return False
+            continue
+        o, n = parse_param(a), parse_param(b)
+        if o[0] != n[0] or o[2] != n[2] or o[4] != n[4] or (not typescript and o[1] != n[1]):
+            return False
+        old_types, new_types = union_set(o[3]), union_set(n[3])
+        if o[2]:
+            old_types.discard("undefined")
+            new_types.discard("undefined")
+        if old_types != new_types:
+            return False
+    return True
 
 
 def parent_of(key: str, parents: set[str]) -> str | None:
