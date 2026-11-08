@@ -9974,15 +9974,18 @@ async def test_search_timestamp_rejects_non_timestamp_values_matches_typescript(
             True,
         ):
             with pytest.raises(
-                BadRequestError, match="timestamp bounds must be a datetime or an RFC 3339 string"
+                BadRequestError,
+                match="timestamp bounds must be a datetime or an RFC 3339 timestamp without a leap second",
             ):
                 search_timestamp(value)  # type: ignore[arg-type]
             with pytest.raises(
-                BadRequestError, match="timestamp bounds must be a datetime or an RFC 3339 string"
+                BadRequestError,
+                match="timestamp bounds must be a datetime or an RFC 3339 timestamp without a leap second",
             ):
                 search_params(SearchSandboxesOptions(created_start_at=value))  # type: ignore[arg-type]
             with pytest.raises(
-                BadRequestError, match="timestamp bounds must be a datetime or an RFC 3339 string"
+                BadRequestError,
+                match="timestamp bounds must be a datetime or an RFC 3339 timestamp without a leap second",
             ) as excinfo:
                 await client.search(last_activity_end_at=value)  # type: ignore[arg-type]
             assert excinfo.value.source == "SDK"
@@ -10260,10 +10263,11 @@ async def test_daytona_create_forwards_the_idempotency_key_verbatim_and_only_typ
     assert exc_info.value.source == "SDK"
     assert api.specs == []
 
-    # Length, blank and character rules are the server's (400), not the SDK's:
-    # the key is the create's identity and goes out exactly as given.
-    await client.create(Image.base("python:3.12"), idempotency_key="  k" * 100)
-    assert api.specs[0].headers == {"Idempotency-Key": "  k" * 100}
+    # Length rules are the server's (400), not the SDK's: the key is the
+    # create's identity and goes out exactly as given (the SDK refuses only a
+    # header value no client sends as-is: padded, blank or not printable ASCII).
+    await client.create(Image.base("python:3.12"), idempotency_key="k  k" * 100)
+    assert api.specs[0].headers == {"Idempotency-Key": "k  k" * 100}
 
 
 @pytest.mark.anyio

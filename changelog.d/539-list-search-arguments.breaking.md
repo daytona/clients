@@ -7,13 +7,16 @@ filters have their contract types: `q`, `name_prefix` / `namePrefix`,
 number or a mapping is refused; Python raised a raw `TypeError` or sent a
 mapping's keys), `sandbox_class` entries are `linux` or `macos`, `min_cores` /
 `max_cores` finite numbers, the MiB bounds integers, `spot` a boolean, `sort`
-and `order` the contract's values, and the timestamp bounds date-times or RFC
-3339 strings naming a real instant: year 0001 or later, a day within its month
-(February 29 only in a leap year), hour 00–23, minute and second 00–59 (no
-leap second), an optional fraction, and `Z` or an offset within ±23:59;
-`images.list()` / `snapshots.list()` check `name`, `sandbox_id`, `anonymous`
-(a boolean; TypeScript `null` is refused, as Python refuses `None`) and
-`platform` (`"true"`, `"false"` or `"any"`). A query value with a lone
-surrogate (a cursor, a filter, a search list or timestamp) is refused rather
-than escaping as a raw `UnicodeEncodeError` or `URIError`. Search `labels` are
-sent as JSON, which escapes a lone surrogate, as a request body does.
+and `order` the contract's values, and the timestamp bounds date-times
+(TypeScript: a `Date` in years 0001–9999) or RFC 3339 timestamps without a
+leap second: year 0001–9999, a real calendar date (February 29 only in a leap
+year), hour 00–23, minute and second 00–59, an optional fraction, and `Z` or
+an offset within ±23:59; `mac_models.catalog(region=)` / `macModels.catalog({
+region })` takes one region string (a number was sent, and a list went out
+differently in each SDK); `images.list()` / `snapshots.list()` check `name`,
+`sandbox_id`, `anonymous` (a boolean; TypeScript `null` is refused, as Python
+refuses `None`) and `platform` (`"true"`, `"false"` or `"any"`). A query value
+with a lone surrogate (a cursor, a filter, a search list or timestamp) is
+refused rather than escaping as a raw `UnicodeEncodeError` or `URIError`.
+Search `labels` are sent as JSON, which escapes a lone surrogate, as a request
+body does.

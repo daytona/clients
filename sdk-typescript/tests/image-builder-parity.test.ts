@@ -26,6 +26,7 @@ interface Refused {
   readonly source: Case['source']
   readonly steps: Case['steps']
   readonly error: string
+  readonly tsError?: string
 }
 const fixture = JSON.parse(readFileSync(join(__dirname, '..', '..', 'sdk-python', 'tests', 'fixtures', 'image-builder-parity.json'), 'utf8')) as { readonly cases: readonly Case[]; readonly refused: readonly Refused[] }
 
@@ -52,7 +53,7 @@ it.each(fixture.refused.map((testCase) => [testCase.name, testCase] as const))('
   let error: unknown
   try { build(testCase) } catch (failure) { error = failure }
   expect(error).toBeInstanceOf(BadRequestError)
-  expect(error).toMatchObject({ message: testCase.error })
+  expect(error).toMatchObject({ message: testCase.tsError ?? testCase.error })
 })
 
 // SAFETY: every `as never` below is a deliberately invalid plain-JavaScript argument.

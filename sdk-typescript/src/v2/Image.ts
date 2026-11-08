@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { hasLoneSurrogate } from './pathSegment.js'
 import { deepFrozen } from './frozen.js'
 import type * as api from './gen/api-types.js'
 import { ImageRetention as IMAGE_RETENTIONS, SnapshotClass as SNAPSHOT_CLASSES, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
@@ -50,6 +51,9 @@ type BuilderStep =
 // same rule.
 function assertText(value: unknown, label: string): string {
   if (typeof value !== 'string' || isBlank(value)) throw badRequest(`${label} must be a non-empty string`)
+  // A Dockerfile is UTF-8 text: a lone surrogate has no UTF-8 form, and the two
+  // SDKs would render it differently. Python refuses it the same way.
+  if (hasLoneSurrogate(value)) throw badRequest(`${label} must not contain a lone surrogate`)
   return value
 }
 

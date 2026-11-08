@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isBlank } from './pyText.js'
 import { pageParams } from './pageParams.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -294,6 +295,8 @@ export class PortsService {
    */
   public async expireSignedPreviewLink(port: number, token: string): Promise<void> {
     assertPort(port)
+    const given: unknown = token
+    if (typeof given !== 'string' || isBlank(given)) throw badRequest('token must be a non-empty string')
     await this.requireApi().post(`${this.portPath(port)}/signed-preview-urls/revoke`, { token })
   }
 

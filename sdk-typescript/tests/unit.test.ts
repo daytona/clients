@@ -8614,10 +8614,11 @@ describe('toolbox service request shaping', () => {
     await expect(createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 42 as unknown as string })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(post).not.toHaveBeenCalled()
 
-    // Length, blank and character rules are the server's (400), not the SDK's:
-    // the key is the create's identity and goes out exactly as given.
-    await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: '  k'.repeat(100) })
-    expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Idempotency-Key': '  k'.repeat(100) } })
+    // Length rules are the server's (400), not the SDK's: the key is the
+    // create's identity and goes out exactly as given (the SDK refuses only a
+    // header value no client sends as-is: padded, blank or not printable ASCII).
+    await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 'k  k'.repeat(100) })
+    expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Idempotency-Key': 'k  k'.repeat(100) } })
   })
 
   // The create POST timing out is driven through a real server in
@@ -9641,7 +9642,7 @@ describe('sandbox search', () => {
   it('rejects an invalid Date and non-timestamp bounds with BadRequestError, never RangeError', async () => {
     const { client, api } = searchClient()
     const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [], total: 0, total_relation: 'eq' } })
-    const message = 'timestamp bounds must be a valid Date or an RFC 3339 string'
+    const message = 'timestamp bounds must be a valid Date or an RFC 3339 timestamp without a leap second (year 0001-9999, a real calendar date)'
     for (const value of [new Date('not a date'), new Date(NaN), 1700000000, 1700000000.5, ['2026-01-01T00:00:00Z'], { iso: '2026-01-01T00:00:00Z' }, true]) {
       const bound = value as unknown as Date
       expect(() => searchTimestamp(bound)).not.toThrow(RangeError)

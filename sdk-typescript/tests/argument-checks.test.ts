@@ -113,6 +113,13 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   // A lone surrogate in a query value, and a header value outside printable
   // ASCII (the Python twin pins the same rows).
   ['list cursor with a lone surrogate', (client) => client.v2.list({ cursor: 'a\ud800b' })],
+  ['macModels.catalog region a number', (client) => client.v2.macModels.catalog({ region: 5 as never })],
+  ['macModels.catalog region a list', (client) => client.v2.macModels.catalog({ region: ['a', 'b'] as never })],
+  ['macModels.catalog region with a lone surrogate', (client) => client.v2.macModels.catalog({ region: 'a\ud800b' })],
+  ['volumes.get create a string', (client) => client.v2.volumes.get('v', { create: 'false' as never })],
+  ['volumes.get create a list', (client) => client.v2.volumes.get('v', { create: [] as never })],
+  ['volumes.get idOnly a string', (client) => client.v2.volumes.get('v', { idOnly: 'no' as never })],
+  ['volumes.get create null', (client) => client.v2.volumes.get('v', { create: null as never })],
   ['search sandboxClass with a lone surrogate', (client) => client.v2.search({ sandboxClass: 'a\ud800b' as never })],
   ['search region with a lone surrogate', (client) => client.v2.search({ region: 'a\ud800b' })],
   ['search createdStartAt with a lone surrogate', (client) => client.v2.search({ createdStartAt: '2026-01-01T00:00:00Z\ud800' })],
@@ -566,6 +573,69 @@ it.each(['amd64', 'arm64'] as const)('sends a create cpuArch of %s', async (arch
   try {
     await client.v2.create('img_1', { cpuArch: arch, waitSeconds: 0 })
     expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ cpu_arch: arch })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// One header rule in both SDKs (the Python twin pins the same rows): a padded
+// value is refused, never stripped; a blank idempotency key or ETag is
+// refused; a blank region selects the default region, as create does.
+const PADDED_HEADERS = [
+  ['create region', 'region', (client: Daytona, _api: FakeApi, value: string) => client.v2.create({ region: value })],
+  ['findByName region', 'region', (client: Daytona, _api: FakeApi, value: string) => client.v2.findByName('x', { region: value })],
+  ['create idempotencyKey', 'idempotencyKey', (client: Daytona, _api: FakeApi, value: string) => client.v2.create({ idempotencyKey: value })],
+  ['reservations.create idempotencyKey', 'idempotencyKey', (client: Daytona, _api: FakeApi, value: string) => client.v2.reservations.create({ region: 'r', idempotencyKey: value })],
+  ['resetNetworkPolicy ifMatch', 'ifMatch', (_client: Daytona, api: FakeApi, value: string) => handle(api).resetNetworkPolicy({ ifMatch: value })],
+] as const
+const PADDED_CASES = PADDED_HEADERS.flatMap(([name, argument, call]) => [' us', 'us ', ' ']
+  .filter((value) => !(argument === 'region' && value === ' '))
+  .map((value) => [`${name} ${JSON.stringify(value)}`, argument, call, value] as const))
+
+it.each(PADDED_CASES)('refuses a padded header value: %s', async (_name, argument, call, value) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client, api, value)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(new RegExp(`^${argument} must `)) })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([['create', ''], ['create', '  '], ['create', ' LOCAL '], ['findByName', ''], ['findByName', '  '], ['findByName', ' LOCAL ']] as const)('%s with region %j selects the default region', async (call, region) => {
+  const body = call === 'create' ? { id: 'sbx', status: 'running' } : { sandboxes: [], total: 0, total_relation: 'eq', next_cursor: null }
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    if (call === 'create') await client.v2.create('img_1', { region, waitSeconds: 0 })
+    else await client.v2.findByName('x', { region })
+    expect(api.requests[0]?.headers['x-daytona-region']).toBeUndefined()
+    if (call === 'create') expect(JSON.parse(api.requests[0]?.body ?? '{}')).not.toHaveProperty('region_id')
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([null, undefined, 5, '', '  '])('expireSignedPreviewLink refuses the token %j before any request, as Python does', async (token) => {
+  const api = await startFakeApi([])
+  try {
+    await expect(handle(api).ports.expireSignedPreviewLink(8080, token as never)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'token must be a non-empty string' })
+    expect(api.requests).toEqual([])
+  } finally {
+    await api.close()
+  }
+})
+
+it.each([['year 0', new Date('0000-06-01T00:00:00Z')], ['year 10000', new Date('+010000-01-01T00:00:00Z')]] as const)('refuses a Date bound in %s, as the string rule does', async (_name, bound) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.search({ createdStartAt: bound })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('without a leap second') })
+    expect(api.requests).toEqual([])
   } finally {
     await client.close()
     await api.close()

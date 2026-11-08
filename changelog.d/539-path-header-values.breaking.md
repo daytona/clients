@@ -10,6 +10,12 @@ string that is not blank; `sandbox.volumes.pull()` takes a volume id and a
 request id of 1 to 128 ASCII letters, digits, underscores or hyphens; a header
 value (`region`, sent as `x-daytona-region`; `idempotency_key` /
 `idempotencyKey`, sent as `Idempotency-Key` on create and the reservation
-calls; `if_match` / `ifMatch`, sent as `If-Match`) must be printable ASCII, so
-both SDKs refuse the same values (a raw `UnicodeEncodeError` or `URIError`, or
-a header error, escaped in at least one SDK).
+calls; `if_match` / `ifMatch`, sent as `If-Match`) must be non-empty printable
+ASCII with no leading or trailing whitespace; it is never stripped, since an
+idempotency key or ETag the SDK altered would not be the caller's value. Both
+SDKs refuse the same values, so neither sends header bytes the other would not
+and neither fails with a transport error (Python reported a padded value as a
+`ConnectionError`, or for a create as `SandboxCreateConnectionError`, and
+TypeScript sent it). A blank `region` selects the default region on every call
+that takes one, as `create()` does (Python's `find_by_name()` sent an empty
+`x-daytona-region` header).

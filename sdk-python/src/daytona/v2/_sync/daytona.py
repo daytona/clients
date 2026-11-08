@@ -575,7 +575,8 @@ class Daytona:
         sent as the API status names it covers; ``"unknown"`` is refused.
         ``labels`` is a containment match; the ``min_*``/``max_*`` bounds are
         inclusive, ``*_start_at`` timestamp bounds are inclusive, and
-        ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 strings or
+        ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 timestamps
+        without a leap second (year 0001-9999, a real calendar date) or
         ``datetime`` objects (naive values are taken as UTC). ``sort`` defaults
         to ``created_at`` and ``order`` to ``desc``; ``limit`` must be an
         integer from 1 to 200, else :class:`BadRequestError` before any

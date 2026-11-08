@@ -1330,7 +1330,8 @@ SearchSort = Literal[
 ]
 SearchOrder = Literal["asc", "desc"]
 SearchTimestamp = Union[str, datetime]
-"""An RFC 3339 string, or a ``datetime`` (naive values are taken as UTC)."""
+"""An RFC 3339 timestamp without a leap second (year 0001-9999, a real calendar
+date), or a ``datetime`` (naive values are taken as UTC)."""
 
 
 @dataclass(frozen=True, kw_only=True)

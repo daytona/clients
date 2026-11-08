@@ -167,4 +167,8 @@ class ImageBuilder:
         it is rendered raw; anything else is :class:`BadRequestError`."""
         if not isinstance(value, str) or not value.strip():
             raise create_error(f"{label} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        # A Dockerfile is UTF-8 text: a surrogate has no UTF-8 form, and the two
+        # SDKs would render it differently. TypeScript refuses it the same way.
+        if any("\ud800" <= char <= "\udfff" for char in value):
+            raise create_error(f"{label} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
         return value.strip() if strip else value

@@ -10,9 +10,10 @@ fork handle). The TypeScript twin is ``tests/malformed-responses.test.ts``.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
 
 import anyio
 import pytest
@@ -26,6 +27,16 @@ from daytona.v2.sandbox import AsyncSandbox
 from daytona.v2.types import JsonObject, JsonValue
 
 pytestmark = pytest.mark.anyio
+
+
+@contextlib.contextmanager
+def _sdk_bad_request(match: str) -> Iterator[None]:
+    """The malformed-response error the SDK raises itself (source ``SDK``), so a
+    server-side ``BAD_REQUEST`` cannot satisfy the assertion."""
+    with pytest.raises(BadRequestError, match=match) as raised:
+        yield
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
 
 _DETAIL: JsonObject = {
     "id": "src",
@@ -119,7 +130,7 @@ async def test_a_malformed_access_token_is_a_contract_error(body: dict[str, obje
     with FakeApi([PlannedResponse(200, body)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(BadRequestError, match=f"^{message}$"):
+            with _sdk_bad_request(f"^{message}$"):
                 await lazy_sandbox(root.v2, "src").create_access_token()
 
 
@@ -246,11 +257,9 @@ async def test_a_non_string_label_is_a_contract_error() -> None:
     ) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(BadRequestError, match="labels"):
+            with _sdk_bad_request("labels"):
                 await root.v2.get("src")
-            with pytest.raises(
-                BadRequestError, match=r"^sandbox labels response has a labels\.team that is not a string$"
-            ):
+            with _sdk_bad_request(r"^sandbox labels response has a labels\.team that is not a string$"):
                 await lazy_sandbox(root.v2, "src").set_labels(labels={"team": "a"})
 
 
@@ -272,7 +281,7 @@ async def test_a_port_beyond_int32_is_a_contract_error(port: int) -> None:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             sandbox = lazy_sandbox(root.v2, "src", toolbox_url=api.url, access_token="tok")
-            with pytest.raises(BadRequestError, match=r"ports\[1\] that is not a 32-bit integer"):
+            with _sdk_bad_request(r"ports\[1\] that is not a 32-bit integer"):
                 await sandbox.ports.list()
 
 
@@ -294,7 +303,7 @@ async def test_a_network_policy_body_with_a_non_json_constant_names_the_response
     with FakeApi([PlannedResponse(200, body, {"ETag": '"e"'})]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(BadRequestError, match="^network policy response is not JSON$"):
+            with _sdk_bad_request("^network policy response is not JSON$"):
                 await lazy_sandbox(root.v2, "src").get_network_policy()
 
 
@@ -307,7 +316,7 @@ async def test_a_sandbox_object_with_malformed_labels_is_a_contract_error(
     labels: JsonValue, field: str
 ) -> None:
     # Every path that builds a handle from a sandbox object, as in TypeScript.
-    with pytest.raises(BadRequestError, match=field):
+    with _sdk_bad_request(field):
         AsyncSandbox._from_api({**_DETAIL, "labels": labels}, None, None)
 
 
@@ -316,7 +325,7 @@ async def test_a_list_cursor_of_the_wrong_type_is_a_contract_error(key: str) -> 
     with FakeApi([PlannedResponse(200, {"sandboxes": [], key: 5})]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(BadRequestError, match=f"has a {key} that is not a string"):
+            with _sdk_bad_request(f"has a {key} that is not a string"):
                 await root.v2.list()
 
 
@@ -367,7 +376,7 @@ async def test_a_malformed_lifecycle_echo_is_a_contract_error(verb: str, body: J
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             sandbox = lazy_sandbox(root.v2, "src")
             sandbox._update(sandbox_class="linux", persistent=False)
-            with pytest.raises(BadRequestError, match=f"sandbox lifecycle policy response.*{field}"):
+            with _sdk_bad_request(f"sandbox lifecycle policy response.*{field}"):
                 if verb == "reset_idle_timer":
                     await sandbox.reset_idle_timer()
                 else:
@@ -492,7 +501,7 @@ async def test_a_search_total_a_double_cannot_carry_is_a_contract_error() -> Non
     with FakeApi([PlannedResponse(200, body)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(BadRequestError, match="has a total that is not an integer"):
+            with _sdk_bad_request("has a total that is not an integer"):
                 await root.v2.search()
 
 
@@ -521,7 +530,7 @@ async def test_find_by_name_checks_every_page_as_search_does(body: JsonObject, m
     with FakeApi([PlannedResponse(200, body)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(BadRequestError, match=f"^{message}$"):
+            with _sdk_bad_request(f"^{message}$"):
                 await root.v2.find_by_name("x")
 
 
@@ -559,7 +568,7 @@ async def test_an_image_without_a_required_flag_is_a_contract_error(flag: str, b
     ) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(BadRequestError, match=flag):
+            with _sdk_bad_request(flag):
                 await root.v2.images.get("img")
-            with pytest.raises(BadRequestError, match=flag):
+            with _sdk_bad_request(flag):
                 await root.v2.images.list()

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { optionalQueryText } from './pageParams.js'
 import { deepFrozen } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
@@ -51,7 +52,9 @@ export class MacModelsService {
   /** Free Macs and prices per model. Availability is advisory; price is absent when unavailable. */
   public async catalog(options: MacCatalogOptions = {}): Promise<MacCatalog> {
     assertKnownOptions('MacCatalogOptions', options, MAC_CATALOG_KEYS)
-    const response = await this.http.get<api.MacCatalog>('/mac-catalog', options.region === undefined ? undefined : { params: { region_ids: options.region } })
+    // One region string, checked as every query value is; null is omitted, as Python's None.
+    const region = optionalQueryText(options.region, 'region')
+    const response = await this.http.get<api.MacCatalog>('/mac-catalog', region === undefined ? undefined : { params: { region_ids: region } })
     const data = checkResponse<api.MacCatalog>(response.data, MAC_CATALOG, 'Mac catalog')
     return deepFrozen({
       regions: data.regions.map((region) => ({

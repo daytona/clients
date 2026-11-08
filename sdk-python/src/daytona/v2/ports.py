@@ -276,6 +276,8 @@ class AsyncPortsService:
         :param token: The ``token`` field from :class:`~daytona.v2.types.SignedPreviewLink`.
         """
         _assert_port(port)
+        if not isinstance(token, str) or not token.strip():
+            raise create_error("token must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         await self._require_api().send(
             RequestSpec(
                 "POST",

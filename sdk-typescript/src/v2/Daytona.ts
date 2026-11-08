@@ -315,7 +315,8 @@ export class Daytona {
    * `unknown` is not searchable. `labels` is a containment match; the
    * `min*`/`max*` bounds are inclusive, the `*StartAt` timestamp bounds are
    * inclusive and the `*EndAt` bounds are exclusive, timestamps as RFC 3339
-   * strings or `Date` objects (a `Date` is serialized in UTC — a whole day is
+   * timestamps without a leap second (year 0001-9999, a real calendar date) or
+   * `Date` objects in those years (a `Date` is serialized in UTC — a whole day is
    * `createdStartAt` that day and `createdEndAt` the next). `sort` defaults to `created_at` and
    * `order` to `desc`; `limit` must be an integer from 1 to 200, else
    * `BadRequestError` before any request. Resolves to a

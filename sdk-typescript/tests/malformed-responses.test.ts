@@ -256,7 +256,7 @@ it('refuses a search total a double cannot carry, and accepts one above 2^53 tha
   ])
   const client = clientAt(api.url)
   try {
-    await expect(client.v2.search()).rejects.toMatchObject({ message: 'search response has a total that is not an integer' })
+    await expect(client.v2.search()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'search response has a total that is not an integer' })
     expect((await client.v2.search()).total).toBe(2 ** 60)
   } finally {
     await client.close()
@@ -306,7 +306,7 @@ it.each(['platform', 'default', 'deprecated'].flatMap((flag) => [[flag, 'missing
   const client = clientAt(api.url)
   try {
     await expect(client.v2.images.get('img')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(flag) })
-    await expect(client.v2.images.list()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining(flag) })
+    await expect(client.v2.images.list()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(flag) })
   } finally {
     await client.close()
     await api.close()
@@ -320,7 +320,7 @@ it.each([['missing'], ['null']] as const)('refuses a sandbox whose region_id is 
   const api = await startFakeApi([{ status: 200, body }])
   const client = clientAt(api.url)
   try {
-    await expect(client.v2.get('sbx-region-a')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining('region_id') })
+    await expect(client.v2.get('sbx-region-a')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('region_id') })
   } finally {
     await client.close()
     await api.close()

@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs. Each \"refused\" case is a BadRequestError with that message in both SDKs.",
+  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs. Each \"refused\" case is a BadRequestError with its message in both SDKs (\"tsError\" where TypeScript names the argument in camelCase).",
   "cases": [
     {
       "name": "padded registry ref",
@@ -18,7 +18,7 @@
     {
       "name": "registry ref with U+001C and U+0085",
       "source": {
-        "registry": "\u001cpython:3.12"
+        "registry": "\u001cpython:3.12\u0085"
       },
       "steps": [],
       "dockerfile": "FROM python:3.12\n",
@@ -43,7 +43,7 @@
     {
       "name": "Dockerfile ending in U+0085",
       "source": {
-        "dockerfile": "FROM x"
+        "dockerfile": "FROM x\u0085"
       },
       "steps": [],
       "dockerfile": "FROM x\n",
@@ -54,12 +54,12 @@
     {
       "name": "Dockerfile ending in U+FEFF keeps it",
       "source": {
-        "dockerfile": "FROM x﻿"
+        "dockerfile": "FROM x\ufeff"
       },
       "steps": [],
-      "dockerfile": "FROM x﻿\n",
+      "dockerfile": "FROM x\ufeff\n",
       "request": {
-        "dockerfile": "FROM x﻿\n"
+        "dockerfile": "FROM x\ufeff\n"
       }
     },
     {
@@ -90,7 +90,7 @@
         [
           "pip",
           [
-            "numpy>=1.26",
+            "\u0085numpy>=1.26",
             "requests"
           ]
         ]
@@ -169,6 +169,31 @@
         ]
       ],
       "error": "ImageBuilder.env takes a name and a value, or a mapping of names to values"
+    },
+    {
+      "name": "registry ref with a lone surrogate",
+      "source": {
+        "registry": "alpine\ud800"
+      },
+      "steps": [],
+      "error": "ImageBuilder.from_registry ref must not contain a lone surrogate",
+      "tsError": "ImageBuilder.fromRegistry ref must not contain a lone surrogate"
+    },
+    {
+      "name": "env value with a lone surrogate",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\ud800"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value must not contain a lone surrogate",
+      "tsError": "ImageBuilder.env value must not contain a lone surrogate"
     }
   ]
 }

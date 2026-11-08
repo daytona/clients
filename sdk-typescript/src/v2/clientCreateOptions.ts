@@ -154,7 +154,8 @@ export function createRegion(options: { readonly region?: string }): string | un
   const resolved: unknown = options.region
   // `null` is Python's `None`: no region.
   if (resolved !== undefined && resolved !== null && typeof resolved !== 'string') throw badRequest('region must be a string')
-  // It is sent as the x-daytona-region header.
-  if (typeof resolved === 'string') headerText(resolved, 'region')
-  return typeof resolved === 'string' && resolved !== '' && strip(resolved).toLowerCase() !== 'local' ? resolved : undefined
+  // A blank string or `local` selects the default region (no header, no body
+  // field), as in Python; any other value is sent as the x-daytona-region header.
+  if (typeof resolved !== 'string' || isBlank(resolved) || strip(resolved).toLowerCase() === 'local') return undefined
+  return headerText(resolved, 'region')
 }

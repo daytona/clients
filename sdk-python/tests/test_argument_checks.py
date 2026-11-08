@@ -156,6 +156,16 @@ _REFUSED: list[tuple[str, Call]] = [
     # A lone surrogate in a query value, and a header value outside printable
     # ASCII (the TypeScript twin pins the same rows).
     ("list cursor with a lone surrogate", lambda d, _url: d.list(cursor="a\ud800b")),
+    ("mac_models.catalog region a number", lambda d, _url: d.mac_models.catalog(region=5)),  # type: ignore[arg-type]
+    ("mac_models.catalog region a list", lambda d, _url: d.mac_models.catalog(region=["a", "b"])),  # type: ignore[arg-type]
+    (
+        "mac_models.catalog region with a lone surrogate",
+        lambda d, _url: d.mac_models.catalog(region="a\ud800b"),
+    ),
+    ("volumes.get create a string", lambda d, _url: d.volumes.get("v", create="false")),  # type: ignore[arg-type]
+    ("volumes.get create a list", lambda d, _url: d.volumes.get("v", create=[])),  # type: ignore[arg-type]
+    ("volumes.get id_only a string", lambda d, _url: d.volumes.get("v", id_only="no")),  # type: ignore[arg-type]
+    ("volumes.get create None", lambda d, _url: d.volumes.get("v", create=None)),  # type: ignore[arg-type]
     ("search sandbox_class with a lone surrogate", lambda d, _url: d.search(sandbox_class="a\ud800b")),  # type: ignore[arg-type]
     ("search region with a lone surrogate", lambda d, _url: d.search(region="a\ud800b")),
     (
@@ -865,3 +875,75 @@ async def test_a_create_cpu_arch_of_the_platform_is_sent(arch: str) -> None:
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             await root.v2.create("img_1", cpu_arch=arch, wait_seconds=0)
     assert json.loads(fake.requests[0].body)["cpu_arch"] == arch
+
+
+# One header rule in both SDKs (the TypeScript twin pins the same rows): a
+# padded value is refused, never stripped; a blank idempotency key or ETag is
+# refused; a blank region selects the default region, as create does.
+_PADDED_HEADERS: list[tuple[str, str, Callable[[AsyncDaytonaV2, str], Awaitable[object]]]] = [
+    ("create region", "region", lambda d, v: d.create(region=v)),
+    ("find_by_name region", "region", lambda d, v: d.find_by_name("x", region=v)),
+    ("create idempotency_key", "idempotency_key", lambda d, v: d.create(idempotency_key=v)),
+    (
+        "reservations.create idempotency_key",
+        "idempotency_key",
+        lambda d, v: d.reservations.create(region="r", idempotency_key=v),
+    ),
+    (
+        "reset_network_policy if_match",
+        "if_match",
+        lambda d, v: lazy_sandbox(d, "sbx").reset_network_policy(if_match=v),
+    ),
+]
+
+
+@pytest.mark.parametrize("value", [" us", "us ", " "], ids=["leading", "trailing", "blank"])
+@pytest.mark.parametrize(
+    ("name", "argument", "call"), _PADDED_HEADERS, ids=[case[0] for case in _PADDED_HEADERS]
+)
+async def test_a_padded_header_value_is_refused_before_any_request(
+    api: FakeApi,
+    name: str,
+    argument: str,
+    call: Callable[[AsyncDaytonaV2, str], Awaitable[object]],
+    value: str,
+) -> None:
+    if argument == "region" and value == " ":
+        pytest.skip("a blank region selects the default region")
+    del name
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match=f"^{argument} must "):
+            await call(root.v2, value)
+    assert api.requests == []
+
+
+@pytest.mark.parametrize("call", ["create", "find_by_name"])
+@pytest.mark.parametrize("region", ["", "  ", " LOCAL "])
+async def test_a_blank_region_selects_the_default_region(call: str, region: str) -> None:
+    responses = (
+        [PlannedResponse(200, {"id": "sbx", "status": "running"})]
+        if call == "create"
+        else [
+            PlannedResponse(200, {"sandboxes": [], "total": 0, "total_relation": "eq", "next_cursor": None})
+        ]
+    )
+    with FakeApi(responses) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            if call == "create":
+                await root.v2.create("img_1", region=region, wait_seconds=0)
+            else:
+                await root.v2.find_by_name("x", region=region)
+    request = fake.requests[0]
+    assert "x-daytona-region" not in {key.lower() for key in request.headers}
+    if call == "create":
+        assert "region_id" not in json.loads(request.body)
+
+
+@pytest.mark.parametrize("token", [None, 5, "", "  "], ids=["None", "number", "empty", "blank"])
+async def test_expire_signed_preview_link_needs_a_token(api: FakeApi, token: object) -> None:
+    # The TypeScript twin refuses the same values.
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="^token must be a non-empty string$"):
+            await lazy_sandbox(root.v2, "sbx").ports.expire_signed_preview_link(8080, token)  # type: ignore[arg-type]
+    assert api.requests == []

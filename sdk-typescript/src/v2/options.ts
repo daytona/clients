@@ -65,18 +65,22 @@ export function badRequest(message: string): BadRequestError {
 }
 
 /**
- * A caller string sent as a header value: printable ASCII only, else
- * `BadRequestError` naming `name`, before any request. Python applies the same
- * rule (`header_text`), so both SDKs refuse the same values: neither sends
- * header bytes the other would not, and neither fails with a raw transport
- * error for a value outside it.
+ * A caller string sent as a header value: non-empty printable ASCII with no
+ * leading or trailing whitespace, else `BadRequestError` naming `name`, before
+ * any request. It is never stripped: an idempotency key or an ETag the SDK
+ * altered would not be the caller's value. Python applies the same rule
+ * (`header_text`), so both SDKs refuse the same values: neither sends header
+ * bytes the other would not, and neither fails with a transport error (Python's
+ * HTTP client refuses padded header values) for one.
  * @internal
  */
 export function headerText(value: string, name: string): string {
+  if (value.length === 0) throw badRequest(`${name} must be a non-empty string`)
   for (let index = 0; index < value.length; index++) {
     const unit = value.charCodeAt(index)
-    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII`)
+    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII with no leading or trailing whitespace`)
   }
+  if (value.startsWith(' ') || value.endsWith(' ')) throw badRequest(`${name} must be printable ASCII with no leading or trailing whitespace`)
   return value
 }
 

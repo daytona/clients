@@ -137,6 +137,12 @@ export class VolumesService {
       throw badRequest('volumes.get takes options; pass { create: true }')
     }
     assertKnownOptions('GetVolumeOptions', options, GET_VOLUME_KEYS)
+    // A truthy string must never act as true (it would create a volume); null is
+    // refused, as Python refuses None for its False defaults.
+    for (const flag of ['create', 'idOnly'] as const) {
+      const value: unknown = options[flag]
+      if (value !== undefined && typeof value !== 'boolean') throw badRequest(`${flag} must be a boolean`)
+    }
     try {
       const { data } = await this.api.get<api.Volume>(
         `/volumes/${pathSegment(nameOrId, 'nameOrId')}`,

@@ -1351,7 +1351,7 @@ _RFC3339 = re.compile(
 
 
 def _rfc3339(value: str) -> bool:
-    """A real RFC 3339 date-time, as TypeScript checks it: year 0001 or later,
+    """An RFC 3339 timestamp without a leap second, as TypeScript checks it: year 0001-9999,
     the day within its month (Feb 29 only in a leap year), hour 00-23, minute
     and second 00-59 (no leap second: neither a ``datetime`` nor a ``Date``
     can express one), an optional fraction, and ``Z`` or an offset within
@@ -1374,10 +1374,16 @@ def search_timestamp(value: SearchTimestamp) -> str:
     if isinstance(value, datetime):
         aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
         return aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-    # An RFC 3339 date-time (the contract's format), the same pattern TypeScript checks.
+    # An RFC 3339 timestamp without a leap second (the contract's date-time), the same rule TypeScript checks.
     if isinstance(value, str) and _rfc3339(value):
         return value
-    raise create_error("timestamp bounds must be a datetime or an RFC 3339 string", 400, "BAD_REQUEST", "SDK")
+    raise create_error(
+        "timestamp bounds must be a datetime or an RFC 3339 timestamp without a leap second"
+        " (year 0001-9999, a real calendar date)",
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
 
 
 def _comma_list(name: str, value: object) -> str:
@@ -1419,14 +1425,37 @@ def query_text(value: str, name: str) -> str:
 
 
 def header_text(value: str, name: str) -> str:
-    """A caller string sent as a header value: printable ASCII only, else
-    :class:`BadRequestError` naming ``name``, before any request. TypeScript
-    applies the same rule (``headerText``), so both SDKs refuse the same
-    values: neither sends header bytes the other would not, and neither fails
-    with a raw transport error for a value outside it."""
-    if not all(" " <= char <= "~" for char in value):
-        raise create_error(f"{name} must be printable ASCII", 400, "BAD_REQUEST", "SDK")
+    """A caller string sent as a header value: non-empty printable ASCII with
+    no leading or trailing whitespace, else :class:`BadRequestError` naming
+    ``name``, before any request. It is never stripped: an idempotency key or
+    an ETag the SDK altered would not be the caller's value. TypeScript applies
+    the same rule (``headerText``), so both SDKs refuse the same values:
+    neither sends header bytes the other would not, and neither fails with a
+    transport error (the HTTP client refuses padded header values) for one."""
+    if not value:
+        raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    if not all(" " <= char <= "~" for char in value) or value[0] == " " or value[-1] == " ":
+        raise create_error(
+            f"{name} must be printable ASCII with no leading or trailing whitespace",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
     return value
+
+
+def region_selector(region: object) -> Optional[str]:
+    """The region a create (or a lookup) selects: ``None``, a blank string or
+    ``"local"`` select the default region (no header, no body field); any other
+    value must be a header value (it is sent as ``x-daytona-region``). As
+    TypeScript's ``createRegion``."""
+    if region is None:
+        return None
+    if not isinstance(region, str):
+        raise create_error("region must be a string", 400, "BAD_REQUEST", "SDK")
+    if not region.strip() or region.strip().lower() == "local":
+        return None
+    return header_text(region, "region")
 
 
 def path_segment(value: object, name: str) -> str:

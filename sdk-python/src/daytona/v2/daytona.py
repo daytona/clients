@@ -58,6 +58,7 @@ from ._core import (
     parse_search_page,
     parse_timestamp,
     path_segment,
+    region_selector,
     sandbox_state,
     search_params,
     wait_budget_seconds,
@@ -636,8 +637,7 @@ class AsyncDaytona:
         # 0, None or above the timer maximum (a huge integer included) is no limit.
         if build_timeout is not None:
             build_timeout = wait_budget_seconds(build_timeout, name="build_timeout") or None
-        target = region if region is not None else self._target
-        build_region = target if target and target.strip().lower() != "local" else None
+        build_region = region_selector(region if region is not None else self._target)
 
         def build_timed_out(cause: Optional[BaseException] = None) -> DaytonaError:
             error = create_error("image build did not finish before timeout", 408, "REQUEST_TIMEOUT", "SDK")
@@ -879,13 +879,8 @@ class AsyncDaytona:
         """
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-blank string", 400, "BAD_REQUEST", "SDK")
-        _check_region(region)
-        resolved_target = region if region is not None else self._target
-        selector = (
-            resolved_target
-            if isinstance(resolved_target, str) and resolved_target.strip().lower() != "local"
-            else None
-        )
+        # The same selector create*() sends: blank or "local" is the default region.
+        selector = region_selector(region if region is not None else self._target)
         headers: Dict[str, str] = {"x-daytona-region": selector} if selector is not None else {}
         found: list[AsyncSandbox] = []
         params: Dict[str, JsonValue] = {"labels": json.dumps({_NAME_LABEL: name}), "limit": 100}
@@ -1037,7 +1032,8 @@ class AsyncDaytona:
         sent as the API status names it covers; ``"unknown"`` is refused.
         ``labels`` is a containment match; the ``min_*``/``max_*`` bounds are
         inclusive, ``*_start_at`` timestamp bounds are inclusive, and
-        ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 strings or
+        ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 timestamps
+        without a leap second (year 0001-9999, a real calendar date) or
         ``datetime`` objects (naive values are taken as UTC). ``sort`` defaults
         to ``created_at`` and ``order`` to ``desc``; ``limit`` must be an
         integer from 1 to 200, else :class:`BadRequestError` before any
@@ -1675,9 +1671,8 @@ def _create_body(config: CreateConfig) -> CreateBody:
     env = _string_map(config.get("env"))
     if env and source_kind == "image":
         body["env"] = env
-    target = config.get("target")
-    _check_region(target)
-    if isinstance(target, str) and target and target.strip().lower() != "local":
+    target = region_selector(config.get("target"))
+    if target is not None:
         body["region_id"] = target
     if resources is not None and route == "linux" and source_kind == "image":
         if not isinstance(resources, Resources):
@@ -1817,14 +1812,6 @@ def _create_wait_budget(config: CreateConfig) -> int:
     """The caller's create wait, uncapped (the body carries it capped)."""
     wait_seconds = config.get("wait_seconds")
     return wait_seconds if isinstance(wait_seconds, int) and not isinstance(wait_seconds, bool) else 60
-
-
-def _check_region(region: object) -> None:
-    if region is not None and not isinstance(region, str):
-        raise create_error("region must be a string", 400, "BAD_REQUEST", "SDK")
-    # It is sent as the x-daytona-region header.
-    if region is not None:
-        header_text(region, "region")
 
 
 def _validate_wait(wait_seconds: object) -> None:

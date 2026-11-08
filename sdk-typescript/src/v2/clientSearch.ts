@@ -22,19 +22,20 @@ export const SEARCH_PATH = '/sandboxes/search'
  */
 export function searchTimestamp(value: SearchTimestamp): string {
   if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) {
-      throw createDaytonaError('timestamp bounds must be a valid Date or an RFC 3339 string', 400, 'BAD_REQUEST', 'SDK')
-    }
-    return value.toISOString()
+    // A Date outside years 0001-9999 renders as `0000-…` or `+010000-…`, which
+    // the string rule refuses: the same rule applies to both forms.
+    const rendered = Number.isNaN(value.getTime()) ? undefined : value.toISOString()
+    if (rendered !== undefined && isRfc3339(rendered)) return rendered
+    throw createDaytonaError('timestamp bounds must be a valid Date or an RFC 3339 timestamp without a leap second (year 0001-9999, a real calendar date)', 400, 'BAD_REQUEST', 'SDK')
   }
-  // An RFC 3339 date-time (the contract's format), the same pattern Python checks.
+  // An RFC 3339 timestamp without a leap second (the contract's date-time), the same rule Python checks.
   if (typeof value === 'string' && isRfc3339(value)) return value
-  throw createDaytonaError('timestamp bounds must be a valid Date or an RFC 3339 string', 400, 'BAD_REQUEST', 'SDK')
+  throw createDaytonaError('timestamp bounds must be a valid Date or an RFC 3339 timestamp without a leap second (year 0001-9999, a real calendar date)', 400, 'BAD_REQUEST', 'SDK')
 }
 
 const RFC3339 = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
 
-// A real RFC 3339 date-time, as Python checks it: year 0001 or later, the day
+// An RFC 3339 timestamp without a leap second, as Python checks it: year 0001-9999, the day
 // within its month (Feb 29 only in a leap year; explicit arithmetic, since
 // `Date.UTC` maps years 0-99 to 1900-1999), hour 00-23, minute and second
 // 00-59 (no leap second: neither a `Date` nor a Python `datetime` can express

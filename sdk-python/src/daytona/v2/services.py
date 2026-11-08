@@ -524,6 +524,10 @@ class AsyncVolumesService:
     async def get(self, name_or_id: str, *, create: bool = False, id_only: bool = False) -> Volume:
         """Fetch by id or name; ``id_only`` disables name fallback."""
         path = f"/volumes/{_path(name_or_id, 'name_or_id')}"
+        # A truthy string must never act as True (it would create a volume).
+        for flag, value in (("create", create), ("id_only", id_only)):
+            if not isinstance(value, bool):
+                raise create_error(f"{flag} must be a boolean", 400, "BAD_REQUEST", "SDK")
         params: Dict[str, JsonValue] = {"id_only": True} if id_only else {}
         try:
             return _volume(expect_volume(await self._transport.send(RequestSpec("GET", path, params=params))))
@@ -859,7 +863,9 @@ class AsyncMacModelsService:
 
     async def catalog(self, *, region: Optional[str] = None) -> MacCatalog:
         """Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; price is null when pricing is unavailable."""
-        params: Dict[str, JsonValue] = {} if region is None else {"region_ids": region}
+        # One region string, checked as every query value is.
+        selected = optional_query_text(region, "region")
+        params: Dict[str, JsonValue] = {} if selected is None else {"region_ids": selected}
         return expect_mac_catalog(
             await self._transport.send(RequestSpec("GET", "/mac-catalog", params=params))
         )

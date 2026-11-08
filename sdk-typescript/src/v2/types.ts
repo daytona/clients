@@ -677,7 +677,7 @@ export interface GetLimitsOptions {
 
 export type SearchSort = 'created_at' | 'updated_at' | 'last_activity_at' | 'name' | 'cores' | 'memory_mib' | 'disk_mib'
 export type SearchOrder = 'asc' | 'desc'
-/** An RFC 3339 string, or a `Date` (serialized with `toISOString()`, i.e. UTC). */
+/** An RFC 3339 timestamp without a leap second (year 0001-9999, a real calendar date), or a `Date` in those years (serialized with `toISOString()`, i.e. UTC). */
 export type SearchTimestamp = Date | string
 
 /**
