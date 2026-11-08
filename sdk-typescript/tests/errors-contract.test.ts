@@ -187,6 +187,12 @@ describe('error constructor options', () => {
     const error = new v2.SandboxTerminalStateError('sbx', 'destroyed', { rawState: 'deleted' })
     expect(error).toMatchObject({ state: 'destroyed', rawState: 'deleted', statusCode: 409, code: 'CONFLICT', source: 'SDK' })
     expect(new v2.SandboxTerminalStateError('sbx', 'destroyed').rawState).toBeUndefined()
+    // The server's explanation is an option too; the message ends with it (Python reason=).
+    expect(new v2.SandboxTerminalStateError('sbx', 'error', { reason: 'volume detach failed' })).toMatchObject({
+      reason: 'volume detach failed',
+      message: 'sandbox sbx reached terminal state error: volume detach failed',
+    })
+    expect(new v2.SandboxTerminalStateError('sbx', 'error', { reason: '' }).reason).toBeUndefined()
     // The former positional form is refused rather than dropped.
     expect(() => new v2.SandboxTerminalStateError('sbx', 'destroyed', 'deleted' as never)).toThrow(
       expect.objectContaining({ constructor: v2.BadRequestError, message: 'error options must be an options object, got a string' }),
