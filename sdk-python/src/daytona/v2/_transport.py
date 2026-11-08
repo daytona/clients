@@ -183,6 +183,13 @@ def _bind_auth_client(auth: ProjectTokenAuth | None, client: httpx.AsyncClient) 
 
 
 class SyncTransport:
+    """A minimal blocking transport (``daytona.v2.http.HttpClient``).
+
+    The SDK clients do not use it: the synchronous surface bridges onto
+    :class:`AsyncTransport`, which enforces the request timeout as a total-time
+    bound. Here ``request_timeout`` is httpx's per-phase timeout.
+    """
+
     def __init__(
         self,
         base_url: Optional[str],

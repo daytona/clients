@@ -16,7 +16,7 @@ import httpx
 import pytest
 import respx
 
-from daytona import AsyncDaytona, DaytonaConfig
+from daytona import AsyncDaytona, Daytona, DaytonaConfig
 from daytona.v2 import AuthenticationError, BadRequestError, ClientTimeoutError
 from daytona.v2._core import RequestSpec, file_download_spec
 from daytona.v2._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
@@ -193,3 +193,18 @@ async def test_streams_are_bounded_until_their_headers_only() -> None:
     with pytest.raises(ClientTimeoutError):
         await transport.open_stream(RequestSpec("GET", "/stalled"))
     await transport.close()
+
+
+def test_the_synchronous_client_enforces_the_same_total_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The synchronous surface bridges onto the async transport, so the
+    # request timeout means the same there.
+    monkeypatch.setenv("DAYTONA_V2_API_URL", BASE)
+    with respx.mock(assert_all_called=False) as router:
+        router.get(url__regex=r".*/sandboxes.*").mock(
+            side_effect=lambda _request: _trickle(chunks=8, every=0.05)
+        )
+        with Daytona(DaytonaConfig(api_key="k", request_timeout=0.15)) as client:
+            started = time.monotonic()
+            with pytest.raises(ClientTimeoutError):
+                client.v2.list()
+            assert time.monotonic() - started < 0.35
