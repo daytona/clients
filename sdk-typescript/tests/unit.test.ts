@@ -7335,11 +7335,25 @@ describe('toolbox service request shaping', () => {
     ['{"access_token": "t", "expires_in": 0}', 'token exchange response expires_in must be a positive integer'],
     ['{"access_token": "t", "expires_in": -1}', 'token exchange response expires_in must be a positive integer'],
     ['{"access_token": "t", "expires_in": "soon"}', 'token exchange response expires_in must be a positive integer'],
+    ['{"access_token": "t", "expires_in": 9007199254740992}', 'token exchange response expires_in must be a positive integer'],
+    ['{"access_token": "t", "expires_in": 1.5}', 'token exchange response expires_in must be a positive integer'],
   ])('names what is wrong with the token exchange body %p', async (body, message) => {
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
     clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { headers: { 'content-type': 'application/json' } }))
     await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, message, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  it('reads only the token exchange fields it uses (no token_type / issued_token_type needed, as in Python)', async () => {
+    const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
+    const auths: string[] = []
+    clientInstance(client).defaults.adapter = async (config) => {
+      auths.push(responseHeaders(config).get('authorization') ?? '')
+      return { data: { items: [] }, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ access_token: 'platform', expires_in: 9007199254740991 }), { headers: { 'content-type': 'application/json' } }))
+    await client.listAuditActions()
+    expect(auths).toEqual(['Bearer platform'])
   })
 
   it.each([0, -1])('rejects a token exchange whose expires_in is %p', async (expiresIn) => {

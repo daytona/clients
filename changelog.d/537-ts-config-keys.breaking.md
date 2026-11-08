@@ -7,7 +7,8 @@ as a `Date` or a `Map`; the root constructor also reads `null` as no
 configuration, like Python's `Daytona(None)`); a
 renamed key names its
 replacement (``DaytonaConfig: `requestTimeout` was renamed to
-`requestTimeoutSeconds` (seconds)``). `SandboxEventsConfig.reconcileIntervalMs`
+`requestTimeoutSeconds` (seconds)``; the 0.x `requestTimeoutMs` gets the same
+hint). `SandboxEventsConfig.reconcileIntervalMs`
 and `idleCloseMs` are renamed `reconcileIntervalSeconds` and
 `idleCloseSeconds` (seconds). The root constructor is
 `new Daytona(config?: DaytonaConfig)`: the second, internal parameter is gone.

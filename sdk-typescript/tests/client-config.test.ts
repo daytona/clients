@@ -13,7 +13,7 @@ import { once } from 'node:events'
 import { Daytona } from '../src/index'
 import { Daytona as DaytonaV2 } from '../src/v2/Daytona'
 import { BadRequestError, AuthenticationError, ClientTimeoutError, ConnectionError, RequestTimeoutError, SandboxCreateRequestTimeoutError } from '../src/v2/index'
-import { DEFAULT_REQUEST_TIMEOUT_MS, HttpTransport, createHttpClient } from '../src/v2/http'
+import { DEFAULT_REQUEST_TIMEOUT_MS, HttpTransport, createHttpClient, createPlatformTokenProvider } from '../src/v2/http'
 import { RENAMED_OPTIONS, assertKnownOptions, optionKeys } from '../src/v2/options'
 import { eventsHubConfig } from '../src/v2/events'
 import { FileSystemService } from '../src/v2/FileSystem'
@@ -158,11 +158,19 @@ describe('option keys', () => {
       executionTimeout: 'executionTimeoutSeconds',
       escalateAfter: 'escalateAfterSeconds',
       requestTimeout: 'requestTimeoutSeconds',
+      requestTimeoutMs: 'requestTimeoutSeconds',
       delay: 'delaySeconds',
       reconcileIntervalMs: 'reconcileIntervalSeconds',
       idleCloseMs: 'idleCloseSeconds',
     })
     expect(Object.isFrozen(RENAMED_OPTIONS)).toBe(true)
+  })
+
+  it('points the 0.x requestTimeoutMs at its replacement', () => {
+    // The only 0.x configuration key with a 2.x replacement (the URL keys have
+    // their own guidance; useDeprecatedPolling and _experimental have none).
+    expectBadRequest(() => new Daytona({ apiKey: 'k', requestTimeoutMs: 5000 } as never), 'DaytonaConfig: `requestTimeoutMs` was renamed to `requestTimeoutSeconds` (seconds)')
+    expectBadRequest(() => new DaytonaV2({ apiKey: 'k', requestTimeoutMs: 5000 } as never), '`requestTimeoutMs` was renamed to `requestTimeoutSeconds` (seconds)')
   })
 
   it('converts the events settings from seconds', () => {
@@ -348,6 +356,40 @@ describe('request timeout meaning', () => {
     await expect(transport.get('/slow-body', { responseType: 'text', timeout: 3_000_000_000 })).resolves.toBe('xxxxxxxx')
   })
 
+  describe('a per-call timeout and credential resolution', () => {
+    // The call's deadline (request or per-call timeout) starts before the
+    // bearer is resolved; the token exchange request is also bounded by the
+    // client's request timeout, since concurrent calls share it. Python's
+    // test_client_config.py checks the same three cases.
+    const exchangeThen = (exchangeMs: number, thingMs: number) => (request: IncomingMessage, response: ServerResponse): void => {
+      request.resume()
+      const exchange = request.url?.startsWith('/auth/token') === true
+      const timer = setTimeout(() => {
+        response.writeHead(200, { 'Content-Type': 'application/json' })
+        response.end(JSON.stringify(exchange ? { access_token: 't', expires_in: 3600 } : { ok: true }))
+      }, exchange ? exchangeMs : thingMs)
+      response.on('close', () => clearTimeout(timer))
+    }
+    const transport = (requestTimeoutMs: number): HttpTransport => new HttpTransport(base, undefined, requestTimeoutMs, {
+      authProvider: createPlatformTokenProvider({ baseURL: base, jwtToken: 'jwt', projectId: 'p', requestTimeout: requestTimeoutMs }),
+    })
+
+    it('a shorter per-call timeout covers the exchange', async () => {
+      handle = exchangeThen(400, 0)
+      await expect(transport(5_000).get('/thing', { timeout: 100 })).rejects.toBeInstanceOf(ClientTimeoutError)
+    })
+
+    it('a longer per-call timeout does not lengthen the exchange past the request timeout', async () => {
+      handle = exchangeThen(1_000, 0)
+      await expect(transport(200).get('/thing', { timeout: 5_000 })).rejects.toBeInstanceOf(ClientTimeoutError)
+    })
+
+    it('a longer per-call timeout lets the request itself outlast the request timeout', async () => {
+      handle = exchangeThen(50, 800)
+      await expect(transport(500).get('/thing', { timeout: 5_000 })).resolves.toEqual({ ok: true })
+    })
+  })
+
   it('bounds image submissions by the request timeout', async () => {
     // POST /images is an ordinary request (no hold), as in Python.
     handle = late(400)
@@ -526,6 +568,20 @@ describe('request timeout meaning', () => {
       // The same steps complete under a budget far above them.
       await expect(call(transport(10_000))).resolves.toEqual({ ok: true })
     })
+  })
+
+  it('lets a per-call timeout bound opening a stream in place of the request timeout', async () => {
+    // Headers after 400 ms, then a body over 300 ms (Python's test_client_config.py checks the same).
+    handle = (request, response) => {
+      request.resume()
+      const timer = setTimeout(() => trickle(6, 50)(request, response), 400)
+      response.on('close', () => clearTimeout(timer))
+    }
+    const transport = new HttpTransport(base, 'k', 100)
+    expect(await (await transport.fetch('/logs', { timeout: 5_000 })).text()).toBe('xxxxxx')
+    expect(await (await transport.fetch('/logs', { timeout: 0 })).text()).toBe('xxxxxx')
+    await expect(new HttpTransport(base, 'k', 10_000).fetch('/logs', { timeout: 150 })).rejects.toBeInstanceOf(ClientTimeoutError)
+    await expect(transport.fetch('/logs')).rejects.toBeInstanceOf(ClientTimeoutError)
   })
 
   it('bounds a stream only until its headers arrive', async () => {
