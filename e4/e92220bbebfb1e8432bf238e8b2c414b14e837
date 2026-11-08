@@ -1,0 +1,25 @@
+cli/install_select_test.go
+  s_4d9fba4bce0dac::t_5ba2699be225ce 237-240,363-366
+cli/README.md
+  s_4d9fba4bce0dac::t_5ba2699be225ce 25-27
+cli/install.ps1
+  s_4d9fba4bce0dac::t_5ba2699be225ce 63
+cli/install.sh
+  s_4d9fba4bce0dac::t_5ba2699be225ce 132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4e92220bbebfb1e8432bf238e8b2c414b14e837",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
