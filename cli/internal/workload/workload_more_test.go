@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -273,6 +274,33 @@ func TestWaitForSandbox_deletingProgressesToDeleted(t *testing.T) {
 	detail, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: 5 * time.Second})
 	require.NoError(t, err)
 	require.Equal(t, "deleted", detail.Status)
+}
+
+// A delete the server could not finish reads failed with an explanation; the
+// conflict carries it, so the user learns why without a second command.
+func TestWaitForSandbox_failedDeleteNamesTheReason(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			_, _ = w.Write([]byte(sandboxFixture("deleting")))
+			return
+		}
+		failed := strings.Replace(sandboxFixture("failed"), `"status":"failed"`, `"status":"failed","error":"sandbox deletion did not finish"`, 1)
+		_, _ = w.Write([]byte(failed))
+	}))
+	defer srv.Close()
+	_, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: 5 * time.Second})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
+	require.Equal(t, "sandbox id reached failed, not deleted: sandbox deletion did not finish", err.Error())
+}
+
+func TestWaitForSandbox_failedWithoutReasonKeepsTheShortMessage(t *testing.T) {
+	srv := sandboxSequence(t, "failed")
+	defer srv.Close()
+	_, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: time.Second})
+	require.Error(t, err)
+	require.Equal(t, "sandbox id reached failed, not deleted", err.Error())
 }
 
 func TestWaitForSandbox_capsLongPollToRemainingDeadline(t *testing.T) {

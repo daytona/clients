@@ -7409,7 +7409,7 @@ async def test_sandbox_wait_fills_in_the_handle_after_a_socket_decided_outcome()
         refreshes += 1
         refresh_timeouts.append(kwargs.get("timeout"))
 
-    sandbox.refresh_data = counting_refresh  # type: ignore[method-assign]
+    sandbox._refresh_data = counting_refresh  # type: ignore[method-assign]
 
     class ScriptedHub:
         enabled = True
@@ -7469,7 +7469,7 @@ async def test_sandbox_wait_bounds_the_terminal_refresh_and_skips_it_for_destroy
         await asyncio.sleep(timeout)
         raise create_error("timed out", 408, "REQUEST_TIMEOUT", "SDK")
 
-    sandbox.refresh_data = hanging_refresh  # type: ignore[method-assign]
+    sandbox._refresh_data = hanging_refresh  # type: ignore[method-assign]
 
     class TerminalHub:
         enabled = True
@@ -7531,7 +7531,7 @@ async def test_sandbox_wait_for_state_normalizes_local_target_to_no_region_hint(
     async def _no_refresh(**_: object) -> None:
         return None
 
-    sandbox.refresh_data = _no_refresh  # type: ignore[method-assign]
+    sandbox._refresh_data = _no_refresh  # type: ignore[method-assign]
 
     await sandbox.wait_for_state(["started"], timeout=60)
 
@@ -7640,6 +7640,173 @@ async def test_sandbox_wait_for_destroyed_treats_destroying_as_progress(monkeypa
     with pytest.raises(SandboxTerminalStateError) as exc_info:
         await lazy_sandbox(client, "sbx2").wait_for_state(["started"], timeout=10)
     assert exc_info.value.state == "destroying"
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_for_destroyed_holds_an_exact_long_poll_and_names_a_failed_deletion(
+    monkeypatch,
+) -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    failed = _sandbox_detail_payload("sbx", "failed")
+    failed["error"] = "sandbox deletion did not finish"
+    api = RecordingTransport([_sandbox_detail_payload("sbx", "deleting"), failed])
+    bind_api(client, api)
+    monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
+    sandbox = lazy_sandbox(client, "sbx")
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait_for_state(["destroyed"], timeout=10)
+
+    # `wait=deleted` is already met by `deleting`, so every poll would answer at
+    # once while the deletion finishes; the exact form holds it.
+    assert [spec.params.get("wait_exact") for spec in api.specs] == ["deleted", "deleted"]
+    assert all("wait" not in spec.params for spec in api.specs)
+    assert exc_info.value.state == "error"
+    assert exc_info.value.raw_state == "failed"
+    assert exc_info.value.reason == "sandbox deletion did not finish"
+    assert str(exc_info.value) == "sandbox sbx reached terminal state error: sandbox deletion did not finish"
+    assert sandbox.error_reason == "sandbox deletion did not finish"
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_for_state_keeps_other_targets_on_the_loose_long_poll(monkeypatch) -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport([_sandbox_detail_payload("sbx", "running")])
+    bind_api(client, api)
+    await lazy_sandbox(client, "sbx").wait_for_state(["started"], timeout=10)
+    assert api.specs[0].params.get("wait") == "running"
+    assert "wait_exact" not in api.specs[0].params
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_names_the_server_reason_after_a_hub_rejection() -> None:
+    class _RejectingHub:
+        enabled = True
+
+        async def wait(self, *args: object, **kwargs: object) -> object:
+            raise SandboxTerminalStateError("sbx", "error", raw_state="failed")
+
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    failed = _sandbox_detail_payload("sbx", "failed")
+    failed["error"] = "sandbox deletion did not finish"
+    api = RecordingTransport([failed])
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait_for_state(["destroyed"], timeout=10)
+
+    assert exc_info.value.state == "error"
+    assert exc_info.value.raw_state == "failed"
+    assert exc_info.value.reason == "sandbox deletion did not finish"
+    assert str(exc_info.value).endswith(": sandbox deletion did not finish")
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_keeps_the_hub_error_when_the_follow_up_read_moved_on() -> None:
+    class _RejectingHub:
+        enabled = True
+
+        async def wait(self, *args: object, **kwargs: object) -> object:
+            raise SandboxTerminalStateError("sbx", "error", raw_state="failed")
+
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    # A late finish turned the row deleted between the frame and the read: the
+    # read's error describes a different state, so it is not attached.
+    moved_on = _sandbox_detail_payload("sbx", "deleted")
+    moved_on["error"] = "stale"
+    api = RecordingTransport([moved_on])
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait_for_state(["started"], timeout=10)
+
+    assert exc_info.value.reason is None
+    assert str(exc_info.value) == "sandbox sbx reached terminal state error"
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_for_destroyed_keeps_the_loose_long_poll_for_another_terminal_state() -> None:
+    # The exact form answers only on deleted, failed and lost: a wait that also
+    # rejects on stopped must keep the loose form to see stopped at once.
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport([_sandbox_detail_payload("sbx", "stopped")])
+    bind_api(client, api)
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await lazy_sandbox(client, "sbx").wait_for_state(["destroyed"], ["stopped", "error"], timeout=10)
+    assert exc_info.value.state == "stopped"
+    assert api.specs[0].params.get("wait") == "deleted"
+    assert "wait_exact" not in api.specs[0].params
+
+
+@pytest.mark.anyio
+async def test_sandbox_refresh_data_keeps_the_loose_wait() -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport([_sandbox_detail_payload("sbx", "deleting")])
+    bind_api(client, api)
+    await lazy_sandbox(client, "sbx").refresh_data(wait="destroyed", wait_timeout_ms=1000)
+    assert api.specs[0].params.get("wait") == "deleted"
+    assert "wait_exact" not in api.specs[0].params
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_keeps_a_lost_reason_off_a_failed_hub_rejection() -> None:
+    class _RejectingHub:
+        enabled = True
+
+        async def wait(self, *args: object, **kwargs: object) -> object:
+            raise SandboxTerminalStateError("sbx", "error", raw_state="failed")
+
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    # `failed` and `lost` both read as public `error`: the read's explanation
+    # belongs to `lost`, not to the `failed` the hub reported.
+    lost = _sandbox_detail_payload("sbx", "lost")
+    lost["error"] = "the host stopped responding"
+    api = RecordingTransport([lost])
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait_for_state(["destroyed"], timeout=10)
+
+    assert exc_info.value.raw_state == "failed"
+    assert exc_info.value.reason is None
+    assert str(exc_info.value) == "sandbox sbx reached terminal state error"
+
+
+@pytest.mark.anyio
+async def test_sandbox_wait_never_attaches_a_reason_it_did_not_just_read() -> None:
+    class _RejectingHub:
+        enabled = True
+
+        async def wait(self, *args: object, **kwargs: object) -> object:
+            raise SandboxTerminalStateError("sbx", "error", raw_state="failed")
+
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    # The follow-up read fails; the handle still holds an explanation from an
+    # earlier read, which says nothing about this outcome.
+    api = RecordingTransport([create_error("unavailable", 503, "SERVICE_UNAVAILABLE", "DAYTONA_API")])
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox.error_reason = "an earlier start failure"
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait_for_state(["destroyed"], timeout=10)
+
+    assert len(api.specs) == 1
+    assert exc_info.value.reason is None
+    assert str(exc_info.value) == "sandbox sbx reached terminal state error"
+
+
+def test_sandbox_terminal_state_error_without_a_reason_keeps_its_message() -> None:
+    error = SandboxTerminalStateError("sbx", "error", reason="")
+    assert str(error) == "sandbox sbx reached terminal state error"
+    assert error.reason is None
 
 
 @pytest.mark.anyio

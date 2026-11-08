@@ -768,7 +768,8 @@ Use `sandbox.wait_for_state(states, terminal_states=('destroying', 'destroyed', 
 to wait for a public sandbox state. `timeout` is the caller wait budget in
 seconds; `None` and `0` wait unbounded. If the sandbox reaches a terminal state
 before any target state, the SDK raises a typed conflict error with the
-observed public state attached as `error.state`.
+observed public state attached as `error.state`. When the server explains
+that state, the explanation is `error.reason` and ends the error message.
 
 `sandbox.wait(until='started', timeout=60)` is the one-state convenience form:
 it returns the sandbox on success, raises `RequestTimeoutError` when the budget
@@ -781,11 +782,20 @@ first. `timeout=None` and `timeout=0` wait unbounded.
 the sandbox once; they do not wait for teardown to finish. The handle can
 still report `destroying` when the call returns.
 
-`sandbox.wait_for_state(['destroyed'], timeout=60)` waits for the observed
-lifecycle state. Deleting the image or snapshot immediately afterwards
-can still raise `ConflictError` (409). A missing sandbox during a state wait
-raises `NotFoundError`; only the delete method's follow-up refresh maps a
-404 to `destroyed`.
+`sandbox.wait_for_state(['destroyed'], timeout=600)` waits for the observed
+lifecycle state. A sandbox with volumes attached stays `destroying` until the
+platform has finished with its volumes: usually seconds, but minutes when a
+lot of volume data is written at the end. If that takes too long, the sandbox
+reports `error` and the wait raises `SandboxTerminalStateError`; when the
+server explains why the deletion did not finish, that is its `reason`. Such a sandbox can still reach
+`destroyed` later. To keep waiting for it, catch the error, pause for a few
+seconds and call `wait_for_state(['destroyed'])` again: while the sandbox
+still reports `error`, the call raises again at once.
+
+Deleting the image or snapshot immediately afterwards can still raise
+`ConflictError` (409). A missing sandbox during a state wait raises
+`NotFoundError`; only the delete method's follow-up refresh maps a 404 to
+`destroyed`.
 
 ## Errors
 
