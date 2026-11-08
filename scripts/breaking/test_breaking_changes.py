@@ -273,6 +273,12 @@ class Repository(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("changelog.d/flag-rename.breaking.md", out)
 
+    def test_unknown_base_is_an_error(self) -> None:
+        self.git("tag", "v2.0.0")
+        with self.assertRaises(SystemExit) as raised:
+            self.run_check("--base", "no-such-branch")
+        self.assertIn("not a commit", str(raised.exception))
+
     def test_catalog_change_needs_a_fragment(self) -> None:
         self.git("tag", "v2.0.0")
         self.write("contract/proxy-errors.json", json.dumps({"codes": [], "generic": []}))

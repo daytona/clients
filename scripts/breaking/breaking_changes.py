@@ -455,8 +455,9 @@ def main(argv: Sequence[str] | None = None, out: TextIO = sys.stdout) -> int:
     if baseline is None:
         print("no stable release yet (no vX.Y.Z tag with X >= 2): nothing to compare against.", file=out)
         return 0
-    if git(root, "rev-parse", "--verify", "--quiet", f"{baseline}^{{commit}}", check=False).returncode != 0:
-        raise SystemExit(f"baseline {baseline} is not a commit here (fetch the tags: git fetch --tags)")
+    for what, rev in (("baseline", baseline), ("base", args.base)):
+        if rev and git(root, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}", check=False).returncode != 0:
+            raise SystemExit(f"{what} {rev} is not a commit in this repository (fetch it first)")
     if not any(files_at(root, baseline, d, ".api.txt") for d in SURFACE_DIRS):
         print(f"note: {baseline} carries no API surface snapshots; only contract/ is compared.", file=out)
 
