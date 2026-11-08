@@ -144,7 +144,7 @@ func newMemberRemoveCmd() *cobra.Command {
 			if err := mgmt.RemoveMember(ctx, mc, orgID, memberID); err != nil {
 				return err
 			}
-			return a.Printer().Object(map[string]any{"removed": memberID}, [][2]string{{"removed", memberID}})
+			return printAck(a, "user_id", memberID, "removed", "")
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show revoked API-key and preview-grant counts without removing the member")

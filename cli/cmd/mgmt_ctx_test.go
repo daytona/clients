@@ -71,9 +71,9 @@ func TestOrgCRUDAndGet(t *testing.T) {
 	if code != cerr.ExitUsage || !has(errb, "--yes") {
 		t.Fatalf("%d %s", code, errb)
 	}
-	_, _, code = run(t, d, nil, "org", "delete", testOrgA, "--yes")
-	if code != 0 {
-		t.Fatal(code)
+	out, _, code = run(t, d, nil, "org", "delete", testOrgA, "--yes", "-o", "json")
+	if code != 0 || !isAck(t, out, "id", testOrgA, "deleted") {
+		t.Fatal(code, out)
 	}
 	last := f.requests[len(f.requests)-1]
 	if last.Method != "DELETE" || last.Path != "/orgs/"+testOrgA {
@@ -135,7 +135,7 @@ func TestOrgLeaveDropsKeysAndContext(t *testing.T) {
 		t.Fatalf("%d %s", code, errb)
 	}
 	out, _, code := run(t, d, nil, "org", "leave", "--yes", "-o", "json")
-	if code != 0 || mustJSON(t, out)["left"] != testOrgA {
+	if code != 0 || !isAck(t, out, "id", testOrgA, "left") {
 		t.Fatalf("%d %s", code, out)
 	}
 	c, _ := st.LoadConfig()
@@ -247,9 +247,9 @@ func TestProjectCommands(t *testing.T) {
 	if code != cerr.ExitUsage {
 		t.Fatal("needs --yes")
 	}
-	_, _, code = run(t, d, nil, "project", "delete", "lab", "--yes")
-	if code != 0 {
-		t.Fatal(code)
+	out, _, code = run(t, d, nil, "project", "delete", "lab", "--yes", "-o", "json")
+	if code != 0 || !isAck(t, out, "id", testProjP2, "deleted") {
+		t.Fatal(code, out)
 	}
 	cfg, _ := st.LoadConfig()
 	p, _ := cfg.Profile("default")

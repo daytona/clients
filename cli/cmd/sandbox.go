@@ -5,8 +5,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"strconv"
 	"strings"
 
@@ -53,7 +51,7 @@ func newSandboxListCommand() *cobra.Command {
 				return err
 			}
 			list.Items = regions.Unique(list.Items, func(item gen.SandboxListItem) string { return item.Id })
-			if err := listOutRaw(a.Printer(), rawList(source.raws, list, func(item gen.SandboxListItem) string { return item.Id }), sandboxListTable); err != nil {
+			if err := listOutRaw(a.Printer(), rawList(source.raws, list), sandboxListTable); err != nil {
 				return err
 			}
 			return regions.PartialError(list)
@@ -129,17 +127,13 @@ func (source regionalListSource) fetchSandboxPage(ctx context.Context, page list
 				return regions.Page[gen.SandboxListItem]{Items: []gen.SandboxListItem{}}, nil
 			}
 			query := listQuery(pageFlags{limit: page.limit}, state.cursor)
-			var body json.RawMessage
-			if err := client.Do(ctx, http.MethodGet, "/sandboxes", query, nil, &body); err != nil {
-				return regions.Page[gen.SandboxListItem]{}, err
-			}
-			resp, err := api.DecodePage[gen.SandboxListItem](body, "sandboxes")
+			resp, err := getRawList[gen.SandboxListItem](ctx, client, "/sandboxes", query, "sandboxes")
 			if err != nil {
 				return regions.Page[gen.SandboxListItem]{}, err
 			}
 			items := api.Values(resp.Items)
 			for _, item := range resp.Items {
-				source.raws.add(item.V.Id, item.JSON)
+				addRaw(source.raws, item)
 			}
 			if scope.streams != nil {
 				rows := make(map[string]string, len(items))

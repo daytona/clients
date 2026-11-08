@@ -90,7 +90,7 @@ func newSecretSetCmd() *cobra.Command {
 		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, nil); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"name": args[0], "updated": true}, [][2]string{{"name", args[0]}, {"updated", "true"}})
+		return printAck(a, "name", args[0], "updated", "")
 	}}
 	cmd.Flags().StringVar(&value, "value", "", "secret value on the command line — visible to other local users via the process list and shell history; prefer --stdin or --from-file")
 	cmd.Flags().StringVar(&fromFile, "from-file", "", "read the secret value from a file; strips exactly one trailing newline (or CRLF)")
@@ -165,7 +165,7 @@ func newSecretDeleteCmd() *cobra.Command {
 		if err := client.Do(ctx, http.MethodDelete, "/secrets/"+url.PathEscape(args[0]), nil, nil, nil); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"deleted": args[0]}, [][2]string{{"deleted", args[0]}})
+		return printAck(a, "name", args[0], "deleted", "")
 	}}
 }
 

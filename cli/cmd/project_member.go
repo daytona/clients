@@ -155,7 +155,7 @@ func newProjectMemberRemoveCmd() *cobra.Command {
 		if err := mgmt.RemoveProjectMember(ctx, mc, projectID, member.UserId.String()); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"removed": member.UserId.String()}, [][2]string{{"removed", member.UserId.String()}})
+		return printAck(a, "user_id", member.UserId.String(), "removed", "")
 	}}
 	return cmd
 }

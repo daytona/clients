@@ -110,8 +110,7 @@ Spend is evaluated periodically and can lag usage by several minutes.`,
 			if err := mgmt.RemoveProjectBudget(ctx, mc, id); err != nil {
 				return noBudgetHint(err)
 			}
-			a.Info("Monthly budget removed from project %s.", id)
-			return nil
+			return printAck(a, "project_id", id, "removed", fmt.Sprintf("Monthly budget removed from project %s.", id))
 		},
 	})
 	return c

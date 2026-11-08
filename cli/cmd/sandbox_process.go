@@ -181,7 +181,8 @@ func newSandboxProcessSignalCommand() *cobra.Command {
 			return a.Printer().Object(map[string]any{"id": args[1], "signal": signalName}, [][2]string{{"id", args[1]}, {"signal", signalName}})
 		},
 	}
-	cmd.Flags().StringVar(&escalateAfter, "escalate-after", "", "escalate after this duration, e.g. 5s")
+	cmd.Flags().StringVar(&escalateAfter, "escalate-after", "", "escalate after this duration (Go duration, e.g. 5s)")
+	flagPlaceholder(cmd.Flags(), "escalate-after", "DURATION")
 	cmd.Flags().StringVar(&escalateTo, "escalate-to", "", "signal to escalate to, e.g. KILL")
 	return cmd
 }

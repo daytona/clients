@@ -160,6 +160,7 @@ func toRegionError(region string, err error) output.RegionError {
 		re.Status = ae.Status
 		re.Code = ae.Code
 		re.Source = ae.Source
+		re.TraceID = ae.TraceID
 		if ae.Message != "" {
 			re.Message = ae.Message
 		}
@@ -199,13 +200,25 @@ func PartialError[T any](l output.List[T]) error {
 	}
 	var parts []string
 	for _, e := range l.Errors {
-		if e.Region != "" {
-			parts = append(parts, e.Region+": "+e.Message)
-		} else {
-			parts = append(parts, e.Message)
-		}
+		parts = append(parts, regionFailureText(e))
 	}
 	msg := fmt.Sprintf("incomplete results — %d region(s) failed: %s", len(l.Errors), strings.Join(parts, "; "))
 	return cerr.Wrap(cerr.ExitPartial, partialFailure{msg}, "%s", msg).
-		WithHint("the items shown are from the regions that answered; `errors` lists each failure")
+		WithHint("the items shown are from the regions that answered; with -o json the list's `errors` holds each failure")
+}
+
+// regionFailureText is one region's failure for the human-readable message:
+// the region, the HTTP status, the server's message and its error code.
+func regionFailureText(e output.RegionError) string {
+	text := e.Message
+	if e.Status != 0 {
+		text = fmt.Sprintf("%d %s", e.Status, text)
+	}
+	if e.Code != "" {
+		text += " (" + e.Code + ")"
+	}
+	if e.Region != "" {
+		text = e.Region + ": " + text
+	}
+	return text
 }

@@ -517,3 +517,16 @@ func TestSandboxFork_macosFailedForkConflicts(t *testing.T) {
 	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "reached failed, not running")
 }
+
+// Label keys are the user's names: keys that differ only in case are two
+// labels, sent as given.
+func TestSandboxUpdate_fileLabelsDifferingOnlyInCase(t *testing.T) {
+	body := filepath.Join(t.TempDir(), "update.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"labels":{"a":"1","A":"2"}}`), 0o600))
+	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", body}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
+		{method: http.MethodPut, path: "/sandboxes/11111111-1111-1111-1111-111111111111/labels", status: 200, bodyJSON: `{"labels":{"a":"1","A":"2"}}`, response: `{"id":"11111111-1111-1111-1111-111111111111","labels":{"a":"1","A":"2"}}`},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
+	})
+	require.NoError(t, err)
+}

@@ -49,12 +49,14 @@ type Printer struct {
 }
 
 // RegionError is one failed region in a fan-out list: the HTTP status and
-// the server's error code and source when the region's API answered.
+// the server's error code, source and trace id when the region's API
+// answered.
 type RegionError struct {
 	Region  string `json:"region"`
 	Status  int    `json:"status,omitempty"`
 	Code    string `json:"code,omitempty"`
 	Source  string `json:"source,omitempty"`
+	TraceID string `json:"trace_id,omitempty"`
 	Message string `json:"message"`
 	// Err is the failure itself (not printed).
 	Err error `json:"-"`

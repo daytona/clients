@@ -82,7 +82,8 @@ func newKeyMintCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Create
 	}}
 	cmd.Flags().StringVar(&name, "name", "", "key name")
 	addCSVListFlag(cmd.Flags(), &permissionCSV, "permission", spec.permissionHelp)
-	cmd.Flags().StringVar(&expires, "expires", "", "expiry as a duration or RFC3339 timestamp")
+	cmd.Flags().StringVar(&expires, "expires", "", "expiry as a Go duration (e.g. 720h) or an RFC3339 timestamp")
+	flagPlaceholder(cmd.Flags(), "expires", "DURATION|RFC3339")
 	if spec.allowServiceAcct {
 		cmd.Flags().StringVar(&serviceAccount, "service-account", "", "service account id or name to mint this key for")
 	}
@@ -137,7 +138,7 @@ func newKeyRevokeCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Crea
 		if err := spec.revoke(cmd.Context(), mc, scopeID, args[0]); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"revoked": args[0]}, [][2]string{{"revoked", args[0]}})
+		return printAck(a, "id", args[0], "revoked", "")
 	}}
 }
 

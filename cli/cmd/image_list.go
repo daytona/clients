@@ -58,7 +58,7 @@ func newImageListCommand() *cobra.Command {
 				return err
 			}
 			list.Items = regions.Unique(list.Items, func(item gen.ImageListItem) string { return item.Id })
-			if err := listOutRaw(a.Printer(), rawList(source.raws, list, func(item gen.ImageListItem) string { return item.Id }), func(items []gen.ImageListItem) output.Table {
+			if err := listOutRaw(a.Printer(), rawList(source.raws, list), func(items []gen.ImageListItem) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					rows = append(rows, []string{item.Id, formatPtr(item.Name), item.Status, item.Origin, string(item.Retention), formatTimePtr(item.ExpiresAt), item.RegionId, strings.Join(item.RegionIds, ","), item.CreatedAt.Format(time.RFC3339)})

@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -215,8 +216,7 @@ func newProjectCmd() *cobra.Command {
 			if err := forgetDeletedProject(a, orgID, project.Id.String()); err != nil {
 				return err
 			}
-			a.Info("Project %s deleted.", project.Id.String())
-			return nil
+			return printAck(a, "id", project.Id.String(), "deleted", fmt.Sprintf("Project %s deleted.", project.Id.String()))
 		},
 	})
 	c.AddCommand(newProjectBudgetCmd())

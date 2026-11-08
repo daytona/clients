@@ -23,7 +23,7 @@ func TestBillingSettings_useContractRoutesAndShapes(t *testing.T) {
 		body     map[string]any
 	}{
 		{name: "automatic top-up get", args: []string{"billing", "automatic-top-up", "get"}, method: http.MethodGet, path: "/automatic-top-up", status: http.StatusOK, response: automaticTopUpFixture()},
-		{name: "automatic top-up set", args: []string{"billing", "automatic-top-up", "set", "--threshold-cents", "1000", "--target-cents", "2000"}, method: http.MethodPut, path: "/automatic-top-up", status: http.StatusOK, response: automaticTopUpFixture(), body: map[string]any{"threshold_cents": float64(1000), "target_cents": float64(2000)}},
+		{name: "automatic top-up set", args: []string{"billing", "automatic-top-up", "set", "--threshold-cents", "1000", "--target-cents", "2000", "--yes"}, method: http.MethodPut, path: "/automatic-top-up", status: http.StatusOK, response: automaticTopUpFixture(), body: map[string]any{"threshold_cents": float64(1000), "target_cents": float64(2000)}},
 		{name: "automatic top-up delete", args: []string{"billing", "automatic-top-up", "delete", "--yes"}, method: http.MethodDelete, path: "/automatic-top-up", status: http.StatusNoContent},
 		{name: "balance notification get", args: []string{"billing", "balance-notification", "get"}, method: http.MethodGet, path: "/balance-notification", status: http.StatusOK, response: balanceNotificationFixture()},
 		{name: "balance notification set", args: []string{"billing", "balance-notification", "set", "--threshold-cents", "500"}, method: http.MethodPut, path: "/balance-notification", status: http.StatusOK, response: balanceNotificationFixture(), body: map[string]any{"threshold_cents": float64(500)}},
@@ -31,7 +31,7 @@ func TestBillingSettings_useContractRoutesAndShapes(t *testing.T) {
 		{name: "coupon redeem", args: []string{"billing", "coupon", "redeem", "SAVE_10"}, method: http.MethodPost, path: "/coupons/redeem", status: http.StatusCreated, response: couponFixture(), body: map[string]any{"code": "SAVE_10"}},
 		{name: "plan get", args: []string{"billing", "plan", "get"}, method: http.MethodGet, path: "/plan", status: http.StatusOK, response: billingPlanFixture()},
 		{name: "plan list", args: []string{"billing", "plan", "list"}, method: http.MethodGet, path: "/plans", status: http.StatusOK, response: map[string]any{"plans": []map[string]any{planFixture()}}},
-		{name: "plan set", args: []string{"billing", "plan", "set", "team"}, method: http.MethodPut, path: "/plan", status: http.StatusOK, response: billingPlanFixture(), body: map[string]any{"plan": "team"}},
+		{name: "plan set", args: []string{"billing", "plan", "set", "team", "--yes"}, method: http.MethodPut, path: "/plan", status: http.StatusOK, response: billingPlanFixture(), body: map[string]any{"plan": "team"}},
 		{name: "contact get", args: []string{"billing", "contact", "get"}, method: http.MethodGet, path: "/contact", status: http.StatusOK, response: map[string]any{"email": "billing@example.com", "effective_email": "billing@example.com"}},
 		{name: "contact set", args: []string{"billing", "contact", "set", "--email", "new@example.com"}, method: http.MethodPut, path: "/contact", status: http.StatusOK, response: map[string]any{"email": "new@example.com", "effective_email": "new@example.com"}, body: map[string]any{"email": "new@example.com"}},
 		{name: "contact clear", args: []string{"billing", "contact", "set", "--clear"}, method: http.MethodPut, path: "/contact", status: http.StatusOK, response: map[string]any{"email": nil, "effective_email": "owner@example.com"}, body: map[string]any{"email": nil}},
@@ -51,11 +51,14 @@ func TestBillingSettings_useContractRoutesAndShapes(t *testing.T) {
 				api.on(tt.method, path, tt.status, tt.response)
 			}
 
-			_, stderr, code := runMgmt(t, api, cfgDir(t), append([]string{"--org", orgID}, tt.args...)...)
+			stdout, stderr, code := runMgmt(t, api, cfgDir(t), append([]string{"--org", orgID}, tt.args...)...)
 
 			require.Equal(t, 0, code, stderr)
 			require.Len(t, api.requests, 1)
 			require.Equal(t, tt.body, api.requests[0].Body)
+			if tt.status == http.StatusNoContent {
+				require.True(t, isAck(t, stdout, "org_id", orgID, "deleted"), stdout)
+			}
 		})
 	}
 }
@@ -145,4 +148,19 @@ func TestBillingPlanList_nullPlansIsAnEmptyList(t *testing.T) {
 
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, []any{}, mustJSON(t, stdout)["items"])
+}
+
+// Changing the plan or automatic top-up changes what the organization is
+// billed: off a terminal it needs --yes, refused before any request.
+func TestBillingSettingsThatChangeBillingNeedConsent(t *testing.T) {
+	for _, args := range [][]string{
+		{"billing", "plan", "set", "team"},
+		{"billing", "automatic-top-up", "set", "--threshold-cents", "1000", "--target-cents", "2000"},
+	} {
+		api := newFakeAPI(t)
+		_, stderr, code := runMgmt(t, api, cfgDir(t), append([]string{"--org", "0000000a-0000-4000-8000-00000000a001"}, args...)...)
+		require.Equal(t, 2, code, stderr)
+		require.Contains(t, stderr, "--yes")
+		require.Empty(t, api.requests, args)
+	}
 }

@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -25,34 +26,51 @@ func listOutRaw[T any](p output.Printer, l output.List[api.Raw[T]], tbl func([]T
 	return output.ListOut(p, l, func(items []api.Raw[T]) output.Table { return tbl(api.Values(items)) })
 }
 
-// rawIndex remembers the API's JSON of list items by id, for lists whose
-// merging and paging work on the decoded values (the region fan-out).
+// rawIndex remembers the API's JSON of list items for lists whose merging
+// and paging work on the decoded values (the region fan-out). An item is
+// keyed by its whole decoded value, so the JSON paired with a row is a copy
+// of that row (the same id fetched from two regions can differ in
+// `region_id` or `cursor`); among copies that decode alike the smallest JSON
+// is kept, so the choice does not depend on which region answered first.
 type rawIndex struct {
-	mu   sync.Mutex
-	byID map[string]json.RawMessage
+	mu    sync.Mutex
+	byKey map[string]json.RawMessage
 }
 
-func newRawIndex() *rawIndex { return &rawIndex{byID: map[string]json.RawMessage{}} }
+func newRawIndex() *rawIndex { return &rawIndex{byKey: map[string]json.RawMessage{}} }
 
-func (x *rawIndex) add(id string, raw json.RawMessage) {
+func rawKey(v any) string {
+	key, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(key)
+}
+
+// addRaw remembers item's JSON.
+func addRaw[T any](x *rawIndex, item api.Raw[T]) {
 	if x == nil {
+		return
+	}
+	key := rawKey(item.V)
+	if key == "" {
 		return
 	}
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	if _, ok := x.byID[id]; !ok {
-		x.byID[id] = raw
+	if kept, ok := x.byKey[key]; !ok || bytes.Compare(item.JSON, kept) < 0 {
+		x.byKey[key] = item.JSON
 	}
 }
 
 // rawList pairs each decoded item with the JSON it came from.
-func rawList[T any](x *rawIndex, l output.List[T], id func(T) string) output.List[api.Raw[T]] {
+func rawList[T any](x *rawIndex, l output.List[T]) output.List[api.Raw[T]] {
 	out := output.List[api.Raw[T]]{Items: make([]api.Raw[T], 0, len(l.Items)), NextCursor: l.NextCursor, Incomplete: l.Incomplete, Errors: l.Errors}
 	for _, item := range l.Items {
 		r := api.Raw[T]{V: item}
 		if x != nil {
 			x.mu.Lock()
-			r.JSON = x.byID[id(item)]
+			r.JSON = x.byKey[rawKey(item)]
 			x.mu.Unlock()
 		}
 		out.Items = append(out.Items, r)
@@ -86,6 +104,9 @@ func withField(raw json.RawMessage, key string, value any) (json.RawMessage, err
 	var object map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &object); err != nil {
 		return nil, err
+	}
+	if object == nil { // a JSON null
+		object = map[string]json.RawMessage{}
 	}
 	encoded, err := json.Marshal(value)
 	if err != nil {

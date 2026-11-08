@@ -109,6 +109,6 @@ func newProjectServiceAccountRemoveCmd() *cobra.Command {
 		if err := mgmt.RemoveProjectServiceAccount(ctx, mc, projectID, acct.Id.String()); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"removed": acct.Id.String()}, [][2]string{{"removed", acct.Id.String()}})
+		return printAck(a, "id", acct.Id.String(), "removed", "")
 	}}
 }

@@ -153,6 +153,6 @@ func newServiceAccountDeleteCmd() *cobra.Command {
 		if err := mgmt.DeleteServiceAccount(cmd.Context(), mc, orgID, args[0]); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"archived": args[0]}, [][2]string{{"archived", args[0]}})
+		return printAck(a, "id", args[0], "archived", "")
 	}}
 }

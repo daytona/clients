@@ -82,7 +82,7 @@ func newImageDeleteCommand() *cobra.Command {
 			if err := client.Do(cmd.Context(), http.MethodDelete, "/images/"+url.PathEscape(args[0]), nil, nil, nil); err != nil {
 				return err
 			}
-			return a.Printer().Object(map[string]any{"id": args[0], "deleted": true}, [][2]string{{"id", args[0]}, {"deleted", "true"}})
+			return printAck(a, "id", args[0], "deleted", "")
 		},
 	}
 }

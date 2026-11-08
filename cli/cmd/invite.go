@@ -202,7 +202,7 @@ func newInviteRevokeCmd() *cobra.Command {
 		if err := mgmt.RevokeInvitation(ctx, mc, orgID, args[0]); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"revoked": args[0]}, [][2]string{{"revoked", args[0]}})
+		return printAck(a, "id", args[0], "revoked", "")
 	}}
 }
 

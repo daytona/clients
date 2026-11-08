@@ -124,18 +124,93 @@ func TestKV(t *testing.T) {
 	}
 }
 
-func TestLoad_rejectsKeysThatDifferOnlyInCase(t *testing.T) {
+func loadBody(t *testing.T, body string) (Body, error) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "body.json")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return Load(path, nil, false)
+}
+
+type caseVolume struct {
+	Volume    string `json:"volume"`
+	MountPath string `json:"mount_path"`
+}
+
+type casePolicy struct {
+	OnTimeout *string `json:"on_timeout,omitempty"`
+}
+
+type caseRequest struct {
+	CoresMax        *float64          `json:"cores_max,omitempty"`
+	Secrets         []string          `json:"secrets,omitempty"`
+	Env             map[string]string `json:"env,omitempty"`
+	Labels          map[string]string `json:"labels,omitempty"`
+	LifecyclePolicy *casePolicy       `json:"lifecycle_policy,omitempty"`
+	Volumes         []caseVolume      `json:"volumes,omitempty"`
+	Options         map[string]casePolicy
+}
+
+// Two keys that fill one struct field are refused: decoding keeps only one.
+func TestCaseVariantsOfAFieldAreRefused(t *testing.T) {
 	for _, body := range []string{
 		`{"cores_max":0.5,"CORES_MAX":0.75}`,
+		`{"secrets":["a"],"ſecrets":["b"]}`, // encoding/json folds ſ to s
+	} {
+		if _, err := loadBody(t, body); cerr.ExitCode(err) != cerr.ExitUsage {
+			t.Fatalf("Load %s: %v", body, err)
+		}
+	}
+	for _, body := range []string{
 		`{"lifecycle_policy":{"on_timeout":"delete","On_Timeout":"stop"}}`,
 		`{"volumes":[{"volume":"a","Volume":"b"}]}`,
+		`{"Options":{"x":{"on_timeout":"a","ON_TIMEOUT":"b"}}}`,
 	} {
-		path := filepath.Join(t.TempDir(), "body.json")
-		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-			t.Fatal(err)
+		b, err := loadBody(t, body)
+		if err != nil {
+			t.Fatalf("Load %s: %v", body, err)
 		}
-		if _, err := Load(path, nil, false); cerr.ExitCode(err) != cerr.ExitUsage {
-			t.Fatalf("%s: %v", body, err)
+		if _, err := Decode[caseRequest](b); cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "name the same field") {
+			t.Fatalf("Decode %s: %v", body, err)
 		}
+	}
+}
+
+// Unknown keys are Decode's to report, not a case conflict.
+func TestUnknownCaseVariantsAreReportedAsUnknown(t *testing.T) {
+	b, err := loadBody(t, `{"lifecycle_policy":{"bogus":1,"BOGUS":2}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Decode[caseRequest](b)
+	if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("%v", err)
+	}
+}
+
+// Map keys are the user's names: keys that differ only in case are distinct.
+func TestCaseVariantsOfMapKeysAreKept(t *testing.T) {
+	b, err := loadBody(t, `{"env":{"PATH":"1","path":"2"},"labels":{"a":"1","A":"2"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := Decode[caseRequest](b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Env["PATH"] != "1" || req.Env["path"] != "2" || req.Labels["a"] != "1" || req.Labels["A"] != "2" {
+		t.Fatalf("decoded %+v", req)
+	}
+}
+
+func TestFoldKeyMatchesEqualFold(t *testing.T) {
+	for _, pair := range [][2]string{{"secrets", "ſecrets"}, {"kelvin", "\u212aelvin"}, {"cores_max", "CORES_MAX"}, {"ǅ", "ǆ"}} {
+		if foldKey(pair[0]) != foldKey(pair[1]) || !strings.EqualFold(pair[0], pair[1]) {
+			t.Fatalf("%q %q", pair[0], pair[1])
+		}
+	}
+	if foldKey("a_b") == foldKey("ab") {
+		t.Fatal("distinct names folded together")
 	}
 }

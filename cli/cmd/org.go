@@ -348,8 +348,7 @@ shows a picker at a terminal.`,
 			if lookupFailed {
 				a.Info("warning: deleted organization %s on the server, but the CLI could not list its projects during cleanup; cached credentials for other projects in that org may remain. Run `daytona logout` to clear local cached credentials.", id)
 			}
-			a.Info("Organization %s deleted.", id)
-			return nil
+			return printAck(a, "id", id, "deleted", fmt.Sprintf("Organization %s deleted.", id))
 		},
 	})
 	c.AddCommand(&cobra.Command{
@@ -399,7 +398,7 @@ shows a picker at a terminal.`,
 			if lookupFailed {
 				a.Info("warning: left organization %s on the server, but the CLI could not list its projects during cleanup; cached credentials for other projects in that org may remain. Run `daytona logout` to clear local cached credentials.", id)
 			}
-			return a.Printer().Object(map[string]any{"left": id}, [][2]string{{"left", id}})
+			return printAck(a, "id", id, "left", "")
 		},
 	})
 	return c

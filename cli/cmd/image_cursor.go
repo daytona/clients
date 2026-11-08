@@ -5,8 +5,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 
 	"github.com/daytona/clients/cli/gen/api"
 	apiinternal "github.com/daytona/clients/cli/internal/api"
@@ -40,17 +38,13 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 			if filters.sandboxID != "" {
 				query.Set("sandbox_id", filters.sandboxID)
 			}
-			var body json.RawMessage
-			if err := client.Do(ctx, http.MethodGet, "/images", query, nil, &body); err != nil {
-				return regions.Page[api.ImageListItem]{}, err
-			}
-			page, err := apiinternal.DecodePage[api.ImageListItem](body, "images")
+			page, err := getRawList[api.ImageListItem](ctx, client, "/images", query, "images")
 			if err != nil {
 				return regions.Page[api.ImageListItem]{}, err
 			}
 			items := apiinternal.Values(page.Items)
 			for _, item := range page.Items {
-				source.raws.add(item.V.Id, item.JSON)
+				addRaw(source.raws, item)
 			}
 			if scope.streams != nil {
 				rows := make(map[string]string, len(items))

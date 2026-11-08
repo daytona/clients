@@ -147,7 +147,7 @@ func TestInviteAndRoleCommands_JSON(t *testing.T) {
 		t.Fatalf("guard: %d %s", code, errb)
 	}
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "revoke", "11111111-1111-1111-1111-111111111111", "--yes")
-	if code != 0 || mustJSON(t, out)["revoked"] != "11111111-1111-1111-1111-111111111111" {
+	if code != 0 || !isAck(t, out, "id", "11111111-1111-1111-1111-111111111111", "revoked") {
 		t.Fatalf("revoke: %d %s", code, out)
 	}
 	// show takes the bare token; accept the emailed link; decline the token

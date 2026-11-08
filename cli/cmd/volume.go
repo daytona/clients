@@ -178,7 +178,7 @@ func newVolumeDeleteCommand() *cobra.Command {
 				return err
 			}
 			if resp.V.Id == "" {
-				return a.Printer().Object(map[string]any{"id": args[0], "deleted": true}, [][2]string{{"id", args[0]}, {"deleted", "true"}})
+				return printAck(a, "id", args[0], "deleted", "")
 			}
 			return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id}, {"status", string(resp.V.Status)}})
 		},

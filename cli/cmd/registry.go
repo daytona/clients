@@ -74,7 +74,7 @@ func newRegistrySetCmd() *cobra.Command {
 		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, nil); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"host": args[0], "updated": true}, [][2]string{{"host", args[0]}, {"updated", "true"}})
+		return printAck(a, "host", args[0], "updated", "")
 	}}
 	cmd.Flags().StringVar(&username, "username", "", "registry username")
 	cmd.Flags().StringVar(&password, "password", "", "registry password or token on the command line — visible via the process list and shell history; prefer --password-stdin")
@@ -150,7 +150,7 @@ func newRegistryDeleteCmd() *cobra.Command {
 		if err := client.Do(ctx, http.MethodDelete, "/registries/"+url.PathEscape(args[0]), nil, nil, nil); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"deleted": args[0]}, [][2]string{{"deleted", args[0]}})
+		return printAck(a, "host", args[0], "deleted", "")
 	}}
 }
 

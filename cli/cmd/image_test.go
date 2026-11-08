@@ -71,10 +71,9 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			stdout, _, err := runCLI(t, tt.args, tt.expected)
 			require.NoError(t, err)
-			out := requireJSONStdout(t, stdout)
-			require.NotEmpty(t, out)
+			require.NotEmpty(t, requireJSONStdout(t, stdout))
 			if tt.name == "delete image" {
-				require.Equal(t, true, out["deleted"])
+				require.True(t, isAck(t, stdout, "id", "11111111-1111-1111-1111-111111111111", "deleted"), stdout)
 			}
 		})
 	}

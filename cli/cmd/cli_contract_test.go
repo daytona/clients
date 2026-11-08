@@ -473,6 +473,31 @@ func TestSandboxCreateLifecycleFlagMergesIntoACaseVariantFileKey(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// env and labels keys are the user's names: keys that differ only in case
+// are distinct and sent as given. Two spellings of one field are refused.
+func TestSandboxCreateFileCaseVariants(t *testing.T) {
+	body := filepath.Join(t.TempDir(), "create.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"env":{"PATH":"1","path":"2"},"labels":{"a":"1","A":"2"}}`), 0o600))
+	_, _, err := runCLI(t, []string{"sandbox", "create", "--file", body, "--no-wait"}, []expectedRequest{{
+		method:   http.MethodPost,
+		path:     "/sandboxes",
+		status:   202,
+		bodyJSON: `{"env":{"PATH":"1","path":"2"},"labels":{"a":"1","A":"2"}}`,
+		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
+	}})
+	require.NoError(t, err)
+
+	for _, content := range []string{
+		`{"cores_max":1,"CORES_MAX":2}`,
+		`{"lifecycle_policy":{"on_timeout":"delete","ON_TIMEOUT":"stop"}}`,
+	} {
+		require.NoError(t, os.WriteFile(body, []byte(content), 0o600))
+		_, _, err = runCLI(t, []string{"sandbox", "create", "--file", body, "--no-wait"}, nil)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), content)
+		require.ErrorContains(t, err, "name the same field", content)
+	}
+}
+
 func TestSandboxUpdateRefusesANonObjectLifecyclePolicyEvenWithFlags(t *testing.T) {
 	body := filepath.Join(t.TempDir(), "update.json")
 	require.NoError(t, os.WriteFile(body, []byte(`{"lifecycle_policy":"never"}`), 0o600))
@@ -551,7 +576,7 @@ func TestFanOutListFailures(t *testing.T) {
 		bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write([]byte(`{"code":"FORBIDDEN","message":"no access","source":"DAYTONA_API"}`))
+			_, _ = w.Write([]byte(`{"code":"FORBIDDEN","message":"no access","source":"DAYTONA_API","trace_id":"tr-b"}`))
 		}))
 		defer bad.Close()
 		f := newFakeAPI(t)
@@ -565,9 +590,12 @@ func TestFanOutListFailures(t *testing.T) {
 		require.Equal(t, "region-b", failure["region"])
 		require.Equal(t, float64(403), failure["status"])
 		require.Equal(t, "FORBIDDEN", failure["code"])
+		require.Equal(t, "tr-b", failure["trace_id"])
 		obj := errorObject(t, stderr)
 		require.Equal(t, float64(cerr.ExitPartial), obj["exit_code"])
 		require.NotContains(t, obj, "source", "a partial list is not the CLI's own failure")
+		// Table output prints no `errors`: the message keeps status and code.
+		require.Contains(t, obj["message"], "region-b: 403 no access (FORBIDDEN)")
 	})
 }
 
@@ -595,8 +623,9 @@ func TestHelpDocsAndCompletionRunWithAMalformedConfig(t *testing.T) {
 		_, stderr, code := runReported(t, d, nil, args...)
 		require.Equal(t, 0, code, "%v: %s", args, stderr)
 	}
-	_, _, code := runReported(t, d, nil, "whoami")
-	require.NotEqual(t, 0, code, "a command that needs the config still fails")
+	_, stderr, code := runReported(t, d, nil, "whoami")
+	require.Equal(t, cerr.ExitFailure, code, "a command that needs the config still fails")
+	require.Contains(t, errorObject(t, stderr)["message"], "config.yaml", "and it fails on the config")
 }
 
 // Per-command flags with a value also work before the command name; --no-wait
@@ -609,4 +638,40 @@ func TestPerCommandFlagsBeforeTheCommandName(t *testing.T) {
 	_, stderr, code = runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "--region", "region-a", "org", "list")
 	require.Equal(t, cerr.ExitUsage, code, stderr)
 	require.Empty(t, f.requests)
+}
+
+// isAck reports whether out is exactly the acknowledgement
+// {idField: id, action: true}.
+func isAck(t *testing.T, out, idField, id, action string) bool {
+	t.Helper()
+	got := mustJSON(t, out)
+	return len(got) == 2 && got[idField] == id && got[action] == true
+}
+
+// A region fan-out list prints each row's own JSON: the same id from two
+// regions keeps the copy whose decoded value is the row that was kept.
+func TestFanOutListPrintsEachRowsOwnJSON(t *testing.T) {
+	regional := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"sandboxes":[{"id":"s1","name":"n","status":"running","region_id":"region-b","copy":"b"},{"id":"s2","name":"m","status":"running","region_id":"region-b","copy":"b2"}]}`))
+	}))
+	defer regional.Close()
+	f := newFakeAPI(t)
+	f.on(http.MethodGet, "/regions", 200, `{"regions":[{"id":"region-a","name":"A","available":true,"parent_region_ids":[]},`+regionalAPIRow("region-b", regional.URL)+`],"default_region_id":null}`)
+	f.handle(http.MethodGet, "/sandboxes", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"sandboxes":[{"id":"s1","name":"n","status":"running","region_id":"region-a","copy":"a"}]}`))
+	})
+	stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list")
+	require.Equal(t, 0, code, stderr)
+	items := mustJSON(t, stdout)["items"].([]any)
+	require.NotEmpty(t, items)
+	for _, raw := range items {
+		item := raw.(map[string]any)
+		require.Contains(t, item, "copy", "every row is the API's JSON")
+		want := map[string]string{"region-a": "a", "region-b": "b"}[item["region_id"].(string)]
+		if item["id"] == "s2" {
+			want = "b2"
+		}
+		require.Equal(t, want, item["copy"], item)
+	}
 }

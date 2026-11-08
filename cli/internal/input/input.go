@@ -12,7 +12,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/spf13/pflag"
 
@@ -54,39 +57,251 @@ func Load(path string, stdin io.Reader, stdinIsPayload bool) (Body, error) {
 	if err := dec.Decode(new(struct{})); err != io.EOF {
 		return nil, cerr.Usage("--file %s: trailing data after the JSON object", path)
 	}
-	if err := rejectCaseVariants(b, ""); err != nil {
+	if err := rejectTopLevelCaseVariants(b); err != nil {
 		return nil, cerr.Usage("--file %s: %v", path, err)
 	}
 	return b, nil
 }
 
-// rejectCaseVariants refuses an object with two spellings of one key that
-// differ only in case ("cpu_max" and "CPU_MAX"): decoding matches keys
-// case-insensitively, so which one wins would depend on map order.
-func rejectCaseVariants(v any, where string) error {
+// Decoding matches a JSON key to a struct field exactly or, failing that,
+// case-insensitively, so two keys that differ only in case ("cores_max" and
+// "CORES_MAX") fill the same field and one value is silently dropped. Load
+// and Decode refuse such bodies. Keys of map-typed values (`env`, `labels`)
+// are the user's own names and decode as given, so they may differ only in
+// case.
+
+// foldKey folds name the way encoding/json does when it matches a key to a
+// field: foldKey(a) == foldKey(b) exactly when strings.EqualFold(a, b), so
+// "secrets", "SECRETS" and "ſecrets" are one field.
+func foldKey(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if r < utf8.RuneSelf {
+			if 'a' <= r && r <= 'z' {
+				r -= 'a' - 'A'
+			}
+			b.WriteRune(r)
+			continue
+		}
+		for {
+			next := unicode.SimpleFold(r)
+			if next <= r {
+				r = next
+				break
+			}
+			r = next
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// rejectTopLevelCaseVariants refuses two spellings of one top-level key:
+// every --file body is an object that decodes into a request struct.
+func rejectTopLevelCaseVariants(b Body) error {
+	seen := make(map[string]string, len(b))
+	for _, key := range sortedKeys(b) {
+		folded := foldKey(key)
+		if other, ok := seen[folded]; ok {
+			return caseVariantError(other, key, "")
+		}
+		seen[folded] = key
+	}
+	return nil
+}
+
+func caseVariantError(a, b, where string) error {
+	return fmt.Errorf("%q and %q%s name the same field; keep one", a, b, where)
+}
+
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// rejectFieldCaseVariants refuses two keys in one object of b that decode
+// into the same struct field of T. Only keys that fold alike are candidates;
+// for each such group it decodes b with one key of the group left in and
+// encodes the result again: a map keeps the key as given, a struct field
+// comes back under its own name. So a key that does not come back verbatim
+// was matched to a field, and two of them would compete for it.
+func rejectFieldCaseVariants[T any](b Body) error {
+	return walkCaseGroups(b, nil, func(path []any, group []string) error {
+		for _, keep := range group {
+			verbatim, ok := keyComesBack[T](b, path, group, keep)
+			if !ok {
+				return nil // the body does not decode; Decode reports why
+			}
+			if !verbatim {
+				return caseVariantError(group[0], group[1], pathText(path))
+			}
+		}
+		return nil
+	})
+}
+
+// walkCaseGroups calls fn for every object in v (at path) that holds two or
+// more keys folding alike, outermost first.
+func walkCaseGroups(v any, path []any, fn func(path []any, group []string) error) error {
 	switch node := v.(type) {
 	case Body:
-		return rejectCaseVariants(map[string]any(node), where)
+		return walkCaseGroups(map[string]any(node), path, fn)
 	case map[string]any:
-		seen := make(map[string]string, len(node))
-		for key, child := range node {
-			folded := strings.ToLower(key)
-			if other, ok := seen[folded]; ok {
-				return fmt.Errorf("%q and %q%s name the same field; keep one", other, key, where)
+		groups := map[string][]string{}
+		keys := sortedKeys(node)
+		for _, key := range keys {
+			groups[foldKey(key)] = append(groups[foldKey(key)], key)
+		}
+		for _, key := range keys {
+			if group := groups[foldKey(key)]; len(group) > 1 && group[0] == key {
+				if err := fn(path, group); err != nil {
+					return err
+				}
 			}
-			seen[folded] = key
-			if err := rejectCaseVariants(child, fmt.Sprintf(" (in %q)", key)); err != nil {
+		}
+		for _, key := range keys {
+			if err := walkCaseGroups(node[key], append(append([]any(nil), path...), key), fn); err != nil {
 				return err
 			}
 		}
 	case []any:
-		for _, child := range node {
-			if err := rejectCaseVariants(child, where); err != nil {
+		for i, child := range node {
+			if err := walkCaseGroups(child, append(append([]any(nil), path...), i), fn); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// keyComesBack decodes b into T with only keep of group left at path,
+// encodes T again and reports whether keep is still a key at path. ok is
+// false when the probe does not decode.
+func keyComesBack[T any](b Body, path []any, group []string, keep string) (verbatim, ok bool) {
+	probe := withoutKeys(map[string]any(b), path, group, keep)
+	raw, err := json.Marshal(probe)
+	if err != nil {
+		return false, false
+	}
+	var typed T
+	strict := json.NewDecoder(bytes.NewReader(raw))
+	strict.DisallowUnknownFields()
+	if err := strict.Decode(&typed); err != nil {
+		return false, false
+	}
+	again, err := json.Marshal(typed)
+	if err != nil {
+		return false, false
+	}
+	dec := json.NewDecoder(bytes.NewReader(again))
+	dec.UseNumber()
+	var generic any
+	if err := dec.Decode(&generic); err != nil {
+		return false, false
+	}
+	object, found := lookupPath(generic, path)
+	if !found {
+		return false, true // the object is gone (an empty value omitted): a struct
+	}
+	_, verbatim = object[keep]
+	return verbatim, true
+}
+
+// withoutKeys copies v along path and drops the keys of group other than
+// keep from the object at path.
+func withoutKeys(v any, path []any, group []string, keep string) any {
+	if len(path) == 0 {
+		object, _ := asObject(v)
+		out := make(map[string]any, len(object))
+		for k, child := range object {
+			out[k] = child
+		}
+		for _, k := range group {
+			if k != keep {
+				delete(out, k)
+			}
+		}
+		return out
+	}
+	switch step := path[0].(type) {
+	case string:
+		object, _ := asObject(v)
+		out := make(map[string]any, len(object))
+		for k, child := range object {
+			out[k] = child
+		}
+		out[step] = withoutKeys(object[step], path[1:], group, keep)
+		return out
+	case int:
+		items, _ := v.([]any)
+		out := append([]any(nil), items...)
+		if step < len(out) {
+			out[step] = withoutKeys(out[step], path[1:], group, keep)
+		}
+		return out
+	}
+	return v
+}
+
+// lookupPath finds the object at path in an encoded value; an object key on
+// the path matches exactly, else by folding (a struct field comes back under
+// its own name).
+func lookupPath(v any, path []any) (map[string]any, bool) {
+	for _, step := range path {
+		switch step := step.(type) {
+		case string:
+			object, ok := v.(map[string]any)
+			if !ok {
+				return nil, false
+			}
+			child, ok := object[step]
+			if !ok {
+				for k, c := range object {
+					if foldKey(k) == foldKey(step) {
+						child, ok = c, true
+						break
+					}
+				}
+			}
+			if !ok {
+				return nil, false
+			}
+			v = child
+		case int:
+			items, ok := v.([]any)
+			if !ok || step >= len(items) {
+				return nil, false
+			}
+			v = items[step]
+		}
+	}
+	object, ok := v.(map[string]any)
+	return object, ok
+}
+
+func pathText(path []any) string {
+	if len(path) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(path))
+	for _, step := range path {
+		parts = append(parts, fmt.Sprint(step))
+	}
+	return fmt.Sprintf(" (in %q)", strings.Join(parts, "."))
+}
+
+func asObject(v any) (map[string]any, bool) {
+	switch node := v.(type) {
+	case Body:
+		return node, true
+	case map[string]any:
+		return node, true
+	}
+	return nil, false
 }
 
 // Set writes a field unconditionally. Decode matches keys
@@ -167,6 +382,9 @@ func (b Body) String() string {
 // One implementation for every command family.
 func Decode[T any](b Body) (T, error) {
 	var out T
+	if err := rejectFieldCaseVariants[T](b); err != nil {
+		return out, cerr.Usage("invalid request body: %v", err)
+	}
 	raw, err := json.Marshal(b)
 	if err != nil {
 		return out, fmt.Errorf("encode request body: %w", err)
