@@ -1,0 +1,37 @@
+.github/workflows/breaking-changes.yaml
+  s_a3ea68093feda0::t_354b94176c401e 5-6
+  s_a3ea68093feda0::t_8248a6b7af7a28 4,8-11,13
+docs/VERSIONING.md
+  s_a3ea68093feda0::t_bb3e78d10c126e 196-207
+scripts/breaking/test_breaking_changes.py
+  s_a3ea68093feda0::t_c2518e9d435bf8 231-232,266-269,337
+  s_a3ea68093feda0::t_6f763c26ef13fb 100-102,131,151-153
+  s_a3ea68093feda0::t_b4aff08d135365 123,135,139,143-146,228,287,304,316,338-420
+  s_a3ea68093feda0::t_ebfb6f39089a97 154,270,421-422
+scripts/breaking/compatible-changes.txt
+  s_a3ea68093feda0::t_c836d2f607ab36 1-24
+AGENTS.md
+  s_a3ea68093feda0::t_27cf123b8c4e31 432-435
+  s_a3ea68093feda0::t_bb3e78d10c126e 540-544,550,556-561
+scripts/breaking/breaking_changes.py
+  s_a3ea68093feda0::t_9ef8136ff69141 465-519,543-544,559-561,576-582,585-586,591-592,599-601
+  s_a3ea68093feda0::t_836e5804ac3589 64-65,70-83,86,90-99,298,310,319,323-324,343,355-356,358-362,366,375,378,381-382,384,408,411,416,419,426,443
+  s_a3ea68093feda0::t_c836d2f607ab36 20-23
+  s_a3ea68093feda0::t_5607f000430c35 51-56,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b93cb04db183ea7d798d1492e4fc7daca6eee57",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
