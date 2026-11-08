@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pageParams } from './pageParams.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
@@ -75,7 +76,7 @@ export async function getSandbox(context: SandboxClientContext, id: string, opti
 export async function listSandboxes(context: SandboxClientContext, options: ListSandboxesOptions): Promise<ListResult<Sandbox>> {
   options = snapshotOptions('ListSandboxesOptions', options, LIST_KEYS) ?? {}
   const listResponse = await context.api.get<api.ListSandboxesResponse>('/sandboxes', {
-    params: { cursor: options.cursor, limit: options.limit },
+    params: pageParams(options.cursor, options.limit),
   }).then((response) => response.data)
   const page = listPage<api.Sandbox>(listResponse, 'sandboxes', 'sandbox list')
   // Both spellings get the same check, as in Python: a mistyped cursor would end pagination silently.

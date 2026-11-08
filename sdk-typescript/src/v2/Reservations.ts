@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -133,7 +134,7 @@ export class ReservationsService {
   /** One page of the organization's reservations. */
   public async list(options: ListReservationsOptions = {}): Promise<ListResult<MacReservation>> {
     options = snapshotOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS) ?? {}
-    const { data } = await this.http.get<api.ListReservationsResponse>('/reservations', { params: options })
+    const { data } = await this.http.get<api.ListReservationsResponse>('/reservations', { params: pageParams(options.cursor, options.limit) })
     const page = listPage<api.MacReservation>(data, 'reservations', 'reservation list')
     return frozenPage({ items: page.items.map(reservation), nextCursor: page.nextCursor })
   }

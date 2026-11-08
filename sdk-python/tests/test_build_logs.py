@@ -782,6 +782,28 @@ def test_sse_crlf_and_multiline_json_byte_fragmentation():
     ]
 
 
+@pytest.mark.parametrize(
+    "body",
+    [b'{"url": "\xff"}', b"\xef\xbb\xbf" + json.dumps({"url": LOGS_URL}).encode()],
+    ids=["invalid UTF-8", "a leading BOM"],
+)
+async def test_a_discovery_body_that_is_not_strict_utf8_json_is_a_protocol_error(body: bytes) -> None:
+    # As TypeScript decodes it: strict UTF-8, a BOM is not JSON.
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, headers={"content-type": "application/json"}, content=body)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    api = AsyncTransport("https://api.example", "secret-test-key", client=client)
+    with pytest.raises(BuildLogInterruptedError) as failure:
+        await follow_build_logs(api, DISCOVERY, on_logs=lambda _chunk: None)
+    assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
+    assert str(failure.value) == "invalid build log discovery JSON"
+    assert len(requests) == 1
+
+
 async def test_unknown_event_is_rejected_before_delivery_or_retry():
     api, requests, _ = setup([event("other_log", {"data_base64": "eA=="})])
     output: list[str] = []

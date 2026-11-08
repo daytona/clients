@@ -14,6 +14,7 @@
  * Uses the `/secrets` routes, scoped to the API key's project.
  */
 
+import { pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -81,7 +82,7 @@ export class SecretsService {
   /** Lists secret metadata for the project (never values). */
   public async list(options: ListSecretsOptions = {}): Promise<ListResult<Secret>> {
     options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
-    const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: options })
+    const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: pageParams(options.cursor, options.limit) })
     const page = listPage<api.Secret>(data, 'secrets', 'secret list')
     return frozenPage({ items: page.items.map(mapSecret), nextCursor: page.nextCursor })
   }
@@ -115,9 +116,15 @@ export class SecretsService {
     if (!Array.isArray(options.allowedDomains) || options.allowedDomains.some((domain) => typeof domain !== 'string')) {
       throw badRequest('allowedDomains must be an array of strings')
     }
+    const given: unknown = value
+    if (typeof given !== 'string') throw badRequest('value must be a string')
+    const description: unknown = options.description
+    if (description !== undefined && description !== null && typeof description !== 'string') throw badRequest('description must be a string')
+    const ifNotExists: unknown = options.ifNotExists
+    if (ifNotExists !== undefined && typeof ifNotExists !== 'boolean') throw badRequest('ifNotExists must be a boolean')
     const body: api.PutSecretRequest = { value, allowed_domains: [...options.allowedDomains] }
-    if (options.description !== undefined) body.description = options.description
-    const config = options.ifNotExists ? { headers: { 'If-None-Match': '*' } } : undefined
+    if (typeof description === 'string') body.description = description
+    const config = ifNotExists === true ? { headers: { 'If-None-Match': '*' } } : undefined
     const { data } = await this.api.put<api.Secret>(path, body, config)
     return mapSecret(data)
   }

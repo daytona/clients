@@ -45,6 +45,8 @@ from ._core import (
     enum_str,
     image_options_body,
     json_object_from_mapping,
+    optional_query_text,
+    page_params,
     parse_image,
     parse_snapshot,
     wait_budget_seconds,
@@ -212,6 +214,8 @@ class AsyncImagesService:
         client's request timeout. A failed import raises
         :class:`ImageBuildFailedError` with the server's recorded error.
         """
+        if not isinstance(wait, bool):
+            raise create_error("wait must be a boolean", 400, "BAD_REQUEST", "SDK")
         source, _ = ImageBuilder.from_registry(image)._request_source()
         body: JsonObject = {
             "source": source,
@@ -283,18 +287,19 @@ class AsyncImagesService:
         images, ``"true"`` lists only the non-deprecated platform images (the
         default one carries ``default=True``), and ``"any"`` lists both.
         """
-        params: Dict[str, JsonValue] = {}
+        params = page_params(cursor, limit)
+        if not isinstance(anonymous, bool):
+            raise create_error("anonymous must be a boolean", 400, "BAD_REQUEST", "SDK")
         params["anonymous"] = anonymous
         if platform is not None:
+            # The contract's values only: SDK inputs are closed.
+            if platform not in ("true", "false", "any"):
+                raise create_error('platform must be "true", "false" or "any"', 400, "BAD_REQUEST", "SDK")
             params["platform"] = platform
-        if sandbox_id is not None:
+        if optional_query_text(sandbox_id, "sandbox_id") is not None:
             params["sandbox_id"] = sandbox_id
-        if name is not None:
+        if optional_query_text(name, "name") is not None:
             params["name"] = name
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
         response = await self._transport.send(RequestSpec("GET", "/images", params=params))
         page = expect_images_page(response)
         return ListResult(items=[parse_image(item) for item in page.images], next_cursor=page.next_cursor)
@@ -432,15 +437,11 @@ class AsyncSnapshotsService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> ListResult[Snapshot]:
-        params: Dict[str, JsonValue] = {}
-        if name is not None:
+        params = page_params(cursor, limit)
+        if optional_query_text(name, "name") is not None:
             params["name"] = name
-        if sandbox_id is not None:
+        if optional_query_text(sandbox_id, "sandbox_id") is not None:
             params["sandbox_id"] = sandbox_id
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
         response = await self._transport.send(RequestSpec("GET", "/snapshots", params=params))
         page = expect_list_snapshots_resp(response)
         return ListResult(
@@ -509,11 +510,7 @@ class AsyncVolumesService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> ListResult[Volume]:
-        params: Dict[str, JsonValue] = {}
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
+        params: Dict[str, JsonValue] = page_params(cursor, limit)
         response = await self._transport.send(RequestSpec("GET", "/volumes", params=params))
         page = expect_list_volumes_resp(response)
         return ListResult(items=[_volume(volume) for volume in page.volumes], next_cursor=page.next_cursor)
@@ -662,11 +659,7 @@ class AsyncReservationsService:
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> ListResult[MacReservation]:
         """One page of the organization's reservations."""
-        params: Dict[str, JsonValue] = {}
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
+        params: Dict[str, JsonValue] = page_params(cursor, limit)
         response = await self._transport.send(RequestSpec("GET", "/reservations", params=params))
         page = _expect_model_from_dict(
             response, ReservationPage, "reservation list response", ReservationPage.model_validate
@@ -895,11 +888,7 @@ class AsyncSecretsService:
 
     async def list(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> ListResult[Secret]:
         """List secret metadata."""
-        params: Dict[str, JsonValue] = {}
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
+        params: Dict[str, JsonValue] = page_params(cursor, limit)
         response = await self._transport.send(RequestSpec("GET", "/secrets", params=params))
         payload = expect_list_secrets_resp(response)
         return ListResult(
@@ -935,6 +924,12 @@ class AsyncSecretsService:
         compromised sandbox controls.
         """
         path = f"/secrets/{_path(name, 'name')}"
+        if not isinstance(value, str):
+            raise create_error("value must be a string", 400, "BAD_REQUEST", "SDK")
+        if description is not None and not isinstance(description, str):
+            raise create_error("description must be a string", 400, "BAD_REQUEST", "SDK")
+        if not isinstance(if_not_exists, bool):
+            raise create_error("if_not_exists must be a boolean", 400, "BAD_REQUEST", "SDK")
         if (
             isinstance(allowed_domains, str)
             or not isinstance(allowed_domains, SequenceABC)

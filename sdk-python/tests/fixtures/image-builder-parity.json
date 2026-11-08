@@ -1,0 +1,138 @@
+{
+  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs.",
+  "cases": [
+    {
+      "name": "padded registry ref",
+      "source": {
+        "registry": " python:3.12 "
+      },
+      "steps": [],
+      "dockerfile": "FROM python:3.12\n",
+      "request": {
+        "source": {
+          "type": "registry",
+          "ref": "python:3.12"
+        }
+      }
+    },
+    {
+      "name": "registry ref with U+001C and U+0085",
+      "source": {
+        "registry": "\u001cpython:3.12"
+      },
+      "steps": [],
+      "dockerfile": "FROM python:3.12\n",
+      "request": {
+        "source": {
+          "type": "registry",
+          "ref": "python:3.12"
+        }
+      }
+    },
+    {
+      "name": "padded Dockerfile",
+      "source": {
+        "dockerfile": "  FROM x\n\n"
+      },
+      "steps": [],
+      "dockerfile": "FROM x\n",
+      "request": {
+        "dockerfile": "FROM x\n"
+      }
+    },
+    {
+      "name": "Dockerfile ending in U+0085",
+      "source": {
+        "dockerfile": "FROM x"
+      },
+      "steps": [],
+      "dockerfile": "FROM x\n",
+      "request": {
+        "dockerfile": "FROM x\n"
+      }
+    },
+    {
+      "name": "Dockerfile ending in U+FEFF keeps it",
+      "source": {
+        "dockerfile": "FROM x﻿"
+      },
+      "steps": [],
+      "dockerfile": "FROM x﻿\n",
+      "request": {
+        "dockerfile": "FROM x﻿\n"
+      }
+    },
+    {
+      "name": "commands with U+001C",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "ls\u001c",
+            " echo hi "
+          ]
+        ]
+      ],
+      "dockerfile": "FROM alpine\nRUN ls\nRUN echo hi\n",
+      "request": {
+        "dockerfile": "FROM alpine\nRUN ls\nRUN echo hi\n"
+      }
+    },
+    {
+      "name": "packages with U+0085",
+      "source": {
+        "registry": "python:3.12"
+      },
+      "steps": [
+        [
+          "pip",
+          [
+            "numpy>=1.26",
+            "requests"
+          ]
+        ]
+      ],
+      "dockerfile": "FROM python:3.12\nRUN python -m pip install 'numpy>=1.26' requests\n",
+      "request": {
+        "dockerfile": "FROM python:3.12\nRUN python -m pip install 'numpy>=1.26' requests\n"
+      }
+    },
+    {
+      "name": "env key padded, value kept",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            " A ": " v "
+          }
+        ]
+      ],
+      "dockerfile": "FROM alpine\nENV A=\" v \"\n",
+      "request": {
+        "dockerfile": "FROM alpine\nENV A=\" v \"\n"
+      }
+    },
+    {
+      "name": "workdir with U+001F",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/app\u001f"
+        ]
+      ],
+      "dockerfile": "FROM alpine\nWORKDIR /app\n",
+      "request": {
+        "dockerfile": "FROM alpine\nWORKDIR /app\n"
+      }
+    }
+  ]
+}

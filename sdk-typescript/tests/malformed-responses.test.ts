@@ -221,3 +221,62 @@ it.each([
     await api.close()
   }
 })
+
+// An integer a double cannot carry: JSON.parse reads it as Infinity, which is
+// the malformed-response error naming the field. The Python twin pins the same rows.
+const HUGE = '1' + '0'.repeat(400)
+const networkPolicy = (desired: string, desiredRevision: string, appliedRevision: string) =>
+  `{"desired": ${desired}, "desired_revision": ${desiredRevision}, "applied": null, "applied_revision": ${appliedRevision}, "applied_start_id": null, "status": "applied", "error": null}`
+const policy = (version: string) => `{"version": ${version}, "block_all": false, "allow_cidrs": [], "allow_domains": []}`
+const secrets = (desiredRevision: string, appliedRevision: string, count: string) =>
+  `{"secrets": [], "desired_revision": ${desiredRevision}, "applied_revision": ${appliedRevision}, "status": "pending", "error": null, "capture_status": null, "capture_unresolved_count": ${count}}`
+
+it.each([
+  ['network policy desired_revision', networkPolicy('null', HUGE, 'null'), (api: FakeApi) => source(api).getNetworkPolicy(), 'desired_revision'],
+  ['network policy applied_revision', networkPolicy('null', '1', HUGE), (api: FakeApi) => source(api).getNetworkPolicy(), 'applied_revision'],
+  ['network policy desired.version', networkPolicy(policy(HUGE), '1', 'null'), (api: FakeApi) => source(api).getNetworkPolicy(), 'desired.version'],
+  ['secrets desired_revision', secrets(HUGE, 'null', 'null'), (api: FakeApi) => source(api).getSecrets(), 'desired_revision'],
+  ['secrets applied_revision', secrets('1', HUGE, 'null'), (api: FakeApi) => source(api).getSecrets(), 'applied_revision'],
+  ['secrets capture_unresolved_count', secrets('1', 'null', HUGE), (api: FakeApi) => source(api).getSecrets(), 'capture_unresolved_count'],
+  ['access token ports[0]', `{"access_token": "t", "token_type": "Bearer", "expires_at": "2030-01-01T00:00:00Z", "operations": [], "ports": [${HUGE}]}`, (api: FakeApi) => source(api).createAccessToken(), 'ports[0]'],
+] as const)('refuses %s that a double cannot carry', async (_name, body, call, field) => {
+  const api = await startFakeApi([{ status: 200, body, headers: { ETag: '"e"' } }])
+  try {
+    await expect(call(api)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(field) })
+  } finally {
+    await api.close()
+  }
+})
+
+it('refuses a search total a double cannot carry, and accepts one above 2^53 that it carries', async () => {
+  const api = await startFakeApi([
+    { status: 200, body: `{"sandboxes": [], "total": ${HUGE}, "total_relation": "eq", "next_cursor": null}` },
+    { status: 200, body: { sandboxes: [], total: 2 ** 60, total_relation: 'eq', next_cursor: null } },
+  ])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.search()).rejects.toMatchObject({ message: 'search response has a total that is not an integer' })
+    expect((await client.v2.search()).total).toBe(2 ** 60)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// The create response's `wait_cap_seconds` is read, never refused (the sandbox
+// exists): a finite number, a negative one clamped to 0, anything else 0. The
+// Python twin pins the same rows.
+it.each([
+  ['5', 1], ['5.0', 1], ['7', 1], ['4.5', 2], ['-3', 2], ['"5"', 2], ['null', 2], ['1e400', 2], [HUGE, 2],
+] as const)('reads a create wait_cap_seconds of %s as Python does', async (raw, requests) => {
+  const detail = { id: 'src', class: 'linux', name: 'src', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], region_id: 'r' }
+  const api = await startFakeApi([{ status: 200, body: `{"id": "src", "status": "pending", "wait_cap_seconds": ${raw}}` }, { status: 200, body: detail }])
+  const client = clientAt(api.url, { events: { enabled: false } })
+  try {
+    await client.v2.create('img_1', { waitSeconds: 5 })
+    expect(api.requests).toHaveLength(requests)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+}, 10_000)

@@ -309,6 +309,16 @@ describe('resumable build logs', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    ['invalid UTF-8', new Uint8Array([0x7b, 0x22, 0x75, 0x72, 0x6c, 0x22, 0x3a, 0x22, 0xff, 0x22, 0x7d])],
+    ['a leading BOM', new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode('{"url": "https://logs.example/build-logs/images/image"}')])],
+  ] as const)('refuses a discovery body with %s as a protocol error, as Python does', async (_name, body) => {
+    const { client, fetch } = setup([])
+    fetch.mockImplementation(async () => new Response(body, { headers: { 'content-type': 'application/json' } }))
+    await expect(client.images.followBuildLogs('image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR', message: 'invalid build log discovery JSON' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a repeated checkpoint before delivering advancing bytes', async () => {
     const wire = log('a', 0) + event('log', { data_base64: 'Yg==', start_offset: '1', next_offset: '2' }, cursor(1))
     const { client, fetch } = setup([wire])

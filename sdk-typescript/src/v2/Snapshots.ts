@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { optionalQueryText, pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -41,7 +42,7 @@ export class SnapshotsService {
   public async list(options: ListSnapshotsOptions = {}): Promise<ListResult<Snapshot>> {
     options = snapshotOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS) ?? {}
     const { data } = await this.http.get<api.ListSnapshotsResponse>('/snapshots', {
-      params: { cursor: options.cursor, limit: options.limit, name: options.name, sandbox_id: options.sandboxId },
+      params: { ...pageParams(options.cursor, options.limit), name: optionalQueryText(options.name, 'name'), sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId') },
     })
     const page = listPage<api.Snapshot>(data, 'snapshots', 'snapshot list')
     return frozenPage({ items: page.items.map((snapshot) => new Snapshot(INTERNAL, snapshot)), nextCursor: page.nextCursor })

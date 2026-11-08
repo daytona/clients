@@ -110,6 +110,45 @@ _REFUSED: list[tuple[str, Call]] = [
     ("create memory above int32 MiB", lambda d, _url: d.create(resources=Resources(memory=2_097_152))),
     ("create disk_max above int32 MiB", lambda d, _url: d.create(resources=Resources(disk_max=2_097_152))),
     ("create cpu 10**400", lambda d, _url: d.create(resources=Resources(cpu=10**400))),
+    # Argument types the SDK used to forward: the TypeScript twin pins the same rows.
+    (
+        "secrets.set if_not_exists a string",
+        lambda d, _url: d.secrets.set("K", "v", allowed_domains=["*"], if_not_exists="false"),
+    ),  # type: ignore[arg-type]
+    ("secrets.set value a number", lambda d, _url: d.secrets.set("K", 5, allowed_domains=["*"])),  # type: ignore[arg-type]
+    (
+        "secrets.set description a number",
+        lambda d, _url: d.secrets.set("K", "v", allowed_domains=["*"], description=5),
+    ),  # type: ignore[arg-type]
+    ("images.pull wait a string", lambda d, _url: d.images.pull("alpine", wait="x")),  # type: ignore[arg-type]
+    ("images.pull cpu_arch bogus", lambda d, _url: d.images.pull("alpine", cpu_arch="bogus")),  # type: ignore[arg-type]
+    (
+        "images.build idle_expiry_seconds 0",
+        lambda d, _url: d.images.build(ImageBuilder.from_registry("alpine"), idle_expiry_seconds=0),
+    ),
+    (
+        "images.build idle_expiry_seconds -2",
+        lambda d, _url: d.images.build(ImageBuilder.from_registry("alpine"), idle_expiry_seconds=-2),
+    ),
+    ("list limit a string", lambda d, _url: d.list(limit="x")),  # type: ignore[arg-type]
+    ("list limit 0", lambda d, _url: d.list(limit=0)),
+    ("list limit 201", lambda d, _url: d.list(limit=201)),
+    ("list cursor a number", lambda d, _url: d.list(cursor=5)),  # type: ignore[arg-type]
+    ("search name_prefix a number", lambda d, _url: d.search(name_prefix=5)),  # type: ignore[arg-type]
+    ("search limit a string", lambda d, _url: d.search(limit="x")),  # type: ignore[arg-type]
+    ("search min_cores a string", lambda d, _url: d.search(min_cores="x")),  # type: ignore[arg-type]
+    ("search min_memory_mib 1.5", lambda d, _url: d.search(min_memory_mib=1.5)),  # type: ignore[arg-type]
+    ("search spot a string", lambda d, _url: d.search(spot="yes")),  # type: ignore[arg-type]
+    ("search sort bogus", lambda d, _url: d.search(sort="x")),  # type: ignore[arg-type]
+    ("search order bogus", lambda d, _url: d.search(order="up")),  # type: ignore[arg-type]
+    ("images.list limit a string", lambda d, _url: d.images.list(limit="x")),  # type: ignore[arg-type]
+    ("images.list name a number", lambda d, _url: d.images.list(name=5)),  # type: ignore[arg-type]
+    ("images.list platform bogus", lambda d, _url: d.images.list(platform="yes")),  # type: ignore[arg-type]
+    ("snapshots.list name a number", lambda d, _url: d.snapshots.list(name=5)),  # type: ignore[arg-type]
+    ("secrets.list limit -1", lambda d, _url: d.secrets.list(limit=-1)),
+    ("volumes.list cursor a number", lambda d, _url: d.volumes.list(cursor=5)),  # type: ignore[arg-type]
+    ("reservations.list limit 0", lambda d, _url: d.reservations.list(limit=0)),
+    ("ports.list_endpoints limit 0", lambda d, _url: lazy_sandbox(d, "sbx").ports.list_endpoints(limit=0)),
     ("create memory 10**400", lambda d, _url: d.create(resources=Resources(memory=10**400))),
     ("docker timeout 10**309 is no limit, not an overflow", lambda d, url: _docker_refused_type(d, url)),
     (
@@ -572,3 +611,74 @@ async def test_a_path_id_or_name_with_a_lone_surrogate_is_refused(
         with pytest.raises(BadRequestError, match=f"^{argument} must not contain a lone surrogate$"):
             await call(root.v2)
     assert api.requests == []
+
+
+@pytest.mark.parametrize(
+    ("argument", "kwargs"),
+    [
+        ("on_logs", {"on_logs": None}),
+        ("on_logs", {"on_logs": "x"}),
+        ("on_event", {"on_logs": lambda _chunk: None, "on_event": 5}),
+    ],
+    ids=["on_logs None", "on_logs a string", "on_event a number"],
+)
+@pytest.mark.parametrize("form", ["images", "sandbox"])
+async def test_build_log_callbacks_must_be_callable(
+    api: FakeApi, form: str, argument: str, kwargs: dict[str, object]
+) -> None:
+    # The TypeScript twin covers the same calls.
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match=f"^{argument} must be a callable") as raised:
+            if form == "images":
+                await root.v2.images.follow_build_logs("img", **kwargs)  # type: ignore[arg-type]
+            else:
+                await lazy_sandbox(root.v2, "sbx").follow_build_logs(**kwargs)  # type: ignore[arg-type]
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert api.requests == []
+
+
+async def test_the_contract_bounds_are_accepted() -> None:
+    # limit 200, idle_expiry_seconds -1, cpu_arch arm64 and if_not_exists=True
+    # reach the API as given (the TypeScript twin sends the same).
+    secret = {
+        "name": "K",
+        "allowed_domains": ["*"],
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    with FakeApi(
+        [
+            PlannedResponse(200, {"sandboxes": [], "next_cursor": None}),
+            PlannedResponse(200, {"id": "img", "status": "pending"}),
+            PlannedResponse(500, {"message": "stop"}),
+            PlannedResponse(200, secret),
+        ]
+    ) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            await root.v2.list(limit=200, cursor="c")
+            with pytest.raises(DaytonaError):
+                await root.v2.images.build(
+                    ImageBuilder.from_registry("alpine"), idle_expiry_seconds=-1, cpu_arch="arm64"
+                )
+            await root.v2.secrets.set("K", "v", allowed_domains=["*"], if_not_exists=True)
+    assert fake.requests[0].path == "/sandboxes?cursor=c&limit=200"
+    assert json.loads(fake.requests[1].body)["idle_expiry_seconds"] == -1
+    assert json.loads(fake.requests[1].body)["cpu_arch"] == "arm64"
+    assert fake.requests[3].headers.get("If-None-Match") == "*"
+
+
+async def test_a_path_id_with_an_astral_character_is_percent_encoded_as_utf8() -> None:
+    # In Python an astral character is one code point (not a surrogate pair),
+    # so it passes and is encoded as its four UTF-8 bytes.
+    secret = {
+        "name": "a\U0001f600",
+        "allowed_domains": ["*"],
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    with FakeApi([PlannedResponse(200, secret)]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            await root.v2.secrets.get("a\U0001f600")
+    assert fake.requests[0].path == "/secrets/a%F0%9F%98%80"

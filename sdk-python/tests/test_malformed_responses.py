@@ -10,6 +10,7 @@ fork handle). The TypeScript twin is ``tests/malformed-responses.test.ts``.
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Awaitable, Callable
 
@@ -372,3 +373,133 @@ async def test_a_malformed_lifecycle_echo_is_a_contract_error(verb: str, body: J
                 else:
                     await sandbox.update_lifecycle_policy(timeout_seconds=60)
     assert len(api.requests) == 1
+
+
+# The create response's `wait_cap_seconds` is read, never refused (the sandbox
+# exists), exactly as TypeScript reads it: a finite number, a negative one
+# clamped to 0, anything else 0. With a 5 s wait, a cap that covers it needs no
+# further read; a cap read as 0 (or short of it) leaves a wait read, answered
+# `running`. The TypeScript twin pins the same rows.
+_RUNNING_DETAIL = json.dumps({**_DETAIL, "status": "running"}).encode()
+_WAIT_CAPS: list[tuple[str, str, int]] = [
+    ("5", "5", 1),
+    ("5.0", "5.0", 1),
+    ("7", "7", 1),
+    ("4.5", "4.5", 2),
+    ("-3", "-3", 2),
+    ('"5"', '"5"', 2),
+    ("null", "null", 2),
+    ("1e400", "1e400", 2),
+    ("10**400", "1" + "0" * 400, 2),
+]
+
+
+@pytest.mark.parametrize(("label", "raw", "requests"), _WAIT_CAPS, ids=[case[0] for case in _WAIT_CAPS])
+async def test_the_create_wait_cap_is_read_as_typescript_reads_it(
+    label: str, raw: str, requests: int
+) -> None:
+    del label
+    created = f'{{"id": "src", "status": "pending", "wait_cap_seconds": {raw}}}'.encode()
+    with FakeApi([PlannedResponse(200, created), PlannedResponse(200, _RUNNING_DETAIL)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with anyio.fail_after(10):
+                await root.v2.create("img_1", wait_seconds=5)
+    assert len(api.requests) == requests
+
+
+_HUGE = "1" + "0" * 400
+_NETWORK_POLICY = (
+    '{{"desired": {desired}, "desired_revision": {desired_revision}, "applied": null, '
+    '"applied_revision": {applied_revision}, "applied_start_id": null, "status": "applied", "error": null}}'
+)
+_POLICY = '{{"version": {version}, "block_all": false, "allow_cidrs": [], "allow_domains": []}}'
+_SECRETS = (
+    '{{"secrets": [], "desired_revision": {desired_revision}, "applied_revision": {applied_revision}, '
+    '"status": "pending", "error": null, "capture_status": null, "capture_unresolved_count": {count}}}'
+)
+
+# An integer a double cannot carry (TypeScript's JSON.parse reads it as
+# Infinity and refuses it) is the malformed-response error naming the field, in
+# the hand-written mappers; the TypeScript twin pins the same rows.
+_HUGE_INTEGERS: list[tuple[str, str, Callable[[AsyncSandbox], Awaitable[object]], str]] = [
+    (
+        "network policy desired_revision",
+        _NETWORK_POLICY.format(desired="null", desired_revision=_HUGE, applied_revision="null"),
+        lambda s: s.get_network_policy(),
+        "desired_revision",
+    ),
+    (
+        "network policy applied_revision",
+        _NETWORK_POLICY.format(desired="null", desired_revision=1, applied_revision=_HUGE),
+        lambda s: s.get_network_policy(),
+        "applied_revision",
+    ),
+    (
+        "network policy desired.version",
+        _NETWORK_POLICY.format(
+            desired=_POLICY.format(version=_HUGE), desired_revision=1, applied_revision="null"
+        ),
+        lambda s: s.get_network_policy(),
+        "desired.version",
+    ),
+    (
+        "secrets desired_revision",
+        _SECRETS.format(desired_revision=_HUGE, applied_revision="null", count="null"),
+        lambda s: s.get_secrets(),
+        "desired_revision",
+    ),
+    (
+        "secrets applied_revision",
+        _SECRETS.format(desired_revision=1, applied_revision=_HUGE, count="null"),
+        lambda s: s.get_secrets(),
+        "applied_revision",
+    ),
+    (
+        "secrets capture_unresolved_count",
+        _SECRETS.format(desired_revision=1, applied_revision="null", count=_HUGE),
+        lambda s: s.get_secrets(),
+        "capture_unresolved_count",
+    ),
+    (
+        "access token ports[0]",
+        f'{{"access_token": "t", "token_type": "Bearer", "expires_at": "2030-01-01T00:00:00Z", "operations": [], "ports": [{_HUGE}]}}',
+        lambda s: s.create_access_token(),
+        r"ports\[0\]",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "body", "call", "field"), _HUGE_INTEGERS, ids=[case[0] for case in _HUGE_INTEGERS]
+)
+async def test_an_integer_a_double_cannot_carry_is_a_contract_error(
+    name: str, body: str, call: Callable[[AsyncSandbox], Awaitable[object]], field: str
+) -> None:
+    del name
+    with FakeApi([PlannedResponse(200, body.encode(), {"ETag": '"e"'})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match=field) as raised:
+                await call(lazy_sandbox(root.v2, "src"))
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+async def test_a_search_total_a_double_cannot_carry_is_a_contract_error() -> None:
+    body = f'{{"sandboxes": [], "total": {_HUGE}, "total_relation": "eq", "next_cursor": null}}'.encode()
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match="has a total that is not an integer"):
+                await root.v2.search()
+
+
+async def test_a_search_total_above_2_53_that_a_double_carries_is_accepted() -> None:
+    body = {"sandboxes": [], "total": 2**60, "total_relation": "eq", "next_cursor": None}
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            page = await root.v2.search()
+    assert page.total == 2**60

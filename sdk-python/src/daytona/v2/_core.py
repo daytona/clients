@@ -81,7 +81,9 @@ from .types import (
     RegistryImageSource,
     SandboxLifecycle,
     SandboxState,
+    SearchOrder,
     SearchSandboxesOptions,
+    SearchSort,
     SearchTimestamp,
     SearchTotalRelation,
     Snapshot,
@@ -201,6 +203,9 @@ def parse_json_bytes(content: bytes) -> JsonValue:
     return loads_json(content.decode("utf-8"))
 
 
+_CPU_ARCHITECTURES = ("amd64", "arm64")
+
+
 def image_options_body(
     *, name: object = None, idle_expiry_seconds: object = None, region: object = None, cpu_arch: object = None
 ) -> JsonObject:
@@ -216,11 +221,24 @@ def image_options_body(
             continue
         if not isinstance(value, str):
             raise create_error(f"{key} must be a string", 400, "BAD_REQUEST", "SDK")
+        # The contract's architectures only: SDK inputs are closed.
+        if key == "cpu_arch" and value not in _CPU_ARCHITECTURES:
+            raise create_error('cpu_arch must be "amd64" or "arm64"', 400, "BAD_REQUEST", "SDK")
         body[wire] = value
     if idle_expiry_seconds is not None:
-        if isinstance(idle_expiry_seconds, bool) or not isinstance(idle_expiry_seconds, int):
+        # The contract: -1 (the maximum) or 1 and up, an int64 both SDKs carry
+        # exactly; 0 and anything below -1 are refused, and the server holds
+        # the maximum.
+        if (
+            isinstance(idle_expiry_seconds, bool)
+            or not isinstance(idle_expiry_seconds, int)
+            or not (idle_expiry_seconds == -1 or 1 <= idle_expiry_seconds <= MAX_SAFE_INTEGER)
+        ):
             raise create_error(
-                "idle_expiry_seconds must be an integer number of seconds", 400, "BAD_REQUEST", "SDK"
+                "idle_expiry_seconds must be -1 (the maximum) or a positive integer number of seconds",
+                400,
+                "BAD_REQUEST",
+                "SDK",
             )
         body["idle_expiry_seconds"] = idle_expiry_seconds
     return body
@@ -1274,6 +1292,13 @@ def list_shape(payload: TransportPayload, *keys: str) -> Tuple[List[JsonObject],
 
 
 _SEARCH_LIST_FIELDS = ("sandbox_class", "region")
+_SEARCH_BOOLEAN_FIELDS = ("spot", "persistent")
+_SEARCH_NUMBER_FIELDS = ("min_cores", "max_cores")
+_SEARCH_INTEGER_FIELDS = ("min_memory_mib", "max_memory_mib", "min_disk_mib", "max_disk_mib")
+_SEARCH_CHOICES: Dict[str, Tuple[str, ...]] = {
+    "sort": get_args(SearchSort),
+    "order": get_args(SearchOrder),
+}
 _SEARCH_TIMESTAMP_FIELDS = (
     "created_start_at",
     "created_end_at",
@@ -1348,6 +1373,29 @@ def _comma_list(name: str, value: Union[str, Sequence[str]]) -> str:
     return ",".join(items)
 
 
+def page_params(cursor: object, limit: object) -> Dict[str, JsonValue]:
+    """The ``cursor`` / ``limit`` query of a list: a string cursor and an
+    integer limit from 1 to 200 (the contract's range), else
+    :class:`BadRequestError` naming the parameter, before any request."""
+    params: Dict[str, JsonValue] = {}
+    if cursor is not None:
+        if not isinstance(cursor, str):
+            raise create_error("cursor must be a string", 400, "BAD_REQUEST", "SDK")
+        params["cursor"] = cursor
+    if limit is not None:
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
+            raise create_error("limit must be an integer from 1 to 200", 400, "BAD_REQUEST", "SDK")
+        params["limit"] = limit
+    return params
+
+
+def optional_query_text(value: object, name: str) -> Optional[str]:
+    """A string query filter, or ``None``; anything else is :class:`BadRequestError`."""
+    if value is not None and not isinstance(value, str):
+        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
+    return value
+
+
 def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
     """Wire query for ``GET /sandboxes/search``: lists comma-joined, labels JSON, timestamps RFC 3339."""
     params: Dict[str, JsonValue] = {}
@@ -1370,10 +1418,31 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
             params[wire] = json.dumps(dict(value), separators=(",", ":"))
         elif f.name in _SEARCH_TIMESTAMP_FIELDS:
             params[wire] = search_timestamp(value)
-        elif isinstance(value, bool):
+        elif f.name in _SEARCH_BOOLEAN_FIELDS:
+            if not isinstance(value, bool):
+                raise create_error(f"{f.name} must be a boolean", 400, "BAD_REQUEST", "SDK")
             params[wire] = "true" if value else "false"
-        else:
+        elif f.name in _SEARCH_NUMBER_FIELDS:
+            if not finite_number(value):
+                raise create_error(f"{f.name} must be a finite number", 400, "BAD_REQUEST", "SDK")
             params[wire] = value
+        elif f.name in _SEARCH_INTEGER_FIELDS:
+            # An int64 both SDKs carry exactly.
+            if isinstance(value, bool) or not isinstance(value, int) or abs(value) > MAX_SAFE_INTEGER:
+                raise create_error(f"{f.name} must be an integer", 400, "BAD_REQUEST", "SDK")
+            params[wire] = value
+        elif f.name in _SEARCH_CHOICES:
+            # The contract's values only: SDK inputs are closed.
+            if value not in _SEARCH_CHOICES[f.name]:
+                choices = ", ".join(_SEARCH_CHOICES[f.name])
+                raise create_error(f"{f.name} must be one of {choices}", 400, "BAD_REQUEST", "SDK")
+            params[wire] = value
+        elif f.name in ("cursor", "limit"):
+            params.update(
+                page_params(value if f.name == "cursor" else None, value if f.name == "limit" else None)
+            )
+        else:
+            params[wire] = optional_query_text(value, f.name)
     return params
 
 
@@ -1405,7 +1474,7 @@ def parse_search_page(
     total = payload.get("total")
     if total is None:
         raise malformed("is missing its total")
-    if isinstance(total, bool) or not isinstance(total, int):
+    if not isinstance(total, int) or not finite_number(total):
         raise malformed("has a total that is not an integer")
     raw_total_relation = payload.get("total_relation")
     if raw_total_relation is None:

@@ -7,7 +7,7 @@ from typing import Final, Sequence
 
 import httpx
 
-from ._core import parse_json_response
+from ._core import finite_number, parse_json_response
 from .errors import create_error
 from .types import JsonObject, JsonValue, SandboxSecretsInfo
 
@@ -64,7 +64,8 @@ def _required_string_list(value: JsonValue, *, field_name: str) -> list[str]:
 
 
 def _required_int(value: JsonValue, *, field_name: str) -> int:
-    if isinstance(value, int) and not isinstance(value, bool):
+    # An integer a double cannot carry is refused, as TypeScript's JSON.parse refuses it.
+    if isinstance(value, int) and finite_number(value):
         return value
     raise create_error(f"{field_name} must be an integer", 400, "BAD_REQUEST", "SDK")
 

@@ -31,29 +31,19 @@ class ImageBuilder:
                 "SDK",
             )
 
+    # One rule in both SDKs: every value must be a string that is not blank by
+    # Python's whitespace set, and text rendered raw into a Dockerfile line
+    # (the registry ref, the Dockerfile, commands, packages, env keys, the
+    # workdir) is stripped with that set; an env value, which is rendered as a
+    # JSON string, is kept as given. TypeScript applies the same rule.
+
     @classmethod
     def from_registry(cls, ref: str) -> Self:
-        cleaned = ref.strip()
-        if not cleaned:
-            raise create_error(
-                "ImageBuilder.from_registry: ref must be a non-empty registry image reference",
-                400,
-                "BAD_REQUEST",
-                "SDK",
-            )
-        return cls(_registry_ref=cleaned)
+        return cls(_registry_ref=cls._require_text(ref, "ImageBuilder.from_registry ref", strip=True))
 
     @classmethod
     def from_dockerfile(cls, content: str) -> Self:
-        cleaned = content.strip()
-        if not cleaned:
-            raise create_error(
-                "ImageBuilder.from_dockerfile: content must be a non-empty Dockerfile",
-                400,
-                "BAD_REQUEST",
-                "SDK",
-            )
-        return cls(_dockerfile=cleaned)
+        return cls(_dockerfile=cls._require_text(content, "ImageBuilder.from_dockerfile content", strip=True))
 
     def pip_install(self, *packages: str) -> Self:
         if not packages:
@@ -63,14 +53,10 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        cleaned = tuple(package.strip() for package in packages)
-        if any(not package for package in cleaned):
-            raise create_error(
-                "ImageBuilder.pip_install packages must be non-empty strings",
-                400,
-                "BAD_REQUEST",
-                "SDK",
-            )
+        cleaned = tuple(
+            self._require_text(package, "ImageBuilder.pip_install package", strip=True)
+            for package in packages
+        )
         # `python -m pip` (works where `pip` is not on PATH) and POSIX-quoted
         # packages — byte-identical to TypeScript's `pipInstall`.
         command = "python -m pip install " + " ".join(shlex.quote(package) for package in cleaned)
@@ -84,14 +70,10 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        cleaned = tuple(command.strip() for command in commands)
-        if any(not command for command in cleaned):
-            raise create_error(
-                "ImageBuilder.run_commands commands must be non-empty strings",
-                400,
-                "BAD_REQUEST",
-                "SDK",
-            )
+        cleaned = tuple(
+            self._require_text(command, "ImageBuilder.run_commands command", strip=True)
+            for command in commands
+        )
         return type(self)(
             _registry_ref=self._registry_ref,
             _dockerfile=self._dockerfile,
@@ -108,17 +90,24 @@ class ImageBuilder:
         if isinstance(name_or_values, str):
             entries = (
                 (
-                    self._require_text(name_or_values, "ImageBuilder.env name"),
+                    self._require_text(name_or_values, "ImageBuilder.env name", strip=True),
                     self._require_text(value, "ImageBuilder.env value"),
                 ),
             )
-        else:
+        elif isinstance(name_or_values, Mapping):
             entries = tuple(
                 (
-                    self._require_text(key, "ImageBuilder.env key"),
+                    self._require_text(key, "ImageBuilder.env key", strip=True),
                     self._require_text(entry_value, "ImageBuilder.env value"),
                 )
                 for key, entry_value in name_or_values.items()
+            )
+        else:
+            raise create_error(
+                "ImageBuilder.env takes a name and a value, or a mapping of names to values",
+                400,
+                "BAD_REQUEST",
+                "SDK",
             )
         return type(self)(
             _registry_ref=self._registry_ref,
@@ -135,7 +124,8 @@ class ImageBuilder:
         return type(self)(
             _registry_ref=self._registry_ref,
             _dockerfile=self._dockerfile,
-            _steps=self._steps + (f"WORKDIR {self._require_text(path, 'ImageBuilder.workdir path')}",),
+            _steps=self._steps
+            + (f"WORKDIR {self._require_text(path, 'ImageBuilder.workdir path', strip=True)}",),
         )
 
     def _request_source(self) -> tuple[dict[str, str] | None, str | None]:
@@ -161,12 +151,9 @@ class ImageBuilder:
         return "\n".join(layers).rstrip() + "\n"
 
     @staticmethod
-    def _require_text(value: str | None, label: str) -> str:
-        if value is None or value.strip() == "":
-            raise create_error(
-                f"{label} must be a non-empty string",
-                400,
-                "BAD_REQUEST",
-                "SDK",
-            )
-        return value
+    def _require_text(value: object, label: str, *, strip: bool = False) -> str:
+        """A string that is not blank (Python's whitespace set), stripped when
+        it is rendered raw; anything else is :class:`BadRequestError`."""
+        if not isinstance(value, str) or not value.strip():
+            raise create_error(f"{label} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        return value.strip() if strip else value

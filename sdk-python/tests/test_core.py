@@ -6898,9 +6898,11 @@ async def test_daytona_create_validates_image_source_class_rules_before_posting(
         await client.create(Image.from_dockerfile("FROM python:3.12"))
     with pytest.raises(BadRequestError, match=r"^create_macos\(\) accepts .*do not build one$"):
         await client.create_macos(Image.from_dockerfile("FROM python:3.12"))  # type: ignore[arg-type]
-    with pytest.raises(Exception, match="non-empty Dockerfile"):
+    with pytest.raises(
+        BadRequestError, match="^ImageBuilder.from_dockerfile content must be a non-empty string$"
+    ):
         ImageBuilder.from_dockerfile("   ")
-    with pytest.raises(Exception, match="non-empty registry image reference"):
+    with pytest.raises(BadRequestError, match="^ImageBuilder.from_registry ref must be a non-empty string$"):
         ImageBuilder.from_registry("   ")
 
     assert api.specs == []

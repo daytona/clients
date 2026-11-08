@@ -46,7 +46,6 @@ from ._core import (
     MAX_WIRE_WAIT_SECONDS,
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
-    _optional_int,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
     expect_object,
@@ -54,6 +53,7 @@ from ._core import (
     gib_to_mib,
     image_options_body,
     lifecycle_body,
+    page_params,
     parse_search_page,
     parse_timestamp,
     sandbox_state,
@@ -809,7 +809,10 @@ class AsyncDaytona:
             sandbox._learn_endpoint(created_endpoints[-1])
         if sandbox.state == "started" or wait_budget == 0:
             return sandbox
-        wait_cap = _optional_int(data.get("wait_cap_seconds")) or 0
+        # Read as TypeScript reads it, never refused (the sandbox exists): a
+        # finite number, a negative one clamped to 0; anything else is 0.
+        raw_wait_cap = data.get("wait_cap_seconds")
+        wait_cap = max(0.0, float(raw_wait_cap)) if finite_number(raw_wait_cap) else 0.0
         # No limit stays no limit (0) after the server's hold.
         remaining = 0 if unbounded else max(0, wait_budget - wait_cap)
         if remaining == 0 and not unbounded:
@@ -965,11 +968,7 @@ class AsyncDaytona:
         further pages with :meth:`iter` or the returned cursor. Filtering is
         :meth:`search`'s job.
         """
-        params: Dict[str, JsonValue] = {}
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
+        params: Dict[str, JsonValue] = page_params(cursor, limit)
         payload = await self._api.send(RequestSpec("GET", "/sandboxes", params=params))
         # The page's shape and every item's sandbox fields, as in TypeScript; the
         # per-item `cursor` is not read, so it is not required.

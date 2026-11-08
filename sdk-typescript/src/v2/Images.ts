@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { optionalQueryText, pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { isBlank } from './pyText.js'
 import { frozenPage } from './frozen.js'
@@ -49,6 +50,19 @@ const IMAGE_LONGPOLL_MAX_MS = 60_000
 const IMAGE_POLL_MIN_INTERVAL_MS = 1_000
 const IMAGE_HOLD_READ_SLACK_MS = 5_000
 
+function listImagesAnonymous(value: unknown): boolean | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'boolean') throw badRequest('anonymous must be a boolean')
+  return value
+}
+
+// The contract's values only: SDK inputs are closed.
+function listImagesPlatform(value: unknown): 'true' | 'false' | 'any' | undefined {
+  if (value === undefined || value === null) return undefined
+  if (value !== 'true' && value !== 'false' && value !== 'any') throw badRequest('platform must be "true", "false" or "any"')
+  return value
+}
+
 export class ImagesService {
   private resolvedApiTransport?: HttpTransport
 
@@ -91,12 +105,11 @@ export class ImagesService {
     options = snapshotOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS) ?? {}
     const { data } = await this.http.get<api.ImagePage>('/images', {
       params: {
-        cursor: options.cursor,
-        limit: options.limit,
-        name: options.name,
-        anonymous: options.anonymous,
-        sandbox_id: options.sandboxId,
-        platform: options.platform,
+        ...pageParams(options.cursor, options.limit),
+        name: optionalQueryText(options.name, 'name'),
+        anonymous: listImagesAnonymous(options.anonymous),
+        sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId'),
+        platform: listImagesPlatform(options.platform),
       },
     })
     const page = listPage<api.ImageListItem>(data, 'images', 'image list')
@@ -126,6 +139,8 @@ export class ImagesService {
   /** Import a registry image and wait until ready by default. Omitted or zero timeoutSeconds is unbounded. */
   public async pull(ref: string, options: ImagePullOptions = {}): Promise<Image> {
     assertKnownOptions('ImagePullOptions', options, IMAGE_PULL_OPTION_KEYS)
+    const wait: unknown = options.wait
+    if (wait !== undefined && typeof wait !== 'boolean') throw badRequest('wait must be a boolean')
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
     const deadline = timeoutSeconds === undefined || timeoutSeconds === 0 ? undefined : Date.now() + timeoutSeconds * 1000
     const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })

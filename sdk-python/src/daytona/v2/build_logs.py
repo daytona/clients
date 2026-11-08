@@ -654,7 +654,10 @@ async def _discover(
         if scope.cancelled_caught or (deadline is not None and _clock.monotonic() >= deadline):
             raise ClientTimeoutError("build log discovery timed out")
         try:
-            return _object(json.loads(body, parse_constant=_invalid_json_constant))
+            # Strict UTF-8, as TypeScript decodes it: invalid UTF-8 and a leading
+            # BOM are not JSON (json.loads on bytes would strip a BOM and accept
+            # UTF-16 / UTF-32).
+            return _object(json.loads(body.decode("utf-8"), parse_constant=_invalid_json_constant))
         except (ValueError, RecursionError) as exc:
             raise _ProtocolError("invalid build log discovery JSON") from exc
     finally:
@@ -724,8 +727,11 @@ async def follow_build_logs(
     # 0, None or above the timer maximum (a huge integer included) is no deadline.
     if timeout is not None:
         timeout = wait_budget_seconds(timeout) or None
+    # Invalid arguments are BadRequestError before any request, as in TypeScript.
     if not callable(on_logs):
-        raise TypeError("on_logs is required")
+        raise create_error("on_logs must be a callable", 400, "BAD_REQUEST", "SDK")
+    if on_event is not None and not callable(on_event):
+        raise create_error("on_event must be a callable when given", 400, "BAD_REQUEST", "SDK")
     caller_deadline = _clock.monotonic() + timeout if timeout else None
     observer: _Observer | None = None
     try:

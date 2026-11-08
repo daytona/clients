@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -104,10 +105,7 @@ export class VolumesService {
   }
 
   private async listPage(options: ListVolumesOptions): Promise<ListResult<Volume>> {
-    const params = {
-      cursor: options.cursor,
-      limit: options.limit,
-    }
+    const params = pageParams(options.cursor, options.limit)
     const { data } = await this.api.get<api.ListVolumesResponse>('/volumes', { params })
     const page = listPage<api.Volume>(data, 'volumes', 'volume list')
     return frozenPage({ items: page.items.map(mapVolume), nextCursor: page.nextCursor })

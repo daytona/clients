@@ -378,7 +378,16 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
   let body = '', size = 0
   let expired = false
   let timer: ReturnType<typeof setTimeout> | undefined
-  const decoder = new TextDecoder()
+  // A discovery body is decoded strictly (invalid UTF-8 and a leading BOM are
+  // not JSON, as in Python); an error body stays lenient for error mapping.
+  const decoder = kind === 'discovery' ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }) : new TextDecoder()
+  const decode = (bytes?: Uint8Array): string => {
+    try {
+      return bytes === undefined ? decoder.decode() : decoder.decode(bytes, { stream: true })
+    } catch {
+      throw new ProtocolError(`invalid build log ${kind} JSON`)
+    }
+  }
   const expire = (): void => {
     expired = true
     // Cancel this response, not the follower's controller: HTTP/2 peers and
@@ -398,10 +407,10 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
       if (next.done) break
       size += next.value.byteLength
       if (size > MAX_EVENT) throw new ProtocolError(`oversized build log ${kind} response`)
-      body += decoder.decode(next.value, { stream: true })
+      body += decode(next.value)
     }
     if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`)
-    return body + decoder.decode()
+    return body + decode()
   } catch (error) {
     if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`)
     if (error instanceof DaytonaError || error instanceof ProtocolError) throw error
@@ -495,7 +504,10 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
   assertOptionsObject('BuildLogFollowOptions', options)
   assertKnownOptions('BuildLogFollowOptions', options, BUILD_LOG_FOLLOW_OPTION_KEYS)
   const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
-  if (typeof options.onLogs !== 'function') throw new TypeError('onLogs is required')
+  // Invalid arguments are BadRequestError before any request, as in Python.
+  if (typeof options.onLogs !== 'function') throw badRequest('onLogs must be a function')
+  const onEvent: unknown = options.onEvent
+  if (onEvent !== undefined && typeof onEvent !== 'function') throw badRequest('onEvent must be a function when given')
   const controller = new AbortController()
   const relay = (): void => controller.abort(options.signal?.reason)
   if (options.signal?.aborted) relay()

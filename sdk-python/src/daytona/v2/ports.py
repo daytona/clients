@@ -18,7 +18,7 @@ from ._api_core import (
     expect_preview_endpoint,
     expect_signed_preview_url_resp,
 )
-from ._core import RequestSpec, expect_is_port_in_use_response, expect_port_list, parse_timestamp
+from ._core import RequestSpec, expect_is_port_in_use_response, expect_port_list, page_params, parse_timestamp
 from ._gen.api import SandboxPort as PreviewEndpointDto
 from ._transport import AsyncTransport
 from .errors import create_error
@@ -130,11 +130,7 @@ class AsyncPortsService:
     async def list_endpoints(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> ListResult[PreviewEndpoint]:
-        params = {}
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
+        params = page_params(cursor, limit)
         payload = expect_endpoint_list_resp(
             await self._require_api().send(RequestSpec("GET", self._ports_path(), params=params))
         )

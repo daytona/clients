@@ -6,6 +6,8 @@
 import { BadRequestError, createDaytonaError } from './errors/DaytonaError.js'
 import type { SandboxDto, SandboxState, SearchSandboxesOptions, SearchTimestamp } from './types.js'
 import { assertLabels, badRequest } from './options.js'
+import { optionalQueryText, pageParams } from './pageParams.js'
+import { SandboxSearchSort, SortOrder } from './gen/api-enums.js'
 import { assertSandboxResponse } from './sandboxMetadata.js'
 
 export const SEARCH_PATH = '/sandboxes/search'
@@ -59,8 +61,30 @@ function labelsParam(labels: unknown): string {
   return JSON.stringify(labels)
 }
 
-function boolParam(value: boolean | undefined): string | undefined {
-  return value === undefined ? undefined : value ? 'true' : 'false'
+function boolParam(value: unknown, name: string): string | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'boolean') throw badRequest(`${name} must be a boolean`)
+  return value ? 'true' : 'false'
+}
+
+function numberParam(value: unknown, name: string): number | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw badRequest(`${name} must be a finite number`)
+  return value
+}
+
+// An int64 both SDKs carry exactly.
+function integerParam(value: unknown, name: string): number | undefined {
+  if (value === undefined) return undefined
+  if (!Number.isSafeInteger(value)) throw badRequest(`${name} must be an integer`)
+  return value as number
+}
+
+// The contract's values only: SDK inputs are closed.
+function choiceParam<T extends string>(value: unknown, name: string, choices: readonly T[]): T | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || !(choices as readonly string[]).includes(value)) throw badRequest(`${name} must be one of ${choices.join(', ')}`)
+  return value as T
 }
 
 function timestampParam(value: SearchTimestamp | undefined): string | undefined {
@@ -76,33 +100,32 @@ export function searchQueryParams(input: SearchSandboxesOptions): SearchQueryPar
     Object.entries(input).filter(([, value]) => value != null),
   ) as SearchSandboxesOptions
   const candidates = {
-    q: options.q,
-    name_prefix: options.namePrefix,
-    id_prefix: options.idPrefix,
+    q: optionalQueryText(options.q, 'q'),
+    name_prefix: optionalQueryText(options.namePrefix, 'namePrefix'),
+    id_prefix: optionalQueryText(options.idPrefix, 'idPrefix'),
     status: options.states === undefined ? undefined : searchStates(options.states),
     class: options.sandboxClass === undefined ? undefined : commaList('sandboxClass', options.sandboxClass),
     region_ids: options.region === undefined ? undefined : commaList('region', options.region),
-    image_ref: options.imageRef,
-    image_ref_prefix: options.imageRefPrefix,
+    image_ref: optionalQueryText(options.imageRef, 'imageRef'),
+    image_ref_prefix: optionalQueryText(options.imageRefPrefix, 'imageRefPrefix'),
     labels: options.labels === undefined ? undefined : labelsParam(options.labels),
-    spot: boolParam(options.spot),
-    forked_from: options.forkedFrom,
-    min_cores: options.minCores,
-    max_cores: options.maxCores,
-    min_memory_mib: options.minMemoryMib,
-    max_memory_mib: options.maxMemoryMib,
-    min_disk_mib: options.minDiskMib,
-    max_disk_mib: options.maxDiskMib,
+    spot: boolParam(options.spot, 'spot'),
+    forked_from: optionalQueryText(options.forkedFrom, 'forkedFrom'),
+    min_cores: numberParam(options.minCores, 'minCores'),
+    max_cores: numberParam(options.maxCores, 'maxCores'),
+    min_memory_mib: integerParam(options.minMemoryMib, 'minMemoryMib'),
+    max_memory_mib: integerParam(options.maxMemoryMib, 'maxMemoryMib'),
+    min_disk_mib: integerParam(options.minDiskMib, 'minDiskMib'),
+    max_disk_mib: integerParam(options.maxDiskMib, 'maxDiskMib'),
     created_start_at: timestampParam(options.createdStartAt),
     created_end_at: timestampParam(options.createdEndAt),
     updated_start_at: timestampParam(options.updatedStartAt),
     updated_end_at: timestampParam(options.updatedEndAt),
     last_activity_start_at: timestampParam(options.lastActivityStartAt),
     last_activity_end_at: timestampParam(options.lastActivityEndAt),
-    sort: options.sort,
-    order: options.order,
-    limit: options.limit,
-    cursor: options.cursor,
+    sort: choiceParam(options.sort, 'sort', SandboxSearchSort),
+    order: choiceParam(options.order, 'order', SortOrder),
+    ...pageParams(options.cursor, options.limit),
   }
   const params: SearchQueryParams = {}
   for (const [key, value] of Object.entries(candidates)) {
@@ -156,7 +179,7 @@ export function searchPageSandboxes(data: unknown): SandboxDto[] {
   const sandboxes: unknown = data.sandboxes
   if (!Array.isArray(sandboxes)) throw badRequest('search response is missing the sandboxes array')
   sandboxes.forEach(assertSandboxResponse)
-  if (!Number.isSafeInteger(data.total)) throw badRequest(data.total == null ? 'search response is missing its total' : 'search response has a total that is not an integer')
+  if (!Number.isInteger(data.total)) throw badRequest(data.total == null ? 'search response is missing its total' : 'search response has a total that is not an integer')
   if (typeof data.total_relation !== 'string') throw badRequest(data.total_relation == null ? 'search response is missing its total_relation' : 'search response has a total_relation that is not a string')
   // A cursor of the wrong type would silently end search() / findByName() early.
   if (data.next_cursor != null && typeof data.next_cursor !== 'string') throw badRequest('search response has a next_cursor that is not a string')

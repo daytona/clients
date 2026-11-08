@@ -8,6 +8,7 @@ import type * as api from './gen/api-types.js'
 import { ImageRetention as IMAGE_RETENTIONS, SnapshotClass as SNAPSHOT_CLASSES, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { badRequest } from './options.js'
+import { isBlank, strip } from './pyText.js'
 import type { ArtifactRetention, CpuArch, ImageOrigin, ImageSource, ImageStatus, SnapshotClass, SnapshotKind } from './types.js'
 import type { ImageModel } from './imageModel.js'
 import { assertInternal } from './internal.js'
@@ -41,13 +42,23 @@ type BuilderStep =
   | { readonly type: 'cmd'; readonly args: readonly string[] }
   | { readonly type: 'entrypoint'; readonly args: readonly string[] }
 
-function assertText(value: string, label: string): string {
-  if (typeof value !== 'string' || value.trim() === '') throw badRequest(`${label} must be a non-empty string`)
+// One rule in both SDKs: every value must be a string that is not blank by
+// Python's whitespace set, and text rendered raw into a Dockerfile line (the
+// registry ref, the Dockerfile, commands, packages, env keys, the workdir, the
+// user) is stripped with that set; an env value and the cmd / entrypoint
+// arguments, rendered as JSON strings, are kept as given. Python applies the
+// same rule.
+function assertText(value: unknown, label: string): string {
+  if (typeof value !== 'string' || isBlank(value)) throw badRequest(`${label} must be a non-empty string`)
   return value
 }
 
+function rawText(value: unknown, label: string): string {
+  return strip(assertText(value, label))
+}
+
 function assertTextList(values: readonly string[], label: string): readonly string[] {
-  if (values.length === 0) throw badRequest(`${label} requires at least one value`)
+  if (!Array.isArray(values) || values.length === 0) throw badRequest(`${label} requires at least one value`)
   values.forEach((value) => { assertText(value, label) })
   return values
 }
@@ -74,7 +85,7 @@ function renderStep(step: BuilderStep): string {
 }
 
 function normalizeStepText(value: string, label: string): string {
-  return assertText(value, label).trim()
+  return rawText(value, label)
 }
 
 /** `shlex.quote` (Python's rule, byte for byte): safe words pass through, everything else is single-quoted with `'` → `'"'"'`. */
@@ -91,11 +102,11 @@ export class ImageBuilder {
   ) {}
 
   public static fromRegistry(ref: string): ImageBuilder {
-    return new ImageBuilder({ type: 'registry', ref: assertText(ref, 'ImageBuilder.fromRegistry ref') })
+    return new ImageBuilder({ type: 'registry', ref: rawText(ref, 'ImageBuilder.fromRegistry ref') })
   }
 
   public static fromDockerfile(dockerfile: string): ImageBuilder {
-    return new ImageBuilder({ type: 'dockerfile', dockerfile: assertText(dockerfile, 'ImageBuilder.fromDockerfile dockerfile') })
+    return new ImageBuilder({ type: 'dockerfile', dockerfile: rawText(dockerfile, 'ImageBuilder.fromDockerfile dockerfile') })
   }
 
   public runCommands(...commands: readonly string[]): ImageBuilder {
@@ -112,18 +123,22 @@ export class ImageBuilder {
   public env(name: string, value: string): ImageBuilder
   public env(values: Record<string, string>): ImageBuilder
   public env(nameOrValues: string | Record<string, string>, value?: string): ImageBuilder {
+    const given: unknown = nameOrValues
+    if (typeof given !== 'string' && (typeof given !== 'object' || given === null || Array.isArray(given))) {
+      throw badRequest('ImageBuilder.env takes a name and a value, or an object of names to values')
+    }
     const entries = typeof nameOrValues === 'string'
-      ? { [assertText(nameOrValues, 'ImageBuilder.env name')]: assertText(value ?? '', 'ImageBuilder.env value') }
-      : Object.fromEntries(Object.entries(nameOrValues).map(([key, entryValue]) => [assertText(key, 'ImageBuilder.env key'), assertText(entryValue, 'ImageBuilder.env value')]))
+      ? { [rawText(nameOrValues, 'ImageBuilder.env name')]: assertText(value, 'ImageBuilder.env value') }
+      : Object.fromEntries(Object.entries(nameOrValues).map(([key, entryValue]) => [rawText(key, 'ImageBuilder.env key'), assertText(entryValue, 'ImageBuilder.env value')]))
     return new ImageBuilder(this.source, [...this.steps, { type: 'env', entries }])
   }
 
   public workdir(path: string): ImageBuilder {
-    return new ImageBuilder(this.source, [...this.steps, { type: 'workdir', path: assertText(path, 'ImageBuilder.workdir path') }])
+    return new ImageBuilder(this.source, [...this.steps, { type: 'workdir', path: rawText(path, 'ImageBuilder.workdir path') }])
   }
 
   public user(name: string): ImageBuilder {
-    return new ImageBuilder(this.source, [...this.steps, { type: 'user', name: assertText(name, 'ImageBuilder.user name') }])
+    return new ImageBuilder(this.source, [...this.steps, { type: 'user', name: rawText(name, 'ImageBuilder.user name') }])
   }
 
   public cmd(...args: readonly string[]): ImageBuilder {
@@ -135,9 +150,10 @@ export class ImageBuilder {
   }
 
   public toDockerfile(): string {
-    const base = this.source.type === 'registry' ? `FROM ${this.source.ref}` : this.source.dockerfile.trimEnd()
+    // Python's whitespace set, as Python's `rstrip()` (JavaScript's `trimEnd()` also strips U+FEFF).
+    const base = this.source.type === 'registry' ? `FROM ${this.source.ref}` : strip(this.source.dockerfile)
     const renderedSteps = this.steps.map(renderStep).filter((step) => step !== '')
-    return [base, ...renderedSteps].join('\n').trimEnd() + '\n'
+    return strip([base, ...renderedSteps].join('\n')) + '\n'
   }
 
   /**
@@ -306,12 +322,18 @@ export function imageOptionsBody(options: { readonly name?: unknown; readonly id
     const value: unknown = options[key]
     if (value === undefined || value === null) continue
     if (typeof value !== 'string') throw badRequest(`${key} must be a string`)
+    // The contract's architectures only: SDK inputs are closed.
+    if (key === 'cpuArch' && value !== 'amd64' && value !== 'arm64') throw badRequest('cpuArch must be "amd64" or "arm64"')
     body[wire] = value
   }
-  const idle = options.idleExpirySeconds
+  const idle: unknown = options.idleExpirySeconds
   if (idle !== undefined && idle !== null) {
-    if (!Number.isSafeInteger(idle)) throw badRequest('idleExpirySeconds must be an integer number of seconds')
-    body.idle_expiry_seconds = idle as number
+    // The contract: -1 (the maximum) or 1 and up, an int64 both SDKs carry
+    // exactly; 0 and anything below -1 are refused, and the server holds the maximum.
+    if (typeof idle !== 'number' || !Number.isSafeInteger(idle) || !(idle === -1 || idle >= 1)) {
+      throw badRequest('idleExpirySeconds must be -1 (the maximum) or a positive integer number of seconds')
+    }
+    body.idle_expiry_seconds = idle
   }
   return body
 }

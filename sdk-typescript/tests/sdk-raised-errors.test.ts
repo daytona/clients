@@ -78,8 +78,6 @@ describe('error construction guard', () => {
 
   it('throws no plain JavaScript errors beyond the deliberate ones', () => {
     expect(counts(/new (?:Error|TypeError|RangeError)\(/g)).toEqual({
-      // A missing onLogs callback: TypeError, as Python raises.
-      'BuildLogs.ts': 1,
       // Construction outside the SDK (no INTERNAL token): TypeError.
       'internal.ts': 1,
       // Socket and ticket failures the events hub handles itself (reconnect or fallback).

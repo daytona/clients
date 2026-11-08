@@ -81,6 +81,33 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   ['createFromBuild idleExpirySeconds as a string', (client) => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: '60' as never })],
   ['images.build cpuArch as a number', (client) => client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { cpuArch: 5 as never })],
   ['captureImage idleExpirySeconds 1.5', (_client, api) => handle(api).captureImage({ idleExpirySeconds: 1.5 })],
+  // Argument types the SDK used to forward: the Python twin pins the same rows.
+  ['secrets.set ifNotExists a string', (client) => client.v2.secrets.set('K', 'v', { allowedDomains: ['*'], ifNotExists: 'false' as never })],
+  ['secrets.set value a number', (client) => client.v2.secrets.set('K', 5 as never, { allowedDomains: ['*'] })],
+  ['secrets.set description a number', (client) => client.v2.secrets.set('K', 'v', { allowedDomains: ['*'], description: 5 as never })],
+  ['images.pull wait a string', (client) => client.v2.images.pull('alpine', { wait: 'x' as never })],
+  ['images.pull cpuArch bogus', (client) => client.v2.images.pull('alpine', { cpuArch: 'bogus' as never })],
+  ['images.build idleExpirySeconds 0', (client) => client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: 0 })],
+  ['images.build idleExpirySeconds -2', (client) => client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: -2 })],
+  ['list limit a string', (client) => client.v2.list({ limit: 'x' as never })],
+  ['list limit 0', (client) => client.v2.list({ limit: 0 })],
+  ['list limit 201', (client) => client.v2.list({ limit: 201 })],
+  ['list cursor a number', (client) => client.v2.list({ cursor: 5 as never })],
+  ['search namePrefix a number', (client) => client.v2.search({ namePrefix: 5 as never })],
+  ['search limit a string', (client) => client.v2.search({ limit: 'x' as never })],
+  ['search minCores a string', (client) => client.v2.search({ minCores: 'x' as never })],
+  ['search minMemoryMib 1.5', (client) => client.v2.search({ minMemoryMib: 1.5 })],
+  ['search spot a string', (client) => client.v2.search({ spot: 'yes' as never })],
+  ['search sort bogus', (client) => client.v2.search({ sort: 'x' as never })],
+  ['search order bogus', (client) => client.v2.search({ order: 'up' as never })],
+  ['images.list limit a string', (client) => client.v2.images.list({ limit: 'x' as never })],
+  ['images.list name a number', (client) => client.v2.images.list({ name: 5 as never })],
+  ['images.list platform bogus', (client) => client.v2.images.list({ platform: 'yes' as never })],
+  ['snapshots.list name a number', (client) => client.v2.snapshots.list({ name: 5 as never })],
+  ['secrets.list limit -1', (client) => client.v2.secrets.list({ limit: -1 })],
+  ['volumes.list cursor a number', (client) => client.v2.volumes.list({ cursor: 5 as never })],
+  ['reservations.list limit 0', (client) => client.v2.reservations.list({ limit: 0 })],
+  ['ports.listEndpoints limit 0', (_client, api) => handle(api).ports.listEndpoints({ limit: 0 })],
   ['images.get timeoutSeconds -1 without wait', (client) => client.v2.images.get('img', { timeoutSeconds: -1 })],
   ['images.get timeoutSeconds -1 with wait', (client) => client.v2.images.get('img', { wait: 'ready', timeoutSeconds: -1 })],
   ['images.get timeoutSeconds NaN without wait', (client) => client.v2.images.get('img', { timeoutSeconds: Number.NaN })],
@@ -342,6 +369,51 @@ it.each([
     expect(api.requests).toEqual([])
     // A valid surrogate pair is text, and passes the check.
     expect(() => pathSegment('a\ud83d\ude00b', argument)).not.toThrow()
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// SAFETY: every `as never` below is a deliberately invalid plain-JavaScript argument.
+it.each([
+  ['images', 'onLogs', {}],
+  ['images', 'onLogs', { onLogs: 'x' }],
+  ['images', 'onEvent', { onLogs: (): void => undefined, onEvent: 5 }],
+  ['sandbox', 'onLogs', {}],
+  ['sandbox', 'onLogs', { onLogs: 'x' }],
+  ['sandbox', 'onEvent', { onLogs: (): void => undefined, onEvent: 5 }],
+] as const)('%s.followBuildLogs refuses a non-function %s before any request', async (form, argument, options) => {
+  // The Python twin covers the same calls.
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    const call = form === 'images' ? client.v2.images.followBuildLogs('img', options as never) : handle(api).followBuildLogs(options as never)
+    await expect(call).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(new RegExp(`^${argument} must be a function`)) })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('accepts the contract bounds: limit 200, idleExpirySeconds -1, cpuArch arm64, ifNotExists true', async () => {
+  // The Python twin sends the same.
+  const secret = { name: 'K', allowed_domains: ['*'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }
+  const api = await startFakeApi([
+    { status: 200, body: { sandboxes: [], next_cursor: null } },
+    { status: 200, body: { id: 'img', status: 'pending' } },
+    { status: 500, body: { message: 'stop' } },
+    { status: 200, body: secret },
+  ])
+  const client = clientAt(api.url)
+  try {
+    await client.v2.list({ limit: 200, cursor: 'c' })
+    await expect(client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: -1, cpuArch: 'arm64' })).rejects.toBeDefined()
+    await client.v2.secrets.set('K', 'v', { allowedDomains: ['*'], ifNotExists: true })
+    expect(api.requests[0]?.path).toBe('/sandboxes?cursor=c&limit=200')
+    expect(JSON.parse(api.requests[1]?.body ?? '{}')).toMatchObject({ idle_expiry_seconds: -1, cpu_arch: 'arm64' })
+    expect(api.requests[3]?.headers['if-none-match']).toBe('*')
   } finally {
     await client.close()
     await api.close()

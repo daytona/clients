@@ -2261,7 +2261,7 @@ def _sandbox_access_token_from_payload(payload: JsonObject) -> SandboxAccessToke
     if raw_ports is not None and not isinstance(raw_ports, list):
         raise malformed("has a ports that is not an array")
     for index, port in enumerate(raw_ports or ()):
-        if isinstance(port, bool) or not isinstance(port, int):
+        if not isinstance(port, int) or not finite_number(port):
             raise malformed(f"has a ports[{index}] that is not an integer")
     return SandboxAccessToken(
         access_token=access_token,

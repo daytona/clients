@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pageParams } from './pageParams.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
@@ -162,7 +163,7 @@ export class PortsService {
   public async listEndpoints(options: ListEndpointsOptions = {}): Promise<ListResult<PreviewEndpoint>> {
     options = snapshotOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS) ?? {}
     const page = await this.requireApi()
-      .get<api.EndpointListResponse>(this.portsPath(), { params: options })
+      .get<api.EndpointListResponse>(this.portsPath(), { params: pageParams(options.cursor, options.limit) })
       .then((response) => response.data)
     const endpoints = listPage<api.PreviewEndpoint>(page, 'ports', 'preview endpoint list')
     return frozenPage({ items: endpoints.items.map(mapPreviewEndpoint), nextCursor: endpoints.nextCursor })
