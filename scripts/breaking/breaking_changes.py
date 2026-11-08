@@ -69,7 +69,7 @@ STABLE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 # Lines whose kind lists one member of a set: losing one is a removal.
 SET_KINDS = ("union-member", "tuple-element", "element", "item", "alias", "enum-member", "value")
 # Not public API (docs/VERSIONING.md): reported, never failing.
-INFORMATIONAL_KINDS = ("internal-constructor",)
+INFORMATIONAL_KINDS = ("internal-constructor", "passed-in")
 REMOVED = "(removed)"
 ACKNOWLEDGMENTS = "scripts/breaking/compatible-changes.txt"
 OPENS = "([{<"
@@ -370,7 +370,10 @@ def union_members(detail: str) -> list[str]:
     return split_top(literal[1], ",") if literal else split_top(body, "|")
 
 
-CLASS_LINE = re.compile(r"([a-z][a-z ]*?) \((.*)\)")
+# Python class lines list their bases in parentheses. Anchored to the class
+# kinds, so a constructor or method line (`constructor (message?: string)`)
+# never reads as a class gaining bases.
+CLASS_LINE = re.compile(r"(class|dataclass|dataclass frozen|enum|protocol) \((.*)\)")
 
 
 FLAG_LINE = re.compile(r"((?:[a-z]+ )*)flag (\S+)((?: -\S+(?: \(deprecated\))?)?)( required)? default=(.*)")
@@ -379,10 +382,28 @@ COMMAND_LINE = re.compile(r"((?:[a-z]+ )*)command")
 STILL_ACCEPTED = {"hidden", "deprecated"}
 
 
+ARGS_PROBED = 6  # cli/cmd/surface_test.go probes 0..6 positional arguments
+
+
+def arg_counts(spec: str) -> set[int]:
+    """The argument counts an `args` line accepts: `1`, `0-2`, `1+`, `0,2`."""
+    counts: set[int] = set()
+    for part in spec.split(","):
+        if part.endswith("+"):
+            counts |= set(range(int(part[:-1]), ARGS_PROBED + 1))
+        elif "-" in part:
+            low, high = part.split("-")
+            counts |= set(range(int(low), int(high) + 1))
+        elif part.isdigit():
+            counts.add(int(part))
+    return counts
+
+
 def compatible_cli(old: str, new: str) -> bool:
     """A CLI command or flag line that still accepts every old invocation:
     hidden or deprecated now, a flag that gained a shorthand or became
-    persistent, or a usage that gained trailing optional arguments."""
+    persistent, a usage that gained trailing optional arguments, or an
+    argument validator that accepts more argument counts."""
     o, n = COMMAND_LINE.fullmatch(old), COMMAND_LINE.fullmatch(new)
     if o and n:
         return set(n[1].split()) - set(o[1].split()) <= STILL_ACCEPTED and set(o[1].split()) <= set(n[1].split()) | STILL_ACCEPTED
@@ -397,6 +418,8 @@ def compatible_cli(old: str, new: str) -> bool:
             return False
         old_short, new_short = o[3].strip(), n[3].strip()
         return not old_short or new_short in (old_short, f"{old_short} (deprecated)")
+    if old.startswith("args ") and new.startswith("args "):
+        return arg_counts(old[5:]) <= arg_counts(new[5:])
     if old.startswith("usage") and new.startswith(old):
         return re.fullmatch(r"(?: \[[^\[\]]*\](?:\.\.\.)?)+", new[len(old) :]) is not None
     return False
@@ -440,7 +463,9 @@ def moved_to_persistent_ancestor(key: str, rests: list[str], new: dict[str, list
         path = path.rsplit(" ", 1)[0]
         for rest in new.get(f"{path} --{flag}", []):
             now = FLAG_LINE.fullmatch(rest)
-            if old and now and "persistent" in now[1].split() and old[2] == now[2] and old[5] == now[5]:
+            same = old and now and old[2] == now[2] and old[5] == now[5]
+            # A parent flag that is required breaks calls that omitted it.
+            if same and "persistent" in now[1].split() and (old[4] or not now[4]):
                 return True
     return False
 
@@ -470,6 +495,67 @@ def is_child(key: str, parents: Iterable[str]) -> bool:
     return any(key.startswith(p + sep) for p in parents for sep in (".", "[", " "))
 
 
+def group_of(entries: dict[str, list[str]], key: str) -> list[tuple[str, str]]:
+    """``key``'s lines and its members', relative to ``key``."""
+    return sorted(
+        (k[len(key) :], rest)
+        for k, rests in entries.items()
+        if k == key or is_child(k, [key])
+        for rest in rests
+    )
+
+
+def moved_key(key: str, old: dict[str, list[str]], new: dict[str, list[str]]) -> str | None:
+    """A removed ``~Name@module`` key whose declaration reappears unchanged
+    under another key for the same name (the file moved, or a same-named
+    type took the plain key): a move, not a removal."""
+    if not key.startswith("~"):
+        return None
+    base = key.split("@", 1)[0]
+    lines = group_of(old, key)
+    for candidate in new:
+        if candidate in old or candidate.split("@", 1)[0] != base or candidate == key:
+            continue
+        if "." in candidate.removeprefix(base).split("@", 1)[-1].rsplit("/", 1)[-1]:
+            continue  # a member key, not a declaration
+        if group_of(new, candidate) == lines:
+            return candidate
+    return None
+
+
+# Declarations whose members callers supply when they pass one in: a new
+# required member breaks those callers. A dataclass's new required field
+# shows in its constructor line instead.
+SUPPLIED_HEADS = ("interface", "type = {...}", "typeddict", "protocol")
+
+
+def required_member(head: str, rest: str) -> bool:
+    words = rest.split(" ")
+    kinds = words[: next((i for i, w in enumerate(words) if w in ("property", "method", "key", "def", "async", "attribute")), len(words)) + 1]
+    if head.startswith("typeddict"):
+        return kinds[-1] == "key" and "optional" not in kinds
+    if head.startswith("protocol"):
+        return kinds[-1] in ("def", "async", "property", "attribute")
+    return kinds[-1] in ("property", "method") and "optional" not in kinds
+
+
+def new_required_members(name: str, old: dict[str, list[str]], new: dict[str, list[str]], report: Report) -> None:
+    """A member added to a type callers pass in (its ``passed-in`` line), when
+    callers must now supply it."""
+    supplied = {
+        key: next(r for r in rests if r.startswith(SUPPLIED_HEADS))
+        for key, rests in new.items()
+        if "passed-in" in rests and key in old and any(r.startswith(SUPPLIED_HEADS) for r in rests)
+    }
+    for key in sorted(set(new) - set(old)):
+        parent = next((p for p in supplied if key.startswith(p) and key[len(p) : len(p) + 1] in ".["), None)
+        if parent is None or "." in key[len(parent) + 1 :] or key[len(parent)] == "[":
+            continue
+        for rest in new[key]:
+            if required_member(supplied[parent], rest):
+                report.breaking.append(snapshot_finding(name, f"{parent}: passed-in", [f"{key}: {rest}"]))
+
+
 def compare_surface(name: str, old_text: str, new_text: str | None, report: Report) -> None:
     old = parse_surface(old_text)
     new = parse_surface(new_text or "")
@@ -483,7 +569,10 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             if is_child(key, removed_keys):
                 continue
             removed_keys.append(key)
-            if all(informational(r) for r in old[key]):
+            moved = moved_key(key, old, new)
+            if moved is not None:
+                report.notices.append(f"{name}: {key} moved to {moved} unchanged")
+            elif all(informational(r) for r in old[key]):
                 report.notices.append(f"{name}: removed {key}: {old[key][0]}")
             elif moved_to_persistent_ancestor(key, old[key], new):
                 report.notices.append(f"{name}: {key} now inherited from a parent's persistent flag")
@@ -503,6 +592,7 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             else:
                 added = [f"{key}: {r}" for r in news if r not in old[key]]
                 report.breaking.append(snapshot_finding(name, line, added))
+    new_required_members(name, old, new, report)
 
 
 # --- contracts ----------------------------------------------------------------
@@ -547,6 +637,32 @@ def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> t
 
 
 EMBEDDED_CATALOGS = ("x-daytona-error-codes", "x-daytona-generic-codes")
+
+
+def extension_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
+    """The other top-level ``x-daytona-*`` extensions of an OpenAPI contract
+    (vocabularies such as ``x-daytona-log-channels``): a removed extension or
+    a removed entry (a key of an object, an item of a list) breaks; added
+    entries and changed descriptions do not."""
+    old_doc, new_doc = json.loads(old_text), json.loads(new_text)
+    found: set[Finding] = set()
+    for extension, old in old_doc.items():
+        if not extension.startswith("x-daytona-") or extension in EMBEDDED_CATALOGS:
+            continue
+        if extension not in new_doc:
+            found.add(contract_finding(path, "extension-removed", extension))
+            continue
+        new = new_doc[extension]
+        if isinstance(old, dict) and isinstance(new, dict):
+            gone = [str(k) for k in old if k not in new]
+        elif isinstance(old, list) and isinstance(new, list):
+            kept = {json.dumps(v, sort_keys=True) for v in new}
+            gone = [json.dumps(v, sort_keys=True) for v in old if json.dumps(v, sort_keys=True) not in kept]
+        else:
+            gone = [] if old == new else [json.dumps(old, sort_keys=True)]
+        for entry in gone:
+            found.add(contract_finding(path, "extension-entry-removed", f"{extension}:{entry}"))
+    return found
 
 
 def embedded_catalog_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
@@ -680,6 +796,7 @@ def findings(root: Path, baseline: str, side: str | None, oasdiff: Callable[[], 
         elif path in OPENAPI:
             errors, warnings = oasdiff_findings(oasdiff(), path, old_text, new_text)
             found |= errors | embedded_catalog_findings(path, old_text, new_text)
+            found |= extension_findings(path, old_text, new_text)
             local.notices.extend(sorted(warnings))
         elif path in CATALOGS:
             found |= catalog_findings(path, old_text, new_text)
@@ -755,6 +872,16 @@ def load_acknowledgments(path: Path) -> dict[Finding, str]:
     return acknowledged
 
 
+def fetch_tag(root: Path, remote: str, tag: str) -> None:
+    """Fetch ``tag`` from ``remote`` unless its commit is already here. Only a
+    shallow clone (CI) fetches shallowly; a full clone stays full."""
+    if git(root, "rev-parse", "--verify", "--quiet", f"refs/tags/{tag}^{{commit}}", check=False).returncode == 0:
+        return
+    shallow = git(root, "rev-parse", "--is-shallow-repository").stdout.strip() == "true"
+    depth = ["--depth=1"] if shallow else []
+    git(root, "fetch", "--quiet", "--no-tags", *depth, remote, f"+refs/tags/{tag}:refs/tags/{tag}")
+
+
 def find_oasdiff() -> str:
     candidate = os.environ.get("OASDIFF") or shutil.which("oasdiff")
     if not candidate:
@@ -790,7 +917,7 @@ def main(argv: Sequence[str] | None = None, out: TextIO = sys.stdout) -> int:
         raise SystemExit("no release tags in this clone: fetch them (git fetch --tags) or pass --fetch origin")
     baseline = args.baseline or latest_stable_tag(root, args.fetch, skip)
     if baseline is not None and args.fetch:
-        git(root, "fetch", "--quiet", "--no-tags", "--depth=1", args.fetch, f"+refs/tags/{baseline}:refs/tags/{baseline}")
+        fetch_tag(root, args.fetch, baseline)
     if baseline is None:
         print("no stable release yet (no vX.Y.Z tag with X >= 2): nothing to compare against.", file=out)
         return 0

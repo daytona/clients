@@ -76,6 +76,16 @@ class CompatibleCall(unittest.TestCase):
         self.assertTrue(bc.compatible_change("type = Literal['a', 'b']", "type = Literal['a', 'b', 'c']"))
         self.assertFalse(bc.compatible_change("type = 'a' | 'b'", "type = 'a' | 'c'"))
 
+    def test_constructor_and_method_lines_are_not_class_lines(self) -> None:
+        ctor = "constructor (message?: string)"
+        self.assertFalse(bc.compatible_change(ctor, "constructor (code: string, message?: string)"))
+        v2 = "constructor (message: string, statusCode?: number, code?: string)"
+        self.assertFalse(bc.compatible_change(v2, "constructor (message: string, code?: string, statusCode?: number)"))
+        root = "constructor (config?: DaytonaConfig, internal?: InternalOptions)"
+        self.assertFalse(bc.compatible_change(root, "constructor (internal?: InternalOptions, config?: DaytonaConfig)"))
+        self.assertFalse(bc.compatible_change("classmethod def (v)", "classmethod def (w, v)"))
+        self.assertTrue(bc.compatible_change(ctor, "constructor (message?: string, options?: ErrorOptions)"))
+
     def test_class_gained_base(self) -> None:
         self.assertTrue(bc.compatible_change("class (A)", "class (A, B)"))
         self.assertFalse(bc.compatible_change("class (A, B)", "class (B)"))
@@ -138,6 +148,20 @@ class CliLines(unittest.TestCase):
         self.assertTrue(bc.compatible_change("usage", "usage [name]..."))
         self.assertFalse(bc.compatible_change("usage <id>", "usage <id> <path>"))
         self.assertFalse(bc.compatible_change("usage [id]", "usage <id>"))
+
+    def test_argument_counts(self) -> None:
+        self.assertTrue(bc.compatible_change("args 1", "args 0-1"))
+        self.assertTrue(bc.compatible_change("args 0-1", "args 0+"))
+        self.assertFalse(bc.compatible_change("args 0-1", "args 1"))
+        self.assertFalse(bc.compatible_change("args 0+", "args 0-2"))
+        self.assertEqual(bc.arg_counts("0,2-3,5+"), {0, 2, 3, 5, 6})
+
+    def test_flag_moved_to_a_required_persistent_parent_flag_breaks(self) -> None:
+        old = 'daytona: command\ndaytona x: command\ndaytona x --a: flag bool default="false"'
+        new = 'daytona: command\ndaytona --a: persistent flag bool required default="false"\ndaytona x: command'
+        report = bc.Report()
+        bc.compare_surface("cli.txt", old, new, report)
+        self.assertEqual(len(report.breaking), 1)
 
     def test_flag_moved_to_a_persistent_parent_flag(self) -> None:
         old = 'daytona: command\ndaytona sandbox: command\ndaytona sandbox create: command\ndaytona sandbox create --wait: flag bool default="false"'
@@ -237,6 +261,56 @@ class CompareSurface(unittest.TestCase):
                 bc.compare_surface("s.txt", old, "\n".join(line for line in new if "'b'" not in line and "'B'" not in line), report)
                 self.assertEqual(len(report.breaking), 1)
 
+    def test_new_required_member_of_a_passed_in_type(self) -> None:
+        base = [
+            "PortMapping: interface",
+            "PortMapping.port: property number",
+            "Info: interface",
+            "Info.id: property string",
+            "Opts: typeddict total=False",
+            "Opts.a: optional key str",
+            "Signal: protocol",
+            "Signal.cancelled: readonly property bool",
+        ]
+        old = "\n".join([*base, "PortMapping: passed-in", "Opts: passed-in", "Signal: passed-in"])
+        cases = {
+            "PortMapping.hostname: property string": 1,
+            "PortMapping.label: optional property string": 0,
+            "PortMapping.close: method (): void": 1,
+            "PortMapping.close: optional method (): void": 0,
+            "Info.extra: property string": 0,  # a response type may gain required members
+            "Opts.mode: key str": 1,
+            "Opts.b: optional key str": 0,
+            "Signal.reason: def () -> str": 1,
+        }
+        for line, expected in cases.items():
+            with self.subTest(line=line):
+                report = bc.Report()
+                bc.compare_surface("s.txt", old, old + "\n" + line, report)
+                self.assertEqual(len(report.breaking), expected, report.breaking)
+        # A type that only now is passed in: its new members are judged too.
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, old + "\nInfo: passed-in\nInfo.extra: property string", report)
+        self.assertEqual(len(report.breaking), 1)
+        # Losing the passed-in marker is a notice, not a break.
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, old.replace("\nOpts: passed-in", ""), report)
+        self.assertEqual(report.breaking, [])
+
+    def test_unexported_declaration_moved(self) -> None:
+        old = "~Opts@v2/a: type = {...}\n~Opts@v2/a.x: optional property number\nUse.f: method (o: Opts): void"
+        moved = old.replace("@v2/a", "@v2/b")
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, moved, report)
+        self.assertEqual(report.breaking, [])
+        self.assertIn("moved to ~Opts@v2/b", report.notices[0])
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, moved.replace("optional property number", "optional property string"), report)
+        self.assertEqual(len(report.breaking), 1)
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, old.replace("~Opts@v2/a", "~Opts"), report)
+        self.assertEqual(report.breaking, [])
+
     def test_public_constructor_field_order_swap_breaks(self) -> None:
         old = "TerminalSize.__init__: constructor (cols: int, rows: int) -> None"
         report = bc.Report()
@@ -298,6 +372,17 @@ class ContractFiles(unittest.TestCase):
                 ("status-changed", "x-daytona-error-codes:A"),
             ],
         )
+
+    def test_other_extensions(self) -> None:
+        old = {"x-daytona-log-channels": {"stdout": {"description": "a"}, "stderr": {}}, "x-daytona-list": ["a", "b"]}
+        grown = {
+            "x-daytona-log-channels": {"stdout": {"description": "b"}, "stderr": {}, "pty": {}},
+            "x-daytona-list": ["b", "a", "c"],
+        }
+        self.assertEqual(bc.extension_findings("t.json", json.dumps(old), json.dumps(grown)), set())
+        broken = {"x-daytona-log-channels": {"stdout": {}}}
+        found = sorted(dict(f.fields)["at"] for f in bc.extension_findings("t.json", json.dumps(old), json.dumps(broken)))
+        self.assertEqual(found, ["x-daytona-list", "x-daytona-log-channels:stderr"])
 
     def test_json(self) -> None:
         old = {
@@ -514,6 +599,23 @@ class Repository(RepoCase):
         code = bc.main(["--root", str(clone), "--fetch", "origin"], out=out)
         self.assertEqual(code, 1, out.getvalue())
         self.assertIn('old: daytona --yes: flag bool default="false"', out.getvalue())
+
+    def test_fetch_keeps_a_full_clone_full(self) -> None:
+        self.git("tag", "v2.0.0")
+        self.write("cli/api-surface/daytona.api.txt", "daytona: command\n")
+        self.commit("after the release")
+        def run_in(clone: Path, *args: str) -> str:
+            return subprocess.run(["git", *args], cwd=clone, check=True, capture_output=True, text=True).stdout.strip()
+
+        full = self.root / "full"
+        self.git("clone", "-q", "--no-tags", self.root.as_uri(), str(full))
+        commits = run_in(full, "rev-list", "--count", "HEAD")
+        bc.main(["--root", str(full), "--fetch", "origin"], out=io.StringIO())
+        self.assertEqual(run_in(full, "rev-parse", "--is-shallow-repository"), "false")
+        self.assertEqual(run_in(full, "rev-list", "--count", "HEAD"), commits)
+        self.assertEqual(run_in(full, "tag"), "v2.0.0")
+        # A tag already present is not fetched again.
+        bc.fetch_tag(full, "no-such-remote", "v2.0.0")
 
     def test_base_counts_only_new_breaks(self) -> None:
         self.git("tag", "v2.0.0")
