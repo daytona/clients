@@ -4520,13 +4520,13 @@
         "py": [
           "V0 filesystem snapshots correspond to v2 images",
           "Returns an Image and has no timeout argument",
-          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), then check that the returned image status is \"ready\" (it can be \"failed\", or still pending on timeout) before booting from it",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), which returns the image once it settles (\"ready\", \"failed\" or \"error\"; check that it is \"ready\" before booting from it) and raises RequestTimeoutError when the budget runs out",
           "V2 create_snapshot(name) captures sandbox state and is a different operation"
         ],
         "ts": [
           "V0 filesystem snapshots correspond to v2 images",
           "Returns an Image and has no timeout argument",
-          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds }), then check that the returned image status is 'ready' (it can be 'failed', or still pending on timeout) before booting from it",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds }), which returns the image once it settles ('ready', 'failed' or 'error'; check that it is 'ready' before booting from it) and throws RequestTimeoutError when the budget runs out",
           "V2 createSnapshot(name) captures sandbox state and is a different operation"
         ]
       },
@@ -4550,14 +4550,14 @@
           "Deprecated alias of create_snapshot in 0.x",
           "V0 filesystem snapshots correspond to v2 images",
           "Returns an Image and has no timeout argument",
-          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), then check that the returned image status is \"ready\" (it can be \"failed\", or still pending on timeout) before booting from it",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), which returns the image once it settles (\"ready\", \"failed\" or \"error\"; check that it is \"ready\" before booting from it) and raises RequestTimeoutError when the budget runs out",
           "V2 create_snapshot(name) captures sandbox state and is a different operation"
         ],
         "ts": [
           "Deprecated alias of createSnapshot in 0.x",
           "V0 filesystem snapshots correspond to v2 images",
           "Returns an Image and has no timeout argument",
-          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds }), then check that the returned image status is 'ready' (it can be 'failed', or still pending on timeout) before booting from it",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds }), which returns the image once it settles ('ready', 'failed' or 'error'; check that it is 'ready' before booting from it) and throws RequestTimeoutError when the budget runs out",
           "V2 createSnapshot(name) captures sandbox state and is a different operation"
         ]
       },
@@ -5164,13 +5164,13 @@
         "ts": "setLabels"
       },
       "v2": {
-        "py": "{sandbox}.set_labels(labels=labels)",
+        "py": "{sandbox}.set_labels(labels)",
         "ts": "{sandbox}.setLabels(labels)"
       },
       "category": "differs",
       "notes": {
         "py": [
-          "labels is keyword-only; no request_timeout argument",
+          "No request_timeout argument; returns the applied labels as a plain dict typed Mapping",
           "Replaces the complete label set"
         ],
         "ts": [
