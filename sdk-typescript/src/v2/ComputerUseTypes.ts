@@ -224,6 +224,11 @@ export interface ComputerUseAccessibilityNode {
 export interface ComputerUseA11yTreeOptions {
   readonly scope: ComputerUseA11yScope
   readonly pid?: number
+  /**
+   * How many levels below the root to return: an integer from 0 to 256 (the
+   * SDK's cap), default 256. A deeper UI comes back cut at that depth with
+   * `truncated` set; `-1` (unbounded) is refused.
+   */
   readonly maxDepth?: number
 }
 

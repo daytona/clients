@@ -9,9 +9,8 @@ from urllib.parse import quote
 from ._core import RequestSpec, timeout_millis_from_seconds
 from ._transport import AsyncTransport
 from .computer_use_core import (
+    a11y_max_depth,
     computer_use_params,
-    expect_computer_use_a11y_find_response,
-    expect_computer_use_a11y_tree_response,
     expect_computer_use_display_info_response,
     expect_computer_use_display_windows_response,
     expect_computer_use_point,
@@ -24,8 +23,8 @@ from .computer_use_core import (
     expect_computer_use_recordings_response,
     expect_computer_use_screenshot_response,
     expect_computer_use_scroll_response,
-    parse_computer_use_a11y_find_result,
-    parse_computer_use_a11y_tree,
+    parse_computer_use_a11y_find_payload,
+    parse_computer_use_a11y_tree_payload,
     parse_computer_use_displays,
     parse_computer_use_point,
     parse_computer_use_process_errors,
@@ -329,16 +328,22 @@ class AsyncA11yService:
         pid: int | None = None,
         max_depth: int | None = None,
     ) -> ComputerUseA11yTree:
-        return parse_computer_use_a11y_tree(
-            expect_computer_use_a11y_tree_response(
-                await self._transport.send(
-                    RequestSpec(
-                        "GET",
-                        "/computeruse/a11y/tree",
-                        params=computer_use_params(scope=scope, pid=pid, maxDepth=max_depth),
-                    )
+        """Read the accessibility tree, at most 256 levels below the root.
+
+        ``max_depth`` is how many levels below the root to return: an integer
+        from 0 to 256 (the SDK's cap), default 256. A deeper UI comes back cut
+        at that depth with ``truncated`` set; ``-1`` (unbounded) is refused.
+        """
+        depth = a11y_max_depth(max_depth)
+        return parse_computer_use_a11y_tree_payload(
+            await self._transport.send(
+                RequestSpec(
+                    "GET",
+                    "/computeruse/a11y/tree",
+                    params=computer_use_params(scope=scope, pid=pid, maxDepth=depth),
                 )
-            )
+            ),
+            max_depth=depth,
         )
 
     async def find(
@@ -362,10 +367,8 @@ class AsyncA11yService:
         )
         if states is not None:
             body["states"] = list(states)
-        return parse_computer_use_a11y_find_result(
-            expect_computer_use_a11y_find_response(
-                await self._transport.send(RequestSpec("POST", "/computeruse/a11y/find", json_body=body))
-            )
+        return parse_computer_use_a11y_find_payload(
+            await self._transport.send(RequestSpec("POST", "/computeruse/a11y/find", json_body=body))
         )
 
     async def focus(self, *, id: str) -> None:

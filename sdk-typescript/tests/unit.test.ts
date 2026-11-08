@@ -11765,6 +11765,74 @@ describe('computer-use namespace', () => {
     })
     await expect(computerUse.a11y.find({ scope: 'all' })).resolves.toStrictEqual({ matches: [mappedCut, mappedPlain], truncated: true })
   })
+
+  describe('accessibility depth cap (256 levels)', () => {
+    const bounds = { x: 0, y: 0, width: 1, height: 1 }
+    // A tree `levels` nodes deep (the root is level 0), built without recursion.
+    const chain = (levels: number): Record<string, unknown> => {
+      let node: Record<string, unknown> = { id: 'leaf', role: 'r', name: 'n', bounds, states: [] }
+      for (let index = 0; index < levels - 1; index++) node = { id: `n${index}`, role: 'r', name: 'n', bounds, states: [], children: [node] }
+      return node
+    }
+    // The same tree as JSON text (JSON.stringify recurses; JSON.parse does not).
+    const chainBody = (levels: number): string => {
+      const node = `"id":"n","role":"r","name":"n","bounds":${JSON.stringify(bounds)},"states":[]`
+      return `{"truncated":false,"root":${`{${node},"children":[`.repeat(levels - 1)}{${node}}${']}'.repeat(levels - 1)}}`
+    }
+    const depthOf = (node: { children?: readonly unknown[] }): number => {
+      let depth = 0
+      for (let current = node; current.children?.length; current = current.children[0] as typeof node) depth++
+      return depth
+    }
+    const service = (transport: ReturnType<typeof transportStub>) => new ComputerUseService(INTERNAL, transport.computerUseObject)
+
+    it('sends maxDepth 256 by default and maps a 256-level tree', async () => {
+      const transport = transportStub()
+      transport.get.mockResolvedValueOnce({ root: chain(257), truncated: true })
+
+      const tree = await service(transport).a11y.tree({ scope: 'focused' })
+
+      expect(transport.get.mock.calls[0]?.[1]).toEqual({ params: { scope: 'focused', maxDepth: 256 } })
+      expect(depthOf(tree.root)).toBe(256)
+      expect(tree.truncated).toBe(true)
+    })
+
+    it.each([
+      ['a 10,000-level body (parsed from JSON text)', 10_000, undefined],
+      ['one level past the cap', 258, undefined],
+      ['deeper than the requested maxDepth', 4, 2],
+    ])('refuses %s as a malformed response', async (_label, levels, maxDepth) => {
+      const transport = transportStub()
+      transport.get.mockResolvedValueOnce(JSON.parse(chainBody(levels)))
+      const limit = maxDepth ?? 256
+
+      const error = await service(transport).a11y.tree({ scope: 'focused', ...(maxDepth === undefined ? {} : { maxDepth }) }).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(BadRequestError)
+      expect(error).toMatchObject({
+        message: `expected computer-use accessibility tree response: a node is nested deeper than ${limit} levels`,
+        statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+      })
+    })
+
+    it('refuses a find() match nested deeper than the cap', async () => {
+      const transport = transportStub()
+      transport.post.mockResolvedValueOnce({ matches: [chain(10_000)], truncated: false })
+
+      await expect(service(transport).a11y.find({ scope: 'all' })).rejects.toMatchObject({
+        message: 'expected computer-use accessibility find response: a node is nested deeper than 256 levels',
+        statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+      })
+    })
+
+    it.each([257, -1, 1.5, Number.NaN])('refuses maxDepth %p before any request', async (maxDepth) => {
+      const transport = transportStub()
+
+      await expect(service(transport).a11y.tree({ scope: 'focused', maxDepth })).rejects.toMatchObject({
+        message: 'maxDepth must be an integer between 0 and 256', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+      })
+      expect(transport.get).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe('sandbox.docker', () => {

@@ -65,6 +65,7 @@ class A11yService:
     def tree(
         self, *, scope: ComputerUseA11yScope, pid: int | None = None, max_depth: int | None = None
     ) -> ComputerUseA11yTree:
+        """Read the accessibility tree, at most 256 levels below the root."""
         return self._bridge.call(lambda: self._impl.tree(scope=scope, pid=pid, max_depth=max_depth))
 
 

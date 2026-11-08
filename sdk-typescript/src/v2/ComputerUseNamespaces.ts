@@ -4,6 +4,7 @@
  */
 
 import {
+  A11Y_MAX_DEPTH,
   mapComputerUseA11yFind,
   mapComputerUseA11yTree,
   mapComputerUseDisplayInfo,
@@ -24,7 +25,7 @@ import {
 } from './ComputerUseMappers.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { exactMs } from './ProcessWire.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { dropUndefined } from './http.js'
@@ -269,13 +270,17 @@ export class A11yService {
 
   public async tree(options: ComputerUseA11yTreeOptions): Promise<ComputerUseA11yTreeResponse> {
     assertKnownOptions('ComputerUseA11yTreeOptions', options, A11Y_TREE_KEYS)
+    const maxDepth = options.maxDepth ?? A11Y_MAX_DEPTH
+    if (!Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > A11Y_MAX_DEPTH) {
+      throw badRequest(`maxDepth must be an integer between 0 and ${A11Y_MAX_DEPTH}`)
+    }
     const query = {
       scope: options.scope,
       pid: options.pid,
-      maxDepth: options.maxDepth,
+      maxDepth,
     } satisfies toolbox.ComputerUseA11yTreeQuery
     const response = await this.transport.get<toolbox.ComputerUseA11yTreeResponse>('/computeruse/a11y/tree', { params: dropUndefined(query) })
-    return mapComputerUseA11yTree(response)
+    return mapComputerUseA11yTree(response, maxDepth)
   }
 
   public async find(request: ComputerUseA11yFindRequest): Promise<ComputerUseA11yFindResponse> {

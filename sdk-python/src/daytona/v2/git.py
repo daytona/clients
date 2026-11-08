@@ -321,9 +321,12 @@ class AsyncGitService:
 
 
 def _config_scope(scope: object) -> str:
-    if scope not in ("global", "local"):
-        raise create_error("scope must be 'global' or 'local'", 400, "BAD_REQUEST", "SDK")
-    return str(scope)
+    """The wire scope: a ``str`` subclass (a ``str`` enum) is sent as its plain
+    value, never its ``str()``."""
+    for known in ("global", "local"):
+        if isinstance(scope, str) and scope == known:
+            return known
+    raise create_error("scope must be 'global' or 'local'", 400, "BAD_REQUEST", "SDK")
 
 
 def _git_remote_timeout(timeout: Optional[float]) -> float:

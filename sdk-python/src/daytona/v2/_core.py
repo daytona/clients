@@ -194,11 +194,25 @@ def parse_error_payload(status_code: int, payload: JsonObject) -> DaytonaError:
     )
 
 
+def _too_deep(description: str) -> DaytonaError:
+    return create_error(f"expected {description}: the JSON is nested too deeply", 400, "BAD_REQUEST", "SDK")
+
+
+def loads_json(text: Union[str, bytes], description: str = "JSON response") -> JsonValue:
+    """``json.loads`` for a response body: a body nested deeper than the
+    decoder's recursion limit is the malformed-response error, never a raw
+    ``RecursionError``. Invalid JSON still raises ``ValueError``."""
+    try:
+        value: JsonValue = json.loads(text)
+    except RecursionError:
+        raise _too_deep(description) from None
+    return value
+
+
 def parse_json_bytes(content: bytes) -> JsonValue:
     if not content:
         return {}
-    value = json.loads(content.decode("utf-8"))
-    return value
+    return loads_json(content.decode("utf-8"))
 
 
 def error_from_response(status_code: int, body: bytes) -> DaytonaError:
@@ -210,13 +224,22 @@ def error_from_response(status_code: int, body: bytes) -> DaytonaError:
 
 
 def is_json_value(value: object) -> TypeGuard[JsonValue]:
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return True
-    if isinstance(value, list):
-        return all(is_json_value(item) for item in value)
-    if isinstance(value, dict):
-        return all(isinstance(key, str) and is_json_value(item) for key, item in value.items())
-    return False
+    """Structural check for a decoded JSON value, iterative so a deeply nested
+    response value cannot exhaust the stack."""
+    pending: List[object] = [value]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, (str, int, float, bool)) or item is None:
+            continue
+        if isinstance(item, list):
+            pending.extend(item)
+        elif isinstance(item, dict):
+            if not all(isinstance(key, str) for key in item):
+                return False
+            pending.extend(item.values())
+        else:
+            return False
+    return True
 
 
 def json_object_from_mapping(payload: Mapping[str, object]) -> JsonObject:
@@ -972,7 +995,7 @@ class SseParser:
 
     def feed(self, raw: str) -> Optional[Tuple[str, JsonObject]]:
         message = self.feed_message(raw)
-        return None if message is None else (message[0], expect_object(json.loads(message[1])))
+        return None if message is None else (message[0], expect_object(loads_json(message[1], "SSE event")))
 
     def feed_message(self, raw: str) -> Optional[Tuple[str, str, Optional[str]]]:
         """A complete message as ``(event, data, id)``: the raw ``data:`` text,
@@ -1016,7 +1039,7 @@ def sse_json(event: str, data: str, description: str) -> JsonObject:
     if not data:
         return {}
     try:
-        payload = json.loads(data)
+        payload = loads_json(data, description)
     except ValueError:
         raise create_error(
             f"expected {description}: the data is not JSON", 400, "BAD_REQUEST", "SDK"
@@ -1173,7 +1196,7 @@ def _bulk_read_error(body: bytes) -> BulkReadError:
     ``message`` (``code`` / ``source`` strings when present)."""
     description = "bulk download error part"
     try:
-        payload = json.loads(body.decode("utf-8"))
+        payload = loads_json(body.decode("utf-8"), description)
     except (UnicodeDecodeError, ValueError):
         raise create_error(
             f"expected {description}: the data is not JSON", 400, "BAD_REQUEST", "SDK"

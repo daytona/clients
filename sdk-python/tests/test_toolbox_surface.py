@@ -1623,7 +1623,16 @@ def test_read_many_refuses_a_file_part_with_a_bad_filename_star(filename: str) -
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("context", [5, None, ""])
+@pytest.mark.parametrize(
+    "context",
+    [
+        5,
+        None,
+        "",
+        {"sandboxId": "sbx", "contextId": "", "language": "python"},
+        {"sandbox_id": "sbx", "context_id": "", "language": "python"},
+    ],
+)
 async def test_delete_context_refuses_an_id_that_is_not_a_non_empty_string(context: object) -> None:
     transport = Transport()
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -1654,6 +1663,25 @@ async def test_git_config_refuses_a_scope_other_than_global_or_local(scope: obje
     with pytest.raises(BadRequestError, match="scope must be 'global' or 'local'"):
         await git.set_config("user.name", "Ada", scope=scope)  # type: ignore[arg-type]
     assert transport.specs == []
+
+
+@pytest.mark.anyio
+async def test_git_config_sends_a_str_enum_scope_as_its_plain_value() -> None:
+    import enum
+
+    class Scope(str, enum.Enum):
+        GLOBAL = "global"
+        LOCAL = "local"
+
+    transport = Transport([{"value": None}, None])
+    git = AsyncGitService(transport)  # type: ignore[arg-type]
+    await git.get_config("user.name", scope=Scope.GLOBAL)  # type: ignore[arg-type]
+    await git.set_config("user.name", "Ada", scope=Scope.LOCAL, path="/repo")  # type: ignore[arg-type]
+
+    assert transport.specs[0].params is not None and type(transport.specs[0].params["scope"]) is str
+    assert transport.specs[0].params["scope"] == "global"
+    body = transport.specs[1].json_body
+    assert isinstance(body, dict) and type(body["scope"]) is str and body["scope"] == "local"
 
 
 @pytest.mark.anyio
@@ -1725,3 +1753,109 @@ async def test_list_contexts_says_items_must_be_a_list() -> None:
 
     with pytest.raises(BadRequestError, match="session list response: items must be a list"):
         await interpreter.list_contexts()
+
+
+def _a11y_chain(levels: int) -> dict[str, object]:
+    """A tree ``levels`` nodes deep (the root is level 0), built without recursion."""
+    node: dict[str, object] = {
+        "id": "leaf",
+        "role": "r",
+        "name": "n",
+        "bounds": {"x": 0, "y": 0, "width": 1, "height": 1},
+        "states": [],
+    }
+    for index in range(levels - 1):
+        node = {
+            "id": f"n{index}",
+            "role": "r",
+            "name": "n",
+            "bounds": {"x": 0, "y": 0, "width": 1, "height": 1},
+            "states": [],
+            "children": [node],
+        }
+    return node
+
+
+def _a11y_depth(node: object) -> int:
+    depth = 0
+    while getattr(node, "children", None):
+        node = node.children[0]  # type: ignore[attr-defined]
+        depth += 1
+    return depth
+
+
+@pytest.mark.anyio
+async def test_a11y_tree_sends_the_256_level_cap_by_default_and_maps_a_256_level_tree() -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    transport = Transport([{"root": _a11y_chain(257), "truncated": True}])
+    tree = await AsyncComputerUseService(transport).a11y.tree(scope="focused")  # type: ignore[arg-type]
+
+    assert transport.specs[0].params == {"scope": "focused", "maxDepth": 256}
+    assert _a11y_depth(tree.root) == 256
+    assert tree.truncated is True
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("levels", "max_depth"), [(10_000, None), (258, None), (4, 2)])
+async def test_a11y_tree_refuses_a_response_deeper_than_requested(
+    levels: int, max_depth: Optional[int]
+) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    cu = AsyncComputerUseService(Transport([{"root": _a11y_chain(levels), "truncated": False}]))  # type: ignore[arg-type]
+    limit = 256 if max_depth is None else max_depth
+
+    with pytest.raises(BadRequestError, match=f"nested deeper than {limit} levels") as info:
+        await cu.a11y.tree(scope="focused", max_depth=max_depth)
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_a11y_find_refuses_a_match_deeper_than_the_cap() -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    cu = AsyncComputerUseService(Transport([{"matches": [_a11y_chain(10_000)], "truncated": False}]))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="nested deeper than 256 levels"):
+        await cu.a11y.find(scope="all")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("max_depth", [257, -1, 1.5, True])
+async def test_a11y_tree_refuses_a_max_depth_outside_0_to_256_before_any_request(max_depth: object) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    transport = Transport()
+    with pytest.raises(BadRequestError, match="max_depth must be an integer between 0 and 256"):
+        await AsyncComputerUseService(transport).a11y.tree(scope="focused", max_depth=max_depth)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+def test_a_json_body_nested_10000_levels_deep_is_the_malformed_response_error() -> None:
+    from daytona.v2._core import parse_json_bytes, sse_json
+
+    # Deep enough for every supported Python's decoder to hit its recursion limit.
+    body = '{"root":' * 100_000 + "1" + "}" * 100_000
+    for decode in (
+        lambda: parse_json_bytes(body.encode()),
+        lambda: sse_json("log", body, "process log log event"),
+    ):
+        with pytest.raises(BadRequestError, match="nested too deeply") as info:
+            decode()
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+def test_a_10000_level_tree_body_is_refused_whichever_step_stops_it() -> None:
+    """Older Pythons stop it in the JSON decoder, newer ones decode it and the
+    iterative mapper refuses it: either way the malformed-response error."""
+    from daytona.v2._core import parse_json_bytes
+    from daytona.v2.computer_use_core import parse_computer_use_a11y_tree_payload
+
+    node = '{"id":"n","role":"r","name":"n","bounds":{"x":0,"y":0,"width":1,"height":1},"states":[]'
+    body = (
+        '{"truncated":false,"root":' + (node + ',"children":[') * 9_999 + node + "}" + "]}" * 9_999 + "}"
+    ).encode()
+    with pytest.raises(BadRequestError) as info:
+        parse_computer_use_a11y_tree_payload(parse_json_bytes(body), max_depth=256)
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")

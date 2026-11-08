@@ -6669,7 +6669,7 @@ async def test_daytona_create_running_response_returns_without_follow_up_get() -
 
 
 def test_interpreter_result_json_check_survives_deeply_nested_sandbox_output() -> None:
-    from daytona.v2.interpreter import _is_json_value
+    from daytona.v2._core import is_json_value as _is_json_value
 
     # A sandbox-controlled result nested deeper than the interpreter stack must
     # neither crash the caller nor be misclassified.
@@ -6688,6 +6688,16 @@ def test_interpreter_result_json_check_survives_deeply_nested_sandbox_output() -
     assert _is_json_value(poisoned) is False
     assert _is_json_value({"ok": [1, 2.5, "s", None, True]}) is True
     assert _is_json_value({"bad": object()}) is False
+
+
+def test_interpreter_output_nested_past_the_json_decoder_limit_is_the_malformed_response_error() -> None:
+    from daytona.v2.interpreter import _parse_error, _parse_output
+
+    body = '{"text/plain":' + "[" * 100_000 + "]" * 100_000 + "}"
+    for parse in (lambda: _parse_output(body, is_main_result=True), lambda: _parse_error(body)):
+        with pytest.raises(BadRequestError, match="nested too deeply") as info:
+            parse()
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 @pytest.mark.anyio

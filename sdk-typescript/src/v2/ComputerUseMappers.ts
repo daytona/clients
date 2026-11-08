@@ -275,15 +275,24 @@ export function mapComputerUseDisplayWindows(response: unknown): ComputerUseDisp
   return { windows: arrayField(record(response, d), 'windows', d).map(mapComputerUseWindow) }
 }
 
-// An omitted `valueTruncated` means false. Both SDKs expose a required boolean.
-export function mapComputerUseAccessibilityNode(node: unknown): ComputerUseAccessibilityNode {
+/**
+ * The deepest accessibility tree the SDK reads: `a11y.tree()` asks the sandbox
+ * for at most this many levels below the root (`maxDepth`) unless the caller
+ * asks for fewer, and a response nested deeper is malformed. Raising it later
+ * is additive.
+ */
+export const A11Y_MAX_DEPTH = 256
+
+type MutableA11yNode = { -readonly [K in keyof ComputerUseAccessibilityNode]: ComputerUseAccessibilityNode[K] }
+
+// One node's own fields, without its children. An omitted `valueTruncated`
+// means false. Both SDKs expose a required boolean.
+function mapA11yNodeFields(wire: WireRecord): MutableA11yNode {
   const d = 'computer-use accessibility node'
-  const wire = record(node, d)
   const boundsWire = record(wire.bounds, `${d}: bounds`)
   const description = optional(wire, 'description', str, d)
   const actions = optional(wire, 'actions', strList, d)
   const value = optional(wire, 'value', str, d)
-  const children = wire.children === undefined || wire.children === null ? undefined : arrayField(wire, 'children', d)
   return {
     id: str(wire, 'id', d),
     role: str(wire, 'role', d),
@@ -297,21 +306,47 @@ export function mapComputerUseAccessibilityNode(node: unknown): ComputerUseAcces
     ...(description === undefined ? {} : { description }),
     ...(actions === undefined ? {} : { actions }),
     ...(value === undefined ? {} : { value }),
-    ...(children === undefined ? {} : { children: children.map(mapComputerUseAccessibilityNode) }),
   }
 }
 
-export function mapComputerUseA11yTree(response: unknown): ComputerUseA11yTreeResponse {
+/**
+ * Maps accessibility node trees with an explicit stack (each node's fields are
+ * read when it is reached, its children attached to it), so no step recurses
+ * whatever the response's depth. A node more than `maxDepth` levels below its
+ * root is the malformed-response error.
+ */
+function mapA11yNodes(roots: readonly unknown[], maxDepth: number, d: string): ComputerUseAccessibilityNode[] {
+  const results: ComputerUseAccessibilityNode[] = []
+  const stack: { node: unknown; depth: number; into: ComputerUseAccessibilityNode[] }[] = []
+  for (let index = roots.length - 1; index >= 0; index--) stack.push({ node: roots[index], depth: 0, into: results })
+  for (let entry = stack.pop(); entry !== undefined; entry = stack.pop()) {
+    if (entry.depth > maxDepth) throw malformedResponse(`${d}: a node is nested deeper than ${maxDepth} levels`)
+    const wire = record(entry.node, 'computer-use accessibility node')
+    const mapped = mapA11yNodeFields(wire)
+    entry.into.push(mapped)
+    if (wire.children === undefined || wire.children === null) continue
+    const children = arrayField(wire, 'children', 'computer-use accessibility node')
+    const built: ComputerUseAccessibilityNode[] = []
+    mapped.children = built
+    for (let index = children.length - 1; index >= 0; index--) stack.push({ node: children[index], depth: entry.depth + 1, into: built })
+  }
+  return results
+}
+
+export function mapComputerUseA11yTree(response: unknown, maxDepth: number = A11Y_MAX_DEPTH): ComputerUseA11yTreeResponse {
   const d = 'computer-use accessibility tree response'
   const wire = record(response, d)
   if (wire.root === undefined || wire.root === null) throw malformedResponse(`${d}: root is required`)
-  return { root: mapComputerUseAccessibilityNode(wire.root), truncated: bool(wire, 'truncated', d) }
+  const truncated = bool(wire, 'truncated', d)
+  return { root: mapA11yNodes([wire.root], maxDepth, d)[0]!, truncated }
 }
 
 export function mapComputerUseA11yFind(response: unknown): ComputerUseA11yFindResponse {
   const d = 'computer-use accessibility find response'
   const wire = record(response, d)
-  return { matches: arrayField(wire, 'matches', d).map(mapComputerUseAccessibilityNode), truncated: bool(wire, 'truncated', d) }
+  const matches = arrayField(wire, 'matches', d)
+  const truncated = bool(wire, 'truncated', d)
+  return { matches: mapA11yNodes(matches, A11Y_MAX_DEPTH, d), truncated }
 }
 
 export function mapComputerUseScreenshot(response: unknown): ComputerUseScreenshotResponse {

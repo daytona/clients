@@ -6,7 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from typing import Awaitable, Callable, Mapping, Optional, TypeGuard
+from typing import Awaitable, Callable, Mapping, Optional
 from urllib.parse import quote
 
 from . import _clock
@@ -15,6 +15,8 @@ from ._core import (
     RequestSpec,
     bounded_request_timeout,
     expect_object,
+    is_json_value,
+    loads_json,
     timeout_millis_from_seconds,
     wait_budget,
 )
@@ -284,11 +286,11 @@ class AsyncInterpreterService:
         if isinstance(context, (AsyncInterpreterContext, Mapping)):
             context_id, _ = self._context_identity(context)
         else:
-            if not isinstance(context, str) or not context:
-                raise create_error(
-                    "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
-                )
             context_id = context
+        if not isinstance(context_id, str) or not context_id:
+            raise create_error(
+                "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
+            )
         try:
             await self._transport.send(RequestSpec("DELETE", f"/sessions/{quote(context_id, safe='')}"))
         except DaytonaError as error:
@@ -548,7 +550,7 @@ class AsyncInterpreterService:
 
 def _parse_output(payload: str, *, is_main_result: bool) -> Optional[InterpreterOutput]:
     try:
-        decoded = json.loads(payload)
+        decoded = loads_json(payload, "interpreter output")
     except ValueError:
         return None
     if not isinstance(decoded, dict):
@@ -569,7 +571,7 @@ def _parse_output(payload: str, *, is_main_result: bool) -> Optional[Interpreter
 
 def _parse_error(payload: str) -> Optional[InterpreterError]:
     try:
-        decoded = json.loads(payload)
+        decoded = loads_json(payload, "interpreter error")
     except ValueError:
         return None
     if not isinstance(decoded, dict):
@@ -586,14 +588,14 @@ def _mime_bundle(decoded: dict[str, object]) -> Optional[JsonObject]:
     if "data" in decoded:
         raw_data = decoded.get("data")
         if isinstance(raw_data, dict):
-            return {str(mime): value for mime, value in raw_data.items() if _is_json_value(value)}
+            return {str(mime): value for mime, value in raw_data.items() if is_json_value(value)}
         mime = decoded.get("mime")
-        if isinstance(mime, str) and _is_json_value(raw_data):
+        if isinstance(mime, str) and is_json_value(raw_data):
             return {mime: raw_data}
         return None
     data: JsonObject = {}
     for mime, value in decoded.items():
-        if _is_json_value(value):
+        if is_json_value(value):
             data[str(mime)] = value
     return data
 
@@ -601,28 +603,3 @@ def _mime_bundle(decoded: dict[str, object]) -> Optional[JsonObject]:
 def _bundle_string(data: Mapping[str, JsonValue], mime: str) -> Optional[str]:
     value = data.get(mime)
     return value if isinstance(value, str) else None
-
-
-def _is_json_value(value: object) -> TypeGuard[JsonValue]:
-    """Structural check for a decoded JSON value, iterative on purpose.
-
-    The payload is sandbox-controlled: a result nested a few hundred levels
-    deep parses fine in the C JSON decoder but would overflow a recursive
-    checker and surface as a raw ``RecursionError`` from ``run_code()``.
-    """
-    pending: list[object] = [value]
-    while pending:
-        item = pending.pop()
-        if isinstance(item, (str, int, float, bool)) or item is None:
-            continue
-        if isinstance(item, list):
-            pending.extend(item)
-            continue
-        if isinstance(item, dict):
-            for key, nested in item.items():
-                if not isinstance(key, str):
-                    return False
-                pending.append(nested)
-            continue
-        return False
-    return True
