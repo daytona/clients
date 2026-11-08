@@ -57,12 +57,13 @@ describe('watch stream drops', () => {
         setTimeout(() => response.socket?.destroy(), 20)
         return
       }
-      const flood = /^\/flood-(\d+)/.exec(request.url ?? '')
+      const flood = /^\/(o?)flood-(\d+)/.exec(request.url ?? '')
       if (flood !== null) {
-        // N events before start, then start; the stream stays open until the
-        // client closes it, which the test is told about.
-        const events = Array.from({ length: Number(flood[1]) }, (_, index) =>
-          `event: fs\ndata: ${JSON.stringify({ type: 'create', name: `e${index}`, isDir: false, timestamp: 1 })}\n\n`)
+        // N fs (oflood: overflow) events before start, then start; the stream
+        // stays open until the client closes it, which the test is told about.
+        const events = Array.from({ length: Number(flood[2]) }, (_, index) => flood[1] === 'o'
+          ? 'event: overflow\ndata: {}\n\n'
+          : `event: fs\ndata: ${JSON.stringify({ type: 'create', name: `e${index}`, isDir: false, timestamp: 1 })}\n\n`)
         response.writeHead(200, { 'Content-Type': 'text/event-stream' })
         response.write(`${events.join('')}event: start\ndata: {}\n\n`)
         response.on('close', () => clientClosed.resolve())
@@ -162,6 +163,25 @@ describe('watch stream drops', () => {
     expect({ exits, seen }).toEqual({ exits: [], seen: [] })
   })
 
+  it('counts overflow events before start toward the cap without an onOverflow callback', async () => {
+    const exits: unknown[] = []
+    const onExit = (exit: unknown) => { exits.push(exit) }
+    const refused = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/oflood-4097`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(refused).toBeInstanceOf(BadRequestError)
+    expect(refused).toMatchObject({ message: 'expected filesystem watch stream: it sent more than 4096 events before start' })
+    await clientClosed.promise
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(exits).toEqual([])
+
+    const handle = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/oflood-4096`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit })
+    expect(handle.exitError).toBeUndefined()
+    await handle.stop()
+    expect(exits).toEqual([undefined])
+  })
+
   it.each(['refused', 'w404', 'nostart'] as const)('throws a watch that fails before start (%s) from watchDir() without calling onExit', async (kind) => {
     const url = kind === 'refused' ? await refusedUrl() : `${base}/${kind}`
     const fs = new FileSystemService(INTERNAL, new HttpTransport(url, 'k', 5_000))
@@ -186,5 +206,82 @@ describe('watch stream drops', () => {
     expect(thrown).toBeInstanceOf(ConnectionError)
     expect(thrown).toMatchObject({ source: 'SDK' })
     expect((thrown as { cause?: { name?: string } }).cause?.name).toBe('TypeError')
+  })
+})
+
+describe('watch stop() while onExit runs', () => {
+  const deferred = () => {
+    let resolve!: () => void
+    const promise = new Promise<void>((done) => { resolve = done })
+    return { promise, resolve }
+  }
+  // A watch whose stream sends start and ends when `end()` is called, which
+  // runs onExit.
+  const controlledWatch = () => {
+    let end!: () => void
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('event: start\ndata: {}\n\n'))
+        end = () => controller.close()
+      },
+    })
+    const transport = new HttpTransport('http://fake.invalid', 'k', 5_000)
+    transport.fetch = async () => new Response(body, { headers: { 'Content-Type': 'text/event-stream' } })
+    return { fs: new FileSystemService(INTERNAL, transport), end: () => end() }
+  }
+  // Runs watchDir() with or without AsyncLocalStorage, as a browser has none.
+  const withoutScope = async <T>(withScope: boolean, run: () => Promise<T>): Promise<T> => {
+    const runtime = process as { getBuiltinModule?: unknown }
+    const builtin = runtime.getBuiltinModule
+    if (!withScope) runtime.getBuiltinModule = undefined
+    try {
+      return await run()
+    } finally {
+      runtime.getBuiltinModule = builtin
+    }
+  }
+
+  it.each([true, false])('resolves an external stop() only after an async onExit finishes (AsyncLocalStorage: %p)', async (withScope) => {
+    const { fs, end } = controlledWatch()
+    const entered = deferred()
+    const release = deferred()
+    let exitDone = false
+    let stopDone = false
+    const handle = await withoutScope(withScope, () => fs.watchDir('/', () => undefined, {
+      onExit: async () => {
+        entered.resolve()
+        await release.promise
+        exitDone = true
+      },
+    }))
+    end()
+    await entered.promise
+    const stopping = handle.stop().then(() => { stopDone = true })
+    for (let tick = 0; tick < 10; tick++) await Promise.resolve()
+    expect({ stopDone, exitDone }).toEqual({ stopDone: false, exitDone: false })
+    release.resolve()
+    await stopping
+    expect({ stopDone, exitDone }).toEqual({ stopDone: true, exitDone: true })
+  })
+
+  it.each([true, false])('returns a stop() that onExit makes synchronously without waiting for itself (AsyncLocalStorage: %p)', async (withScope) => {
+    const { fs, end } = controlledWatch()
+    const ownStop = deferred()
+    let exitDone = false
+    const box: { handle?: Awaited<ReturnType<FileSystemService['watchDir']>> } = {}
+    box.handle = await withoutScope(withScope, () => fs.watchDir('/', () => undefined, {
+      onExit: async () => {
+        // Synchronous part: the watch's own stop(), awaited after onExit's
+        // first await; it must resolve while onExit is still running.
+        const stopping = box.handle?.stop()
+        await stopping
+        ownStop.resolve()
+        exitDone = true
+      },
+    }))
+    end()
+    await ownStop.promise
+    await box.handle.stop()
+    expect(exitDone).toBe(true)
   })
 })

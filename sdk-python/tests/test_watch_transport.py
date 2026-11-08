@@ -41,13 +41,18 @@ class _Handler(BaseHTTPRequestHandler):
         if case == "truncated":
             self.send_header("Content-Length", "100000")
         self.end_headers()
-        if case.startswith("flood-"):
-            # N events before start, then start; the stream stays open until
-            # the client closes it, which the test is told about.
-            count = int(case.removeprefix("flood-"))
-            events = "".join(
-                f"event: fs\ndata: {json.dumps({'type': 'create', 'name': f'e{index}', 'isDir': False, 'timestamp': 1})}\n\n"
-                for index in range(count)
+        if case.startswith(("flood-", "oflood-")):
+            # N fs (oflood: overflow) events before start, then start; the
+            # stream stays open until the client closes it, which the test is
+            # told about.
+            kind, count = case.split("-")
+            events = (
+                "event: overflow\ndata: {}\n\n" * int(count)
+                if kind == "oflood"
+                else "".join(
+                    f"event: fs\ndata: {json.dumps({'type': 'create', 'name': f'e{index}', 'isDir': False, 'timestamp': 1})}\n\n"
+                    for index in range(int(count))
+                )
             )
             with contextlib.suppress(OSError):
                 self.wfile.write((events + "event: start\ndata: {}\n\n").encode())
@@ -433,3 +438,33 @@ async def test_a_watch_stream_with_4097_events_before_start_is_refused_without_a
         await transport.close()
     await asyncio.sleep(0.05)
     assert (exits, seen) == ([], [])
+
+
+@pytest.mark.anyio
+async def test_overflow_events_before_start_count_toward_the_cap_without_an_overflow_callback(
+    base: str,
+) -> None:
+    from daytona.v2.errors import BadRequestError
+
+    _CLOSED_BY_CLIENT.clear()
+    transport = AsyncTransport(f"{base}/oflood-4097")
+    exits: list[Optional[Exception]] = []
+    try:
+        with pytest.raises(BadRequestError, match="more than 4096 events before start"):
+            await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None, on_exit=exits.append)
+        assert await asyncio.to_thread(_CLOSED_BY_CLIENT.wait, 10)
+    finally:
+        await transport.close()
+    await asyncio.sleep(0.05)
+    assert exits == []
+
+    transport = AsyncTransport(f"{base}/oflood-4096")
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir(
+            "/", lambda _event: None, on_exit=exits.append
+        )
+        assert handle.exit_error is None
+        await handle.stop()
+    finally:
+        await transport.close()
+    assert exits == [None]

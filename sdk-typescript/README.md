@@ -667,8 +667,8 @@ callbacks are held until `watchDir()` has returned its handle. When
 `watchDir()`'s promise is not awaited directly (inside `Promise.all`, or
 awaited later), the first events can reach the callback before the caller
 holds the handle. In runtimes without `AsyncLocalStorage` (browsers), a
-callback that stops its own watch after an `await` must not await that
-`stop()`.
+callback or `onExit` that stops its own watch after an `await` must not await
+that `stop()`.
 
 `writeBytes()`, `writeText()` and `writeMany()` accept `atomic: true` to write via a
 temporary file + rename when the sandbox supports it. For `writeBytes()` and

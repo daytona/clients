@@ -46,13 +46,15 @@ read a `{}` or `""` list as empty, so a `run()` whose inline log `frames` was
 malformed returned no output, and raised a raw `TypeError` for a number; this
 covers `run()` / `exec()` / `session.run()` logs, the display, window and
 recording lists and accessibility nodes), a finite recording `durationSeconds`
-(Python), and the interpreter session responses for the fields they read
-(`id`, `kernel`; a missing or empty `id` names a context id the caller chose,
-which may have been created), and `glob()` accepts only the API's `{ files }`
-response. A process log stream or watch skips an event it does not know
-(whatever its data) and raises the error for a known event whose data is not
-JSON; Python ended the stream with a `JSONDecodeError`. `mkdir()` defaults to
-mode `"0755"` in both SDKs. TypeScript `readText()` decodes strictly as UTF-8
-and keeps a leading byte-order mark, like Python; `WriteFileOptions.mode` is
-removed (use `chmod()`), as are the aliases `Match`, `SearchFilesResponse`,
-`FilePermissionsParams` and `ListBranchResponse`.
+and process `timeoutMs` (Python, where an integer beyond the float range
+raised a raw `OverflowError`), and the interpreter session responses for the
+fields they read (`id`, `kernel`; a missing or empty `id` names a context id
+the caller chose, which may have been created), and `glob()` accepts only the
+API's `{ files }` response. A process log stream or watch skips an event it
+does not know (whatever its data) and raises the error for a known event whose
+data is not JSON; Python ended the stream with a `JSONDecodeError`. `mkdir()`
+defaults to mode `"0755"` in both SDKs. TypeScript `readText()` decodes
+strictly as UTF-8 and keeps a leading byte-order mark, like Python;
+`WriteFileOptions.mode` is removed (use `chmod()`), as are the aliases
+`Match`, `SearchFilesResponse`, `FilePermissionsParams` and
+`ListBranchResponse`.

@@ -640,12 +640,25 @@ class AsyncFileSystemService:
 
         async def read_events() -> None:
             started = False
+            early_events = 0
             exit_error: Exception | None = None
             try:
                 async for event_name, data, _id in parse_sse_messages_async(stream.iter_lines()):
                     if handle._stopped:
                         break
                     callback: Callable[[], None | Awaitable[None]] | None = None
+                    if event_name in ("fs", "overflow") and not started:
+                        # Every listed event before start counts toward the
+                        # cap, whether or not a callback handles it.
+                        early_events += 1
+                        if early_events > WATCH_MAX_EVENTS_BEFORE_START:
+                            raise create_error(
+                                f"expected filesystem watch stream: it sent more than "
+                                f"{WATCH_MAX_EVENTS_BEFORE_START} events before start",
+                                400,
+                                "BAD_REQUEST",
+                                "SDK",
+                            )
                     if event_name == "start":
                         if not started:
                             started = True
@@ -662,14 +675,6 @@ class AsyncFileSystemService:
                         continue
                     if started:
                         await deliver(callback)
-                    elif len(held) >= WATCH_MAX_EVENTS_BEFORE_START:
-                        raise create_error(
-                            f"expected filesystem watch stream: it sent more than "
-                            f"{WATCH_MAX_EVENTS_BEFORE_START} events before start",
-                            400,
-                            "BAD_REQUEST",
-                            "SDK",
-                        )
                     else:
                         held.append(callback)
                 # A stream that ends on its own is a dropped connection, as a

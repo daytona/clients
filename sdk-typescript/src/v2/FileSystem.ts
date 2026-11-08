@@ -50,7 +50,9 @@ export interface WatchHandle {
   /**
    * Stop the watch. Resolves once a callback already running, and `onExit`,
    * have finished; a callback (or `onExit`) may call `stop()` on its own
-   * watch without waiting for itself.
+   * watch without waiting for itself. In runtimes without `AsyncLocalStorage`
+   * (browsers), a callback or `onExit` that stops its own watch after an
+   * `await` must not await that `stop()`.
    */
   stop(): Promise<void>
   /** Wait until the watch ends; resolves with `exitError`. */
@@ -449,6 +451,7 @@ export class FileSystemService {
     // after it: the stream must keep being read until `start` arrives, but at
     // most WATCH_MAX_EVENTS_BEFORE_START of them are held.
     const held: (() => void | Promise<void>)[] = []
+    let earlyEvents = 0
     let resolveExit!: (error: Error | undefined) => void
     const exitPromise = new Promise<Error | undefined>((resolve) => {
       resolveExit = resolve
@@ -517,6 +520,14 @@ export class FileSystemService {
               }
               continue
             }
+            if (!started && (message.event === 'fs' || message.event === 'overflow')) {
+              // Every listed event before start counts toward the cap, whether
+              // or not a callback handles it.
+              earlyEvents++
+              if (earlyEvents > WATCH_MAX_EVENTS_BEFORE_START) {
+                throw malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_EVENTS_BEFORE_START} events before start`)
+              }
+            }
             let callback: (() => void | Promise<void>) | undefined
             if (message.event === 'fs') {
               const event = parseFilesystemEvent(message.data)
@@ -527,9 +538,7 @@ export class FileSystemService {
             }
             if (callback === undefined) continue
             if (started) await deliverEvents(callback)
-            else if (held.length >= WATCH_MAX_EVENTS_BEFORE_START) {
-              throw malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_EVENTS_BEFORE_START} events before start`)
-            } else held.push(callback)
+            else held.push(callback)
           } catch (error) {
             // A failing callback (or a malformed event) ends the watch with
             // its error, even when stop() was called while it ran.
@@ -576,11 +585,11 @@ export class FileSystemService {
         stopRequested = true
         releaseDeliveries()
         controller.abort()
-        // The watch's own callback (or onExit) must not wait for itself. Where
-        // no AsyncLocalStorage can tell, a stop() after the exit was notified
-        // may be onExit's own and returns at once; elsewhere an external
-        // stop() waits for the stream task, onExit included.
-        if (ownCallback || (exitNotified && scope === undefined)) return
+        // The watch's own callback (or onExit) must not wait for itself; any
+        // other stop() waits for the stream task, onExit included, in every
+        // runtime. Without AsyncLocalStorage only a callback's (or onExit's)
+        // synchronous part is recognised as its own.
+        if (ownCallback) return
         await streamTask
       },
       waitForExit: async () => (calledFromOwnCallback() ? exitError : exitPromise),

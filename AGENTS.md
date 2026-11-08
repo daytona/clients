@@ -623,8 +623,11 @@ skipping exist only in the TypeScript tool).
   started, does not wait for itself (a per-delivery token: Python a
   `contextvars.ContextVar`, which child tasks inherit, and on the sync client
   the generated twins' `_SYNC_LOOP_VARIANTS` on the bridge loop thread; TS an
-  AsyncLocalStorage where the runtime has one, else only the callback's
-  synchronous part counts). The event `type` is an open string (the contract
+  AsyncLocalStorage where the runtime has one, else only the synchronous part
+  of a callback or of the exit callback counts: in runtimes without
+  `AsyncLocalStorage` (browsers), a callback or `onExit` that stops its own
+  watch after an `await` must not await that `stop()`; an external `stop()`
+  always waits, in every runtime). The event `type` is an open string (the contract
   declares no enum); an unknown SSE event is skipped without parsing its
   data, and a known one whose data is not JSON is the malformed-response
   error; an SSE block without a `data:` line, or an unterminated final one,

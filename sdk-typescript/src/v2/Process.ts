@@ -217,7 +217,7 @@ export class PtyService {
     })
   }
 
-  /** Start a PTY and connect to its terminal; the PTY is deleted again if the connection fails. */
+  /** Start a PTY and connect to its terminal; if the connection fails, the SDK attempts to delete the PTY (best effort). */
   public async attach(command?: string, options: PtyStartOptions = {}): Promise<Readonly<{ handle: ProcessHandle; connection: PtyDuplex }>> {
     const handle = await this.start(command, options)
     try {
