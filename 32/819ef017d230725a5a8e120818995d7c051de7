@@ -1,0 +1,128 @@
+e2e/run.sh
+  s_f23bcae77f0e63::t_6542c8234b04e6 12
+examples/python/exec_command.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 5
+sdk-typescript/scripts/v0-bundle-smoke.cjs
+  s_f23bcae77f0e63::t_1a5858c5cdafc7 204
+sdk-python/src/daytona/_client.py
+  s_f23bcae77f0e63::t_31dd0b39de7abf 53-54
+.github/workflows/e2e.yaml
+  s_f23bcae77f0e63::t_6542c8234b04e6 5-7,31
+sdk-python/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_913a4fcec5f62b 162-175
+examples/python/follow_build_logs.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 5
+scripts/bundle_v0_python.py
+  s_f23bcae77f0e63::t_31dd0b39de7abf 161
+examples/volumes_share.ts
+  s_f23bcae77f0e63::t_9ffde6c61a3001 12
+examples/typescript/_common.ts
+  s_f23bcae77f0e63::t_8178d773b0b1ef 7-8,40-41
+e2e/e2e.ts
+  s_f23bcae77f0e63::t_caee27925cdf8f 33
+examples/typescript/pagination/index.ts
+  s_f23bcae77f0e63::t_9ffde6c61a3001 5
+sdk-typescript/runtime-tests/aws-lambda/invoke.cjs
+  s_f23bcae77f0e63::t_9135e96b9b05c1 15
+sdk-typescript/runtime-tests/azure-functions/run.sh
+  s_f23bcae77f0e63::t_9135e96b9b05c1 20
+upgrade/python/tests/test_manifests_cli.py
+  s_f23bcae77f0e63::t_9c12666f91c757 84
+examples/README.md
+  s_f23bcae77f0e63::t_9ffde6c61a3001 81,98,102
+upgrade/typescript/tests/project-relative-error-diagnostics.test.ts
+  s_f23bcae77f0e63::t_9c12666f91c757 34
+examples/python/build_logs.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 13
+examples/python/lifecycle.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 5
+examples/typescript/file-operations/index.ts
+  s_f23bcae77f0e63::t_9ffde6c61a3001 9
+sdk-typescript/runtime-tests/workerd/run.sh
+  s_f23bcae77f0e63::t_9135e96b9b05c1 12,30
+docs/adr/0004-version-namespaces-and-v0-migration.md
+  s_f23bcae77f0e63::t_0bda2ee99332fb 84-86,101-103
+examples/python/git_ops.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 8
+sdk-typescript/runtime-tests/run-all.sh
+  s_f23bcae77f0e63::t_9135e96b9b05c1 133-136
+sdk-typescript/runtime-tests/vite-browser/test-browser.mjs
+  s_f23bcae77f0e63::t_9135e96b9b05c1 8,18-20,24
+examples/typescript/follow-build-logs/index.ts
+  s_f23bcae77f0e63::t_9ffde6c61a3001 4
+examples/typescript/lifecycle/index.ts
+  s_f23bcae77f0e63::t_9ffde6c61a3001 5
+examples/typescript/exec-command/index.ts
+  s_f23bcae77f0e63::t_9ffde6c61a3001 5
+sdk-python/tests/test_v0_bundle.py
+  s_f23bcae77f0e63::t_31dd0b39de7abf 137
+  s_f23bcae77f0e63::t_1a5858c5cdafc7 337
+sdk-python/README.md
+  s_f23bcae77f0e63::t_9c1b3b522c7be6 110-113,117-120,128-132,189,791-792,811-829
+.claude/skills/deep-review/SKILL.md
+  s_f23bcae77f0e63::t_31dd0b39de7abf 161
+sdk-typescript/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_31dd0b39de7abf 84-86
+  s_f23bcae77f0e63::t_696cdb0228b504 107-109,130-190
+upgrade/python/src/daytona_upgrade/environment.py
+  s_f23bcae77f0e63::t_9c12666f91c757 27
+examples/python/dynamic_build.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 12
+AGENTS.md
+  s_f23bcae77f0e63::t_05f3ed27325da5 16,89-92,107-109,205-206,236-237,255-257,266-267,286-293,453-505
+  s_f23bcae77f0e63::t_f04c90099518af 393
+sdk-typescript/README.md
+  s_f23bcae77f0e63::t_ce9a6d9c6ebf06 135-136,176-177
+  s_f23bcae77f0e63::t_455929cba08104 72-73,80-83,85-86,92-101,297-299,741-754
+upgrade/python/tests/test_cli_input_and_scan_diagnostics.py
+  s_f23bcae77f0e63::t_9c12666f91c757 28
+examples/volumes_share.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 13
+sdk-typescript/scripts/bundle-v0.mjs
+  s_f23bcae77f0e63::t_31dd0b39de7abf 166-167
+examples/python/_common.py
+  s_f23bcae77f0e63::t_8178d773b0b1ef 6-7,50-51
+docs/adr/0001-sdk-parity.md
+  s_f23bcae77f0e63::t_accd2f46968910 28-37,40-52,79-81
+examples/python/snapshots.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 14
+upgrade/typescript/tests/import-type-and-report-details.test.ts
+  s_f23bcae77f0e63::t_9c12666f91c757 48
+examples/python/pagination.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 5
+examples/python/secrets_env.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 25
+examples/typescript/git/index.ts
+  s_f23bcae77f0e63::t_9ffde6c61a3001 8
+examples/python/file_operations.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 8
+sdk-typescript/runtime-tests/README.md
+  s_f23bcae77f0e63::t_9135e96b9b05c1 90
+examples/run-examples.sh
+  s_f23bcae77f0e63::t_9ffde6c61a3001 8
+upgrade/typescript/src/env-api-url.ts
+  s_f23bcae77f0e63::t_9c12666f91c757 25
+e2e/e2e.py
+  s_f23bcae77f0e63::t_6542c8234b04e6 13-14
+  s_f23bcae77f0e63::t_caee27925cdf8f 99
+examples/python/dockerfile_sandbox.py
+  s_f23bcae77f0e63::t_9ffde6c61a3001 20
+examples/typescript/secrets-env/index.ts
+  s_f23bcae77f0e63::t_9ffde6c61a3001 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32819ef017d230725a5a8e120818995d7c051de7",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
