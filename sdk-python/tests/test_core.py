@@ -5741,7 +5741,7 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
                 "eof": False,
             },
             {"frames": [], "nextCursor": "c1", "truncatedHead": False, "eof": True},
-            [_process_payload("proc", "exec", "running")],
+            {"items": [_process_payload("proc", "exec", "running")]},
             _session_payload("ctx", kernel="javascript"),
             _process_payload("code", "code", "running", language="javascript"),
             {"reason": "timed_out"},
@@ -8121,13 +8121,19 @@ async def test_process_run_falls_back_to_split_wait_when_the_wait_window_elapses
 
 
 @pytest.mark.anyio
-async def test_process_list_returns_sdk_list_result_shape_with_cursor():
+async def test_process_list_returns_one_contract_page():
+    # ProcessListResponse is one page with no cursor; anything but its
+    # ``items`` list is the malformed-response error.
     transport = RecordingTransport(
-        [{"items": [_process_payload("proc", "exec", "running")], "nextCursor": "n"}]
+        [{"items": [_process_payload("proc", "exec", "running")], "nextCursor": "n"}, {}, {"items": None}, []]
     )
-    page = await AsyncProcessService("sbx", transport).list()  # type: ignore[arg-type]
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    page = await process.list()
     assert [item.id for item in page.items] == ["proc"]
-    assert page.next_cursor == "n"
+    assert page.next_cursor is None
+    for message in ("items", "items", "process list response"):
+        with pytest.raises(BadRequestError, match=message):
+            await process.list()
 
 
 @pytest.mark.anyio

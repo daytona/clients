@@ -150,8 +150,19 @@ def _stream_log_event(event: str, data: str, message_id: Optional[str]) -> Optio
     if event not in ("log", "state", "warning", "eof", "error"):
         return None
     payload = sse_json(event, data, f"process log {event} event")
+    # The payload's cursor, else (only when the payload has none) the SSE id.
     cursor_value = payload.get("cursor")
-    cursor = cursor_value if isinstance(cursor_value, str) and cursor_value else message_id
+    if cursor_value is None:
+        cursor = message_id
+    elif isinstance(cursor_value, str) and cursor_value:
+        cursor = cursor_value
+    else:
+        raise create_error(
+            f"expected process log {event} event: cursor must be a non-empty string",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
     if not cursor:
         raise _malformed_event(event, "cursor")
     if event == "log":

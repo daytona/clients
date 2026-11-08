@@ -646,9 +646,12 @@ def process_create_spec(
             "UNSUPPORTED_OPERATION",
             "SDK",
         )
-    execution_timeout_ms = timeout_millis_from_seconds(execution_timeout)
-    if execution_timeout is not None and execution_timeout > MAX_BOUNDED_TIMEOUT_SECONDS:
-        execution_timeout_ms = None  # no deadline
+    execution_timeout_ms = None
+    if execution_timeout is not None and not above_timer_maximum(
+        checked_seconds(execution_timeout, "execution_timeout")
+    ):
+        execution_timeout_ms = timeout_millis_from_seconds(execution_timeout, "execution_timeout")
+    # Above the timer maximum the process has no deadline (timeoutMs omitted).
     body: JsonObject = {"kind": kind}
     if command is not None:
         body["shellCommand"] = command
@@ -789,24 +792,12 @@ def parse_process_list(payload: ProcessPagePayload) -> List[ProcessInfo]:
 
 
 def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
-    if isinstance(payload, ProcessListResponse):
-        return ListResult(items=[parse_process(item) for item in payload.items], next_cursor=None)
-    if isinstance(payload, list):
-        if all(isinstance(item, ProcessDto) for item in payload):
-            return ListResult(items=[parse_process(item) for item in payload], next_cursor=None)
-        return ListResult(
-            items=[parse_process(expect_process_dto(item)) for item in payload], next_cursor=None
-        )
-    if isinstance(payload, dict):
-        obj = payload
-    else:
-        obj = expect_object(payload)
-    raw_items = obj.get("items") or obj.get("processes") or []
-    items = (
-        [parse_process(expect_process_dto(item)) for item in raw_items] if isinstance(raw_items, list) else []
-    )
-    cursor = obj.get("nextCursor") or obj.get("next_cursor")
-    return ListResult(items=items, next_cursor=str(cursor) if isinstance(cursor, str) else None)
+    """A ``ProcessListResponse``: ``items`` is required; anything else is the
+    malformed-response error."""
+    if not isinstance(payload, ProcessListResponse):
+        _require_list_field(payload, "items", "process list response")
+        payload = expect_process_list_response(payload)
+    return ListResult(items=[parse_process(item) for item in payload.items], next_cursor=None)
 
 
 # The longest duration that is still a bound, in seconds (about 24.8 days):
@@ -815,33 +806,54 @@ def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
 MAX_BOUNDED_TIMEOUT_SECONDS = 2_147_483.647
 
 
+def checked_seconds(value: object, name: str = "timeout") -> float | int:
+    """A finite, non-negative number of seconds, or the SDK's ``BadRequestError``.
+
+    An integer is checked without converting it to float, so one too large
+    for a float is still accepted (and then capped by the caller), never an
+    ``OverflowError``.
+    """
+    valid = (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and (isinstance(value, int) or math.isfinite(value))
+        and value >= 0
+    )
+    if not valid:
+        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+    return value  # type: ignore[return-value]
+
+
 def timeout_millis_from_seconds(timeout: Optional[float], name: str = "timeout") -> Optional[int]:
     """Whole wire milliseconds for a duration in seconds, rounded up: a
-    positive duration is at least 1 ms, so it never reads as ``0``."""
+    positive duration is at least 1 ms, so it never reads as ``0``. A duration
+    too large to send in milliseconds is the SDK's ``BadRequestError``."""
     if timeout is None:
         return None
-    if (
-        isinstance(timeout, bool)
-        or not isinstance(timeout, (int, float))
-        or not math.isfinite(timeout)
-        or timeout < 0
-    ):
-        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
-    milliseconds = timeout * 1000
-    if not math.isfinite(milliseconds):
-        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
-    if timeout == 0:
+    seconds = checked_seconds(timeout, name)
+    if seconds == 0:
         return 0
+    if isinstance(seconds, int):
+        return seconds * 1000
+    milliseconds = seconds * 1000
+    if not math.isfinite(milliseconds):
+        raise create_error(f"{name} is too large", 400, "BAD_REQUEST", "SDK")
     return max(1, math.ceil(round(milliseconds, 6)))
+
+
+def above_timer_maximum(seconds: float) -> bool:
+    """Whether a (checked) duration exceeds the longest bound both SDKs keep:
+    such a caller budget or deadline means no limit."""
+    return seconds > MAX_BOUNDED_TIMEOUT_SECONDS
 
 
 def wait_budget(timeout: Optional[float]) -> Optional[float]:
     """A caller wait budget in seconds, validated: ``None`` and ``0`` keep their
     meaning, a budget above :data:`MAX_BOUNDED_TIMEOUT_SECONDS` is no limit (``0``)."""
-    timeout_millis_from_seconds(timeout)
-    if timeout is not None and timeout > MAX_BOUNDED_TIMEOUT_SECONDS:
-        return 0
-    return timeout
+    if timeout is None:
+        return None
+    seconds = checked_seconds(timeout)
+    return 0 if above_timer_maximum(seconds) else timeout
 
 
 def timeout_seconds_from_millis(timeout_millis: JsonValue | None) -> Optional[float]:

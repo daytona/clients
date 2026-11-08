@@ -54,7 +54,10 @@ describe('session process controls', () => {
   it('signals only the command when interrupting a session command handle', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
-    const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'command-1', kind: 'exec' })
+    const post = jest.spyOn(transport, 'post').mockResolvedValue({
+      id: 'command-1', kind: 'exec', state: 'running', cwd: '/', stdin: 'closed', keepLogs: 'on_exit_ttl',
+      createdAt: '2026-01-01T00:00:00Z', truncatedHead: false,
+    })
     const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
     const handle = await session.start('sleep 60')
     post.mockClear()

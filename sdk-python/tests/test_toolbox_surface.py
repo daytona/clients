@@ -1109,3 +1109,42 @@ async def test_lsp_rejects_unknown_position_keys_and_names_a_malformed_documenta
     assert transport.specs == []
     with pytest.raises(BadRequestError, match="LSP completion list: documentation must be"):
         await server.completions("file:///a.py", LspPosition(line=0, character=0))
+
+
+@pytest.mark.anyio
+async def test_huge_durations_mean_no_limit_and_never_overflow() -> None:
+    from daytona.v2._core import timeout_millis_from_seconds, wait_budget
+
+    for huge in (1e308, 10**400):
+        assert wait_budget(huge) == 0
+    assert timeout_millis_from_seconds(10**400) == 10**403
+    with pytest.raises(BadRequestError, match="escalate_after is too large"):
+        timeout_millis_from_seconds(1e308, "escalate_after")
+    for bad in (float("inf"), float("nan"), -1, True, "1"):
+        with pytest.raises(BadRequestError, match="must be a non-negative finite number"):
+            wait_budget(bad)  # type: ignore[arg-type]
+
+    transport = Transport([_process(), _process(), {}, {}])
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    await process.start("x", execution_timeout=1e308)
+    await process.start("x", execution_timeout=10**400)
+    git = AsyncGitService(transport)  # type: ignore[arg-type]
+    await git.pull("/repo", timeout=1e308)
+    await git.pull("/repo", timeout=10**400)
+    assert all("timeoutMs" not in (spec.json_body or {}) for spec in transport.specs[:2])
+    with pytest.raises(BadRequestError):
+        await git.pull("/repo", timeout=0)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("cursor", ['""', "5", "null"])
+async def test_stream_logs_uses_the_sse_id_only_when_the_payload_has_no_cursor(cursor: str) -> None:
+    lines = ["id: c1", "event: eof", f'data: {{"cursor":{cursor}}}', ""]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    if cursor == "null":
+        assert [event async for event in handle.stream_logs()] == [StreamLogEofEvent(cursor="c1")]
+        return
+    with pytest.raises(BadRequestError, match="eof event: cursor must be a non-empty string"):
+        async for _event in handle.stream_logs():
+            pass

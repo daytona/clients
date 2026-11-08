@@ -2797,7 +2797,7 @@ describe('V2 model', () => {
 
   it('process.start/run/exec accept the argv object form like Python', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p', kind: 'exec', state: 'terminal', exitCode: 0, logs: { frames: [], eof: true, nextCursor: '0', truncatedHead: false } })
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'exec', state: 'terminal', exitCode: 0, logs: { frames: [], eof: true, nextCursor: '0', truncatedHead: false } }))
     const service = new ProcessService(INTERNAL, transport.object, 'sbx')
     await service.start({ argv: ['python', '-c', 'print(1)'] })
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ argv: ['python', '-c', 'print(1)'] })
@@ -4743,10 +4743,10 @@ describe('toolbox service request shaping', () => {
 
   it('shapes process start, list, handle control, and wait results', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'proc' })
+    transport.post.mockResolvedValue(createdWire({ id: 'proc' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'signaled', signal: 'SIGTERM' })
-      .mockResolvedValueOnce([processWire()])
+      .mockResolvedValueOnce({ items: [processWire()] })
     const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
     const handle = await process.start('echo hi', { name: 'job', env: { A: 'B' }, executionTimeoutSeconds: 0.005 })
@@ -4787,7 +4787,6 @@ describe('toolbox service request shaping', () => {
 
     await expect(process.list({ kind: 'pty' })).resolves.toEqual({
       items: [processInfo({ id: 'pty-1', kind: 'pty' })],
-      nextCursor: 'p',
     })
     await expect(handle.kill()).resolves.toBeUndefined()
     await expect(handle.delete()).resolves.toBeUndefined()
@@ -4976,9 +4975,9 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     transport.post
       .mockResolvedValueOnce(sessionWire('sess'))
-      .mockResolvedValueOnce({ id: 'ctx-proc' })
+      .mockResolvedValueOnce(createdWire({ id: 'ctx-proc' }))
       .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce({ id: 'one-shot' })
+      .mockResolvedValueOnce(createdWire({ id: 'one-shot' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'timed_out' })
       .mockResolvedValueOnce({ id: 'ctx-proc', kind: 'code', state: 'running', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
@@ -5025,7 +5024,7 @@ describe('toolbox service request shaping', () => {
   it('rebinds explicit interpreter contexts from another client onto the current transport', async () => {
     const foreignTransport = transportStub()
     const localTransport = transportStub()
-    localTransport.post.mockResolvedValueOnce({ id: 'proc' })
+    localTransport.post.mockResolvedValueOnce(createdWire({ id: 'proc' }))
     localTransport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: '0', truncatedHead: false, eof: true })
@@ -5054,7 +5053,7 @@ describe('toolbox service request shaping', () => {
       const transport = transportStub()
       transport.post.mockImplementationOnce(async () => {
         jest.advanceTimersByTime(5)
-        return { id: 'proc' }
+        return createdWire({ id: 'proc' })
       })
       transport.get
         .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
@@ -5077,7 +5076,7 @@ describe('toolbox service request shaping', () => {
       transport.post
         .mockImplementationOnce(async () => {
           jest.advanceTimersByTime(10)
-          return { id: 'proc' }
+          return createdWire({ id: 'proc' })
         })
         .mockResolvedValueOnce(undefined)
       transport.get
@@ -5095,7 +5094,7 @@ describe('toolbox service request shaping', () => {
 
   it('omits sessionId on context-free interpreter runs to select the default context', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValueOnce({ id: 'one' }).mockResolvedValueOnce({ id: 'two' })
+    transport.post.mockResolvedValueOnce(createdWire({ id: 'one' })).mockResolvedValueOnce(createdWire({ id: 'two' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'first', timestamp: 1 }], nextCursor: '1', truncatedHead: false, eof: false })
@@ -5116,7 +5115,7 @@ describe('toolbox service request shaping', () => {
 
   it('serializes interpreter contexts as identity-only handles and reconnects them cleanly', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValueOnce(sessionWire('ctx')).mockResolvedValueOnce({ id: 'proc' })
+    transport.post.mockResolvedValueOnce(sessionWire('ctx')).mockResolvedValueOnce(createdWire({ id: 'proc' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: '0', truncatedHead: false, eof: true })
@@ -5148,8 +5147,8 @@ describe('toolbox service request shaping', () => {
       firstSubmitted = resolve
     })
     transport.post
-      .mockResolvedValueOnce({ id: 'p1' })
-      .mockResolvedValueOnce({ id: 'p2' })
+      .mockResolvedValueOnce(createdWire({ id: 'p1' }))
+      .mockResolvedValueOnce(createdWire({ id: 'p2' }))
     transport.get.mockImplementation(async (path: string) => {
       if (path === '/processes/p1/wait?timeoutMs=0') {
         firstSubmitted?.()
@@ -5191,8 +5190,8 @@ describe('toolbox service request shaping', () => {
       firstSubmitted = resolve
     })
     transport.post
-      .mockResolvedValueOnce({ id: 'p1' })
-      .mockResolvedValueOnce({ id: 'p2' })
+      .mockResolvedValueOnce(createdWire({ id: 'p1' }))
+      .mockResolvedValueOnce(createdWire({ id: 'p2' }))
     transport.get.mockImplementation(async (path: string) => {
       if (path === '/processes/p1/wait?timeoutMs=0') {
         firstSubmitted?.()
@@ -5234,7 +5233,7 @@ describe('toolbox service request shaping', () => {
     const firstSubmittedPromise = new Promise<void>((resolve) => {
       firstSubmitted = resolve
     })
-    transport.post.mockResolvedValueOnce({ id: 'p1' })
+    transport.post.mockResolvedValueOnce(createdWire({ id: 'p1' }))
     transport.get.mockImplementation(async (path: string) => {
       if (path === '/processes/p1/wait?timeoutMs=0') {
         firstSubmitted?.()
@@ -5304,8 +5303,8 @@ describe('toolbox service request shaping', () => {
       firstSubmitted = resolve
     })
     transport.post
-      .mockResolvedValueOnce({ id: 'p1' })
-      .mockResolvedValueOnce({ id: 'p2' })
+      .mockResolvedValueOnce(createdWire({ id: 'p1' }))
+      .mockResolvedValueOnce(createdWire({ id: 'p2' }))
     transport.get.mockImplementation(async (path: string) => {
       if (path === '/processes/p1/wait?timeoutMs=0') {
         firstSubmitted?.()
@@ -5359,8 +5358,8 @@ describe('toolbox service request shaping', () => {
       firstSubmitted = resolve
     })
     transport.post
-      .mockResolvedValueOnce({ id: 'p1' })
-      .mockResolvedValueOnce({ id: 'p2' })
+      .mockResolvedValueOnce(createdWire({ id: 'p1' }))
+      .mockResolvedValueOnce(createdWire({ id: 'p2' }))
     transport.get.mockImplementation(async (path: string) => {
       if (path === '/processes/p1/wait?timeoutMs=0') {
         firstSubmitted?.()
@@ -5403,11 +5402,11 @@ describe('toolbox service request shaping', () => {
     let processIndex = 0
     transport.post.mockImplementation(async (path: string, body: unknown) => {
       if (path === '/sessions') {
-        return { id: (body as { readonly id: string }).id }
+        return sessionWire((body as { readonly id: string }).id)
       }
       if (path === '/processes') {
         processIndex += 1
-        return { id: `proc-${processIndex}` }
+        return createdWire({ id: `proc-${processIndex}` })
       }
       throw new Error(`unexpected POST ${path}`)
     })
@@ -5433,7 +5432,7 @@ describe('toolbox service request shaping', () => {
       transport.post
         .mockImplementationOnce(async () => {
           jest.advanceTimersByTime(5)
-          return { id: 'isolated-python' }
+          return createdWire({ id: 'isolated-python' })
         })
       transport.delete.mockResolvedValue(undefined)
       const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
@@ -5531,7 +5530,7 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     transport.post.mockImplementationOnce(async (_path, body) => {
       jest.advanceTimersByTime(5_000) // POST /sessions took 5s of a 2s budget
-      return { id: String((body as { id: string }).id) }
+      return createdWire({ id: String((body as { id: string }).id) })
     })
     transport.delete.mockResolvedValueOnce({})
     const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
@@ -5547,7 +5546,7 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     transport.post
       .mockImplementationOnce(async (_path, body) => ({ id: String((body as { id: string }).id) }))
-      .mockResolvedValueOnce({ id: 'proc' })
+      .mockResolvedValueOnce(createdWire({ id: 'proc' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: '0', truncatedHead: false, eof: true })
@@ -5576,7 +5575,7 @@ describe('toolbox service request shaping', () => {
   it('keeps interpreter client deadlines across toolbox long-poll caps', async () => {
     const now = jest.spyOn(Date, 'now').mockReturnValue(0)
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'timed_out' })
       .mockResolvedValueOnce({ id: 'p', kind: 'code', state: 'running', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
@@ -5597,7 +5596,7 @@ describe('toolbox service request shaping', () => {
     // `timed_out` chunk is re-polled inside `wait` and the exit that lands on
     // the next chunk is returned without any interrupt.
     const transport = transportStub()
-    transport.post.mockResolvedValueOnce({ id: 'p' })
+    transport.post.mockResolvedValueOnce(createdWire({ id: 'p' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'timed_out' })
       .mockResolvedValueOnce({ id: 'p', kind: 'code', state: 'running', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
@@ -5621,7 +5620,7 @@ describe('toolbox service request shaping', () => {
     // short retry wait observes the real exit — which wins over the timeout.
     const transport = transportStub()
     transport.post
-      .mockResolvedValueOnce({ id: 'p' })
+      .mockResolvedValueOnce(createdWire({ id: 'p' }))
       .mockRejectedValueOnce(new DaytonaError('queued', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' }))
     transport.get
       .mockImplementationOnce(async () => {
@@ -5644,7 +5643,7 @@ describe('toolbox service request shaping', () => {
 
   it('merges object-form process options and cleans up PTYs when websocket attach fails', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p', kind: 'pty' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'pty' }))
     transport.delete.mockResolvedValue(undefined)
     await new ProcessService(INTERNAL, transport.object, 'sbx').start('echo hi', { executionTimeoutSeconds: 0.005, keepLogs: 'none' })
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ shellCommand: 'echo hi', timeoutMs: 5, keepLogs: 'none' })
@@ -5714,7 +5713,7 @@ describe('toolbox service request shaping', () => {
 
   it('returns the collected log frames with the run result', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'ok', timestamp: 1 }], nextCursor: 'c1', truncatedHead: false, eof: false })
@@ -5727,7 +5726,7 @@ describe('toolbox service request shaping', () => {
 
   it('settles process.run through the inline toolbox wait/log path', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p', state: 'terminal', reason: 'exited', exitCode: 0, logs: { frames: [{ cursor: 'c1', channel: 'stdout', data: 'ok', timestamp: 1 }], nextCursor: 'c1', eof: true, truncatedHead: false } })
+    transport.post.mockResolvedValue(createdWire({ id: 'p', state: 'terminal', reason: 'exited', exitCode: 0, logs: { frames: [{ cursor: 'c1', channel: 'stdout', data: 'ok', timestamp: 1 }], nextCursor: 'c1', eof: true, truncatedHead: false } }))
     const result = await new ProcessService(INTERNAL, transport.object, 'sbx').run('echo ok', { timeoutSeconds: 1.234 })
     expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=1234&logs=text')
     expect(transport.get).not.toHaveBeenCalled()
@@ -5736,7 +5735,7 @@ describe('toolbox service request shaping', () => {
 
   it('collects multi-page process logs after waiting', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'whole ', timestamp: 1 }], nextCursor: 'c1', truncatedHead: false, eof: false })
@@ -5748,7 +5747,7 @@ describe('toolbox service request shaping', () => {
 
   it('falls back to a split wait when the inline wait window elapses, on the remaining budget', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p', state: 'running' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p', state: 'running' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'late', timestamp: 1 }], nextCursor: 'c1', truncatedHead: false, eof: false })
@@ -5766,7 +5765,7 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     transport.post.mockImplementation(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1))
-      return { id: 'p', state: 'running' }
+      return createdWire({ id: 'p', state: 'running' })
     })
     transport.get
       .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'partial', timestamp: 1 }], nextCursor: 'c1', truncatedHead: false, eof: false })
@@ -6269,7 +6268,7 @@ describe('toolbox service request shaping', () => {
 
   it('omits PTY shellCommand for default-shell PTYs', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p' }))
     await new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object).start()
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ kind: 'pty' })
     expect(transport.post.mock.calls[0]?.[1]).not.toHaveProperty('shellCommand')
@@ -6277,14 +6276,14 @@ describe('toolbox service request shaping', () => {
 
   it('omits timeoutMs from code process creation', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p' }))
     await startProcess(transport.object, 'sbx', { code: 'print(1)', kind: 'code', language: 'python', executionTimeoutSeconds: 0.1 })
     expect(transport.post.mock.calls[0]?.[1]).not.toHaveProperty('timeoutMs')
   })
 
   it('collects every log page and includes PTY frames in stdout', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'a', timestamp: 1 }], nextCursor: 'c1', truncatedHead: false, eof: false })
@@ -8659,7 +8658,7 @@ describe('toolbox service request shaping', () => {
 
   it('normalises executionTimeout to integer millis and rejects invalid values', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p', kind: 'exec', state: 'running' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'exec', state: 'running' }))
     await startProcess(transport.object, 'sbx', { cmd: 'true', executionTimeoutSeconds: 1.5004 })
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ timeoutMs: 1501 })
     await expect(startProcess(transport.object, 'sbx', { cmd: 'true', executionTimeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
@@ -8668,7 +8667,7 @@ describe('toolbox service request shaping', () => {
 
   it('bounds the log snapshot when run() reports timed_out on a still-running process', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'proc', kind: 'exec', state: 'running' })
+    transport.post.mockResolvedValue(createdWire({ id: 'proc', kind: 'exec', state: 'running' }))
     transport.get.mockImplementation(async (path: string) => {
       if (path.includes('/wait')) {
         jest.advanceTimersByTime(10)
@@ -8695,7 +8694,7 @@ describe('toolbox service request shaping', () => {
 
   it('serialises fractional wait budgets as integer milliseconds on the wire', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'proc', kind: 'exec', state: 'running' })
+    transport.post.mockResolvedValue(createdWire({ id: 'proc', kind: 'exec', state: 'running' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: '0', truncatedHead: false, eof: true })
@@ -8718,7 +8717,7 @@ describe('toolbox service request shaping', () => {
 
   it('keeps process.run timeout=0 as an unbounded caller wait', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'proc', kind: 'exec', state: 'running' })
+    transport.post.mockResolvedValue(createdWire({ id: 'proc', kind: 'exec', state: 'running' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'out', timestamp: 1 }], nextCursor: '1', truncatedHead: false, eof: false })
@@ -8734,7 +8733,7 @@ describe('toolbox service request shaping', () => {
 
   it('keeps process.run without a timeout unbounded across the awaited exec and terminal wait', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'proc', kind: 'exec', state: 'running' })
+    transport.post.mockResolvedValue(createdWire({ id: 'proc', kind: 'exec', state: 'running' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'out', timestamp: 1 }], nextCursor: '1', truncatedHead: false, eof: false })
@@ -9319,7 +9318,7 @@ describe('forward compatibility: a newer server must not break an older SDK', ()
 
   it('tolerates process kinds and exit reasons this SDK release does not list', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValueOnce({ id: 'proc', kind: 'service' })
+    transport.post.mockResolvedValueOnce(createdWire({ id: 'proc', kind: 'service' }))
     transport.get
       .mockResolvedValueOnce(processWire({ kind: 'service', state: 'terminal', stdin: 'detached', keepLogs: 'forever' }))
       .mockResolvedValueOnce({ reason: 'evicted', exitCode: 3 })
@@ -10870,6 +10869,15 @@ async function readStreamBytes(stream: ReadableStream<Uint8Array>): Promise<Uint
 }
 
 /** A process record with the fields the contract requires, plus `overrides`. */
+/**
+ * A contract-complete process record as `POST /processes` answers it. The
+ * kind defaults to one this release does not list, so the handle keeps the
+ * requested kind, as it does for a sandbox that reports a new kind.
+ */
+function createdWire(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return processWire({ kind: 'unlisted', ...overrides })
+}
+
 /** A contract-complete `SessionDto` (an interpreter context on the wire). */
 function sessionWire(id: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return { id, kernel: 'python', kernelProcessId: 'k', cwd: '/', createdAt: '2026-01-01T00:00:00Z', active: true, processIds: [], ...overrides }
@@ -11965,7 +11973,7 @@ describe('toolbox surface', () => {
 
   it('nests the PTY terminal size and defaults it to 80x24', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p', kind: 'pty' })
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'pty' }))
     const pty = new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object)
     await pty.start(undefined, { user: 'dev', shell: 'zsh', login: true, executionTimeoutSeconds: 2.5 })
     await pty.start('top', { terminal: { cols: 120, rows: 40 } })
@@ -11987,9 +11995,9 @@ describe('toolbox surface', () => {
   it('sends an unbounded request timeout for every setup request of an explicitly unbounded run', async () => {
     const transport = transportStub()
     transport.post
-      .mockResolvedValueOnce({ id: 'iso' })
-      .mockResolvedValueOnce({ id: 'proc' })
-      .mockResolvedValueOnce({ id: 'proc2' })
+      .mockResolvedValueOnce(createdWire({ id: 'iso' }))
+      .mockResolvedValueOnce(createdWire({ id: 'proc' }))
+      .mockResolvedValueOnce(createdWire({ id: 'proc2' }))
     transport.get
       .mockResolvedValue({ reason: 'exited', exitCode: 0 })
     transport.get
@@ -12332,12 +12340,13 @@ describe('toolbox surface', () => {
     expect(exactMs('t', 0)).toBe(0)
     expect(secondsToMs('t', 2_147_483.647)).toBe(2_147_483_647)
     expect(secondsToMs('t', 10 ** 9)).toBe(0)
-    expect(() => exactMs('t', Number.MAX_VALUE)).toThrow('t must be a non-negative finite number of seconds')
+    expect(() => exactMs('t', Number.MAX_VALUE)).toThrow('t is too large')
+    expect(secondsToMs('t', Number.MAX_VALUE)).toBe(0)
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
     await new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').wait({ timeoutSeconds: 10 ** 9 })
     expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
-    transport.post.mockResolvedValueOnce({ id: 'p' })
+    transport.post.mockResolvedValueOnce(createdWire({ id: 'p' }))
     await new ProcessService(INTERNAL, transport.object, 'sbx').start('x', { executionTimeoutSeconds: 10 ** 9 })
     expect(transport.post.mock.calls[0]?.[1]).toEqual({ shellCommand: 'x' })
     const git = new GitService(INTERNAL, transport.object)
@@ -12552,6 +12561,34 @@ describe('toolbox surface', () => {
     } finally {
       if (originalWebSocket === undefined) Reflect.deleteProperty(globalThis, 'WebSocket')
       else Reflect.set(globalThis, 'WebSocket', originalWebSocket)
+    }
+  })
+
+  it('checks the whole created process record and the process list, like the Python SDK', async () => {
+    const transport = transportStub()
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    transport.post.mockResolvedValueOnce({ id: 'p' }).mockResolvedValueOnce(processWire({ state: undefined, reason: 'exited' }))
+    await expect(process.start('x')).rejects.toThrow('expected process response: kind is required')
+    await expect(process.run('x')).rejects.toThrow('expected process response: state is required')
+    transport.get.mockResolvedValueOnce([processWire()]).mockResolvedValueOnce({ items: null })
+    await expect(process.list()).rejects.toThrow('expected process list response')
+    await expect(process.list()).rejects.toThrow('expected process list response: items is required')
+  })
+
+  it('uses the SSE id only when the event payload has no cursor', async () => {
+    const transport = transportStub()
+    transport.fetch
+      .mockResolvedValueOnce(sseResponse(['id: c1\nevent: eof\ndata: {"cursor":null}\n\n']))
+      .mockResolvedValueOnce(sseResponse(['id: c1\nevent: eof\ndata: {"cursor":""}\n\n']))
+      .mockResolvedValueOnce(sseResponse(['id: c1\nevent: eof\ndata: {"cursor":5}\n\n']))
+    const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc')
+    const events: StreamLogEvent[] = []
+    for await (const event of handle.streamLogs()) events.push(event)
+    expect(events).toEqual([{ type: 'eof', cursor: 'c1' }])
+    for (let i = 0; i < 2; i++) {
+      await expect((async () => {
+        for await (const _event of handle.streamLogs()) { /* drain */ }
+      })()).rejects.toThrow('expected process log eof event: cursor must be a non-empty string')
     }
   })
 

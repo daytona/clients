@@ -13,6 +13,7 @@ import { WAIT_READ_SLACK_MS } from '../src/v2/Process'
 
 const terminal = {
   id: 'command-1', kind: 'exec', state: 'terminal', reason: 'exited', exitCode: 0,
+  cwd: '/', stdin: 'closed', keepLogs: 'on_exit_ttl', createdAt: '2026-01-01T00:00:00Z', truncatedHead: false,
   logs: { eof: true, frames: [
     { channel: 'stdout', data: 'hello', cursor: '1', timestamp: 1 },
     { channel: 'stderr', data: 'warning', cursor: '2', timestamp: 2 },
@@ -20,13 +21,21 @@ const terminal = {
   ], nextCursor: '0', truncatedHead: false },
 } as const
 
+/** A contract-complete process record as `POST /processes` answers it; an unlisted kind keeps the requested one. */
+function createdWire(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'proc', kind: 'unlisted', state: 'running', cwd: '/', stdin: 'closed', keepLogs: 'on_exit_ttl',
+    createdAt: '2026-01-01T00:00:00Z', truncatedHead: false, ...overrides,
+  }
+}
+
 describe('shell sessions', () => {
   afterEach(() => jest.restoreAllMocks())
 
   it('posts shell settings when creating a session', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
-    const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'shell-1', kind: 'session' })
+    const post = jest.spyOn(transport, 'post').mockResolvedValue(createdWire({ id: 'shell-1', kind: 'session' }))
     const process = new ProcessService(INTERNAL, transport, 'sandbox-1')
     const options: CreateSessionOptions = { cwd: '/app', env: { CI: '1' }, shell: 'bash', login: true, name: 'build' }
     // When
@@ -40,7 +49,7 @@ describe('shell sessions', () => {
   it('posts only the kind when creation options are omitted', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
-    const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'shell-1' })
+    const post = jest.spyOn(transport, 'post').mockResolvedValue(createdWire({ id: 'shell-1' }))
     // When
     await new ProcessService(INTERNAL, transport, 'sandbox-1').createSession()
     // Then
@@ -148,7 +157,7 @@ describe('shell sessions', () => {
   it('uses process wait and logs when the inline response is still running', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
-    jest.spyOn(transport, 'post').mockResolvedValue({ id: 'command-1', kind: 'exec', state: 'running' })
+    jest.spyOn(transport, 'post').mockResolvedValue(createdWire({ id: 'command-1', kind: 'exec', state: 'running' }))
     const get = jest.spyOn(transport, 'get')
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 7 })
       .mockResolvedValueOnce({ frames: [{ channel: 'stdout', data: 'later', cursor: '1', timestamp: 1 }], nextCursor: '0', truncatedHead: false, eof: true })
@@ -163,7 +172,7 @@ describe('shell sessions', () => {
   it('forwards all command options when starting a session command', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
-    const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'command-1', kind: 'exec' })
+    const post = jest.spyOn(transport, 'post').mockResolvedValue(createdWire({ id: 'command-1', kind: 'exec' }))
     const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
     const options: SessionStartOptions = { stdin: 'open', executionTimeoutSeconds: 1.2, name: 'serve', keepLogs: 'none' }
     // When
@@ -179,7 +188,7 @@ describe('shell sessions', () => {
   it('uses only the bound identity when start options are omitted', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
-    const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'command-1' })
+    const post = jest.spyOn(transport, 'post').mockResolvedValue(createdWire({ id: 'command-1' }))
     const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
     // When
     await session.start('true')

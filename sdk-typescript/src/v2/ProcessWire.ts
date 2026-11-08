@@ -57,7 +57,7 @@ export function exactMs(name: string, seconds: number | undefined): number | und
   if (seconds === 0) return 0
   // Round away float noise (0.1 * 1000 = 100.00000000000001) before rounding up.
   const ms = Math.max(1, Math.ceil(Math.round(seconds * 1000 * 1e6) / 1e6))
-  if (!Number.isFinite(ms)) throw badRequest(`${name} must be a non-negative finite number of seconds`)
+  if (!Number.isFinite(ms)) throw badRequest(`${name} is too large`)
   return ms
 }
 
@@ -68,8 +68,16 @@ export function exactMs(name: string, seconds: number | undefined): number | und
  * client's request timeout is.
  */
 export function secondsToMs(name: string, seconds: number | undefined): number | undefined {
-  const ms = exactMs(name, seconds)
-  return ms !== undefined && ms > MAX_TIMER_DELAY_MS ? 0 : ms
+  return aboveTimerMaximum(name, seconds) ? 0 : exactMs(name, seconds)
+}
+
+/** Whether a valid duration in seconds exceeds the longest timer (no limit); checked before any conversion. */
+export function aboveTimerMaximum(name: string, seconds: number | undefined): boolean {
+  if (seconds === undefined) return false
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
+    throw badRequest(`${name} must be a non-negative finite number of seconds`)
+  }
+  return seconds * 1000 > MAX_TIMER_DELAY_MS
 }
 
 /** The absolute deadline (epoch ms) of a caller wait budget in seconds; `undefined`/`0` = unbounded. */
@@ -187,9 +195,10 @@ export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
       { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
     )
   }
-  const executionMs = exactMs('executionTimeoutSeconds', spec.executionTimeoutSeconds)
   // Above the longest timer there is no deadline, as for every SDK duration.
-  const timeoutMs = executionMs !== undefined && executionMs > MAX_TIMER_DELAY_MS ? undefined : executionMs
+  const timeoutMs = aboveTimerMaximum('executionTimeoutSeconds', spec.executionTimeoutSeconds)
+    ? undefined
+    : exactMs('executionTimeoutSeconds', spec.executionTimeoutSeconds)
   const body: toolbox.CreateProcessRequest = {
     shellCommand: spec.cmd, argv: spec.argv === undefined ? undefined : [...spec.argv], code: spec.code, kind: spec.kind,
     name: spec.name, sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : { ...spec.env },
@@ -272,7 +281,12 @@ export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
     throw malformedResponse(`${description}: the data is not JSON`)
   }
   const payload = record(parsed, description)
-  const cursor = typeof payload.cursor === 'string' && payload.cursor !== '' ? payload.cursor : message.id
+  // The payload's cursor, else (only when the payload has none) the SSE id.
+  const payloadCursor = payload.cursor === undefined || payload.cursor === null ? undefined : payload.cursor
+  if (payloadCursor !== undefined && (typeof payloadCursor !== 'string' || payloadCursor === '')) {
+    throw malformedResponse(`${description}: cursor must be a non-empty string`)
+  }
+  const cursor = payloadCursor ?? message.id
   if (cursor === undefined || cursor === '') throw malformedResponse(`${description}: cursor is required`)
   switch (message.event) {
     case 'log': return { type: 'log', cursor, frame: frameFromWire({ ...payload, cursor } as LogFrameWire) }

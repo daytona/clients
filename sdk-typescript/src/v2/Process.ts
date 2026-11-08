@@ -13,6 +13,7 @@ import { BadRequestError, DaytonaError, createDaytonaError } from './errors/Dayt
 import { ProcessHandle } from './ProcessHandle.js'
 import type { PtyDuplex } from './ProcessHandle.js'
 import { bodyFor, commandSpec, invalidPtyVerbError, knownProcessKind, processFromWire, terminalSpec } from './ProcessWire.js'
+import { envelopeList } from './toolboxModels.js'
 import { runProcess, startProcess } from './ProcessRun.js'
 import type { ProcessBinding } from './ProcessRun.js'
 import { requireSessionId, Session } from './Session.js'
@@ -124,7 +125,7 @@ export class ProcessService {
   public async createSession(options: CreateSessionOptions = {}): Promise<Session> {
     assertKnownOptions('CreateSessionOptions', options, CREATE_SESSION_OPTION_KEYS)
     const data = await this.transport.post<toolbox.ProcessDto>('/processes', bodyFor({ ...options, kind: 'session' }))
-    return this.connectSession(data.id)
+    return this.connectSession(processFromWire(data).id)
   }
 
   /** Reconnect a shell session by id or by `session.toJSON()`, without a request. */
@@ -168,10 +169,8 @@ export class ProcessService {
   public async list(options: ProcessListOptions = {}): Promise<ListResult<ProcessInfo>> {
     assertKnownOptions('ProcessListOptions', options, LIST_OPTION_KEYS)
     const query = encodeQuery({ state: options.state, kind: options.kind, sessionId: options.sessionId, name: options.name, pid: options.pid })
-    const data = await this.transport.get<toolbox.ProcessDto[] | toolbox.ProcessListResponse | ListResult<toolbox.ProcessDto>>(`/processes${query}`)
-    return Array.isArray(data)
-      ? { items: data.map(processFromWire) }
-      : { items: data.items.map(processFromWire), nextCursor: 'nextCursor' in data ? data.nextCursor : undefined }
+    const data = await this.transport.get<toolbox.ProcessListResponse>(`/processes${query}`)
+    return { items: envelopeList(data, 'items', 'process list response', processFromWire) }
   }
 }
 

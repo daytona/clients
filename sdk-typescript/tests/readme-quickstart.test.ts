@@ -33,6 +33,7 @@ it('runs the README quickstart through registry readiness, named create, exec an
     { access_token: 'toolbox-jwt', token_type: 'Bearer', expires_at: '2099-01-01T00:00:00Z' },
     {
       id: 'proc-quickstart', kind: 'exec', state: 'terminal', reason: 'exited', exitCode: 0,
+      cwd: '/', stdin: 'closed', keepLogs: 'on_exit_ttl', createdAt: '2026-01-01T00:00:00Z', truncatedHead: false,
       logs: { frames: [{ cursor: 'c1', channel: 'stdout', data: 'Python 3.12.9\n', timestamp: 1 }], eof: true, nextCursor: '0', truncatedHead: false },
     },
     {},

@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 import dataclasses
-import math
 from typing import Dict, Final, Optional, Sequence
 
 from ._core import (
-    MAX_BOUNDED_TIMEOUT_SECONDS,
     RequestSpec,
     TransportPayload,
     _expect_model_from_dict,
+    above_timer_maximum,
+    checked_seconds,
     expect_branch_list,
     expect_commit_response,
     expect_object,
@@ -311,14 +311,10 @@ def _git_remote_timeout(timeout: Optional[float]) -> float:
     """The total deadline of a remote git operation in seconds; ``0`` is no limit."""
     if timeout is None:
         return GIT_REMOTE_TIMEOUT_SECONDS
-    if (
-        isinstance(timeout, bool)
-        or not isinstance(timeout, (int, float))
-        or not math.isfinite(timeout)
-        or timeout <= 0
-    ):
+    seconds = checked_seconds(timeout)
+    if seconds == 0:
         raise create_error("timeout must be a positive finite number", 400, "BAD_REQUEST", "SDK")
-    return 0 if timeout > MAX_BOUNDED_TIMEOUT_SECONDS else timeout
+    return 0 if above_timer_maximum(seconds) else float(seconds)
 
 
 async def _send_remote(transport: AsyncTransport, spec: RequestSpec, timeout: Optional[float]) -> None:

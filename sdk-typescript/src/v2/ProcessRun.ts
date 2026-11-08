@@ -9,11 +9,11 @@ import type * as toolbox from './gen/toolbox-types.js'
 import type { LogFrame, ProcessResult, RunKeepLogs, WaitResult } from './types.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import {
-  bodyFor, frameFromWire, runKeepLogs, secondsToMs, startedProcessKind, waitResult, WAIT_READ_SLACK_MS,
+  bodyFor, frameFromWire, processFromWire, runKeepLogs, secondsToMs, startedProcessKind, waitResult, WAIT_READ_SLACK_MS,
 } from './ProcessWire.js'
 import type { ProcessSpec } from './ProcessWire.js'
 import { INTERNAL } from './internal.js'
-import { logPageFromWire, record, str } from './toolboxModels.js'
+import { logPageFromWire } from './toolboxModels.js'
 
 /** Bound toolbox identity shared by ordinary commands and shell-session commands. */
 export interface ProcessBinding {
@@ -45,7 +45,7 @@ export async function startProcess(
 ): Promise<ProcessHandle> {
   const body = bodyFor(spec)
   const data = await transport.post<toolbox.ProcessDto>('/processes', body, config)
-  return new ProcessHandle(INTERNAL, transport, sandboxId, str(record(data, 'process response'), 'id', 'process response'), startedProcessKind(data, body))
+  return new ProcessHandle(INTERNAL, transport, sandboxId, processFromWire(data).id, startedProcessKind(data, body))
 }
 
 /** How long `run()` without a `timeoutSeconds` holds its first request, as the Python SDK does. */
@@ -70,10 +70,12 @@ export async function runProcess(
   const started = await binding.transport.post<toolbox.ProcessDto>(`/processes${query}`, body, {
     timeout: holdMs === 0 ? 0 : holdMs + WAIT_READ_SLACK_MS,
   })
+  // The whole record is checked, as the Python SDK does: a missing `state` is malformed, never "running".
+  const startedInfo = processFromWire(started)
   const handle = new ProcessHandle(
-    INTERNAL, binding.transport, binding.sandboxId, str(record(started, 'process response'), 'id', 'process response'), startedProcessKind(started, body),
+    INTERNAL, binding.transport, binding.sandboxId, startedInfo.id, startedProcessKind(started, body),
   )
-  const settled = started.state === 'terminal'
+  const settled = startedInfo.state === 'terminal'
   const remainingTimeout = requestedTimeout === undefined || requestedTimeout === 0
     ? undefined
     : Math.max(0, requestedTimeout - (Date.now() - startedAt))
