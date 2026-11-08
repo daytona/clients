@@ -539,7 +539,8 @@ their kinds and signatures and the members of classes and options types, plus
 every declaration a public signature uses without exporting it (the v2 client
 behind the root's `.v2`, non-exported options types and `Literal` aliases),
 listed as `~Name` (`sdk-typescript/api-surface/`, `sdk-python/api-surface/`),
-the CLI's commands with their positional arguments, flags and environment
+the CLI's commands with their positional arguments and accepted argument
+counts, flags and environment
 variables (`cli/api-surface/`), the migration
 tool's `--json` report fields and values and both tools' flags
 (`upgrade/api-surface/`). CI fails when a snapshot is stale; regenerate after
