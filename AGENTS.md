@@ -490,7 +490,14 @@ skipping exist only in the TypeScript tool).
   arrive), and file transfers (Python `RequestSpec(transfer=True)` /
   `transport.request(..., transfer=True)`, TS `timeout: 0` on axios or
   `fetch(..., { transfer: true })`), which run until done or cancelled. A new
-  call of one of those kinds must opt out the same way in both SDKs.
+  call of one of those kinds must opt out the same way in both SDKs. The
+  in-memory transfers (`read_bytes` / `readBytes`, `read_many` / `readMany`,
+  the recording download) buffer the whole response, with no size cap and no
+  deadline; for large files, or content from a sandbox you don't trust, use
+  `download_file` / `downloadFile`, which stream to disk with progress and
+  cancellation. TypeScript's `downloadFile` is Node.js-only (a browser build
+  throws `NotSupportedError`), so in a browser the in-memory reads are the
+  only option.
   A per-call timeout (a wait's budget plus its slack, a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
@@ -504,10 +511,14 @@ skipping exist only in the TypeScript tool).
   timeout does not lengthen it. On a stream the per-call timeout likewise
   bounds opening it, until its response headers (Python
   `_stream_open_seconds`, on `open_stream` and `open_exclusive_stream`);
-  neither it nor the request timeout bounds the body as a total. One
-  exception: Python's `open_exclusive_stream` keeps that timeout as an
-  idle-read bound on a finite body (build-log discovery and one-shot reads)
-  unless the spec sets `unbounded_read` (the build-log follower does). A
+  the transport bounds no stream's body as a total, by either timeout. One
+  transport exception: Python's `open_exclusive_stream` keeps an explicit
+  finite per-call `timeout` as httpx's idle-read bound on the body unless the
+  spec sets `unbounded_read` (the build-log follower does); with no per-call
+  `timeout` it clears the read bound, so the request timeout bounds no gap
+  after the headers. Callers may bound a body themselves: Python's build-log
+  discovery (`_discover`) and one-shot read (`read_build_logs`) wrap their
+  body read in `anyio.move_on_after` with a deadline from their timeout. A
   transfer ignores any timeout it carries.
 - **TypeScript rejects unknown option keys at runtime** (the rule; applied so
   far to the client configuration and the toolbox, see below). A covered options object

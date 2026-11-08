@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import _repo
 import pytest
 
@@ -29,14 +27,22 @@ def test_outside_a_checkout_they_skip_naming_the_file(monkeypatch: pytest.Monkey
         _repo._repo_scripts()
 
 
-def test_an_unrelated_missing_file_is_never_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # Only the helpers skip: a file the SDK should have written still fails,
-    # wherever the tree is unpacked.
+def test_the_helpers_name_each_file_they_skip_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Each helper call decides on its own; a different file gets its own name,
+    # and turning the checkout back on returns the path again.
     monkeypatch.setattr(_repo, "IN_CHECKOUT", False)
-    with pytest.raises(FileNotFoundError):
-        (tmp_path / "never-written.txt").read_text()
+    for relative in ("upgrade/mapping/mapping.json", "sdk-typescript/src/v2/index.ts"):
+        with pytest.raises(pytest.skip.Exception, match=relative):
+            _repo._repo_file(relative)
+    monkeypatch.setattr(_repo, "IN_CHECKOUT", True)
+    assert (
+        _repo._repo_file("upgrade/mapping/mapping.json")
+        == _repo.REPO_ROOT / "upgrade" / "mapping" / "mapping.json"
+    )
 
 
 def test_this_tree_is_detected() -> None:
-    # sdk-python/ next to contract/ in a checkout; an sdist unpacks as daytona-<version>/.
-    assert _repo.IN_CHECKOUT == (_repo.SDK_ROOT.name == "sdk-python")
+    # A checkout: the SDK in sdk-python/ next to contract/. An sdist unpacks
+    # as daytona-<version>/ with neither.
+    expected = _repo.SDK_ROOT.name == "sdk-python" and (_repo.REPO_ROOT / "contract").is_dir()
+    assert _repo.IN_CHECKOUT == expected
