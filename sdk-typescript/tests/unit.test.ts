@@ -4063,7 +4063,10 @@ describe('toolbox service request shaping', () => {
           progress.push([bytes, total])
         },
       })).rejects.toMatchObject({
+        constructor: BadRequestError,
         message: 'source file changed size during upload',
+        statusCode: 400,
+        code: 'BAD_REQUEST',
         source: 'SDK',
       })
     } finally {
@@ -4402,7 +4405,7 @@ describe('toolbox service request shaping', () => {
     transport.fetch.mockResolvedValue(new Response(null, { status: 200, headers: { 'content-length': '0' } }))
 
     try {
-      await expect(fs.downloadFile('/remote/target.txt', target)).rejects.toThrow('expected a response body')
+      await expect(fs.downloadFile('/remote/target.txt', target)).rejects.toMatchObject({ constructor: BadRequestError, message: 'downloadFile() expected a response body', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
       expect(await readFile(target, 'utf8')).toBe('keep me')
       expect((await readdir(tempRoot)).filter((entry) => entry.startsWith('.daytona-dl-'))).toEqual([])
     } finally {
@@ -4424,7 +4427,8 @@ describe('toolbox service request shaping', () => {
     }), { status: 200, headers: { 'content-length': '10' } }))
 
     try {
-      await expect(fs.downloadFile('/remote/target.txt', target)).rejects.toThrow('Content-Length')
+      // A truncated transfer, as when the socket drops mid-body (Python raises the same).
+      await expect(fs.downloadFile('/remote/target.txt', target)).rejects.toMatchObject({ constructor: ConnectionError, message: 'downloadFile() ended before the declared Content-Length was received', source: 'SDK' })
       expect(await readFile(target, 'utf8')).toBe('keep me')
       expect((await readdir(tempRoot)).filter((entry) => entry.startsWith('.daytona-dl-'))).toEqual([])
     } finally {

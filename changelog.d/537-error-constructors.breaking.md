@@ -36,4 +36,8 @@ exchange response is a `BadRequestError` (400, `BAD_REQUEST`) in both SDKs
 (it was an `AuthenticationError` without status or code in TypeScript); an
 image `timeout` that is negative or not finite is a `BadRequestError` instead of
 a `TypeError` in TypeScript, and so is a build-log `timeout` in both SDKs
-(it was a `RangeError` / `ValueError`).
+(it was a `RangeError` / `ValueError`). A file download that ends before its
+declared `Content-Length` is a `ConnectionError` (source `SDK`) in both SDKs,
+as a dropped socket is (it was a 500 in Python and a bare error in
+TypeScript); in TypeScript, an upload whose source file changes size and a
+download response without a body are `BadRequestError`s.
