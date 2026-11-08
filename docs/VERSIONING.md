@@ -214,9 +214,11 @@ alias), may only gain enum values or union members. In any of them, an
 object type written inline may gain optional members. A function or method
 that callers implement (a callback, the methods of a type they pass in) may
 not gain an overload or call signature: every implementation would have to
-accept it. In `contract/*.json`, an enum the contract
-does not mark open is still compared by oasdiff's rules, where a new response
-value is a break. The migration
+accept it. In `contract/*.json`, oasdiff compares the
+contracts as they are; the only finding the `x-daytona-open-enum` tag drops is
+a value added to an open enum on the response side. Removing a value callers
+send stays a break wherever they send it, and an enum the contract does not
+mark open may not gain a response value. The migration
 tool's report fields keep their types: it may only gain fields, values, flags
 and short aliases for its flags. A real break
 needs a `changelog.d/<id>.breaking.md` fragment in the pull request; the
