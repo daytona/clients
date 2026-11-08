@@ -68,21 +68,33 @@ rank() {
 }
 
 if [ -z "$VERSION" ]; then
-  # Every published release of the repository (it also carries the 0.x line),
-  # one tag per line. GitHub lists drafts only to maintainers.
+  # Every published release of the repository (it also carries the 0.x line):
+  # "TAG DRAFT PRERELEASE" per release. GitHub lists tag_name before draft and
+  # prerelease in each release object; a release whose flags do not follow its
+  # tag is skipped.
   tags=""
   page=1
   while :; do
     body="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100&page=${page}")" \
       || { echo "could not list the releases of ${REPO}; pass --version X.Y.Z" >&2; exit 1; }
-    found="$(printf '%s\n' "$body" | tr ',' '\n' | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')"
+    found="$(printf '%s\n' "$body" | tr ',' '\n' | awk '
+      /"tag_name": *"/ { tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); draft = "" }
+      /"draft": *true/ { draft = "true" }
+      /"draft": *false/ { draft = "false" }
+      /"prerelease": *(true|false)/ {
+        if (tag != "" && draft != "") print tag, draft, ($0 ~ /"prerelease": *true/ ? "true" : "false")
+        tag = ""
+      }')"
     [ -n "$found" ] || break
     tags="${tags}${found}
 "
     page=$((page + 1))
     [ "$page" -le 50 ] || break
   done
-  ranked="$(printf '%s' "$tags" | rank | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5)"
+  # Drafts never count, and a stable-looking tag GitHub marks as a pre-release
+  # is not stable.
+  tags="$(printf '%s' "$tags" | awk '$2 == "false" && !($3 == "true" && $1 !~ /-/) { print $1 }')"
+  ranked="$(printf '%s\n' "$tags" | rank | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5)"
   case "$CHANNEL" in
     ""|stable) min=2 ;;
     rc) min=1 ;;

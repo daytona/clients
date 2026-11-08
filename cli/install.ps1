@@ -43,7 +43,9 @@ if (-not $Version) {
   for ($page = 1; $page -le 50; $page++) {
     $releases = @(Invoke-RestMethod "https://api.github.com/repos/$Repo/releases?per_page=100&page=$page" -UseBasicParsing)
     if ($releases.Count -eq 0) { break }
-    $tags += @($releases | ForEach-Object { $_.tag_name })
+    # Drafts never count, and a stable-looking tag GitHub marks as a
+    # pre-release is not stable.
+    $tags += @($releases | Where-Object { -not $_.draft -and -not ($_.prerelease -and "$($_.tag_name)" -notlike "*-*") } | ForEach-Object { $_.tag_name })
   }
   # 2.x CLI tags only, ordered by version: alpha (0) < rc (1) < stable (2).
   $n = "(0|[1-9][0-9]*)"

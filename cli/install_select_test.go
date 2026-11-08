@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -18,10 +19,28 @@ import (
 )
 
 // releaseIndex is a fake GitHub release list, newest published first, served
-// in pages of pageSize like the releases API.
+// in pages of pageSize like the releases API. GitHub marks a release as a
+// pre-release when its tag has a suffix; prerelease and draft name the
+// releases that are marked otherwise.
 type releaseIndex struct {
-	tags     []string
-	pageSize int
+	tags       []string
+	pageSize   int
+	prerelease []string
+	draft      []string
+}
+
+// githubRelease keeps the field order of GitHub's release objects.
+type githubRelease struct {
+	URL             string `json:"url"`
+	TagName         string `json:"tag_name"`
+	TargetCommitish string `json:"target_commitish"`
+	Name            string `json:"name"`
+	Draft           bool   `json:"draft"`
+	Immutable       bool   `json:"immutable"`
+	Prerelease      bool   `json:"prerelease"`
+	CreatedAt       string `json:"created_at"`
+	Assets          []any  `json:"assets"`
+	Body            string `json:"body"`
 }
 
 // write stores the index as page-N.json files in dir.
@@ -33,9 +52,15 @@ func (r releaseIndex) write(t *testing.T, dir string) {
 	}
 	for page := 0; page*size < len(r.tags); page++ {
 		end := min((page+1)*size, len(r.tags))
-		var releases []map[string]any
+		var releases []githubRelease
 		for _, tag := range r.tags[page*size : end] {
-			releases = append(releases, map[string]any{"tag_name": tag, "name": "release, " + tag, "prerelease": strings.Contains(tag, "-")})
+			releases = append(releases, githubRelease{
+				URL: "https://api.github.com/repos/daytona/clients/releases/1", TagName: tag, TargetCommitish: "main",
+				Name: "daytona CLI " + tag, Draft: slices.Contains(r.draft, tag),
+				Prerelease: strings.Contains(tag, "-") || slices.Contains(r.prerelease, tag),
+				CreatedAt:  "2026-11-01T00:00:00Z", Assets: []any{map[string]any{"name": "daytona-linux-amd64", "label": ""}},
+				Body: `Install: "tag_name": "v9.9.9", "prerelease": false, "draft": false`,
+			})
 		}
 		body, err := json.Marshal(releases)
 		require.NoError(t, err)
@@ -55,6 +80,8 @@ var (
 	}}
 	// Numeric, not lexical, ordering.
 	numericIndex = releaseIndex{tags: []string{"v2.9.0", "v2.10.0-rc.1", "v2.10.0-alpha.10", "v2.10.0-alpha.9"}}
+	// GitHub marks v2.3.0 as a pre-release, and v2.4.0 is a draft.
+	flaggedIndex = releaseIndex{tags: []string{"v2.4.0", "v2.3.0", "v2.2.0", "v2.3.0-rc.1"}, prerelease: []string{"v2.3.0"}, draft: []string{"v2.4.0"}}
 	// The 2.x release sits on the second page.
 	pagedIndex = releaseIndex{tags: append(repeatTags("v0.%d.0", 100), "v2.0.0", "v2.0.0-alpha.8"), pageSize: 100}
 )
@@ -88,6 +115,8 @@ var selectCases = []selectCase{
 	{name: "numeric ordering, rc", index: numericIndex, channel: "rc", want: "2.10.0-rc.1"},
 	{name: "numeric ordering, alpha below rc", index: numericIndex, channel: "alpha", want: "2.10.0-rc.1"},
 	{name: "second page", index: pagedIndex, want: "2.0.0"},
+	{name: "a stable tag marked as a pre-release is not stable", index: flaggedIndex, want: "2.2.0"},
+	{name: "drafts never count", index: flaggedIndex, channel: "alpha", want: "2.3.0-rc.1"},
 }
 
 const fakeBinary = "#!/bin/sh\necho installed\n"
