@@ -10,17 +10,20 @@ import { WAIT_READ_SLACK_MS } from './Process.js'
 import { PULL_VOLUME_STATUSES } from './types.js'
 import type { PullVolumeStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
+import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
 
 export interface PullVolumeOptions {
   /** Caller-owned identity. Retain it when checking pending work or retrying. */
   readonly requestId: string
   /**
-   * Server wait in milliseconds (0–30000); omitted means 30000. Does not cancel work.
+   * Server wait in seconds (0–30); omitted means 30. Does not cancel work.
    * Zero submits a new requestId, or returns a known one's last outcome without
    * retrying it; a wait above zero retries pending, unavailable or rate-limited work.
    */
-  readonly timeout?: number
+  readonly timeoutSeconds?: number
 }
+
+const PULL_VOLUME_KEYS = optionKeys<PullVolumeOptions>()({ requestId: true, timeoutSeconds: true })
 
 export interface PullVolumeResult {
   readonly manifestId: string | null
@@ -46,22 +49,31 @@ function assertId(value: string, name: string): void {
 
 /** Pull attached volumes in this sandbox; distinct from the platform volume service. */
 export class SandboxVolumesService {
-  constructor(private readonly transport: HttpTransport) {}
+  private constructor(private readonly transport: HttpTransport) {}
+
+  /** @internal */
+  static _create(transport: HttpTransport): SandboxVolumesService {
+    return new SandboxVolumesService(transport)
+  }
 
   /** One submission/check only. Pending and errors never trigger automatic retries. */
   public async pull(volumeId: string, options: PullVolumeOptions): Promise<PullVolumeResult> {
+    assertKnownOptions('PullVolumeOptions', options, PULL_VOLUME_KEYS)
     assertId(volumeId, 'volumeId')
     assertId(options.requestId, 'requestId')
-    if (options.timeout !== undefined && (!Number.isInteger(options.timeout) || options.timeout < 0 || options.timeout > 30_000)) {
-      throw new BadRequestError('timeout must be an integer in 0..30000 milliseconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
+    if (timeoutSeconds !== undefined && timeoutSeconds > 30) {
+      throw new BadRequestError('timeoutSeconds must be in 0..30 seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
+    const waitMs = timeoutSeconds === undefined ? undefined
+      : timeoutSeconds === 0 ? 0 : Math.max(1, Math.floor(timeoutSeconds * 1000))
     const body: toolbox.PullVolumeRequest = {
       requestId: options.requestId,
-      ...(options.timeout === undefined ? {} : { waitMs: options.timeout }),
+      waitMs,
     }
     // Leave time to receive pending after the server wait, including a zero wait.
     return pullVolumeResult(await this.transport.post<toolbox.PullVolumeResponse>(`/volumes/${strictUriEncode(volumeId)}/pull`, body, {
-      timeout: (options.timeout ?? 30_000) + WAIT_READ_SLACK_MS,
+      timeout: (waitMs ?? 30_000) + WAIT_READ_SLACK_MS,
     }))
   }
 }

@@ -29,7 +29,7 @@ describe('sandbox secret validation parity', () => {
     try {
       let thrown: unknown
       try {
-        await client.replaceSandboxSecrets('sbx', [], { ifMatch: '"sv-9"' })
+      await lazySandbox(client, 'sbx').replaceSecrets([], { ifMatch: '"sv-9"' })
       } catch (error) {
         thrown = error
       }
@@ -46,8 +46,7 @@ describe('sandbox secret validation parity', () => {
     // Given
     const api = await startFakeApi([{ status: 200, headers: { ETag: '"sv-1"' }, body: { secrets: ['TOKEN'], desired_revision: 1 } }])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = sandboxClass
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass })
     try {
       // When
       const secrets = await sandbox.getSecrets()
@@ -64,8 +63,8 @@ describe('sandbox secret validation parity', () => {
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     const plainObject = JSON.parse('{"NAME":"value"}')
     try {
-      await expect(client.replaceSandboxSecrets('sbx', plainObject, { ifMatch: '"sv-1"' })).rejects.toBeInstanceOf(BadRequestError)
-      await expect(client.replaceSandboxSecrets('sbx', plainObject, { ifMatch: '"sv-1"' })).rejects.toThrow('sandbox secrets must be an array of strings')
+    await expect(lazySandbox(client, 'sbx').replaceSecrets(plainObject, { ifMatch: '"sv-1"' })).rejects.toBeInstanceOf(BadRequestError)
+    await expect(lazySandbox(client, 'sbx').replaceSecrets(plainObject, { ifMatch: '"sv-1"' })).rejects.toThrow('sandbox secrets must be an array of strings')
     } finally {
       await api.close()
     }

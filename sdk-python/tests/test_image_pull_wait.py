@@ -9,9 +9,9 @@ import pytest
 from daytona.v2 import _clock
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.errors import BadRequestError, ImageBuildFailedError, RequestTimeoutError
-from daytona.v2.services import AsyncImageService
+from daytona.v2.services import AsyncImagesService
 
-ImageFixture = tuple[AsyncImageService, list[str], list[httpx.Request]]
+ImageFixture = tuple[AsyncImagesService, list[str], list[httpx.Request]]
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ async def image_service() -> AsyncIterator[ImageFixture]:
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
-        yield AsyncImageService(AsyncTransport("https://api.test", client=client)), statuses, requests
+        yield AsyncImagesService(AsyncTransport("https://api.test", client=client)), statuses, requests
 
 
 @pytest.mark.anyio
@@ -144,13 +144,14 @@ async def test_pull_rejects_late_terminal_results_when_clock_crosses_deadline(
                 "id": "img-pull",
                 "region_id": "region-c",
                 "origin": "registry",
+                "created_at": "2026-01-01T00:00:00Z",
                 "status": "building" if len(requests) < phase else status,
                 "error": "registry denied",
             },
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
-        service = AsyncImageService(AsyncTransport("https://api.test", client=client))
+        service = AsyncImagesService(AsyncTransport("https://api.test", client=client))
         # When the same pull budget covers submission, initial lookup, and poll.
         if arrival >= 0.1:
             with pytest.raises(RequestTimeoutError, match="^image pull did not finish before timeout$"):

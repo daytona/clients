@@ -2,9 +2,9 @@
  * dockerfile-sandbox — the happy path: build a Dockerfile, get a working
  * sandbox, do real work in it.
  *
- * One call takes an inline Dockerfile to a RUNNING sandbox: Daytona builds the
- * image, boots it, and hands back something you can immediately run commands
- * in. No image to register first, no build to poll.
+ * One call builds an inline Dockerfile and waits for a sandbox to boot. Check
+ * the returned state before running commands: the readiness wait can expire.
+ * The image build and sandbox readiness have independent time budgets.
  *
  * The Dockerfile bakes in a script, a data file and an environment variable,
  * and the sandbox then proves all three survived into the running sandbox —
@@ -44,6 +44,7 @@ async function main() {
     section('build the Dockerfile and boot it, in one call')
     sandbox = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `dockerfile-sandbox-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     info(`sandbox ${sandbox.id}`)
@@ -96,6 +97,7 @@ async function main() {
     section('create a second sandbox from the same Dockerfile')
     const twin = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `dockerfile-sandbox-twin-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     try {

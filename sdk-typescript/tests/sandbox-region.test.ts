@@ -4,7 +4,7 @@
  */
 
 import { Daytona } from '../src/v2/Daytona'
-import { Sandbox } from '../src/v2/Sandbox'
+import { createSandbox } from './helpers/sandbox'
 import { startFakeApi } from './networkPolicyTestServer'
 
 describe('sandbox region', () => {
@@ -71,7 +71,7 @@ describe('sandbox region', () => {
     // Given serialized metadata with an empty region.
     const info = { sandboxId: '57VSdKNrJGxnSAabjcHD4M-region-a', region: '' }
     // When a low-level handle is constructed.
-    const sandbox = new Sandbox(info, undefined, undefined, undefined)
+    const sandbox = createSandbox(info)
     // Then the complete region tag remains available.
     expect(sandbox.region).toBe('region-a')
   })
@@ -81,7 +81,7 @@ describe('sandbox region', () => {
     { id: '57VSdKNrJGxnSAabjcHD4M', expected: undefined },
   ])('preserves the id-derived region in handle JSON for $id', ({ id, expected }) => {
     // Given a metadata-less handle with only its id.
-    const sandbox = new Sandbox(id, undefined, undefined, undefined)
+    const sandbox = createSandbox(id)
     // When the handle is serialized.
     const payload = sandbox.toJSON()
     // Then the recovered region survives, without inventing one for untagged ids.

@@ -6,7 +6,7 @@
 import axios from 'axios'
 import type * as api from '../src/v2/gen/api-types.js'
 import { ReservationsService } from '../src/v2/Reservations.js'
-import type { MacReservation } from '../src/v2/types.js'
+import type { MacReservation } from '../src/v2/macTypes.js'
 
 // Full API response fixture, including optional lifecycle and billing fields.
 const wire = {
@@ -65,22 +65,22 @@ describe('reservation wire-to-public fields', () => {
       config, status: 200, statusText: 'OK', headers: {}, data: wire,
     }) })
     // When
-    const result = await new ReservationsService(http).get(wire.id)
+    const result = await ReservationsService._create(http).get(wire.id)
     // Then: exact shapes also exclude the renamed snake_case keys.
     expect(result.capacity).toEqual({ cores: 10, memoryMib: 16384, diskMib: 235520 })
     expect(result.resourcesUsed).toEqual({ cores: 5, memoryMib: 8192, diskMib: 117760 })
   })
 
-  it('preserves unknown top-level fields when the API adds reservation metadata', async () => {
-    // Given: future fields keep their wire names, including snake_case names.
+  it('ignores unknown top-level fields when the API adds reservation metadata', async () => {
+    // Given: future fields include a nested object and snake_case names.
     const futureFields = { future_metadata: { revision: 2 }, futureFlag: true }
     const http = axios.create({ adapter: async (config) => ({
       config, status: 200, statusText: 'OK', headers: {}, data: { ...wire, ...futureFields },
     }) })
     // When
-    const result = await new ReservationsService(http).get(wire.id)
-    // Then: known renamed keys remain absent, while future fields survive.
-    expect(result).toEqual({ ...expected, ...futureFields })
+    const result = await ReservationsService._create(http).get(wire.id)
+    // Then: only the SDK-owned model is returned.
+    expect(result).toEqual(expected)
   })
 
   it.each(operations)('maps every API field when %s returns a reservation', async (_name, operation) => {
@@ -93,9 +93,21 @@ describe('reservation wire-to-public fields', () => {
           ? { reservations: [wire], next_cursor: null } : wire,
     }) })
     // When
-    const result = await operation(new ReservationsService(http))
+    const result = await operation(ReservationsService._create(http))
     // Then: known renamed snake_case fields are absent from the public object.
     expect(result).toEqual(expected)
+  })
+
+  it('exposes only SDK batch fields when a bulk purchase includes future metadata', async () => {
+    // Given
+    const http = axios.create({ adapter: async (config) => ({
+      config, status: 200, statusText: 'OK', headers: {},
+      data: { requested: 2, reserved: 1, reservations: [wire], future_metadata: true },
+    }) })
+    // When
+    const result = await ReservationsService._create(http).createBulk({ region: wire.region_id, count: 2, minCount: 1 })
+    // Then
+    expect(result).toEqual({ requested: 2, reserved: 1, reservations: [expected] })
   })
 
   it('preserves raw values when reservation enums are unknown', async () => {
@@ -105,13 +117,13 @@ describe('reservation wire-to-public fields', () => {
       data: { ...wire, status: 'future_status', origin: 'future_origin', end_reason: 'future_reason' },
     }) })
     // When
-    const result = await new ReservationsService(http).get(wire.id)
+    const result = await ReservationsService._create(http).get(wire.id)
     // Then
     expect(result).toEqual({ ...expected, status: 'unknown', rawStatus: 'future_status',
       origin: 'unknown', rawOrigin: 'future_origin', endReason: 'unknown', rawEndReason: 'future_reason' })
   })
 
-  it.each([null, undefined])('preserves nullable fields when the wire value is %s', async (value) => {
+  it.each([null, undefined])('normalizes optional fields when the wire value is %s', async (value) => {
     // Given: a reservation that has not acquired a Mac or started its period.
     const http = axios.create({ adapter: async (config) => ({
       config, status: 200, statusText: 'OK', headers: {},
@@ -121,11 +133,11 @@ describe('reservation wire-to-public fields', () => {
         period_started_at: value, reissued_at: value, renewal_error: value }),
     }) })
     // When
-    const result = await new ReservationsService(http).get(wire.id)
+    const result = await ReservationsService._create(http).get(wire.id)
     // Then
     expect(result).toEqual({ ...expected, autoRenew: true, slotsUsed: 0,
-      activatedAt: value, capacity: value, model: value, endReason: value, rawEndReason: value,
-      endedAt: value, pendingMacStartedAt: value, periodEnd: value,
-      periodStartedAt: value, reissuedAt: value, renewalError: value })
+      activatedAt: undefined, capacity: undefined, model: undefined, endReason: undefined, rawEndReason: undefined,
+      endedAt: undefined, pendingMacStartedAt: undefined, periodEnd: undefined,
+      periodStartedAt: undefined, reissuedAt: undefined, renewalError: undefined })
   })
 })

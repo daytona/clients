@@ -11,6 +11,7 @@ import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import { HttpTransport } from './http.js'
 import type { ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, SignedPreviewLink } from './types.js'
+import { assertKnownOptions, optionKeys } from './options.js'
 
 /**
  * Request header (and its value) that skips the preview warning page. Send it
@@ -21,15 +22,8 @@ export const PREVIEW_WARNING_SKIP_HEADER_VALUE = 'true'
 
 const JWT_SEGMENT = /^[A-Za-z0-9_-]+$/
 
-export type PortListResponse = toolbox.PortList
-export type PortInUseResponse = toolbox.PortInUseResponse
-
 export interface ExposePortOptions {
   readonly public?: boolean
-}
-
-export interface SetPortPublicOptions {
-  readonly public: boolean
 }
 
 export interface SignedPreviewLinkOptions {
@@ -40,6 +34,10 @@ export interface ListEndpointsOptions {
   readonly cursor?: string
   readonly limit?: number
 }
+
+const EXPOSE_PORT_KEYS = optionKeys<ExposePortOptions>()({ public: true })
+const SIGNED_PREVIEW_LINK_KEYS = optionKeys<SignedPreviewLinkOptions>()({ expiresInSeconds: true })
+const LIST_ENDPOINTS_KEYS = optionKeys<ListEndpointsOptions>()({ cursor: true, limit: true })
 
 function assertPort(port: number): void {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -61,12 +59,12 @@ function assertSignedPreviewTtl(expiresInSeconds: number): void {
 }
 
 function mapPreviewEndpoint(endpoint: api.PreviewEndpoint): PreviewEndpoint {
-  return {
+  return credentialSafeInspection({
     port: endpoint.port,
     public: endpoint.public,
     url: endpoint.url,
     createdAt: endpoint.created_at,
-  }
+  }, () => ({ type: 'PreviewEndpoint', port: endpoint.port, public: endpoint.public, createdAt: endpoint.created_at }))
 }
 
 function previewLinkValue(url: string, token: string, expiresAt: string | undefined): PreviewLink {
@@ -108,7 +106,7 @@ function previewTokenExpiry(token: string): string | undefined {
 
 /** Sandbox port namespace — what is listening inside the sandbox. */
 export class PortsService {
-  constructor(
+  private constructor(
     private readonly transport: HttpTransport | undefined,
     private readonly api?: AxiosInstance,
     private readonly sandboxId?: string,
@@ -119,9 +117,19 @@ export class PortsService {
     credentialSafeDiagnostics(this, () => ({ type: 'PortsService' }))
   }
 
+  /** @internal */
+  static _create(
+    transport: HttpTransport | undefined,
+    api?: AxiosInstance,
+    sandboxId?: string,
+    mintPreviewToken?: (port: number) => Promise<SandboxAccessToken | undefined>,
+  ): PortsService {
+    return new PortsService(transport, api, sandboxId, mintPreviewToken)
+  }
+
   /** Every TCP port currently listening in the sandbox. */
   public async list(): Promise<ListResult<number>> {
-    const response = await this.requireToolbox().get<PortListResponse>('/port')
+    const response = await this.requireToolbox().get<toolbox.PortList>('/port')
     return { items: response.ports }
   }
 
@@ -139,6 +147,7 @@ export class PortsService {
   }
 
   public async listEndpoints(options: ListEndpointsOptions = {}): Promise<ListResult<PreviewEndpoint>> {
+    assertKnownOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS)
     const page = await this.requireApi()
       .get<api.EndpointListResponse>(this.portsPath(), { params: options })
       .then((response) => response.data)
@@ -146,6 +155,7 @@ export class PortsService {
   }
 
   public async *iterEndpoints(options: ListEndpointsOptions = {}): AsyncIterable<PreviewEndpoint> {
+    assertKnownOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS)
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -173,28 +183,10 @@ export class PortsService {
    * @returns {@link PreviewEndpoint} with the URL.
    */
   public async expose(port: number, options: ExposePortOptions = {}): Promise<PreviewEndpoint> {
+    assertKnownOptions('ExposePortOptions', options, EXPOSE_PORT_KEYS)
     assertPort(port)
     const isPublic = options.public ?? false
     const body: api.SetSandboxPortRequest = { public: isPublic }
-    return this.requireApi().put<api.PreviewEndpoint>(this.portPath(port), body).then((response) => mapPreviewEndpoint(response.data))
-  }
-
-  /**
-   * Set the visibility of a port, exposing it first when it is not exposed yet
-   * (the same idempotent upsert {@link expose} performs).
-   *
-   * Public endpoints need no credential. Programmatic access to a private one
-   * needs the token from {@link previewLink} or a {@link signedPreviewLink}
-   * URL.
-   *
-   * @param port TCP port inside the sandbox.
-   * @param options.public `true` to make the endpoint publicly accessible;
-   *   `false` to restrict it to credentialed callers.
-   * @returns Updated {@link PreviewEndpoint}.
-   */
-  public async setPublic(port: number, options: SetPortPublicOptions): Promise<PreviewEndpoint> {
-    assertPort(port)
-    const body: api.SetSandboxPortRequest = { public: options.public }
     return this.requireApi().put<api.PreviewEndpoint>(this.portPath(port), body).then((response) => mapPreviewEndpoint(response.data))
   }
 
@@ -266,6 +258,7 @@ export class PortsService {
    * ```
    */
   public async signedPreviewLink(port: number, options: SignedPreviewLinkOptions = {}): Promise<SignedPreviewLink> {
+    assertKnownOptions('SignedPreviewLinkOptions', options, SIGNED_PREVIEW_LINK_KEYS)
     assertPort(port)
     if (options.expiresInSeconds !== undefined) assertSignedPreviewTtl(options.expiresInSeconds)
     const path = `/sandboxes/${strictUriEncode(this.requireSandboxId())}/ports/${port}/signed-preview-urls`

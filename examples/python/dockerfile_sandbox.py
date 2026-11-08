@@ -56,6 +56,7 @@ def main() -> int:
         sandbox = daytona.create_from_build(
             ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"dockerfile-sandbox-{RUN}",
+            build_timeout=400,
             wait_seconds=400,
         )
         info(f"sandbox {sandbox.id}")
@@ -109,6 +110,7 @@ def main() -> int:
         twin = daytona.create_from_build(
             ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"dockerfile-sandbox-twin-{RUN}",
+            build_timeout=400,
             wait_seconds=400,
         )
         try:

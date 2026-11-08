@@ -4,7 +4,7 @@
  */
 
 /*
- * Daytona SDK — SecretService.
+ * Daytona SDK — SecretsService.
  *
  * Project-scoped secrets: named key/value pairs. Attach one or more to a
  * sandbox at creation through the `secrets` option (a list of names).
@@ -19,18 +19,25 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import type * as api from './gen/api-types.js'
 import type { ListResult } from './types.js'
 import { strictUriEncode } from './http.js'
+import { assertKnownOptions, optionKeys } from './options.js'
 
 /** Secret metadata (never the value). */
-export type Secret = api.Secret
+export interface Secret {
+  readonly name: string
+  readonly allowedDomains: readonly string[]
+  readonly description?: string
+  readonly createdAt: string
+  readonly updatedAt: string
+}
 
 /** Options for creating/updating a secret. */
 export interface SetSecretOptions {
   /** The hosts where this secret's value may be sent (exact or `*.` wildcard),
    *  or `["*"]` for any verified host. `"*"` lets the value reach any HTTPS
    *  host, including one a compromised sandbox controls. */
-  allowedDomains: string[]
-  description?: string
-  ifNotExists?: boolean
+  readonly allowedDomains: readonly string[]
+  readonly description?: string
+  readonly ifNotExists?: boolean
 }
 
 export interface ListSecretsOptions {
@@ -38,19 +45,39 @@ export interface ListSecretsOptions {
   readonly limit?: number
 }
 
+const SET_SECRET_KEYS = optionKeys<SetSecretOptions>()({ allowedDomains: true, description: true, ifNotExists: true })
+const LIST_SECRETS_KEYS = optionKeys<ListSecretsOptions>()({ cursor: true, limit: true })
+
+function mapSecret(secret: api.Secret): Secret {
+  return {
+    name: secret.name,
+    allowedDomains: [...secret.allowed_domains],
+    description: secret.description ?? undefined,
+    createdAt: secret.created_at,
+    updatedAt: secret.updated_at,
+  }
+}
+
 /** Service for managing project-scoped secrets. */
-export class SecretService {
-  constructor(private readonly api: AxiosInstance) {
-    credentialSafeDiagnostics(this, () => ({ type: 'SecretService' }))
+export class SecretsService {
+  private constructor(private readonly api: AxiosInstance) {
+    credentialSafeDiagnostics(this, () => ({ type: 'SecretsService' }))
+  }
+
+  /** @internal */
+  static _create(api: AxiosInstance): SecretsService {
+    return new SecretsService(api)
   }
 
   /** Lists secret metadata for the project (never values). */
   public async list(options: ListSecretsOptions = {}): Promise<ListResult<Secret>> {
+    assertKnownOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS)
     const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: options })
-    return { items: data.secrets, nextCursor: data.next_cursor ?? undefined }
+    return { items: data.secrets.map(mapSecret), nextCursor: data.next_cursor ?? undefined }
   }
 
   public async *iter(options: ListSecretsOptions = {}): AsyncIterable<Secret> {
+    assertKnownOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS)
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -66,22 +93,17 @@ export class SecretService {
   /** Gets one secret's metadata (never its value). */
   public async get(name: string): Promise<Secret> {
     const { data } = await this.api.get<api.Secret>(`/secrets/${strictUriEncode(name)}`)
-    return { name: data.name, allowed_domains: data.allowed_domains, description: data.description ?? null, created_at: data.created_at ?? null, updated_at: data.updated_at ?? null }
+    return mapSecret(data)
   }
 
   /** Creates or updates a secret's value + metadata. */
   public async set(name: string, value: string, options: SetSecretOptions): Promise<Secret> {
-    const body: api.PutSecretRequest = { value, allowed_domains: options.allowedDomains }
+    assertKnownOptions('SetSecretOptions', options, SET_SECRET_KEYS)
+    const body: api.PutSecretRequest = { value, allowed_domains: [...options.allowedDomains] }
     if (options.description !== undefined) body.description = options.description
     const config = options.ifNotExists ? { headers: { 'If-None-Match': '*' } } : undefined
-    return this.api.put<api.Secret>(`/secrets/${strictUriEncode(name)}`, body, config)
-      .then((response) => ({
-        name: response.data.name,
-        allowed_domains: response.data.allowed_domains,
-        description: response.data.description ?? null,
-        created_at: response.data.created_at,
-        updated_at: response.data.updated_at,
-      }))
+    const { data } = await this.api.put<api.Secret>(`/secrets/${strictUriEncode(name)}`, body, config)
+    return mapSecret(data)
   }
 
   public async delete(name: string): Promise<void> {

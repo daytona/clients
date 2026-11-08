@@ -82,7 +82,7 @@ async def test_get_network_policy_returns_etag_and_read_side_versions() -> None:
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            policy = await client.get_network_policy("sbx")
+            policy = await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()
 
@@ -128,12 +128,11 @@ async def test_update_and_reset_network_policy_use_exact_path_headers_and_actual
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            updated = await client.update_network_policy(
-                "sbx",
+            updated = await lazy_sandbox(client, "sbx").update_network_policy(
                 network_policy={"block_all": True, "allow_cidrs": [], "allow_domains": []},
                 if_match='"np-1"',
             )
-            reset = await client.reset_network_policy("sbx", if_match='"np-2"')
+            reset = await lazy_sandbox(client, "sbx").reset_network_policy(if_match='"np-2"')
         finally:
             await client.close()
 
@@ -263,7 +262,7 @@ async def test_network_policy_response_parser_accepts_non_api_200_compat_success
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            policy = await client.get_network_policy("sbx")
+            policy = await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()
 
@@ -292,6 +291,6 @@ async def test_malformed_server_network_policy_arrays_raise_internal_server_erro
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
             with pytest.raises(InternalServerError, match="desired.allow_cidrs must be an array of strings"):
-                await client.get_network_policy("sbx")
+                await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()

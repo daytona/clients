@@ -24,9 +24,9 @@ class FileSystemService:
 
     _async_type = _async.AsyncFileSystemService
 
-    def __init__(self, impl: _async.AsyncFileSystemService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncFileSystemService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"FileSystemService({self._impl!r})"
@@ -168,9 +168,9 @@ class WatchHandle:
 
     _async_type = _async.AsyncWatchHandle
 
-    def __init__(self, impl: _async.AsyncWatchHandle, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncWatchHandle, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"WatchHandle({self._impl!r})"

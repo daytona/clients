@@ -25,6 +25,7 @@ async function main() {
     let started = Date.now()
     const first = await daytona.createFromBuild(ImageBuilder.fromDockerfile(dockerfile), {
       name: `dynbuild-first-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     sandboxes.push(first)
@@ -52,6 +53,7 @@ async function main() {
     started = Date.now()
     const second = await daytona.createFromBuild(ImageBuilder.fromDockerfile(dockerfile), {
       name: `dynbuild-second-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     sandboxes.push(second)
@@ -76,6 +78,7 @@ async function main() {
     section("change the Dockerfile's output")
     const other = await daytona.createFromBuild(ImageBuilder.fromDockerfile(`FROM ${IMAGE}\nRUN echo other-${RUN} > /marker\n`), {
       name: `dynbuild-other-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     sandboxes.push(other)

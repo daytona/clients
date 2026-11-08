@@ -11,7 +11,7 @@ from typing_extensions import assert_never
 
 from daytona.v2._gen.api import MacReservation as WireReservation
 from daytona.v2._transport import AsyncTransport
-from daytona.v2.services import AsyncReservationService
+from daytona.v2.services import AsyncReservationsService
 
 # Full API response fixture, including optional lifecycle and billing fields.
 WIRE: Final = {
@@ -76,7 +76,7 @@ async def test_every_reservation_field_when_returned_by_service(operation: Opera
     # The public dataclass names the region `region`; the wire calls it `region_id`.
     expected["region"] = expected.pop("region_id")
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
-        service = AsyncReservationService(AsyncTransport("https://api.test", client=http))
+        service = AsyncReservationsService(AsyncTransport("https://api.test", client=http))
         # When
         match operation:
             case "get":
@@ -96,10 +96,8 @@ async def test_every_reservation_field_when_returned_by_service(operation: Opera
     # Then: every generated reservation field is present in the public dataclass.
     assert set(WIRE) == set(WireReservation.model_fields) - {"additional_properties"}
     actual = asdict(result)
-    actual["capacity"] = (
-        result.capacity.model_dump(exclude={"additional_properties"}) if result.capacity is not None else None
-    )
-    actual["resources_used"] = result.resources_used.model_dump(exclude={"additional_properties"})
+    actual["capacity"] = asdict(result.capacity) if result.capacity is not None else None
+    actual["resources_used"] = asdict(result.resources_used)
     assert actual == expected
 
 
@@ -126,7 +124,7 @@ async def test_optional_reservation_fields_when_null_or_omitted(omit: bool) -> N
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
     ) as http:
-        service = AsyncReservationService(AsyncTransport("https://api.test", client=http))
+        service = AsyncReservationsService(AsyncTransport("https://api.test", client=http))
         # When
         result = await service.get("region-a:reservation-1")
     # Then
@@ -142,7 +140,7 @@ async def test_raw_reservation_enums_when_wire_values_are_unknown() -> None:
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
     ) as http:
-        service = AsyncReservationService(AsyncTransport("https://api.test", client=http))
+        service = AsyncReservationsService(AsyncTransport("https://api.test", client=http))
         # When
         result = await service.get("region-a:reservation-1")
     # Then

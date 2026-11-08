@@ -58,7 +58,7 @@ def test_pull_pending_replay_and_transport_parity(asynchronous: bool) -> None:
 
         async def run() -> None:
             transport = async_transport(handler, "http://sandbox.invalid/sbx%2F%21%27")
-            sandbox = AsyncSandbox.from_api({"id": "sbx", "status": "running"}, None, transport)
+            sandbox = AsyncSandbox._from_api({"id": "sbx", "status": "running"}, None, transport)
             try:
                 for timeout in (0, 30, None):
                     results.append(
@@ -71,7 +71,7 @@ def test_pull_pending_replay_and_transport_parity(asynchronous: bool) -> None:
     else:
         transport = async_transport(handler, "http://sandbox.invalid/sbx%2F%21%27")
         bridge = SyncBridge(name="Sandbox")
-        sandbox = Sandbox(AsyncSandbox.from_api({"id": "sbx", "status": "running"}, None, transport), bridge)
+        sandbox = Sandbox(AsyncSandbox._from_api({"id": "sbx", "status": "running"}, None, transport), bridge)
         try:
             assert isinstance(sandbox.volumes, SandboxVolumesService)
             for timeout in (0, 30, None):
@@ -80,9 +80,13 @@ def test_pull_pending_replay_and_transport_parity(asynchronous: bool) -> None:
             bridge.call(transport._client.aclose)
             bridge.close()
     assert results == [
-        PullVolumeResult("request_1", "pending", None, "pending"),
-        PullVolumeResult("request_1", "pulled", "manifest-1", "pulled"),
-        PullVolumeResult("request_1", "pulled", "manifest-1", "pulled"),
+        PullVolumeResult(request_id="request_1", status="pending", manifest_id=None, raw_status="pending"),
+        PullVolumeResult(
+            request_id="request_1", status="pulled", manifest_id="manifest-1", raw_status="pulled"
+        ),
+        PullVolumeResult(
+            request_id="request_1", status="pulled", manifest_id="manifest-1", raw_status="pulled"
+        ),
     ]
     assert len(requests) == 3  # No automatic polling, submission, or new identity.
     assert all(request.method == "POST" for request in requests)
@@ -125,7 +129,9 @@ def test_pull_http_budget(asynchronous: bool, timeout: float | None) -> None:
             bridge.call(transport._client.aclose)
             bridge.close()
 
-    assert result == PullVolumeResult("r", "pending", None, "pending")
+    assert result == PullVolumeResult(
+        request_id="r", status="pending", manifest_id=None, raw_status="pending"
+    )
     assert len(requests) == 1  # Pending does not cause an automatic retry.
     expected_body = {"requestId": "r", **({} if timeout is None else {"waitMs": int(timeout * 1000)})}
     assert json.loads(requests[0].content) == expected_body
@@ -170,13 +176,13 @@ def test_sub_millisecond_timeout_stays_a_retry(timeout: float, wait_ms: int) -> 
 def test_unchanged_nullable_manifest(manifest_id: str | None) -> None:
     assert parse_pull_volume(
         {"requestId": "r", "status": "unchanged", "manifestId": manifest_id}
-    ) == PullVolumeResult("r", "unchanged", manifest_id, "unchanged")
+    ) == PullVolumeResult(request_id="r", status="unchanged", manifest_id=manifest_id, raw_status="unchanged")
 
 
 def test_unlisted_pull_status_passes_through() -> None:
     assert parse_pull_volume(
         {"requestId": "r", "status": "superseded", "manifestId": None}
-    ) == PullVolumeResult("r", "unknown", None, "superseded")
+    ) == PullVolumeResult(request_id="r", status="unknown", manifest_id=None, raw_status="superseded")
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])

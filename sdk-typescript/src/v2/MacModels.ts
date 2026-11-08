@@ -6,7 +6,11 @@
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import type * as api from './gen/api-types.js'
-import type { MacCatalog, MacModel } from './types.js'
+import type { MacCatalog, MacCatalogOptions, MacModel } from './macTypes.js'
+import { mapMacModel } from './macMappers.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+
+const MAC_CATALOG_KEYS = optionKeys<MacCatalogOptions>()({ region: true })
 
 /**
  * The Mac model registry (`GET /mac-models`): the models `reservations.create({ model })`
@@ -14,19 +18,40 @@ import type { MacCatalog, MacModel } from './types.js'
  * sandbox disk room in MiB, maximum sandbox count, and default sandbox size. `catalog()` adds free Macs and prices.
  */
 export class MacModelsService {
-  constructor(private readonly http: AxiosInstance) {
+  private constructor(private readonly http: AxiosInstance) {
     credentialSafeDiagnostics(this, () => ({ type: 'MacModelsService' }))
   }
 
-  /** Every registered Mac model, ordered by `id`. */
-  public async list(): Promise<MacModel[]> {
-    const { data } = await this.http.get<api.MacModelList>('/mac-models')
-    return data.mac_models
+  /** @internal */
+  static _create(http: AxiosInstance): MacModelsService {
+    return new MacModelsService(http)
   }
 
-  /** Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; price is null when pricing is unavailable. */
-  public async catalog(options: { region?: string } = {}): Promise<MacCatalog> {
-    const { data } = await this.http.get<MacCatalog>('/mac-catalog', options.region === undefined ? undefined : { params: { region_ids: options.region } })
-    return data
+  /** Every registered Mac model, ordered by `id`. */
+  public async list(): Promise<readonly MacModel[]> {
+    const { data } = await this.http.get<api.MacModelList>('/mac-models')
+    return data.mac_models.map(mapMacModel)
+  }
+
+  /** Free Macs and prices per model. Availability is advisory; price is absent when unavailable. */
+  public async catalog(options: MacCatalogOptions = {}): Promise<MacCatalog> {
+    assertKnownOptions('MacCatalogOptions', options, MAC_CATALOG_KEYS)
+    const { data } = await this.http.get<api.MacCatalog>('/mac-catalog', options.region === undefined ? undefined : { params: { region_ids: options.region } })
+    return {
+      regions: data.regions.map((region) => ({
+        id: region.id,
+        defaultModel: region.default_model,
+        models: region.models.map((entry) => ({
+          model: mapMacModel(entry.model),
+          available: entry.available,
+          price: entry.price == null ? undefined : {
+            centsPerHour: entry.price.cents_per_hour,
+            periodCents: entry.price.period_cents,
+            periodSeconds: entry.price.period_seconds,
+            currency: entry.price.currency,
+          },
+        })),
+      })),
+    }
   }
 }

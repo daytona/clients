@@ -18,18 +18,18 @@ from typing_extensions import Self
 from .. import daytona as _async
 from .._bridge import SyncBridge
 from ..daytona import *
-from ..daytona import _UNSET_NETWORK_POLICY, _UnsetNetworkPolicy
+from ..daytona import _UNSET_NETWORK_POLICY
 from . import _runtime as _rt
 
 if TYPE_CHECKING:
     from .sandbox import Sandbox
     from .services import (
-        ImageService,
-        MacModelService,
-        ReservationService,
-        SecretService,
-        SnapshotService,
-        VolumeService,
+        ImagesService,
+        MacModelsService,
+        ReservationsService,
+        SecretsService,
+        SnapshotsService,
+        VolumesService,
     )
 
 
@@ -52,46 +52,40 @@ class Daytona:
         return hash(self._impl)
 
     @property
-    def images(self) -> ImageService:
-        from .services import ImageService
+    def images(self) -> ImagesService:
+        from .services import ImagesService
 
-        return ImageService(self._impl.images, self._bridge)
-
-    @property
-    def snapshots(self) -> SnapshotService:
-        from .services import SnapshotService
-
-        return SnapshotService(self._impl.snapshots, self._bridge)
+        return ImagesService(self._impl.images, self._bridge)
 
     @property
-    def volume(self) -> VolumeService:
-        from .services import VolumeService
+    def snapshots(self) -> SnapshotsService:
+        from .services import SnapshotsService
 
-        return VolumeService(self._impl.volume, self._bridge)
-
-    @property
-    def secret(self) -> SecretService:
-        from .services import SecretService
-
-        return SecretService(self._impl.secret, self._bridge)
+        return SnapshotsService(self._impl.snapshots, self._bridge)
 
     @property
-    def secrets(self) -> SecretService:
-        from .services import SecretService
+    def volumes(self) -> VolumesService:
+        from .services import VolumesService
 
-        return SecretService(self._impl.secrets, self._bridge)
-
-    @property
-    def reservations(self) -> ReservationService:
-        from .services import ReservationService
-
-        return ReservationService(self._impl.reservations, self._bridge)
+        return VolumesService(self._impl.volumes, self._bridge)
 
     @property
-    def mac_models(self) -> MacModelService:
-        from .services import MacModelService
+    def secrets(self) -> SecretsService:
+        from .services import SecretsService
 
-        return MacModelService(self._impl.mac_models, self._bridge)
+        return SecretsService(self._impl.secrets, self._bridge)
+
+    @property
+    def reservations(self) -> ReservationsService:
+        from .services import ReservationsService
+
+        return ReservationsService(self._impl.reservations, self._bridge)
+
+    @property
+    def mac_models(self) -> MacModelsService:
+        from .services import MacModelsService
+
+        return MacModelsService(self._impl.mac_models, self._bridge)
 
     def __enter__(self) -> Self:
         self._bridge.call(self._impl.__aenter__)
@@ -110,27 +104,24 @@ class Daytona:
         /,
         *,
         name: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
         resources: Optional[Resources] = None,
-        cpu: Optional[float] = None,
-        memory: Optional[int] = None,
-        disk: Optional[int] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
         spot: Optional[bool] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
+        user: Optional[str] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
         cpu_arch: Optional[str] = None,
         cpu_type: Optional[str] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
     ) -> Sandbox:
-        """Create from a registered image name or ``img_…`` id."""
+        """Create a Linux sandbox from a registered image name or ``img_…`` id."""
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -141,19 +132,16 @@ class Daytona:
                     env=env,
                     labels=labels,
                     resources=resources,
-                    cpu=cpu,
-                    memory=memory,
-                    disk=disk,
                     ports=ports,
                     volumes=volumes,
                     secrets=secrets,
                     spot=spot,
+                    user=user,
                     lifecycle_policy=lifecycle_policy,
                     network_policy=network_policy,
                     cpu_arch=cpu_arch,
                     cpu_type=cpu_type,
                     region=region,
-                    toolbox_url=toolbox_url,
                     idempotency_key=idempotency_key,
                     wait_seconds=wait_seconds,
                     create_timeout_seconds=create_timeout_seconds,
@@ -167,17 +155,52 @@ class Daytona:
         builder: ImageBuilder,
         /,
         *,
+        name: Optional[str] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
+        resources: Optional[Resources] = None,
+        ports: Optional[Sequence[PortMapping]] = None,
+        volumes: Optional[Sequence[VolumeMount]] = None,
+        secrets: Optional[Sequence[str]] = None,
+        spot: Optional[bool] = None,
+        user: Optional[str] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
+        cpu_arch: Optional[str] = None,
+        cpu_type: Optional[str] = None,
+        region: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
+        wait_seconds: int = 60,
+        create_timeout_seconds: Optional[int] = None,
         idle_expiry_seconds: Optional[int] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
-        **kwargs,
+        build_timeout: Optional[float] = None,
     ) -> Sandbox:
-        """Build an anonymous image first, then create the sandbox from it."""
+        """Build an anonymous image from ``builder``, wait for it, then create the sandbox from it."""
         from .sandbox import Sandbox
 
         return Sandbox(
             self._bridge.call(
                 lambda: self._impl.create_from_build(
-                    builder, idle_expiry_seconds=idle_expiry_seconds, network_policy=network_policy, **kwargs
+                    builder,
+                    name=name,
+                    env=env,
+                    labels=labels,
+                    resources=resources,
+                    ports=ports,
+                    volumes=volumes,
+                    secrets=secrets,
+                    spot=spot,
+                    user=user,
+                    lifecycle_policy=lifecycle_policy,
+                    network_policy=network_policy,
+                    cpu_arch=cpu_arch,
+                    cpu_type=cpu_type,
+                    region=region,
+                    idempotency_key=idempotency_key,
+                    wait_seconds=wait_seconds,
+                    create_timeout_seconds=create_timeout_seconds,
+                    idle_expiry_seconds=idle_expiry_seconds,
+                    build_timeout=build_timeout,
                 )
             ),
             self._bridge,
@@ -189,16 +212,15 @@ class Daytona:
         /,
         *,
         name: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
+        labels: Optional[Mapping[str, str]] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
     ) -> Sandbox:
-        """Create a sandbox from a snapshot."""
+        """Create a Linux sandbox that resumes a memory snapshot (name or ``snap_…`` id)."""
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -210,7 +232,6 @@ class Daytona:
                     lifecycle_policy=lifecycle_policy,
                     ports=ports,
                     region=region,
-                    toolbox_url=toolbox_url,
                     idempotency_key=idempotency_key,
                     wait_seconds=wait_seconds,
                     create_timeout_seconds=create_timeout_seconds,
@@ -224,25 +245,22 @@ class Daytona:
         image: str,
         /,
         *,
-        cpu: Optional[int] = None,
-        memory: Optional[float] = None,
-        disk: Optional[float] = None,
+        resources: Optional[MacosResources] = None,
         name: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
         secrets: Optional[Sequence[str]] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         persistent: Optional[bool] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         reservation: Optional[str] = None,
         auto_renew: Optional[bool] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
     ) -> Sandbox:
         """Create a macOS sandbox on a reserved Mac from a macOS image name."""
         from .sandbox import Sandbox
@@ -251,9 +269,7 @@ class Daytona:
             self._bridge.call(
                 lambda: self._impl.create_macos(
                     image,
-                    cpu=cpu,
-                    memory=memory,
-                    disk=disk,
+                    resources=resources,
                     name=name,
                     env=env,
                     labels=labels,
@@ -265,7 +281,6 @@ class Daytona:
                     reservation=reservation,
                     auto_renew=auto_renew,
                     region=region,
-                    toolbox_url=toolbox_url,
                     idempotency_key=idempotency_key,
                     wait_seconds=wait_seconds,
                     create_timeout_seconds=create_timeout_seconds,
@@ -275,13 +290,13 @@ class Daytona:
             self._bridge,
         )
 
-    def current_api_key(self) -> ProjectApiKeyWithContext:
+    def current_api_key(self) -> ProjectApiKey:
         """Describe the API key this client authenticates with."""
         return self._bridge.call(lambda: self._impl.current_api_key())
 
-    def delete(self, sandbox: Union[Sandbox, str]) -> None:
-        """Request sandbox deletion."""
-        return self._bridge.call(lambda: self._impl.delete(_rt.unwrap(sandbox)))
+    def delete(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
+        """Delete a sandbox by handle or id and wait until it is destroyed; see :meth:`Sandbox.delete`."""
+        return self._bridge.call(lambda: self._impl.delete(_rt.unwrap(sandbox), timeout=timeout))
 
     def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> list[Sandbox]:
         """Sandboxes created with ``name=name``, newest first; ``[]`` when none."""
@@ -303,92 +318,24 @@ class Daytona:
         """Return the organization's limits and current usage."""
         return self._bridge.call(lambda: self._impl.get_limits(organization_id=organization_id))
 
-    def get_network_policy(self, sandbox: Union[Sandbox, str]) -> NetworkPolicyInfo:
-        return self._bridge.call(lambda: self._impl.get_network_policy(_rt.unwrap(sandbox)))
-
     def get_project_budget(self) -> ProjectBudget:
         """Return the monthly spend budget of the API key's project."""
         return self._bridge.call(lambda: self._impl.get_project_budget())
 
-    def get_sandbox_secrets(self, sandbox: Union[Sandbox, str]) -> SandboxSecretsInfo:
-        """Read a sandbox's attached secret names and apply state; see :meth:`Sandbox.get_secrets`."""
-        return self._bridge.call(lambda: self._impl.get_sandbox_secrets(_rt.unwrap(sandbox)))
-
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[Sandbox]:
+        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size)."""
         from .sandbox import Sandbox
 
         return _rt.wrap_iter(
             self._bridge.iterate(self._impl.iter(cursor=cursor, limit=limit)), self._bridge, Sandbox
         )
 
-    def list(
-        self,
-        *,
-        cursor: Optional[str] = None,
-        limit: Optional[int] = None,
-        id: Optional[str] = None,
-        name: Optional[str] = None,
-        q: Optional[str] = None,
-        status: Optional[Sequence[str]] = None,
-        sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None,
-        region: Optional[Sequence[str]] = None,
-        image_ref: Optional[str] = None,
-        image_ref_prefix: Optional[str] = None,
-        labels: Optional[Mapping[str, str]] = None,
-        spot: Optional[bool] = None,
-        forked_from: Optional[str] = None,
-        min_cores: Optional[float] = None,
-        max_cores: Optional[float] = None,
-        min_memory_mib: Optional[int] = None,
-        max_memory_mib: Optional[int] = None,
-        min_disk_mib: Optional[int] = None,
-        max_disk_mib: Optional[int] = None,
-        created_start_at: Optional[SearchTimestamp] = None,
-        created_end_at: Optional[SearchTimestamp] = None,
-        updated_start_at: Optional[SearchTimestamp] = None,
-        updated_end_at: Optional[SearchTimestamp] = None,
-        last_activity_start_at: Optional[SearchTimestamp] = None,
-        last_activity_end_at: Optional[SearchTimestamp] = None,
-        sort: Optional[SearchSort] = None,
-        order: Optional[SearchOrder] = None,
-    ) -> ListResult[Sandbox]:
-        """List sandboxes as one page ``{items, next_cursor}``."""
+    def list(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> ListResult[Sandbox]:
+        """List sandboxes as one page ``{items, next_cursor}`` (``GET /sandboxes``), newest first."""
         from .sandbox import Sandbox
 
         return _rt.wrap_page(
-            self._bridge.call(
-                lambda: self._impl.list(
-                    cursor=cursor,
-                    limit=limit,
-                    id=id,
-                    name=name,
-                    q=q,
-                    status=status,
-                    sandbox_class=sandbox_class,
-                    region=region,
-                    image_ref=image_ref,
-                    image_ref_prefix=image_ref_prefix,
-                    labels=labels,
-                    spot=spot,
-                    forked_from=forked_from,
-                    min_cores=min_cores,
-                    max_cores=max_cores,
-                    min_memory_mib=min_memory_mib,
-                    max_memory_mib=max_memory_mib,
-                    min_disk_mib=min_disk_mib,
-                    max_disk_mib=max_disk_mib,
-                    created_start_at=created_start_at,
-                    created_end_at=created_end_at,
-                    updated_start_at=updated_start_at,
-                    updated_end_at=updated_end_at,
-                    last_activity_start_at=last_activity_start_at,
-                    last_activity_end_at=last_activity_end_at,
-                    sort=sort,
-                    order=order,
-                )
-            ),
-            self._bridge,
-            Sandbox,
+            self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit)), self._bridge, Sandbox
         )  # type: ignore[return-value]
 
     def list_audit_actions(self) -> AuditActionList:
@@ -396,26 +343,11 @@ class Daytona:
         return self._bridge.call(lambda: self._impl.list_audit_actions())
 
     def pause(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
-        """Pause a sandbox (accepts a Sandbox or its id); see :meth:`Sandbox.pause`."""
+        """Pause a sandbox by handle or id; see :meth:`Sandbox.pause`."""
         return self._bridge.call(lambda: self._impl.pause(_rt.unwrap(sandbox), timeout=timeout))
 
-    def replace_sandbox_secrets(
-        self, sandbox: Union[Sandbox, str], *, secrets: Sequence[str], if_match: str
-    ) -> SandboxSecretsInfo:
-        """Replace a sandbox's attached secret names; see :meth:`Sandbox.replace_secrets`."""
-        return self._bridge.call(
-            lambda: self._impl.replace_sandbox_secrets(
-                _rt.unwrap(sandbox), secrets=secrets, if_match=if_match
-            )
-        )
-
-    def reset_network_policy(self, sandbox: Union[Sandbox, str], *, if_match: str) -> NetworkPolicyInfo:
-        return self._bridge.call(
-            lambda: self._impl.reset_network_policy(_rt.unwrap(sandbox), if_match=if_match)
-        )
-
     def resume(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
-        """Resume a sandbox (accepts a Sandbox or its id)."""
+        """Resume a sandbox by handle or id; see :meth:`Sandbox.resume`."""
         return self._bridge.call(lambda: self._impl.resume(_rt.unwrap(sandbox), timeout=timeout))
 
     def search(
@@ -424,9 +356,9 @@ class Daytona:
         q: Optional[str] = None,
         name_prefix: Optional[str] = None,
         id_prefix: Optional[str] = None,
-        status: Optional[Sequence[str]] = None,
+        states: Optional[Union[SandboxState, Sequence[SandboxState]]] = None,
         sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None,
-        region: Optional[Sequence[str]] = None,
+        region: Optional[Union[str, Sequence[str]]] = None,
         image_ref: Optional[str] = None,
         image_ref_prefix: Optional[str] = None,
         labels: Optional[Mapping[str, str]] = None,
@@ -449,7 +381,7 @@ class Daytona:
         limit: Optional[int] = None,
         cursor: Optional[str] = None,
     ) -> SearchResult[Sandbox]:
-        """Search sandboxes across every region (``GET /sandboxes/search``)."""
+        """Search sandboxes across every region (``GET /sandboxes/search``), one page."""
         from .sandbox import Sandbox
 
         return _rt.wrap_page(
@@ -458,7 +390,7 @@ class Daytona:
                     q=q,
                     name_prefix=name_prefix,
                     id_prefix=id_prefix,
-                    status=status,
+                    states=states,
                     sandbox_class=sandbox_class,
                     region=region,
                     image_ref=image_ref,
@@ -489,18 +421,9 @@ class Daytona:
         )  # type: ignore[return-value]
 
     def start(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
-        """Start a sandbox (accepts a Sandbox or its id)."""
+        """Start a sandbox by handle or id; see :meth:`Sandbox.start`."""
         return self._bridge.call(lambda: self._impl.start(_rt.unwrap(sandbox), timeout=timeout))
 
-    def stop(self, sandbox: Union[Sandbox, str]) -> None:
-        """Stop a persistent macOS sandbox (accepts a Sandbox or its id)."""
-        return self._bridge.call(lambda: self._impl.stop(_rt.unwrap(sandbox)))
-
-    def update_network_policy(
-        self, sandbox: Union[Sandbox, str], *, network_policy: NetworkPolicyInput, if_match: str
-    ) -> NetworkPolicyInfo:
-        return self._bridge.call(
-            lambda: self._impl.update_network_policy(
-                _rt.unwrap(sandbox), network_policy=network_policy, if_match=if_match
-            )
-        )
+    def stop(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
+        """Stop a sandbox by handle or id and wait until it is stopped; see :meth:`Sandbox.stop`."""
+        return self._bridge.call(lambda: self._impl.stop(_rt.unwrap(sandbox), timeout=timeout))

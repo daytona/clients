@@ -2506,8 +2506,8 @@ class TestEndpointLearnedThroughTheTransport:
 
         client = AsyncDaytona(DaytonaConfig(api_key="key"))
         sandbox = lazy_sandbox(client, "abc-region-a")
-        sandbox.sandbox_class = "macos"
-        sandbox.persistent = True
+        sandbox._update(sandbox_class="macos")
+        sandbox._update(persistent=True)
         with respx.mock:
             respx.post(f"{_API_URL}/sandboxes/abc-region-a/pause").mock(
                 return_value=httpx.Response(200, json={}, headers={"x-daytona-cell": "endpoint-a"})
@@ -2545,8 +2545,8 @@ class TestEndpointLearnedThroughTheTransport:
 
         client = AsyncDaytona(DaytonaConfig(api_key="key"))
         sandbox = lazy_sandbox(client, "abc-region-a")
-        sandbox.sandbox_class = "macos"
-        sandbox.persistent = True
+        sandbox._update(sandbox_class="macos")
+        sandbox._update(persistent=True)
         with respx.mock:
             respx.post(f"{_API_URL}/sandboxes/abc-region-a/pause").mock(
                 return_value=httpx.Response(200, json={}, headers=headers)
@@ -2573,8 +2573,8 @@ class TestEndpointLearnedThroughTheTransport:
 
         client = AsyncDaytona(DaytonaConfig(api_key="key"))
         sandbox = lazy_sandbox(client, "abc-region-a")
-        sandbox.sandbox_class = "macos"
-        sandbox.persistent = True
+        sandbox._update(sandbox_class="macos")
+        sandbox._update(persistent=True)
         with respx.mock:
             respx.post(f"{_API_URL}/sandboxes/abc-region-a/pause").mock(
                 return_value=httpx.Response(
@@ -2662,7 +2662,7 @@ class TestEndpointLearnedThroughTheTransport:
             with respx.mock(assert_all_called=False):
                 ticket_mock("region-a")
                 ws = fc.prepare()
-                task = asyncio.create_task(sandbox.wait_for_state(["started"], timeout=timeout))
+                task = asyncio.create_task(sandbox._wait_for_state(["started"], timeout=timeout))
                 await drain()
                 ws.inject({"type": "error", "id": "abc-region-a", "code": "NOT_FOUND", "was_known": False})
                 with pytest.raises(NotFoundError):
@@ -2696,7 +2696,7 @@ class TestEndpointLearnedThroughTheTransport:
         with respx.mock:
             ticket = ticket_mock("region-a")
             ws = fc.prepare()
-            task = asyncio.create_task(sandbox.wait_for_state(["started"], timeout=3))
+            task = asyncio.create_task(sandbox._wait_for_state(["started"], timeout=3))
             await drain()
             ws.inject(
                 {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
@@ -2771,7 +2771,7 @@ class TestPublicWaitForStateProbeBehavior:
                 fc.prepare()
                 with pytest.raises(RequestTimeoutError):
                     await asyncio.wait_for(
-                        sandbox.wait_for_state(["started"], timeout=0.15),
+                        sandbox._wait_for_state(["started"], timeout=0.15),
                         timeout=1.0,
                     )
             assert len(api.specs) <= 3
@@ -2810,7 +2810,7 @@ class TestPublicWaitForStateProbeBehavior:
             with respx.mock:
                 ticket_mock("region-a")
                 ws = fc.prepare()
-                task = asyncio.create_task(sandbox.wait_for_state(["started"], timeout=0.1))
+                task = asyncio.create_task(sandbox._wait_for_state(["started"], timeout=0.1))
                 await drain()
                 await asyncio.sleep(0.02)
                 ws.inject(
@@ -2878,7 +2878,7 @@ class TestPublicWaitForStateProbeBehavior:
                 ticket_mock("region-a")
                 fc.prepare()
                 await asyncio.wait_for(
-                    sandbox.wait_for_state(["started", "stopped"], timeout=2.6),
+                    sandbox._wait_for_state(["started", "stopped"], timeout=2.6),
                     timeout=3.5,
                 )
             assert len(api.specs) >= 2

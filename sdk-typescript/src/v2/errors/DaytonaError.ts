@@ -206,19 +206,6 @@ export class ForbiddenError extends DaytonaError {}
 export class NotFoundError extends DaytonaError {}
 export class RequestTimeoutError extends DaytonaError {}
 
-/**
- * `create()` ran out of caller budget while the sandbox was still starting.
- * The sandbox was created and is left running; `sandboxId` lets the caller
- * pick it up (`daytona.get(sandboxId)`) or delete it.
- */
-export class SandboxCreateTimeoutError extends RequestTimeoutError {
-  public readonly sandboxId: string
-
-  constructor(sandboxId: string) {
-    super(`sandbox ${sandboxId} did not start within the requested timeout`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
-    this.sandboxId = sandboxId
-  }
-}
 export class ConflictError extends DaytonaError {}
 
 /**
@@ -813,7 +800,6 @@ for (const [key, errorClass] of [
   ['ForbiddenError', ForbiddenError],
   ['NotFoundError', NotFoundError],
   ['RequestTimeoutError', RequestTimeoutError],
-  ['SandboxCreateTimeoutError', SandboxCreateTimeoutError],
   ['ConflictError', ConflictError],
   ['DockerWaitTimeoutError', DockerWaitTimeoutError],
   ['SandboxTerminalStateError', SandboxTerminalStateError],

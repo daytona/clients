@@ -54,6 +54,7 @@ def main() -> int:
         sandbox = daytona.create_from_build(
             ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"buildlogs-{RUN}",
+            build_timeout=400,
             wait_seconds=400,
         )
         sandboxes.append(sandbox)
@@ -78,6 +79,7 @@ def main() -> int:
         twin = daytona.create_from_build(
             ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"buildlogs-twin-{RUN}",
+            build_timeout=400,
             wait_seconds=400,
         )
         sandboxes.append(twin)
@@ -95,14 +97,13 @@ def main() -> int:
             broken = daytona.create_from_build(
                 ImageBuilder.from_dockerfile(BROKEN_DOCKERFILE),
                 name=f"buildlogs-bad-{RUN}",
-                # Bound the wait so a failed build does not stall the example.
+                # Bound the build separately from the sandbox readiness wait.
+                build_timeout=120,
                 wait_seconds=120,
             )
             sandboxes.append(broken)
-            # Reaching here means the create did not fail; still print whatever
-            # the build recorded rather than asserting a specific outcome.
-            info(f"unexpectedly created {broken.id} ({broken.state})")
-            show(broken.build_logs())
+            failed(f"the deliberately broken build unexpectedly created {broken.id} ({broken.state})")
+            ok = False
         except Exception as exc:
             message = str(exc)
             info(f"create failed as expected: {message}")

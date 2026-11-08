@@ -18,7 +18,6 @@ from typing_extensions import Self
 from .. import sandbox as _async
 from .._bridge import SyncBridge
 from ..sandbox import *
-from ..sandbox import _EventCallback, _LogsCallback
 from . import _runtime as _rt
 
 if TYPE_CHECKING:
@@ -35,13 +34,13 @@ if TYPE_CHECKING:
 
 
 class Sandbox:
-    """Serializable sandbox handle with process/fs/git/interpreter/pty namespaces."""
+    """A sandbox handle with process/fs/git/interpreter/pty namespaces."""
 
     _async_type = _async.AsyncSandbox
 
-    def __init__(self, impl: _async.AsyncSandbox, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncSandbox, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"Sandbox({self._impl!r})"
@@ -52,136 +51,17 @@ class Sandbox:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    @property
-    def id(self) -> str:
-        return self._impl.id
-
-    @property
-    def name(self) -> str | None:
-        return self._impl.name
-
-    @property
-    def state(
-        self,
-    ) -> Literal[
-        "queued",
-        "creating",
-        "starting",
-        "started",
-        "pausing",
-        "paused",
-        "stopping",
-        "stopped",
-        "destroying",
-        "destroyed",
-        "error",
-        "unknown",
-    ]:
-        return self._impl.state
-
-    @property
-    def image_build_id(self) -> str | None:
-        return self._impl.image_build_id
-
-    @property
-    def image(self) -> ImageRef | None:
-        return self._impl.image
-
-    @property
-    def snapshot(self) -> SnapshotRef | None:
-        return self._impl.snapshot
-
-    @property
-    def target(self) -> str | None:
-        return self._impl.target
-
-    @property
-    def region(self) -> Optional[str]:
-        return self._impl.region
-
-    @property
-    def labels(self) -> Dict[str, str]:
-        return self._impl.labels
-
-    @property
-    def cpu(self) -> Optional[float]:
-        return self._impl.cpu
-
-    @property
-    def cpu_max(self) -> Optional[float]:
-        return self._impl.cpu_max
-
-    @property
-    def memory(self) -> Optional[float]:
-        return self._impl.memory
-
-    @property
-    def memory_max(self) -> Optional[float]:
-        return self._impl.memory_max
-
-    @property
-    def disk(self) -> Optional[float]:
-        return self._impl.disk
-
-    @property
-    def disk_max(self) -> Optional[float]:
-        return self._impl.disk_max
-
-    @property
-    def sandbox_class(self) -> Optional[SandboxClass]:
-        return self._impl.sandbox_class
-
-    @property
-    def persistent(self) -> Optional[bool]:
-        return self._impl.persistent
-
-    @property
-    def spot(self) -> Optional[bool]:
-        return self._impl.spot
-
-    @property
-    def spot_evicted_at(self) -> Optional[str]:
-        return self._impl.spot_evicted_at
-
-    @property
-    def lifecycle_policy(self) -> Optional[SandboxLifecycle]:
-        return self._impl.lifecycle_policy
-
-    @property
-    def forked_from(self) -> Optional[str]:
-        return self._impl.forked_from
-
-    @property
-    def reservation_id(self) -> Optional[str]:
-        return self._impl.reservation_id
-
-    @property
-    def user(self) -> Optional[str]:
-        return self._impl.user
-
-    @property
-    def error(self) -> Optional[str]:
-        return self._impl.error
-
-    @property
-    def error_reason(self) -> Optional[str]:
-        return self._impl.error_reason
-
-    @property
-    def access_token(self) -> str | None:
-        return self._impl.access_token
-
-    @property
-    def access_token_expires_at(self) -> str | None:
-        return self._impl.access_token_expires_at
-
-    @property
-    def toolbox_proxy_url(self) -> str | None:
-        return self._impl.toolbox_proxy_url
-
     def build_logs(self) -> str:
         """Return retained build output as one-shot text, not a live follower."""
         return self._bridge.call(lambda: self._impl.build_logs())
+
+    def capture_image(
+        self, *, name: Optional[str] = None, idle_expiry_seconds: Optional[int] = None
+    ) -> Image:
+        """Capture this sandbox's filesystem as a new :class:`Image` (``POST /sandboxes/{id}/images``)."""
+        return self._bridge.call(
+            lambda: self._impl.capture_image(name=name, idle_expiry_seconds=idle_expiry_seconds)
+        )
 
     def create_access_token(
         self,
@@ -200,9 +80,9 @@ class Sandbox:
     def create_snapshot(self, name: str) -> Snapshot:
         return self._bridge.call(lambda: self._impl.create_snapshot(name))
 
-    def delete(self) -> None:
-        """Request sandbox deletion."""
-        return self._bridge.call(lambda: self._impl.delete())
+    def delete(self, *, timeout: float = 60) -> None:
+        """Delete the sandbox and wait until it is ``destroyed``."""
+        return self._bridge.call(lambda: self._impl.delete(timeout=timeout))
 
     def entrypoint_logs(self) -> str:
         """Return the sandbox entrypoint-session log as text."""
@@ -247,8 +127,8 @@ class Sandbox:
     def follow_build_logs(
         self,
         *,
-        on_logs: _LogsCallback,
-        on_event: Optional[_EventCallback] = None,
+        on_logs: BuildLogsCallback,
+        on_event: Optional[BuildLogEventCallback] = None,
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
@@ -260,11 +140,11 @@ class Sandbox:
         )
 
     def fork(
-        self, *, name: Optional[str] = None, memory: Optional[bool] = None, timeout: Optional[float] = None
+        self, *, name: Optional[str] = None, memory: Optional[bool] = None, wait_seconds: float = 60
     ) -> Sandbox:
-        """Fork this sandbox."""
+        """Fork this sandbox and return the fork's handle."""
         return Sandbox(
-            self._bridge.call(lambda: self._impl.fork(name=name, memory=memory, timeout=timeout)),
+            self._bridge.call(lambda: self._impl.fork(name=name, memory=memory, wait_seconds=wait_seconds)),
             self._bridge,
         )
 
@@ -279,20 +159,12 @@ class Sandbox:
         return self._bridge.call(lambda: self._impl.metrics())
 
     def pause(self, *, timeout: float = 60) -> None:
-        """Pause a macOS sandbox, preserving its memory."""
+        """Pause the sandbox with its memory and wait until it is ``paused``."""
         return self._bridge.call(lambda: self._impl.pause(timeout=timeout))
 
-    def refresh_data(
-        self,
-        *,
-        timeout: Optional[float] = None,
-        wait: SandboxWaitState | None = None,
-        wait_timeout_ms: int | None = None,
-    ) -> None:
-        """Refresh sandbox fields from the API."""
-        return self._bridge.call(
-            lambda: self._impl.refresh_data(timeout=timeout, wait=wait, wait_timeout_ms=wait_timeout_ms)
-        )
+    def refresh_data(self) -> None:
+        """Read the sandbox's metadata from the API again."""
+        return self._bridge.call(lambda: self._impl.refresh_data())
 
     def replace_secrets(self, *, secrets: Sequence[str], if_match: str) -> SandboxSecretsInfo:
         """Replace the full set of project secrets attached to this sandbox (``PUT /sandboxes/{id}/secrets``)."""
@@ -306,7 +178,7 @@ class Sandbox:
         return self._bridge.call(lambda: self._impl.reset_network_policy(if_match=if_match))
 
     def resume(self, *, timeout: float = 60) -> None:
-        """Resume a paused macOS sandbox and wait for started."""
+        """Resume a paused sandbox and wait until it is ``started``."""
         return self._bridge.call(lambda: self._impl.resume(timeout=timeout))
 
     def rotate_signing_key(self) -> None:
@@ -340,20 +212,16 @@ class Sandbox:
         """Replace the sandbox label set; pass ``{}`` to clear all labels."""
         return self._bridge.call(lambda: self._impl.set_labels(labels=labels))
 
-    def snapshot_filesystem(self, *, name: Optional[str] = None, idle: Optional[int] = None) -> Image:
-        """Snapshot this sandbox's filesystem as a new :class:`Image` (``POST /sandboxes/{id}/images``)."""
-        return self._bridge.call(lambda: self._impl.snapshot_filesystem(name=name, idle=idle))
-
     def start(self, *, timeout: float = 60) -> None:
-        """Start a stopped sandbox, or resume a paused one, and wait for started."""
+        """Start a stopped sandbox, or resume a paused one, and wait until it is ``started``."""
         return self._bridge.call(lambda: self._impl.start(timeout=timeout))
 
-    def stop(self) -> None:
-        """Stop a persistent macOS sandbox."""
-        return self._bridge.call(lambda: self._impl.stop())
+    def stop(self, *, timeout: float = 60) -> None:
+        """Stop the sandbox and wait until it is ``stopped``."""
+        return self._bridge.call(lambda: self._impl.stop(timeout=timeout))
 
-    def to_json(self) -> Dict[str, JsonValue]:
-        """The sandbox's data as JSON, without any toolbox URL; resume a stored sandbox with ``get(info["sandboxId"])``."""
+    def to_json(self) -> SandboxHandleJSON:
+        """The handle's metadata as :class:`SandboxHandleJSON` (camelCase, no URL, no credential)."""
         return self._impl.to_json()
 
     def update_env(self, env: Optional[Mapping[str, str]] = None, *, unset: Sequence[str] = ()) -> None:
@@ -385,20 +253,22 @@ class Sandbox:
             lambda: self._impl.update_network_policy(network_policy=network_policy, if_match=if_match)
         )
 
-    def wait(self, *, until: SandboxWaitState = "started", timeout: Optional[float] = 60) -> Self:
-        """Wait for one public sandbox state and return ``self``."""
+    def wait(
+        self, *, until: SandboxWaitState | Sequence[SandboxWaitState] = "started", timeout: float = 60
+    ) -> Self:
+        """Wait until the sandbox reaches ``until`` (one state or any of several) and return ``self``."""
         self._bridge.call(lambda: self._impl.wait(until=until, timeout=timeout))
         return self
 
-    def wait_for_state(
-        self,
-        states: Sequence[SandboxWaitState],
-        terminal_states: Sequence[SandboxState] = DEFAULT_SANDBOX_TERMINAL_STATES,
-        *,
-        timeout: Optional[float] = None,
-    ) -> None:
-        """Wait until the sandbox reaches one of ``states``."""
-        return self._bridge.call(lambda: self._impl.wait_for_state(states, terminal_states, timeout=timeout))
+    @property
+    def access_token(self) -> Optional[str]:
+        """The sandbox access token this handle sends to sandbox services, when it holds one."""
+        return self._impl.access_token
+
+    @property
+    def access_token_expires_at(self) -> Optional[datetime]:
+        """Expiry of :attr:`access_token`, or ``None`` when not reported."""
+        return self._impl.access_token_expires_at
 
     @property
     def computer_use(self) -> ComputerUseService:
@@ -407,11 +277,39 @@ class Sandbox:
         return ComputerUseService(self._bridge.call_sync(lambda: self._impl.computer_use), self._bridge)
 
     @property
+    def cpu(self) -> Optional[float]:
+        """Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU)."""
+        return self._impl.cpu
+
+    @property
+    def cpu_max(self) -> Optional[float]:
+        """CPU limit (the boot shape), in cores; ``None`` when the API did not report it."""
+        return self._impl.cpu_max
+
+    @property
+    def disk(self) -> Optional[float]:
+        """Disk in GiB, exactly the API's MiB / 1024."""
+        return self._impl.disk
+
+    @property
+    def disk_max(self) -> Optional[float]:
+        return self._impl.disk_max
+
+    @property
     def docker(self) -> DockerService:
         """Docker Engine status inside the sandbox; see :class:`DockerService`."""
         from .docker import DockerService
 
         return DockerService(self._bridge.call_sync(lambda: self._impl.docker), self._bridge)
+
+    @property
+    def error(self) -> Optional[str]:
+        """The failure the API recorded, or ``None``."""
+        return self._impl.error
+
+    @property
+    def forked_from(self) -> Optional[str]:
+        return self._impl.forked_from
 
     @property
     def fs(self) -> FileSystemService:
@@ -426,10 +324,33 @@ class Sandbox:
         return GitService(self._bridge.call_sync(lambda: self._impl.git), self._bridge)
 
     @property
+    def id(self) -> str:
+        return self._impl.id
+
+    @property
+    def image(self) -> Optional[ImageRef]:
+        """The image the sandbox booted, or ``None`` (a snapshot restore, or not yet known)."""
+        return self._impl.image
+
+    @property
+    def image_build_id(self) -> Optional[str]:
+        """The image build this sandbox booted from, or ``None`` for other image sources."""
+        return self._impl.image_build_id
+
+    @property
     def interpreter(self) -> InterpreterService:
         from .interpreter import InterpreterService
 
         return InterpreterService(self._bridge.call_sync(lambda: self._impl.interpreter), self._bridge)
+
+    @property
+    def labels(self) -> Mapping[str, str]:
+        """The sandbox labels (a read-only view); replace them with :meth:`set_labels`."""
+        return self._impl.labels
+
+    @property
+    def lifecycle_policy(self) -> Optional[SandboxLifecycle]:
+        return self._impl.lifecycle_policy
 
     @property
     def lsp(self) -> LspService:
@@ -440,7 +361,26 @@ class Sandbox:
     @property
     def mac_boot_mode(self) -> Optional[MacBootMode]:
         """macOS only: how the sandbox resumed, as reported by the API, or None."""
-        return self._bridge.call_sync(lambda: self._impl.mac_boot_mode)
+        return self._impl.mac_boot_mode
+
+    @property
+    def memory(self) -> Optional[float]:
+        """Memory in GiB, exactly the API's MiB / 1024 (4608 MiB -> 4.5)."""
+        return self._impl.memory
+
+    @property
+    def memory_max(self) -> Optional[float]:
+        return self._impl.memory_max
+
+    @property
+    def name(self) -> Optional[str]:
+        """The sandbox name; ``None`` until the API reports it."""
+        return self._impl.name
+
+    @property
+    def persistent(self) -> Optional[bool]:
+        """macOS only: whether a stop keeps the disk; ``None`` until known."""
+        return self._impl.persistent
 
     @property
     def ports(self) -> PortsService:
@@ -461,9 +401,55 @@ class Sandbox:
         return PtyService(self._bridge.call_sync(lambda: self._impl.pty), self._bridge)
 
     @property
+    def raw_sandbox_class(self) -> Optional[str]:
+        """The class exactly as the API reported it, or ``None`` until known."""
+        return self._impl.raw_sandbox_class
+
+    @property
     def raw_state(self) -> str:
-        """Wire status string exactly as the server sent it."""
-        return self._bridge.call_sync(lambda: self._impl.raw_state)
+        """Wire status string exactly as the server sent it (``""`` before any read)."""
+        return self._impl.raw_state
+
+    @property
+    def region(self) -> Optional[str]:
+        return self._impl.region
+
+    @property
+    def reservation_id(self) -> Optional[str]:
+        """macOS only: the reservation selected by the current or latest successful claim."""
+        return self._impl.reservation_id
+
+    @property
+    def sandbox_class(self) -> Optional[Literal["linux", "macos", "unknown"]]:
+        """``"linux"``, ``"macos"``, or ``"unknown"`` for a class this SDK does not know"""
+        return self._impl.sandbox_class
+
+    @property
+    def snapshot(self) -> Optional[SnapshotRef]:
+        """The memory snapshot this sandbox resumed, or ``None`` when it booted an image."""
+        return self._impl.snapshot
+
+    @property
+    def spot(self) -> Optional[bool]:
+        return self._impl.spot
+
+    @property
+    def spot_evicted_at(self) -> Optional[datetime]:
+        return self._impl.spot_evicted_at
+
+    @property
+    def state(self) -> SandboxState:
+        """The last observed state; ``"unknown"`` before any read and for a state this SDK does not know."""
+        return self._impl.state
+
+    @property
+    def toolbox_proxy_url(self) -> Optional[str]:
+        """The sandbox-scoped toolbox URL this handle sends sandbox requests to."""
+        return self._impl.toolbox_proxy_url
+
+    @property
+    def user(self) -> Optional[str]:
+        return self._impl.user
 
     @property
     def volumes(self) -> SandboxVolumesService:

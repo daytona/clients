@@ -3,6 +3,6 @@
 
 from __future__ import annotations
 
-from .services import AsyncSecretService
+from .services import AsyncSecretsService
 
-__all__ = ["AsyncSecretService"]
+__all__ = ["AsyncSecretsService"]

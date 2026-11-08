@@ -21,9 +21,9 @@ class DockerService:
 
     _async_type = _async.AsyncDockerService
 
-    def __init__(self, impl: _async.AsyncDockerService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncDockerService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"DockerService({self._impl!r})"

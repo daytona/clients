@@ -36,6 +36,8 @@ from daytona.v2 import (
     ImageBuildFailedError,
     MacReservation,
     OrganizationLimits,
+    ProjectApiKey,
+    ProjectApiKeyContext,
     ProjectBudget,
     RequestTimeoutError,
     SandboxCreateConnectionError,
@@ -44,7 +46,6 @@ from daytona.v2 import (
     Secret,
     Snapshot,
     codes,
-    idempotency_key_for_name,
 )
 from daytona.v2 import _codes as code_names
 from daytona.v2._api_core import expect_sandbox_detail
@@ -66,8 +67,8 @@ from daytona.v2._core import (
     parse_search_page,
     parse_snapshot,
     parse_sse_lines,
+    parse_timestamp,
     process_create_spec,
-    search_filters_present,
     search_params,
     search_timestamp,
     stdin_spec,
@@ -93,7 +94,7 @@ from daytona.v2.computer_use_types import (
     ComputerUsePoint,
     ComputerUseRegion,
 )
-from daytona.v2.daytona import AsyncDaytona, _create_body, _create_path
+from daytona.v2.daytona import AsyncDaytona, _create_body, _create_path, _idempotency_key_for_name
 from daytona.v2.docker import DOCKER_WAIT_DEADLINE_GRACE_SECONDS, AsyncDockerService
 from daytona.v2.errors import (
     API_ERROR_CLASSES,
@@ -147,36 +148,34 @@ from daytona.v2.sandbox import (
     sandbox_info_from_id,
 )
 from daytona.v2.services import (
-    AsyncImageService,
-    AsyncMacModelService,
-    AsyncReservationService,
-    AsyncSecretService,
-    AsyncSnapshotService,
-    AsyncVolumeService,
+    AsyncImagesService,
+    AsyncMacModelsService,
+    AsyncReservationsService,
+    AsyncSecretsService,
+    AsyncSnapshotsService,
+    AsyncVolumesService,
 )
 from daytona.v2.types import (
     DISABLED,
     DaytonaConfig,
     FileInfo,
-    ImageRef,
     InterpreterLogs,
     InterpreterProcess,
     InterpreterResult,
     ListResult,
-    ListSandboxesQuery,
+    ListSandboxesOptions,
     MacCatalog,
+    MacosResources,
     MacReservationBatch,
     PortMapping,
     PreviewLink,
     ProcessState,
     Resources,
-    SandboxClass,
-    SandboxInfo,
     SandboxLifecycle,
     SandboxSearchFilters,
     SandboxWaitState,
     SearchResult,
-    SearchSandboxesQuery,
+    SearchSandboxesOptions,
     SignedPreviewLink,
     TerminalSize,
     TransferProgressCallback,
@@ -933,6 +932,7 @@ def test_contract_enums_normalize_unknown_image_retention_and_snapshot_kind() ->
             "status": "ready",
             "region_id": "region-b",
             "kind": "future",
+            "created_at": "2026-01-01T00:00:00Z",
             "class": "linux",
             "region_ids": [],
         }
@@ -980,8 +980,8 @@ def bind_api(client: AsyncDaytona, api: RecordingTransport) -> None:
     client._api = api
     client.images._transport = api  # type: ignore[attr-defined]
     client.snapshots._transport = api  # type: ignore[attr-defined]
-    client.volume._transport = api  # type: ignore[attr-defined]
-    client.secret._transport = api  # type: ignore[attr-defined]
+    client.volumes._transport = api  # type: ignore[attr-defined]
+    client.secrets._transport = api  # type: ignore[attr-defined]
 
 
 def test_there_is_no_public_sandbox_constructor() -> None:
@@ -1049,10 +1049,10 @@ async def test_daytona_create_posts_to_the_configured_base_even_for_an_explicit_
     ("read", "path"),
     [
         (lambda client: client.list(), "/sandboxes"),
-        (lambda client: client.list(name="sbx"), "/sandboxes/search"),
-        (lambda client: client.search(status=["running"]), "/sandboxes/search"),
+        (lambda client: client.search(name_prefix="sbx"), "/sandboxes/search"),
+        (lambda client: client.search(states=["started"]), "/sandboxes/search"),
     ],
-    ids=["list", "filtered-list-search-route", "search"],
+    ids=["list", "search-prefix", "search"],
 )
 @respx.mock
 @pytest.mark.anyio
@@ -1176,8 +1176,8 @@ async def test_fork_handle_takes_metadata_from_the_detail_and_toolbox_from_the_f
 
     try:
         sandbox = lazy_sandbox(client, "parent", toolbox_url="http://10.0.0.7:2280")
-        sandbox.sandbox_class = "linux"
-        forked = await sandbox.fork()
+        sandbox._update(sandbox_class="linux")
+        forked = await sandbox.fork(wait_seconds=0)
         metrics = await forked.metrics()
     finally:
         await client.close()
@@ -1552,7 +1552,7 @@ def _presigned_sandbox(
     sandbox = lazy_sandbox(
         client, sandbox_id, toolbox_url=toolbox_url or f"http://toolbox.invalid/sandboxes/{sandbox_id}"
     )
-    sandbox.sandbox_class = sandbox_class
+    sandbox._update(sandbox_class=sandbox_class)
     api = RecordingTransport(responses)
     sandbox._api = api  # type: ignore[attr-defined]
     return sandbox, api
@@ -1786,7 +1786,7 @@ def test_sync_rotate_signing_key_blocks_on_the_async_twin(monkeypatch):
     config = DaytonaConfig(api_key="key")
     with Daytona(config) as client:
         sandbox = lazy_sandbox(client, "sbx", toolbox_url="http://toolbox.invalid/sandboxes/sbx")
-        sandbox._impl.sandbox_class = "linux"
+        sandbox._impl._update(sandbox_class="linux")
         api = RecordingTransport([None])
         sandbox._impl._api = api  # type: ignore[attr-defined]
 
@@ -1907,7 +1907,7 @@ async def test_fork_does_not_inherit_the_parent_toolbox_override():
     # A fork resolves its own toolbox URL rather than reusing its parent's override.
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "sbx", toolbox_url="http://10.0.0.7:2280")
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = RecordingTransport(
         [
             {
@@ -1921,7 +1921,7 @@ async def test_fork_does_not_inherit_the_parent_toolbox_override():
     )
     sandbox._api = api  # type: ignore[attr-defined]
 
-    forked = await sandbox.fork()
+    forked = await sandbox.fork(wait_seconds=0)
 
     assert forked.toolbox_proxy_url == "https://proxy.example/forked"
     assert forked.toolbox_proxy_url != sandbox.toolbox_proxy_url
@@ -1938,7 +1938,7 @@ async def test_fork_sends_memory_only_when_given():
     # argument leaves the server default (a memory fork) in charge.
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = RecordingTransport(
         [
             {
@@ -1959,8 +1959,8 @@ async def test_fork_sends_memory_only_when_given():
     )
     sandbox._api = api  # type: ignore[attr-defined]
 
-    assert (await sandbox.fork(name="disk", memory=False)).id == "a"
-    assert (await sandbox.fork()).id == "b"
+    assert (await sandbox.fork(name="disk", memory=False, wait_seconds=0)).id == "a"
+    assert (await sandbox.fork(wait_seconds=0)).id == "b"
     assert api.specs[0].json_body == {"name": "disk", "memory": False}
     assert api.specs[2].json_body == {}
 
@@ -1970,7 +1970,7 @@ async def test_fork_of_a_macos_sandbox_reaches_the_server():
     # A macOS fork copies the disk only; the API enforces that rule.
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "mac")
-    sandbox.sandbox_class = "macos"
+    sandbox._update(sandbox_class="macos")
     api = RecordingTransport(
         [
             {
@@ -1984,7 +1984,7 @@ async def test_fork_of_a_macos_sandbox_reaches_the_server():
     )
     sandbox._api = api  # type: ignore[attr-defined]
 
-    assert (await sandbox.fork(name="copy")).id == "mac-fork"
+    assert (await sandbox.fork(name="copy", wait_seconds=0)).id == "mac-fork"
     assert api.specs[0].method == "POST"
     assert api.specs[0].path.endswith("/mac/fork")
     assert api.specs[0].json_body == {"name": "copy"}
@@ -1995,7 +1995,7 @@ async def test_macos_fork_with_timeout_settles_on_started_or_stopped():
     # A macOS fork may finish started or stopped regardless of the cached source state.
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "mac")
-    sandbox.sandbox_class = "macos"
+    sandbox._update(sandbox_class="macos")
     fork_resp = {
         "forked_from": "mac",
         "status": "pending",
@@ -2014,13 +2014,13 @@ async def test_macos_fork_with_timeout_settles_on_started_or_stopped():
     )
     sandbox._api = api  # type: ignore[attr-defined]
 
-    assert (await sandbox.fork(timeout=5)).state == "stopped"
-    assert (await sandbox.fork(timeout=5)).state == "started"
+    assert (await sandbox.fork(wait_seconds=5)).state == "stopped"
+    assert (await sandbox.fork(wait_seconds=5)).state == "started"
     assert not any(spec.path == "/sandboxes/mac" for spec in api.specs)
     assert api.responses == []
 
     with pytest.raises(DaytonaError) as refused:
-        await sandbox.fork(timeout=-1)
+        await sandbox.fork(wait_seconds=-1)
     assert refused.value.code == "BAD_REQUEST"
 
 
@@ -2030,7 +2030,7 @@ async def test_fork_without_a_response_toolbox_url_does_not_reuse_the_parents():
     # toolbox use, not silently target the parent's sandbox.
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "sbx", toolbox_url="http://10.0.0.7:2280")
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = RecordingTransport(
         [
             {"forked_from": "sbx", "status": "pending", "toolbox_proxy_url": "", "id": "forked"},
@@ -2039,7 +2039,7 @@ async def test_fork_without_a_response_toolbox_url_does_not_reuse_the_parents():
     )
     sandbox._api = api  # type: ignore[attr-defined]
 
-    forked = await sandbox.fork()
+    forked = await sandbox.fork(wait_seconds=0)
 
     assert forked.toolbox_proxy_url is None
     with pytest.raises(DaytonaError):
@@ -2886,7 +2886,7 @@ async def test_get_preview_link_creates_private_endpoint_before_fetching_token()
 
     link = await sandbox.ports.preview_link(8080)
 
-    assert link == PreviewLink("https://p", "preview-token")
+    assert link == PreviewLink(url="https://p", token="preview-token")
     assert [(spec.method, spec.path) for spec in api.specs] == [
         ("GET", "/sandboxes/sbx/ports/8080"),
         ("PUT", "/sandboxes/sbx/ports/8080"),
@@ -2911,7 +2911,11 @@ async def test_signed_preview_link_sends_ttl_query_and_parses_response():
 
     link = await sandbox.ports.signed_preview_link(8080, expires_in_seconds=300)
 
-    assert link == SignedPreviewLink("https://8080-sdeadbeef.preview", "sdeadbeef", "2026-08-28T00:05:00Z")
+    assert link == SignedPreviewLink(
+        url="https://8080-sdeadbeef.preview",
+        token="sdeadbeef",
+        expires_at=parse_timestamp("2026-08-28T00:05:00Z"),
+    )
     assert api.specs[0].method == "POST"
     assert api.specs[0].path == "/sandboxes/sbx/ports/8080/signed-preview-urls"
     assert api.specs[0].json_body == {"expires_in_seconds": 300}
@@ -2934,7 +2938,11 @@ async def test_signed_preview_link_omits_ttl_query_for_server_default():
 
     link = await sandbox.ports.signed_preview_link(8080)
 
-    assert link == SignedPreviewLink("https://8080-sdeadbeef.preview", "sdeadbeef", "2026-08-28T00:01:00Z")
+    assert link == SignedPreviewLink(
+        url="https://8080-sdeadbeef.preview",
+        token="sdeadbeef",
+        expires_at=parse_timestamp("2026-08-28T00:01:00Z"),
+    )
     assert api.specs[0].path == "/sandboxes/sbx/ports/8080/signed-preview-urls"
     assert api.specs[0].json_body == {}
 
@@ -3001,7 +3009,7 @@ async def test_secret_delete_conflict_preserves_the_server_message() -> None:
     bind_api(client, api)
 
     with pytest.raises(ConflictError) as exc_info:
-        await client.secret.delete("TOKEN")
+        await client.secrets.delete("TOKEN")
 
     err = exc_info.value
     assert err.message == "secret is still referenced by another resource"
@@ -3565,12 +3573,13 @@ async def test_ports_and_lsp_namespaces_shape_requests_and_parse_results():
 
     ports_api.send = ports_api_send
 
-    ports = AsyncPortsService(ports_transport, ports_api, sandbox_id="sbx")  # type: ignore[arg-type]
+    ports = AsyncPortsService(ports_transport, ports_api, _sandbox_id="sbx")  # type: ignore[arg-type]
     assert (await ports.list()).items == [3000, 8080]
     assert await ports.is_in_use(3999) is True
     assert (await ports.list_endpoints()).items == []
-    assert await ports.preview_link(8080) == PreviewLink("https://p", "preview-token")
-    assert (await ports.set_public(8080, public=True)).public is True
+    assert await ports.preview_link(8080) == PreviewLink(url="https://p", token="preview-token")
+    assert (await ports.expose(8080, public=True)).public is True
+    assert not hasattr(ports, "set_public")
     await ports.unexpose(8080)
     assert [(s.method, s.path) for s in ports_transport.sent] == [
         ("GET", "/port"),
@@ -4230,10 +4239,10 @@ async def test_update_lifecycle_policy_patches_only_the_passed_keys():
     assert lifecycle == SandboxLifecycle(
         timeout_seconds=300,
         on_timeout="stop",
-        timeout_at="2026-08-28T10:00:00Z",
+        timeout_at=parse_timestamp("2026-08-28T10:00:00Z"),
         idle_expiry_seconds=900,
         on_idle_timeout="stop",
-        last_activity_at="2026-08-27T09:00:00Z",
+        last_activity_at=parse_timestamp("2026-08-27T09:00:00Z"),
         last_activity_source="traffic",
     )
     assert mac.lifecycle_policy == lifecycle
@@ -4268,11 +4277,11 @@ async def test_reset_idle_timer_posts_and_caches_the_echo():
     assert lifecycle == SandboxLifecycle(
         timeout_seconds=300,
         on_timeout="delete",
-        timeout_at="2026-08-28T10:00:00Z",
+        timeout_at=parse_timestamp("2026-08-28T10:00:00Z"),
         idle_expiry_seconds=900,
         on_idle_timeout="delete",
-        idle_timeout_at="2026-08-27T09:15:00Z",
-        last_activity_at="2026-08-27T09:00:00Z",
+        idle_timeout_at=parse_timestamp("2026-08-27T09:15:00Z"),
+        last_activity_at=parse_timestamp("2026-08-27T09:00:00Z"),
         last_activity_source="api",
     )
     # The echo IS the full post-reset lifecycle — the cache takes it whole,
@@ -4328,7 +4337,7 @@ async def test_reset_idle_timer_does_not_roll_the_cached_clock_backwards():
 
     # The caller still gets the stale echo verbatim…
     stale = await sandbox.reset_idle_timer()
-    assert stale.last_activity_at == "2026-08-27T08:00:00Z"
+    assert stale.last_activity_at == parse_timestamp("2026-08-27T08:00:00Z")
     assert stale.last_activity_source == "ssh"
     # …but the cached policy keeps the newer clock.
     assert sandbox.lifecycle_policy == newer
@@ -4425,7 +4434,7 @@ def test_parse_lifecycle_reads_idle_timeout_at():
             "idle_timeout_at": "2026-08-27T09:15:00Z",
         }
     )
-    assert armed.idle_timeout_at == "2026-08-27T09:15:00Z"
+    assert armed.idle_timeout_at == parse_timestamp("2026-08-27T09:15:00Z")
     # Explicit null and an absent field both read back as None.
     assert parse_lifecycle({"idle_timeout_at": None}).idle_timeout_at is None
     assert parse_lifecycle({}).idle_timeout_at is None
@@ -4533,7 +4542,7 @@ async def test_update_lifecycle_policy_distinguishes_omitted_disabled_and_value(
 async def test_sandbox_from_api_fallback_toolbox_inherits_the_api_source_label():
     api = AsyncTransport("http://api.invalid", "k", source="sdk-python")
     try:
-        sandbox = AsyncSandbox.from_api(
+        sandbox = AsyncSandbox._from_api(
             _sandbox_detail_payload("sbx", "running"),
             api,
             None,
@@ -4548,7 +4557,7 @@ async def test_sandbox_from_api_fallback_toolbox_inherits_the_api_source_label()
 
 
 def test_sandbox_from_api_exposes_the_read_side_lifecycle_policy():
-    sandbox = AsyncSandbox.from_api(
+    sandbox = AsyncSandbox._from_api(
         _sandbox_detail_payload(
             "sbx",
             "running",
@@ -4568,12 +4577,12 @@ def test_sandbox_from_api_exposes_the_read_side_lifecycle_policy():
     assert sandbox.lifecycle_policy == SandboxLifecycle(
         timeout_seconds=300,
         on_timeout="pause",
-        timeout_at="2026-08-28T10:00:00Z",
-        last_activity_at="2026-08-27T09:00:00Z",
+        timeout_at=parse_timestamp("2026-08-28T10:00:00Z"),
+        last_activity_at=parse_timestamp("2026-08-27T09:00:00Z"),
         last_activity_source="traffic",
     )
     assert (
-        AsyncSandbox.from_api(
+        AsyncSandbox._from_api(
             expect_sandbox_detail(_sandbox_detail_payload("sbx", "running")), None, None
         ).lifecycle_policy
         is None
@@ -4663,8 +4672,8 @@ def test_create_body_sends_every_limit():
 def test_public_optional_params_are_keyword_only():
     from daytona.v2.daytona import AsyncDaytona
     from daytona.v2.http import HttpClient
-    from daytona.v2.http import gb_to_mib as http_gb_to_mib
-    from daytona.v2.http import mib_to_gb as http_mib_to_gb
+    from daytona.v2.http import gib_to_mib as http_gib_to_mib
+    from daytona.v2.http import mib_to_gib as http_mib_to_gib
     from daytona.v2.http import sandbox_state as http_sandbox_state
     from daytona.v2.http import snapshot_state as http_snapshot_state
 
@@ -4681,8 +4690,8 @@ def test_public_optional_params_are_keyword_only():
         is inspect.Parameter.POSITIONAL_ONLY
     )
     assert HttpClient is SyncTransport
-    assert http_gb_to_mib(1) == 1024
-    assert http_mib_to_gb(1536) == 2
+    assert http_gib_to_mib(1.5, label="memory") == 1536
+    assert http_mib_to_gib(1536) == 1.5
     assert http_sandbox_state("running") == "started"
     assert http_snapshot_state("ready") == "active"
     from daytona.v2 import GoneError
@@ -4947,7 +4956,7 @@ async def test_image_service_shapes_build_pull_list_and_tar_context():
             {"images": [_image_page_payload("img")], "next_cursor": "next"},
         ]
     )
-    service = AsyncImageService(transport)  # type: ignore[arg-type]
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
 
     assert (
         await service.build(ImageBuilder.from_dockerfile("FROM scratch\n"), name="built", region="us")
@@ -4983,7 +4992,7 @@ async def test_images_pull_accepts_ref_positionally() -> None:
             _image_page_payload("img-pos"),
         ]
     )
-    service = AsyncImageService(transport)  # type: ignore[arg-type]
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
 
     result = await service.pull("python:3.12", name="pos-pull")
 
@@ -5008,7 +5017,7 @@ async def test_list_audit_actions_reads_public_catalog() -> None:
     actions = await client.list_audit_actions()
 
     assert actions == AuditActionList(
-        targets=[AuditActionGroup(target_type="sandbox", actions=["create", "delete"])]
+        targets=(AuditActionGroup(target_type="sandbox", actions=("create", "delete")),)
     )
     assert transport.specs == [RequestSpec("GET", "/audit/actions")]
 
@@ -5051,10 +5060,20 @@ async def test_current_api_key_describes_the_presented_key() -> None:
 
     key = await client.current_api_key()
 
-    assert key.context.org_name == "acme"
-    assert key.project_permissions == ["read:sandboxes"]
-    assert key.expires_at is None
-    assert key.sync_to_v0 is True
+    assert key == ProjectApiKey(
+        id="0d1c8a6e-4a0a-4f6c-9c58-6a7b2f4b7c11",
+        name="ci",
+        project_id="6e1a2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+        project_permissions=("read:sandboxes",),
+        created_at=datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc),
+        context=ProjectApiKeyContext(
+            org_id="b7a6c5d4-e3f2-4a1b-9c8d-7e6f5a4b3c2d", org_name="acme", project_name="sdk-tests"
+        ),
+        key_prefix="dtn_a1b2c3d",
+        key_suffix="xyz",
+    )
+    # An SDK-owned model: no generated-model methods, no key-sync bookkeeping fields.
+    assert not hasattr(key, "to_dict") and not hasattr(key, "sync_to_v0")
     assert transport.specs == [RequestSpec("GET", "/api-keys/current")]
 
 
@@ -5274,7 +5293,7 @@ async def test_get_limits_requires_organization_id_with_jwt_token() -> None:
 
 @pytest.mark.anyio
 async def test_resource_service_iterators_use_iter_everywhere() -> None:
-    image_service = AsyncImageService(
+    image_service = AsyncImagesService(
         RecordingTransport(
             [
                 {"images": [_image_page_payload("img-1")], "next_cursor": "cursor-1"},
@@ -5282,7 +5301,7 @@ async def test_resource_service_iterators_use_iter_everywhere() -> None:
             ]
         )
     )  # type: ignore[arg-type]
-    snapshot_service = AsyncSnapshotService(
+    snapshot_service = AsyncSnapshotsService(
         RecordingTransport(
             [
                 {
@@ -5322,7 +5341,7 @@ async def test_resource_service_iterators_use_iter_everywhere() -> None:
             ]
         )
     )  # type: ignore[arg-type]
-    secret_service = AsyncSecretService(
+    secret_service = AsyncSecretsService(
         RecordingTransport(
             [
                 {"secrets": [_secret_list_item_payload("TOKEN")], "next_cursor": "cursor-1"},
@@ -5331,7 +5350,7 @@ async def test_resource_service_iterators_use_iter_everywhere() -> None:
         )
     )  # type: ignore[arg-type]
 
-    volume_service = AsyncVolumeService(
+    volume_service = AsyncVolumesService(
         RecordingTransport(
             [
                 {"volumes": [_volume_payload("vol-1")], "next_cursor": "cursor-1"},
@@ -5515,7 +5534,7 @@ async def test_secret_services_shape_routes():
         ]
     )
 
-    secret = AsyncSecretService(transport)  # type: ignore[arg-type]
+    secret = AsyncSecretsService(transport)  # type: ignore[arg-type]
     assert [item.name for item in (await secret.list()).items] == ["TOKEN"]
     meta = await secret.get("TOKEN")
     assert meta.name == "TOKEN"
@@ -5533,7 +5552,7 @@ async def test_secret_services_shape_routes():
 
     # set with ["*"] sends allowed_domains: ["*"]
     transport2 = RecordingTransport([_secret_payload("WIDE")])
-    secret2 = AsyncSecretService(transport2)  # type: ignore[arg-type]
+    secret2 = AsyncSecretsService(transport2)  # type: ignore[arg-type]
     await secret2.set("WIDE", "val", allowed_domains=["*"])
     assert transport2.specs[0].json_body == {"value": "val", "allowed_domains": ["*"]}
 
@@ -5541,7 +5560,7 @@ async def test_secret_services_shape_routes():
 def test_secret_set_without_allowed_domains_raises_type_error():
     """Calling set() without allowed_domains is a TypeError (required keyword-only arg)."""
     with pytest.raises(TypeError):
-        AsyncSecretService(RecordingTransport([{}])).set("X", "v")  # type: ignore[call-arg]
+        AsyncSecretsService(RecordingTransport([{}])).set("X", "v")  # type: ignore[call-arg]
 
 
 def test_python_root_exports_interpreter_context_json() -> None:
@@ -6123,7 +6142,7 @@ async def test_daytona_create_list_fork_and_delete_are_offline_transport_calls()
             },
             _sandbox_detail_payload("fork", "running", toolbox_proxy_url="http://toolbox"),
             {},
-            _sandbox_detail_payload("sbx", "deleting", toolbox_proxy_url="http://toolbox"),
+            _sandbox_detail_payload("sbx", "deleted", toolbox_proxy_url="http://toolbox"),
             _snapshot_operation_payload("snap"),
             {
                 "id": "snap",
@@ -6133,6 +6152,7 @@ async def test_daytona_create_list_fork_and_delete_are_offline_transport_calls()
                 "region_id": "us",
                 "status": "ready",
                 "region_ids": ["us"],
+                "created_at": _DEFAULT_TIME,
             },
             {"id": "ep", "port": 8080, "public": False, "url": "https://p", "created_at": _DEFAULT_TIME},
             {"url": "https://p", "token": "preview-token"},
@@ -6170,11 +6190,11 @@ async def test_daytona_create_list_fork_and_delete_are_offline_transport_calls()
     assert [item.id for item in page.items] == ["sbx", "other"]
     assert page.next_cursor == "next"
 
-    assert (await sandbox.fork(name="child")).id == "fork"
+    assert (await sandbox.fork(name="child", wait_seconds=0)).id == "fork"
     await sandbox.delete()
-    assert sandbox.state == "destroying"
+    assert sandbox.state == "destroyed"
     assert (await sandbox.create_snapshot("snap")).id == "snap"
-    assert await sandbox.ports.preview_link(8080) == PreviewLink("https://p", "preview-token")
+    assert await sandbox.ports.preview_link(8080) == PreviewLink(url="https://p", token="preview-token")
     assert (await sandbox.ports.expose(9000, public=True)).url == "https://p2"
     assert [spec.path for spec in api.specs[3:9]] == [
         "/sandboxes/sbx/fork",
@@ -6273,7 +6293,7 @@ NAME_KEY_VECTORS: list[tuple[str, str]] = [
 
 @pytest.mark.parametrize(("name", "expected"), NAME_KEY_VECTORS)
 def test_idempotency_key_for_name_parity_vectors(name: str, expected: str) -> None:
-    key = idempotency_key_for_name(name)
+    key = _idempotency_key_for_name(name)
     assert key == expected
     # Every derived key is one the API accepts verbatim.
     assert key == key.strip() and len(key) <= 256 and all(" " <= c <= "~" for c in key)
@@ -6281,7 +6301,7 @@ def test_idempotency_key_for_name_parity_vectors(name: str, expected: str) -> No
 
 def test_idempotency_key_for_name_rejects_non_strings() -> None:
     with pytest.raises(BadRequestError):
-        idempotency_key_for_name(42)  # type: ignore[arg-type]
+        _idempotency_key_for_name(42)  # type: ignore[arg-type]
 
 
 @pytest.mark.anyio
@@ -6414,7 +6434,7 @@ async def test_find_by_name_uses_the_named_creates_region() -> None:
 
     assert api.specs[0].headers["x-daytona-region"] == "eu"
     assert api.specs[1].headers["x-daytona-region"] == "eu", "the same selector create sends"
-    assert found[0].target == "eu"
+    assert found[0].region == "eu"
     assert "x-daytona-region" not in api.specs[2].headers, "no region = default region"
     assert "x-daytona-region" not in api.specs[3].headers, "local = default region"
 
@@ -6500,7 +6520,7 @@ async def test_create_preserves_region_headers_and_body_across_retries(target):
         assert spec.json_body["wait_seconds"] == 60
         assert spec.headers == {"Idempotency-Key": key, "x-daytona-region": target}
     assert sandbox.id == "sbx-example"
-    assert sandbox.target == target
+    assert sandbox.region == target
 
 
 @pytest.mark.anyio
@@ -6832,10 +6852,10 @@ def test_image_builder_renders_the_parity_vector_byte_identically() -> None:
         .env("APP_ENV", "dev mode")
         .workdir("/workspace")
     )
-    _, dockerfile = builder.build_request_source()
+    _, dockerfile = builder._request_source()
     assert dockerfile == PARITY_DOCKERFILE
     # A trailing newline (or several) on inline content normalizes to ONE.
-    _, inline = ImageBuilder.from_dockerfile("FROM python:3.12\n\n").build_request_source()
+    _, inline = ImageBuilder.from_dockerfile("FROM python:3.12\n\n")._request_source()
     assert inline == "FROM python:3.12\n"
 
 
@@ -6843,11 +6863,11 @@ def test_image_builder_env_and_workdir_render_like_typescript() -> None:
     base = ImageBuilder.from_registry("python:3.12")
     builder = base.env("APP_ENV", "dev mode").env({"HOME": "/workspace"}).workdir("/workspace")
 
-    source, dockerfile = base.build_request_source()
+    source, dockerfile = base._request_source()
     assert source == {"type": "registry", "ref": "python:3.12"}
     assert dockerfile is None
 
-    source, dockerfile = builder.build_request_source()
+    source, dockerfile = builder._request_source()
     assert source is None
     assert (
         dockerfile == 'FROM python:3.12\nENV APP_ENV="dev mode"\nENV HOME="/workspace"\nWORKDIR /workspace\n'
@@ -6856,7 +6876,7 @@ def test_image_builder_env_and_workdir_render_like_typescript() -> None:
     # Non-ASCII stays literal, like TypeScript's JSON.stringify: a \\uXXXX
     # escape is not something the Dockerfile parser unescapes, and the two
     # SDKs must render byte-identical Dockerfiles.
-    _, unicode_dockerfile = base.env("GREETING", "héllo").build_request_source()
+    _, unicode_dockerfile = base.env("GREETING", "héllo")._request_source()
     assert unicode_dockerfile == 'FROM python:3.12\nENV GREETING="héllo"\n'
 
 
@@ -6876,7 +6896,7 @@ def test_image_builder_env_and_workdir_validate_non_empty_text() -> None:
 
 
 @pytest.mark.anyio
-async def test_snapshot_class_is_the_wire_string_on_get_and_list() -> None:
+async def test_snapshot_class_is_normalized_with_the_raw_wire_string_on_get_and_list() -> None:
     def payload(snapshot_class: str) -> dict[str, object]:
         return {
             "id": f"snap-{snapshot_class}",
@@ -6895,13 +6915,14 @@ async def test_snapshot_class_is_the_wire_string_on_get_and_list() -> None:
     transport = RecordingTransport(
         [payload(c) for c in classes] + [{"snapshots": [payload(c) for c in classes]}]
     )
-    snapshots = AsyncSnapshotService(transport)  # type: ignore[arg-type]
+    snapshots = AsyncSnapshotsService(transport)  # type: ignore[arg-type]
 
-    fetched = [(await snapshots.get(f"snap-{c}")).var_class for c in classes]
-    listed = [item.var_class for item in (await snapshots.list()).items]
+    fetched = [await snapshots.get(f"snap-{c}") for c in classes]
+    listed = (await snapshots.list()).items
 
-    assert fetched == classes
-    assert listed == classes
+    expected = [("linux", "linux"), ("unknown", "macos"), ("unknown", "future-class")]
+    assert [(s.sandbox_class, s.raw_sandbox_class) for s in fetched] == expected
+    assert [(s.sandbox_class, s.raw_sandbox_class) for s in listed] == expected
 
 
 @pytest.mark.anyio
@@ -6919,7 +6940,7 @@ async def test_snapshot_service_get_and_delete_address_one_snapshot() -> None:
         "updated_at": _DEFAULT_TIME,
     }
     transport = RecordingTransport([dict(payload), dict(payload), dict(payload), dict(payload), {}])
-    snapshots = AsyncSnapshotService(transport)  # type: ignore[arg-type]
+    snapshots = AsyncSnapshotsService(transport)  # type: ignore[arg-type]
 
     plain = await snapshots.get("snap/1")
     assert isinstance(plain, Snapshot)
@@ -6954,10 +6975,10 @@ async def test_snapshot_service_get_and_delete_address_one_snapshot() -> None:
 @pytest.mark.anyio
 async def test_image_and_snapshot_keep_the_update_timestamp_apart_from_the_create_one() -> None:
     created, updated = "2026-10-01T00:00:00Z", "2026-10-09T00:00:00Z"
-    images = AsyncImageService(
+    images = AsyncImagesService(
         RecordingTransport([{**_image_page_payload("img-1"), "created_at": created, "updated_at": updated}])
     )  # type: ignore[arg-type]
-    snapshots = AsyncSnapshotService(
+    snapshots = AsyncSnapshotsService(
         RecordingTransport(
             [
                 {
@@ -6978,8 +6999,9 @@ async def test_image_and_snapshot_keep_the_update_timestamp_apart_from_the_creat
     image = await images.get("img-1")
     snapshot = await snapshots.get("snap-1")
 
-    assert (image.created_at, image.updated_at) == (created, updated)
-    assert (snapshot.created_at, snapshot.updated_at) == (created, updated)
+    assert (image.created_at, image.updated_at) == (parse_timestamp(created), parse_timestamp(updated))
+    assert (snapshot.created_at, snapshot.updated_at) == (parse_timestamp(created), parse_timestamp(updated))
+    assert image.created_at.tzinfo is not None
 
 
 @pytest.mark.anyio
@@ -7002,7 +7024,7 @@ async def test_image_service_build_and_pull_treat_timeout_zero_as_unbounded() ->
             _image_page_payload("img-p"),
         ]
     )
-    images = AsyncImageService(transport)  # type: ignore[arg-type]
+    images = AsyncImagesService(transport)  # type: ignore[arg-type]
     await images.build(ImageBuilder.from_dockerfile("FROM x"), name="img", timeout=0)
     await images.pull(image="x", timeout=0)
     assert [spec.timeout for spec in transport.specs] == [None, None, None, None]
@@ -7031,10 +7053,11 @@ async def test_daytona_create_posts_an_inline_dockerfile_source_on_linux():
     assert linux_api.specs[0].path == "/images"
     assert linux_api.specs[1].path == "/images/img-built"
     assert linux_api.specs[1].params == {}
+    # No build_timeout: the build is awaited without a deadline (server-held long polls).
     assert linux_api.specs[2].path == "/images/img-built"
-    assert linux_api.specs[2].params == {"wait": "ready", "timeout_ms": 60000}
+    assert linux_api.specs[2].params == {"wait": "ready"}
     assert linux_api.specs[3].path == "/images/img-built"
-    assert linux_api.specs[3].params == {"wait": "ready", "timeout_ms": 60000}
+    assert linux_api.specs[3].params == {"wait": "ready"}
     assert linux_api.specs[4].path == "/sandboxes"
     assert linux_api.specs[4].json_body == {
         "image": "img-built",
@@ -7049,7 +7072,7 @@ async def test_image_service_promote_patches_the_name_and_rereads() -> None:
     transport = RecordingTransport(
         [{}, {**_image_page_payload("img-1"), "name": "keep-this", "anonymous": False}]
     )
-    service = AsyncImageService(transport)  # type: ignore[arg-type]
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
 
     image = await service.promote("img-1", "keep-this")
 
@@ -7062,7 +7085,7 @@ async def test_image_service_promote_patches_the_name_and_rereads() -> None:
 
 
 @pytest.mark.anyio
-async def test_sandbox_snapshot_filesystem_returns_an_image() -> None:
+async def test_sandbox_capture_image_returns_an_image() -> None:
     api = RecordingTransport(
         [
             {"id": "img-cap", "status": "pending"},
@@ -7071,13 +7094,14 @@ async def test_sandbox_snapshot_filesystem_returns_an_image() -> None:
                 "name": None,
                 "anonymous": True,
                 "origin": "capture",
+                "created_at": "2026-01-01T00:00:00Z",
                 "retention": "idle",
             },
         ]
     )
-    sandbox = AsyncSandbox.from_api(_sandbox_detail_payload("sbx", "running"), api, None, access_token="key")  # type: ignore[arg-type]
+    sandbox = AsyncSandbox._from_api(_sandbox_detail_payload("sbx", "running"), api, None, access_token="key")  # type: ignore[arg-type]
 
-    image = await sandbox.snapshot_filesystem(idle=86400)
+    image = await sandbox.capture_image(idle_expiry_seconds=86400)
 
     from daytona.v2.types import Image as ImageHandle
 
@@ -7132,7 +7156,7 @@ async def test_create_from_build_raises_a_typed_error_when_the_image_build_fails
 
 
 @pytest.mark.anyio
-async def test_create_from_build_uses_one_wait_budget_for_the_build_and_the_sandbox(
+async def test_create_from_build_bounds_the_build_by_build_timeout_and_gives_the_create_its_full_wait(
     monkeypatch: pytest.MonkeyPatch,
 ):
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
@@ -7145,14 +7169,56 @@ async def test_create_from_build_uses_one_wait_budget_for_the_build_and_the_sand
         ]
     )
     bind_api(client, api)
-    clock = iter((0.0, 0.0, 3.2, 3.2, 3.2))
+    clock = iter((0.0, 0.0, 0.0, 3.2, 3.2, 3.2))
     monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: next(clock, 3.2))
 
-    await client.create_from_build(Image.from_dockerfile("FROM python:3.12"), wait_seconds=5)
+    await client.create_from_build(Image.from_dockerfile("FROM python:3.12"), build_timeout=5, wait_seconds=7)
 
     assert api.specs[1].params == {}
     assert api.specs[2].params == {"wait": "ready", "timeout_ms": 5000}
-    assert api.specs[3].json_body == {"image": "img-wait", "wait_seconds": 2}
+    assert api.specs[3].json_body == {"image": "img-wait", "wait_seconds": 7}
+
+
+@pytest.mark.anyio
+async def test_create_from_build_raises_request_timeout_when_the_build_outlasts_build_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport(
+        [
+            _image_operation_payload("img-slow"),
+            *[{**_image_page_payload("img-slow"), "status": "building"} for _ in range(5)],
+        ]
+    )
+    bind_api(client, api)
+    ticks = iter(range(1000))
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: float(next(ticks)))
+
+    with pytest.raises(RequestTimeoutError, match="image build did not finish before timeout") as raised:
+        await client.create_from_build(Image.from_dockerfile("FROM python:3.12"), build_timeout=5)
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (
+        408,
+        "REQUEST_TIMEOUT",
+        "SDK",
+    )
+    assert all(spec.path != "/sandboxes" for spec in api.specs), "no sandbox is created"
+
+
+@pytest.mark.anyio
+async def test_create_from_build_takes_typed_keywords_only():
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    client._api = RecordingTransport([])  # type: ignore[attr-defined]
+    with pytest.raises(TypeError):
+        await client.create_from_build(Image.from_dockerfile("FROM x"), not_an_option=1)  # type: ignore[call-arg]
+    with pytest.raises(BadRequestError, match="build_timeout"):
+        await client.create_from_build(Image.from_dockerfile("FROM x"), build_timeout=-1)
+    assert client._api.specs == []  # type: ignore[attr-defined]
+    signature = inspect.signature(AsyncDaytona.create_from_build)
+    assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in signature.parameters.values())
+    create_keywords = set(inspect.signature(AsyncDaytona.create).parameters) - {"self", "image"}
+    assert create_keywords | {"idle_expiry_seconds", "build_timeout"} == (
+        set(signature.parameters) - {"self", "builder"}
+    )
 
 
 @pytest.mark.anyio
@@ -7363,13 +7429,13 @@ async def test_sandbox_timeout_validation_rejects_negative_values_before_network
     sandbox = lazy_sandbox(client, "sbx")
 
     with pytest.raises(Exception, match="timeout must be a non-negative finite number"):
-        await sandbox.wait_for_state(["started"], timeout=-1)
+        await sandbox._wait_for_state(["started"], timeout=-1)
     with pytest.raises(Exception, match="timeout must be a non-negative finite number"):
         await sandbox.start(timeout=-1)
     with pytest.raises(Exception, match="timeout must be a non-negative finite number"):
         await sandbox.resume(timeout=-1)
     with pytest.raises(Exception, match="timeout must be a non-negative finite number"):
-        await sandbox.wait_for_state(["started"], timeout=float("nan"))
+        await sandbox._wait_for_state(["started"], timeout=float("nan"))
     with pytest.raises(Exception, match="timeout must be a non-negative finite number"):
         await sandbox.start(timeout=float("inf"))
     assert api.specs == []
@@ -7386,9 +7452,9 @@ async def test_sandbox_wait_for_state_reaches_target_via_api_long_poll_slices():
     )
     bind_api(client, api)
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.state = "booting"
+    sandbox._update(state="booting")
 
-    await sandbox.wait_for_state(["started"], timeout=60)
+    await sandbox._wait_for_state(["started"], timeout=60)
 
     assert api.specs[0].timeout == 35
     assert api.specs[0].params == {"wait": "running", "timeout_ms": 30000}
@@ -7411,7 +7477,7 @@ async def test_sandbox_wait_fills_in_the_handle_after_a_socket_decided_outcome()
         refreshes += 1
         refresh_timeouts.append(kwargs.get("timeout"))
 
-    sandbox.refresh_data = counting_refresh  # type: ignore[method-assign]
+    sandbox._refresh_data_within = counting_refresh  # type: ignore[method-assign]
 
     class ScriptedHub:
         enabled = True
@@ -7432,25 +7498,25 @@ async def test_sandbox_wait_fills_in_the_handle_after_a_socket_decided_outcome()
     hub = ScriptedHub()
     sandbox._hub = hub  # type: ignore[assignment]
 
-    await sandbox.wait_for_state(["started"], timeout=60)
+    await sandbox._wait_for_state(["started"], timeout=60)
     assert refreshes == 1
     timeout_used = refresh_timeouts[-1]
     assert isinstance(timeout_used, float) and 0 < timeout_used <= 60, "the refresh shares the wait's budget"
 
     hub.mode = "destroyed"
     refreshes = 0
-    await sandbox.wait_for_state(["destroyed"], timeout=60)
+    await sandbox._wait_for_state(["destroyed"], timeout=60)
     assert refreshes == 0, "a destroyed sandbox has nothing to fill in (the GET would 404)"
 
     hub.mode = "poll"
     refreshes = 0
-    await sandbox.wait_for_state(["started"], timeout=60)
+    await sandbox._wait_for_state(["started"], timeout=60)
     assert refreshes == 1, "the poll's own GET is enough"
 
     hub.mode = "terminal"
     refreshes = 0
     with pytest.raises(SandboxTerminalStateError):
-        await sandbox.wait_for_state(["started"], timeout=60)
+        await sandbox._wait_for_state(["started"], timeout=60)
     assert refreshes == 1, "a terminal outcome fills in the error reason too"
 
 
@@ -7471,7 +7537,7 @@ async def test_sandbox_wait_bounds_the_terminal_refresh_and_skips_it_for_destroy
         await asyncio.sleep(timeout)
         raise create_error("timed out", 408, "REQUEST_TIMEOUT", "SDK")
 
-    sandbox.refresh_data = hanging_refresh  # type: ignore[method-assign]
+    sandbox._refresh_data_within = hanging_refresh  # type: ignore[method-assign]
 
     class TerminalHub:
         enabled = True
@@ -7485,14 +7551,14 @@ async def test_sandbox_wait_bounds_the_terminal_refresh_and_skips_it_for_destroy
 
     started = time.monotonic()
     with pytest.raises(SandboxTerminalStateError):
-        await asyncio.wait_for(sandbox.wait_for_state(["started"], timeout=0.2), timeout=5)
+        await asyncio.wait_for(sandbox._wait_for_state(["started"], timeout=0.2), timeout=5)
     assert time.monotonic() - started < 2
     assert calls == 1
 
     hub.state = "destroyed"
     calls = 0
     with pytest.raises(SandboxTerminalStateError):
-        await sandbox.wait_for_state(["started"], timeout=0.2)
+        await sandbox._wait_for_state(["started"], timeout=0.2)
     assert calls == 0, "a destroyed sandbox has nothing to fill in (the GET would 404)"
 
 
@@ -7533,9 +7599,9 @@ async def test_sandbox_wait_for_state_normalizes_local_target_to_no_region_hint(
     async def _no_refresh(**_: object) -> None:
         return None
 
-    sandbox.refresh_data = _no_refresh  # type: ignore[method-assign]
+    sandbox._refresh_data_within = _no_refresh  # type: ignore[method-assign]
 
-    await sandbox.wait_for_state(["started"], timeout=60)
+    await sandbox._wait_for_state(["started"], timeout=60)
 
     assert hub.region_hint is None
 
@@ -7564,10 +7630,10 @@ async def test_sandbox_wait_for_state_raises_with_the_observed_default_terminal_
     api = RecordingTransport([_sandbox_detail_payload("sbx", wire_state)])
     bind_api(client, api)
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.state = "starting"
+    sandbox._update(state="starting")
 
     with pytest.raises(SandboxTerminalStateError) as exc_info:
-        await sandbox.wait_for_state(["started"])
+        await sandbox._wait_for_state(["started"])
 
     # Typed and importable from the root so callers can catch it and read .state.
     from daytona.v2 import ConflictError
@@ -7594,7 +7660,7 @@ async def test_sandbox_wait_for_state_polls_plainly_when_several_targets_are_giv
     bind_api(client, api)
     monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
     sandbox = lazy_sandbox(client, "sbx")
-    await sandbox.wait_for_state(["started", "stopped"], timeout=10)
+    await sandbox._wait_for_state(["started", "stopped"], timeout=10)
     assert sandbox.state == "stopped"
     assert [spec.params for spec in api.specs] == [{}, {}]
 
@@ -7615,9 +7681,9 @@ async def test_sandbox_wait_for_state_never_trusts_a_stale_cached_state(monkeypa
     bind_api(client, api)
     monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.state = "started"  # stale
-    sandbox.sandbox_class = "macos"
-    sandbox.persistent = True
+    sandbox._update(state="started")  # stale
+    sandbox._update(sandbox_class="macos")
+    sandbox._update(persistent=True)
     await sandbox.resume(timeout=10)
     assert [spec.method for spec in api.specs] == ["POST", "GET", "GET"]
     assert sandbox.state == "started"
@@ -7634,13 +7700,13 @@ async def test_sandbox_wait_for_destroyed_treats_destroying_as_progress(monkeypa
     monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
     sandbox = lazy_sandbox(client, "sbx")
     # delete → wait for destroyed: the intermediate "destroying" must not raise.
-    await sandbox.wait_for_state(["destroyed"], timeout=10)
+    await sandbox._wait_for_state(["destroyed"], timeout=10)
     assert sandbox.state == "destroyed"
     # ...while waiting for anything else, a sandbox on its way out fails fast.
     fast = RecordingTransport([_sandbox_detail_payload("sbx2", "deleting")])
     bind_api(client, fast)
     with pytest.raises(SandboxTerminalStateError) as exc_info:
-        await lazy_sandbox(client, "sbx2").wait_for_state(["started"], timeout=10)
+        await lazy_sandbox(client, "sbx2")._wait_for_state(["started"], timeout=10)
     assert exc_info.value.state == "destroying"
 
 
@@ -7654,12 +7720,12 @@ async def test_sandbox_wait_for_state_updates_the_cached_terminal_state_before_r
 
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.state = "started"
-    sandbox._raw_state = "running"
+    sandbox._update(state="started")
+    sandbox._update(raw_state="running")
     sandbox._hub = _RejectingHub()  # type: ignore[assignment]
 
     with pytest.raises(SandboxTerminalStateError) as exc_info:
-        await sandbox.wait_for_state(["paused"], timeout=10)
+        await sandbox._wait_for_state(["paused"], timeout=10)
 
     assert exc_info.value.state == "destroying"
     assert sandbox.state == "destroying"
@@ -7672,7 +7738,7 @@ async def test_sandbox_wait_for_state_rejects_an_empty_target_list_before_pollin
     api = RecordingTransport([])
     bind_api(client, api)
     with pytest.raises(DaytonaError) as exc_info:
-        await lazy_sandbox(client, "sbx").wait_for_state([], timeout=1)
+        await lazy_sandbox(client, "sbx")._wait_for_state([], timeout=1)
     assert (exc_info.value.code, exc_info.value.source) == (code_names.BAD_REQUEST, "SDK")
     assert api.specs == []
 
@@ -7728,14 +7794,14 @@ async def test_sandbox_wait_for_state_backs_off_when_the_server_answers_early(mo
     )
     bind_api(client, api)
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.state = "starting"
+    sandbox._update(state="starting")
     pauses: list[float] = []
     monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _record_sleep(pauses))
     # A frozen SDK clock makes each instant answer take zero time, so the pause is
     # exactly the floor; a wall clock let a slow CI machine shrink it past the tolerance.
     monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: 1000.0)
 
-    await sandbox.wait_for_state(["started"], timeout=10)
+    await sandbox._wait_for_state(["started"], timeout=10)
 
     # Every refresh still asks the API to long-poll for the target...
     assert all(spec.params.get("wait") == "running" for spec in api.specs)
@@ -7752,10 +7818,10 @@ async def test_sandbox_wait_for_state_times_out_with_sdk_origin() -> None:
     api = RecordingTransport([_sandbox_detail_payload("sbx", "booting")])
     bind_api(client, api)
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.state = "starting"
+    sandbox._update(state="starting")
 
     with pytest.raises(DaytonaError) as exc_info:
-        await sandbox.wait_for_state(["started"], timeout=0.01)
+        await sandbox._wait_for_state(["started"], timeout=0.01)
 
     assert exc_info.value.status_code == 408
     assert exc_info.value.code == code_names.REQUEST_TIMEOUT
@@ -7780,12 +7846,12 @@ async def test_sandbox_wait_for_state_updates_the_cached_state_before_rethrowing
 
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.state = "started"
-    sandbox._raw_state = "running"
+    sandbox._update(state="started")
+    sandbox._update(raw_state="running")
     sandbox._hub = _TimingOutHub()  # type: ignore[assignment]
 
     with pytest.raises(RequestTimeoutError):
-        await sandbox.wait_for_state(["paused"], timeout=10)
+        await sandbox._wait_for_state(["paused"], timeout=10)
 
     assert sandbox.state == "stopped"
     assert sandbox.raw_state == "stopped"
@@ -7801,7 +7867,7 @@ async def test_sandbox_wait_raises_request_timeout_error_on_timeout() -> None:
     api = RecordingTransport([_sandbox_detail_payload("sbx", "booting")])
     bind_api(client, api)
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.state = "starting"
+    sandbox._update(state="starting")
 
     with pytest.raises(RequestTimeoutError) as exc_info:
         await sandbox.wait(timeout=0.01)
@@ -8111,6 +8177,7 @@ async def test_sandbox_snapshot_and_signed_preview_methods_live_on_ports_namespa
                 "id": "snap",
                 "class": "linux",
                 "kind": "full",
+                "created_at": "2026-01-01T00:00:00Z",
                 "name": "snap",
                 "region_id": "us",
                 "status": "ready",
@@ -8120,7 +8187,7 @@ async def test_sandbox_snapshot_and_signed_preview_methods_live_on_ports_namespa
             {},
         ]
     )
-    sandbox = AsyncSandbox.from_api(_sandbox_detail_payload("sbx", "running"), api, None, access_token="key")  # type: ignore[arg-type]
+    sandbox = AsyncSandbox._from_api(_sandbox_detail_payload("sbx", "running"), api, None, access_token="key")  # type: ignore[arg-type]
 
     snapshot = await sandbox.create_snapshot("snap")
     assert isinstance(snapshot, Snapshot)
@@ -8138,13 +8205,14 @@ async def test_create_snapshot_quotes_the_sandbox_id():
         "id": "snap",
         "class": "linux",
         "kind": "full",
+        "created_at": "2026-01-01T00:00:00Z",
         "name": "snap",
         "region_id": "us",
         "status": "ready",
         "region_ids": ["us"],
     }
     linux_api = RecordingTransport([_snapshot_operation_payload("snap"), dict(snapshot_payload)])
-    linux = AsyncSandbox.from_api(
+    linux = AsyncSandbox._from_api(
         _sandbox_detail_payload("sbx!'()*", "running"), linux_api, None, access_token="key"
     )  # type: ignore[arg-type]
     assert (await linux.create_snapshot("snap")).id == "snap"
@@ -8226,7 +8294,7 @@ async def test_image_service_build_and_pull_forward_timeout(monkeypatch: pytest.
             _image_page_payload("img-pull"),
         ]
     )
-    images = AsyncImageService(api)  # type: ignore[arg-type]
+    images = AsyncImagesService(api)  # type: ignore[arg-type]
 
     await images.build(ImageBuilder.from_dockerfile("FROM python:3.12"), name="built", timeout=12.5)
     await images.pull(image="python:3.12", timeout=3.0)
@@ -8306,7 +8374,7 @@ async def test_images_build_and_pull_keep_unbounded_reads_when_timeout_is_omitte
             _image_page_payload("img-4"),
         ]
     )
-    images = AsyncImageService(api)  # type: ignore[arg-type]
+    images = AsyncImagesService(api)  # type: ignore[arg-type]
 
     await images.build(ImageBuilder.from_dockerfile("FROM python:3.12"), name="built")
     await images.pull(image="python:3.12")
@@ -8827,39 +8895,81 @@ async def test_transport_rejects_absolute_request_urls():
 
 
 @pytest.mark.anyio
-async def test_daytona_lifecycle_accepts_sandbox_ids():
+async def test_delete_by_id_waits_until_destroyed_and_counts_a_404_as_done():
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     api = RecordingTransport(
         [
             {},
             _sandbox_detail_payload("sb-123", "deleting"),
+            create_error("sandbox not found", 404, "NOT_FOUND", "DAYTONA_API"),
         ]
     )
     bind_api(client, api)
-    await client.delete("sb-123")
-    assert [spec.method for spec in api.specs] == ["DELETE", "GET"]
-    assert "/sandboxes/sb-123" in api.specs[-1].path
+    await client.delete("sb-123", timeout=10)
+    assert [spec.method for spec in api.specs] == ["DELETE", "GET", "GET"]
+    assert all(spec.path == "/sandboxes/sb-123" for spec in api.specs)
+    # The wait long-polls for the destroyed state.
+    assert api.specs[1].params["wait"] == "deleted"
+
+    handle = lazy_sandbox(client, "sb-456")
+    handle._api = RecordingTransport([{}, _sandbox_detail_payload("sb-456", "deleted")])  # type: ignore[attr-defined]
+    await handle.delete()
+    assert handle.state == "destroyed"
 
 
 @pytest.mark.anyio
-async def test_daytona_stop_accepts_sandbox_ids():
+async def test_delete_raises_typed_errors_when_its_wait_ends_without_destroyed():
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    failed = lazy_sandbox(client, "sb-err")
+    failed._api = RecordingTransport([{}, _sandbox_detail_payload("sb-err", "failed")])  # type: ignore[attr-defined]
+    with pytest.raises(SandboxTerminalStateError) as terminal:
+        await failed.delete(timeout=10)
+    assert terminal.value.state == "error"
+
+    slow = lazy_sandbox(client, "sb-slow")
+    slow._api = RecordingTransport(  # type: ignore[attr-defined]
+        [{}, *[_sandbox_detail_payload("sb-slow", "deleting") for _ in range(50)]]
+    )
+    with pytest.raises(RequestTimeoutError) as timed_out:
+        await slow.delete(timeout=0.05)
+    assert (timed_out.value.status_code, timed_out.value.code, timed_out.value.source) == (
+        408,
+        "REQUEST_TIMEOUT",
+        "SDK",
+    )
+    with pytest.raises(BadRequestError, match="timeout"):
+        await slow.delete(timeout=-1)
+
+
+@pytest.mark.anyio
+async def test_stop_by_id_posts_then_waits_until_stopped():
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     api = RecordingTransport(
         [
-            _sandbox_detail_payload("sb-123", "running", sandbox_class="macos", persistent=True),
             {},
+            _sandbox_detail_payload("sb-123", "stopping", sandbox_class="macos", persistent=True),
             _sandbox_detail_payload("sb-123", "stopped", sandbox_class="macos", persistent=True),
         ]
     )
     bind_api(client, api)
 
-    await client.stop("sb-123")
+    await client.stop("sb-123", timeout=10)
 
     assert [(spec.method, spec.path) for spec in api.specs] == [
-        ("GET", "/sandboxes/sb-123"),
         ("POST", "/sandboxes/sb-123/stop"),
         ("GET", "/sandboxes/sb-123"),
+        ("GET", "/sandboxes/sb-123"),
     ]
+    assert api.specs[1].params["wait"] == "stopped"
+
+
+@pytest.mark.anyio
+async def test_stop_raises_request_timeout_when_its_wait_runs_out():
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport([{}, *[_sandbox_detail_payload("sb", "stopping") for _ in range(50)]])
+    bind_api(client, api)
+    with pytest.raises(RequestTimeoutError):
+        await client.stop("sb", timeout=0.05)
 
 
 def test_size_limit_codes_map_to_typed_conflict_errors_with_byte_limits():
@@ -9514,7 +9624,7 @@ async def test_search_encodes_every_parameter_and_tolerates_unknown_response_fie
             q="build",
             name_prefix="ci-",
             id_prefix="sbx-",
-            status=["running", "stopped"],
+            states=["started", "stopped", "error"],
             sandbox_class=["linux", "macos"],
             region=["region-b", "region-c"],
             image_ref="python:3.12",
@@ -9550,7 +9660,7 @@ async def test_search_encodes_every_parameter_and_tolerates_unknown_response_fie
         "q": "build",
         "name_prefix": "ci-",
         "id_prefix": "sbx-",
-        "status": "running,stopped",
+        "status": "running,stopped,failed,lost",
         "class": "linux,macos",
         "region_ids": "region-b,region-c",
         "image_ref": "python:3.12",
@@ -9577,31 +9687,27 @@ async def test_search_encodes_every_parameter_and_tolerates_unknown_response_fie
     }
 
 
-def test_list_sandboxes_query_accepts_positional_arguments():
-    # ListSandboxesQuery accepts cursor, limit, id and name positionally;
-    # search filters are keyword-only.
-    query = ListSandboxesQuery("c", 10, "id-prefix", "name-prefix")
-    assert (query.cursor, query.limit, query.id, query.name) == ("c", 10, "id-prefix", "name-prefix")
-    assert query.q is None and query.status is None
-    assert not search_filters_present(query)
-    assert [f.name for f in fields(ListSandboxesQuery) if not f.kw_only] == ["cursor", "limit", "id", "name"]
+def test_list_and_search_options_are_keyword_only_and_list_has_no_filters():
+    query = ListSandboxesOptions(cursor="c", limit=10)
+    assert (query.cursor, query.limit) == ("c", 10)
+    assert [f.name for f in fields(ListSandboxesOptions)] == ["cursor", "limit"]
     assert all(f.kw_only for f in fields(SandboxSearchFilters))
     with pytest.raises(TypeError):
-        ListSandboxesQuery("c", 10, "id-prefix", "name-prefix", "not-a-search-filter")  # type: ignore[misc]
+        ListSandboxesOptions("c", 10)  # type: ignore[misc]
 
     # ListResult accepts items and next_cursor positionally.
     result: ListResult[str] = ListResult(["a"], "next")
     assert (result.items, result.next_cursor) == (["a"], "next")
     assert (result.total, result.total_relation) == (None, None)
 
-    # SearchSandboxesQuery is fully keyword-only.
+    # SearchSandboxesOptions is fully keyword-only.
     with pytest.raises(TypeError):
-        SearchSandboxesQuery("q")  # type: ignore[misc]
+        SearchSandboxesOptions("q")  # type: ignore[misc]
 
 
 def test_search_params_omits_unset_fields_and_rejects_comma_entries():
-    assert search_params(SearchSandboxesQuery()) == {}
-    assert search_params(SearchSandboxesQuery(status=["running"], limit=5)) == {
+    assert search_params(SearchSandboxesOptions()) == {}
+    assert search_params(SearchSandboxesOptions(states=["started"], limit=5)) == {
         "status": "running",
         "limit": 5,
     }
@@ -9609,14 +9715,42 @@ def test_search_params_omits_unset_fields_and_rejects_comma_entries():
     naive = datetime(2026, 1, 1, 12, 0, 0, 500000, tzinfo=timezone.utc).replace(tzinfo=None)  # taken as UTC
     assert search_timestamp(naive) == "2026-01-01T12:00:00.500000Z"
     with pytest.raises(BadRequestError, match="without commas"):
-        search_params(SearchSandboxesQuery(region=["a,b"]))
+        search_params(SearchSandboxesOptions(region=["a,b"]))
     # An empty list / mapping is not "no filter" — the server would read the
     # empty parameter as absent and answer an unfiltered search.
+    with pytest.raises(BadRequestError, match="at least one sandbox state"):
+        search_params(SearchSandboxesOptions(states=[]))
     with pytest.raises(BadRequestError, match="at least one value"):
-        search_params(SearchSandboxesQuery(status=[]))
+        search_params(SearchSandboxesOptions(region=[]))
     with pytest.raises(BadRequestError, match="at least one pair"):
-        search_params(SearchSandboxesQuery(labels={}))
-    assert search_filters_present(SandboxSearchFilters(status=[]))
+        search_params(SearchSandboxesOptions(labels={}))
+
+
+@pytest.mark.parametrize(
+    ("states", "wire"),
+    [
+        ("queued", "queued"),
+        ("creating", "pending,assigned"),
+        ("starting", "booting"),
+        ("started", "running"),
+        ("pausing", "pausing"),
+        ("paused", "paused"),
+        ("stopping", "stopping"),
+        ("stopped", "stopped"),
+        ("destroying", "deleting"),
+        ("destroyed", "deleted"),
+        ("error", "failed,lost"),
+        (["started", "creating", "started"], "running,pending,assigned"),
+    ],
+)
+def test_search_states_are_sent_as_the_api_status_names(states: object, wire: str) -> None:
+    assert search_params(SearchSandboxesOptions(states=states)) == {"status": wire}  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("states", ["unknown", ["started", "running"], [7], "future-state"])
+def test_search_refuses_states_the_sdk_does_not_define(states: object) -> None:
+    with pytest.raises(BadRequestError, match="known sandbox states"):
+        search_params(SearchSandboxesOptions(states=states))  # type: ignore[arg-type]
 
 
 @respx.mock
@@ -9651,7 +9785,7 @@ async def test_search_parses_summary_and_tolerates_unknown_fields():
     )
     client = _search_client()
     try:
-        page = await client.search(status=["running"])
+        page = await client.search(states=["started"])
     finally:
         await client.close()
 
@@ -9736,9 +9870,8 @@ async def test_search_rejects_response_without_sandboxes_array_matches_typescrip
         ) as excinfo:
             await client.search(q="build")
         assert excinfo.value.source == "SDK"
-        # ``list()`` with a search filter shares the parser and the strictness.
         with pytest.raises(BadRequestError, match="search response is missing the sandboxes array"):
-            await client.list(status=["running"])
+            await client.search(states=["started"])
         route.mock(
             return_value=httpx.Response(
                 200,
@@ -9788,7 +9921,7 @@ async def test_search_timestamp_rejects_non_timestamp_values_matches_typescript(
             with pytest.raises(
                 BadRequestError, match="timestamp bounds must be a datetime or an RFC 3339 string"
             ):
-                search_params(SearchSandboxesQuery(created_start_at=value))  # type: ignore[arg-type]
+                search_params(SearchSandboxesOptions(created_start_at=value))  # type: ignore[arg-type]
             with pytest.raises(
                 BadRequestError, match="timestamp bounds must be a datetime or an RFC 3339 string"
             ) as excinfo:
@@ -9831,12 +9964,12 @@ async def test_search_input_boundary_matches_typescript():
     # (a) a single value is one entry, never split into characters — ``Sequence[str]``
     # includes ``str``, and ``sandbox_class`` accepts either a class or a sequence,
     # so a bare ``"linux"`` type-checks too.
-    assert search_params(SearchSandboxesQuery(status="running", sandbox_class="linux", region="local")) == {
+    assert search_params(SearchSandboxesOptions(states="started", sandbox_class="linux", region="local")) == {
         "status": "running",
         "class": "linux",
         "region_ids": "local",
     }
-    assert search_params(SearchSandboxesQuery(region=["region-a", "region-b"])) == {
+    assert search_params(SearchSandboxesOptions(region=["region-a", "region-b"])) == {
         "region_ids": "region-a,region-b"
     }
 
@@ -9845,83 +9978,46 @@ async def test_search_input_boundary_matches_typescript():
         # (b) client-side rejections, none of them reach the transport.
         for labels in ("team=ml", ["team=ml"], 42):
             with pytest.raises(BadRequestError, match="labels must be a mapping"):
-                search_params(SearchSandboxesQuery(labels=labels))  # type: ignore[arg-type]
+                search_params(SearchSandboxesOptions(labels=labels))  # type: ignore[arg-type]
             with pytest.raises(BadRequestError, match="labels must be a mapping"):
                 await client.search(labels=labels)  # type: ignore[arg-type]
-        for status in (["running", 7], ["running", ""], ["a,b"]):
+        for region in (["region-a", 7], ["region-a", ""], ["a,b"]):
             with pytest.raises(
-                BadRequestError, match="status entries must be non-empty strings without commas"
+                BadRequestError, match="region entries must be non-empty strings without commas"
             ):
-                search_params(SearchSandboxesQuery(status=status))  # type: ignore[arg-type]
+                search_params(SearchSandboxesOptions(region=region))  # type: ignore[arg-type]
             with pytest.raises(
-                BadRequestError, match="status entries must be non-empty strings without commas"
+                BadRequestError, match="region entries must be non-empty strings without commas"
             ):
-                await client.search(status=status)  # type: ignore[arg-type]
+                await client.search(region=region)  # type: ignore[arg-type]
+        with pytest.raises(BadRequestError, match="known sandbox states"):
+            await client.search(states=["started", ""])  # type: ignore[list-item]
         assert not route.called
 
-        page = await client.search(status="running")
+        page = await client.search(states="started")
         assert route.calls.last.request.url.params["status"] == "running"
         assert page.total == 0
     finally:
         await client.close()
 
 
-@respx.mock
 @pytest.mark.anyio
-async def test_list_with_any_search_filter_searches_sandboxes_once_without_pagination():
-    plain_list = respx.get(f"{_SEARCH_BASE}/sandboxes").mock(
-        return_value=httpx.Response(200, json={"sandboxes": [], "next_cursor": "walk"})
-    )
-    search_route = respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "sandboxes": [
-                    {
-                        "id": "sbx-a",
-                        "name": "ci-a",
-                        "status": "running",
-                        "toolbox_proxy_url": "https://proxy.search.example/sandboxes",
-                    }
-                ],
-                "next_cursor": "more",
-                "total": 42,
-                "total_relation": "eq",
-            },
-        )
-    )
-    client = _search_client()
-    try:
-        page = await client.list(id="sbx", name="ci", limit=5, status=["running"], labels={"team": "ml"})
-    finally:
-        await client.close()
-
-    assert plain_list.call_count == 0
-    assert search_route.call_count == 1
-    params = dict(search_route.calls[0].request.url.params.items())
-    assert params == {
-        "id_prefix": "sbx",
-        "name_prefix": "ci",
-        "limit": "5",
-        "status": "running",
-        "labels": '{"team":"ml"}',
-    }
-    assert isinstance(page, ListResult)
-    assert [sandbox.id for sandbox in page.items] == ["sbx-a"]
-    assert page.next_cursor == "more"
-    assert page.total == 42
-    assert page.total_relation == "eq"
+async def test_list_takes_no_filters():
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    for keyword in ("id", "name", "status", "states", "labels", "sort"):
+        with pytest.raises(TypeError):
+            await client.list(**{keyword: "x"})  # type: ignore[arg-type]
 
 
 @respx.mock
 @pytest.mark.anyio
-async def test_list_with_search_filter_forwards_cursor_to_search():
+async def test_search_forwards_cursor_sort_and_order():
     search_route = respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
         return_value=httpx.Response(200, json={"sandboxes": [], "total": 0})
     )
     client = _search_client()
     try:
-        await client.list(cursor="c1", sort="name", order="asc")
+        await client.search(cursor="c1", sort="name", order="asc")
     finally:
         await client.close()
     assert dict(search_route.calls[0].request.url.params.items()) == {
@@ -9933,7 +10029,7 @@ async def test_list_with_search_filter_forwards_cursor_to_search():
 
 @respx.mock
 @pytest.mark.anyio
-async def test_list_without_search_filters_is_one_region_local_page_and_prefixes_route_to_search():
+async def test_list_is_one_plain_page_and_prefixes_are_search_filters():
     # Plain list(): one response page (iter() follows cursors), with no search totals.
     search_route = respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
         return_value=httpx.Response(
@@ -9983,10 +10079,8 @@ async def test_list_without_search_filters_is_one_region_local_page_and_prefixes
         assert plain_list.call_count == 2
         assert plain_list.calls[1].request.url == httpx.URL(f"{_SEARCH_BASE}/sandboxes?cursor=p2")
 
-        # ``GET /sandboxes`` has no id/name filters: a prefix applied client-side to one
-        # page would silently miss later pages, so a prefix routes to the search
-        # API (as ``id_prefix`` / ``name_prefix``) like every other filter.
-        filtered = await client.list(id="sbx", name="ci")
+        # Prefixes are search filters.
+        filtered = await client.search(id_prefix="sbx", name_prefix="ci")
     finally:
         await client.close()
 
@@ -10024,7 +10118,7 @@ async def test_search_maps_not_configured_and_unavailable_to_status_errors(
         with pytest.raises(expected) as info:
             await client.search(q="x")
         with pytest.raises(expected):
-            await client.list(status=["running"])
+            await client.search(states=["started"])
     finally:
         await client.close()
     assert info.value.status_code == status
@@ -10403,92 +10497,6 @@ async def test_docker_wait_until_ready_validates_timeout(timeout: float) -> None
         await AsyncDockerService(RecordingTransport([])).wait_until_ready(timeout=timeout)  # type: ignore[arg-type]
 
 
-def test_sandbox_info_round_trip_keeps_metadata() -> None:
-    info = SandboxInfo(
-        id="sbx",
-        name="sandbox",
-        state="started",
-        image=ImageRef(id="img_py", name="python:3.12"),
-        target="region-b",
-        region="region-b",
-        labels={"team": "sdk"},
-        image_build_id="img-build-1",
-        cpu=2.5,
-        cpu_max=4,
-        memory=8,
-        memory_max=16,
-        disk=20,
-        disk_max=40,
-        sandbox_class="macos",
-        persistent=True,
-        spot=True,
-        spot_evicted_at="2026-09-01T00:00:00Z",
-        lifecycle_policy=SandboxLifecycle(
-            timeout_seconds=600,
-            on_timeout="stop",
-            idle_expiry_seconds=300,
-            on_idle_timeout="pause",
-            idle_timeout_at="2026-08-27T09:15:00Z",
-        ),
-        forked_from="parent",
-        user="daytona",
-        error="boom",
-    )
-
-    assert SandboxInfo.from_json(info.to_json()) == info
-
-
-def test_sandbox_info_supports_positional_constructor_fields() -> None:
-    info = SandboxInfo(
-        "sbx",
-        "sandbox",
-        "started",
-        "python:3.12",
-        "region-a",
-        None,  # snapshot
-        "img-build-1",
-        region="region-b",
-        labels={"team": "sdk"},
-    )
-
-    assert info.target == "region-a"
-    assert info.snapshot is None
-    assert info.image_build_id == "img-build-1"
-    assert info.region == "region-b"
-    assert info.labels == {"team": "sdk"}
-
-
-def test_sandbox_info_round_trip_keeps_region_unset() -> None:
-    info = SandboxInfo(id="sbx", target="region-a", region=None)
-
-    assert SandboxInfo.from_json(info.to_json()) == info
-
-
-def test_sandbox_info_from_json_treats_non_string_state_as_unknown() -> None:
-    info = SandboxInfo.from_json({"id": "sbx", "state": ["started"]})
-
-    assert info.state == "unknown"
-
-
-def test_sandbox_info_from_json_ignores_bare_string_artifact_refs() -> None:
-    info = SandboxInfo.from_json({"id": "sbx", "image": "python:3.12", "snapshot": "snap-1"})
-
-    assert info.image is None
-    assert info.snapshot is None
-
-
-def test_sandbox_info_round_trip_supports_every_known_state() -> None:
-    for state in typing.get_args(typing.get_type_hints(SandboxInfo)["state"]):
-        info = SandboxInfo(id=f"sbx-{state}", state=state)
-        assert SandboxInfo.from_json(info.to_json()) == info
-
-
-def test_sandbox_info_round_trip_supports_every_known_class() -> None:
-    for sandbox_class in typing.get_args(SandboxClass):
-        info = SandboxInfo(id=f"sbx-{sandbox_class}", sandbox_class=sandbox_class)
-        assert SandboxInfo.from_json(info.to_json()) == info
-
-
 def test_sandbox_reads_cpu_guarantee_and_fractional_cores_max() -> None:
     """``cpu`` is the wire guarantee and ``cpu_max`` the wire ``cores_max``, both in cores."""
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
@@ -10499,7 +10507,7 @@ def test_sandbox_reads_cpu_guarantee_and_fractional_cores_max() -> None:
     assert client._sandbox_from_sandbox({**payload, "cores_max": None}).cpu_max is None
 
 
-def test_sandbox_to_json_keeps_metadata_and_omits_credentials() -> None:
+def test_sandbox_to_json_is_the_camel_case_handle_json_without_urls_or_credentials() -> None:
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = client._sandbox_from_sandbox(
         {
@@ -10533,23 +10541,23 @@ def test_sandbox_to_json_keeps_metadata_and_omits_credentials() -> None:
     )
 
     serialized = sandbox.to_json()
+    # The exact key set the TypeScript SDK's toJSON() writes for the same response.
     assert serialized == {
         "sandboxId": "sbx",
         "name": "sbx",
-        "image": {"id": "img_py", "name": "python:3.12"},
-        "target": "region-b",
-        "labels": {"team": "sdk"},
-        "imageBuildId": "img-build-1",
-        "cpu": 1.0,
-        "cpuMax": 8,
-        "memory": 8,
-        "memoryMax": 12,
-        "disk": 16,
-        "diskMax": 32,
         "state": "started",
-        "error": "boot failed once",
-        "sandboxClass": "macos",
+        "rawState": "running",
+        "image": {"id": "img_py", "name": "python:3.12"},
         "region": "region-b",
+        "labels": {"team": "sdk"},
+        "cpu": 1.0,
+        "cpuMax": 8.0,
+        "memory": 8.0,
+        "memoryMax": 12.0,
+        "disk": 16.0,
+        "diskMax": 32.0,
+        "sandboxClass": "macos",
+        "rawSandboxClass": "macos",
         "persistent": True,
         "spot": True,
         "spotEvictedAt": "2026-09-01T00:00:00Z",
@@ -10560,9 +10568,18 @@ def test_sandbox_to_json_keeps_metadata_and_omits_credentials() -> None:
         },
         "forkedFrom": "parent",
         "user": "daytona",
+        "error": "boot failed once",
+        "imageBuildId": "img-build-1",
     }
-    assert "accessToken" not in serialized
-    assert "access_token" not in serialized
+    text = json.dumps(serialized)
+    assert "sandbox-token" not in text
+    assert "tb.example.com" not in text and "ignored.example.com" not in text
+
+
+def test_sandbox_to_json_writes_only_known_keys_for_a_handle_without_metadata() -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    sandbox = lazy_sandbox(client, "sbx")
+    assert sandbox.to_json() == {"sandboxId": "sbx"}
 
 
 @pytest.mark.anyio
@@ -11610,7 +11627,15 @@ async def test_sandbox_reads_the_wire_class_first():
     mac_payload = {**_sandbox_detail_payload("mac", "stopped"), "class": "macos"}
     running = {**mac_payload, "status": "running"}
     api = RecordingTransport(
-        [mac_payload, {}, running, {}, running, {}, {**mac_payload, "status": "deleted"}]
+        [
+            mac_payload,
+            {},
+            running,
+            {},
+            {**mac_payload, "status": "stopped"},
+            {},
+            {**mac_payload, "status": "deleted"},
+        ]
     )
     mac = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
     await mac.start(timeout=1)
@@ -11626,6 +11651,8 @@ async def test_sandbox_reads_the_wire_class_first():
         ("DELETE", "/sandboxes/mac"),
         ("GET", "/sandboxes/mac"),
     ]
+    payload = {k: v for k, v in _sandbox_detail_payload("lin", "running").items() if k != "class"}
+    assert AsyncSandbox._from_api(payload, None, None).sandbox_class == "linux"
 
 
 @pytest.mark.anyio
@@ -11642,7 +11669,7 @@ async def test_macos_pause_and_resume_use_the_sandbox_routes_and_wait_through_tr
             {**mac_payload, "status": "running", "mac_boot_mode": "restored"},
         ]
     )
-    mac = AsyncSandbox.from_api(mac_payload, api, None)
+    mac = AsyncSandbox._from_api(mac_payload, api, None)
     await mac.pause(timeout=10)
     assert mac.state == "paused"
     assert mac.mac_boot_mode is None
@@ -11676,7 +11703,7 @@ async def test_start_resumes_a_paused_macos_sandbox():
 
 
 @pytest.mark.anyio
-async def test_macos_pause_that_returns_to_running_and_resume_that_ends_stopped_fail():
+async def test_pause_that_returns_to_running_and_resume_that_ends_stopped_fail():
     mac_payload = _sandbox_detail_payload("mac", "running", sandbox_class="macos", persistent=True)
     api = RecordingTransport(
         [
@@ -11686,11 +11713,11 @@ async def test_macos_pause_that_returns_to_running_and_resume_that_ends_stopped_
             {**mac_payload, "status": "stopped"},
         ]
     )
-    mac = AsyncSandbox.from_api(mac_payload, api, None)
+    mac = AsyncSandbox._from_api(mac_payload, api, None)
     with pytest.raises(SandboxTerminalStateError) as paused:
         await mac.pause(timeout=10)
     assert paused.value.state == "started"
-    assert mac.error_reason == "snapshot failed: disk full"
+    assert mac.error == "snapshot failed: disk full"
     with pytest.raises(SandboxTerminalStateError) as resumed:
         await mac.resume(timeout=10)
     assert resumed.value.state == "stopped"
@@ -11698,19 +11725,21 @@ async def test_macos_pause_that_returns_to_running_and_resume_that_ends_stopped_
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("operation", ["pause", "resume", "stop"])
-async def test_linux_rejects_unsupported_lifecycle_operations_without_mutating(operation: str):
-    # Given a Linux sandbox with loaded metadata.
+async def test_lifecycle_support_is_the_servers_decision(operation: str):
+    # A Linux sandbox's stop/pause/resume goes to the API, and its refusal
+    # surfaces as the API's typed error: the SDK checks no class or persistence.
     linux_payload = _sandbox_detail_payload("lin", "running")
-    api = RecordingTransport([])
-    lin = AsyncSandbox.from_api(linux_payload, api, None)
-    # When attempting an unsupported operation, then no request is sent.
-    with pytest.raises(UnsupportedOperationError):
+    refusal = create_error("not supported for class linux", 409, "NOT_SUPPORTED_FOR_CLASS", "DAYTONA_API")
+    api = RecordingTransport([refusal])
+    lin = AsyncSandbox._from_api(linux_payload, api, None)
+    with pytest.raises(type(refusal)) as raised:
         await getattr(lin, operation)()
-    assert api.specs == []
+    assert raised.value.code == "NOT_SUPPORTED_FOR_CLASS"
+    assert [(spec.method, spec.path) for spec in api.specs] == [("POST", f"/sandboxes/lin/{operation}")]
 
 
 def test_mac_boot_mode_is_read_from_the_response_as_an_open_string():
-    sandbox = AsyncSandbox.from_api(
+    sandbox = AsyncSandbox._from_api(
         {
             **_sandbox_detail_payload("mac", "running", sandbox_class="macos"),
             "mac_boot_mode": "future-boot-mode",
@@ -11720,8 +11749,9 @@ def test_mac_boot_mode_is_read_from_the_response_as_an_open_string():
         None,
     )
     assert sandbox.mac_boot_mode == "future-boot-mode"
-    assert sandbox.error_reason == "example failure"
-    assert AsyncSandbox.from_api(_sandbox_detail_payload("lin", "running"), None, None).mac_boot_mode is None
+    assert sandbox.error == "example failure"
+    assert not hasattr(sandbox, "error_reason")
+    assert AsyncSandbox._from_api(_sandbox_detail_payload("lin", "running"), None, None).mac_boot_mode is None
 
 
 @pytest.mark.parametrize("wire_class", ["future-class-a", "future-class-b"])
@@ -11734,24 +11764,24 @@ def test_sandbox_accepts_unrecognized_classes_and_extra_response_fields(
 
     # When parsing both the generated response model and the public sandbox.
     response = SandboxDto.model_validate(payload)
-    sandbox = AsyncSandbox.from_api(response if generated_response else payload, None, None)
+    sandbox = AsyncSandbox._from_api(response if generated_response else payload, None, None)
 
     # Then neither boundary rejects the response or assumes a supported class.
     assert response.var_class.value == wire_class
     assert sandbox.id == "odd"
-    assert sandbox.sandbox_class is None
+    assert (sandbox.sandbox_class, sandbox.raw_sandbox_class) == ("unknown", wire_class)
     assert sandbox.state == "started"
 
 
 @pytest.mark.anyio
 async def test_sandbox_refuses_class_gated_calls_for_an_unknown_class_instead_of_assuming_linux():
     api = RecordingTransport([])
-    odd = AsyncSandbox.from_api(
+    odd = AsyncSandbox._from_api(
         {**_sandbox_detail_payload("odd", "running"), "class": "future-class"}, api, None
     )
-    assert odd.sandbox_class is None
-    with pytest.raises(UnsupportedOperationError, match="unsupported sandbox class future-class"):
-        await odd.pause()
+    assert (odd.sandbox_class, odd.raw_sandbox_class) == ("unknown", "future-class")
+    assert odd.to_json()["sandboxClass"] == "unknown"
+    assert odd.to_json()["rawSandboxClass"] == "future-class"
     with pytest.raises(UnsupportedOperationError, match="unsupported sandbox class future-class"):
         await odd.update_lifecycle_policy(on_idle_timeout="delete")
     with pytest.raises(UnsupportedOperationError, match="unsupported sandbox class future-class"):
@@ -11770,6 +11800,8 @@ async def test_sandbox_keeps_class_blind_calls_for_an_unknown_class(monkeypatch)
         "region_id": "us",
         "status": "pending",
         "region_ids": [],
+        "created_at": _DEFAULT_TIME,
+        "updated_at": _DEFAULT_TIME,
     }
     odd, api = _presigned_sandbox(
         monkeypatch,
@@ -11780,29 +11812,26 @@ async def test_sandbox_keeps_class_blind_calls_for_an_unknown_class(monkeypatch)
             _sign_response(),
             None,
             {**odd_payload, "status": "stopped"},
-            {**odd_payload, "status": "paused"},
+            {},
+            odd_payload,
         ],
         sandbox_id="odd",
     )
-    odd.sandbox_class = None
     # Already started: start() returns after its refresh, whatever the class.
     await odd.start(timeout=10)
-    assert odd.sandbox_class is None
+    assert odd.sandbox_class == "unknown"
     # Snapshot and signed-URL routes do not depend on the class.
     assert (await odd.create_snapshot("snap")).id == "snap"
     assert "/files/download?path=%2Ftmp%2Fdemo.txt" in await odd.fs.presigned_download_url("/tmp/demo.txt")
     await odd.rotate_signing_key()
-    # Starting a stopped sandbox requires a supported lifecycle class.
-    with pytest.raises(UnsupportedOperationError, match="unsupported sandbox class future-class"):
-        await odd.start(timeout=10)
+    # Lifecycle requests go to the API whatever the class: it decides.
+    await odd.start(timeout=10)
     assert [(spec.method, spec.path) for spec in api.specs if spec.method == "POST"] == [
         ("POST", "/sandboxes/odd/snapshots"),
         ("POST", "/sandboxes/odd/files/sign"),
         ("POST", "/sandboxes/odd/signing-key/rotate"),
+        ("POST", "/sandboxes/odd/start"),
     ]
-    # Resuming a paused one depends on the class, so it is still refused.
-    with pytest.raises(UnsupportedOperationError, match="unsupported sandbox class future-class"):
-        await odd.start(timeout=10)
     assert api.responses == []
 
 
@@ -11824,7 +11853,7 @@ async def test_reservations_namespace_paths_idempotency_header_and_parsing():
     )
     client = AsyncDaytona(_config_at(_SEARCH_BASE, api_key="key"))
     try:
-        assert isinstance(client.reservations, AsyncReservationService)
+        assert isinstance(client.reservations, AsyncReservationsService)
         created = await client.reservations.create(
             region="mac-region",
             model="m4pro-12c-24g",
@@ -11877,7 +11906,7 @@ async def test_reservations_namespace_paths_idempotency_header_and_parsing():
         created.resources_used.memory_mib,
         created.resources_used.disk_mib,
     ) == (5, 8192, 117760)
-    historical = await AsyncReservationService(
+    historical = await AsyncReservationsService(
         RecordingTransport([_mac_reservation_payload(model=None, capacity=None)])
     ).get("res-1")
     assert (historical.model, historical.capacity) == (None, None)
@@ -11886,7 +11915,7 @@ async def test_reservations_namespace_paths_idempotency_header_and_parsing():
 @pytest.mark.anyio
 async def test_reservations_renew_sends_the_caller_key_or_a_fresh_one_per_call():
     api = RecordingTransport([_mac_reservation_payload(period_n=2) for _ in range(4)])
-    service = AsyncReservationService(api)
+    service = AsyncReservationsService(api)
     await service.renew("mac-region:res 1", idempotency_key="renew-1")
     await service.renew("mac-region:res 1", idempotency_key="renew-1")
     await service.renew("mac-region:res 1")
@@ -11914,7 +11943,7 @@ async def test_reservations_create_bulk_posts_the_bulk_body_with_an_idempotency_
         ],
     }
     api = RecordingTransport([batch, batch, batch])
-    service = AsyncReservationService(api)
+    service = AsyncReservationsService(api)
     bought = await service.create_bulk(
         region="mac-region",
         count=3,
@@ -11981,11 +12010,11 @@ _MAC_MODELS = [
 async def test_mac_models_list_reads_the_registry():
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     try:
-        assert isinstance(client.mac_models, AsyncMacModelService)
+        assert isinstance(client.mac_models, AsyncMacModelsService)
     finally:
         await client.close()
     api = RecordingTransport([{"mac_models": _MAC_MODELS}])
-    listed = await AsyncMacModelService(api).list()
+    listed = await AsyncMacModelsService(api).list()
     assert [(spec.method, spec.path) for spec in api.specs] == [("GET", "/mac-models")]
     assert [(m.id, m.name, m.cores, m.memory_mib, m.disk_mib, m.sandbox_disk_mib) for m in listed] == [
         ("m4-10c-16g", "Apple M4", 10, 16384, 244198, 235520),
@@ -12022,7 +12051,7 @@ async def test_mac_models_catalog_reads_free_macs_and_prices():
         ]
     }
     api = RecordingTransport([catalog, catalog])
-    service = AsyncMacModelService(api)
+    service = AsyncMacModelsService(api)
     read = await service.catalog(region="mac-region")
     await service.catalog()
     assert [(spec.method, spec.path, spec.params) for spec in api.specs] == [
@@ -12045,7 +12074,7 @@ async def test_mac_models_catalog_reads_free_macs_and_prices():
 
 @pytest.mark.anyio
 async def test_reservation_contract_enums_preserve_unknown_wire_values() -> None:
-    reservations = AsyncReservationService(
+    reservations = AsyncReservationsService(
         RecordingTransport(
             [
                 _mac_reservation_payload(
@@ -12071,7 +12100,7 @@ async def test_reservation_list_and_iter_decode_contract_enums_like_get() -> Non
         id="res-future", status="future_status", origin="future_origin", end_reason="future_reason"
     )
     page = {"reservations": [known, future]}
-    reservations = AsyncReservationService(RecordingTransport([page, page]))  # type: ignore[arg-type]
+    reservations = AsyncReservationsService(RecordingTransport([page, page]))  # type: ignore[arg-type]
 
     listed = list((await reservations.list()).items)
     drained = [item async for item in reservations.iter()]
@@ -12265,15 +12294,14 @@ async def test_create_macos_sends_supplied_size_axes_exactly_and_omits_absent_on
     await client.create_macos(
         "base-macos",
         reservation="mac-region:res-1",
-        cpu=10,
-        memory=16,
+        resources=MacosResources(cpu=10, memory=16),
         # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
         persistent=True,
     )
-    await client.create_macos("base-macos", memory=4.5)
-    await client.create_macos("base-macos", cpu=4)
-    await client.create_macos("base-macos", disk=115)
-    await client.create_macos("base-macos", disk=80.5)
+    await client.create_macos("base-macos", resources=MacosResources(memory=4.5))
+    await client.create_macos("base-macos", resources=MacosResources(cpu=4))
+    await client.create_macos("base-macos", resources=MacosResources(disk=115))
+    await client.create_macos("base-macos", resources=MacosResources(disk=80.5))
     bodies = [spec.json_body for spec in api.specs]
     assert bodies[0] == {"image": "base-macos", "wait_seconds": 60}
     assert bodies[1] == {
@@ -12328,7 +12356,7 @@ async def test_create_macos_refuses_an_invalid_size_before_posting(size: dict[st
     api = RecordingTransport([])
     client._api = api  # type: ignore[attr-defined]
     with pytest.raises(BadRequestError) as info:
-        await client.create_macos("base-macos", **size)  # type: ignore[arg-type]
+        await client.create_macos("base-macos", resources=MacosResources(**size))  # type: ignore[arg-type]
     assert (info.value.status_code, info.value.code, info.value.source, str(info.value)) == (
         400,
         "BAD_REQUEST",
@@ -12339,7 +12367,7 @@ async def test_create_macos_refuses_an_invalid_size_before_posting(size: dict[st
 
 
 @pytest.mark.anyio
-async def test_macos_size_reads_exact_gib_and_keeps_the_reservation_id_through_refresh_and_serialization():
+async def test_sizes_read_exact_gib_and_keep_the_reservation_id_through_refresh_and_serialization():
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     unclaimed = {
         **_sandbox_detail_payload(
@@ -12369,13 +12397,11 @@ async def test_macos_size_reads_exact_gib_and_keeps_the_reservation_id_through_r
         "mac-region:res-1",
     )
     assert (serialized["disk"], serialized["diskMax"]) == (115, 80.5)
-    info = SandboxInfo.from_json(SandboxInfo(id="mac", memory=4.5, disk=80.5, reservation_id="r").to_json())
-    assert (info.memory, info.disk, info.reservation_id) == (4.5, 80.5, "r")
-    # Linux reports whole GiB, rounded up.
-    linux = AsyncSandbox.from_api(
+    # Linux reads back exactly too: MiB / 1024, never rounded.
+    linux = AsyncSandbox._from_api(
         _sandbox_detail_payload("lin", "running", memory_mib=4608, disk_mib=1536), None, None
     )
-    assert (linux.memory, linux.disk) == (5, 2)
+    assert (linux.memory, linux.disk) == (4.5, 1.5)
 
 
 @pytest.mark.anyio
@@ -12583,7 +12609,7 @@ async def test_image_list_forwards_platform_and_parses_platform_fields() -> None
             },
         ]
     )
-    service = AsyncImageService(transport)  # type: ignore[arg-type]
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
 
     page = await service.list(platform="true")
     assert transport.specs[0].params == {"anonymous": False, "platform": "true"}
@@ -12604,7 +12630,7 @@ async def test_image_list_forwards_platform_and_parses_platform_fields() -> None
         for key, value in _image_page_payload("img_own").items()
         if key not in ("platform", "default", "deprecated")
     }
-    single = AsyncImageService(RecordingTransport([minimal_payload]))  # type: ignore[arg-type]
+    single = AsyncImagesService(RecordingTransport([minimal_payload]))  # type: ignore[arg-type]
     got = await single.get("img_own")
     assert (got.platform, got.default, got.deprecated) == (False, False, False)
 
@@ -12620,12 +12646,12 @@ async def test_image_list_and_get_parse_disk_mib_of_a_macos_snapshot() -> None:
     linux_payload = {**_image_page_payload("img_linux"), "disk_mib": None}
     transport = RecordingTransport([{"images": [snapshot_payload, linux_payload], "next_cursor": None}])
 
-    page = await AsyncImageService(transport).list(anonymous=True)  # type: ignore[arg-type]
+    page = await AsyncImagesService(transport).list(anonymous=True)  # type: ignore[arg-type]
     assert [(item.id, item.disk_mib) for item in page.items] == [("img_mac", 61440), ("img_linux", None)]
 
     # An absent optional disk size defaults to None.
     minimal_payload = {key: value for key, value in _image_page_payload("img_old").items() if key != "cursor"}
-    got = await AsyncImageService(RecordingTransport([minimal_payload])).get("img_old")  # type: ignore[arg-type]
+    got = await AsyncImagesService(RecordingTransport([minimal_payload])).get("img_old")  # type: ignore[arg-type]
     assert got.disk_mib is None
 
 
@@ -12675,7 +12701,7 @@ async def test_volume_service_shapes_routes():
         ]
     )
 
-    volume = AsyncVolumeService(transport)  # type: ignore[arg-type]
+    volume = AsyncVolumesService(transport)  # type: ignore[arg-type]
     listed_volume = (await volume.list()).items[0]
     assert (listed_volume.type, listed_volume.raw_type) == ("disk", "disk")
     assert (listed_volume.status, listed_volume.raw_status) == ("ready", "ready")
@@ -12689,7 +12715,7 @@ async def test_volume_service_shapes_routes():
 async def test_volume_delete_reports_acceptance_and_id_only_is_opt_in():
     volume_id = "volume-id"
     transport = RecordingTransport([{"id": volume_id, "state": "deleting"}, _volume_payload(volume_id), {}])
-    volume = AsyncVolumeService(transport)  # type: ignore[arg-type]
+    volume = AsyncVolumesService(transport)  # type: ignore[arg-type]
 
     assert await volume.delete("named-volume") is None
     assert transport.specs[0].params == {}
@@ -12702,7 +12728,7 @@ async def test_volume_delete_reports_acceptance_and_id_only_is_opt_in():
 async def test_volume_get_does_not_create_when_id_only_lookup_is_missing():
     missing = create_error("missing", 404, code_names.NOT_FOUND, "DAYTONA_API")
     transport = RecordingTransport([missing])
-    volume = AsyncVolumeService(transport)  # type: ignore[arg-type]
+    volume = AsyncVolumesService(transport)  # type: ignore[arg-type]
 
     with pytest.raises(NotFoundError):
         await volume.get("volume-id", create=True, id_only=True)
@@ -12713,7 +12739,7 @@ async def test_volume_get_does_not_create_when_id_only_lookup_is_missing():
 async def test_service_objects_preserve_nullable_volume_fields() -> None:
     payload = {**_volume_payload("vol"), "error": None, "used_bytes": None}
     transport = RecordingTransport([payload])
-    volume = AsyncVolumeService(transport)  # type: ignore[arg-type]
+    volume = AsyncVolumesService(transport)  # type: ignore[arg-type]
     result = await volume.get("vol")
     assert result.error is None
     assert result.used_bytes is None
@@ -12724,7 +12750,7 @@ async def test_service_objects_preserve_nullable_volume_fields() -> None:
 
 @pytest.mark.anyio
 async def test_volume_contract_enums_preserve_unknown_wire_values() -> None:
-    volumes = AsyncVolumeService(
+    volumes = AsyncVolumesService(
         RecordingTransport(
             [{"volumes": [{**_volume_payload("vol"), "status": "future_status", "type": "future_type"}]}]
         )

@@ -41,9 +41,9 @@ SecretsCall = Literal["get", "replace"]
 async def _call(client: AsyncDaytona, call: SecretsCall) -> SandboxSecretsInfo:
     match call:
         case "get":
-            return await client.get_sandbox_secrets("sbx")
+            return await lazy_sandbox(client, "sbx").get_secrets()
         case "replace":
-            return await client.replace_sandbox_secrets("sbx", secrets=["TOKEN"], if_match='"sv-3"')
+            return await lazy_sandbox(client, "sbx").replace_secrets(secrets=["TOKEN"], if_match='"sv-3"')
         case unreachable:
             assert_never(unreachable)
 
@@ -66,7 +66,7 @@ async def _get(body: dict[str, JsonField]) -> SandboxSecretsInfo:
     with FakeApi([PlannedResponse(200, body, headers={"ETag": '"sv-3"'})]) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            return await client.get_sandbox_secrets("sbx")
+            return await lazy_sandbox(client, "sbx").get_secrets()
         finally:
             await client.close()
 
@@ -111,7 +111,7 @@ async def test_get_decodes_every_capture_status(
 async def test_get_decodes_absent_optional_fields_as_none() -> None:
     info = await _get({"secrets": [], "desired_revision": 0})
 
-    assert info == SandboxSecretsInfo(secrets=[], desired_revision=0, etag='"sv-3"', http_status=200)
+    assert info == SandboxSecretsInfo(secrets=(), desired_revision=0, etag='"sv-3"', http_status=200)
 
 
 async def test_every_contract_response_property_is_decoded() -> None:
@@ -145,7 +145,7 @@ async def test_get_maps_a_missing_sandbox_to_not_found_without_retrying() -> Non
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
             with pytest.raises(NotFoundError) as exc:
-                await client.get_sandbox_secrets("sbx")
+                await lazy_sandbox(client, "sbx").get_secrets()
         finally:
             await client.close()
 
@@ -178,7 +178,7 @@ async def test_replace_maps_api_errors_without_retrying(
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
             with pytest.raises(expected) as exc:
-                await client.replace_sandbox_secrets("sbx", secrets=secrets, if_match='"sv-3"')
+                await lazy_sandbox(client, "sbx").replace_secrets(secrets=secrets, if_match='"sv-3"')
         finally:
             await client.close()
 
@@ -199,7 +199,7 @@ async def test_replace_refuses_missing_secrets_locally_instead_of_sending_an_emp
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
             with pytest.raises(BadRequestError) as exc:
-                await client.replace_sandbox_secrets("sbx", secrets=None, if_match='"sv-3"')  # type: ignore[arg-type]
+                await lazy_sandbox(client, "sbx").replace_secrets(secrets=None, if_match='"sv-3"')  # type: ignore[arg-type]
         finally:
             await client.close()
 
@@ -245,4 +245,4 @@ async def test_detach_all_sends_an_explicit_empty_array_with_if_match() -> None:
         '"sv-3"',
     )
     assert json_body(request) == {"secrets": []}
-    assert (info.secrets, info.desired_revision, info.etag, info.http_status) == ([], 4, '"sv-4"', 202)
+    assert (info.secrets, info.desired_revision, info.etag, info.http_status) == ((), 4, '"sv-4"', 202)

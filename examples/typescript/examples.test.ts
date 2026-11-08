@@ -102,6 +102,16 @@ test('build-logs reads the failed build through the error image id', () => {
   assertCleanedUp(record)
 })
 
+test('build-logs fails when a deliberately broken build unexpectedly succeeds', () => {
+  // Given: the fake accepts even the Dockerfile containing a failing command.
+  // When: the example evaluates the failed-build demonstration.
+  const { code, record, output } = runExample(example('build-logs'))
+  // Then: accepting the broken build cannot produce a successful example run.
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* the deliberately broken build unexpectedly created/)
+  assertCleanedUp(record)
+})
+
 test('build-logs does not pass partial output after a log read error', () => {
   const { code, output } = runExample(example('build-logs'), {
     failBuildsContaining: 'intentional-build-failure-',
@@ -181,6 +191,19 @@ test('volumes_share round-trips through the volume', () => {
   const { code, record, output } = runExample('volumes_share.ts', { volumeData: true })
   assert.equal(code, 0, output)
   assert.equal(record.deletedVolumes.length, 1)
+  assert.deepEqual(record.deletedVolumes, record.createdVolumes)
+  assertCleanedUp(record)
+})
+
+test('volumes cleans up the volume acquired with create enabled', () => {
+  // Given: no volumes exist in the fake project.
+  // When: the example acquires a named volume and mounts it in three sandboxes.
+  const { code, record, output } = runExample(example('volumes'))
+  // Then: cleanup removes that volume and every created sandbox.
+  assert.equal(code, 0, output)
+  assert.equal(record.createdVolumes.length, 1)
+  assert.deepEqual(record.deletedVolumes, record.createdVolumes)
+  assertCleanedUp(record)
 })
 
 test('volumes_share reports a failed read instead of a partial result', () => {

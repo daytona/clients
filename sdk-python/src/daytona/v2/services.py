@@ -24,9 +24,13 @@ from ._api_core import (
     expect_list_secrets_resp,
     expect_list_snapshots_resp,
     expect_list_volumes_resp,
+    expect_mac_catalog,
+    expect_mac_models,
     expect_secret,
     expect_snapshot,
     expect_volume,
+    mac_resources_from_wire,
+    secret_from_wire,
 )
 from ._core import (
     RequestSpec,
@@ -40,10 +44,11 @@ from ._core import (
 )
 from ._gen.api import MacReservation as MacReservationWire
 from ._gen.api import MacReservationBatch as MacReservationBatchWire
+from ._gen.api import ReservationPage
 from ._gen.api import Volume as VolumeWire
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
-from .build_logs import BuildLogFollowResult, _EventCallback, _LogsCallback, follow_build_logs
+from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
 from .errors import NotFoundError, create_error
 from .image import ImageBuilder
 from .types import (
@@ -55,13 +60,11 @@ from .types import (
     ListResult,
     MacCatalog,
     MacModel,
-    MacModelList,
     MacReservation,
     MacReservationBatch,
     MacReservationEndReason,
     MacReservationOrigin,
     MacReservationStatus,
-    ReservationPage,
     Secret,
     Snapshot,
     UpdateReservationRequest,
@@ -103,18 +106,18 @@ async def _iter_pages(
         current_cursor = next_cursor
 
 
-class AsyncImageService:
+class AsyncImagesService:
     """Image build/pull/list namespace."""
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def follow_build_logs(
         self,
         image_id: str,
         *,
-        on_logs: _LogsCallback,
-        on_event: Optional[_EventCallback] = None,
+        on_logs: BuildLogsCallback,
+        on_event: Optional[BuildLogEventCallback] = None,
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
@@ -165,7 +168,7 @@ class AsyncImageService:
             body["region_id"] = region
         if cpu_arch is not None:
             body["cpu_arch"] = cpu_arch
-        source, rendered_dockerfile = resolved_builder.build_request_source()
+        source, rendered_dockerfile = resolved_builder._request_source()
         if source is not None:
             body["source"] = source
         if rendered_dockerfile is not None:
@@ -198,7 +201,7 @@ class AsyncImageService:
         or zero waits without a deadline. A failed import raises
         :class:`ImageBuildFailedError` with the server's recorded error.
         """
-        source, _ = ImageBuilder.from_registry(image).build_request_source()
+        source, _ = ImageBuilder.from_registry(image)._request_source()
         body: JsonObject = {"source": source}
         if name is not None:
             body["name"] = name
@@ -309,11 +312,11 @@ class AsyncImageService:
 _ARTIFACT_LONGPOLL_MAX_MS = 60_000
 
 
-class AsyncSnapshotService:
+class AsyncSnapshotsService:
     """Sandbox snapshot namespace."""
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def list(
         self,
@@ -386,11 +389,11 @@ class AsyncSnapshotService:
         await self._transport.send(RequestSpec("DELETE", f"/snapshots/{_path(snapshot_id)}"))
 
 
-class AsyncVolumeService:
+class AsyncVolumesService:
     """Volume management namespace."""
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def list(
         self,
@@ -448,21 +451,21 @@ class AsyncVolumeService:
             return await self.create(name=name_or_id)
 
     async def create(self, *, name: str, size_gib: Optional[int] = None) -> Volume:
-        """Create a volume."""
-        body: JsonObject = {"name": name}
+        """Create a disk volume (ready immediately); ``size_gib`` omitted uses the server default."""
+        body: JsonObject = {"name": name, "type": "disk"}
         if size_gib is not None:
             body["size_gib"] = size_gib
         return _volume(
             expect_volume(await self._transport.send(RequestSpec("POST", "/volumes", json_body=body)))
         )
 
-    async def delete(self, volume_id: str, *, id_only: bool = False) -> None:
-        """Request deletion and return once the API accepts it."""
+    async def delete(self, name_or_id: str, *, id_only: bool = False) -> None:
+        """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
         params: Dict[str, JsonValue] = {"id_only": True} if id_only else {}
-        await self._transport.send(RequestSpec("DELETE", f"/volumes/{_path(volume_id)}", params=params))
+        await self._transport.send(RequestSpec("DELETE", f"/volumes/{_path(name_or_id)}", params=params))
 
 
-class AsyncReservationService:
+class AsyncReservationsService:
     """Dedicated-Mac reservations, which macOS sandboxes run on.
 
     A macOS sandbox runs on a Mac the organization has reserved: reserve one
@@ -474,8 +477,8 @@ class AsyncReservationService:
     listing, reading and turning auto-renew off do not.
     """
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def create(
         self,
@@ -545,7 +548,7 @@ class AsyncReservationService:
         return MacReservationBatch(
             requested=batch.requested,
             reserved=batch.reserved,
-            reservations=[_mac_reservation(item) for item in batch.reservations],
+            reservations=tuple(_mac_reservation(item) for item in batch.reservations),
         )
 
     async def list(
@@ -635,9 +638,9 @@ def _mac_reservation(response: TransportPayload | MacReservationWire) -> MacRese
         auto_renew=value.auto_renew,
         origin=_mac_reservation_origin(raw_origin),
         raw_origin=raw_origin,
-        resources_used=value.resources_used,
+        resources_used=mac_resources_from_wire(value.resources_used),
         activated_at=value.activated_at,
-        capacity=value.capacity,
+        capacity=mac_resources_from_wire(value.capacity) if value.capacity is not None else None,
         model=value.model,
         end_reason=_mac_reservation_end_reason(raw_end_reason),
         raw_end_reason=raw_end_reason,
@@ -709,7 +712,7 @@ def _idempotency_headers(idempotency_key: Optional[str]) -> Dict[str, str]:
     return {"Idempotency-Key": str(uuid.uuid4()) if idempotency_key is None else idempotency_key}
 
 
-class AsyncMacModelService:
+class AsyncMacModelsService:
     """The Mac model registry (``GET /mac-models``).
 
     Lists the models ``reservations.create(model=...)`` accepts, with each
@@ -718,27 +721,22 @@ class AsyncMacModelService:
     and prices.
     """
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def list(self) -> List[MacModel]:
         """Every registered Mac model, ordered by ``id``."""
-        response = await self._transport.send(RequestSpec("GET", "/mac-models"))
-        page = _expect_model_from_dict(
-            response, MacModelList, "Mac model list response", MacModelList.model_validate
-        )
-        return list(page.mac_models)
+        return expect_mac_models(await self._transport.send(RequestSpec("GET", "/mac-models")))
 
     async def catalog(self, *, region: Optional[str] = None) -> MacCatalog:
         """Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; price is null when pricing is unavailable."""
         params: Dict[str, JsonValue] = {} if region is None else {"region_ids": region}
-        response = await self._transport.send(RequestSpec("GET", "/mac-catalog", params=params))
-        return _expect_model_from_dict(
-            response, MacCatalog, "Mac catalog response", MacCatalog.model_validate
+        return expect_mac_catalog(
+            await self._transport.send(RequestSpec("GET", "/mac-catalog", params=params))
         )
 
 
-class AsyncSecretService:
+class AsyncSecretsService:
     """Project secret namespace.
 
     Project-scoped secrets: named key/value pairs stored
@@ -749,8 +747,8 @@ class AsyncSecretService:
     by the API (write-only).
     """
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def list(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> ListResult[Secret]:
         """List secret metadata."""
@@ -761,7 +759,7 @@ class AsyncSecretService:
             params["limit"] = limit
         response = await self._transport.send(RequestSpec("GET", "/secrets", params=params))
         payload = expect_list_secrets_resp(response)
-        return ListResult(list(payload.secrets), payload.next_cursor)
+        return ListResult([secret_from_wire(item) for item in payload.secrets], payload.next_cursor)
 
     async def iter(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None

@@ -43,8 +43,8 @@ class AsyncDockerService:
     :meth:`wait_until_ready` with a ``NotFoundError`` (404).
     """
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def status(self) -> DockerStatus:
         """Return the current Docker Engine status for this boot, answered immediately.

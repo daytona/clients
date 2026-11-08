@@ -93,9 +93,9 @@ def test_volume_surfaces_type_check_for_users(tmp_path: Path, monkeypatch: pytes
         tmp_path,
         monkeypatch,
         "from daytona import Daytona\n"
-        "from daytona.v2 import VolumeMount, VolumeService, SandboxVolumesService\n"
+        "from daytona.v2 import VolumeMount, VolumesService, SandboxVolumesService\n"
         "d = Daytona()\n"
-        "service: VolumeService = d.v2.volume\n"
+        "service: VolumesService = d.v2.volumes\n"
         "d.v2.create('python:3.12', volumes=[VolumeMount('vol', '/mnt/data', subpath='proj')])\n"
         "pull: SandboxVolumesService = d.v2.get('sbx').volumes\n",
     )

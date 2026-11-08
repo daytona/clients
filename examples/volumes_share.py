@@ -41,13 +41,13 @@ def sh(sandbox: Sandbox, command: str) -> str:
 
 def main() -> int:
     daytona = Daytona(DaytonaConfig(api_key=os.environ.get("DAYTONA_API_KEY", ""))).v2
-    volume = daytona.volume.create(name=f"shared-vol-{RUN}")
+    volume = daytona.volumes.create(name=f"shared-vol-{RUN}")
     print(f"volume id={volume.id} name={volume.name} status={volume.status}")
     boxes: list[Sandbox] = []
     ok = True
 
     def new_box(name: str) -> Sandbox:
-        box = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"{name}-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path="/data")], wait_seconds=240)
+        box = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"{name}-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path="/data")], build_timeout=240, wait_seconds=240)
         boxes.append(box)
         return box
 
@@ -96,11 +96,11 @@ def main() -> int:
             # Allow sandbox deletion to finish before deleting the volume.
             time.sleep(3)
             try:
-                daytona.volume.delete(volume.id)
+                daytona.volumes.delete(volume.id)
             except DaytonaError as error:
                 print(f"delete volume failed (retrying once): {error}")
                 time.sleep(5)
-                daytona.volume.delete(volume.id)
+                daytona.volumes.delete(volume.id)
     print("SUCCESS" if ok else "FAILURE")
     return 0 if ok else 1
 

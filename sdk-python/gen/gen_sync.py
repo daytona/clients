@@ -72,12 +72,12 @@ TARGETS: dict[str, list[str]] = {
     "sandbox_volumes": ["AsyncSandboxVolumesService"],
     "docker": ["AsyncDockerService"],
     "services": [
-        "AsyncImageService",
-        "AsyncSnapshotService",
-        "AsyncVolumeService",
-        "AsyncSecretService",
-        "AsyncReservationService",
-        "AsyncMacModelService",
+        "AsyncImagesService",
+        "AsyncSnapshotsService",
+        "AsyncVolumesService",
+        "AsyncSecretsService",
+        "AsyncReservationsService",
+        "AsyncMacModelsService",
     ],
     "computer_use": ["AsyncComputerUseService"],
     "computer_use_services": [
@@ -447,9 +447,10 @@ def _emit_class(module: str, cls: type) -> str:
         lines.append(f"        self._impl = _async.{name}(config, _source='sdk-python')")
         lines.append("")
     else:
-        lines.append(f"    def __init__(self, impl: _async.{name}, bridge: SyncBridge) -> None:")
-        lines.append("        self._impl = impl")
-        lines.append("        self._bridge = bridge")
+        # Construction is internal: the SDK wraps the async object it returned.
+        lines.append(f"    def __init__(self, _impl: _async.{name}, _bridge: SyncBridge) -> None:")
+        lines.append("        self._impl = _impl")
+        lines.append("        self._bridge = _bridge")
         lines.append("")
     lines.append("    def __repr__(self) -> str:")
     lines.append(f"        return f'{_twin(name)}({{self._impl!r}})'")
@@ -467,6 +468,7 @@ def _emit_class(module: str, cls: type) -> str:
         lines.append(f"        return {_wrap_expr(ann_text, f'self._impl.{attr}', 'self._bridge')}")
         lines.append("")
 
+    direct_properties: frozenset[str] = getattr(cls, "_SYNC_DIRECT_PROPERTIES", frozenset())
     for m in sorted(_members(cls), key=lambda m: (m.kind == "property", m.name)):
         if name == "AsyncDaytona" and m.name == "close":
             lines.append("    def close(self) -> None:")
@@ -495,12 +497,18 @@ def _emit_class(module: str, cls: type) -> str:
             # A property on an async class is computed state the loop mutates
             # (a watch's exit_error / overflow_count): read it ON the loop, so
             # a sync caller never observes it mid-update from another thread.
-            # Plain __init__ attributes (emitted above) are set once and read freely.
+            # Plain __init__ attributes (emitted above) are set once and read
+            # freely, and so are the properties a class lists in
+            # `_SYNC_DIRECT_PROPERTIES` (fields of a snapshot the loop replaces
+            # whole), which stay readable after the client closes.
             lines.append("    @property")
             lines.append(f"    def {m.name}(self) -> {ret}:")
             if m.doc:
                 lines.append(f'        """{_sync_doc(m.doc)}"""')
-            inner = f"self._bridge.call_sync(lambda: self._impl.{m.name})"
+            if m.name in direct_properties:
+                inner = f"self._impl.{m.name}"
+            else:
+                inner = f"self._bridge.call_sync(lambda: self._impl.{m.name})"
             lines.append(f"        return {_wrap_expr(m.src_returns or m.returns, inner, 'self._bridge')}")
             lines.append("")
             continue

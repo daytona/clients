@@ -25,7 +25,8 @@ it('reads an unknown class response with additional fields', async () => {
 
     // Then: unknown classes and fields do not prevent reading known fields.
     expect(sandbox).toMatchObject({ id: 'sbx', name: 'sandbox', state: 'started', cpu: 1, memory: 1, disk: 2 })
-    expect(sandbox.sandboxClass).toBeUndefined()
+    expect(sandbox.sandboxClass).toBe('unknown')
+    expect(sandbox.rawSandboxClass).toBe('future-class')
   } finally {
     client.close()
     if (previous === undefined) delete process.env.DAYTONA_V2_API_URL

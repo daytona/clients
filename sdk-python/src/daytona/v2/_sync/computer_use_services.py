@@ -23,9 +23,9 @@ class A11yService:
 
     _async_type = _async.AsyncA11yService
 
-    def __init__(self, impl: _async.AsyncA11yService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncA11yService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"A11yService({self._impl!r})"
@@ -73,9 +73,9 @@ class AddonProcessesService:
 
     _async_type = _async.AsyncAddonProcessesService
 
-    def __init__(self, impl: _async.AsyncAddonProcessesService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncAddonProcessesService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"AddonProcessesService({self._impl!r})"
@@ -112,9 +112,9 @@ class DisplayService:
 
     _async_type = _async.AsyncDisplayService
 
-    def __init__(self, impl: _async.AsyncDisplayService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncDisplayService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"DisplayService({self._impl!r})"
@@ -137,9 +137,9 @@ class KeyboardService:
 
     _async_type = _async.AsyncKeyboardService
 
-    def __init__(self, impl: _async.AsyncKeyboardService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncKeyboardService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"KeyboardService({self._impl!r})"
@@ -165,9 +165,9 @@ class MouseService:
 
     _async_type = _async.AsyncMouseService
 
-    def __init__(self, impl: _async.AsyncMouseService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncMouseService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"MouseService({self._impl!r})"
@@ -213,9 +213,9 @@ class RecordingService:
 
     _async_type = _async.AsyncRecordingService
 
-    def __init__(self, impl: _async.AsyncRecordingService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncRecordingService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"RecordingService({self._impl!r})"
@@ -250,9 +250,9 @@ class ScreenService:
 
     _async_type = _async.AsyncScreenService
 
-    def __init__(self, impl: _async.AsyncScreenService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncScreenService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"ScreenService({self._impl!r})"

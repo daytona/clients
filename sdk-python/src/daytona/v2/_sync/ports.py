@@ -23,9 +23,9 @@ class PortsService:
 
     _async_type = _async.AsyncPortsService
 
-    def __init__(self, impl: _async.AsyncPortsService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncPortsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"PortsService({self._impl!r})"
@@ -63,10 +63,6 @@ class PortsService:
     def preview_link(self, port: int) -> PreviewLink:
         """Preview URL plus access token for one sandbox port."""
         return self._bridge.call(lambda: self._impl.preview_link(port))
-
-    def set_public(self, port: int, *, public: bool) -> PreviewEndpoint:
-        """Change the visibility of an exposed port."""
-        return self._bridge.call(lambda: self._impl.set_public(port, public=public))
 
     def signed_preview_link(
         self, port: int, *, expires_in_seconds: Optional[int] = None

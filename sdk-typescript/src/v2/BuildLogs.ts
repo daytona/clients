@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// allow: SIZE_OK — One resumable build-log state machine owns discovery, cursors, and cancellation.
+
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
 import { HttpTransport } from './http.js'
@@ -11,33 +13,36 @@ import { sameBuildLogResource } from './buildLogIdentity.js'
 import { BUILD_LOG_DONE_REASONS, BUILD_LOG_GAP_REASONS } from './types.js'
 import type { BuildLogDoneReason, BuildLogGapReason } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
+import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
 
 export type { BuildLogDoneReason } from './types.js'
 
 export interface BuildLogFollowResult {
-  status: string
-  reason: BuildLogDoneReason
-  rawReason: string
-  cursor?: string
-  outputComplete: boolean
+  readonly status: string
+  readonly reason: BuildLogDoneReason
+  readonly rawReason: string
+  readonly cursor?: string
+  readonly outputComplete: boolean
 }
 export type BuildLogEvent =
-  | { type: 'state'; status: string; error?: string; deadlineAt?: string }
-  | { type: 'log'; dataBase64: string; startOffset: string; nextOffset: string; cursor: string }
-  | { type: 'gap'; reason: BuildLogGapReason; rawReason: string; requestedOffset: string; firstAvailableOffset: string; droppedBytes: string; cursor: string }
-  | { type: 'unavailable'; reason: string }
-  | { type: 'source_changed'; reason: string }
-  | { type: 'done'; result: BuildLogFollowResult }
-  | { type: 'error'; error: string; code: string; retryable: boolean; traceId?: string }
+  | { readonly type: 'state'; readonly status: string; readonly error?: string; readonly deadlineAt?: string }
+  | { readonly type: 'log'; readonly dataBase64: string; readonly startOffset: string; readonly nextOffset: string; readonly cursor: string }
+  | { readonly type: 'gap'; readonly reason: BuildLogGapReason; readonly rawReason: string; readonly requestedOffset: string; readonly firstAvailableOffset: string; readonly droppedBytes: string; readonly cursor: string }
+  | { readonly type: 'unavailable'; readonly reason: string }
+  | { readonly type: 'source_changed'; readonly reason: string }
+  | { readonly type: 'done'; readonly result: BuildLogFollowResult }
+  | { readonly type: 'error'; readonly error: string; readonly code: string; readonly retryable: boolean; readonly traceId?: string }
 
 export interface BuildLogFollowOptions {
-  onLogs: (chunk: string) => void | Promise<void>
-  onEvent?: (event: BuildLogEvent) => void | Promise<void>
-  cursor?: string
-  /** Total observation budget in milliseconds; zero/omitted adds no deadline. */
-  timeout?: number
-  signal?: AbortSignal
+  readonly onLogs: (chunk: string) => void | Promise<void>
+  readonly onEvent?: (event: BuildLogEvent) => void | Promise<void>
+  readonly cursor?: string
+  /** Total observation budget in seconds; zero/omitted adds no deadline. */
+  readonly timeoutSeconds?: number
+  readonly signal?: AbortSignal
 }
+
+const BUILD_LOG_FOLLOW_OPTION_KEYS = optionKeys<BuildLogFollowOptions>()({ onLogs: true, onEvent: true, cursor: true, timeoutSeconds: true, signal: true })
 
 /** Last successfully delivered checkpoint. Callback failures never auto-retry. */
 /** {@link BuildLogInterruptedError}'s options: the common ones plus the last delivered cursor. */
@@ -479,13 +484,14 @@ export async function readBuildLogs(api: HttpTransport, path: string): Promise<s
 }
 
 export async function followBuildLogs(api: HttpTransport, path: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
-  if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout < 0)) throw new RangeError('timeout must be finite and nonnegative')
+  assertKnownOptions('BuildLogFollowOptions', options, BUILD_LOG_FOLLOW_OPTION_KEYS)
+  const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
   if (typeof options.onLogs !== 'function') throw new TypeError('onLogs is required')
   const controller = new AbortController()
   const relay = (): void => controller.abort(options.signal?.reason)
   if (options.signal?.aborted) relay()
   else options.signal?.addEventListener('abort', relay, { once: true })
-  const callerDeadline = options.timeout ? performance.now() + options.timeout : undefined
+  const callerDeadline = timeoutSeconds ? performance.now() + timeoutSeconds * 1000 : undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let observer: Observer | undefined
   const remaining = (): number | undefined => {

@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DaytonaError, DockerNotReadyError, DockerWaitTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
+import { DockerNotReadyError, DockerWaitTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
 import { encodeQuery, HttpTransport, sleep } from './http.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { WAIT_READ_SLACK_MS } from './Process.js'
 import { DOCKER_OWNERS, DOCKER_STATES } from './types.js'
 import type { DockerOwner, DockerState, DockerStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
+import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
 
 export type { DockerOwner, DockerState, DockerStatus } from './types.js'
 
@@ -26,14 +27,16 @@ function dockerStatusFromWire(status: toolbox.DockerStatus): DockerStatus {
 
 export interface DockerWaitOptions {
   /**
-   * Wait budget in milliseconds. Default 60 000. `0` waits without a
+   * Wait budget in seconds. Default 60. `0` waits without a
    * deadline — avoid it for sandboxes whose Docker can stay `deferred`.
    */
-  readonly timeout?: number
+  readonly timeoutSeconds?: number
 }
 
-/** Default `waitUntilReady()` budget in milliseconds. */
-export const DOCKER_WAIT_DEFAULT_TIMEOUT_MS = 60_000
+const DOCKER_WAIT_KEYS = optionKeys<DockerWaitOptions>()({ timeoutSeconds: true })
+
+/** Default `waitUntilReady()` budget in seconds. */
+export const DOCKER_WAIT_DEFAULT_TIMEOUT_SECONDS = 60
 /** Longest requested hold per status poll, in milliseconds. */
 export const DOCKER_STATUS_MAX_WAIT_MS = 1_000
 /** Minimum spacing between polls answered without holding (e.g. `deferred`). */
@@ -67,7 +70,12 @@ function isTerminalDockerStatus(status: DockerStatus): boolean {
  * throw `NotFoundError` (404).
  */
 export class DockerService {
-  constructor(private readonly transport: HttpTransport) {}
+  private constructor(private readonly transport: HttpTransport) {}
+
+  /** @internal */
+  static _create(transport: HttpTransport): DockerService {
+    return new DockerService(transport)
+  }
 
   /**
    * Current Docker Engine status for this boot, answered immediately.
@@ -88,14 +96,12 @@ export class DockerService {
    * budget runs out while Docker is still `starting` or `deferred`,
    * including when a status request is still unanswered at
    * the deadline. No request runs more than a fraction of a second past the
-   * deadline. `timeout: 0` waits without a deadline.
+   * deadline. `timeoutSeconds: 0` waits without a deadline.
    */
   public async waitUntilReady(options: DockerWaitOptions = {}): Promise<DockerStatus> {
-    const timeout = options.timeout ?? DOCKER_WAIT_DEFAULT_TIMEOUT_MS
-    if (!Number.isFinite(timeout) || timeout < 0) {
-      throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
-    const deadline = timeout === 0 ? undefined : Date.now() + timeout
+    assertKnownOptions('DockerWaitOptions', options, DOCKER_WAIT_KEYS)
+    const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? DOCKER_WAIT_DEFAULT_TIMEOUT_SECONDS
+    const deadline = timeoutSeconds === 0 ? undefined : Date.now() + timeoutSeconds * 1000
     let last: DockerStatus | undefined
     for (;;) {
       const remaining = deadline === undefined ? undefined : Math.ceil(deadline - Date.now())

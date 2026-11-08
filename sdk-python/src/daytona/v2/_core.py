@@ -75,9 +75,8 @@ from .types import (
     ProcessKind,
     ProcessStateFilter,
     SandboxLifecycle,
-    SandboxSearchFilters,
     SandboxState,
-    SearchSandboxesQuery,
+    SearchSandboxesOptions,
     SearchTimestamp,
     SearchTotalRelation,
     Snapshot,
@@ -409,11 +408,11 @@ def parse_lifecycle(payload: JsonObject | LifecyclePolicy) -> SandboxLifecycle:
         return SandboxLifecycle(
             timeout_seconds=model.timeout_seconds,
             on_timeout=model.on_timeout.value if model.on_timeout is not None else None,
-            timeout_at=model.timeout_at,
+            timeout_at=parse_timestamp(model.timeout_at),
             idle_expiry_seconds=model.idle_expiry_seconds,
             on_idle_timeout=model.on_idle_timeout.value if model.on_idle_timeout is not None else None,
-            idle_timeout_at=model.idle_timeout_at,
-            last_activity_at=model.last_activity_at,
+            idle_timeout_at=parse_timestamp(model.idle_timeout_at),
+            last_activity_at=parse_timestamp(model.last_activity_at),
             last_activity_source=model.last_activity_source,
         )
     raw_payload = payload
@@ -422,13 +421,44 @@ def parse_lifecycle(payload: JsonObject | LifecyclePolicy) -> SandboxLifecycle:
     return SandboxLifecycle(
         timeout_seconds=_optional_int(data.get("timeout_seconds")),
         on_timeout=_optional_str(data.get("on_timeout")),
-        timeout_at=_optional_str(data.get("timeout_at")),
+        timeout_at=parse_timestamp(data.get("timeout_at")),
         idle_expiry_seconds=_optional_int(data.get("idle_expiry_seconds")),
         on_idle_timeout=_optional_str(data.get("on_idle_timeout")),
-        idle_timeout_at=_optional_str(data.get("idle_timeout_at")),
-        last_activity_at=_optional_str(data.get("last_activity_at")),
+        idle_timeout_at=parse_timestamp(data.get("idle_timeout_at")),
+        last_activity_at=parse_timestamp(data.get("last_activity_at")),
         last_activity_source=_optional_str(data.get("last_activity_source")),
     )
+
+
+def parse_timestamp(value: object) -> Optional[datetime]:
+    """A wire timestamp as a timezone-aware ``datetime``; ``None`` when absent or unparseable.
+
+    Accepts the RFC 3339 strings of a raw body and the ``datetime`` values of a
+    validated wire model. A value without an offset is taken as UTC.
+    """
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value:
+        text = value.strip()
+        if text.endswith(("Z", "z")):
+            text = text[:-1] + "+00:00"
+        # Python 3.10's fromisoformat takes at most six fraction digits.
+        match = re.match(r"^(.*T\d{2}:\d{2}:\d{2})\.(\d+)(.*)$", text)
+        if match is not None:
+            text = f"{match.group(1)}.{match.group(2)[:6].ljust(6, '0')}{match.group(3)}"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
+
+
+def rfc3339(value: datetime) -> str:
+    """The RFC 3339 (UTC, ``Z``) rendering of a timestamp, as both SDKs serialise it."""
+    aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    return aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _lifecycle_enabled(body: JsonObject, name: str) -> bool:
@@ -1058,7 +1088,7 @@ def list_shape(payload: TransportPayload, *keys: str) -> Tuple[List[JsonObject],
     return items, str(cursor) if isinstance(cursor, str) else None
 
 
-_SEARCH_LIST_FIELDS = ("status", "sandbox_class", "region")
+_SEARCH_LIST_FIELDS = ("sandbox_class", "region")
 _SEARCH_TIMESTAMP_FIELDS = (
     "created_start_at",
     "created_end_at",
@@ -1067,12 +1097,39 @@ _SEARCH_TIMESTAMP_FIELDS = (
     "last_activity_start_at",
     "last_activity_end_at",
 )
-_SEARCH_WIRE_NAMES = {"sandbox_class": "class", "region": "region_ids"}
+_SEARCH_WIRE_NAMES = {"states": "status", "sandbox_class": "class", "region": "region_ids"}
 
 
-def search_filters_present(filters: SandboxSearchFilters) -> bool:
-    """True when any ``GET /sandboxes/search``-only filter is set (the ``list()`` routing rule)."""
-    return any(getattr(filters, f.name) is not None for f in fields(SandboxSearchFilters))
+# SDK sandbox state -> the API status names it covers (the search ``status`` filter).
+_STATE_WIRE_STATUSES: Dict[str, Tuple[str, ...]] = {
+    "queued": ("queued",),
+    "creating": ("pending", "assigned"),
+    "starting": ("booting",),
+    "started": ("running",),
+    "pausing": ("pausing",),
+    "paused": ("paused",),
+    "stopping": ("stopping",),
+    "stopped": ("stopped",),
+    "destroying": ("deleting",),
+    "destroyed": ("deleted",),
+    "error": ("failed", "lost"),
+}
+
+
+def _wire_statuses(states: object) -> str:
+    """The search ``status`` filter for SDK states: each state's API status names, comma-joined."""
+    items = [states] if isinstance(states, str) else list(states) if isinstance(states, Sequence) else None
+    if not items:
+        raise create_error("states must name at least one sandbox state", 400, "BAD_REQUEST", "SDK")
+    wire: list[str] = []
+    for state in items:
+        statuses = _STATE_WIRE_STATUSES.get(state) if isinstance(state, str) else None
+        if statuses is None:
+            raise create_error(
+                f"states entries must be known sandbox states, got {state!r}", 400, "BAD_REQUEST", "SDK"
+            )
+        wire.extend(status for status in statuses if status not in wire)
+    return ",".join(wire)
 
 
 def search_timestamp(value: SearchTimestamp) -> str:
@@ -1106,7 +1163,7 @@ def _comma_list(name: str, value: Union[str, Sequence[str]]) -> str:
     return ",".join(items)
 
 
-def search_params(query: SearchSandboxesQuery) -> Dict[str, JsonValue]:
+def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
     """Wire query for ``GET /sandboxes/search``: lists comma-joined, labels JSON, timestamps RFC 3339."""
     params: Dict[str, JsonValue] = {}
     for f in fields(query):
@@ -1114,7 +1171,9 @@ def search_params(query: SearchSandboxesQuery) -> Dict[str, JsonValue]:
         if value is None:
             continue
         wire = _SEARCH_WIRE_NAMES.get(f.name, f.name)
-        if f.name in _SEARCH_LIST_FIELDS:
+        if f.name == "states":
+            params[wire] = _wire_statuses(value)
+        elif f.name in _SEARCH_LIST_FIELDS:
             params[wire] = _comma_list(f.name, value)
         elif f.name == "labels":
             if not isinstance(value, Mapping):
@@ -1239,47 +1298,54 @@ def parse_image(value: object) -> Image:
         region=str(data["region_id"]),
         anonymous=data.get("anonymous") is True,
         retention=_artifact_retention(raw_retention),
-        var_class=str(data.get("class") or data.get("var_class") or ""),
-        available_in=_optional_str_list(data.get("region_ids")) or [],
+        raw_retention=raw_retention,
+        sandbox_class=_wire_string(data.get("class") or data.get("var_class")),
+        available_in=tuple(_optional_str_list(data.get("region_ids")) or ()),
         origin=str(data["origin"]),
-        created_at=_isoformat_or_none(data.get("created_at")),
-        updated_at=_isoformat_or_none(data.get("updated_at")),
+        created_at=_required_timestamp(data.get("created_at")),
+        updated_at=_required_timestamp(data.get("updated_at") or data.get("created_at")),
         error=_optional_str(data.get("error")),
-        expires_at=_isoformat_or_none(data.get("expires_at")),
+        expires_at=parse_timestamp(data.get("expires_at")),
         source=_image_source(data.get("source")),
         bytes=_optional_int(data.get("bytes")),
         layer_count=_optional_int(data.get("layer_count")),
         format_version=_optional_int(data.get("format_version")),
         format_outdated=data.get("format_outdated") is True,
-        cursor=_optional_str(data.get("cursor")),
         platform=data.get("platform") is True,
         default=data.get("default") is True,
         deprecated=data.get("deprecated") is True,
         disk_mib=_optional_int(data.get("disk_mib")),
-        raw_retention=raw_retention,
     )
 
 
 def parse_snapshot(value: object) -> Snapshot:
     data = value.to_dict() if hasattr(value, "to_dict") and callable(value.to_dict) else expect_object(value)
     raw_kind = _wire_string(data.get("kind"))
+    raw_class = _wire_string(data.get("class") or data.get("var_class"))
     return Snapshot(
         id=str(data["id"]),
         name=str(data["name"]),
         status=str(data["status"]),
         region=str(data["region_id"]),
         kind=_snapshot_kind(raw_kind),
-        var_class=_wire_string(data.get("class") or data.get("var_class")),
-        available_in=_optional_str_list(data.get("region_ids")) or [],
-        created_at=_isoformat_or_none(data.get("created_at")),
-        updated_at=_isoformat_or_none(data.get("updated_at")),
-        error=_optional_str(data.get("error")),
         raw_kind=raw_kind,
+        sandbox_class="linux" if raw_class == "linux" else "unknown",
+        raw_sandbox_class=raw_class,
+        available_in=tuple(_optional_str_list(data.get("region_ids")) or ()),
+        created_at=_required_timestamp(data.get("created_at")),
+        updated_at=_required_timestamp(data.get("updated_at") or data.get("created_at")),
+        error=_optional_str(data.get("error")),
         bytes=_optional_int(data.get("bytes")),
         memory_bytes=_optional_int(data.get("memory_bytes")),
         sandbox_id=_optional_str(data.get("sandbox_id")),
-        cursor=_optional_str(data.get("cursor")),
     )
+
+
+def _required_timestamp(value: object) -> datetime:
+    parsed = parse_timestamp(value)
+    if parsed is None:
+        raise create_error("API returned an invalid timestamp", 500, None, "SDK")
+    return parsed
 
 
 def parse_docker_status(payload: DockerStatusModel) -> DockerStatus:
@@ -1295,21 +1361,22 @@ def parse_docker_status(payload: DockerStatusModel) -> DockerStatus:
     )
 
 
-def _isoformat_or_none(value: JsonValue | object) -> str | None:
-    if isinstance(value, str):
-        return value
-    isoformat = getattr(value, "isoformat", None)
-    if callable(isoformat):
-        return str(isoformat()).replace("+00:00", "Z")
-    return None
+def gib_to_mib(gib: object, *, label: str) -> int:
+    """GiB as the wire's MiB: ``gib * 1024`` must be a whole number, never rounded."""
+    mib = gib * 1024 if isinstance(gib, (int, float)) and not isinstance(gib, bool) else math.nan
+    # An int needs no float check: math.isfinite() and int() raise OverflowError past the float range.
+    if not (isinstance(mib, int) or (math.isfinite(mib) and mib == int(mib))):
+        raise create_error(
+            f"{label} must be a GiB value that converts to a whole number of MiB", 400, "BAD_REQUEST", "SDK"
+        )
+    return int(mib)
 
 
-def gb_to_mib(gb: float) -> int:
-    return round(gb * 1024)
-
-
-def mib_to_gb(mib: int) -> int:
-    return max(1, (mib + 1023) // 1024)
+def mib_to_gib(mib: object) -> Optional[float]:
+    """The wire's MiB as GiB, exactly (``mib / 1024``); ``None`` when absent."""
+    if not isinstance(mib, int) or isinstance(mib, bool):
+        return None
+    return mib / 1024
 
 
 def snapshot_state(image_status: str, dockerfile: bool = False) -> str:

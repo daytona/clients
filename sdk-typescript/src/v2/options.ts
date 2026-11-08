@@ -62,13 +62,13 @@ export const RENAMED_OPTIONS: Readonly<Record<string, string>> = Object.freeze({
  * `options` has an own key `known` does not list. A renamed key names its
  * replacement. `undefined` / `null` options pass (callers default them).
  */
-export function assertKnownOptions<T>(typeName: string, options: T | null | undefined, known: OptionKeys<T>): void {
+export function assertKnownOptions<T>(typeName: string, options: T | null | undefined, known: OptionKeys<T>, renamed: Readonly<Record<string, string>> = RENAMED_OPTIONS): void {
   if (options === undefined || options === null || typeof options !== 'object') return
   for (const key of Object.keys(options)) {
     if (Object.prototype.hasOwnProperty.call(known, key)) continue
-    const renamed = RENAMED_OPTIONS[key]
-    const message = renamed !== undefined && Object.prototype.hasOwnProperty.call(known, renamed)
-      ? `${typeName}: \`${key}\` was renamed to \`${renamed}\` (seconds)`
+    const replacement = renamed[key]
+    const message = replacement !== undefined && Object.prototype.hasOwnProperty.call(known, replacement)
+      ? `${typeName}: \`${key}\` was renamed to \`${replacement}\` (seconds)`
       : `${typeName} has no option \`${key}\``
     throw new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }

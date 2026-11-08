@@ -4,10 +4,11 @@
  */
 
 import type * as api from './gen/api-types.js'
-import { ImageRetention as IMAGE_RETENTIONS, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
+import { ImageRetention as IMAGE_RETENTIONS, SnapshotClass as SNAPSHOT_CLASSES, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { DaytonaError } from './errors/DaytonaError.js'
-import type { ArtifactClass, ArtifactRetention, CpuArch, ImageDto, ImageOrigin, ImageSource, ImageStatus, SnapshotKind } from './types.js'
+import type { ArtifactRetention, CpuArch, ImageOrigin, ImageSource, ImageStatus, SnapshotClass, SnapshotKind } from './types.js'
+import type { ImageModel } from './imageModel.js'
 
 type BuilderSource =
   | { readonly type: 'registry'; readonly ref: string }
@@ -122,9 +123,10 @@ export class ImageBuilder {
 
   /**
    * The `POST /images` source this builder describes (parity with Python's
-   * `ImageBuilder.build_request_source`): a bare registry ref with no steps
+   * `ImageBuilder._request_source`): a bare registry ref with no steps
    * is a registry import (`source: {type: 'registry', ref}`) rather than a
    * Dockerfile build. This avoids an unnecessary build for a plain ref.
+   * @internal
    */
   public toRequestSource(): { source: NonNullable<api.CreateImageRequest["source"]> } | { dockerfile: string } {
     // Decided on RENDERED steps: `env({})` is a step that renders to nothing,
@@ -141,23 +143,23 @@ export function isImageBuilder(value: unknown): value is ImageBuilder {
   return value instanceof ImageBuilder
 }
 
-export class Image implements ImageDto {
+export class Image implements ImageModel {
   public readonly id: string
   public readonly name: string | null
   public readonly anonymous: boolean
-  public readonly availableIn: string[]
-  public readonly bytes?: number | null
-  public readonly class: ArtifactClass
+  public readonly availableIn: readonly string[]
+  public readonly bytes?: number
+  public readonly sandboxClass: string
   public readonly createdAt: string
   public readonly updatedAt: string
-  public readonly error?: string | null
-  public readonly expiresAt?: string | null
-  public readonly layer_count?: number | null
+  public readonly error?: string
+  public readonly expiresAt?: string
+  public readonly layerCount?: number
   public readonly origin: ImageOrigin
   public readonly region: string
   public readonly retention: ArtifactRetention
   public readonly rawRetention: string
-  public readonly source?: ImageSource | null
+  public readonly source?: ImageSource
   public readonly status: ImageStatus
   public readonly formatVersion?: number
   public readonly formatOutdated: boolean
@@ -166,23 +168,28 @@ export class Image implements ImageDto {
   public readonly deprecated: boolean
   public readonly diskMib: number | null
 
-  public constructor(image: api.ImageListItem) {
+  /** @internal */
+  public static _create(image: api.ImageListItem): Image {
+    return new Image(image)
+  }
+
+  private constructor(image: api.ImageListItem) {
     this.id = image.id
     this.name = image.name ?? null
     this.anonymous = image.anonymous
     this.availableIn = [...image.region_ids]
     this.bytes = image.bytes ?? undefined
-    this.class = image.class
+    this.sandboxClass = image.class
     this.createdAt = image.created_at
     this.updatedAt = image.updated_at
     this.error = image.error ?? undefined
     this.expiresAt = image.expires_at ?? undefined
-    this.layer_count = image.layer_count ?? undefined
+    this.layerCount = image.layer_count ?? undefined
     this.origin = image.origin
     this.region = image.region_id
     this.rawRetention = image.retention
     this.retention = knownOrUnknown(image.retention, IMAGE_RETENTIONS)
-    this.source = image.source === undefined || image.source === null ? image.source : imageSource(image.source)
+    this.source = image.source === undefined || image.source === null ? undefined : imageSource(image.source)
     this.status = image.status
     this.formatVersion = image.format_version ?? undefined
     this.formatOutdated = image.format_outdated ?? false
@@ -196,22 +203,30 @@ export class Image implements ImageDto {
 export class Snapshot {
   public readonly id: string
   public readonly name: string
-  public readonly class: ArtifactClass
+  public readonly sandboxClass: SnapshotClass
+  public readonly rawSandboxClass: string
   public readonly kind: SnapshotKind
   public readonly rawKind: string
-  public readonly availableIn: string[]
+  public readonly availableIn: readonly string[]
   public readonly region: string
   public readonly status: string
-  public readonly error?: string | null
+  public readonly error?: string
   public readonly createdAt: string
   public readonly updatedAt: string
+  public readonly bytes?: number
   public readonly memoryBytes?: number
   public readonly sandboxId?: string
 
-  public constructor(snapshot: api.Snapshot) {
+  /** @internal */
+  public static _create(snapshot: api.Snapshot): Snapshot {
+    return new Snapshot(snapshot)
+  }
+
+  private constructor(snapshot: api.Snapshot) {
     this.id = snapshot.id
     this.name = snapshot.name
-    this.class = snapshot.class
+    this.rawSandboxClass = snapshot.class
+    this.sandboxClass = knownOrUnknown(snapshot.class, SNAPSHOT_CLASSES)
     this.rawKind = snapshot.kind
     this.kind = knownOrUnknown(snapshot.kind, SNAPSHOT_KINDS)
     this.availableIn = [...snapshot.region_ids]
@@ -220,6 +235,7 @@ export class Snapshot {
     this.error = snapshot.error ?? undefined
     this.createdAt = snapshot.created_at
     this.updatedAt = snapshot.updated_at
+    this.bytes = snapshot.bytes ?? undefined
     this.memoryBytes = snapshot.memory_bytes ?? undefined
     this.sandboxId = snapshot.sandbox_id ?? undefined
   }

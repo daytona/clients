@@ -8,24 +8,42 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { Snapshot } from './Image.js'
 import type * as api from './gen/api-types.js'
 import { strictUriEncode } from './http.js'
-import { DaytonaError } from './errors/DaytonaError.js'
 import type { ListResult } from './types.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+import { artifactRequestOptions } from './artifactOptions.js'
+import type { GetArtifactOptions } from './artifactOptions.js'
 
-const SNAPSHOT_LONGPOLL_MAX_MS = 60_000
+export type { GetArtifactOptions } from './artifactOptions.js'
+
+export interface ListSnapshotsOptions {
+  readonly cursor?: string
+  readonly limit?: number
+  readonly name?: string
+  readonly sandboxId?: string
+}
+
+const LIST_SNAPSHOTS_OPTION_KEYS = optionKeys<ListSnapshotsOptions>()({ cursor: true, limit: true, name: true, sandboxId: true })
 
 export class SnapshotsService {
-  constructor(private readonly http: AxiosInstance) {
+  /** @internal */
+  public static _create(http: AxiosInstance): SnapshotsService {
+    return new SnapshotsService(http)
+  }
+
+  private constructor(private readonly http: AxiosInstance) {
     credentialSafeDiagnostics(this, () => ({ type: 'SnapshotsService' }))
   }
 
-  public async list(options: { cursor?: string; limit?: number; name?: string; sandboxId?: string } = {}): Promise<ListResult<Snapshot>> {
+  public async list(options: ListSnapshotsOptions = {}): Promise<ListResult<Snapshot>> {
+    assertKnownOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS)
     const { data } = await this.http.get<api.ListSnapshotsResponse>('/snapshots', {
       params: { cursor: options.cursor, limit: options.limit, name: options.name, sandbox_id: options.sandboxId },
     })
-    return { items: data.snapshots.map((snapshot) => new Snapshot(snapshot)), nextCursor: data.next_cursor ?? undefined }
+    return { items: data.snapshots.map((snapshot) => Snapshot._create(snapshot)), nextCursor: data.next_cursor ?? undefined }
   }
 
-  public async *iter(options: { cursor?: string; limit?: number; name?: string; sandboxId?: string } = {}): AsyncIterable<Snapshot> {
+  public async *iter(options: ListSnapshotsOptions = {}): AsyncIterable<Snapshot> {
+    assertKnownOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS)
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -38,26 +56,9 @@ export class SnapshotsService {
     }
   }
 
-  public async get(snapshotId: string, options: { wait?: 'ready'; timeout?: number } = {}): Promise<Snapshot> {
-    const params: Record<string, string | number> = {}
-    let requestTimeout: number | undefined
-    if (options.wait !== undefined) {
-      params.wait = options.wait
-      if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout < 0)) {
-        throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-      }
-      if (options.timeout) {
-        params.timeout_ms = Math.min(Math.ceil(options.timeout * 1000), SNAPSHOT_LONGPOLL_MAX_MS)
-        requestTimeout = Number(params.timeout_ms) + 5_000
-      } else {
-        requestTimeout = 0
-      }
-    }
-    const { data } = await this.http.get<api.Snapshot>(`/snapshots/${strictUriEncode(snapshotId)}`, {
-      params,
-      ...(requestTimeout !== undefined ? { timeout: requestTimeout } : {}),
-    })
-    return new Snapshot(data)
+  public async get(snapshotId: string, options: GetArtifactOptions = {}): Promise<Snapshot> {
+    const { data } = await this.http.get<api.Snapshot>(`/snapshots/${strictUriEncode(snapshotId)}`, artifactRequestOptions(options))
+    return Snapshot._create(data)
   }
 
   public async delete(snapshotId: string): Promise<void> {

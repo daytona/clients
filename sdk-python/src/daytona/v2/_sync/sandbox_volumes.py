@@ -23,9 +23,9 @@ class SandboxVolumesService:
 
     _async_type = _async.AsyncSandboxVolumesService
 
-    def __init__(self, impl: _async.AsyncSandboxVolumesService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncSandboxVolumesService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"SandboxVolumesService({self._impl!r})"

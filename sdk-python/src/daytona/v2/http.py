@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from ._core import gb_to_mib, mib_to_gb, sandbox_state, snapshot_state
+from ._core import gib_to_mib, mib_to_gib, sandbox_state, snapshot_state
 from ._transport import SyncTransport as HttpClient
 
-__all__ = ["HttpClient", "gb_to_mib", "mib_to_gb", "sandbox_state", "snapshot_state"]
+__all__ = ["HttpClient", "gib_to_mib", "mib_to_gib", "sandbox_state", "snapshot_state"]

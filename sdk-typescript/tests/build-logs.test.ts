@@ -635,7 +635,7 @@ describe('resumable build logs', () => {
     jest.useFakeTimers()
     const { client, fetch } = setup(['', '', ''])
     const start = performance.now()
-    await expect(advance(client.images.followBuildLogs('image', { timeout: 600, onLogs: () => {} }))).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' })
+    await expect(advance(client.images.followBuildLogs('image', { timeoutSeconds: 0.6, onLogs: () => {} }))).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' })
     expect(performance.now() - start).toBe(600)
     expect(fetch).toHaveBeenCalledTimes(3)
   })
@@ -653,7 +653,7 @@ describe('resumable build logs', () => {
     jest.useFakeTimers()
     const { client, fetch } = setup([log('a', 0) + done(1)])
     await expect(advance(client.images.followBuildLogs('image', {
-      timeout: 100,
+      timeoutSeconds: 0.1,
       onLogs: () => new Promise<void>(() => {}),
     }))).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', cursor: undefined })
     expect(fetch).toHaveBeenCalledTimes(2)
@@ -731,7 +731,7 @@ describe('real HTTP build-log ownership', () => {
     try {
       const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeoutSeconds: 0.05 }))
       const output: string[] = []
-      const result = await client.images.followBuildLogs('image', { timeout: 2000, onLogs: text => { output.push(text) }, onEvent: () => {} })
+      const result = await client.images.followBuildLogs('image', { timeoutSeconds: 2, onLogs: text => { output.push(text) }, onEvent: () => {} })
       expect(result).toMatchObject({ reason: 'deadline', rawReason: 'deadline', cursor: cursor(5), outputComplete: false })
       expect(output).toEqual(['final'])
       expect(requests).toBe(2)
@@ -799,7 +799,7 @@ describe('real HTTP build-log ownership', () => {
     try {
       const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key' }))
       const output: string[] = []
-      await expect(client.images.followBuildLogs('image', { timeout: 250, onLogs: text => { output.push(text) } })).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', cursor: cursor(1) })
+      await expect(client.images.followBuildLogs('image', { timeoutSeconds: 0.25, onLogs: text => { output.push(text) } })).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', cursor: cursor(1) })
       await closed
       expect(output).toEqual(['a'])
       expect(requests).toHaveLength(2)

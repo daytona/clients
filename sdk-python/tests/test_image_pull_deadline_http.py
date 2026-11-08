@@ -13,10 +13,10 @@ import anyio
 import pytest
 
 from daytona.v2._bridge import SyncBridge
-from daytona.v2._sync.services import ImageService
+from daytona.v2._sync.services import ImagesService
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.errors import ClientTimeoutError, RequestTimeoutError
-from daytona.v2.services import AsyncImageService
+from daytona.v2.services import AsyncImagesService
 from daytona.v2.types import Image
 
 
@@ -57,9 +57,9 @@ def pull_peer(phase: int, delay: float | None, *, ready: bool = False) -> Iterat
             payload = (
                 b'{"message":"fixture request timeout","code":"REQUEST_TIMEOUT","source":"API"}'
                 if target and not ready
-                else b'{"id":"img-pull","status":"ready","region_id":"region-c","origin":"registry"}'
+                else b'{"id":"img-pull","status":"ready","region_id":"region-c","origin":"registry","created_at":"2026-01-01T00:00:00Z"}'
                 if target and ready
-                else b'{"id":"img-pull","status":"building","region_id":"region-c","origin":"registry"}'
+                else b'{"id":"img-pull","status":"building","region_id":"region-c","origin":"registry","created_at":"2026-01-01T00:00:00Z"}'
             )
             self.send_response(408 if target and not ready else 200)
             self.send_header("Content-Type", "application/json")
@@ -90,7 +90,7 @@ def sync(request: pytest.FixtureRequest) -> bool:
 
 
 @contextmanager
-def sync_service(url: str, root_timeout: float | None) -> Iterator[ImageService]:
+def sync_service(url: str, root_timeout: float | None) -> Iterator[ImagesService]:
     bridge = SyncBridge()
 
     async def make_transport() -> AsyncTransport:
@@ -98,7 +98,7 @@ def sync_service(url: str, root_timeout: float | None) -> Iterator[ImageService]
 
     transport = bridge.call(make_transport)
     try:
-        yield ImageService(AsyncImageService(transport), bridge)
+        yield ImagesService(AsyncImagesService(transport), bridge)
     finally:
         bridge.close(transport.close)
 
@@ -117,7 +117,7 @@ async def invoke_pull(sync: bool) -> AsyncIterator[Pull]:
         else:
             transport = AsyncTransport(peer.url, "offline", request_timeout=root_timeout)
             try:
-                return await AsyncImageService(transport).pull("alpine", timeout=budget)
+                return await AsyncImagesService(transport).pull("alpine", timeout=budget)
             finally:
                 await transport.close()
 

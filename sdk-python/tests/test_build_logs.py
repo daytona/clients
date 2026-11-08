@@ -44,8 +44,9 @@ from daytona.v2.build_logs import (
 )
 from daytona.v2.errors import _interrupt_error_of
 from daytona.v2.sandbox import AsyncSandbox
-from daytona.v2.services import AsyncImageService
-from daytona.v2.types import DaytonaConfig, SandboxInfo
+from daytona.v2.services import AsyncImagesService
+from daytona.v2.types import DaytonaConfig
+from daytona.v2.types import _SandboxInfo as SandboxInfo
 
 pytestmark = pytest.mark.anyio
 
@@ -318,7 +319,7 @@ async def test_real_http_finite_json_bodies_cannot_outlive_request_budget(stage,
 async def test_explicit_image_follow_preserves_utf8_across_reconnect_and_checkpoints():
     api, requests, streams = setup([log(b"\xf0\x9f", 0), log(b"\x98\x80!", 2) + done(5)])
     output: list[str] = []
-    result = await AsyncImageService(api).follow_build_logs("image", on_logs=output.append)
+    result = await AsyncImagesService(api).follow_build_logs("image", on_logs=output.append)
     assert output == ["😀!"]
     assert result.cursor == cursor(5) and result.output_complete
     assert [request.url.host for request in requests] == ["api.example", "logs.example", "logs.example"]
@@ -1091,7 +1092,10 @@ async def test_server_deadlines_remain_visible_as_metadata_through_terminal_stat
     state = _Observer(lambda _: None, on_event, None)
     await state.accept("state", None, {"status": "building", "deadline_at": "2999-01-01T00:00:00Z"})
     await state.accept("state", None, {"status": "ready", "deadline_at": "2000-01-01T00:00:00Z"})
-    assert [item.deadline_at for item in events] == ["2999-01-01T00:00:00Z", "2000-01-01T00:00:00Z"]
+    assert [item.deadline_at for item in events] == [
+        datetime(2999, 1, 1, tzinfo=timezone.utc),
+        datetime(2000, 1, 1, tzinfo=timezone.utc),
+    ]
     assert [item.status for item in events] == ["building", "ready"]
 
 
@@ -1264,7 +1268,7 @@ def sync_client(
     impl = client._impl
     original = impl._api
     impl._api = AsyncTransport("http://api.invalid", "k", client=mock)
-    impl.images = AsyncImageService(impl._api)
+    impl.images = AsyncImagesService(impl._api)
     try:
         yield client, requests
     finally:

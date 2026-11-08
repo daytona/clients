@@ -170,13 +170,20 @@ def test_plain_methods_run_on_the_bridge_loop_unless_loop_free(async_cls: type, 
         if isinstance(raw, (classmethod, staticmethod)) or name.startswith("__"):
             continue
         if isinstance(raw, property):
-            # computed state the loop mutates: always read on the loop
+            # Computed state the loop mutates is read on the loop; a field of an
+            # immutable snapshot the class lists in _SYNC_DIRECT_PROPERTIES is
+            # read directly (and stays readable after the client closes).
             twin_prop = inspect.getattr_static(sync_cls, name)
             assert isinstance(twin_prop, property), f"{sync_cls.__name__}.{name} is no longer a property"
             body = textwrap.dedent(inspect.getsource(twin_prop.fget))  # type: ignore[arg-type]
-            assert "self._bridge.call_sync(" in body, (
-                f"{sync_cls.__name__}.{name} reads loop-owned state off the loop"
-            )
+            if name in getattr(async_cls, "_SYNC_DIRECT_PROPERTIES", frozenset()):
+                assert "call_sync" not in body, (
+                    f"{sync_cls.__name__}.{name} should read the snapshot directly"
+                )
+            else:
+                assert "self._bridge.call_sync(" in body, (
+                    f"{sync_cls.__name__}.{name} reads loop-owned state off the loop"
+                )
             continue
         if _is_internal_binder(raw) or inspect.iscoroutinefunction(raw) or inspect.isasyncgenfunction(raw):
             continue
@@ -463,8 +470,8 @@ def test_search_shape_wraps_items_and_keeps_every_page_field(server: _Server, sy
         "gte",
     )
 
-    page = sync_client.list(status=["running"])  # filters use sandbox search
-    assert isinstance(page, ListResult)
+    page = sync_client.search(states=["started"])
+    assert isinstance(page, SearchResult)
     assert [type(item).__name__ for item in page.items] == ["Sandbox", "Sandbox"]
     assert (page.total, page.total_relation) == (41, "gte")
 
@@ -540,8 +547,8 @@ def test_sync_fork_takes_its_toolbox_from_the_fork_response(server: _Server, syn
     }
 
     sandbox = lazy_sandbox(sync_client, "parent", toolbox_url="http://10.0.0.7:2280")
-    sandbox._impl.sandbox_class = "linux"
-    forked = sandbox.fork()
+    sandbox._impl._update(sandbox_class="linux")
+    forked = sandbox.fork(wait_seconds=0)
 
     assert forked.metrics().cpu_count == 8
     assert server.calls == [
@@ -650,7 +657,7 @@ def test_rehydration_shape_round_trips_across_surfaces(server: _Server, sync_cli
 def test_argument_shape_unwraps_sync_handles_passed_back_in(server: _Server, sync_client: Daytona) -> None:
     """The inverse direction: a Sync handle given to the SDK must reach the
     async implementation as the async object it wraps."""
-    states = iter(["running", "deleting"])
+    states = iter(["running", "deleting", "deleted"])
     server.routes[("GET", "/sandboxes/sb-1")] = lambda request: httpx.Response(
         200, json=_sandbox("sb-1", next(states))
     )
@@ -661,7 +668,7 @@ def test_argument_shape_unwraps_sync_handles_passed_back_in(server: _Server, syn
     sync_client.delete(sandbox)  # would TypeError on an un-unwrapped wrapper
 
     assert ("DELETE", "/sandboxes/sb-1") in server.calls
-    assert sandbox.state == "destroying"
+    assert sandbox.state == "destroyed"
 
 
 def _leaves(value: object) -> list[object]:

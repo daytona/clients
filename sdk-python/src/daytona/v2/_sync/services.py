@@ -16,23 +16,22 @@ from typing import Iterator, Literal, Optional
 from .. import services as _async
 from .._bridge import SyncBridge
 from ..services import *
-from ..services import _EventCallback, _LogsCallback
 
 
-class ImageService:
+class ImagesService:
     """Image build/pull/list namespace."""
 
-    _async_type = _async.AsyncImageService
+    _async_type = _async.AsyncImagesService
 
-    def __init__(self, impl: _async.AsyncImageService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncImagesService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"ImageService({self._impl!r})"
+        return f"ImagesService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, ImageService) and other._impl == self._impl
+        return isinstance(other, ImagesService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
@@ -67,8 +66,8 @@ class ImageService:
         self,
         image_id: str,
         *,
-        on_logs: _LogsCallback,
-        on_event: Optional[_EventCallback] = None,
+        on_logs: BuildLogsCallback,
+        on_event: Optional[BuildLogEventCallback] = None,
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
@@ -146,20 +145,20 @@ class ImageService:
         )
 
 
-class SnapshotService:
+class SnapshotsService:
     """Sandbox snapshot namespace."""
 
-    _async_type = _async.AsyncSnapshotService
+    _async_type = _async.AsyncSnapshotsService
 
-    def __init__(self, impl: _async.AsyncSnapshotService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncSnapshotsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"SnapshotService({self._impl!r})"
+        return f"SnapshotsService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, SnapshotService) and other._impl == self._impl
+        return isinstance(other, SnapshotsService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
@@ -198,31 +197,31 @@ class SnapshotService:
         )
 
 
-class VolumeService:
+class VolumesService:
     """Volume management namespace."""
 
-    _async_type = _async.AsyncVolumeService
+    _async_type = _async.AsyncVolumesService
 
-    def __init__(self, impl: _async.AsyncVolumeService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncVolumesService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"VolumeService({self._impl!r})"
+        return f"VolumesService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, VolumeService) and other._impl == self._impl
+        return isinstance(other, VolumesService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
 
     def create(self, *, name: str, size_gib: Optional[int] = None) -> Volume:
-        """Create a volume."""
+        """Create a disk volume (ready immediately); ``size_gib`` omitted uses the server default."""
         return self._bridge.call(lambda: self._impl.create(name=name, size_gib=size_gib))
 
-    def delete(self, volume_id: str, *, id_only: bool = False) -> None:
-        """Request deletion and return once the API accepts it."""
-        return self._bridge.call(lambda: self._impl.delete(volume_id, id_only=id_only))
+    def delete(self, name_or_id: str, *, id_only: bool = False) -> None:
+        """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
+        return self._bridge.call(lambda: self._impl.delete(name_or_id, id_only=id_only))
 
     def get(self, name_or_id: str, *, create: bool = False, id_only: bool = False) -> Volume:
         """Fetch by id or name; ``id_only`` disables name fallback."""
@@ -236,20 +235,20 @@ class VolumeService:
         return self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit))
 
 
-class SecretService:
+class SecretsService:
     """Project secret namespace."""
 
-    _async_type = _async.AsyncSecretService
+    _async_type = _async.AsyncSecretsService
 
-    def __init__(self, impl: _async.AsyncSecretService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncSecretsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"SecretService({self._impl!r})"
+        return f"SecretsService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, SecretService) and other._impl == self._impl
+        return isinstance(other, SecretsService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
@@ -290,20 +289,20 @@ class SecretService:
         )
 
 
-class ReservationService:
+class ReservationsService:
     """Dedicated-Mac reservations, which macOS sandboxes run on."""
 
-    _async_type = _async.AsyncReservationService
+    _async_type = _async.AsyncReservationsService
 
-    def __init__(self, impl: _async.AsyncReservationService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncReservationsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"ReservationService({self._impl!r})"
+        return f"ReservationsService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, ReservationService) and other._impl == self._impl
+        return isinstance(other, ReservationsService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
@@ -367,20 +366,20 @@ class ReservationService:
         return self._bridge.call(lambda: self._impl.update(reservation_id, auto_renew=auto_renew))
 
 
-class MacModelService:
+class MacModelsService:
     """The Mac model registry (``GET /mac-models``)."""
 
-    _async_type = _async.AsyncMacModelService
+    _async_type = _async.AsyncMacModelsService
 
-    def __init__(self, impl: _async.AsyncMacModelService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncMacModelsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"MacModelService({self._impl!r})"
+        return f"MacModelsService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, MacModelService) and other._impl == self._impl
+        return isinstance(other, MacModelsService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)

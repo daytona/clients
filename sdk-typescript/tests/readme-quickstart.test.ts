@@ -76,7 +76,7 @@ it('runs the README quickstart through registry readiness, named create, exec an
       { method: 'POST', path: '/sandboxes/sbx-quickstart/access-token', wait: null },
       { method: 'POST', path: '/sandbox-api/sbx-quickstart/processes', wait: null },
       { method: 'DELETE', path: '/sandboxes/sbx-quickstart', wait: null },
-      { method: 'GET', path: '/sandboxes/sbx-quickstart', wait: null },
+      { method: 'GET', path: '/sandboxes/sbx-quickstart', wait: 'deleted' },
     ])
     expect(requests[0]?.body).toMatchObject({ name: 'py312', source: { type: 'registry', ref: 'python:3.12' } })
     expect(requests[4]?.body).toMatchObject({ image: 'py312' })

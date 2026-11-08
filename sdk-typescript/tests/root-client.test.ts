@@ -490,7 +490,7 @@ describe('v2 rejects unsupported options from untyped callers', () => {
     async (method) => {
       const v2 = new DaytonaV2({ apiKey: 'key' })
       const call = v2[method] as unknown as (first: string, options: Record<string, unknown>) => Promise<unknown>
-      await expect(call.call(v2, 'x', { target: 'eu' })).rejects.toThrow("v2 does not take 'target'; pass 'region' instead")
+      await expect(call.call(v2, 'x', { target: 'eu' })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('`target`') })
     },
   )
 

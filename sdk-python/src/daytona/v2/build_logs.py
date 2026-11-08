@@ -75,7 +75,7 @@ def _build_log_gap_reason_or_unknown(value: str) -> BuildLogGapReason:
     return value if _is_build_log_gap_reason_known(value) else "unknown"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogFollowResult:
     status: str
     reason: BuildLogDoneReason
@@ -84,15 +84,15 @@ class BuildLogFollowResult:
     raw_reason: str | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogStateEvent:
     status: str
     error: str | None = None
-    deadline_at: str | None = None
+    deadline_at: datetime | None = None
     type: Literal["state"] = "state"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogChunkEvent:
     data_base64: str
     start_offset: str
@@ -101,7 +101,7 @@ class BuildLogChunkEvent:
     type: Literal["log"] = "log"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogGapEvent:
     requested_offset: str
     first_available_offset: str
@@ -112,25 +112,25 @@ class BuildLogGapEvent:
     raw_reason: str | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogUnavailableEvent:
     reason: str
     type: Literal["unavailable"] = "unavailable"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogSourceChangedEvent:
     reason: str
     type: Literal["source_changed"] = "source_changed"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogDoneEvent:
     result: BuildLogFollowResult
     type: Literal["done"] = "done"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogErrorEvent:
     error: str
     code: str
@@ -151,8 +151,10 @@ BuildLogEvent = (
 
 # Callbacks may return an awaitable, which is awaited before the next event —
 # the same convention as the filesystem watch callbacks.
-_LogsCallback = Callable[[str], "None | Awaitable[None]"]
-_EventCallback = Callable[[BuildLogEvent], "None | Awaitable[None]"]
+BuildLogsCallback = Callable[[str], "None | Awaitable[None]"]
+"""Receives decoded build output; may return an awaitable, awaited before the next event."""
+BuildLogEventCallback = Callable[[BuildLogEvent], "None | Awaitable[None]"]
+"""Receives each typed :data:`BuildLogEvent`; may return an awaitable, awaited before the next event."""
 
 
 async def _invoke(result: None | Awaitable[None]) -> None:
@@ -345,7 +347,9 @@ def _messages(chunks: Iterable[bytes]) -> Iterator[tuple[str, str | None, dict[s
 class _Observer:
     """Sans-I/O protocol/decoder state, retained through reconnections."""
 
-    def __init__(self, on_logs: _LogsCallback, on_event: _EventCallback | None, cursor: str | None) -> None:
+    def __init__(
+        self, on_logs: BuildLogsCallback, on_event: BuildLogEventCallback | None, cursor: str | None
+    ) -> None:
         self.on_logs, self.on_event = on_logs, on_event
         self.cursor = _cursor(cursor) if cursor is not None else None
         # A resumed stream establishes its starting offset with its first event.
@@ -389,7 +393,7 @@ class _Observer:
                     raise ValueError("missing timezone")
             except ValueError as exc:
                 raise _ProtocolError("invalid build deadline") from exc
-            await self._emit(BuildLogStateEvent(status, error, deadline))
+            await self._emit(BuildLogStateEvent(status=status, error=error, deadline_at=expires))
         elif event == "log":
             raw = _bytes(data.get("data_base64"))
             start, end = _offset(data.get("start_offset")), _offset(data.get("next_offset"))
@@ -397,7 +401,12 @@ class _Observer:
                 raise _ProtocolError("noncontiguous log offsets")
             checkpoint = _cursor(ident)
             await self._emit(
-                BuildLogChunkEvent(_text(data["data_base64"]), str(start), str(end), _text(ident)),
+                BuildLogChunkEvent(
+                    data_base64=_text(data["data_base64"]),
+                    start_offset=str(start),
+                    next_offset=str(end),
+                    cursor=_text(ident),
+                ),
                 self.decoder.decode(raw),
             )
             self.cursor, self.offset = checkpoint, end
@@ -417,28 +426,31 @@ class _Observer:
             carry = self.decoder.decode(b"", final=True)
             await self._emit(
                 BuildLogGapEvent(
-                    str(requested),
-                    str(first),
-                    str(dropped),
-                    _text(ident),
-                    _build_log_gap_reason_or_unknown(reason),
-                    "gap",
-                    reason,
+                    requested_offset=str(requested),
+                    first_available_offset=str(first),
+                    dropped_bytes=str(dropped),
+                    cursor=_text(ident),
+                    reason=_build_log_gap_reason_or_unknown(reason),
+                    raw_reason=reason,
                 ),
                 carry,
             )
             self.decoder.reset()
             self.cursor, self.offset, self.gap = checkpoint, first, True
         elif event == "unavailable":
-            await self._emit(BuildLogUnavailableEvent(_text(data.get("reason"))))
+            await self._emit(BuildLogUnavailableEvent(reason=_text(data.get("reason"))))
         elif event == "source_changed":
             reason = _text(data.get("reason"))
-            await self._emit(BuildLogSourceChangedEvent(reason))
+            await self._emit(BuildLogSourceChangedEvent(reason=reason))
             raise BuildLogInterruptedError(reason, cursor=self.cursor, code="BUILD_LOG_SOURCE_CHANGED")
         elif event == "error":
             error = _text(data.get("error"))
             code, retryable = _text(data.get("code")), _bool(data.get("retryable"))
-            await self._emit(BuildLogErrorEvent(error, code, retryable, _optional_text(data.get("trace_id"))))
+            await self._emit(
+                BuildLogErrorEvent(
+                    error=error, code=code, retryable=retryable, trace_id=_optional_text(data.get("trace_id"))
+                )
+            )
             if retryable:
                 raise _Retry(error)
             raise BuildLogInterruptedError(error, cursor=self.cursor, code=code)
@@ -453,13 +465,13 @@ class _Observer:
                         raise _ProtocolError("done advanced cursor without bytes")
                     checkpoint_cursor = _cursor(checkpoint)
             result = BuildLogFollowResult(
-                status,
-                _build_log_done_reason_or_unknown(reason),
-                complete and not self.gap,
-                checkpoint_cursor,
-                reason,
+                status=status,
+                reason=_build_log_done_reason_or_unknown(reason),
+                output_complete=complete and not self.gap,
+                cursor=checkpoint_cursor,
+                raw_reason=reason,
             )
-            await self._emit(BuildLogDoneEvent(result), self.decoder.decode(b"", final=True))
+            await self._emit(BuildLogDoneEvent(result=result), self.decoder.decode(b"", final=True))
             self.cursor = checkpoint_cursor
             return result
         else:
@@ -688,8 +700,8 @@ async def follow_build_logs(
     api: AsyncTransport,
     discovery_path: str,
     *,
-    on_logs: _LogsCallback,
-    on_event: _EventCallback | None = None,
+    on_logs: BuildLogsCallback,
+    on_event: BuildLogEventCallback | None = None,
     cursor: str | None = None,
     timeout: float | None = None,
 ) -> BuildLogFollowResult:

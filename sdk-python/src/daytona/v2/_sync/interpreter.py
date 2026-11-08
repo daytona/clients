@@ -27,9 +27,9 @@ class InterpreterService:
 
     _async_type = _async.AsyncInterpreterService
 
-    def __init__(self, impl: _async.AsyncInterpreterService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncInterpreterService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"InterpreterService({self._impl!r})"

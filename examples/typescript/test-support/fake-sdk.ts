@@ -13,6 +13,15 @@ import { writeFileSync } from 'node:fs'
 
 import { Daytona } from '@daytona/sdk'
 import { ImageBuildFailedError } from '@daytona/sdk/v2'
+import type {
+  BuildLogFollowOptions,
+  CreateFromBuildOptions,
+  CreateSandboxOptions,
+  CreateVolumeOptions,
+  DeleteVolumeOptions,
+  GetVolumeOptions,
+  SetSecretOptions,
+} from '@daytona/sdk/v2'
 
 import { RUN } from '../_common'
 
@@ -42,6 +51,7 @@ export interface Record {
   deletedSandboxes: string[]
   secretSets: { name: string; ifNotExists: boolean }[]
   deletedSecrets: string[]
+  createdVolumes: string[]
   deletedVolumes: string[]
   followedImages: string[]
 }
@@ -52,6 +62,7 @@ const record: Record = {
   deletedSandboxes: [],
   secretSets: [],
   deletedSecrets: [],
+  createdVolumes: [],
   deletedVolumes: [],
   followedImages: [],
 }
@@ -60,6 +71,8 @@ process.on('exit', () => {
 })
 
 const secrets = new Map<string, string>()
+type FakeVolume = { readonly id: string; readonly name: string; readonly status: 'ready' }
+const volumes = new Map<string, FakeVolume>()
 const volumeLines: string[] = []
 
 const result = (exitCode: number, output: string) => ({ exitCode, output, stdout: output, stderr: '' })
@@ -142,8 +155,8 @@ type Box = ReturnType<typeof sandbox>
 const boxes: Box[] = []
 
 const fake = {
-  create: async (image: string, options: { name?: string; env?: { [k: string]: string }; envVars?: { [k: string]: string }; secrets?: string[] } = {}) => {
-    const env = { ...options.env, ...options.envVars }
+  create: async (image: string, options: CreateSandboxOptions = {}) => {
+    const env = { ...options.env }
     for (const name of options.secrets ?? []) {
       // The API rejects a create that attaches a secret the project lacks.
       if (!secrets.has(name)) throw new Error(`secret ${name} not found`)
@@ -153,10 +166,12 @@ const fake = {
     boxes.push(box)
     return box
   },
-  createFromBuild: async (builder: { toDockerfile(): string }, options: { name?: string } = {}) => {
+  createFromBuild: async (builder: { toDockerfile(): string }, options: CreateFromBuildOptions = {}) => {
     const dockerfile = builder.toDockerfile()
     if (scenario.failBuildsContaining && dockerfile.includes(scenario.failBuildsContaining)) {
-      throw new ImageBuildFailedError('image build failed', 409, 'IMAGE_BUILD_FAILED', 'SDK', undefined, 'img_failed')
+      throw new ImageBuildFailedError('image build failed', {
+        statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: 'img_failed',
+      })
     }
     const box = sandbox(options.name ?? 'built', {}, dockerfile)
     boxes.push(box)
@@ -169,15 +184,15 @@ const fake = {
   },
   images: {
     list: async () => ({ items: [], nextCursor: undefined }),
-    followBuildLogs: async (imageId: string, options: { onLogs: (chunk: string) => void }) => {
+    followBuildLogs: async (imageId: string, options: BuildLogFollowOptions) => {
       record.followedImages.push(imageId)
-      if (!scenario.emptyBuildLogs) options.onLogs(`intentional-build-failure-${RUN}\n`)
+      if (!scenario.emptyBuildLogs) await options.onLogs(`intentional-build-failure-${RUN}\n`)
       if (scenario.buildLogsThrowAfterOutput) throw new Error('stream interrupted')
       return {}
     },
   },
-  secret: {
-    set: async (name: string, value: string, options: { ifNotExists?: boolean }) => {
+  secrets: {
+    set: async (name: string, value: string, options: SetSecretOptions) => {
       record.secretSets.push({ name, ifNotExists: options.ifNotExists === true })
       if (scenario.secretSetThrows) throw new Error(scenario.secretSetThrows)
       if (options.ifNotExists && secrets.has(name)) throw new Error('secret already exists')
@@ -195,9 +210,25 @@ const fake = {
       record.deletedSecrets.push(name)
     },
   },
-  volume: {
-    create: async (name: string) => ({ id: `vol-${name}`, name, status: 'ready' }),
-    delete: async (volume: { id: string }) => void record.deletedVolumes.push(volume.id),
+  volumes: {
+    create: async ({ name }: CreateVolumeOptions): Promise<FakeVolume> => {
+      const volume = { id: `vol-${name}`, name, status: 'ready' } as const
+      volumes.set(volume.id, volume)
+      record.createdVolumes.push(volume.id)
+      return volume
+    },
+    get: async (nameOrId: string, options: GetVolumeOptions = {}): Promise<FakeVolume> => {
+      const volume = volumes.get(nameOrId) ?? (!options.idOnly
+        ? [...volumes.values()].find((entry) => entry.name === nameOrId) : undefined)
+      if (volume) return volume
+      if (options.create && !options.idOnly) return fake.volumes.create({ name: nameOrId })
+      throw new Error(`volume ${nameOrId} not found`)
+    },
+    delete: async (nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> => {
+      const volume = await fake.volumes.get(nameOrId, options)
+      volumes.delete(volume.id)
+      record.deletedVolumes.push(volume.id)
+    },
   },
 }
 

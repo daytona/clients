@@ -25,9 +25,9 @@ class InterpreterContext:
 
     _async_type = _async.AsyncInterpreterContext
 
-    def __init__(self, impl: _async.AsyncInterpreterContext, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncInterpreterContext, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"InterpreterContext({self._impl!r})"

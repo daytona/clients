@@ -12,20 +12,43 @@ import { HttpTransport, boundedRequestTimeout, strictUriEncode, transportFromAxi
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
-import { BadRequestError, ImageBuildFailedError, RequestTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
+import { ImageBuildFailedError, RequestTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
+import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
+import { artifactRequestOptions } from './artifactOptions.js'
+import type { GetArtifactOptions } from './artifactOptions.js'
+
+export type { GetArtifactOptions } from './artifactOptions.js'
+
+export interface ListImagesOptions {
+  readonly cursor?: string
+  readonly limit?: number
+  readonly name?: string
+  readonly anonymous?: boolean
+  readonly sandboxId?: string
+  readonly platform?: 'true' | 'false' | 'any'
+}
+
+export interface ImagePullOptions extends BuildImageOptions {
+  readonly wait?: boolean
+  /** Total pull budget in seconds; omitted or zero is unbounded. */
+  readonly timeoutSeconds?: number
+}
+
+const BUILD_IMAGE_OPTION_KEYS = optionKeys<BuildImageOptions>()({ name: true, idleExpirySeconds: true, region: true, cpuArch: true })
+const IMAGE_PULL_OPTION_KEYS = optionKeys<ImagePullOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, wait: true, timeoutSeconds: true })
+const LIST_IMAGES_OPTION_KEYS = optionKeys<ListImagesOptions>()({ cursor: true, limit: true, name: true, anonymous: true, sandboxId: true, platform: true })
 
 const IMAGE_LONGPOLL_MAX_MS = 60_000
-
-function requestTimeoutMs(timeout: number | undefined): number | undefined {
-  if (timeout === undefined) return undefined
-  if (!Number.isFinite(timeout) || timeout < 0) throw new TypeError('timeout must be a non-negative finite number')
-  return timeout === 0 ? 0 : Math.min(Math.ceil(timeout * 1000), IMAGE_LONGPOLL_MAX_MS)
-}
 
 export class ImagesService {
   private resolvedApiTransport?: HttpTransport
 
-  constructor(
+  /** @internal */
+  public static _create(http: AxiosInstance, apiTransport?: HttpTransport | HttpTransportConfig): ImagesService {
+    return new ImagesService(http, apiTransport)
+  }
+
+  private constructor(
     private readonly http: AxiosInstance,
     private readonly apiTransport?: HttpTransport | HttpTransportConfig,
   ) {
@@ -43,11 +66,13 @@ export class ImagesService {
   }
 
   public async build(builder: ImageBuilder, options: BuildImageOptions = {}): Promise<Image> {
+    assertKnownOptions('BuildImageOptions', options, BUILD_IMAGE_OPTION_KEYS)
     const { data } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(builder, options))
     return this.get(data.id)
   }
 
-  public async list(options: { cursor?: string; limit?: number; name?: string; anonymous?: boolean; sandboxId?: string; platform?: 'true' | 'false' | 'any' } = {}): Promise<ListResult<Image>> {
+  public async list(options: ListImagesOptions = {}): Promise<ListResult<Image>> {
+    assertKnownOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS)
     const { data } = await this.http.get<api.ImagePage>('/images', {
       params: {
         cursor: options.cursor,
@@ -58,10 +83,11 @@ export class ImagesService {
         platform: options.platform,
       },
     })
-    return { items: data.images.map((image) => new Image(image)), nextCursor: data.next_cursor ?? undefined }
+    return { items: data.images.map((image) => Image._create(image)), nextCursor: data.next_cursor ?? undefined }
   }
 
-  public async *iter(options: { cursor?: string; limit?: number; name?: string; anonymous?: boolean; sandboxId?: string; platform?: 'true' | 'false' | 'any' } = {}): AsyncIterable<Image> {
+  public async *iter(options: ListImagesOptions = {}): AsyncIterable<Image> {
+    assertKnownOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS)
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -74,24 +100,16 @@ export class ImagesService {
     }
   }
 
-  public async get(imageId: string, options: { wait?: 'ready'; timeout?: number } = {}): Promise<Image> {
-    const timeoutMs = requestTimeoutMs(options.timeout)
-    const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(imageId)}`, {
-      params: options.wait === undefined ? undefined : {
-        wait: options.wait,
-        timeout_ms: timeoutMs === undefined || timeoutMs === 0 ? undefined : timeoutMs,
-      },
-      timeout: options.wait === undefined ? undefined : timeoutMs === 0 ? 0 : timeoutMs === undefined ? 0 : timeoutMs + 5_000,
-    })
-    return new Image(data)
+  public async get(imageId: string, options: GetArtifactOptions = {}): Promise<Image> {
+    const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(imageId)}`, artifactRequestOptions(options))
+    return Image._create(data)
   }
 
-  /** Import a registry image and wait until ready by default. Timeout is in milliseconds; omitted or zero is unbounded. */
-  public async pull(ref: string, options: BuildImageOptions & { readonly wait?: boolean; readonly timeout?: number } = {}): Promise<Image> {
-    if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout < 0)) {
-      throw new BadRequestError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
-    const deadline = options.timeout === undefined || options.timeout === 0 ? undefined : Date.now() + options.timeout
+  /** Import a registry image and wait until ready by default. Omitted or zero timeoutSeconds is unbounded. */
+  public async pull(ref: string, options: ImagePullOptions = {}): Promise<Image> {
+    assertKnownOptions('ImagePullOptions', options, IMAGE_PULL_OPTION_KEYS)
+    const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
+    const deadline = timeoutSeconds === undefined || timeoutSeconds === 0 ? undefined : Date.now() + timeoutSeconds * 1000
     const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -118,7 +136,7 @@ export class ImagesService {
       const { data: submitted } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(ImageBuilder.fromRegistry(ref), options), requestOptions())
       const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(submitted.id)}`, requestOptions())
       checkDeadline()
-      let image = new Image(initial)
+      let image = Image._create(initial)
       if (options.wait === false) return image
       while (image.status !== 'ready' && image.status !== 'failed' && image.status !== 'error') {
         const remaining = deadline === undefined ? undefined : Math.min(Math.ceil(deadline - Date.now()), IMAGE_LONGPOLL_MAX_MS)
@@ -130,7 +148,7 @@ export class ImagesService {
           params: { wait: 'ready', timeout_ms: remaining },
         })
         checkDeadline()
-        image = new Image(data)
+        image = Image._create(data)
       }
       if (image.status === 'failed' || image.status === 'error') {
         throw new ImageBuildFailedError(image.error ?? `image pull ${image.id} failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
@@ -155,7 +173,7 @@ export class ImagesService {
    */
   public async promote(imageId: string, name: string): Promise<Image> {
     const { data } = await this.http.patch<api.ImageListItem>(`/images/${strictUriEncode(imageId)}`, { name } satisfies api.PromoteImageRequest)
-    return new Image(data)
+    return Image._create(data)
   }
 
   public async delete(imageId: string): Promise<void> {

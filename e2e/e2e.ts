@@ -51,7 +51,7 @@ function check(label: string, condition: boolean, detail = ''): void {
 async function waitReady(imageId: string, deadlineMs = 900_000): Promise<string> {
   const deadline = Date.now() + deadlineMs
   for (;;) {
-    const { status } = await daytona.images.get(imageId, { wait: 'ready', timeout: 60 })
+    const { status } = await daytona.images.get(imageId, { wait: 'ready', timeoutSeconds: 60 })
     if (status === 'ready' || status === 'failed' || Date.now() >= deadline) return status
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
@@ -118,8 +118,8 @@ async function main(): Promise<number> {
           fail++
         }
       }
-      // Sandbox delete is asynchronous: the image stays referenced (409) until
-      // the sandboxes are gone, so retry for a bounded time.
+      // Image references can still be releasing after sandbox deletion has
+      // completed; retry conflicts for a bounded time.
       for (const entry of images) {
         for (let attempt = 0; attempt < 60; attempt++) {
           try {

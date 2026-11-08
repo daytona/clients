@@ -6,11 +6,12 @@
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import type * as api from './gen/api-types.js'
-import type { ListResult, VolumeState, VolumeType } from './types.js'
+import type { JsonValue, ListResult, VolumeState, VolumeType } from './types.js'
 import { VolumeStatus as VOLUME_STATUSES, VolumeType as VOLUME_TYPES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { NotFoundError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
+import { assertKnownOptions, optionKeys } from './options.js'
 
 /** A volume that preserves files between sandboxes. */
 export interface Volume {
@@ -18,19 +19,29 @@ export interface Volume {
   readonly name: string
   readonly type: VolumeType
   readonly rawType: string
-  readonly sizeGib?: number | null
+  readonly sizeGib?: number
   readonly status: VolumeState
   readonly rawStatus: string
-  readonly error?: string | null
+  readonly error?: string
   readonly createdAt: string
   readonly updatedAt: string
-  readonly lastUsedAt?: string | null
-  readonly options?: Readonly<Record<string, never>>
-  readonly usedBytes?: number | null
-  readonly usedBytesAt?: string | null
+  readonly lastUsedAt?: string
+  readonly options?: Readonly<Record<string, JsonValue>>
+  readonly usedBytes?: number
+  readonly usedBytesAt?: string
 }
 
-export interface VolumeRefOptions {
+export interface GetVolumeOptions {
+  readonly create?: boolean
+  readonly idOnly?: boolean
+}
+
+export interface CreateVolumeOptions {
+  readonly name: string
+  readonly sizeGib?: number
+}
+
+export interface DeleteVolumeOptions {
   readonly idOnly?: boolean
 }
 
@@ -39,7 +50,12 @@ export interface ListVolumesOptions {
   readonly limit?: number
 }
 
-function refConfig(options?: VolumeRefOptions): { readonly params: { readonly id_only: true } } | undefined {
+const GET_VOLUME_KEYS = optionKeys<GetVolumeOptions>()({ create: true, idOnly: true })
+const CREATE_VOLUME_KEYS = optionKeys<CreateVolumeOptions>()({ name: true, sizeGib: true })
+const DELETE_VOLUME_KEYS = optionKeys<DeleteVolumeOptions>()({ idOnly: true })
+const LIST_VOLUMES_KEYS = optionKeys<ListVolumesOptions>()({ cursor: true, limit: true })
+
+function refConfig(options?: DeleteVolumeOptions): { readonly params: { readonly id_only: true } } | undefined {
   return options?.idOnly ? { params: { id_only: true } } : undefined
 }
 
@@ -53,19 +69,24 @@ function mapVolume(volume: api.Volume): Volume {
     rawStatus: volume.status,
     createdAt: volume.created_at,
     updatedAt: volume.updated_at,
-    ...(volume.size_gib !== undefined ? { sizeGib: volume.size_gib } : {}),
-    ...(volume.error !== undefined ? { error: volume.error } : {}),
-    ...(volume.last_used_at !== undefined ? { lastUsedAt: volume.last_used_at } : {}),
-    ...(volume.options !== undefined ? { options: volume.options } : {}),
-    ...(volume.used_bytes !== undefined ? { usedBytes: volume.used_bytes } : {}),
-    ...(volume.used_bytes_at !== undefined ? { usedBytesAt: volume.used_bytes_at } : {}),
+    sizeGib: volume.size_gib ?? undefined,
+    error: volume.error ?? undefined,
+    lastUsedAt: volume.last_used_at ?? undefined,
+    options: volume.options ?? undefined,
+    usedBytes: volume.used_bytes ?? undefined,
+    usedBytesAt: volume.used_bytes_at ?? undefined,
   }
 }
 
 /** Manage named volumes and attach them with `create({ volumes })`. */
-export class VolumeService {
-  constructor(private readonly api: AxiosInstance) {
-    credentialSafeDiagnostics(this, () => ({ type: 'VolumeService' }))
+export class VolumesService {
+  private constructor(private readonly api: AxiosInstance) {
+    credentialSafeDiagnostics(this, () => ({ type: 'VolumesService' }))
+  }
+
+  /** @internal */
+  static _create(api: AxiosInstance): VolumesService {
+    return new VolumesService(api)
   }
 
   private async listPage(options: ListVolumesOptions): Promise<ListResult<Volume>> {
@@ -78,10 +99,12 @@ export class VolumeService {
   }
 
   public async list(options: ListVolumesOptions = {}): Promise<ListResult<Volume>> {
+    assertKnownOptions('ListVolumesOptions', options, LIST_VOLUMES_KEYS)
     return this.listPage(options)
   }
 
   public async *iter(options: ListVolumesOptions = {}): AsyncIterable<Volume> {
+    assertKnownOptions('ListVolumesOptions', options, LIST_VOLUMES_KEYS)
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -95,31 +118,33 @@ export class VolumeService {
   }
 
   /** Get a volume by id or name; optionally create it when absent. */
-  public async get(nameOrId: string, create = false, options?: VolumeRefOptions): Promise<Volume> {
+  public async get(nameOrId: string, options: GetVolumeOptions = {}): Promise<Volume> {
+    assertKnownOptions('GetVolumeOptions', options, GET_VOLUME_KEYS)
     try {
-    const { data } = await this.api.get<api.Volume>(
+      const { data } = await this.api.get<api.Volume>(
         `/volumes/${strictUriEncode(nameOrId)}`,
         refConfig(options),
       )
       return mapVolume(data)
     } catch (e) {
-      if (create && !options?.idOnly && e instanceof NotFoundError) {
-        return this.create(nameOrId)
+      if (options.create && !options.idOnly && e instanceof NotFoundError) {
+        return this.create({ name: nameOrId })
       }
       throw e
     }
   }
 
   /** Creates a disk volume (ready immediately). */
-  public async create(name: string, sizeGib?: number): Promise<Volume> {
-    const body: api.CreateVolumeRequest = sizeGib !== undefined ? { name, size_gib: sizeGib } : { name }
+  public async create(options: CreateVolumeOptions): Promise<Volume> {
+    assertKnownOptions('CreateVolumeOptions', options, CREATE_VOLUME_KEYS)
+    const body: api.CreateVolumeRequest = { name: options.name, type: 'disk', size_gib: options.sizeGib }
     const { data } = await this.api.post<api.Volume>('/volumes', body)
     return mapVolume(data)
   }
 
   /** Requests deletion and returns once the API accepts it. */
-  public async delete(volume: Volume | string, options?: VolumeRefOptions): Promise<void> {
-    const id = typeof volume === 'string' ? volume : volume.id
-    await this.api.delete(`/volumes/${strictUriEncode(id)}`, refConfig(options))
+  public async delete(nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> {
+    assertKnownOptions('DeleteVolumeOptions', options, DELETE_VOLUME_KEYS)
+    await this.api.delete(`/volumes/${strictUriEncode(nameOrId)}`, refConfig(options))
   }
 }

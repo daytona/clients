@@ -31,7 +31,7 @@ def parse_sandbox_secrets_response(response: httpx.Response) -> SandboxSecretsIn
     if not isinstance(etag, str) or not etag:
         raise create_error("sandbox secrets response is missing ETag", 500, None, "SDK")
     return SandboxSecretsInfo(
-        secrets=_required_string_list(payload.get("secrets"), field_name="secrets"),
+        secrets=tuple(_required_string_list(payload.get("secrets"), field_name="secrets")),
         desired_revision=_required_int(payload.get("desired_revision"), field_name="desired_revision"),
         etag=etag,
         http_status=response.status_code,

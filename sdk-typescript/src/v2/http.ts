@@ -1593,14 +1593,6 @@ export function sandboxState(status: string | undefined): SandboxState {
   }
 }
 
-export function gbToMib(gb: number): number {
-  return Math.round(gb * 1024)
-}
-
-export function mibToGb(mib: number | undefined): number {
-  return Math.max(1, Math.ceil((mib ?? 1024) / 1024))
-}
-
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }

@@ -48,12 +48,12 @@ from daytona.v2._sync.git import GitService
 from daytona.v2._sync.interpreter import InterpreterService
 from daytona.v2._sync.process import ProcessService
 from daytona.v2._sync.sandbox import Sandbox
-from daytona.v2._sync.services import ImageService, SecretService, VolumeService
+from daytona.v2._sync.services import ImagesService, SecretsService, VolumesService
 
 # (pattern, exit_code, output): the first pattern that matches a command wins.
 Override = tuple[str, int, str]
 
-_CREATE_PARAMS = inspect.signature(SyncDaytona.create).parameters
+_CREATE_FROM_BUILD_PARAMS = inspect.signature(SyncDaytona.create_from_build).parameters
 
 
 class FakeWorld:
@@ -84,7 +84,7 @@ class FakeWorld:
         )
         client.iter.side_effect = lambda **_: iter(list(self.sandboxes))
 
-        secret = create_autospec(SecretService, instance=True)
+        secret = create_autospec(SecretsService, instance=True)
         secret.set.side_effect = self._secret_set
         secret.delete.side_effect = self._secret_delete
         secret.list.side_effect = lambda **_: ListResult(
@@ -93,16 +93,16 @@ class FakeWorld:
         secret.iter.side_effect = lambda **_: iter(
             [SimpleNamespace(name=n) for n in self.secrets]
         )
-        client.secret = secret
+        client.secrets = secret
 
-        volume = create_autospec(VolumeService, instance=True)
+        volume = create_autospec(VolumesService, instance=True)
         volume.create.side_effect = lambda *, name, size_gib=None: SimpleNamespace(
             id=f"vol-{name}", name=name, status="ready"
         )
-        volume.delete.side_effect = lambda volume_id, **_: self.deleted_volumes.append(volume_id)
-        client.volume = volume
+        volume.delete.side_effect = lambda name_or_id, **_: self.deleted_volumes.append(name_or_id)
+        client.volumes = volume
 
-        images = create_autospec(ImageService, instance=True)
+        images = create_autospec(ImagesService, instance=True)
         images.follow_build_logs.side_effect = self._follow_build_logs
         client.images = images
         return client
@@ -122,12 +122,11 @@ class FakeWorld:
         return self._sandbox(str(kwargs.get("name")), sandbox_env, dockerfile="")
 
     def _create_from_build(self, builder: ImageBuilder, /, **kwargs: object) -> MagicMock:
-        # create_from_build forwards these keywords to create(): hold them to
-        # create()'s signature, as the SDK does at run time.
+        # Hold the keywords to create_from_build()'s own signature, as Python does.
         for key in kwargs:
-            if key not in _CREATE_PARAMS or key == "image":
-                raise TypeError(f"create() got an unexpected keyword argument {key!r}")
-        dockerfile = builder.render_dockerfile()
+            if key not in _CREATE_FROM_BUILD_PARAMS or key == "builder":
+                raise TypeError(f"create_from_build() got an unexpected keyword argument {key!r}")
+        dockerfile = builder.to_dockerfile()
         if self.fail_builds_containing and self.fail_builds_containing in dockerfile:
             raise ImageBuildFailedError(
                 "image build failed", status_code=409, code="IMAGE_BUILD_FAILED", image_id="img_failed"
@@ -275,6 +274,17 @@ def test_build_logs_reads_the_failed_build_through_the_error_image_id(
     assert world.client.images.follow_build_logs.call_args.args == ("img_failed",)
 
 
+def test_build_logs_fails_when_a_deliberately_broken_build_unexpectedly_succeeds(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # The fake accepts every Dockerfile, the broken one included.
+    code, world = run_example("build_logs")
+    assert code == 1
+    assert re.search(r"FAIL.* the deliberately broken build unexpectedly created", capsys.readouterr().out)
+    assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
 # -- a failed check exits non-zero ------------------------------------------
 
 
@@ -360,10 +370,10 @@ def test_secrets_env_uses_a_run_scoped_secret_it_never_overwrites(
 ) -> None:
     code, world = run_example("secrets_env")
     assert code == 0
-    world.client.secret.set.assert_called_once()
-    name = world.client.secret.set.call_args.args[0]
+    world.client.secrets.set.assert_called_once()
+    name = world.client.secrets.set.call_args.args[0]
     assert name == f"EXAMPLE_API_KEY_{RUN.upper()}"
-    assert world.client.secret.set.call_args.kwargs["if_not_exists"] is True
+    assert world.client.secrets.set.call_args.kwargs["if_not_exists"] is True
     assert world.deleted_secrets == [name]
 
 
@@ -413,7 +423,7 @@ def test_secrets_env_fails_when_it_cannot_delete_its_secret(
     run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
 ) -> None:
     world = FakeWorld()
-    world.client.secret.delete.side_effect = RuntimeError("delete failed")
+    world.client.secrets.delete.side_effect = RuntimeError("delete failed")
     code, _ = run_example("secrets_env", world=world)
     assert code == 1
     assert re.search(r"FAIL.* delete secret EXAMPLE_API_KEY_\w+ failed: delete failed", capsys.readouterr().out)
@@ -423,7 +433,7 @@ def test_secrets_env_deletes_its_secret_when_listing_fails(
     run_example: Callable[..., tuple[int, FakeWorld]],
 ) -> None:
     world = FakeWorld()
-    world.client.secret.iter.side_effect = RuntimeError("list failed")
+    world.client.secrets.iter.side_effect = RuntimeError("list failed")
     with pytest.raises(RuntimeError, match="list failed"):
         run_example("secrets_env", world=world)
     assert world.deleted_secrets == [f"EXAMPLE_API_KEY_{RUN.upper()}"]
@@ -444,10 +454,10 @@ def test_secrets_env_leaves_secrets_it_did_not_create(
     run_example: Callable[..., tuple[int, FakeWorld]],
 ) -> None:
     world = FakeWorld()
-    world.client.secret.set.side_effect = RuntimeError("already exists")
+    world.client.secrets.set.side_effect = RuntimeError("already exists")
     with pytest.raises(RuntimeError, match="already exists"):
         run_example("secrets_env", world=world)
-    world.client.secret.delete.assert_not_called()
+    world.client.secrets.delete.assert_not_called()
 
 
 # -- volumes_share ----------------------------------------------------------

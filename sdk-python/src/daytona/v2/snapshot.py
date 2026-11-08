@@ -3,6 +3,6 @@
 
 from __future__ import annotations
 
-from .services import AsyncSnapshotService
+from .services import AsyncSnapshotsService
 
-__all__ = ["AsyncSnapshotService"]
+__all__ = ["AsyncSnapshotsService"]

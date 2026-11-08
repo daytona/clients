@@ -3,22 +3,20 @@
 
 from __future__ import annotations
 
-from ._core import TransportPayload, _expect_model_from_dict
+from datetime import datetime
+
+from . import _gen
+from ._core import TransportPayload, _expect_model_from_dict, parse_timestamp
 from ._events import region_of
 from ._gen.api import (
     AsyncOperation,
-    AuditActionList,
     ForkSandboxOperation,
     ImagePage,
-    OrganizationLimits,
     PreviewUrl,
-    ProjectApiKeyWithContext,
-    ProjectBudget,
     Sandbox,
     SandboxPage,
     SandboxPort,
     SandboxPortPage,
-    Secret,
     SecretPage,
     SignedPreviewUrl,
     Snapshot,
@@ -26,31 +24,196 @@ from ._gen.api import (
     Volume,
     VolumePage,
 )
+from .errors import create_error
+from .types import (
+    AuditActionGroup,
+    AuditActionList,
+    ImageBuildLimits,
+    MacCatalog,
+    MacCatalogModel,
+    MacCatalogRegion,
+    MacModel,
+    MacPrice,
+    MacResources,
+    MemberLimits,
+    OrganizationLimits,
+    ProjectApiKey,
+    ProjectApiKeyContext,
+    ProjectBudget,
+    SandboxLimits,
+    SandboxResourceLimits,
+    Secret,
+    StorageLimits,
+    UsageLimit,
+)
 
 
 def expect_audit_actions(value: TransportPayload) -> AuditActionList:
-    return _expect_model_from_dict(
-        value, AuditActionList, "audit actions response", AuditActionList.from_dict
+    wire = _expect_model_from_dict(
+        value, _gen.api.AuditActionList, "audit actions response", _gen.api.AuditActionList.from_dict
+    )
+    return AuditActionList(
+        targets=tuple(
+            AuditActionGroup(target_type=group.target_type, actions=tuple(group.actions))
+            for group in wire.targets
+        )
     )
 
 
-def expect_current_api_key(value: TransportPayload) -> ProjectApiKeyWithContext:
-    return _expect_model_from_dict(
+def expect_current_api_key(value: TransportPayload) -> ProjectApiKey:
+    wire = _expect_model_from_dict(
         value,
-        ProjectApiKeyWithContext,
+        _gen.api.ProjectApiKeyWithContext,
         "current API key response",
-        ProjectApiKeyWithContext.from_dict,
+        _gen.api.ProjectApiKeyWithContext.from_dict,
+    )
+    return ProjectApiKey(
+        id=wire.id,
+        name=wire.name,
+        project_id=wire.project_id,
+        project_permissions=tuple(wire.project_permissions),
+        created_at=_timestamp(wire.created_at),
+        context=ProjectApiKeyContext(
+            org_id=wire.context.org_id,
+            org_name=wire.context.org_name,
+            project_name=wire.context.project_name,
+        ),
+        created_by=wire.created_by,
+        expires_at=parse_timestamp(wire.expires_at),
+        last_used_at=parse_timestamp(wire.last_used_at),
+        revoked_at=parse_timestamp(wire.revoked_at),
+        key_prefix=wire.key_prefix,
+        key_suffix=wire.key_suffix,
+        service_account_id=wire.service_account_id,
+        service_account_name=wire.service_account_name,
     )
 
 
 def expect_project_budget(value: TransportPayload) -> ProjectBudget:
-    return _expect_model_from_dict(value, ProjectBudget, "project budget response", ProjectBudget.from_dict)
+    wire = _expect_model_from_dict(
+        value, _gen.api.ProjectBudget, "project budget response", _gen.api.ProjectBudget.from_dict
+    )
+    return ProjectBudget(
+        period_start_date=wire.period_start_date,
+        monthly_limit_cents=wire.monthly_limit_cents,
+        spent_cents=wire.spent_cents,
+        created_at=parse_timestamp(wire.created_at),
+        updated_at=parse_timestamp(wire.updated_at),
+        evaluated_at=parse_timestamp(wire.evaluated_at),
+        exceeded_at=parse_timestamp(wire.exceeded_at),
+        stop_at=parse_timestamp(wire.stop_at),
+    )
+
+
+def _usage_limit(wire: _gen.api.UsageLimit) -> UsageLimit:
+    return UsageLimit(limit=wire.limit, usage=wire.usage)
 
 
 def expect_organization_limits(value: TransportPayload) -> OrganizationLimits:
-    return _expect_model_from_dict(
-        value, OrganizationLimits, "organization limits response", OrganizationLimits.from_dict
+    wire = _expect_model_from_dict(
+        value,
+        _gen.api.OrganizationLimits,
+        "organization limits response",
+        _gen.api.OrganizationLimits.from_dict,
     )
+    return OrganizationLimits(
+        sandboxes=SandboxLimits(
+            concurrent=_usage_limit(wire.sandboxes.concurrent), total=_usage_limit(wire.sandboxes.total)
+        ),
+        image_builds=ImageBuildLimits(concurrent=_usage_limit(wire.image_builds.concurrent)),
+        storage=StorageLimits(
+            volumes=_usage_limit(wire.storage.volumes),
+            images=_usage_limit(wire.storage.images),
+            snapshots=_usage_limit(wire.storage.snapshots),
+        ),
+        secrets_per_project=_usage_limit(wire.secrets_per_project),
+        api_keys_per_project=_usage_limit(wire.api_keys_per_project),
+        api_keys_per_organization=_usage_limit(wire.api_keys_per_organization),
+        sandbox_resources=SandboxResourceLimits(
+            max_cores=float(wire.sandbox_resources.max_cores),
+            max_memory_mib=wire.sandbox_resources.max_memory_mib,
+        )
+        if wire.sandbox_resources is not None
+        else None,
+        members=MemberLimits(
+            limit=wire.members.limit,
+            usage=wire.members.usage,
+            pending_invitations=wire.members.pending_invitations,
+        )
+        if wire.members is not None
+        else None,
+    )
+
+
+def secret_from_wire(wire: _gen.api.Secret) -> Secret:
+    return Secret(
+        name=wire.name,
+        allowed_domains=tuple(wire.allowed_domains),
+        created_at=_timestamp(wire.created_at),
+        updated_at=_timestamp(wire.updated_at),
+        description=wire.description,
+    )
+
+
+def mac_resources_from_wire(wire: _gen.api.MacResources) -> MacResources:
+    return MacResources(cores=wire.cores, memory_mib=wire.memory_mib, disk_mib=wire.disk_mib)
+
+
+def mac_model_from_wire(wire: _gen.api.MacModel) -> MacModel:
+    return MacModel(
+        id=wire.id,
+        name=wire.name,
+        cores=wire.cores,
+        memory_mib=wire.memory_mib,
+        disk_mib=wire.disk_mib,
+        sandbox_disk_mib=wire.sandbox_disk_mib,
+        max_sandboxes=wire.max_sandboxes,
+        default_size=mac_resources_from_wire(wire.default_size) if wire.default_size is not None else None,
+    )
+
+
+def expect_mac_models(value: TransportPayload) -> list[MacModel]:
+    wire = _expect_model_from_dict(
+        value, _gen.api.MacModelList, "Mac model list response", _gen.api.MacModelList.model_validate
+    )
+    return [mac_model_from_wire(model) for model in wire.mac_models]
+
+
+def expect_mac_catalog(value: TransportPayload) -> MacCatalog:
+    wire = _expect_model_from_dict(
+        value, _gen.api.MacCatalog, "Mac catalog response", _gen.api.MacCatalog.model_validate
+    )
+    return MacCatalog(
+        regions=tuple(
+            MacCatalogRegion(
+                id=region.id,
+                default_model=region.default_model,
+                models=tuple(
+                    MacCatalogModel(
+                        model=mac_model_from_wire(entry.model),
+                        available=entry.available,
+                        price=MacPrice(
+                            cents_per_hour=float(entry.price.cents_per_hour),
+                            period_cents=entry.price.period_cents,
+                            period_seconds=entry.price.period_seconds,
+                            currency=entry.price.currency,
+                        )
+                        if entry.price is not None
+                        else None,
+                    )
+                    for entry in region.models
+                ),
+            )
+            for region in wire.regions
+        )
+    )
+
+
+def _timestamp(value: object) -> datetime:
+    parsed = parse_timestamp(value)
+    if parsed is None:
+        raise create_error("API returned an invalid timestamp", 500, None, "SDK")
+    return parsed
 
 
 def expect_create_image_resp(value: TransportPayload) -> AsyncOperation:
@@ -126,7 +289,9 @@ def expect_daytona_preview_url(value: TransportPayload) -> PreviewUrl:
 
 
 def expect_secret(value: TransportPayload) -> Secret:
-    return _expect_model_from_dict(value, Secret, "secret metadata response", Secret.from_dict)
+    return secret_from_wire(
+        _expect_model_from_dict(value, _gen.api.Secret, "secret metadata response", _gen.api.Secret.from_dict)
+    )
 
 
 def expect_signed_preview_url_resp(value: TransportPayload) -> SignedPreviewUrl:

@@ -212,8 +212,8 @@ def teardown(daytona: DaytonaV2Client) -> None:
         except Exception as e:
             FAIL += 1
             print(f"    box delete failed: {str(e)[:80]}")
-    # Sandbox delete is asynchronous: the image stays referenced (409) until the
-    # sandboxes are gone, so retry for a bounded time.
+    # Image references can still be releasing after sandbox deletion has
+    # completed; retry conflicts for a bounded time.
     for image in _images:
         for attempt in range(60):
             try:

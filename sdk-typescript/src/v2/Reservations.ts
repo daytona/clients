@@ -5,38 +5,49 @@
 
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
-import type { CreateReservationOptions, CreateReservationRequest, CreateReservationsBulkOptions, CreateReservationsBulkRequest, ListReservationsOptions, ListResult, MacReservation, MacReservationBatch, RenewReservationOptions, UpdateReservationOptions, UpdateReservationRequest } from './types.js'
+import type { CreateReservationOptions, CreateReservationsBulkOptions, ListReservationsOptions, MacReservation, MacReservationBatch, RenewReservationOptions, UpdateReservationOptions } from './macTypes.js'
+import type { ListResult } from './types.js'
 import type * as api from './gen/api-types.js'
 import { runtimeUniqueId, strictUriEncode } from './http.js'
-import { DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError } from './errors/DaytonaError.js'
 import { MacReservationEndReason as END_REASONS, MacReservationOrigin as ORIGINS, MacReservationStatus as STATUSES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
+import { mapMacResources } from './macMappers.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+
+const CREATE_RESERVATION_KEYS = optionKeys<CreateReservationOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true })
+const CREATE_RESERVATIONS_BULK_KEYS = optionKeys<CreateReservationsBulkOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true, count: true, minCount: true })
+const LIST_RESERVATIONS_KEYS = optionKeys<ListReservationsOptions>()({ cursor: true, limit: true })
+const RENEW_RESERVATION_KEYS = optionKeys<RenewReservationOptions>()({ idempotencyKey: true })
+const UPDATE_RESERVATION_KEYS = optionKeys<UpdateReservationOptions>()({ autoRenew: true })
 
 function reservation(value: api.MacReservation): MacReservation {
-  const {
-    region_id: region, org_id: orgId, project_id: projectId, auto_renew: autoRenew,
-    sandboxes_per_mac: sandboxesPerMac, slots_used: slotsUsed,
-    resources_used: resourcesUsed, period_n: periodN, period_seconds: periodSeconds,
-    created_at: createdAt, activated_at: activatedAt, pending_mac_started_at: pendingMacStartedAt,
-    period_started_at: periodStartedAt, period_end: periodEnd, reissued_at: reissuedAt,
-    ended_at: endedAt, renewal_pending: renewalPending, renewal_error: renewalError,
-    end_reason: endReason, ...rest
-  } = value
   return {
-    ...rest,
-    region, orgId, projectId, autoRenew, sandboxesPerMac, slotsUsed,
-    capacity: value.capacity == null ? value.capacity : {
-      cores: value.capacity.cores, memoryMib: value.capacity.memory_mib, diskMib: value.capacity.disk_mib,
-    },
-    resourcesUsed: {
-      cores: resourcesUsed.cores, memoryMib: resourcesUsed.memory_mib, diskMib: resourcesUsed.disk_mib,
-    },
-    periodN, periodSeconds, createdAt, activatedAt, pendingMacStartedAt,
-    periodStartedAt, periodEnd, reissuedAt, endedAt, renewalPending, renewalError,
+    id: value.id,
+    region: value.region_id,
+    orgId: value.org_id,
+    projectId: value.project_id,
+    autoRenew: value.auto_renew,
+    sandboxesPerMac: value.sandboxes_per_mac,
+    slotsUsed: value.slots_used,
+    model: value.model ?? undefined,
+    capacity: value.capacity == null ? undefined : mapMacResources(value.capacity),
+    resourcesUsed: mapMacResources(value.resources_used),
+    periodN: value.period_n,
+    periodSeconds: value.period_seconds,
+    createdAt: value.created_at,
+    activatedAt: value.activated_at ?? undefined,
+    pendingMacStartedAt: value.pending_mac_started_at ?? undefined,
+    periodStartedAt: value.period_started_at ?? undefined,
+    periodEnd: value.period_end ?? undefined,
+    reissuedAt: value.reissued_at ?? undefined,
+    endedAt: value.ended_at ?? undefined,
+    renewalPending: value.renewal_pending,
+    renewalError: value.renewal_error ?? undefined,
     status: knownOrUnknown(value.status, STATUSES),
     rawStatus: value.status,
-    endReason: endReason == null ? endReason : knownOrUnknown(endReason, END_REASONS),
-    rawEndReason: endReason,
+    endReason: value.end_reason == null ? undefined : knownOrUnknown(value.end_reason, END_REASONS),
+    rawEndReason: value.end_reason ?? undefined,
     origin: knownOrUnknown(value.origin, ORIGINS),
     rawOrigin: value.origin,
   }
@@ -52,8 +63,13 @@ function reservation(value: api.MacReservation): MacReservation {
  * `FeatureNotEnabledError`); listing, reading and turning auto-renew off do not.
  */
 export class ReservationsService {
-  constructor(private readonly http: AxiosInstance) {
+  private constructor(private readonly http: AxiosInstance) {
     credentialSafeDiagnostics(this, () => ({ type: 'ReservationsService' }))
+  }
+
+  /** @internal */
+  static _create(http: AxiosInstance): ReservationsService {
+    return new ReservationsService(http)
   }
 
   /**
@@ -66,7 +82,8 @@ export class ReservationsService {
    * that model is free in the region.
    */
   public async create(options: CreateReservationOptions): Promise<MacReservation> {
-    const body: CreateReservationRequest = { region_id: options.region }
+    assertKnownOptions('CreateReservationOptions', options, CREATE_RESERVATION_KEYS)
+    const body: api.CreateReservationRequest = { region_id: options.region }
     if (options.model !== undefined) body.model = options.model
     if (options.autoRenew !== undefined) body.auto_renew = options.autoRenew
     const { data } = await this.http.post<api.MacReservation>('/reservations', body, idempotencyHeaders(options.idempotencyKey))
@@ -77,21 +94,24 @@ export class ReservationsService {
    * Reserve count Macs of one model in region in one request. minCount (default count) is the fewest to accept: with fewer Macs free, the request reserves as many as are free, or none, failing with ConflictError code === 'NO_MAC_AVAILABLE' when fewer than minCount are free. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
    */
   public async createBulk(options: CreateReservationsBulkOptions): Promise<MacReservationBatch> {
-    const body: CreateReservationsBulkRequest = { region_id: options.region, count: options.count }
+    assertKnownOptions('CreateReservationsBulkOptions', options, CREATE_RESERVATIONS_BULK_KEYS)
+    const body: api.CreateReservationsBulkRequest = { region_id: options.region, count: options.count }
     if (options.minCount !== undefined) body.min_count = options.minCount
     if (options.model !== undefined) body.model = options.model
     if (options.autoRenew !== undefined) body.auto_renew = options.autoRenew
     const { data } = await this.http.post<api.MacReservationBatch>('/reservations/bulk', body, idempotencyHeaders(options.idempotencyKey))
-    return { ...data, reservations: data.reservations.map(reservation) }
+    return { requested: data.requested, reserved: data.reserved, reservations: data.reservations.map(reservation) }
   }
 
   /** One page of the organization's reservations. */
   public async list(options: ListReservationsOptions = {}): Promise<ListResult<MacReservation>> {
+    assertKnownOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS)
     const { data } = await this.http.get<api.ListReservationsResponse>('/reservations', { params: options })
     return { items: data.reservations.map(reservation), nextCursor: data.next_cursor ?? undefined }
   }
 
   public async *iter(options: ListReservationsOptions = {}): AsyncIterable<MacReservation> {
+    assertKnownOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS)
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -113,6 +133,7 @@ export class ReservationsService {
    * Renew the reservation for its next period, which the server charges. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
    */
   public async renew(id: string, options: RenewReservationOptions = {}): Promise<MacReservation> {
+    assertKnownOptions('RenewReservationOptions', options, RENEW_RESERVATION_KEYS)
     const { data } = await this.http.post<api.MacReservation>(`/reservations/${strictUriEncode(id)}/renew`, undefined, idempotencyHeaders(options.idempotencyKey))
     return reservation(data)
   }
@@ -124,7 +145,8 @@ export class ReservationsService {
    * `ConflictError` when the reservation is no longer live.
    */
   public async update(id: string, options: UpdateReservationOptions): Promise<MacReservation> {
-    const body: UpdateReservationRequest = { auto_renew: options.autoRenew }
+    assertKnownOptions('UpdateReservationOptions', options, UPDATE_RESERVATION_KEYS)
+    const body: api.UpdateReservationRequest = { auto_renew: options.autoRenew }
     const { data } = await this.http.patch<api.MacReservation>(`/reservations/${strictUriEncode(id)}`, body)
     return reservation(data)
   }
@@ -133,7 +155,7 @@ export class ReservationsService {
 // Every purchase and renewal carries a key: the caller's, or a fresh one per call.
 function idempotencyHeaders(idempotencyKey: string | undefined) {
   if (idempotencyKey != null && typeof idempotencyKey !== 'string') {
-    throw new DaytonaError('idempotencyKey must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw new BadRequestError('idempotencyKey must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return { headers: { 'Idempotency-Key': idempotencyKey ?? runtimeUniqueId() } }
 }

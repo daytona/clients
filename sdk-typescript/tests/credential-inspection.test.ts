@@ -7,7 +7,7 @@ import { formatWithOptions, inspect } from 'node:util'
 import { Console } from 'node:console'
 import { Writable } from 'node:stream'
 import { Daytona } from '../src/Daytona'
-import { Sandbox } from '../src/v2/Sandbox'
+import { createSandbox } from './helpers/sandbox'
 import { createHttpClient, createPlatformTokenProvider, HttpTransport } from '../src/v2/http'
 import { createServer } from 'node:http'
 import axios from 'axios'
@@ -16,7 +16,7 @@ import { ImagesService } from '../src/v2/Images'
 import { SnapshotsService } from '../src/v2/Snapshots'
 import { ReservationsService } from '../src/v2/Reservations'
 import { MacModelsService } from '../src/v2/MacModels'
-import { SecretService } from '../src/v2/Secret'
+import { SecretsService } from '../src/v2/Secret'
 import { PortsService } from '../src/v2/Ports'
 import { WaitHub } from '../src/v2/events'
 
@@ -25,14 +25,14 @@ const ACCESS_TOKEN = 'dtnv_inspection_sandbox_secret'
 const JWT = 'eyJ.inspection_jwt_secret.signature'
 
 const customNamespaces: readonly { readonly name: string; readonly create: (api: AxiosInstance) => object }[] = [
-  { name: 'images', create: (api) => new ImagesService(api) },
-  { name: 'images with retained config', create: (api) => new ImagesService(api, { apiKey: API_KEY }) },
-  { name: 'snapshots', create: (api) => new SnapshotsService(api) },
-  { name: 'reservations', create: (api) => new ReservationsService(api) },
-  { name: 'Mac models', create: (api) => new MacModelsService(api) },
-  { name: 'secrets', create: (api) => new SecretService(api) },
-  { name: 'ports', create: (api) => new PortsService(undefined, api, 'sandbox') },
-  { name: 'sandbox ports', create: (api) => new Sandbox('sandbox', api, undefined, API_KEY).ports },
+  { name: 'images', create: (api) => ImagesService._create(api) },
+  { name: 'images with retained config', create: (api) => ImagesService._create(api, { apiKey: API_KEY }) },
+  { name: 'snapshots', create: (api) => SnapshotsService._create(api) },
+  { name: 'reservations', create: (api) => ReservationsService._create(api) },
+  { name: 'Mac models', create: (api) => MacModelsService._create(api) },
+  { name: 'secrets', create: (api) => SecretsService._create(api) },
+  { name: 'ports', create: (api) => PortsService._create(undefined, api, 'sandbox') },
+  { name: 'sandbox ports', create: (api) => createSandbox('sandbox', api, undefined, API_KEY).ports },
   { name: 'event hub', create: (api) => new WaitHub('https://api.invalid', API_KEY, {}, () => { throw new Error('unexpected socket') }, api) },
 ]
 
@@ -82,7 +82,7 @@ describe('credential-safe diagnostics', () => {
     const api = createHttpClient('https://api.invalid', API_KEY)
     const apiConfig = { apiKey: API_KEY, httpOptions: { authProvider: { token: ACCESS_TOKEN, authorizationHeader: async () => `Bearer ${ACCESS_TOKEN}` } } }
     // When
-    const images = new ImagesService(api, apiConfig)
+    const images = ImagesService._create(api, apiConfig)
     // Then
     expectSafe(images)
     expect(apiConfig.apiKey).toBe(API_KEY)
@@ -112,12 +112,12 @@ describe('credential-safe diagnostics', () => {
   it('omits credentials from sandbox namespaces and preserves metadata roundtrips', () => {
     // Given
     const api = createHttpClient('https://api.invalid', API_KEY)
-    const sandbox = new Sandbox('sandbox', api, undefined, API_KEY, undefined, {
+    const sandbox = createSandbox('sandbox', api, undefined, API_KEY, undefined, {
       accessToken: ACCESS_TOKEN, toolboxUrl: 'https://toolbox.invalid',
     })
     // When
     const metadata = sandbox.toJSON()
-    const restored = new Sandbox(metadata, api, undefined, API_KEY)
+    const restored = createSandbox(metadata.sandboxId, api, undefined, API_KEY)
     // Then
     for (const holder of [sandbox, { sandbox }, sandbox.fs, sandbox.process, Reflect.get(sandbox, 'toolboxTransport')]) expectSafe(holder)
     expect(metadata).toEqual({ sandboxId: 'sandbox' })
@@ -138,7 +138,7 @@ describe('credential-safe diagnostics', () => {
             ? { url: 'https://preview.invalid', token: ACCESS_TOKEN }
             : { port: 8080, public: false, url: 'https://preview.invalid' },
     })
-    const sandbox = new Sandbox('sandbox', api, undefined, API_KEY)
+    const sandbox = createSandbox('sandbox', api, undefined, API_KEY)
     // When
     const token = await sandbox.createAccessToken()
     const preview = await sandbox.ports.previewLink(8080)

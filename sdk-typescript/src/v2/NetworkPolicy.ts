@@ -9,7 +9,7 @@ import type { NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput } from './typ
 
 const INPUT_FIELDS = new Set(['blockAll', 'allowCidrs', 'allowDomains'])
 
-export function createNetworkPolicyCreateField(options: Record<string, unknown>): Record<string, unknown> | null | undefined {
+export function createNetworkPolicyCreateField(options: { readonly networkPolicy?: NetworkPolicyInput | null }): Record<string, unknown> | null | undefined {
   if (!Object.prototype.hasOwnProperty.call(options, 'networkPolicy')) return undefined
   const value = options.networkPolicy
   if (value === undefined) return undefined

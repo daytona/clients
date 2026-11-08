@@ -1,0 +1,125 @@
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { createSandbox } from './helpers/sandbox'
+import { createHttpClient } from '../src/v2/http'
+import { startFakeApi } from './networkPolicyTestServer'
+
+describe('sandbox observed metadata', () => {
+  it.each(['future-class', ''])('preserves an unrecognized wire class %s as unknown', (sandboxClass) => {
+    // Given a wire class outside the committed vocabulary.
+    const sandbox = createSandbox({ id: 'sbx', class: sandboxClass })
+    // When serializing the observed class.
+    const json = sandbox.toJSON()
+    // Then even an empty wire string remains distinct from an absent class.
+    expect(json).toMatchObject({ sandboxClass: 'unknown', rawSandboxClass: sandboxClass })
+  })
+
+  it.each(['linux', 'macos', 'future-class'])('reads fractional GiB exactly for %s', (sandboxClass) => {
+    // Given a response with fractions and a zero allocation.
+    const response = { id: 'sbx', class: sandboxClass, memory_mib: 1, memory_max_mib: 1537, disk_mib: 0, disk_max_mib: 8193 }
+    // When the handle reads the response.
+    const sandbox = createSandbox(response)
+    // Then no value is rounded, clamped, or invented.
+    expect([sandbox.memory, sandbox.memoryMax, sandbox.disk, sandbox.diskMax]).toEqual([1 / 1024, 1537 / 1024, 0, 8193 / 1024])
+  })
+
+  it('keeps observed metadata read-only and detached from the input', () => {
+    // Given an externally owned response object.
+    const labels = { team: 'original' }
+    const sandbox = createSandbox({ id: 'sbx', name: 'original', labels })
+    // When the input and public property are modified.
+    labels.team = 'changed'
+    const changed = Reflect.set(sandbox, 'name', 'changed')
+    // Then the observation remains the server's value.
+    expect(changed).toBe(false)
+    expect(sandbox.name).toBe('original')
+    expect(sandbox.labels).toEqual({ team: 'original' })
+    expect(Object.isFrozen(sandbox.labels)).toBe(true)
+  })
+
+  it('replaces read-only observations when refreshed', async () => {
+    // Given a handle with stale metadata and a real HTTP response.
+    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', name: 'fresh', class: 'future', status: 'future-state', memory_mib: 513 } }])
+    const sandbox = createSandbox({ id: 'sbx', name: 'stale', class: 'linux' }, createHttpClient(api.url))
+    try {
+      // When metadata is fetched again.
+      await sandbox.refreshData()
+      // Then normalized and raw observations are replaced together.
+      expect(sandbox.toJSON()).toMatchObject({ name: 'fresh', state: 'unknown', rawState: 'future-state', sandboxClass: 'unknown', rawSandboxClass: 'future', memory: 513 / 1024 })
+    } finally {
+      await api.close()
+    }
+  })
+
+  it.each([
+    { response: { id: 'sbx' }, expected: { sandboxId: 'sbx' } },
+    { response: { id: 'sbx', status: '' }, expected: { sandboxId: 'sbx' } },
+    { response: { id: 'sbx', status: 'future' }, expected: { sandboxId: 'sbx', state: 'unknown', rawState: 'future' } },
+    { response: { id: 'sbx', persistent: false, spot: false, cpu: 0, labels: {} }, expected: { sandboxId: 'sbx', persistent: false, spot: false, cpu: 0 } },
+  ])('serializes only known fields: $response', ({ response, expected }) => {
+    // Given an observation containing absent, empty, unknown, or falsy values.
+    const sandbox = createSandbox(response)
+    // When serialized.
+    const json = sandbox.toJSON()
+    // Then the object itself (before JSON.stringify) follows the presence rules.
+    expect(json).toEqual(expected)
+    expect(Object.values(json)).not.toContain(undefined)
+  })
+
+  it('serializes safe metadata and UTC timestamps without connection details', () => {
+    // Given observed artifacts, timestamps, and a usable toolbox credential.
+    const sandbox = createSandbox({
+      id: 'sbx', class: 'linux', status: 'running', image: { id: 'img', name: null },
+      snapshot: { id: 'snap', name: 'backup' }, labels: { owner: 'team' },
+      spot_evicted_at: '2026-05-01T13:30:00.123456+01:30',
+      lifecycle_policy: { timeout_seconds: 30, last_activity_at: '2026-05-01T13:30:00+01:30' },
+    }, undefined, undefined, undefined, undefined, { toolboxUrl: 'https://toolbox.invalid', accessToken: 'fixture-token' })
+    // When serialized for persistence.
+    const json = sandbox.toJSON()
+    // Then only the documented metadata is present, with UTC timestamps.
+    expect(json).toEqual({
+      sandboxId: 'sbx', sandboxClass: 'linux', rawSandboxClass: 'linux', state: 'started', rawState: 'running',
+      image: { id: 'img', name: null }, snapshot: { id: 'snap', name: 'backup' }, labels: { owner: 'team' },
+      spotEvictedAt: '2026-05-01T12:00:00.123456Z', lifecyclePolicy: { timeoutSeconds: 30, lastActivityAt: '2026-05-01T12:00:00Z' },
+    })
+  })
+
+  it('refuses class-gated operations on a future class without guessing Linux', async () => {
+    // Given an unknown API class and a transport with no planned requests.
+    const api = await startFakeApi([])
+    const sandbox = createSandbox({ id: 'sbx', class: 'future' }, createHttpClient(api.url))
+    try {
+      // When a fork requires a known class.
+      const result = sandbox.fork({ waitSeconds: 0 })
+      // Then it fails locally with the SDK classification error.
+      await expect(result).rejects.toMatchObject({ code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
+      expect(api.requests).toEqual([])
+    } finally {
+      await api.close()
+    }
+  })
+
+  it('updates read-only token observations after lazy toolbox authentication', async () => {
+    // Given a key-backed handle whose first toolbox request must mint a token.
+    const api = await startFakeApi([
+      { status: 200, body: { access_token: 'minted-fixture', expires_at: '2030-01-01T00:00:00Z', operations: ['toolbox'] } },
+      { status: 200, body: {} },
+    ])
+    const sandbox = createSandbox('sbx', createHttpClient(api.url), undefined, 'project-fixture', undefined, { toolboxUrl: api.url })
+    try {
+      // When a toolbox operation authenticates.
+      await sandbox.metrics()
+      // Then token metadata reflects the minted credential but remains read-only.
+      expect(sandbox.accessToken).toBe('minted-fixture')
+      expect(sandbox.accessTokenExpiresAt).toBe('2030-01-01T00:00:00Z')
+      expect(Reflect.set(sandbox, 'accessToken', 'replacement')).toBe(false)
+      expect(api.requests[1]?.headers.authorization).toBe('Bearer minted-fixture')
+      expect(sandbox.toJSON()).toEqual({ sandboxId: 'sbx' })
+    } finally {
+      await api.close()
+    }
+  })
+})

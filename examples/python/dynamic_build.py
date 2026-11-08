@@ -38,6 +38,7 @@ def main() -> int:
             ImageBuilder.from_dockerfile(dockerfile),
             name=f"dynbuild-first-{RUN}",
             # Covers the image build and the sandbox start.
+            build_timeout=400,
             wait_seconds=400,
         )
         sandboxes.append(first)
@@ -67,6 +68,7 @@ def main() -> int:
         second = daytona.create_from_build(
             ImageBuilder.from_dockerfile(dockerfile),
             name=f"dynbuild-second-{RUN}",
+            build_timeout=400,
             wait_seconds=400,
         )
         sandboxes.append(second)
@@ -91,6 +93,7 @@ def main() -> int:
         other = daytona.create_from_build(
             ImageBuilder.from_dockerfile(f"FROM {IMAGE}\nRUN echo other-{RUN} > /marker\n"),
             name=f"dynbuild-other-{RUN}",
+            build_timeout=400,
             wait_seconds=400,
         )
         sandboxes.append(other)

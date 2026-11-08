@@ -34,9 +34,9 @@ class ComputerUseService:
 
     _async_type = _async.AsyncComputerUseService
 
-    def __init__(self, impl: _async.AsyncComputerUseService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncComputerUseService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"ComputerUseService({self._impl!r})"

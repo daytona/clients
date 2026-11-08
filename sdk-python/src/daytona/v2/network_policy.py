@@ -90,15 +90,23 @@ def _optional_policy(value: JsonValue, *, field_name: str) -> NetworkPolicy | No
     return NetworkPolicy(
         version=_required_int(payload.get("version"), field_name=f"{field_name}.version"),
         block_all=_required_bool(payload.get("block_all"), field_name=f"{field_name}.block_all"),
-        allow_cidrs=_response_string_list(
-            payload.get("allow_cidrs"),
-            field_name=f"{field_name}.allow_cidrs",
+        allow_cidrs=tuple(
+            _response_string_list(
+                payload.get("allow_cidrs"),
+                field_name=f"{field_name}.allow_cidrs",
+            )
         ),
-        allow_domains=_optional_response_string_list(
-            payload.get("allow_domains"),
-            field_name=f"{field_name}.allow_domains",
+        allow_domains=_tuple_or_none(
+            _optional_response_string_list(
+                payload.get("allow_domains"),
+                field_name=f"{field_name}.allow_domains",
+            )
         ),
     )
+
+
+def _tuple_or_none(values: list[str] | None) -> tuple[str, ...] | None:
+    return None if values is None else tuple(values)
 
 
 def _expect_response_object(value: JsonValue) -> JsonObject:

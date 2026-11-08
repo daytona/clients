@@ -16,9 +16,20 @@ from .errors import create_error
 
 @dataclass(frozen=True, slots=True)
 class ImageBuilder:
+    """A declarative image source: build one with :meth:`from_registry` or :meth:`from_dockerfile`."""
+
     _registry_ref: str | None = None
     _dockerfile: str | None = None
     _steps: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if (self._registry_ref is None) == (self._dockerfile is None):
+            raise create_error(
+                "an ImageBuilder starts from ImageBuilder.from_registry(...) or ImageBuilder.from_dockerfile(...)",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
 
     @classmethod
     def from_registry(cls, ref: str) -> Self:
@@ -127,12 +138,13 @@ class ImageBuilder:
             _steps=self._steps + (f"WORKDIR {self._require_text(path, 'ImageBuilder.workdir path')}",),
         )
 
-    def build_request_source(self) -> tuple[dict[str, str] | None, str | None]:
+    def _request_source(self) -> tuple[dict[str, str] | None, str | None]:
+        """The ``POST /images`` source: a bare registry ref is an import, anything else a Dockerfile build."""
         if self._registry_ref is not None and not self._steps:
             return {"type": "registry", "ref": self._registry_ref}, None
-        return None, self.render_dockerfile()
+        return None, self.to_dockerfile()
 
-    def render_dockerfile(self) -> str:
+    def to_dockerfile(self) -> str:
         """Render the Dockerfile the build request carries.
 
         Byte-identical to TypeScript's ``ImageBuilder.toDockerfile()`` for the

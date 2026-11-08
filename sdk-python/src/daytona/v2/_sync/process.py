@@ -27,9 +27,9 @@ class ProcessHandle:
 
     _async_type = _async.AsyncProcessHandle
 
-    def __init__(self, impl: _async.AsyncProcessHandle, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncProcessHandle, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"ProcessHandle({self._impl!r})"
@@ -123,9 +123,9 @@ class ProcessService:
 
     _async_type = _async.AsyncProcessService
 
-    def __init__(self, impl: _async.AsyncProcessService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncProcessService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"ProcessService({self._impl!r})"
@@ -261,9 +261,9 @@ class PtyService:
 
     _async_type = _async.AsyncPtyService
 
-    def __init__(self, impl: _async.AsyncPtyService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncPtyService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"PtyService({self._impl!r})"

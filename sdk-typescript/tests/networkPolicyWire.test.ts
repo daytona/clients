@@ -4,6 +4,7 @@
  */
 
 import { Daytona } from '../src/v2/Daytona'
+import { lazySandbox } from './lazySandbox'
 import { InternalServerError } from '../src/v2/index'
 
 import { jsonBody, startFakeApi } from './networkPolicyTestServer'
@@ -113,7 +114,7 @@ describe('network policy wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      const policy = await client.getNetworkPolicy('sbx')
+      const policy = await lazySandbox(client, 'sbx').getNetworkPolicy()
       expect(api.requests[0]?.path).toBe('/sandboxes/sbx/network-policy')
       expect(policy).toMatchObject({ etag: '"np-7"', httpStatus: 200, desiredRevision: 7, appliedRevision: 6, appliedStartId: 'start-1', status: 'pending' })
       expect(policy.desired).toMatchObject({ version: 2, blockAll: true, allowCidrs: ['1.2.3.4/32'], allowDomains: ['api.example.com'] })
@@ -154,8 +155,8 @@ describe('network policy wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      const updated = await client.updateNetworkPolicy('sbx', { blockAll: true, allowCidrs: [], allowDomains: [] }, { ifMatch: '"np-1"' })
-      const reset = await client.resetNetworkPolicy('sbx', { ifMatch: '"np-2"' })
+      const updated = await lazySandbox(client, 'sbx').updateNetworkPolicy({ blockAll: true, allowCidrs: [], allowDomains: [] }, { ifMatch: '"np-1"' })
+      const reset = await lazySandbox(client, 'sbx').resetNetworkPolicy({ ifMatch: '"np-2"' })
       expect(updated).toMatchObject({ etag: '"np-2"', httpStatus: 202, desiredRevision: 2, status: 'pending' })
       expect(reset).toMatchObject({ etag: '"np-3"', httpStatus: 202, desiredRevision: 3, status: 'applied' })
     } finally {
@@ -187,7 +188,7 @@ describe('network policy wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      await expect(client.getNetworkPolicy('sbx')).resolves.toMatchObject({ etag: '"np-4"', httpStatus: 200, desiredRevision: 4 })
+      await expect(lazySandbox(client, 'sbx').getNetworkPolicy()).resolves.toMatchObject({ etag: '"np-4"', httpStatus: 200, desiredRevision: 4 })
     } finally {
       await api.close()
     }
@@ -213,7 +214,7 @@ describe('network policy wire contract', () => {
     try {
       let thrown: unknown
       try {
-        await client.getNetworkPolicy('sbx')
+      await lazySandbox(client, 'sbx').getNetworkPolicy()
       } catch (error) {
         thrown = error
       }

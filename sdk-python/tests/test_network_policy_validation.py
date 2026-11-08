@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona.v2 import (
@@ -86,8 +87,8 @@ async def test_network_policy_errors_preserve_trace_id_without_auto_retry(
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
             with pytest.raises(error_type) as exc_info:
-                await client.update_network_policy(
-                    "sbx", network_policy={"allow_domains": None}, if_match='"np-7"'
+                await lazy_sandbox(client, "sbx").update_network_policy(
+                    network_policy={"allow_domains": None}, if_match='"np-7"'
                 )
         finally:
             await client.close()
@@ -102,6 +103,6 @@ async def test_non_object_network_policy_response_raises_internal_server_error()
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
             with pytest.raises(InternalServerError, match="expected JSON object"):
-                await client.get_network_policy("sbx")
+                await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()

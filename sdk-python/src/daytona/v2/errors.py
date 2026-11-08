@@ -119,23 +119,6 @@ class RequestTimeoutError(DaytonaError, _shared.DaytonaTimeoutError):
     """HTTP 408."""
 
 
-class SandboxCreateTimeoutError(RequestTimeoutError):
-    """``create()`` ran out of caller budget while the sandbox was still starting.
-
-    The sandbox was created and is left running; ``sandbox_id`` lets the
-    caller pick it up (``d.v2.get(sandbox_id)``) or delete it.
-    """
-
-    def __init__(self, sandbox_id: str) -> None:
-        super().__init__(
-            f"sandbox {sandbox_id} did not start within the requested timeout",
-            status_code=408,
-            code="REQUEST_TIMEOUT",
-            source="SDK",
-        )
-        self.sandbox_id = sandbox_id
-
-
 class DockerWaitTimeoutError(RequestTimeoutError):
     """``sandbox.docker.wait_until_ready()`` ran out of caller budget before Docker was ``ready``.
 
