@@ -267,6 +267,86 @@ class CliLines(unittest.TestCase):
         self.assertEqual(len(report.breaking), 1)
 
 
+class Directions(unittest.TestCase):
+    """Each type position compared by its direction (breaking_changes.py,
+    "directions")."""
+
+    TS = "sdk-typescript/api-surface/v2.api.txt"
+    PY = "sdk-python/api-surface/daytona.v2.api.txt"
+    PASSED = "WatchDirOptions: interface\nWatchDirOptions: passed-in\n"
+
+    def breaks(self, name: str, old: str, new: str) -> int:
+        report = bc.Report()
+        bc.compare_surface(name, old, new, report)
+        return len(report.breaking)
+
+    def test_callback_property_of_a_passed_in_type(self) -> None:
+        old = self.PASSED + "WatchDirOptions.onExit: optional property (err?: Error) => void"
+        cases = [
+            ("(err?: Error | string) => void", 1),  # the SDK may now pass a string: breaks callers' callbacks
+            ("(err?: Error | undefined) => void", 0),
+            ("(err?: Error, code?: number) => void", 0),  # callbacks may ignore a new argument
+            ("(err?: Error, code: number) => void", 0),
+            ("(err: Error) => void", 0),  # never undefined now: narrower
+            ("(err?: Error) => void | Promise<void>", 0),  # callers may return more
+            ("(err?: Error) => Promise<void>", 1),
+            ("(code: number) => void", 1),
+        ]
+        for callback, expected in cases:
+            with self.subTest(callback=callback):
+                new = old.replace("(err?: Error) => void", callback)
+                self.assertEqual(self.breaks(self.TS, old, new), expected)
+
+    def test_method_callback_of_a_passed_in_type(self) -> None:
+        old = "Hooks: interface\nHooks: passed-in\nHooks.onEvent: method (e: Ev): void"
+        self.assertEqual(self.breaks(self.TS, old, old.replace("(e: Ev)", "(e: Ev | string)")), 1)
+        self.assertEqual(self.breaks(self.TS, old, old.replace("(e: Ev)", "(e: Ev, more: X)")), 0)
+        # The same method on a type the SDK hands out: callers call it.
+        out = "Db: interface\nDb.run: method (q: Query): Rows"
+        self.assertEqual(self.breaks(self.TS, out, out.replace("(q: Query)", "(q: Query | string)")), 0)
+        self.assertEqual(self.breaks(self.TS, out, out.replace("): Rows", "): Rows | Error")), 1)
+        # A type that goes both ways: unchanged only.
+        both = "Ev: interface\nEv: returned also-passed-in\nEv.name: property 'a'"
+        self.assertEqual(self.breaks(self.TS, both, both.replace("'a'", "'a' | undefined")), 1)
+
+    def test_python_protocol_and_callable_field(self) -> None:
+        proto = "Handler: protocol\nHandler: passed-in\nHandler.__call__: def (ev: Ev) -> None"
+        self.assertEqual(self.breaks(self.PY, proto, proto.replace("(ev: Ev)", "(ev: Ev | str)")), 1)
+        field = "Hooks: typeddict total=False\nHooks: passed-in\nHooks.on_event: optional key Callable[[Ev], None]"
+        self.assertEqual(self.breaks(self.PY, field, field.replace("[[Ev]", "[[Ev | str]")), 1)
+        self.assertEqual(self.breaks(self.PY, field, field.replace("None]", "None | bool]")), 0)
+        # A Callable parameter of an SDK method: the caller implements it.
+        method = "S: class\nS.watch: async def (path: str, on_event: Callable[[Ev], None]) -> None"
+        self.assertEqual(self.breaks(self.PY, method, method.replace("[[Ev]", "[[Ev | str]")), 1)
+        alias = "Cb: type = Callable[[int, int | None], None]"
+        self.assertEqual(self.breaks(self.PY, alias, alias.replace("int | None]", "int | str | None]")), 1)
+
+    def test_function_parameters_and_returns_of_sdk_functions(self) -> None:
+        method = "S: class\nS.get: method (id: string): Promise<Limits>"
+        self.assertEqual(self.breaks(self.TS, method, method.replace("(id: string)", "(id: string | number)")), 0)
+        self.assertEqual(self.breaks(self.TS, method, method.replace("Promise<Limits>", "Promise<Limits | Other>")), 1)
+        self.assertEqual(self.breaks(self.TS, method, method.replace("Promise<Limits>", "Promise<Limits | undefined>")), 1)
+        literal = "S: class\nS.state: method (): Promise<'a' | 'b'>"
+        self.assertEqual(self.breaks(self.TS, literal, literal.replace("'a' | 'b'", "'a' | 'b' | 'c'")), 0)
+        self.assertEqual(self.breaks(self.TS, literal, literal.replace("'a' | 'b'", "'a'")), 0)  # narrower output
+
+    def test_parenthesised_groups_are_types_not_calls(self) -> None:
+        cases = [
+            ("O: interface\nO.k: property ('a' | 'b' | 'c')[]", "O: interface\nO.k: property ('a' | 'c')[]"),
+            ("O: interface\nO.k: property (string | number)[]", "O: interface\nO.k: property (boolean | Date)[]"),
+            ("A: type = ('x' | 'y')[]", "A: type = ('x')[]"),
+            ("A: type = (string | number)[]", "A: type = (boolean | symbol)[]"),
+            ("C: class\nC.k: readonly property Promise<('a' | 'b')[]>", "C: class\nC.k: readonly property Promise<('a' | 'z')[]>"),
+            ("K: const readonly ('a' | 'b')[]", "K: const readonly ('q')[]"),
+            ("O: interface\nO.k: property (A & B) | C", "O: interface\nO.k: property (A & D) | C"),
+            ("O: interface\nO.k: property (() => void) | string", "O: interface\nO.k: property (() => void) | number"),
+            ("C: class\nC.m: method (a: ('x' | 'y')[]): void", "C: class\nC.m: method (a: ('x')[]): void"),
+        ]
+        for old, new in cases:
+            with self.subTest(old=old):
+                self.assertEqual(self.breaks(self.TS, old, new), 1)
+
+
 class CompareSurface(unittest.TestCase):
     OLD = "\n".join(
         [
@@ -469,10 +549,26 @@ class CompareSurface(unittest.TestCase):
         bc.compare_surface("upgrade/api-surface/daytona-upgrade.api.txt", old, new, report)
         self.assertEqual(len(report.breaking), 1)
         report = bc.Report()
-        bc.compare_surface("sdk-python/api-surface/daytona.v2.api.txt", "X.f: attribute int", "X.f: attribute int | str", report)
+        bc.compare_surface(
+            "sdk-python/api-surface/daytona.v2.api.txt",
+            "X: class\nX.f: attribute Literal['a']",
+            "X: class\nX.f: attribute Literal['a', 'b']",
+            report,
+        )
         self.assertEqual(report.breaking, [])
         # A flag gaining a short alias is compatible there too; a changed flag is not.
         for new_line, expected in (("npm --yes: flag switch -y", 0), ("npm --yes: flag value", 1)):
+            report = bc.Report()
+            bc.compare_surface("upgrade/api-surface/daytona-upgrade.api.txt", "npm --yes: flag switch", new_line, report)
+            self.assertEqual(len(report.breaking), expected)
+        for old_line, new_line, expected in (
+            ("pypi --help: flag switch -h", "pypi --help: flag switch -h -?", 0),
+            ("pypi --help: flag switch -h", "pypi --help: flag switch -?", 1),
+        ):
+            report = bc.Report()
+            bc.compare_surface("upgrade/api-surface/daytona-upgrade.api.txt", old_line, new_line, report)
+            self.assertEqual(len(report.breaking), expected)
+        for new_line, expected in ():
             report = bc.Report()
             bc.compare_surface("upgrade/api-surface/daytona-upgrade.api.txt", "npm --yes: flag switch", new_line, report)
             self.assertEqual(len(report.breaking), expected)

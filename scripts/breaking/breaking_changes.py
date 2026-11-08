@@ -301,10 +301,34 @@ def member_key(member: str) -> tuple[str, str]:
     return member.strip(), ""
 
 
-def object_compatible(old: str, new: str) -> bool:
+# --- directions -----------------------------------------------------------------
+#
+# Every type position has a direction, and the check compares it by that:
+# - IN: callers supply the value: a parameter of a function the SDK
+#   implements, a member of a type callers only pass in, the return value of
+#   a callback callers implement. Any widening is compatible, `undefined` /
+#   `null` / `None` included; narrowing breaks.
+# - OUT: the SDK supplies it and callers read it: the return value of a
+#   function the SDK implements, a parameter of a callback callers implement.
+#   Narrowing is compatible; widening only by literal (enum) values, the
+#   documented growth; a new `undefined` / `null` / `None` breaks.
+# - BOTH: either way, or not known: a type alias, a member of a type the SDK
+#   returns (and may take back). Only literal values may be added.
+# A function type takes its position's direction: in an IN position callers
+# implement it, so its parameters are OUT and its return value IN; in an OUT
+# position the SDK implements it; in a BOTH position it must stay the same.
+IN, OUT, BOTH = "in", "out", "both"
+LITERAL = re.compile(r"""Literal:.*|'.*'|".*"|-?\d+(?:\.\d+)?|true|false""")
+
+
+def is_literal(member: str) -> bool:
+    return LITERAL.fullmatch(member.strip()) is not None
+
+
+def object_compatible(old: str, new: str, direction: str = BOTH) -> bool:
     """``new`` equals ``old`` except that object type literals in it gained
-    optional members (members kept with the same optionality and a
-    compatible type)."""
+    optional members (members kept with the same name and optionality, and a
+    type compatible in ``direction``)."""
     if old == new:
         return True
     old_parts, new_parts = object_parts(old), object_parts(new)
@@ -318,10 +342,7 @@ def object_compatible(old: str, new: str) -> bool:
         old_members = dict(member_key(m) for m in a)
         new_members = dict(member_key(m) for m in b)
         for name, kind in old_members.items():
-            if name not in new_members or not (
-                object_compatible(kind, new_members[name])
-                or type_compatible(kind, new_members[name], passed_in=False)
-            ):
+            if name not in new_members or not type_compatible(kind, new_members[name], direction):
                 return False
         if any(not name.endswith("?") for name in set(new_members) - set(old_members)):
             return False
@@ -345,19 +366,104 @@ def union_set(text: str) -> set[str]:
     return members
 
 
-def type_compatible(old: str, new: str, *, passed_in: bool) -> bool:
-    """``new`` accepts or yields everything ``old`` did: equal, an inline
-    object that gained optional members, or a top-level union that gained
-    members. Growth inside a type argument (``Omit<T, 'a' | 'b'>``) is not
-    recognised: there, widening can remove properties. ``undefined`` /
-    ``null`` / ``None`` may join a parameter's type, nowhere else."""
-    if old == new or object_compatible(old, new):
+@dataclass(frozen=True)
+class FunctionType:
+    """A function type as printed: TypeScript ``<G>(a: T) => R`` (``form``
+    ``ts``) or Python ``Callable[[A], R]`` (``py``, ``params`` None for
+    ``Callable[..., R]``), with the nullish members of its union."""
+
+    form: str
+    generics: str
+    params: tuple[str, ...] | None
+    returns: str
+    nullish: frozenset[str]
+
+
+def arrow_type(body: str, nullish: frozenset[str]) -> FunctionType | None:
+    """``<G>(a: T) => R``: an arrow type's return type runs to the end."""
+    start, generics = 0, ""
+    if body.startswith("<"):
+        end = matching_paren(body, 0)
+        if end < 0:
+            return None
+        generics, start = body[: end + 1], end + 1
+    if body[start : start + 1] != "(":
+        return None
+    close = matching_paren(body, start)
+    if close < 0 or not body[close + 1 :].startswith(" => "):
+        return None
+    return FunctionType("ts", generics, tuple(split_top(body[start + 1 : close], ",")), body[close + 5 :].strip(), nullish)
+
+
+def function_type(text: str) -> FunctionType | None:
+    text = text.strip()
+    whole = arrow_type(text, frozenset())
+    if whole is not None:
+        return whole
+    members = split_top(text, "|")
+    nullish = frozenset(m for m in members if m in NULLISH)
+    rest = [m for m in members if m not in NULLISH]
+    if len(rest) != 1:
+        return None
+    body = rest[0].strip()
+    while body.startswith("(") and matching_paren(body, 0) == len(body) - 1:
+        body = body[1:-1].strip()
+    callable_ = re.fullmatch(r"(?:typing\.|collections\.abc\.)?Callable\[(.*)\]", body)
+    if callable_:
+        parts = split_top(callable_[1], ",")
+        if len(parts) != 2:
+            return None
+        args, ret = parts[0].strip(), parts[1].strip()
+        if args == "...":
+            return FunctionType("py", "", None, ret, nullish)
+        if args.startswith("[") and args.endswith("]"):
+            return FunctionType("py", "", tuple(split_top(args[1:-1], ",")), ret, nullish)
+        return None
+    return arrow_type(body, nullish)
+
+
+def type_compatible(old: str, new: str, direction: str) -> bool:
+    """Whether a type position may change from ``old`` to ``new`` (see the
+    directions above). Only the top-level union is compared member by member:
+    growth inside a type argument (``Omit<T, 'a' | 'b'>``) is not recognised,
+    since there widening can remove properties."""
+    if old == new:
+        return True
+    old_fn, new_fn = function_type(old), function_type(new)
+    if old_fn or new_fn:
+        return bool(old_fn and new_fn) and function_compatible(old_fn, new_fn, direction)
+    if object_compatible(old, new, direction):
         return True
     old_members, new_members = union_set(old), union_set(new)
-    if not (old_members - NULLISH) <= new_members:
+    added, removed = new_members - old_members, old_members - new_members
+    if direction == IN:
+        return not removed
+    if direction == OUT and not added:
+        return bool(new_members)
+    # The documented growth: literal (enum) values, or members of a union
+    # that already had several; never a new `undefined` / `null` / `None`.
+    if removed or added & NULLISH:
         return False
-    old_nullish, new_nullish = old_members & NULLISH, new_members & NULLISH
-    return old_nullish <= new_nullish if passed_in else old_nullish == new_nullish
+    return all(is_literal(m) for m in added) or len(old_members - NULLISH) >= 2
+
+
+def unwrap_promise(old: str, new: str) -> tuple[str, str]:
+    po, pn = re.fullmatch(r"Promise<(.*)>", old), re.fullmatch(r"Promise<(.*)>", new)
+    return (po[1], pn[1]) if po and pn else (old, new)
+
+
+def function_compatible(old: FunctionType, new: FunctionType, direction: str) -> bool:
+    if direction == BOTH or old.form != new.form or old.generics != new.generics:
+        return False
+    if not (old.nullish <= new.nullish if direction == IN else new.nullish <= old.nullish):
+        return False
+    implementer = "caller" if direction == IN else "sdk"
+    if old.params is None or new.params is None:
+        if old.params != new.params:
+            return False
+    elif not params_compatible(list(old.params), list(new.params), implementer, "callable" if old.form == "py" else "ts"):
+        return False
+    return type_compatible(*unwrap_promise(old.returns, new.returns), IN if implementer == "caller" else OUT)
 
 
 def parse_param(text: str) -> tuple[str, str, bool, str, str]:
@@ -380,9 +486,10 @@ def parse_param(text: str) -> tuple[str, str, bool, str, str]:
 
 
 def param_compatible(old: str, new: str, *, positional_names: bool = True) -> bool:
-    """A caller passing ``old`` still can: the same name (only where callers
-    can use it; TypeScript has no keyword arguments), still optional if it
-    was, the same default, and a type accepting at least as much."""
+    """A caller passing ``old`` to a function the SDK implements still can:
+    the same name (only where callers can use it; TypeScript has no keyword
+    arguments), still optional if it was, the same default, and a type
+    accepting at least as much (an IN position)."""
     if old == new:
         return True
     if old in ("*", "/") or new in ("*", "/"):
@@ -395,53 +502,93 @@ def param_compatible(old: str, new: str, *, positional_names: bool = True) -> bo
         return False
     if o[4] and o[4] != n[4]:
         return False
-    return type_compatible(o[3], n[3], passed_in=True)
+    return type_compatible(o[3], n[3], IN)
+
+
+def supplied_param_compatible(old: str, new: str, *, names: bool) -> bool:
+    """A parameter of a callback callers implement, which the SDK supplies:
+    an OUT position, where ``name?: T`` counts as ``T | undefined``."""
+    if old == new:
+        return True
+    o, n = parse_param(old), parse_param(new)
+    if o[0] != n[0] or o[4] != n[4] or (names and o[1] != n[1]):
+        return False
+    old_type = f"{o[3]} | undefined" if o[2] else o[3]
+    new_type = f"{n[3]} | undefined" if n[2] else n[3]
+    return type_compatible(old_type, new_type, OUT)
 
 
 def is_star(param: str) -> bool:
     return param == "*" or (param.startswith("*") and not param.startswith("**"))
 
 
-def return_compatible(old: str, new: str) -> bool:
-    """The text after a parameter list: TypeScript ``: T``, Python ``-> T``,
-    or nothing (a constructor). A ``Promise<…>`` is unwrapped, since a method
-    returning one yields its argument."""
-    o, n = old.strip(), new.strip()
-    for prefix in (":", "->"):
-        if o.startswith(prefix) and n.startswith(prefix):
-            o, n = o[len(prefix) :].strip(), n[len(prefix) :].strip()
-            break
-    else:
-        return o == n
-    po, pn = re.fullmatch(r"Promise<(.*)>", o), re.fullmatch(r"Promise<(.*)>", n)
-    if po and pn:
-        o, n = po[1], pn[1]
-    return type_compatible(o, n, passed_in=False)
-
-
-def compatible_call(old: str, new: str, *, typescript: bool = False) -> bool:
-    """``new`` accepts every call ``old`` accepted: same prefix, a return type
-    yielding no more than before, old parameters kept in order (a parameter
-    may gain a default or a wider type), and every added parameter optional
-    and placed where it shifts no positional one."""
-    o, n = old.find("("), new.find("(")
-    if o < 0 or n < 0 or old[:o] != new[:n]:
-        return False
-    oc, nc = matching_paren(old, o), matching_paren(new, n)
-    if oc < 0 or nc < 0 or not return_compatible(old[oc + 1 :], new[nc + 1 :]):
-        return False
-    old_params, new_params = split_top(old[o + 1 : oc], ","), split_top(new[n + 1 : nc], ",")
+def params_compatible(old_params: list[str], new_params: list[str], implementer: str, form: str) -> bool:
+    """Parameter lists, by who implements the function. ``form`` is ``ts``,
+    ``def`` (Python, named) or ``callable`` (Python ``Callable``, types
+    only)."""
+    if implementer == "both":
+        return old_params == new_params
+    if implementer == "caller":
+        if form == "ts":
+            # A callback may take fewer parameters than the SDK passes, so a
+            # new trailing parameter is compatible; each kept one is OUT.
+            return len(new_params) >= len(old_params) and all(
+                supplied_param_compatible(o, n, names=False) for o, n in zip(old_params, new_params)
+            )
+        if form == "callable":
+            return len(new_params) == len(old_params) and all(
+                type_compatible(o, n, OUT) for o, n in zip(old_params, new_params)
+            )
+        return len(new_params) == len(old_params) and all(
+            supplied_param_compatible(o, n, names=True) for o, n in zip(old_params, new_params)
+        )
+    if form == "callable":
+        return len(new_params) == len(old_params) and all(type_compatible(o, n, IN) for o, n in zip(old_params, new_params))
     # Old parameters from here on are keyword-only (Python): an insertion
     # among them shifts nothing.
     keyword_from = next((i + 1 for i, p in enumerate(old_params) if is_star(p)), len(old_params))
     j = 0
     for param in new_params:
-        if j < len(old_params) and param_compatible(old_params[j], param, positional_names=not typescript):
+        if j < len(old_params) and param_compatible(old_params[j], param, positional_names=form != "ts"):
             j += 1
             continue
         if not is_optional_param(param) or j < min(keyword_from, len(old_params)):
             return False
     return j == len(old_params)
+
+
+# The kinds of a signature line: what precedes its parameter list.
+SIGNATURE_HEAD = re.compile(
+    r"(?:[a-z-]+ )*(?:method|function|constructor|internal-constructor|call|new|def) ?(?:<.*>)?"
+)
+
+
+def compatible_call(old: str, new: str, *, typescript: bool = False, implementer: str = "sdk") -> bool:
+    """A signature line (a method, function, constructor, call or construct
+    signature, ``def``) that still accepts every call it did, judged by who
+    implements it: the SDK (callers call it: parameters IN, return value
+    OUT), callers (a method of a type they pass in: parameters OUT, return
+    value IN), or both (unchanged)."""
+    o, n = old.find("("), new.find("(")
+    if o < 0 or n < 0 or old[:o] != new[:n] or not SIGNATURE_HEAD.fullmatch(old[:o]):
+        return False
+    oc, nc = matching_paren(old, o), matching_paren(new, n)
+    if oc < 0 or nc < 0:
+        return False
+    if implementer == "both":
+        return False
+    old_tail, new_tail = old[oc + 1 :].strip(), new[nc + 1 :].strip()
+    for prefix in (":", "->"):
+        if old_tail.startswith(prefix) and new_tail.startswith(prefix):
+            old_ret, new_ret = unwrap_promise(old_tail[len(prefix) :].strip(), new_tail[len(prefix) :].strip())
+            if not type_compatible(old_ret, new_ret, IN if implementer == "caller" else OUT):
+                return False
+            break
+    else:
+        if old_tail != new_tail:
+            return False
+    old_params, new_params = split_top(old[o + 1 : oc], ","), split_top(new[n + 1 : nc], ",")
+    return params_compatible(old_params, new_params, implementer, "ts" if typescript else "def")
 
 
 def union_members(detail: str) -> list[str]:
@@ -587,26 +734,29 @@ def item_grew(old: str, new: str) -> bool:
     return bool(sep) and old.startswith("item ") and old_key == new_key and collection_grew(old_value, new_value)
 
 
-def compatible_change(old: str, new: str, *, typescript: bool = False) -> bool:
-    """A known-compatible change of one line's rest (kind + signature)."""
-    if object_compatible(old, new) or compatible_call(old, new, typescript=typescript):
+TYPE_ALIAS_LINE = re.compile(r"type ((?:<.*> )?)= (.*)")
+
+
+def compatible_change(
+    old: str, new: str, *, typescript: bool = False, direction: str = BOTH, implementer: str = "sdk"
+) -> bool:
+    """A known-compatible change of one line's rest (kind + signature).
+    ``direction`` is that of the line's type when it types a member (see the
+    directions above); ``implementer`` says who implements it when it is a
+    signature: ``sdk``, ``caller`` or ``both``."""
+    if compatible_call(old, new, typescript=typescript, implementer=implementer):
         return True
     if compatible_cli(old, new):
         return True
     old_kind, new_kind = old.split(" ", 1)[0], new.split(" ", 1)[0]
-    # A union or Literal alias that only gained members.
-    # An added `null` / `undefined` / `None` is not growth: an alias may type
-    # an output, where readers would now get a value they cannot use.
-    if old_kind == new_kind == "type":
-        old_m, new_m = union_members(old.partition(" ")[2]), union_members(new.partition(" ")[2])
-        if old_m and set(old_m) <= set(new_m) and not (set(new_m) - set(old_m)) & NULLISH:
-            return True
-    # A member whose type only gained union members (an output may too:
-    # clients handle values they do not know).
+    # A type alias: its direction is not known, so BOTH.
+    o, n = TYPE_ALIAS_LINE.fullmatch(old), TYPE_ALIAS_LINE.fullmatch(new)
+    if o and n:
+        return o[1] == n[1] and type_compatible(o[2], n[2], BOTH)
     o, n = MEMBER_LINE.fullmatch(old), MEMBER_LINE.fullmatch(new)
     if o and n and o[1] == n[1]:
         old_parts, new_parts = split_top(o[2], " = "), split_top(n[2], " = ")
-        if old_parts[1:] == new_parts[1:] and type_compatible(old_parts[0], new_parts[0], passed_in=False):
+        if old_parts[1:] == new_parts[1:] and type_compatible(old_parts[0], new_parts[0], direction):
             return True
         # A dataclass field that gained a default (its constructor parameter
         # became optional; the attribute reads the same).
@@ -626,7 +776,7 @@ def made_optional(old: str, new: str, *, typescript: bool = False) -> bool:
     """A member that became optional: TypeScript ``property`` / ``method``
     gaining ``optional``, a TypedDict ``key`` becoming ``optional key``,
     possibly with a compatible change of its type too. Compatible for a type
-    callers only pass in."""
+    callers only pass in (an IN position)."""
     for kind in ("property ", "method ", "key "):
         at = old.find(kind)
         if at < 0 or (at > 0 and old[at - 1] != " ") or "optional " in old[:at]:
@@ -635,14 +785,17 @@ def made_optional(old: str, new: str, *, typescript: bool = False) -> bool:
         if not new.startswith(marker):
             continue
         required_again = old[:at] + new[len(old[:at]) + len("optional ") :]
-        return required_again == old or compatible_change(old, required_again, typescript=typescript)
+        return required_again == old or compatible_change(
+            old, required_again, typescript=typescript, direction=IN, implementer="caller"
+        )
     return False
 
 
 def gained_short_alias(old: str, new: str) -> bool:
-    """A migration-tool flag line that only gained a short alias:
-    ``flag switch`` -> ``flag switch -y``."""
-    return old.startswith("flag ") and " -" not in old and re.fullmatch(re.escape(old) + r" -\S+", new) is not None
+    """A migration-tool flag line that only gained short aliases, the
+    existing ones kept: ``flag switch`` -> ``flag switch -y``,
+    ``flag switch -h`` -> ``flag switch -h -?``."""
+    return old.startswith("flag ") and re.fullmatch(re.escape(old) + r"(?: -\S+)+", new) is not None
 
 
 def group_line(rest: str) -> tuple[str, frozenset[str]] | None:
@@ -744,6 +897,13 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
     allow_widening = not name.startswith("upgrade/")
     # Types callers only pass in (never returned): a member may become optional.
     pass_only = {k for k, rests in new.items() if "passed-in" in rests and "passed-in" in old.get(k, [])}
+    # Types that go both ways (at the release or now).
+    two_way = {
+        k
+        for entries in (old, new)
+        for k, rests in entries.items()
+        if "passed-in also-returned" in rests or "returned also-passed-in" in rests
+    }
     removed_keys: list[str] = []
     for key in sorted(old):
         news = new.get(key)
@@ -781,7 +941,8 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             elif rest.split(" ", 1)[0] in SET_KINDS:
                 report.breaking.append(snapshot_finding(name, line, added))
             elif grew_into_lines(rest, news) or any(
-                compatible_change(rest, candidate, typescript=typescript) for candidate in news
+                compatible_change(rest, candidate, typescript=typescript, **position(key, rest, old, pass_only, two_way))
+                for candidate in news
             ):
                 report.notices.append(f"{name}: compatible change of {line}")
             elif parent_of(key, pass_only) and any(
@@ -807,6 +968,54 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                 report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}", [f"{key}: {rest}"]))
     new_required_members(name, old, new, report)
     new_required_flags(name, old, new, report)
+
+
+MEMBER_KINDS = ("property", "attribute", "key", "field")
+
+
+def owner_of(key: str, entries: dict[str, list[str]]) -> str | None:
+    """The declaration a member key belongs to: ``X`` for ``X.m``,
+    ``X[Symbol.y]`` and ``X()``."""
+    best = None
+    for i, ch in enumerate(key):
+        if ch in ".[(" and key[:i] in entries:
+            best = key[:i]
+    return best
+
+
+def position(key: str, rest: str, entries: dict[str, list[str]], pass_only: set[str], two_way: set[str]) -> dict[str, str]:
+    """The direction of a member line's type and who implements a signature
+    line, from the declaration it belongs to (see the directions above).
+    What cannot be classified compares in both directions (exact, except
+    the documented growth)."""
+    owner = owner_of(key, entries)
+    if owner is None:
+        # Module level: an SDK function, a constant, an alias.
+        return {"direction": BOTH, "implementer": "sdk"}
+    if owner in two_way:
+        return {"direction": BOTH, "implementer": "both"}
+    if owner in pass_only:
+        return {"direction": IN, "implementer": "caller"}
+    head = entries[owner][0]
+    words = rest.split(" ")
+    kind_at = next((i for i, w in enumerate(words) if w in MEMBER_KINDS), None)
+    modifiers = set(words[:kind_at]) if kind_at is not None else set()
+    is_class = head.startswith(("class", "abstract class", "dataclass", "enum"))
+    if kind_at is None:
+        # A method or constructor of a class, or of a type the SDK hands out.
+        return {"direction": BOTH, "implementer": "sdk"}
+    kind = words[kind_at]
+    if kind == "field":
+        # Callers build a dataclass whose constructor is public, and read it.
+        init = entries.get(f"{owner}.__init__", [])
+        built = any(r.startswith("constructor ") for r in init)
+        return {"direction": BOTH if built else OUT, "implementer": "sdk"}
+    if "readonly" in modifiers or (head.startswith(("interface", "type ")) and kind == "property"):
+        return {"direction": OUT, "implementer": "sdk"}
+    if is_class and kind == "property" and "readonly" not in modifiers:
+        # A settable property: callers write it too.
+        return {"direction": BOTH, "implementer": "sdk"}
+    return {"direction": BOTH, "implementer": "sdk"}
 
 
 def parent_of(key: str, parents: set[str]) -> str | None:
