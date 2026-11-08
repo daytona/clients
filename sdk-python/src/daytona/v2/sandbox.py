@@ -926,7 +926,15 @@ class AsyncSandbox:
                 # The hub reports only the state. When the read that followed
                 # still shows that state, name the server's explanation for it
                 # (why a deletion did not finish, say) in the error.
-                if fresh_read and error.reason is None and self.error_reason and self.state == error.state:
+                # `failed` and `lost` share the public `error`; match the wire
+                # status too, so one's explanation never labels the other.
+                if (
+                    fresh_read
+                    and error.reason is None
+                    and self.error_reason
+                    and self.state == error.state
+                    and (error.raw_state is None or self._raw_state == error.raw_state)
+                ):
                     raise SandboxTerminalStateError(
                         self.id, error.state, raw_state=error.raw_state, reason=self.error_reason
                     ) from None

@@ -7752,6 +7752,32 @@ async def test_sandbox_refresh_data_keeps_the_loose_wait() -> None:
 
 
 @pytest.mark.anyio
+async def test_sandbox_wait_keeps_a_lost_reason_off_a_failed_hub_rejection() -> None:
+    class _RejectingHub:
+        enabled = True
+
+        async def wait(self, *args: object, **kwargs: object) -> object:
+            raise SandboxTerminalStateError("sbx", "error", raw_state="failed")
+
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    # `failed` and `lost` both read as public `error`: the read's explanation
+    # belongs to `lost`, not to the `failed` the hub reported.
+    lost = _sandbox_detail_payload("sbx", "lost")
+    lost["error"] = "the host stopped responding"
+    api = RecordingTransport([lost])
+    bind_api(client, api)
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox._hub = _RejectingHub()  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError) as exc_info:
+        await sandbox.wait_for_state(["destroyed"], timeout=10)
+
+    assert exc_info.value.raw_state == "failed"
+    assert exc_info.value.reason is None
+    assert str(exc_info.value) == "sandbox sbx reached terminal state error"
+
+
+@pytest.mark.anyio
 async def test_sandbox_wait_never_attaches_a_reason_it_did_not_just_read() -> None:
     class _RejectingHub:
         enabled = True

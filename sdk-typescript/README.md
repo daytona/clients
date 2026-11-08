@@ -722,8 +722,8 @@ the observed lifecycle state. A sandbox with volumes attached stays
 `destroying` until the platform has finished with its volumes: usually
 seconds, but minutes when a lot of volume data is written at the end. If that
 takes too long, the sandbox reports `error` and the wait throws
-`SandboxTerminalStateError`; its `reason` says why the deletion did not
-finish. Such a sandbox can still reach `destroyed` later. To keep waiting
+`SandboxTerminalStateError`; when the server explains why the deletion did
+not finish, that is its `reason`. Such a sandbox can still reach `destroyed` later. To keep waiting
 for it, catch the error, pause for a few seconds and call
 `waitForState(['destroyed'])` again: while the sandbox still reports `error`,
 the call throws again at once.

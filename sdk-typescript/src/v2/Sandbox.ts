@@ -1165,7 +1165,10 @@ export class Sandbox {
           // The hub reports only the state. When the read that followed
           // still shows that state, name the server's explanation for it (why
           // a deletion did not finish, say) in the error.
-          if (freshRead && error.reason === undefined && this.errorReason && this.state === error.state) {
+          // `failed` and `lost` share the public `error`; match the wire
+          // status too, so one's explanation never labels the other.
+          if (freshRead && error.reason === undefined && this.errorReason && this.state === error.state
+            && (error.rawState === undefined || this.rawState === error.rawState)) {
             throw new SandboxTerminalStateError(this.id, error.state, error.rawState, this.errorReason)
           }
         }
