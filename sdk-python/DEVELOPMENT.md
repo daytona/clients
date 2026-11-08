@@ -206,7 +206,9 @@ passed in and its return type is returned; for a callback the caller
 implements (a `Callable[...]` parameter or field, or the methods and
 `__call__` of a protocol the caller passes in) it is the other way round: its
 arguments are returned and its return type is passed in. Class lines carry their generic parameters
-(`ListResult: dataclass frozen <T>`). Annotations and defaults come from the source, so the text is the
+(`ListResult: dataclass frozen <T>`). Annotations, defaults and type alias
+values come from the source (an alias used inside another one appears by its
+name and is listed on its own), so the text is the
 same on every supported Python. Regenerate after any change
 to the public surface and commit the result; CI runs the check:
 

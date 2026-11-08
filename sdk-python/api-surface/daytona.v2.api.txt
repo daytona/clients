@@ -927,7 +927,7 @@ ImageService.iter: def (*, anonymous: bool = False, sandbox_id: str | None = Non
 ImageService.list: def (*, anonymous: bool = False, sandbox_id: str | None = None, name: str | None = None, cursor: str | None = None, limit: int | None = None, platform: Literal['true', 'false', 'any'] | None = None) -> ListResult[Image]
 ImageService.promote: def (image_id: str, name: str) -> Image
 ImageService.pull: def (image: str, *, name: str | None = None, region: str | None = None, wait: bool = True, timeout: float | None = None) -> Image
-ImageSource: type = ~RegistryImageSource | ~DockerfileImageSource | ~NamedImageSource | ~ManifestImageSource
+ImageSource: type = RegistryImageSource | DockerfileImageSource | NamedImageSource | ManifestImageSource
 ImageTooLargeError: class (ConflictError)
 ImageV2: alias = Image
 InternalServerError: class (DaytonaError, daytona.DaytonaInternalServerError)
@@ -1715,7 +1715,7 @@ SearchSandboxesQuery.status: field kw_only Sequence[str] | None = None
 SearchSandboxesQuery.updated_end_at: field kw_only SearchTimestamp | None = None
 SearchSandboxesQuery.updated_start_at: field kw_only SearchTimestamp | None = None
 SearchSort: type = Literal['created_at', 'updated_at', 'last_activity_at', 'name', 'cores', 'memory_mib', 'disk_mib']
-SearchTimestamp: type = str | datetime.datetime
+SearchTimestamp: type = str | datetime
 SearchTotalRelation: type = Literal['eq', 'gte', 'unknown']
 SearchUnavailableError: class (ServiceUnavailableError)
 Secret: class (pydantic.main.BaseModel)
@@ -2521,9 +2521,9 @@ idempotency_key_for_name: def (name: str) -> str
 ~ImportedFrom.to_dict: def () -> dict[str, Any]
 ~ImportedFrom.to_json: def () -> str
 ~ImportedFrom.to_str: def () -> str
-~JsonObject: type = dict[str, str | int | float | bool | None | Sequence[JsonValue] | Mapping[str, JsonValue]]
+~JsonObject: type = dict[str, JsonValue]
 ~JsonScalar: type = str | int | float | bool | None
-~JsonValue: type = str | int | float | bool | None | Sequence[JsonValue] | Mapping[str, JsonValue]
+~JsonValue: type = JsonScalar | Sequence[JsonValue] | Mapping[str, JsonValue]
 ~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action: enum (str, enum.Enum)
 ~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action.DELETE: enum-member = 'delete'
 ~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action.PAUSE: enum-member = 'pause'
@@ -2657,7 +2657,7 @@ idempotency_key_for_name: def (name: str) -> str
 ~ProjectTokenAuth.get_token: async def (*, force_refresh: bool = False, current_token: str | None = None) -> str
 ~ProjectTokenAuth.on_unauthorized: async def (failed_token: str | None) -> str | None
 ~QueryParamScalar: type = str | int | float | bool | None
-~QueryParamValue: type = str | int | float | bool | None | list[str | int | float | bool | None]
+~QueryParamValue: type = QueryParamScalar | list[QueryParamScalar]
 ~RegistryImageSource: typeddict total
 ~RegistryImageSource.ref: key str
 ~RegistryImageSource.type: key Literal['registry']
@@ -2855,12 +2855,12 @@ idempotency_key_for_name: def (name: str) -> str
 ~_ActiveRequestSpan: class
 ~_ActiveRequestSpan.__init__: internal-constructor (*, context_manager: AbstractContextManager[_SpanLike], span: _SpanLike, status_factory: Callable[[object], object], ok_status: object, error_status: object) -> None
 ~_ActiveRequestSpan.finish: def (*, status_code: int | None = None, error: BaseException | None = None) -> None
-~_EventCallback: type = Callable[[BuildLogStateEvent | BuildLogChunkEvent | BuildLogGapEvent | BuildLogUnavailableEvent | BuildLogSourceChangedEvent | BuildLogDoneEvent | BuildLogErrorEvent], None | Awaitable[None]]
+~_EventCallback: type = Callable[[BuildLogEvent], None | Awaitable[None]]
 ~_ExitCallback: type = Callable[[Exception | None], None | Awaitable[None]]
 ~_LogsCallback: type = Callable[[str], None | Awaitable[None]]
 ~_OverflowCallback: type = Callable[[], None | Awaitable[None]]
 ~_ReplayableContent: type = str | bytes | Iterable[bytes] | AsyncIterable[bytes]
-~_ReplayableContentFactory: type = Callable[[int], str | bytes | Iterable[bytes] | AsyncIterable[bytes]]
+~_ReplayableContentFactory: type = Callable[[int], _ReplayableContent]
 ~_RequestKwargs: class (dict)
 ~_RequestKwargs.content: attribute str | bytes | Iterable[bytes] | AsyncIterable[bytes] | None
 ~_RequestKwargs.data: attribute str | bytes | Mapping[str, str] | None

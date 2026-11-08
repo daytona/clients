@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import ast
 import collections.abc
+import copy
 import dataclasses
 import enum
 import functools
@@ -386,7 +387,8 @@ class Surface:
         self.lines: dict[str, list[str]] = {name: [] for name, _, _ in namespaces}
         self.current: list[str] = []
         self.public_constructors = False
-        self.queue: list[tuple[str, object]] = []
+        # (key, object, (defining module, name) for a type alias)
+        self.queue: list[tuple[str, object, tuple[str, str] | None]] = []
         # A dataclass constructor is public when users build the instance
         # to pass it in: the class types a parameter of a method users call
         # (one of an exported class, or of a class they get an instance of),
@@ -416,9 +418,9 @@ class Surface:
             self.public_constructors = public_constructors
             self.namespace(self.modules[module_name])
             while self.queue:
-                name, obj = self.queue.pop(0)
+                name, obj, source = self.queue.pop(0)
                 self.public_constructors = False
-                self.value(name, obj)
+                self.value(name, obj, source=source)
         inputs = self.built_by_callers()
         for lines in self.lines.values():
             for i, line in enumerate(lines):
@@ -499,11 +501,11 @@ class Surface:
                 return None
             if (home, name) not in self.named_aliases:
                 self.named_aliases[(home, name)] = self.new_key(name, home)
-                self.queue.append((self.named_aliases[(home, name)], obj))
+                self.queue.append((self.named_aliases[(home, name)], obj, (home, name)))
             return None
         if id(obj) not in self.named:
             self.named[id(obj)] = self.new_key(name, home)
-            self.queue.append((self.named[id(obj)], obj))
+            self.queue.append((self.named[id(obj)], obj, None))
         return id(obj)
 
     def new_key(self, name: str, home: str) -> str:
@@ -650,9 +652,12 @@ class Surface:
                 self.named[id(obj)] = name
                 if isinstance(obj, type):
                     self.roots.add(id(obj))
-            self.value(name, obj, module.__name__)
+            found = resolve_name(module.__name__, name)
+            self.value(name, obj, module.__name__, source=(found.home, found.name) if found else None)
 
-    def value(self, name: str, obj: object, module_name: str | None = None) -> None:
+    def value(
+        self, name: str, obj: object, module_name: str | None = None, *, source: tuple[str, str] | None = None
+    ) -> None:
         if isinstance(obj, type):
             self.cls(name, obj)
         elif isinstance(obj, types.ModuleType):
@@ -668,7 +673,7 @@ class Surface:
         elif isinstance(obj, (dict, types.MappingProxyType)):
             self.mapping(name, obj)
         else:
-            self.alias_type(name, obj)
+            self.alias_type(name, obj, source)
 
     def collection(self, name: str, obj: frozenset[object] | set[object] | tuple[object, ...] | list[object]) -> None:
         if not all(isinstance(item, SCALARS) for item in obj):
@@ -697,7 +702,22 @@ class Surface:
                 shown = type(item).__name__
             self.emit(name, "item", f"{key!r}: {shown}")
 
-    def alias_type(self, name: str, obj: object) -> None:
+    def alias_type(self, name: str, obj: object, source: tuple[str, str] | None = None) -> None:
+        # A type alias prints as written in the source, so an alias it uses
+        # appears by name (as in TypeScript) and is listed on its own.
+        node = alias_source(*source) if source else None
+        if node is not None:
+            self.polar_classes(node, source[0])  # list what it names, as a signature would
+            normalized = _Normalize().visit(copy.deepcopy(node))
+            text = ast.unparse(normalized)
+            members = alias_members(normalized)
+            if len(text) > LONG and members is not None:
+                self.emit(name, "type", f"= {members[0]}")
+                for member in members[1]:
+                    self.emit(name, "union-member", member)
+                return
+            self.emit(name, "type", f"= {text}")
+            return
         origin = typing.get_origin(obj)
         text = self.runtime_type(obj)
         if len(text) > LONG and origin in (typing.Literal, typing.Union) or (
@@ -948,6 +968,37 @@ def key_required(annotation_text: str, *, total: bool) -> bool:
     if inner.startswith("NotRequired["):
         return False
     return total
+
+
+def alias_source(home: str, name: str) -> ast.expr | None:
+    """The value a type alias is assigned in its module (``X = ...`` or
+    ``X: TypeAlias = ...``), or None when it is not a plain assignment."""
+    for stmt in module_body(home).get(name, []):
+        if isinstance(stmt, (ast.Assign, ast.AnnAssign)) and stmt.value is not None:
+            if isinstance(stmt.value, ast.Call):
+                return None  # `TypeVar(...)`, `NewType(...)`: not a type expression
+            return stmt.value
+    return None
+
+
+def alias_members(node: ast.expr) -> tuple[str, list[str]] | None:
+    """A ``Literal[...]`` or ``A | B | ...`` value's members, for one line each."""
+    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Literal":
+        elements = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+        return "Literal", [ast.unparse(e) for e in elements]
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        flat: list[ast.expr] = []
+
+        def collect(n: ast.expr) -> None:
+            if isinstance(n, ast.BinOp) and isinstance(n.op, ast.BitOr):
+                collect(n.left)
+                collect(n.right)
+            else:
+                flat.append(n)
+
+        collect(node)
+        return "union", [ast.unparse(m) for m in flat]
+    return None
 
 
 def strip_required(annotation_text: str) -> str:

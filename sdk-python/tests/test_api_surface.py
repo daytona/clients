@@ -146,7 +146,7 @@ __all__ = ["Event", "Filter", "Delivered", "Reply", "FieldEvent", "Service"]
 """
 
 
-def probe_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+def probe_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str = PROBE) -> list[str]:
     import importlib.util
     import sys
 
@@ -164,7 +164,7 @@ def probe_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
         cached.cache_clear()
 
     path = tmp_path / "surface_probe.py"
-    path.write_text(PROBE)
+    path.write_text(source)
     spec = importlib.util.spec_from_file_location("daytona._surface_probe", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -198,3 +198,23 @@ def test_callback_directions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert "FieldEvent: passed-in also-returned" in lines
     assert "Reply: passed-in" in lines
     assert "~Hooks: passed-in" in lines
+
+
+def test_alias_values_print_nested_aliases_by_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    source = """
+from __future__ import annotations
+
+from typing import Callable, Literal, Union
+
+Kind = Literal["a", "b"]
+Either = Union[int, str]
+OnKind = Callable[[Kind], None]
+Pair = tuple[Either, Kind]
+
+__all__ = ["Kind", "OnKind", "Pair"]
+"""
+    lines = probe_surface(tmp_path, monkeypatch, source)
+    assert "OnKind: type = Callable[[Kind], None]" in lines
+    assert "Pair: type = tuple[Either, Kind]" in lines
+    # A nested alias that is not exported is listed on its own.
+    assert "~Either: type = int | str" in lines
