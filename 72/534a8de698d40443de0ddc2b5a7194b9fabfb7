@@ -1,0 +1,88 @@
+sdk-typescript/src/v2/Reservations.ts
+  s_ca009e77d17705::t_f6f155f479c669 67-70
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_637f4b6f947376 165-170
+sdk-python/tests/test_services_contract.py
+  s_ca009e77d17705::t_8dbee420e26a7a 397-405
+sdk-typescript/tests/create-values.test.ts
+  s_ca009e77d17705::t_8dbee420e26a7a 48-62
+changelog.d/539-models.breaking.md
+  s_ca009e77d17705::t_5045d745d4d934 27-32,35-36,40-42
+sdk-typescript/tests/handle-json-fixture.test.ts
+  s_ca009e77d17705::t_0945b3802b3aea 13-20,24,71-107,109-110,116-120
+  s_ca009e77d17705::t_e9b08c5f2c8095 108,111-115
+sdk-typescript/src/v2/sandboxMetadata.ts
+  s_ca009e77d17705::t_e9b08c5f2c8095 45-46
+sdk-typescript/src/v2/Docker.ts
+  s_ca009e77d17705::t_f6f155f479c669 75-78
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_6fe470632fc14a 52-58,67
+changelog.d/539-python-http-module.breaking.md
+  s_ca009e77d17705::t_0914f4f166b5bf 1-5
+sdk-typescript/src/v2/Secret.ts
+  s_ca009e77d17705::t_f6f155f479c669 65-68
+sdk-typescript/src/v2/Snapshots.ts
+  s_ca009e77d17705::t_f6f155f479c669 30-33
+changelog.d/539-lifecycle-waits.breaking.md
+  s_ca009e77d17705::t_352bffd1b08636 35-39
+sdk-python/tests/fixtures/sandbox-handle-json.json
+  s_ca009e77d17705::t_b47840428593fb 69,74,84,89,102,107,116,125
+  s_ca009e77d17705::t_02a2e2fa40a89c 2,62-68,70-73,75-83,85-88,90-101,103-106,108-115,117-124,126-136
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_d4f39bd646675a 22-23
+sdk-typescript/src/v2/Images.ts
+  s_ca009e77d17705::t_f6f155f479c669 49-56
+  s_ca009e77d17705::t_637f4b6f947376 77
+  s_ca009e77d17705::t_8dbee420e26a7a 10,16
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_629a6e3a6d21e3 68,944,984,998,1029,2151-2154
+  s_ca009e77d17705::t_1c6f4a46ed308f 794,796-802,818-834,836-844
+  s_ca009e77d17705::t_0100d225e4eb6f 2155-2156
+sdk-typescript/src/v2/Volume.ts
+  s_ca009e77d17705::t_f6f155f479c669 85-88
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_135ca2c3162b85 6260-6270,12507-12508,12511-12512
+  s_ca009e77d17705::t_560f9dad0d4869 4702-4703
+  s_ca009e77d17705::t_9b71dcb6fa6e07 4686-4687
+  s_ca009e77d17705::t_d29843005d1b89 7125
+sdk-python/tests/test_handle_json_fixture.py
+  s_ca009e77d17705::t_02a2e2fa40a89c 73-74,80-82,86-94,98-108
+  s_ca009e77d17705::t_fb2b4adf751556 75-79,83-85,95-97
+sdk-typescript/src/v2/Image.ts
+  s_ca009e77d17705::t_bd045d1b4825fe 258,264
+  s_ca009e77d17705::t_f6f155f479c669 173-176,222-225
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_6fe470632fc14a 738-742,750-753,763-764,1791-1793,1796-1798
+sdk-python/tests/test_wait_deadlines.py
+  s_ca009e77d17705::t_f2043c6f830306 1-115,121-142
+  s_ca009e77d17705::t_fb2b4adf751556 116-120
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_ca009e77d17705::t_6278a2b1c74731 544-547,551-558
+  s_ca009e77d17705::t_fb2b4adf751556 548-550
+sdk-typescript/src/v2/Ports.ts
+  s_ca009e77d17705::t_f6f155f479c669 111-120
+sdk-typescript/src/v2/SandboxVolumes.ts
+  s_ca009e77d17705::t_f6f155f479c669 54-57
+sdk-typescript/src/v2/MacModels.ts
+  s_ca009e77d17705::t_f6f155f479c669 23-26
+sdk-typescript/tests/published-declarations.test.ts
+  s_ca009e77d17705::t_86bf7eeec962d3 1-42
+sdk-python/DEVELOPMENT.md
+  s_ca009e77d17705::t_fa92fa9907d3e4 190-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72534a8de698d40443de0ddc2b5a7194b9fabfb7",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
