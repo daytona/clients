@@ -1,0 +1,16 @@
+docs/VERSIONING.md
+  h_e7759ddd73fa65 99-103,107-109
+docs/adr/0003-cli.md
+  h_e7759ddd73fa65 99-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c9b83dedd0b50e87fdbb57a2d162097f8477feda",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
