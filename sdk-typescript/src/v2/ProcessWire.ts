@@ -5,31 +5,63 @@
 
 import type * as toolbox from './gen/toolbox-types.js'
 import type { SseMessage } from './http.js'
-import type { LogFrame, ProcessCommand, ProcessDto, ProcessKind, ProcessSignal, ProcessStartOptions, StreamLogEvent, WaitResult } from './types.js'
+import type {
+  KeepLogs, LogFrame, ProcessCommand, ProcessInfo, ProcessKind, ProcessSignal, RunKeepLogs, StdinMode,
+  StreamLogEvent, TerminalSize, WaitResult,
+} from './types.js'
 import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROCESS_STDIN_MODES } from './types.js'
-import { DaytonaError, UnsupportedOperationError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
+import { assertKnownOptions, optionKeys } from './options.js'
 
 export type LogFrameWire = toolbox.LogFrameDto
 export type LogsWire = { items?: LogFrameWire[] } | toolbox.ProcessLogsResponse
-/** Internal only: interpreter contexts and bound shell sessions supply their own session id. */
-export type InternalProcessStartOptions = ProcessStartOptions & {
+
+/** Internal: everything a create-process request can carry, before it becomes the wire body. */
+export interface ProcessSpec {
+  readonly cmd?: string
+  readonly argv?: readonly string[]
+  readonly code?: string
   readonly kind?: ProcessKind
   readonly language?: string
-  readonly code?: string
   readonly sessionId?: string
+  readonly name?: string
+  readonly cwd?: string
+  readonly env?: Readonly<Record<string, string>>
+  readonly user?: string
+  readonly shell?: string
+  readonly login?: boolean
+  readonly stdin?: StdinMode
+  readonly executionTimeoutSeconds?: number
+  readonly terminal?: TerminalSize
+  readonly keepLogs?: KeepLogs
 }
 
 /** Extra HTTP read budget for a bounded process long-poll. */
 export const WAIT_READ_SLACK_MS = 5_000
 export const WAIT_TRANSPORT_RETRY_LIMIT = 3
 
-export function waitDeadline(timeout: number | undefined): number | undefined {
-  if (timeout === undefined || timeout === 0) return undefined
-  if (!Number.isFinite(timeout) || timeout < 0) {
-    throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+const SDK = { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' } as const
+
+function badRequest(message: string): BadRequestError {
+  return new BadRequestError(message, SDK)
+}
+
+/** A duration in seconds as whole wire milliseconds, rounded up (`undefined` stays unset). */
+export function secondsToMs(name: string, seconds: number | undefined): number | undefined {
+  if (seconds === undefined) return undefined
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
+    throw badRequest(`${name} must be a non-negative finite number of seconds`)
   }
-  return Date.now() + timeout
+  // Round away float noise (0.1 * 1000 = 100.00000000000001) before rounding up.
+  return Math.ceil(Math.round(seconds * 1000 * 1e6) / 1e6)
+}
+
+/** The absolute deadline (epoch ms) of a caller wait budget in seconds; `undefined`/`0` = unbounded. */
+export function waitDeadline(timeoutSeconds: number | undefined, name = 'timeoutSeconds'): number | undefined {
+  const ms = secondsToMs(name, timeoutSeconds)
+  if (ms === undefined || ms === 0) return undefined
+  return Date.now() + ms
 }
 
 /** Round fractional wire budgets up to avoid under-waiting. */
@@ -41,36 +73,34 @@ export function signalWire(signal: ProcessSignal | undefined): string | undefine
   return signal ? `SIG${signal}` : undefined
 }
 
+/** The SDK spells signals without the wire's `SIG` prefix. */
+export function bareSignal(signal: unknown): string | undefined {
+  if (typeof signal !== 'string') return undefined
+  return signal.startsWith('SIG') ? signal.slice(3) : signal
+}
+
 export function waitResult(input: toolbox.ExitResult): WaitResult {
-  const rawReason = input.reason
+  const rawReason = typeof input.reason === 'string' ? input.reason : undefined
   const exitCode = typeof input.exitCode === 'number' ? input.exitCode : undefined
-  const signal = typeof input.signal === 'string'
-    ? (input.signal.startsWith('SIG') ? input.signal.slice(3) : input.signal)
-    : undefined
-  if (typeof rawReason !== 'string') return { reason: 'failed', exitCode, signal }
-  const reason = knownOrUnknown(rawReason, PROCESS_REASONS)
-  switch (reason) {
-    case 'exited': return { reason, rawReason, exitCode: exitCode ?? 0 }
-    case 'signaled': return { reason, rawReason, signal: signal ?? 'KILL' }
-    case 'timed_out': return { reason, rawReason }
-    case 'lost':
-    case 'failed':
-    case 'unknown': return { reason, rawReason, exitCode, signal }
-    default: return reason satisfies never
+  const signal = bareSignal(input.signal)
+  return {
+    reason: rawReason === undefined ? 'unknown' : knownOrUnknown(rawReason, PROCESS_REASONS),
+    ...(rawReason === undefined ? {} : { rawReason }),
+    ...(exitCode === undefined ? {} : { exitCode }),
+    ...(signal === undefined ? {} : { signal }),
   }
 }
 
 export function frameFromWire(input: LogFrameWire): LogFrame {
-  const timestamp = typeof input.timestamp === 'number' && Number.isFinite(input.timestamp)
-    ? input.timestamp
-    : undefined
-  return {
-    cursor: input.cursor ?? '', channel: input.channel ?? 'stdout',
-    data: input.data ?? '', timestamp,
+  const { cursor, channel, data, timestamp } = input as Partial<Record<string, unknown>>
+  if (typeof cursor !== 'string' || typeof channel !== 'string' || typeof data !== 'string'
+    || typeof timestamp !== 'number' || !Number.isFinite(timestamp)) {
+    throw badRequest('expected log frame: cursor, channel, data and timestamp are required')
   }
+  return { cursor, channel, data, timestampMs: timestamp }
 }
 
-export function knownProcessKind(kind: string | undefined): ProcessKind | undefined {
+export function knownProcessKind(kind: unknown): ProcessKind | undefined {
   return PROCESS_KINDS.find((candidate) => candidate === kind)
 }
 
@@ -89,7 +119,7 @@ export function startedProcessKind(started: toolbox.ProcessDto, body: toolbox.Cr
   }
 }
 
-export function invalidPtyVerbError(verb: 'attach' | 'resize' | 'delete', kind: ProcessDto['kind']): UnsupportedOperationError {
+export function invalidPtyVerbError(verb: 'attach' | 'resize' | 'delete', kind: ProcessInfo['kind']): UnsupportedOperationError {
   return new UnsupportedOperationError(
     `process.${verb}() is only supported for pty handles; handle kind is ${kind}`,
     { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
@@ -103,84 +133,145 @@ export function invalidStdinVerbError(verb: 'writeStdin' | 'closeStdin', kind: P
   )
 }
 
-export function commandSource(command: ProcessCommand): string | InternalProcessStartOptions {
-  if (typeof command === 'string') return command
-  return 'argv' in command && command.argv !== undefined ? { argv: [...command.argv] } : { cmd: command.cmd }
+const COMMAND_KEYS = optionKeys<{ readonly cmd?: string; readonly argv?: readonly string[] }>()({ cmd: true, argv: true })
+const TERMINAL_SIZE_KEYS = optionKeys<TerminalSize>()({ cols: true, rows: true })
+
+/** The command part of a process spec: exactly one of a shell string, `{ cmd }` or `{ argv }`. */
+export function commandSpec(command: ProcessCommand): ProcessSpec {
+  if (typeof command === 'string') return { cmd: command }
+  if (typeof command !== 'object' || command === null) throw badRequest('command must be a string, { cmd } or { argv }')
+  assertKnownOptions('ProcessCommand', command, COMMAND_KEYS)
+  if ('argv' in command && command.argv !== undefined) {
+    if (command.cmd !== undefined) throw badRequest('command takes exactly one of cmd or argv')
+    return { argv: [...command.argv] }
+  }
+  return { cmd: command.cmd }
 }
 
-export function bodyFor(commandOrOptions: string | InternalProcessStartOptions, options?: InternalProcessStartOptions): toolbox.CreateProcessRequest {
-  const merged = typeof commandOrOptions === 'string'
-    ? { ...options, cmd: commandOrOptions }
-    : { ...commandOrOptions, ...options }
-  const hasShell = typeof merged.cmd === 'string'
-  const hasArgv = Array.isArray(merged.argv)
-  const hasCode = typeof merged.code === 'string'
-  const sourceCount = [hasShell, hasArgv, hasCode].filter(Boolean).length
-  if (!(merged.kind === 'pty' && sourceCount === 0) && sourceCount !== 1) {
-    throw new DaytonaError('exactly one of cmd, argv, or code is required', { statusCode: 400, code: 'BAD_REQUEST' })
+export function terminalSpec(terminal: TerminalSize): TerminalSize {
+  assertKnownOptions('TerminalSize', terminal, TERMINAL_SIZE_KEYS)
+  return { cols: terminal.cols, rows: terminal.rows }
+}
+
+/** `run()` reads the output back from the retained log, so it cannot honour `'none'`. */
+export function runKeepLogs(keepLogs: RunKeepLogs | undefined): RunKeepLogs {
+  if (keepLogs === undefined) return 'on_exit_ttl'
+  if (keepLogs !== 'on_exit_ttl' && keepLogs !== 'until_cleanup') {
+    throw badRequest(`keepLogs '${String(keepLogs)}' is not supported by run(); use 'on_exit_ttl' or 'until_cleanup' (start() accepts 'none')`)
   }
-  if (hasCode && merged.user !== undefined) {
+  return keepLogs
+}
+
+export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
+  const hasShell = typeof spec.cmd === 'string'
+  const hasArgv = Array.isArray(spec.argv)
+  const hasCode = typeof spec.code === 'string'
+  const sourceCount = [hasShell, hasArgv, hasCode].filter(Boolean).length
+  if (!((spec.kind === 'pty' || spec.kind === 'session') && sourceCount === 0) && sourceCount !== 1) {
+    throw badRequest('exactly one of cmd, argv, or code is required')
+  }
+  if (hasCode && spec.user !== undefined) {
     throw new UnsupportedOperationError(
       'user is not supported for code processes; code runs as the sandbox user',
       { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
     )
   }
-  if (merged.executionTimeout !== undefined && (!Number.isFinite(merged.executionTimeout) || merged.executionTimeout < 0)) {
-    throw new DaytonaError('executionTimeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-  }
-  if (merged.terminal !== undefined && merged.kind !== 'pty') {
-    throw new UnsupportedOperationError(
-      'terminal cols/rows are only supported for pty processes; use sandbox.pty.start() or sandbox.pty.attach()',
-      { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
-    )
-  }
+  const timeoutMs = secondsToMs('executionTimeoutSeconds', spec.executionTimeoutSeconds)
   const body: toolbox.CreateProcessRequest = {
-    shellCommand: merged.cmd, argv: merged.argv, code: merged.code, kind: merged.kind,
-    name: merged.name, sessionId: merged.sessionId, cwd: merged.cwd, env: merged.env,
-    user: merged.user, shell: merged.shell, login: merged.login, stdin: merged.stdin,
+    shellCommand: spec.cmd, argv: spec.argv === undefined ? undefined : [...spec.argv], code: spec.code, kind: spec.kind,
+    name: spec.name, sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : { ...spec.env },
+    user: spec.user, shell: spec.shell, login: spec.login,
+    // Sessions take no stdin mode.
+    stdin: spec.kind === 'session' ? undefined : spec.stdin,
     // Code cells have no server-side deadline. Shell-session commands do.
-    timeoutMs: hasCode || merged.executionTimeout === undefined ? undefined : Math.ceil(merged.executionTimeout),
-    terminal: merged.terminal, language: merged.language, keepLogs: merged.keepLogs,
+    timeoutMs: hasCode ? undefined : timeoutMs,
+    terminal: spec.terminal, language: spec.language, keepLogs: spec.keepLogs,
   }
   return Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined))
 }
 
-export function processFromWire(input: toolbox.ProcessDto): ProcessDto {
-  const { timeoutMs, ...rest } = input
-  // Nullable or malformed open values read as absent, never as a null raw value.
-  const rawReason = typeof input.reason === 'string' ? input.reason : undefined
-  const rawStdin = typeof input.stdin === 'string' ? input.stdin : undefined
-  const rawKeepLogs = typeof input.keepLogs === 'string' ? input.keepLogs : undefined
-  return {
-    ...rest, executionTimeout: timeoutMs,
-    kind: knownOrUnknown(input.kind, PROCESS_KINDS), rawKind: input.kind,
-    state: knownOrUnknown(input.state, PROCESS_STATES), rawState: input.state,
-    stdin: rawStdin === undefined ? undefined : knownOrUnknown(rawStdin, PROCESS_STDIN_MODES), rawStdin,
-    keepLogs: rawKeepLogs === undefined ? undefined : knownOrUnknown(rawKeepLogs, PROCESS_KEEP_LOGS), rawKeepLogs,
-    reason: rawReason === undefined ? undefined : knownOrUnknown(rawReason, PROCESS_REASONS), rawReason,
-  }
+function requireString(input: Record<string, unknown>, field: string): string {
+  const value = input[field]
+  if (typeof value !== 'string') throw badRequest(`expected process response: ${field} is required`)
+  return value
 }
 
-export function streamEvent(message: SseMessage): StreamLogEvent {
-  const parsed = message.data ? JSON.parse(message.data) as Record<string, unknown> : {}
-  const cursor = typeof parsed.cursor === 'string' ? parsed.cursor : message.id
-  if (message.event === 'state') return { type: 'state', cursor, result: waitResult(parsed as toolbox.ExitResult) }
-  if (message.event === 'warning') {
-    return {
-      type: 'warning', cursor,
-      message: typeof parsed.message === 'string' ? parsed.message : message.data,
-      firstAvailableCursor: typeof parsed.firstAvailableCursor === 'string' ? parsed.firstAvailableCursor : undefined,
-    }
+function optional<T>(value: T | null | undefined): T | undefined {
+  return value === null ? undefined : value
+}
+
+export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
+  const raw = input as unknown as Record<string, unknown>
+  const rawKind = requireString(raw, 'kind')
+  const rawState = requireString(raw, 'state')
+  const rawStdin = requireString(raw, 'stdin')
+  const rawKeepLogs = requireString(raw, 'keepLogs')
+  // Nullable or malformed open values read as absent, never as a null raw value.
+  const rawReason = typeof input.reason === 'string' ? input.reason : undefined
+  const terminal = optional(input.terminal)
+  const info: ProcessInfo = {
+    id: requireString(raw, 'id'),
+    kind: knownOrUnknown(rawKind, PROCESS_KINDS), rawKind,
+    state: knownOrUnknown(rawState, PROCESS_STATES), rawState,
+    cwd: requireString(raw, 'cwd'),
+    stdin: knownOrUnknown(rawStdin, PROCESS_STDIN_MODES), rawStdin,
+    keepLogs: knownOrUnknown(rawKeepLogs, PROCESS_KEEP_LOGS), rawKeepLogs,
+    createdAt: requireString(raw, 'createdAt'),
+    system: input.system === true,
+    name: optional(input.name),
+    pid: optional(input.pid),
+    sessionId: optional(input.sessionId),
+    argv: optional(input.argv),
+    shellCommand: optional(input.shellCommand),
+    code: optional(input.code),
+    language: optional(input.language),
+    shell: optional(input.shell),
+    resolvedShell: optional(input.resolvedShell),
+    login: optional(input.login),
+    user: optional(input.user),
+    executionTimeoutSeconds: typeof input.timeoutMs === 'number' ? input.timeoutMs / 1000 : undefined,
+    terminal: terminal === undefined ? undefined : { cols: terminal.cols, rows: terminal.rows },
+    exitCode: optional(input.exitCode),
+    signal: bareSignal(input.signal),
+    reason: rawReason === undefined ? undefined : knownOrUnknown(rawReason, PROCESS_REASONS),
+    rawReason,
+    startedAt: optional(input.startedAt),
+    exitedAt: optional(input.exitedAt),
+    truncatedHead: input.truncatedHead === true,
+    firstAvailableCursor: optional(input.firstAvailableCursor),
+    lastCursor: optional(input.lastCursor),
   }
-  if (message.event === 'eof') return { type: 'eof', cursor }
-  if (message.event === 'error') return { type: 'error', cursor, error: new DaytonaError(typeof parsed.message === 'string' ? parsed.message : message.data) }
-  return { type: 'log', cursor, frame: frameFromWire({ ...parsed, cursor } as LogFrameWire) }
+  return Object.fromEntries(Object.entries(info).filter(([, value]) => value !== undefined)) as unknown as ProcessInfo
+}
+
+/** One SSE event of a followed process log; `undefined` for an event this release ignores. A stream error throws its typed error. */
+export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
+  const parsed = message.data ? JSON.parse(message.data) as Record<string, unknown> : {}
+  const cursorValue = typeof parsed.cursor === 'string' ? parsed.cursor : message.id
+  const cursor = cursorValue === undefined || cursorValue === '' ? {} : { cursor: cursorValue }
+  switch (message.event) {
+    case 'state': return { type: 'state', ...cursor, result: waitResult(parsed as toolbox.ExitResult) }
+    case 'warning': return {
+      type: 'warning', ...cursor,
+      message: typeof parsed.message === 'string' ? parsed.message : '',
+      ...(typeof parsed.firstAvailableCursor === 'string' ? { firstAvailableCursor: parsed.firstAvailableCursor } : {}),
+    }
+    case 'eof': return { type: 'eof', ...cursor }
+    case 'error': throw createDaytonaError(
+      typeof parsed.message === 'string' ? parsed.message : 'process log stream failed',
+      undefined,
+      typeof parsed.code === 'string' ? parsed.code : undefined,
+      typeof parsed.source === 'string' ? parsed.source : 'DAYTONA_DAEMON',
+    )
+    case 'log': return { type: 'log', ...cursor, frame: frameFromWire({ ...parsed, cursor: cursorValue } as LogFrameWire) }
+    default: return undefined
+  }
 }
 
 export function base64Encode(data: Uint8Array): string {
   const maybeBuffer = (globalThis as { Buffer?: { from(input: Uint8Array): { toString(encoding: 'base64'): string } } }).Buffer
   if (maybeBuffer) return maybeBuffer.from(data).toString('base64')
-  if (typeof btoa !== 'function') throw new DaytonaError('base64 encoding is unavailable in this runtime', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+  if (typeof btoa !== 'function') throw new DaytonaError('base64 encoding is unavailable in this runtime', { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
   let binary = ''
   for (const byte of data) binary += String.fromCharCode(byte)
   return btoa(binary)

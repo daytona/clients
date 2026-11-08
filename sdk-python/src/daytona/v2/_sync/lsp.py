@@ -11,6 +11,8 @@ sync twins. Regenerate with ``python gen/gen_sync.py``;
 
 from __future__ import annotations
 
+from typing import Optional
+
 from typing_extensions import Self
 
 from .. import lsp as _async
@@ -19,7 +21,7 @@ from ..lsp import *
 
 
 class LspServer:
-    """Synchronous LspServer."""
+    """A started language server for one project, returned by ``lsp.start()``."""
 
     _async_type = _async.AsyncLspServer
 
@@ -48,7 +50,11 @@ class LspServer:
         return self._bridge.call(lambda: self._impl.close_document(uri))
 
     def completions(
-        self, uri: str, position: LspPosition | Mapping[str, int], *, context: JsonValue | None = None
+        self,
+        uri: str,
+        position: LspPosition | Mapping[str, int],
+        *,
+        context: Optional[LspCompletionContext] = None,
     ) -> LspCompletionList:
         return self._bridge.call(lambda: self._impl.completions(uri, position, context=context))
 
@@ -67,7 +73,7 @@ class LspServer:
 
 
 class LspService:
-    """Synchronous LspService."""
+    """Sandbox LSP namespace: start language servers."""
 
     _async_type = _async.AsyncLspService
 

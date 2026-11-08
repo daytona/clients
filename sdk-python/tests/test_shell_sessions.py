@@ -13,7 +13,7 @@ import pytest
 import respx
 from typing_extensions import assert_never
 
-from daytona.v2 import AsyncSession, Session
+from daytona.v2 import AsyncSession
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.errors import (
     BadRequestError,
@@ -47,7 +47,7 @@ def process_payload(kind: str = "session", **fields: JsonValue) -> JsonObject:
 async def process() -> AsyncIterator[AsyncProcessService]:
     transport = AsyncTransport(BASE)
     try:
-        yield AsyncProcessService("sandbox", transport, language="python")
+        yield AsyncProcessService("sandbox", transport, "python")
     finally:
         await transport.close()
 
@@ -105,7 +105,7 @@ async def test_run_collects_inline_output_when_session_command_exits(
     )
     session = process.connect_session("shell/one")
     # When running with distinct caller and execution deadlines.
-    result = await session.run("echo ok", timeout=2, execution_timeout=3, name="step", keep_logs="none")
+    result = await session.run("echo ok", timeout=2, execution_timeout=3, name="step")
     # Then the execution deadline is not dropped and output needs only one request.
     assert json.loads(route.calls.last.request.content) == {
         "kind": "exec",
@@ -118,7 +118,23 @@ async def test_run_collects_inline_output_when_session_command_exits(
     }
     assert dict(route.calls.last.request.url.params) == {"waitMs": "2000", "logs": "text"}
     assert (result.process_id, result.stdout, result.exit_code) == ("command", "ok", 0)
+    assert [frame.data for frame in result.logs] == ["ok"]
     assert route.call_count == 1
+
+
+@pytest.mark.anyio
+async def test_run_refuses_keep_logs_none_before_any_request(
+    process: AsyncProcessService,
+    respx_mock: respx.MockRouter,
+) -> None:
+    # Given a session, when running with a retention that would leave no log
+    # to read the output from, then fail locally instead of silently keeping logs.
+    session = process.connect_session("shell/one")
+    with pytest.raises(BadRequestError, match="keep_logs='none'"):
+        await session.run("echo ok", keep_logs="none")  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="keep_logs='none'"):
+        await process.run("echo ok", keep_logs="none")  # type: ignore[arg-type]
+    assert not respx_mock.calls
 
 
 @pytest.mark.anyio
@@ -242,10 +258,10 @@ async def test_connect_session_restores_identity_when_serialized(
     # Given an identity that has no transport attached.
     identity = {"sandboxId": "sandbox", "sessionId": "shell/one"}
     # When reconnecting the serialized handle.
-    session = process.connect_session(AsyncSession.from_json(identity).to_json())
-    # Then no metadata request was needed, including for the sync identity twin.
+    session = process.connect_session(process.connect_session(identity).to_json())
+    # Then no metadata request was needed.
     assert (session.id, session.sandbox_id) == ("shell/one", "sandbox")
-    assert Session.from_json(identity).to_json() == identity
+    assert session.to_json() == identity
     assert not respx_mock.calls
 
 
@@ -268,11 +284,7 @@ async def test_connect_session_refuses_malformed_identity_before_any_request(
     # Given a serialized identity without a usable id, when reconnecting it,
     # then fail locally: a command must never run outside its shell.
     with pytest.raises(BadRequestError):
-        process.connect_session(identity)
-    with pytest.raises(BadRequestError):
-        AsyncSession.from_json(identity)
-    with pytest.raises(BadRequestError):
-        Session.from_json(identity)
+        process.connect_session(identity)  # type: ignore[arg-type]
     assert not respx_mock.calls
 
 

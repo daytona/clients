@@ -10,7 +10,9 @@ import type {
   ComputerUseDesktopFailure,
   ComputerUseLifecycleResponse,
   ComputerUseProcessStatus,
+  ComputerUseRecording,
   ComputerUseRestartResponse,
+  ComputerUseScreenshotResponse,
   ComputerUseStatusResponse,
 } from './ComputerUseTypes.js'
 import type * as toolbox from './gen/toolbox-types.js'
@@ -20,6 +22,8 @@ const INVALID_STATUS_RESPONSE =
   'Invalid computer-use status response: expected string status and desktop, where inactive/not_started-or-starting and active/ready carry no cause, inactive/failed carries a cause, and any cause is a plain object containing string code and message'
 const INVALID_RESTART_RESPONSE =
   'Invalid computer-use restart response: expected a plain object with string message, status="active", and desktop="ready"'
+
+type Mutable<T> = { -readonly [K in keyof T]: T[K] }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -44,7 +48,7 @@ function mapComputerUseDesktopFailure(
   failure: toolbox.ComputerUseDesktopFailure,
 ): ComputerUseDesktopFailure {
   const { code, message, ...extraFields } = failure
-  const mapped: ComputerUseDesktopFailure = {
+  const mapped: Mutable<ComputerUseDesktopFailure> = {
     code: knownOrUnknown(code, COMPUTER_USE_DESKTOP_FAILURE_CODES),
     rawCode: code,
     message,
@@ -126,7 +130,7 @@ export function mapComputerUseRestartResponse(
     throw new InternalServerError(INVALID_RESTART_RESPONSE, { statusCode: 500, source: 'SDK' })
   }
 
-  const mapped: ComputerUseRestartResponse = { message, status, desktop }
+  const mapped: Mutable<ComputerUseRestartResponse> = { message, status, desktop }
   if (Object.keys(extraFields).length > 0) {
     mapped.extraFields = extraFields
   }
@@ -159,11 +163,11 @@ export function mapComputerUseProcessStatus(
     }
   }
 
-  const mapped: ComputerUseProcessStatus = {
+  const mapped: Mutable<ComputerUseProcessStatus> = {
     running: status.Running,
     priority: status.Priority,
     autoRestart: status.AutoRestart,
-    pid: status.Pid,
+    ...(typeof status.Pid === 'number' ? { pid: status.Pid } : {}),
     failed: status.Failed,
     restartAttempts: status.RestartAttempts,
     restartBackoffMs: status.RestartBackoffMs,
@@ -200,14 +204,51 @@ export function mapComputerUseLifecycleResponse(
   }
 }
 
+/** Optional wire fields may arrive as `null`; the SDK types read them as absent. */
+function present<K extends string, T>(key: K, value: T | null | undefined): { [P in K]?: T } {
+  return (value === null || value === undefined ? {} : { [key]: value }) as { [P in K]?: T }
+}
+
 // An omitted `valueTruncated` means false. Both SDKs expose a required boolean.
 export function mapComputerUseAccessibilityNode(
   node: toolbox.ComputerUseAccessibilityNode,
 ): ComputerUseAccessibilityNode {
-  const { children, valueTruncated, ...fields } = node
-  const mapped: ComputerUseAccessibilityNode = { ...fields, valueTruncated: valueTruncated ?? false }
-  if (children !== undefined) {
-    mapped.children = children.map(mapComputerUseAccessibilityNode)
+  const wire = node as toolbox.ComputerUseAccessibilityNode & Partial<Record<'description' | 'actions' | 'value' | 'children', unknown>>
+  return {
+    id: node.id,
+    role: node.role,
+    name: node.name,
+    bounds: { x: node.bounds.x, y: node.bounds.y, width: node.bounds.width, height: node.bounds.height },
+    states: node.states,
+    valueTruncated: node.valueTruncated === true,
+    ...present('description', typeof wire.description === 'string' ? wire.description : undefined),
+    ...present('actions', Array.isArray(wire.actions) ? wire.actions as string[] : undefined),
+    ...present('value', typeof wire.value === 'string' ? wire.value : undefined),
+    ...present('children', Array.isArray(wire.children)
+      ? (wire.children as toolbox.ComputerUseAccessibilityNode[]).map(mapComputerUseAccessibilityNode)
+      : undefined),
   }
-  return mapped
+}
+
+export function mapComputerUseScreenshot(response: toolbox.ComputerUseScreenshotResponse): ComputerUseScreenshotResponse {
+  const cursor = (response as { cursorPosition?: toolbox.ComputerUsePoint | null }).cursorPosition
+  return {
+    screenshot: response.screenshot,
+    sizeBytes: response.sizeBytes,
+    ...present('cursorPosition', cursor === null || cursor === undefined ? undefined : { x: cursor.x, y: cursor.y }),
+  }
+}
+
+export function mapComputerUseRecording(recording: toolbox.ComputerUseRecording): ComputerUseRecording {
+  const wire = recording as toolbox.ComputerUseRecording & Partial<Record<'endTime' | 'durationSeconds' | 'sizeBytes', unknown>>
+  return {
+    id: recording.id,
+    fileName: recording.fileName,
+    filePath: recording.filePath,
+    startTime: recording.startTime,
+    status: recording.status,
+    ...present('endTime', typeof wire.endTime === 'string' ? wire.endTime : undefined),
+    ...present('durationSeconds', typeof wire.durationSeconds === 'number' ? wire.durationSeconds : undefined),
+    ...present('sizeBytes', typeof wire.sizeBytes === 'number' ? wire.sizeBytes : undefined),
+  }
 }

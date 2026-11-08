@@ -50,18 +50,25 @@ def _isolated_context_id(language: str) -> str:
     return f"isolated-{language}-{uuid.uuid4().hex}"
 
 
-def _is_interpreter_context_json(value: object) -> TypeGuard[InterpreterContextJSON]:
+def _json_identity(value: object) -> Optional[tuple[str, str, str]]:
+    """``(sandbox_id, context_id, language)`` of a serialized context.
+
+    Reads the camelCase ``to_json()`` shape (shared with the TypeScript SDK)
+    and the snake_case keys earlier 2.x pre-releases wrote.
+    """
     if not isinstance(value, Mapping):
-        return False
-    sandbox_id = value.get("sandbox_id")
-    context_id = value.get("context_id")
+        return None
+    sandbox_id = value.get("sandboxId", value.get("sandbox_id"))
+    context_id = value.get("contextId", value.get("context_id"))
     language = value.get("language")
-    return isinstance(sandbox_id, str) and isinstance(context_id, str) and isinstance(language, str)
+    if isinstance(sandbox_id, str) and isinstance(context_id, str) and isinstance(language, str):
+        return sandbox_id, context_id, language
+    return None
 
 
 def _timed_out_result() -> InterpreterResult:
     return InterpreterResult(
-        process=InterpreterProcess("", None, None, "timed_out", None),
+        process=InterpreterProcess(process_id="", reason="timed_out"),
         results=[],
         logs=InterpreterLogs(),
         error=None,
@@ -145,10 +152,12 @@ class _ContextExecutionGate:
 
 
 class AsyncInterpreterService:
-    def __init__(self, sandbox_id: str, transport: AsyncTransport, process: AsyncProcessService) -> None:
-        self._sandbox_id = sandbox_id
-        self._transport = transport
-        self._process = process
+    """Sandbox interpreter namespace: run code in language kernels."""
+
+    def __init__(self, _sandbox_id: str, _transport: AsyncTransport, _process: AsyncProcessService) -> None:
+        self._sandbox_id = _sandbox_id
+        self._transport = _transport
+        self._process = _process
         self._context_gates: dict[str, _ContextExecutionGate] = {}
 
     def _gate_for(self, context_id: str) -> _ContextExecutionGate:
@@ -171,6 +180,20 @@ class AsyncInterpreterService:
             self._context_gates.pop(context_id, None)
 
     async def create_context(
+        self,
+        *,
+        language: str,
+        context_id: Optional[str] = None,
+        cwd: Optional[str] = None,
+        env: Optional[Mapping[str, str]] = None,
+    ) -> AsyncInterpreterContext:
+        """Create an interpreter context: kernel state of its own.
+
+        ``cwd`` and ``env`` apply to every run in the context.
+        """
+        return await self._create_context(language=language, context_id=context_id, cwd=cwd, env=env)
+
+    async def _create_context(
         self,
         *,
         language: str,
@@ -207,9 +230,8 @@ class AsyncInterpreterService:
         *,
         language: str | None = None,
     ) -> AsyncInterpreterContext:
-        if _is_interpreter_context_json(context):
-            return self._bind_context(*self._context_identity(context))
-        if isinstance(context, AsyncInterpreterContext):
+        """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request."""
+        if isinstance(context, (AsyncInterpreterContext, Mapping)):
             return self._bind_context(*self._context_identity(context))
         if language is None:
             raise create_error(
@@ -219,14 +241,6 @@ class AsyncInterpreterService:
                 "SDK",
             )
         return self._bind_context(context, language)
-
-    def get_context(
-        self,
-        context: str | AsyncInterpreterContext | InterpreterContextJSON,
-        *,
-        language: str | None = None,
-    ) -> AsyncInterpreterContext:
-        return self.connect_context(context, language=language)
 
     async def list_contexts(self) -> list[AsyncInterpreterContext]:
         payload = expect_session_list_response(await self._transport.send(RequestSpec("GET", "/sessions")))
@@ -239,7 +253,7 @@ class AsyncInterpreterService:
         return contexts
 
     async def delete_context(self, context: AsyncInterpreterContext | InterpreterContextJSON | str) -> None:
-        if _is_interpreter_context_json(context) or isinstance(context, AsyncInterpreterContext):
+        if isinstance(context, (AsyncInterpreterContext, Mapping)):
             context_id, _ = self._context_identity(context)
         else:
             context_id = context
@@ -255,14 +269,21 @@ class AsyncInterpreterService:
         self,
         code: str,
         *,
-        language: str = "python",
-        context: Optional[AsyncInterpreterContext] = None,
+        language: Optional[str] = None,
+        context: str | AsyncInterpreterContext | InterpreterContextJSON | None = None,
         isolated: bool = False,
         timeout: Optional[float] = None,
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
         """Execute code and return the parsed interpreter result.
+
+        Without ``context`` (or ``isolated``) runs share kernel state per
+        ``language`` (default ``"python"``). ``context`` selects an interpreter
+        context by handle, ``to_json()`` identity or id; an id needs
+        ``language``. ``isolated=True`` runs in a throwaway context. ``env``
+        applies to context-free and isolated runs; a context takes its
+        environment when it is created.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on
@@ -278,6 +299,24 @@ class AsyncInterpreterService:
                 codes.BAD_REQUEST,
                 "SDK",
             )
+        if context is not None:
+            rebound_context = self.connect_context(context, language=language)
+            if language is not None and language != rebound_context.language:
+                raise create_error(
+                    f"language {language!r} does not match the context's language {rebound_context.language!r}",
+                    400,
+                    codes.BAD_REQUEST,
+                    "SDK",
+                )
+            if env is not None:
+                raise create_error(
+                    "env is only supported when creating a context or running without an explicit context",
+                    400,
+                    codes.BAD_REQUEST,
+                    "SDK",
+                )
+            return await rebound_context.run(code, cwd=cwd, timeout=timeout)
+        resolved_language = language if language is not None else "python"
         if isolated:
             # Reject an invalid budget before any request is issued, like the
             # other run paths do.
@@ -285,10 +324,10 @@ class AsyncInterpreterService:
             # The throwaway session's POST /sessions is part of this run and
             # spends the same caller budget as the execution itself.
             started = _clock.monotonic()
-            context_id = _isolated_context_id(language)
+            context_id = _isolated_context_id(resolved_language)
             try:
-                isolated_context = await self.create_context(
-                    language=language,
+                isolated_context = await self._create_context(
+                    language=resolved_language,
                     context_id=context_id,
                     cwd=cwd,
                     env=env,
@@ -307,34 +346,17 @@ class AsyncInterpreterService:
                 return await isolated_context.run(code, cwd=cwd, timeout=remaining)
             finally:
                 await self._delete_context_best_effort(context_id)
-        if context is None:
-            gate = self._gate_for(_implicit_context_id(language))
-            return await gate.run(
-                timeout,
-                lambda remaining_timeout: self._run_implicit_context(
-                    code=code,
-                    language=language,
-                    cwd=cwd,
-                    env=env,
-                    timeout=remaining_timeout,
-                ),
-            )
-        rebound_context = self.connect_context(context)
-        if rebound_context.sandbox_id != self._sandbox_id:
-            raise create_error(
-                "interpreter context belongs to a different sandbox",
-                400,
-                codes.BAD_REQUEST,
-                "SDK",
-            )
-        if env is not None:
-            raise create_error(
-                "env is only supported when creating a context or running without an explicit context",
-                400,
-                codes.BAD_REQUEST,
-                "SDK",
-            )
-        return await rebound_context.run(code, cwd=cwd, env=env, timeout=timeout)
+        gate = self._gate_for(_implicit_context_id(resolved_language))
+        return await gate.run(
+            timeout,
+            lambda remaining_timeout: self._run_implicit_context(
+                code=code,
+                language=resolved_language,
+                cwd=cwd,
+                env=env,
+                timeout=remaining_timeout,
+            ),
+        )
 
     def _bind_context(self, context_id: str, language: str) -> AsyncInterpreterContext:
         gate = self._gate_for(context_id)
@@ -342,16 +364,8 @@ class AsyncInterpreterService:
         async def run_bound(
             code: str,
             cwd: Optional[str],
-            env: Optional[Mapping[str, str]],
             timeout: Optional[float],
         ) -> InterpreterResult:
-            if env is not None:
-                raise create_error(
-                    "env is only supported when creating a context or running without an explicit context",
-                    400,
-                    codes.BAD_REQUEST,
-                    "SDK",
-                )
             return await gate.run(
                 timeout,
                 lambda remaining_timeout: self._run_bound_context(
@@ -359,7 +373,6 @@ class AsyncInterpreterService:
                     language=language,
                     code=code,
                     cwd=cwd,
-                    env=env,
                     timeout=remaining_timeout,
                 ),
             )
@@ -367,17 +380,25 @@ class AsyncInterpreterService:
         async def close_bound() -> None:
             await self.delete_context(context_id)
 
-        return AsyncInterpreterContext(self._sandbox_id, context_id, language).bind(run_bound, close_bound)
+        return AsyncInterpreterContext(self._sandbox_id, context_id, language)._bind(run_bound, close_bound)
 
-    def _context_identity(self, context: AsyncInterpreterContext | InterpreterContextJSON) -> tuple[str, str]:
+    def _context_identity(
+        self, context: AsyncInterpreterContext | InterpreterContextJSON | Mapping[str, object]
+    ) -> tuple[str, str]:
         if isinstance(context, AsyncInterpreterContext):
             sandbox_id = context.sandbox_id
             context_id = context.context_id
             language = context.language
         else:
-            sandbox_id = context["sandbox_id"]
-            context_id = context["context_id"]
-            language = context["language"]
+            identity = _json_identity(context)
+            if identity is None:
+                raise create_error(
+                    "interpreter context identity needs string sandboxId, contextId and language",
+                    400,
+                    codes.BAD_REQUEST,
+                    "SDK",
+                )
+            sandbox_id, context_id, language = identity
         if sandbox_id != self._sandbox_id:
             raise create_error(
                 "interpreter context belongs to a different sandbox",
@@ -410,10 +431,10 @@ class AsyncInterpreterService:
                     error = parsed_error
         return InterpreterResult(
             process=InterpreterProcess(
-                handle.id,
-                wait.exit_code,
-                wait.signal,
-                wait.reason,
+                process_id=handle.id,
+                reason=wait.reason,
+                exit_code=wait.exit_code,
+                signal=wait.signal,
                 raw_reason=wait.raw_reason,
             ),
             results=results,
@@ -453,7 +474,6 @@ class AsyncInterpreterService:
         language: str,
         code: str,
         cwd: Optional[str],
-        env: Optional[Mapping[str, str]],
         timeout: Optional[float],
     ) -> InterpreterResult:
         deadline = None if timeout is None or timeout == 0 else _clock.monotonic() + timeout
@@ -462,7 +482,6 @@ class AsyncInterpreterService:
             language=language,
             session_id=context_id,
             cwd=cwd,
-            env=env,
             keep_logs="on_exit_ttl",
             request_timeout=timeout,
         )

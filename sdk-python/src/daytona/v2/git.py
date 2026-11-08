@@ -17,9 +17,10 @@ from ._core import (
     list_shape,
 )
 from ._gen.toolbox import CommitInfo
+from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
 from .errors import create_error
-from .types import GitCommitResponse, GitStatus, JsonObject, JsonValue, ListResult
+from .types import GitCommit, GitCommitResponse, GitRemote, GitStatus, JsonObject, JsonValue, ListResult
 
 GIT_REMOTE_TIMEOUT_SECONDS: Final[float] = 30 * 60
 
@@ -34,8 +35,8 @@ async def _json_payload(transport: AsyncTransport, spec: RequestSpec) -> JsonVal
 class AsyncGitService:
     """Sandbox git namespace."""
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def clone(
         self,
@@ -87,27 +88,28 @@ class AsyncGitService:
         )
         return expect_status_response(response)
 
-    async def list_branches(self, path: str) -> ListResult:
+    async def list_branches(self, path: str) -> ListResult[str]:
         """List branch names as {items, next_cursor}."""
         payload = expect_branch_list(
             await _json_payload(self._transport, RequestSpec("GET", "/git/branches", params={"path": path}))
         )
         return ListResult(list(payload.branches), None)
 
-    async def list_remotes(self, path: str) -> ListResult[JsonObject]:
+    async def list_remotes(self, path: str) -> ListResult[GitRemote]:
+        """List the configured remotes; URLs come back with any credentials removed."""
         payload = expect_object(
             await _json_payload(self._transport, RequestSpec("GET", "/git/remotes", params={"path": path}))
         )
         raw = payload.get("remotes")
-        items = [expect_object(remote) for remote in raw] if isinstance(raw, list) else []
+        items = [_git_remote(expect_object(remote)) for remote in raw] if isinstance(raw, list) else []
         return ListResult(items, None)
 
-    async def history(self, path: str) -> ListResult:
+    async def history(self, path: str) -> ListResult[GitCommit]:
         """List commits, newest first."""
         items, next_cursor = list_shape(
             await _json_payload(self._transport, RequestSpec("GET", "/git/history", params={"path": path})),
         )
-        return ListResult([_commit_info_to_json(_expect_commit_info(item)) for item in items], next_cursor)
+        return ListResult([_git_commit(_expect_commit_info(item)) for item in items], next_cursor)
 
     async def create_branch(self, path: str, name: str) -> None:
         """Create a branch."""
@@ -327,11 +329,18 @@ def _expect_commit_info(value: TransportPayload) -> CommitInfo:
     return _expect_model_from_dict(value, CommitInfo, "commit history entry", CommitInfo.from_dict)
 
 
-def _commit_info_to_json(payload: CommitInfo) -> JsonObject:
-    return {
-        "author": payload.author,
-        "email": payload.email,
-        "hash": payload.hash,
-        "message": payload.message,
-        "timestamp": payload.timestamp,
-    }
+def _git_commit(payload: CommitInfo) -> GitCommit:
+    return GitCommit(
+        hash=payload.hash,
+        message=payload.message,
+        author=payload.author,
+        email=payload.email,
+        timestamp=parse_timestamp(payload.timestamp, "commit history entry: timestamp"),
+    )
+
+
+def _git_remote(payload: JsonObject) -> GitRemote:
+    name, url = payload.get("name"), payload.get("url")
+    if not isinstance(name, str) or not isinstance(url, str):
+        raise create_error("expected git remote: name and url are required", 400, "BAD_REQUEST", "SDK")
+    return GitRemote(name=name, url=url)

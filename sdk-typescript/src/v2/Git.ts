@@ -4,72 +4,97 @@
  */
 
 import { HttpTransport } from './http.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
-import type { GitCommitResponse, GitConfigScope, GitRemote, GitStatus, ListResult } from './types.js'
+import { BadRequestError } from './errors/DaytonaError.js'
+import type { GitCommit, GitCommitResponse, GitConfigScope, GitRemote, GitStatus, ListResult } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-
-export type ListBranchResponse = toolbox.BranchList
-
-/** One commit returned by `git.history()`. */
-export type GitCommit = toolbox.CommitInfo
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+import { gitCommitFromWire, gitCommitResponseFromWire, gitRemoteFromWire, gitStatusFromWire } from './toolboxModels.js'
 
 export interface CloneOptions {
-  path: string
-  branch?: string
-  commitId?: string
-  depth?: number
-  insecureSkipTls?: boolean
-  username?: string
-  password?: string
-  timeout?: number
+  /** Where to clone to, inside the sandbox. */
+  readonly path: string
+  readonly branch?: string
+  readonly commitId?: string
+  /** Shallow clone with this many commits. */
+  readonly depth?: number
+  readonly insecureSkipTls?: boolean
+  readonly username?: string
+  readonly password?: string
+  /** Request budget in seconds; default 1800. */
+  readonly timeoutSeconds?: number
 }
 
 export interface CommitOptions {
-  author: string
-  email: string
-  allowEmpty?: boolean
+  readonly author: string
+  readonly email: string
+  readonly allowEmpty?: boolean
 }
 
 export interface InitOptions {
-  bare?: boolean
-  initialBranch?: string
+  readonly bare?: boolean
+  readonly initialBranch?: string
 }
 
 export interface CredentialOptions {
-  username?: string
-  password?: string
-  branch?: string
-  remote?: string
-  timeout?: number
+  readonly username?: string
+  readonly password?: string
+  readonly branch?: string
+  readonly remote?: string
+  /** Request budget in seconds; default 1800. */
+  readonly timeoutSeconds?: number
 }
 
 export interface PushOptions extends CredentialOptions {
-  setUpstream?: boolean
+  readonly setUpstream?: boolean
 }
 
-const GIT_REMOTE_TIMEOUT_MS = 30 * 60 * 1000
+const GIT_REMOTE_TIMEOUT_SECONDS = 30 * 60
 
 export interface GitConfigOptions {
-  path?: string
-  scope?: GitConfigScope
+  readonly path?: string
+  /** Default `'global'`. */
+  readonly scope?: GitConfigScope
 }
 
 export interface ResetOptions {
-  mode?: string
-  target?: string
-  files?: string[]
+  readonly mode?: string
+  readonly target?: string
+  readonly files?: readonly string[]
 }
 
 export interface RestoreOptions {
-  staged?: boolean
-  worktree?: boolean
-  source?: string
+  readonly staged?: boolean
+  readonly worktree?: boolean
+  readonly source?: string
 }
 
-export class GitService {
-  constructor(private readonly transport: HttpTransport) {}
+const CLONE_OPTION_KEYS = optionKeys<CloneOptions>()({
+  path: true, branch: true, commitId: true, depth: true, insecureSkipTls: true, username: true, password: true, timeoutSeconds: true,
+})
+const COMMIT_OPTION_KEYS = optionKeys<CommitOptions>()({ author: true, email: true, allowEmpty: true })
+const INIT_OPTION_KEYS = optionKeys<InitOptions>()({ bare: true, initialBranch: true })
+const CREDENTIAL_OPTION_KEYS = optionKeys<CredentialOptions>()({ username: true, password: true, branch: true, remote: true, timeoutSeconds: true })
+const PUSH_OPTION_KEYS = optionKeys<PushOptions>()({
+  username: true, password: true, branch: true, remote: true, timeoutSeconds: true, setUpstream: true,
+})
+const GIT_CONFIG_OPTION_KEYS = optionKeys<GitConfigOptions>()({ path: true, scope: true })
+const RESET_OPTION_KEYS = optionKeys<ResetOptions>()({ mode: true, target: true, files: true })
+const RESTORE_OPTION_KEYS = optionKeys<RestoreOptions>()({ staged: true, worktree: true, source: true })
 
+/** Sandbox git namespace (`sandbox.git`). */
+export class GitService {
+  private readonly transport: HttpTransport
+
+  constructor(token: Internal, transport: HttpTransport) {
+    assertInternal(token, 'GitService')
+    this.transport = transport
+  }
+
+  /** Clone a repository, optionally shallow and with per-call TLS relaxation. */
   public async clone(url: string, options: CloneOptions): Promise<void> {
+    assertKnownOptions('CloneOptions', options, CLONE_OPTION_KEYS)
     const depth = validateCloneDepth(options.depth)
     const body: toolbox.CloneRequest = {
       url,
@@ -81,10 +106,11 @@ export class GitService {
       username: options.username,
       password: options.password,
     }
-    await this.transport.post<void>('/git/clone', body, timeoutConfig(options.timeout))
+    await this.transport.post<void>('/git/clone', body, timeoutConfig(options.timeoutSeconds))
   }
 
   public async init(path: string, options: InitOptions = {}): Promise<void> {
+    assertKnownOptions('InitOptions', options, INIT_OPTION_KEYS)
     await this.transport.post<void>('/git/init', {
       path,
       bare: options.bare ?? false,
@@ -93,46 +119,52 @@ export class GitService {
   }
 
   public async status(path: string): Promise<GitStatus> {
-    return this.transport.get<toolbox.GitStatus>('/git/status', { params: { path } })
+    return gitStatusFromWire(await this.transport.get<toolbox.GitStatus>('/git/status', { params: { path } }))
   }
 
-  public async add(path: string, files: string[]): Promise<void> {
-    const body: toolbox.AddRequest = { path, files }
+  /** Stage files. */
+  public async add(path: string, files: readonly string[]): Promise<void> {
+    const body: toolbox.AddRequest = { path, files: [...files] }
     await this.transport.post<void>('/git/add', body)
   }
 
   public async reset(path: string, options: ResetOptions = {}): Promise<void> {
+    assertKnownOptions('ResetOptions', options, RESET_OPTION_KEYS)
     await this.transport.post<void>('/git/reset', {
       path,
       mode: options.mode,
       target: options.target,
-      files: options.files,
+      files: options.files === undefined ? undefined : [...options.files],
     })
   }
 
-  public async restore(path: string, files: string[], options: RestoreOptions = {}): Promise<void> {
+  public async restore(path: string, files: readonly string[], options: RestoreOptions = {}): Promise<void> {
+    assertKnownOptions('RestoreOptions', options, RESTORE_OPTION_KEYS)
     await this.transport.post<void>('/git/restore', {
       path,
-      files,
+      files: [...files],
       staged: options.staged,
       worktree: options.worktree,
       source: options.source,
     })
   }
 
+  /** List the configured remotes; URLs come back with any credentials removed. */
   public async listRemotes(path: string): Promise<ListResult<GitRemote>> {
-    const data = await this.transport.get<{ remotes: GitRemote[] } | ListResult<GitRemote>>('/git/remotes', { params: { path } })
-    return 'items' in data ? data : { items: data.remotes }
+    const data = await this.transport.get<toolbox.ListRemotesResponse | ListResult<toolbox.GitRemote>>('/git/remotes', { params: { path } })
+    return 'items' in data ? { ...data, items: data.items.map(gitRemoteFromWire) } : { items: data.remotes.map(gitRemoteFromWire) }
   }
 
   public async addRemote(path: string, name: string, url: string): Promise<void> {
     await this.transport.post<void>('/git/remotes', { path, name, url })
   }
 
+  /** Commit staged changes, optionally allowing an empty commit. */
   public async commit(path: string, message: string, options: CommitOptions): Promise<GitCommitResponse> {
+    assertKnownOptions('CommitOptions', options, COMMIT_OPTION_KEYS)
     const author = options?.author?.trim() ?? ''
     const email = options?.email?.trim() ?? ''
-    if (!author || !email) throw new DaytonaError('git.commit requires author and email', { statusCode: 400, code: 'BAD_REQUEST' })
+    if (!author || !email) throw new BadRequestError('git.commit requires author and email', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     const body: toolbox.CommitRequest = {
       path,
       message,
@@ -140,10 +172,12 @@ export class GitService {
       email,
       allow_empty: options.allowEmpty === true ? true : undefined,
     }
-    return this.transport.post<toolbox.CommitResponse>('/git/commit', body)
+    return gitCommitResponseFromWire(await this.transport.post<toolbox.CommitResponse>('/git/commit', body))
   }
 
+  /** Pull from the configured or named remote. */
   public async pull(path: string, options: CredentialOptions = {}): Promise<void> {
+    assertKnownOptions('CredentialOptions', options, CREDENTIAL_OPTION_KEYS)
     const body: toolbox.RepoRequest = {
       path,
       username: options.username,
@@ -151,10 +185,12 @@ export class GitService {
       branch: options.branch,
       remote: options.remote,
     }
-    await this.transport.post<void>('/git/pull', body, timeoutConfig(options.timeout))
+    await this.transport.post<void>('/git/pull', body, timeoutConfig(options.timeoutSeconds))
   }
 
+  /** Push to the configured or named remote. */
   public async push(path: string, options: PushOptions = {}): Promise<void> {
+    assertKnownOptions('PushOptions', options, PUSH_OPTION_KEYS)
     const body: toolbox.RepoRequest = {
       path,
       username: options.username,
@@ -163,10 +199,11 @@ export class GitService {
       remote: options.remote,
       setUpstream: options.setUpstream === true ? true : undefined,
     }
-    await this.transport.post<void>('/git/push', body, timeoutConfig(options.timeout))
+    await this.transport.post<void>('/git/push', body, timeoutConfig(options.timeoutSeconds))
   }
 
   public async getConfig(key: string, options: GitConfigOptions = {}): Promise<string | null> {
+    assertKnownOptions('GitConfigOptions', options, GIT_CONFIG_OPTION_KEYS)
     const data = await this.transport.get<{ value?: string | null }>('/git/config', {
       params: { key, path: options.path, scope: options.scope ?? 'global' },
     })
@@ -174,6 +211,7 @@ export class GitService {
   }
 
   public async setConfig(key: string, value: string, options: GitConfigOptions = {}): Promise<void> {
+    assertKnownOptions('GitConfigOptions', options, GIT_CONFIG_OPTION_KEYS)
     await this.transport.post<void>('/git/config', {
       key,
       value,
@@ -182,7 +220,7 @@ export class GitService {
     })
   }
 
-  /** List branches; response always has `{items,nextCursor}`. */
+  /** List branch names: one page of `{ items }`. */
   public async listBranches(path: string): Promise<ListResult<string>> {
     const data = await this.transport.get<toolbox.BranchList | string[] | ListResult<string>>('/git/branches', { params: { path } })
     if (Array.isArray(data)) return { items: data }
@@ -204,9 +242,10 @@ export class GitService {
     await this.transport.post<void>('/git/checkout', body)
   }
 
+  /** List commits, newest first. */
   public async history(path: string): Promise<ListResult<GitCommit>> {
     const data = await this.transport.get<toolbox.CommitInfo[] | ListResult<toolbox.CommitInfo>>('/git/history', { params: { path } })
-    return Array.isArray(data) ? { items: data } : data
+    return Array.isArray(data) ? { items: data.map(gitCommitFromWire) } : { ...data, items: data.items.map(gitCommitFromWire) }
   }
 }
 
@@ -218,10 +257,11 @@ function validateCloneDepth(depth: number | undefined): number | undefined {
   return depth
 }
 
-function timeoutConfig(timeout: number | undefined): { readonly timeout: number } {
-  if (timeout === undefined) return { timeout: GIT_REMOTE_TIMEOUT_MS }
-  if (!Number.isFinite(timeout) || timeout <= 0) {
-    throw new BadRequestError('timeout must be a positive finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+/** The request budget of a remote git operation, in axios milliseconds. */
+function timeoutConfig(timeoutSeconds: number | undefined): { readonly timeout: number } {
+  if (timeoutSeconds === undefined) return { timeout: GIT_REMOTE_TIMEOUT_SECONDS * 1000 }
+  if (typeof timeoutSeconds !== 'number' || !Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+    throw new BadRequestError('timeoutSeconds must be a positive finite number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
-  return { timeout }
+  return { timeout: Math.ceil(timeoutSeconds * 1000) }
 }

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { INTERNAL } from '../src/v2/internal'
 import { HttpTransport } from '../src/v2/http'
 import {
   BadRequestError, ProcessHandle, ProcessService, Session, ProcessNotFoundError, SessionEndedError, SessionNotFoundError,
@@ -13,9 +14,9 @@ import { WAIT_READ_SLACK_MS } from '../src/v2/Process'
 const terminal = {
   id: 'command-1', kind: 'exec', state: 'terminal', reason: 'exited', exitCode: 0,
   logs: { eof: true, frames: [
-    { channel: 'stdout', data: 'hello', cursor: '1' },
-    { channel: 'stderr', data: 'warning', cursor: '2' },
-    { channel: 'setup', data: 'hidden', cursor: '3' },
+    { channel: 'stdout', data: 'hello', cursor: '1', timestamp: 1 },
+    { channel: 'stderr', data: 'warning', cursor: '2', timestamp: 2 },
+    { channel: 'setup', data: 'hidden', cursor: '3', timestamp: 3 },
   ] },
 } as const
 
@@ -26,7 +27,7 @@ describe('shell sessions', () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'shell-1', kind: 'session' })
-    const process = new ProcessService(transport, 'sandbox-1')
+    const process = new ProcessService(INTERNAL, transport, 'sandbox-1')
     const options: CreateSessionOptions = { cwd: '/app', env: { CI: '1' }, shell: 'bash', login: true, name: 'build' }
     // When
     const session = await process.createSession(options)
@@ -41,7 +42,7 @@ describe('shell sessions', () => {
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'shell-1' })
     // When
-    await new ProcessService(transport, 'sandbox-1').createSession()
+    await new ProcessService(INTERNAL, transport, 'sandbox-1').createSession()
     // Then
     expect(post).toHaveBeenCalledWith('/processes', { kind: 'session' })
   })
@@ -52,7 +53,7 @@ describe('shell sessions', () => {
       const transport = new HttpTransport('http://toolbox.invalid')
       const request = jest.spyOn(transport.http, 'request')
       // When
-      const session = new ProcessService(transport, 'sandbox-1').connectSession(identity)
+      const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession(identity)
       // Then
       expect(session.id).toBe('shell-1')
       expect(session.sandboxId).toBe('sandbox-1')
@@ -63,7 +64,7 @@ describe('shell sessions', () => {
 
   it('rejects a serialized session when it belongs to another sandbox', () => {
     // Given
-    const process = new ProcessService(new HttpTransport('http://toolbox.invalid'), 'sandbox-1')
+    const process = new ProcessService(INTERNAL, new HttpTransport('http://toolbox.invalid'), 'sandbox-1')
     // When / Then
     expect(() => process.connectSession({ sandboxId: 'sandbox-2', sessionId: 'shell-1' }))
       .toThrow(expect.objectContaining({ code: 'BAD_REQUEST', source: 'SDK' }))
@@ -80,42 +81,68 @@ describe('shell sessions', () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post')
-    const process = new ProcessService(transport, 'sandbox-1')
+    const process = new ProcessService(INTERNAL, transport, 'sandbox-1')
     // When / Then
     expect(() => process.connectSession(identity as unknown as SessionJSON)).toThrow(BadRequestError)
-    expect(() => new Session(process, '' as string)).toThrow(BadRequestError)
+    expect(() => process.connectSession('')).toThrow(BadRequestError)
     expect(post).not.toHaveBeenCalled()
   })
 
-  it('forwards executionTimeout with sessionId when running a command in one round trip', async () => {
+  it('forwards executionTimeoutSeconds with sessionId when running a command in one round trip', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockResolvedValue(terminal)
     const get = jest.spyOn(transport, 'get')
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell-1')
-    const options: SessionRunOptions = { stdin: 'open', timeout: 100, executionTimeout: 200.1, name: 'job', keepLogs: 'until_cleanup' }
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
+    const options: SessionRunOptions = { stdin: 'open', timeoutSeconds: 0.1, executionTimeoutSeconds: 0.2001, name: 'job', keepLogs: 'until_cleanup' }
     // When
     const result = await session.run('echo hello', options)
     // Then
     expect(post).toHaveBeenCalledTimes(1)
     expect(post).toHaveBeenCalledWith('/processes?waitMs=100&logs=text', {
-      sessionId: 'shell-1', shellCommand: 'echo hello', stdin: 'open', timeoutMs: 201, name: 'job', keepLogs: 'until_cleanup',
+      kind: 'exec', sessionId: 'shell-1', shellCommand: 'echo hello', stdin: 'open', timeoutMs: 201, name: 'job', keepLogs: 'until_cleanup',
     }, { timeout: 100 + WAIT_READ_SLACK_MS })
     expect(get).not.toHaveBeenCalled()
     expect(result).toMatchObject({ processId: 'command-1', reason: 'exited', exitCode: 0, stdout: 'hello', stderr: 'warning', output: 'hellowarning' })
   })
 
-  it.each([undefined, 'none', 'on_exit_ttl'] as const)('retains run output when keepLogs is %s', async (keepLogs) => {
+  it.each([undefined, 'on_exit_ttl'] as const)('retains run output when keepLogs is %s', async (keepLogs) => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockResolvedValue(terminal)
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell-1')
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
     // When
-    await session.run('true', { keepLogs })
+    await session.run('true', keepLogs === undefined ? {} : { keepLogs })
     // Then
     expect(post).toHaveBeenCalledWith('/processes?waitMs=0&logs=text', {
-      sessionId: 'shell-1', shellCommand: 'true', keepLogs: 'on_exit_ttl',
+      kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', keepLogs: 'on_exit_ttl',
     }, { timeout: 0 })
+  })
+
+  it('refuses keepLogs none for run before any request, since the output is read back from the log', async () => {
+    // Given
+    const transport = new HttpTransport('http://toolbox.invalid')
+    const post = jest.spyOn(transport, 'post')
+    const process = new ProcessService(INTERNAL, transport, 'sandbox-1')
+    // When / Then
+    await expect(process.connectSession('shell-1').run('true', { keepLogs: 'none' as 'on_exit_ttl' })).rejects.toThrow(BadRequestError)
+    await expect(process.run('true', { keepLogs: 'none' as 'on_exit_ttl' })).rejects.toThrow("keepLogs 'none' is not supported by run()")
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('names the renamed option when a millisecond timeout is passed', async () => {
+    // Given
+    const transport = new HttpTransport('http://toolbox.invalid')
+    const post = jest.spyOn(transport, 'post')
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
+    // When / Then
+    await expect(session.run('true', { timeout: 100 } as unknown as SessionRunOptions)).rejects.toThrow(
+      'SessionRunOptions: `timeout` was renamed to `timeoutSeconds` (seconds)',
+    )
+    await expect(session.start('true', { executionTimeout: 100 } as unknown as SessionStartOptions)).rejects.toThrow(
+      'SessionStartOptions: `executionTimeout` was renamed to `executionTimeoutSeconds` (seconds)',
+    )
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('uses process wait and logs when the inline response is still running', async () => {
@@ -124,8 +151,8 @@ describe('shell sessions', () => {
     jest.spyOn(transport, 'post').mockResolvedValue({ id: 'command-1', kind: 'exec', state: 'running' })
     const get = jest.spyOn(transport, 'get')
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 7 })
-      .mockResolvedValueOnce({ frames: [{ channel: 'stdout', data: 'later', cursor: '1' }] })
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell-1')
+      .mockResolvedValueOnce({ frames: [{ channel: 'stdout', data: 'later', cursor: '1', timestamp: 1 }] })
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
     // When
     const result = await session.run('echo later; exit 7')
     // Then
@@ -137,13 +164,13 @@ describe('shell sessions', () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'command-1', kind: 'exec' })
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell-1')
-    const options: SessionStartOptions = { stdin: 'open', executionTimeout: 1200, name: 'serve', keepLogs: 'none' }
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
+    const options: SessionStartOptions = { stdin: 'open', executionTimeoutSeconds: 1.2, name: 'serve', keepLogs: 'none' }
     // When
     const handle = await session.start('npm run dev', options)
     // Then
     expect(post).toHaveBeenCalledWith('/processes', {
-      sessionId: 'shell-1', shellCommand: 'npm run dev', stdin: 'open', timeoutMs: 1200, name: 'serve', keepLogs: 'none',
+      kind: 'exec', sessionId: 'shell-1', shellCommand: 'npm run dev', stdin: 'open', timeoutMs: 1200, name: 'serve', keepLogs: 'none',
     }, undefined)
     expect(handle).toBeInstanceOf(ProcessHandle)
     expect(handle.toJSON()).toEqual({ sandboxId: 'sandbox-1', processId: 'command-1', kind: 'exec' })
@@ -153,18 +180,21 @@ describe('shell sessions', () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockResolvedValue({ id: 'command-1' })
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell-1')
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
     // When
     await session.start('true')
     // Then
-    expect(post).toHaveBeenCalledWith('/processes', { sessionId: 'shell-1', shellCommand: 'true' }, undefined)
+    expect(post).toHaveBeenCalledWith('/processes', { kind: 'exec', sessionId: 'shell-1', shellCommand: 'true' }, undefined)
   })
 
   it('returns the live cwd when getting the encoded session process', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
-    const get = jest.spyOn(transport, 'get').mockResolvedValue({ id: 'shell/!', kind: 'session', state: 'running', cwd: '/new' })
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell/!')
+    const get = jest.spyOn(transport, 'get').mockResolvedValue({
+      id: 'shell/!', kind: 'session', state: 'running', cwd: '/new', stdin: 'closed', keepLogs: 'until_cleanup',
+      createdAt: '2026-01-01T00:00:00Z', truncatedHead: false,
+    })
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell/!')
     // When
     const info = await session.get()
     // Then
@@ -176,7 +206,7 @@ describe('shell sessions', () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const remove = jest.spyOn(transport, 'delete').mockResolvedValue(undefined)
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell/!')
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell/!')
     // When
     await session[method]()
     // Then
@@ -189,7 +219,7 @@ describe('shell sessions', () => {
     jest.spyOn(transport, 'delete')
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new ProcessNotFoundError('gone', { statusCode: 404, code: 'PROCESS_NOT_FOUND', source: 'DAYTONA_DAEMON' }))
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell/!')
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell/!')
     await session.delete()
     await expect(session[Symbol.asyncDispose]()).resolves.toBeUndefined()
   })
@@ -201,7 +231,7 @@ describe('shell sessions', () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockRejectedValue(error)
-    const session = new ProcessService(transport, 'sandbox-1').connectSession('shell-1')
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
     // When / Then
     await expect(session.run('true')).rejects.toBe(error)
     expect(post).toHaveBeenCalledTimes(1)

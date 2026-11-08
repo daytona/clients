@@ -6,6 +6,7 @@
 // Client configuration: option keys, the environment, the request timeout and
 // its meaning. sdk-python/tests/test_client_config.py asserts the same behaviour.
 
+import { INTERNAL } from '../src/v2/internal'
 import { createServer } from 'node:http'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { once } from 'node:events'
@@ -245,7 +246,7 @@ describe('request timeout meaning', () => {
 
   it('does not cut file transfers', async () => {
     const transport = new HttpTransport(base, 'k', 100)
-    const fs = new FileSystemService(transport)
+    const fs = new FileSystemService(INTERNAL, transport)
     handle = trickle(6, 50)
     expect(new TextDecoder().decode(await fs.readBytes('/a'))).toBe('xxxxxx')
     handle = late(300)

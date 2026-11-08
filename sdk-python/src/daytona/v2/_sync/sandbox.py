@@ -222,8 +222,7 @@ class Sandbox:
         timeout: Optional[float] = None,
         execution_timeout: Optional[float] = None,
         name: Optional[str] = None,
-        terminal: Optional[TerminalSize] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: Optional[RunKeepLogs] = None,
     ) -> ProcessResult:
         """Run a command, wait for its shell to exit, and collect its output."""
         return self._bridge.call(
@@ -239,7 +238,6 @@ class Sandbox:
                 timeout=timeout,
                 execution_timeout=execution_timeout,
                 name=name,
-                terminal=terminal,
                 keep_logs=keep_logs,
             )
         )
@@ -276,6 +274,7 @@ class Sandbox:
         return self._bridge.call(lambda: self._impl.get_secrets())
 
     def metrics(self) -> SystemMetrics:
+        """A snapshot of the sandbox's CPU, memory and disk usage."""
         return self._bridge.call(lambda: self._impl.metrics())
 
     def pause(self, *, timeout: float = 60) -> None:
@@ -317,13 +316,14 @@ class Sandbox:
         self,
         code: str,
         *,
-        language: str = "python",
-        context: Optional[InterpreterContext] = None,
+        language: Optional[str] = None,
+        context: str | InterpreterContext | InterpreterContextJSON | None = None,
         isolated: bool = False,
         timeout: Optional[float] = None,
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
+        """Execute code and return its result: an alias for ``interpreter.run()``, same parameters."""
         return self._bridge.call(
             lambda: self._impl.run_code(
                 code,

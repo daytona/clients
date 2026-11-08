@@ -3,22 +3,35 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ProcessHandle, ProcessService, TIMED_OUT_LOG_PAGE_LIMIT, collectAllLogs, startProcess } from './Process.js'
+import { ProcessHandle, TIMED_OUT_LOG_PAGE_LIMIT, collectAllLogs, startProcess } from './Process.js'
 import { HttpTransport, runtimeUniqueId } from './http.js'
 import type {
   InterpreterContextJSON,
   InterpreterContextOptions,
+  InterpreterContextReference,
+  InterpreterContextRunOptions,
   InterpreterError,
   InterpreterOutput,
-  InterpreterContextReference,
   InterpreterResult,
   InterpreterRunOptions,
   LogFrame,
   WaitResult,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
+import { secondsToMs } from './ProcessWire.js'
+import { assertInternal, INTERNAL } from './internal.js'
+import type { Internal } from './internal.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+
+const RUN_OPTION_KEYS = optionKeys<InterpreterRunOptions>()({
+  language: true, context: true, isolated: true, cwd: true, env: true, timeoutSeconds: true,
+})
+const CONTEXT_RUN_OPTION_KEYS = optionKeys<InterpreterContextRunOptions>()({ cwd: true, timeoutSeconds: true })
+const CONTEXT_OPTION_KEYS = optionKeys<InterpreterContextOptions>()({ language: true, contextId: true, cwd: true, env: true })
+/** `/sessions` also lists the legacy shell kernel, which is not an interpreter context. */
+const SHELL_SESSION_KERNEL = 'shell'
 
 const INTERRUPT_GRACE_MS = 10_000
 const INTERRUPT_RETRY_MS = 250
@@ -132,12 +145,24 @@ function implicitContextId(language: string): string {
   return `code-${language}`
 }
 
-function queueDeadline(timeout: number | undefined): number | undefined {
-  if (timeout === undefined || timeout === 0) return undefined
-  if (!Number.isFinite(timeout) || timeout < 0) {
-    throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-  }
-  return Date.now() + timeout
+function queueDeadline(timeoutMs: number | undefined): number | undefined {
+  if (timeoutMs === undefined || timeoutMs === 0) return undefined
+  return Date.now() + timeoutMs
+}
+
+function badRequest(message: string): BadRequestError {
+  return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+}
+
+/**
+ * HTTP budget for a setup request (context creation, the code POST) of a run
+ * with caller budget `timeoutMs`: an explicit `0` is unbounded, omitted keeps
+ * the client's request timeout, a positive budget bounds it.
+ */
+function setupConfig(timeoutMs: number | undefined, remainingMs: number | undefined): { readonly timeout: number } | undefined {
+  if (timeoutMs === 0) return { timeout: 0 }
+  if (remainingMs === undefined) return undefined
+  return { timeout: Math.max(1, remainingMs) }
 }
 
 function isSessionNotFoundError(error: unknown): error is DaytonaError {
@@ -148,20 +173,14 @@ function isJsonRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isInterpreterContextJson(value: unknown): value is InterpreterContextJSON {
-  return isJsonRecord(value)
-    && typeof value.sandboxId === 'string'
-    && typeof value.contextId === 'string'
-    && typeof value.language === 'string'
-}
-
 function contextIdentity(context: InterpreterContextReference | InterpreterContextJSON): InterpreterContextJSON {
-  if (isInterpreterContextJson(context)) return context
-  return {
-    sandboxId: context.sandboxId,
-    contextId: context.id,
-    language: context.language,
+  if (!isJsonRecord(context)
+    || typeof context.sandboxId !== 'string'
+    || typeof context.contextId !== 'string'
+    || typeof context.language !== 'string') {
+    throw badRequest('interpreter context identity needs string sandboxId, contextId and language')
   }
+  return { sandboxId: context.sandboxId, contextId: context.contextId, language: context.language }
 }
 
 function assertContextBelongsToSandbox(
@@ -169,28 +188,18 @@ function assertContextBelongsToSandbox(
   sandboxId: string,
 ): InterpreterContextJSON {
   const identity = contextIdentity(context)
-  if (identity.sandboxId !== sandboxId) {
-    throw new DaytonaError('interpreter context belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-  }
+  if (identity.sandboxId !== sandboxId) throw badRequest('interpreter context belongs to a different sandbox')
   return identity
 }
 
-function validateOptionalTimeout(timeout: number | undefined): void {
-  if (timeout !== undefined && (!Number.isFinite(timeout) || timeout < 0)) {
-    throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-  }
+/** Caller budget (ms) left after `startedAt`; `undefined`/`0` keep their meaning. */
+function remainingBudgetMs(timeoutMs: number | undefined, startedAt: number): number | undefined {
+  if (timeoutMs === undefined || timeoutMs === 0) return timeoutMs
+  return timeoutMs - (Date.now() - startedAt)
 }
 
-/** Caller budget (ms) left after `startedAt`; `undefined`/`0` stay unbounded. */
-function remainingBudgetMs(timeout: number | undefined, startedAt: number): number | undefined {
-  if (timeout === undefined || timeout === 0) return undefined
-  return timeout - (Date.now() - startedAt)
-}
-
-function assertExplicitContextEnvUnsupported(env: Record<string, string> | undefined): void {
-  if (env !== undefined) {
-    throw new DaytonaError('env is only supported when creating a context or running without an explicit context', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-  }
+function waitMs(handle: ProcessHandle, timeoutMs: number | undefined): Promise<WaitResult> {
+  return handle.wait(timeoutMs === undefined ? {} : { timeoutSeconds: timeoutMs / 1000 })
 }
 
 async function waitOrInterrupt(
@@ -202,7 +211,7 @@ async function waitOrInterrupt(
   // become `timeoutMs=0` (= wait until terminal) in the request.
   const result: WaitResult = callerDeadline !== undefined && timeout !== undefined && timeout <= 0
     ? { reason: 'timed_out' }
-    : await handle.wait({ timeout })
+    : await waitMs(handle, timeout)
   if (result.reason !== 'timed_out') return result
   // Past the budget: interrupt the kernel (^C semantics). Whatever terminal
   // result reported by the API is returned as-is, even
@@ -215,15 +224,15 @@ async function waitOrInterrupt(
       interrupted = true
     } catch (error) {
       if (error instanceof DaytonaError && error.code === 'PROCESS_TERMINAL') {
-        return await handle.wait({ timeout: INTERRUPT_GRACE_MS })
+        return await waitMs(handle, INTERRUPT_GRACE_MS)
       }
       if (!(error instanceof DaytonaError && error.code === 'UNSUPPORTED_OPERATION')) throw error
-      const wait = await handle.wait({ timeout: INTERRUPT_RETRY_MS })
+      const wait = await waitMs(handle, INTERRUPT_RETRY_MS)
       if (wait.reason !== 'timed_out') return wait
     }
   }
   if (!interrupted) return result
-  return await handle.wait({ timeout: INTERRUPT_GRACE_MS })
+  return await waitMs(handle, INTERRUPT_GRACE_MS)
 }
 
 async function collectResult(
@@ -247,7 +256,7 @@ async function collectResult(
     process: { ...result, processId: handle.id },
     results: outputs,
     logs: { stdout, stderr },
-    error: errors.at(-1),
+    ...(errors.length === 0 ? {} : { error: errors[errors.length - 1] }),
   }
 }
 
@@ -311,8 +320,24 @@ function stringMime(data: Record<string, unknown>, mime: string): string | undef
   return typeof value === 'string' ? value : undefined
 }
 
+type ContextRunner = (code: string, cwd: string | undefined, timeoutMs: number | undefined) => Promise<InterpreterResult>
+/** The service runs a context with a budget already in milliseconds. */
+const contextRunners = new WeakMap<InterpreterContext, ContextRunner>()
+
+function runContext(context: InterpreterContext, code: string, cwd: string | undefined, timeoutMs: number | undefined): Promise<InterpreterResult> {
+  const runner = contextRunners.get(context)
+  if (runner === undefined) throw badRequest('interpreter context is not bound to a sandbox')
+  return runner(code, cwd, timeoutMs)
+}
+
+/**
+ * An interpreter context: kernel state of its own in one sandbox. Built by
+ * the interpreter service (`createContext()`, `connectContext()`,
+ * `listContexts()`), never directly. Serialize it with `toJSON()` and
+ * reconnect with `interpreter.connectContext()`.
+ */
 export class InterpreterContext {
-  public readonly id: string
+  public readonly contextId: string
   public readonly language: string
   public readonly sandboxId: string
   readonly #transport: HttpTransport
@@ -320,48 +345,58 @@ export class InterpreterContext {
   readonly #onClose: () => Promise<void>
 
   constructor(
+    token: Internal,
     transport: HttpTransport,
     sandboxId: string,
-    id: string,
+    contextId: string,
     language: string,
     executionQueue: ContextExecutionQueue,
     onClose: () => Promise<void>,
   ) {
+    assertInternal(token, 'InterpreterContext')
     this.#transport = transport
     this.#executionQueue = executionQueue
     this.#onClose = onClose
     this.sandboxId = sandboxId
-    this.id = id
+    this.contextId = contextId
     this.language = language
+    contextRunners.set(this, (code, cwd, timeoutMs) => this.#runMs(code, cwd, timeoutMs))
   }
 
+  /** The context's JSON-safe identity, for `interpreter.connectContext()`. */
   public toJSON(): InterpreterContextJSON {
     return {
       sandboxId: this.sandboxId,
-      contextId: this.id,
+      contextId: this.contextId,
       language: this.language,
     }
   }
 
   /**
-   * Execute code inside this explicit interpreter context.
-   * If the named context vanished, the typed SESSION_NOT_FOUND error
-   * surfaces unchanged so the caller can recreate the context and decide what
-   * code, if any, is safe to rerun.
+   * Execute code inside this interpreter context. Environment variables are
+   * set when the context is created. If the context vanished, the typed
+   * SESSION_NOT_FOUND error surfaces unchanged so the caller can recreate the
+   * context and decide what code, if any, is safe to rerun.
    */
-  public async run(code: string, options: Omit<InterpreterRunOptions, 'sessionId' | 'language' | 'isolated' | 'context'> = {}): Promise<InterpreterResult> {
-    assertExplicitContextEnvUnsupported(options.env)
+  public async run(code: string, options: InterpreterContextRunOptions = {}): Promise<InterpreterResult> {
+    assertKnownOptions('InterpreterContextRunOptions', options, CONTEXT_RUN_OPTION_KEYS)
+    return this.#runMs(code, options.cwd, secondsToMs('timeoutSeconds', options.timeoutSeconds))
+  }
+
+  /** Run with a caller budget in milliseconds (`0` = unbounded). */
+  async #runMs(code: string, cwd: string | undefined, timeoutMs: number | undefined): Promise<InterpreterResult> {
     return this.#executionQueue.run(
-      options.timeout,
+      timeoutMs,
       async (remainingTimeout) => {
         const deadline = remainingTimeout === undefined ? undefined : Date.now() + remainingTimeout
         const handle = await startProcess(this.#transport, this.sandboxId, {
           code,
           kind: 'code',
           language: this.language,
-          sessionId: this.id,
-          cwd: options.cwd,
-        }, undefined, remainingTimeout === undefined ? undefined : { timeout: Math.max(1, remainingTimeout) })
+          sessionId: this.contextId,
+          cwd,
+          keepLogs: 'on_exit_ttl',
+        }, setupConfig(timeoutMs, remainingTimeout))
         const timeoutAfterStart = deadline === undefined ? undefined : Math.max(0, deadline - Date.now())
         return collectResult(handle, timeoutAfterStart, deadline)
       },
@@ -369,18 +404,23 @@ export class InterpreterContext {
     )
   }
 
+  /** Delete this context and its kernel state. */
   public async close(): Promise<void> {
     await this.#onClose()
   }
 }
 
+/** Sandbox interpreter namespace (`sandbox.interpreter`): run code in language kernels. */
 export class InterpreterService {
   private readonly contextQueues = new Map<string, ContextExecutionQueue>()
+  private readonly transport: HttpTransport
+  private readonly sandboxId: string
 
-  constructor(
-    private readonly transport: HttpTransport,
-    private readonly process: ProcessService,
-  ) {}
+  constructor(token: Internal, transport: HttpTransport, sandboxId: string) {
+    assertInternal(token, 'InterpreterService')
+    this.transport = transport
+    this.sandboxId = sandboxId
+  }
 
   private queueFor(sessionId: string): ContextExecutionQueue {
     const existing = this.contextQueues.get(sessionId)
@@ -389,7 +429,6 @@ export class InterpreterService {
     this.contextQueues.set(sessionId, queue)
     return queue
   }
-
 
   private removeQueueIfSame(sessionId: string, queue: ContextExecutionQueue): void {
     if (this.contextQueues.get(sessionId) === queue) this.contextQueues.delete(sessionId)
@@ -427,129 +466,118 @@ export class InterpreterService {
     }
   }
 
+  private bindContext(contextId: string, language: string): InterpreterContext {
+    const queue = this.queueFor(contextId)
+    return new InterpreterContext(
+      INTERNAL,
+      this.transport,
+      this.sandboxId,
+      contextId,
+      language,
+      queue,
+      () => this.deleteContextQueue(contextId, queue, false),
+    )
+  }
+
+  /** Create an interpreter context: kernel state of its own. `cwd` and `env` apply to every run in it. */
   public async createContext(options: InterpreterContextOptions): Promise<InterpreterContext> {
+    assertKnownOptions('InterpreterContextOptions', options, CONTEXT_OPTION_KEYS)
     const session = await this.transport.post<toolbox.SessionDto>('/sessions', {
-      id: options.id,
+      id: options.contextId,
       kernel: options.language,
       cwd: options.cwd,
       env: options.env,
     })
-    return new InterpreterContext(
-      this.transport,
-      this.process.sandboxId,
-      session.id,
-      options.language,
-      this.queueFor(session.id),
-      () => this.deleteContextQueue(session.id, this.contextQueues.get(session.id), false),
-    )
+    return this.bindContext(session.id, options.language)
   }
 
-  public connectContext(sessionId: string, language: string): InterpreterContext
-  public connectContext(context: InterpreterContextJSON): InterpreterContext
-  public connectContext(
-    sessionIdOrContext: string | InterpreterContextJSON,
-    language?: string,
-  ): InterpreterContext {
-    const identity = typeof sessionIdOrContext === 'string'
-      ? { sandboxId: this.process.sandboxId, contextId: sessionIdOrContext, language }
-      : assertContextBelongsToSandbox(sessionIdOrContext, this.process.sandboxId)
-    const resolvedLanguage = identity.language
-    if (resolvedLanguage === undefined) {
-      throw new DaytonaError('language is required when reconnecting an interpreter context by id', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  /** Reconnect a context by id (with `language`), handle or `toJSON()` identity, without a request. */
+  public connectContext(context: string | InterpreterContextReference | InterpreterContextJSON, language?: string): InterpreterContext {
+    if (typeof context !== 'string') {
+      const identity = assertContextBelongsToSandbox(context, this.sandboxId)
+      return this.bindContext(identity.contextId, identity.language)
     }
-    const queue = this.queueFor(identity.contextId)
-    return new InterpreterContext(
-      this.transport,
-      this.process.sandboxId,
-      identity.contextId,
-      resolvedLanguage,
-      queue,
-      () => this.deleteContextQueue(identity.contextId, queue, false),
-    )
+    if (language === undefined) throw badRequest('language is required when reconnecting an interpreter context by id')
+    return this.bindContext(context, language)
   }
 
   public async listContexts(): Promise<InterpreterContext[]> {
     const data = await this.transport.get<toolbox.SessionListResponse | toolbox.SessionDto[]>('/sessions')
     const sessions = Array.isArray(data) ? data : data.items
-    // `/sessions` serves language kernels only.
-    return sessions.map((session) => this.connectContext(session.id, session.kernel))
+    return sessions
+      .filter((session) => session.kernel !== SHELL_SESSION_KERNEL)
+      .map((session) => this.bindContext(session.id, session.kernel))
   }
 
-  public async deleteContext(sessionIdOrContext: string | InterpreterContext | InterpreterContextJSON): Promise<void> {
-    const sessionId = typeof sessionIdOrContext === 'string'
-      ? sessionIdOrContext
-      : assertContextBelongsToSandbox(sessionIdOrContext, this.process.sandboxId).contextId
-    await this.deleteContextQueue(sessionId, this.contextQueues.get(sessionId), false)
+  public async deleteContext(context: string | InterpreterContextReference | InterpreterContextJSON): Promise<void> {
+    const contextId = typeof context === 'string'
+      ? context
+      : assertContextBelongsToSandbox(context, this.sandboxId).contextId
+    await this.deleteContextQueue(contextId, this.contextQueues.get(contextId), false)
   }
 
   /**
-   * Execute code and return the parsed interpreter result.
+   * Execute code and return the parsed interpreter result. Without `context`
+   * (or `isolated`) runs share kernel state per `language` (default
+   * `'python'`); `context` selects an interpreter context by handle,
+   * `toJSON()` identity or id (an id needs `language`); `isolated: true`
+   * runs in a throwaway context.
    * Rehydrated `kind:'code'` process handles can replay logs and wait/kill,
    * but they do not recreate this decomposed result on another worker.
    * A vanished explicit context surfaces the typed SESSION_NOT_FOUND
    * error; callers decide whether to recreate the context and what to rerun.
    */
   public async run(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterResult> {
+    assertKnownOptions('InterpreterRunOptions', options, RUN_OPTION_KEYS)
+    const timeoutMs = secondsToMs('timeoutSeconds', options.timeoutSeconds)
+    if (options.isolated && options.context !== undefined) {
+      throw badRequest('isolated runs cannot also target an explicit interpreter context')
+    }
+    if (options.context !== undefined) {
+      const context = this.connectContext(options.context, options.language)
+      if (options.language !== undefined && options.language !== context.language) {
+        throw badRequest(`language '${options.language}' does not match the context's language '${context.language}'`)
+      }
+      if (options.env !== undefined) {
+        throw badRequest('env is only supported when creating a context or running without an explicit context')
+      }
+      return runContext(context, code, options.cwd, timeoutMs)
+    }
     const language = options.language ?? 'python'
-    if (options.isolated && (options.sessionId !== undefined || options.context !== undefined)) {
-      throw new DaytonaError('isolated runs cannot also target an explicit interpreter context', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
-    if (options.context !== undefined && options.sessionId !== undefined) {
-      throw new DaytonaError('interpreter runs accept either context or sessionId, not both', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
     if (options.isolated) {
       // The throwaway session's POST /sessions is part of this run and spends
       // the same caller budget as the execution itself (matches Python).
-      validateOptionalTimeout(options.timeout)
       const startedAt = Date.now()
       const sessionId = isolatedContextId(language)
       const sessionQueue = this.queueFor(sessionId)
-      const sessionTimeout = options.timeout === undefined || options.timeout === 0 ? undefined : { timeout: Math.max(1, options.timeout) }
       try {
         await this.transport.post<toolbox.SessionDto>('/sessions', {
           id: sessionId,
           kernel: language,
           cwd: options.cwd,
           env: options.env,
-        }, sessionTimeout)
-        const remaining = remainingBudgetMs(options.timeout, startedAt)
-        if (remaining !== undefined && remaining <= 0) {
-          throw new DaytonaError('interpreter run timed out while creating its isolated context', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        }, setupConfig(timeoutMs, timeoutMs))
+        const remaining = remainingBudgetMs(timeoutMs, startedAt)
+        if (timeoutMs !== undefined && timeoutMs > 0 && remaining !== undefined && remaining <= 0) {
+          throw createDaytonaError('interpreter run timed out while creating its isolated context', 408, 'REQUEST_TIMEOUT', 'SDK')
         }
-        return await this.connectContext(sessionId, language).run(code, {
-          cwd: options.cwd,
-          timeout: remaining,
-        })
+        return await runContext(this.bindContext(sessionId, language), code, options.cwd, remaining)
       } finally {
         await this.deleteContextBestEffort(sessionId, sessionQueue)
       }
     }
-    if (options.context !== undefined) {
-      const context = assertContextBelongsToSandbox(options.context, this.process.sandboxId)
-      assertExplicitContextEnvUnsupported(options.env)
-      return this.connectContext(context).run(code, {
-        cwd: options.cwd,
-        timeout: options.timeout,
-      })
-    }
-    if (options.sessionId !== undefined) {
-      assertExplicitContextEnvUnsupported(options.env)
-      return this.connectContext(options.sessionId, language).run(code, {
-        cwd: options.cwd,
-        timeout: options.timeout,
-      })
-    }
     return this.queueFor(implicitContextId(language)).run(
-      options.timeout,
+      timeoutMs,
       async (remainingTimeout) => {
         const deadline = remainingTimeout === undefined ? undefined : Date.now() + remainingTimeout
-        const handle = await startProcess(this.transport, this.process.sandboxId, {
+        const handle = await startProcess(this.transport, this.sandboxId, {
           code,
           kind: 'code',
           language,
           cwd: options.cwd,
           env: options.env,
-        }, undefined, remainingTimeout === undefined ? undefined : { timeout: Math.max(1, remainingTimeout) })
+          keepLogs: 'on_exit_ttl',
+        }, setupConfig(timeoutMs, remainingTimeout))
         const timeoutAfterStart = deadline === undefined ? undefined : Math.max(0, deadline - Date.now())
         return collectResult(handle, timeoutAfterStart, deadline)
       },

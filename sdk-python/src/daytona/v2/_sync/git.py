@@ -94,18 +94,19 @@ class GitService:
     def get_config(self, key: str, *, path: Optional[str] = None, scope: str = "global") -> Optional[str]:
         return self._bridge.call(lambda: self._impl.get_config(key, path=path, scope=scope))
 
-    def history(self, path: str) -> ListResult:
+    def history(self, path: str) -> ListResult[GitCommit]:
         """List commits, newest first."""
         return self._bridge.call(lambda: self._impl.history(path))
 
     def init(self, path: str, *, bare: bool = False, initial_branch: Optional[str] = None) -> None:
         return self._bridge.call(lambda: self._impl.init(path, bare=bare, initial_branch=initial_branch))
 
-    def list_branches(self, path: str) -> ListResult:
+    def list_branches(self, path: str) -> ListResult[str]:
         """List branch names as {items, next_cursor}."""
         return self._bridge.call(lambda: self._impl.list_branches(path))
 
-    def list_remotes(self, path: str) -> ListResult[JsonObject]:
+    def list_remotes(self, path: str) -> ListResult[GitRemote]:
+        """List the configured remotes; URLs come back with any credentials removed."""
         return self._bridge.call(lambda: self._impl.list_remotes(path))
 
     def pull(

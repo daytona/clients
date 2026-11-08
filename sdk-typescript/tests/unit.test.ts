@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { INTERNAL } from '../src/v2/internal'
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import * as nodeFsPromises from 'node:fs/promises'
@@ -67,7 +68,13 @@ import type {
   ListVolumesOptions,
   Volume,
   SandboxInfo,
-  ProcessDto,
+  ProcessInfo,
+  StreamLogEvent,
+  WriteFileOptions,
+  ProcessStartOptions,
+  RunOptions,
+  KillOptions,
+  WaitProcessOptions,
   SandboxState,
   SandboxWaitState,
   WaitForStateOptions,
@@ -77,6 +84,7 @@ import type {
 } from '../src/v2/index'
 import {
   AddonUnavailableError,
+  ProcessNotFoundError,
   ConflictError,
   FeatureNotEnabledError,
   DesktopNotReadyError,
@@ -2789,7 +2797,7 @@ describe('V2 model', () => {
   it('process.start/run/exec accept the argv object form like Python', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValue({ id: 'p', kind: 'exec', state: 'terminal', exitCode: 0, logs: { frames: [], eof: true } })
-    const service = new ProcessService(transport.object, 'sbx')
+    const service = new ProcessService(INTERNAL, transport.object, 'sbx')
     await service.start({ argv: ['python', '-c', 'print(1)'] })
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ argv: ['python', '-c', 'print(1)'] })
     expect(transport.post.mock.calls[0]?.[1]).not.toHaveProperty('shellCommand')
@@ -3783,7 +3791,7 @@ describe('toolbox service request shaping', () => {
       }, { once: true })
       return stream.response
     })
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const seen: string[] = []
     let releaseFirstEvent: (() => void) | undefined
     const firstEventDone = new Promise<void>((resolve) => {
@@ -3837,7 +3845,7 @@ describe('toolbox service request shaping', () => {
       }, { once: true })
       return stream.response
     })
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const onOverflow = jest.fn()
     const onExit = jest.fn()
     const events: Array<{ readonly type: FilesystemEventType; readonly name: string }> = []
@@ -3872,7 +3880,7 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     const stream = controlledSseResponse()
     transport.fetch.mockResolvedValue(stream.response)
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const onExit = jest.fn()
 
     const pendingHandle = fs.watchDir('/workspace', () => undefined, { onExit })
@@ -3906,7 +3914,7 @@ describe('toolbox service request shaping', () => {
       }, { once: true })
       return stream.response
     })
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const onExit = jest.fn()
     let handle: { stop(): Promise<void> } | undefined
     let callbackResolved = false
@@ -3934,7 +3942,7 @@ describe('toolbox service request shaping', () => {
   it('rejects fs watch setup errors before returning a handle', async () => {
     const transport = transportStub()
     transport.fetch.mockRejectedValue(new DaytonaError('missing path', { statusCode: 404, code: 'FILE_NOT_FOUND' }))
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
 
     await expect(fs.watchDir('/missing', () => undefined)).rejects.toMatchObject({
       statusCode: 404,
@@ -3946,7 +3954,7 @@ describe('toolbox service request shaping', () => {
   it('shapes bulk filesystem writes as indexed multipart form data', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValue({ files: [{ path: '/tmp/a.txt', bytes: 3 }, { path: '/tmp/b.txt', bytes: 2 }], errors: ['file[2]: missing .path metadata'] })
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
 
     const result = await fs.writeMany({
       '/tmp/a.txt': new Uint8Array([65, 65, 65]),
@@ -3989,7 +3997,7 @@ describe('toolbox service request shaping', () => {
 
   it('forwards atomic query parameters on write and writeMany', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
 
     await expect(fs.writeBytes('/tmp/a.txt', 'hello' as unknown as Uint8Array)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(transport.post).not.toHaveBeenCalled()
@@ -4002,7 +4010,7 @@ describe('toolbox service request shaping', () => {
 
   it('streams uploadFile with progress callbacks and atomic query parameters', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-upload-'))
     const localPath = join(tempRoot, 'three-chunks.bin')
     const totalBytes = 160_000
@@ -4042,7 +4050,7 @@ describe('toolbox service request shaping', () => {
 
   it('throws a typed SDK error when the source file shrinks after stat', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-upload-shrunk-'))
     const localPath = join(tempRoot, 'shrunk.bin')
     await writeFile(localPath, Buffer.from('abcdefgh'))
@@ -4074,7 +4082,7 @@ describe('toolbox service request shaping', () => {
 
   it('caps streamed uploadFile bytes to the stat snapshot when the source grows mid-upload', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-upload-grown-'))
     const localPath = join(tempRoot, 'grown.bin')
     await writeFile(localPath, Buffer.from('abcdefgh'))
@@ -4106,7 +4114,7 @@ describe('toolbox service request shaping', () => {
 
   it('omits atomic=false from plain uploadFile URLs and keeps atomic=true when requested', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-upload-query-'))
     const localPath = join(tempRoot, 'query.bin')
     await writeFile(localPath, Buffer.alloc(8, 0x63))
@@ -4128,7 +4136,7 @@ describe('toolbox service request shaping', () => {
 
   it('cancels uploadFile mid-stream with a typed cancellation error', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-upload-cancel-'))
     const localPath = join(tempRoot, 'cancel.bin')
     const totalBytes = 160_000
@@ -4169,7 +4177,7 @@ describe('toolbox service request shaping', () => {
 
   it('rejects uploadFile before opening the stream when the signal aborts before body creation', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-upload-preabort-'))
     const localPath = join(tempRoot, 'preabort.bin')
     await writeFile(localPath, Buffer.from('abcdef'))
@@ -4201,7 +4209,7 @@ describe('toolbox service request shaping', () => {
 
   it('swallows uploadFile progress callback errors and still completes the transfer', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-upload-progress-'))
     const localPath = join(tempRoot, 'progress.bin')
     await writeFile(localPath, Buffer.from('abcdef'))
@@ -4230,7 +4238,7 @@ describe('toolbox service request shaping', () => {
 
   it('downloads files to disk with progress, renames on success, and removes the .part file', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-'))
     const targetWithLength = join(tempRoot, 'with-length.txt')
     const targetWithoutLength = join(tempRoot, 'without-length.txt')
@@ -4281,7 +4289,7 @@ describe('toolbox service request shaping', () => {
 
   it('preserves an existing destination mode when downloadFile replaces it', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-mode-'))
     const target = join(tempRoot, 'target.txt')
     await writeFile(target, 'keep me')
@@ -4304,7 +4312,7 @@ describe('toolbox service request shaping', () => {
 
   it('keeps the staging file private while streaming and applies the default creation mode on rename', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-default-mode-'))
     const target = join(tempRoot, 'target.txt')
     const payload = new TextEncoder().encode('next body')
@@ -4348,7 +4356,7 @@ describe('toolbox service request shaping', () => {
 
   it('removes the partial file when downloadFile is cancelled or the stream fails', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-failure-'))
     const cancelTarget = join(tempRoot, 'cancel.txt')
     const errorTarget = join(tempRoot, 'error.txt')
@@ -4394,7 +4402,7 @@ describe('toolbox service request shaping', () => {
 
   it('rejects a bodyless download before opening a staging file', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-empty-body-'))
     const target = join(tempRoot, 'target.txt')
     await writeFile(target, 'keep me')
@@ -4411,7 +4419,7 @@ describe('toolbox service request shaping', () => {
 
   it('rejects a truncated download before renaming the staged file', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-truncated-'))
     const target = join(tempRoot, 'target.txt')
     await writeFile(target, 'keep me')
@@ -4433,7 +4441,7 @@ describe('toolbox service request shaping', () => {
 
   it('does not rename the staged download after a final progress callback aborts', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-final-abort-'))
     const target = join(tempRoot, 'cancel-at-end.txt')
     const chunk = new TextEncoder().encode('chunk')
@@ -4461,7 +4469,7 @@ describe('toolbox service request shaping', () => {
 
   it('retries partial local writes until the full chunk is staged', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-short-write-'))
     const target = join(tempRoot, 'short-write.txt')
     const bytes = new TextEncoder().encode('hello world')
@@ -4506,7 +4514,7 @@ describe('toolbox service request shaping', () => {
 
   it('leaves a pre-existing .part symlink untouched and uses per-download temp files', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-temp-'))
     const target = join(tempRoot, 'file.txt')
     const existingPartPath = `${target}.part`
@@ -4558,7 +4566,7 @@ describe('toolbox service request shaping', () => {
 
   it('swallows downloadFile progress callback errors and still commits the file', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-progress-'))
     const target = join(tempRoot, 'target.txt')
     const cancel = jest.fn().mockResolvedValue(undefined)
@@ -4587,7 +4595,7 @@ describe('toolbox service request shaping', () => {
 
   it('cancels the download body when reader setup fails after the staging file opens', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-reader-setup-'))
     const target = join(tempRoot, 'target.txt')
     const cancel = jest.fn().mockResolvedValue(undefined)
@@ -4612,7 +4620,7 @@ describe('toolbox service request shaping', () => {
 
   it('removes the staged file when applying the final download mode fails', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-chmod-failure-'))
     const target = join(tempRoot, 'target.txt')
     const payload = new TextEncoder().encode('next body')
@@ -4658,7 +4666,7 @@ describe('toolbox service request shaping', () => {
       status: 200,
       headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
     })
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
 
     const result = await fs.readMany(['bin.dat'])
 
@@ -4689,7 +4697,7 @@ describe('toolbox service request shaping', () => {
       status: 200,
       headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
     })
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
 
     const result = await fs.readMany(['dir/ü.txt', '/nope.txt'])
 
@@ -4721,7 +4729,7 @@ describe('toolbox service request shaping', () => {
       ).buffer,
       headers: { 'content-type': 'application/json' },
     })
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
 
     await expect(fs.readMany([])).rejects.toMatchObject({
       statusCode: 400,
@@ -4735,13 +4743,13 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValue({ id: 'proc' })
     transport.get
       .mockResolvedValueOnce({ reason: 'signaled', signal: 'SIGTERM' })
-      .mockResolvedValueOnce([{ id: 'proc', kind: 'exec', state: 'running' }])
-    const process = new ProcessService(transport.object, 'sbx')
+      .mockResolvedValueOnce([processWire()])
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
-    const handle = await process.start('echo hi', { name: 'job', env: { A: 'B' }, executionTimeout: 5 })
+    const handle = await process.start('echo hi', { name: 'job', env: { A: 'B' }, executionTimeoutSeconds: 0.005 })
     expect(transport.post.mock.calls[0]).toEqual(['/processes', { shellCommand: 'echo hi', name: 'job', env: { A: 'B' }, timeoutMs: 5 }])
 
-    await handle.kill({ signal: 'TERM', escalateAfter: 100, escalateTo: 'KILL' })
+    await handle.kill({ signal: 'TERM', escalateAfterSeconds: 0.1, escalateTo: 'KILL' })
     expect(transport.post.mock.calls[1]).toEqual(['/processes/proc/signals', { signal: 'SIGTERM', escalateAfterMs: 100, escalateTo: 'SIGKILL' }])
     await handle.writeStdin(new Uint8Array([0, 255]))
     expect(transport.post.mock.calls[2]).toEqual(['/processes/proc/stdin', { data: 'AP8=', encoding: 'base64' }])
@@ -4753,9 +4761,9 @@ describe('toolbox service request shaping', () => {
 
     const now = jest.spyOn(Date, 'now').mockReturnValue(1_000)
     try {
-      await expect(handle.wait({ timeout: 25 })).resolves.toEqual({ reason: 'signaled', rawReason: 'signaled', signal: 'TERM' })
+      await expect(handle.wait({ timeoutSeconds: 0.025 })).resolves.toEqual({ reason: 'signaled', rawReason: 'signaled', signal: 'TERM' })
       await expect(process.list({ state: 'running', kind: 'exec', sessionId: 's', name: 'n', pid: 42 })).resolves.toEqual({
-        items: [{ id: 'proc', kind: 'exec', rawKind: 'exec', state: 'running', rawState: 'running' }],
+        items: [processInfo()],
       })
       expect(transport.get.mock.calls[0]?.[0]).toBe('/processes/proc/wait?timeoutMs=25')
       expect(transport.get.mock.calls[0]?.[1]).toEqual({ timeout: 25 + WAIT_READ_SLACK_MS })
@@ -4767,33 +4775,44 @@ describe('toolbox service request shaping', () => {
 
   it('lists and deletes PTY processes through PtyService helpers', async () => {
     const transport = transportStub()
-    transport.get.mockResolvedValueOnce({ items: [{ id: 'pty-1', kind: 'pty', state: 'running' }], nextCursor: 'p' })
+    transport.get.mockResolvedValueOnce({ items: [processWire({ id: 'pty-1', kind: 'pty' })], nextCursor: 'p' })
     transport.post.mockResolvedValueOnce({ signal: 'ok' })
     transport.delete.mockResolvedValueOnce(undefined)
-    const process = new ProcessService(transport.object, 'sbx')
-    const pty = new PtyService(process)
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    const pty = new PtyService(INTERNAL, process, transport.object)
     const handle = pty.connect('pty-1')
 
     await expect(process.list({ kind: 'pty' })).resolves.toEqual({
-      items: [{ id: 'pty-1', kind: 'pty', rawKind: 'pty', state: 'running', rawState: 'running', executionTimeout: undefined }],
+      items: [processInfo({ id: 'pty-1', kind: 'pty' })],
       nextCursor: 'p',
     })
     await expect(handle.kill()).resolves.toBeUndefined()
     await expect(handle.delete()).resolves.toBeUndefined()
 
     expect(transport.get.mock.calls[0]?.[0]).toBe('/processes?kind=pty')
-    expect(transport.post.mock.calls[0]).toEqual(['/processes/pty-1/signals', { signal: undefined, escalateAfterMs: undefined, escalateTo: undefined }])
+    expect(transport.post.mock.calls[0]).toEqual(['/processes/pty-1/signals', { signal: 'SIGTERM' }])
     expect(transport.delete.mock.calls[0]).toEqual(['/processes/pty-1'])
   })
 
-  it('rejects terminal geometry on non-pty process creation before posting', async () => {
+  it('rejects terminal geometry and command selectors in process options before posting', async () => {
     const transport = transportStub()
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
-    await expect(new ProcessService(transport.object, 'sbx').start('echo hi', { terminal: { cols: 80, rows: 24 } })).rejects.toMatchObject({
-      code: 'UNSUPPORTED_OPERATION',
-      source: 'SDK',
-    })
+    for (const options of [{ terminal: { cols: 80, rows: 24 } }, { cmd: 'other' }, { argv: ['x'] }, { kind: 'pty' }]) {
+      await expect(process.start('echo hi', options as ProcessStartOptions)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+      await expect(process.run('echo hi', options as RunOptions)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    }
+    await expect(process.run('echo hi', { timeout: 5 } as unknown as RunOptions)).rejects.toThrow(
+      'RunOptions: `timeout` was renamed to `timeoutSeconds` (seconds)',
+    )
+    await expect(process.connect('proc').kill({ escalateAfter: 5 } as unknown as KillOptions)).rejects.toThrow(
+      'KillOptions: `escalateAfter` was renamed to `escalateAfterSeconds` (seconds)',
+    )
+    await expect(process.connect('proc').wait({ timeout: 5 } as unknown as WaitProcessOptions)).rejects.toThrow(
+      'WaitProcessOptions: `timeout` was renamed to `timeoutSeconds` (seconds)',
+    )
     expect(transport.post).not.toHaveBeenCalled()
+    expect(transport.get).not.toHaveBeenCalled()
   })
 
   it('treats a literal wait timeout of zero as an unbounded toolbox poll', async () => {
@@ -4804,9 +4823,9 @@ describe('toolbox service request shaping', () => {
         await new Promise((resolve) => setTimeout(resolve, 5))
         return { reason: 'exited', exitCode: 0 }
       })
-      const handle = new ProcessService(transport.object, 'sbx').connect('proc')
+      const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc')
 
-      const waitPromise = handle.wait({ timeout: 0 })
+      const waitPromise = handle.wait({ timeoutSeconds: 0 })
       await jest.advanceTimersByTimeAsync(5)
 
       await expect(waitPromise).resolves.toEqual({ reason: 'exited', rawReason: 'exited', exitCode: 0 })
@@ -4818,20 +4837,20 @@ describe('toolbox service request shaping', () => {
 
   it('blocks stdin on known code handles and lets exec or unknown handles call the wire', async () => {
     const codeTransport = transportStub()
-    const codeHandle = new ProcessHandle(codeTransport.object, 'sbx', 'code-proc', 'code')
+    const codeHandle = new ProcessHandle(INTERNAL, codeTransport.object, 'sbx', 'code-proc', 'code')
 
     await expect(codeHandle.writeStdin('print(1)')).rejects.toBeInstanceOf(UnsupportedOperationError)
     await expect(codeHandle.closeStdin()).rejects.toBeInstanceOf(UnsupportedOperationError)
     expect(codeTransport.post).not.toHaveBeenCalled()
 
     const execTransport = transportStub()
-    const execHandle = new ProcessHandle(execTransport.object, 'sbx', 'exec-proc', 'exec')
+    const execHandle = new ProcessHandle(INTERNAL, execTransport.object, 'sbx', 'exec-proc', 'exec')
 
     await execHandle.writeStdin('hello')
     expect(execTransport.post).toHaveBeenCalledWith('/processes/exec-proc/stdin', { data: 'hello' })
 
     const unknownTransport = transportStub()
-    const unknownHandle = new ProcessService(unknownTransport.object, 'sbx').connect('unknown-proc')
+    const unknownHandle = new ProcessService(INTERNAL, unknownTransport.object, 'sbx').connect('unknown-proc')
 
     await unknownHandle.closeStdin()
     expect(unknownTransport.post).toHaveBeenCalledWith('/processes/unknown-proc/stdin', { data: '', eof: true })
@@ -4846,9 +4865,9 @@ describe('toolbox service request shaping', () => {
       now.mockReturnValueOnce(0)
       now.mockReturnValueOnce(1)
       now.mockReturnValueOnce(1)
-      const handle = new ProcessService(transport.object, 'sbx').connect('proc')
+      const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc')
 
-      await expect(handle.wait({ timeout: 1 })).resolves.toEqual({ reason: 'timed_out' })
+      await expect(handle.wait({ timeoutSeconds: 0.001 })).resolves.toEqual({ reason: 'timed_out' })
       expect(transport.get.mock.calls).toEqual([['/processes/proc/wait?timeoutMs=1', { timeout: 1 + WAIT_READ_SLACK_MS }]])
     } finally {
       now.mockRestore()
@@ -4861,25 +4880,28 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce([{ cursor: 'a', channel: 'stdout', data: 'text-output', timestamp: 41 }])
       .mockResolvedValueOnce({ frames: [{ cursor: 'b', channel: 'stderr', data: 'err', timestamp: 42 }], nextCursor: 'b', truncatedHead: true, firstAvailableCursor: 'a' })
     transport.fetch.mockResolvedValue(sseResponse([
-      'id: c1\r\nevent: log\r\ndata: {"channel":"stdout","data":"hi"}\r\n\r\n',
+      'id: c1\r\nevent: log\r\ndata: {"channel":"stdout","data":"hi","timestamp":43}\r\n\r\n',
       'id: c2\r\nevent: state\r\ndata: {"reason":"exited","exitCode":7}\r\n\r\n',
       'id: c3\r\nevent: warning\r\ndata: {"message":"trimmed","firstAvailableCursor":"c0"}\r\n\r\n',
-      'id: c4\r\nevent: error\r\ndata: {"message":"boom"}\r\n\r\n',
+      'id: c4\r\nevent: future\r\ndata: {}\r\n\r\n',
       'id: c5\r\nevent: eof\r\ndata: {}\r\n\r\n',
+      'id: c6\r\nevent: error\r\ndata: {"message":"gone","code":"PROCESS_NOT_FOUND","source":"DAYTONA_DAEMON"}\r\n\r\n',
     ]))
-    const handle = new ProcessService(transport.object, 'sbx').connect('proc')
+    const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc')
 
-    await expect(handle.logs()).resolves.toEqual({ items: [{ cursor: 'a', channel: 'stdout', data: 'text-output', timestamp: 41 }] })
-    await expect(handle.logs({ cursor: 'a', limit: 1, encoding: 'base64' })).resolves.toMatchObject({ items: [{ cursor: 'b', channel: 'stderr', data: 'err', timestamp: 42 }], nextCursor: 'b', truncatedHead: true, firstAvailableCursor: 'a' })
+    await expect(handle.logs()).resolves.toEqual({ items: [{ cursor: 'a', channel: 'stdout', data: 'text-output', timestampMs: 41 }] })
+    await expect(handle.logs({ cursor: 'a', limit: 1, encoding: 'base64' })).resolves.toMatchObject({ items: [{ cursor: 'b', channel: 'stderr', data: 'err', timestampMs: 42 }], nextCursor: 'b', truncatedHead: true, firstAvailableCursor: 'a' })
 
-    const events = []
-    for await (const event of handle.streamLogs({ cursor: 'a', limit: 5 })) events.push(event)
+    const events: StreamLogEvent[] = []
+    // A stream error throws its typed error after the events before it.
+    await expect((async () => {
+      for await (const event of handle.streamLogs({ cursor: 'a', limit: 5 })) events.push(event)
+    })()).rejects.toBeInstanceOf(ProcessNotFoundError)
     expect(transport.fetch.mock.calls[0]).toEqual(['/processes/proc/logs?cursor=a&limit=5&follow=true', { headers: { Accept: 'text/event-stream', 'Last-Event-ID': 'a' }, signal: undefined }])
-    expect(events).toMatchObject([
-      { type: 'log', cursor: 'c1', frame: { channel: 'stdout', data: 'hi' } },
-      { type: 'state', cursor: 'c2', result: { reason: 'exited', exitCode: 7 } },
+    expect(events).toEqual([
+      { type: 'log', cursor: 'c1', frame: { cursor: 'c1', channel: 'stdout', data: 'hi', timestampMs: 43 } },
+      { type: 'state', cursor: 'c2', result: { reason: 'exited', rawReason: 'exited', exitCode: 7 } },
       { type: 'warning', cursor: 'c3', message: 'trimmed', firstAvailableCursor: 'c0' },
-      { type: 'error', cursor: 'c4' },
       { type: 'eof', cursor: 'c5' },
     ])
   })
@@ -4929,7 +4951,7 @@ describe('toolbox service request shaping', () => {
 
   it('cancels the download response body when opening the local destination fails', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     const tempRoot = await mkdtemp(join(tmpdir(), 'daytona-sdk-download-open-fail-'))
     const target = join(tempRoot, 'missing', 'target.txt')
     const cancel = jest.fn().mockResolvedValue(undefined)
@@ -4958,15 +4980,15 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce({ reason: 'timed_out' })
       .mockResolvedValueOnce({ id: 'ctx-proc', kind: 'code', state: 'running', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 130 })
-      .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'after interrupt' }], nextCursor: '1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'after interrupt', timestamp: 1 }], nextCursor: '1' })
       .mockResolvedValueOnce({ frames: [], nextCursor: '1' })
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: '2', channel: 'stdout', data: 'a' }, { cursor: '3', channel: 'stderr', data: 'warn' }, { cursor: '4', channel: 'stdout', data: 'c' }], nextCursor: '4' })
+      .mockResolvedValueOnce({ frames: [{ cursor: '2', channel: 'stdout', data: 'a', timestamp: 1 }, { cursor: '3', channel: 'stderr', data: 'warn', timestamp: 1 }, { cursor: '4', channel: 'stdout', data: 'c', timestamp: 1 }], nextCursor: '4' })
       .mockResolvedValueOnce({ frames: [], nextCursor: '2' })
-    const process = new ProcessService(transport.object, 'sbx')
-    const interpreter = new InterpreterService(transport.object, process)
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
-    const context = await interpreter.createContext({ id: 'sess', language: 'python', cwd: '/w', env: { A: 'B' } })
+    const context = await interpreter.createContext({ contextId: 'sess', language: 'python', cwd: '/w', env: { A: 'B' } })
     expect(transport.post.mock.calls[0]).toEqual(['/sessions', { id: 'sess', kernel: 'python', cwd: '/w', env: { A: 'B' } }])
 
     const now = jest.spyOn(Date, 'now')
@@ -4980,19 +5002,19 @@ describe('toolbox service request shaping', () => {
       .mockReturnValueOnce(10)
     let interrupted
     try {
-      interrupted = await context.run('print(1)', { timeout: 10 })
+      interrupted = await context.run('print(1)', { timeoutSeconds: 0.01 })
     } finally {
       now.mockRestore()
     }
-    expect(transport.post.mock.calls[1]).toEqual(['/processes', { code: 'print(1)', kind: 'code', sessionId: 'sess', language: 'python' }, { timeout: 10 }])
+    expect(transport.post.mock.calls[1]).toEqual(['/processes', { code: 'print(1)', kind: 'code', sessionId: 'sess', language: 'python', keepLogs: 'on_exit_ttl' }, { timeout: 10 }])
     expect(transport.post.mock.calls[2]).toEqual(['/processes/ctx-proc/signals', { signal: 'SIGINT', escalateAfterMs: undefined, escalateTo: undefined }])
     expect(interrupted).toMatchObject({ process: { processId: 'ctx-proc' }, logs: { stdout: 'after interrupt', stderr: '' } })
 
-    const oneShot = await interpreter.run('console.error("warn")', { language: 'typescript', sessionId: 'sess' })
-    expect(transport.post.mock.calls[3]).toEqual(['/processes', { code: 'console.error("warn")', kind: 'code', sessionId: 'sess', language: 'typescript' }, undefined])
+    const oneShot = await interpreter.run('console.error("warn")', { language: 'typescript', context: 'sess' })
+    expect(transport.post.mock.calls[3]).toEqual(['/processes', { code: 'console.error("warn")', kind: 'code', sessionId: 'sess', language: 'typescript', keepLogs: 'on_exit_ttl' }, undefined])
     expect(oneShot).toMatchObject({ process: { processId: 'one-shot', exitCode: 0 }, logs: { stdout: 'ac', stderr: 'warn' } })
 
-    expect(interpreter.connectContext('sess', 'python').id).toBe('sess')
+    expect(interpreter.connectContext('sess', 'python').contextId).toBe('sess')
     await interpreter.deleteContext(context)
     expect(transport.delete.mock.calls[0]).toEqual(['/sessions/sess'])
   })
@@ -5004,19 +5026,19 @@ describe('toolbox service request shaping', () => {
     localTransport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-    const foreignContext = new InterpreterService(foreignTransport.object, new ProcessService(foreignTransport.object, 'sbx')).connectContext('ctx', 'python')
-    const interpreter = new InterpreterService(localTransport.object, new ProcessService(localTransport.object, 'sbx'))
+    const foreignContext = new InterpreterService(INTERNAL, foreignTransport.object, 'sbx').connectContext('ctx', 'python')
+    const interpreter = new InterpreterService(INTERNAL, localTransport.object, 'sbx')
 
     await expect(interpreter.run('print(1)', { context: foreignContext })).resolves.toMatchObject({ process: { processId: 'proc', exitCode: 0 } })
-    expect(localTransport.post.mock.calls[0]).toEqual(['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }])
+    expect(localTransport.post.mock.calls[0]).toEqual(['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }])
     expect(foreignTransport.post).not.toHaveBeenCalled()
   })
 
   it('rejects env on explicit interpreter contexts before posting a code process', async () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
-    await expect(interpreter.run('print(1)', { sessionId: 'sess', env: { A: 'B' } })).rejects.toMatchObject({
+    await expect(interpreter.run('print(1)', { context: 'sess', language: 'python', env: { A: 'B' } })).rejects.toMatchObject({
       code: 'BAD_REQUEST',
       source: 'SDK',
     })
@@ -5033,12 +5055,12 @@ describe('toolbox service request shaping', () => {
       })
       transport.get
         .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-        .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'ok' }], nextCursor: '1' })
+        .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'ok', timestamp: 1 }], nextCursor: '1' })
         .mockResolvedValueOnce({ frames: [], nextCursor: '1' })
-      const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+      const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
-      await expect(interpreter.run('print(1)', { timeout: 10 })).resolves.toMatchObject({ logs: { stdout: 'ok' } })
-      expect(transport.post.mock.calls[0]).toEqual(['/processes', { code: 'print(1)', kind: 'code', language: 'python', cwd: undefined, env: undefined }, { timeout: 10 }])
+      await expect(interpreter.run('print(1)', { timeoutSeconds: 0.01 })).resolves.toMatchObject({ logs: { stdout: 'ok' } })
+      expect(transport.post.mock.calls[0]).toEqual(['/processes', { code: 'print(1)', kind: 'code', language: 'python', cwd: undefined, env: undefined, keepLogs: 'on_exit_ttl' }, { timeout: 10 }])
       expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=5', { timeout: 5 + WAIT_READ_SLACK_MS }])
     } finally {
       jest.useRealTimers()
@@ -5058,9 +5080,9 @@ describe('toolbox service request shaping', () => {
       transport.get
         .mockResolvedValueOnce({ reason: 'exited', exitCode: 130 })
         .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-      const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+      const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
-      await expect(interpreter.run('print(1)', { timeout: 10 })).resolves.toMatchObject({ process: { processId: 'proc', reason: 'exited' } })
+      await expect(interpreter.run('print(1)', { timeoutSeconds: 0.01 })).resolves.toMatchObject({ process: { processId: 'proc', reason: 'exited' } })
       expect(transport.get.mock.calls.map((call) => call[0])).not.toContain('/processes/proc/wait?timeoutMs=0')
       expect(transport.post.mock.calls[1]).toEqual(['/processes/proc/signals', { signal: 'SIGINT', escalateAfterMs: undefined, escalateTo: undefined }])
     } finally {
@@ -5073,19 +5095,19 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValueOnce({ id: 'one' }).mockResolvedValueOnce({ id: 'two' })
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'first' }], nextCursor: '1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'first', timestamp: 1 }], nextCursor: '1' })
       .mockResolvedValueOnce({ frames: [], nextCursor: '1' })
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: '2', channel: 'stdout', data: 'second' }], nextCursor: '2' })
+      .mockResolvedValueOnce({ frames: [{ cursor: '2', channel: 'stdout', data: 'second', timestamp: 1 }], nextCursor: '2' })
       .mockResolvedValueOnce({ frames: [], nextCursor: '2' })
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
     await expect(interpreter.run('x = 5', { language: 'python' })).resolves.toMatchObject({ logs: { stdout: 'first' } })
     await expect(interpreter.run('print(x)', { language: 'python' })).resolves.toMatchObject({ logs: { stdout: 'second' } })
 
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'x = 5', kind: 'code', language: 'python' }],
-      ['/processes', { code: 'print(x)', kind: 'code', language: 'python' }],
+      ['/processes', { code: 'x = 5', kind: 'code', language: 'python', keepLogs: 'on_exit_ttl' }],
+      ['/processes', { code: 'print(x)', kind: 'code', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
   })
 
@@ -5095,9 +5117,9 @@ describe('toolbox service request shaping', () => {
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
-    const context = await interpreter.createContext({ id: 'ctx', language: 'python' })
+    const context = await interpreter.createContext({ contextId: 'ctx', language: 'python' })
     const serialized = JSON.parse(JSON.stringify(context)) as {
       sandboxId: string
       contextId: string
@@ -5106,16 +5128,16 @@ describe('toolbox service request shaping', () => {
 
     expect(context.toJSON()).toEqual({ sandboxId: 'sbx', contextId: 'ctx', language: 'python' })
     expect(serialized).toEqual({ sandboxId: 'sbx', contextId: 'ctx', language: 'python' })
-    expect({ ...context }).toEqual({ sandboxId: 'sbx', id: 'ctx', language: 'python' })
+    expect({ ...context }).toEqual({ sandboxId: 'sbx', contextId: 'ctx', language: 'python' })
 
     const rebound = interpreter.connectContext(serialized)
     await expect(rebound.run('print(1)')).resolves.toMatchObject({ process: { processId: 'proc', exitCode: 0 } })
-    expect(transport.post.mock.calls[1]).toEqual(['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }])
+    expect(transport.post.mock.calls[1]).toEqual(['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }])
   })
 
   it('serializes concurrent explicit-context runs before submitting the next process', async () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     const context = interpreter.connectContext('ctx', 'python')
     let releaseFirstWait: (() => void) | undefined
     let firstSubmitted: (() => void) | undefined
@@ -5144,7 +5166,7 @@ describe('toolbox service request shaping', () => {
     await Promise.resolve()
 
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
 
     releaseFirstWait?.()
@@ -5152,14 +5174,14 @@ describe('toolbox service request shaping', () => {
     await expect(first).resolves.toMatchObject({ process: { processId: 'p1', exitCode: 0 } })
     await expect(second).resolves.toMatchObject({ process: { processId: 'p2', exitCode: 0 } })
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }],
-      ['/processes', { code: 'print(2)', kind: 'code', sessionId: 'ctx', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
+      ['/processes', { code: 'print(2)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
   })
 
   it('serializes concurrent context-free runs before submitting the next process', async () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     let releaseFirstWait: (() => void) | undefined
     let firstSubmitted: (() => void) | undefined
     const firstSubmittedPromise = new Promise<void>((resolve) => {
@@ -5187,7 +5209,7 @@ describe('toolbox service request shaping', () => {
     await Promise.resolve()
 
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'print(1)', kind: 'code', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
 
     releaseFirstWait?.()
@@ -5195,14 +5217,14 @@ describe('toolbox service request shaping', () => {
     await expect(first).resolves.toMatchObject({ process: { processId: 'p1', exitCode: 0 } })
     await expect(second).resolves.toMatchObject({ process: { processId: 'p2', exitCode: 0 } })
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'print(1)', kind: 'code', language: 'python' }],
-      ['/processes', { code: 'print(2)', kind: 'code', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', language: 'python', keepLogs: 'on_exit_ttl' }],
+      ['/processes', { code: 'print(2)', kind: 'code', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
   })
 
   it('returns timed_out for explicit-context runs that expire while queued without submitting them', async () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     const context = interpreter.connectContext('ctx', 'python')
     let releaseFirstWait: (() => void) | undefined
     let firstSubmitted: (() => void) | undefined
@@ -5223,7 +5245,7 @@ describe('toolbox service request shaping', () => {
 
     const first = context.run('print(1)')
     await firstSubmittedPromise
-    const queued = context.run('print(2)', { timeout: 1 })
+    const queued = context.run('print(2)', { timeoutSeconds: 0.001 })
     await jest.advanceTimersByTimeAsync(1)
 
     await expect(queued).resolves.toMatchObject({
@@ -5240,7 +5262,7 @@ describe('toolbox service request shaping', () => {
 
   it('rejects bare-id interpreter reconnects without a language before any wire call', () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
     expect(() => interpreter.connectContext('sess' as unknown as never)).toThrow(
       'language is required when reconnecting an interpreter context by id',
@@ -5251,18 +5273,18 @@ describe('toolbox service request shaping', () => {
 
   it('evicts interpreter queues on close and deleteContext', async () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     transport.post
       .mockResolvedValueOnce({ id: 'ctx' })
       .mockResolvedValueOnce({ id: 'ctx-2' })
 
-    const context = await interpreter.createContext({ id: 'ctx', language: 'python' })
+    const context = await interpreter.createContext({ contextId: 'ctx', language: 'python' })
     expect(interpreter['contextQueues'].size).toBe(1)
 
     await context.close()
     expect(interpreter['contextQueues'].size).toBe(0)
 
-    await interpreter.createContext({ id: 'ctx-2', language: 'python' })
+    await interpreter.createContext({ contextId: 'ctx-2', language: 'python' })
     expect(interpreter['contextQueues'].size).toBe(1)
 
     await interpreter.deleteContext('ctx-2')
@@ -5271,7 +5293,7 @@ describe('toolbox service request shaping', () => {
 
   it('keeps interpreter queues after a failed close so reconnects stay serialized on the original queue', async () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     const context = interpreter.connectContext('ctx', 'python')
     let releaseFirstWait: (() => void) | undefined
     let firstSubmitted: (() => void) | undefined
@@ -5310,7 +5332,7 @@ describe('toolbox service request shaping', () => {
 
     expect(interpreter['contextQueues'].size).toBe(1)
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
     expect(transport.delete.mock.calls).toEqual([['/sessions/ctx']])
 
@@ -5319,14 +5341,14 @@ describe('toolbox service request shaping', () => {
     await expect(first).resolves.toMatchObject({ process: { processId: 'p1', exitCode: 0 } })
     await expect(second).resolves.toMatchObject({ process: { processId: 'p2', exitCode: 0 } })
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }],
-      ['/processes', { code: 'print(2)', kind: 'code', sessionId: 'ctx', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
+      ['/processes', { code: 'print(2)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
   })
 
   it('keeps interpreter queues until queued runs drain after deleteContext succeeds', async () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     const context = interpreter.connectContext('ctx', 'python')
     let releaseFirstWait: (() => void) | undefined
     let firstSubmitted: (() => void) | undefined
@@ -5357,7 +5379,7 @@ describe('toolbox service request shaping', () => {
     await expect(interpreter.deleteContext('ctx')).resolves.toBeUndefined()
     expect(interpreter['contextQueues'].has('ctx')).toBe(true)
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
     expect(transport.delete.mock.calls).toEqual([['/sessions/ctx']])
 
@@ -5367,14 +5389,14 @@ describe('toolbox service request shaping', () => {
     await expect(second).resolves.toMatchObject({ process: { processId: 'p2', exitCode: 0 } })
     expect(interpreter['contextQueues'].has('ctx')).toBe(false)
     expect(transport.post.mock.calls).toEqual([
-      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }],
-      ['/processes', { code: 'print(2)', kind: 'code', sessionId: 'ctx', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
+      ['/processes', { code: 'print(2)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
   })
 
   it('does not leak one interpreter queue per isolated run', async () => {
     const transport = transportStub()
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     let processIndex = 0
     transport.post.mockImplementation(async (path: string, body: unknown) => {
       if (path === '/sessions') {
@@ -5411,9 +5433,9 @@ describe('toolbox service request shaping', () => {
           return { id: 'isolated-python' }
         })
       transport.delete.mockResolvedValue(undefined)
-      const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+      const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
-      await expect(interpreter.run('print(1)', { language: 'python', isolated: true, timeout: 2 }))
+      await expect(interpreter.run('print(1)', { language: 'python', isolated: true, timeoutSeconds: 0.002 }))
         .rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', source: 'SDK' })
 
       expect(transport.post.mock.calls[0]).toEqual(['/sessions', { id: expect.any(String), kernel: 'python', cwd: undefined, env: undefined }, { timeout: 2 }])
@@ -5427,7 +5449,7 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     transport.post.mockRejectedValueOnce(new ClientTimeoutError('timed out', { statusCode: 408, code: 'CLIENT_TIMEOUT', source: 'SDK' }))
     transport.delete.mockResolvedValue(undefined)
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
 
     await expect(interpreter.run('print(1)', { language: 'python', isolated: true })).rejects.toBeInstanceOf(ClientTimeoutError)
 
@@ -5449,7 +5471,7 @@ describe('toolbox service request shaping', () => {
     const foreignSandbox = new Sandbox('foreign', undefined, undefined, 'key')
     Reflect.set(foreignSandbox, 'toolboxTransport', foreignTransport.object)
 
-    const foreignContext = await foreignSandbox.interpreter.createContext({ id: 'ctx', language: 'python' })
+    const foreignContext = await foreignSandbox.interpreter.createContext({ contextId: 'ctx', language: 'python' })
     await expect(localSandbox.runCode('print(1)', { context: foreignContext })).rejects.toMatchObject({
       statusCode: 400,
       code: 'BAD_REQUEST',
@@ -5472,7 +5494,7 @@ describe('toolbox service request shaping', () => {
     const foreignSandbox = new Sandbox('foreign', undefined, undefined, 'key')
     Reflect.set(foreignSandbox, 'toolboxTransport', foreignTransport.object)
 
-    const foreignContext = await foreignSandbox.interpreter.createContext({ id: 'ctx', language: 'python' })
+    const foreignContext = await foreignSandbox.interpreter.createContext({ contextId: 'ctx', language: 'python' })
     await expect(localSandbox.interpreter.deleteContext(foreignContext)).rejects.toMatchObject({
       statusCode: 400,
       code: 'BAD_REQUEST',
@@ -5490,15 +5512,15 @@ describe('toolbox service request shaping', () => {
     transport.post
       .mockResolvedValueOnce({ id: 'ctx' })
       .mockRejectedValueOnce(createDaytonaError('missing', 404, 'SESSION_NOT_FOUND', 'DAYTONA_DAEMON'))
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
-    const context = await interpreter.createContext({ id: 'ctx', language: 'python' })
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    const context = await interpreter.createContext({ contextId: 'ctx', language: 'python' })
 
     const run = context.run('print(1)')
     await expect(run).rejects.toBeInstanceOf(SessionNotFoundError)
     await expect(run).rejects.toMatchObject({ statusCode: 404, code: 'SESSION_NOT_FOUND', source: 'DAYTONA_DAEMON' })
     expect(transport.post.mock.calls).toEqual([
       ['/sessions', { id: 'ctx', kernel: 'python', cwd: undefined, env: undefined }],
-      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python' }],
+      ['/processes', { code: 'print(1)', kind: 'code', sessionId: 'ctx', language: 'python', keepLogs: 'on_exit_ttl' }],
     ])
   })
 
@@ -5509,12 +5531,12 @@ describe('toolbox service request shaping', () => {
       return { id: String((body as { id: string }).id) }
     })
     transport.delete.mockResolvedValueOnce({})
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
-    await expect(interpreter.run('print(1)', { language: 'python', isolated: true, timeout: 2_000 })).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    await expect(interpreter.run('print(1)', { language: 'python', isolated: true, timeoutSeconds: 2 })).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', source: 'SDK' })
     // Only the session create (and its best-effort delete) were issued — no execution.
     expect(transport.post).toHaveBeenCalledTimes(1)
     expect(transport.delete).toHaveBeenCalledTimes(1)
-    await expect(interpreter.run('print(1)', { language: 'python', isolated: true, timeout: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(interpreter.run('print(1)', { language: 'python', isolated: true, timeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(transport.post).toHaveBeenCalledTimes(1)
   })
 
@@ -5527,7 +5549,7 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
     transport.delete.mockRejectedValueOnce(new DaytonaError('gone', { statusCode: 404, code: 'SESSION_NOT_FOUND' }))
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     await expect(interpreter.run('print(1)', { language: 'python', isolated: true })).resolves.toMatchObject({ process: { processId: 'proc', exitCode: 0 } })
 
     const createCall = transport.post.mock.calls[0]
@@ -5541,7 +5563,8 @@ describe('toolbox service request shaping', () => {
     expect(createdContextId).toMatch(/^isolated-python-.+/)
     expect(runCall).toEqual([
       '/processes',
-      { code: 'print(1)', kind: 'code', sessionId: createdContextId, language: 'python' },
+      { code: 'print(1)', kind: 'code', sessionId: createdContextId, language: 'python', keepLogs: 'on_exit_ttl' },
+      undefined,
     ])
     expect(deleteCall).toEqual([`/sessions/${createdContextId}`])
     expect(interpreter['contextQueues'].size).toBe(0)
@@ -5556,10 +5579,10 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce({ id: 'p', kind: 'code', state: 'running', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     const context = interpreter.connectContext('ctx', 'python')
     try {
-      await expect(context.run('1', { timeout: 600_001 })).resolves.toMatchObject({ process: { exitCode: 0 } })
+      await expect(context.run('1', { timeoutSeconds: 600.001 })).resolves.toMatchObject({ process: { exitCode: 0 } })
       expect(transport.get.mock.calls[0]?.[0]).toBe('/processes/p/wait?timeoutMs=600001')
     } finally {
       now.mockRestore()
@@ -5577,9 +5600,9 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce({ id: 'p', kind: 'code', state: 'running', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     const context = interpreter.connectContext('ctx', 'python')
-    await expect(context.run('1', { timeout: 10 })).resolves.toMatchObject({ process: { processId: 'p', reason: 'exited', exitCode: 0 } })
+    await expect(context.run('1', { timeoutSeconds: 0.01 })).resolves.toMatchObject({ process: { processId: 'p', reason: 'exited', exitCode: 0 } })
     expect(transport.post).toHaveBeenCalledTimes(1)
     expect(transport.get.mock.calls.map((call) => call[0])).toEqual([
       '/processes/p/wait?timeoutMs=10',
@@ -5604,9 +5627,9 @@ describe('toolbox service request shaping', () => {
       })
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 130 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-    const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     const context = interpreter.connectContext('ctx', 'python')
-    await expect(context.run('1', { timeout: 10 })).resolves.toMatchObject({ process: { reason: 'exited', exitCode: 130 } })
+    await expect(context.run('1', { timeoutSeconds: 0.01 })).resolves.toMatchObject({ process: { reason: 'exited', exitCode: 130 } })
     expect(transport.post).toHaveBeenCalledTimes(2)
     expect(transport.post.mock.calls[1]?.[0]).toBe('/processes/p/signals')
     expect(transport.get.mock.calls.map((call) => call[0])).toEqual([
@@ -5620,12 +5643,12 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     transport.post.mockResolvedValue({ id: 'p', kind: 'pty' })
     transport.delete.mockResolvedValue(undefined)
-    await new ProcessService(transport.object, 'sbx').start('echo hi', { executionTimeout: 5, keepLogs: 'none' })
+    await new ProcessService(INTERNAL, transport.object, 'sbx').start('echo hi', { executionTimeoutSeconds: 0.005, keepLogs: 'none' })
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ shellCommand: 'echo hi', timeoutMs: 5, keepLogs: 'none' })
 
     const attachSpy = jest.spyOn(ProcessHandle.prototype, 'attach').mockRejectedValueOnce(new Error('ws failed'))
     try {
-      const pty = new PtyService(new ProcessService(transport.object, 'sbx'))
+      const pty = new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object)
       await expect(pty.attach()).rejects.toThrow('ws failed')
       expect(transport.delete.mock.calls[0]?.[0]).toBe('/processes/p')
     } finally {
@@ -5679,22 +5702,30 @@ describe('toolbox service request shaping', () => {
     expect(urls).toEqual(['ws://toolbox.invalid/sandbox-api/sbx/processes/proc/attach?daytona_token=platform-1'])
   })
 
-  it('forces replayable log retention for process.run even when keepLogs none is requested', async () => {
+  it('refuses keepLogs none for process.run, which reads its output back from the log', async () => {
+    const transport = transportStub()
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').run('echo hi', { keepLogs: 'none' as 'on_exit_ttl' }))
+      .rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    expect(transport.post).not.toHaveBeenCalled()
+  })
+
+  it('returns the collected log frames with the run result', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValue({ id: 'p' })
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'ok' }], nextCursor: 'c1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'ok', timestamp: 1 }], nextCursor: 'c1' })
       .mockResolvedValueOnce({ frames: [], nextCursor: 'c1' })
-    const result = await new ProcessService(transport.object, 'sbx').run('echo hi', { keepLogs: 'none' })
-    expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ shellCommand: 'echo hi', keepLogs: 'on_exit_ttl' })
+    const result = await new ProcessService(INTERNAL, transport.object, 'sbx').run('echo hi', { keepLogs: 'until_cleanup' })
+    expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ shellCommand: 'echo hi', keepLogs: 'until_cleanup' })
     expect(result.output).toBe('ok')
+    expect(result.logs).toEqual([{ cursor: 'c1', channel: 'stdout', data: 'ok', timestampMs: 1 }])
   })
 
   it('settles process.run through the inline toolbox wait/log path', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue({ id: 'p', state: 'terminal', reason: 'exited', exitCode: 0, logs: { frames: [{ cursor: 'c1', channel: 'stdout', data: 'ok' }], nextCursor: 'c1', eof: true } })
-    const result = await new ProcessService(transport.object, 'sbx').run('echo ok', { timeout: 1234 })
+    transport.post.mockResolvedValue({ id: 'p', state: 'terminal', reason: 'exited', exitCode: 0, logs: { frames: [{ cursor: 'c1', channel: 'stdout', data: 'ok', timestamp: 1 }], nextCursor: 'c1', eof: true } })
+    const result = await new ProcessService(INTERNAL, transport.object, 'sbx').run('echo ok', { timeoutSeconds: 1.234 })
     expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=1234&logs=text')
     expect(transport.get).not.toHaveBeenCalled()
     expect(result).toMatchObject({ reason: 'exited', exitCode: 0, stdout: 'ok', output: 'ok' })
@@ -5705,10 +5736,10 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValue({ id: 'p' })
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'whole ' }], nextCursor: 'c1' })
-      .mockResolvedValueOnce({ frames: [{ cursor: 'c2', channel: 'stdout', data: 'output' }], nextCursor: 'c2' })
+      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'whole ', timestamp: 1 }], nextCursor: 'c1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: 'c2', channel: 'stdout', data: 'output', timestamp: 1 }], nextCursor: 'c2' })
       .mockResolvedValueOnce({ frames: [], nextCursor: 'c2' })
-    const result = await new ProcessService(transport.object, 'sbx').run('echo whole output')
+    const result = await new ProcessService(INTERNAL, transport.object, 'sbx').run('echo whole output')
     expect(result.output).toBe('whole output')
   })
 
@@ -5717,9 +5748,9 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValue({ id: 'p', state: 'running' })
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'late' }], nextCursor: 'c1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'late', timestamp: 1 }], nextCursor: 'c1' })
       .mockResolvedValueOnce({ frames: [], nextCursor: 'c1' })
-    const result = await new ProcessService(transport.object, 'sbx').run('sleep 1', { timeout: 5000 })
+    const result = await new ProcessService(INTERNAL, transport.object, 'sbx').run('sleep 1', { timeoutSeconds: 5 })
     const waitUrl = String(transport.get.mock.calls[0]?.[0])
     expect(waitUrl).toMatch(/^\/processes\/p\/wait\?timeoutMs=/)
     const asked = Number(new URLSearchParams(waitUrl.split('?')[1]).get('timeoutMs'))
@@ -5735,10 +5766,10 @@ describe('toolbox service request shaping', () => {
       return { id: 'p', state: 'running' }
     })
     transport.get
-      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'partial' }], nextCursor: 'c1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'partial', timestamp: 1 }], nextCursor: 'c1' })
       .mockResolvedValueOnce({ frames: [], nextCursor: 'c1' })
 
-    const runPromise = new ProcessService(transport.object, 'sbx').run('sleep 1', { timeout: 1 })
+    const runPromise = new ProcessService(INTERNAL, transport.object, 'sbx').run('sleep 1', { timeoutSeconds: 0.001 })
     await jest.advanceTimersByTimeAsync(1)
 
     await expect(runPromise).resolves.toMatchObject({ reason: 'timed_out', stdout: 'partial', output: 'partial' })
@@ -5966,7 +5997,7 @@ describe('toolbox service request shaping', () => {
 
     try {
       const transport = new HttpTransport('http://toolbox.invalid', undefined, 50, { authProvider })
-      const fs = new FileSystemService(transport)
+      const fs = new FileSystemService(INTERNAL, transport)
       await fs.uploadFile(localPath, '/remote/refresh.txt', {
         onProgress: (bytes, total) => {
           progress.push([bytes, total])
@@ -6217,7 +6248,7 @@ describe('toolbox service request shaping', () => {
   it('omits PTY shellCommand for default-shell PTYs', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValue({ id: 'p' })
-    await new PtyService(new ProcessService(transport.object, 'sbx')).start()
+    await new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object).start()
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ kind: 'pty' })
     expect(transport.post.mock.calls[0]?.[1]).not.toHaveProperty('shellCommand')
   })
@@ -6225,7 +6256,7 @@ describe('toolbox service request shaping', () => {
   it('omits timeoutMs from code process creation', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValue({ id: 'p' })
-    await startProcess(transport.object, 'sbx', { code: 'print(1)', kind: 'code', language: 'python', executionTimeout: 100 })
+    await startProcess(transport.object, 'sbx', { code: 'print(1)', kind: 'code', language: 'python', executionTimeoutSeconds: 0.1 })
     expect(transport.post.mock.calls[0]?.[1]).not.toHaveProperty('timeoutMs')
   })
 
@@ -6234,10 +6265,10 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValue({ id: 'p' })
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'a' }], nextCursor: 'c1' })
-      .mockResolvedValueOnce({ frames: [{ cursor: 'c2', channel: 'stderr', data: 'b' }, { cursor: 'c3', channel: 'stdout', data: 'c' }], nextCursor: 'c3' })
+      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'stdout', data: 'a', timestamp: 1 }], nextCursor: 'c1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: 'c2', channel: 'stderr', data: 'b', timestamp: 1 }, { cursor: 'c3', channel: 'stdout', data: 'c', timestamp: 1 }], nextCursor: 'c3' })
       .mockResolvedValueOnce({ frames: [], nextCursor: 'c2' })
-    const result = await new ProcessService(transport.object, 'sbx').run('echo hi')
+    const result = await new ProcessService(INTERNAL, transport.object, 'sbx').run('echo hi')
     expect(result.stdout).toBe('ac')
     expect(result.stderr).toBe('b')
     expect(result.output).toBe('abc')
@@ -6249,7 +6280,7 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce({ reason: 'timed_out' })
       .mockResolvedValueOnce({ id: 'p', kind: 'code', state: 'running', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-    await expect(new ProcessService(transport.object, 'sbx').connect('p').wait()).resolves.toEqual({ reason: 'exited', rawReason: 'exited', exitCode: 0 })
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').wait()).resolves.toEqual({ reason: 'exited', rawReason: 'exited', exitCode: 0 })
     expect(transport.get.mock.calls.map((call) => call[0])).toEqual(['/processes/p/wait?timeoutMs=0', '/processes/p', '/processes/p/wait?timeoutMs=0'])
   })
 
@@ -6258,7 +6289,7 @@ describe('toolbox service request shaping', () => {
     for (let i = 0; i <= WAIT_TRANSPORT_RETRY_LIMIT; i++) {
       transport.get.mockResolvedValueOnce({ reason: 'timed_out' }).mockRejectedValueOnce(new ConnectionError('reset'))
     }
-    await expect(new ProcessService(transport.object, 'sbx').connect('p').wait()).rejects.toBeInstanceOf(ConnectionError)
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').wait()).rejects.toBeInstanceOf(ConnectionError)
     expect(transport.get).toHaveBeenCalledTimes(2 * (WAIT_TRANSPORT_RETRY_LIMIT + 1))
   })
 
@@ -6269,7 +6300,7 @@ describe('toolbox service request shaping', () => {
       .mockRejectedValueOnce(new ConnectionError('reset'))
       .mockResolvedValueOnce({ reason: 'timed_out' })
       .mockResolvedValueOnce({ id: 'p', kind: 'exec', sessionId: 's', state: 'terminal', reason: 'timed_out', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
-    await expect(new ProcessService(transport.object, 'sbx').connect('p').wait()).resolves.toMatchObject({ reason: 'timed_out' })
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').wait()).resolves.toMatchObject({ reason: 'timed_out' })
   })
 
   it('returns a command its own deadline stopped instead of re-polling forever', async () => {
@@ -6278,12 +6309,12 @@ describe('toolbox service request shaping', () => {
     transport.get
       .mockResolvedValueOnce({ reason: 'timed_out' })
       .mockResolvedValueOnce({ id: 'p', kind: 'exec', sessionId: 'shell-1', state: 'terminal', reason: 'timed_out', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
-    await expect(new ProcessService(transport.object, 'sbx').connect('p').wait()).resolves.toEqual({ reason: 'timed_out', rawReason: 'timed_out' })
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').wait()).resolves.toEqual({ reason: 'timed_out', rawReason: 'timed_out' })
     expect(transport.get).toHaveBeenCalledTimes(2)
   })
 
   it('connect() drops a persisted kind this SDK release does not list, like Python from_json()', () => {
-    const service = new ProcessService(transportStub().object, 'sbx')
+    const service = new ProcessService(INTERNAL, transportStub().object, 'sbx')
     const unlisted = JSON.parse('{"sandboxId":"sbx","processId":"p","kind":"sidecar"}') as ProcessHandleJSON
     expect(service.connect(unlisted).kind).toBeUndefined()
     expect(service.connect({ sandboxId: 'sbx', processId: 'p', kind: 'pty' }).kind).toBe('pty')
@@ -6292,29 +6323,42 @@ describe('toolbox service request shaping', () => {
   it('treats a null wait reason like an absent reason', async () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ reason: null, exitCode: null, signal: null })
-    await expect(new ProcessService(transport.object, 'sbx').connect('p').wait()).resolves.toEqual({
-      reason: 'failed',
-      exitCode: undefined,
-      signal: undefined,
+    // Never a fabricated reason: a result without one is `unknown`, with no raw value.
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').wait()).resolves.toStrictEqual({
+      reason: 'unknown',
     })
+  })
+
+  it('never fabricates an exit code or a signal the sandbox did not report', async () => {
+    const transport = transportStub()
+    transport.get
+      .mockResolvedValueOnce({ reason: 'exited' })
+      .mockResolvedValueOnce({ reason: 'signaled' })
+    const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('p')
+    await expect(handle.wait()).resolves.toStrictEqual({ reason: 'exited', rawReason: 'exited' })
+    await expect(handle.wait()).resolves.toStrictEqual({ reason: 'signaled', rawReason: 'signaled' })
   })
 
   it('reads a null process reason as absent, like the Python SDK', async () => {
     const transport = transportStub()
-    transport.get.mockResolvedValueOnce({ id: 'p', kind: 'exec', state: 'running', reason: null, stdin: null, keepLogs: null })
-    const info = await new ProcessService(transport.object, 'sbx').get('p')
+    transport.get.mockResolvedValueOnce(processWire({ id: 'p', reason: null, exitCode: null, signal: 'SIGTERM' }))
+    const info = await new ProcessService(INTERNAL, transport.object, 'sbx').get('p')
     expect(info.reason).toBeUndefined()
     expect(info.rawReason).toBeUndefined()
-    expect(info.stdin).toBeUndefined()
-    expect(info.rawStdin).toBeUndefined()
-    expect(info.keepLogs).toBeUndefined()
-    expect(info.rawKeepLogs).toBeUndefined()
+    expect(info.exitCode).toBeUndefined()
+    expect(info.signal).toBe('TERM')
+  })
+
+  it('rejects a process record missing a contract-required field', async () => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce(processWire({ stdin: null }))
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get('p')).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   it('drops malformed wait fields instead of leaking or throwing on them', async () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ reason: 'lost', exitCode: 'x', signal: 9 })
-    await expect(new ProcessService(transport.object, 'sbx').connect('p').wait()).resolves.toEqual({
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').wait()).resolves.toEqual({
       reason: 'lost',
       rawReason: 'lost',
       exitCode: undefined,
@@ -6322,15 +6366,18 @@ describe('toolbox service request shaping', () => {
     })
   })
 
-  it('keeps file delete non-recursive and applies upload mode with chmod', async () => {
+  it('keeps file delete non-recursive and writes without a mode (chmod is explicit)', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     await fs.remove('/tmp/dir')
     expect(transport.delete.mock.calls[0]?.[1]).toMatchObject({ params: { path: '/tmp/dir' } })
     expect(transport.delete.mock.calls[0]?.[1].params).not.toMatchObject({ recursive: true })
-    await fs.writeText('/tmp/file', 'x', { mode: '0644' })
+    await fs.writeText('/tmp/file', 'x')
     expect(transport.post).toHaveBeenCalledWith('/files/upload', expect.any(FormData), { params: { path: '/tmp/file' }, timeout: 0 })
+    await expect(fs.writeText('/tmp/file', 'x', { mode: '0644' } as unknown as WriteFileOptions)).rejects.toThrow('WriteFileOptions has no option `mode`')
+    await fs.chmod('/tmp/file', { mode: '0644' })
     expect(transport.post).toHaveBeenCalledWith('/files/permissions', undefined, { params: { path: '/tmp/file', mode: '0644', owner: undefined, group: undefined } })
+    expect(transport.post).toHaveBeenCalledTimes(2)
   })
 
   // `POST …/files/sign` answers; the SDK composes its own URL and reads only
@@ -6871,20 +6918,20 @@ describe('toolbox service request shaping', () => {
 
   it('requires git commit identity before posting', async () => {
     const transport = transportStub()
-    await expect(new GitService(transport.object).commit('/repo', 'msg', {} as never)).rejects.toThrow('author and email')
+    await expect(new GitService(INTERNAL, transport.object).commit('/repo', 'msg', {} as never)).rejects.toThrow('author and email')
   })
 
   it('raises BadRequestError for invalid git timeouts', async () => {
     const transport = transportStub()
-    const git = new GitService(transport.object)
+    const git = new GitService(INTERNAL, transport.object)
 
-    await expect(git.pull('/repo', { timeout: Number.NaN })).rejects.toBeInstanceOf(BadRequestError)
-    await expect(git.pull('/repo', { timeout: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(git.pull('/repo', { timeoutSeconds: Number.NaN })).rejects.toBeInstanceOf(BadRequestError)
+    await expect(git.pull('/repo', { timeoutSeconds: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   it('rejects invalid clone depth before posting', async () => {
     const transport = transportStub()
-    const git = new GitService(transport.object)
+    const git = new GitService(INTERNAL, transport.object)
 
     await expect(git.clone('https://example.invalid/repo.git', { path: '/repo', depth: 0 })).rejects.toBeInstanceOf(BadRequestError)
     expect(transport.post).not.toHaveBeenCalled()
@@ -6892,40 +6939,62 @@ describe('toolbox service request shaping', () => {
 
   it('shapes filesystem query params and list-compatible responses', async () => {
     const transport = transportStub()
-    const fs = new FileSystemService(transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
     transport.get
       .mockResolvedValueOnce(new TextEncoder().encode('hello').buffer)
-      .mockResolvedValueOnce([{ name: 'a', path: '/tmp/a' }])
-      .mockResolvedValueOnce({ name: 'a', path: '/tmp/a', isDir: false })
-      .mockResolvedValueOnce({ items: [{ path: '/tmp/a' }], nextCursor: 'n' })
-      .mockResolvedValueOnce([{ name: 'b', path: '/tmp/b' }])
+      .mockResolvedValueOnce([fileInfoWire('a')])
+      .mockResolvedValueOnce(fileInfoWire('a'))
+      .mockResolvedValueOnce({ items: [{ file: '/tmp/a', line: 3, content: 'a needle' }], nextCursor: 'n' })
+      .mockResolvedValueOnce([fileInfoWire('b')])
       .mockResolvedValueOnce({ files: ['/tmp/a'] })
-    transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined).mockResolvedValueOnce([{ file: '/tmp/a', replacements: 1 }])
+    transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined).mockResolvedValueOnce([{ file: '/tmp/a', success: true, error: null }])
 
     await expect(fs.readText('/tmp/a')).resolves.toBe('hello')
     expect(transport.get.mock.calls[0]).toEqual(['/files/download', { params: { path: '/tmp/a' }, responseType: 'arraybuffer', timeout: 0 }])
-    await expect(fs.list('/tmp', { depth: 2 })).resolves.toEqual({ items: [{ name: 'a', path: '/tmp/a' }] })
+    await expect(fs.list('/tmp', { depth: 2 })).resolves.toStrictEqual({ items: [fileInfoWire('a')] })
     expect(transport.get.mock.calls[1]).toEqual(['/files', { params: { path: '/tmp', depth: 2 } }])
     await expect(fs.stat('/tmp/a')).resolves.toMatchObject({ path: '/tmp/a' })
     await fs.mkdir('/tmp/new', { mode: '0700' })
     expect(transport.post.mock.calls[0]).toEqual(['/files/folder', undefined, { params: { path: '/tmp/new', mode: '0700' } }])
     await fs.move('/tmp/a', '/tmp/b')
     expect(transport.post.mock.calls[1]).toEqual(['/files/move', undefined, { params: { source: '/tmp/a', destination: '/tmp/b' } }])
-    await expect(fs.grep('/tmp', 'needle')).resolves.toEqual({ items: [{ path: '/tmp/a' }], nextCursor: 'n' })
-    await expect(fs.list('/tmp/plain')).resolves.toEqual({ items: [{ name: 'b', path: '/tmp/b' }] })
+    await expect(fs.grep('/tmp', 'needle')).resolves.toEqual({ items: [{ file: '/tmp/a', line: 3, content: 'a needle' }], nextCursor: 'n' })
+    await expect(fs.list('/tmp/plain')).resolves.toEqual({ items: [fileInfoWire('b')] })
     expect(transport.get.mock.calls[4]).toEqual(['/files', { params: { path: '/tmp/plain' } }])
     await expect(fs.glob('/tmp', '*.txt')).resolves.toEqual({ items: ['/tmp/a'] })
-    await expect(fs.replace(['/tmp/a'], 'old', 'new')).resolves.toEqual({ items: [{ file: '/tmp/a', replacements: 1 }] })
+    await expect(fs.replace(['/tmp/a'], 'old', 'new')).resolves.toStrictEqual({ items: [{ file: '/tmp/a', success: true }] })
+  })
+
+  it('rejects file metadata missing a contract-required field instead of filling a placeholder', async () => {
+    const transport = transportStub()
+    const fs = new FileSystemService(INTERNAL, transport.object)
+    for (const field of ['path', 'modifiedAt', 'owner', 'group', 'permissions']) {
+      const { [field]: _omitted, ...partial } = fileInfoWire('a')
+      transport.get.mockResolvedValueOnce(partial)
+      await expect(fs.stat('/tmp/a')).rejects.toThrow(`expected file info response: ${field} is required`)
+    }
+    transport.get.mockResolvedValueOnce([{ file: '/tmp/a', content: 'x' }])
+    await expect(fs.grep('/tmp', 'x')).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  it('reads text strictly as UTF-8 and keeps a leading byte-order mark, like the Python SDK', async () => {
+    const transport = transportStub()
+    const fs = new FileSystemService(INTERNAL, transport.object)
+    transport.get
+      .mockResolvedValueOnce(new Uint8Array([0xef, 0xbb, 0xbf, 0x68, 0x69]).buffer)
+      .mockResolvedValueOnce(new Uint8Array([0xff]).buffer)
+    await expect(fs.readText('/tmp/bom')).resolves.toBe('\uFEFFhi')
+    await expect(fs.readText('/tmp/bad')).rejects.toMatchObject({ name: 'TypeError' })
   })
 
   it('shapes git namespace routes and list response variants', async () => {
     const transport = transportStub()
-    const git = new GitService(transport.object)
+    const git = new GitService(INTERNAL, transport.object)
     transport.get
-      .mockResolvedValueOnce({ currentBranch: 'main', files: [] })
+      .mockResolvedValueOnce(gitStatusWire())
       .mockResolvedValueOnce(['main', 'dev'])
-      .mockResolvedValueOnce({ items: [{ hash: 'h', message: 'm' }] })
-    transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce({ hash: 'h' })
+      .mockResolvedValueOnce({ items: [gitCommitWire()] })
+    transport.post.mockImplementation(async (path: string) => (path === '/git/commit' ? { hash: 'h' } : undefined))
 
     await git.clone('https://example.invalid/repo.git', {
       path: '/repo',
@@ -6935,7 +7004,7 @@ describe('toolbox service request shaping', () => {
       insecureSkipTls: true,
       username: 'u',
       password: 'p',
-      timeout: 12_500,
+      timeoutSeconds: 12.5,
     })
     expect(transport.post.mock.calls[0]).toEqual([
       '/git/clone',
@@ -6951,20 +7020,20 @@ describe('toolbox service request shaping', () => {
       },
       { timeout: 12_500 },
     ])
-    await expect(git.status('/repo')).resolves.toMatchObject({ currentBranch: 'main' })
+    await expect(git.status('/repo')).resolves.toStrictEqual(gitStatusWire())
     expect(transport.get.mock.calls[0]).toEqual(['/git/status', { params: { path: '/repo' } }])
     await git.add('/repo', ['README.md'])
     await git.reset('/repo', { mode: 'mixed', target: 'HEAD~1', files: ['README.md'] })
     await git.restore('/repo', ['README.md'], { staged: true, worktree: false, source: 'HEAD' })
     await git.commit('/repo', 'msg', { author: 'A', email: 'a@example.invalid' })
     await expect(git.commit('/repo', 'msg', { author: '   ', email: 'a@example.invalid' })).rejects.toThrow('author and email')
-    await git.pull('/repo', { username: 'u', branch: 'main', remote: 'origin', timeout: 3_000 })
-    await git.push('/repo', { password: 'p', branch: 'release', remote: 'origin', setUpstream: true, timeout: 7_000 })
+    await git.pull('/repo', { username: 'u', branch: 'main', remote: 'origin', timeoutSeconds: 3 })
+    await git.push('/repo', { password: 'p', branch: 'release', remote: 'origin', setUpstream: true, timeoutSeconds: 7 })
     await expect(git.listBranches('/repo')).resolves.toEqual({ items: ['main', 'dev'] })
     await git.createBranch('/repo', 'feature')
     await git.deleteBranch('/repo', 'feature')
     await git.checkoutBranch('/repo', 'main')
-    await expect(git.history('/repo')).resolves.toEqual({ items: [{ hash: 'h', message: 'm' }] })
+    await expect(git.history('/repo')).resolves.toStrictEqual({ items: [gitCommitWire()] })
     expect(transport.post.mock.calls.slice(1)).toEqual([
       ['/git/add', { path: '/repo', files: ['README.md'] }],
       ['/git/reset', { path: '/repo', mode: 'mixed', target: 'HEAD~1', files: ['README.md'] }],
@@ -6980,9 +7049,10 @@ describe('toolbox service request shaping', () => {
 
   it('threads git commit allowEmpty only when enabled', async () => {
     const transport = transportStub()
-    const git = new GitService(transport.object)
+    const git = new GitService(INTERNAL, transport.object)
+    transport.post.mockResolvedValue({ hash: 'h' })
 
-    await git.commit('/repo', 'msg', { author: 'A', email: 'a@example.invalid' })
+    await expect(git.commit('/repo', 'msg', { author: 'A', email: 'a@example.invalid' })).resolves.toStrictEqual({ hash: 'h' })
     await git.commit('/repo', 'msg', { author: 'A', email: 'a@example.invalid', allowEmpty: true })
 
     expect(transport.post.mock.calls).toEqual([
@@ -6993,7 +7063,7 @@ describe('toolbox service request shaping', () => {
 
   it('shapes git init remotes and config routes', async () => {
     const transport = transportStub()
-    const git = new GitService(transport.object)
+    const git = new GitService(INTERNAL, transport.object)
     transport.get
       .mockResolvedValueOnce({ remotes: [{ name: 'origin', url: 'https://example.invalid/repo.git' }] })
       .mockResolvedValueOnce({ value: 'Ada' })
@@ -7024,7 +7094,7 @@ describe('toolbox service request shaping', () => {
 
   it('uses a 30-minute default deadline for remote git operations', async () => {
     const transport = transportStub()
-    const git = new GitService(transport.object)
+    const git = new GitService(INTERNAL, transport.object)
 
     await git.clone('https://example.invalid/repo.git', { path: '/repo' })
     await git.pull('/repo')
@@ -7163,7 +7233,7 @@ describe('toolbox service request shaping', () => {
     }
     toolboxInstance(sandbox).defaults.adapter = async (config) => {
       toolboxAuth.push(responseHeaders(config).get('authorization') ?? '')
-      return { data: { currentBranch: 'main' }, status: 200, statusText: 'OK', headers: {}, config }
+      return { data: gitStatusWire(), status: 200, statusText: 'OK', headers: {}, config }
     }
 
     let resolveExchange: ((response: Response) => void) | undefined
@@ -7180,7 +7250,7 @@ describe('toolbox service request shaping', () => {
       headers: { 'content-type': 'application/json' },
     }))
 
-    await expect(pending).resolves.toEqual([{ id: 'current-key' }, { currentBranch: 'main' }])
+    await expect(pending).resolves.toEqual([{ id: 'current-key' }, gitStatusWire()])
     expect(apiAuth).toEqual(['Bearer platform-1'])
     expect(toolboxAuth).toEqual(['Bearer platform-1'])
   })
@@ -8332,9 +8402,9 @@ describe('toolbox service request shaping', () => {
 
   it('process.run rejects an invalid timeout before issuing any request', async () => {
     const transport = transportStub()
-    const process = new ProcessService(transport.object, 'sbx')
-    await expect(process.run('true', { timeout: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
-    await expect(process.run('true', { timeout: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    await expect(process.run('true', { timeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(process.run('true', { timeoutSeconds: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(transport.post).not.toHaveBeenCalled()
   })
   it.each(['region-a', 'region-b', 'region-c', 'region-d'])('creates in region %s with identical retry bodies and no selector on subsequent reads', async (region) => {
@@ -8536,13 +8606,13 @@ describe('toolbox service request shaping', () => {
     const encoded = 'my%2Fproc%3Fx%23y%21%27%28%29%2A'
     const transport = transportStub()
     transport.get
-      .mockResolvedValueOnce({ id: raw, kind: 'exec', state: 'running' })
+      .mockResolvedValueOnce(processWire({ id: raw }))
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-    const service = new ProcessService(transport.object, 'sbx')
+    const service = new ProcessService(INTERNAL, transport.object, 'sbx')
     const handle = service.connect(raw)
     await handle.get()
-    await handle.wait({ timeout: 1 })
+    await handle.wait({ timeoutSeconds: 0.001 })
     await handle.logs()
     await handle.writeStdin('x')
     await handle.kill()
@@ -8555,8 +8625,8 @@ describe('toolbox service request shaping', () => {
 
   it('process.run refuses to create PTYs and code processes refuse user', async () => {
     const transport = transportStub()
-    const service = new ProcessService(transport.object, 'sbx')
-    await expect(service.run('sh', { kind: 'pty' } as never)).rejects.toMatchObject({ code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
+    const service = new ProcessService(INTERNAL, transport.object, 'sbx')
+    await expect(service.run('sh', { kind: 'pty' } as never)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     await expect(startProcess(transport.object, 'sbx', { code: 'print(1)', kind: 'code', language: 'python', user: 'root' })).rejects.toMatchObject({ code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
     expect(transport.post).not.toHaveBeenCalled()
   })
@@ -8564,10 +8634,10 @@ describe('toolbox service request shaping', () => {
   it('normalises executionTimeout to integer millis and rejects invalid values', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValue({ id: 'p', kind: 'exec', state: 'running' })
-    await startProcess(transport.object, 'sbx', { cmd: 'true', executionTimeout: 1500.4 })
+    await startProcess(transport.object, 'sbx', { cmd: 'true', executionTimeoutSeconds: 1.5004 })
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ timeoutMs: 1501 })
-    await expect(startProcess(transport.object, 'sbx', { cmd: 'true', executionTimeout: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
-    await expect(startProcess(transport.object, 'sbx', { cmd: 'true', executionTimeout: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(startProcess(transport.object, 'sbx', { cmd: 'true', executionTimeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(startProcess(transport.object, 'sbx', { cmd: 'true', executionTimeoutSeconds: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
 
   it('bounds the log snapshot when run() reports timed_out on a still-running process', async () => {
@@ -8581,7 +8651,7 @@ describe('toolbox service request shaping', () => {
       const cursor = Number(new URL(`http://x${path}`).searchParams.get('cursor') ?? '0')
       return { frames: [{ cursor: String(cursor), channel: 'stdout', data: `p${cursor}`, timestamp: 1 }], nextCursor: String(cursor + 1) }
     })
-    const result = await new ProcessService(transport.object, 'sbx').run('yes', { timeout: 10 })
+    const result = await new ProcessService(INTERNAL, transport.object, 'sbx').run('yes', { timeoutSeconds: 0.01 })
     expect(result.reason).toBe('timed_out')
     const logCalls = transport.get.mock.calls.filter((call) => String(call[0]).includes('/logs'))
     expect(logCalls).toHaveLength(TIMED_OUT_LOG_PAGE_LIMIT)
@@ -8590,8 +8660,8 @@ describe('toolbox service request shaping', () => {
 
   it('pty.delete refuses non-pty processes before sending any signal', async () => {
     const transport = transportStub()
-    transport.get.mockResolvedValueOnce({ id: 'p1', kind: 'exec', state: 'running' })
-    const pty = new PtyService(new ProcessService(transport.object, 'sbx'))
+    transport.get.mockResolvedValueOnce(processWire({ id: 'p1' }))
+    const pty = new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object)
     await expect(pty.delete('p1')).rejects.toMatchObject({ code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
     expect(transport.post).not.toHaveBeenCalled()
     expect(transport.delete).not.toHaveBeenCalled()
@@ -8603,8 +8673,8 @@ describe('toolbox service request shaping', () => {
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-    const process = new ProcessService(transport.object, 'sbx')
-    await process.run('true', { timeout: 1500.4 })
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    await process.run('true', { timeoutSeconds: 1.5004 })
     expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=1501&logs=text')
   })
 
@@ -8625,11 +8695,11 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValue({ id: 'proc', kind: 'exec', state: 'running' })
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'out' }], nextCursor: '1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'out', timestamp: 1 }], nextCursor: '1' })
       .mockResolvedValueOnce({ frames: [], nextCursor: '1' })
-    const process = new ProcessService(transport.object, 'sbx')
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
-    await expect(process.run('echo hi', { timeout: 0 })).resolves.toMatchObject({ reason: 'exited', stdout: 'out' })
+    await expect(process.run('echo hi', { timeoutSeconds: 0 })).resolves.toMatchObject({ reason: 'exited', stdout: 'out' })
     expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=0&logs=text')
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ shellCommand: 'echo hi', keepLogs: 'on_exit_ttl' })
     expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 0 })
@@ -8641,9 +8711,9 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValue({ id: 'proc', kind: 'exec', state: 'running' })
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
-      .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'out' }], nextCursor: '1' })
+      .mockResolvedValueOnce({ frames: [{ cursor: '1', channel: 'stdout', data: 'out', timestamp: 1 }], nextCursor: '1' })
       .mockResolvedValueOnce({ frames: [], nextCursor: '1' })
-    const process = new ProcessService(transport.object, 'sbx')
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
     await expect(process.run('echo hi')).resolves.toMatchObject({ reason: 'exited', stdout: 'out' })
     expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=0&logs=text')
@@ -9207,7 +9277,7 @@ describe('forward compatibility: a newer server must not break an older SDK', ()
       brandNewField: { nested: [1, 2] },
     }
     transport.get.mockResolvedValue(dto)
-    const info = await new ProcessService(transport.object, 'sbx').get('p-new')
+    const info = await new ProcessService(INTERNAL, transport.object, 'sbx').get('p-new')
     expect(info.kind).toBe('exec')
     expect(info.rawKind).toBe('exec')
     expect(info.state).toBe('unknown')
@@ -9224,9 +9294,9 @@ describe('forward compatibility: a newer server must not break an older SDK', ()
     const transport = transportStub()
     transport.post.mockResolvedValueOnce({ id: 'proc', kind: 'service' })
     transport.get
-      .mockResolvedValueOnce({ id: 'proc', kind: 'service', state: 'terminal', stdin: 'detached', keepLogs: 'forever' })
+      .mockResolvedValueOnce(processWire({ kind: 'service', state: 'terminal', stdin: 'detached', keepLogs: 'forever' }))
       .mockResolvedValueOnce({ reason: 'evicted', exitCode: 3 })
-    const process = new ProcessService(transport.object, 'sbx')
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
     const handle = await process.start('echo hi')
     expect(handle.kind).toBe('exec')
@@ -9249,7 +9319,7 @@ describe('forward compatibility: a newer server must not break an older SDK', ()
   })
 
   it('keeps public server vocabularies closed with an explicit unknown branch', () => {
-    const info: Pick<ProcessDto, 'state' | 'rawState'> = { state: 'unknown', rawState: 'future_state' }
+    const info: Pick<ProcessInfo, 'state' | 'rawState'> = { state: 'unknown', rawState: 'future_state' }
     // @ts-expect-error public output types reject typos and unlisted literals
     const impossibleComparison = info.state === 'started'
     void impossibleComparison
@@ -10772,6 +10842,42 @@ async function readStreamBytes(stream: ReadableStream<Uint8Array>): Promise<Uint
   return combined
 }
 
+/** A process record with the fields the contract requires, plus `overrides`. */
+function processWire(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'proc', kind: 'exec', state: 'running', cwd: '/', stdin: 'closed', keepLogs: 'on_exit_ttl',
+    createdAt: '2026-01-01T00:00:00Z', truncatedHead: false, ...overrides,
+  }
+}
+
+/** The SDK reading of {@link processWire} (same overrides). */
+function processInfo(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const wire = processWire(overrides)
+  return {
+    id: wire.id, kind: wire.kind, rawKind: wire.kind, state: wire.state, rawState: wire.state,
+    cwd: wire.cwd, stdin: wire.stdin, rawStdin: wire.stdin, keepLogs: wire.keepLogs, rawKeepLogs: wire.keepLogs,
+    createdAt: wire.createdAt, system: false, truncatedHead: false,
+  }
+}
+
+function fileInfoWire(name: string): Record<string, unknown> {
+  return {
+    name, path: `/tmp/${name}`, size: 1, isDir: false, mode: '-rw-r--r--', permissions: '0644',
+    owner: '1000', group: '1000', modifiedAt: '2026-01-01T00:00:00Z', modTime: '2026-01-01 00:00:00 +0000 UTC',
+  }
+}
+
+function gitStatusWire(): Record<string, unknown> {
+  return {
+    currentBranch: 'main', ahead: 1, behind: 0, branchPublished: true,
+    fileStatus: [{ name: 'README.md', staging: 'M', worktree: ' ', extra: '' }],
+  }
+}
+
+function gitCommitWire(): Record<string, unknown> {
+  return { hash: 'h', message: 'm', author: 'A', email: 'a@example.invalid', timestamp: '2026-01-01T00:00:00Z' }
+}
+
 function transportStub() {
   const http = { post: jest.fn().mockResolvedValue({ data: {} }), get: jest.fn() }
   const object = {
@@ -10920,7 +11026,7 @@ describe('toolbox endpoint e2e', () => {
     transport.get.mockResolvedValueOnce({ windows: [{ id: 14680067, title: 'Main', x: 0, y: 0, width: 10, height: 10, isActive: true }] })
     transport.get.mockResolvedValueOnce({ root: { id: '1', role: 'window', name: 'Main', bounds: { x: 0, y: 0, width: 10, height: 10 }, states: ['focused'] }, truncated: false })
     transport.getBytes.mockResolvedValueOnce(new Uint8Array([1, 2, 3]).buffer)
-    const computerUse = new ComputerUseService(transport.computerUseObject)
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
 
     await expect(computerUse.status()).resolves.toEqual({ status: 'active', desktop: 'ready' })
     await expect(computerUse.service.status('wm')).resolves.toEqual({ processName: 'wm', running: true })
@@ -10943,7 +11049,7 @@ describe('toolbox endpoint e2e', () => {
   it('routes screen.screenshot() by region and compression options', async () => {
     const transport = transportStub()
     transport.get.mockResolvedValue({ screenshot: 'abc' })
-    const screen = new ComputerUseService(transport.computerUseObject).screen
+    const screen = new ComputerUseService(INTERNAL, transport.computerUseObject).screen
     const region = { x: 1, y: 2, width: 30, height: 40 }
 
     await screen.screenshot()
@@ -11001,7 +11107,7 @@ describe('toolbox endpoint e2e', () => {
     lspTransport.get
       .mockResolvedValueOnce([{ name: 'main', kind: 12, location: { uri: 'file:///p/a.py', range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } } } }])
       .mockResolvedValueOnce([])
-    const lsp = new LspService(lspTransport.object)
+    const lsp = new LspService(INTERNAL, lspTransport.object)
     const server = await lsp.start('python', '/p')
 
     await server.openDocument('file:///p/a.py')
@@ -11025,7 +11131,7 @@ describe('toolbox endpoint e2e', () => {
     const sandbox = directSandbox(toolboxUrl)
     let result
     try {
-      result = await sandbox.interpreter.run('print(40 + 2)', { language: 'python', timeout: 180_000 })
+      result = await sandbox.interpreter.run('print(40 + 2)', { language: 'python', timeoutSeconds: 180 })
     } catch (error) {
       // Interpreter availability depends on the selected sandbox image.
       if (error instanceof KernelUnavailableError) return
@@ -11036,11 +11142,11 @@ describe('toolbox endpoint e2e', () => {
     expect(result.logs.stdout).toContain('42')
 
     // Implicit-session state persists across one-shot runs.
-    await sandbox.interpreter.run('x = 11', { language: 'python', timeout: 60_000 })
-    const second = await sandbox.interpreter.run('print(x * 4)', { language: 'python', timeout: 60_000 })
+    await sandbox.interpreter.run('x = 11', { language: 'python', timeoutSeconds: 60 })
+    const second = await sandbox.interpreter.run('print(x * 4)', { language: 'python', timeoutSeconds: 60 })
     expect(second.logs.stdout).toContain('44')
 
-    const failed = await sandbox.interpreter.run('1/0', { language: 'python', timeout: 60_000 })
+    const failed = await sandbox.interpreter.run('1/0', { language: 'python', timeoutSeconds: 60 })
     expect(failed.process.exitCode).toBe(1)
     expect(failed.error?.name).toBe('ZeroDivisionError')
   }, 240_000)
@@ -11443,7 +11549,7 @@ describe('computer-use namespace', () => {
 
   it('maps all desktop states and preserves an unknown failure code as unknown plus rawCode', async () => {
     const transport = transportStub()
-    const computerUse = new ComputerUseService(transport.computerUseObject)
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
     const responses = [
       { status: 'inactive', desktop: 'not_started' },
       { status: 'inactive', desktop: 'starting' },
@@ -11485,7 +11591,7 @@ describe('computer-use namespace', () => {
 
   it('posts the desktop restart route and maps its ready response', async () => {
     const transport = transportStub()
-    const computerUse = new ComputerUseService(transport.computerUseObject)
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
     const response = {
       message: 'computer use restarted',
       status: 'active',
@@ -11536,7 +11642,7 @@ describe('computer-use namespace', () => {
   it('posts grouped computer-use controls with exact wire field names', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValueOnce({}).mockResolvedValueOnce({}).mockResolvedValueOnce({ matches: [], truncated: false })
-    const computerUse = new ComputerUseService(transport.computerUseObject)
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
 
     await computerUse.mouse.click({ x: 10, y: 20, button: 'left', double: true })
     await computerUse.keyboard.key({ key: 'K', modifiers: ['ctrl', 'shift'] })
@@ -11557,7 +11663,7 @@ describe('computer-use namespace', () => {
     const plain = { id: 'plain', role: 'button', name: 'Save', bounds, states: [], children: [leaf] }
     transport.get.mockResolvedValueOnce({ root: { id: 'root', role: 'window', name: 'Main', bounds, states: [], children: [cut, plain] }, truncated: false })
     transport.post.mockResolvedValueOnce({ matches: [cut, plain], truncated: true })
-    const computerUse = new ComputerUseService(transport.computerUseObject)
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
 
     const mappedCut = { ...cut, valueTruncated: true }
     const mappedPlain = { ...plain, valueTruncated: false, children: [{ ...leaf, valueTruncated: false }] }
@@ -11709,5 +11815,264 @@ describe('sandbox.docker', () => {
     const docker = new DockerService(transportStub().object)
     await expect(docker.waitUntilReady({ timeout: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     await expect(docker.waitUntilReady({ timeout: Number.NaN })).rejects.toThrow('timeout must be a non-negative finite number')
+  })
+})
+
+// Parity with sdk-python/tests/test_toolbox_surface.py: the toolbox namespaces'
+// public shapes, option validation and watch semantics.
+describe('toolbox surface', () => {
+  function watchStream(transport: ReturnType<typeof transportStub>): ReturnType<typeof controlledSseResponse> {
+    const stream = controlledSseResponse()
+    transport.fetch.mockImplementation(async (_path, init) => {
+      const signal = init?.signal
+      if (signal instanceof AbortSignal) signal.addEventListener('abort', () => stream.close(), { once: true })
+      return stream.response
+    })
+    return stream
+  }
+
+  it('builds toolbox services only through the SDK', () => {
+    const transport = transportStub()
+    const construct = (factory: () => unknown) => expect(factory).toThrow(TypeError)
+    construct(() => new (ProcessService as unknown as new (...args: unknown[]) => unknown)(transport.object, 'sbx'))
+    construct(() => new (FileSystemService as unknown as new (...args: unknown[]) => unknown)(transport.object))
+    construct(() => new (GitService as unknown as new (...args: unknown[]) => unknown)(transport.object))
+    construct(() => new (LspService as unknown as new (...args: unknown[]) => unknown)(transport.object))
+    construct(() => new (InterpreterService as unknown as new (...args: unknown[]) => unknown)(transport.object, 'sbx'))
+    construct(() => new (ComputerUseService as unknown as new (...args: unknown[]) => unknown)(transport.computerUseObject))
+    construct(() => new (ProcessHandle as unknown as new (...args: unknown[]) => unknown)(transport.object, 'sbx', 'p'))
+    expect(Object.keys(publicSdk)).not.toContain('ComputerUseTransport')
+  })
+
+  it('rejects unknown and renamed option keys in every toolbox area before any request', async () => {
+    const transport = transportStub()
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    const pty = new PtyService(INTERNAL, process, transport.object)
+    const fs = new FileSystemService(INTERNAL, transport.object)
+    const git = new GitService(INTERNAL, transport.object)
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
+    const cases: ReadonlyArray<readonly [() => Promise<unknown>, string]> = [
+      [() => process.start('x', { executionTimeout: 1 } as never), 'ProcessStartOptions: `executionTimeout` was renamed to `executionTimeoutSeconds` (seconds)'],
+      [() => process.start({ cmd: 'x', shell: 'bash' } as never), 'ProcessCommand has no option `shell`'],
+      [() => process.list({ cursor: 'x' } as never), 'ProcessListOptions has no option `cursor`'],
+      [() => process.createSession({ timeout: 1 } as never), 'CreateSessionOptions has no option `timeout`'],
+      [() => pty.start('x', { timeout: 1 } as never), 'PtyStartOptions has no option `timeout`'],
+      [() => pty.start('x', { terminal: { cols: 1, rows: 1, depth: 1 } } as never), 'TerminalSize has no option `depth`'],
+      [() => process.connect('p').logs({ follow: true } as never), 'LogsOptions has no option `follow`'],
+      [() => fs.list('/', { recursive: true } as never), 'ListFilesOptions has no option `recursive`'],
+      [() => fs.presignedDownloadUrl('/a', { expiresIn: 1 } as never), 'PresignedUrlOptions has no option `expiresIn`'],
+      [() => fs.watchDir('/', () => undefined, { onEvent: () => undefined } as never), 'WatchDirOptions has no option `onEvent`'],
+      [() => git.clone('u', { path: '/r', timeout: 1 } as never), 'CloneOptions: `timeout` was renamed to `timeoutSeconds` (seconds)'],
+      [() => git.push('/r', { force: true } as never), 'PushOptions has no option `force`'],
+      [() => interpreter.run('1', { timeout: 1 } as never), 'InterpreterRunOptions: `timeout` was renamed to `timeoutSeconds` (seconds)'],
+      [() => interpreter.run('1', { sessionId: 'ctx' } as never), 'InterpreterRunOptions has no option `sessionId`'],
+      [() => interpreter.createContext({ language: 'python', id: 'ctx' } as never), 'InterpreterContextOptions has no option `id`'],
+      [() => interpreter.connectContext('ctx', 'python').run('1', { env: {} } as never), 'InterpreterContextRunOptions has no option `env`'],
+      [() => computerUse.mouse.click({ x: 1, y: 1, clicks: 2 } as never), 'ComputerUseMouseClickRequest has no option `clicks`'],
+      [() => computerUse.screen.screenshot({ region: { x: 0, y: 0, width: 1, height: 1, z: 1 } } as never), 'ComputerUseRegion has no option `z`'],
+    ]
+    for (const [call, message] of cases) await expect(call()).rejects.toThrow(message)
+    expect(transport.post).not.toHaveBeenCalled()
+    expect(transport.get).not.toHaveBeenCalled()
+    expect(transport.fetch).not.toHaveBeenCalled()
+  })
+
+  it('nests the PTY terminal size and defaults it to 80x24', async () => {
+    const transport = transportStub()
+    transport.post.mockResolvedValue({ id: 'p', kind: 'pty' })
+    const pty = new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object)
+    await pty.start(undefined, { user: 'dev', shell: 'zsh', login: true, executionTimeoutSeconds: 2.5 })
+    await pty.start('top', { terminal: { cols: 120, rows: 40 } })
+    expect(transport.post.mock.calls.map((call) => call[1])).toEqual([
+      { kind: 'pty', user: 'dev', shell: 'zsh', login: true, stdin: 'open', timeoutMs: 2500, keepLogs: 'until_cleanup', terminal: { cols: 80, rows: 24 } },
+      { kind: 'pty', shellCommand: 'top', stdin: 'open', keepLogs: 'until_cleanup', terminal: { cols: 120, rows: 40 } },
+    ])
+  })
+
+  it('needs the language to run in a context named by id', async () => {
+    const transport = transportStub()
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    await expect(interpreter.run('1', { context: 'ctx' })).rejects.toThrow('language is required')
+    await expect(interpreter.run('1', { context: { sandboxId: 'sbx', contextId: 'ctx', language: 'python' }, language: 'r' })).rejects.toThrow('does not match')
+    expect(interpreter.connectContext({ sandboxId: 'sbx', contextId: 'ctx', language: 'python' }).toJSON()).toEqual({ sandboxId: 'sbx', contextId: 'ctx', language: 'python' })
+    expect(transport.post).not.toHaveBeenCalled()
+  })
+
+  it('sends an unbounded request timeout for every setup request of an explicitly unbounded run', async () => {
+    const transport = transportStub()
+    transport.post
+      .mockResolvedValueOnce({ id: 'iso' })
+      .mockResolvedValueOnce({ id: 'proc' })
+      .mockResolvedValueOnce({ id: 'proc2' })
+    transport.get
+      .mockResolvedValue({ reason: 'exited', exitCode: 0 })
+    transport.get
+      .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
+      .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
+      .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
+      .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    await interpreter.run('1', { isolated: true, timeoutSeconds: 0 })
+    await interpreter.run('2', { timeoutSeconds: 0 })
+    expect(transport.post.mock.calls[0]?.[0]).toBe('/sessions')
+    expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 0 })
+    expect(transport.post.mock.calls[1]?.[2]).toEqual({ timeout: 0 })
+    expect(transport.post.mock.calls[2]?.[2]).toEqual({ timeout: 0 })
+  })
+
+  it('maps toolbox results to SDK-owned models', async () => {
+    const sandboxMetrics = {
+      timestamp: '2026-01-01T00:00:00Z', cpuCount: 2, cpuUtilization: 0.25, memoryUsageBytes: 1,
+      memoryTotalBytes: 2, diskUsageBytes: 3, diskTotalBytes: 4, extra: true,
+    }
+    const { extra: _extra, ...metrics } = sandboxMetrics
+    const { systemMetricsFromWire } = await import('../src/v2/toolboxModels')
+    expect(systemMetricsFromWire(sandboxMetrics)).toStrictEqual(metrics)
+    expect(() => systemMetricsFromWire({ cpuCount: 2 } as never)).toThrow('expected system metrics')
+  })
+
+  it('returns SDK LSP models and sends a typed completion context', async () => {
+    const transport = transportStub()
+    transport.post
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        isIncomplete: false,
+        items: [
+          { label: 'plain', documentation: 'text', kind: 3, detail: null },
+          { label: 'rich', documentation: { kind: 'markdown', value: '**x**' }, sortText: 'a', unknownKey: 1 },
+        ],
+      })
+    transport.get.mockResolvedValueOnce([{ name: 'f', kind: 12, location: { uri: 'file:///p/a.py', range: { start: { line: 0, character: 1 }, end: { line: 2, character: 3 } } } }])
+    const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
+    await expect(server.completions('file:///p/a.py', { line: 1, character: 2 }, { context: { triggerKind: 2, triggerCharacter: '.' } })).resolves.toStrictEqual({
+      isIncomplete: false,
+      items: [
+        { label: 'plain', kind: 3, documentation: 'text' },
+        { label: 'rich', documentation: { kind: 'markdown', value: '**x**' }, sortText: 'a' },
+      ],
+    })
+    expect(transport.post.mock.calls[1]?.[1]).toMatchObject({ context: { triggerKind: 2, triggerCharacter: '.' } })
+    await expect(server.documentSymbols('file:///p/a.py')).resolves.toStrictEqual([
+      { name: 'f', kind: 12, location: { uri: 'file:///p/a.py', range: { start: { line: 0, character: 1 }, end: { line: 2, character: 3 } } } },
+    ])
+  })
+
+  it('reads null optional computer-use fields as absent and keeps required ones required', async () => {
+    const transport = transportStub()
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
+    transport.get
+      .mockResolvedValueOnce({
+        root: {
+          id: 'r', role: 'window', name: 'w', bounds: { x: 0, y: 0, width: 1, height: 1 }, states: [],
+          description: null, actions: null, value: null, children: null,
+        },
+        truncated: false,
+      })
+      .mockResolvedValueOnce({ screenshot: 'aGk=', sizeBytes: 2, cursorPosition: null })
+      .mockResolvedValueOnce({ id: 'rec', fileName: 'a.mp4', filePath: '/a.mp4', startTime: '2026-01-01T00:00:00Z', status: 'recording', endTime: null, durationSeconds: null, sizeBytes: null })
+      .mockResolvedValueOnce({ wm: { Running: true, Priority: 1, AutoRestart: true, Failed: false, RestartAttempts: 0, RestartBackoffMs: 0, Status: 'running', Pid: null } })
+    await expect(computerUse.a11y.tree({ scope: 'focused' })).resolves.toStrictEqual({
+      root: { id: 'r', role: 'window', name: 'w', bounds: { x: 0, y: 0, width: 1, height: 1 }, states: [], valueTruncated: false },
+      truncated: false,
+    })
+    await expect(computerUse.screen.screenshot()).resolves.toStrictEqual({ screenshot: 'aGk=', sizeBytes: 2 })
+    await expect(computerUse.recording.get('rec')).resolves.toStrictEqual({
+      id: 'rec', fileName: 'a.mp4', filePath: '/a.mp4', startTime: '2026-01-01T00:00:00Z', status: 'recording',
+    })
+    await expect(computerUse.service.status()).resolves.toStrictEqual({
+      wm: { running: true, priority: 1, autoRestart: true, failed: false, restartAttempts: 0, restartBackoffMs: 0, status: 'running' },
+    })
+  })
+
+  it('ends a watch with the error of a failing event callback', async () => {
+    const transport = transportStub()
+    const stream = watchStream(transport)
+    const fs = new FileSystemService(INTERNAL, transport.object)
+    const seen: string[] = []
+    const onExit = jest.fn()
+    const pending = fs.watchDir('/w', (event) => {
+      seen.push(event.name)
+      if (event.name === 'a.txt') throw new Error('boom')
+    }, { onExit })
+    stream.push('event: start\ndata: {}\n\n')
+    const handle = await pending
+    stream.push('event: fs\ndata: {"type":"create","name":"a.txt","isDir":false,"timestamp":1}\n\n')
+    stream.push('event: fs\ndata: {"type":"write","name":"b.txt","isDir":false,"timestamp":2}\n\n')
+    const error = await handle.waitForExit()
+    expect(error).toMatchObject({ message: 'boom' })
+    expect(handle.exitError).toBe(error)
+    expect(onExit).toHaveBeenCalledWith(error)
+    expect(seen).toEqual(['a.txt'])
+    await handle.stop()
+  })
+
+  it('ends a watch with the error of a failing overflow callback and contains onExit failures', async () => {
+    const transport = transportStub()
+    const stream = watchStream(transport)
+    const fs = new FileSystemService(INTERNAL, transport.object)
+    const pending = fs.watchDir('/w', () => undefined, {
+      onOverflow: async () => {
+        throw new Error('overflow boom')
+      },
+      onExit: () => {
+        throw new Error('exit boom')
+      },
+    })
+    stream.push('event: start\ndata: {}\n\n')
+    const handle = await pending
+    stream.push('event: overflow\ndata: {}\n\n')
+    await expect(handle.waitForExit()).resolves.toMatchObject({ message: 'overflow boom' })
+    await expect(handle.stop()).resolves.toBeUndefined()
+  })
+
+  it('returns from an external stop only after the running callback finished', async () => {
+    const transport = transportStub()
+    const stream = watchStream(transport)
+    const fs = new FileSystemService(INTERNAL, transport.object)
+    let release!: () => void
+    const released = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let entered = false
+    let finished = false
+    const pending = fs.watchDir('/w', async () => {
+      entered = true
+      await released
+      finished = true
+    })
+    stream.push('event: start\ndata: {}\n\n')
+    const handle = await pending
+    stream.push('event: fs\ndata: {"type":"create","name":"a.txt","isDir":false,"timestamp":1}\n\n')
+    await flushAsync()
+    expect(entered).toBe(true)
+    let stopped = false
+    const stopping = handle.stop().then(() => {
+      stopped = true
+    })
+    await flushAsync()
+    expect(stopped).toBe(false)
+    release()
+    await stopping
+    expect(finished).toBe(true)
+    expect(handle.exitError).toBeUndefined()
+  })
+
+  it('lets a callback stop its own watch after an await without deadlocking', async () => {
+    const transport = transportStub()
+    const stream = watchStream(transport)
+    const fs = new FileSystemService(INTERNAL, transport.object)
+    let handle: { stop(): Promise<void> } | undefined
+    let done = false
+    const pending = fs.watchDir('/w', async () => {
+      await flushAsync()
+      await handle?.stop()
+      done = true
+    })
+    stream.push('event: start\ndata: {}\n\n')
+    handle = await pending
+    stream.push('event: fs\ndata: {"type":"create","name":"a.txt","isDir":false,"timestamp":7}\n\n')
+    for (let i = 0; i < 5 && !done; i++) await flushAsync()
+    expect(done).toBe(true)
   })
 })

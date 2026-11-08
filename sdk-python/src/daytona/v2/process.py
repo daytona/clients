@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import AsyncIterator, Dict, List, Optional, Sequence, Union
+from typing import AsyncIterator, List, Optional, Sequence, Union
 from urllib.parse import quote
 
 from typing_extensions import assert_never
@@ -37,20 +37,28 @@ from ._transport import AsyncTransport
 from .errors import ClientTimeoutError, ConnectionError, DaytonaError, UnsupportedOperationError, create_error
 from .session import AsyncSession
 from .types import (
+    JsonObject,
     JsonValue,
     KeepLogs,
     ListResult,
     LogEncoding,
     LogFrame,
     LogPage,
-    ProcessHandleRef,
+    ProcessHandleJSON,
     ProcessInfo,
-    ProcessInfoKind,
     ProcessKind,
+    ProcessReportedKind,
     ProcessResult,
+    ProcessSignal,
     ProcessStateFilter,
-    SignalName,
+    RunKeepLogs,
+    SessionJSON,
     StdinMode,
+    StreamLogEofEvent,
+    StreamLogEvent,
+    StreamLogFrameEvent,
+    StreamLogStateEvent,
+    StreamLogWarningEvent,
     TerminalSize,
     WaitResult,
     _is_process_info_kind_known,
@@ -60,6 +68,23 @@ INTERRUPT_GRACE_MS = 10_000
 INTERRUPT_GRACE_SECONDS = INTERRUPT_GRACE_MS / 1000
 INTERRUPT_RETRY_SECONDS = 0.25
 WAIT_TRANSPORT_RETRY_LIMIT = 3
+
+DEFAULT_TERMINAL_SIZE = TerminalSize(cols=80, rows=24)
+
+
+def _run_keep_logs(keep_logs: Optional[RunKeepLogs]) -> RunKeepLogs:
+    if keep_logs is None:
+        return "on_exit_ttl"
+    if keep_logs not in ("on_exit_ttl", "until_cleanup"):
+        raise create_error(
+            f"keep_logs={keep_logs!r} is not supported by run(); use 'on_exit_ttl' or 'until_cleanup' "
+            "(start() accepts 'none')",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return keep_logs
+
 
 # Wait budget for run() when the caller set no process timeout: the server's
 # long-poll cap, after which run() re-issues the wait.
@@ -80,7 +105,7 @@ def _process_kind(value: Optional[str]) -> Optional[ProcessKind]:
     return None
 
 
-def _started_process_kind(reported: ProcessInfoKind, requested: ProcessKind) -> ProcessKind:
+def _started_process_kind(reported: ProcessReportedKind, requested: ProcessKind) -> ProcessKind:
     """The kind a new handle carries. The API reports ``kind`` from an open
     vocabulary and the SDK normalizes an unlisted one to ``"unknown"``; a
     handle's kind gates the pty-only verbs and is serialized, so an unlisted
@@ -112,48 +137,80 @@ async def _all_logs(handle: AsyncProcessHandle, *, max_pages: Optional[int] = No
         cursor = page.next_cursor
 
 
+def _stream_log_event(event: str, payload: JsonObject) -> Optional[StreamLogEvent]:
+    """One SSE event of a followed process log; ``None`` for an event this release ignores."""
+    cursor_value = payload.get("cursor")
+    cursor = cursor_value if isinstance(cursor_value, str) else None
+    if event == "log":
+        return StreamLogFrameEvent(
+            frame=parse_log_page([expect_log_frame_dto(payload)]).items[0], cursor=cursor
+        )
+    if event == "state":
+        return StreamLogStateEvent(result=parse_wait(expect_exit_result(payload)), cursor=cursor)
+    if event == "warning":
+        message = payload.get("message")
+        first_available = payload.get("firstAvailableCursor")
+        return StreamLogWarningEvent(
+            message=message if isinstance(message, str) else "",
+            cursor=cursor,
+            first_available_cursor=first_available if isinstance(first_available, str) else None,
+        )
+    if event == "eof":
+        return StreamLogEofEvent(cursor=cursor)
+    if event == "error":
+        code = payload.get("code")
+        source = payload.get("source")
+        raise create_error(
+            str(payload.get("message") or "process log stream failed"),
+            None,
+            code if isinstance(code, str) else None,
+            source if isinstance(source, str) else "DAYTONA_DAEMON",
+        )
+    return None
+
+
+def _required_id(value: object, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise create_error(
+            f"process handle identity needs a non-empty string {field}", 400, "BAD_REQUEST", "SDK"
+        )
+    return value
+
+
 class AsyncProcessHandle:
-    """Serializable handle for one sandbox process."""
+    """Handle for one sandbox process.
+
+    Returned by ``process.start()`` / ``process.connect()`` and the PTY and
+    session namespaces, never constructed directly. :meth:`to_json` gives a
+    JSON-safe identity that ``sandbox.process.connect()`` accepts on any worker.
+    """
 
     def __init__(
         self,
-        sandbox_id: str,
-        process_id: str,
-        transport: Optional[AsyncTransport] = None,
-        kind: Optional[ProcessKind] = None,
+        _sandbox_id: str,
+        _process_id: str,
+        _transport: Optional[AsyncTransport] = None,
+        _kind: Optional[ProcessKind] = None,
     ) -> None:
-        self.sandbox_id = sandbox_id
-        self.process_id = process_id
-        self.id = process_id
-        self._transport = transport
-        self.kind = kind
+        self.sandbox_id: str = _sandbox_id
+        self.id: str = _process_id
+        self.kind: Optional[ProcessKind] = _kind
+        self._transport = _transport
 
-    def to_json(self) -> Dict[str, str]:
-        """Return a JSON-safe handle identity."""
-        payload = {"sandboxId": self.sandbox_id, "processId": self.process_id}
+    def __repr__(self) -> str:
+        return f"AsyncProcessHandle(sandbox_id={self.sandbox_id!r}, id={self.id!r}, kind={self.kind!r})"
+
+    def to_json(self) -> ProcessHandleJSON:
+        """Return the handle's JSON-safe identity for ``process.connect()``."""
+        payload: ProcessHandleJSON = {"sandboxId": self.sandbox_id, "processId": self.id}
         if self.kind is not None:
             payload["kind"] = self.kind
         return payload
 
-    @classmethod
-    def from_json(cls, value: Mapping[str, str]) -> AsyncProcessHandle:
-        """Rehydrate a handle identity without making a network request."""
-        return cls(value["sandboxId"], value["processId"], kind=_process_kind(value.get("kind")))
-
-    def ref(self) -> ProcessHandleRef:
-        """Return a typed handle identity."""
-        return ProcessHandleRef(self.sandbox_id, self.process_id, self.kind)
-
-    def bind(self, transport: AsyncTransport) -> AsyncProcessHandle:
-        """Return this handle bound to a transport."""
-        return AsyncProcessHandle(self.sandbox_id, self.process_id, transport, self.kind)
-
     async def get(self) -> ProcessInfo:
         """Fetch current process metadata."""
         return parse_process(
-            expect_process_dto(
-                await self._send(RequestSpec("GET", f"/processes/{quote(self.process_id, safe='')}"))
-            )
+            expect_process_dto(await self._send(RequestSpec("GET", f"/processes/{quote(self.id, safe='')}")))
         )
 
     async def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
@@ -180,7 +237,7 @@ class AsyncProcessHandle:
                     expect_exit_result(
                         await self._send(
                             wait_spec(
-                                self.process_id,
+                                self.id,
                                 timeout=remaining_timeout,
                                 unbounded=deadline is None,
                             )
@@ -197,7 +254,7 @@ class AsyncProcessHandle:
                     await self._send(
                         RequestSpec(
                             "GET",
-                            f"/processes/{quote(self.process_id, safe='')}",
+                            f"/processes/{quote(self.id, safe='')}",
                             timeout=None
                             if deadline is None
                             else deadline - _clock.monotonic() + WAIT_READ_SLACK_SECONDS,
@@ -224,56 +281,54 @@ class AsyncProcessHandle:
     ) -> LogPage:
         """Read a cursor-replayable process log page."""
         return parse_log_page(
-            await self._send(
-                logs_spec(self.process_id, cursor=cursor, limit=limit, encoding=encoding, follow=False)
-            )
+            await self._send(logs_spec(self.id, cursor=cursor, limit=limit, encoding=encoding, follow=False))
         )
 
     async def stream_logs(
         self,
         *,
         cursor: Optional[str] = None,
+        limit: Optional[int] = None,
         encoding: LogEncoding = "text",
-    ) -> AsyncIterator[LogFrame]:
-        """Follow process logs with SSE while retaining cursor replay semantics."""
+    ) -> AsyncIterator[StreamLogEvent]:
+        """Follow the process log as it is written, replaying from ``cursor``.
+
+        Yields one :data:`StreamLogEvent` per server event: ``log`` (a frame),
+        ``state`` (the process became terminal), ``warning`` (frames before
+        ``first_available_cursor`` were evicted) and ``eof``. A stream error
+        raises the typed error for its code.
+        """
         transport = self._require_transport()
         async for event, payload in parse_sse_lines_async(
             transport.stream_lines(
-                logs_spec(self.process_id, cursor=cursor, limit=None, encoding=encoding, follow=True)
+                logs_spec(self.id, cursor=cursor, limit=limit, encoding=encoding, follow=True)
             )
         ):
-            if event == "log":
-                yield parse_log_page([expect_log_frame_dto(payload)]).items[0]
-            if event == "error":
-                code = payload.get("code")
-                raise create_error(
-                    str(payload.get("message") or "SSE error"),
-                    None,
-                    str(code) if isinstance(code, str) else None,
-                    "DAYTONA_DAEMON",
-                )
+            parsed = _stream_log_event(event, payload)
+            if parsed is not None:
+                yield parsed
 
     async def write_stdin(self, data: Union[str, bytes]) -> None:
         """Write to the stdin of an exec or PTY process created with stdin='open'."""
         self._require_stdin_kind("write_stdin")
-        await self._send(stdin_spec(self.process_id, data, eof=False))
+        await self._send(stdin_spec(self.id, data, eof=False))
 
     async def close_stdin(self) -> None:
         """Close the stdin of an exec or PTY process (EOF)."""
         self._require_stdin_kind("close_stdin")
-        await self._send(stdin_spec(self.process_id, "", eof=True))
+        await self._send(stdin_spec(self.id, "", eof=True))
 
     async def kill(
         self,
         *,
-        signal: SignalName = "TERM",
+        signal: ProcessSignal = "TERM",
         escalate_after: Optional[float] = None,
-        escalate_to: SignalName = "KILL",
+        escalate_to: ProcessSignal = "KILL",
     ) -> None:
         """Send a signal and optional escalation signal."""
         await self._send(
             signal_spec(
-                self.process_id,
+                self.id,
                 signal=signal,
                 escalate_after_ms=timeout_millis_from_seconds(escalate_after),
                 escalate_to=escalate_to,
@@ -283,7 +338,7 @@ class AsyncProcessHandle:
     async def resize(self, cols: int, rows: int) -> None:
         """Resize a PTY process."""
         self._require_pty_kind("resize")
-        await self._send(resize_spec(self.process_id, cols=cols, rows=rows))
+        await self._send(resize_spec(self.id, cols=cols, rows=rows))
 
     async def delete(self) -> None:
         """Delete the process record and retained logs, stopping it first.
@@ -291,7 +346,7 @@ class AsyncProcessHandle:
         Raises ``UnsupportedOperationError`` for a running code cell and for a
         session command that has not stopped within 5 s: delete its session.
         """
-        await self._send(delete_process_spec(self.process_id))
+        await self._send(delete_process_spec(self.id))
 
     async def _send(self, spec: RequestSpec) -> JsonValue | bytes:
         return await self._require_transport().send(spec)
@@ -365,15 +420,15 @@ class AsyncProcessService:
 
     def __init__(
         self,
-        sandbox_id: str,
-        transport: AsyncTransport,
-        language: Optional[str] = None,
+        _sandbox_id: str,
+        _transport: AsyncTransport,
+        _language: Optional[str] = None,
         *,
         _session_id: Optional[str] = None,
     ) -> None:
-        self._sandbox_id = sandbox_id
-        self._transport = transport
-        self._language = language
+        self._sandbox_id = _sandbox_id
+        self._transport = _transport
+        self._language = _language
         self._session_id = _session_id
 
     async def create_session(
@@ -400,13 +455,13 @@ class AsyncProcessService:
         )
         return AsyncSession(self._sandbox_id, handle.id, self._transport)
 
-    def connect_session(self, session_id: str | Mapping[str, object]) -> AsyncSession:
-        """Bind a session id or serialized identity without making a request."""
-        match session_id:
+    def connect_session(self, session: str | SessionJSON) -> AsyncSession:
+        """Reconnect a shell session by id or by ``session.to_json()``, without a request."""
+        match session:
             case str():
-                return AsyncSession(self._sandbox_id, session_id, self._transport)
+                return AsyncSession(self._sandbox_id, session, self._transport)
             case Mapping():
-                identity = AsyncSession.from_json(session_id)
+                identity = AsyncSession._from_json(session)
                 if identity.sandbox_id != self._sandbox_id:
                     raise create_error("session belongs to a different sandbox", 400, "BAD_REQUEST", "SDK")
                 return AsyncSession(self._sandbox_id, identity.id, self._transport)
@@ -426,7 +481,6 @@ class AsyncProcessService:
         login: Optional[bool] = None,
         stdin: StdinMode = "closed",
         execution_timeout: Optional[float] = None,
-        terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
     ) -> AsyncProcessHandle:
         """Start a detached process and return a handle immediately.
@@ -470,7 +524,6 @@ class AsyncProcessService:
             login=login,
             stdin=stdin,
             execution_timeout=execution_timeout,
-            terminal=terminal,
             keep_logs=keep_logs,
         )
 
@@ -538,8 +591,7 @@ class AsyncProcessService:
         timeout: Optional[float] = None,
         execution_timeout: Optional[float] = None,
         name: Optional[str] = None,
-        terminal: Optional[TerminalSize] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: Optional[RunKeepLogs] = None,
     ) -> ProcessResult:
         """Start a process, wait for its shell to exit, and collect its output.
 
@@ -576,8 +628,11 @@ class AsyncProcessService:
             ends. Does not kill the process on expiry.
         :param execution_timeout: Server-side deadline in seconds. The sandbox kills
             the process tree when this expires.
+        :param keep_logs: How long the sandbox keeps the process log: ``"on_exit_ttl"``
+            (default) or ``"until_cleanup"``. ``"none"`` is not accepted: the output is
+            read back from the log; use :meth:`start` for a process without one.
         :returns: :class:`~daytona.v2.types.ProcessResult` with ``stdout``, ``stderr``,
-            ``output``, ``exit_code``, and ``reason``.
+            ``output``, ``logs``, ``exit_code``, and ``reason``.
 
         Example::
 
@@ -600,8 +655,8 @@ class AsyncProcessService:
             login=login,
             stdin=stdin,
             execution_timeout=execution_timeout,
-            terminal=terminal,
-            keep_logs="on_exit_ttl" if keep_logs in (None, "none") else keep_logs,
+            terminal=None,
+            keep_logs=_run_keep_logs(keep_logs),
             wait_ms=timeout_millis_from_seconds(timeout)
             if timeout is not None
             else int(RUN_WAIT_SECONDS * 1000),
@@ -632,28 +687,29 @@ class AsyncProcessService:
         stderr = "".join(frame.data for frame in logs if frame.channel == "stderr")
         output = "".join(frame.data for frame in logs if frame.channel in ("stdout", "stderr", "pty"))
         return ProcessResult(
-            handle.id,
-            wait.exit_code,
-            wait.signal,
-            wait.reason,
-            stdout,
-            stderr,
-            output,
+            process_id=handle.id,
+            reason=wait.reason,
+            exit_code=wait.exit_code,
+            signal=wait.signal,
             raw_reason=wait.raw_reason,
+            stdout=stdout,
+            stderr=stderr,
+            output=output,
+            logs=logs,
         )
 
-    def connect(self, process_id: Union[str, Mapping[str, str]]) -> AsyncProcessHandle:
-        """Create a bound process handle without fetching metadata."""
-        if isinstance(process_id, Mapping):
-            if process_id["sandboxId"] != self._sandbox_id:
+    def connect(self, process: Union[str, ProcessHandleJSON]) -> AsyncProcessHandle:
+        """Reconnect a process by id or by ``handle.to_json()``, without a request."""
+        if isinstance(process, Mapping):
+            if _required_id(process.get("sandboxId"), "sandboxId") != self._sandbox_id:
                 raise create_error("process handle belongs to a different sandbox", 400, "BAD_REQUEST", "SDK")
             return AsyncProcessHandle(
                 self._sandbox_id,
-                process_id["processId"],
+                _required_id(process.get("processId"), "processId"),
                 self._transport,
-                _process_kind(process_id.get("kind")),
+                _process_kind(process.get("kind")),
             )
-        return AsyncProcessHandle(self._sandbox_id, process_id, self._transport)
+        return AsyncProcessHandle(self._sandbox_id, _required_id(process, "processId"), self._transport)
 
     async def get(self, process_id: str) -> ProcessInfo:
         """Fetch current process metadata by id or live name alias."""
@@ -680,42 +736,56 @@ class AsyncProcessService:
 
 
 class AsyncPtyService:
-    """PTY convenience namespace."""
+    """PTY namespace: interactive terminals."""
 
-    def __init__(self, process: AsyncProcessService) -> None:
-        self._process = process
+    def __init__(self, _process: AsyncProcessService) -> None:
+        self._process = _process
 
     async def start(
         self,
         command: Optional[str] = None,
         *,
-        cols: int = 80,
-        rows: int = 24,
+        terminal: Optional[TerminalSize] = None,
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
         name: Optional[str] = None,
+        user: Optional[str] = None,
+        shell: Optional[str] = None,
+        login: Optional[bool] = None,
+        stdin: StdinMode = "open",
+        execution_timeout: Optional[float] = None,
+        keep_logs: KeepLogs = "until_cleanup",
     ) -> AsyncProcessHandle:
-        """Start a detached PTY process."""
+        """Start a detached PTY process; without ``command`` it runs the sandbox shell.
+
+        ``terminal`` defaults to 80 columns by 24 rows. ``execution_timeout`` is
+        a server-side deadline in seconds.
+        """
         return await self._process._start_process(
             command,
             kind="pty",
             cwd=cwd,
             env=env,
             name=name,
-            stdin="open",
-            terminal=TerminalSize(cols=cols, rows=rows),
-            keep_logs="until_cleanup",
+            user=user,
+            shell=shell,
+            login=login,
+            stdin=stdin,
+            execution_timeout=execution_timeout,
+            terminal=terminal if terminal is not None else DEFAULT_TERMINAL_SIZE,
+            keep_logs=keep_logs,
         )
 
-    def connect(self, process_id: str) -> AsyncProcessHandle:
-        """Create a bound PTY handle."""
-        return self._process.connect(process_id)
+    def connect(self, process: Union[str, ProcessHandleJSON]) -> AsyncProcessHandle:
+        """Reconnect a PTY by id or by ``handle.to_json()``, without a request."""
+        return self._process.connect(process)
 
     async def list(self) -> ListResult[ProcessInfo]:
         return await self._process.list(kind="pty")
 
-    async def delete(self, process_id: str) -> None:
-        handle = self.connect(process_id)
+    async def delete(self, process: Union[str, ProcessHandleJSON]) -> None:
+        """Stop a PTY and delete it and its log."""
+        handle = self.connect(process)
         # The pty namespace only owns PTYs: refuse to kill an exec/code process by id.
         info = await handle.get()
         if info.kind != "pty":

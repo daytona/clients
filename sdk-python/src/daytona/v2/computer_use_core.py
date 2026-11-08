@@ -36,6 +36,7 @@ from ._gen.toolbox import (
     ComputerUseWindow,
 )
 from ._gen.toolbox import ComputerUseDesktopFailure as ComputerUseDesktopFailureDto
+from ._timestamps import parse_optional_timestamp, parse_timestamp
 from .computer_use_types import (
     ComputerUseA11yFindResult,
     ComputerUseA11yTree,
@@ -451,9 +452,9 @@ def parse_computer_use_recording(payload: ComputerUseRecording) -> ComputerUseRe
         id=payload.id,
         file_name=payload.file_name,
         file_path=payload.file_path,
-        start_time=payload.start_time,
+        start_time=parse_timestamp(payload.start_time, "computer-use recording: startTime"),
         status=payload.status,
-        end_time=payload.end_time,
+        end_time=parse_optional_timestamp(payload.end_time, "computer-use recording: endTime"),
         duration_seconds=payload.duration_seconds,
         size_bytes=payload.size_bytes,
     )

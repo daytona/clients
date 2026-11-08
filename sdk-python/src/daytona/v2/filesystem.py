@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import inspect
 import os
 import secrets
@@ -24,6 +25,7 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
+    TypeGuard,
     TypeVar,
 )
 from urllib.parse import quote
@@ -48,11 +50,13 @@ from .types import (
     BulkReadResult,
     BulkWriteResult,
     FileInfo,
+    FileMatch,
     FilesystemEvent,
     FilesystemEventType,
     JsonObject,
     JsonValue,
     ListResult,
+    ReplaceResult,
     TransferCancelSignal,
     TransferProgressCallback,
 )
@@ -70,9 +74,12 @@ class _LineStream(Protocol):
     async def close(self) -> None: ...
 
 
-_WatchCallback = Callable[[FilesystemEvent], "None | Awaitable[None]"]
-_OverflowCallback = Callable[[], "None | Awaitable[None]"]
-_ExitCallback = Callable[[Exception | None], "None | Awaitable[None]"]
+WatchEventCallback = Callable[[FilesystemEvent], "None | Awaitable[None]"]
+"""``watch_dir()`` event callback; may be a coroutine function."""
+WatchOverflowCallback = Callable[[], "None | Awaitable[None]"]
+"""``watch_dir()`` overflow callback: the sandbox dropped events; may be a coroutine function."""
+WatchExitCallback = Callable[[Optional[Exception]], "None | Awaitable[None]"]
+"""``watch_dir()`` exit callback: ``None`` after ``stop()``, else the error that ended the watch."""
 
 
 async def _invoke(result: None | Awaitable[None]) -> None:
@@ -106,58 +113,36 @@ def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
         raise create_error("filesystem watch event name must be a string", 500, None, "SDK")
     if not isinstance(is_dir, bool):
         raise create_error("filesystem watch event isDir must be a boolean", 500, None, "SDK")
-    if not isinstance(timestamp, int):
+    if not isinstance(timestamp, int) or isinstance(timestamp, bool):
         raise create_error("filesystem watch event timestamp must be an integer", 500, None, "SDK")
-    return FilesystemEvent(type=event_type, name=name, is_dir=is_dir, timestamp=timestamp)
+    return FilesystemEvent(type=event_type, name=name, is_dir=is_dir, timestamp_ms=timestamp)
 
 
 class AsyncWatchHandle:
-    """A running directory watch.
+    """A running directory watch, returned by ``fs.watch_dir()``.
 
-    Single-task, single-loop: the reader is one ``asyncio.Task`` and every
-    method runs on the same loop, so the sync version's five locks collapse to
-    plain attributes. Only the exit event survives, because ``wait_for_exit``
-    genuinely waits.
+    Callbacks run one at a time, in order, and are awaited. A failing event or
+    overflow callback ends the watch: that error becomes :attr:`exit_error`
+    and is passed to ``on_exit``. Never constructed directly.
     """
 
-    def __init__(
-        self,
-        stream: _LineStream,
-        events: asyncio.Queue[FilesystemEvent],
-        on_exit: Optional[_ExitCallback] = None,
-    ) -> None:
-        self._stream = stream
+    def __init__(self, _stream: _LineStream, _on_exit: Optional[WatchExitCallback] = None) -> None:
+        self._stream = _stream
         self._reader: asyncio.Task[None] | None = None
-        self._events = events
-        self._on_exit = on_exit
+        self._on_exit = _on_exit
         self._stopped = False
         self._delivering = False
         self._close_error: Exception | None = None
         self._exited = asyncio.Event()
-        self._overflow_count = 0
         self._exit_error: Exception | None = None
         self._exit_notified = False
-        self._last_callback_error: Exception | None = None
-
-    @property
-    def overflow_count(self) -> int:
-        return self._overflow_count
-
-    def attach_reader(self, reader: asyncio.Task[None]) -> None:
-        self._reader = reader
 
     @property
     def exit_error(self) -> Exception | None:
+        """Why the watch ended: ``None`` while running or after ``stop()``."""
         return self._exit_error
 
-    @property
-    def last_callback_error(self) -> Exception | None:
-        return self._last_callback_error
-
-    def record_callback_error(self, error: Exception) -> None:
-        self._last_callback_error = error
-
-    async def record_exit(self, error: Exception | None) -> None:
+    async def _record_exit(self, error: Exception | None) -> None:
         if self._exit_notified:
             return
         self._exit_notified = True
@@ -167,58 +152,47 @@ class AsyncWatchHandle:
         self._exited.set()
         if self._on_exit is None:
             return
-        try:
+        # An on_exit failure is contained: the watch has already ended.
+        with contextlib.suppress(Exception):
             await _invoke(self._on_exit(self._exit_error))
-        except Exception as exc:
-            self.record_callback_error(exc)
-
-    def record_overflow(self) -> None:
-        self._overflow_count += 1
 
     async def wait_for_exit(self) -> Exception | None:
+        """Wait until the watch ends; returns :attr:`exit_error`."""
         reader = self._reader
         if reader is not None and reader is asyncio.current_task():
             return self.exit_error
         await self._exited.wait()
         return self.exit_error
 
-    def get_new_events(self) -> list[FilesystemEvent]:
-        items: list[FilesystemEvent] = []
-        while True:
-            try:
-                items.append(self._events.get_nowait())
-            except asyncio.QueueEmpty:
-                return items
-
     async def stop(self) -> None:
+        """Stop the watch. Returns once a callback already running has finished.
+
+        A callback may call ``stop()`` on its own watch; that call returns
+        without waiting for itself.
+        """
         if not self._stopped:
             self._stopped = True
-            # Best effort, like the sync version: a stream that fails to close
-            # must not stop us from waiting for the reader and reporting exit —
-            # but the failure is kept so record_exit() can report it.
+            # A stream that fails to close must not stop us from waiting for
+            # the reader; the failure is kept so _record_exit() reports it.
             try:
                 await self._stream.close()
             except Exception as close_error:
                 self._close_error = close_error
         reader = self._reader
         if reader is None:
-            await self.record_exit(None)
+            await self._record_exit(None)
             return
         if reader is asyncio.current_task():
             return
-        # Closing the stream makes the reader's iteration end; wait for it to
-        # observe that and run its own exit path. Wait on the exit EVENT, not
-        # the task: awaiting the task would re-raise a failed reader's own
-        # error out of stop(), which the sync version's join() never did —
-        # that failure is recorded into exit_error and belongs to
-        # wait_for_exit(). The bound guards against a reader stuck in stream
-        # I/O; a callback still running is waited for in full, as the sync
-        # version's delivery lock did, so no delivery is in flight when stop()
-        # returns.
+        # Closing the stream ends the reader's iteration. Wait on the exit
+        # EVENT, not the task, so a reader failure is reported through
+        # exit_error rather than raised here; the bound guards against a
+        # reader stuck in stream I/O. A callback still running is waited for
+        # in full, so no delivery is in flight when stop() returns.
         with contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(self._exited.wait(), timeout=WATCH_STOP_JOIN_TIMEOUT_SECONDS)
-        while self._delivering and not reader.done():
-            await asyncio.sleep(0)
+        if self._delivering and not reader.done():
+            await asyncio.wait({reader})
 
 
 # Server ceiling on a pre-signed file URL's lifetime (7 days). The API rejects
@@ -237,12 +211,12 @@ class AsyncFileSystemService:
 
     def __init__(
         self,
-        transport: AsyncTransport,
+        _transport: AsyncTransport,
         *,
-        file_url_signer: Optional[FileUrlSigner] = None,
+        _file_url_signer: Optional[FileUrlSigner] = None,
     ) -> None:
-        self._transport = transport
-        self._file_url_signer = file_url_signer
+        self._transport = _transport
+        self._file_url_signer = _file_url_signer
 
     async def read_bytes(self, path: str) -> bytes:
         """Read a file as bytes."""
@@ -250,7 +224,11 @@ class AsyncFileSystemService:
         return value
 
     async def read_text(self, path: str) -> str:
-        """Read a UTF-8 text file."""
+        """Read a UTF-8 text file.
+
+        Decoding is strict (invalid UTF-8 raises ``UnicodeDecodeError``) and a
+        leading byte-order mark is kept as ``\\ufeff``.
+        """
         return (await self.read_bytes(path)).decode("utf-8")
 
     async def write_bytes(self, path: str, content: bytes, *, atomic: bool = False) -> None:
@@ -410,7 +388,7 @@ class AsyncFileSystemService:
         raw_items, next_cursor = list_shape(
             await self._transport.send(RequestSpec("GET", "/files", params=params))
         )
-        items = [expect_file_info(item, parent=path) for item in raw_items]
+        items = [expect_file_info(item) for item in raw_items]
         return ListResult(items=items, next_cursor=next_cursor)
 
     async def stat(self, path: str) -> FileInfo:
@@ -435,7 +413,7 @@ class AsyncFileSystemService:
             RequestSpec("POST", "/files/move", params={"source": source, "destination": destination})
         )
 
-    async def grep(self, path: str, pattern: str) -> ListResult:
+    async def grep(self, path: str, pattern: str) -> ListResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
 
         Returns matches with one-based line numbers.
@@ -445,7 +423,7 @@ class AsyncFileSystemService:
                 RequestSpec("GET", "/files/find", params={"path": path, "pattern": pattern})
             )
         )
-        return ListResult(items=items, next_cursor=next_cursor)
+        return ListResult(items=[_file_match(item) for item in items], next_cursor=next_cursor)
 
     async def glob(self, path: str, pattern: str) -> ListResult[str]:
         """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
@@ -460,8 +438,8 @@ class AsyncFileSystemService:
         next_cursor = obj.get("nextCursor") or obj.get("next_cursor")
         return ListResult(items, str(next_cursor) if isinstance(next_cursor, str) else None)
 
-    async def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult:
-        """Replace text in files."""
+    async def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult[ReplaceResult]:
+        """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
         items, next_cursor = list_shape(
             await self._transport.send(
                 RequestSpec(
@@ -471,7 +449,7 @@ class AsyncFileSystemService:
                 )
             )
         )
-        return ListResult(items=items, next_cursor=next_cursor)
+        return ListResult(items=[_replace_result(item) for item in items], next_cursor=next_cursor)
 
     async def chmod(
         self,
@@ -494,17 +472,34 @@ class AsyncFileSystemService:
     async def watch_dir(
         self,
         path: str,
-        on_event: Optional[_WatchCallback] = None,
+        on_event: WatchEventCallback,
         *,
         recursive: bool = False,
-        on_overflow: Optional[_OverflowCallback] = None,
-        on_exit: Optional[_ExitCallback] = None,
+        on_overflow: Optional[WatchOverflowCallback] = None,
+        on_exit: Optional[WatchExitCallback] = None,
     ) -> AsyncWatchHandle:
+        """Watch ``path`` for changes, calling ``on_event`` for each one.
+
+        Returns once the watch is established. Callbacks (plain or coroutine
+        functions) run one at a time, in order. A failing ``on_event`` or
+        ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
+        when the watch ends, and its own failure is ignored.
+        """
         stream = await self._transport.open_stream(_watch_spec(path, recursive=recursive))
-        events: asyncio.Queue[FilesystemEvent] = asyncio.Queue()
-        handle = AsyncWatchHandle(stream, events, on_exit=on_exit)
+        handle = AsyncWatchHandle(stream, on_exit)
         ready = asyncio.Event()
         reader_error: list[Exception] = []
+        callback_error: list[Exception] = []
+
+        async def deliver(callback: Callable[[], None | Awaitable[None]]) -> None:
+            handle._delivering = True
+            try:
+                await _invoke(callback())
+            except Exception as exc:
+                callback_error.append(exc)
+                raise
+            finally:
+                handle._delivering = False
 
         async def read_events() -> None:
             started = False
@@ -519,30 +514,10 @@ class AsyncFileSystemService:
                         continue
                     if event_name == "fs":
                         event = _parse_filesystem_event(payload)
-                        if handle._stopped:
-                            break
-                        events.put_nowait(event)
-                        if on_event is not None:
-                            handle._delivering = True
-                            try:
-                                await _invoke(on_event(event))
-                            except Exception as exc:
-                                handle.record_callback_error(exc)
-                            finally:
-                                handle._delivering = False
+                        await deliver(functools.partial(on_event, event))
                         continue
-                    if event_name == "overflow":
-                        if handle._stopped:
-                            break
-                        handle.record_overflow()
-                        if on_overflow is not None:
-                            handle._delivering = True
-                            try:
-                                await _invoke(on_overflow())
-                            except Exception as exc:
-                                handle.record_callback_error(exc)
-                            finally:
-                                handle._delivering = False
+                    if event_name == "overflow" and on_overflow is not None:
+                        await deliver(on_overflow)
                         continue
                 if started:
                     if not handle._stopped:
@@ -560,20 +535,22 @@ class AsyncFileSystemService:
                     exit_error = exc
                     reader_error.append(exc)
                     ready.set()
-                elif not handle._stopped:
+                elif not handle._stopped or exc in callback_error:
+                    # A failing callback ends the watch with its error, even
+                    # when stop() was called while it ran.
                     exit_error = exc
             finally:
-                # record_exit must run whatever close() does: it is what wakes
+                # _record_exit must run whatever close() does: it is what wakes
                 # wait_for_exit()/stop() and fires on_exit. A close() failure is
                 # the exit error if nothing earlier already was.
                 try:
                     await stream.close()
                 except Exception as close_error:
                     exit_error = exit_error or close_error
-                await handle.record_exit(exit_error)
+                await handle._record_exit(exit_error)
 
         reader = asyncio.ensure_future(read_events())
-        handle.attach_reader(reader)
+        handle._reader = reader
         try:
             await ready.wait()
         except BaseException:
@@ -604,6 +581,32 @@ class AsyncFileSystemService:
         if self._file_url_signer is None:
             raise create_error("filesystem handle has no pre-signed URL signer", 400, "BAD_REQUEST", "SDK")
         return self._file_url_signer
+
+
+def _file_match(item: JsonObject) -> FileMatch:
+    file, line, content = item.get("file"), item.get("line"), item.get("content")
+    if not isinstance(file, str) or not isinstance(content, str) or not _is_int(line):
+        raise create_error(
+            "expected grep match: file, line and content are required", 400, "BAD_REQUEST", "SDK"
+        )
+    return FileMatch(file=file, line=line, content=content)
+
+
+def _replace_result(item: JsonObject) -> ReplaceResult:
+    file, success, error = item.get("file"), item.get("success"), item.get("error")
+    if (
+        not isinstance(file, str)
+        or not isinstance(success, bool)
+        or not (error is None or isinstance(error, str))
+    ):
+        raise create_error(
+            "expected replace result: file and success are required", 400, "BAD_REQUEST", "SDK"
+        )
+    return ReplaceResult(file=file, success=success, error=error)
+
+
+def _is_int(value: object) -> TypeGuard[int]:
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def _expires_unix_seconds(expires_in_seconds: int) -> int:

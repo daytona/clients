@@ -33,9 +33,7 @@ from pydantic import ValidationError
 from ._gen.api import LifecyclePolicy
 from ._gen.toolbox import (
     BranchList,
-    CommitResponse,
     ExitResult,
-    FileInfo,
     IsPortInUseResponse,
     LogFrameDto,
     PortList,
@@ -45,14 +43,26 @@ from ._gen.toolbox import (
     SearchResponse,
     SessionDto,
     SessionListResponse,
-    StatusResponse,
+)
+from ._gen.toolbox import (
+    CommitResponse as CommitResponseModel,
 )
 from ._gen.toolbox import (
     DockerStatus as DockerStatusModel,
 )
 from ._gen.toolbox import (
+    FileInfo as FileInfoModel,
+)
+from ._gen.toolbox import (
+    Metrics as MetricsModel,
+)
+from ._gen.toolbox import (
+    StatusResponse as StatusResponseModel,
+)
+from ._gen.toolbox import (
     TerminalSize as ToolboxTerminalSize,
 )
+from ._timestamps import parse_optional_timestamp, parse_timestamp
 from .errors import DaytonaError, UnsupportedOperationError, create_error
 from .types import (
     DISABLED,
@@ -62,6 +72,10 @@ from .types import (
     BulkWriteFile,
     BulkWriteResult,
     DockerStatus,
+    FileInfo,
+    GitCommitResponse,
+    GitFileStatus,
+    GitStatus,
     Image,
     ImageRef,
     ImageSource,
@@ -84,6 +98,7 @@ from .types import (
     SnapshotKind,
     SnapshotRef,
     StdinMode,
+    SystemMetrics,
     TerminalSize,
     WaitResult,
     _docker_owner_or_unknown,
@@ -447,42 +462,44 @@ def expect_branch_list(value: TransportPayload) -> BranchList:
     return _expect_model_from_dict(value, BranchList, "branch list response", BranchList.from_dict)
 
 
-def expect_commit_response(value: TransportPayload) -> CommitResponse:
-    return _expect_model_from_dict(value, CommitResponse, "commit response", CommitResponse.from_dict)
+def expect_commit_response(value: TransportPayload) -> GitCommitResponse:
+    model = _expect_model_from_dict(
+        value, CommitResponseModel, "commit response", CommitResponseModel.from_dict
+    )
+    return GitCommitResponse(hash=model.hash)
 
 
 def expect_exit_result(value: TransportPayload) -> ExitResult:
     return _expect_model_from_dict(value, ExitResult, "wait result", ExitResult.from_dict)
 
 
-def expect_file_info(value: TransportPayload, *, parent: Optional[str] = None) -> FileInfo:
-    return _expect_model_from_dict(
-        value, FileInfo, "file info response", lambda obj: _file_info_from_wire(obj, parent=parent)
+def expect_file_info(value: TransportPayload) -> FileInfo:
+    model = _expect_model_from_dict(value, FileInfoModel, "file info response", FileInfoModel.from_dict)
+    return FileInfo(
+        name=model.name,
+        path=model.path,
+        size=model.size,
+        is_dir=model.is_dir,
+        mode=model.mode,
+        permissions=model.permissions,
+        owner=model.owner,
+        group=model.group,
+        modified_at=parse_timestamp(model.modified_at, "file info response: modifiedAt"),
+        mod_time=model.mod_time,
     )
 
 
-# Optional file metadata is represented by the empty string when unavailable,
-# never by a value
-# in another field's representation (``mode`` is symbolic, ``permissions``
-# octal; ``modTime`` and ``modifiedAt`` differ in format).
-_OPTIONAL_FILE_INFO_FIELDS = ("modifiedAt", "owner", "group", "permissions")
-
-
-def _file_info_from_wire(obj: JsonObject, *, parent: Optional[str]) -> FileInfo | None:
-    """Parse file information, allowing optional metadata to be unavailable.
-
-    ``path`` is the one field that CAN be derived faithfully: a listing knows
-    the directory it asked for, so ``parent/name`` is the entry's real
-    location. Without a parent (``stat``), a missing path stays empty.
-    """
-    filled = dict(obj)
-    if not filled.get("path"):
-        name = filled.get("name")
-        filled["path"] = f"{parent.rstrip('/')}/{name}" if parent and isinstance(name, str) and name else ""
-    for key in _OPTIONAL_FILE_INFO_FIELDS:
-        if filled.get(key) is None:
-            filled[key] = ""
-    return FileInfo.from_dict(filled)
+def expect_system_metrics(value: TransportPayload) -> SystemMetrics:
+    model = _expect_model_from_dict(value, MetricsModel, "system metrics", MetricsModel.from_dict)
+    return SystemMetrics(
+        timestamp=parse_timestamp(model.timestamp, "system metrics: timestamp"),
+        cpu_count=model.cpu_count,
+        cpu_utilization=model.cpu_utilization,
+        memory_usage_bytes=model.memory_usage_bytes,
+        memory_total_bytes=model.memory_total_bytes,
+        disk_usage_bytes=model.disk_usage_bytes,
+        disk_total_bytes=model.disk_total_bytes,
+    )
 
 
 def expect_is_port_in_use_response(value: TransportPayload) -> IsPortInUseResponse:
@@ -547,8 +564,20 @@ def expect_docker_status(value: TransportPayload) -> DockerStatus:
     )
 
 
-def expect_status_response(value: TransportPayload) -> StatusResponse:
-    return _expect_model_from_dict(value, StatusResponse, "git status response", StatusResponse.from_dict)
+def expect_status_response(value: TransportPayload) -> GitStatus:
+    model = _expect_model_from_dict(
+        value, StatusResponseModel, "git status response", StatusResponseModel.from_dict
+    )
+    return GitStatus(
+        current_branch=model.current_branch,
+        ahead=model.ahead,
+        behind=model.behind,
+        branch_published=model.branch_published,
+        file_status=[
+            GitFileStatus(name=item.name, staging=item.staging, worktree=item.worktree, extra=item.extra)
+            for item in model.file_status
+        ],
+    )
 
 
 # Slack added to a bounded long-poll read (/processes?waitMs, /processes/{id}/wait) so the server's long-poll expiry
@@ -661,6 +690,13 @@ def process_create_spec(
     )
 
 
+def bare_signal(signal: Optional[str]) -> Optional[str]:
+    """The SDK spells signals without the wire's ``SIG`` prefix."""
+    if signal is not None and signal.startswith("SIG"):
+        return signal[3:]
+    return signal
+
+
 def parse_process(payload: ProcessDto) -> ProcessInfo:
     raw_kind = enum_str(payload.kind)
     raw_state = enum_str(payload.state)
@@ -669,11 +705,19 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
     raw_reason = enum_str(payload.reason) if payload.reason is not None else None
     return ProcessInfo(
         id=payload.id,
+        kind=_process_info_kind_or_unknown(raw_kind),
+        raw_kind=raw_kind,
+        state=_process_state_or_unknown(raw_state),
+        raw_state=raw_state,
+        cwd=payload.cwd,
+        stdin=_process_stdin_mode_or_unknown(raw_stdin),
+        raw_stdin=raw_stdin,
+        keep_logs=_process_keep_logs_or_unknown(raw_keep_logs),
+        raw_keep_logs=raw_keep_logs,
+        created_at=parse_timestamp(payload.created_at, "process response: createdAt"),
+        system=payload.system is True,
         name=payload.name,
         pid=payload.pid,
-        kind=_process_info_kind_or_unknown(raw_kind),
-        state=_process_state_or_unknown(raw_state),
-        system=payload.system is True,
         session_id=payload.session_id,
         shell_command=payload.shell_command,
         argv=payload.argv,
@@ -682,26 +726,18 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         shell=payload.shell,
         resolved_shell=payload.resolved_shell,
         login=payload.login,
-        cwd=payload.cwd,
         user=payload.user,
-        stdin=_process_stdin_mode_or_unknown(raw_stdin),
         execution_timeout=timeout_seconds_from_millis(payload.timeout_ms),
         terminal=_parse_terminal(payload.terminal),
-        keep_logs=_process_keep_logs_or_unknown(raw_keep_logs),
         exit_code=payload.exit_code,
-        signal=payload.signal,
+        signal=bare_signal(payload.signal),
         reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else None,
-        created_at=payload.created_at,
-        started_at=payload.started_at,
-        exited_at=payload.exited_at,
-        truncated_head=payload.truncated_head,
+        raw_reason=raw_reason,
+        started_at=parse_optional_timestamp(payload.started_at, "process response: startedAt"),
+        exited_at=parse_optional_timestamp(payload.exited_at, "process response: exitedAt"),
+        truncated_head=payload.truncated_head is True,
         first_available_cursor=payload.first_available_cursor,
         last_cursor=payload.last_cursor,
-        raw_kind=raw_kind,
-        raw_state=raw_state,
-        raw_stdin=raw_stdin,
-        raw_keep_logs=raw_keep_logs,
-        raw_reason=raw_reason,
     )
 
 
@@ -800,14 +836,11 @@ def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = Fa
 
 
 def parse_wait(payload: WaitPayload) -> WaitResult:
-    signal = payload.signal
-    if signal is not None and signal.startswith("SIG"):
-        signal = signal[3:]
     raw_reason = enum_str(payload.reason) if payload.reason is not None else None
     return WaitResult(
+        reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else "unknown",
         exit_code=payload.exit_code,
-        signal=signal,
-        reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else None,
+        signal=bare_signal(payload.signal),
         raw_reason=raw_reason,
     )
 
@@ -1329,7 +1362,7 @@ def _parse_log_frame(payload: LogFrameDto) -> LogFrame:
         cursor=payload.cursor,
         channel=payload.channel,
         data=payload.data,
-        timestamp=payload.timestamp,
+        timestamp_ms=payload.timestamp,
     )
 
 

@@ -70,8 +70,8 @@ def _quote_path_segment(value: str) -> str:
 
 
 class AsyncAddonProcessesService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     @overload
     async def status(self) -> dict[str, ComputerUseProcessStatus]: ...
@@ -138,8 +138,8 @@ class AsyncAddonProcessesService:
 
 
 class AsyncMouseService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def position(self) -> ComputerUsePoint:
         return parse_computer_use_point(
@@ -226,8 +226,8 @@ class AsyncMouseService:
 
 
 class AsyncKeyboardService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def type(self, *, text: str, delay: int | None = None) -> None:
         await self._transport.send(
@@ -256,8 +256,8 @@ class AsyncKeyboardService:
 
 
 class AsyncScreenService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def screenshot(
         self,
@@ -295,8 +295,8 @@ class AsyncScreenService:
 
 
 class AsyncDisplayService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def info(self) -> ComputerUseDisplayInfo:
         return ComputerUseDisplayInfo(
@@ -318,8 +318,8 @@ class AsyncDisplayService:
 
 
 class AsyncA11yService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def tree(
         self,
@@ -386,8 +386,8 @@ class AsyncA11yService:
 
 
 class AsyncRecordingService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def start(self, *, label: str | None = None) -> ComputerUseRecording:
         return parse_computer_use_recording(
