@@ -96,12 +96,15 @@ Two rules narrow what that covers:
   - the root client (`Daytona`, Python's `AsyncDaytona`) and Python's
     `DaytonaConfig` (in TypeScript the config is a plain object);
   - the error classes;
-  - in Python, the dataclasses that a public method accepts as an argument
-    or option, such as `Resources`, `VolumeMount` and `ComputerUseRegion`
-    (TypeScript takes plain objects for these).
+  - in Python, the option dataclasses: those a public method accepts as an
+    argument or option and the SDK never returns, such as `Resources`,
+    `VolumeMount`, `TerminalSize` and `ComputerUseRegion` (TypeScript takes
+    plain objects for these).
 
   Every other exported class is built by the SDK: by the client, a service, or
-  a factory such as `ImageBuilder.from_registry(...)`.
+  a factory such as `ImageBuilder.from_registry(...)`. That includes the
+  handles, builders and models a method accepts back after the SDK returned
+  them, such as an interpreter context, an `ImageBuilder` or an `Image`.
 
 - **Generated wire types are never public.** The types generated from the
   contracts under [`contract/`](../contract/) (Python `daytona.v2._gen`,
@@ -172,12 +175,12 @@ The skew is observable: every SDK request carries `X-Daytona-Source` and
 `X-Daytona-SDK-Version` (and `User-Agent: <source>/<version>`), so the API
 can see which SDK version each call came from.
 
-**The API paths a stable 2.x SDK calls stay valid for all of 2.x.** From
-`2.0.0` until `3.0.0`, the API neither removes nor renames a path that any
-stable 2.x SDK release calls (pre-releases may still break, see
-[Pre-stable](#pre-stable-alpha)). An older 2.x SDK outside the window above can
-miss newer behavior, but it does not start failing because an endpoint it uses
-went away.
+**The API operations a stable 2.x SDK calls stay valid for all of 2.x.** From
+`2.0.0` until `3.0.0`, neither the Daytona API nor the toolbox API removes or
+renames an operation (a method and its path) that any stable 2.x SDK release
+calls (pre-releases may still break, see [Pre-stable](#pre-stable-alpha)). An
+older 2.x SDK outside the window above can miss newer behavior, but it does not
+start failing because an operation it uses went away.
 
 ## Supported runtimes
 
@@ -186,17 +189,27 @@ went away.
 | Python `daytona` | Python 3.10 or later (`requires-python = ">=3.10"`) |
 | TypeScript `@daytona/sdk` | Node.js 22.15 or later (`engines.node`) |
 | `daytona` CLI | none: a static binary for Linux, macOS and Windows on amd64 and arm64 |
+| Migration tool, PyPI `daytona-upgrade` | Python 3.9 or later |
+| Migration tool, npm `@daytona/upgrade` | Node.js 20 or later |
 
-A MINOR release may drop a Python or Node.js version that has reached its
-upstream end of life; the changelog announces it. Dropping a runtime version
-that is still supported upstream takes a MAJOR. The floor covers the bundled
-`v0` namespace too: the [v0 pin](#public-api-surface) never moves to a 0.x
-release that needs a newer runtime than the SDK declares.
+The TypeScript SDK also runs in browsers with `WebSocket` and in other
+JavaScript runtimes such as Bun, Deno and edge workers. CI tests them against
+the packed package, but they have no versioned floor.
+
+A runtime version here means a release line: a Python `3.x` version, or a
+Node.js major version. A MINOR release may drop a release line that has reached
+its upstream end of life, or require a later release within a line that upstream
+still supports (for example Node.js 22.15 → 22.18) when a dependency needs it;
+the changelog announces either. Dropping a release line that upstream still
+supports takes a MAJOR. The floor covers the bundled `v0` namespace too: the
+[v0 pin](#public-api-surface) never moves to a 0.x release that needs a newer
+runtime than the SDK declares.
 
 ## The CLI
 
 The `daytona` CLI has no import surface; its stability contract is what
-scripts depend on. Within a major version, these stay compatible:
+scripts depend on. From `2.0.0` on (pre-releases may still break, see
+[Pre-stable](#pre-stable-alpha)), within a major version these stay compatible:
 
 - command paths (`daytona sandbox create`, `daytona volume list`, …);
 - flags: their names, the values they accept, and what they do;
