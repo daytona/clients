@@ -75,3 +75,35 @@ it.each([{ items: [] }, { ports: ['3000'] }, { ports: [3000.5] }])('refuses a po
     await api.close()
   }
 })
+
+describe('account responses', () => {
+  const limits = {
+    sandboxes: { concurrent: { limit: 1, usage: 0 }, total: { limit: null, usage: 0 } },
+    image_builds: { concurrent: { limit: 1, usage: 0 } },
+    storage: { volumes: { limit: 1, usage: 0 }, images: { limit: 1, usage: 0 }, snapshots: { limit: 1, usage: 0 } },
+    secrets_per_project: { limit: 1, usage: 0 }, api_keys_per_project: { limit: 1, usage: 0 }, api_keys_per_organization: { limit: 1, usage: 0 },
+  }
+  it.each([
+    ['audit actions', (client: Daytona) => client.v2.listAuditActions(), { items: [] }, 'missing the targets array'],
+    ['audit actions', (client: Daytona) => client.v2.listAuditActions(), { targets: [{ target_type: 'sandbox' }] }, 'missing the targets.0.actions array'],
+    ['API key', (client: Daytona) => client.v2.currentApiKey(), { id: 'k', project_permissions: [] }, 'missing the context object'],
+    ['project budget', (client: Daytona) => client.v2.getProjectBudget(), [], 'not a JSON object'],
+    ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...limits, storage: { volumes: { limit: 1, usage: 0 } } }, 'missing the storage.images object'],
+    ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...limits, members: 3 }, 'members that is not an object'],
+  ] as const)('refuses a malformed %s response with BadRequestError', async (_name, call, body, message) => {
+    const error = await refusal(body, (client) => call(client))
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(message) })
+  })
+
+  it('reads well-formed organization limits', async () => {
+    const api = await startFakeApi([{ status: 200, body: limits }])
+    const client = clientAt(api.url)
+    try {
+      await expect(client.v2.getLimits({ organizationId: 'org' })).resolves.toMatchObject({ sandboxes: { total: { usage: 0 } } })
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+})

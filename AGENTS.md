@@ -550,7 +550,8 @@ skipping exist only in the TypeScript tool).
   `tests/sdk-raised-errors.test.ts`, holds to a shrinking list); local
   I/O and protocol failures carry the source only. A response that breaks the
   contract is `BadRequestError` 400 `BAD_REQUEST` `SDK` naming the field (the
-  rule; network policy, sandbox secrets, sandbox objects and list pages follow it; known
+  rule; network policy, sandbox secrets, sandbox objects, list pages and the
+  account responses follow it; known
   exceptions at this point, which still raise `InternalServerError` 500 with
   no code: the computer-use status mappers, and the filesystem signed URL and
   watch events, until their areas adopt it). Python callers should not star-import
