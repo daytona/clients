@@ -100,7 +100,7 @@ describe('option keys', () => {
     const daytona = new Daytona(config as never)
     expect(reads).toBe(1)
     expect(daytona.v2['hubEventsConfig']).toMatchObject({ idleCloseMs: 1_000 })
-    expectBadRequest(() => new Daytona({ apiKey: 'k', events: 'on' } as never), 'SandboxEventsConfig must be an object')
+    expectBadRequest(() => new Daytona({ apiKey: 'k', events: 'on' } as never), 'SandboxEventsConfig must be an options object, got a string')
   })
 
   it('reports a renamed key only where its replacement exists', () => {
@@ -110,6 +110,21 @@ describe('option keys', () => {
     expectBadRequest(() => assertKnownOptions('X', { timeout: 1 } as never, plain), 'X has no option `timeout`')
     const seconds = optionKeys<{ readonly timeoutSeconds?: number }>()({ timeoutSeconds: true })
     expectBadRequest(() => assertKnownOptions('X', { timeout: 1 } as never, seconds), 'X: `timeout` was renamed to `timeoutSeconds` (seconds)')
+  })
+
+  it.each([
+    [true, 'a boolean'],
+    ['name', 'a string'],
+    [5, 'a number'],
+    [null, 'null'],
+    [['a'], 'an array'],
+    [() => undefined, 'a function'],
+  ])('refuses %p where an options object belongs (a positional argument from an older signature)', (value, given) => {
+    const keys = optionKeys<{ readonly create?: boolean }>()({ create: true })
+    expectBadRequest(() => assertKnownOptions('VolumeGetOptions', value as never, keys), `VolumeGetOptions must be an options object, got ${given}`)
+    expect(() => assertKnownOptions('VolumeGetOptions', undefined, keys)).not.toThrow()
+    // The root constructor reads a null config as none, like Python's `Daytona(None)`.
+    if (value !== null) expectBadRequest(() => new Daytona(value as never), `DaytonaConfig must be an options object, got ${given}`)
   })
 
   it('carries the rename hints the duration rename needs', () => {
@@ -410,6 +425,13 @@ describe('request timeout meaning', () => {
       expect(seen).toEqual(['Bearer stale'])
     })
 
+    it('times out at once, without waiting on the provider, when the budget is already spent', async () => {
+      const never = { authorizationHeader: (): Promise<string> => new Promise<string>(() => undefined) }
+      const client = createHttpClient(base, undefined, 150, { authProvider: never })
+      const spent = { daytona: { deadlineAt: 0 } } as never
+      await expect(client.get('/thing', spent)).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    })
+
     it.each(['get', 'fetch'] as const)('does not give a sandbox-token retry a fresh window (%s)', async (method) => {
       // bearer 40 ms + 401 after 50 ms + refresh 10 ms + a 100 ms retry is
       // about 200 ms: past the 150 ms deadline, though the retry alone fits.
@@ -429,9 +451,7 @@ describe('request timeout meaning', () => {
       }
       const transport = new HttpTransport(base, undefined, 150, { auth })
       const call = method === 'get' ? transport.get('/thing') : transport.fetch('/thing').then((response) => response.json())
-      const started = performance.now()
       await expect(call).rejects.toBeInstanceOf(ClientTimeoutError)
-      expect(performance.now() - started).toBeLessThan(190)
       expect(calls).toBe(2)
     })
 

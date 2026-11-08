@@ -475,7 +475,8 @@ skipping exist only in the TypeScript tool).
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
   `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
-  above 2,147,483 s (the longest JavaScript timer), means no limit. It bounds
+  above 2,147,483.647 s (the longest JavaScript timer), means no limit (the
+  events hub's durations clamp to that maximum instead). It bounds
   one ordinary call from sending it to reading the last byte of the response,
   with ONE deadline for the whole call: resolving the bearer (a token
   exchange or sandbox-token mint), the request, a 401 refresh and its retry
@@ -497,7 +498,9 @@ skipping exist only in the TypeScript tool).
   list misses a key of `T` or names one `T` lacks), and its entry point calls
   `assertKnownOptions('TypeName', options, KEYS)` (or `snapshotOptions`, which
   also copies it), which throws `BadRequestError` (400, `BAD_REQUEST`, source
-  `SDK`) naming the key; inherited enumerable keys count. A key in
+  `SDK`) naming the key; inherited enumerable keys count, and a value that is
+  not an options object (`null`, a boolean, an array: an older positional
+  argument) is refused. A key in
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
   `requestTimeout`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
@@ -518,8 +521,9 @@ skipping exist only in the TypeScript tool).
   `new XError(message, options?: ErrorOptions)`, Python
   `XError(message, *, status_code=None, code=None, source=None, ...)`, with the
   same defaults (`TransferCancelledError()` → "file transfer cancelled", 499,
-  `REQUEST_CANCELLED`, `SDK`; `ClientTimeoutError()` → "operation timed out",
-  408, `REQUEST_TIMEOUT`, `SDK`, on every transport path; `ConnectionError`
+  `REQUEST_CANCELLED`, `SDK`; `ClientTimeoutError` → 408, `REQUEST_TIMEOUT`,
+  `SDK` on every transport path, message "operation timed out" by default; a
+  field passed as `None` / `undefined` takes its default; `ConnectionError`
   → source `SDK`). Errors the SDK raises itself carry `source='SDK'`, and the
   catalog's status, code and class where the catalog has one (an invalid
   argument is `BadRequestError` 400 `BAD_REQUEST`; build them with

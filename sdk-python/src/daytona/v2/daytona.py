@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import builtins
+import dataclasses
 import hashlib
 import json
 import math
@@ -1384,14 +1385,36 @@ def _non_negative_seconds(name: str, value: object) -> float | int:
     return value
 
 
+# The events hub's timer ceilings, in seconds, matching the TypeScript SDK:
+# the longest JavaScript timer, and for the reconcile interval that ceiling less
+# its ±10 % jitter. Larger durations clamp to them (unlike the request
+# timeout, where a value above the maximum means no limit).
+_MAX_EVENT_TIMER_SECONDS: Final = 2_147_483.647
+_MAX_RECONCILE_INTERVAL_SECONDS: Final = math.floor(2_147_483_647 / 1.1) / 1000
+
+
 def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[SandboxEventsConfig]:
-    """Validate the events hub durations at construction (``None`` keeps the default)."""
-    if config is not None:
-        for name in ("reconcile_interval", "idle_close"):
-            value = getattr(config, name)
-            if value is not None:
-                _non_negative_seconds(f"events.{name}", value)
-    return config
+    """Validate the events hub durations at construction and clamp oversized ones.
+
+    ``None`` keeps the hub's default for that duration.
+    """
+    if config is None:
+        return config
+    reconcile = _clamped_seconds(
+        "events.reconcile_interval", config.reconcile_interval, _MAX_RECONCILE_INTERVAL_SECONDS
+    )
+    idle = _clamped_seconds("events.idle_close", config.idle_close, _MAX_EVENT_TIMER_SECONDS)
+    if reconcile == config.reconcile_interval and idle == config.idle_close:
+        return config
+    return dataclasses.replace(config, reconcile_interval=reconcile, idle_close=idle)
+
+
+def _clamped_seconds(name: str, value: Optional[float], ceiling: float) -> Optional[float]:
+    """A validated duration, clamped to ``ceiling``; ``None`` stays ``None``."""
+    if value is None:
+        return None
+    seconds = _non_negative_seconds(name, value)
+    return ceiling if seconds > ceiling else value
 
 
 def _env_truthy(env_var: str) -> bool:

@@ -96,7 +96,7 @@ effect on the client. A key the config does not define throws
 `BadRequestError`, and a renamed key names its replacement (`requestTimeout`
 → `requestTimeoutSeconds`; `events.reconcileIntervalMs` /
 `events.idleCloseMs` → `reconcileIntervalSeconds` / `idleCloseSeconds`).
-`requestTimeoutSeconds` (default 60; `0`, or a value above about 24.8 days,
+`requestTimeoutSeconds` (default 60; `0`, or a value above 2,147,483.647 (about 24.8 days),
 means no limit) is the total time one
 ordinary request may take before it throws `ClientTimeoutError`; waits and long
 polls use their own budget, streams are bounded only until their response

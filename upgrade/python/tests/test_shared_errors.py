@@ -114,9 +114,7 @@ def test_cli_moves_provider_when_project_reexports_unused_shared_error(
     assert consumer.read_text() == "from barrel import Failure\n"
 
 
-# Guidance names the root category to import, which the former aliases are not
-# (like the other 0.x-only errors, they get none).
-@pytest.mark.parametrize("name", ROOT_ERRORS)
+@pytest.mark.parametrize("name", ERRORS)
 def test_suggests_root_errors_when_v0_error_is_imported(name: str) -> None:
     # Given a legacy error import, including its local alias.
     source = f"from daytona.v0 import {name} as Failure\n"
@@ -169,9 +167,25 @@ def test_former_root_aliases_are_v0_exports_not_root_names(name: str) -> None:
     assert name in mapping.v0_exports
 
 
-@pytest.mark.parametrize("name", FORMER_ROOT_ALIASES)
-def test_former_root_aliases_get_no_root_import_guidance(name: str) -> None:
-    source = f"from daytona.v0 import {name}\n"
-    result = transform(source, "suggest-v2")
-    assert result.source == source
-    assert result.items == ()
+@pytest.mark.parametrize(
+    ("name", "category"),
+    [
+        ("DaytonaValidationError", "DaytonaBadRequestError"),
+        ("DaytonaAuthorizationError", "DaytonaForbiddenError"),
+    ],
+)
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from daytona.v0 import {name}\n",
+        "import daytona.v0 as sdk\nerror_type = sdk.{name}\n",
+    ],
+)
+def test_former_root_aliases_get_guidance_naming_the_surviving_category(
+    name: str, category: str, source: str
+) -> None:
+    result = transform(source.format(name=name), "suggest-v2")
+    assert result.source.startswith("# daytona-v2:")
+    assert f"{name} is {category} at the root" in result.source
+    assert [item["kind"] for item in result.items] == ["suggestion"]
+    assert f"{name} is {category} at the root" in result.items[0]["message"]

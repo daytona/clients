@@ -14,3 +14,5 @@ stay. The root drops its `DaytonaValidationError` and
 `DaytonaForbiddenError`. Python callers should import the v2 errors by name
 (not `from daytona.v2 import *`): `ConnectionError` and `FileNotFoundError`
 mirror the SDK's categories and shadow the built-ins of the same name.
+The migration tool's `daytona-v2:` note on a 0.x import of either former root
+alias names the root category to catch instead.

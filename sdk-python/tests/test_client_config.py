@@ -328,3 +328,16 @@ async def test_the_hub_auth_keeps_the_client_request_timeout() -> None:
         assert hub._api._auth._request_timeout == 7
     finally:
         await client.close()
+
+
+@pytest.mark.parametrize("huge", [10**400, 1e300, 3_000_000.0])
+def test_oversized_events_durations_clamp_to_the_timer_maximum_like_typescript(huge: float) -> None:
+    from daytona.v2 import SandboxEventsConfig
+
+    v2 = _v2(DaytonaConfig(api_key="k", events=SandboxEventsConfig(reconcile_interval=huge, idle_close=huge)))
+    events = v2._hub_events_config  # type: ignore[attr-defined]
+    # The TypeScript hub's ceilings: Math.floor(2**31 - 1) / 1.1 ms and 2**31 - 1 ms.
+    assert events.reconcile_interval == 1_952_257.86
+    assert events.idle_close == 2_147_483.647
+    small = _v2(DaytonaConfig(api_key="k", events=SandboxEventsConfig(reconcile_interval=5, idle_close=7)))
+    assert (small._hub_events_config.reconcile_interval, small._hub_events_config.idle_close) == (5, 7)  # type: ignore[attr-defined]

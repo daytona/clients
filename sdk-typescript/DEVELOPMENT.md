@@ -179,10 +179,13 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
 - A duration option in seconds that the SDK converts itself (the request
   timeout, the events durations) is validated with `optionalSeconds(name,
   value)` (finite, non-negative) and converted to milliseconds where it is
-  used; a timer delay goes through `boundedTimerDelay` (above
-  `MAX_TIMER_DELAY_MS` means no bound). The toolbox converts its per-call
-  durations with `secondsToMs` (`ProcessWire.ts`) on the same rule. Per-call
-  options of other areas keep their own validation until they move to seconds.
+  used. A request-timeout delay goes through `boundedTimerDelay` (above
+  `MAX_TIMER_DELAY_MS` means no bound); the events hub instead clamps its
+  timer delays to `MAX_TIMER_DELAY_MS` (the reconcile interval to that less
+  its 10 % jitter), and Python clamps the same way. The toolbox converts its
+  per-call durations with `secondsToMs` (`ProcessWire.ts`) on the request
+  timeout's rule (above the maximum means no limit). Per-call options of other
+  areas keep their own validation until their area moves to seconds.
 - A nested options object the SDK keeps (the root's `events`) is copied with
   `snapshotOptions`, so later changes to the caller's object do not reach the
   client.
@@ -201,9 +204,11 @@ from the caller's deadline. File transfers pass `timeout: 0` (axios) or
 are bounded only until their response headers arrive. The Python transport
 implements the same rule (`_request_deadline`, `RequestSpec.transfer`).
 
-The deadline is absolute (`config.daytona.deadlineAt`): the project-token
-exchange runs under the request's signal, a 401 refresh gets only the
-remaining budget, and the retry re-arms the same deadline. `withAuth`
+The deadline is absolute (`config.daytona.deadlineAt`), set once when the
+call starts: waiting for the project token is abortable by the request's
+signal (the shared exchange itself runs on under its own timeout for the
+other requests waiting on it), a 401 refresh gets only the remaining budget,
+and the retry re-arms the same deadline. `withAuth`
 (sandbox tokens) sets `deadlineAt` before minting, and `fetch` bounds the
 bearer and the refresh with the same timeout signal.
 

@@ -86,9 +86,14 @@ it.each(formerRootAliases)('keeps %s a v0 export, not a root name', name => {
   expect(mapping.v0Exports?.ts).toContain(name);
 });
 
-it.each(formerRootAliases)('attaches no root-import guidance to a v0 import of %s', name => {
-  // Guidance names the root category to import, which the former aliases are not.
-  const input = `import { ${name} } from '@daytona/sdk/v0';`;
-  const source = new Project({ useInMemoryFileSystem: true }).createSourceFile('/input.ts', input);
-  expect(suggest(source, mapping, '/').after).toBe(input);
+it.each([
+  ['DaytonaValidationError', 'DaytonaBadRequestError'],
+  ['DaytonaAuthorizationError', 'DaytonaForbiddenError'],
+])('attaches guidance naming the surviving category to a v0 import of %s', (name, category) => {
+  for (const input of [`import { ${name} } from '@daytona/sdk/v0';`, `import * as sdk from '@daytona/sdk/v0'; void sdk.${name};`]) {
+    const source = new Project({ useInMemoryFileSystem: true }).createSourceFile('/input.ts', input);
+    const output = suggest(source, mapping, '/').after;
+    expect(output.match(/\/\/ daytona-v2:/g)).toHaveLength(1);
+    expect(output).toContain(`${name} is ${category} at the root`);
+  }
 });
