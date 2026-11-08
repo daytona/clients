@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import json
 import re
 import subprocess
 import sys
@@ -67,11 +68,26 @@ def test_root_exports_only_clients_config_constants_and_errors() -> None:
     assert DaytonaError is not daytona_v2.DaytonaError
 
 
-@pytest.mark.parametrize("name", ["DaytonaValidationError", "DaytonaAuthorizationError"])
-def test_removed_root_error_synonyms_keep_the_0x_import_guidance(name: str) -> None:
-    # Both were 0.x root names: importing one from the 2.x root names daytona.v0.
-    with pytest.raises(ImportError, match=rf"from daytona\.v0 import {name}"):
+@pytest.mark.parametrize(
+    ("name", "category"),
+    [
+        ("DaytonaValidationError", "DaytonaBadRequestError"),
+        ("DaytonaAuthorizationError", "DaytonaForbiddenError"),
+    ],
+)
+def test_removed_root_error_synonyms_name_the_surviving_category_and_daytona_v0(
+    name: str, category: str
+) -> None:
+    # Both were 0.x root names: the guidance names the root category to catch
+    # (as the migration tool's note does) and the 0.x class in daytona.v0.
+    with pytest.raises(ImportError) as caught:
         getattr(daytona, name)
+    message = str(caught.value)
+    assert f"use the root `{category}`" in message, message
+    assert f"from daytona.v0 import {name}" in message, message
+    assert category in daytona.__all__
+    mapping = json.loads(_UPGRADE_MAPPING.read_text())
+    assert mapping["rootAliasCategories"][name] == category
 
 
 @pytest.mark.parametrize(

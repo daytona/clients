@@ -168,8 +168,9 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
   is in `RENAMED_OPTIONS` and its replacement is a known key of the type, the
   message names it: "`CreateSandboxOptions: \`timeout\` was renamed to
   \`timeoutSeconds\` (seconds)`". The table covers `timeout`,
-  `executionTimeout`, `escalateAfter`, `requestTimeout`, `reconcileIntervalMs`
-  and `idleCloseMs`; add a row when another option is renamed.
+  `executionTimeout`, `escalateAfter`, `requestTimeout`, the 0.x client
+  configuration's `requestTimeoutMs`, `reconcileIntervalMs` and
+  `idleCloseMs`; add a row when another option is renamed.
 - Check the options object itself, and nested SDK-defined option objects
   (the root checks `config.events` as `SandboxEventsConfig`); never a
   pass-through map (`env`, `labels`, request headers).

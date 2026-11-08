@@ -45,14 +45,16 @@ export function optionKeys<T>(): <const D extends OptionKeys<T>>(keys: ExactKeys
 }
 
 /**
- * Options renamed when every SDK duration moved to seconds. An old name that
- * is not a known key of the options type is reported with its replacement.
+ * Options renamed when every SDK duration moved to seconds, and the 0.x
+ * client configuration's `requestTimeoutMs`. An old name that is not a known
+ * key of the options type is reported with its replacement.
  */
 export const RENAMED_OPTIONS: Readonly<Record<string, string>> = Object.freeze({
   timeout: 'timeoutSeconds',
   executionTimeout: 'executionTimeoutSeconds',
   escalateAfter: 'escalateAfterSeconds',
   requestTimeout: 'requestTimeoutSeconds',
+  requestTimeoutMs: 'requestTimeoutSeconds',
   reconcileIntervalMs: 'reconcileIntervalSeconds',
   idleCloseMs: 'idleCloseSeconds',
 })

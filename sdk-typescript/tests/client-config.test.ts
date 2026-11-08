@@ -157,10 +157,18 @@ describe('option keys', () => {
       executionTimeout: 'executionTimeoutSeconds',
       escalateAfter: 'escalateAfterSeconds',
       requestTimeout: 'requestTimeoutSeconds',
+      requestTimeoutMs: 'requestTimeoutSeconds',
       reconcileIntervalMs: 'reconcileIntervalSeconds',
       idleCloseMs: 'idleCloseSeconds',
     })
     expect(Object.isFrozen(RENAMED_OPTIONS)).toBe(true)
+  })
+
+  it('points the 0.x requestTimeoutMs at its replacement', () => {
+    // The only 0.x configuration key with a 2.x replacement (the URL keys have
+    // their own guidance; useDeprecatedPolling and _experimental have none).
+    expectBadRequest(() => new Daytona({ apiKey: 'k', requestTimeoutMs: 5000 } as never), 'DaytonaConfig: `requestTimeoutMs` was renamed to `requestTimeoutSeconds` (seconds)')
+    expectBadRequest(() => new DaytonaV2({ apiKey: 'k', requestTimeoutMs: 5000 } as never), '`requestTimeoutMs` was renamed to `requestTimeoutSeconds` (seconds)')
   })
 
   it('converts the events settings from seconds', () => {

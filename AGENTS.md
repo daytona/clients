@@ -512,7 +512,8 @@ skipping exist only in the TypeScript tool).
   argument; a built-in such as a `Date` or a `Map`) is refused (the root
   constructor alone reads `null` as no configuration, as Python does `None`). A key in
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
-  `requestTimeout`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
+  `requestTimeout`, the 0.x `requestTimeoutMs`, `reconcileIntervalMs`,
+  `idleCloseMs`) whose replacement is
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
