@@ -59,7 +59,8 @@ const outputs = (file) => Object.fromEntries(readFileSync(file, 'utf8').trim().s
 
 // ── gate: versions and channel ────────────────────────────────────────────────
 
-function gateFixture(context, stableReleases) {
+// tags: git tags on an earlier commit (the tags an SDK-only run records).
+function gateFixture(context, stableReleases, tags = []) {
   const root = fixture(context);
   const git = (...args) => {
     const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -67,6 +68,10 @@ function gateFixture(context, stableReleases) {
     return result.stdout.trim();
   };
   git('init', '-q', '-b', 'main');
+  if (tags.length) {
+    git('-c', 'user.email=a@b', '-c', 'user.name=x', 'commit', '-q', '--allow-empty', '-m', 'earlier');
+    for (const tag of tags) git('tag', tag);
+  }
   git('-c', 'user.email=a@b', '-c', 'user.name=x', 'commit', '-q', '--allow-empty', '-m', 'release');
   git('remote', 'add', 'origin', root);
   mkdirSync(join(root, '.publish-tools/scripts'), { recursive: true });
@@ -134,6 +139,32 @@ for (const [title, releases, publishCli, status, message = /must publish the CLI
     if (status === 1 && releases) assert.match(result.stdout, message);
   });
 }
+
+for (const [title, tags, version, status] of [
+  ['a stable version below an SDK-only stable release (a tag, no GitHub Release)', ['v2.1.0'], 'v2.0.5', 1],
+  ['a stable version above an SDK-only stable release', ['v2.1.0'], 'v2.1.1', 0],
+  ['pre-release tags do not count', ['v2.2.0-alpha.1', 'v2.1.0-rc.1'], 'v2.0.5', 0],
+]) {
+  test(`gate: ${title}`, (context) => {
+    // Given: a stable 2.x GitHub Release, and tags an SDK-only run recorded.
+    const { root, sha } = gateFixture(context, ['v2.0.0'], tags);
+    // When
+    const result = run(root, gateScript, { VERSION_INPUT: version, SOURCE_SHA: sha, GITHUB_OUTPUT: join(root, 'output'),
+      PUBLISH_PYPI: 'true', PUBLISH_NPM: 'true', PUBLISH_CLI: 'true', PUBLISH_UPGRADE: 'true' });
+    // Then
+    assert.equal(result.status, status, result.stdout + result.stderr);
+    if (status === 1) assert.match(result.stdout, /below the highest stable 2\.x release v2\.1\.0/);
+  });
+}
+
+test('gate: an SDK-only stable tag does not stand in for the first stable 2.x CLI release', (context) => {
+  // No stable 2.x GitHub Release, only a tag: an SDK-only run is still refused.
+  const { root, sha } = gateFixture(context, ['v0.231.0'], ['v2.0.0']);
+  const result = run(root, gateScript, { VERSION_INPUT: 'v2.0.1', SOURCE_SHA: sha, GITHUB_OUTPUT: join(root, 'output'),
+    PUBLISH_PYPI: 'true', PUBLISH_NPM: 'true', PUBLISH_CLI: 'false', PUBLISH_UPGRADE: 'true' });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /must publish the CLI too/);
+});
 
 test('gate: no input skips the stable-backport refusal', () => {
   // The refusal runs in every mode: the gate step reads no force_republish
@@ -395,14 +426,16 @@ test('CLI release: an unknown channel fails before anything is published', (cont
 // token can list the tap's runs.
 // v0Running / v0ReleaseRunning: the counts of in-progress release/v0
 // sdk_publish.yaml / release.yaml runs successive checks see.
-function homebrewGh(root, { v0Running = ['0'], v0ReleaseRunning = ['0'], before = '0.231.0', formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100 }) {
+// urlRepo: the repository the formula's url lines download from.
+function homebrewGh(root, { v0Running = ['0'], v0ReleaseRunning = ['0'], before = '0.231.0', formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100, urlRepo = 'daytona/clients' }) {
   writeFileSync(join(root, 'v0-running'), v0Running.join('\n'));
   writeFileSync(join(root, 'v0-release-running'), v0ReleaseRunning.join('\n'));
   writeFileSync(join(root, 'formula-versions'), [before].concat(formulaVersion).join('\n'));
   executable(join(root, 'bin/formula'), [
     'v=$(head -n 1 "$ROOT/formula-versions")',
     'if [ "$(wc -l < "$ROOT/formula-versions")" -gt 0 ]; then sed -i 1d "$ROOT/formula-versions"; fi',
-    'printf \'class Daytona < Formula\\n  desc "Daytona CLI"\\n  version "%s"\\nend\\n\' "$v" | base64 -w0',
+    `u='    url "https://github.com/${urlRepo}/releases/download/v#{version}/daytona-'`,
+    'printf \'class Daytona < Formula\\n  desc "Daytona CLI"\\n  version "%s"\\n  if OS.mac?\\n%sdarwin-arm64"\\n  else\\n%slinux-amd64"\\n  end\\nend\\n\' "$v" "$u" "$u" | base64 -w0',
   ].join('\n'));
   // A clock that moves clockStep seconds per read, so deadlines pass without waiting.
   writeFileSync(join(root, 'clock'), '0');
@@ -453,6 +486,7 @@ for (const [title, channel, options, status, waits, message, version = '2.0.0', 
   ['an older alpha leaves a higher alpha formula alone', 'alpha', { before: '2.1.0-alpha.10' }, 0, 0, /above 2\.1\.0-alpha\.9/, '2.1.0-alpha.9', false],
   ['a higher alpha counter moves the formula (numeric, not text, order)', 'alpha', { before: '2.1.0-alpha.9', formulaVersion: '2.1.0-alpha.10' }, 0, 0, undefined, '2.1.0-alpha.10'],
   ['the same version (a resume) is read back, not dispatched', 'stable', { before: '2.0.0', formulaVersion: '2.0.0' }, 0, 0, /already names 2\.0\.0/, '2.0.0', false],
+  ['a formula that downloads from another repository fails the read-back', 'rc', { before: '0.127.0', formulaVersion: '2.0.0', urlRepo: 'daytonaio/daytona' }, 1, 0, /does not download it from daytona\/clients's release: +url "https:\/\/github\.com\/daytonaio\/daytona/],
   ['a formula naming an unknown version fails before dispatching', 'stable', { before: '2.0.0-beta.1' }, 1, 0, /not a release version/, '2.0.0', false],
 ]) {
   test(`Homebrew: ${title}`, (context) => {
@@ -696,3 +730,98 @@ test('Latest is re-pinned after the Homebrew update, for stable releases only', 
   const condition = workflow.split("      - name: Keep GitHub's Latest on the highest stable release\n")[1].split('\n').find((line) => line.trim().startsWith('if:'));
   assert.ok(condition.includes("needs.gate.outputs.channel == 'stable'"), condition);
 });
+
+// ── concurrency: every stable version shares one group ───────────────────────
+
+// Evaluates the workflow's concurrency.group expression for a version input.
+// It may use only inputs.version, string literals, contains / startsWith /
+// format, && and || (GitHub's operators return an operand, like JavaScript's).
+function concurrencyGroup(version) {
+  const line = workflow.split('\nconcurrency:\n')[1].split('\n').find((l) => l.trimStart().startsWith('group:'));
+  const expression = /^\s*group: \$\{\{ (.*) \}\}$/.exec(line)?.[1];
+  assert.ok(expression, `unexpected concurrency group line: ${line}`);
+  const tokens = expression.replace(/'[^']*'/g, '').replace(/\b(contains|startsWith|format)\(|inputs\.version|&&|\|\||[(),\s]/g, '');
+  assert.equal(tokens, '', `unsupported expression: ${expression}`);
+  const ctx = {
+    v: version,
+    contains: (s, x) => s.toLowerCase().includes(x.toLowerCase()),
+    startsWith: (s, x) => s.toLowerCase().startsWith(x.toLowerCase()),
+    format: (f, ...args) => f.replace(/\{(\d+)\}/g, (_, i) => args[Number(i)]),
+  };
+  const js = expression.replace(/\b(contains|startsWith|format)\(/g, 'ctx.$1(').replace(/inputs\.version/g, 'ctx.v');
+  return new Function('ctx', `return (${js});`)(ctx);
+}
+
+test('every stable version shares one concurrency group; pre-releases queue per version', () => {
+  // Given / When
+  const stable = ['v2.0.0', '2.0.1', 'v2.1.0'].map(concurrencyGroup);
+  const rc = ['v2.0.0-rc.2', '2.0.0-rc.2'].map(concurrencyGroup);
+  // Then: stable runs serialize with each other, never with a pre-release.
+  assert.equal(new Set(stable).size, 1, stable.join(', '));
+  assert.ok(stable[0]);
+  assert.deepEqual(rc, ['sdk-publish-v2.0.0-rc.2', 'sdk-publish-v2.0.0-rc.2']);
+  assert.notEqual(concurrencyGroup('v2.0.0-alpha.9'), rc[0]);
+  assert.ok(!rc.includes(stable[0]));
+});
+
+for (const [title, latestPin, expected] of [
+  ['a failed Latest pin shows in the CLI row', 'failure', 'RELEASE PUBLISHED, LATEST PIN FAILED'],
+  ['a pinned Latest leaves the CLI row published', 'success', ':white_check_mark: published'],
+  ['a pre-release (no Latest pin) leaves the CLI row published', 'skipped', ':white_check_mark: published'],
+]) {
+  test(`summary: ${title}`, (context) => {
+    // Given: the CLI release and the Homebrew update succeeded.
+    const root = fixture(context);
+    const summary = join(root, 'summary.md');
+    // When
+    const result = run(root, step('Write run summary'), {
+      GITHUB_STEP_SUMMARY: summary, VERSION: '2.0.0', VERSION_INPUT: 'v2.0.0', CHANNEL: 'stable', HOMEBREW_FORMULA: 'daytona',
+      GATE_RESULT: 'success', REGISTRY_RESULT: 'success', PUBLISH_RESULT: latestPin === 'failure' ? 'failure' : 'success', TAG_RESULT: 'success',
+      CLI_VERSION: '2.0.0', CLI_BUILD: 'success', CLI_PUBLISH: 'success', HOMEBREW_PUBLISH: 'success', LATEST_PIN: latestPin,
+      PYPI_VERSION: '', NPM_VERSION: '', UPGRADE_NPM: '', UPGRADE_PYPI: '', PUBLISH_UPGRADE: 'false', FORCE: 'false',
+      PY_BUILD: 'skipped', NPM_BUILD: 'skipped', UPGRADE_BUILD: 'skipped', SOURCE_REF: 'main', SOURCE_SHA: 'a'.repeat(40),
+      WORKFLOW_REF: 'main', WORKFLOW_SHA: 'b'.repeat(40), ACTOR: 'someone', REPO: 'daytona/clients', SERVER: 'https://github.com' });
+    // Then
+    assert.equal(result.status, latestPin === 'failure' ? 1 : 0, result.stdout + result.stderr);
+    const row = readFileSync(summary, 'utf8').split('\n').find((line) => line.startsWith('| CLI `daytona` |'));
+    assert.ok(row.includes(expected), row);
+  });
+}
+
+// ── prepare-release: only the versions the publish workflow takes ──────────
+
+const prepareStep = (() => {
+  const prepare = readFileSync(join(repoRoot, '.github/workflows/prepare-release.yaml'), 'utf8');
+  const lines = prepare.split('      - name: Validate the version for this line\n')[1].split('        run: |\n')[1].split('\n');
+  const end = lines.findIndex((line) => line.trim() !== '' && !line.startsWith(' '.repeat(10)));
+  return lines.slice(0, end === -1 ? undefined : end).map((line) => line.slice(10)).join('\n');
+})();
+
+for (const [version, tags, status, message] of [
+  ['v2.0.0-rc.1', [], 1, /2\.0\.0-rc\.1 is taken/],
+  ['v2.0.0-rc.2', [], 0],
+  ['v2.0.0-beta.1', [], 1],
+  ['v2.0.0', ['v2.0.0-alpha.8'], 0],
+  ['v2.0.5', ['v2.1.0', 'v2.0.0'], 1, /not above the highest stable 2\.x release v2\.1\.0/],
+  ['v2.1.1', ['v2.1.0', 'v0.300.0'], 0],
+]) {
+  test(`prepare-release: ${version} with tags ${tags.join(', ') || 'none'}`, (context) => {
+    // Given: a checkout with the release helpers and the tags so far.
+    const root = fixture(context);
+    const git = (...args) => assert.equal(spawnSync('git', ['-C', root, ...args]).status, 0);
+    git('init', '-q');
+    git('-c', 'user.email=a@b', '-c', 'user.name=x', 'commit', '-q', '--allow-empty', '-m', 'x');
+    for (const tag of tags) git('tag', tag);
+    mkdirSync(join(root, 'scripts'));
+    for (const script of ['sdk-version.sh', 'release-channel.sh']) {
+      writeFileSync(join(root, 'scripts', script), readFileSync(join(repoRoot, 'scripts', script)));
+      chmodSync(join(root, 'scripts', script), 0o755);
+    }
+    writeFileSync(join(root, 'output'), '');
+    // When
+    const result = run(root, prepareStep, { VERSION_INPUT: version, GITHUB_REF: 'refs/heads/main', GITHUB_OUTPUT: join(root, 'output') });
+    // Then: prepare-release takes what the publish gate takes.
+    assert.equal(result.status, status, result.stdout + result.stderr);
+    if (message) assert.match(result.stdout, message);
+  });
+}

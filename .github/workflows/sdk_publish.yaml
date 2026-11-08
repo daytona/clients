@@ -362,8 +362,10 @@ jobs:
             # highest stable 2.x release (npm `latest`, the `daytona` formula
             # and GitHub's Latest all follow the highest one). The same
             # version is a resume. This holds in every mode: the gate has no
-            # force_republish input.
-            highest=$(grep -E '^v2\.[0-9]+\.[0-9]+$' <<<"$stable" | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 || true)
+            # force_republish input. An SDK-only stable run creates the tag
+            # but no GitHub Release, so the stable v2 tags count too.
+            highest=$({ printf '%s\n' "$stable"; git tag -l 'v2.*'; } | grep -E '^v2\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 || true)
+            stable_release=$(grep -E '^v2\.[0-9]+\.[0-9]+$' <<<"$stable" || true)
             if [ -n "$highest" ] && [ "$highest" != "$version" ] \
               && [ "$(printf '%s\n%s\n' "$highest" "$version" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)" = "$highest" ]; then
               echo "::error::${version} is below the highest stable 2.x release v${highest}: 2.x publishes no stable backports, so fixes ship in a release above v${highest}"
@@ -374,7 +376,7 @@ jobs:
             # (release/v0 checks for a stable 2.x GitHub Release on every
             # run), so it cannot be an SDK-only run: the SDKs would be stable
             # while the 0.x line kept the default CLI channels.
-            if [ -z "$highest" ] && [ "$PUBLISH_CLI" != true ]; then
+            if [ -z "$stable_release" ] && [ "$PUBLISH_CLI" != true ]; then
               echo "::error::${version} is the first stable 2.x release: it must publish the CLI too (publish_cli), which hands the daytona Homebrew formula and the Latest release over from 0.x"
               exit 1
             fi
@@ -978,6 +980,7 @@ jobs:
       upgrade_npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.upgrade_npm_wait.outcome == 'failure' || steps.upgrade_npm_download.outcome == 'failure') && 'failure') || steps.upgrade_npm_publish.outcome }}
       cli: ${{ (steps.cli_download.outcome == 'failure' && 'failure') || steps.cli_release.outcome }}
       homebrew: ${{ steps.homebrew.outcome }}
+      latest: ${{ steps.latest.outcome }}
     env:
       # force_republish, or a re-run of this job ("Re-run failed jobs") after
       # a target half-landed: targets already on their registry are skipped,
@@ -1445,12 +1448,20 @@ jobs:
           fi
           runs_url="https://github.com/${tap}/actions/workflows/${TAP_WORKFLOW}"
           # The formula on the tap's default branch must end up naming this
-          # version: read it back, for up to $1 seconds.
+          # version, and download every asset from this repository's release
+          # of it: read it back, for up to $1 seconds.
           formula_names_version() {
-            local deadline=$(( $(date +%s) + $1 )) formula_version
+            local deadline=$(( $(date +%s) + $1 )) formula formula_version urls foreign
             while :; do
-              formula_version="$(gh api "repos/${tap}/contents/${FORMULA}.rb" --jq .content | base64 -d | sed -n 's/^  version "\(.*\)"$/\1/p' | head -n 1)" || formula_version=""
-              if [ "$formula_version" = "$CLI_VERSION" ]; then echo "${FORMULA} formula: ${formula_version}"; return 0; fi
+              formula="$(gh api "repos/${tap}/contents/${FORMULA}.rb" --jq .content | base64 -d)" || formula=""
+              formula_version="$(sed -n 's/^  version "\(.*\)"$/\1/p' <<<"$formula" | head -n 1)"
+              urls="$(grep -E '^[[:space:]]*url "' <<<"$formula" || true)"
+              foreign="$(grep -vF "url \"https://github.com/${GITHUB_REPOSITORY}/releases/download/v#{version}/" <<<"$urls" || true)"
+              if [ "$formula_version" = "$CLI_VERSION" ]; then
+                if [ -n "$urls" ] && [ -z "$foreign" ]; then echo "${FORMULA} formula: ${formula_version}"; return 0; fi
+                echo "::error::${tap} ${FORMULA}.rb names ${CLI_VERSION} but does not download it from ${GITHUB_REPOSITORY}'s release: ${foreign:-it has no url lines} — the tap's update_sha.sh must rewrite the URLs (merge the tap's 2.x routing change)"
+                return 1
+              fi
               if [ "$(date +%s)" -ge "$deadline" ]; then
                 echo "::error::${tap} ${FORMULA}.rb is at '${formula_version}', not ${CLI_VERSION} — the update failed, or another update landed after it; see $runs_url and re-run this job"
                 return 1
@@ -1611,6 +1622,7 @@ jobs:
           NPM_PUBLISH: ${{ needs.publish.outputs.npm }}
           CLI_PUBLISH: ${{ needs.publish.outputs.cli }}
           HOMEBREW_PUBLISH: ${{ needs.publish.outputs.homebrew }}
+          LATEST_PIN: ${{ needs.publish.outputs.latest }}
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
           CHANNEL: ${{ needs.gate.outputs.channel }}
           HOMEBREW_FORMULA: ${{ needs.gate.outputs.homebrew_formula }}
@@ -1643,6 +1655,7 @@ jobs:
             case "$PUBLISH_RESULT/$3" in
               */success)          echo ":white_check_mark: published" ;;
               */homebrew-failure) echo ":x: RELEASE PUBLISHED, HOMEBREW UPDATE FAILED — see publish job log" ;;
+              */latest-failure)   echo ":x: RELEASE PUBLISHED, LATEST PIN FAILED — re-run the publish job, or mark the highest stable release Latest by hand" ;;
               */failure)          echo ":x: PUBLISH FAILED — see publish job log" ;;
               cancelled/*)        echo ":stop_sign: cancelled" ;;
               skipped/*)          echo ":fast_forward: not published — the publish job did not run (another target's build failed or was cancelled)" ;;
@@ -1650,10 +1663,13 @@ jobs:
               *)                  echo ":grey_question: build=$2 publish=$PUBLISH_RESULT step=${3:-none}" ;;
             esac
           }
-          # The CLI is published by two steps; the row says which one failed.
+          # The CLI is published by up to three steps (release, Homebrew, and
+          # the Latest pin of a stable release); the row says which one failed.
           cli_outcome="$CLI_PUBLISH"
           if [ "$cli_outcome" = success ] && [ "$HOMEBREW_PUBLISH" != success ]; then
             cli_outcome="homebrew-${HOMEBREW_PUBLISH:-none}"
+          elif [ "$cli_outcome" = success ] && [ "$LATEST_PIN" = failure ]; then
+            cli_outcome="latest-failure"
           fi
           row() { printf '| %s | %s | %s | %s | %s |\n' "$1" "${2:-—}" "$3" "$4" "$5"; }
           {
