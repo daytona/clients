@@ -39,7 +39,7 @@ from daytona.v2 import (
 )
 from daytona.v2._core import RequestSpec, expect_system_metrics
 from daytona.v2.computer_use_types import ComputerUseDesktopFailure, ComputerUseScreenshot
-from daytona.v2.errors import BadRequestError, ProcessNotFoundError
+from daytona.v2.errors import BadRequestError, ConnectionError, ProcessNotFoundError
 from daytona.v2.filesystem import AsyncFileSystemService
 from daytona.v2.git import AsyncGitService
 from daytona.v2.interpreter import AsyncInterpreterService
@@ -1132,8 +1132,98 @@ async def test_huge_durations_mean_no_limit_and_never_overflow() -> None:
     await git.pull("/repo", timeout=1e308)
     await git.pull("/repo", timeout=10**400)
     assert all("timeoutMs" not in (spec.json_body or {}) for spec in transport.specs[:2])
+    # The git deadline is the SDK's own: huge values and 0 mean no limit.
+    assert [spec.timeout for spec in transport.specs[2:4]] == [0, 0]
     with pytest.raises(BadRequestError):
-        await git.pull("/repo", timeout=0)
+        await git.pull("/repo", timeout=-1)
+
+
+@pytest.mark.anyio
+async def test_a_git_remote_timeout_of_zero_is_no_limit_like_every_other_timeout() -> None:
+    transport = Transport([{}, {}, {}])
+    git = AsyncGitService(transport)  # type: ignore[arg-type]
+
+    await git.clone("https://example.invalid/r.git", "/r", timeout=0)
+    await git.pull("/r", timeout=0)
+    await git.push("/r", timeout=0)
+
+    assert [spec.timeout for spec in transport.specs] == [0, 0, 0]
+
+
+@pytest.mark.parametrize("argv", ["ls -la", [], ["ls", 5]])
+@pytest.mark.anyio
+async def test_start_refuses_an_argv_that_is_not_a_list_of_strings(argv: object) -> None:
+    transport = Transport()
+    with pytest.raises(BadRequestError, match="argv must be a non-empty list of strings"):
+        await AsyncProcessService("sbx", transport).start(argv=argv)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.parametrize("utilization", [-0.1, 1.5])
+def test_system_metrics_refuse_a_cpu_utilization_outside_0_to_1(utilization: float) -> None:
+    from daytona.v2._core import expect_system_metrics
+
+    metrics = {
+        "timestamp": "2026-01-01T00:00:00Z",
+        "cpuCount": 1,
+        "cpuUtilization": utilization,
+        "memoryUsageBytes": 0,
+        "memoryTotalBytes": 0,
+        "diskUsageBytes": 0,
+        "diskTotalBytes": 0,
+    }
+    with pytest.raises(BadRequestError, match="cpuUtilization must be between 0 and 1"):
+        expect_system_metrics(metrics)
+
+
+@pytest.mark.anyio
+async def test_list_shape_names_the_malformed_item() -> None:
+    fs = AsyncFileSystemService(Transport([{"items": [{"file": "/a", "line": 1, "content": "x"}, 5]}]))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=r"grep response: items\[1\] must be an object"):
+        await fs.grep("/", "x")
+
+
+def test_read_many_refuses_an_error_part_with_a_byte_order_mark() -> None:
+    from daytona.v2._core import parse_bulk_read_result
+
+    with pytest.raises(BadRequestError, match="bulk download error part: the data is not JSON"):
+        parse_bulk_read_result(_error_part(b'\xef\xbb\xbf{"path": "/a", "message": "m"}'))
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ({"kernel": "python"}, "session response: id is required"),
+        (
+            {"id": "", "kernel": "python"},
+            'session response: id is required \\(context "mine" may have been created\\)',
+        ),
+        ({"id": 5, "kernel": "python"}, "session response: id must be a string"),
+        ({"id": "c"}, "session response: kernel is required"),
+    ],
+)
+async def test_create_context_checks_the_session_fields_it_reads(payload: JsonValue, message: str) -> None:
+    transport = Transport([payload])
+    interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
+    context_id = "mine" if "may have been" in message else None
+
+    with pytest.raises(BadRequestError, match=message):
+        await interpreter.create_context(language="python", context_id=context_id)
+
+
+@pytest.mark.anyio
+async def test_list_contexts_reads_only_id_and_kernel() -> None:
+    sessions = {
+        "items": [{"id": "c", "kernel": "python", "createdAt": "yesterday"}, {"id": "sh", "kernel": "shell"}]
+    }
+    transport = Transport([sessions, {"items": [{"id": "c"}]}])
+    interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
+
+    assert [(c.context_id, c.language) for c in await interpreter.list_contexts()] == [("c", "python")]
+    with pytest.raises(BadRequestError, match="session response: kernel is required"):
+        await interpreter.list_contexts()
 
 
 @pytest.mark.anyio
@@ -1281,8 +1371,26 @@ async def test_sse_blocks_without_data_and_an_unterminated_final_block_dispatch_
         'data: {"cursor":"c3"}',
     ]
     handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+    seen: list[str] = []
 
-    assert [event.type async for event in handle.stream_logs()] == ["log"]
+    # Neither eof block dispatches, so the stream ends without eof: cut short.
+    with pytest.raises(ConnectionError, match="ended before eof"):
+        async for event in handle.stream_logs():
+            seen.append(event.type)
+    assert seen == ["log"]
+
+
+@pytest.mark.anyio
+async def test_a_log_stream_that_ends_without_eof_raises_a_connection_error() -> None:
+    lines = ["event: log", 'data: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}', ""]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+    seen: list[str] = []
+
+    with pytest.raises(ConnectionError, match="resume from the last event's cursor") as info:
+        async for event in handle.stream_logs():
+            seen.append(event.cursor)
+    assert seen == ["c1"]
+    assert info.value.source == "SDK"
 
 
 @pytest.mark.anyio

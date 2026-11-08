@@ -162,7 +162,11 @@ export function commandSpec(command: ProcessCommand): ProcessSpec {
   assertKnownOptions('ProcessCommand', command, COMMAND_KEYS)
   if ('argv' in command && command.argv !== undefined) {
     if (command.cmd !== undefined) throw badRequest('command takes exactly one of cmd or argv')
-    return { argv: [...command.argv] }
+    const argv: unknown = command.argv
+    if (!Array.isArray(argv) || argv.length === 0 || !argv.every((item) => typeof item === 'string')) {
+      throw badRequest('argv must be a non-empty list of strings')
+    }
+    return { argv: [...argv] as string[] }
   }
   return { cmd: command.cmd }
 }

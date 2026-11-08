@@ -5435,7 +5435,7 @@ describe('toolbox service request shaping', () => {
       transport.post
         .mockImplementationOnce(async () => {
           jest.advanceTimersByTime(5)
-          return createdWire({ id: 'isolated-python' })
+          return sessionWire('isolated-python')
         })
       transport.delete.mockResolvedValue(undefined)
       const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
@@ -5533,7 +5533,7 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     transport.post.mockImplementationOnce(async (_path, body) => {
       jest.advanceTimersByTime(5_000) // POST /sessions took 5s of a 2s budget
-      return createdWire({ id: String((body as { id: string }).id) })
+      return sessionWire(String((body as { id: string }).id))
     })
     transport.delete.mockResolvedValueOnce({})
     const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
@@ -5548,7 +5548,7 @@ describe('toolbox service request shaping', () => {
   it('uses an isolated explicit context and deletes it best-effort afterwards', async () => {
     const transport = transportStub()
     transport.post
-      .mockImplementationOnce(async (_path, body) => ({ id: String((body as { id: string }).id) }))
+      .mockImplementationOnce(async (_path, body) => sessionWire(String((body as { id: string }).id)))
       .mockResolvedValueOnce(createdWire({ id: 'proc' }))
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
@@ -12046,7 +12046,7 @@ describe('toolbox surface', () => {
   it('sends an unbounded request timeout for every setup request of an explicitly unbounded run', async () => {
     const transport = transportStub()
     transport.post
-      .mockResolvedValueOnce(createdWire({ id: 'iso' }))
+      .mockResolvedValueOnce(sessionWire('iso'))
       .mockResolvedValueOnce(createdWire({ id: 'proc' }))
       .mockResolvedValueOnce(createdWire({ id: 'proc2' }))
     transport.get
@@ -12578,14 +12578,15 @@ describe('toolbox surface', () => {
     expect(transport.get).not.toHaveBeenCalled()
   })
 
-  it('checks interpreter context sessions like the Python SDK', async () => {
+  it('checks the session fields the SDK reads (id, kernel) like the Python SDK', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValueOnce({ kernel: 'python' })
-    transport.get.mockResolvedValueOnce({ items: [{ id: 'c', kernel: 'python' }] }).mockResolvedValueOnce([sessionWire('c')])
-      .mockResolvedValueOnce({ items: [sessionWire('c'), sessionWire('sh', { kernel: 'shell' })] })
+    transport.post.mockResolvedValueOnce({ kernel: 'python' }).mockResolvedValueOnce({ id: '', kernel: 'python' })
+    transport.get.mockResolvedValueOnce({ items: [{ id: 'c' }] }).mockResolvedValueOnce([sessionWire('c')])
+      .mockResolvedValueOnce({ items: [{ id: 'c', kernel: 'python', createdAt: 'yesterday' }, sessionWire('sh', { kernel: 'shell' })] })
     const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
     await expect(interpreter.createContext({ language: 'python' })).rejects.toThrow('expected session response: id is required')
-    await expect(interpreter.listContexts()).rejects.toThrow('expected session response: kernelProcessId is required')
+    await expect(interpreter.createContext({ language: 'python', contextId: 'mine' })).rejects.toThrow('expected session response: id is required (context "mine" may have been created)')
+    await expect(interpreter.listContexts()).rejects.toThrow('expected session response: kernel is required')
     await expect(interpreter.listContexts()).rejects.toThrow('expected session list response')
     await expect(interpreter.listContexts()).resolves.toEqual([expect.objectContaining({ contextId: 'c', language: 'python' })])
   })
@@ -12706,8 +12707,21 @@ describe('toolbox surface', () => {
       'event: eof\ndata: {"cursor":"c3"}',
     ]))
     const types: string[] = []
-    for await (const event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) types.push(event.type)
+    // Neither eof block dispatches, so the stream ends without eof: cut short.
+    await expect((async () => {
+      for await (const event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) types.push(event.type)
+    })()).rejects.toBeInstanceOf(ConnectionError)
     expect(types).toEqual(['log'])
+  })
+
+  it('throws ConnectionError for a log stream that ends without eof, like the Python SDK', async () => {
+    const transport = transportStub()
+    transport.fetch.mockResolvedValueOnce(sseResponse(['event: log\ndata: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}\n\n']))
+    const cursors: string[] = []
+    await expect((async () => {
+      for await (const event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) cursors.push(event.cursor)
+    })()).rejects.toMatchObject({ source: 'SDK', message: "process log stream ended before eof; resume from the last event's cursor" })
+    expect(cursors).toEqual(['c1'])
   })
 
   it('throws a stream error event as its typed error even without a cursor, like the Python SDK', async () => {
@@ -12789,6 +12803,49 @@ describe('toolbox surface', () => {
     for (const kind of [5, true, ['pty']]) {
       expect(() => process.connect({ sandboxId: 'sbx', processId: 'p', kind } as never)).toThrow('process handle identity kind must be a string')
     }
+  })
+
+  it('reads a git remote timeout of 0 as no limit, like every other timeout and the Python SDK', async () => {
+    const transport = transportStub()
+    const git = new GitService(INTERNAL, transport.object)
+    await git.clone('https://example.invalid/r.git', { path: '/r', timeoutSeconds: 0 })
+    await git.pull('/r', { timeoutSeconds: 0 })
+    await git.push('/r', { timeoutSeconds: 0 })
+    expect(transport.post.mock.calls.map((call) => call[2])).toEqual([{ timeout: 0 }, { timeout: 0 }, { timeout: 0 }])
+    await expect(git.pull('/r', { timeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it.each([['ls -la'], [[]], [['ls', 5]]])('refuses an argv that is not a non-empty list of strings (%p) before any request', async (argv) => {
+    const transport = transportStub()
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').start({ argv } as never))
+      .rejects.toThrow('argv must be a non-empty list of strings')
+    expect(transport.post).not.toHaveBeenCalled()
+  })
+
+  it.each([-0.1, 1.5])('refuses a cpuUtilization outside 0..1 (%p), like the Python SDK', async (utilization) => {
+    const { systemMetricsFromWire } = await import('../src/v2/toolboxModels')
+    expect(() => systemMetricsFromWire({
+      timestamp: '2026-01-01T00:00:00Z', cpuCount: 1, cpuUtilization: utilization,
+      memoryUsageBytes: 0, memoryTotalBytes: 0, diskUsageBytes: 0, diskTotalBytes: 0,
+    } as never)).toThrow('expected system metrics: cpuUtilization must be between 0 and 1')
+  })
+
+  it('refuses a bulk download error part with a byte-order mark, like the Python SDK', async () => {
+    const { parseBulkReadResult } = await import('../src/v2/filesystemWire')
+    const encoder = new TextEncoder()
+    const head = encoder.encode('--DAYTONA-FILE-BOUNDARY\r\nContent-Disposition: form-data; name="error"\r\nContent-Type: application/json\r\n\r\n')
+    const tail = encoder.encode('{"path":"/a","message":"m"}\r\n--DAYTONA-FILE-BOUNDARY--\r\n')
+    expect(() => parseBulkReadResult(new Uint8Array([...head, 0xef, 0xbb, 0xbf, ...tail]))).toThrow('expected bulk download error part: the data is not JSON')
+  })
+
+  it('checks the session an isolated run creates', async () => {
+    const transport = transportStub()
+    transport.post.mockResolvedValueOnce({ kernel: 'python' })
+    transport.delete.mockResolvedValue(undefined)
+    await expect(new InterpreterService(INTERNAL, transport.object, 'sbx').run('1', { isolated: true }))
+      .rejects.toThrow(/expected session response: id is required \(context "isolated-python-/)
+    expect(transport.post).toHaveBeenCalledTimes(1)
+    expect(transport.delete).toHaveBeenCalledTimes(1)
   })
 
   it('rejects filesystem list envelopes without items', async () => {

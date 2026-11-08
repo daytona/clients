@@ -18,6 +18,17 @@ import { INTERNAL } from '../src/v2/internal'
 
 const EVENT = JSON.stringify({ type: 'create', name: 'a', isDir: false, timestamp: 1 })
 
+/** A URL nothing listens on: an ephemeral port reserved, then released. */
+async function refusedUrl(): Promise<string> {
+  const reserved = createServer()
+  reserved.listen(0, '127.0.0.1')
+  await once(reserved, 'listening')
+  const address = reserved.address()
+  if (address === null || typeof address === 'string') throw new TypeError('expected TCP address')
+  await new Promise<void>((resolve) => reserved.close(() => resolve()))
+  return `http://127.0.0.1:${address.port}`
+}
+
 describe('watch stream drops', () => {
   let server: Server
   let base: string
@@ -79,7 +90,7 @@ describe('watch stream drops', () => {
   })
 
   it.each(['refused', 'w404', 'nostart'] as const)('throws a watch that fails before start (%s) from watchDir() without calling onExit', async (kind) => {
-    const url = kind === 'refused' ? 'http://127.0.0.1:9' : `${base}/${kind}`
+    const url = kind === 'refused' ? await refusedUrl() : `${base}/${kind}`
     const fs = new FileSystemService(INTERNAL, new HttpTransport(url, 'k', 5_000))
     const exits: unknown[] = []
     const pending = fs.watchDir('/', () => undefined, { onExit: (error) => { exits.push(error) } })

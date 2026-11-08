@@ -335,7 +335,7 @@ describe('request timeout meaning', () => {
     await expect(transport.get('/hold', { timeout: 0 })).resolves.toEqual({ ok: true })
   })
 
-  it('bounds a git clone / pull / push by its own total deadline, whatever the request timeout', async () => {
+  it('bounds a git pull / push by its own total deadline, whatever the request timeout', async () => {
     // The body trickles in well inside a per-read timeout; only a total
     // deadline ends it. timeoutSeconds replaces the 1 s request timeout.
     const { GitService } = await import('../src/v2/Git')

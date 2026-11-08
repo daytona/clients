@@ -312,13 +312,14 @@ class AsyncGitService:
 
 
 def _git_remote_timeout(timeout: Optional[float]) -> float:
-    """The total deadline of a remote git operation in seconds; ``0`` is no limit."""
+    """The total deadline of a remote git operation in seconds. The toolbox
+    takes no timeout on these routes, so the deadline is the SDK's own:
+    ``0``, or a value above the timer maximum, is no limit, as for every 2.x
+    timeout."""
     if timeout is None:
         return GIT_REMOTE_TIMEOUT_SECONDS
     seconds = checked_seconds(timeout)
-    if seconds == 0:
-        raise create_error("timeout must be a positive finite number", 400, "BAD_REQUEST", "SDK")
-    return 0 if above_timer_maximum(seconds) else float(seconds)
+    return 0 if seconds == 0 or above_timer_maximum(seconds) else float(seconds)
 
 
 async def _send_remote(transport: AsyncTransport, spec: RequestSpec, timeout: Optional[float]) -> None:

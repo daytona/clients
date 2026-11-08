@@ -646,8 +646,11 @@ class AsyncFileSystemService:
         try:
             await ready.wait()
         except BaseException:
-            # Cancelled (or torn down) before the start frame: the detached
-            # reader would otherwise keep the HTTP stream open indefinitely.
+            # Cancelled (or torn down) before watch_dir() returned, before or
+            # after the start frame: the detached reader would otherwise keep
+            # the HTTP stream open. No handle was returned, so the exit
+            # callback never runs.
+            handle._on_exit = None
             await handle.stop()
             raise
         if reader_error:

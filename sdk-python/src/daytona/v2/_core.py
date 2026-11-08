@@ -498,12 +498,21 @@ def expect_file_info(value: TransportPayload) -> FileInfo:
     )
 
 
+def _cpu_utilization(value: float) -> float:
+    """A fraction between 0 and 1 inclusive, as the contract states."""
+    if not 0 <= value <= 1:
+        raise create_error(
+            "expected system metrics: cpuUtilization must be between 0 and 1", 400, "BAD_REQUEST", "SDK"
+        )
+    return value
+
+
 def expect_system_metrics(value: TransportPayload) -> SystemMetrics:
     model = _expect_model_from_dict(value, MetricsModel, "system metrics", MetricsModel.from_dict)
     return SystemMetrics(
         timestamp=parse_timestamp(model.timestamp, "system metrics: timestamp"),
         cpu_count=model.cpu_count,
-        cpu_utilization=model.cpu_utilization,
+        cpu_utilization=_cpu_utilization(model.cpu_utilization),
         memory_usage_bytes=model.memory_usage_bytes,
         memory_total_bytes=model.memory_total_bytes,
         disk_usage_bytes=model.disk_usage_bytes,
@@ -658,6 +667,9 @@ def process_create_spec(
     if command is not None:
         body["shellCommand"] = command
     if argv is not None:
+        # A str is a Sequence too: refuse it (and non-string elements) before any request.
+        if isinstance(argv, (str, bytes)) or not all(isinstance(item, str) for item in argv) or not argv:
+            raise create_error("argv must be a non-empty list of strings", 400, "BAD_REQUEST", "SDK")
         body["argv"] = list(argv)
     if code is not None:
         body["code"] = code
@@ -1181,6 +1193,11 @@ def list_shape(
     items = obj.get("items")
     if not isinstance(items, list):
         raise create_error(f"expected {description}: items is required", 400, "BAD_REQUEST", "SDK")
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise create_error(
+                f"expected {description}: items[{index}] must be an object", 400, "BAD_REQUEST", "SDK"
+            )
     # A present cursor of the wrong type would silently end pagination.
     cursor = obj.get("nextCursor")
     if cursor is not None and not isinstance(cursor, str):

@@ -44,6 +44,13 @@ export function num(input: WireRecord, field: string, description: string): numb
   return value
 }
 
+/** A number between 0 and 1 inclusive. */
+function fraction(input: WireRecord, field: string, description: string): number {
+  const value = num(input, field, description)
+  if (value < 0 || value > 1) throw malformedResponse(`${description}: ${field} must be between 0 and 1`)
+  return value
+}
+
 /** An integer, as the contract's integer fields are. */
 export function int(input: WireRecord, field: string, description: string): number {
   const value = input[field]
@@ -179,17 +186,22 @@ export function bulkWriteResultFromWire(value: unknown): BulkWriteResult {
 }
 
 /** The `id` and `kernel` of a `SessionDto`, with every field the contract requires checked (as the Python SDK does). */
-export function interpreterSessionFromWire(value: unknown): { readonly id: string; readonly kernel: string } {
+/**
+ * The `id` and `kernel` of a `SessionDto`, the only fields the SDK reads (as
+ * the Python SDK checks them). A missing or empty id is malformed; when the
+ * caller chose the context id, the message names it so the context can be
+ * cleaned up.
+ */
+export function interpreterSessionFromWire(value: unknown, requestedId?: string): { readonly id: string; readonly kernel: string } {
   const d = 'session response'
   const input = record(value, d)
-  const id = str(input, 'id', d)
-  const kernel = str(input, 'kernel', d)
-  str(input, 'kernelProcessId', d)
-  str(input, 'cwd', d)
-  timestamp(input, 'createdAt', d)
-  bool(input, 'active', d)
-  strList(input, 'processIds', d)
-  return { id, kernel }
+  const id = input.id
+  if (typeof id !== 'string' || id === '') {
+    const problem = id === undefined || id === null || id === '' ? 'is required' : 'must be a string'
+    const context = requestedId === undefined ? '' : ` (context ${JSON.stringify(requestedId)} may have been created)`
+    throw malformedResponse(`${d}: id ${problem}${context}`)
+  }
+  return { id, kernel: str(input, 'kernel', d) }
 }
 
 export function systemMetricsFromWire(value: toolbox.Metrics): SystemMetrics {
@@ -198,7 +210,7 @@ export function systemMetricsFromWire(value: toolbox.Metrics): SystemMetrics {
   return {
     timestamp: timestamp(input, 'timestamp', d),
     cpuCount: nonNegativeInt(input, 'cpuCount', d),
-    cpuUtilization: num(input, 'cpuUtilization', d),
+    cpuUtilization: fraction(input, 'cpuUtilization', d),
     memoryUsageBytes: nonNegativeInt(input, 'memoryUsageBytes', d),
     memoryTotalBytes: nonNegativeInt(input, 'memoryTotalBytes', d),
     diskUsageBytes: nonNegativeInt(input, 'diskUsageBytes', d),

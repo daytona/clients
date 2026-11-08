@@ -14,8 +14,7 @@ from . import _codes as codes
 from ._core import (
     RequestSpec,
     bounded_request_timeout,
-    expect_session_dto,
-    expect_session_list_response,
+    expect_object,
     timeout_millis_from_seconds,
     wait_budget,
 )
@@ -65,6 +64,28 @@ def _json_identity(value: object) -> Optional[tuple[str, str, str]]:
     if isinstance(sandbox_id, str) and isinstance(context_id, str) and isinstance(language, str):
         return sandbox_id, context_id, language
     return None
+
+
+def _session_identity(value: object, *, requested_id: Optional[str] = None) -> tuple[str, str]:
+    """The ``id`` and ``kernel`` of a ``SessionDto``, the only fields the SDK
+    reads (as the TypeScript SDK checks them). A missing or empty id is
+    malformed; when the caller chose the context id, the message names it so
+    the context can be cleaned up."""
+    description = "session response"
+    if not isinstance(value, dict):
+        raise create_error(f"expected {description}", 400, codes.BAD_REQUEST, "SDK")
+    context_id = value.get("id")
+    if not isinstance(context_id, str) or not context_id:
+        problem = "is required" if context_id in (None, "") else "must be a string"
+        context = (
+            "" if requested_id is None else f" (context {json.dumps(requested_id)} may have been created)"
+        )
+        raise create_error(f"expected {description}: id {problem}{context}", 400, codes.BAD_REQUEST, "SDK")
+    kernel = value.get("kernel")
+    if not isinstance(kernel, str):
+        problem = "is required" if kernel is None else "must be a string"
+        raise create_error(f"expected {description}: kernel {problem}", 400, codes.BAD_REQUEST, "SDK")
+    return context_id, kernel
 
 
 def _timed_out_result() -> InterpreterResult:
@@ -211,7 +232,7 @@ class AsyncInterpreterService:
         if env is not None:
             body["env"] = dict(env)
         timeout_millis_from_seconds(request_timeout)
-        payload = expect_session_dto(
+        payload = expect_object(
             await self._transport.send(
                 RequestSpec(
                     "POST",
@@ -222,8 +243,8 @@ class AsyncInterpreterService:
                 )
             )
         )
-        resolved_context_id = payload.id or (context_id or "")
-        return self._bind_context(resolved_context_id, language)
+        created_id, _kernel = _session_identity(payload, requested_id=context_id)
+        return self._bind_context(created_id, language)
 
     def connect_context(
         self,
@@ -244,13 +265,18 @@ class AsyncInterpreterService:
         return self._bind_context(context, language)
 
     async def list_contexts(self) -> list[AsyncInterpreterContext]:
-        payload = expect_session_list_response(await self._transport.send(RequestSpec("GET", "/sessions")))
+        payload = expect_object(await self._transport.send(RequestSpec("GET", "/sessions")))
+        items = payload.get("items")
+        if not isinstance(items, list):
+            raise create_error(
+                "expected session list response: items is required", 400, codes.BAD_REQUEST, "SDK"
+            )
         contexts: list[AsyncInterpreterContext] = []
-        for item in payload.items:
-            kernel = item.kernel.value
+        for item in items:
+            context_id, kernel = _session_identity(item)
             if kernel == SHELL_SESSION_KERNEL:
                 continue
-            contexts.append(self._bind_context(item.id, kernel))
+            contexts.append(self._bind_context(context_id, kernel))
         return contexts
 
     async def delete_context(self, context: AsyncInterpreterContext | InterpreterContextJSON | str) -> None:

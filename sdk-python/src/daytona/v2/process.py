@@ -330,9 +330,10 @@ class AsyncProcessHandle:
         Yields one :data:`StreamLogEvent` per server event: ``log`` (a frame),
         ``state`` (the process became terminal), ``warning`` (frames before
         ``first_available_cursor`` were evicted) and ``eof``. A stream error
-        raises the typed error for its code; a stream cut short raises
-        ``ConnectionError``. An iteration that ends without an ``eof`` event
-        did not reach the end of the log: resume from the last event's cursor.
+        raises the typed error for its code. The server ends the stream with
+        ``eof``, so an iteration that ends normally has the whole log; a stream
+        cut short, or one that ends without ``eof``, raises ``ConnectionError``:
+        resume with ``stream_logs(cursor=...)`` from the last event's cursor.
         """
         transport = self._require_transport()
         async for event, data, message_id in parse_sse_messages_async(
@@ -346,6 +347,9 @@ class AsyncProcessHandle:
                 if parsed.type == "eof":
                     # The log is complete: nothing after eof is read.
                     return
+        # The server ends a followed log with eof (or an error event); a body
+        # that ends without one was cut short, like a watch stream that ends.
+        raise ConnectionError("process log stream ended before eof; resume from the last event's cursor")
 
     async def write_stdin(self, data: Union[str, bytes]) -> None:
         """Write to the stdin of an exec or PTY process created with stdin='open'."""

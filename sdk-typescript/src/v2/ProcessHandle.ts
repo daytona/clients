@@ -95,9 +95,10 @@ export class ProcessHandle {
    * one {@link StreamLogEvent} per server event: `log` (a frame), `state`
    * (the process became terminal), `warning` (frames before
    * `firstAvailableCursor` were evicted) and `eof`. A stream error throws the
-   * typed error for its code; a stream cut short throws `ConnectionError`. An
-   * iteration that ends without an `eof` event did not reach the end of the
-   * log: resume from the last event's cursor.
+   * typed error for its code. The server ends the stream with `eof`, so an
+   * iteration that ends normally has the whole log; a stream cut short, or one
+   * that ends without `eof`, throws `ConnectionError`: resume with
+   * `streamLogs({ cursor })` from the last event's cursor.
    */
   public async *streamLogs(options: StreamLogsOptions = {}): AsyncIterable<StreamLogEvent> {
     assertKnownOptions('StreamLogsOptions', options, STREAM_LOGS_OPTION_KEYS)
@@ -113,6 +114,9 @@ export class ProcessHandle {
       // cancels the body).
       if (event.type === 'eof') return
     }
+    // The server ends a followed log with eof (or an error event); a body that
+    // ends without one was cut short, like a watch stream that ends.
+    throw new ConnectionError("process log stream ended before eof; resume from the last event's cursor")
   }
 
   /** Write to the stdin of an exec or pty process created with stdin='open'. */

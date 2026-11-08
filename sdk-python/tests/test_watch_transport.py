@@ -110,6 +110,16 @@ async def test_a_watch_whose_stream_drops_ends_with_a_connection_error(
         assert str(error) == message
 
 
+def _refused_url() -> str:
+    """A URL nothing listens on: an ephemeral port reserved, then released."""
+    import socket
+
+    with socket.socket() as reserved:
+        reserved.bind(("127.0.0.1", 0))
+        port = reserved.getsockname()[1]
+    return f"http://127.0.0.1:{port}"
+
+
 class _SetupHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -152,7 +162,7 @@ async def test_a_watch_that_fails_before_start_raises_without_calling_on_exit(
 ) -> None:
     from daytona.v2.errors import DaytonaError
 
-    base = "http://127.0.0.1:9" if case == "refused" else f"{setup_base}/{case}"
+    base = _refused_url() if case == "refused" else f"{setup_base}/{case}"
     transport = AsyncTransport(base)
     exits: list[Optional[Exception]] = []
     try:
@@ -170,29 +180,42 @@ async def test_a_watch_that_fails_before_start_raises_without_calling_on_exit(
 
 
 @pytest.mark.anyio
-async def test_cancelling_watch_dir_during_the_handshake_calls_no_exit_callback() -> None:
+@pytest.mark.parametrize("after_start", [False, True])
+async def test_cancelling_watch_dir_before_it_returns_calls_no_exit_callback(after_start: bool) -> None:
+    """Cancelled before watch_dir() returns, before the start frame or after
+    the reader saw it but before watch_dir() resumed: no exit callback."""
     from daytona.v2.filesystem import AsyncFileSystemService as Service
 
-    class Hold:
+    outer: list[asyncio.Task[object]] = []
+    reading = asyncio.Event()
+
+    class Stream:
         def __init__(self) -> None:
-            self.release = asyncio.Event()
+            self.closed = asyncio.Event()
 
         async def iter_lines(self):
-            await self.release.wait()
-            return
-            yield  # pragma: no cover
+            reading.set()
+            if after_start:
+                for line in ("event: start", "data: {}", ""):
+                    yield line
+                # The reader set `ready` and came back for the next line;
+                # watch_dir() has not resumed yet.
+                outer[0].cancel()
+            await self.closed.wait()
 
         async def close(self) -> None:
-            self.release.set()
+            self.closed.set()
 
     class Transport:
-        async def open_stream(self, spec: RequestSpec) -> Hold:
-            return Hold()
+        async def open_stream(self, spec: RequestSpec) -> Stream:
+            return Stream()
 
     exits: list[Optional[Exception]] = []
     task = asyncio.ensure_future(Service(Transport()).watch_dir("/", lambda _e: None, on_exit=exits.append))  # type: ignore[arg-type]
-    await asyncio.sleep(0.05)
-    task.cancel()
+    outer.append(task)
+    await asyncio.wait_for(reading.wait(), timeout=5)
+    if not after_start:
+        task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
     await asyncio.sleep(0.05)

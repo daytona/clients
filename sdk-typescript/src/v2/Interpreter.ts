@@ -502,7 +502,7 @@ export class InterpreterService {
       cwd: options.cwd,
       env: options.env,
     })
-    return this.bindContext(interpreterSessionFromWire(session).id, options.language)
+    return this.bindContext(interpreterSessionFromWire(session, options.contextId).id, options.language)
   }
 
   /** Reconnect a context by id (with `language`), handle or `toJSON()` identity, without a request. */
@@ -564,17 +564,17 @@ export class InterpreterService {
       const sessionId = isolatedContextId(language)
       const sessionQueue = this.queueFor(sessionId)
       try {
-        await this.transport.post<toolbox.SessionDto>('/sessions', {
+        const created = interpreterSessionFromWire(await this.transport.post<toolbox.SessionDto>('/sessions', {
           id: sessionId,
           kernel: language,
           cwd: options.cwd,
           env: options.env,
-        }, setupConfig(timeoutMs, timeoutMs))
+        }, setupConfig(timeoutMs, timeoutMs)), sessionId)
         const remaining = remainingBudgetMs(timeoutMs, startedAt)
         if (timeoutMs !== undefined && timeoutMs > 0 && remaining !== undefined && remaining <= 0) {
           throw createDaytonaError('interpreter run timed out while creating its isolated context', 408, 'REQUEST_TIMEOUT', 'SDK')
         }
-        return await runContext(this.bindContext(sessionId, language), code, options.cwd, remaining)
+        return await runContext(this.bindContext(created.id, language), code, options.cwd, remaining)
       } finally {
         await this.deleteContextBestEffort(sessionId, sessionQueue)
       }

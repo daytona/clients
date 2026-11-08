@@ -269,10 +269,12 @@ function validateCloneDepth(depth: number | undefined): number | undefined {
 /** The request budget of a remote git operation, in axios milliseconds. */
 function timeoutConfig(timeoutSeconds: number | undefined): { readonly timeout: number } {
   if (timeoutSeconds === undefined) return { timeout: GIT_REMOTE_TIMEOUT_SECONDS * 1000 }
-  if (typeof timeoutSeconds !== 'number' || !Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
-    throw new BadRequestError('timeoutSeconds must be a positive finite number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (typeof timeoutSeconds !== 'number' || !Number.isFinite(timeoutSeconds) || timeoutSeconds < 0) {
+    throw new BadRequestError('timeoutSeconds must be a non-negative finite number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
+  // The toolbox takes no timeout on these routes, so the deadline is the
+  // SDK's own: 0, or a value above the longest timer, is no limit, as for
+  // every 2.x timeout.
   const timeoutMs = Math.ceil(timeoutSeconds * 1000)
-  // Above the longest timer the request has no deadline, like the client's request timeout.
   return { timeout: timeoutMs > MAX_TIMER_DELAY_MS ? 0 : timeoutMs }
 }

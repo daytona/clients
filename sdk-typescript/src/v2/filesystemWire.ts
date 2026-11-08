@@ -116,7 +116,8 @@ function bulkReadErrorFromPart(body: Uint8Array): BulkReadError {
   let parsed: unknown
   try {
     // Fatal: invalid UTF-8 is malformed, never replaced by U+FFFD (as in Python).
-    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body))
+    // ignoreBOM keeps a leading byte-order mark, so JSON.parse refuses it (as Python does).
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(body))
   } catch {
     throw malformedResponse(`${ERROR_PART}: the data is not JSON`)
   }
