@@ -104,7 +104,9 @@ async def main() -> None:
         sandboxes = await asyncio.gather(*(d.v2.create_from_snapshot("worker-snapshot") for _ in range(100)))
         # Each handle comes back even if its wait ended before the sandbox started:
         # wait for the rest, and keep going when some end in a terminal state.
-        await asyncio.gather(*(sb.wait() for sb in sandboxes if sb.state != "started"), return_exceptions=True)
+        await asyncio.gather(
+            *(sb.wait() for sb in sandboxes if sb.state != "started"), return_exceptions=True
+        )
         for sb in sandboxes:
             if sb.state != "started":
                 print(f"{sb.id} did not start: {sb.state} {sb.error or ''}")

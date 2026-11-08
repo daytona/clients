@@ -2134,3 +2134,39 @@ describe('eventDestinationFromHeaders', () => {
     expect(eventDestinationFromHeaders(undefined)).toBe('')
   })
 })
+
+describe('a terminal state the hub reports, on the real hub', () => {
+  test('a stale error snapshot ends a delete once the sandbox is gone', async () => {
+    // delete() sends the DELETE, subscribes, and the snapshot still says
+    // `failed` (taken before the DELETE moved the sandbox on). The hub reports
+    // `error` at once; the read finds `deleting`, so the wait polls on to the
+    // 404. The Python twin is in tests/test_terminal_report.py.
+    const { createHttpClient } = await import('../src/v2/http')
+    const { createSandbox } = await import('./helpers/sandbox')
+    const { startFakeApi } = await import('./networkPolicyTestServer')
+    const detail = { id: SANDBOX_ID, class: 'linux', name: SANDBOX_ID, status: 'deleting', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], region_id: 'regiona' }
+    const api = await startFakeApi([
+      { status: 200, body: {} },
+      { status: 200, body: detail },
+      { status: 404, body: { error: 'sandbox not found', code: 'NOT_FOUND' } },
+    ])
+    const fc = makeFakeConnector()
+    const ws = fc.prepare()
+    const hub = makeHub(fc)
+    try {
+      const sandbox = createSandbox({ id: SANDBOX_ID, class: 'linux', status: 'running', region_id: 'regiona' }, createHttpClient(api.url, 'key'), undefined, 'key', undefined, {}, undefined, undefined, hub)
+      const deleting = sandbox.delete({ timeoutSeconds: 5 })
+      for (let i = 0; i < 200 && !ws.sentFrames().some((f) => f['type'] === 'subscribe'); i++) await drain()
+      expect(ws.sentFrames().some((f) => f['type'] === 'subscribe')).toBe(true)
+      ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'failed', version: 1, error: 'boom' })
+      await deleting
+      expect(api.requests.map((r) => `${r.method} ${r.path.split('?')[0]}`)).toEqual([
+        `DELETE /sandboxes/${SANDBOX_ID}`, `GET /sandboxes/${SANDBOX_ID}`, `GET /sandboxes/${SANDBOX_ID}`,
+      ])
+      expect([sandbox.state, sandbox.rawState]).toEqual(['destroyed', 'deleted'])
+    } finally {
+      await hub.detach()
+      await api.close()
+    }
+  }, 15_000)
+})

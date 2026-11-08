@@ -51,6 +51,8 @@ _REFUSED: list[tuple[str, Call]] = [
         lambda d, _url: lazy_sandbox(d, "sbx").wait(until=["started", "bogus"]),  # type: ignore[list-item]
     ),
     ("wait until a number", lambda d, _url: lazy_sandbox(d, "sbx").wait(until=5)),  # type: ignore[arg-type]
+    # Only an omitted `until` defaults to `started`; TypeScript refuses `until: null` too.
+    ("wait until None", lambda d, _url: lazy_sandbox(d, "sbx").wait(until=None)),  # type: ignore[arg-type]
     ("wait until an empty list", lambda d, _url: lazy_sandbox(d, "sbx").wait(until=[])),
     (
         "docker timeout as a string",

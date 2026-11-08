@@ -550,6 +550,26 @@ skipping exist only in the TypeScript tool).
   `IfMatchOptions` of the network-policy and secrets updates); the toolbox
   namespaces' per-call options adopt it area by area, each with its duration
   renames.
+- **TypeScript `null` in options, as it stands.** In the client, lifecycle
+  and platform-service options, TypeScript reads `null` exactly as Python
+  reads `None` for every create, fork, list and search option (nested fields
+  included: omitted where `None` is omitted, refused where it is refused, an
+  explicit null network policy), and also for the image options of
+  `images.build()` / `pull()` and `captureImage()`, the lifecycle-policy
+  fields, `secrets.set()`'s `description`, the reservations'
+  `idempotencyKey`, `macModels.catalog()`'s `region` and `getLimits()`'s
+  `organizationId`. Where Python refuses `None` (a boolean flag such as
+  `images.pull()`'s `wait`, a lifecycle or Docker wait budget, `wait()`'s
+  `until`), TypeScript refuses `null`. The remaining options, whose Python
+  twin reads `None` as omitted, refuse a TypeScript `null` with
+  `BadRequestError` before any request, for now (accepting it later is
+  additive): `images.get()` / `snapshots.get()` `wait` and `timeoutSeconds`,
+  `images.pull()` `timeoutSeconds`, `volumes.create()` `sizeGib`,
+  `ports.signedPreviewLink()` `expiresInSeconds`, `createAccessToken()`
+  `ttlSeconds` / `operations` / `ports`, `followBuildLogs()` (client and
+  sandbox) `cursor` / `timeoutSeconds` / `onEvent`, `reservations.create()` /
+  `createBulk()` `model` / `autoRenew`, `createBulk()` `minCount`, and
+  `sandbox.volumes.pull()` `timeoutSeconds`.
 - **Errors have one shape.** v2 category names are identical in both SDKs
   (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
@@ -652,7 +672,12 @@ skipping exist only in the TypeScript tool).
   24.8 days, as no deadline too: Python `wait_budget_seconds` in
   `_core.py`, TypeScript `waitDeadline` in `src/v2/options.ts`),
   raising `RequestTimeoutError` (source `SDK`) or
-  `SandboxTerminalStateError`. Once the target was observed, a failed
+  `SandboxTerminalStateError`. A terminal state the events hub reports (it
+  can hold one from before the request, e.g. `error` while a DELETE already
+  moves the sandbox on) is confirmed with one read, which decides: a target
+  state returns (for delete a 404 too), a terminal state raises with the read
+  state, and any other state keeps polling under the same deadline; a failed
+  read keeps the reported state. Once the target was observed, a failed
   metadata refresh afterwards does not turn that success into an error.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
   return the handle however their `wait_seconds` / `waitSeconds` wait ends:

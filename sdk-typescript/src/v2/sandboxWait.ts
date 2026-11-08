@@ -120,20 +120,27 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         context.observe({ state: 'destroyed', rawState: 'deleted' })
         return
       }
-      if (error instanceof SandboxTerminalStateError) {
-        context.observe({ state: error.state, rawState: error.rawState ?? '' })
-        const budget = remaining()
-        if (!refreshedByPoll && error.state !== 'destroyed' && (budget === undefined || budget > 0)) {
-          try {
-            const outcome = await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_REQUEST_TIMEOUT_MS))
-            if (options.missingIsDestroyed && outcome.state === 'destroyed') return
-          } catch (refreshError) {
-            // The terminal outcome takes precedence over a failed metadata read.
-            if (!(refreshError instanceof DaytonaError)) throw refreshError
-          }
-        }
+      if (!(error instanceof SandboxTerminalStateError)) throw error
+      context.observe({ state: error.state, rawState: error.rawState ?? '' })
+      // A terminal state the hub reports may be one it held before this
+      // request's frames arrived (an `error` from an earlier wait, while a
+      // DELETE already moves the sandbox on): one read confirms it, and the
+      // read decides. No read is possible once the budget is spent, when the
+      // state already came from a full read, or for `destroyed`.
+      const budget = remaining()
+      if (refreshedByPoll || error.state === 'destroyed' || (budget !== undefined && budget <= 0)) throw error
+      let outcome: WaitOutcome
+      try {
+        outcome = await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_REQUEST_TIMEOUT_MS))
+      } catch (refreshError) {
+        // The terminal outcome takes precedence over a failed metadata read.
+        if (!(refreshError instanceof DaytonaError)) throw refreshError
+        throw error
       }
-      throw error
+      if (states.some((target) => target === outcome.state)) return
+      if (effectiveTerminal.includes(outcome.state)) throw new SandboxTerminalStateError(context.id, outcome.state, { rawState: outcome.rawState })
+      // Neither a target nor terminal: the hub's report was stale. Poll for
+      // the rest of the budget, under the same deadline.
     }
   }
 

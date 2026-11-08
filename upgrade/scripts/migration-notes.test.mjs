@@ -58,3 +58,26 @@ test('the root close() is never suggested as a v2-namespace close', () => {
   // When / Then: no row maps close onto {client}.v2.close().
   assert.equal(mapping.suggestions.some((entry) => entry.receiver === 'client' && (entry.v0.py === 'close' || entry.v0.ts === 'close')), false);
 });
+
+// SDK 2.x reads a wait budget above the timer maximum (2,147,483.647 s, about
+// 24.8 days) as no deadline, so a 0.x fork that waited without a deadline maps
+// to a budget above it rather than to a finite one.
+const TIMER_MAXIMUM_SECONDS = 2_147_483.647;
+for (const id of ['sandbox.fork', 'sandbox._experimental_fork', 'client.fork', 'client._experimental_fork']) {
+  for (const language of ['py', 'ts']) {
+    const entry = mapping.suggestions.find((candidate) => candidate.id === id);
+    if (!entry?.v2[language]) continue;
+    test(`${language} ${id} keeps a 0.x unbounded wait unbounded`, () => {
+      // Given: the fork suggestion and its notes.
+      const suggestion = entry.v2[language];
+      const notes = entry.notes[language].join(' ');
+      // When: reading the budget it passes for a 0.x timeout of 0.
+      const budget = /\b(\d+) \* 86_400\b/.exec(suggestion);
+      // Then: it is above the timer maximum, and the notes give that reason.
+      assert.ok(budget, suggestion);
+      assert.ok(Number(budget[1]) * 86_400 > TIMER_MAXIMUM_SECONDS);
+      assert.match(notes, /above about 24\.8 days \(the timer maximum\) as no deadline/);
+      assert.doesNotMatch(notes, /one-hour|no unbounded fork wait/);
+    });
+  }
+}

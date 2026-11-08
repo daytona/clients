@@ -851,7 +851,9 @@ export class Sandbox {
   }
 
   /**
-   * Delete the sandbox and wait until destroyed (or no longer found).
+   * Delete the sandbox and wait until destroyed (or no longer found). An
+   * `error` state throws {@link SandboxTerminalStateError}; one the events hub
+   * reports is confirmed with one read first.
    * Returning, a `destroyed` state, or a subsequent 404 does not guarantee that
    * the image can already be deleted. Image deletion may still return 409.
    */
@@ -1012,10 +1014,12 @@ export class Sandbox {
    * `timeoutSeconds` is a caller wait budget in seconds. The default is 60; `0`,
    * or a value above about 24.8 days (the timer maximum), waits without a deadline. Timeout raises {@link RequestTimeoutError}, and
    * a terminal state before the target raises {@link SandboxTerminalStateError}.
+   * A terminal state the events hub reports is confirmed with one read before it raises.
    */
   public async wait(options: WaitOptions = {}): Promise<this> {
     assertKnownOptions('WaitOptions', options, WAIT_KEYS)
-    const until: unknown = options.until ?? 'started'
+    // Only an omitted `until` defaults; `null` is refused, as Python refuses `None`.
+    const until: unknown = options.until === undefined ? 'started' : options.until
     if (typeof until !== 'string' && !Array.isArray(until)) throw badRequest('until must be a sandbox wait state or an array of them')
     // SAFETY: each member is checked against the wait states by waitForState before any request.
     const states = (typeof until === 'string' ? [until] : until) as readonly SandboxWaitState[]

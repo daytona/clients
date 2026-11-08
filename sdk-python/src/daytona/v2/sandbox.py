@@ -936,13 +936,18 @@ class AsyncSandbox:
         terminal_states: Sequence[SandboxState] = DEFAULT_SANDBOX_TERMINAL_STATES,
         *,
         timeout: Optional[float] = None,
+        missing_is_destroyed: bool = False,
     ) -> None:
         """Wait until the sandbox reaches one of ``states`` (the engine behind :meth:`wait`).
 
         ``timeout`` is the caller wait budget in seconds; ``None`` and ``0``
         wait unbounded. If the sandbox reaches a terminal state before any
         target state, a typed conflict error is raised with the observed public
-        sandbox state attached as ``error.state``.
+        sandbox state attached as ``error.state``. A terminal state the events
+        hub reports is confirmed with one read, which decides: a target state
+        returns, another terminal state raises, and any other state means the
+        report was stale, so the wait polls on under the same deadline.
+        ``missing_is_destroyed`` (delete) reads a 404 as ``destroyed``.
         """
         if not states:
             raise create_error("wait requires at least one target state", 400, "BAD_REQUEST", "SDK")
@@ -1020,34 +1025,50 @@ class AsyncSandbox:
                 self._update(state=error.state)
                 if error.raw_state is not None:
                     self._update(raw_state=error.raw_state)
-                # Fill in the error reason within the wait's budget. A destroyed
-                # sandbox has nothing to fill in (the GET would 404), and a
-                # spent budget skips it: the terminal state is the outcome
-                # either way, and a failed or timed-out refresh must not
-                # replace it.
+                # A terminal state the hub reports may be one it held before
+                # this request's frames arrived (an `error` from an earlier
+                # wait, while a DELETE already moves the sandbox on): one read
+                # confirms it, and the read decides. No read is possible once
+                # the budget is spent, when the state already came from a full
+                # read, or for `destroyed` (the GET would 404).
                 remaining = None if deadline is None else deadline - _clock.monotonic()
                 if (
-                    not refreshed_by_poll
-                    and error.state != "destroyed"
-                    and (remaining is None or remaining > 0)
+                    refreshed_by_poll
+                    or error.state == "destroyed"
+                    or (remaining is not None and remaining <= 0)
                 ):
-                    with contextlib.suppress(DaytonaError):
-                        await self._refresh_data_within(timeout=remaining, deadline=deadline)
-                raise
-            _observe_outcome(resolved)
-            # A socket frame carries only the state. Callers (create, start,
-            # resume) hand back this handle, so fill in the rest — toolbox URL,
-            # region, resources, error reason — with one GET, as the polling
-            # path does, and within the same budget. A destroyed sandbox has
-            # nothing to fill in (the GET would be a 404). The target was
-            # observed, so neither a spent budget nor a failed refresh turns
-            # that success into an error.
-            if not refreshed_by_poll and resolved.state != "destroyed":
-                remaining = None if deadline is None else deadline - _clock.monotonic()
-                if remaining is None or remaining > 0:
-                    with contextlib.suppress(DaytonaError):
-                        await self._refresh_data_within(timeout=remaining, deadline=deadline)
-            return
+                    raise
+                try:
+                    await self._refresh_data_within(timeout=remaining, deadline=deadline)
+                except NotFoundError:
+                    if not missing_is_destroyed:
+                        raise error from None
+                    # A sandbox the API no longer finds is gone.
+                    self._update(state="destroyed", raw_state="deleted")
+                except DaytonaError:
+                    # The terminal outcome takes precedence over a failed read.
+                    raise error from None
+                if self.state in target_states:
+                    return
+                if self.state in effective_terminal:
+                    raise SandboxTerminalStateError(self.id, self.state, raw_state=self.raw_state) from None
+                # Neither a target nor terminal: the hub's report was stale.
+                # Poll for the rest of the budget, under the same deadline.
+            else:
+                _observe_outcome(resolved)
+                # A socket frame carries only the state. Callers (create, start,
+                # resume) hand back this handle, so fill in the rest — toolbox URL,
+                # region, resources, error reason — with one GET, as the polling
+                # path does, and within the same budget. A destroyed sandbox has
+                # nothing to fill in (the GET would be a 404). The target was
+                # observed, so neither a spent budget nor a failed refresh turns
+                # that success into an error.
+                if not refreshed_by_poll and resolved.state != "destroyed":
+                    remaining = None if deadline is None else deadline - _clock.monotonic()
+                    if remaining is None or remaining > 0:
+                        with contextlib.suppress(DaytonaError):
+                            await self._refresh_data_within(timeout=remaining, deadline=deadline)
+                return
 
         fresh = False
         while True:
@@ -1124,7 +1145,8 @@ class AsyncSandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a value
         above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
         reaching ``destroying``, ``destroyed`` or ``error`` first raises
-        :class:`SandboxTerminalStateError`.
+        :class:`SandboxTerminalStateError`. A terminal state the events hub
+        reports is confirmed with one read before it raises.
         """
         timeout = _validate_timeout(timeout)
         await self._wait_for_state(_wait_states(until), timeout=timeout)
@@ -1331,7 +1353,8 @@ class AsyncSandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and an
-        ``error`` state raises :class:`SandboxTerminalStateError`. A 404 while
+        ``error`` state raises :class:`SandboxTerminalStateError` (one the
+        events hub reports is confirmed with one read first). A 404 while
         waiting counts as destroyed. A destroyed sandbox does not guarantee
         that its image can already be deleted: image deletion may still
         answer 409 for a while.
@@ -1339,7 +1362,7 @@ class AsyncSandbox:
         timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("DELETE", f"/sandboxes/{quote(self.id, safe='')}"))
         try:
-            await self._wait_for_state(["destroyed"], timeout=timeout)
+            await self._wait_for_state(["destroyed"], timeout=timeout, missing_is_destroyed=True)
         except NotFoundError:
             # A sandbox the API no longer finds is gone: the wire status of `destroyed`.
             self._update(state="destroyed", raw_state="deleted")
