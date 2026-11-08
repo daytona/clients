@@ -68,9 +68,14 @@ new contract files; this skill turns them into a working SDK change.
 
 6. **Verify once:** the full `AGENTS.md` "Verification" block (regenerate
    the public-surface snapshots it lists when the SDK or CLI surface moved),
-   then `scripts/gen-contract-types.sh --check` and, with oasdiff installed
-   (`scripts/breaking/install-oasdiff.sh`),
-   `python3 scripts/breaking/breaking_changes.py`.
+   then `scripts/gen-contract-types.sh --check` and the breaking-change check
+   against this PR's base, so only the breaks this refresh adds count:
+
+   ```bash
+   git fetch --tags origin main
+   OASDIFF=$(scripts/breaking/install-oasdiff.sh) \
+     python3 scripts/breaking/breaking_changes.py --base "$(git merge-base HEAD origin/main)"
+   ```
 
 ## PR
 

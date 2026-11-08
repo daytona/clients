@@ -544,10 +544,16 @@ any change to the public surface and commit the diff, which is how the change
 shows up in review:
 
 ```bash
-(cd sdk-typescript && npm run api-surface)                     # check: npm run api-surface:check
-(cd sdk-python && .venv/bin/python gen/api_surface.py)         # check: --check
-(cd cli && go test ./cmd -run TestPublicSurface -update)       # check: go test ./cmd
-(cd upgrade/python && uv run python ../scripts/api_surface.py) # check: --check
+# regenerate
+(cd sdk-typescript && npm run api-surface)
+(cd sdk-python && .venv/bin/python gen/api_surface.py)
+(cd cli && go test ./cmd -run TestPublicSurface -update)
+(cd upgrade/python && uv run python ../scripts/api_surface.py)
+# check (what CI runs)
+(cd sdk-typescript && npm run api-surface:check)
+(cd sdk-python && .venv/bin/python gen/api_surface.py --check)
+(cd cli && go test ./cmd -run TestPublicSurface)
+(cd upgrade/python && uv run python ../scripts/api_surface.py --check)
 ```
 
 The `Breaking changes` workflow compares these snapshots and `contract/*.json`
