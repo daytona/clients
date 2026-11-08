@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-function freezable(value: unknown): value is object {
-  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return false
+function plainData(value: unknown): value is object {
+  if (typeof value !== 'object' || value === null) return false
   // A plain object's prototype is some realm's Object.prototype (whose own
   // prototype is null), or null; a class instance's is its class prototype.
   const proto: unknown = Object.getPrototypeOf(value)
@@ -13,17 +13,20 @@ function freezable(value: unknown): value is object {
 
 /**
  * Freeze an SDK-owned data value at run time, plain objects and arrays at
- * every depth (JSON fields such as `Volume.options` included). Class
- * instances it reaches, such as live `Sandbox` handles, are left as they are.
- * Iterative, so a deeply nested response cannot exhaust the stack; each
- * object is frozen before its children are visited, so a cycle ends.
+ * every depth (JSON fields such as `Volume.options` included), the children
+ * of one that is already frozen included. Class instances it reaches, such as
+ * live `Sandbox` handles, are left as they are. Iterative, so a deeply nested
+ * response cannot exhaust the stack; each object is visited once, so a cycle
+ * ends.
  * @internal
  */
 export function deepFrozen<T>(value: T): T {
+  const visited = new WeakSet<object>()
   const pending: unknown[] = [value]
   while (pending.length > 0) {
     const item = pending.pop()
-    if (!freezable(item)) continue
+    if (!plainData(item) || visited.has(item)) continue
+    visited.add(item)
     Object.freeze(item)
     for (const key of Reflect.ownKeys(item)) pending.push(Reflect.get(item, key))
   }

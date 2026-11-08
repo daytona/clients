@@ -273,7 +273,7 @@ function parseInterpreterOutput(frame: LogFrame): InterpreterOutput | undefined 
   if (parsed === undefined) return undefined
   const data = mimeBundle(parsed)
   if (data === undefined) return undefined
-  return deepFrozen({
+  return {
     data,
     isMainResult: frame.channel === 'execute_result',
     text: stringMime(data, 'text/plain'),
@@ -281,18 +281,18 @@ function parseInterpreterOutput(frame: LogFrame): InterpreterOutput | undefined 
     png: stringMime(data, 'image/png'),
     svg: stringMime(data, 'image/svg+xml'),
     json: data['application/json'],
-  })
+  }
 }
 
 function parseInterpreterError(frame: LogFrame): InterpreterError | undefined {
   const parsed = parseJsonRecord(frame.data)
   if (parsed === undefined) return undefined
   const traceback = Array.isArray(parsed.traceback) ? parsed.traceback.map((line) => String(line)) : []
-  return deepFrozen({
+  return {
     name: String(parsed.ename ?? ''),
     value: String(parsed.evalue ?? ''),
     traceback,
-  })
+  }
 }
 
 function parseJsonRecord(payload: string): Record<string, unknown> | undefined {

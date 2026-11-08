@@ -82,7 +82,7 @@ function mapComputerUseDesktopFailure(
   if (Object.keys(extraFields).length > 0) {
     mapped.extraFields = extraFields
   }
-  return deepFrozen(mapped)
+  return mapped
 }
 
 // An attached cause is a failure object regardless of the accompanying state.

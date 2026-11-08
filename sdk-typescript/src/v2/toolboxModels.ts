@@ -188,7 +188,7 @@ export function bulkWriteResultFromWire(value: unknown): BulkWriteResult {
   const input = record(value, d)
   const files = envelopeList(input, 'files', d, (item: unknown): BulkWriteFile => {
     const file = record(item, `${d}: files`)
-    return deepFrozen({ path: str(file, 'path', `${d}: files`), bytes: nonNegativeInt(file, 'bytes', `${d}: files`) })
+    return { path: str(file, 'path', `${d}: files`), bytes: nonNegativeInt(file, 'bytes', `${d}: files`) }
   })
   return deepFrozen({ files, errors: strList(input, 'errors', d) })
 }

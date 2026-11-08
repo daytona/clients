@@ -90,14 +90,14 @@ function symbolFromWire(value: unknown): LspSymbol {
   const wire = record(value, d)
   const location = record(wire.location, `${d}: location`)
   const range = record(location.range, `${d}: location.range`)
-  return deepFrozen({
+  return {
     name: str(wire, 'name', d),
     kind: int(wire, 'kind', d),
     location: {
       uri: str(location, 'uri', `${d}: location`),
       range: { start: positionFromWire(range.start, `${d}: range.start`), end: positionFromWire(range.end, `${d}: range.end`) },
     },
-  })
+  }
 }
 
 function symbolsFromWire(value: unknown): LspSymbol[] {
@@ -128,7 +128,7 @@ function completionItemFromWire(value: unknown): LspCompletionItem {
     filterText: optional(wire, 'filterText', str, d),
     insertText: optional(wire, 'insertText', str, d),
   }
-  return deepFrozen(Object.fromEntries(Object.entries(item).filter(([, entry]) => entry !== undefined)) as unknown as LspCompletionItem)
+  return Object.fromEntries(Object.entries(item).filter(([, entry]) => entry !== undefined)) as unknown as LspCompletionItem
 }
 
 function completionListFromWire(value: toolbox.CompletionList): LspCompletionList {
