@@ -415,6 +415,15 @@ async def test_a_stream_body_outlasts_a_per_call_timeout_on_a_real_socket() -> N
                     b"".join([chunk async for chunk in stream.iter_bytes()])
             finally:
                 await stream.close()
+            # With no per-call timeout the read bound is cleared: the request
+            # timeout (here 0.15 s) bounds opening only, not the gaps after.
+            short = AsyncTransport(base, "k", request_timeout=0.15)
+            try:
+                stream = await short.open_exclusive_stream(RequestSpec("GET", "/logs"))
+                assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"xxx"
+                await stream.close()
+            finally:
+                await short.close()
         finally:
             await transport.close()
 
