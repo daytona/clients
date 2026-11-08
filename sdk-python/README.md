@@ -693,22 +693,25 @@ and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
 `sandbox.rotate_signing_key()` retires every pre-signed URL minted so far;
 new URLs use the new key, which is never
 returned to the client. `list()`, `grep()`, `glob()` and `replace()` return one
-`{items, next_cursor}` page of typed items (`FileInfo`, `FileMatch`,
+`ListResult` page (of `FileInfo`, `FileMatch`, path strings and
 `ReplaceResult`, iterable over its items); these methods have no
 page-draining iterator and take no cursor argument. `read_text()`
 decodes strictly as UTF-8 and keeps a leading byte-order mark.
 
 `watch_dir(path, on_event, *, recursive=False, on_overflow=None, on_exit=None)`
 calls `on_event` for each change (a `FilesystemEvent`; `timestamp_ms` is Unix
-milliseconds). Callbacks may be plain or coroutine functions; they run one at
+milliseconds; `type` is `"create"`, `"write"`, `"remove"`, `"rename"`,
+`"chmod"` or a kind a later sandbox adds, passed through as its string). Callbacks may be plain or coroutine functions; they run one at
 a time and are awaited. A failing `on_event` or `on_overflow` ends the watch
 with that error, which `exit_error` / `wait_for_exit()` report and `on_exit`
 receives; a failing `on_exit` is ignored. `stop()` returns once a callback that
-is already running has finished, and a callback may stop its own watch.
+is already running, and `on_exit`, have finished, and a callback (or
+`on_exit`) may stop its own watch, also from a task it started.
 With the synchronous `Daytona` client the callbacks run on the SDK's
 event-loop thread: there a callback may call its own watch's `stop()` (which
 then returns without waiting), `wait_for_exit()` and `exit_error`, but no other
-synchronous SDK method (that raises a `DaytonaError`, which ends the watch).
+synchronous SDK method, another watch's included (that raises a
+`DaytonaError`, which ends the watch).
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can

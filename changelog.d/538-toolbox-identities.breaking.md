@@ -8,7 +8,10 @@ other through `process.connect()`, `process.connect_session()` /
 Python removes `ProcessHandleRef`, `ProcessHandle.from_json()` / `ref()` /
 `bind()`, `Session.from_json()`, the handle's duplicate `process_id`
 attribute and `InterpreterContext.bind()`; contexts gain `to_json()`.
-Construction of the toolbox services and handles is internal: Python
+Construction of the process, session, PTY, interpreter, filesystem, watch,
+git, LSP and computer-use services and handles is internal: Python
 constructor parameters are private, TypeScript constructors refuse a call
 from outside the SDK, and TypeScript no longer exports `ComputerUseTransport`.
-`process.connect()` refuses an identity without a non-empty process id.
+`process.connect()` / `connect_session()` / `connectSession()` refuse an
+identity without a non-empty id with `BadRequestError` (Python
+`connect_session(5)` raised `AssertionError`).

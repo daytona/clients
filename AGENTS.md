@@ -502,7 +502,7 @@ skipping exist only in the TypeScript tool).
   not an options object (`null`, a boolean, an array: an older positional
   argument) is refused. A key in
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
-  `requestTimeout`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
+  `requestTimeout`, `delay`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
@@ -570,19 +570,26 @@ skipping exist only in the TypeScript tool).
   `watchDir(path, onEvent, ...)`: callbacks run one at a time and are
   awaited; a failing event or overflow callback ends the watch with that
   error (`exit_error` / `exitError`); a failing exit callback is contained;
-  `stop()` returns after an active delivery finishes; a callback (or the exit
-  callback) stopping its own watch, or awaiting `wait_for_exit()` /
-  `waitForExit()`, does not wait for itself (Python: the reader task, and on
-  the sync client the generated twins' `_SYNC_LOOP_VARIANTS` on the bridge
-  loop thread; TS: a per-delivery token in an AsyncLocalStorage where the
-  runtime has one, else only the callback's synchronous part counts).
+  an external `stop()` returns after an active delivery and the exit
+  callback finish; a callback (or the exit callback) stopping its own watch,
+  or awaiting `wait_for_exit()` / `waitForExit()`, directly or from a task it
+  started, does not wait for itself (a per-delivery token: Python a
+  `contextvars.ContextVar`, which child tasks inherit, and on the sync client
+  the generated twins' `_SYNC_LOOP_VARIANTS` on the bridge loop thread; TS an
+  AsyncLocalStorage where the runtime has one, else only the callback's
+  synchronous part counts). The event `type` is an open string (the contract
+  declares no enum); an unknown SSE event is skipped without parsing its
+  data, and a known one whose data is not JSON is the malformed-response
+  error.
 - **Toolbox results are SDK-owned models.** File info, grep / replace items,
   git status / commits / remotes, system metrics, the LSP types and the
   computer-use results are hand-written (Python frozen keyword-only
   dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
-  timestamps as RFC 3339 strings), with every field the contract requires
+  timestamps as RFC 3339 strings), as are log pages and bulk-write results,
+  with every field the contract requires
   required: a response that breaks the contract (a missing required field, a
-  wrong type, a malformed timestamp) is the malformed-response
+  wrong type, a negative value under `minimum: 0`, a malformed timestamp, a
+  list shape the contract does not have) is the malformed-response
   `BadRequestError` (400, `BAD_REQUEST`, source `SDK`, naming the field),
   never a placeholder value; unknown fields are dropped (computer-use keeps
   them in its named `extraFields` bags).

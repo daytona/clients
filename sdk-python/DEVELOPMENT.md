@@ -157,7 +157,13 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   `_stop_nowait`, `wait_for_exit` → `_exit_error_now`); the generator makes
   their sync twins call the non-blocking variant when
   `SyncBridge.on_loop_thread()` is true. `call_sync()` (property reads) runs
-  directly on that thread. Handles reconnect through their namespace
+  directly on that thread; another watch's `stop()` / `wait_for_exit()`
+  there raises `BridgeError`. Whether a call is a watch's own callback's is
+  decided by the per-delivery token in `_WATCH_DELIVERY` (a `ContextVar`, so
+  tasks the callback starts inherit it), never by the current task.
+- SSE: `SseParser.feed_message()` yields the raw `data:` text; a consumer
+  parses only the events it knows, with `sse_json()` (the malformed-response
+  error for non-JSON data). Handles reconnect through their namespace
   (`process.connect`, `process.connect_session`, `interpreter.connect_context`).
 - Pre-signed file URLs are minted server-side: the SDK POSTs
   `{method, path, expires_at}` to `/sandboxes/{id}/files/sign`

@@ -638,17 +638,19 @@ return one page
 from `list()` and can lazily drain all pages with `iter()`; `ports.listEndpoints()`
 uses `iterEndpoints()`, while non-pageable `ports.list()` and `listContexts()`
 stay one-shot. The filesystem's `list()`, `grep()`, `glob()` and `replace()`
-return one `{ items, nextCursor }` page of typed items (`FileInfo`, `FileMatch`,
-`ReplaceResult`). `readText()` decodes strictly as UTF-8 (invalid bytes throw)
+return one `ListResult` page (`ListResult<FileInfo>`, `ListResult<FileMatch>`,
+`ListResult<string>`, `ListResult<ReplaceResult>`). `readText()` decodes strictly as UTF-8 (invalid bytes throw)
 and keeps a leading byte-order mark. Writes take no `mode`; use `chmod()`.
 
 `watchDir(path, onEvent, { recursive, onOverflow, onExit })` calls `onEvent`
-for each change (a `FilesystemEvent`; `timestampMs` is Unix milliseconds).
+for each change (a `FilesystemEvent`; `timestampMs` is Unix milliseconds;
+`type` is `'create'`, `'write'`, `'remove'`, `'rename'`, `'chmod'` or a kind a
+later sandbox adds, passed through as its string).
 Callbacks may return promises; they run one at a time and are awaited. A
 failing `onEvent` or `onOverflow` ends the watch with that error, which
 `exitError` / `waitForExit()` report and `onExit` receives; a failing `onExit`
-is ignored. `stop()` resolves once a callback that is already running has
-finished, and a callback (or `onExit`) may stop its own watch and await
+is ignored. `stop()` resolves once a callback that is already running, and
+`onExit`, have finished, and a callback (or `onExit`) may stop its own watch and await
 `waitForExit()` without waiting for itself. In runtimes without
 `AsyncLocalStorage` (browsers), a callback that stops its own watch after an
 `await` must not await that `stop()`.
@@ -691,7 +693,7 @@ code-process handle later does not recreate it.
 
 `clone()`, `pull()` and `push()` use a dedicated **30-minute** remote-operation
 deadline by default, and each accepts a positive per-call `timeoutSeconds`
-override.
+override. The deadline bounds the whole request, not each read.
 
 `git.clone(url, { path, branch, commitId, depth, insecureSkipTls, username,
 password })` adds optional shallow-clone depth and per-call TLS verification
