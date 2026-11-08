@@ -13,12 +13,13 @@ import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
 import { BadRequestError, ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
+import { badRequest } from './options.js'
 
 const IMAGE_LONGPOLL_MAX_MS = 60_000
 
 function requestTimeoutMs(timeout: number | undefined): number | undefined {
   if (timeout === undefined) return undefined
-  if (!Number.isFinite(timeout) || timeout < 0) throw new TypeError('timeout must be a non-negative finite number')
+  if (!Number.isFinite(timeout) || timeout < 0) throw badRequest('timeout must be a non-negative finite number')
   return timeout === 0 ? 0 : Math.min(Math.ceil(timeout * 1000), IMAGE_LONGPOLL_MAX_MS)
 }
 

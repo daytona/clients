@@ -7,8 +7,9 @@ import type * as toolbox from './gen/toolbox-types.js'
 import type { SseMessage } from './http.js'
 import type { LogFrame, ProcessCommand, ProcessDto, ProcessKind, ProcessSignal, ProcessStartOptions, StreamLogEvent, WaitResult } from './types.js'
 import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROCESS_STDIN_MODES } from './types.js'
-import { DaytonaError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
+import { UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
+import { badRequest } from './options.js'
 
 export type LogFrameWire = toolbox.LogFrameDto
 export type LogsWire = { items?: LogFrameWire[] } | toolbox.ProcessLogsResponse
@@ -27,7 +28,7 @@ export const WAIT_TRANSPORT_RETRY_LIMIT = 3
 export function waitDeadline(timeout: number | undefined): number | undefined {
   if (timeout === undefined || timeout === 0) return undefined
   if (!Number.isFinite(timeout) || timeout < 0) {
-    throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('timeout must be a non-negative finite number')
   }
   return Date.now() + timeout
 }
@@ -126,7 +127,7 @@ export function bodyFor(commandOrOptions: string | InternalProcessStartOptions, 
     )
   }
   if (merged.executionTimeout !== undefined && (!Number.isFinite(merged.executionTimeout) || merged.executionTimeout < 0)) {
-    throw new DaytonaError('executionTimeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('executionTimeout must be a non-negative finite number')
   }
   if (merged.terminal !== undefined && merged.kind !== 'pty') {
     throw new UnsupportedOperationError(
@@ -173,7 +174,7 @@ export function streamEvent(message: SseMessage): StreamLogEvent {
     }
   }
   if (message.event === 'eof') return { type: 'eof', cursor }
-  if (message.event === 'error') return { type: 'error', cursor, error: new DaytonaError(typeof parsed.message === 'string' ? parsed.message : message.data) }
+  if (message.event === 'error') return { type: 'error', cursor, error: createDaytonaError(typeof parsed.message === 'string' ? parsed.message : message.data) }
   return { type: 'log', cursor, frame: frameFromWire({ ...parsed, cursor } as LogFrameWire) }
 }
 
