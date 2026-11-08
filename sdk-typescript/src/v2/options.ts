@@ -11,7 +11,9 @@ import { BadRequestError } from './errors/DaytonaError.js'
  * TypeScript callers get a compile error for an unknown option; plain
  * JavaScript callers (and callers that cast) would otherwise have it ignored
  * without a word, which turns a renamed option into a silently different
- * behaviour. Every public options type therefore declares its known keys once:
+ * behaviour. Every public options type therefore declares its known keys once
+ * (the client configuration objects do today; the per-call options follow area
+ * by area):
  *
  * ```ts
  * const CREATE_OPTION_KEYS = optionKeys<CreateOptions>()({ name: true, labels: true })

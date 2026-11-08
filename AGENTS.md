@@ -483,7 +483,9 @@ skipping exist only in the TypeScript tool).
   `requestTimeout`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
-  Python needs no helper: unknown keywords already raise `TypeError`.
+  Python needs no helper: unknown keywords already raise `TypeError`. Applied
+  so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`);
+  per-call options adopt it area by area, each with its duration renames.
 - **Errors have one shape.** v2 category names are identical in both SDKs
   (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
