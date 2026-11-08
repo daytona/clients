@@ -697,3 +697,10 @@ async def test_every_malformed_computer_use_result_is_the_malformed_response_err
     with pytest.raises(BadRequestError) as info:
         await calls[operation]()
     assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_mkdir_defaults_to_mode_0755_like_the_typescript_sdk() -> None:
+    transport = Transport([None])
+    await AsyncFileSystemService(transport).mkdir("/w")  # type: ignore[arg-type]
+    assert transport.specs[0].params == {"path": "/w", "mode": "0755"}

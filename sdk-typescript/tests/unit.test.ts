@@ -12264,6 +12264,12 @@ describe('toolbox surface', () => {
     await expect(process.connect('p').logs()).resolves.toEqual({ items: [], nextCursor: '1', truncatedHead: false })
   })
 
+  it('defaults mkdir to mode 0755, like the Python SDK', async () => {
+    const transport = transportStub()
+    await new FileSystemService(INTERNAL, transport.object).mkdir('/w')
+    expect(transport.post.mock.calls[0]).toEqual(['/files/folder', undefined, { params: { path: '/w', mode: '0755' } }])
+  })
+
   it('rejects filesystem list envelopes without items', async () => {
     const transport = transportStub()
     const fs = new FileSystemService(INTERNAL, transport.object)
