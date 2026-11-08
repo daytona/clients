@@ -334,6 +334,24 @@ class Directions(unittest.TestCase):
         old = passed + "O.m: method (a: string): void"
         self.assertEqual(self.breaks(self.TS, old, old.replace("(a: string)", "(a: string, b: number)")), 0)
 
+    def test_dropping_a_narrower_overload(self) -> None:
+        old = "C: class\nC.m: method (a: string): void\nC.m: method (a: number | string): void"
+        new = "C: class\nC.m: method (a: number | string): void"
+        self.assertEqual(self.breaks(self.TS, old, new), 0)
+        # Callers implementing it: the dropped overload is not standing in.
+        passed = "O: interface\nO: passed-in\nO.m: method (a: string): void\nO.m: method (a: number | string): void"
+        report = bc.Report()
+        bc.compare_surface(self.TS, passed, "O: interface\nO: passed-in\nO.m: method (a: number | string): void", report)
+        self.assertEqual(len(report.breaking), 1)
+        # The key still exists: its lines are printed, not "(removed)".
+        self.assertEqual(dict(report.breaking[0].fields)["new"], "O.m: method (a: number | string): void")
+
+    def test_new_index_signature_on_a_passed_in_type(self) -> None:
+        passed = "O: interface\nO: passed-in\nO.a: property string"
+        self.assertEqual(self.breaks(self.TS, passed, passed + "\nO[]: index [key: string]: string"), 1)
+        out = "R: interface\nR.a: property string"
+        self.assertEqual(self.breaks(self.TS, out, out + "\nR[]: index [key: string]: string"), 0)
+
     def test_new_required_member_of_a_two_way_type(self) -> None:
         ts = "Ev: interface\nEv: returned also-passed-in\nEv.name: property string"
         self.assertEqual(self.breaks(self.TS, ts, ts + "\nEv.team: property string"), 1)
@@ -834,6 +852,26 @@ class OpenAPI(unittest.TestCase):
         self.assertEqual(errors, set())
         errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"], open_enum=False), spec(["a", "b"], open_enum=False))
         self.assertTrue(errors)
+
+    def test_open_enum_in_an_array_query_parameter(self) -> None:
+        def doc(values: list[str]) -> str:
+            d = json.loads(spec(values))
+            d["paths"]["/a"]["get"]["parameters"] = [
+                {
+                    "name": "status",
+                    "in": "query",
+                    "required": False,
+                    "schema": {"type": "array", "items": {"$ref": "#/components/schemas/S"}},
+                }
+            ]
+            return json.dumps(d)
+
+        # A removed value is still a finding where callers send it.
+        errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", doc(["a", "b"]), doc(["a"]))
+        self.assertIn("request-parameter-property-enum-value-removed", {dict(f.fields)["rule"] for f in errors})
+        # A value added to the open enum (which responses also return) passes.
+        errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", doc(["a"]), doc(["a", "b"]))
+        self.assertEqual(errors, set())
 
     def test_removed_request_parameter_is_a_finding(self) -> None:
         def with_param(params: list[str]) -> str:

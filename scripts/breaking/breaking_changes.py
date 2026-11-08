@@ -904,9 +904,11 @@ def new_required_members(name: str, old: dict[str, list[str]], new: dict[str, li
         marker = next(r for r in new[parent] if r == PASS_ONLY_MARKER or r in TWO_WAY_MARKERS)
         for rest in new[key]:
             # A new call or construct signature (`X()`) is one more thing every
-            # implementation must accept; a new member must be supplied when
-            # it is required.
-            if suffix == "()" or ("." not in suffix[1:] and suffix[0] == "." and required_member(supplied[parent], rest)):
+            # implementation must accept, and a new index signature (`X[]`)
+            # one more constraint on every member callers' types have; a new
+            # member must be supplied when it is required.
+            member = (suffix[0] == "." and "." not in suffix[1:]) or (suffix.startswith("[") and suffix != "[]")
+            if suffix in ("()", "[]") or (member and required_member(supplied[parent], rest)):
                 report.breaking.append(snapshot_finding(name, f"{parent}: {marker}", [f"{key}: {rest}"]))
 
 
@@ -947,7 +949,13 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             if rest in news:
                 continue
             line = f"{key}: {rest}"
+            # The key's new lines. A signature or member line with none added
+            # names the lines the key still has (it was not removed); a set
+            # member (union member, value, element) is itself removed.
             added = [f"{key}: {r}" for r in news if r not in old[key]]
+            if not added and rest.split(" ", 1)[0] not in SET_KINDS:
+                added = [f"{key}: {r}" for r in news]
+            here = position(key, rest, old, pass_only, two_way)
             if informational(rest):
                 report.notices.append(f"{name}: changed (not public API) {line}")
             elif rest.startswith("flag-group "):
@@ -969,8 +977,12 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                     (
                         c
                         for c in news
-                        if c not in old[key]
-                        and compatible_change(rest, c, typescript=typescript, **position(key, rest, old, pass_only, two_way))
+                        # An unchanged sibling overload may stand in for a
+                        # dropped one of a function the SDK implements:
+                        # callers only call it. Callers implementing it
+                        # must accept every overload.
+                        if (c not in old[key] or here["implementer"] == "sdk")
+                        and compatible_change(rest, c, typescript=typescript, **here)
                     ),
                     None,
                 )
@@ -1095,8 +1107,9 @@ def new_required_flags(name: str, old: dict[str, list[str]], new: dict[str, list
 
 
 def open_enums_extensible(node: object) -> object:
-    """Enums tagged x-daytona-open-enum may grow: give oasdiff the
-    x-extensible-enum form, which allows added values but not removed ones."""
+    """Enums tagged x-daytona-open-enum in the x-extensible-enum form, which
+    oasdiff lets gain values. Used only to learn which response-side value
+    additions the open tag permits (see ``oasdiff_findings``)."""
     if isinstance(node, dict):
         out = {k: open_enums_extensible(v) for k, v in node.items()}
         if "enum" in out and out.get("x-daytona-open-enum"):
@@ -1107,11 +1120,11 @@ def open_enums_extensible(node: object) -> object:
     return node
 
 
-def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> tuple[set[Finding], set[str]]:
+def run_oasdiff(oasdiff: str, path: str, old_doc: object, new_doc: object) -> list[dict[str, object]]:
     with tempfile.TemporaryDirectory() as tmp:
         base, rev = Path(tmp, "base.json"), Path(tmp, "revision.json")
-        base.write_text(json.dumps(open_enums_extensible(json.loads(old_text))))
-        rev.write_text(json.dumps(open_enums_extensible(json.loads(new_text))))
+        base.write_text(json.dumps(old_doc))
+        rev.write_text(json.dumps(new_doc))
         result = subprocess.run(
             [oasdiff, "breaking", str(base), str(rev), "--format", "json", "--allow-external-refs=false"],
             capture_output=True,
@@ -1119,13 +1132,42 @@ def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> t
         )
     if result.returncode != 0:
         raise SystemExit(f"oasdiff failed on {path}: {result.stderr.strip()}")
+    items: list[dict[str, object]] = json.loads(result.stdout or "[]")
+    return items
+
+
+def oasdiff_key(item: dict[str, object]) -> tuple[str, str, str, str]:
+    return (str(item.get("id")), str(item.get("operation")), str(item.get("path")), " ".join(str(item.get("text")).split()))
+
+
+def is_response_value_added(item: dict[str, object]) -> bool:
+    rule = str(item.get("id"))
+    return rule.startswith("response-") and rule.endswith("enum-value-added")
+
+
+def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> tuple[set[Finding], set[str]]:
+    """oasdiff on the contracts as they are (failing closed), minus the one
+    change the open-enum tag permits: a value added to an enum tagged
+    x-daytona-open-enum on the response side. Which response additions those
+    are is learnt from a second run with open enums in the x-extensible-enum
+    form; every request-side removal stays, also where oasdiff's
+    x-extensible-enum checks do not reach (array-valued query parameters)."""
+    old_doc, new_doc = json.loads(old_text), json.loads(new_text)
+    raw = run_oasdiff(oasdiff, path, old_doc, new_doc)
+    permitted: set[tuple[str, str, str, str]] = set()
+    if any(is_response_value_added(item) for item in raw):
+        still = {oasdiff_key(i) for i in run_oasdiff(oasdiff, path, open_enums_extensible(old_doc), open_enums_extensible(new_doc))}
+        permitted = {oasdiff_key(i) for i in raw if is_response_value_added(i) and oasdiff_key(i) not in still}
     errors: set[Finding] = set()
     warnings: set[str] = set()
-    for item in json.loads(result.stdout or "[]"):
-        where = " ".join(p for p in (item.get("operation"), item.get("path")) if p) or "-"
+    for item in raw:
+        if oasdiff_key(item) in permitted:
+            continue
+        where = " ".join(str(p) for p in (item.get("operation"), item.get("path")) if p) or "-"
         # WARN (2) counts too: it covers removed request parameters and
         # properties, which an older SDK may still send.
-        if item.get("level", 0) >= 2:
+        level = item.get("level", 0)
+        if isinstance(level, int) and level >= 2:
             errors.add(contract_finding(path, str(item.get("id")), where, " ".join(str(item.get("text")).split())))
         else:
             warnings.add(f"{path}: [{item.get('id')}] {where}: {item.get('text')}")
