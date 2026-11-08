@@ -26,6 +26,7 @@ func newSandboxCreateMacosCommand() *cobra.Command {
 			"  daytona sandbox create-macos --image base-macos --block-all --allow-domain example.com",
 		path: "/sandboxes/macos", secrets: true, macos: true, volumes: true, networkPolicy: true,
 		decode: decodeAndCreateMacos,
+		keys:   input.CheckKeysFor[gen.CreateMacosSandboxRequest],
 	})
 }
 

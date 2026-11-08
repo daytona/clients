@@ -12,6 +12,7 @@ import (
 	"github.com/daytona/clients/cli/internal/cerr"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/workload"
@@ -181,6 +182,11 @@ func renamedFlagHint(cmd *cobra.Command, err error) string {
 // --wait on `sandbox docker status`.
 func checkFlagCombinations(cmd *cobra.Command) error {
 	flags := cmd.Flags()
+	if rule := flagCombinationRules[cmd.CommandPath()]; rule != nil {
+		if err := rule(flags); err != nil {
+			return err
+		}
+	}
 	if !flags.Changed("timeout") {
 		return nil
 	}
@@ -199,6 +205,39 @@ func checkFlagCombinations(cmd *cobra.Command) error {
 		}
 	}
 	return nil
+}
+
+// flagCombinationRules refuse flag combinations a command would accept and
+// ignore, per command path. They run before the configuration loads, so the
+// mistake is a usage error whatever the profile.
+var flagCombinationRules = map[string]func(*pflag.FlagSet) error{
+	"daytona login": func(f *pflag.FlagSet) error {
+		device, _ := f.GetBool("device")
+		browser, _ := f.GetBool("browser")
+		// The modes actually selected conflict, not the flags given:
+		// `--device=$X --browser=$Y` from a script is fine while at most
+		// one is true.
+		if device && browser {
+			return cerr.Usage("--device and --browser select different login flows; pass one")
+		}
+		if f.Changed("token") && (device || browser || f.Changed("client-id")) {
+			return cerr.Usage("--token stores a static credential; it does not combine with --device, --browser or --client-id")
+		}
+		return nil
+	},
+	"daytona sandbox update": func(f *pflag.FlagSet) error {
+		if clear, _ := f.GetBool("clear-labels"); clear && f.Changed("label") {
+			return cerr.Usage("--clear-labels and --label both set the labels; pass one").
+				WithHint("--label alone replaces the whole label set")
+		}
+		return nil
+	},
+	"daytona sandbox process signal": func(f *pflag.FlagSet) error {
+		if f.Changed("escalate-to") && !f.Changed("escalate-after") {
+			return cerr.Usage("--escalate-to requires --escalate-after")
+		}
+		return nil
+	},
 }
 
 // runsWithoutConfig reports whether cmd still runs when the config cannot be

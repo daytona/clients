@@ -14,6 +14,7 @@ import (
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
@@ -34,7 +35,7 @@ func newSecretSetCmd() *cobra.Command {
 	var useStdin bool
 	var allowedDomains []string
 	var description string
-	cmd := &cobra.Command{Use: "set <name>", Short: "Create or update a project secret", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "set <name>", Short: "Create or update a project secret", Long: "Create or update a project secret and print it (never its value). It reads the stored secret first, so options you do not pass keep their values: it needs read as well as write access to secrets.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		count := 0
 		if cmd.Flags().Changed("value") {
 			count++
@@ -87,10 +88,11 @@ func newSecretSetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, nil); err != nil {
+		var stored api.Raw[gen.Secret]
+		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, &stored); err != nil {
 			return err
 		}
-		return printAck(a, "name", args[0], "updated", "")
+		return printSecret(a, stored)
 	}}
 	cmd.Flags().StringVar(&value, "value", "", "secret value on the command line — visible to other local users via the process list and shell history; prefer --stdin or --from-file")
 	cmd.Flags().StringVar(&fromFile, "from-file", "", "read the secret value from a file; strips exactly one trailing newline (or CRLF)")
@@ -145,9 +147,8 @@ func newSecretGetCmd() *cobra.Command {
 		if err := client.Do(ctx, http.MethodGet, "/secrets/"+url.PathEscape(args[0]), nil, nil, &raw); err != nil {
 			return err
 		}
-		resp := raw.V
 		a.Info("Secret values are write-only and are never returned by the API.")
-		return a.Printer().Object(raw, [][2]string{{"name", resp.Name}, {"allowed_domains", joinComma(resp.AllowedDomains)}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
+		return printSecret(a, raw)
 	}}
 }
 
@@ -238,4 +239,10 @@ func trimOneTrailingLineEnding(value string) string {
 		return strings.TrimSuffix(value, "\r\n")
 	}
 	return strings.TrimSuffix(value, "\n")
+}
+
+// printSecret prints a secret's metadata: the API's JSON, or a table.
+func printSecret(a *app.App, raw api.Raw[gen.Secret]) error {
+	resp := raw.V
+	return a.Printer().Object(raw, [][2]string{{"name", resp.Name}, {"allowed_domains", joinComma(resp.AllowedDomains)}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
 }

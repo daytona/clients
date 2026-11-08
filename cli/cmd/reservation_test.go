@@ -118,7 +118,7 @@ func TestMacModelList_regionAddsAvailabilityAndPrices(t *testing.T) {
 	help, _, err := runCLI(t, []string{"mac-model", "list", "--help"}, nil)
 	require.NoError(t, err)
 	for _, line := range []string{
-		"--region R region slug: also show free Macs and prices from GET /mac-catalog",
+		"--region REGION region slug: also show free Macs and prices from GET /mac-catalog",
 		"With --region, also show how many Macs of each model a purchase can reserve now (AVAILABLE) and the price of one Mac-hour and one 24-hour period.",
 		"daytona mac-model list --region '<region>'",
 	} {

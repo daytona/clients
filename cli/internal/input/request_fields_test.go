@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/format"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -42,12 +43,26 @@ var (
 	textUnmarshaler = reflect.TypeFor[encoding.TextUnmarshaler]()
 )
 
+// fieldsFailure reports a type the table cannot describe; tests set it to
+// t.Fatalf so a new raw-JSON type never becomes an unchecked leaf.
+var fieldsFailure = func(format string, a ...any) { panic(fmt.Sprintf(format, a...)) }
+
 // fieldsOf builds the JSON shape encoding/json accepts for t.
 func fieldsOf(t reflect.Type, depth int) *Fields {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	if depth > 20 || reflect.PointerTo(t).Implements(jsonUnmarshaler) || reflect.PointerTo(t).Implements(textUnmarshaler) {
+	if depth > 20 {
+		return nil
+	}
+	if reflect.PointerTo(t).Implements(jsonUnmarshaler) || reflect.PointerTo(t).Implements(textUnmarshaler) {
+		if t.PkgPath() != reflect.TypeFor[gen.CreateImageRequest]().PkgPath() {
+			return nil // a scalar such as a time, a date or a UUID
+		}
+		if isUnion(t) {
+			return unionFields(t, depth)
+		}
+		fieldsFailure("%s decodes its own JSON and is not a union the table can expand: teach fieldsOf its shape", t)
 		return nil
 	}
 	switch t.Kind() {
@@ -64,6 +79,99 @@ func fieldsOf(t reflect.Type, depth int) *Fields {
 		return &Fields{IsList: true, List: fieldsOf(t.Elem(), depth+1)}
 	}
 	return nil
+}
+
+// isUnion reports a generated oneOf type: a struct holding only the raw
+// `union` JSON.
+func isUnion(t reflect.Type) bool {
+	return t.Kind() == reflect.Struct && t.NumField() == 1 && t.Field(0).Name == "union" &&
+		t.Field(0).Type == reflect.TypeFor[json.RawMessage]()
+}
+
+// unionFields describes a generated oneOf type: each member (the As<Name>N
+// methods) by its own fields, selected by the member's discriminator value,
+// which the contract's schema of the same name declares.
+func unionFields(t reflect.Type, depth int) *Fields {
+	schema := contractSchema(t.Name())
+	oneOf, _ := schema["oneOf"].([]any)
+	if len(oneOf) == 0 {
+		fieldsFailure("%s: no oneOf schema %q in the contract", t, t.Name())
+		return nil
+	}
+	u := &Union{Members: map[string]*Fields{}}
+	for i, raw := range oneOf {
+		member, ok := t.MethodByName(fmt.Sprintf("As%s%d", t.Name(), i))
+		if !ok || member.Type.NumOut() != 2 {
+			fieldsFailure("%s: no As%s%d member accessor", t, t.Name(), i)
+			return nil
+		}
+		fields := fieldsOf(member.Type.Out(0), depth+1)
+		memberSchema := resolveSchema(raw)
+		properties, _ := memberSchema["properties"].(map[string]any)
+		key, value := "", ""
+		names := make([]string, 0, len(properties))
+		for name, prop := range properties {
+			names = append(names, name)
+			p, _ := prop.(map[string]any)
+			if p["x-daytona-exact-enum"] == "discriminator" {
+				enum, _ := p["enum"].([]any)
+				if len(enum) != 1 {
+					fieldsFailure("%s member %d: discriminator %q needs one value", t, i, name)
+					return nil
+				}
+				key, value = name, fmt.Sprint(enum[0])
+			}
+		}
+		if key == "" || (u.Key != "" && u.Key != key) {
+			fieldsFailure("%s member %d: no single discriminator property", t, i)
+			return nil
+		}
+		got := make([]string, 0, len(fields.Object))
+		for name := range fields.Object {
+			got = append(got, name)
+		}
+		sort.Strings(names)
+		sort.Strings(got)
+		if strings.Join(names, ",") != strings.Join(got, ",") {
+			fieldsFailure("%s member %d: Go fields %v, contract properties %v", t, i, got, names)
+			return nil
+		}
+		u.Key = key
+		u.Members[value] = fields
+	}
+	return &Fields{Union: u}
+}
+
+var contractSchemas map[string]any
+
+func contractSchema(name string) map[string]any {
+	if contractSchemas == nil {
+		raw, err := os.ReadFile(filepath.Join("..", "..", "..", "contract", "api-openapi.json"))
+		if err != nil {
+			fieldsFailure("read the contract: %v", err)
+			return nil
+		}
+		var doc struct {
+			Components struct {
+				Schemas map[string]any `json:"schemas"`
+			} `json:"components"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			fieldsFailure("parse the contract: %v", err)
+			return nil
+		}
+		contractSchemas = doc.Components.Schemas
+	}
+	schema, _ := contractSchemas[name].(map[string]any)
+	return schema
+}
+
+func resolveSchema(raw any) map[string]any {
+	schema, _ := raw.(map[string]any)
+	if ref, ok := schema["$ref"].(string); ok {
+		return contractSchema(strings.TrimPrefix(ref, "#/components/schemas/"))
+	}
+	return schema
 }
 
 func collectFields(t reflect.Type, out map[string]*Fields, depth int) {
@@ -116,6 +224,19 @@ func fieldsLiteral(f *Fields) string {
 		return "&Fields{IsMap: true, Map: " + fieldsLiteral(f.Map) + "}"
 	case f.IsList:
 		return "&Fields{IsList: true, List: " + fieldsLiteral(f.List) + "}"
+	case f.Union != nil:
+		values := make([]string, 0, len(f.Union.Members))
+		for value := range f.Union.Members {
+			values = append(values, value)
+		}
+		sort.Strings(values)
+		var b strings.Builder
+		fmt.Fprintf(&b, "&Fields{Union: &Union{Key: %q, Members: map[string]*Fields{\n", f.Union.Key)
+		for _, value := range values {
+			fmt.Fprintf(&b, "%q: %s,\n", value, fieldsLiteral(f.Union.Members[value]))
+		}
+		b.WriteString("}}}")
+		return b.String()
 	}
 	return "nil"
 }
@@ -132,6 +253,7 @@ func registerFields[T any](t *testing.T) {
 
 func renderRequestFields(t *testing.T) []byte {
 	t.Helper()
+	fieldsFailure = t.Fatalf
 	var b strings.Builder
 	b.WriteString("// Copyright Daytona Platforms Inc.\n// SPDX-License-Identifier: AGPL-3.0\n\n")
 	b.WriteString("// Code generated by `go test ./internal/input -run TestRequestFieldsAreCurrent -update`. DO NOT EDIT.\n\n")
@@ -164,5 +286,17 @@ func TestRequestFieldsAreCurrent(t *testing.T) {
 	}
 	if string(got) != string(want) {
 		t.Fatal("request_fields_gen.go is stale: run go test ./internal/input -run TestRequestFieldsAreCurrent -update")
+	}
+}
+
+// Every union of the generated API types expands to its members, so a new
+// oneOf in a request becomes checked, not an unchecked leaf.
+func TestEveryGeneratedUnionExpands(t *testing.T) {
+	fieldsFailure = t.Fatalf
+	for _, v := range []any{gen.PublicImageSource{}, gen.ImageSourceValue{}} {
+		f := fieldsOf(reflect.TypeOf(v), 0)
+		if f == nil || f.Union == nil || len(f.Union.Members) < 2 {
+			t.Fatalf("%T: %+v", v, f)
+		}
 	}
 }

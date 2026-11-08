@@ -320,9 +320,8 @@ func TestSandboxUpdate_rejectsNullLifecycleWithoutOverride(t *testing.T) {
 func TestSandboxUpdate_caseVariantLifecycleFieldIsUnknown(t *testing.T) {
 	bodyPath := filepath.Join(t.TempDir(), "update.json")
 	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"lifecycle_policy":{"Idle_Expiry_Seconds":null,"on_idle_timeout":"delete"}}`), 0o600))
-	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath, "--idle-timeout", "1m"}, []expectedRequest{
-		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
-	})
+	// Nothing is sent: the body is checked before the sandbox is looked up.
+	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath, "--idle-timeout", "1m"}, nil)
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "unknown field")
 }

@@ -111,7 +111,6 @@ func newCPUTypeListCommand() *cobra.Command {
 		Short:   "Inspect the CPU type catalog",
 		GroupID: GroupWorkload,
 	}
-	var region string
 	list := &cobra.Command{
 		Use:   "list",
 		Short: "List CPU types",
@@ -130,7 +129,7 @@ func newCPUTypeListCommand() *cobra.Command {
 			// unscoped catalog listing.
 			if cmd.Flags().Changed("region") {
 				var err error
-				if slug, err = catalogRegionSlug(region); err != nil {
+				if slug, err = catalogRegionSlug(regionFlag(cmd)); err != nil {
 					return err
 				}
 			}
@@ -175,7 +174,7 @@ func newCPUTypeListCommand() *cobra.Command {
 			})
 		},
 	}
-	list.Flags().StringVar(&region, "region", "", "region slug: show availability from GET /cpu-catalog")
+	addRegionFlag(list, "region slug: show availability from GET /cpu-catalog")
 	cmd.AddCommand(list)
 	return cmd
 }
@@ -186,7 +185,6 @@ func newMacModelListCommand() *cobra.Command {
 		Short:   "Inspect the Mac model catalog",
 		GroupID: GroupWorkload,
 	}
-	var region string
 	list := &cobra.Command{
 		Use:   "list",
 		Short: "List registered Mac models",
@@ -203,7 +201,7 @@ func newMacModelListCommand() *cobra.Command {
 			// registry listing.
 			if cmd.Flags().Changed("region") {
 				var err error
-				if slug, err = catalogRegionSlug(region); err != nil {
+				if slug, err = catalogRegionSlug(regionFlag(cmd)); err != nil {
 					return err
 				}
 			}
@@ -232,8 +230,7 @@ func newMacModelListCommand() *cobra.Command {
 			})
 		},
 	}
-	list.Flags().StringVar(&region, "region", "", "region slug: also show free Macs and prices from GET /mac-catalog")
-	flagPlaceholder(list.Flags(), "region", "R")
+	addRegionFlag(list, "region slug: also show free Macs and prices from GET /mac-catalog")
 	cmd.AddCommand(list)
 	return cmd
 }
@@ -424,4 +421,13 @@ func listQuery(flags pageFlags, cursor string) url.Values {
 		query.Set("cursor", cursor)
 	}
 	return query
+}
+
+// regionFlag is the --region value as given.
+func regionFlag(cmd *cobra.Command) string {
+	f := cmd.Flags().Lookup("region")
+	if f == nil {
+		return ""
+	}
+	return f.Value.String()
 }

@@ -116,6 +116,17 @@ func (b Body) String() string {
 	return fmt.Sprintf("%s", j)
 }
 
+// CheckKeysFor checks b's keys against request type T's field names
+// (CheckKeys); Decode runs it too.
+func CheckKeysFor[T any](b Body) error {
+	var v T
+	fields, ok := requestFields[fmt.Sprintf("%T", v)]
+	if !ok {
+		return cerr.New(cerr.ExitFailure, "no field table for %T (regenerate request_fields_gen.go)", v)
+	}
+	return CheckKeys(fields, map[string]any(b))
+}
+
 // Decode marshals the merged body into a typed request struct, so the server's
 // schema (via the generated types) validates what the flags and --file
 // produced. Explicit JSON nulls are not representable once a generated
@@ -126,11 +137,7 @@ func (b Body) String() string {
 // One implementation for every command family.
 func Decode[T any](b Body) (T, error) {
 	var out T
-	fields, ok := requestFields[fmt.Sprintf("%T", out)]
-	if !ok {
-		return out, cerr.New(cerr.ExitFailure, "no field table for %T (regenerate request_fields_gen.go)", out)
-	}
-	if err := CheckKeys(fields, map[string]any(b)); err != nil {
+	if err := CheckKeysFor[T](b); err != nil {
 		return out, err
 	}
 	raw, err := json.Marshal(b)

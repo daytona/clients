@@ -68,6 +68,9 @@ type createSurface struct {
 	// selectors and the stop|delete lifecycle actions.
 	resources, burst, cpuConstraints, user, volumes, secrets, spot, networkPolicy, macos bool
 	decode                                                                               func(cmd *cobra.Command, a *app.App, flags sandboxCreateFlags, body input.Body, headers http.Header) error
+	// keys checks the body's keys against the request type, before the
+	// lifecycle check reads them.
+	keys func(input.Body) error
 }
 
 func newSandboxCreateCommand() *cobra.Command {
@@ -76,6 +79,7 @@ func newSandboxCreateCommand() *cobra.Command {
 		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --image py312\n  daytona sandbox create --image py312 --name example-user --wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
 		path: "/sandboxes", imageOptional: true, resources: true, burst: true, cpuConstraints: true, user: true, volumes: true, secrets: true, spot: true, networkPolicy: true,
 		decode: decodeAndCreate[gen.CreateSandboxRequest],
+		keys:   input.CheckKeysFor[gen.CreateSandboxRequest],
 	})
 }
 
@@ -85,6 +89,7 @@ func newSandboxCreateFromSnapshotCommand() *cobra.Command {
 		long: "Create a Linux sandbox from a snapshot (POST /sandboxes/from-snapshot). The SDK twin is create_from_snapshot(snapshot, …).\nResources come from the snapshot; only name, labels, ports, lifecycle, wait and create-ttl apply.\nExample:\n  daytona sandbox create-from-snapshot after-setup --name resumed",
 		path: "/sandboxes/from-snapshot", snapshot: true,
 		decode: decodeAndCreate[gen.CreateSandboxFromSnapshotRequest],
+		keys:   input.CheckKeysFor[gen.CreateSandboxFromSnapshotRequest],
 	})
 }
 
@@ -136,6 +141,9 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 			}
 			body, err := buildSandboxCreateBody(cmd, a, *flags, sf.snapshot, sf.imageOptional)
 			if err != nil {
+				return err
+			}
+			if err := sf.keys(body); err != nil {
 				return err
 			}
 			if err := validateLifecycleBody(sf.macos, body); err != nil {

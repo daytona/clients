@@ -20,6 +20,15 @@ type Fields struct {
 	List   *Fields
 	// IsMap and IsList tell a map or list of free values from a leaf.
 	IsMap, IsList bool
+	// Union is a oneOf: an object whose discriminator picks its fields.
+	Union *Union
+}
+
+// Union is a oneOf object: the value of its Key field names the member,
+// whose fields are then exact like any object's.
+type Union struct {
+	Key     string
+	Members map[string]*Fields
 }
 
 // CheckKeys refuses a key that is not exactly the name of a request field,
@@ -54,6 +63,8 @@ func checkKeys(f *Fields, v any, path *[]string) error {
 				return err
 			}
 		}
+	case f.Union != nil:
+		return checkUnion(f.Union, v, path)
 	case f.IsMap:
 		object, ok := asObject(v)
 		if !ok {
@@ -82,6 +93,42 @@ func checkKeys(f *Fields, v any, path *[]string) error {
 		}
 	}
 	return nil
+}
+
+// checkUnion checks a oneOf object: its discriminator must name a member,
+// whose fields are then exact.
+func checkUnion(u *Union, v any, path *[]string) error {
+	where := ""
+	if len(*path) > 0 {
+		where = fmt.Sprintf(" (in %q)", strings.Join(*path, "."))
+	}
+	values := make([]string, 0, len(u.Members))
+	for value := range u.Members {
+		values = append(values, value)
+	}
+	sort.Strings(values)
+	if v == nil {
+		return nil // null: the caller decides whether the field is required
+	}
+	object, ok := asObject(v)
+	if !ok {
+		return cerr.Usage("invalid request body: want an object with %q one of %s%s", u.Key, strings.Join(values, ", "), where)
+	}
+	raw, ok := object[u.Key]
+	if !ok {
+		for _, key := range sortedKeys(object) {
+			if strings.EqualFold(key, u.Key) {
+				return unknownKey(&Fields{Object: map[string]*Fields{u.Key: nil}}, key, *path)
+			}
+		}
+		return cerr.Usage("invalid request body: %q is required%s", u.Key, where).WithHint("one of %s", strings.Join(values, ", "))
+	}
+	value, _ := raw.(string)
+	member, ok := u.Members[value]
+	if !ok {
+		return cerr.Usage("invalid request body: unknown %s %v%s", u.Key, raw, where).WithHint("one of %s", strings.Join(values, ", "))
+	}
+	return checkKeys(member, v, path)
 }
 
 func unknownKey(f *Fields, key string, path []string) error {

@@ -6,6 +6,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -493,10 +494,15 @@ func TestFileKeysAreExactOnEveryCommand(t *testing.T) {
 		{`{"bucket":{"Name":"b"}}`, []string{"volume", "create", "vol", "--type", "bucket"}},
 		{`{"Name":"x"}`, []string{"snapshot", "create", "s", "--no-wait"}},
 		{`{"Source":{"type":"registry","ref":"python:3.12"}}`, []string{"image", "create", "img", "--no-wait"}},
+		{`{"source":{"Type":"registry","ref":"python:3.12"}}`, []string{"image", "create", "img", "--no-wait"}},
+		{`{"source":{"type":"registry","ref":"x","extra":1}}`, []string{"image", "create", "img", "--no-wait"}},
+		{`{"source":{"type":"named","ref":"x"}}`, []string{"image", "create", "img", "--no-wait"}},
 		{`{"Labels":{"a":"b"}}`, []string{"sandbox", "update", "s"}},
 		{`{"lifecycle_policy":{"Timeout_Seconds":60}}`, []string{"sandbox", "update", "s"}},
 		{`{"Dockerfile":"Dockerfile","context":"."}`, []string{"image", "build", "img", "--no-wait"}},
 		{`{"Model":"m"}`, []string{"reservation", "create", "--region", "r", "--yes"}},
+		// The key check runs before the lifecycle check reads `persistent`.
+		{`{"Persistent":true,"lifecycle_policy":{"on_timeout":"stop"}}`, []string{"sandbox", "create-macos", "--image", "m", "--no-wait", "--yes"}},
 	} {
 		path := filepath.Join(dir, "body.json")
 		require.NoError(t, os.WriteFile(path, []byte(tc.body), 0o600))
@@ -505,7 +511,7 @@ func TestFileKeysAreExactOnEveryCommand(t *testing.T) {
 		args := append([]string{"--api-url", f.srv.URL, "--api-key", "k"}, tc.args...)
 		_, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, append(args, "--file", path)...)
 		require.Equal(t, cerr.ExitUsage, code, "%v %s: %s", tc.args, tc.body, stderr)
-		require.Contains(t, errorObject(t, stderr)["message"], "unknown field", tc.body)
+		require.Contains(t, errorObject(t, stderr)["message"], "unknown", tc.body)
 		for _, r := range f.requests {
 			require.Equal(t, http.MethodGet, r.Method, "%v %s: nothing is sent", tc.args, tc.body)
 		}
@@ -859,4 +865,51 @@ func TestOldLifecycleTimeoutNamesItsReplacement(t *testing.T) {
 	_, stderr, code := runReported(t, cfgDir(t), nil, "sandbox", "wait", "s", "--timeout", "30")
 	require.Equal(t, cerr.ExitUsage, code)
 	require.NotContains(t, stderr, "--lifecycle-timeout", "sandbox wait never had a lifecycle --timeout")
+}
+
+// image create's source is a oneOf: its type picks the member, whose fields
+// are exact; an unknown type is refused.
+func TestImageCreateSourceMembersAreChecked(t *testing.T) {
+	dir := t.TempDir()
+	for body, want := range map[string]string{
+		`{"source":{"type":"oci","ref":"x"}}`:                "unknown type",
+		`{"source":{"ref":"x"}}`:                             `"type" is required`,
+		`{"source":{"Type":"registry","ref":"x"}}`:           `did you mean "type"`,
+		`{"source":{"type":"registry","ref":"x","extra":1}}`: `unknown field "extra"`,
+		`{"source":{"type":"registry","Ref":"x"}}`:           `did you mean "ref"`,
+	} {
+		path := filepath.Join(dir, "body.json")
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+		f := newFakeAPI(t)
+		_, stderr, code := runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "image", "create", "img", "--file", path, "--no-wait")
+		require.Equal(t, cerr.ExitUsage, code, body)
+		obj := errorObject(t, stderr)
+		require.Contains(t, fmt.Sprint(obj["message"], " ", obj["hint"]), want, body)
+		require.Empty(t, f.requests, body)
+	}
+	path := filepath.Join(dir, "body.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"source":{"type":"named","name":"base"}}`), 0o600))
+	_, _, err := runCLI(t, []string{"image", "create", "img", "--file", path, "--no-wait"}, []expectedRequest{{
+		method: http.MethodPost, path: "/images", status: 202,
+		bodyJSON: `{"name":"img","source":{"type":"named","name":"base"}}`,
+		response: `{"id":"11111111-1111-1111-1111-111111111111","status":"pending"}`,
+	}})
+	require.NoError(t, err)
+}
+
+// Flag combinations a command would accept and ignore are usage errors,
+// before the configuration loads (an unknown profile does not hide them).
+func TestIgnoredFlagCombinationsAreRefused(t *testing.T) {
+	for _, args := range [][]string{
+		{"sandbox", "update", "s", "--clear-labels", "--label", "a=b"},
+		{"sandbox", "process", "signal", "s", "p", "TERM", "--escalate-to", "KILL"},
+		{"login", "--token", "dtn_x", "--device"},
+	} {
+		f := newFakeAPI(t)
+		for _, env := range []map[string]string{nil, {"DAYTONA_PROFILE": "missing"}} {
+			_, stderr, code := runReported(t, cfgDir(t), env, append([]string{"--api-url", f.srv.URL, "--api-key", "k"}, args...)...)
+			require.Equal(t, cerr.ExitUsage, code, "%v %v: %s", args, env, stderr)
+		}
+		require.Empty(t, f.requests, args)
+	}
 }

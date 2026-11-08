@@ -14,7 +14,16 @@ var requestFields = map[string]*Fields{
 		"idle_expiry_seconds": nil,
 		"name":                nil,
 		"region_id":           nil,
-		"source":              nil,
+		"source": &Fields{Union: &Union{Key: "type", Members: map[string]*Fields{
+			"named": &Fields{Object: map[string]*Fields{
+				"name": nil,
+				"type": nil,
+			}},
+			"registry": &Fields{Object: map[string]*Fields{
+				"ref":  nil,
+				"type": nil,
+			}},
+		}}},
 	}},
 	"api.CreateMacosSandboxRequest": &Fields{Object: map[string]*Fields{
 		"auto_renew":             nil,

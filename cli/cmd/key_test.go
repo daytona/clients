@@ -146,9 +146,7 @@ func TestServiceAccountProjectResourceBillingAndAuditCommands_JSON(t *testing.T)
 		idField, id, action string
 	}{
 		{[]string{"--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "project", "service-account", "remove", "bot", "--yes"}, "id", "11111111-1111-1111-1111-111111111111", "removed"},
-		{[]string{"--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "secret", "set", "API_KEY", "--value", "secret", "--allowed-domain", "api.example.com"}, "name", "API_KEY", "updated"},
 		{[]string{"--project", "proj-1", "secret", "delete", "API_KEY", "--yes"}, "name", "API_KEY", "deleted"},
-		{[]string{"--project", "proj-1", "registry", "set", "ghcr.io", "--username", "me", "--password", "pw"}, "host", "ghcr.io", "updated"},
 		{[]string{"--project", "proj-1", "registry", "delete", "ghcr.io", "--yes"}, "host", "ghcr.io", "deleted"},
 	}
 	for _, ack := range acks {
@@ -156,6 +154,15 @@ func TestServiceAccountProjectResourceBillingAndAuditCommands_JSON(t *testing.T)
 		if code != 0 || !isAck(t, out, ack.idField, ack.id, ack.action) {
 			t.Fatalf("%v => %d %s %s", ack.args, code, out, errb)
 		}
+	}
+	// set prints the resource the PUT returns, as get does.
+	out, errb, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "secret", "set", "API_KEY", "--value", "secret", "--allowed-domain", "api.example.com")
+	if code != 0 || mustJSON(t, out)["name"] != "API_KEY" || mustJSON(t, out)["created_at"] == nil {
+		t.Fatalf("secret set: %d %s %s", code, out, errb)
+	}
+	out, errb, code = runMgmt(t, f, d, "--project", "proj-1", "registry", "set", "ghcr.io", "--username", "me", "--password", "pw")
+	if code != 0 || mustJSON(t, out)["host"] != "ghcr.io" || mustJSON(t, out)["kind"] != "basic" {
+		t.Fatalf("registry set: %d %s %s", code, out, errb)
 	}
 	_, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoice", "pdf", "inv-1", "--out", pdfFile)
 	if code != 0 {

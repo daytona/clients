@@ -48,15 +48,6 @@ Examples:
 		Annotations: map[string]string{annotationCreatesProfile: "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
-			// The modes actually selected conflict, not the flags given:
-			// `--device=$X --browser=$Y` from a script is fine while at most
-			// one is true.
-			if device && browser {
-				return cerr.Usage("--device and --browser select different login flows; pass one")
-			}
-			if cmd.Flags().Changed("token") && (device || browser || cmd.Flags().Changed("client-id")) {
-				return cerr.Usage("--token stores a static credential; it does not combine with --device, --browser or --client-id")
-			}
 			if cmd.Flags().Changed("token") {
 				if strings.TrimSpace(token) == "" {
 					return cerr.Usage("--token is empty; pass the credential value, or omit --token to sign in interactively")
@@ -67,7 +58,7 @@ Examples:
 		},
 	}
 	c.Flags().BoolVar(&device, "device", false, "device-code login for hosts without a browser")
-	c.Flags().BoolVar(&browser, "browser", false, "force the browser (loopback) flow even inside an SSH session — for when you forward the callback port with `ssh -L`")
+	c.Flags().BoolVar(&browser, "browser", false, "force the browser (loopback) flow even inside an SSH session, for when you forward the callback port with ssh -L")
 	c.Flags().StringVar(&token, "token", "", "store this static credential instead of signing in")
 	c.Flags().StringVar(&clientID, "client-id", "", "OIDC client id override (default: discovered from the API, or DAYTONA_OIDC_CLIENT_ID)")
 	return c

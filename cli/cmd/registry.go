@@ -11,6 +11,7 @@ import (
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
@@ -28,7 +29,7 @@ func newRegistrySetCmd() *cobra.Command {
 	var username, password, kind string
 	var passwordStdin bool
 	var description string
-	cmd := &cobra.Command{Use: "set <host>", Short: "Create or update a registry credential", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "set <host>", Short: "Create or update a registry credential", Long: "Create or update a registry credential and print it (never its password). It reads the stored credential first, so options you do not pass keep their values: it needs read as well as write access to registries.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
 		client, _, err := a.WorkloadClient(ctx, pickProject(a))
@@ -71,10 +72,11 @@ func newRegistrySetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, nil); err != nil {
+		var saved api.Raw[gen.Registry]
+		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, &saved); err != nil {
 			return err
 		}
-		return printAck(a, "host", args[0], "updated", "")
+		return printRegistry(a, saved)
 	}}
 	cmd.Flags().StringVar(&username, "username", "", "registry username")
 	cmd.Flags().StringVar(&password, "password", "", "registry password or token on the command line — visible via the process list and shell history; prefer --password-stdin")
@@ -130,9 +132,8 @@ func newRegistryGetCmd() *cobra.Command {
 		if err := client.Do(ctx, http.MethodGet, "/registries/"+url.PathEscape(args[0]), nil, nil, &raw); err != nil {
 			return err
 		}
-		resp := raw.V
 		a.Info("Registry passwords are write-only and are never returned by the API.")
-		return a.Printer().Object(raw, [][2]string{{"host", resp.Host}, {"kind", string(resp.Kind)}, {"username", resp.Username}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
+		return printRegistry(a, raw)
 	}}
 }
 
@@ -187,4 +188,11 @@ func btoi(v bool) int {
 		return 1
 	}
 	return 0
+}
+
+// printRegistry prints a registry credential's metadata: the API's JSON, or a
+// table.
+func printRegistry(a *app.App, raw api.Raw[gen.Registry]) error {
+	resp := raw.V
+	return a.Printer().Object(raw, [][2]string{{"host", resp.Host}, {"kind", string(resp.Kind)}, {"username", resp.Username}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
 }

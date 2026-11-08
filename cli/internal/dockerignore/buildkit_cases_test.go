@@ -5,6 +5,8 @@ package dockerignore_test
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -57,7 +59,11 @@ func TestWalkUploadsWhatBuildKitUploads(t *testing.T) {
 			uploaded = append(uploaded, rel)
 		})
 		if c.Fails {
-			require.Error(t, err, "case %d: ignore %q", i, c.Ignore)
+			// A pattern error (refused up front, or met by the walk), not a
+			// filesystem failure.
+			require.ErrorContains(t, err, "pattern", "case %d: ignore %q", i, c.Ignore)
+			var fsErr *fs.PathError
+			require.False(t, errors.As(err, &fsErr), "case %d: %v", i, err)
 			continue
 		}
 		require.NoError(t, err, "case %d: ignore %q", i, c.Ignore)
