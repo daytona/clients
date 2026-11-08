@@ -1,0 +1,39 @@
+changelog.d/536-file-case-variants.breaking.md
+  s_0df31975f3464b::t_c480cb0fec2114 1-3
+changelog.d/536-list-pages.breaking.md
+  s_0df31975f3464b::t_c480cb0fec2114 3-4
+cli/README.md
+  s_0df31975f3464b::t_d1ec251c1b10e9 125-132,248-253,269-272,321-324,326-328,330-332,337-351,363-366,379,407,461
+changelog.d/536.security.md
+  s_0df31975f3464b::t_c480cb0fec2114 3-10
+changelog.d/536-list-envelope.breaking.md
+  s_0df31975f3464b::t_c480cb0fec2114 2-4
+changelog.d/536-static-credentials.breaking.md
+  s_0df31975f3464b::t_c480cb0fec2114 4-5
+changelog.d/536-fanout-errors.breaking.md
+  s_0df31975f3464b::t_c480cb0fec2114 1-6
+changelog.d/536-duration-flags.breaking.md
+  s_0df31975f3464b::t_c480cb0fec2114 1-7
+changelog.d/536-api-json.breaking.md
+  s_0df31975f3464b::t_c480cb0fec2114 1-7
+changelog.d/536-timeout-combinations.breaking.md
+  s_0df31975f3464b::t_c480cb0fec2114 1-4
+AGENTS.md
+  s_0df31975f3464b::t_a650da728bf15a 178-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b5510c45816af74c00b4ee978f42dc79f660533",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
