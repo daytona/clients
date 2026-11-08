@@ -318,6 +318,8 @@ def expect_sandbox_lifecycle_policy(value: TransportPayload) -> JsonObject:
     def malformed(message: str) -> DaytonaError:
         return create_error(f"{what} {message}", 400, "BAD_REQUEST", "SDK")
 
+    if not isinstance(value, dict):
+        raise malformed("is not a JSON object")
     data = expect_object(value)
     if "id" not in data or data["id"] is None:
         raise malformed("is missing its id")

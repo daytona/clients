@@ -180,6 +180,16 @@ async def test_expired_server_state_still_delivers_explicit_deadline_completion(
     assert not result.output_complete and len(requests) == 2
 
 
+async def test_the_stream_media_type_is_read_case_insensitively():
+    reply = httpx.Response(
+        200, headers={"content-type": "Text/Event-Stream; charset=utf-8"}, content=log(b"tail", 0) + done(4)
+    )
+    api, _, _ = setup([reply])
+    output: list[str] = []
+    result = await follow_build_logs(api, DISCOVERY, on_logs=output.append)
+    assert output == ["tail"] and result.output_complete
+
+
 async def test_awaitable_callbacks_are_awaited_before_the_next_event():
     api, _, _ = setup([log(b"a", 0) + log(b"b", 1) + done(2)])
     trace: list[str] = []

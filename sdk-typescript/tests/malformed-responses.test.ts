@@ -212,6 +212,7 @@ it.each([
 it.each([
   ['a timeout_seconds that is a string', { id: 'src', lifecycle_policy: { timeout_seconds: '60' } }, 'sandbox lifecycle policy response has a lifecycle_policy.timeout_seconds that is not a 32-bit integer'],
   ['no lifecycle_policy', { id: 'src' }, 'sandbox lifecycle policy response is missing its lifecycle_policy'],
+  ['a body that is not an object', [1], 'sandbox lifecycle policy response is not a JSON object'],
 ] as const)('refuses a lifecycle echo with %s, as Python does', async (_name, body, message) => {
   const api = await startFakeApi([{ status: 200, body }])
   try {

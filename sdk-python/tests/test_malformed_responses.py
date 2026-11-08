@@ -353,13 +353,12 @@ async def test_an_empty_toolbox_body_is_a_contract_error(
         ({}, "id"),
         ({"id": "src"}, "lifecycle_policy"),
         ({"id": "src", "lifecycle_policy": {"timeout_seconds": "60"}}, "timeout_seconds"),
+        ([1], "is not a JSON object"),
     ],
-    ids=["empty", "no lifecycle_policy", "timeout_seconds a string"],
+    ids=["empty", "no lifecycle_policy", "timeout_seconds a string", "not an object"],
 )
 @pytest.mark.parametrize("verb", ["update_lifecycle_policy", "reset_idle_timer"])
-async def test_a_malformed_lifecycle_echo_is_a_contract_error(
-    verb: str, body: JsonObject, field: str
-) -> None:
+async def test_a_malformed_lifecycle_echo_is_a_contract_error(verb: str, body: JsonValue, field: str) -> None:
     # The TypeScript twin covers the same echoes.
     with FakeApi([PlannedResponse(200, body)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url

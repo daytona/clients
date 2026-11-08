@@ -173,6 +173,16 @@ describe('resumable build logs', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
+  it('reads the stream media type case-insensitively', async () => {
+    const bytes = new TextEncoder().encode(log('tail', 0) + done(4))
+    const reply = new Response(bytes, { headers: { 'content-type': 'Text/Event-Stream; charset=utf-8' } })
+    const { client } = setup([reply])
+    const output: string[] = []
+    const result = await client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } })
+    expect(result).toMatchObject({ reason: 'terminal', outputComplete: true })
+    expect(output).toEqual(['tail'])
+  })
+
   it('accepts an expired server deadline followed by final bytes and explicit done', async () => {
     const state = event('state', { status: 'pending', deadline_at: '2000-01-01T00:00:00Z' })
     const { client, fetch } = setup([state + log('tail', 0) + done(4, { status: 'pending', reason: 'deadline', output_complete: false })])

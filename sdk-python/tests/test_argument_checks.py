@@ -554,3 +554,21 @@ async def test_set_labels_takes_labels_positionally_and_returns_a_plain_dict() -
             by_keyword = await sandbox.set_labels(labels={"team": "ml"})
     assert type(applied) is dict and applied == {"team": "ml"} == by_keyword
     assert [json.loads(request.body) for request in fake.requests] == [{"labels": {"team": "ml"}}] * 2
+
+
+@pytest.mark.parametrize(
+    ("argument", "call"),
+    [
+        ("image_id", lambda d: d.images.get("a\ud800b")),
+        ("name", lambda d: d.secrets.set("a\ud800b", "value", allowed_domains=["*"])),
+    ],
+    ids=["images.get", "secrets.set"],
+)
+async def test_a_path_id_or_name_with_a_lone_surrogate_is_refused(
+    api: FakeApi, argument: str, call: Callable[[AsyncDaytonaV2], Awaitable[object]]
+) -> None:
+    # It has no UTF-8 form: refused as TypeScript refuses it, never a raw UnicodeEncodeError.
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match=f"^{argument} must not contain a lone surrogate$"):
+            await call(root.v2)
+    assert api.requests == []

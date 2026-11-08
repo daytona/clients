@@ -787,7 +787,10 @@ async def follow_build_logs(
                         if stream.status_code == 429 or stream.status_code >= 500:
                             raise _Retry(f"build log HTTP {stream.status_code}", _retry_after(stream.headers))
                         raise await _finite_http_error(stream, request_deadline)
-                    if stream.headers.get("content-type", "").split(";")[0].strip() != "text/event-stream":
+                    if (
+                        stream.headers.get("content-type", "").split(";")[0].strip().lower()
+                        != "text/event-stream"
+                    ):
                         raise _ProtocolError("expected text/event-stream")
                     started = _clock.monotonic()
                     healthy = True

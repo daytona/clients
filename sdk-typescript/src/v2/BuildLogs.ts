@@ -539,7 +539,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
           if (response.status === 429 || response.status >= 500) throw new Retry(`build log HTTP ${response.status}`, retryAfter(response))
           throw await httpError(response, deadline)
         }
-        if (response.headers.get('content-type')?.split(';')[0].trim() !== 'text/event-stream') throw new ProtocolError('expected text/event-stream')
+        if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'text/event-stream') throw new ProtocolError('expected text/event-stream')
         started = performance.now()
         healthy = true
         for await (const message of buildLogMessages(response)) {

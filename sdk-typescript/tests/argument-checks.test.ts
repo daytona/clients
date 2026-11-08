@@ -9,6 +9,7 @@ import { BadRequestError, ImageBuilder, RequestTimeoutError } from '../src/v2/in
 import { createHttpClient } from '../src/v2/http'
 import { Image } from '../src/v2/Image'
 import { INTERNAL } from '../src/v2/internal'
+import { pathSegment } from '../src/v2/pathSegment'
 import { imageWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 import { createSandbox } from './helpers/sandbox'
@@ -323,6 +324,24 @@ it.each(PATH_CASES)('refuses %s as the path id or name before any request', asyn
     expect(error).toBeInstanceOf(BadRequestError)
     expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(new RegExp(`^${argument} must `)) })
     expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([
+  ['images.get', 'imageId', (client: Daytona) => client.v2.images.get('a\ud800b')],
+  ['secrets.set', 'name', (client: Daytona) => client.v2.secrets.set('a\ud800b', 'value', { allowedDomains: ['*'] })],
+] as const)('refuses a %s path value with a lone surrogate before any request', async (_name, argument, call) => {
+  // It has no UTF-8 form: refused as Python refuses it, never a raw URIError.
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: `${argument} must not contain a lone surrogate` })
+    expect(api.requests).toEqual([])
+    // A valid surrogate pair is text, and passes the check.
+    expect(() => pathSegment('a\ud83d\ude00b', argument)).not.toThrow()
   } finally {
     await client.close()
     await api.close()

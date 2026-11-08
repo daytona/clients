@@ -90,6 +90,10 @@ def _path(value: object, name: str) -> str:
     ``name``, before any request."""
     if not isinstance(value, str) or not value.strip():
         raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    # A surrogate code point has no UTF-8 form (quote() would raise
+    # UnicodeEncodeError); TypeScript refuses a lone surrogate the same way.
+    if any("\ud800" <= char <= "\udfff" for char in value):
+        raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
     return quote(value, safe="")
 
 
