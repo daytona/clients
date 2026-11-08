@@ -26,7 +26,23 @@ type archiveExtractor interface {
 	ExtractSymlink(header *tar.Header, relPath string, target string) error
 }
 
+// ArchiveFilter decides which entries of a directory archive are kept.
+// rel is slash-separated and relative to the archived directory.
+type ArchiveFilter interface {
+	// Keep reports whether the entry is archived and, for a directory that is
+	// not, whether the walk still looks inside it (something below it may be
+	// kept; its directory entry is then written before the first kept child).
+	Keep(rel string, isDir bool) (keep, descend bool)
+}
+
+// ArchiveDirectory streams dir as a tar archive with every entry.
 func ArchiveDirectory(dir string) (io.ReadCloser, error) {
+	return ArchiveDirectoryFiltered(dir, nil)
+}
+
+// ArchiveDirectoryFiltered streams dir as a tar archive with the entries
+// filter keeps (every entry when filter is nil).
+func ArchiveDirectoryFiltered(dir string, filter ArchiveFilter) (io.ReadCloser, error) {
 	info, err := os.Stat(dir)
 	if err != nil {
 		return nil, fmt.Errorf("stat %s: %w", dir, err)
@@ -37,23 +53,14 @@ func ArchiveDirectory(dir string) (io.ReadCloser, error) {
 	pr, pw := io.Pipe()
 	go func() {
 		tw := tar.NewWriter(pw)
-		err := filepath.Walk(dir, func(current string, info os.FileInfo, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			rel, err := filepath.Rel(dir, current)
-			if err != nil {
-				return err
-			}
-			if rel == "." {
-				return nil
-			}
+		err := WalkArchiveEntries(dir, filter, func(rel, current string, info os.FileInfo) error {
 			link := ""
 			if info.Mode()&os.ModeSymlink != 0 {
 				// Archive the link itself (like tar does). Extraction refuses
 				// absolute and parent-relative (`..`) targets, so fail here,
 				// at the source, with the offending path — not on the other
 				// side with a half-extracted tree.
+				var err error
 				link, err = os.Readlink(current)
 				if err != nil {
 					return err
@@ -66,7 +73,7 @@ func ArchiveDirectory(dir string) (io.ReadCloser, error) {
 			if err != nil {
 				return err
 			}
-			header.Name = filepath.ToSlash(rel)
+			header.Name = rel
 			if info.IsDir() {
 				header.Name += "/"
 			}
@@ -94,6 +101,55 @@ func ArchiveDirectory(dir string) (io.ReadCloser, error) {
 		_ = pw.CloseWithError(err)
 	}()
 	return pr, nil
+}
+
+// WalkArchiveEntries calls fn, in archive order, for every entry of dir the
+// filter keeps (all of them when filter is nil): rel is the slash-separated
+// archive name, current the local path. A directory that is not kept but
+// holds kept entries is reported just before the first of them, so the
+// archive never names a child without its parent.
+func WalkArchiveEntries(dir string, filter ArchiveFilter, fn func(rel, current string, info os.FileInfo) error) error {
+	type pendingDir struct {
+		rel, current string
+		info         os.FileInfo
+	}
+	var pending []pendingDir
+	return filepath.Walk(dir, func(current string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(dir, current)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return nil
+		}
+		rel = filepath.ToSlash(rel)
+		// Drop pending directories the walk has left.
+		for len(pending) > 0 && !strings.HasPrefix(rel, pending[len(pending)-1].rel+"/") {
+			pending = pending[:len(pending)-1]
+		}
+		if filter != nil {
+			keep, descend := filter.Keep(rel, info.IsDir())
+			if !keep {
+				if info.IsDir() {
+					if !descend {
+						return filepath.SkipDir
+					}
+					pending = append(pending, pendingDir{rel: rel, current: current, info: info})
+				}
+				return nil
+			}
+		}
+		for _, p := range pending {
+			if err := fn(p.rel, p.current, p.info); err != nil {
+				return err
+			}
+		}
+		pending = pending[:0]
+		return fn(rel, current, info)
+	})
 }
 
 func ExtractArchive(r io.Reader, dst string) error {

@@ -7,15 +7,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/dockerignore"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
 )
 
@@ -30,7 +35,7 @@ type imageContextUpload struct {
 }
 
 func postImageMultipart(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath, contextPath string) (gen.AsyncOperation, error) {
-	contextUpload, err := imageContextUploadForPath(contextPath)
+	contextUpload, err := imageContextUploadForPath(contextPath, dockerfilePath)
 	if err != nil {
 		return gen.AsyncOperation{}, err
 	}
@@ -40,7 +45,10 @@ func postImageMultipart(ctx context.Context, client *api.Client, meta map[string
 	return postStreamedImageMultipart(ctx, client, meta, dockerfilePath, contextUpload)
 }
 
-func imageContextUploadForPath(contextPath string) (imageContextUpload, error) {
+// imageContextUploadForPath prepares the build context upload: a tar file as
+// is, or a directory archived without the entries its .dockerignore excludes
+// (the size limit counts what is uploaded).
+func imageContextUploadForPath(contextPath, dockerfilePath string) (imageContextUpload, error) {
 	resolvedPath, err := filepath.EvalSymlinks(contextPath)
 	if err != nil {
 		return imageContextUpload{}, err
@@ -64,10 +72,14 @@ func imageContextUploadForPath(contextPath string) (imageContextUpload, error) {
 			},
 		}, nil
 	}
-	if err := validateImageContextDirectory(resolvedPath, contextPath); err != nil {
+	filter, err := loadBuildContextFilter(resolvedPath, dockerfilePath)
+	if err != nil {
 		return imageContextUpload{}, err
 	}
-	size, err := archivedDirectorySize(resolvedPath)
+	if err := validateImageContextDirectory(resolvedPath, contextPath, filter); err != nil {
+		return imageContextUpload{}, err
+	}
+	size, err := archivedDirectorySize(resolvedPath, filter)
 	if err != nil {
 		return imageContextUpload{}, err
 	}
@@ -78,7 +90,7 @@ func imageContextUploadForPath(contextPath string) (imageContextUpload, error) {
 		name: archiveUploadName(contextPath),
 		size: size,
 		open: func() (io.ReadCloser, error) {
-			return toolboxclient.ArchiveDirectory(resolvedPath)
+			return toolboxclient.ArchiveDirectoryFiltered(resolvedPath, filter)
 		},
 	}, nil
 }
@@ -87,11 +99,8 @@ func imageContextTooLargeError(path string, size int64) error {
 	return cerr.Usage("build context %q exceeds the 64 MiB limit (%d bytes)", path, size)
 }
 
-func validateImageContextDirectory(dir, originalPath string) error {
-	return filepath.Walk(dir, func(current string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
+func validateImageContextDirectory(dir, originalPath string, filter toolboxclient.ArchiveFilter) error {
+	return toolboxclient.WalkArchiveEntries(dir, filter, func(_, current string, info os.FileInfo) error {
 		mode := info.Mode()
 		if info.IsDir() || mode.IsRegular() || mode&os.ModeSymlink != 0 {
 			return nil
@@ -183,19 +192,9 @@ func decodeImageMultipartResponse(ctx context.Context, client *api.Client, body 
 	return created, nil
 }
 
-func archivedDirectorySize(dir string) (int64, error) {
+func archivedDirectorySize(dir string, filter toolboxclient.ArchiveFilter) (int64, error) {
 	total := int64(1024)
-	err := filepath.Walk(dir, func(current string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		rel, err := filepath.Rel(dir, current)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return nil
-		}
+	err := toolboxclient.WalkArchiveEntries(dir, filter, func(_, _ string, info os.FileInfo) error {
 		total += 512
 		if info.Mode().IsRegular() {
 			total += info.Size()
@@ -209,4 +208,56 @@ func archivedDirectorySize(dir string) (int64, error) {
 		return 0, err
 	}
 	return total, nil
+}
+
+// buildContextFilter keeps what the context's ignore file does not exclude.
+type buildContextFilter struct {
+	matcher *dockerignore.Matcher
+}
+
+func (f buildContextFilter) Keep(rel string, isDir bool) (bool, bool) {
+	if !f.matcher.Excluded(rel) {
+		return true, true
+	}
+	return false, isDir && f.matcher.MayReinclude(rel)
+}
+
+// loadBuildContextFilter reads the context's ignore file as Docker does:
+// `<Dockerfile>.dockerignore` next to the Dockerfile when it exists, else
+// `.dockerignore` at the context root. The Dockerfile and the ignore files
+// are always uploaded, as Docker sends them even when a pattern matches
+// them. Returns nil (keep everything) when there is no ignore file.
+func loadBuildContextFilter(contextDir, dockerfilePath string) (toolboxclient.ArchiveFilter, error) {
+	dockerfile := path.Clean(filepath.ToSlash(dockerfilePath))
+	candidates := []string{".dockerignore"}
+	if dockerfile != "." && !path.IsAbs(dockerfile) && !strings.HasPrefix(dockerfile, "../") {
+		candidates = append([]string{dockerfile + ".dockerignore"}, candidates...)
+	}
+	for _, name := range candidates {
+		raw, err := os.ReadFile(filepath.Join(contextDir, filepath.FromSlash(name)))
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, cerr.Wrap(cerr.ExitFailure, err, "read %s: %v", name, err)
+		}
+		patterns, err := dockerignore.ReadPatterns(bytes.NewReader(raw))
+		if err != nil {
+			return nil, cerr.Wrap(cerr.ExitFailure, err, "read %s: %v", name, err)
+		}
+		matcher, err := dockerignore.New(patterns)
+		if err != nil {
+			return nil, cerr.Usage("%s: %v", name, err)
+		}
+		for _, always := range []string{".dockerignore", name, dockerfile} {
+			if matcher.Excluded(always) {
+				patterns = append(patterns, "!"+always)
+			}
+		}
+		if matcher, err = dockerignore.New(patterns); err != nil {
+			return nil, cerr.Usage("%s: %v", name, err)
+		}
+		return buildContextFilter{matcher: matcher}, nil
+	}
+	return nil, nil
 }
