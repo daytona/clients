@@ -241,11 +241,13 @@ for (const [tagged, expected] of [[false, 1], [true, 0]]) {
     writeFileSync(join(root, '.publish-tools/scripts/sdk-version.sh'),
       '#!/bin/bash\nprintf "version=2.0.0-alpha.8\\nnpm=2.0.0-alpha.8\\ncli=2.0.0-alpha.8\\npypi=2.0.0a8\\n"\n');
     chmodSync(join(root, '.publish-tools/scripts/sdk-version.sh'), 0o755);
+    writeFileSync(join(root, '.publish-tools/scripts/release-channel.sh'), readFileSync(new URL('../../scripts/release-channel.sh', import.meta.url)));
+    chmodSync(join(root, '.publish-tools/scripts/release-channel.sh'), 0o755);
     const output = join(root, 'output');
     writeFileSync(output, '');
     // When: the gate derives versions for a tool-only run.
     // The gate's step starts with its id, so it is cut out by its name line.
-    const block = workflow.split('        name: Derive registry versions (branch rule + alpha-only gate)\n')[1].split('\n      - ')[0];
+    const block = workflow.split('        name: Derive registry versions and the release channel (branch rule + gate)\n')[1].split('\n      - ')[0];
     const lines = block.split('        run: |\n')[1].split('\n');
     const end = lines.findIndex((line) => line.trim() !== '' && !line.startsWith(' '.repeat(10)));
     const script = lines.slice(0, end === -1 ? undefined : end).map((line) => line.slice(10)).join('\n');

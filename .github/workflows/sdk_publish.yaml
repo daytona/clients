@@ -57,7 +57,7 @@ name: SDK Publish
 # This file exists on every release line with the same name, so one Trusted
 # Publishing registration per package serves them all. On this line (2.x):
 #   - a STABLE version (X.Y.Z) publishes only a commit on `main`;
-#   - a PRE-RELEASE (X.Y.Z-alpha.N / -beta.N / -rc.N) may publish any commit
+#   - a PRE-RELEASE (X.Y.Z-alpha.N / -rc.N) may publish any commit
 #     (`source_ref`), so a feature can ship an alpha before it merges;
 #   - a 0.x version is refused: the 0.x line publishes from `release/v0`.
 # A run asks for ONE approval on the `release` environment, once the gate
@@ -91,16 +91,23 @@ name: SDK Publish
 # failed publish job of the same run ("Re-run failed jobs") resumes the same
 # way: on a re-run attempt the publish job skips what is already published.
 #
-# ── ALPHA-ONLY GATE (pre-launch) ─────────────────────────────────────────────
-# Until 2.x is generally available, ONLY alpha pre-releases may be published:
-# PyPI `X.Y.ZaN` (PEP 440), npm/CLI `X.Y.Z-alpha.N` (the migration tool too).
-# The regexes run on the DERIVED strings, so a stable, rc or beta version fails the gate and an
-# official-looking release cannot ship by accident. The npm dist-tag follows
-# the derived version (-alpha.N → `alpha`, -beta.N → `beta`, -rc.N → `next`,
-# stable → `latest` — docs/VERSIONING.md "Release channels"), so under the
-# alpha-only policy every publish lands on `alpha`, never `latest`. Widen the
-# gate (rc, then stable) by relaxing the three regexes in the "Derive registry
-# versions" step — the dist-tag and the branch rule need no change.
+# ── Release channels ─────────────────────────────────────────────────────────
+# The gate accepts three shapes and derives everything channel-specific from
+# the version with scripts/release-channel.sh (docs/VERSIONING.md "Release
+# channels"); nobody picks a dist-tag, a release kind or a formula by hand:
+#
+#   v2.1.0-alpha.N → npm `alpha`,  CLI pre-release,  Homebrew daytona-alpha
+#   v2.1.0-rc.N    → npm `next`,   CLI pre-release,  Homebrew daytona-rc
+#   v2.1.0         → npm `latest`, CLI release (GitHub "Latest" when it is the
+#                    highest stable release), Homebrew daytona
+#
+# PyPI marks aN / rcN pre-releases itself. A beta (-beta.N) is refused: no
+# Homebrew formula follows betas. The 0.x line keeps `daytona@0`, publishes
+# from release/v0, and moves the `daytona` formula and npm `latest` only until
+# a stable 2.x GitHub Release exists. So the FIRST stable 2.x run must publish
+# the CLI (the gate refuses an SDK-only one), and its Homebrew update waits
+# for running release/v0 publishes and reads the formula back afterwards —
+# docs/RELEASING.md "The first stable release".
 #
 # ── One-time registry + repo setup ───────────────────────────────────────────
 # Trusted publishers are bound to THIS FILENAME and the environment name —
@@ -196,6 +203,11 @@ jobs:
       npm: ${{ steps.versions.outputs.npm }}
       npm_dist_tag: ${{ steps.versions.outputs.npm_dist_tag }}
       cli: ${{ steps.versions.outputs.cli }}
+      channel: ${{ steps.versions.outputs.channel }}
+      prerelease: ${{ steps.versions.outputs.prerelease }}
+      homebrew_formula: ${{ steps.versions.outputs.homebrew_formula }}
+      homebrew_event: ${{ steps.versions.outputs.homebrew_event }}
+      homebrew_workflow: ${{ steps.versions.outputs.homebrew_workflow }}
       upgrade_npm: ${{ steps.versions.outputs.upgrade_npm }}
       upgrade_pypi: ${{ steps.versions.outputs.upgrade_pypi }}
       source_sha: ${{ steps.source.outputs.sha }}
@@ -242,6 +254,7 @@ jobs:
           path: .publish-tools
           sparse-checkout: |
             scripts/sdk-version.sh
+            scripts/release-channel.sh
             scripts/resolve-v0-tag.sh
             scripts/v0-publish-mode.sh
           sparse-checkout-cone-mode: false
@@ -256,8 +269,9 @@ jobs:
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
       - id: versions
-        name: Derive registry versions (branch rule + alpha-only gate)
+        name: Derive registry versions and the release channel (branch rule + gate)
         env:
+          GH_TOKEN: ${{ github.token }}   # read-only: lists this repository's releases
           VERSION_INPUT: ${{ inputs.version }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
           PUBLISH_PYPI: ${{ inputs.publish_pypi }}
@@ -303,35 +317,46 @@ jobs:
             echo "::error::a run that publishes the tool without the SDKs builds it from the SDKs' release commit, but tag ${tag} does not exist yet — re-run the original run's publish job, or re-dispatch from the SDKs' commit with publish_pypi/publish_npm on and force_republish=true; for a CLI-only release, untick publish_upgrade"
             exit 1
           fi
-          # ALPHA-ONLY (pre-launch): the regexes run on the DERIVED strings.
+          # Channels: alpha, rc and stable. The regexes run on the DERIVED
+          # strings; a beta (no Homebrew formula follows betas) fails here.
           # Numeric components: no leading zeros (npm/PEP 440 would canonicalize
           # e.g. 2.01.0 to 2.1.0, and the summary/links would then lie).
           num='(0|[1-9][0-9]*)'
-          if ! [[ "$pypi" =~ ^${num}\.${num}\.${num}a${num}$ ]]; then
-            echo "::error::PyPI version '$pypi' (from ${VERSION_INPUT}) rejected — only X.Y.ZaN alpha pre-releases may be published before launch"
+          if ! [[ "$pypi" =~ ^${num}\.${num}\.${num}((a|rc)${num})?$ ]]; then
+            echo "::error::PyPI version '$pypi' (from ${VERSION_INPUT}) rejected — only X.Y.Z, X.Y.ZrcN and X.Y.ZaN may be published"
             exit 1
           fi
-          if ! [[ "$npm" =~ ^${num}\.${num}\.${num}-alpha\.${num}$ ]]; then
-            echo "::error::npm version '$npm' (from ${VERSION_INPUT}) rejected — only X.Y.Z-alpha.N alpha pre-releases may be published before launch"
+          if ! [[ "$npm" =~ ^${num}\.${num}\.${num}(-(alpha|rc)\.${num})?$ ]]; then
+            echo "::error::npm version '$npm' (from ${VERSION_INPUT}) rejected — only X.Y.Z, X.Y.Z-rc.N and X.Y.Z-alpha.N may be published"
             exit 1
           fi
-          if ! [[ "$cli" =~ ^${num}\.${num}\.${num}-alpha\.${num}$ ]]; then
-            echo "::error::CLI version '$cli' (from ${VERSION_INPUT}) rejected — only X.Y.Z-alpha.N alpha pre-releases may be published before launch"
+          if ! [[ "$cli" =~ ^${num}\.${num}\.${num}(-(alpha|rc)\.${num})?$ ]]; then
+            echo "::error::CLI version '$cli' (from ${VERSION_INPUT}) rejected — only X.Y.Z, X.Y.Z-rc.N and X.Y.Z-alpha.N may be published"
             exit 1
           fi
-          # The npm dist-tag follows the version's pre-release identifier
-          # (docs/VERSIONING.md "Release channels"), so widening the gate above
-          # never has to touch the npm publish step: a pre-release never lands on
-          # `latest`. sdk-version.sh admits only these four shapes; the
-          # fallthrough guards a future widening of that helper.
-          case "$npm" in
-            *-alpha.*) npm_dist_tag=alpha ;;
-            *-beta.*)  npm_dist_tag=beta ;;
-            *-rc.*)    npm_dist_tag=next ;;
-            *-*)       echo "::error::npm version '$npm' has a pre-release identifier with no dist-tag mapping"; exit 1 ;;
-            *)         npm_dist_tag=latest ;;
-          esac
-          echo "npm dist-tag: $npm_dist_tag"
+          # Everything the channel decides — the npm dist-tag (a pre-release
+          # never lands on `latest`), whether the CLI's GitHub Release is a
+          # pre-release, and which Homebrew formula follows it — comes from
+          # one helper (docs/VERSIONING.md "Release channels").
+          channel_out=$(.publish-tools/scripts/release-channel.sh "$version")
+          echo "$channel_out"
+          channel=$(sed -n 's/^channel=//p' <<<"$channel_out")
+          npm_dist_tag=$(sed -n 's/^npm_dist_tag=//p' <<<"$channel_out")
+          # The first stable 2.x CLI release hands the `daytona` Homebrew
+          # formula, npm `latest` and GitHub's Latest release over from 0.x
+          # (release/v0 checks for a stable 2.x GitHub Release on every run),
+          # so it cannot be an SDK-only run: the SDKs would be stable while
+          # the 0.x line kept the default CLI channels.
+          if [ "$channel" = stable ] && [ "$PUBLISH_CLI" != true ]; then
+            if ! stable=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'); then
+              echo "::error::could not list the releases of ${GITHUB_REPOSITORY} to tell whether a stable 2.x CLI release exists"
+              exit 1
+            fi
+            if ! grep -qE '^v([2-9]|[1-9][0-9]+)\.[0-9]+\.[0-9]+$' <<<"$stable"; then
+              echo "::error::${version} is the first stable 2.x release: it must publish the CLI too (publish_cli), which hands the daytona Homebrew formula and the Latest release over from 0.x"
+              exit 1
+            fi
+          fi
           # The build jobs and the publish job's steps key on an EMPTY version to
           # skip a target. The migration tool takes the SDK's two spellings.
           upgrade_npm="" upgrade_pypi=""
@@ -348,10 +373,42 @@ jobs:
             echo "pypi=$pypi"
             echo "npm=$npm"
             echo "npm_dist_tag=$npm_dist_tag"
+            grep -E '^(channel|prerelease|homebrew_formula|homebrew_event|homebrew_workflow)=' <<<"$channel_out"
             echo "cli=$cli"
             echo "upgrade_npm=$upgrade_npm"
             echo "upgrade_pypi=$upgrade_pypi"
           } >> "$GITHUB_OUTPUT"
+      # The publish job dispatches one event to the Homebrew tap and then
+      # waits for the tap run named after this version. Check the tap (a
+      # public repository, read with this run's read-only token) before
+      # anything is built, so a tap that cannot take this channel never
+      # leaves a release half-published.
+      - name: Check the Homebrew tap takes this channel
+        if: steps.versions.outputs.cli != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORMULA: ${{ steps.versions.outputs.homebrew_formula }}
+          EVENT: ${{ steps.versions.outputs.homebrew_event }}
+          TAP_WORKFLOW: ${{ steps.versions.outputs.homebrew_workflow }}
+        run: |
+          set -euo pipefail
+          tap=daytonaio/homebrew-cli
+          read_tap() { gh api "repos/${tap}/contents/$1" --jq .content | base64 -d; }
+          if ! read_tap "${FORMULA}.rb" >/dev/null; then
+            echo "::error::${tap} has no ${FORMULA}.rb formula"
+            exit 1
+          fi
+          if ! workflow=$(read_tap ".github/workflows/${TAP_WORKFLOW}"); then
+            echo "::error::${tap} has no .github/workflows/${TAP_WORKFLOW}"
+            exit 1
+          fi
+          missing=()
+          grep -Eq "types: *\[ *${EVENT} *\]" <<<"$workflow" || missing+=("a repository_dispatch trigger on ${EVENT}")
+          grep -Eq '^run-name:.*client_payload\.version' <<<"$workflow" || missing+=("a run-name ending in the dispatched version (the publish job finds its run by it)")
+          grep -Fq "${FORMULA}.rb" <<<"$workflow" || missing+=("an update of ${FORMULA}.rb")
+          for m in "${missing[@]}"; do echo "::error::${tap}/.github/workflows/${TAP_WORKFLOW} lacks ${m}"; done
+          [ "${#missing[@]}" -eq 0 ] || exit 1
+          echo "${tap}: ${TAP_WORKFLOW} updates ${FORMULA}.rb on ${EVENT}"
       # The build jobs and the snapshot below address the SDKs as sdk-python/
       # and sdk-typescript/; a source_ref from before that layout is refused
       # here with a clear message instead of failing in a later step.
@@ -466,6 +523,7 @@ jobs:
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
           UPGRADE_NPM: ${{ needs.gate.outputs.upgrade_npm }}
           UPGRADE_PYPI: ${{ needs.gate.outputs.upgrade_pypi }}
+          NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
           FORCE: ${{ inputs.force_republish }}
           GH_TOKEN: ${{ github.token }}   # read-only
         run: |
@@ -492,6 +550,26 @@ jobs:
             echo "::error::daytona-upgrade==${UPGRADE_PYPI} would pin daytona==${UPGRADE_PYPI}, which is neither on PyPI nor published by this run — enable publish_pypi, or untick publish_upgrade"
             exit 1
           fi
+          # `npm publish --tag latest` moves the tag even to a LOWER version,
+          # so a stable version below the package's current `latest` (a
+          # backport after a newer stable release) is refused, before anything
+          # is built; a 0.x `latest` (before the first stable 2.x) is below.
+          below_latest() { # package version
+            local current
+            if ! current=$(curl -sS --max-time 60 --fail "https://registry.npmjs.org/-/package/${1/\//%2f}/dist-tags" | sed -n 's/.*"latest":"\([^"]*\)".*/\1/p'); then
+              echo "::error::could not read the npm dist-tags of $1"; exit 1
+            fi
+            [ -n "$current" ] && [ "$current" != "$2" ] && [ "$(printf '%s\n%s\n' "$current" "$2" | sort -V | tail -n 1)" = "$current" ]
+          }
+          if [ "${NPM_DIST_TAG:-}" = latest ]; then
+            for pkg in "@daytona/sdk:$NPM_VERSION" "@daytona/upgrade:$UPGRADE_NPM"; do
+              [ -n "${pkg#*:}" ] || continue
+              if below_latest "${pkg%%:*}" "${pkg#*:}"; then
+                echo "::error::${pkg%%:*}@${pkg#*:} is below the package's npm latest — publishing it would move \`latest\` back; publish a version above it"
+                exit 1
+              fi
+            done
+          fi
           if [ "$FORCE" = true ]; then
             echo "::notice::force_republish set — skipping the already-published check; targets already on their registry are skipped by the publish job, not overwritten"
             exit 0
@@ -504,7 +582,7 @@ jobs:
             # `npm view`: it exits non-zero on an absent version too (E404),
             # and its 404 wording differs between npm 10 and 11, so telling
             # "absent" from "registry down" would mean parsing error text.
-            # The version in the URL already passed the gate's alpha regex.
+            # The version in the URL already passed the gate's version regex.
             code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fsdk/${NPM_VERSION}") || true
             case "$code" in
               200) echo "::error::@daytona/sdk@${NPM_VERSION} is already on npm — a version is published once; publish the next release, or set force_republish to resume a half-landed run"; taken=1 ;;
@@ -844,6 +922,7 @@ jobs:
     permissions:
       id-token: write   # OIDC token for PyPI and npm Trusted Publishing
       contents: write   # create the CLI release (and its tag) on this repository
+      actions: read     # a stable Homebrew update waits for running release/v0 publishes
     # Per-target results for the summary: a target "failure" if any of its
     # steps failed, otherwise its last step's outcome (skipped = disabled, or
     # not reached because an earlier target failed).
@@ -958,10 +1037,10 @@ jobs:
         # and npm attaches a provenance attestation automatically (public
         # repository, public package).
         # --tag "$NPM_DIST_TAG": the gate derives the dist-tag from the
-        # version (-alpha.N → alpha, -beta.N → beta, -rc.N → next, stable →
-        # latest — docs/VERSIONING.md "Release channels"), so a pre-release never
-        # becomes `latest`. Publishing the packed tarball means no package
-        # scripts run here.
+        # version (-alpha.N → alpha, -rc.N → next, stable → latest —
+        # scripts/release-channel.sh), so a pre-release never becomes
+        # `latest`, and registry-check refuses a stable version below it.
+        # Publishing the packed tarball means no package scripts run here.
         env:
           NPM_VERSION: ${{ needs.gate.outputs.npm }}
           NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
@@ -1099,7 +1178,7 @@ jobs:
             }'
           npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
 
-      # ── CLI: GitHub Release + Homebrew daytona-alpha ──
+      # ── CLI: GitHub Release + the channel's Homebrew formula ──
       - name: Download the CLI release assets
         id: cli_download
         if: needs.gate.outputs.cli != ''
@@ -1111,27 +1190,54 @@ jobs:
       # absent; if it exists with IDENTICAL SHA256SUMS the step is a no-op
       # (re-run after a failed Homebrew dispatch), and if it exists with
       # different content the run fails loudly — a version is published once.
-      - name: Create (or confirm) the daytona CLI ${{ needs.gate.outputs.cli }} pre-release
+      # The channel decides the release's kind: alpha and rc are pre-releases
+      # and never GitHub's "Latest"; a stable release is a normal release and
+      # becomes "Latest" when no higher stable release exists (a backport such
+      # as 2.0.1 after 2.1.0 does not). release/v0 reads that "Latest" too and
+      # keeps it on the highest stable release.
+      - name: Create (or confirm) the daytona CLI ${{ needs.gate.outputs.cli }} release
         id: cli_release
         if: needs.gate.outputs.cli != ''
         env:
           GH_TOKEN: ${{ github.token }}
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
           SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
+          CHANNEL: ${{ needs.gate.outputs.channel }}
+          PRERELEASE: ${{ needs.gate.outputs.prerelease }}
+          FORMULA: ${{ needs.gate.outputs.homebrew_formula }}
         run: |
           set -euo pipefail
           ls -l cli-dist
           tag="v${CLI_VERSION}"
           repo="$GITHUB_REPOSITORY"
-          notes="daytona CLI ${CLI_VERSION} — alpha pre-release. Install: \`brew install daytonaio/cli/daytona-alpha\` or the install.sh / install.ps1 assets (\`--version ${CLI_VERSION}\`)."
+          installer="https://raw.githubusercontent.com/${repo}/main/cli"
+          case "$CHANNEL/$PRERELEASE" in
+            stable/false)
+              expected_kind=stable
+              notes="daytona CLI ${CLI_VERSION}. Install: \`brew install daytonaio/cli/${FORMULA}\`, \`curl -fsSL ${installer}/install.sh | sh\`, or on Windows \`irm ${installer}/install.ps1 | iex\`. Changes: [CHANGELOG.md](https://github.com/${repo}/blob/${tag}/CHANGELOG.md)." ;;
+            alpha/true|rc/true)
+              expected_kind=prerelease
+              label=$([ "$CHANNEL" = rc ] && echo "release candidate" || echo "alpha pre-release")
+              notes="daytona CLI ${CLI_VERSION} — ${label}. Install: \`brew install daytonaio/cli/${FORMULA}\`, or the installer pinned to this release (\`curl -fsSL ${installer}/install.sh | sh -s -- --version ${CLI_VERSION}\`; on Windows set \`DAYTONA_VERSION=${CLI_VERSION}\` before \`irm ${installer}/install.ps1 | iex\`)." ;;
+            *) echo "::error::the gate derived no usable channel ('${CHANNEL}', prerelease '${PRERELEASE}')"; exit 1 ;;
+          esac
+          # GitHub's "Latest" for a stable release: only when it is the highest
+          # stable vX.Y.Z of the repository (every line's releases count).
+          latest=false
+          if [ "$expected_kind" = stable ]; then
+            highest=$({ gh release list --repo "$repo" --limit 1000 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'; echo "$tag"; } \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+            [ "$highest" = "$tag" ] && latest=true
+            echo "highest stable release: ${highest} — ${tag} becomes Latest: ${latest}"
+          fi
           if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
-            # Only an existing PRE-RELEASE (what this step creates) may be
-            # resumed: a draft or a stable release under the alpha tag was
-            # made by someone else, and pointing the alpha formula at it is
-            # not this job's call.
+            # Only an existing release of THIS channel's kind may be resumed:
+            # a draft, or a stable release under a pre-release tag (or the
+            # reverse), was made by someone else, and pointing a Homebrew
+            # formula at it is not this job's call.
             kind="$(gh release view "$tag" --repo "$repo" --json isPrerelease,isDraft --jq 'if .isDraft then "draft" elif .isPrerelease then "prerelease" else "stable" end')"
-            if [ "$kind" != "prerelease" ]; then
-              echo "::error::release $tag is a $kind, not the alpha pre-release this job publishes — refusing to resume or dispatch Homebrew"
+            if [ "$kind" != "$expected_kind" ]; then
+              echo "::error::release $tag is a $kind, not the $expected_kind release this job publishes for a ${CHANNEL} version — refusing to resume or dispatch Homebrew"
               exit 1
             fi
             # Resume only if the published release is COMPLETE and identical:
@@ -1162,53 +1268,86 @@ jobs:
             rm -rf /tmp/verify && mkdir -p /tmp/verify
             gh release download "$tag" --repo "$repo" --dir /tmp/verify
             (cd /tmp/verify && cp "$GITHUB_WORKSPACE/cli-dist/SHA256SUMS" ./SHA256SUMS.expected && cmp -s SHA256SUMS SHA256SUMS.expected && sha256sum --check --strict SHA256SUMS.expected)
+            if [ "$latest" = true ]; then gh release edit "$tag" --repo "$repo" --latest; fi
             echo "release $tag verified against this build's checksums — resuming at the Homebrew dispatch"
             exit 0
           fi
           # --target: the release creates its tag on the published commit.
-          # --latest=false: a pre-release never becomes the repository's
-          # "Latest" release.
-          gh release create "$tag" --repo "$repo" --target "$SOURCE_SHA" --prerelease --latest=false \
+          kind_flags=(--latest="$latest")
+          [ "$expected_kind" = prerelease ] && kind_flags+=(--prerelease)
+          gh release create "$tag" --repo "$repo" --target "$SOURCE_SHA" "${kind_flags[@]}" \
             --title "daytona CLI ${CLI_VERSION}" --notes "$notes" cli-dist/*
-      - name: Point the daytona-alpha Homebrew formula at the release
+      # One formula per channel (scripts/release-channel.sh): daytona-alpha,
+      # daytona-rc, or daytona for a stable release. The 0.x line on
+      # release/v0 moves the `daytona` formula too until the first stable 2.x
+      # release exists, and re-checks right before it dispatches; the release
+      # created above is what it checks for. A 0.x publish already past that
+      # check could still land after this one, so a stable dispatch first
+      # waits for running release/v0 publishes, and every channel then reads
+      # the formula back from the tap.
+      - name: Point the ${{ needs.gate.outputs.homebrew_formula }} Homebrew formula at the release
         id: homebrew
         if: needs.gate.outputs.cli != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          REPO_TOKEN: ${{ github.token }}   # actions: read on this repository
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
+          CHANNEL: ${{ needs.gate.outputs.channel }}
+          FORMULA: ${{ needs.gate.outputs.homebrew_formula }}
+          EVENT: ${{ needs.gate.outputs.homebrew_event }}
+          TAP_WORKFLOW: ${{ needs.gate.outputs.homebrew_workflow }}
         run: |
           set -euo pipefail
+          tap=daytonaio/homebrew-cli
+          [ -n "$FORMULA" ] && [ -n "$EVENT" ] && [ -n "$TAP_WORKFLOW" ] || { echo "::error::the gate derived no Homebrew formula for channel '${CHANNEL}'"; exit 1; }
+          if [ "$CHANNEL" = stable ]; then
+            for i in $(seq 1 60); do
+              running="$(GH_TOKEN="$REPO_TOKEN" gh run list --repo "$GITHUB_REPOSITORY" --workflow sdk_publish.yaml --branch release/v0 --status in_progress --json databaseId --jq 'length')"
+              [ "$running" = 0 ] && break
+              [ "$i" -lt 60 ] || { echo "::error::a release/v0 publish has been running for 30 minutes; re-run this job once it finishes so the ${FORMULA} formula update lands after it"; exit 1; }
+              echo "waiting for ${running} running release/v0 publish run(s): they may still move the ${FORMULA} formula"
+              sleep 30
+            done
+          fi
           # Recency guard: only a run created AFTER this dispatch counts, so a
           # re-publish of the same version never latches onto an earlier
           # (failed) run with the same title. The reference time is GitHub's
           # own clock (the newest run's createdAt before dispatching).
-          since="$(gh run list --repo daytonaio/homebrew-cli --workflow brew_publish_alpha.yaml --limit 1 --json createdAt --jq '.[0].createdAt // "1970-01-01T00:00:00Z"' 2>/dev/null || echo 1970-01-01T00:00:00Z)"
-          gh api repos/daytonaio/homebrew-cli/dispatches \
-            -f event_type=update-version-alpha \
+          since="$(gh run list --repo "$tap" --workflow "$TAP_WORKFLOW" --limit 1 --json createdAt --jq '.[0].createdAt // "1970-01-01T00:00:00Z"' 2>/dev/null || echo 1970-01-01T00:00:00Z)"
+          gh api "repos/${tap}/dispatches" \
+            -f event_type="$EVENT" \
             -F "client_payload[version]=v${CLI_VERSION}"
           # The dispatch only proves GitHub accepted the event. Wait for the
           # downstream formula run so a failed formula update fails THIS job
           # instead of leaving Homebrew silently stale.
-          runs_url="https://github.com/daytonaio/homebrew-cli/actions/workflows/brew_publish_alpha.yaml"
-          if ! gh run list --repo daytonaio/homebrew-cli --workflow brew_publish_alpha.yaml --limit 1 >/dev/null 2>&1; then
-            echo "::warning::GITHUBBOT_TOKEN cannot read workflow runs on daytonaio/homebrew-cli — verify the formula update by hand: $runs_url"
+          runs_url="https://github.com/${tap}/actions/workflows/${TAP_WORKFLOW}"
+          if ! gh run list --repo "$tap" --workflow "$TAP_WORKFLOW" --limit 1 >/dev/null 2>&1; then
+            echo "::warning::GITHUBBOT_TOKEN cannot read workflow runs on ${tap} — verify the ${FORMULA} formula update by hand: $runs_url"
             exit 0
           fi
-          # The downstream workflow names its run after the dispatched version
-          # (`run-name: … v<version>`), so the match is by title.
+          # The tap workflow names its run after the dispatched version
+          # (`run-name: … v<version>`; the gate checked it), so the match is
+          # by title.
           run_id=""
           for _ in $(seq 1 30); do
-            run_id="$(gh run list --repo daytonaio/homebrew-cli --workflow brew_publish_alpha.yaml --event repository_dispatch --limit 20 \
+            run_id="$(gh run list --repo "$tap" --workflow "$TAP_WORKFLOW" --event repository_dispatch --limit 20 \
               --json databaseId,displayTitle,createdAt --jq "[.[] | select((.displayTitle | endswith(\"v${CLI_VERSION}\")) and .createdAt > \"$since\")] | sort_by(.createdAt) | last | .databaseId // empty")"
             [ -n "$run_id" ] && break
             sleep 10
           done
           if [ -z "$run_id" ]; then
-            echo "::error::no brew_publish_alpha run started within 5 minutes of the dispatch — $runs_url"
+            echo "::error::no ${TAP_WORKFLOW} run started within 5 minutes of the dispatch — $runs_url"
             exit 1
           fi
-          echo "waiting for daytonaio/homebrew-cli run $run_id"
-          gh run watch "$run_id" --repo daytonaio/homebrew-cli --exit-status --interval 15
+          echo "waiting for ${tap} run $run_id"
+          gh run watch "$run_id" --repo "$tap" --exit-status --interval 15
+          # The formula on the tap's default branch must now name this version.
+          formula_version="$(gh api "repos/${tap}/contents/${FORMULA}.rb" --jq .content | base64 -d | sed -n 's/^  version "\(.*\)"$/\1/p' | head -n 1)"
+          if [ "$formula_version" != "$CLI_VERSION" ]; then
+            echo "::error::${tap} ${FORMULA}.rb is at '${formula_version}' after the update, not ${CLI_VERSION} — another update landed after this one; re-run this job"
+            exit 1
+          fi
+          echo "${FORMULA} formula: ${formula_version}"
 
   # The version is recorded as a tag on the published commit. The CLI
   # release creates it; an SDK-only run (publish_cli=false) creates it here.
@@ -1272,6 +1411,8 @@ jobs:
           CLI_PUBLISH: ${{ needs.publish.outputs.cli }}
           HOMEBREW_PUBLISH: ${{ needs.publish.outputs.homebrew }}
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
+          CHANNEL: ${{ needs.gate.outputs.channel }}
+          HOMEBREW_FORMULA: ${{ needs.gate.outputs.homebrew_formula }}
           TAG_RESULT: ${{ needs.record-tag.result }}
           SOURCE_REF: ${{ inputs.source_ref || github.ref_name }}
           SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
@@ -1317,7 +1458,7 @@ jobs:
           {
             echo "## SDK Publish — \`${VERSION:-${VERSION_INPUT}}\` from \`${SOURCE_REF}\` @ \`${SOURCE_SHA:0:12}\`"
             echo
-            echo "Triggered by **@${ACTOR}**. Gate: **${GATE_RESULT}** (alpha-only, pre-launch$([ "$FORCE" = true ] && echo '; force_republish')). Registry check: **${REGISTRY_RESULT}**. Publish: **${PUBLISH_RESULT}**. Tag: **${TAG_RESULT}**."
+            echo "Triggered by **@${ACTOR}**. Gate: **${GATE_RESULT}** (channel \`${CHANNEL:-—}\`$([ "$FORCE" = true ] && echo '; force_republish')). Registry check: **${REGISTRY_RESULT}**. Publish: **${PUBLISH_RESULT}**. Tag: **${TAG_RESULT}**."
             echo
             echo "- **Published source:** \`${SOURCE_REF}\` → [\`${SOURCE_SHA}\`](${SERVER}/${REPO}/commit/${SOURCE_SHA})"
             echo "- **Workflow logic from:** \`${WORKFLOW_REF}\` → [\`${WORKFLOW_SHA}\`](${SERVER}/${REPO}/commit/${WORKFLOW_SHA})"
@@ -1332,7 +1473,7 @@ jobs:
                 "${NPM_VERSION:+\`npm install @daytona/sdk@${NPM_VERSION}\` (dist-tag \`${NPM_DIST_TAG}\`)}" \
                 "${NPM_VERSION:+https://www.npmjs.com/package/@daytona/sdk/v/${NPM_VERSION}}"
             row "CLI \`daytona\`" "$CLI_VERSION" "$(status "$CLI_VERSION" "$CLI_BUILD" "$cli_outcome")" \
-                "${CLI_VERSION:+\`brew install daytonaio/cli/daytona-alpha\` · \`install.sh --version ${CLI_VERSION}\`}" \
+                "${CLI_VERSION:+\`brew install daytonaio/cli/${HOMEBREW_FORMULA}\` · \`install.sh --version ${CLI_VERSION}\`}" \
                 "${CLI_VERSION:+${SERVER}/${REPO}/releases/tag/v${CLI_VERSION}}"
             row "Migration tool \`daytona-upgrade\` (PyPI)" "$UPGRADE_PYPI" "$(status "$UPGRADE_PYPI" "$UPGRADE_BUILD" "$UPGRADE_PYPI_PUBLISH")" \
                 "${UPGRADE_PYPI:+\`uvx daytona-upgrade@${UPGRADE_PYPI}\`}" \
