@@ -748,7 +748,6 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   const status = error.response?.status
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
-  const extra = errorOptionsFromEnvelope(envelope)
   if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
   if (!error.response && (error.request || error.code)) return new ConnectionError(error.message)
   const fallback = typeof error.response?.data === 'string' ? error.response.data : error.message

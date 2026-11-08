@@ -69,6 +69,8 @@ export function parseMapping(value: unknown): Mapping {
     packages: { ts: { old: strings(packages['old']), new: string(packages['new']), range: string(packages['range']) } },
     v0Modules: { ts: { old: strings(modules['old']), root: string(modules['root']), v0: string(modules['v0']), keep: strings(modules['keep']) } },
     rootNames: { ts: strings(object(data['rootNames'])['ts']) },
+    rootAliasCategories: data['rootAliasCategories'] === undefined ? {}
+      : Object.fromEntries(Object.entries(object(data['rootAliasCategories'])).map(([alias, category]) => [alias, string(category)])),
     ...(exports === undefined ? {} : { v0Exports: { ts: strings(exports) } }),
     movedClientMembers: { ts: strings(object(data['movedClientMembers'])['ts']) },
     config: { ts: Object.fromEntries(Object.entries(ts(data['config'])).map(([name, value]) => [name, action(value)])) },

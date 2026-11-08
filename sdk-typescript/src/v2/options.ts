@@ -109,13 +109,23 @@ export function assertKnownKeys<T>(typeName: string, keys: Iterable<string>, kno
 }
 
 /**
- * Throw `BadRequestError` when `options` has an enumerable key (own or
- * inherited) `known` does not list. `undefined` / `null` options pass
- * (callers default them).
+ * Throw `BadRequestError` unless `options` is `undefined` or a plain options
+ * object whose enumerable keys (own or inherited) `known` all lists. Anything
+ * else (`null`, a boolean, a string, an array, a function: a positional
+ * argument from an older signature) names the type and is refused too.
  */
-export function assertKnownOptions<T>(typeName: string, options: T | null | undefined, known: OptionKeys<T>, renamed: Readonly<Record<string, string>> = RENAMED_OPTIONS): void {
-  if (options === undefined || options === null || typeof options !== 'object') return
+export function assertKnownOptions<T>(typeName: string, options: T | undefined, known: OptionKeys<T>, renamed: Readonly<Record<string, string>> = RENAMED_OPTIONS): void {
+  if (options === undefined) return
+  assertOptionsObject(typeName, options)
   assertKnownKeys(typeName, enumerableKeys(options), known, renamed)
+}
+
+/** Throw `BadRequestError` unless `options` is an object (not `null`, an array or a function). */
+export function assertOptionsObject(typeName: string, options: unknown): asserts options is object {
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    const given = options === null ? 'null' : Array.isArray(options) ? 'an array' : `a ${typeof options}`
+    throw badRequest(`${typeName} must be an options object, got ${given}`)
+  }
 }
 
 /**
@@ -127,7 +137,7 @@ export function assertKnownOptions<T>(typeName: string, options: T | null | unde
  */
 export function snapshotOptions<T>(typeName: string, options: T | undefined, known: OptionKeys<T>): T | undefined {
   if (options === undefined) return undefined
-  if (options === null || typeof options !== 'object') throw badRequest(`${typeName} must be an object`)
+  assertOptionsObject(typeName, options)
   assertKnownKeys(typeName, enumerableKeys(options), known)
   const copy: Record<string, unknown> = {}
   for (const key of Object.keys(known)) {

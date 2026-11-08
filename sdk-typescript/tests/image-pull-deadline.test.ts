@@ -194,3 +194,15 @@ it('leaves standalone build acceptance-only', async () => {
   expect(image.status).toBe('pending')
   expect(phases).toEqual(['post', 'initial'])
 })
+
+it('keeps a timeout the credential provider raises itself, before the pull deadline', async () => {
+  // Given a provider whose own exchange times out at once, well inside the budget.
+  const ownTimeout = new ClientTimeoutError('token exchange timed out')
+  const authProvider = { authorizationHeader: async (): Promise<string> => { throw ownTimeout } }
+  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 800, { authProvider }))
+  // When pulling with a budget that the request timeout covers.
+  const result = service.pull('alpine', { timeoutSeconds: 0.5 })
+  // Then the provider's error is not rewritten as the pull's deadline.
+  await expect(result).rejects.toBe(ownTimeout)
+  expect(phases).toEqual([])
+})

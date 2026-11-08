@@ -46,7 +46,10 @@ const VOLUME_KEYS = optionKeys<VolumeMount>()({ volumeId: true, mountPath: true,
 export const LIFECYCLE_POLICY_KEYS = optionKeys<LifecyclePolicyOptions>()({ timeoutSeconds: true, onTimeout: true, idleExpirySeconds: true, onIdleTimeout: true })
 
 export function assertCreateNestedOptions(options: CreateRequestBaseOptions & { readonly volumes?: readonly VolumeMount[] }): void {
-  assertKnownOptions('LifecyclePolicyOptions', options.lifecyclePolicy, LIFECYCLE_POLICY_KEYS)
+  // `null` means no policy, and a non-object value gets the lifecycle
+  // validator's own message; only an options object has keys to check.
+  const policy = options.lifecyclePolicy
+  if (policy !== null && typeof policy === 'object' && !Array.isArray(policy)) assertKnownOptions('LifecyclePolicyOptions', policy, LIFECYCLE_POLICY_KEYS)
   for (const port of options.ports ?? []) assertKnownOptions('PortMapping', port, PORT_KEYS)
   for (const volume of options.volumes ?? []) assertKnownOptions('VolumeMount', volume, VOLUME_KEYS)
 }

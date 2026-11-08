@@ -23,7 +23,7 @@ import inspect
 import sys
 import types
 import typing
-from typing import Callable, Iterator, Optional
+from typing import Callable, Iterable, Iterator, Optional
 
 import daytona
 from daytona import v2
@@ -172,29 +172,44 @@ def _members(cls: type) -> Iterator[tuple[str, Callable[..., object], str]]:
                 yield name, function, owner.__module__
 
 
-def _generated_on_the_public_surface() -> set[str]:
+def _public_exports() -> Iterator[tuple[str, object]]:
+    for module, names in ((v2, v2.__all__), (daytona, daytona.__all__)):
+        for name in names:
+            yield name, getattr(module, name)
+
+
+def _generated_on_the_public_surface(exports: Optional[Iterable[tuple[str, object]]] = None) -> set[str]:
     found: set[str] = set()
     queue: list[type] = []
     seen: set[type] = set()
 
-    def visit(owner: str, member: str, annotation: object) -> None:
+    def reach(position: str, annotation: object) -> None:
         for cls in _classes(annotation):
             module = getattr(cls, "__module__", "") or ""
             if module.startswith(_GENERATED):
-                found.add(f"{owner}.{member}: {cls.__name__}")
+                found.add(f"{position}: {cls.__name__}")
             elif _is_v2_sdk(module) and cls not in seen:
                 queue.append(cls)
 
-    for module, names in ((v2, v2.__all__), (daytona, daytona.__all__)):
-        for name in names:
-            value = getattr(module, name)
-            if isinstance(value, types.ModuleType):
-                continue
-            value_module = getattr(value, "__module__", "") or ""
-            if value_module.startswith(_GENERATED):
-                found.add(f"export {name}")
-            elif isinstance(value, type) and _is_v2_sdk(value_module):
+    def visit(owner: str, member: str, annotation: object) -> None:
+        reach(f"{owner}.{member}", annotation)
+
+    for name, value in _public_exports() if exports is None else exports:
+        if isinstance(value, types.ModuleType):
+            continue
+        value_module = getattr(value, "__module__", "") or ""
+        if value_module.startswith(_GENERATED):
+            found.add(f"export {name}")
+        elif isinstance(value, type):
+            if _is_v2_sdk(value_module):
                 queue.append(value)
+        elif inspect.isfunction(value):
+            # An exported function: its parameters and return type.
+            for parameter, annotation in _hints(value, value_module).items():
+                reach(f"{name}()" if parameter == "return" else f"{name}({parameter})", annotation)
+        else:
+            # Any other exported value (a typing alias, ...) by what it names.
+            reach(f"export {name}", value)
 
     while queue:
         cls = queue.pop()
@@ -218,3 +233,26 @@ def test_no_public_export_or_signature_type_comes_from_generated_code() -> None:
     found = _generated_on_the_public_surface()
     assert sorted(found - ALLOWED) == [], "generated types on the public surface (use an SDK-owned model)"
     assert sorted(ALLOWED - found) == [], "stale ALLOWED entries: remove them"
+
+
+def test_the_guard_walks_exported_functions_and_aliases() -> None:
+    from daytona.v2._gen.api.models.sandbox import Sandbox as WireSandbox
+
+    def probe_public_function(sandbox: object) -> object:
+        return sandbox
+
+    # Evaluated annotations: this module's own are strings (postponed).
+    probe_public_function.__annotations__ = {"sandbox": WireSandbox, "return": Optional[WireSandbox]}
+    probe_public_function.__module__ = __name__
+    found = _generated_on_the_public_surface(
+        [
+            ("probe_public_function", probe_public_function),
+            ("ProbeAlias", Optional[WireSandbox]),
+            ("PROBE_CONSTANT", "a string"),
+        ]
+    )
+    assert found == {
+        "probe_public_function(sandbox): Sandbox",
+        "probe_public_function(): Sandbox",
+        "export ProbeAlias: Sandbox",
+    }

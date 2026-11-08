@@ -128,8 +128,8 @@ the object afterwards has no effect on the client. Additional env vars:
 - `DAYTONA_OTEL_ENABLED` — enable client spans when `daytona[otel]` is
   installed.
 
-Set `request_timeout=` **(seconds; default 60; `0`, or a value above about
-24.8 days, means no limit)** to change
+Set `request_timeout=` **(seconds; default 60; `0`, or a value above 2,147,483.647 (about
+24.8 days), means no limit)** to change
 the total time one ordinary request may take before it raises
 `ClientTimeoutError`. Waits and long polls use their own budget, streams are
 bounded only until their response arrives, and file transfers are not bounded.

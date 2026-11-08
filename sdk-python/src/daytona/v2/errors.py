@@ -49,7 +49,9 @@ class DaytonaError(_shared.DaytonaError):
     codes this release knows.
 
     Every keyword is optional; an error built by the caller carries only what
-    it is given.
+    it is given. A subclass with defaults (``ClientTimeoutError``, ...) uses its
+    default for a keyword that is omitted or ``None``, as the TypeScript SDK does
+    for ``undefined``.
     """
 
     def __init__(
@@ -226,11 +228,17 @@ class LimitExceededError(RateLimitError):
         message: str,
         *,
         status_code: Optional[int] = None,
-        code: Optional[str] = "LIMIT_EXCEEDED",
+        code: Optional[str] = None,
         source: Optional[str] = None,
         **fields: Unpack[_ErrorFields],
     ) -> None:
-        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
+        super().__init__(
+            message,
+            status_code=status_code,
+            code=code if code is not None else "LIMIT_EXCEEDED",
+            source=source,
+            **fields,
+        )
 
 
 class ImageTooLargeError(ConflictError):
@@ -269,10 +277,16 @@ class ConnectionError(DaytonaError, _shared.DaytonaConnectionError):
         *,
         status_code: Optional[int] = None,
         code: Optional[str] = None,
-        source: Optional[str] = "SDK",
+        source: Optional[str] = None,
         **fields: Unpack[_ErrorFields],
     ) -> None:
-        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
+        super().__init__(
+            message,
+            status_code=status_code,
+            code=code,
+            source=source if source is not None else "SDK",
+            **fields,
+        )
 
 
 class ClientTimeoutError(DaytonaError, _shared.DaytonaTimeoutError):
@@ -288,12 +302,18 @@ class ClientTimeoutError(DaytonaError, _shared.DaytonaTimeoutError):
         self,
         message: str = "operation timed out",
         *,
-        status_code: Optional[int] = 408,
-        code: Optional[str] = "REQUEST_TIMEOUT",
-        source: Optional[str] = "SDK",
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
         **fields: Unpack[_ErrorFields],
     ) -> None:
-        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
+        super().__init__(
+            message,
+            status_code=status_code if status_code is not None else 408,
+            code=code if code is not None else "REQUEST_TIMEOUT",
+            source=source if source is not None else "SDK",
+            **fields,
+        )
 
 
 class TransferCancelledError(DaytonaError):
@@ -307,12 +327,18 @@ class TransferCancelledError(DaytonaError):
         self,
         message: str = "file transfer cancelled",
         *,
-        status_code: Optional[int] = 499,
-        code: Optional[str] = "REQUEST_CANCELLED",
-        source: Optional[str] = "SDK",
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
         **fields: Unpack[_ErrorFields],
     ) -> None:
-        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
+        super().__init__(
+            message,
+            status_code=status_code if status_code is not None else 499,
+            code=code if code is not None else "REQUEST_CANCELLED",
+            source=source if source is not None else "SDK",
+            **fields,
+        )
 
 
 class SandboxCreateRequestTimeoutError(ClientTimeoutError):

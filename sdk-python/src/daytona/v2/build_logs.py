@@ -183,11 +183,18 @@ class BuildLogInterruptedError(DaytonaError):
         *,
         cursor: str | None = None,
         status_code: int | None = None,
-        code: str | None = "BUILD_LOG_INTERRUPTED",
-        source: str | None = "SDK",
+        code: str | None = None,
+        source: str | None = None,
         **fields: Unpack[_ErrorFields],
     ) -> None:
-        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
+        # Omitted or None: code BUILD_LOG_INTERRUPTED, source SDK (as in TypeScript).
+        super().__init__(
+            message,
+            status_code=status_code,
+            code=code if code is not None else "BUILD_LOG_INTERRUPTED",
+            source=source if source is not None else "SDK",
+            **fields,
+        )
         self.cursor = cursor
 
 

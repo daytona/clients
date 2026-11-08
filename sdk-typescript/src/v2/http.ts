@@ -480,7 +480,7 @@ async function authorizationHeaderForAxiosRequest(
     return await abortableWait(provider.authorizationHeader({ ...options, signal: timeout.signal }), timeout.signal)
   } catch (error) {
     if (isAbortError(error) && timeout.timedOut()) {
-      throw new ClientTimeoutError()
+      throw requestBudgetTimeout()
     }
     const timeoutError = timeoutErrorFromAbortSignal(timeout.signal, error)
     if (timeoutError) throw timeoutError
@@ -700,7 +700,9 @@ async function prepareAxiosRequest(
   if (options.authProvider && !options.auth && meta.retriedAfterUnauthorized !== true) {
     // Inside the request's deadline: its signal aborts the exchange when the
     // budget runs out (and relays the caller's own abort).
-    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: config.signal }, remainingBudgetMs(config, instance)))
+    const budget = remainingBudgetMs(config, instance)
+    if (budget < 0) throw requestBudgetTimeout()
+    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: config.signal }, budget))
   }
   if (typeof options.connectionPoolMaxsize === 'number' && !inBrowser()) {
     const agents = await nodeAgentsFor(options.connectionPoolMaxsize)
@@ -767,7 +769,7 @@ async function finishAxiosError(
     const rejectedAuthorization = getAxiosHeader(config, 'Authorization')
     // The refresh and the retry spend what is left of the original deadline.
     const refreshBudget = remainingBudgetMs(config, instance)
-    if (refreshBudget < 0) throw new ClientTimeoutError()
+    if (refreshBudget < 0) throw requestBudgetTimeout()
     const refreshedAuthorization = await authorizationHeaderForAxiosRequest(
       options.authProvider,
       { forceRefresh: true, rejectedAuthorization, signal: callerSignal },
@@ -785,14 +787,19 @@ async function finishAxiosError(
   // The request's own deadline expired: the same error axios' own timeout
   // gives (and the Python SDK's transport timeout), with no status or code.
   const reason: unknown = signal?.aborted ? (signal as AbortSignalLike).reason : undefined
-  if (typeof reason === 'object' && reason !== null && deadlineReasons.has(reason)) throw new ClientTimeoutError()
+  if (typeof reason === 'object' && reason !== null && deadlineReasons.has(reason)) throw requestBudgetTimeout()
   const timeoutError = timeoutErrorFromAbortSignal(signal, error)
   if (timeoutError) throw timeoutError
   const abortError = abortErrorFromSignal(signal)
   if (abortError) throw abortError
   if (isAbortError(error)) throw error
   if (error instanceof DaytonaError) throw error
-  if (error instanceof AxiosError) throw createAxiosDaytonaError(error)
+  if (error instanceof AxiosError) {
+    const mapped = createAxiosDaytonaError(error)
+    // axios' own timeout is the request's budget too.
+    if (mapped instanceof ClientTimeoutError) requestBudgetTimeouts.add(mapped)
+    throw mapped
+  }
   throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
 }
 
@@ -1108,6 +1115,24 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
 
 /** Pending deadline timers, by request config. */
 const requestDeadlines = new WeakMap<AxiosRequestConfig, () => void>()
+/**
+ * The `ClientTimeoutError`s raised because a request's own budget (its
+ * `timeout`) ran out, as opposed to a timeout an auth provider raised itself.
+ * A caller that passed that budget can tell its deadline caused the error.
+ */
+const requestBudgetTimeouts = new WeakSet<ClientTimeoutError>()
+
+function requestBudgetTimeout(): ClientTimeoutError {
+  const error = new ClientTimeoutError()
+  requestBudgetTimeouts.add(error)
+  return error
+}
+
+/** Whether `error` is the timeout of a request's own budget (internal). */
+export function isRequestBudgetTimeout(error: unknown): boolean {
+  return error instanceof ClientTimeoutError && requestBudgetTimeouts.has(error)
+}
+
 /** The abort reasons of expired request deadlines. */
 const deadlineReasons = new WeakSet<object>()
 /** The caller's own signal behind each deadline signal (a 401 retry re-arms from it). */

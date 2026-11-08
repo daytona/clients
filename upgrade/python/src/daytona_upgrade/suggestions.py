@@ -36,8 +36,16 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             assignments.setdefault(node.lineno, []).append(node)
     items: list[Item] = []
-    for node in shared_error_imports(flow, index.scopes):
+    for node, error_names in shared_error_imports(flow, index.scopes):
         message = "when moving these calls to v2, import shared errors from daytona so except clauses also catch v2 errors; root errors take only a message and have no 0.x attributes"
+        aliases = sorted(
+            name for name in error_names if name in mapping.root_alias_categories
+        )
+        if aliases:
+            message += "; " + ", ".join(
+                f"{alias} is {mapping.root_alias_categories[alias]} at the root"
+                for alias in aliases
+            )
         comments.setdefault(node.lineno, []).append("daytona-v2: " + message)
         items.append(
             Item(
