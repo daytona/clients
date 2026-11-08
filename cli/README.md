@@ -130,9 +130,10 @@ that matches decides, and a pattern that matched a directory applies to
 everything inside it. So `!config` after `**/*.pem` uploads `config/` but
 not `config/server.pem`. An excluded directory is walked only when a `!`
 pattern could re-include something inside it; an unreadable excluded
-directory is skipped. A pattern Docker cannot match (`foo\q`) fails the
-build (exit 2, naming the ignore file) only when a path reaches it, as with
-`docker build`. The Dockerfile and the ignore file are always uploaded,
+directory is skipped. As with `docker build`, a pattern with a syntax error
+(`[a-`) fails the build up front, and one that cannot be compiled into a
+matcher (`foo\q`) fails it only when a path reaches it (exit 2, naming the
+ignore file). The Dockerfile and the ignore file are always uploaded,
 even when a pattern matches them. The 64 MiB context limit counts what is
 uploaded. A `--context` tar file is uploaded as is, and `sandbox cp` never
 filters.
@@ -375,8 +376,8 @@ request.
     (`archived`), `project service-account remove` (`removed`), `org leave`
     (`left`);
   - `user_id`: `member remove`, `project member remove` (`removed`);
-  - `name`: `secret set` (`updated`), `secret delete` (`deleted`);
-  - `host`: `registry set` (`updated`), `registry delete` (`deleted`);
+  - `name`: `secret delete` (`deleted`);
+  - `host`: `registry delete` (`deleted`);
   - `project_id`: `project budget remove` (`removed`);
   - `org_id`: `billing automatic-top-up delete`, `billing
     balance-notification delete` (`deleted`).
@@ -388,8 +389,13 @@ request.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,
   `process attach` and `cp`, `--follow` in table mode, `billing invoice pdf`,
   `docs`, `completion`, `help` and `--version`.
-- The local configuration commands (`org use`, `profile use`, `profile
-  delete`, `config set`, `logout`) print nothing on stdout.
+- The local configuration commands (`login`, `logout`, `org use`, `project
+  use`, `profile use`, `profile delete`, `config set`) print nothing on
+  stdout.
+- `secret set` and `registry set` print the secret or registry credential
+  the API stored (never its value), like `secret get` / `registry get`. They
+  read the stored resource first so the options you do not pass keep their
+  values: they need read as well as write access.
 - With JSON or YAML output (including the default off a terminal) an error
   is one JSON line on stderr:
   `{"error": {"exit_code": 4, "code": "FORBIDDEN", "message": "…", "source": "DAYTONA_API", "trace_id": "…", "hint": "…"}}`.
@@ -434,7 +440,10 @@ override its fields. Keys name the API's request fields exactly, at any
 depth, as the API does: an unknown key, including one that differs from a
 field only in case (`Name`, `CORES_MAX`), is refused (exit 2). Keys of map
 values such as `env` and `labels` are names of your own and are sent as
-given. The bodies use the API's request fields:
+given. A field whose value is one of several shapes (`image create`'s
+`source`) is checked by its `type`: an unknown `type`, or a key the chosen
+shape does not have, is refused too. The bodies use the API's request
+fields:
 
 | Command | Body |
 |---|---|
@@ -443,7 +452,7 @@ given. The bodies use the API's request fields:
 | `sandbox create-macos` | `image`, `name`, `cores`, `memory_mib`, `disk_mib`, `persistent`, `reservation`, `auto_renew`, `env`, `labels`, `ports`, `volumes`, `secrets`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox update` | `{"labels": {...}, "lifecycle_policy": {...}}` only: `labels` replaces the label set, `lifecycle_policy` takes `timeout_seconds`, `on_timeout`, `idle_expiry_seconds` (`-1` clears), `on_idle_timeout`. The CLI sends them as two requests (labels first) |
 | `snapshot create` | `name` |
-| `image create` | `name` (the positional argument wins), `source` (`{"type": "registry", "ref": "..."}`), `region_id`, `cpu_arch`, `idle_expiry_seconds`; a `dockerfile` field is refused (use `image build`) |
+| `image create` | `name` (the positional argument wins), `source` (`{"type": "registry", "ref": "..."}` or `{"type": "named", "name": "..."}`), `region_id`, `cpu_arch`, `idle_expiry_seconds`; a `dockerfile` field is refused (use `image build`) |
 | `image build` | the CLI's own descriptor, all strings: `name` (the positional argument wins), `context` (a local directory or tar file), `dockerfile` (a path inside the context), `region_id`, `cpu_arch`; `--dockerfile` and `--context` win even when given empty (then refused) |
 | `volume create` | `name` (the positional argument wins), `type`, `size_gib`, `bucket` (`name`, `origin`, `endpoint`, `region`, `prefix`, `path_style`, `credentials`) |
 | `reservation create` | `region_id`, `model`, `auto_renew`; with `--count` the bulk request, which adds `count` and `min_count`. `--count` selects the bulk request; a `count` field alone is rejected |
