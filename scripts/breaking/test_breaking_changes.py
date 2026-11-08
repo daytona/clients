@@ -223,7 +223,38 @@ class CliLines(unittest.TestCase):
         new = 'daytona: command\ndaytona --a: persistent flag bool required default="false"\ndaytona x: command'
         report = bc.Report()
         bc.compare_surface("cli.txt", old, new, report)
+        # The move and the new required flag both say so.
+        self.assertTrue(report.breaking)
+
+    def test_new_required_flag_on_an_existing_command(self) -> None:
+        old = 'daytona: command\ndaytona sandbox: command\ndaytona sandbox exec: command'
+        local = old + '\ndaytona sandbox exec --newreq: flag string required default=""'
+        report = bc.Report()
+        bc.compare_surface("cli.txt", old, local, report)
+        self.assertEqual(
+            report.breaking,
+            [bc.snapshot_finding("cli.txt", "daytona sandbox exec: command", ['daytona sandbox exec --newreq: flag string required default=""'])],
+        )
+        # Optional new flags, and required flags of new commands, are fine.
+        for new in (
+            old + '\ndaytona sandbox exec --opt: flag string default=""',
+            old + '\ndaytona sandbox run: command\ndaytona sandbox run --x: flag string required default=""',
+        ):
+            report = bc.Report()
+            bc.compare_surface("cli.txt", old, new, report)
+            self.assertEqual(report.breaking, [])
+
+    def test_new_required_persistent_flag_inherited_by_existing_commands(self) -> None:
+        old = 'daytona: command\ndaytona sandbox: command\ndaytona sandbox exec: command'
+        root = old + '\ndaytona --a: persistent flag string required default=""'
+        report = bc.Report()
+        bc.compare_surface("cli.txt", old, root, report)
         self.assertEqual(len(report.breaking), 1)
+        # Declared on a new group command: no earlier invocation inherits it.
+        fresh = old + '\ndaytona volume: command\ndaytona volume --a: persistent flag string required default=""'
+        report = bc.Report()
+        bc.compare_surface("cli.txt", old, fresh, report)
+        self.assertEqual(report.breaking, [])
 
     def test_flag_moved_to_a_persistent_parent_flag(self) -> None:
         old = 'daytona: command\ndaytona sandbox: command\ndaytona sandbox create: command\ndaytona sandbox create --wait: flag bool default="false"'
@@ -373,6 +404,73 @@ class CompareSurface(unittest.TestCase):
         bc.compare_surface("s.txt", old, old.replace("~Opts@v2/a", "~Opts"), report)
         self.assertEqual(report.breaking, [])
 
+    def test_nullish_joining_an_alias_breaks(self) -> None:
+        self.assertFalse(bc.compatible_change("type = 'a' | 'b'", "type = 'a' | 'b' | null"))
+        self.assertFalse(bc.compatible_change("type = 'a' | 'b'", "type = 'a' | 'b' | undefined"))
+        self.assertFalse(bc.compatible_change("type = Literal['a', 'b']", "type = Literal['a', 'b'] | None"))
+        self.assertTrue(bc.compatible_change("type = 'a' | 'b'", "type = 'a' | 'b' | 'c'"))
+        long_old = "R: type = union\nR: union-member 'a'\nR: union-member 'b'"
+        for nullish in ("null", "undefined"):
+            with self.subTest(nullish=nullish):
+                report = bc.Report()
+                bc.compare_surface("s.txt", long_old, f"{long_old}\nR: union-member {nullish}", report)
+                self.assertEqual(len(report.breaking), 1)
+        report = bc.Report()
+        bc.compare_surface("s.txt", long_old, f"{long_old}\nR: union-member 'c'", report)
+        self.assertEqual(report.breaking, [])
+        # Growing past the one-line limit with a null among the new members.
+        report = bc.Report()
+        bc.compare_surface("s.txt", "R: type = 'a' | 'b'", f"{long_old}\nR: union-member null", report)
+        self.assertEqual(len(report.breaking), 1)
+
+    def test_member_of_a_passed_in_type_made_optional(self) -> None:
+        old = "O: interface\nO.f: property string\nO.m: method (): void\nO: passed-in"
+        for line in ("O.f: optional property string", "O.m: optional method (): void"):
+            with self.subTest(line=line):
+                new = old.replace(f"{line.split(':')[0]}: {line.split(': ', 1)[1].replace('optional ', '')}", line)
+                report = bc.Report()
+                bc.compare_surface("s.txt", old, new, report)
+                self.assertEqual(report.breaking, [])
+        # Not for a type the SDK also returns, nor for a plain one.
+        for marker in ("O: passed-in also-returned", "O: interface"):
+            report = bc.Report()
+            bc.compare_surface(
+                "s.txt",
+                old.replace("O: passed-in", marker),
+                old.replace("O: passed-in", marker).replace("O.f: property string", "O.f: optional property string"),
+                report,
+            )
+            self.assertEqual(len(report.breaking), 1)
+        td = "T: typeddict total\nT.k: key str\nT: passed-in"
+        report = bc.Report()
+        bc.compare_surface("s.txt", td, td.replace("T.k: key str", "T.k: optional key str"), report)
+        self.assertEqual(report.breaking, [])
+
+    def test_dataclass_field_gained_a_default(self) -> None:
+        self.assertTrue(bc.compatible_change("field int", "field int = 0"))
+        self.assertTrue(bc.compatible_change("field kw_only str | None", "field kw_only str | None = None"))
+        self.assertFalse(bc.compatible_change("field int = 0", "field int"))
+        self.assertFalse(bc.compatible_change("field int", "field str = ''"))
+
+    def test_migration_tool_surface_never_widens(self) -> None:
+        old = "report.items[].line: field integer required"
+        new = "report.items[].line: field integer | string required"
+        report = bc.Report()
+        bc.compare_surface("upgrade/api-surface/daytona-upgrade.api.txt", old, new, report)
+        self.assertEqual(len(report.breaking), 1)
+        report = bc.Report()
+        bc.compare_surface("sdk-python/api-surface/daytona.v2.api.txt", "X.f: attribute int", "X.f: attribute int | str", report)
+        self.assertEqual(report.breaking, [])
+        # New fields, values and flags still pass there.
+        report = bc.Report()
+        bc.compare_surface(
+            "upgrade/api-surface/daytona-upgrade.api.txt",
+            old,
+            old + '\nreport.items[].hint: field string optional\nreport.mode: value "x"\nnpm --new: flag switch',
+            report,
+        )
+        self.assertEqual(report.breaking, [])
+
     def test_dict_item_gained_an_element(self) -> None:
         old = "codes.API_CODE_EXTRAS: const mappingproxy\ncodes.API_CODE_EXTRAS: item 'GONE': tuple('replacement')"
         report = bc.Report()
@@ -406,6 +504,25 @@ class CompareSurface(unittest.TestCase):
         report = bc.Report()
         bc.compare_surface("s.txt", old, old + "\nBase.team: property string", report)
         self.assertEqual(report.breaking, [bc.snapshot_finding("s.txt", "Base: passed-in", ["Base.team: property string"])])
+
+    def test_flag_group_membership(self) -> None:
+        base = 'daytona x: command'
+        cases = [
+            ("mutually-exclusive a b c", "mutually-exclusive a b", 0),  # looser
+            ("mutually-exclusive a b", "mutually-exclusive a b c", 1),  # tighter
+            ("required-together a b c", "required-together a b", 0),
+            ("required-together a b", "required-together a b c", 1),
+            ("one-required a b", "one-required a b c", 0),  # more ways to satisfy it
+            ("one-required a b c", "one-required a b", 1),
+            ("mutually-exclusive a b", "required-together a b", 1),
+        ]
+        for before, after, expected in cases:
+            with self.subTest(before=before, after=after):
+                report = bc.Report()
+                bc.compare_surface(
+                    "cli.txt", f"{base}\ndaytona x: flag-group {before}", f"{base}\ndaytona x: flag-group {after}", report
+                )
+                self.assertEqual(len(report.breaking), expected, report.breaking)
 
     def test_flag_groups(self) -> None:
         old = 'daytona x: command\ndaytona x --json: flag bool default="false"\ndaytona x --yaml: flag bool default="false"'

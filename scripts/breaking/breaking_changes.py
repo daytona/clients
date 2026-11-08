@@ -532,7 +532,7 @@ def grew_into_lines(old: str, news: list[str]) -> bool:
         if not any(head in news for head in expected):
             continue
         listed = {n.split(" ", 1)[1] for n in news if n.startswith(f"{member_kind} ")}
-        return bool(members) and set(members) <= listed
+        return bool(members) and set(members) <= listed and not (listed - set(members)) & NULLISH
     return False
 
 
@@ -595,9 +595,11 @@ def compatible_change(old: str, new: str, *, typescript: bool = False) -> bool:
         return True
     old_kind, new_kind = old.split(" ", 1)[0], new.split(" ", 1)[0]
     # A union or Literal alias that only gained members.
+    # An added `null` / `undefined` / `None` is not growth: an alias may type
+    # an output, where readers would now get a value they cannot use.
     if old_kind == new_kind == "type":
         old_m, new_m = union_members(old.partition(" ")[2]), union_members(new.partition(" ")[2])
-        if old_m and set(old_m) <= set(new_m):
+        if old_m and set(old_m) <= set(new_m) and not (set(new_m) - set(old_m)) & NULLISH:
             return True
     # A member whose type only gained union members (an output may too:
     # clients handle values they do not know).
@@ -605,6 +607,10 @@ def compatible_change(old: str, new: str, *, typescript: bool = False) -> bool:
     if o and n and o[1] == n[1]:
         old_parts, new_parts = split_top(o[2], " = "), split_top(n[2], " = ")
         if old_parts[1:] == new_parts[1:] and type_compatible(old_parts[0], new_parts[0], passed_in=False):
+            return True
+        # A dataclass field that gained a default (its constructor parameter
+        # became optional; the attribute reads the same).
+        if o[1].startswith("field") and len(old_parts) == 1 and len(new_parts) == 2 and old_parts[0] == new_parts[0]:
             return True
     # A one-line constant collection that only gained elements.
     if old_kind == new_kind == "const" and collection_grew(old[6:], new[6:]):
@@ -614,6 +620,35 @@ def compatible_change(old: str, new: str, *, typescript: bool = False) -> bool:
     # A Python class that only gained base classes.
     o, n = CLASS_LINE.fullmatch(old), CLASS_LINE.fullmatch(new)
     return bool(o and n and o[1] == n[1] and set(split_top(o[2], ",")) <= set(split_top(n[2], ",")))
+
+
+def made_optional(old: str, new: str) -> bool:
+    """A member that only became optional: TypeScript ``property`` /
+    ``method`` gaining ``optional``, a TypedDict ``key`` becoming
+    ``optional key``. Compatible for a type callers only pass in."""
+    for kind in ("property ", "method ", "key "):
+        at = old.find(kind)
+        if at >= 0 and (at == 0 or old[at - 1] == " ") and new == f"{old[:at]}optional {old[at:]}":
+            return True
+    return False
+
+
+def group_line(rest: str) -> tuple[str, frozenset[str]] | None:
+    parts = rest.split(" ")
+    if len(parts) < 3 or parts[0] != "flag-group":
+        return None
+    return parts[1], frozenset(parts[2:])
+
+
+def group_loosened(old: tuple[str, frozenset[str]], new: tuple[str, frozenset[str]]) -> bool:
+    """``new`` accepts every invocation ``old`` did: fewer flags in a
+    mutually-exclusive or required-together group, more in a one-required
+    group."""
+    if old[0] != new[0]:
+        return False
+    if old[0] == "one-required":
+        return old[1] <= new[1]
+    return new[1] <= old[1]
 
 
 def informational(rest: str) -> bool:
@@ -674,7 +709,7 @@ def new_required_members(name: str, old: dict[str, list[str]], new: dict[str, li
     supplied = {
         key: next(r for r in rests if r.startswith(SUPPLIED_HEADS))
         for key, rests in new.items()
-        if "passed-in" in rests and key in old and any(r.startswith(SUPPLIED_HEADS) for r in rests)
+        if any(r.startswith("passed-in") for r in rests) and key in old and any(r.startswith(SUPPLIED_HEADS) for r in rests)
     }
     for key in sorted(set(new) - set(old)):
         parent = next((p for p in supplied if key.startswith(p) and key[len(p) : len(p) + 1] in ".["), None)
@@ -692,6 +727,11 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
         report.breaking.append(snapshot_finding(name, "(the whole snapshot)"))
         return
     typescript = name.startswith("sdk-typescript/")
+    # The migration tool's promise lets a minor release add flags, fields and
+    # values, never change one: no widening there.
+    allow_widening = not name.startswith("upgrade/")
+    # Types callers only pass in (never returned): a member may become optional.
+    pass_only = {k for k, rests in new.items() if "passed-in" in rests and "passed-in" in old.get(k, [])}
     removed_keys: list[str] = []
     for key in sorted(old):
         news = new.get(key)
@@ -717,7 +757,9 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             if informational(rest):
                 report.notices.append(f"{name}: changed (not public API) {line}")
             elif rest.startswith("flag-group "):
-                report.notices.append(f"{name}: flag group dropped (compatible) {line}")
+                report.notices.append(f"{name}: flag group dropped or loosened (compatible) {line}")
+            elif not allow_widening:
+                report.breaking.append(snapshot_finding(name, line, added))
             elif rest.startswith("item ") and any(item_grew(rest, candidate) for candidate in news):
                 report.notices.append(f"{name}: compatible change of {line}")
             elif rest.split(" ", 1)[0] in SET_KINDS:
@@ -726,13 +768,51 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                 compatible_change(rest, candidate, typescript=typescript) for candidate in news
             ):
                 report.notices.append(f"{name}: compatible change of {line}")
+            elif parent_of(key, pass_only) and any(made_optional(rest, candidate) for candidate in news):
+                report.notices.append(f"{name}: member of a passed-in type made optional {line}")
             else:
                 report.breaking.append(snapshot_finding(name, line, added))
-        # A new flag group restricts the invocations a command accepts.
+        reported = any(f.area == name and dict(f.fields).get("old", "").startswith(f"{key}: ") for f in report.breaking)
         for rest in news:
-            if rest.startswith("flag-group ") and rest not in old[key]:
+            if rest in old[key]:
+                continue
+            # A new or tightened flag group restricts the invocations a
+            # command accepts; a group that only loosened does not.
+            group = group_line(rest)
+            if group is not None:
+                olds = [g for g in map(group_line, old[key]) if g is not None]
+                if not any(group_loosened(o, group) for o in olds):
+                    report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}", [f"{key}: {rest}"]))
+            # A nullish member joining a long union alias (see compatible_change).
+            elif not reported and rest.split(" ", 1)[0] == "union-member" and rest.split(" ", 1)[1] in NULLISH:
                 report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}", [f"{key}: {rest}"]))
     new_required_members(name, old, new, report)
+    new_required_flags(name, old, new, report)
+
+
+def parent_of(key: str, parents: set[str]) -> str | None:
+    return next((p for p in parents if key.startswith(p) and key[len(p) : len(p) + 1] == "." and "." not in key[len(p) + 1 :]), None)
+
+
+def new_required_flags(name: str, old: dict[str, list[str]], new: dict[str, list[str]], report: Report) -> None:
+    """A required flag added to a command that existed at the release, or a
+    required persistent flag that such a command now inherits: every earlier
+    invocation of it now fails."""
+    commands = {k for k, rests in old.items() if any(COMMAND_LINE.fullmatch(r) for r in rests)}
+    for key in sorted(set(new) - set(old)):
+        match = re.fullmatch(r"(.+) --(\S+)", key)
+        if not match:
+            continue
+        path = match[1]
+        for rest in new[key]:
+            flag = FLAG_LINE.fullmatch(rest)
+            if not flag or not flag[4]:
+                continue
+            persistent = "persistent" in flag[1].split()
+            affected = path in commands or (persistent and any(c.startswith(path + " ") for c in commands))
+            if affected:
+                anchor = f"{path}: command" if path in commands else f"{path} (inherited by existing subcommands)"
+                report.breaking.append(snapshot_finding(name, anchor, [f"{key}: {rest}"]))
 
 
 # --- contracts ----------------------------------------------------------------
