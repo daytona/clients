@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BadRequestError } from './errors/DaytonaError.js'
+import { BadRequestError, nonOptionsDescription } from './errors/DaytonaError.js'
 
 /**
  * Runtime validation of the options objects the SDK defines.
@@ -107,12 +107,8 @@ export function assertKnownOptions<T>(typeName: string, options: T | undefined, 
  * read as `{}`) are refused.
  */
 export function assertOptionsObject(typeName: string, options: unknown): asserts options is object {
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
-    const given = options === null ? 'null' : Array.isArray(options) ? 'an array' : `a ${typeof options}`
-    throw badRequest(`${typeName} must be an options object, got ${given}`)
-  }
-  const tag = Object.prototype.toString.call(options).slice(8, -1)
-  if (tag !== 'Object') throw badRequest(`${typeName} must be an options object, got a built-in ${tag}`)
+  const given = nonOptionsDescription(options)
+  if (given !== undefined) throw badRequest(`${typeName} must be an options object, got ${given}`)
 }
 
 /**

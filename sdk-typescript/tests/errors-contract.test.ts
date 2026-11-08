@@ -144,3 +144,33 @@ describe('errors the SDK raises itself', () => {
     expect(foreign).toThrow(expect.objectContaining({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }))
   })
 })
+
+describe('error constructors refuse a value that is not an options object', () => {
+  const constructors: ReadonlyArray<readonly [string, new (message: string, options?: never) => Error]> = [
+    ['DaytonaError', v2.DaytonaError as never],
+    ['NotFoundError', v2.NotFoundError as never],
+    ['LimitExceededError', v2.LimitExceededError as never],
+    ['ConnectionError', v2.ConnectionError as never],
+    ['ClientTimeoutError', v2.ClientTimeoutError as never],
+    ['TransferCancelledError', v2.TransferCancelledError as never],
+    ['ImageBuildFailedError', v2.ImageBuildFailedError as never],
+    ['BuildLogInterruptedError', v2.BuildLogInterruptedError as never],
+  ]
+
+  it.each(constructors)('%s refuses a positional status', (_name, ErrorClass) => {
+    // Plain JavaScript: `new NotFoundError('x', 404)` would otherwise drop the 404.
+    for (const [value, given] of [[404, 'a number'], [null, 'null'], ['x', 'a string'], [[404], 'an array'], [new Map(), 'a built-in Map']] as const) {
+      let thrown: unknown
+      try {
+        new ErrorClass('x', value as never)
+      } catch (error) {
+        thrown = error
+      }
+      expect(thrown).toBeInstanceOf(v2.BadRequestError)
+      expect(thrown).toMatchObject({ message: `error options must be an options object, got ${given}`, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    }
+    expect(new ErrorClass('x')).toBeInstanceOf(v2.DaytonaError)
+    expect(new ErrorClass('x', undefined)).toBeInstanceOf(v2.DaytonaError)
+    expect(new ErrorClass('x', { statusCode: 418 } as never)).toMatchObject({ statusCode: 418 })
+  })
+})

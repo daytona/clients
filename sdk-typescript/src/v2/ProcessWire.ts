@@ -10,12 +10,12 @@ import type {
   StreamLogEvent, TerminalSize, WaitResult,
 } from './types.js'
 import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROCESS_STDIN_MODES } from './types.js'
-import { BadRequestError, DaytonaError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
+import { UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
 import { bool, int, logFrameFromWire, malformedResponse, nonNegativeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 
 export type LogFrameWire = toolbox.LogFrameDto
 export type LogsWire = { items?: LogFrameWire[] } | toolbox.ProcessLogsResponse
@@ -43,12 +43,6 @@ export interface ProcessSpec {
 /** Extra HTTP read budget for a bounded process long-poll. */
 export const WAIT_READ_SLACK_MS = 5_000
 export const WAIT_TRANSPORT_RETRY_LIMIT = 3
-
-const SDK = { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' } as const
-
-function badRequest(message: string): BadRequestError {
-  return new BadRequestError(message, SDK)
-}
 
 /**
  * A duration in seconds as whole wire milliseconds, rounded up (`undefined`
@@ -301,7 +295,7 @@ export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
 export function base64Encode(data: Uint8Array): string {
   const maybeBuffer = (globalThis as { Buffer?: { from(input: Uint8Array): { toString(encoding: 'base64'): string } } }).Buffer
   if (maybeBuffer) return maybeBuffer.from(data).toString('base64')
-  if (typeof btoa !== 'function') throw new DaytonaError('base64 encoding is unavailable in this runtime', { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
+  if (typeof btoa !== 'function') throw createDaytonaError('base64 encoding is unavailable in this runtime', 400, 'UNSUPPORTED_OPERATION', 'SDK')
   let binary = ''
   for (const byte of data) binary += String.fromCharCode(byte)
   return btoa(binary)

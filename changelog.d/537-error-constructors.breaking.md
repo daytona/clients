@@ -20,4 +20,17 @@ idempotency key, as Python does, and a server 408 on it stays a
 `RequestTimeoutError`. `ImageBuildFailedError.buildError` /
 `build_error` is the image's recorded build error, when it has one, separate
 from `message` (TypeScript used to copy the message into it). TypeScript
-`BuildLogInterruptedError` takes `(message, { cursor, code, … })`.
+`BuildLogInterruptedError` takes `(message, { cursor, code, … })`. A TypeScript
+error constructor given a second argument that is not an options object
+(`new NotFoundError('x', 404)` from plain JavaScript) throws `BadRequestError`
+instead of dropping it. Errors the TypeScript SDK raises itself now carry the
+catalog's class, as in Python: an invalid argument (a negative timeout, a
+blank name, an invalid image step, ...) is a `BadRequestError` (it was the base
+`DaytonaError` with status 400), so `instanceof BadRequestError` and the root
+`DaytonaBadRequestError` catch it; an interpreter run that times out creating
+its isolated context is a `RequestTimeoutError`; an invalid project-token
+exchange response is a `BadRequestError` (400, `BAD_REQUEST`) in both SDKs
+(it was an `AuthenticationError` without status or code in TypeScript); an
+image `timeout` that is negative or not finite is a `BadRequestError` instead of
+a `TypeError` in TypeScript, and so is a build-log `timeout` in both SDKs
+(it was a `RangeError` / `ValueError`).

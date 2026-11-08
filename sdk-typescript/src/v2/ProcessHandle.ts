@@ -9,7 +9,7 @@ import type {
   WaitProcessOptions, WaitResult,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { ConnectionError, DaytonaError, ClientTimeoutError, UnsupportedOperationError } from './errors/DaytonaError.js'
+import { ConnectionError, ClientTimeoutError, UnsupportedOperationError } from './errors/DaytonaError.js'
 import {
   base64Encode, frameFromWire, invalidPtyVerbError, invalidStdinVerbError, processFromWire,
   remainingWaitBudgetMs, exactMs, signalWire, streamEvent, waitDeadline, waitResult,

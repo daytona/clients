@@ -18,7 +18,7 @@ import type {
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
 import { encodeQuery, HttpTransport, isAbortError, sseMessages, strictUriEncode } from './http.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, createDaytonaError } from './errors/DaytonaError.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
@@ -472,26 +472,28 @@ export class FileSystemService {
             // A failing callback (or a malformed event) ends the watch with
             // its error, even when stop() was called while it ran.
             controller.abort()
-            const normalized = error instanceof Error ? error : new DaytonaError(String(error), { source: 'SDK' })
+            const normalized = error instanceof Error ? error : createDaytonaError(String(error), undefined, undefined, 'SDK')
             if (!started) rejectStarted(normalized)
             await notifyExit(normalized)
             return
           }
         }
         if (started) {
-          await notifyExit(stopRequested ? undefined : new DaytonaError('filesystem watch stream ended unexpectedly', { source: 'SDK' }))
+          await notifyExit(stopRequested ? undefined : createDaytonaError('filesystem watch stream ended unexpectedly', 500, undefined, 'SDK'))
           return
         }
-        const error = new DaytonaError(stopRequested ? 'filesystem watch stopped before start' : 'filesystem watch stream ended before start', { source: 'SDK' })
+        const error = stopRequested
+          ? createDaytonaError('filesystem watch stopped before start', undefined, undefined, 'SDK')
+          : createDaytonaError('filesystem watch stream ended before start', 500, undefined, 'SDK')
         rejectStarted(error)
         await notifyExit(stopRequested ? undefined : error)
       } catch (error) {
         if (isAbortError(error) && stopRequested) {
-          if (!started) rejectStarted(new DaytonaError('filesystem watch stopped before start', { source: 'SDK' }))
+          if (!started) rejectStarted(createDaytonaError('filesystem watch stopped before start', undefined, undefined, 'SDK'))
           await notifyExit()
           return
         }
-        const normalized = error instanceof Error ? error : new DaytonaError(String(error), { source: 'SDK' })
+        const normalized = error instanceof Error ? error : createDaytonaError(String(error), undefined, undefined, 'SDK')
         if (!started) rejectStarted(normalized)
         await notifyExit(normalized)
       }

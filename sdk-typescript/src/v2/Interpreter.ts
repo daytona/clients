@@ -18,13 +18,13 @@ import type {
   WaitResult,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
+import { DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import { secondsToMs } from './ProcessWire.js'
 import { envelopeList, interpreterSessionFromWire } from './toolboxModels.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 
 const RUN_OPTION_KEYS = optionKeys<InterpreterRunOptions>()({
   language: true, context: true, isolated: true, cwd: true, env: true, timeoutSeconds: true,
@@ -149,10 +149,6 @@ function implicitContextId(language: string): string {
 function queueDeadline(timeoutMs: number | undefined): number | undefined {
   if (timeoutMs === undefined || timeoutMs === 0) return undefined
   return Date.now() + timeoutMs
-}
-
-function badRequest(message: string): BadRequestError {
-  return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
 }
 
 /**

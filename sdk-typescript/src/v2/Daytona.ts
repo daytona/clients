@@ -279,7 +279,7 @@ function snapshotSourceString(snapshot: string): string {
 function createWaitSeconds(waitSeconds: number | undefined): number {
   const resolved = waitSeconds ?? 60
   if (!Number.isFinite(resolved) || resolved < 0 || !Number.isInteger(resolved)) {
-    throw new DaytonaError('waitSeconds must be a non-negative integer number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('waitSeconds must be a non-negative integer number of seconds')
   }
   return resolved
 }
@@ -287,7 +287,7 @@ function createWaitSeconds(waitSeconds: number | undefined): number {
 function createTimeoutSeconds(createTimeoutSeconds: number | undefined): number | undefined {
   if (createTimeoutSeconds === undefined) return undefined
   if (!Number.isFinite(createTimeoutSeconds) || !Number.isInteger(createTimeoutSeconds)) {
-    throw new DaytonaError('createTimeoutSeconds must be an integer number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('createTimeoutSeconds must be an integer number of seconds')
   }
   return createTimeoutSeconds
 }
@@ -299,7 +299,7 @@ const MAX_INT32 = 2147483647
 function macosCores(cpu: number | undefined): number | undefined {
   if (cpu === undefined) return undefined
   if (typeof cpu !== 'number' || !Number.isInteger(cpu) || cpu < 4 || cpu > MAX_INT32) {
-    throw new DaytonaError('cpu must be an integer between 4 and 2147483647', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('cpu must be an integer between 4 and 2147483647')
   }
   return cpu
 }
@@ -308,7 +308,7 @@ function macosMib(gib: number | undefined, axis: 'memory' | 'disk', floorMib: nu
   if (gib === undefined) return undefined
   const mib = typeof gib === 'number' && Number.isFinite(gib) ? gib * 1024 : Number.NaN
   if (!Number.isInteger(mib) || mib < floorMib || mib > MAX_INT32) {
-    throw new DaytonaError(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`)
   }
   return mib
 }
@@ -326,7 +326,7 @@ function secondsToMilliseconds(timeout: number): number {
  */
 function resolveIdempotencyKey(idempotencyKey: string | undefined): string | undefined {
   if (idempotencyKey == null) return undefined
-  if (typeof idempotencyKey !== 'string') throw new DaytonaError('idempotencyKey must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (typeof idempotencyKey !== 'string') throw badRequest('idempotencyKey must be a string')
   return idempotencyKey
 }
 
@@ -371,7 +371,7 @@ const NAME_KEY_HASH_PREFIX = 'name:sha256:'
  * a named create made with either SDK.
  */
 export async function idempotencyKeyForName(name: string): Promise<string> {
-  if (typeof name !== 'string') throw new DaytonaError('name must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (typeof name !== 'string') throw badRequest('name must be a string')
   const literal = NAME_KEY_PREFIX + name
   // `/^[\x20-\x7e]*$/` is the API's printable-ASCII rule; `.length` counts
   // UTF-16 units, which equals the byte count for a string that passed it.
@@ -424,7 +424,7 @@ function labelsWithName(name: string | undefined, labels: Record<string, string>
   if (named === undefined) return labels
   const existing = labels?.[NAME_LABEL]
   if (existing !== undefined && existing !== named) {
-    throw new DaytonaError(`labels.${NAME_LABEL} (${JSON.stringify(existing)}) disagrees with name (${JSON.stringify(named)}); the name label is stamped from name, pass one or the other`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest(`labels.${NAME_LABEL} (${JSON.stringify(existing)}) disagrees with name (${JSON.stringify(named)}); the name label is stamped from name, pass one or the other`)
   }
   return { ...(labels ?? {}), [NAME_LABEL]: named }
 }
@@ -727,7 +727,7 @@ export class Daytona {
   public async createMacos(image: string, options: CreateMacosSandboxOptions = {}): Promise<Sandbox> {
     const source = imageSourceString(image)
     if (options.autoRenew !== undefined && options.reservation !== 'new') {
-      throw new DaytonaError('macos create takes autoRenew only with reservation: "new"', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+      throw badRequest('macos create takes autoRenew only with reservation: "new"')
     }
     const cores = macosCores(options.cpu)
     const memoryMib = macosMib(options.memory, 'memory', 4096)
@@ -936,7 +936,7 @@ export class Daytona {
    * `'local'` to use the default region.
    */
   public async findByName(name: string, options: { region?: string } = {}): Promise<Sandbox[]> {
-    if (typeof name !== 'string' || name.trim() === '') throw new DaytonaError('name must be a non-blank string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    if (typeof name !== 'string' || name.trim() === '') throw badRequest('name must be a non-blank string')
     const region = this.createRegion(options)
     const found: Sandbox[] = []
     const seen = new Set<string>()

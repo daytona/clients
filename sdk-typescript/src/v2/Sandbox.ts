@@ -42,6 +42,7 @@ import { BadRequestError, DaytonaError, NotFoundError, RequestTimeoutError, Sand
 import { eventDestinationFromHeaders, regionOf, targetPredicate } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
+import { badRequest } from './options.js'
 import type {
   CreateAccessTokenOptions,
   InterpreterResult,
@@ -235,10 +236,7 @@ function assertPlaceholderInPath(url: string): void {
   const pathEnd = rest.startsWith('/') ? firstIndexOf(rest, ['?', '#'], 0) : 0
   const outsidePath = [authority, rest.slice(pathEnd)]
   if (outsidePath.some(hasSandboxIdPlaceholder)) {
-    throw new DaytonaError(
-      'the {sandboxId} placeholder in a toolbox URL is only supported in the path (e.g. https://toolbox.example/{sandboxId}), not in the scheme, host, query or fragment',
-      { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' },
-    )
+    throw badRequest('the {sandboxId} placeholder in a toolbox URL is only supported in the path (e.g. https://toolbox.example/{sandboxId}), not in the scheme, host, query or fragment')
   }
 }
 
@@ -370,7 +368,7 @@ function labelsBody(labels: unknown): Record<string, string> {
   const output = emptyStringMap()
   for (const [key, value] of Object.entries(labels)) {
     if (typeof value !== 'string') {
-      throw new DaytonaError('setLabels requires a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+      throw badRequest('setLabels requires a Record<string, string>')
     }
     output[key] = value
   }
@@ -841,7 +839,7 @@ export class Sandbox {
   }
 
   private requireToolbox(): HttpTransport {
-    if (!this.toolboxTransport) throw new DaytonaError('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    if (!this.toolboxTransport) throw badRequest('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)')
     return this.toolboxTransport
   }
 
@@ -925,12 +923,12 @@ export class Sandbox {
     if (options.ports !== undefined) {
       for (const port of options.ports) {
         if (!Number.isInteger(port) || port < 1 || port > 65535) {
-          throw new DaytonaError(`port must be an integer in 1..65535, got ${port}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+          throw badRequest(`port must be an integer in 1..65535, got ${port}`)
         }
       }
     }
     if (options.ttlSeconds !== undefined && (!Number.isInteger(options.ttlSeconds) || options.ttlSeconds <= 0)) {
-      throw new DaytonaError('ttlSeconds must be a positive integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+      throw badRequest('ttlSeconds must be a positive integer')
     }
     // Mint directly without an extra metadata request.
     const body: Record<string, unknown> = {}
@@ -1082,7 +1080,7 @@ export class Sandbox {
   }
 
   public async waitForState(states: readonly SandboxWaitState[], options: WaitForStateOptions = {}): Promise<void> {
-    if (states.length === 0) throw new DaytonaError('waitForState() requires at least one target state', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    if (states.length === 0) throw badRequest('waitForState() requires at least one target state')
     const timeout = options.timeout
     if (timeout !== undefined) validateTimeout(timeout)
     const terminalStates = options.terminalStates ?? DEFAULT_SANDBOX_TERMINAL_STATES
