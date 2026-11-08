@@ -12,4 +12,7 @@ arm); a negative or non-finite value is a `BadRequestError`. The events hub
 durations (`reconcile_interval` / `idle_close`, TypeScript
 `reconcileIntervalSeconds` / `idleCloseSeconds`) are validated the same way. TypeScript: the root option
 `requestTimeout` (milliseconds) is renamed `requestTimeoutSeconds` (seconds);
-Python keeps `request_timeout` (seconds).
+Python keeps `request_timeout` (seconds). One deadline covers the whole call:
+resolving the credential (a token exchange), the request, a 401 refresh and its
+retry share it. Python's `daytona.v2.http.HttpClient`, a blocking transport the
+clients never used, whose timeout was per I/O phase, is no longer exported.

@@ -4661,8 +4661,8 @@ def test_create_body_sends_every_limit():
 
 
 def test_public_optional_params_are_keyword_only():
+    import daytona.v2.http as http_module
     from daytona.v2.daytona import AsyncDaytona
-    from daytona.v2.http import HttpClient
     from daytona.v2.http import gb_to_mib as http_gb_to_mib
     from daytona.v2.http import mib_to_gb as http_mib_to_gb
     from daytona.v2.http import sandbox_state as http_sandbox_state
@@ -4680,7 +4680,8 @@ def test_public_optional_params_are_keyword_only():
         inspect.signature(AsyncDaytona.create_from_build).parameters["builder"].kind
         is inspect.Parameter.POSITIONAL_ONLY
     )
-    assert HttpClient is SyncTransport
+    # The blocking transport is internal: the module exports only helpers.
+    assert not hasattr(http_module, "HttpClient")
     assert http_gb_to_mib(1) == 1024
     assert http_mib_to_gb(1536) == 2
     assert http_sandbox_state("running") == "started"

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 import httpx
 import pytest
@@ -272,3 +272,59 @@ def test_missing_credentials_carry_the_catalog_status_and_code(clean_env: pytest
         "UNAUTHORIZED",
         "SDK",
     )
+
+
+class _SlowRefreshingAuth:
+    """A bearer source whose resolution and 401 refresh each take ``delay`` seconds."""
+
+    def __init__(self, delay: float) -> None:
+        self.delay = delay
+
+    async def bearer(self) -> Optional[str]:
+        await asyncio.sleep(self.delay)
+        return "stale"
+
+    async def on_unauthorized(self, failed_token: Optional[str]) -> Optional[str]:
+        await asyncio.sleep(self.delay)
+        return "fresh"
+
+
+async def _unauthorized_then_ok(request: httpx.Request) -> httpx.Response:
+    await asyncio.sleep(0.05)
+    if request.headers.get("authorization") == "Bearer stale":
+        return httpx.Response(401, json={"code": "UNAUTHORIZED", "message": "expired"})
+    return httpx.Response(200, json={"ok": True})
+
+
+@pytest.mark.anyio
+@respx.mock
+@pytest.mark.parametrize("path", ["send", "request", "open_stream"])
+async def test_the_bearer_a_401_refresh_and_the_retry_share_one_deadline(path: str) -> None:
+    # Each step fits the 0.15 s timeout on its own; together (about 0.26 s)
+    # they do not, so a fresh window per step would let the call succeed.
+    respx.get(f"{BASE}/thing").mock(side_effect=_unauthorized_then_ok)
+    transport = AsyncTransport(BASE, None, request_timeout=0.15)
+    transport.auth_provider = _SlowRefreshingAuth(0.08)
+    started = time.monotonic()
+    with pytest.raises(ClientTimeoutError):
+        if path == "send":
+            await transport.send(RequestSpec("GET", "/thing"))
+        elif path == "request":
+            await transport.get("/thing")
+        else:
+            await transport.open_stream(RequestSpec("GET", "/thing"))
+    assert time.monotonic() - started < 0.25
+    transport.auth_provider = _SlowRefreshingAuth(0.01)
+    assert await transport.send(RequestSpec("GET", "/thing")) == {"ok": True}
+    await transport.close()
+
+
+@pytest.mark.anyio
+async def test_the_hub_auth_keeps_the_client_request_timeout() -> None:
+    client = AsyncDaytona(DaytonaConfig(jwt_token="jwt", project_id="p", request_timeout=7)).v2
+    try:
+        hub = client._acquire_hub()  # type: ignore[attr-defined]
+        assert hub is not None
+        assert hub._api._auth._request_timeout == 7
+    finally:
+        await client.close()

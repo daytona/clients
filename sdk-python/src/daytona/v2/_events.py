@@ -40,7 +40,7 @@ from weakref import WeakValueDictionary
 from . import _clock
 from ._auth import ProjectTokenAuth
 from ._core import RequestSpec, expect_object, sandbox_state
-from ._transport import AsyncTransport
+from ._transport import AsyncTransport, _request_deadline
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .errors import (
     AuthenticationError,
@@ -63,6 +63,7 @@ from .types import SandboxEventsConfig, SandboxState
 _sleep = asyncio.sleep
 
 _SUBPROTOCOL: Final = "daytona.events.v1"
+_TICKET_MINT_SECONDS: Final = 30.0
 _TICKET_PROTOCOL_PREFIX: Final = "daytona.ticket."
 _BACKOFF_BASE_S: Final = 0.250
 _BACKOFF_CAP_S: Final = 30.0
@@ -1059,7 +1060,11 @@ class WaitHub:
         anything else is a reconnect."""
         path = f"/events/{quote(sock.region, safe='')}/ticket"
         try:
-            data = expect_object(await self._api.send(RequestSpec("POST", path, timeout=30.0)))
+            # One 30 s budget for the whole mint, a token exchange included.
+            with _request_deadline(_TICKET_MINT_SECONDS):
+                data = expect_object(
+                    await self._api.send(RequestSpec("POST", path, timeout=_TICKET_MINT_SECONDS))
+                )
         except NotFoundError as exc:
             raise _PermanentFallbackError() from exc
         except (AuthenticationError, ForbiddenError) as exc:
@@ -1662,6 +1667,7 @@ def attach_hub(
             project_id=auth._project_id,
             source=source,
             otel=auth._otel,
+            request_timeout=auth._request_timeout,
         )
         if auth is not None
         else None
