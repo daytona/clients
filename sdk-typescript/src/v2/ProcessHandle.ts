@@ -107,7 +107,11 @@ export class ProcessHandle {
     const response = await this.transport.fetch(`/processes/${strictUriEncode(this.id)}/logs${query}`, { headers, signal: options.signal })
     for await (const message of sseMessages(response)) {
       const event = streamEvent(message)
-      if (event !== undefined) yield event
+      if (event === undefined) continue
+      yield event
+      // The log is complete: nothing after eof is read (leaving the loop
+      // cancels the body).
+      if (event.type === 'eof') return
     }
   }
 

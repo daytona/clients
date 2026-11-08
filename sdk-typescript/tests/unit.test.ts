@@ -4888,10 +4888,9 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce({ frames: [{ cursor: 'b', channel: 'stderr', data: 'err', timestamp: 42 }], nextCursor: 'b', truncatedHead: true, firstAvailableCursor: 'a', eof: false })
     transport.fetch.mockResolvedValue(sseResponse([
       'id: c1\r\nevent: log\r\ndata: {"channel":"stdout","data":"hi","timestamp":43}\r\n\r\n',
-      'id: c2\r\nevent: state\r\ndata: {"reason":"exited","exitCode":7}\r\n\r\n',
+      'id: c2\r\nevent: state\r\ndata: {"id":"proc","kind":"exec","state":"terminal","cwd":"/","stdin":"closed","keepLogs":"on_exit_ttl","createdAt":"2026-01-01T00:00:00Z","truncatedHead":false,"reason":"exited","exitCode":7}\r\n\r\n',
       'id: c3\r\nevent: warning\r\ndata: {"message":"trimmed","firstAvailableCursor":"c0"}\r\n\r\n',
       'id: c4\r\nevent: future\r\ndata: {}\r\n\r\n',
-      'id: c5\r\nevent: eof\r\ndata: {}\r\n\r\n',
       'id: c6\r\nevent: error\r\ndata: {"message":"gone","code":"PROCESS_NOT_FOUND","source":"DAYTONA_DAEMON"}\r\n\r\n',
     ]))
     const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc')
@@ -4909,7 +4908,6 @@ describe('toolbox service request shaping', () => {
       { type: 'log', cursor: 'c1', frame: { cursor: 'c1', channel: 'stdout', data: 'hi', timestampMs: 43 } },
       { type: 'state', cursor: 'c2', result: { reason: 'exited', rawReason: 'exited', exitCode: 7 } },
       { type: 'warning', cursor: 'c3', message: 'trimmed', firstAvailableCursor: 'c0' },
-      { type: 'eof', cursor: 'c5' },
     ])
   })
 
@@ -12727,6 +12725,52 @@ describe('toolbox surface', () => {
     const interpreter = new InterpreterService(INTERNAL, transportStub().object, 'sbx')
     const context = interpreter.connectContext('c', 'python')
     expect(interpreter.connectContext(context.toJSON()).toJSON()).toEqual({ sandboxId: 'sbx', contextId: 'c', language: 'python' })
+  })
+
+  it('stops reading a log stream after eof, like the Python SDK', async () => {
+    const transport = transportStub()
+    transport.fetch.mockResolvedValueOnce(sseResponse([
+      'event: eof\ndata: {"cursor":"c1"}\n\n',
+      'event: log\ndata: {"cursor":"c2","channel":"stdout","data":"late","timestamp":1}\n\n',
+      'event: error\ndata: {"message":"never read"}\n\n',
+    ]))
+    const events: StreamLogEvent[] = []
+    for await (const event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) events.push(event)
+    expect(events).toEqual([{ type: 'eof', cursor: 'c1' }])
+  })
+
+  it.each([
+    ['{"cursor":"c","reason":"exited","exitCode":0}', 'kind'],
+    ["{\"id\":\"proc\",\"kind\":\"exec\",\"state\":\"terminal\",\"cwd\":\"/\",\"stdin\":\"closed\",\"keepLogs\":\"on_exit_ttl\",\"createdAt\":\"yesterday\",\"truncatedHead\":false,\"reason\":\"exited\",\"exitCode\":7}", 'createdAt'],
+  ])('checks a state event as the whole process record (%s), like the Python SDK', async (payload, field) => {
+    const transport = transportStub()
+    transport.fetch.mockResolvedValueOnce(sseResponse([`id: c1\nevent: state\ndata: ${payload}\n\n`]))
+    await expect((async () => {
+      for await (const _event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) { /* drain */ }
+    })()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(field) })
+  })
+
+  it.each([
+    ['list', { items: [], nextCursor: 5 }, 'file list response: nextCursor must be a string'],
+    ['history', { items: [], nextCursor: true }, 'git history response: nextCursor must be a string'],
+    ['remotes', { remotes: [{ name: 5, url: 'u' }] }, 'git remote: name must be a string'],
+    ['remotes', { remotes: [{ name: 'origin' }] }, 'git remote: url is required'],
+  ] as const)('names what is wrong in a %s response (%p), like the Python SDK', async (operation, payload, message) => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce(payload)
+    const calls = {
+      list: () => new FileSystemService(INTERNAL, transport.object).list('/'),
+      history: () => new GitService(INTERNAL, transport.object).history('/r'),
+      remotes: () => new GitService(INTERNAL, transport.object).listRemotes('/r'),
+    }
+    await expect(calls[operation]()).rejects.toThrow(`expected ${message}`)
+  })
+
+  it('refuses a process identity kind that is not a string, like the Python SDK', () => {
+    const process = new ProcessService(INTERNAL, transportStub().object, 'sbx')
+    for (const kind of [5, true, ['pty']]) {
+      expect(() => process.connect({ sandboxId: 'sbx', processId: 'p', kind } as never)).toThrow('process handle identity kind must be a string')
+    }
   })
 
   it('rejects filesystem list envelopes without items', async () => {

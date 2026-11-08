@@ -99,10 +99,14 @@ def _remaining_timeout(timeout: Optional[float], started: float) -> Optional[flo
     return max(0.0, timeout - (_clock.monotonic() - started))
 
 
-def _process_kind(value: Optional[str]) -> Optional[ProcessKind]:
-    if value is not None and _is_process_info_kind_known(value):
-        return value
-    return None
+def _process_kind(value: object) -> Optional[ProcessKind]:
+    """A serialized handle's optional ``kind``: an unknown string reads as
+    absent (a newer SDK's kind), anything else that is present is refused."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise create_error("process handle identity kind must be a string", 400, "BAD_REQUEST", "SDK")
+    return value if _is_process_info_kind_known(value) else None
 
 
 def _started_process_kind(reported: ProcessReportedKind, requested: ProcessKind) -> ProcessKind:
@@ -184,7 +188,11 @@ def _stream_log_event(event: str, data: str, message_id: Optional[str]) -> Optio
         frame = parse_log_frame({**payload, "cursor": cursor})
         return StreamLogFrameEvent(frame=frame, cursor=cursor)
     if event == "state":
-        return StreamLogStateEvent(result=parse_wait(expect_exit_result(payload)), cursor=cursor)
+        # ProcessStateEventDto is the whole process record plus the cursor:
+        # every field the record requires is checked, timestamps included.
+        record = expect_process_dto(payload)
+        parse_process(record)
+        return StreamLogStateEvent(result=parse_wait(record), cursor=cursor)
     if event == "eof":
         return StreamLogEofEvent(cursor=cursor)
     message = payload.get("message")
@@ -335,6 +343,9 @@ class AsyncProcessHandle:
             parsed = _stream_log_event(event, data, message_id)
             if parsed is not None:
                 yield parsed
+                if parsed.type == "eof":
+                    # The log is complete: nothing after eof is read.
+                    return
 
     async def write_stdin(self, data: Union[str, bytes]) -> None:
         """Write to the stdin of an exec or PTY process created with stdin='open'."""

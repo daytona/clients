@@ -1181,8 +1181,11 @@ def list_shape(
     items = obj.get("items")
     if not isinstance(items, list):
         raise create_error(f"expected {description}: items is required", 400, "BAD_REQUEST", "SDK")
-    cursor = obj.get("nextCursor") or obj.get("next_cursor")
-    return [expect_object(item) for item in items], str(cursor) if isinstance(cursor, str) else None
+    # A present cursor of the wrong type would silently end pagination.
+    cursor = obj.get("nextCursor")
+    if cursor is not None and not isinstance(cursor, str):
+        raise create_error(f"expected {description}: nextCursor must be a string", 400, "BAD_REQUEST", "SDK")
+    return [expect_object(item) for item in items], cursor or None
 
 
 _SEARCH_LIST_FIELDS = ("status", "sandbox_class", "region")

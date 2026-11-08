@@ -130,16 +130,13 @@ async def test_stream_logs_yields_one_tagged_event_per_server_event_and_raises_a
             "",
             "id: c2",
             "event: state",
-            'data: {"reason":"exited","exitCode":7}',
+            'data: {"id":"proc","kind":"exec","state":"terminal","cwd":"/","stdin":"closed","keepLogs":"on_exit_ttl","createdAt":"2026-01-01T00:00:00Z","truncatedHead":false,"reason":"exited","exitCode":7}',
             "",
             "event: warning",
             'data: {"cursor":"c3","message":"trimmed","firstAvailableCursor":"c0"}',
             "",
             "event: future",
             "data: {}",
-            "",
-            "event: eof",
-            'data: {"cursor":"c5"}',
             "",
             "event: error",
             'data: {"cursor":"c6","message":"gone","code":"PROCESS_NOT_FOUND","source":"DAYTONA_DAEMON"}',
@@ -161,7 +158,6 @@ async def test_stream_logs_yields_one_tagged_event_per_server_event_and_raises_a
             cursor="c2", result=WaitResult(reason="exited", raw_reason="exited", exit_code=7)
         ),
         StreamLogWarningEvent(cursor="c3", message="trimmed", first_available_cursor="c0"),
-        StreamLogEofEvent(cursor="c5"),
     ]
     assert transport.specs[0].params == {"encoding": "text", "cursor": "a", "limit": 5, "follow": "true"}
 
@@ -1373,3 +1369,84 @@ def test_a_reconnected_context_identity_round_trips() -> None:
         "contextId": "c",
         "language": "python",
     }
+
+
+@pytest.mark.anyio
+async def test_stream_logs_stops_reading_after_eof() -> None:
+    lines = [
+        "event: eof",
+        'data: {"cursor":"c1"}',
+        "",
+        "event: log",
+        'data: {"cursor":"c2","channel":"stdout","data":"late","timestamp":1}',
+        "",
+        "event: error",
+        'data: {"message":"never read"}',
+        "",
+    ]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    assert [event async for event in handle.stream_logs()] == [StreamLogEofEvent(cursor="c1")]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("payload", "field"),
+    [
+        ('{"cursor":"c","reason":"exited","exitCode":0}', "id"),
+        (
+            '{"id":"proc","kind":"exec","state":"terminal","cwd":"/","stdin":"closed","keepLogs":"on_exit_ttl","createdAt":"yesterday","truncatedHead":false,"reason":"exited","exitCode":7}',
+            "createdAt",
+        ),
+    ],
+)
+async def test_a_state_event_is_checked_as_the_whole_process_record(payload: str, field: str) -> None:
+    lines = ["id: c1", "event: state", f"data: {payload}", ""]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=field) as info:
+        async for _event in handle.stream_logs():
+            pass
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.parametrize(("kind", "expected"), [("pty", "pty"), ("future", None), (None, None)])
+def test_connect_reads_a_known_kind_and_drops_an_unknown_string(
+    kind: Optional[str], expected: Optional[str]
+) -> None:
+    identity: dict[str, object] = {"sandboxId": "sbx", "processId": "p"}
+    if kind is not None:
+        identity["kind"] = kind
+    handle = AsyncProcessService("sbx", Transport()).connect(identity)  # type: ignore[arg-type]
+
+    assert handle.to_json().get("kind") == expected
+
+
+@pytest.mark.parametrize("kind", [5, True, ["pty"]])
+def test_connect_refuses_a_kind_that_is_not_a_string(kind: object) -> None:
+    with pytest.raises(BadRequestError, match="kind must be a string"):
+        AsyncProcessService("sbx", Transport()).connect({"sandboxId": "sbx", "processId": "p", "kind": kind})  # type: ignore[arg-type,typeddict-item]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("operation", "payload", "message"),
+    [
+        ("list", {"items": [], "nextCursor": 5}, "file list response: nextCursor must be a string"),
+        ("history", {"items": [], "nextCursor": True}, "git history response: nextCursor must be a string"),
+        ("remotes", {"remotes": [{"name": 5, "url": "u"}]}, "git remote: name must be a string"),
+        ("remotes", {"remotes": [{"name": "origin"}]}, "git remote: url is required"),
+    ],
+)
+async def test_list_cursors_and_remotes_name_what_is_wrong(
+    operation: str, payload: JsonValue, message: str
+) -> None:
+    transport = Transport([payload])
+    calls = {
+        "list": lambda: AsyncFileSystemService(transport).list("/"),  # type: ignore[arg-type]
+        "history": lambda: AsyncGitService(transport).history("/r"),  # type: ignore[arg-type]
+        "remotes": lambda: AsyncGitService(transport).list_remotes("/r"),  # type: ignore[arg-type]
+    }
+
+    with pytest.raises(BadRequestError, match=message):
+        await calls[operation]()

@@ -130,10 +130,11 @@ export function listItems<T>(data: unknown, key: string, description: string, ma
   const envelope = record(data, description)
   const items = envelope[key]
   if (!Array.isArray(items)) throw malformed(description, key, items, 'a list')
-  const nextCursor = envelope.nextCursor
+  // A present cursor of the wrong type would silently end pagination.
+  const nextCursor = optional(envelope, 'nextCursor', str, description)
   return {
     items: items.map((item) => map(item as never)),
-    ...(typeof nextCursor === 'string' && nextCursor !== '' ? { nextCursor } : {}),
+    ...(nextCursor === undefined || nextCursor === '' ? {} : { nextCursor }),
   }
 }
 

@@ -302,7 +302,12 @@ export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
   if (cursor === undefined || cursor === '') throw malformedResponse(`${description}: cursor is required`)
   switch (message.event) {
     case 'log': return { type: 'log', cursor, frame: frameFromWire({ ...payload, cursor } as LogFrameWire) }
-    case 'state': return { type: 'state', cursor, result: waitResult(payload as toolbox.ExitResult) }
+    // ProcessStateEventDto is the whole process record plus the cursor:
+    // every field the record requires is checked, timestamps included.
+    case 'state': {
+      processFromWire(payload as toolbox.ProcessDto)
+      return { type: 'state', cursor, result: waitResult(payload as toolbox.ExitResult) }
+    }
     case 'eof': return { type: 'eof', cursor }
     default: return {
       type: 'warning', cursor,

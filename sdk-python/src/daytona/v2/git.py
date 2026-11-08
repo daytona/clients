@@ -355,7 +355,11 @@ def _git_commit(payload: CommitInfo) -> GitCommit:
 
 
 def _git_remote(payload: JsonObject) -> GitRemote:
-    name, url = payload.get("name"), payload.get("url")
-    if not isinstance(name, str) or not isinstance(url, str):
-        raise create_error("expected git remote: name and url are required", 400, "BAD_REQUEST", "SDK")
-    return GitRemote(name=name, url=url)
+    values: Dict[str, str] = {}
+    for field in ("name", "url"):
+        value = payload.get(field)
+        if not isinstance(value, str):
+            problem = "is required" if value is None else "must be a string"
+            raise create_error(f"expected git remote: {field} {problem}", 400, "BAD_REQUEST", "SDK")
+        values[field] = value
+    return GitRemote(name=values["name"], url=values["url"])

@@ -339,11 +339,15 @@ describe('request timeout meaning', () => {
     // The body trickles in well inside a per-read timeout; only a total
     // deadline ends it. timeoutSeconds replaces the 1 s request timeout.
     const { GitService } = await import('../src/v2/Git')
-    const git = new GitService(INTERNAL, new HttpTransport(base, 'k', 1_000))
+    // Shorter than the request timeout: with a 30 s request timeout and a 1 s
+    // trickling body, only the 0.2 s per-call deadline can end the pull.
     handle = trickle(20, 50)
-    await expect(git.pull('/repo', { timeoutSeconds: 0.2 })).rejects.toBeInstanceOf(ClientTimeoutError)
+    await expect(new GitService(INTERNAL, new HttpTransport(base, 'k', 30_000)).pull('/repo', { timeoutSeconds: 0.2 }))
+      .rejects.toBeInstanceOf(ClientTimeoutError)
+    // Longer than the request timeout: the push answers after 1.3 s, past the
+    // 0.5 s request timeout, and succeeds inside its own 3 s deadline.
     handle = late(1_300)
-    await expect(git.push('/repo', { timeoutSeconds: 3 })).resolves.toBeUndefined()
+    await expect(new GitService(INTERNAL, new HttpTransport(base, 'k', 500)).push('/repo', { timeoutSeconds: 3 })).resolves.toBeUndefined()
   })
 
   it('treats a per-call timeout as a total bound that replaces the request timeout', async () => {

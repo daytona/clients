@@ -183,13 +183,13 @@ class WatchHandle:
         return hash(self._impl)
 
     def stop(self) -> None:
-        """Stop the watch. Returns once a callback already running, and"""
+        """Stop the watch, once a running callback and ``on_exit`` finish (its own callback: at once)."""
         if self._bridge.on_loop_thread():
             return self._impl._stop_nowait()
         return self._bridge.call(lambda: self._impl.stop())
 
     def wait_for_exit(self) -> Exception | None:
-        """Wait until the watch ends; returns :attr:`exit_error`."""
+        """Wait until the watch ends and return :attr:`exit_error` (its own callback: at once)."""
         if self._bridge.on_loop_thread():
             return self._impl._exit_error_now()
         return self._bridge.call(lambda: self._impl.wait_for_exit())

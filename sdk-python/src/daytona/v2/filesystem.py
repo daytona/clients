@@ -206,7 +206,7 @@ class AsyncWatchHandle:
         return self._active_delivery is not None and _WATCH_DELIVERY.get() is self._active_delivery
 
     async def wait_for_exit(self) -> Exception | None:
-        """Wait until the watch ends; returns :attr:`exit_error`.
+        """Wait until the watch ends and return :attr:`exit_error` (its own callback: at once).
 
         Called by the watch's own callback, it returns the current exit error
         without waiting for itself.
@@ -217,8 +217,7 @@ class AsyncWatchHandle:
         return self.exit_error
 
     async def stop(self) -> None:
-        """Stop the watch. Returns once a callback already running, and
-        ``on_exit``, have finished.
+        """Stop the watch, once a running callback and ``on_exit`` finish (its own callback: at once).
 
         A callback (or ``on_exit``) may call ``stop()`` on its own watch, also
         from a task it started; that call returns without waiting for itself.

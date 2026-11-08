@@ -57,12 +57,18 @@ def base() -> Iterator[str]:
 
 @pytest.mark.anyio
 async def test_a_git_remote_timeout_is_a_total_deadline_replacing_the_request_timeout(base: str) -> None:
-    transport = AsyncTransport(base, request_timeout=1.0)
-    git = AsyncGitService(transport)
+    # Shorter than the request timeout: with a 30 s request timeout and a 1 s
+    # trickling body, only the 0.2 s per-call deadline can end the pull.
+    transport = AsyncTransport(base, request_timeout=30.0)
     try:
         with pytest.raises(ClientTimeoutError):
-            await git.pull("/repo", timeout=0.2)
-        # Longer than the 1 s request timeout, inside its own 3 s deadline.
-        await git.push("/repo", timeout=3)
+            await AsyncGitService(transport).pull("/repo", timeout=0.2)
+    finally:
+        await transport.close()
+    # Longer than the request timeout: the push answers after 1.3 s, past the
+    # 0.5 s request timeout, and succeeds inside its own 3 s deadline.
+    transport = AsyncTransport(base, request_timeout=0.5)
+    try:
+        await AsyncGitService(transport).push("/repo", timeout=3)
     finally:
         await transport.close()

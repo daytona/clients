@@ -44,6 +44,14 @@ const PTY_START_OPTION_KEYS = optionKeys<PtyStartOptions>()({
 })
 const DEFAULT_TERMINAL_SIZE = { cols: 80, rows: 24 } as const
 
+/** A serialized handle's optional `kind`: anything present but a string is refused. */
+function requireOptionalKind(value: unknown): unknown {
+  if (value !== undefined && value !== null && typeof value !== 'string') {
+    throw new BadRequestError('process handle identity kind must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  return value
+}
+
 function requireProcessId(value: unknown, field: 'sandboxId' | 'processId'): string {
   if (typeof value !== 'string' || value === '') {
     throw new BadRequestError(`process handle identity needs a non-empty string ${field}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
@@ -157,7 +165,7 @@ export class ProcessService {
       this.sandboxId,
       requireProcessId(process.processId, 'processId'),
       // Unknown serialized kinds read as absent; the API validates operations.
-      knownProcessKind(process.kind),
+      knownProcessKind(requireOptionalKind(process.kind)),
     )
   }
 
