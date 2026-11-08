@@ -7,7 +7,7 @@ import { Daytona } from '../src/v2/Daytona'
 import { BadRequestError, PreconditionFailedError } from '../src/v2/index'
 import { lazySandbox } from './lazySandbox'
 
-import { type PlannedResponse, startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi, type PlannedResponse } from './networkPolicyTestServer'
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
   const previous = process.env.DAYTONA_V2_API_URL
@@ -38,8 +38,7 @@ describe('sandbox secret validation parity', () => {
     } finally {
       await api.close()
     }
-    expect(api.requests).toHaveLength(1)
-    expect(api.requests[0]?.headers['if-match']).toBe('"sv-9"')
+    expect(sentRequest(api, 1).headers['if-match']).toBe('"sv-9"')
   })
 
   it.each(['linux', 'macos'] as const)('reads secrets for a %s sandbox', async (sandboxClass) => {

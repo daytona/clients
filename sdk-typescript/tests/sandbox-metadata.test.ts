@@ -5,7 +5,7 @@
 
 import { createSandbox } from './helpers/sandbox'
 import { createHttpClient } from '../src/v2/http'
-import { startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi } from './networkPolicyTestServer'
 
 describe('sandbox observed metadata', () => {
   it.each(['future-class', ''])('preserves an unrecognized wire class %s as unknown', (sandboxClass) => {
@@ -129,7 +129,7 @@ describe('sandbox observed metadata', () => {
       expect(sandbox.accessToken).toBe('minted-fixture')
       expect(sandbox.accessTokenExpiresAt).toBe('2030-01-01T00:00:00Z')
       expect(Reflect.set(sandbox, 'accessToken', 'replacement')).toBe(false)
-      expect(api.requests[1]?.headers.authorization).toBe('Bearer minted-fixture')
+      expect(sentRequest(api, 2, 1).headers.authorization).toBe('Bearer minted-fixture')
       expect(sandbox.toJSON()).toEqual({ sandboxId: 'sbx' })
     } finally {
       await api.close()

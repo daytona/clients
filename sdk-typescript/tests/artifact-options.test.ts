@@ -31,6 +31,7 @@ describe.each([
     // Then the hold is the smaller of the budget and 60 s, whatever the
     // shorter request timeout, and the read allows the hold plus network
     // slack, never past the wait's deadline.
+    expect(requests).toHaveLength(1)
     expect(requests[0]).toMatchObject({ params: { wait: 'ready', timeout_ms: wire }, timeout: request })
     expect(requests[0]?.path).toContain('artifact%2Fone')
   })
@@ -41,6 +42,7 @@ describe.each([
     // When fetching current metadata only.
     await service.get('artifact-one', { timeoutSeconds: 10 })
     // Then a long-poll budget does not disable the ordinary request deadline.
+    expect(requests).toHaveLength(1)
     expect(requests[0]).toMatchObject({ params: undefined, timeout: 4321 })
   })
 

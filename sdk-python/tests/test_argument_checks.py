@@ -261,6 +261,12 @@ async def _docker_refused_type(d: AsyncDaytonaV2, url: str) -> object:
     )  # type: ignore[arg-type]
 
 
+def _assert_server_stop(error: DaytonaError) -> None:
+    """The fake's own 500 ({"message": "stop"}, which names no source) ended the
+    call: the request was sent, so it is not the SDK's refusal."""
+    assert (error.status_code, error.source, str(error)) == (500, None, "stop")
+
+
 @pytest.fixture
 def api() -> Iterator[FakeApi]:
     with FakeApi([]) as fake:
@@ -725,11 +731,13 @@ async def test_the_contract_bounds_are_accepted() -> None:
         os.environ["DAYTONA_V2_API_URL"] = fake.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             await root.v2.list(limit=200, cursor="c")
-            with pytest.raises(DaytonaError):
+            with pytest.raises(DaytonaError) as raised:
                 await root.v2.images.build(
                     ImageBuilder.from_registry("alpine"), idle_expiry_seconds=-1, cpu_arch="arm64"
                 )
+            _assert_server_stop(raised.value)
             await root.v2.secrets.set("K", "v", allowed_domains=["*"], if_not_exists=True)
+    assert len(fake.requests) == 4
     assert fake.requests[0].path == "/sandboxes?cursor=c&limit=200"
     assert json.loads(fake.requests[1].body)["idle_expiry_seconds"] == -1
     assert json.loads(fake.requests[1].body)["cpu_arch"] == "arm64"
@@ -769,7 +777,7 @@ async def test_u_feff_is_not_python_whitespace_and_is_sent(
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             with pytest.raises(DaytonaError) as raised:
                 await call(root.v2)
-    assert not isinstance(raised.value, BadRequestError)
+    _assert_server_stop(raised.value)
     assert len(fake.requests) == 1
 
 
@@ -1006,20 +1014,20 @@ async def test_a_datetime_whose_offset_fails_is_refused(api: FakeApi, offset: ob
     assert api.requests == []
 
 
-_IMAGE_SUBMITTED: JsonObject = {"id": "img", "status": "pending"}
-
-
 @pytest.mark.parametrize("region", ["", "  ", "local", " LOCAL "])
 @pytest.mark.parametrize("route", ["build", "pull"])
 async def test_an_image_call_with_a_default_region_sends_no_region_id(route: str, region: str) -> None:
     with FakeApi([PlannedResponse(500, {"message": "stop"})]) as fake:
         os.environ["DAYTONA_V2_API_URL"] = fake.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(DaytonaError):
+            with pytest.raises(DaytonaError) as raised:
                 if route == "build":
                     await root.v2.images.build(ImageBuilder.from_registry("alpine"), region=region)
                 else:
                     await root.v2.images.pull("alpine", region=region, wait=False)
+    # The request went out and the fake's own 500 ended the call (not a refusal).
+    _assert_server_stop(raised.value)
+    assert len(fake.requests) == 1
     assert "region_id" not in json.loads(fake.requests[0].body)
 
 
@@ -1042,11 +1050,13 @@ async def test_an_image_call_sends_a_named_region(route: str) -> None:
     with FakeApi([PlannedResponse(500, {"message": "stop"})]) as fake:
         os.environ["DAYTONA_V2_API_URL"] = fake.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(DaytonaError):
+            with pytest.raises(DaytonaError) as raised:
                 if route == "build":
                     await root.v2.images.build(ImageBuilder.from_registry("alpine"), region="us")
                 else:
                     await root.v2.images.pull("alpine", region="us", wait=False)
+    _assert_server_stop(raised.value)
+    assert len(fake.requests) == 1
     assert json.loads(fake.requests[0].body)["region_id"] == "us"
 
 
@@ -1068,4 +1078,42 @@ async def test_the_first_bad_argument_is_named_as_typescript_names_it(
     async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
         with pytest.raises(BadRequestError, match=f"^{argument} must "):
             await call(root.v2)
+    assert api.requests == []
+
+
+class _RaisingOffset(tzinfo):
+    def utcoffset(self, dt: datetime | None) -> timedelta | None:
+        raise RuntimeError("offset unavailable")
+
+    def dst(self, dt: datetime | None) -> timedelta | None:
+        return None
+
+    def tzname(self, dt: datetime | None) -> str | None:
+        return None
+
+
+class _JunkDatetime(datetime):
+    def isoformat(self, sep: str = "T", timespec: str = "auto") -> str:
+        return "junk"
+
+
+@pytest.mark.parametrize(
+    ("value", "cause"),
+    [
+        (datetime(2026, 1, 1, tzinfo=tzinfo()), NotImplementedError),  # type: ignore[abstract]
+        (datetime(2026, 1, 1, tzinfo=_RaisingOffset()), RuntimeError),
+        (_JunkDatetime(2026, 1, 1, tzinfo=timezone.utc), None),
+    ],
+    ids=["abstract tzinfo", "tzinfo raising", "datetime rendering junk"],
+)
+async def test_a_datetime_bound_whose_conversion_or_rendering_fails_is_refused(
+    api: FakeApi, value: datetime, cause: type[BaseException] | None
+) -> None:
+    # As TypeScript's Date branch: the rendered form is checked like a string.
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="without a leap second") as raised:
+            await root.v2.search(created_start_at=value)
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    if cause is not None:
+        assert isinstance(raised.value.__cause__, cause)
     assert api.requests == []

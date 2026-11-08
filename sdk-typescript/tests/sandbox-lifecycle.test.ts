@@ -5,7 +5,7 @@
 
 import { createHttpClient } from '../src/v2/http'
 import { createSandbox } from './helpers/sandbox'
-import { startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi } from './networkPolicyTestServer'
 
 describe('sandbox lifecycle completion', () => {
   it.each(['linux', 'macos', 'future'])('waits through stopping on %s without a persistence guard', async (sandboxClass) => {
@@ -22,8 +22,8 @@ describe('sandbox lifecycle completion', () => {
       // Then it returns only after a fresh stopped observation.
       expect(sandbox.state).toBe('stopped')
       expect(api.requests.map((request) => request.method)).toEqual(['POST', 'GET', 'GET'])
-      expect(api.requests[0]?.path).toBe('/sandboxes/sbx/stop')
-      expect(api.requests[1]?.path).toBe('/sandboxes/sbx?wait=stopped&timeout_ms=30000')
+      expect(sentRequest(api, 3, 0).path).toBe('/sandboxes/sbx/stop')
+      expect(sentRequest(api, 3, 1).path).toBe('/sandboxes/sbx?wait=stopped&timeout_ms=30000')
     } finally {
       await api.close()
     }
@@ -79,7 +79,7 @@ describe('sandbox lifecycle completion', () => {
       const result = sandbox[operation]()
       // Then the server is called and the observed terminal state is surfaced.
       await expect(result).rejects.toMatchObject({ state: expected })
-      expect(api.requests[0]?.path).toBe(`/sandboxes/sbx/${operation}`)
+      expect(sentRequest(api, 2, 0).path).toBe(`/sandboxes/sbx/${operation}`)
     } finally {
       await api.close()
     }

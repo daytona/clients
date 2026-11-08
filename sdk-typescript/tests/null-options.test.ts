@@ -7,7 +7,7 @@ import { BadRequestError } from '../src/v2/index'
 import { createHttpClient } from '../src/v2/http'
 import { clientAt } from './helpers/client'
 import { createSandbox } from './helpers/sandbox'
-import { startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi } from './networkPolicyTestServer'
 import type { Daytona } from '../src/Daytona'
 
 // One rule for `null` on every create and fork option: it behaves exactly as
@@ -32,7 +32,7 @@ async function body(route: Route, options: Record<string, unknown>): Promise<Rec
   const client = clientAt(api.url)
   try {
     await call(client, route, options)
-    const sent = JSON.parse(api.requests[0]?.body ?? '{}') as Record<string, unknown>
+    const sent = JSON.parse(sentRequest(api, 1).body) as Record<string, unknown>
     // A random idempotency key differs per call; the rest must match.
     delete sent.idempotency_key
     return sent
@@ -70,7 +70,7 @@ it('reads fork name and memory: null as omitted and refuses waitSeconds: null', 
   try {
     const source = createSandbox({ id: 'src', class: 'linux', status: 'stopped' }, createHttpClient(api.url, 'key'))
     await source.fork({ name: null as never, memory: null as never, waitSeconds: 0 })
-    expect(JSON.parse(api.requests[0]?.body ?? '')).toEqual({})
+    expect(JSON.parse(sentRequest(api, 1).body)).toEqual({})
     await expect(source.fork({ waitSeconds: null as never })).rejects.toBeInstanceOf(BadRequestError)
     expect(api.requests).toHaveLength(1)
   } finally {

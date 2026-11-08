@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { BadRequestError, ImageBuilder } from '../src/v2/index'
 import { imageWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
-import { startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi } from './networkPolicyTestServer'
 
 // One ImageBuilder rule in both SDKs: every value is a string that is not blank
 // by Python's whitespace set, and text rendered raw into a Dockerfile line is
@@ -82,7 +82,7 @@ it('strips an images.pull ref as create does, and refuses a non-string before an
     await expect(client.v2.images.pull(5 as never, { wait: false })).rejects.toBeInstanceOf(BadRequestError)
     expect(api.requests).toEqual([])
     await client.v2.images.pull(' python:3.12 ', { wait: false })
-    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ source: { type: 'registry', ref: 'python:3.12' } })
+    expect(JSON.parse(sentRequest(api, 2, 0).body)).toMatchObject({ source: { type: 'registry', ref: 'python:3.12' } })
   } finally {
     await client.close()
     await api.close()

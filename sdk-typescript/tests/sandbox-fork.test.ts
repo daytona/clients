@@ -5,7 +5,7 @@
 
 import { createHttpClient } from '../src/v2/http'
 import { createSandbox } from './helpers/sandbox'
-import { startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi } from './networkPolicyTestServer'
 
 describe('sandbox fork completion', () => {
   afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers() })
@@ -64,7 +64,7 @@ describe('sandbox fork completion', () => {
       expect(api.requests.map((request) => [request.method, request.path.split('?')[0]])).toEqual([
         ['GET', '/sandboxes/source'], ['POST', '/sandboxes/source/fork'], ['GET', '/sandboxes/fork'], ['GET', '/sandboxes/fork'],
       ])
-      expect(api.requests[3]?.path).toContain(`wait=${result}`)
+      expect(sentRequest(api, 4, 3).path).toContain(`wait=${result}`)
     } finally {
       await api.close()
     }

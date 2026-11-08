@@ -15,7 +15,7 @@ import { pathSegment } from '../src/v2/pathSegment'
 import { imageWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 import { createSandbox } from './helpers/sandbox'
-import { startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi } from './networkPolicyTestServer'
 import type { Daytona } from '../src/Daytona'
 import type { FakeApi } from './networkPolicyTestServer'
 
@@ -24,6 +24,8 @@ import type { FakeApi } from './networkPolicyTestServer'
 // request, as in Python (tests/test_argument_checks.py).
 
 type Call = (client: Daytona, api: FakeApi) => Promise<unknown>
+// The fake's own 500 ({ message: 'stop' }, naming no source): the request was sent, so it is not the SDK's refusal.
+const SERVER_STOP = { statusCode: 500, message: 'stop', source: undefined }
 const handle = (api: FakeApi) => createSandbox({ id: 'sbx', class: 'linux', status: 'stopped' }, createHttpClient(api.url, 'key'))
 const withToolbox = (api: FakeApi) => createSandbox({ id: 'sbx', class: 'linux', status: 'started' }, createHttpClient(api.url, 'key'), undefined, 'key', undefined, { toolboxUrl: api.url, accessToken: 'tok' })
 const unknownClass = (api: FakeApi) => createSandbox('sbx', createHttpClient(api.url, 'key'))
@@ -169,7 +171,7 @@ it('takes createTimeoutSeconds null as omitted, as Python takes None', async () 
   const client = clientAt(api.url)
   try {
     await client.v2.create({ createTimeoutSeconds: null as never, waitSeconds: 0 })
-    expect(JSON.parse(api.requests[0]?.body ?? '{}')).not.toHaveProperty('create_timeout_seconds')
+    expect(JSON.parse(sentRequest(api, 1).body)).not.toHaveProperty('create_timeout_seconds')
   } finally {
     await client.close()
     await api.close()
@@ -186,9 +188,10 @@ it.each([
   const client = clientAt(api.url)
   try {
     await client.v2.create({ name, waitSeconds: 0 })
-    const body = JSON.parse(api.requests[0]?.body ?? '{}') as { labels?: Record<string, string> }
+    const request = sentRequest(api, 1)
+    const body = JSON.parse(request.body) as { labels?: Record<string, string> }
     expect(body.labels?.name !== undefined).toBe(stamped)
-    expect(String(api.requests[0]?.headers['idempotency-key']).startsWith('name')).toBe(stamped)
+    expect(String(request.headers['idempotency-key']).startsWith('name')).toBe(stamped)
   } finally {
     await client.close()
     await api.close()
@@ -226,7 +229,7 @@ it.each([
   const client = clientAt(api.url)
   try {
     await call(client, api)
-    expect(api.requests[0]?.path).toContain(query)
+    expect(sentRequest(api, 1).path).toContain(query)
   } finally {
     await client.close()
     await api.close()
@@ -300,7 +303,7 @@ it.each([
   const client = clientAt(api.url)
   try {
     await call(client)
-    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject(expected)
+    expect(JSON.parse(sentRequest(api, 1).body)).toMatchObject(expected)
   } finally {
     await client.close()
     await api.close()
@@ -337,7 +340,8 @@ it.each(CAPPED_WAITS)('%s sends a wait of %d as the timer maximum, with no clien
     const source = route === 'create' ? 'img_1' : route === 'createFromSnapshot' ? 'snap_1' : 'sonoma'
     const sandbox = await client.v2[route](source, { waitSeconds })
     expect(sandbox.id).toBe('sbx')
-    expect(JSON.parse(bodies[0] ?? '{}')).toMatchObject({ wait_seconds: 2_147_483 })
+    expect(bodies).toHaveLength(1)
+    expect(JSON.parse(bodies[0] ?? '')).toMatchObject({ wait_seconds: 2_147_483 })
   } finally {
     for (const timer of timers) clearTimeout(timer)
     await client.close()
@@ -443,11 +447,11 @@ it('accepts the contract bounds: limit 200, idleExpirySeconds -1, cpuArch arm64,
   const client = clientAt(api.url)
   try {
     await client.v2.list({ limit: 200, cursor: 'c' })
-    await expect(client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: -1, cpuArch: 'arm64' })).rejects.toBeDefined()
+    await expect(client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: -1, cpuArch: 'arm64' })).rejects.toMatchObject(SERVER_STOP)
     await client.v2.secrets.set('K', 'v', { allowedDomains: ['*'], ifNotExists: true })
-    expect(api.requests[0]?.path).toBe('/sandboxes?cursor=c&limit=200')
-    expect(JSON.parse(api.requests[1]?.body ?? '{}')).toMatchObject({ idle_expiry_seconds: -1, cpu_arch: 'arm64' })
-    expect(api.requests[3]?.headers['if-none-match']).toBe('*')
+    expect(sentRequest(api, 4, 0).path).toBe('/sandboxes?cursor=c&limit=200')
+    expect(JSON.parse(sentRequest(api, 4, 1).body)).toMatchObject({ idle_expiry_seconds: -1, cpu_arch: 'arm64' })
+    expect(sentRequest(api, 4, 3).headers['if-none-match']).toBe('*')
   } finally {
     await client.close()
     await api.close()
@@ -462,8 +466,7 @@ it.each([
   const api = await startFakeApi([{ status: 500, body: { message: 'stop' } }])
   const client = clientAt(api.url)
   try {
-    const error = await call(client).then(() => undefined, (failure: unknown) => failure)
-    expect(error).not.toBeInstanceOf(BadRequestError)
+    await expect(call(client)).rejects.toMatchObject(SERVER_STOP)
     expect(api.requests).toHaveLength(1)
   } finally {
     await client.close()
@@ -476,7 +479,7 @@ it('sends valid search classes and timestamps', async () => {
   const client = clientAt(api.url)
   try {
     await client.v2.search({ sandboxClass: ['linux', 'macos'], createdStartAt: '2026-01-01T00:00:00.5+02:00' })
-    const query = new URL(api.requests[0]?.path ?? '', 'http://x').searchParams
+    const query = new URL(sentRequest(api, 1).path, 'http://x').searchParams
     expect([query.get('class'), query.get('created_start_at')]).toEqual(['linux,macos', '2026-01-01T00:00:00.5+02:00'])
   } finally {
     await client.close()
@@ -490,7 +493,7 @@ it('sends a search label with a lone surrogate JSON-escaped', async () => {
   const client = clientAt(api.url)
   try {
     await client.v2.search({ labels: { team: 'a\ud800b' } })
-    expect(api.requests[0]?.path).toContain('%5Cud800')
+    expect(sentRequest(api, 1).path).toContain('%5Cud800')
   } finally {
     await client.close()
     await api.close()
@@ -517,7 +520,7 @@ it.each(TIMESTAMPS.sent)('sends the search timestamp %s', async (bound) => {
   const client = clientAt(api.url)
   try {
     await client.v2.search({ createdStartAt: bound })
-    expect(new URL(api.requests[0]?.path ?? '', 'http://x').searchParams.get('created_start_at')).toBe(bound)
+    expect(new URL(sentRequest(api, 1).path, 'http://x').searchParams.get('created_start_at')).toBe(bound)
   } finally {
     await client.close()
     await api.close()
@@ -572,7 +575,7 @@ it.each(['amd64', 'arm64'] as const)('sends a create cpuArch of %s', async (arch
   const client = clientAt(api.url)
   try {
     await client.v2.create('img_1', { cpuArch: arch, waitSeconds: 0 })
-    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ cpu_arch: arch })
+    expect(JSON.parse(sentRequest(api, 1).body)).toMatchObject({ cpu_arch: arch })
   } finally {
     await client.close()
     await api.close()
@@ -612,8 +615,9 @@ it.each([['create', ''], ['create', '  '], ['create', ' LOCAL '], ['findByName',
   try {
     if (call === 'create') await client.v2.create('img_1', { region, waitSeconds: 0 })
     else await client.v2.findByName('x', { region })
-    expect(api.requests[0]?.headers['x-daytona-region']).toBeUndefined()
-    if (call === 'create') expect(JSON.parse(api.requests[0]?.body ?? '{}')).not.toHaveProperty('region_id')
+    const request = sentRequest(api, 1)
+    expect(request.headers['x-daytona-region']).toBeUndefined()
+    if (call === 'create') expect(JSON.parse(request.body)).not.toHaveProperty('region_id')
   } finally {
     await client.close()
     await api.close()
@@ -663,8 +667,9 @@ it.each((['build', 'pull'] as const).flatMap((route) => ['', '  ', 'local', ' LO
   const api = await startFakeApi([{ status: 500, body: { message: 'stop' } }])
   const client = clientAt(api.url)
   try {
-    await expect(imageCall(client, route, region)).rejects.toBeDefined()
-    expect(JSON.parse(api.requests[0]?.body ?? '{}')).not.toHaveProperty('region_id')
+    // The request went out and the fake's own 500 ended the call (not a refusal).
+    await expect(imageCall(client, route, region)).rejects.toMatchObject(SERVER_STOP)
+    expect(JSON.parse(sentRequest(api, 1).body)).not.toHaveProperty('region_id')
   } finally {
     await client.close()
     await api.close()
@@ -687,8 +692,8 @@ it.each(['build', 'pull'] as const)('images.%s sends a named region', async (rou
   const api = await startFakeApi([{ status: 500, body: { message: 'stop' } }])
   const client = clientAt(api.url)
   try {
-    await expect(imageCall(client, route, 'us')).rejects.toBeDefined()
-    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ region_id: 'us' })
+    await expect(imageCall(client, route, 'us')).rejects.toMatchObject(SERVER_STOP)
+    expect(JSON.parse(sentRequest(api, 1).body)).toMatchObject({ region_id: 'us' })
   } finally {
     await client.close()
     await api.close()

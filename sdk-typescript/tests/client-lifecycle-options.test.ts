@@ -5,7 +5,7 @@
 
 import { BadRequestError, ImageBuilder } from '../src/v2/index'
 import { clientAt } from './helpers/client'
-import { jsonBody, startFakeApi } from './networkPolicyTestServer'
+import { jsonBody, sentRequest, startFakeApi } from './networkPolicyTestServer'
 import type { CreateSandboxOptions, SandboxState } from '../src/v2/index'
 
 describe('client options boundaries', () => {
@@ -135,7 +135,7 @@ describe('sandbox search states', () => {
       // When
       await client.v2.search({ states: ['creating', 'error', 'creating', 'started'] })
       // Then
-      expect(new URL(api.requests[0]?.path ?? '', api.url).searchParams.get('status')).toBe('pending,assigned,failed,lost,running')
+      expect(new URL(sentRequest(api, 1).path, api.url).searchParams.get('status')).toBe('pending,assigned,failed,lost,running')
     } finally {
       await client.close()
       await api.close()

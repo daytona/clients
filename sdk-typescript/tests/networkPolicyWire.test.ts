@@ -7,7 +7,7 @@ import { Daytona } from '../src/v2/Daytona'
 import { lazySandbox } from './lazySandbox'
 import { BadRequestError } from '../src/v2/index'
 
-import { jsonBody, startFakeApi } from './networkPolicyTestServer'
+import { jsonBody, sentRequest, startFakeApi } from './networkPolicyTestServer'
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
   const previous = process.env.DAYTONA_V2_API_URL
@@ -46,7 +46,8 @@ describe('network policy wire contract', () => {
     }
 
     const postBodies = api.requests.filter((request) => request.method === 'POST').map(jsonBody) as Array<Record<string, unknown>>
-    expect(api.requests[0]?.path).toBe('/sandboxes')
+    expect(postBodies).toHaveLength(5)
+    expect(sentRequest(api, 10, 0).path).toBe('/sandboxes')
     expect(postBodies[0]).not.toHaveProperty('network_policy')
     expect(postBodies[1]?.network_policy).toBeNull()
     expect(postBodies[2]?.network_policy).toEqual({})
@@ -92,8 +93,10 @@ describe('network policy wire contract', () => {
       await api.close()
     }
 
-    expect(api.requests[0]?.path).toBe('/sandboxes')
-    expect(jsonBody(api.requests[0]!)).not.toHaveProperty('network_policy')
+    // The create, then its wait read.
+    const request = sentRequest(api, 2, 0)
+    expect(request.path).toBe('/sandboxes')
+    expect(jsonBody(request)).not.toHaveProperty('network_policy')
   })
 
   it('returns etag, revisions, and read-side versioned policy state', async () => {
@@ -115,7 +118,7 @@ describe('network policy wire contract', () => {
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
       const policy = await lazySandbox(client, 'sbx').getNetworkPolicy()
-      expect(api.requests[0]?.path).toBe('/sandboxes/sbx/network-policy')
+      expect(sentRequest(api, 1).path).toBe('/sandboxes/sbx/network-policy')
       expect(policy).toMatchObject({ etag: '"np-7"', httpStatus: 200, desiredRevision: 7, appliedRevision: 6, appliedStartId: 'start-1', status: 'pending' })
       expect(policy.desired).toMatchObject({ version: 2, blockAll: true, allowCidrs: ['1.2.3.4/32'], allowDomains: ['api.example.com'] })
       expect(policy.applied).toMatchObject({ version: 2, blockAll: false, allowCidrs: [], allowDomains: null })
@@ -163,11 +166,13 @@ describe('network policy wire contract', () => {
       await api.close()
     }
 
-    expect(api.requests[0]?.path).toBe('/sandboxes/sbx/network-policy')
-    expect(api.requests[0]?.headers['if-match']).toBe('"np-1"')
-    expect(jsonBody(api.requests[0]!)).toEqual({ block_all: true, allow_cidrs: [], allow_domains: [] })
-    expect(api.requests[1]?.headers['if-match']).toBe('"np-2"')
-    expect(jsonBody(api.requests[1]!)).toBeNull()
+    const update = sentRequest(api, 2, 0)
+    const reset = sentRequest(api, 2, 1)
+    expect(update.path).toBe('/sandboxes/sbx/network-policy')
+    expect(update.headers['if-match']).toBe('"np-1"')
+    expect(jsonBody(update)).toEqual({ block_all: true, allow_cidrs: [], allow_domains: [] })
+    expect(reset.headers['if-match']).toBe('"np-2"')
+    expect(jsonBody(reset)).toBeNull()
   })
 
   it('keeps 200 success parsing only as a compatibility parser case', async () => {

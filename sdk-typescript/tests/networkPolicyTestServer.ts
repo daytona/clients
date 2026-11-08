@@ -71,6 +71,17 @@ export async function startFakeApi(responses: PlannedResponse[]): Promise<FakeAp
   return new FakeApi(responses).start()
 }
 
+/**
+ * The request at `index`, after asserting that exactly `count` were sent, so an
+ * assertion about it (a negative one included) cannot pass because nothing was sent.
+ */
+export function sentRequest(api: FakeApi, count: number, index = 0): RecordedRequest {
+  expect(api.requests).toHaveLength(count)
+  const request = api.requests[index]
+  if (request === undefined) throw new Error(`no request at index ${index}`)
+  return request
+}
+
 export function jsonBody(request: RecordedRequest): unknown {
   return JSON.parse(request.body)
 }

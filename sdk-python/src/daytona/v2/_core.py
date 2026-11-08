@@ -1378,8 +1378,10 @@ def search_timestamp(value: SearchTimestamp) -> str:
     exactly as written. A ``datetime`` is sent in UTC, so its UTC instant must
     fall in years 0001-9999; a naive one (``utcoffset()`` is ``None``, a
     ``tzinfo`` that returns ``None`` included) is taken as UTC. Anything else,
-    and a ``datetime`` whose conversion fails, is the SDK's own
-    :class:`BadRequestError`, before any request.
+    and a ``datetime`` whose conversion fails (its ``tzinfo`` raising, an
+    instant outside years 0001-9999 in UTC) or whose rendered form fails the
+    string rule, is the same :class:`BadRequestError`, before any request: as
+    TypeScript's ``Date`` branch, the rendered form is checked like a string.
     """
     invalid = create_error(
         "timestamp bounds must be a datetime or an RFC 3339 timestamp without a leap second"
@@ -1389,14 +1391,17 @@ def search_timestamp(value: SearchTimestamp) -> str:
         "SDK",
     )
     if isinstance(value, datetime):
+        rendered: object
         try:
+            # Only the calls on the caller's object: a tzinfo may raise anything,
+            # and a datetime subclass may render anything.
             aware = value if value.utcoffset() is not None else value.replace(tzinfo=timezone.utc)
-            utc = aware.astimezone(timezone.utc)
-        except (OverflowError, ValueError, TypeError) as error:
-            # An instant outside years 1-9999 in UTC, or a tzinfo with an
-            # out-of-range or mistyped offset.
+            rendered = aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        except Exception as error:
             raise invalid from error
-        return utc.isoformat().replace("+00:00", "Z")
+        if isinstance(rendered, str) and _rfc3339(rendered):
+            return rendered
+        raise invalid
     # An RFC 3339 timestamp without a leap second (the contract's date-time), the same rule TypeScript checks.
     if isinstance(value, str) and _rfc3339(value):
         return value

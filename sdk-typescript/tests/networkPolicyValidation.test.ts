@@ -12,7 +12,7 @@ import {
   ServiceUnavailableError,
 } from '../src/v2/index'
 
-import { type PlannedResponse, startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi, type PlannedResponse } from './networkPolicyTestServer'
 import { lazySandbox } from './lazySandbox'
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
@@ -78,8 +78,7 @@ describe('network policy validation parity', () => {
     } finally {
       await api.close()
     }
-    expect(api.requests).toHaveLength(1)
-    expect(api.requests[0]?.headers['if-match']).toBe('"np-7"')
+    expect(sentRequest(api, 1).headers['if-match']).toBe('"np-7"')
   })
 
   it.each(['linux', 'macos'] as const)('reads network policy for a %s sandbox', async (sandboxClass) => {
