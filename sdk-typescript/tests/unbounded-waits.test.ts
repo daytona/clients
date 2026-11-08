@@ -6,7 +6,7 @@
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import type { Server } from 'node:http'
-import { ImageBuilder } from '../src/v2/index'
+import { DockerWaitTimeoutError, ImageBuilder, RequestTimeoutError } from '../src/v2/index'
 import { createHttpClient } from '../src/v2/http'
 import type { Daytona } from '../src/Daytona'
 import { imageWire } from './artifactFixtures'
@@ -54,19 +54,23 @@ const handle = (url: string) => createSandbox({ id: 'sbx', class: 'linux', statu
 const withToolbox = (url: string) => createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(url, 'key'), undefined, 'key', undefined, { toolboxUrl: url, accessToken: 'tok' })
 
 type Call = (client: Daytona, url: string, seconds: number) => Promise<unknown>
-// [name, answers, call, the answer after which the clock jumps (the first wait read)]
-const CASES: ReadonlyArray<readonly [string, readonly unknown[], Call, number]> = [
-  ['sandbox.stop', [{}, detail('stopping'), detail('stopping'), detail('stopped')], (_client, url, seconds) => handle(url).stop({ timeoutSeconds: seconds }), 2],
-  ['client.stop by id', [{}, detail('stopping'), detail('stopping'), detail('stopped')], (client, _url, seconds) => client.v2.stop('sbx', { timeoutSeconds: seconds }), 2],
-  ['sandbox.wait', [detail('starting'), detail('starting'), detail('running')], (_client, url, seconds) => handle(url).wait({ until: 'started', timeoutSeconds: seconds }), 1],
-  ['images.pull', [{ id: 'img', status: 'pending' }, imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'ready' })], (client, _url, seconds) => client.v2.images.pull('alpine', { timeoutSeconds: seconds }), 1],
-  ['images.get wait ready', [imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'ready' })], (client, _url, seconds) => client.v2.images.get('img', { wait: 'ready', timeoutSeconds: seconds }), 1],
-  ['docker.waitUntilReady', [{ owner: 'daemon', state: 'starting' }, { owner: 'daemon', state: 'starting' }, { owner: 'daemon', state: 'ready' }], (_client, url, seconds) => withToolbox(url).docker.waitUntilReady({ timeoutSeconds: seconds }), 1],
-  ['createFromBuild buildTimeoutSeconds', [{ id: 'img', status: 'pending' }, imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'ready' }), { id: 'sbx', status: 'running' }], (client, _url, seconds) => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { buildTimeoutSeconds: seconds, waitSeconds: 0 }), 3],
-  ['fork', [detail('running', 'src'), { id: 'f', status: 'pending', forked_from: 'src', toolbox_proxy_url: 'http://p' }, detail('starting', 'f'), detail('starting', 'f'), detail('running', 'f')], (_client, url, seconds) => createSandbox({ id: 'src', class: 'linux', status: 'running' }, createHttpClient(url, 'key')).fork({ waitSeconds: seconds }), 3],
+// What a call documents when its budget runs out: the exact timeout error it
+// throws, or (fork) the handle it returns, short of `started`.
+type Outcome = (abstract new (...args: never[]) => RequestTimeoutError) | 'handle'
+// [name, answers, call, the answer after which the clock jumps (the first wait
+// read), the outcome of a budget that runs out]
+const CASES: ReadonlyArray<readonly [string, readonly unknown[], Call, number, Outcome]> = [
+  ['sandbox.stop', [{}, detail('stopping'), detail('stopping'), detail('stopped')], (_client, url, seconds) => handle(url).stop({ timeoutSeconds: seconds }), 2, RequestTimeoutError],
+  ['client.stop by id', [{}, detail('stopping'), detail('stopping'), detail('stopped')], (client, _url, seconds) => client.v2.stop('sbx', { timeoutSeconds: seconds }), 2, RequestTimeoutError],
+  ['sandbox.wait', [detail('booting'), detail('booting'), detail('running')], (_client, url, seconds) => handle(url).wait({ until: 'started', timeoutSeconds: seconds }), 1, RequestTimeoutError],
+  ['images.pull', [{ id: 'img', status: 'pending' }, imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'ready' })], (client, _url, seconds) => client.v2.images.pull('alpine', { timeoutSeconds: seconds }), 1, RequestTimeoutError],
+  ['images.get wait ready', [imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'ready' })], (client, _url, seconds) => client.v2.images.get('img', { wait: 'ready', timeoutSeconds: seconds }), 1, RequestTimeoutError],
+  ['docker.waitUntilReady', [{ owner: 'daemon', state: 'starting' }, { owner: 'daemon', state: 'starting' }, { owner: 'daemon', state: 'ready' }], (_client, url, seconds) => withToolbox(url).docker.waitUntilReady({ timeoutSeconds: seconds }), 1, DockerWaitTimeoutError],
+  ['createFromBuild buildTimeoutSeconds', [{ id: 'img', status: 'pending' }, imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'ready' }), { id: 'sbx', status: 'running' }], (client, _url, seconds) => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { buildTimeoutSeconds: seconds, waitSeconds: 0 }), 3, RequestTimeoutError],
+  ['fork', [detail('running', 'src'), { id: 'f', status: 'pending', forked_from: 'src', toolbox_proxy_url: 'http://p' }, detail('booting', 'f'), detail('booting', 'f'), detail('running', 'f')], (_client, url, seconds) => createSandbox({ id: 'src', class: 'linux', status: 'running' }, createHttpClient(url, 'key')).fork({ waitSeconds: seconds }), 3, 'handle'],
 ]
 
-describe.each(CASES)('%s', (_name, bodies, call, jumpAfter) => {
+describe.each(CASES)('%s', (_name, bodies, call, jumpAfter, outcome) => {
   it('waits with no deadline for a budget of 3,000,000 s, past 35 days', async () => {
     const { url, server, count } = await serve(bodies, jumpAfter)
     const client = clientAt(url)
@@ -86,9 +90,25 @@ describe.each(CASES)('%s', (_name, bodies, call, jumpAfter) => {
     const { url, server, count } = await serve(bodies, jumpAfter)
     const client = clientAt(url)
     try {
-      await call(client, url, 2_000_000).catch(() => undefined)
-      // The deadline passed before the call read every answer.
+      const ended = await call(client, url, 2_000_000).then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      )
+      // The answer after which the clock jumps was served, so the deadline
+      // passed only because of the jump, before the call read every answer.
+      expect(count()).toBeGreaterThanOrEqual(jumpAfter)
       expect(count()).toBeLessThan(bodies.length)
+      if (outcome === 'handle') {
+        if (!('value' in ended)) throw new Error(`expected the handle, got ${String(ended.error)}`)
+        // A fork returns its handle however the wait ends: a real deadline
+        // leaves it at the state last read.
+        expect(ended.value).toMatchObject({ id: 'f', state: 'starting' })
+      } else {
+        if (!('error' in ended)) throw new Error('expected the budget to run out')
+        expect(ended.error).toBeInstanceOf(outcome)
+        expect((ended.error as object).constructor).toBe(outcome)
+        expect(ended.error).toMatchObject({ code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      }
     } finally {
       await client.close()
       server.closeAllConnections()

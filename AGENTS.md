@@ -649,8 +649,8 @@ skipping exist only in the TypeScript tool).
   included) with `timeout` / `timeoutSeconds` (default 60, `0` = no deadline;
   in both SDKs every wait budget of the area, fork's `wait_seconds` /
   `waitSeconds` included, reads a value above the timer maximum, about
-  24.8 days, as no deadline too: Python `wait_budget_seconds`, TypeScript
-  `waitDeadline`),
+  24.8 days, as no deadline too: Python `wait_budget_seconds` in
+  `_core.py`, TypeScript `waitDeadline` in `src/v2/options.ts`),
   raising `RequestTimeoutError` (source `SDK`) or
   `SandboxTerminalStateError`. Once the target was observed, a failed
   metadata refresh afterwards does not turn that success into an error.

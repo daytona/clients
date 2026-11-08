@@ -102,9 +102,14 @@ from daytona import AsyncDaytona, DaytonaConfig
 async def main() -> None:
     async with AsyncDaytona(DaytonaConfig(api_key="dtn_...")) as d:
         sandboxes = await asyncio.gather(*(d.v2.create_from_snapshot("worker-snapshot") for _ in range(100)))
-        # Each handle comes back even if its wait ended before the sandbox started.
-        await asyncio.gather(*(sb.wait() for sb in sandboxes if sb.state != "started"))
-        results = await asyncio.gather(*(sb.exec("python train_step.py") for sb in sandboxes))
+        # Each handle comes back even if its wait ended before the sandbox started:
+        # wait for the rest, and keep going when some end in a terminal state.
+        await asyncio.gather(*(sb.wait() for sb in sandboxes if sb.state != "started"), return_exceptions=True)
+        for sb in sandboxes:
+            if sb.state != "started":
+                print(f"{sb.id} did not start: {sb.state} {sb.error or ''}")
+        ready = [sb for sb in sandboxes if sb.state == "started"]
+        results = await asyncio.gather(*(sb.exec("python train_step.py") for sb in ready))
 
 
 asyncio.run(main())
