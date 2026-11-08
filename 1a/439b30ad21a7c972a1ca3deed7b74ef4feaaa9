@@ -1,0 +1,25 @@
+sdk-python/src/daytona/v2/_auth.py
+  s_f23bcae77f0e63::t_9d159334c8abcb 170,172,192-193,198-207
+  s_f23bcae77f0e63::t_97dd3d2105397a 208-209
+sdk-python/tests/test_credential_repr.py
+  s_f23bcae77f0e63::t_8394d8cee00611 1-63
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_9d159334c8abcb 11397-11408,11436-11459
+  s_f23bcae77f0e63::t_ec640ada21577d 11460-11461
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1a439b30ad21a7c972a1ca3deed7b74ef4feaaa9",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
