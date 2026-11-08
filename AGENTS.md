@@ -465,10 +465,11 @@ skipping exist only in the TypeScript tool).
   are validated). The wire keeps its own units (`timeoutMs` for toolbox
   process execs/waits). Timestamps are not durations: the toolbox's Unix
   millisecond timestamps are named `timestamp_ms` / `timestampMs` (log frames,
-  filesystem events). The toolbox namespaces follow the rule (TypeScript
-  converts with `secondsToMs` in `ProcessWire.ts`, Python with
-  `timeout_millis_from_seconds`: a positive value is at least 1 ms, a value
-  above the longest timer is no limit). Known exceptions at this point: the
+  filesystem events). The toolbox namespaces follow the rule: a positive
+  value is sent as at least 1 ms (TypeScript `exactMs` in `ProcessWire.ts`,
+  Python `timeout_millis_from_seconds`), and a caller budget or deadline
+  above the longest timer is no limit (TypeScript `secondsToMs` /
+  `aboveTimerMaximum`, Python `wait_budget` / `above_timer_maximum`). Known exceptions at this point: the
   per-call TypeScript `timeout` options of the docker, build-log, image,
   snapshot and volume calls still take milliseconds until their area is
   renamed.

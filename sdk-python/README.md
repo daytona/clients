@@ -721,6 +721,11 @@ returns without waiting), `wait_for_exit()` and `exit_error`. Any other
 synchronous SDK call, including another watch's methods, raises a
 `DaytonaError` (source `SDK`, no code), which ends the watch.
 
+`read_bytes()`, `read_text()`, `read_many()` and the computer-use recording
+`download()` hold the whole response in memory. For large files, or content
+from a sandbox you don't trust, use `download_file()`, which streams to disk
+with progress and cancellation.
+
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
 set `atomic=True` to write through a temp file + rename. `download_file()`
@@ -786,7 +791,7 @@ exported from `daytona.v2`) with its requests.
 context=LspCompletionContext(...))`, `document_symbols(uri)`,
 `workspace_symbols(query)` and `stop()`. A completion item's `documentation`
 is `None`, a plain string or an `LspMarkupContent`.
-`computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
+`computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
 `region=ComputerUseRegion(...)`; any of `format=`, `quality=` or `scale=`

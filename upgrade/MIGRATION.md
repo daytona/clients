@@ -557,7 +557,7 @@ v2 has no down/up methods, click counts, mouse modifiers or horizontal scrolling
 | `sandbox.computerUse.mouse.down(...)` | None | none; v2 has no method for holding a mouse button down; click or drag cannot preserve arbitrary down/move/up sequences |
 | `sandbox.computerUse.mouse.up(...)` | None | none; v2 has no method for releasing a held mouse button |
 | `sandbox.computerUse.mouse.click(...)` | `{sandbox}.computerUse.mouse.click({ x, y, button, double })` | differs; Arguments move into a request object; v2 has no clicks or modifiers parameters; Returned coordinates are required |
-| `sandbox.computerUse.mouse.drag(...)` | `{sandbox}.computerUse.mouse.drag({ startX, startY, endX, endY, button })` | differs; Arguments move into a request object whose button field is required; v2 has no modifiers parameter; Returned coordinates are required |
+| `sandbox.computerUse.mouse.drag(...)` | `{sandbox}.computerUse.mouse.drag({ startX, startY, endX, endY, button })` | differs; Arguments move into a request object; button is optional and defaults to 'left'; v2 has no modifiers parameter; Returned coordinates are required |
 | `sandbox.computerUse.mouse.scroll(...)` | `{sandbox}.computerUse.mouse.scroll({ x, y, direction, amount })` | differs; Arguments move into a request object; Only up/down are supported and modifiers are unavailable; Returns an object with success instead of boolean |
 
 <a id="sandbox-computer-use-keyboard"></a>

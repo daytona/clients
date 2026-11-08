@@ -3178,7 +3178,7 @@
           "Returns a ComputerUsePoint dataclass"
         ],
         "ts": [
-          "Arguments move into a request object whose button field is required",
+          "Arguments move into a request object; button is optional and defaults to 'left'",
           "v2 has no modifiers parameter",
           "Returned coordinates are required"
         ]

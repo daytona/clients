@@ -670,6 +670,13 @@ contract instead — the affected entries appear in the returned `errors` array
 as failure messages naming the file and the atomic-rename limitation, while the
 rest of the batch is written.
 
+`readBytes()`, `readText()`, `readMany()` and the computer-use recording
+`download()` hold the whole response in memory. For large files, or content
+from a sandbox you don't trust, use `downloadFile()`, which streams to disk
+with progress and cancellation. `downloadFile()` is Node.js-only (a browser
+build throws `NotSupportedError`), so in a browser the in-memory reads are the
+only option.
+
 `uploadFile(localPath, remotePath, { onProgress, signal, atomic })` and
 `downloadFile(remotePath, localPath, { onProgress, signal })` stream directly
 between disk and the sandbox instead of buffering the whole file in memory.
@@ -729,7 +736,7 @@ exported from `@daytona/sdk/v2`) with its requests.
 `openDocument()`, `closeDocument()`, `completions(uri, position, { context })`,
 `documentSymbols()`, `workspaceSymbols()` and `stop()`. A completion item's
 `documentation` is absent, a string or an `LspMarkupContent`.
-`computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
+`computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
 `region`; any of `format`, `quality` or `scale` returns a compressed image.

@@ -1,4 +1,6 @@
 **Strict process log pages** — `logs()` returns the API's page as it is:
+TypeScript `LogPage` is a standalone readonly type like Python's (no longer a
+`ListResult`, so without its search-only `total` fields), and
 `LogPage.next_cursor` / `nextCursor` and `truncated_head` / `truncatedHead`
 are required, and a new required `eof` says the process has ended and no frame
 follows. A page missing one of them, or of the wrong type, raises
