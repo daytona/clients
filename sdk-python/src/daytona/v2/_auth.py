@@ -5,14 +5,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Final, Optional
 
 import anyio
 import httpx
 
 from . import _clock
-from ._core import _expect_model_from_dict, error_from_response, expect_object
-from ._gen.api import TokenExchange
+from ._core import error_from_response
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, DaytonaError, create_error
 
@@ -108,7 +107,7 @@ class ProjectTokenAuth:
             return True
         return current_token is not None and cached.access_token != current_token
 
-    async def _exchange_token(self) -> TokenExchange:
+    async def _exchange_token(self) -> _TokenExchange:
         url = f"{self._api_url}/auth/token"
         from ._transport import (
             _request_deadline,
@@ -162,10 +161,24 @@ class ProjectTokenAuth:
         return exchange
 
 
-def _token_exchange(body: bytes) -> TokenExchange:
-    """The token-exchange response, or ``BadRequestError`` naming what is wrong.
+# The largest integer both SDKs read exactly (JavaScript's Number.MAX_SAFE_INTEGER).
+_MAX_SAFE_INTEGER: Final = 2**53 - 1
 
-    The messages match the TypeScript SDK's for the same response.
+
+@dataclass(frozen=True)
+class _TokenExchange:
+    """The two token-exchange fields the SDK reads."""
+
+    access_token: str
+    expires_in: int
+
+
+def _token_exchange(body: bytes) -> _TokenExchange:
+    """The token and its lifetime, or ``BadRequestError`` naming what is wrong.
+
+    Only the fields the SDK reads are checked (``token_type`` and
+    ``issued_token_type`` are informational); the messages match the
+    TypeScript SDK's for the same response.
     """
     try:
         payload: object = json.loads(body)
@@ -177,14 +190,13 @@ def _token_exchange(body: bytes) -> TokenExchange:
     if not isinstance(access_token, str) or access_token == "":
         raise _bad_exchange("access_token must be a non-empty string")
     expires_in = payload.get("expires_in")
-    if isinstance(expires_in, bool) or not isinstance(expires_in, int) or expires_in <= 0:
+    if (
+        isinstance(expires_in, bool)
+        or not isinstance(expires_in, int)
+        or not 0 < expires_in <= _MAX_SAFE_INTEGER
+    ):
         raise _bad_exchange("expires_in must be a positive integer")
-    return _expect_model_from_dict(
-        expect_object(payload),
-        TokenExchange,
-        "token exchange response",
-        TokenExchange.from_dict,
-    )
+    return _TokenExchange(access_token=access_token, expires_in=expires_in)
 
 
 def _bad_exchange(problem: str) -> DaytonaError:

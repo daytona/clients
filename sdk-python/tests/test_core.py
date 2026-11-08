@@ -11386,7 +11386,39 @@ _TOKEN_EXCHANGE_CASES = [
         b'{"access_token": "t", "expires_in": "soon"}',
         "token exchange response expires_in must be a positive integer",
     ),
+    (
+        b'{"access_token": "t", "expires_in": 9007199254740992}',
+        "token exchange response expires_in must be a positive integer",
+    ),
+    (
+        b'{"access_token": "t", "expires_in": 1.5}',
+        "token exchange response expires_in must be a positive integer",
+    ),
 ]
+
+
+@pytest.mark.anyio
+async def test_project_token_exchange_reads_only_the_fields_it_uses() -> None:
+    # token_type / issued_token_type are informational: neither SDK refuses an
+    # exchange without them (the TypeScript SDK's unit.test.ts checks the same).
+    http = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"access_token": "t", "expires_in": 9007199254740991})
+        ),
+        base_url="http://api.invalid",
+    )
+    auth = ProjectTokenAuth(
+        api_url="http://api.invalid",
+        jwt_token="jwt",
+        project_id="project-1",
+        source="sdk-python-async",
+        client=http,
+    )
+    try:
+        exchange = await auth._exchange_token()
+    finally:
+        await http.aclose()
+    assert (exchange.access_token, exchange.expires_in) == ("t", 9007199254740991)
 
 
 @pytest.mark.anyio
