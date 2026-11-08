@@ -89,7 +89,8 @@ hand and immutable in both SDKs: frozen, keyword-only dataclasses in Python,
 readonly interfaces in TypeScript, with the same fields. Two Python
 configuration classes are the exceptions to keyword-only: `DaytonaConfig`
 takes `api_key` positionally and `SandboxEventsConfig` takes its fields
-positionally, and the public surface snapshot pins their field order. The
+positionally. Because they can be built positionally, their field order is
+public and can't change in 2.x. The
 `ListResult` / `SearchResult` page envelopes are keyword-only dataclasses too
 and aren't iterable: `.items` is the one way to the entries. Lifecycle methods
 wait for the state they ask for (`stop()` for `stopped`, `delete()` for
@@ -166,3 +167,6 @@ public with `'unknown'`, gives both safety and type precision.
   a value. Code that switches over an enum field should handle `'unknown'`.
 - Adding a value to a public enum is additive. Removing one, or making an open
   enum exact, is a breaking change.
+- Frozen models, page envelopes that aren't iterable (`.items` is the one way
+  in) and the positional fields of `DaytonaConfig` / `SandboxEventsConfig` are
+  fixed for 2.x. Changing any of them waits for the next major version.

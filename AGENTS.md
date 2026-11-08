@@ -658,7 +658,10 @@ skipping exist only in the TypeScript tool).
   needs the class, because its wait target depends on it.
 - **Public models are SDK-owned and immutable.** Python: frozen,
   keyword-only dataclasses with tuples and timezone-aware datetimes; TS:
-  readonly camelCase interfaces. Sandbox metadata is read-only on the handle
+  readonly camelCase interfaces and model classes (`Image`, `Snapshot`) with
+  readonly fields, frozen at run time along with list and search pages and
+  their arrays (JSON fields such as `Volume.options` deep-frozen; live
+  handles such as `Sandbox` are not). Sandbox metadata is read-only on the handle
   (reload with `refresh_data()` / `refreshData()`); constructors of the
   exported handle and service classes are internal (TS: the `INTERNAL`
   token from `src/v2/internal.ts`; Python: `_`-prefixed parameters), while

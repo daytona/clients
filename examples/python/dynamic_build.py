@@ -37,7 +37,7 @@ def main() -> int:
         first = daytona.create_from_build(
             ImageBuilder.from_dockerfile(dockerfile),
             name=f"dynbuild-first-{RUN}",
-            # Covers the image build and the sandbox start.
+            # build_timeout bounds the image build; wait_seconds bounds the sandbox start.
             build_timeout=400,
             wait_seconds=400,
         )
@@ -77,19 +77,22 @@ def main() -> int:
         second_secs = time.monotonic() - started
         info(f"second create took {second_secs:.1f}s")
 
-        marker2 = second.process.run("cat /marker") if require_started(second) else None
-        if marker2 is not None and marker2.exit_code == 0 and RUN in marker2.output:
-            passed("the second sandbox contains the expected marker")
-        else:
-            failed("the second sandbox does not contain the expected marker")
-            ok = False
-
         # Timing is reported, never asserted.
         info(f"elapsed: first {first_secs:.1f}s vs second {second_secs:.1f}s")
 
-        section("read the second sandbox's build logs")
-        second_logs = second.build_logs()
-        info(second_logs or "build log response was empty")
+        if not require_started(second):
+            ok = False
+        else:
+            marker2 = second.process.run("cat /marker")
+            if marker2.exit_code == 0 and RUN in marker2.output:
+                passed("the second sandbox contains the expected marker")
+            else:
+                failed("the second sandbox does not contain the expected marker")
+                ok = False
+
+            section("read the second sandbox's build logs")
+            second_logs = second.build_logs()
+            info(second_logs or "build log response was empty")
 
         section("change the Dockerfile's output")
         other = daytona.create_from_build(

@@ -34,7 +34,8 @@ export const sleep = (s: number): Promise<void> => new Promise((r) => setTimeout
 export function assertStarted(sandbox: Sandbox): void {
   if (sandbox.state === 'started') return
   const raw = sandbox.state === 'unknown' ? `, rawState=${sandbox.rawState ?? ''}` : ''
-  throw new Error(`sandbox ${sandbox.id} did not start (state=${sandbox.state}${raw})`)
+  const reason = sandbox.error ? `: ${sandbox.error}` : ''
+  throw new Error(`sandbox ${sandbox.id} did not start (state=${sandbox.state}${raw})${reason}`)
 }
 
 /** Build the v2 client (the root's `.v2`) from the shared env vars, or exit with a hint. */

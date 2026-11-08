@@ -58,7 +58,7 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
 const example = (name: string) => `typescript/${name}/index.ts`
 const SECRET_NAME = /^EXAMPLE_API_KEY_[0-9A-F]{8}$/
 
-for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dynamic-build', 'dockerfile-sandbox', 'volumes']) {
+for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dynamic-build', 'dockerfile-sandbox', 'volumes', 'lifecycle']) {
   test(`${name} skips work and cleans up when create returns a non-started sandbox`, () => {
     // Given an accepted create whose readiness wait did not finish.
     const scenario = { sandboxStates: ['creating'] }

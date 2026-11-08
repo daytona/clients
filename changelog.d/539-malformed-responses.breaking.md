@@ -1,9 +1,10 @@
-**Responses that break the contract are `BadRequestError`** — every response
-the client, lifecycle and platform services map is checked against the
-contract fields the SDK reads, nested fields and list items included: images,
-snapshots, secrets, volumes, reservations (and bulk reservations), Mac models
-and the catalog, the account responses, preview endpoints and links, sandbox
-access tokens, the sandbox body and search pages. A missing required field or
+**Responses that break the contract are `BadRequestError`** — the
+responses of the client, sandbox lifecycle and platform services are checked
+against the contract fields the SDK reads, nested fields and list items
+included: images, snapshots, volumes, secrets, reservations (and bulk
+reservations), Mac models and the catalog, the account responses, ports'
+preview endpoints and links, sandbox access tokens, the sandbox body, and
+list and search pages. A missing required field or
 a wrong type is a `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) naming
 the field, before any further request: `images.build()` / `pull()`,
 `capture_image()` / `captureImage()`, `create_snapshot()` /
@@ -15,4 +16,8 @@ a non-text entrypoint log are `BadRequestError` too (they were 500 with no
 code), and a search page needs its `total`, `total_relation` and a string
 `next_cursor` (a mistyped cursor used to end `search()` / `find_by_name()`
 early). A detail read behind a list item that breaks the contract leaves the
-list item, as an unreadable one does.
+list item, as an unreadable one does. A required field the contract allows to
+be null (for example the project budget's `monthly_limit_cents`,
+`period_start_date`, `created_at` and `updated_at`) must be present, while an
+explicit `null` stays valid. Python no longer requires the per-item `cursor`
+of a list page; neither SDK reads it.

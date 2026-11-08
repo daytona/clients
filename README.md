@@ -86,10 +86,10 @@ processes, files, Git, code execution, ports, LSP and computer use.
   `version: 2` field out of write input. The API rejects unsupported sandbox
   configurations.
 - **Runtime-managed sandbox secret attachments use the same compare-and-swap shape.**
-  Both SDKs expose sandbox-handle `get_secrets` / `replace_secrets`
-  (Python) and `getSecrets` / `replaceSecrets` (TypeScript), plus root-client
-  `get_sandbox_secrets` / `replace_sandbox_secrets` and `getSandboxSecrets` /
-  `replaceSandboxSecrets`, for `GET|PUT /sandboxes/{id}/secrets`. Responses carry
+  Both SDKs expose them on the sandbox handle: Python `sandbox.get_secrets()` /
+  `sandbox.replace_secrets(secrets=..., if_match=...)`, TypeScript
+  `sandbox.getSecrets()` / `sandbox.replaceSecrets(secrets, { ifMatch })`, for
+  `GET|PUT /sandboxes/{id}/secrets`. Responses carry
   the desired secret names, desired/applied revision state, the quoted desired
   ETag, the apply `status` (`pending`/`applied`/`failed`) with its `error`, and
   capture metadata; writes are full replacement only,
