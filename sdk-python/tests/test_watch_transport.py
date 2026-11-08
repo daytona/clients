@@ -338,3 +338,38 @@ def test_a_sync_callback_can_stop_its_own_watch_through_a_caller_thread_event(ba
         bridge.call(transport.close)
     finally:
         bridge.close()
+
+
+async def _stop_through_a_signal(
+    url: str, wrap: str
+) -> tuple[Optional[Exception], list[Optional[Exception]]]:
+    """The documented way to stop a watch from an event: the callback signals,
+    the code holding the handle calls stop(). It must hold however
+    watch_dir() is awaited."""
+    transport = AsyncTransport(url)
+    stop_requested = asyncio.Event()
+    exits: list[Optional[Exception]] = []
+
+    def on_event(_event: object) -> None:
+        stop_requested.set()
+
+    try:
+        call = AsyncFileSystemService(transport).watch_dir("/", on_event, on_exit=exits.append)
+        if wrap == "wait_for":
+            handle = await asyncio.wait_for(call, timeout=5)
+        else:
+            handle, _ = await asyncio.gather(call, asyncio.sleep(0))
+        await asyncio.wait_for(stop_requested.wait(), timeout=5)
+        await handle.stop()
+        error = await asyncio.wait_for(handle.wait_for_exit(), timeout=5)
+    finally:
+        await transport.close()
+    return error, exits
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("wrap", ["wait_for", "gather"])
+@pytest.mark.parametrize("case", ["burst", "early"])
+async def test_a_signalled_stop_ends_a_task_wrapped_watch_cleanly(base: str, wrap: str, case: str) -> None:
+    for _ in range(20):
+        assert await _stop_through_a_signal(f"{base}/{case}", wrap) == (None, [None])

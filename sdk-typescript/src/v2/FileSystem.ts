@@ -402,8 +402,10 @@ export class FileSystemService {
    * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
    * error. `onExit` runs once when the watch ends; its own failure is ignored.
    * A failure before the watch starts rejects this call and does not call
-   * `onExit`. No callback runs before the caller of `await watchDir()` has
-   * the handle, so a callback can stop its own watch through it.
+   * `onExit`. Callbacks are held until this call has returned its handle, so
+   * after a direct `await watchDir(...)` a callback can call `stop()` on it;
+   * when the promise is not awaited directly (inside `Promise.all`, or awaited
+   * later), signal the code that holds the handle and call `stop()` there.
    */
   public async watchDir(
     path: string,

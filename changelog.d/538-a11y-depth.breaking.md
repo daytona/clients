@@ -7,5 +7,6 @@ unbounded, is refused) or the call raises `BadRequestError` (400,
 requested, or a `find()` match deeper than 256 levels, is that error as a
 malformed response, and the SDKs map trees without recursion, so a deeply
 nested response can no longer exhaust the stack. Python also raises that
-error, instead of a raw `RecursionError`, for a response body or interpreter
-output nested past the JSON decoder's limit.
+error, instead of a raw `RecursionError`, for an API or toolbox response, a
+process log or directory watch event, interpreter output, a bulk-download
+error part or the token exchange nested past the JSON decoder's limit.

@@ -137,19 +137,21 @@ class AsyncWatchHandle:
     overflow callback ends the watch: that error becomes :attr:`exit_error`
     and is passed to ``on_exit``. Never constructed directly.
 
-    No callback runs before ``watch_dir()`` has returned the handle, so with
-    the async client a callback can stop its own watch through it.
+    To stop a watch from an event, signal the code that holds the handle (an
+    ``asyncio.Event``, or a ``threading.Event`` with the synchronous client)
+    and call ``stop()`` there; this works in every case. As a shorthand, after
+    a direct ``await watch_dir(...)`` a callback can call ``stop()`` on the
+    returned handle itself: callbacks are held until ``watch_dir()`` has
+    returned its handle. When ``watch_dir()`` runs inside another task
+    (``asyncio.gather``, ``asyncio.create_task``, or ``asyncio.wait_for`` on
+    Python 3.10-3.11), or with the synchronous client, the first events can
+    reach the callback before the caller holds the handle.
 
     With the synchronous client, callbacks run on the SDK's event-loop thread:
     there a callback may call its own watch's ``stop()`` (which then returns
     without waiting), ``wait_for_exit()`` and ``exit_error`` (which return the
     current exit error), but no other synchronous SDK call (another watch's
-    included): that raises ``BridgeError``. Deliveries start once the
-    synchronous ``watch_dir()`` has built its handle, but the first events can
-    still reach a callback before the caller has stored the returned handle:
-    to end a synchronous watch from an event without that race, signal the
-    caller's thread (a ``threading.Event``, for example) and call ``stop()``
-    there.
+    included): that raises ``BridgeError``.
     """
 
     # Called on the bridge loop thread (from a callback the SDK runs), the
@@ -595,9 +597,10 @@ class AsyncFileSystemService:
     ) -> AsyncWatchHandle:
         """Watch ``path`` for changes, calling ``on_event`` for each one.
 
-        Returns once the watch is established; no callback runs before it has
-        returned (see :class:`AsyncWatchHandle` for the synchronous client).
-        Callbacks (plain or coroutine functions) run one at a time, in order.
+        Returns once the watch is established; callbacks are held until it has
+        returned its handle (see :class:`AsyncWatchHandle` for stopping a watch
+        from an event). Callbacks (plain or coroutine functions) run one at a
+        time, in order.
         A failing ``on_event`` or
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
         when the watch ends, and its own failure is ignored. A failure before

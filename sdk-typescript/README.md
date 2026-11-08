@@ -656,12 +656,19 @@ failing `onEvent` or `onOverflow` ends the watch with that error, which
 is ignored. A watch whose stream drops ends with `ConnectionError`. `onExit`
 runs exactly once for a watch `watchDir()` returned; a failure before the
 watch starts (a refused connection, an HTTP error, a stream that ends before
-`start`) rejects `watchDir()` and does not call it. No callback runs before
-the caller of `await watchDir()` has the handle. `stop()` resolves once a callback that is already running, and
-`onExit`, have finished, and a callback (or `onExit`) may stop its own watch through that handle and await
-`waitForExit()` without waiting for itself. In runtimes without
-`AsyncLocalStorage` (browsers), a callback that stops its own watch after an
-`await` must not await that `stop()`.
+`start`) rejects `watchDir()` and does not call it. `stop()` resolves once a
+callback that is already running, and `onExit`, have finished.
+
+To stop a watch from an event, signal the code that holds the handle and call
+`stop()` there; this works in every case. As a shorthand, after a direct
+`await watchDir(...)` a callback (or `onExit`) can call `stop()` on the
+returned handle itself, and await `waitForExit()` without waiting for itself:
+callbacks are held until `watchDir()` has returned its handle. When
+`watchDir()`'s promise is not awaited directly (inside `Promise.all`, or
+awaited later), the first events can reach the callback before the caller
+holds the handle. In runtimes without `AsyncLocalStorage` (browsers), a
+callback that stops its own watch after an `await` must not await that
+`stop()`.
 
 `writeBytes()`, `writeText()` and `writeMany()` accept `atomic: true` to write via a
 temporary file + rename when the sandbox supports it. For `writeBytes()` and

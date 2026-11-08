@@ -168,11 +168,21 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   class's `_SYNC_AFTER_WRAP` (`AsyncFileSystemService`: `watch_dir` →
   `_publish`), posts the release to the loop with `SyncBridge.post()` once it
   has built its `WatchHandle`. Events read before `start` are held until
-  `start` arrives.
-- Generated models decode through `_expect_model_from_dict`, which first
-  checks every list, map and nested-model field of the payload against the
-  model's field types (`_check_container_fields`, an explicit stack): the
-  generated `from_dict` would iterate whatever is there.
+  `start` arrives. The caller holds the handle first only after a direct
+  `await watch_dir(...)`: wrapped in another task (`gather`, `create_task`,
+  `wait_for` on 3.10–3.11), or on the sync client, the first events can win,
+  which is why the docs lead with signalling the handle's holder.
+- Generated models decode through `_expect_model_from_dict`, in two steps.
+  First `_check_container_fields` (an explicit stack, no recursion) reads the
+  model's field types and checks only shapes on the raw payload, nested
+  models included: a list field holds a list, a map field an object, a
+  nested-model field an object (oneOf wrappers, which may hold a string, are
+  skipped), each refused by name, so the generated `from_dict` never iterates
+  a `{}` or `""` as an empty list or a number as a raw `TypeError`. Then the
+  model's own pydantic validation checks the values (types, required fields,
+  enums), and its `ValidationError` becomes the malformed-response
+  `BadRequestError` too. Contract rules pydantic does not know (non-empty ids,
+  RFC 3339 timestamps, ranges) are the `parse_*` mappers' job.
 - SSE: `SseParser.feed_message()` yields the raw `data:` text; a consumer
   parses only the events it knows, with `sse_json()` (the malformed-response
   error for non-JSON data). Handles reconnect through their namespace
