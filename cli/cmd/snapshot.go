@@ -59,12 +59,12 @@ func newSnapshotCreateCommand() *cobra.Command {
 				return err
 			}
 			workload.SetIfChanged(body, cmd.Flags(), "name", "name", name)
-			if body["name"] == nil {
-				return cerr.Usage("--name is required")
-			}
 			req, err := workload.DecodeBody[gen.CreateSandboxSnapshotRequest](body)
 			if err != nil {
 				return err
+			}
+			if body["name"] == nil {
+				return cerr.Usage("--name is required")
 			}
 			var created api.Raw[gen.AsyncOperation]
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/snapshots", url.PathEscape(resolved.Detail.Id)), nil, req, &created); err != nil {
@@ -144,7 +144,7 @@ func newSnapshotDeleteCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <id-or-name>",
 		Short: "Delete a snapshot",
-		Long:  "Delete a snapshot by id or name; the acknowledgement names its id.\nExample:\n  daytona snapshot delete <id-or-name> --yes",
+		Long:  "Delete a snapshot by id or name; the acknowledgement repeats the reference as given.\nExample:\n  daytona snapshot delete <id-or-name> --yes",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -155,14 +155,10 @@ func newSnapshotDeleteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			id, err := resolveResourceID(cmd.Context(), client, "/snapshots/", args[0], func(v gen.Snapshot) string { return v.Id })
-			if err != nil {
+			if err := client.Do(cmd.Context(), http.MethodDelete, "/snapshots/"+url.PathEscape(args[0]), nil, nil, nil); err != nil {
 				return err
 			}
-			if err := client.Do(cmd.Context(), http.MethodDelete, "/snapshots/"+url.PathEscape(id), idOnly, nil, nil); err != nil {
-				return err
-			}
-			return printAck(a, "id", id, "deleted", "")
+			return printAck(a, "ref", args[0], "deleted", "")
 		},
 	}
 }

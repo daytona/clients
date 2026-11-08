@@ -31,7 +31,7 @@ func newImageImportCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, ok := lookupFold(body, "dockerfile"); ok {
+			if _, ok := lookupField(body, "dockerfile"); ok {
 				return cerr.Usage("--file: \"dockerfile\" is not a field of image create").
 					WithHint("build from a Dockerfile with `daytona image build <name> --context DIR`")
 			}
@@ -40,13 +40,12 @@ func newImageImportCommand() *cobra.Command {
 				body.Set("region_id", a.Globals.Region)
 			}
 			workload.SetIfChanged(body, cmd.Flags(), "ref", "source", map[string]any{"type": string(gen.PublicImageSource0TypeRegistry), "ref": ref})
-			source, ok := body["source"]
-			if !ok || source == nil {
-				return cerr.Usage("--ref is required")
-			}
 			req, err := workload.DecodeBody[gen.CreateImageRequest](body)
 			if err != nil {
 				return err
+			}
+			if source, ok := body["source"]; !ok || source == nil {
+				return cerr.Usage("--ref is required")
 			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
@@ -119,7 +118,7 @@ func buildImageMultipartMeta(cmd *cobra.Command, a *app.App, name, dockerfilePat
 				return nil, "", "", cerr.Usage("image build field %q must be a string", field)
 			}
 		default:
-			return nil, "", "", cerr.Usage("unknown image build field %q", field)
+			return nil, "", "", cerr.Usage("--file: unknown field %q (image build takes name, context, dockerfile, region_id, cpu_arch)", field)
 		}
 	}
 	meta := map[string]string{"name": name}

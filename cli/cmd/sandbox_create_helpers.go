@@ -180,7 +180,7 @@ func setNetworkPolicy(cmd *cobra.Command, body input.Body, flags sandboxCreateFl
 // checkCPUMax refuses a CPU limit that is not a positive multiple of 0.5
 // cores (from --cpu-max or the file's cores_max) before any request.
 func checkCPUMax(body input.Body) error {
-	raw, ok := lookupFold(body, "cores_max")
+	raw, ok := lookupField(body, "cores_max")
 	if !ok || raw == nil {
 		return nil
 	}

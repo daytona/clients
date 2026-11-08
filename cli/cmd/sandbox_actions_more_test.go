@@ -315,26 +315,16 @@ func TestSandboxUpdate_rejectsNullLifecycleWithoutOverride(t *testing.T) {
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 }
 
-func TestSandboxUpdate_rejectsCaseFoldedNullLifecycleField(t *testing.T) {
-	bodyPath := filepath.Join(t.TempDir(), "update.json")
-	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"lifecycle_policy":{"Timeout_Seconds":null}}`), 0o600))
-	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath}, []expectedRequest{
-		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
-	})
-	require.Error(t, err)
-	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
-	require.ErrorContains(t, err, "not nullable")
-}
-
-func TestSandboxUpdate_flagOverridesCaseFoldedNullLifecycleField(t *testing.T) {
+// A field name that differs only in case is unknown, also when a flag sets
+// that field.
+func TestSandboxUpdate_caseVariantLifecycleFieldIsUnknown(t *testing.T) {
 	bodyPath := filepath.Join(t.TempDir(), "update.json")
 	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"lifecycle_policy":{"Idle_Expiry_Seconds":null,"on_idle_timeout":"delete"}}`), 0o600))
 	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath, "--idle-timeout", "1m"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
-		{method: http.MethodPatch, path: "/sandboxes/11111111-1111-1111-1111-111111111111/lifecycle-policy", status: 200, bodyJSON: `{"idle_expiry_seconds":60,"on_idle_timeout":"delete"}`, response: sandboxLifecycleFixture("11111111-1111-1111-1111-111111111111", 60, "delete")},
-		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
 	})
-	require.NoError(t, err)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "unknown field")
 }
 
 func TestSandboxUpdate_lifecycleFlagsOverrideInvalidFileLifecycle(t *testing.T) {

@@ -67,7 +67,7 @@ func validateLifecycleActions(class string, persistent bool, policy gen.UpdateSa
 // validateLifecycleBody checks the merged create body's lifecycle policy
 // against the class the create surface makes (persistence from the body).
 func validateLifecycleBody(macos bool, body input.Body) error {
-	raw, ok := lookupFold(body, "lifecycle_policy")
+	raw, ok := lookupField(body, "lifecycle_policy")
 	if !ok || raw == nil {
 		return nil
 	}
@@ -87,21 +87,15 @@ func validateLifecycleBody(macos bool, body input.Body) error {
 	persistent := false
 	if macos {
 		class = workload.ClassMacOS
-		if v, ok := lookupFold(body, "persistent"); ok {
+		if v, ok := lookupField(body, "persistent"); ok {
 			persistent, _ = v.(bool)
 		}
 	}
 	return validateLifecycleActions(class, persistent, policy)
 }
 
-func lookupFold(body input.Body, key string) (any, bool) {
-	if v, ok := body[key]; ok {
-		return v, true
-	}
-	for k, v := range body {
-		if strings.EqualFold(k, key) {
-			return v, true
-		}
-	}
-	return nil, false
+// lookupField reads a --file field; keys are exact (input.CheckKeys).
+func lookupField(body input.Body, key string) (any, bool) {
+	v, ok := body[key]
+	return v, ok
 }

@@ -71,6 +71,7 @@ func TestDecode_rejectsUnknownFields(t *testing.T) {
 	type request struct {
 		Image string `json:"image"`
 	}
+	registerFields[request](t)
 	_, err := Decode[request](Body{"image": "python:3.12", "unknown_field": "example"})
 	if err == nil || !strings.Contains(err.Error(), "unknown_field") {
 		t.Fatalf("expected unknown field error, got %v", err)
@@ -85,32 +86,6 @@ func TestRejectNulls_rejectsExplicitNulls(t *testing.T) {
 
 	if err := RejectNulls(Body{"name": "ok"}, "name"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// A flag overrides its --file field whatever the file key's capitalization.
-func TestSet_replacesCaseVariantsOfTheKey(t *testing.T) {
-	b := Body{"Timeout_Seconds": nil, "other": 1}
-	b.Set("timeout_seconds", 60)
-	if len(b) != 2 || b["timeout_seconds"] != 60 || b["other"] != 1 {
-		t.Fatalf("got %v", b)
-	}
-	if err := RejectNulls(b, "timeout_seconds"); err != nil {
-		t.Fatalf("the overridden null must not be rejected: %v", err)
-	}
-}
-
-// Decode matches keys case-insensitively, so the null guard must too.
-func TestRejectNulls_matchesKeysCaseInsensitively(t *testing.T) {
-	err := RejectNulls(Body{"Timeout_Seconds": nil}, "timeout_seconds")
-	if err == nil || !strings.Contains(err.Error(), "Timeout_Seconds") {
-		t.Fatalf("expected null rejection, got %v", err)
-	}
-	type req struct {
-		TimeoutSeconds *int64 `json:"timeout_seconds,omitempty"`
-	}
-	if _, err := Decode[req](Body{"Timeout_Seconds": nil}); err != nil {
-		t.Fatalf("Decode accepts the case-folded key (why the guard must match it): %v", err)
 	}
 }
 
@@ -144,7 +119,6 @@ type casePolicy struct {
 
 type caseRequest struct {
 	CoresMax        *float64          `json:"cores_max,omitempty"`
-	Secrets         []string          `json:"secrets,omitempty"`
 	Env             map[string]string `json:"env,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
 	LifecyclePolicy *casePolicy       `json:"lifecycle_policy,omitempty"`
@@ -152,46 +126,39 @@ type caseRequest struct {
 	Options         map[string]casePolicy
 }
 
-// Two keys that fill one struct field are refused: decoding keeps only one.
-func TestCaseVariantsOfAFieldAreRefused(t *testing.T) {
+// Keys name request fields exactly, at any depth, as the API matches them: a
+// key that differs only in case is unknown, with a hint naming the field.
+func TestDecode_keysAreExact(t *testing.T) {
+	registerFields[caseRequest](t)
 	for _, body := range []string{
+		`{"CORES_MAX":0.5}`,
 		`{"cores_max":0.5,"CORES_MAX":0.75}`,
-		`{"secrets":["a"],"ſecrets":["b"]}`, // encoding/json folds ſ to s
-	} {
-		if _, err := loadBody(t, body); cerr.ExitCode(err) != cerr.ExitUsage {
-			t.Fatalf("Load %s: %v", body, err)
-		}
-	}
-	for _, body := range []string{
-		`{"lifecycle_policy":{"on_timeout":"delete","On_Timeout":"stop"}}`,
-		`{"volumes":[{"volume":"a","Volume":"b"}]}`,
-		`{"Options":{"x":{"on_timeout":"a","ON_TIMEOUT":"b"}}}`,
+		`{"lifecycle_policy":{"On_Timeout":"stop"}}`,
+		`{"volumes":[{"volume":"a","Mount_Path":"/m"}]}`,
+		`{"Options":{"x":{"ON_TIMEOUT":"b"}}}`,
+		`{"ſecrets":["b"]}`,
 	} {
 		b, err := loadBody(t, body)
 		if err != nil {
 			t.Fatalf("Load %s: %v", body, err)
 		}
-		if _, err := Decode[caseRequest](b); cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "name the same field") {
+		_, err = Decode[caseRequest](b)
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "unknown field") {
 			t.Fatalf("Decode %s: %v", body, err)
 		}
 	}
-}
-
-// Unknown keys are Decode's to report, not a case conflict.
-func TestUnknownCaseVariantsAreReportedAsUnknown(t *testing.T) {
-	b, err := loadBody(t, `{"lifecycle_policy":{"bogus":1,"BOGUS":2}}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = Decode[caseRequest](b)
-	if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "unknown field") {
-		t.Fatalf("%v", err)
+	b, _ := loadBody(t, `{"lifecycle_policy":{"On_Timeout":"stop"}}`)
+	_, err := Decode[caseRequest](b)
+	if hint := cerr.DetailsOf(err).Hint; !strings.Contains(hint, `"on_timeout"`) {
+		t.Fatalf("hint %q", hint)
 	}
 }
 
-// Map keys are the user's names: keys that differ only in case are distinct.
-func TestCaseVariantsOfMapKeysAreKept(t *testing.T) {
-	b, err := loadBody(t, `{"env":{"PATH":"1","path":"2"},"labels":{"a":"1","A":"2"}}`)
+// Map keys are the caller's own names: keys that differ only in case are
+// distinct and decode as given.
+func TestDecode_mapKeysAreKeptAsGiven(t *testing.T) {
+	registerFields[caseRequest](t)
+	b, err := loadBody(t, `{"env":{"PATH":"1","path":"2"},"labels":{"a":"1","A":"2"},"Options":{"Any":{"on_timeout":"x"}}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,13 +171,10 @@ func TestCaseVariantsOfMapKeysAreKept(t *testing.T) {
 	}
 }
 
-func TestFoldKeyMatchesEqualFold(t *testing.T) {
-	for _, pair := range [][2]string{{"secrets", "ſecrets"}, {"kelvin", "\u212aelvin"}, {"cores_max", "CORES_MAX"}, {"ǅ", "ǆ"}} {
-		if foldKey(pair[0]) != foldKey(pair[1]) || !strings.EqualFold(pair[0], pair[1]) {
-			t.Fatalf("%q %q", pair[0], pair[1])
-		}
-	}
-	if foldKey("a_b") == foldKey("ab") {
-		t.Fatal("distinct names folded together")
+// A type without a table is a bug, reported rather than decoded unchecked.
+func TestDecode_needsAFieldTable(t *testing.T) {
+	type unregistered struct{}
+	if _, err := Decode[unregistered](Body{}); cerr.ExitCode(err) != cerr.ExitFailure {
+		t.Fatalf("%v", err)
 	}
 }
