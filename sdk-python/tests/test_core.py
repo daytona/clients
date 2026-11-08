@@ -9783,7 +9783,10 @@ def test_search_states_are_sent_as_the_api_status_names(states: object, wire: st
     assert search_params(SearchSandboxesOptions(states=states)) == {"status": wire}  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("states", ["unknown", ["started", "running"], [7], "future-state"])
+@pytest.mark.parametrize(
+    "states",
+    ["unknown", ["started", "unknown"], ["unknown", "started"], ["started", "running"], [7], "future-state"],
+)
 def test_search_refuses_states_the_sdk_does_not_define(states: object) -> None:
     with pytest.raises(BadRequestError, match="known sandbox states"):
         search_params(SearchSandboxesOptions(states=states))  # type: ignore[arg-type]

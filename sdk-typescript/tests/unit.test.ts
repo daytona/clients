@@ -9707,7 +9707,7 @@ describe('sandbox search', () => {
     }
     // JS `null` is absent (Python's `None`): no parameter, no request-time error.
     expect(searchQueryParams({ labels: null as unknown as Record<string, string> })).toEqual({})
-    for (const status of [['running', 7], ['running', ''], ['a,b']]) {
+    for (const status of [['running', 7], ['running', ''], ['a,b'], ['started', 'unknown'], ['unknown', 'started']]) {
       // Deliberately invalid entries a JS caller could pass; the cast only exists to reach the runtime guard.
       const options = { states: status as unknown as readonly Exclude<import('../src/v2/types').SandboxState, 'unknown'>[] }
       expect(() => searchQueryParams(options)).toThrow(BadRequestError)
