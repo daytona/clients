@@ -1697,7 +1697,7 @@ async def test_presigned_urls_surface_the_server_400_and_403_as_typed_errors(mon
     [
         # Parity matrix with the TS suite ('reports a malformed files/sign
         # payload'): every non-object body and every malformed object answer
-        # the same 500.
+        # the malformed-response error.
         None,
         {},
         [],
@@ -1711,6 +1711,8 @@ async def test_presigned_urls_surface_the_server_400_and_403_as_typed_errors(mon
         {"signature": "v1_ok", "expires_at": "1781234567"},
         {"signature": "v1_ok", "expires_at": True},
         {"signature": 7, "expires_at": "2026-06-12T03:22:47Z"},
+        {"signature": "v1_ok", "expires_at": "Jan 1 2026"},
+        {"signature": "v1_ok", "expires_at": "2026-06-12T03:22:47Z\n"},
     ],
 )
 @pytest.mark.anyio

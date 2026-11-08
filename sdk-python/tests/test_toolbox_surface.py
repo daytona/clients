@@ -1075,3 +1075,37 @@ async def test_kill_sends_escalate_after_in_milliseconds() -> None:
         {"signal": "SIGTERM", "escalateAfterMs": 1, "escalateTo": "SIGKILL"},
         {"signal": "SIGTERM"},
     ]
+
+
+@pytest.mark.anyio
+async def test_presigned_urls_read_a_nanosecond_expiry_on_every_python() -> None:
+    async def signer(method: str, path: str, expires: int) -> JsonValue:
+        return {"signature": "v1_ok", "expires_at": "2026-06-12T03:22:47.123456789Z"}
+
+    transport = Transport()
+    transport.base_url = "http://toolbox.invalid"  # type: ignore[attr-defined]
+    fs = AsyncFileSystemService(transport, _file_url_signer=signer)  # type: ignore[arg-type]
+
+    url = await fs.presigned_download_url("/a")
+
+    assert url == "http://toolbox.invalid/files/download?path=%2Fa&expires=1781234567&signature=v1_ok"
+
+
+def test_connect_session_refuses_a_non_string_non_mapping_identity() -> None:
+    process = AsyncProcessService("sbx", Transport())  # type: ignore[arg-type]
+
+    for bad in (5, ""):
+        with pytest.raises(BadRequestError, match="session identity needs a non-empty string sessionId"):
+            process.connect_session(bad)  # type: ignore[arg-type]
+
+
+@pytest.mark.anyio
+async def test_lsp_rejects_unknown_position_keys_and_names_a_malformed_documentation() -> None:
+    transport = Transport([{"isIncomplete": False, "items": [{"label": "x", "documentation": 7}]}])
+    server = AsyncLspServer(transport, "python", "/p")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="LSP position: unknown key 'col'"):
+        await server.completions("file:///a.py", {"line": 0, "col": 1})  # type: ignore[typeddict-unknown-key]
+    assert transport.specs == []
+    with pytest.raises(BadRequestError, match="LSP completion list: documentation must be"):
+        await server.completions("file:///a.py", LspPosition(line=0, character=0))
