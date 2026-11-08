@@ -1975,7 +1975,7 @@ def test_the_generated_model_boundary_checks_nested_lists_and_maps_without_recur
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("duration", ["1e309", "-1e309", "NaN", "1" + "0" * 400, "-1" + "0" * 400])
+@pytest.mark.parametrize("duration", ["1e309", "-1e309", "1" + "0" * 400, "-1" + "0" * 400])
 async def test_a_recording_duration_that_is_not_a_finite_number_is_a_malformed_response(
     duration: str,
 ) -> None:
@@ -2124,3 +2124,182 @@ def test_the_sse_parser_keeps_a_byte_order_mark_after_the_start_of_the_stream() 
     assert parser.feed_message("\ufeffevent: eof") is None
     assert parser.feed_message("data: 2") is None
     assert parser.feed_message("") == ("message", "2", None)
+
+
+# Shared with the TypeScript SDK's unit.test.ts: an integer a double cannot
+# carry (JSON.parse reads it as Infinity) is the malformed-response error
+# naming the field, in every namespace; one above 2**53 that a double still
+# carries is accepted.
+_HUGE = 10**400
+_FILE_INFO: dict[str, JsonValue] = {
+    "name": "a",
+    "path": "/d/a",
+    "size": 3,
+    "mode": "-rw-r--r--",
+    "modTime": "x",
+    "modifiedAt": "2026-01-01T00:00:00Z",
+    "isDir": False,
+    "owner": "u",
+    "group": "g",
+    "permissions": "0644",
+}
+_SYMBOL_RANGE: dict[str, JsonValue] = {
+    "start": {"line": 0, "character": 0},
+    "end": {"line": 0, "character": 1},
+}
+
+
+async def _read_integer_field(case: str, value: int) -> object:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    if case == "process pid":
+        return await AsyncProcessService("sbx", Transport([_process(pid=value)])).start("true")  # type: ignore[arg-type]
+    if case == "logs() timestamp":
+        page: JsonValue = {
+            "frames": [{"cursor": "c1", "channel": "stdout", "data": "x", "timestamp": value}],
+            "nextCursor": "c1",
+            "truncatedHead": False,
+            "eof": True,
+        }
+        return await AsyncProcessService("sbx", Transport([page])).connect("p").logs()  # type: ignore[arg-type]
+    if case == "stream_logs() timestamp":
+        frame = json.dumps({"cursor": "c1", "channel": "stdout", "data": "x", "timestamp": value})
+        lines = ["event: log", f"data: {frame}", "", "event: eof", 'data: {"cursor":"c2"}', ""]
+        handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("p")  # type: ignore[arg-type]
+        return [event async for event in handle.stream_logs()]
+    if case == "watch fs timestamp":
+        from daytona.v2.filesystem import _parse_filesystem_event
+
+        return _parse_filesystem_event({"type": "create", "name": "a", "isDir": False, "timestamp": value})
+    if case == "FileInfo.size":
+        return await AsyncFileSystemService(Transport([{**_FILE_INFO, "size": value}])).stat("/d/a")  # type: ignore[arg-type]
+    if case == "git ahead":
+        status: JsonValue = {
+            "currentBranch": "main",
+            "fileStatus": [],
+            "branchPublished": True,
+            "ahead": value,
+            "behind": 0,
+        }
+        return await AsyncGitService(Transport([status])).status("/r")  # type: ignore[arg-type]
+    if case == "LSP position":
+        symbol: JsonValue = {
+            "name": "s",
+            "kind": 1,
+            "location": {"uri": "u", "range": {**_SYMBOL_RANGE, "start": {"line": value, "character": 0}}},
+        }
+        return await AsyncLspServer(Transport([[symbol]]), "python", "/p").document_symbols("u")  # type: ignore[arg-type]
+    window: JsonValue = {"id": 1, "title": "t", "x": value, "y": 0, "width": 1, "height": 1, "isActive": True}
+    if case == "window x":
+        return await AsyncComputerUseService(Transport([{"windows": [window]}])).display.windows()  # type: ignore[arg-type]
+    shot: JsonValue = {"screenshot": "AAA=", "sizeBytes": value}
+    return await AsyncComputerUseService(Transport([shot])).screen.screenshot()  # type: ignore[arg-type]
+
+
+_INTEGER_CASES = [
+    ("process pid", "pid"),
+    ("logs() timestamp", "timestamp"),
+    ("stream_logs() timestamp", "timestamp"),
+    ("watch fs timestamp", "timestamp"),
+    ("FileInfo.size", "size"),
+    ("git ahead", "ahead"),
+    ("LSP position", "line"),
+    ("window x", "x"),
+    ("sizeBytes", "sizeBytes"),
+]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("value", [_HUGE, -_HUGE])
+@pytest.mark.parametrize(("case", "field"), _INTEGER_CASES)
+async def test_an_integer_a_double_cannot_carry_is_refused_naming_the_field(
+    case: str, field: str, value: int
+) -> None:
+    with pytest.raises(BadRequestError, match=rf"{field} must be an integer") as info:
+        await _read_integer_field(case, value)
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("case", "field"), _INTEGER_CASES)
+async def test_an_integer_above_2_53_that_a_double_carries_is_accepted(case: str, field: str) -> None:
+    assert await _read_integer_field(case, 2**60) is not None
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+async def test_a_stream_event_carrying_a_non_standard_json_constant_is_a_malformed_response(
+    constant: str,
+) -> None:
+    data = f'{{"cursor":"c1","channel":"stdout","data":"x","timestamp":{constant}}}'
+    lines = ["event: log", f"data: {data}", "", "event: eof", 'data: {"cursor":"c2"}', ""]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("p")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="expected process log log event: the data is not JSON") as info:
+        [event async for event in handle.stream_logs()]
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_a_stream_number_that_decodes_to_infinity_is_judged_by_its_field() -> None:
+    data = '{"cursor":"c1","channel":"stdout","data":"x","timestamp":1e400}'
+    lines = ["event: log", f"data: {data}", "", "event: eof", 'data: {"cursor":"c2"}', ""]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("p")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="timestamp must be an integer"):
+        [event async for event in handle.stream_logs()]
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_an_interpreter_output_carrying_a_non_standard_json_constant_is_dropped_like_invalid_json(
+    constant: str,
+) -> None:
+    from daytona.v2.interpreter import _parse_error, _parse_output
+
+    # As the TypeScript SDK does (JSON.parse refuses the constant): an output
+    # that is not JSON is no output.
+    assert _parse_output(f'{{"text/plain": "x", "v": {constant}}}', is_main_result=True) is None
+    assert _parse_error(f'{{"ename": "E", "evalue": {constant}}}') is None
+    # 1e400 is JSON: it decodes (to inf) and is kept, as JSON.parse keeps Infinity.
+    output = _parse_output('{"text/plain": "x", "v": 1e400}', is_main_result=True)
+    assert output is not None and output.data["v"] == float("inf")
+
+
+# Shared with the TypeScript SDK's json-bodies.test.ts: a 2xx response that
+# declares JSON and does not decode is the malformed-response error at the
+# transport, whether or not the call reads the body.
+_UNDECODABLE_BODIES = [b"{bad", b'{"a":"\xff"}', b'{"a": NaN}']
+
+
+def _file_transport(body: bytes, content_type: str = "application/json") -> object:
+    import httpx
+
+    from daytona.v2._transport import AsyncTransport
+
+    def respond(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body, headers={"content-type": content_type})
+
+    return AsyncTransport(
+        "http://toolbox.invalid", client=httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("body", _UNDECODABLE_BODIES)
+@pytest.mark.parametrize("call", ["stat", "remove"])
+async def test_a_json_body_that_does_not_decode_is_a_malformed_response_at_the_transport(
+    body: bytes, call: str
+) -> None:
+    fs = AsyncFileSystemService(_file_transport(body))  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="expected JSON response: the body is not valid JSON") as info:
+        await (fs.stat("/a") if call == "stat" else fs.remove("/a"))
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_a_valid_json_body_and_a_non_json_content_type_are_unaffected() -> None:
+    info = {**_FILE_INFO}
+    fs = AsyncFileSystemService(_file_transport(json.dumps(info).encode()))  # type: ignore[arg-type]
+    assert (await fs.stat("/d/a")).size == 3
+    await AsyncFileSystemService(_file_transport(b"{bad", "text/plain")).remove("/a")  # type: ignore[arg-type]
+    await AsyncFileSystemService(_file_transport(b"", "application/json")).remove("/a")  # type: ignore[arg-type]

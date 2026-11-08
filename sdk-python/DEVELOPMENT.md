@@ -174,11 +174,17 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   which is why the docs lead with signalling the handle's holder.
 - Generated models decode through `_expect_model_from_dict`, in two steps.
   First `_check_container_fields` (an explicit stack, no recursion) reads the
-  model's field types and checks only shapes on the raw payload, nested
+  model's field types and checks shapes on the raw payload, nested
   models included: a list field holds a list, a map field an object, a
   nested-model field an object (oneOf wrappers, which may hold a string, are
   skipped), each refused by name, so the generated `from_dict` never iterates
-  a `{}` or `""` as an empty list or a number as a raw `TypeError`. Then the
+  a `{}` or `""` as an empty list or a number as a raw `TypeError`. It also
+  refuses, in every int- or float-typed field (in lists and maps too), a
+  number `finite_number` rejects: an `int` beyond the float range or a float
+  that decoded to infinity, which TypeScript's `JSON.parse` reads as
+  `Infinity` ("must be an integer" / "must be a number", TypeScript's
+  wording). Hand-written decoders of response numbers (the watch `fs`
+  event) use `finite_number` directly. Then the
   model's own pydantic validation checks the values (types, required fields,
   enums), and its `ValidationError` becomes the malformed-response
   `BadRequestError` too. Contract rules pydantic does not know (non-empty ids,

@@ -202,12 +202,19 @@ def _too_deep(description: str) -> DaytonaError:
     return create_error(f"expected {description}: the JSON is nested too deeply", 400, "BAD_REQUEST", "SDK")
 
 
+def _refuse_json_constant(name: str) -> JsonValue:
+    """``NaN``, ``Infinity`` and ``-Infinity`` are not JSON; ``JSON.parse``
+    refuses them too."""
+    raise ValueError(f"invalid JSON constant {name}")
+
+
 def loads_json(text: Union[str, bytes], description: str = "JSON response") -> JsonValue:
     """``json.loads`` for a response body: a body nested deeper than the
     decoder's recursion limit is the malformed-response error, never a raw
-    ``RecursionError``. Invalid JSON still raises ``ValueError``."""
+    ``RecursionError``. Invalid JSON, including the non-standard constants
+    ``NaN``, ``Infinity`` and ``-Infinity``, raises ``ValueError``."""
     try:
-        value: JsonValue = json.loads(text)
+        value: JsonValue = json.loads(text, parse_constant=_refuse_json_constant)
     except RecursionError:
         raise _too_deep(description) from None
     return value
@@ -314,21 +321,47 @@ def _expect_model_from_dict(
 
 
 # (wire key, "list" | "dict" | "model", the generated model inside it or None)
-_ContainerField = Tuple[str, str, Optional[type]]
+# (wire key, "list" | "dict" | "model" | "number", the generated model inside
+# it or None, "integer" | "number" for a number field or a list / map of
+# numbers, else None)
+_ContainerField = Tuple[str, str, Optional[type], Optional[str]]
+
+
+def _number_kind(annotation: object) -> Optional[str]:
+    """``"integer"`` for an int-typed annotation, ``"number"`` for a float
+    (or float-or-int) one, else ``None``; ``Optional`` and ``Annotated``
+    wrappers are looked through."""
+    if typing.get_origin(annotation) is typing.Annotated:
+        annotation = typing.get_args(annotation)[0]
+    if typing.get_origin(annotation) in (Union, types.UnionType):
+        kinds = {_number_kind(arg) for arg in typing.get_args(annotation) if arg is not type(None)}
+        if kinds == {"integer"}:
+            return "integer"
+        return "number" if kinds and kinds <= {"integer", "number"} else None
+    if annotation is bool:
+        return None
+    if annotation is int:
+        return "integer"
+    return "number" if annotation is float else None
 
 
 @functools.cache
 def _container_fields(model_type: type) -> Tuple[_ContainerField, ...]:
-    """The list, map and nested-model fields of a generated model, read from
-    its field types. A oneOf wrapper (a model holding ``actual_instance``) is
-    no nested object: its value may be a string or a list, which the model
-    itself decides."""
+    """The list, map, nested-model and number fields of a generated model,
+    read from its field types. A oneOf wrapper (a model holding
+    ``actual_instance``) is no nested object: its value may be a string or a
+    list, which the model itself decides."""
     found: List[_ContainerField] = []
     model_fields = getattr(model_type, "model_fields", {})
     for name, info in model_fields.items():
         if name == "additional_properties":
             continue
+        key = info.alias or name
         annotation = info.annotation
+        number = _number_kind(annotation)
+        if number is not None:
+            found.append((key, "number", None, number))
+            continue
         if typing.get_origin(annotation) in (Union, types.UnionType):
             present = [arg for arg in typing.get_args(annotation) if arg is not type(None)]
             if len(present) != 1:
@@ -338,14 +371,25 @@ def _container_fields(model_type: type) -> Tuple[_ContainerField, ...]:
         args = typing.get_args(annotation)
         inner = args[-1] if args else None
         inner_model = inner if _plain_model(inner) else None
-        key = info.alias or name
         if origin is list:
-            found.append((key, "list", inner_model))
+            found.append((key, "list", inner_model, _number_kind(inner)))
         elif origin is dict:
-            found.append((key, "dict", inner_model))
+            found.append((key, "dict", inner_model, _number_kind(inner)))
         elif _plain_model(annotation):
-            found.append((key, "model", annotation))
+            found.append((key, "model", annotation, None))
     return tuple(found)
+
+
+def _refuse_non_finite(item: object, kind: Optional[str], path: _FieldPath, description: str) -> None:
+    """A number a double cannot carry (an ``int`` beyond the float range, a
+    float decoded to infinity) is malformed, as ``JSON.parse`` reads it as
+    ``Infinity``; worded as the TypeScript SDK words it."""
+    if kind is None or isinstance(item, bool) or not isinstance(item, (int, float)) or finite_number(item):
+        return
+    expected = "an integer" if kind == "integer" else "a number"
+    raise create_error(
+        f"expected {description}: {_render_path(path)} must be {expected}", 400, "BAD_REQUEST", "SDK"
+    )
 
 
 def _plain_model(annotation: object) -> TypeGuard[type]:
@@ -371,22 +415,25 @@ def _render_path(path: _FieldPath) -> str:
 
 
 def _check_container_fields(value: JsonObject, model_type: type, description: str) -> None:
-    """Every list, map and nested-object field of a generated model, nested
-    models included, has its JSON shape before the model decodes it, named in
-    the error: the generated ``from_dict`` iterates whatever is there (``{}``
-    or ``""`` would become ``[]``, a number a raw ``TypeError``), and a nested
-    model's own error would not name the field. Field values themselves are
-    left to the models. Walks the payload with an explicit stack, never
-    recursing."""
+    """Every list, map, nested-object and number field of a generated model,
+    nested models included, has its JSON shape before the model decodes it,
+    named in the error: the generated ``from_dict`` iterates whatever is
+    there (``{}`` or ``""`` would become ``[]``, a number a raw
+    ``TypeError``), a nested model's own error would not name the field, and
+    a number a double cannot carry is refused (see :func:`finite_number`).
+    Other values are left to the models. Walks the payload with an explicit
+    stack, never recursing."""
     stack: List[Tuple[Mapping[str, JsonValue], type, _FieldPath]] = [(value, model_type, None)]
     while stack:
         raw, model, parent = stack.pop()
-        for key, shape, inner in _container_fields(model):
+        for key, shape, inner, number in _container_fields(model):
             item = raw.get(key)
             if item is None:
                 continue
             path: _FieldPath = (key if parent is None else f".{key}", parent)
-            if shape == "list":
+            if shape == "number":
+                _refuse_non_finite(item, number, path, description)
+            elif shape == "list":
                 if not isinstance(item, list):
                     raise create_error(
                         f"expected {description}: {_render_path(path)} must be a list",
@@ -394,12 +441,11 @@ def _check_container_fields(value: JsonObject, model_type: type, description: st
                         "BAD_REQUEST",
                         "SDK",
                     )
-                if inner is not None:
-                    stack.extend(
-                        (element, inner, (f"[{index}]", path))
-                        for index, element in enumerate(item)
-                        if isinstance(element, dict)
-                    )
+                for index, element in enumerate(item):
+                    if inner is not None and isinstance(element, dict):
+                        stack.append((element, inner, (f"[{index}]", path)))
+                    else:
+                        _refuse_non_finite(element, number, (f"[{index}]", path), description)
             elif shape == "dict":
                 if not isinstance(item, dict):
                     raise create_error(
@@ -408,12 +454,11 @@ def _check_container_fields(value: JsonObject, model_type: type, description: st
                         "BAD_REQUEST",
                         "SDK",
                     )
-                if inner is not None:
-                    stack.extend(
-                        (element, inner, (f".{name}", path))
-                        for name, element in item.items()
-                        if isinstance(element, dict)
-                    )
+                for name, element in item.items():
+                    if inner is not None and isinstance(element, dict):
+                        stack.append((element, inner, (f".{name}", path)))
+                    else:
+                        _refuse_non_finite(element, number, (f".{name}", path), description)
             elif isinstance(item, dict):
                 if inner is not None:
                     stack.append((item, inner, path))

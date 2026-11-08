@@ -38,6 +38,7 @@ from ._core import (
     file_bulk_upload_spec,
     file_download_spec,
     file_upload_spec,
+    finite_number,
     list_shape,
     parse_bulk_read_result,
     parse_bulk_write_result,
@@ -109,7 +110,13 @@ def _watch_spec(path: str, *, recursive: bool) -> RequestSpec:
 def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
     def field(name: str, kind: type[_T], expected: str) -> _T:
         value = payload.get(name)
-        if not isinstance(value, kind) or (kind is int and isinstance(value, bool)):
+        # An int a double cannot carry is refused, as JSON.parse reads it as
+        # Infinity.
+        if (
+            not isinstance(value, kind)
+            or (kind is int and isinstance(value, bool))
+            or (kind is int and not finite_number(value))
+        ):
             problem = "is required" if value is None else f"must be {expected}"
             raise create_error(
                 f"expected filesystem watch event: {name} {problem}", 400, "BAD_REQUEST", "SDK"

@@ -11831,6 +11831,89 @@ describe('computer-use namespace', () => {
     await expect(calls[call]()).rejects.toMatchObject({ message: expect.stringContaining(`${field} must be a list`), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
+  // Shared with the Python SDK's test_toolbox_surface.py: an integer a double
+  // cannot carry (JSON.parse reads it as Infinity) is the malformed-response
+  // error naming the field; one above 2**53 that a double carries is accepted.
+  describe('integers a double cannot carry', () => {
+    const huge = '1' + '0'.repeat(400)
+    const fromJson = (text: string): unknown => JSON.parse(text)
+    const read = async (kind: string, value: string): Promise<unknown> => {
+      const transport = transportStub()
+      const range = '{"start":{"line":0,"character":0},"end":{"line":0,"character":1}}'
+      switch (kind) {
+        case 'process pid':
+          transport.post.mockResolvedValueOnce({ ...createdWire({ id: 'p' }), pid: fromJson(value) })
+          return new ProcessService(INTERNAL, transport.object, 'sbx').start('true')
+        case 'logs() timestamp':
+          transport.get.mockResolvedValueOnce(fromJson(`{"frames":[{"cursor":"c1","channel":"stdout","data":"x","timestamp":${value}}],"nextCursor":"c1","truncatedHead":false,"eof":true}`))
+          return new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').logs()
+        case 'streamLogs() timestamp': {
+          transport.fetch.mockResolvedValue(sseResponse([
+            `event: log\ndata: {"cursor":"c1","channel":"stdout","data":"x","timestamp":${value}}\n\n`,
+            'event: eof\ndata: {"cursor":"c2"}\n\n',
+          ]))
+          const events: StreamLogEvent[] = []
+          for await (const event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').streamLogs()) events.push(event)
+          return events
+        }
+        case 'watch fs timestamp': {
+          const stream = controlledSseResponse()
+          transport.fetch.mockImplementation(async (_path, init) => {
+            const signal = init?.signal
+            if (signal instanceof AbortSignal) signal.addEventListener('abort', () => stream.close(), { once: true })
+            return stream.response
+          })
+          let delivered!: () => void
+          const deliveredPromise = new Promise<'delivered'>((resolve) => { delivered = () => resolve('delivered') })
+          const pending = new FileSystemService(INTERNAL, transport.object).watchDir('/', () => delivered())
+          stream.push(`event: start\ndata: {}\n\nevent: fs\ndata: {"type":"create","name":"a","isDir":false,"timestamp":${value}}\n\n`)
+          const handle = await pending
+          const outcome = await Promise.race([deliveredPromise, handle.waitForExit()])
+          if (outcome !== 'delivered') throw outcome ?? new Error('watch ended without an event')
+          await handle.stop()
+          return handle
+        }
+        case 'FileInfo.size':
+          transport.get.mockResolvedValueOnce({ ...fileInfoWire('a'), size: fromJson(value) })
+          return new FileSystemService(INTERNAL, transport.object).stat('/tmp/a')
+        case 'git ahead':
+          transport.get.mockResolvedValueOnce({ ...gitStatusWire(), ahead: fromJson(value) })
+          return new GitService(INTERNAL, transport.object).status('/repo')
+        case 'LSP position': {
+          transport.post.mockResolvedValue(undefined)
+          const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
+          transport.get.mockResolvedValueOnce(fromJson(`[{"name":"s","kind":1,"location":{"uri":"u","range":{"start":{"line":${value},"character":0},"end":${range.slice(range.indexOf('"end":') + 6, -1)}}}}]`))
+          return server.documentSymbols('u')
+        }
+        case 'window x':
+          transport.get.mockResolvedValueOnce(fromJson(`{"windows":[{"id":1,"title":"t","x":${value},"y":0,"width":1,"height":1,"isActive":true}]}`))
+          return new ComputerUseService(INTERNAL, transport.computerUseObject).display.windows()
+        default:
+          transport.get.mockResolvedValueOnce(fromJson(`{"screenshot":"AAA=","sizeBytes":${value}}`))
+          return new ComputerUseService(INTERNAL, transport.computerUseObject).screen.screenshot()
+      }
+    }
+    const cases = [
+      ['process pid', 'pid'], ['logs() timestamp', 'timestamp'], ['streamLogs() timestamp', 'timestamp'],
+      ['watch fs timestamp', 'timestamp'], ['FileInfo.size', 'size'], ['git ahead', 'ahead'],
+      ['LSP position', 'line'], ['window x', 'x'], ['sizeBytes', 'sizeBytes'],
+    ] as const
+
+    it.each(cases.flatMap(([kind, field]) => [[kind, field, huge], [kind, field, `-${huge}`]] as const))(
+      'refuses %s given %#',
+      async (kind, field, value) => {
+        const error = await read(kind, value).then(() => undefined, (caught: unknown) => caught)
+        expect(error).toBeInstanceOf(BadRequestError)
+        expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+        expect((error as Error).message).toMatch(new RegExp(`${field} must be (an|a non-negative) integer`))
+      },
+    )
+
+    it.each(cases)('accepts %s above 2**53 that a double carries', async (kind) => {
+      await expect(read(kind, String(2 ** 60))).resolves.toBeDefined()
+    })
+  })
+
   describe('accessibility depth cap (256 levels)', () => {
     const bounds = { x: 0, y: 0, width: 1, height: 1 }
     // A tree `levels` nodes deep (the root is level 0), built without recursion.
