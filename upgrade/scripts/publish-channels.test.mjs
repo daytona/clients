@@ -376,12 +376,13 @@ test('CLI release: an unknown channel fails before anything is published', (cont
 
 // A gh for the Homebrew step: release/v0 publish runs in progress (one count
 // per call, the last repeating), the tap's runs, and the formula's contents.
-// formulaVersion: the formula's version, or a list of the versions successive
-// reads see (the last one repeats). watchExit: the tap run's result.
-// runsReadable: whether the token can list the tap's runs.
-function homebrewGh(root, { v0Running = ['0'], formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100 }) {
+// before: the formula's version when the step starts. formulaVersion: the
+// version, or the list of versions, successive reads see after that (the last
+// one repeats). watchExit: the tap run's result. runsReadable: whether the
+// token can list the tap's runs.
+function homebrewGh(root, { v0Running = ['0'], before = '0.231.0', formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100 }) {
   writeFileSync(join(root, 'v0-running'), v0Running.join('\n'));
-  writeFileSync(join(root, 'formula-versions'), [].concat(formulaVersion).join('\n'));
+  writeFileSync(join(root, 'formula-versions'), [before].concat(formulaVersion).join('\n'));
   executable(join(root, 'bin/formula'), [
     'v=$(head -n 1 "$ROOT/formula-versions")',
     'if [ "$(wc -l < "$ROOT/formula-versions")" -gt 0 ]; then sed -i 1d "$ROOT/formula-versions"; fi',
@@ -416,35 +417,54 @@ const homebrewEnv = {
   alpha: { CHANNEL: 'alpha', FORMULA: 'daytona-alpha', EVENT: 'update-version-alpha', TAP_WORKFLOW: 'brew_publish_alpha.yaml' },
 };
 
-for (const [title, channel, options, status, waits, message] of [
+for (const [title, channel, options, status, waits, message, version = '2.0.0', dispatched = true] of [
   ['stable waits for running release/v0 publishes, then dispatches', 'stable', { v0Running: ['1', '1', '0'], formulaVersion: '2.0.0' }, 0, 2],
   ['stable fails when the formula was moved after the update', 'stable', { formulaVersion: '0.232.0' }, 1, 0, /is at '0\.232\.0', not 2\.0\.0/],
-  ['an alpha does not wait for release/v0', 'alpha', { v0Running: ['1'], formulaVersion: '2.0.0' }, 0, 0],
-  ['an rc goes to daytona-rc and does not wait for release/v0', 'rc', { v0Running: ['1'], formulaVersion: '2.0.0' }, 0, 0],
+  ['an alpha does not wait for release/v0', 'alpha', { v0Running: ['1'], before: '2.0.0-alpha.8', formulaVersion: '2.0.0' }, 0, 0],
+  ['an rc goes to daytona-rc and does not wait for release/v0', 'rc', { v0Running: ['1'], before: '0.127.0', formulaVersion: '2.0.0' }, 0, 0],
   ['a failed tap run fails the step', 'alpha', { formulaVersion: '2.0.0', watchExit: 1 }, 1, 0],
   ['a formula read that lags the tap run is retried', 'alpha', { formulaVersion: ['2.0.0-alpha.8', '2.0.0'], clockStep: 15 }, 0, 0],
   ['unreadable tap runs: the formula naming the version passes', 'alpha', { formulaVersion: ['2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0'], runsReadable: false }, 0, 0, /waiting up to 15 minutes/],
   ['unreadable tap runs: a formula that never moves fails', 'alpha', { formulaVersion: '2.0.0-alpha.8', runsReadable: false }, 1, 0, /is at '2\.0\.0-alpha\.8', not 2\.0\.0/],
+  // A formula only moves forward.
+  ['a stable backport leaves a higher formula alone', 'stable', { before: '2.1.0' }, 0, 0, /daytona\.rb is at 2\.1\.0, above 2\.0\.1/, '2.0.1', false],
+  ['a stable release above the formula moves it', 'stable', { before: '2.0.1', formulaVersion: '2.1.0' }, 0, 0, undefined, '2.1.0'],
+  ['an older rc leaves a higher rc formula alone', 'rc', { before: '2.1.0-rc.1' }, 0, 0, /above 2\.0\.1-rc\.3/, '2.0.1-rc.3', false],
+  ['an rc leaves a formula that names a stable release of that version alone', 'rc', { before: '2.1.0' }, 0, 0, /above 2\.1\.0-rc\.1/, '2.1.0-rc.1', false],
+  ['an older alpha leaves a higher alpha formula alone', 'alpha', { before: '2.1.0-alpha.10' }, 0, 0, /above 2\.1\.0-alpha\.9/, '2.1.0-alpha.9', false],
+  ['a higher alpha counter moves the formula (numeric, not text, order)', 'alpha', { before: '2.1.0-alpha.9', formulaVersion: '2.1.0-alpha.10' }, 0, 0, undefined, '2.1.0-alpha.10'],
+  ['the same version (a resume) is read back, not dispatched', 'stable', { before: '2.0.0', formulaVersion: '2.0.0' }, 0, 0, /already names 2\.0\.0/, '2.0.0', false],
+  ['a formula naming an unknown version fails before dispatching', 'stable', { before: '2.0.0-beta.1' }, 1, 0, /not a release version/, '2.0.0', false],
 ]) {
   test(`Homebrew: ${title}`, (context) => {
     // Given
     const root = fixture(context);
     homebrewGh(root, options);
     // When
-    const result = run(root, homebrewStep, { CLI_VERSION: '2.0.0', ROOT: root, GH_LOG: join(root, 'gh.log'), REPO_TOKEN: 'read-token', ...homebrewEnv[channel] });
+    const result = run(root, homebrewStep, { CLI_VERSION: version, ROOT: root, GH_LOG: join(root, 'gh.log'), REPO_TOKEN: 'read-token', ...homebrewEnv[channel] });
     // Then: the dispatch names the channel's event, after release/v0 settled,
-    // and the step passes only once the formula names the version.
+    // and the step passes only once the formula names the version; a formula
+    // at or above the version is never dispatched to.
     assert.equal(result.status, status, result.stdout + result.stderr);
     const log = readFileSync(join(root, 'gh.log'), 'utf8').split('\n');
     const dispatch = log.findIndex((line) => line.startsWith('api repos/daytonaio/homebrew-cli/dispatches'));
+    if (message) assert.match(result.stdout, message);
+    const formulaReads = log.filter((line) => line.startsWith(`api repos/daytonaio/homebrew-cli/contents/${homebrewEnv[channel].FORMULA}.rb `)).length;
+    if (!dispatched) {
+      assert.equal(dispatch, -1, 'dispatched');
+      // A resume (same version) reads the formula back after the first read;
+      // a higher formula is read once.
+      if (status === 0) assert.equal(formulaReads, options.before === version ? 2 : 1);
+      return;
+    }
     assert.ok(dispatch >= 0, 'no dispatch');
     assert.match(log[dispatch], new RegExp(`event_type=${homebrewEnv[channel].EVENT} `));
-    assert.match(log[dispatch], /client_payload\[version\]=v2\.0\.0$/);
+    assert.match(log[dispatch], new RegExp(`client_payload\\[version\\]=v${version.replace(/\./g, '\\.')}$`));
     const v0Checks = log.slice(0, dispatch).filter((line) => line.startsWith('run list --repo daytona/clients')).length;
     assert.equal(v0Checks, channel === 'stable' ? waits + 1 : 0);
-    if (message) assert.match(result.stdout, message);
-    // The formula is read from the channel's own file.
-    if (status === 0) assert.ok(log.some((line) => line.startsWith(`api repos/daytonaio/homebrew-cli/contents/${homebrewEnv[channel].FORMULA}.rb `)), 'formula not read back');
+    // The formula is read from the channel's own file, before the dispatch and after it.
+    assert.ok(log.slice(0, dispatch).some((line) => line.startsWith(`api repos/daytonaio/homebrew-cli/contents/${homebrewEnv[channel].FORMULA}.rb `)), 'formula not read before dispatching');
+    if (status === 0) assert.ok(formulaReads >= 2, 'formula not read back');
   });
 }
 

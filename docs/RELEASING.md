@@ -114,6 +114,14 @@ checks that the tap has the channel's formula and a workflow that takes its
 event and names its run after the version; after the tap run, the publish job
 reads the formula back and fails unless it names the published version.
 
+A formula never moves to a lower version. Before dispatching, the publish job
+reads the channel's formula: if it names a higher version (alpha < rc <
+stable for the same `X.Y.Z`), the formula is left alone and the job succeeds,
+so a backport release (`v2.0.1` after `v2.1.0`, or an older rc or alpha) gets
+its GitHub Release and packages but leaves Homebrew on the higher version. If
+it names the same version (a resumed run), the job only reads it back. The
+tap's `scripts/update_sha.sh` refuses a lower version too.
+
 ## Automated release (recommended)
 
 One-time setup (see the header of

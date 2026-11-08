@@ -1391,6 +1391,9 @@ jobs:
       # check could still land after this one, so a stable dispatch first
       # waits for running release/v0 publishes, and every channel then reads
       # the formula back from the tap.
+      # A formula only moves forward: a release below the version the formula
+      # names (a backport such as 2.0.1 after 2.1.0, or an older rc or alpha)
+      # leaves it alone, and the same version (a resume) is only read back.
       - name: Point the ${{ needs.gate.outputs.homebrew_formula }} Homebrew formula at the release
         id: homebrew
         if: needs.gate.outputs.cli != ''
@@ -1415,17 +1418,6 @@ jobs:
               sleep 30
             done
           fi
-          # Recency guard: only a run created AFTER this dispatch counts, so a
-          # re-publish of the same version never latches onto an earlier
-          # (failed) run with the same title. The reference time is GitHub's
-          # own clock (the newest run's createdAt before dispatching).
-          since="$(gh run list --repo "$tap" --workflow "$TAP_WORKFLOW" --limit 1 --json createdAt --jq '.[0].createdAt // "1970-01-01T00:00:00Z"' 2>/dev/null || echo 1970-01-01T00:00:00Z)"
-          gh api "repos/${tap}/dispatches" \
-            -f event_type="$EVENT" \
-            -F "client_payload[version]=v${CLI_VERSION}"
-          # The dispatch only proves GitHub accepted the event. Wait for the
-          # downstream formula run so a failed formula update fails THIS job
-          # instead of leaving Homebrew silently stale.
           runs_url="https://github.com/${tap}/actions/workflows/${TAP_WORKFLOW}"
           # The formula on the tap's default branch must end up naming this
           # version: read it back, for up to $1 seconds.
@@ -1441,6 +1433,54 @@ jobs:
               sleep 15
             done
           }
+          # rank VERSION: "MAJOR MINOR PATCH STAGE N" with alpha (0) < rc (1) <
+          # stable (2) for the same X.Y.Z; fails on any other shape.
+          rank() {
+            [[ "$1" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|rc)\.(0|[1-9][0-9]*))?$ ]] || return 1
+            local stage=2
+            case "${BASH_REMATCH[5]}" in alpha) stage=0 ;; rc) stage=1 ;; esac
+            echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]} ${stage} ${BASH_REMATCH[6]:-0}"
+          }
+          # compare A B: prints -1, 0 or 1.
+          compare() {
+            local -a a b
+            read -r -a a <<<"$(rank "$1")"
+            read -r -a b <<<"$(rank "$2")"
+            local i
+            for i in 0 1 2 3 4; do
+              (( a[i] < b[i] )) && { echo -1; return; }
+              (( a[i] > b[i] )) && { echo 1; return; }
+            done
+            echo 0
+          }
+          if ! current="$(gh api "repos/${tap}/contents/${FORMULA}.rb" --jq .content | base64 -d | sed -n 's/^  version "\(.*\)"$/\1/p' | head -n 1)" || [ -z "$current" ]; then
+            echo "::error::could not read the version of ${tap} ${FORMULA}.rb"
+            exit 1
+          fi
+          if ! rank "$current" >/dev/null; then
+            echo "::error::${tap} ${FORMULA}.rb names '${current}', which is not a release version — fix the formula before publishing to it"
+            exit 1
+          fi
+          case "$(compare "$CLI_VERSION" "$current")" in
+            -1)
+              echo "::notice::${tap} ${FORMULA}.rb is at ${current}, above ${CLI_VERSION}: a formula never moves to a lower version, so it is left alone (the release itself is published)"
+              exit 0 ;;
+            0)
+              echo "${tap} ${FORMULA}.rb already names ${CLI_VERSION} (a resumed run): no dispatch"
+              formula_names_version 0
+              exit ;;
+          esac
+          # Recency guard: only a run created AFTER this dispatch counts, so a
+          # re-publish of the same version never latches onto an earlier
+          # (failed) run with the same title. The reference time is GitHub's
+          # own clock (the newest run's createdAt before dispatching).
+          since="$(gh run list --repo "$tap" --workflow "$TAP_WORKFLOW" --limit 1 --json createdAt --jq '.[0].createdAt // "1970-01-01T00:00:00Z"' 2>/dev/null || echo 1970-01-01T00:00:00Z)"
+          gh api "repos/${tap}/dispatches" \
+            -f event_type="$EVENT" \
+            -F "client_payload[version]=v${CLI_VERSION}"
+          # The dispatch only proves GitHub accepted the event. Wait for the
+          # downstream formula run so a failed formula update fails THIS job
+          # instead of leaving Homebrew silently stale.
           if ! gh run list --repo "$tap" --workflow "$TAP_WORKFLOW" --limit 1 >/dev/null 2>&1; then
             # Without the runs, the formula itself is the evidence.
             echo "::warning::GITHUBBOT_TOKEN cannot read workflow runs on ${tap}; waiting up to 15 minutes for ${FORMULA}.rb to name ${CLI_VERSION} instead"

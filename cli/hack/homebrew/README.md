@@ -22,6 +22,10 @@ is built:
   (`run-name: … ${{ github.event.client_payload.version }}`), which is how the
   publish job finds and waits for its run.
 
+Before dispatching, the publish job reads `<formula>.rb`: a formula never moves
+to a lower version, so a release below the version it names (a backport, an
+older rc or alpha) leaves it alone, and the same version (a resumed run) is
+only read back. The tap's `scripts/update_sha.sh` refuses a lower version too.
 After the run, the publish job reads `<formula>.rb` back and fails unless its
 `version` is the published one. If the job's token cannot list the tap's
 runs, it skips waiting for the run and instead reads the formula back for up
