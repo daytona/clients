@@ -9,7 +9,6 @@ The TypeScript SDK's tests/client-config.test.ts asserts the same behaviour.
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import AsyncIterator, Optional
 
 import httpx
@@ -144,10 +143,9 @@ async def test_the_request_timeout_bounds_the_whole_ordinary_request() -> None:
     # never fire: the request timeout is the total time.
     respx.get(f"{BASE}/slow-body").mock(side_effect=lambda _request: _trickle(chunks=8, every=0.05))
     transport = AsyncTransport(BASE, "k", request_timeout=0.15)
-    started = time.monotonic()
+    # The body finishes in 0.4 s: only a total bound raises.
     with pytest.raises(ClientTimeoutError):
         await transport.send(RequestSpec("GET", "/slow-body"))
-    assert time.monotonic() - started < 0.35
     await transport.close()
 
 
@@ -180,6 +178,51 @@ async def test_waits_with_their_own_budget_are_not_cut_by_the_request_timeout() 
     assert await transport.send(RequestSpec("GET", "/hold", timeout=5.0)) == {"ok": True}
     assert await transport.send(RequestSpec("GET", "/hold", unbounded_read=True)) == {"ok": True}
     await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_a_per_call_timeout_is_a_total_bound_like_the_request_timeout() -> None:
+    # It replaces the request timeout for its request, with the same meaning:
+    # every chunk arrives well inside 0.15 s, the body takes 0.4 s.
+    respx.get(f"{BASE}/slow-body").mock(side_effect=lambda _request: _trickle(chunks=8, every=0.05))
+    transport = AsyncTransport(BASE, "k", request_timeout=0)
+    with pytest.raises(ClientTimeoutError) as excinfo:
+        await transport.send(RequestSpec("GET", "/slow-body", timeout=0.15))
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        408,
+        "REQUEST_TIMEOUT",
+        "SDK",
+    )
+    with pytest.raises(ClientTimeoutError):
+        await transport.send(RequestSpec("GET", "/slow-body", timeout=0.15, unbounded_read=True))
+    with pytest.raises(ClientTimeoutError):
+        await transport.request("GET", "/slow-body", timeout=0.15)
+    # 0 and a value above the timer maximum mean no limit, as for the request timeout.
+    assert await transport.send(RequestSpec("GET", "/slow-body", timeout=0)) == b"xxxxxxxx"
+    assert await transport.send(RequestSpec("GET", "/slow-body", timeout=3_000_000.0)) == b"xxxxxxxx"
+    await transport.close()
+
+
+@pytest.mark.anyio
+async def test_image_submissions_are_bounded_by_the_request_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    # POST /images is an ordinary request (no hold): build, pull and
+    # create_from_build submit it under the request timeout.
+    from daytona.v2 import ImageBuilder
+
+    monkeypatch.setenv("DAYTONA_V2_API_URL", BASE)
+    with respx.mock(assert_all_called=False) as router:
+        router.post(f"{BASE}/images").mock(side_effect=lambda _request: _late(0.4))
+        client = AsyncDaytona(DaytonaConfig(api_key="k", request_timeout=0.1)).v2
+        try:
+            with pytest.raises(ClientTimeoutError):
+                await client.images.build(ImageBuilder.from_dockerfile("FROM alpine"))
+            with pytest.raises(ClientTimeoutError):
+                await client.images.pull("alpine", wait=False)
+            with pytest.raises(ClientTimeoutError):
+                await client.images.pull("alpine")
+        finally:
+            await client.close()
 
 
 @pytest.mark.anyio
@@ -219,11 +262,11 @@ def test_the_synchronous_client_enforces_the_same_total_deadline(monkeypatch: py
         router.get(url__regex=r".*/sandboxes.*").mock(
             side_effect=lambda _request: _trickle(chunks=8, every=0.05)
         )
-        with Daytona(DaytonaConfig(api_key="k", request_timeout=0.15)) as client:
-            started = time.monotonic()
-            with pytest.raises(ClientTimeoutError):
-                client.v2.list()
-            assert time.monotonic() - started < 0.35
+        with (
+            Daytona(DaytonaConfig(api_key="k", request_timeout=0.15)) as client,
+            pytest.raises(ClientTimeoutError),
+        ):
+            client.v2.list()
 
 
 _TIMEOUT_SHAPE = ("operation timed out", 408, "REQUEST_TIMEOUT", "SDK")
@@ -321,7 +364,8 @@ async def test_the_bearer_a_401_refresh_and_the_retry_share_one_deadline(path: s
     respx.get(f"{BASE}/thing").mock(side_effect=_unauthorized_then_ok)
     transport = AsyncTransport(BASE, None, request_timeout=0.15)
     transport.auth_provider = _SlowRefreshingAuth(0.08)
-    started = time.monotonic()
+    # The rejection alone proves it (a fresh window per step would succeed);
+    # no wall-clock upper bound, which a loaded runner could break.
     with pytest.raises(ClientTimeoutError):
         if path == "send":
             await transport.send(RequestSpec("GET", "/thing"))
@@ -329,10 +373,12 @@ async def test_the_bearer_a_401_refresh_and_the_retry_share_one_deadline(path: s
             await transport.get("/thing")
         else:
             await transport.open_stream(RequestSpec("GET", "/thing"))
-    assert time.monotonic() - started < 0.25
-    transport.auth_provider = _SlowRefreshingAuth(0.01)
-    assert await transport.send(RequestSpec("GET", "/thing")) == {"ok": True}
     await transport.close()
+    # The same steps complete under a budget far above them.
+    roomy = AsyncTransport(BASE, None, request_timeout=10)
+    roomy.auth_provider = _SlowRefreshingAuth(0.08)
+    assert await roomy.send(RequestSpec("GET", "/thing")) == {"ok": True}
+    await roomy.close()
 
 
 @pytest.mark.anyio

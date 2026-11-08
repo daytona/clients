@@ -8288,7 +8288,9 @@ async def test_interpreter_recomputes_wait_budget_after_process_creation():
 
 
 @pytest.mark.anyio
-async def test_images_build_and_pull_keep_unbounded_reads_when_timeout_is_omitted_or_zero() -> None:
+async def test_images_build_and_pull_submit_as_ordinary_requests_when_timeout_is_omitted_or_zero() -> None:
+    # POST /images is no hold: the request timeout bounds it (see
+    # test_client_config.py's slow-server test).
     api = RecordingTransport(
         [
             {"id": "img-1", "status": "pending"},
@@ -8315,8 +8317,9 @@ async def test_images_build_and_pull_keep_unbounded_reads_when_timeout_is_omitte
     await images.pull(image="python:3.12", timeout=0)
 
     for spec in api.specs[::2]:
+        assert (spec.method, spec.path) == ("POST", "/images")
         assert spec.timeout is None
-        assert spec.unbounded_read is True
+        assert spec.unbounded_read is False
 
 
 @pytest.mark.anyio

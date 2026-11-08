@@ -66,6 +66,10 @@ _STREAM_RELEASE_GRACE_SECONDS = 5.0
 #: streams are bounded only until their response headers arrive, and file
 #: transfers are not bounded at all.
 DEFAULT_REQUEST_TIMEOUT_SECONDS: Final = 60.0
+# The largest request or per-call timeout that is still a bound, in seconds
+# (about 24.8 days): the TypeScript SDK's timers cannot arm a longer one, so
+# both SDKs read a larger value as no limit, like 0.
+_MAX_BOUNDED_TIMEOUT_SECONDS: Final = 2_147_483.647
 _RELATIVE_PATH_ERROR = "absolute request URLs are not allowed; pass a relative SDK path"
 
 
@@ -636,7 +640,7 @@ class AsyncTransport:
     async def send(self, spec: RequestSpec) -> Union[JsonValue, bytes]:
         # One total deadline for the whole call: resolving the bearer (a token
         # exchange), the request, a 401 refresh and its retry share it.
-        with _request_deadline(self._request_timeout_seconds if _bounded_by_request_timeout(spec) else 0):
+        with _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
             token = await self._request_token()
             try:
                 return await self._send_once(spec, token)
@@ -900,7 +904,13 @@ class AsyncTransport:
         """
         if transfer and "timeout" not in kwargs:
             kwargs["timeout"] = httpx.Timeout(None)
-        total = 0 if transfer or "timeout" in kwargs else self._request_timeout_seconds
+        explicit = kwargs.get("timeout")
+        if isinstance(explicit, (int, float)) and not isinstance(explicit, bool):
+            # A per-call timeout in seconds: a total bound, like the request timeout.
+            total = 0.0 if transfer else _per_call_seconds(explicit)
+            kwargs["timeout"] = explicit if total else httpx.Timeout(None)
+        else:
+            total = 0 if transfer or "timeout" in kwargs else self._request_timeout_seconds
         caller_headers = kwargs.get("headers")
         # A one-shot iterator body (no factory) is exhausted by the first send:
         # replaying it on the 401 retry would silently send an empty body, so
@@ -1019,20 +1029,28 @@ def _client_limits(connection_pool_maxsize: Optional[int]) -> Optional[httpx.Lim
     )
 
 
-def _bounded_by_request_timeout(spec: RequestSpec) -> bool:
-    """Whether the client's request timeout bounds this whole request.
+def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
+    """The total-time bound of one request, in seconds (``0``: none).
 
-    It does for every ordinary request. It does not for a request that carries
-    its own budget (an explicit ``timeout``: waits, long polls, holds), one
-    that reads without a deadline (``unbounded_read``, ``/wait``), or a file
-    transfer.
+    An ordinary request gets the client's request timeout. A per-call
+    ``timeout`` (a wait's budget plus its slack, a git remote call, ...)
+    replaces it for that request with the same meaning: total time from
+    sending to the last byte, ``0`` or a value above the timer maximum meaning
+    no limit. A hold that reads without a deadline (``unbounded_read``,
+    ``/wait`` with no budget) and a file transfer are not bounded.
     """
-    return (
-        spec.timeout is None
-        and not spec.unbounded_read
-        and not spec.transfer
-        and not spec.path.endswith("/wait")
-    )
+    if spec.transfer:
+        return 0.0
+    if spec.timeout is not None:
+        return _per_call_seconds(spec.timeout)
+    if spec.unbounded_read or spec.path.endswith("/wait"):
+        return 0.0
+    return request_timeout_seconds
+
+
+def _per_call_seconds(seconds: float) -> float:
+    """A per-call timeout as a total bound: ``0`` or above the timer maximum is none."""
+    return 0.0 if seconds <= 0 or seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
 
 
 @contextlib.contextmanager
@@ -1061,7 +1079,8 @@ def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _Reque
         "files": spec.files,
     }
     if spec.timeout is not None:
-        kwargs["timeout"] = spec.timeout
+        # httpx's per-phase bound; ``_total_seconds`` holds the whole request to it.
+        kwargs["timeout"] = spec.timeout if _per_call_seconds(spec.timeout) else httpx.Timeout(None)
     elif spec.transfer:
         kwargs["timeout"] = httpx.Timeout(None)
     elif spec.unbounded_read or spec.path.endswith("/wait"):

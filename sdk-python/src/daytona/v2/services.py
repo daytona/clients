@@ -177,7 +177,6 @@ class AsyncImageService:
                     "/images",
                     json_body=body,
                     timeout=timeout or None,
-                    unbounded_read=timeout in (None, 0),
                 )
             )
         )
@@ -205,7 +204,7 @@ class AsyncImageService:
         if region is not None:
             body["region_id"] = region
         return await ImagePull(self._transport, timeout).run(
-            RequestSpec("POST", "/images", json_body=body, unbounded_read=timeout in (None, 0)), wait=wait
+            RequestSpec("POST", "/images", json_body=body), wait=wait
         )
 
     async def get(
