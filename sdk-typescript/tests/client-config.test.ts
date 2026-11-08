@@ -571,6 +571,24 @@ describe('request timeout meaning', () => {
     await expect(transport.fetch('/logs')).rejects.toBeInstanceOf(ClientTimeoutError)
   })
 
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, '100'])('refuses %p as a per-call fetch timeout, as for the request timeout', async (timeout) => {
+    handle = late(0)
+    await expect(new HttpTransport(base, 'k', 100).fetch('/logs', { timeout: timeout as never })).rejects.toMatchObject({
+      constructor: BadRequestError,
+      message: 'timeout must be a non-negative finite number of milliseconds (0 = no limit)',
+      statusCode: 400,
+      code: 'BAD_REQUEST',
+      source: 'SDK',
+    })
+  })
+
+  it('bounds only the stream headers under a short per-call timeout', async () => {
+    // Headers at once, then a body over 300 ms: twice the 150 ms per-call timeout.
+    handle = trickle(6, 50)
+    const response = await new HttpTransport(base, 'k', 10_000).fetch('/logs', { timeout: 150 })
+    expect(await response.text()).toBe('xxxxxx')
+  })
+
   it('bounds a stream only until its headers arrive', async () => {
     const transport = new HttpTransport(base, 'k', 100)
     handle = trickle(6, 50)
