@@ -191,6 +191,9 @@ _PENDING_IMAGE = {
     "updated_at": "2026-01-01T00:00:00Z",
     "format_version": 2,
     "format_outdated": False,
+    "platform": False,
+    "default": False,
+    "deprecated": False,
 }
 
 

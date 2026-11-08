@@ -23,7 +23,7 @@ const RESERVATION = {
 const VOLUME = { id: 'vol', name: 'data', type: 'disk', status: 'ready', created_at: TIME, updated_at: TIME, options: { bucket: 'b', nested: { depth: [1] } } }
 const SECRET = { name: 'KEY', allowed_domains: ['example.com'], created_at: TIME, updated_at: TIME }
 const USAGE = { limit: 1, usage: 0 }
-const DETAIL = { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], toolbox_proxy_url: 'https://p.example' }
+const DETAIL = { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], toolbox_proxy_url: 'https://p.example' }
 
 function deeplyFrozen(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return true

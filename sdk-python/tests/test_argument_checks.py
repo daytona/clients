@@ -18,6 +18,7 @@ import threading
 from collections.abc import Awaitable, Callable, Iterator
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import anyio
@@ -342,6 +343,9 @@ _IMAGE: JsonObject = {
     "updated_at": "2026-01-01T00:00:00Z",
     "format_version": 1,
     "format_outdated": False,
+    "platform": False,
+    "default": False,
+    "deprecated": False,
 }
 
 
@@ -781,3 +785,83 @@ async def test_a_search_label_with_a_lone_surrogate_is_sent_json_escaped() -> No
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             await root.v2.search(labels={"team": "a\ud800b"})
     assert "%5Cud800" in fake.requests[0].path
+
+
+_TIMESTAMPS = json.loads(
+    (Path(__file__).parent / "fixtures" / "search-timestamps.json").read_text(encoding="utf-8")
+)
+_EMPTY_SEARCH: JsonObject = {"sandboxes": [], "total": 0, "total_relation": "eq", "next_cursor": None}
+
+
+@pytest.mark.parametrize("bound", _TIMESTAMPS["refused"])
+async def test_a_search_timestamp_that_is_not_a_real_rfc3339_date_time_is_refused(
+    api: FakeApi, bound: str
+) -> None:
+    # The shared table, as TypeScript reads it.
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="RFC 3339"):
+            await root.v2.search(created_start_at=bound)
+    assert api.requests == []
+
+
+@pytest.mark.parametrize("bound", _TIMESTAMPS["sent"])
+async def test_a_real_rfc3339_search_timestamp_is_sent(bound: str) -> None:
+    with FakeApi([PlannedResponse(200, _EMPTY_SEARCH)]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            await root.v2.search(created_start_at=bound)
+    assert parse_qs(urlsplit(fake.requests[0].path).query)["created_start_at"] == [bound]
+
+
+@pytest.mark.parametrize(("count", "accepted"), [(2048, True), (2049, False)])
+async def test_a_build_log_cursor_is_bounded_in_code_points(count: int, accepted: bool) -> None:
+    # 2048 astral characters (4096 UTF-16 units) pass in both SDKs; 2049 do not.
+    cursor = "\U0001f600" * count
+    with FakeApi([PlannedResponse(404, {"code": "NOT_FOUND", "message": "stop here"})]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(DaytonaError) as raised:
+                await root.v2.images.follow_build_logs("img", on_logs=print, cursor=cursor)
+    assert isinstance(raised.value, BadRequestError) is not accepted
+    assert len(fake.requests) == (1 if accepted else 0)
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda d: d.get_limits(organization_id="a\ud800b"),
+        lambda d: d.get("a\ud800b"),
+        lambda d: d.stop("a\ud800b"),
+    ],
+    ids=["get_limits", "get", "stop"],
+)
+async def test_an_id_with_a_lone_surrogate_is_refused_on_the_client_paths(
+    api: FakeApi, call: Callable[[AsyncDaytonaV2], Awaitable[object]]
+) -> None:
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="must not contain a lone surrogate"):
+            await call(root.v2)
+    assert api.requests == []
+
+
+@pytest.mark.parametrize("arch", ["x86_64", 5, "", " "])
+@pytest.mark.parametrize("route", ["create", "create_from_build"])
+async def test_a_create_cpu_arch_outside_the_platform_architectures_is_refused(
+    api: FakeApi, route: str, arch: object
+) -> None:
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="cpu_arch must be"):
+            if route == "create":
+                await root.v2.create(cpu_arch=arch)  # type: ignore[arg-type]
+            else:
+                await root.v2.create_from_build(ImageBuilder.from_registry("alpine"), cpu_arch=arch)  # type: ignore[arg-type]
+    assert api.requests == []
+
+
+@pytest.mark.parametrize("arch", ["amd64", "arm64"])
+async def test_a_create_cpu_arch_of_the_platform_is_sent(arch: str) -> None:
+    with FakeApi([PlannedResponse(200, {"id": "sbx", "status": "running"})]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            await root.v2.create("img_1", cpu_arch=arch, wait_seconds=0)
+    assert json.loads(fake.requests[0].body)["cpu_arch"] == arch

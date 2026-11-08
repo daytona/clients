@@ -523,3 +523,43 @@ async def test_find_by_name_checks_every_page_as_search_does(body: JsonObject, m
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             with pytest.raises(BadRequestError, match=f"^{message}$"):
                 await root.v2.find_by_name("x")
+
+
+_IMAGE: JsonObject = {
+    "id": "img",
+    "class": "linux",
+    "status": "ready",
+    "region_id": "r",
+    "region_ids": ["r"],
+    "anonymous": True,
+    "retention": "idle",
+    "origin": "registry",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "format_version": 2,
+    "format_outdated": False,
+    "platform": False,
+    "default": False,
+    "deprecated": False,
+}
+
+
+@pytest.mark.parametrize("flag", ["platform", "default", "deprecated"])
+@pytest.mark.parametrize("broken", ["missing", "not a boolean"])
+async def test_an_image_without_a_required_flag_is_a_contract_error(flag: str, broken: str) -> None:
+    # The contract requires all three; the TypeScript twin refuses the same.
+    body = {key: value for key, value in _IMAGE.items() if key != flag}
+    if broken != "missing":
+        body[flag] = "yes"
+    with FakeApi(
+        [
+            PlannedResponse(200, body),
+            PlannedResponse(200, {"images": [{**body, "cursor": "c"}], "next_cursor": None}),
+        ]
+    ) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match=flag):
+                await root.v2.images.get("img")
+            with pytest.raises(BadRequestError, match=flag):
+                await root.v2.images.list()

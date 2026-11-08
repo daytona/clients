@@ -9,6 +9,6 @@ are stripped with that set; env values and the TypeScript-only `cmd` /
 So `images.pull(' python:3.12 ')` sends `python:3.12` from both SDKs, as
 `create()` already did, and the rendered Dockerfile is byte-identical. An env
 mapping whose keys collide once stripped (`{"A": "1", " A": "2"}`) is refused
-instead of keeping one value. `env()` takes a name and a value, or a mapping
-(TypeScript: a plain object); TypeScript refuses a `Map`, a `Date` or a class
-instance, whose entries it dropped without rendering an `ENV` line.
+instead of keeping one value. `env()` takes a name and a value, or a mapping;
+in TypeScript it takes only a plain object, so a `Map`, a `Date`, a class
+instance or an object with only inherited keys is refused.

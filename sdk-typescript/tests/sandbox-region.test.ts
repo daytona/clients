@@ -16,12 +16,11 @@ describe('sandbox region', () => {
   })
   describe.each(['create', 'get'])('%s', (operation) => {
     it.each([
-      { id: '57VSdKNrJGxnSAabjcHD4M-region-a', region: undefined, expected: 'region-a' },
+      // The contract requires region_id; an empty one is derived from the id.
       { id: '57VSdKNrJGxnSAabjcHD4M-region-a', region: '', expected: 'region-a' },
       { id: '57VSdKNrJGxnSAabjcHD4M', region: '', expected: undefined },
       { id: '57VSdKNrJGxnSAabjcHD4M-region-a', region: 'region-b', expected: 'region-b' },
-      { id: '57VSdKNrJGxnSAabjcHD4M', region: undefined, expected: undefined },
-      { id: '550e8400-e29b-41d4-a716-446655440000', region: undefined, expected: undefined },
+      { id: '550e8400-e29b-41d4-a716-446655440000', region: '', expected: undefined },
     ])('resolves $id with region $region to $expected', async (fixture) => {
       // Given responses covering explicit regions, region tags and untagged ids.
       const api = await startFakeApi([{
@@ -48,7 +47,7 @@ describe('sandbox region', () => {
   it('keeps the region tag when the refreshed region is empty', async () => {
     // Given a fetched sandbox whose next response has an empty region.
     const id = '57VSdKNrJGxnSAabjcHD4M-region-a'
-    const response = { id, class: 'linux', name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] }
+    const response = { id, class: 'linux', name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
     const api = await startFakeApi([
       { status: 200, body: { ...response, region_id: 'region-a' } },
       { status: 200, body: { ...response, region_id: '' } },

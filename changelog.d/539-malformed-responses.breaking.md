@@ -27,7 +27,12 @@ without a bound. An integer too large for a double, which overflows to
 infinity (`10**400`; Python read it, TypeScript's `JSON.parse` turns it into
 `Infinity`), is refused in both SDKs; an integer above 2^53 within a double's
 range (2^53 + 1, a search `total` of 2^60) is accepted in both, and TypeScript
-may round it. A required field the contract allows to be null (for example the
-project budget's `monthly_limit_cents`, `period_start_date`, `created_at` and
-`updated_at`) must be present, while an explicit `null` stays valid. Python no
-longer requires the per-item `cursor` of a list page; neither SDK reads it.
+may round it. An image's `platform`, `default` and `deprecated` and a
+sandbox's `region_id` are required, as the contract states: a missing one, or
+one of the wrong type, is `BadRequestError` naming the field (both SDKs read a
+missing flag as `false` and derived a missing `region_id` from the id). An
+empty `region_id` is still derived from the sandbox id. A required field the
+contract allows to be null (for example the project budget's
+`monthly_limit_cents`, `period_start_date`, `created_at` and `updated_at`)
+must be present, while an explicit `null` stays valid. Python no longer
+requires the per-item `cursor` of a list page; neither SDK reads it.

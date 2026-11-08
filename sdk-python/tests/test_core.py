@@ -12810,24 +12810,17 @@ async def test_image_list_forwards_platform_and_parses_platform_fields() -> None
     assert transport.specs[0].params == {"anonymous": False, "platform": "true"}
     assert (page.items[0].platform, page.items[0].default, page.items[0].deprecated) == (True, True, False)
 
-    minimal = await service.list(platform="any")
-    assert transport.specs[1].params == {"anonymous": False, "platform": "any"}
-    # Absent optional flags default to False.
-    assert (minimal.items[0].platform, minimal.items[0].default, minimal.items[0].deprecated) == (
-        False,
-        False,
-        False,
-    )
-
-    # The single-image read takes the same fallback.
+    # The flags are contract-required: a list item or a detail without one is malformed.
+    with pytest.raises(BadRequestError, match="default|platform|deprecated"):
+        await service.list(platform="any")
     minimal_payload = {
         key: value
         for key, value in _image_page_payload("img_own").items()
         if key not in ("platform", "default", "deprecated")
     }
     single = AsyncImagesService(RecordingTransport([minimal_payload]))  # type: ignore[arg-type]
-    got = await single.get("img_own")
-    assert (got.platform, got.default, got.deprecated) == (False, False, False)
+    with pytest.raises(BadRequestError, match="default|platform|deprecated"):
+        await single.get("img_own")
 
 
 @pytest.mark.anyio

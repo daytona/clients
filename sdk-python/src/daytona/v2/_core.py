@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import base64
+import calendar
 import json
 import math
 import re
@@ -1343,10 +1344,23 @@ def _wire_statuses(states: object) -> str:
 
 
 _RFC3339 = re.compile(
-    r"\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)"
+    r"(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d"
     r"(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)",
     re.ASCII,
 )
+
+
+def _rfc3339(value: str) -> bool:
+    """A real RFC 3339 date-time, as TypeScript checks it: year 0001 or later,
+    the day within its month (Feb 29 only in a leap year), hour 00-23, minute
+    and second 00-59 (no leap second: neither a ``datetime`` nor a ``Date``
+    can express one), an optional fraction, and ``Z`` or an offset within
+    +-23:59."""
+    match = _RFC3339.fullmatch(value)
+    if match is None:
+        return False
+    year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
+    return year >= 1 and day <= calendar.monthrange(year, month)[1]
 
 
 def search_timestamp(value: SearchTimestamp) -> str:
@@ -1361,7 +1375,7 @@ def search_timestamp(value: SearchTimestamp) -> str:
         aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
         return aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     # An RFC 3339 date-time (the contract's format), the same pattern TypeScript checks.
-    if isinstance(value, str) and _RFC3339.fullmatch(value) is not None:
+    if isinstance(value, str) and _rfc3339(value):
         return value
     raise create_error("timestamp bounds must be a datetime or an RFC 3339 string", 400, "BAD_REQUEST", "SDK")
 
@@ -1413,6 +1427,19 @@ def header_text(value: str, name: str) -> str:
     if not all(" " <= char <= "~" for char in value):
         raise create_error(f"{name} must be printable ASCII", 400, "BAD_REQUEST", "SDK")
     return value
+
+
+def path_segment(value: object, name: str) -> str:
+    """A caller's id or name as one request-path segment: a string that is not
+    blank (Python's whitespace) and has no surrogate code point (no UTF-8
+    form; ``quote()`` would raise ``UnicodeEncodeError``), else
+    :class:`BadRequestError` naming ``name``, before any request, as
+    TypeScript's ``pathSegment``."""
+    if not isinstance(value, str) or not value.strip():
+        raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    if has_surrogate(value):
+        raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
+    return quote(value, safe="")
 
 
 def page_params(cursor: object, limit: object) -> Dict[str, JsonValue]:

@@ -4,6 +4,8 @@
  */
 
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { once } from 'node:events'
 import { BadRequestError, ImageBuilder, RequestTimeoutError } from '../src/v2/index'
 import { createHttpClient } from '../src/v2/http'
@@ -482,6 +484,88 @@ it('sends a search label with a lone surrogate JSON-escaped', async () => {
   try {
     await client.v2.search({ labels: { team: 'a\ud800b' } })
     expect(api.requests[0]?.path).toContain('%5Cud800')
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+const TIMESTAMPS = JSON.parse(readFileSync(join(__dirname, '..', '..', 'sdk-python', 'tests', 'fixtures', 'search-timestamps.json'), 'utf8')) as { readonly refused: readonly string[]; readonly sent: readonly string[] }
+const EMPTY_SEARCH = { sandboxes: [], total: 0, total_relation: 'eq', next_cursor: null }
+
+it.each(TIMESTAMPS.refused)('refuses the search timestamp %s before any request, as Python does', async (bound) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.search({ createdStartAt: bound })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining('RFC 3339') })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each(TIMESTAMPS.sent)('sends the search timestamp %s', async (bound) => {
+  const api = await startFakeApi([{ status: 200, body: EMPTY_SEARCH }])
+  const client = clientAt(api.url)
+  try {
+    await client.v2.search({ createdStartAt: bound })
+    expect(new URL(api.requests[0]?.path ?? '', 'http://x').searchParams.get('created_start_at')).toBe(bound)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([[2048, true], [2049, false]] as const)('bounds a build-log cursor of %d astral characters in code points', async (count, accepted) => {
+  // 2048 astral characters (4096 UTF-16 units) pass in both SDKs; 2049 do not.
+  const api = await startFakeApi([{ status: 404, body: { code: 'NOT_FOUND', message: 'stop here' } }])
+  const client = clientAt(api.url)
+  try {
+    const error = await client.v2.images.followBuildLogs('img', { onLogs: () => undefined, cursor: '\u{1F600}'.repeat(count) }).then(() => undefined, (failure: unknown) => failure)
+    expect(error instanceof BadRequestError).toBe(!accepted)
+    expect(api.requests).toHaveLength(accepted ? 1 : 0)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([
+  ['getLimits', (client: Daytona) => client.v2.getLimits({ organizationId: 'a\ud800b' })],
+  ['get', (client: Daytona) => client.v2.get('a\ud800b')],
+  ['stop', (client: Daytona) => client.v2.stop('a\ud800b')],
+] as const)('refuses a lone surrogate in the %s id before any request', async (_name, call) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining('must not contain a lone surrogate') })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([['create', 'x86_64'], ['create', 5], ['create', ''], ['createFromBuild', 'x86_64'], ['createFromBuild', 5], ['createFromBuild', '']] as const)('%s refuses cpuArch %j before any request', async (route, arch) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    const call = route === 'create' ? client.v2.create({ cpuArch: arch as never }) : client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { cpuArch: arch as never })
+    await expect(call).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining('cpuArch must be') })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each(['amd64', 'arm64'] as const)('sends a create cpuArch of %s', async (arch) => {
+  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status: 'running' } }])
+  const client = clientAt(api.url)
+  try {
+    await client.v2.create('img_1', { cpuArch: arch, waitSeconds: 0 })
+    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ cpu_arch: arch })
   } finally {
     await client.close()
     await api.close()

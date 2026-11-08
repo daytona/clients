@@ -1,7 +1,8 @@
 **Path, body and header values are checked** — in both SDKs, before any
 request, with `BadRequestError` naming the argument: every id or name a call
 puts into a request path (images, snapshots, volumes, secrets, reservations,
-`get_limits()` / `getLimits()`) must be a string that is not blank and has no
+the organization id of `get_limits()` / `getLimits()`, the id `get()` and the
+client lifecycle verbs take) must be a string that is not blank and has no
 lone surrogate (TypeScript sent `/secrets/undefined`, Python raised a raw
 `TypeError`, and neither refused a blank id); the name `images.promote()` and
 `create_snapshot()` / `createSnapshot()` send in the request body must be a

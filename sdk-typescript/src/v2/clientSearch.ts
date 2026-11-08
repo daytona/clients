@@ -28,11 +28,25 @@ export function searchTimestamp(value: SearchTimestamp): string {
     return value.toISOString()
   }
   // An RFC 3339 date-time (the contract's format), the same pattern Python checks.
-  if (typeof value === 'string' && RFC3339.test(value)) return value
+  if (typeof value === 'string' && isRfc3339(value)) return value
   throw createDaytonaError('timestamp bounds must be a valid Date or an RFC 3339 string', 400, 'BAD_REQUEST', 'SDK')
 }
 
-const RFC3339 = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
+const RFC3339 = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
+
+// A real RFC 3339 date-time, as Python checks it: year 0001 or later, the day
+// within its month (Feb 29 only in a leap year; explicit arithmetic, since
+// `Date.UTC` maps years 0-99 to 1900-1999), hour 00-23, minute and second
+// 00-59 (no leap second: neither a `Date` nor a Python `datetime` can express
+// one), an optional fraction, and `Z` or an offset within ±23:59.
+function isRfc3339(value: string): boolean {
+  const match = RFC3339.exec(value)
+  if (match === null) return false
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3])
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0
+  return year >= 1 && day <= days
+}
 
 // Input-boundary checks mirror Python's `_core.search_params` byte for byte:
 // a bare string is one entry (the option types are `string | readonly

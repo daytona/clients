@@ -5,6 +5,7 @@
 
 import { BadRequestError, ImageBuilder } from '../src/v2/index'
 import { createHttpClient } from '../src/v2/http'
+import { imageWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 import { createSandbox } from './helpers/sandbox'
 import { startFakeApi } from './networkPolicyTestServer'
@@ -85,7 +86,7 @@ it.each([
 })
 
 it('falls back to the list item when the detail read that fills a missing toolbox URL breaks the contract', async () => {
-  const item = { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] }
+  const item = { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
   const api = await startFakeApi([
     { status: 200, body: { sandboxes: [item], next_cursor: null } },
     { status: 200, body: ['not a sandbox'] },
@@ -147,7 +148,7 @@ it.each([
 })
 
 it.each([
-  ['a sandbox label', (client: Daytona) => client.v2.get('sbx'), { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], labels: { team: 1 } }, 'sandbox response has a labels.team that is not a string'],
+  ['a sandbox label', (client: Daytona) => client.v2.get('sbx'), { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], labels: { team: 1 } }, 'sandbox response has a labels.team that is not a string'],
   ['a create body that is null', (client: Daytona) => client.v2.create('img_1', { waitSeconds: 0 }), null, 'sandbox create response is missing the sandbox id'],
 ] as const)('refuses %s with BadRequestError', async (_name, call, body, message) => {
   const api = await startFakeApi([{ status: 200, body }])
@@ -173,7 +174,7 @@ it.each([
   [{ team: 1 }, 'sandbox response has a labels.team that is not a string'],
   ['team', 'sandbox response has a labels that is not an object'],
 ] as const)('refuses a sandbox object whose labels are %j, as Python does', async (labels, message) => {
-  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], labels } }])
+  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], labels } }])
   const client = clientAt(api.url)
   try {
     await expect(client.v2.get('sbx')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
@@ -290,6 +291,36 @@ it.each([
   const client = clientAt(api.url)
   try {
     await expect(client.v2.findByName('x')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each(['platform', 'default', 'deprecated'].flatMap((flag) => [[flag, 'missing'], [flag, 'not a boolean']] as const))('refuses an image whose %s is %s, as Python does', async (flag, broken) => {
+  // The contract requires all three flags on an image and a list item.
+  const body: Record<string, unknown> = { ...imageWire({ id: 'img', status: 'ready' }) }
+  if (broken === 'missing') delete body[flag]
+  else body[flag] = 'yes'
+  const api = await startFakeApi([{ status: 200, body }, { status: 200, body: { images: [body], next_cursor: null } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.images.get('img')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(flag) })
+    await expect(client.v2.images.list()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining(flag) })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([['missing'], ['null']] as const)('refuses a sandbox whose region_id is %s, as Python does', async (broken) => {
+  const body: Record<string, unknown> = { id: 'sbx-region-a', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], region_id: 'region-a' }
+  if (broken === 'missing') delete body.region_id
+  else body.region_id = null
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.get('sbx-region-a')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining('region_id') })
   } finally {
     await client.close()
     await api.close()

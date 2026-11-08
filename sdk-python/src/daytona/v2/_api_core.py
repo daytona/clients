@@ -237,30 +237,14 @@ def expect_fork_resp(value: TransportPayload) -> ForkSandboxOperation:
     )
 
 
-#: Missing image classification flags default to False.
-_IMAGE_PLATFORM_FLAGS = ("platform", "default", "deprecated")
-
-
 def expect_images_page(value: TransportPayload) -> ImagePage:
-    if isinstance(value, dict) and isinstance(value.get("images"), list):
-        images = value["images"]
-        assert isinstance(images, list)
-        value = {
-            **value,
-            "images": [
-                {**{flag: False for flag in _IMAGE_PLATFORM_FLAGS}, **image}
-                if isinstance(image, dict)
-                else image
-                for image in images
-            ],
-        }
+    # Every contract-required field (`platform`, `default` and `deprecated`
+    # included) must be present: a missing one is the malformed-response error.
     return _expect_model_from_dict(value, ImagePage, "image list response", ImagePage.from_dict)
 
 
 def expect_image(value: TransportPayload) -> Image:
     """An image detail checked against the contract (as the list items are) before it is mapped."""
-    if isinstance(value, dict):
-        value = {**{flag: False for flag in _IMAGE_PLATFORM_FLAGS}, **value}
     wire = _expect_model_from_dict(value, _gen.api.Image, "image detail response", _gen.api.Image.from_dict)
     return parse_image(wire)
 
@@ -370,8 +354,9 @@ def sandbox_detail_wire(value: TransportPayload) -> JsonObject:
 
 
 def _with_region(value: TransportPayload) -> TransportPayload:
-    # Derive a missing region_id from the sandbox ID; empty means unknown.
-    if isinstance(value, dict) and value.get("region_id") in (None, ""):
+    # The contract requires region_id (a missing one is malformed); an empty
+    # one is derived from the sandbox ID, and stays empty when it cannot be.
+    if isinstance(value, dict) and value.get("region_id") == "":
         sandbox_id = value.get("id")
         if isinstance(sandbox_id, str):
             region = region_of(sandbox_id)

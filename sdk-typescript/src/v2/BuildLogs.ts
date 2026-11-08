@@ -106,7 +106,13 @@ function offset(str: string): bigint {
 // bounded, and no C0 control character or DEL; offset continuity comes from
 // the event's public byte-offset fields.
 function cursorOk(str: string): boolean {
-  return str.length > 0 && str.length <= 2048 && !/[\x00-\x1f\x7f]/.test(str)
+  // The 2048 bound counts code points, as Python's len() does (not UTF-16 units).
+  return str.length > 0 && codePoints(str) <= 2048 && !/[\x00-\x1f\x7f]/.test(str)
+}
+function codePoints(str: string): number {
+  let count = 0
+  for (const _ of str) count++
+  return count
 }
 function cursor(str: string): string {
   if (!cursorOk(str)) throw new ProtocolError('invalid cursor')

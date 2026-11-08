@@ -16,12 +16,12 @@ import type { Internal } from './internal.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 
-// The contract fields an Image / Snapshot maps (`platform` / `default` /
-// `deprecated` read as false when absent, as in Python).
+// The contract fields an Image / Snapshot maps; a field the contract requires
+// must be present, as in Python.
 const IMAGE: ResponseFields = {
   id: 'string', anonymous: 'boolean', class: 'string', created_at: 'string', updated_at: 'string', origin: 'string',
   region_id: 'string', retention: 'string', status: 'string', format_version: 'integer', format_outdated: 'boolean',
-  region_ids: arrayOf('string'), platform: 'boolean?', default: 'boolean?', deprecated: 'boolean?', name: 'string?',
+  region_ids: arrayOf('string'), platform: 'boolean', default: 'boolean', deprecated: 'boolean', name: 'string?',
   bytes: 'integer?', disk_mib: 'integer?', error: 'string?', expires_at: 'string?', layer_count: 'integer?', source: 'object?',
 }
 const SNAPSHOT: ResponseFields = {
@@ -238,9 +238,9 @@ export class Image implements ImageModel {
     this.status = image.status
     this.formatVersion = image.format_version
     this.formatOutdated = image.format_outdated
-    this.platform = image.platform === true
-    this.default = image.default === true
-    this.deprecated = image.deprecated === true
+    this.platform = image.platform
+    this.default = image.default
+    this.deprecated = image.deprecated
     this.diskMib = image.disk_mib ?? null
     // An SDK-owned data model with no live state: frozen at run time.
     Object.freeze(this)

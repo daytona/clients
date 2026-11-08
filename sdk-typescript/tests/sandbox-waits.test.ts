@@ -45,7 +45,7 @@ describe('sandbox wait budgets', () => {
     // Given a wait that sees a non-target state first, then the target.
     jest.useFakeTimers({ now: 0 })
     const api = createHttpClient('http://api.invalid')
-    const detail = { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] }
+    const detail = { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
     const get = jest.spyOn(api, 'get')
       .mockImplementationOnce(async () => { jest.setSystemTime(10_000); return { data: { ...detail, status: 'pending' } } })
       .mockImplementationOnce(async () => ({ data: { ...detail, status: 'running' } }))
@@ -74,7 +74,7 @@ describe('sandbox wait budgets', () => {
     // Given a deterministic clock and an immediately completed long poll.
     jest.useFakeTimers()
     const api = createHttpClient('http://api.invalid')
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const sandbox = createSandbox('sbx', api)
     // When a wait draws a read from the available budget.
     await sandbox.wait({ timeoutSeconds })
@@ -123,7 +123,7 @@ describe('sandbox wait budgets', () => {
     const api = createHttpClient('http://api.invalid')
     jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
     jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const sandbox = createSandbox('sbx', api)
     // When a quarter-second budget elapses.
     const result = expect(sandbox[operation]({ timeoutSeconds: 0.25 })).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
@@ -136,7 +136,7 @@ describe('sandbox wait budgets', () => {
     // Given a deterministic clock and an immediately ready response.
     jest.useFakeTimers()
     const api = createHttpClient('http://api.invalid')
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const sandbox = createSandbox('sbx', api)
     // When waiting for half a millisecond.
     const result = await sandbox.wait({ timeoutSeconds: 0.0005 })
@@ -149,7 +149,7 @@ describe('sandbox wait budgets', () => {
     // Given an API that continues to report a starting sandbox.
     jest.useFakeTimers()
     const api = createHttpClient('http://api.invalid')
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const sandbox = createSandbox('sbx', api)
     let finished = false
     const result = sandbox.wait().catch((error: unknown) => error).finally(() => { finished = true })
@@ -179,7 +179,7 @@ describe('sandbox wait budgets', () => {
     const api = createHttpClient('http://api.invalid')
     jest.spyOn(api, 'get').mockImplementation(async () => {
       jest.setSystemTime(Date.now() + 120_000)
-      return { data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } }
+      return { data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
     })
     const sandbox = createSandbox('sbx', api)
     // When waiting without a deadline.
@@ -212,7 +212,7 @@ describe('sandbox wait budgets', () => {
     jest.spyOn(WaitHub.prototype, 'enabled', 'get').mockReturnValue(true)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unexpected websocket') }, api)
     jest.spyOn(hub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', memory_mib: 513, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, port_map: [] } })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', memory_mib: 513, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [] } })
     const sandbox = createSandbox('sbx', api, undefined, undefined, undefined, {}, undefined, undefined, hub)
     // When the socket completes the wait.
     await sandbox.wait()

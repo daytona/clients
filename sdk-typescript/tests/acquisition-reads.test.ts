@@ -18,7 +18,7 @@ it.each([new ClientTimeoutError(), new ConnectionError('unreachable')])('returns
   // Given a successful create POST and a failed wait request.
   const client = clientAt('http://api.invalid')
   const api = client.v2['api']
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending', name: 'created', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending', name: 'created', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
   jest.spyOn(api, 'get').mockRejectedValue(error)
   try {
     // When waiting after successful submission.
@@ -34,7 +34,7 @@ it.each([new TypeError('bug'), new TransferCancelledError()])('propagates a non-
   // Given a successful POST followed by a bug or caller cancellation.
   const client = clientAt('http://api.invalid')
   const api = client.v2['api']
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending', name: 'created', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending', name: 'created', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
   jest.spyOn(api, 'get').mockRejectedValue(error)
   try {
     // When the post-create wait is interrupted.
@@ -49,7 +49,7 @@ it.each([new TypeError('bug'), new TransferCancelledError()])('propagates a non-
 it.each([404, 408, 500])('returns the POST-derived fork when the detail read fails with %s', async (status) => {
   // Given a successful fork POST but no readable detail metadata.
   const api = await startFakeApi([
-    { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+    { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
     { status, body: { message: 'detail unavailable' } },
   ])
   const source = createSandbox({ id: 'source', class: 'macos', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
@@ -69,10 +69,10 @@ it('charges the fork detail read to the wait budget', async () => {
   // Given a detail read that uses the full fractional wait budget.
   jest.useFakeTimers({ now: 0 })
   const api = createHttpClient('http://api.invalid', undefined, 100)
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
   const get = jest.spyOn(api, 'get').mockImplementation(async () => {
     jest.setSystemTime(250)
-    return { data: { id: 'fork', status: 'pending', class: 'macos', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } }
+    return { data: { id: 'fork', status: 'pending', class: 'macos', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
   })
   const source = createSandbox({ id: 'source', class: 'macos', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api)
   // When acquiring the fork with a quarter-second wait budget.
@@ -86,8 +86,8 @@ it('charges the fork detail read to the wait budget', async () => {
 it('builds a toolbox-less detail handle without fetching the same resource again', async () => {
   // Given a complete API detail response without a toolbox URL.
   const api = await startFakeApi([
-    { status: 200, body: { id: 'sandbox', class: 'linux', status: 'stopped', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
-    { status: 200, body: { id: 'sandbox', status: 'stopped', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+    { status: 200, body: { id: 'sandbox', class: 'linux', status: 'stopped', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
+    { status: 200, body: { id: 'sandbox', status: 'stopped', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
   ])
   const client = clientAt(api.url)
   try {

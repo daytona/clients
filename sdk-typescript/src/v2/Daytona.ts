@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pathSegment } from './pathSegment.js'
 import type { AxiosInstance } from 'axios'
-import { createHttpClient, HttpTransport, strictUriEncode } from './http.js'
+import { createHttpClient, HttpTransport } from './http.js'
 import type { HttpClientOptions } from './http.js'
 import { assertKnownOptions, badRequest, snapshotOptions } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -140,11 +141,8 @@ export class Daytona {
   public async getLimits(options: GetLimitsOptions = {}): Promise<OrganizationLimits> {
     assertKnownOptions('GetLimitsOptions', options, LIMITS_KEYS)
     const organizationId = options.organizationId ?? await this.keyOrganizationId()
-    if (typeof organizationId !== 'string' || isBlank(organizationId)) {
-      throw new BadRequestError('organizationId must be a non-empty string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
     return this.api
-      .get<api.OrganizationLimits>(`/orgs/${strictUriEncode(organizationId)}/limits`)
+      .get<api.OrganizationLimits>(`/orgs/${pathSegment(organizationId, 'organizationId')}/limits`)
       .then((response) => organizationLimits(response.data))
   }
 
@@ -360,7 +358,11 @@ export class Daytona {
   private resolveWithHub(sandbox: Sandbox | string): Sandbox {
     // A bare id is a metadata-less handle for the by-id API operations
     // (no toolbox URL, no fetch); a sandbox object comes from create/get/list.
-    if (typeof sandbox === 'string' && !isBlank(sandbox)) return this.buildSandbox(sandbox)
+    if (typeof sandbox === 'string' && !isBlank(sandbox)) {
+      // The id goes into request paths: refused like any path value.
+      pathSegment(sandbox, 'sandbox')
+      return this.buildSandbox(sandbox)
+    }
     // A wrong type or a blank id is refused before any request, as in Python.
     if (!(sandbox instanceof Sandbox)) throw badRequest('sandbox must be a Sandbox or a non-empty sandbox id')
     const hub = this.acquireHub()

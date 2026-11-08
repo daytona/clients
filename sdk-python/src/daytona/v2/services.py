@@ -18,7 +18,6 @@ from typing import (
     Tuple,
     TypeVar,
 )
-from urllib.parse import quote
 
 import anyio
 
@@ -50,6 +49,7 @@ from ._core import (
     page_params,
     parse_image,
     parse_snapshot,
+    path_segment,
     wait_budget_seconds,
 )
 from ._gen.api import MacReservation as MacReservationWire
@@ -87,17 +87,7 @@ from .types import (
 _T = TypeVar("_T")
 
 
-def _path(value: object, name: str) -> str:
-    """A caller's id or name as one request-path segment: a string that is not
-    blank (Python's whitespace), else :class:`BadRequestError` naming
-    ``name``, before any request."""
-    if not isinstance(value, str) or not value.strip():
-        raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-    # A surrogate code point has no UTF-8 form (quote() would raise
-    # UnicodeEncodeError); TypeScript refuses a lone surrogate the same way.
-    if any("\ud800" <= char <= "\udfff" for char in value):
-        raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
-    return quote(value, safe="")
+_path = path_segment
 
 
 def _additional_cursor_from_mapping(payload: Mapping[str, JsonValue]) -> Optional[str]:

@@ -50,13 +50,13 @@ export function parseLabels(value: unknown, what = 'sandbox'): Readonly<Record<s
 const ARTIFACT_REF: ResponseFields = { id: 'string', name: 'string?' }
 
 // The contract fields the handle reads, required ones without `?` (Python
-// validates the same body against the generated model). A missing
-// `region_id` is derived from the id, as in Python.
+// validates the same body against the generated model). An empty
+// `region_id` is derived from the id, as in Python; a missing one is malformed.
 const SANDBOX: ResponseFields = {
   id: 'string', class: 'string', name: 'string', status: 'string', cpu: 'number', cores_max: 'number',
   memory_mib: 'integer', disk_mib: 'integer',
   port_map: arrayOf(nested({ host_port: 'integer', vm_port: 'integer', proto: 'string' })),
-  region_id: 'string?', memory_max_mib: 'integer?', disk_max_mib: 'integer?', labels: 'object?',
+  region_id: 'string', memory_max_mib: 'integer?', disk_max_mib: 'integer?', labels: 'object?',
   image: nested(ARTIFACT_REF, true), snapshot: nested(ARTIFACT_REF, true), error: 'string?', mac_boot_mode: 'string?',
   image_build_id: 'string?', persistent: 'boolean?', user: 'string?', spot: 'boolean?', spot_evicted_at: 'string?',
   lifecycle_policy: 'object?', forked_from: 'string?', reservation_id: 'string?', toolbox_proxy_url: 'string?',

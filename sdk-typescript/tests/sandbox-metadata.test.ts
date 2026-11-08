@@ -42,7 +42,7 @@ describe('sandbox observed metadata', () => {
 
   it('replaces read-only observations when refreshed', async () => {
     // Given a handle with stale metadata and a real HTTP response.
-    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', name: 'fresh', class: 'future', status: 'future-state', memory_mib: 513, cpu: 1, cores_max: 1, disk_mib: 1024, port_map: [] } }])
+    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', name: 'fresh', class: 'future', status: 'future-state', memory_mib: 513, cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [] } }])
     const sandbox = createSandbox({ id: 'sbx', name: 'stale', class: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
       // When metadata is fetched again.

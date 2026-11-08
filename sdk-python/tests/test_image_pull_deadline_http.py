@@ -57,9 +57,9 @@ def pull_peer(phase: int, delay: float | None, *, ready: bool = False) -> Iterat
             payload = (
                 b'{"message":"fixture request timeout","code":"REQUEST_TIMEOUT","source":"API"}'
                 if target and not ready
-                else b'{"id":"img-pull","class":"linux","updated_at":"2026-01-01T00:00:00Z","retention":"permanent","region_ids":[],"anonymous":false,"format_version":1,"format_outdated":false,"status":"ready","region_id":"region-c","origin":"registry","created_at":"2026-01-01T00:00:00Z"}'
+                else b'{"id":"img-pull","class":"linux","updated_at":"2026-01-01T00:00:00Z","retention":"permanent","region_ids":[],"anonymous":false,"format_version":1,"format_outdated":false,"platform":false,"default":false,"deprecated":false,"status":"ready","region_id":"region-c","origin":"registry","created_at":"2026-01-01T00:00:00Z"}'
                 if target and ready
-                else b'{"id":"img-pull","class":"linux","updated_at":"2026-01-01T00:00:00Z","retention":"permanent","region_ids":[],"anonymous":false,"format_version":1,"format_outdated":false,"status":"building","region_id":"region-c","origin":"registry","created_at":"2026-01-01T00:00:00Z"}'
+                else b'{"id":"img-pull","class":"linux","updated_at":"2026-01-01T00:00:00Z","retention":"permanent","region_ids":[],"anonymous":false,"format_version":1,"format_outdated":false,"platform":false,"default":false,"deprecated":false,"status":"building","region_id":"region-c","origin":"registry","created_at":"2026-01-01T00:00:00Z"}'
             )
             self.send_response(408 if target and not ready else 200)
             self.send_header("Content-Type", "application/json")

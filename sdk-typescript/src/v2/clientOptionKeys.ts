@@ -170,4 +170,6 @@ export function assertCreateNestedOptions(options: CreateValueOptions): void {
   if (options.name !== undefined && typeof options.name !== 'string') throw badRequest('name must be a string')
   for (const key of ['user', 'cpuArch', 'cpuType', 'reservation'] as const) optionalTyped(options, key, 'string')
   for (const key of ['spot', 'persistent', 'autoRenew', 'autoDelete'] as const) optionalTyped(options, key, 'boolean')
+  // The platform's architectures (the contract's CpuArchitecture), as for the image option: SDK inputs are closed.
+  if (options.cpuArch !== undefined && options.cpuArch !== 'amd64' && options.cpuArch !== 'arm64') throw badRequest('cpuArch must be "amd64" or "arm64"')
 }

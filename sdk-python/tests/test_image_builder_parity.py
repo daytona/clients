@@ -117,6 +117,9 @@ async def test_images_pull_strips_the_ref_and_refuses_a_non_string_before_any_re
         "updated_at": "2026-01-01T00:00:00Z",
         "format_version": 2,
         "format_outdated": False,
+        "platform": False,
+        "default": False,
+        "deprecated": False,
     }
     with FakeApi(
         [PlannedResponse(200, {"id": "img", "status": "pending"}), PlannedResponse(200, image)]

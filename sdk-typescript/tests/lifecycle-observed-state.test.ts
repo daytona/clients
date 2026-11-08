@@ -30,7 +30,7 @@ it.each([
   jest.spyOn(hub, 'wait').mockResolvedValue({ state, rawState })
   jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
   const get = jest.spyOn(api, 'get')
-  if (method === 'start') get.mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+  if (method === 'start') get.mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
   get.mockRejectedValue(new ConnectionError('refresh unavailable'))
   const sandbox = createSandbox('sbx', api, undefined, undefined, undefined, {}, undefined, undefined, hub)
   // When the lifecycle wait observes its target.
@@ -45,7 +45,7 @@ it('keeps the state a successful refresh reads after the hub observed the target
   const api = createHttpClient('http://api.invalid')
   const hub = new WaitHub('http://api.invalid', 'key', { enabled: true }, async () => { throw new Error('unexpected socket') }, api)
   jest.spyOn(hub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
-  jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'stopping', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+  jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'stopping', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
   const sandbox = createSandbox('sbx', api, undefined, undefined, undefined, {}, undefined, undefined, hub)
   // When the wait resolves and the refresh succeeds.
   await sandbox.wait()

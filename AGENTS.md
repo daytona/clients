@@ -88,9 +88,10 @@ the root config's v0 routing: Python forwards `connection_pool_maxsize` to
 TypeScript SDK has no pool-size setting (`ROOT_CONFIG_ROUTING` in both SDKs
 records it). Another: TypeScript `get()`, `create*()` and `fork()` take
 `autoDelete` (dispose the sandbox with `await using`); Python has no
-counterpart, because its handles have no disposal hook. A third:
-TypeScript's `ImageBuilder` has `user()`, `cmd()` and `entrypoint()`, which
-Python's lacks (adding them to Python later is additive). Both roots copy the config's fields once, when the client is
+counterpart, because its handles have no disposal hook. A known gap, not a
+decision: TypeScript's `ImageBuilder` has `user()`, `cmd()` and `entrypoint()`,
+which are TypeScript-only for now; Python can gain them in a 2.x minor
+(additive). Both roots copy the config's fields once, when the client is
 built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
 caller's object have no effect, and URL fields are refused before and after
 the copy (a getter or property could otherwise add one while it is read).

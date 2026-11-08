@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pathSegment } from './pathSegment.js'
 import { pageParams } from './pageParams.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -66,8 +67,8 @@ export async function getSandbox(context: SandboxClientContext, id: string, opti
   options = snapshotOptions('SandboxConnectOptions', options, CONNECT_KEYS) ?? {}
   if (options.autoDelete !== undefined && typeof options.autoDelete !== 'boolean') throw badRequest('autoDelete must be a boolean')
   // A blank id would read the sandbox list: refused before any request, as in Python.
-  if (typeof id !== 'string' || isBlank(id)) throw badRequest('sandboxId must be a non-empty string')
-  const sandbox = await context.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(id)}`, undefined).then((response) => response.data)
+  const segment = pathSegment(id, 'sandboxId')
+  const sandbox = await context.api.get<api.Sandbox>(`/sandboxes/${segment}`, undefined).then((response) => response.data)
   assertSandboxResponse(sandbox)
   return context.buildSandbox(sandbox, options)
 }

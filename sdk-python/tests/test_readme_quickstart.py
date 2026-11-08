@@ -46,6 +46,9 @@ def test_readme_quickstart_waits_for_import_and_deletion(
                     "retention": "permanent",
                     "format_version": 1,
                     "format_outdated": False,
+                    "platform": False,
+                    "default": False,
+                    "deprecated": False,
                 },
             )
             for status in ("pending", "building", "ready")

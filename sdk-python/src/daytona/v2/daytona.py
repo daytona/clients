@@ -57,6 +57,7 @@ from ._core import (
     page_params,
     parse_search_page,
     parse_timestamp,
+    path_segment,
     sandbox_state,
     search_params,
     wait_budget_seconds,
@@ -848,13 +849,10 @@ class AsyncDaytona:
         ``access_token`` is a sandbox access token the handle sends to sandbox
         services instead of minting its own; the handle never replaces it.
         """
-        if not isinstance(sandbox_id, str) or not sandbox_id.strip():
-            # A blank id would read the sandbox list: refused before any request.
-            raise create_error("sandbox_id must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        # A blank id would read the sandbox list: refused before any request.
+        segment = path_segment(sandbox_id, "sandbox_id")
         return self._sandbox_from_sandbox(
-            sandbox_detail_wire(
-                await self._api.send(RequestSpec("GET", f"/sandboxes/{quote(sandbox_id, safe='')}"))
-            ),
+            sandbox_detail_wire(await self._api.send(RequestSpec("GET", f"/sandboxes/{segment}"))),
             toolbox_url=toolbox_url,
             access_token=access_token,
             access_token_caller_supplied=access_token is not None,
@@ -938,10 +936,10 @@ class AsyncDaytona:
         not included: they are served to signed-in members only.
         """
         org_id = organization_id if organization_id is not None else await self._key_organization_id()
-        if not isinstance(org_id, str) or not org_id.strip():
-            raise create_error("organization_id must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         return expect_organization_limits(
-            await self._api.send(RequestSpec("GET", f"/orgs/{quote(org_id, safe='')}/limits"))
+            await self._api.send(
+                RequestSpec("GET", f"/orgs/{path_segment(org_id, 'organization_id')}/limits")
+            )
         )
 
     async def _key_organization_id(self) -> str:
@@ -1198,6 +1196,8 @@ class AsyncDaytona:
             raise create_error(
                 "sandbox must be a Sandbox or a non-empty sandbox id", 400, "BAD_REQUEST", "SDK"
             )
+        # The id goes into request paths: refused like any path value.
+        path_segment(sandbox, "sandbox")
         return self._sandbox_by_id(sandbox)
 
     def _acquire_hub(self) -> Optional[WaitHub]:
@@ -1648,6 +1648,10 @@ def _create_body(config: CreateConfig) -> CreateBody:
         ("auto_renew", bool, "a boolean"),
     ):
         _optional_typed(config, key, kind, description)
+    # The platform's architectures (the contract's CpuArchitecture), as for the
+    # image option: SDK inputs are closed.
+    if config.get("cpu_arch") is not None and config.get("cpu_arch") not in ("amd64", "arm64"):
+        raise create_error('cpu_arch must be "amd64" or "arm64"', 400, "BAD_REQUEST", "SDK")
     body: CreateBody = {}
     if not source_omitted:
         body[source_kind] = source

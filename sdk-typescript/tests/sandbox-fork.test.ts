@@ -12,7 +12,7 @@ describe('sandbox fork completion', () => {
 
   it('refuses a fork when the fresh source metadata changes to an unknown class', async () => {
     // Given a previously known class and a newer server response outside the vocabulary.
-    const api = await startFakeApi([{ status: 200, body: { id: 'source', class: 'future-class', status: 'running', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } }])
+    const api = await startFakeApi([{ status: 200, body: { id: 'source', class: 'future-class', status: 'running', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }])
     const sandbox = createSandbox({ id: 'source', class: 'linux', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
       // When a waiting fork refreshes its source before submission.
@@ -50,10 +50,10 @@ describe('sandbox fork completion', () => {
   ])('waits for $expected from Linux $source with memory=$memory', async ({ source, memory, interim, result, expected }) => {
     // Given a stale source and a fork that passes through another resting state.
     const api = await startFakeApi([
-      { status: 200, body: { id: 'source', class: 'linux', status: source, name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
-      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
-      { status: 200, body: { id: 'fork', class: 'linux', status: interim, name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
-      { status: 200, body: { id: 'fork', class: 'linux', status: result, name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+      { status: 200, body: { id: 'source', class: 'linux', status: source, name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
+      { status: 200, body: { id: 'fork', class: 'linux', status: interim, name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
+      { status: 200, body: { id: 'fork', class: 'linux', status: result, name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'linux', status: 'running', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
@@ -73,8 +73,8 @@ describe('sandbox fork completion', () => {
   it.each(['running', 'stopped'])('accepts macOS fork completion at %s without reading source state', async (status) => {
     // Given a known macOS class and a fork that settles independently of cached source state.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
-      { status: 200, body: { id: 'fork', class: 'macos', status, name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
+      { status: 200, body: { id: 'fork', class: 'macos', status, name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'macos', status: 'paused', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
@@ -93,7 +93,7 @@ describe('sandbox fork completion', () => {
   it('returns at acceptance with waitSeconds=0 and keeps source overrides out of the fork', async () => {
     // Given a source using a per-sandbox URL/token and a separate fork toolbox URL.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'linux', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url), undefined, undefined, undefined, {
       toolboxUrl: 'https://source-toolbox.invalid', accessToken: 'source-fixture', autoDelete: true,
@@ -118,7 +118,7 @@ describe('sandbox fork completion', () => {
   it('opts a fork into deletion independently of its source', async () => {
     // Given a persistent source and an explicitly auto-deleting fork.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
       { status: 202, body: {} },
       { status: 404, body: { code: 'NOT_FOUND' } },
     ])
@@ -138,9 +138,9 @@ describe('sandbox fork completion', () => {
   it('returns the observed handle when the fork reaches a terminal state', async () => {
     // Given an accepted macOS fork that fails during provisioning.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
-      { status: 200, body: { id: 'fork', class: 'macos', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
-      { status: 200, body: { id: 'fork', class: 'linux', status: 'failed', error: 'provisioning failed', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
+      { status: 200, body: { id: 'fork', class: 'macos', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
+      { status: 200, body: { id: 'fork', class: 'linux', status: 'failed', error: 'provisioning failed', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'macos', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
@@ -157,8 +157,8 @@ describe('sandbox fork completion', () => {
     // Given an accepted fork that stays queued.
     jest.useFakeTimers()
     const api = createHttpClient('http://api.invalid')
-    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } })
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'fork', class: 'macos', status: 'queued', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
+    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'fork', class: 'macos', status: 'queued', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const sandbox = createSandbox({ id: 'source', class: 'macos', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api)
     // When the wait budget expires.
     const pending = sandbox.fork({ waitSeconds: 0.25 })
@@ -171,8 +171,8 @@ describe('sandbox fork completion', () => {
   it.each([403, 408])('returns the fork when a wait read fails with HTTP %s', async (status) => {
     // Given an accepted fork with pending detail metadata.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
-      { status: 200, body: { id: 'fork', class: 'macos', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes' } },
+      { status: 200, body: { id: 'fork', class: 'macos', status: 'pending', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
       { status, body: { code: status === 408 ? 'REQUEST_TIMEOUT' : 'FORBIDDEN', source: 'DAYTONA_API', message: 'request failed' } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'macos', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
