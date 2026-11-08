@@ -43,7 +43,7 @@ Homebrew (macOS / Linux):
 | Formula | Installs |
 |---|---|
 | `daytonaio/cli/daytona` | stable 2.x releases as `daytona` (until `2.0.0` is out, the 0.x CLI) |
-| `daytonaio/cli/daytona-rc` | 2.x release candidates as `daytona` |
+| `daytonaio/cli/daytona-rc` | 2.x release candidates as `daytona`, from the first 2.x rc on |
 | `daytonaio/cli/daytona-alpha` | 2.x alpha releases as `daytona` |
 | `daytonaio/cli/daytona@0` | the 0.x CLI as `daytona-v0`, beside any of the above |
 

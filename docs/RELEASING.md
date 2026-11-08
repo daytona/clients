@@ -177,6 +177,14 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
   published. Re-running the failed publish job of the same run (*Re-run
   failed jobs*, one more approval) resumes the same way. Nothing is ever
   overwritten; registries refuse re-uploads regardless.
+- A run cancelled while it created the CLI release can leave a **draft**
+  release under the tag (`gh release create` uploads the assets to a draft and
+  publishes it at the end). The resume refuses a draft, because it cannot
+  tell who made it. Check that the draft is that run's (title
+  `daytona CLI <version>`, no other edits), delete it
+  (`gh release delete v<version> --repo daytona/clients`, keeping the tag if
+  it exists), and re-run the failed publish job: the release is created again
+  from the same build.
 - The run's **Summary** page lists what was published to which registry, from
   which branch and commit, with install commands and registry links.
 
@@ -269,6 +277,16 @@ at least a MINOR release even without a spec change
    (records the new `v0Version` / `v0Exports`), then
    `node upgrade/scripts/sync-mapping.mjs` and
    `node upgrade/scripts/gen-guide.mjs`, and add a changelog fragment.
+3. **Check the dependencies the bundle merges:** run
+   `bash scripts/bundle-v0.sh --lang typescript`, then
+   `bash scripts/check-no-bundled-v0.sh --check-list`. It names every
+   runtime dependency the new release merges into `sdk-typescript/package.json`
+   that `v0_only` in `scripts/check-no-bundled-v0.sh` does not list yet; add
+   those names there (and update the release named in its comment), in the
+   same pull request. Discard the bundle afterwards
+   (`bash scripts/bundle-v0.sh --clean`, then `git checkout --
+   sdk-typescript/package.json sdk-typescript/package-lock.json`). CI runs the
+   same check on a real bundle.
 
 > **Registries reject re-uploading an existing version.** A version is
 > published once. If a publish half-fails, re-run the failed publish job, or

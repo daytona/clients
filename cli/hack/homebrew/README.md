@@ -7,7 +7,7 @@ changed there. This repository keeps no copy of them.
 | Formula | Follows | Tap workflow (event) | Updated by |
 |---|---|---|---|
 | `daytona` | stable `vX.Y.Z` | `brew_publish.yaml` (`update-version`) | the 0.x line until the first stable 2.x release, then this line |
-| `daytona-rc` | `vX.Y.Z-rc.N` | `brew_publish_rc.yaml` (`update-version-rc`) | this line |
+| `daytona-rc` | `vX.Y.Z-rc.N` | `brew_publish_rc.yaml` (`update-version-rc`) | this line, from the first 2.x rc on (until then it holds an older release candidate from another repository) |
 | `daytona-alpha` | `vX.Y.Z-alpha.N` | `brew_publish_alpha.yaml` (`update-version-alpha`) | this line |
 | `daytona@0` | stable `v0.X.Y`, as `daytona-v0` | `brew_publish_v0.yaml` (`update-version-v0`) | the 0.x line |
 

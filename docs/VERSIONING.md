@@ -4,10 +4,11 @@ The Daytona SDKs — Python [`daytona`](https://pypi.org/project/daytona/)
 (import `daytona`) and TypeScript [`@daytona/sdk`](https://www.npmjs.com/package/@daytona/sdk) —
 and the `daytona` CLI carry the **platform version**: a
 [Semantic Versioning 2.0.0](https://semver.org/) `MAJOR.MINOR.PATCH`, with a
-`-alpha.N` / `-rc.N` pre-release identifier on a pre-release: before `2.0.0`
-every release, after it the releases that lead up to a stable one (see
-[Pre-releases](#pre-releases); PyPI uses the PEP 440 spelling of the same
-number, see below).
+`-alpha.N` / `-rc.N` pre-release identifier on a pre-release: on the way to
+`2.0.0`, every 2.x release; after it, the releases that lead up to a stable
+one (see [Pre-releases](#pre-releases); PyPI uses the PEP 440 spelling of the
+same number, see below). The 0.x line on `release/v0` publishes its own stable
+`0.X.Y` releases.
 
 ## One version line
 
@@ -199,11 +200,10 @@ advice are in [RELEASING.md](RELEASING.md), "The version picks the channel").
 Users on the rc never move to an alpha through an upgrade command; they
 install the alpha explicitly (`npm install @daytona/sdk@alpha`,
 `pip install daytona==2.0.0aN`). The collision also binds the version space:
-a future `v2.0.0-rc.1` can never publish, because the publish workflow's gate
-refuses a version that already exists on either registry
-(its `force_republish` resume switch skips an already-published target, it
-never overwrites one) — the first rc that ships will be `v2.0.0-rc.2` or
-later. Deprecating the npm
+a future `v2.0.0-rc.1` can never publish: the publish workflow's gate
+refuses it by name in every mode, including a `force_republish` resume (which
+would otherwise take the old packages as this release's SDKs and publish the
+rest around them) — the first rc that ships will be `v2.0.0-rc.2` or later. Deprecating the npm
 rc (`npm deprecate`) or yanking the PyPI one is the maintainers' call and is
 not done by any workflow.
 
