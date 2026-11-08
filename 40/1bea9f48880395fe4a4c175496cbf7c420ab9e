@@ -1,0 +1,22 @@
+docs/VERSIONING.md
+  s_38ebc15778ccce::t_7dadf3a3daab3b 93-102
+  s_38ebc15778ccce::t_bbb0f72d83c929 103-104
+changelog.d/ga-versioning-policy.changed.md
+  s_38ebc15778ccce::t_659e8ba9161568 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "401bea9f48880395fe4a4c175496cbf7c420ab9e",
+  "prompts": {},
+  "sessions": {
+    "s_38ebc15778ccce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d72dcffeAkVTofnSAe9VO0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
