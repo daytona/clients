@@ -135,6 +135,7 @@ ROOT_EXPORTS = [
     "GitBranchExistsError",
     "GitBranchNotFoundError",
     "GitCommitResponse",
+    "GitConfigScope",
     "GitRepoNotFoundError",
     "AsyncGitService",
     "GitStatus",

@@ -1150,11 +1150,11 @@ async def test_a_git_remote_timeout_of_zero_is_no_limit_like_every_other_timeout
     assert [spec.timeout for spec in transport.specs] == [0, 0, 0]
 
 
-@pytest.mark.parametrize("argv", ["ls -la", [], ["ls", 5]])
+@pytest.mark.parametrize("argv", ["ls -la", [], ["ls", 5], {"ls": "-la"}, (part for part in ["ls"])])
 @pytest.mark.anyio
 async def test_start_refuses_an_argv_that_is_not_a_list_of_strings(argv: object) -> None:
     transport = Transport()
-    with pytest.raises(BadRequestError, match="argv must be a non-empty list of strings"):
+    with pytest.raises(BadRequestError, match="argv must be a non-empty sequence of strings"):
         await AsyncProcessService("sbx", transport).start(argv=argv)  # type: ignore[arg-type]
     assert transport.specs == []
 
@@ -1566,3 +1566,162 @@ def test_the_wire_duration_limit_is_checked_before_rounding_like_the_typescript_
     assert timeout_millis_from_seconds(9_007_199_254_740.991) is not None
     with pytest.raises(BadRequestError, match="timeout is too large"):
         timeout_millis_from_seconds(9_007_199_254_740.992)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "2026-01-01T24:00:00Z",
+        "2026-01-01T23:60:00Z",
+        "2026-12-31T23:59:60Z",
+        "2026-13-01T00:00:00Z",
+        "2026-00-01T00:00:00Z",
+        "2026-01-00T00:00:00Z",
+        "2026-01-32T00:00:00Z",
+        "2026-02-30T00:00:00Z",
+        "2026-01-01T00:00:00+24:00",
+        "2026-01-01T00:00:00+05:60",
+        "0000-01-01T00:00:00Z",
+    ],
+)
+def test_timestamp_field_ranges_match_the_typescript_sdk_exactly(value: str) -> None:
+    from daytona.v2._timestamps import parse_timestamp
+
+    with pytest.raises(BadRequestError, match="not an RFC 3339 timestamp"):
+        parse_timestamp(value, "field")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("escalate_after", "message"),
+    [(-1, "escalate_after must be a non-negative"), (1e13, "escalate_after is too large")],
+)
+async def test_kill_names_escalate_after_in_its_errors(escalate_after: float, message: str) -> None:
+    transport = Transport()
+    with pytest.raises(BadRequestError, match=message):
+        await AsyncProcessService("sbx", transport).connect("p").kill(escalate_after=escalate_after)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.anyio
+async def test_a_created_process_record_with_an_empty_id_is_refused() -> None:
+    with pytest.raises(BadRequestError, match="process response: id is required"):
+        await AsyncProcessService("sbx", Transport([_process(id="")])).start("x")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("filename", ["%zz", "%ff"])
+def test_read_many_refuses_a_file_part_with_a_bad_filename_star(filename: str) -> None:
+    from daytona.v2._core import parse_bulk_read_result
+
+    part = (
+        b"--DAYTONA-FILE-BOUNDARY\r\n"
+        b"Content-Disposition: form-data; name=\"file\"; filename*=utf-8''" + filename.encode() + b"\r\n\r\n"
+        b"x\r\n--DAYTONA-FILE-BOUNDARY--\r\n"
+    )
+    with pytest.raises(BadRequestError, match="filename\\* is not valid percent-encoded UTF-8"):
+        parse_bulk_read_result(part)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("context", [5, None, ""])
+async def test_delete_context_refuses_an_id_that_is_not_a_non_empty_string(context: object) -> None:
+    transport = Transport()
+    interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="interpreter context id must be a non-empty string"):
+        await interpreter.delete_context(context)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.anyio
+async def test_pty_start_refuses_a_terminal_that_is_not_a_terminal_size() -> None:
+    transport = Transport()
+    pty = AsyncPtyService(AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="terminal must be a TerminalSize"):
+        await pty.start(terminal={"cols": 80, "rows": 24})  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("scope", ["system", "", None])
+async def test_git_config_refuses_a_scope_other_than_global_or_local(scope: object) -> None:
+    transport = Transport()
+    git = AsyncGitService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="scope must be 'global' or 'local'"):
+        await git.get_config("user.name", scope=scope)  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="scope must be 'global' or 'local'"):
+        await git.set_config("user.name", "Ada", scope=scope)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.anyio
+async def test_git_config_local_without_path_is_forwarded_for_the_toolbox_to_judge() -> None:
+    transport = Transport([{"value": None}])
+    await AsyncGitService(transport).get_config("user.name", scope="local")  # type: ignore[arg-type]
+    assert transport.specs[0].params == {"key": "user.name", "scope": "local"}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("event", "message"),
+    [
+        ('{"type":"create","name":"a","timestamp":1}', "isDir is required"),
+        ('{"type":"create","name":"a","isDir":1,"timestamp":1}', "isDir must be a boolean"),
+    ],
+)
+async def test_watch_event_errors_say_required_or_wrong_type(event: str, message: str) -> None:
+    stream = _WatchStream(["event: start", "data: {}", "", "event: fs", f"data: {event}", ""])
+    handle = await AsyncFileSystemService(_WatchTransport(stream)).watch_dir("/w", lambda _e: None)  # type: ignore[arg-type]
+
+    error = await asyncio.wait_for(handle.wait_for_exit(), timeout=2)
+    assert isinstance(error, BadRequestError)
+    assert message in str(error)
+
+
+@pytest.mark.anyio
+async def test_a_bare_array_list_names_the_malformed_item() -> None:
+    fs = AsyncFileSystemService(Transport([[{"file": "/a", "line": 1, "content": "x"}, 5]]))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=r"grep response: items\[1\] must be an object"):
+        await fs.grep("/", "x")
+
+
+@pytest.mark.anyio
+async def test_start_accepts_a_tuple_argv() -> None:
+    transport = Transport([_process()])
+    await AsyncProcessService("sbx", transport).start(argv=("ls", "-la"))  # type: ignore[arg-type]
+    assert transport.specs[0].json_body["argv"] == ["ls", "-la"]  # type: ignore[index]
+
+
+@pytest.mark.anyio
+async def test_an_isolated_run_runs_in_and_deletes_the_id_the_sandbox_returned() -> None:
+    session = {"id": "server-chosen", "kernel": "python"}
+    process = _process(id="code", kind="code")
+    transport = Transport(
+        [
+            session,
+            process,
+            {"reason": "exited", "exitCode": 0},
+            {"frames": [], "nextCursor": "0", "truncatedHead": False, "eof": True},
+            None,
+        ]
+    )
+    interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
+
+    await interpreter.run("1", isolated=True)
+
+    code_spec = next(spec for spec in transport.specs if spec.path == "/processes")
+    assert code_spec.json_body["sessionId"] == "server-chosen"  # type: ignore[index]
+    assert transport.specs[-1].method == "DELETE"
+    assert transport.specs[-1].path == "/sessions/server-chosen"
+
+
+@pytest.mark.anyio
+async def test_list_contexts_says_items_must_be_a_list() -> None:
+    transport = Transport([{"items": "x"}])
+    interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="session list response: items must be a list"):
+        await interpreter.list_contexts()

@@ -104,7 +104,12 @@ function contentDispositionName(header: string): string | undefined {
 function contentDispositionFilename(header: string): string | undefined {
   const filenameStar = /filename\*=utf-8''([^;]+)/i.exec(header)?.[1]
   if (filenameStar !== undefined) {
-    return decodeURIComponent(filenameStar)
+    try {
+      return decodeURIComponent(filenameStar)
+    } catch {
+      // Bad percent-encoding or invalid UTF-8: malformed, as in the Python SDK.
+      throw malformedResponse('bulk download file part: filename* is not valid percent-encoded UTF-8')
+    }
   }
   return /filename="([^"]*)"/i.exec(header)?.[1]
 }

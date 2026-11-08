@@ -108,6 +108,9 @@ function documentationFromWire(wire: WireRecord, d: string): string | LspMarkupC
   const documentation = wire.documentation
   if (documentation === undefined || documentation === null) return undefined
   if (typeof documentation === 'string') return documentation
+  if (typeof documentation !== 'object' || Array.isArray(documentation)) {
+    throw malformedResponse(`${d}: documentation must be a string or a markup content with kind and value`)
+  }
   const markup = record(documentation, `${d}: documentation`)
   return { kind: str(markup, 'kind', `${d}: documentation`), value: str(markup, 'value', `${d}: documentation`) }
 }

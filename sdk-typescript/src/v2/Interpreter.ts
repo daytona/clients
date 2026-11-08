@@ -526,6 +526,7 @@ export class InterpreterService {
     const contextId = typeof context === 'string'
       ? context
       : assertContextBelongsToSandbox(context, this.sandboxId).contextId
+    if (typeof contextId !== 'string' || contextId === '') throw badRequest('interpreter context id must be a non-empty string')
     await this.deleteContextQueue(contextId, this.contextQueues.get(contextId), false)
   }
 
@@ -562,7 +563,9 @@ export class InterpreterService {
       // the same caller budget as the execution itself (matches Python).
       const startedAt = Date.now()
       const sessionId = isolatedContextId(language)
-      const sessionQueue = this.queueFor(sessionId)
+      // The response is the truth: run in and clean up the id the sandbox
+      // returned (its queue), even if it differs from the requested one.
+      let cleanupId = sessionId
       try {
         const created = interpreterSessionFromWire(await this.transport.post<toolbox.SessionDto>('/sessions', {
           id: sessionId,
@@ -570,13 +573,14 @@ export class InterpreterService {
           cwd: options.cwd,
           env: options.env,
         }, setupConfig(timeoutMs, timeoutMs)), sessionId)
+        cleanupId = created.id
         const remaining = remainingBudgetMs(timeoutMs, startedAt)
         if (timeoutMs !== undefined && timeoutMs > 0 && remaining !== undefined && remaining <= 0) {
           throw createDaytonaError('interpreter run timed out while creating its isolated context', 408, 'REQUEST_TIMEOUT', 'SDK')
         }
         return await runContext(this.bindContext(created.id, language), code, options.cwd, remaining)
       } finally {
-        await this.deleteContextBestEffort(sessionId, sessionQueue)
+        await this.deleteContextBestEffort(cleanupId, this.queueFor(cleanupId))
       }
     }
     return this.queueFor(implicitContextId(language)).run(

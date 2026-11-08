@@ -231,6 +231,7 @@ class RecordingService:
         return self._bridge.call(lambda: self._impl.delete(id))
 
     def download(self, id: str) -> bytes:
+        """Download a recording, holding the whole file in memory."""
         return self._bridge.call(lambda: self._impl.download(id))
 
     def get(self, id: str) -> ComputerUseRecording:

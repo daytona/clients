@@ -93,7 +93,7 @@ class FileSystemService:
         )
 
     def read_bytes(self, path: str) -> bytes:
-        """Read a file as bytes."""
+        """Read a file as bytes, holding the whole file in memory."""
         return self._bridge.call(lambda: self._impl.read_bytes(path))
 
     def read_many(self, paths: Sequence[str]) -> BulkReadResult:

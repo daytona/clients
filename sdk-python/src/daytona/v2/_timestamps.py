@@ -13,8 +13,13 @@ from .errors import create_error
 
 # ``fromisoformat`` on Python 3.10 accepts neither ``Z`` nor a fraction of
 # other than 3 or 6 digits, both of which RFC 3339 allows (Go emits up to 9).
+# The ranges match the TypeScript SDK's ``isRfc3339`` exactly: month 01-12,
+# hour 00-23, minute and second 00-59 (no leap second), offset hours 00-23 and
+# minutes 00-59; the year (0001-9999) and the day for its month are checked by
+# ``datetime``, which never normalises an out-of-range value here.
 _RFC3339 = re.compile(
-    r"(?P<date>\d{4}-\d{2}-\d{2})[Tt ](?P<time>\d{2}:\d{2}:\d{2})"
+    r"(?P<date>\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))[Tt ]"
+    r"(?P<time>(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d)"
     r"(?:\.(?P<fraction>\d+))?(?P<offset>[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)"
 )
 

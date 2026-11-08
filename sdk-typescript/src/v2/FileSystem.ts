@@ -245,7 +245,13 @@ export class FileSystemService {
     if (fileUrlSigner !== undefined) this.fileUrlSigner = fileUrlSigner
   }
 
-  /** Read a file as bytes. */
+  /**
+   * Read a file as bytes, holding the whole file in memory.
+   * The whole response is held in memory. For large files, or content from a
+   * sandbox you do not trust, use `downloadFile()`, which streams to disk with
+   * progress and cancellation; it is Node.js-only, so in a browser the
+   * in-memory reads are the only option.
+   */
   public async readBytes(path: string, options: ReadFileOptions = {}): Promise<Uint8Array> {
     assertKnownOptions('ReadFileOptions', options, READ_FILE_OPTION_KEYS)
     // Through the transport's wrapped method, never the raw axios instance:
@@ -332,7 +338,14 @@ export class FileSystemService {
     return bulkWriteResultFromWire(data)
   }
 
-  /** Read several files in one request; a missing file is an entry in `errors`, not a failure. */
+  /**
+   * Read several files in one request; a missing file is an entry in
+   * `errors`, not a failure.
+   * The whole response is held in memory. For large files, or content from a
+   * sandbox you do not trust, use `downloadFile()`, which streams to disk with
+   * progress and cancellation; it is Node.js-only, so in a browser the
+   * in-memory reads are the only option.
+   */
   public async readMany(paths: readonly string[], options: ReadManyOptions = {}): Promise<BulkReadResult> {
     assertKnownOptions('ReadManyOptions', options, READ_MANY_OPTION_KEYS)
     // postRaw: the body carries per-path errors on non-2xx statuses, which

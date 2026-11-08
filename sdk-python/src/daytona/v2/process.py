@@ -373,7 +373,7 @@ class AsyncProcessHandle:
             signal_spec(
                 self.id,
                 signal=signal,
-                escalate_after_ms=timeout_millis_from_seconds(escalate_after),
+                escalate_after_ms=timeout_millis_from_seconds(escalate_after, "escalate_after"),
                 escalate_to=escalate_to,
             )
         )

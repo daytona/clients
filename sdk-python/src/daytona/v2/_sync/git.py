@@ -91,7 +91,9 @@ class GitService:
         """Delete a branch."""
         return self._bridge.call(lambda: self._impl.delete_branch(path, name))
 
-    def get_config(self, key: str, *, path: Optional[str] = None, scope: str = "global") -> Optional[str]:
+    def get_config(
+        self, key: str, *, path: Optional[str] = None, scope: GitConfigScope = "global"
+    ) -> Optional[str]:
         return self._bridge.call(lambda: self._impl.get_config(key, path=path, scope=scope))
 
     def history(self, path: str) -> ListResult[GitCommit]:
@@ -173,7 +175,9 @@ class GitService:
             lambda: self._impl.restore(path, files, staged=staged, worktree=worktree, source=source)
         )
 
-    def set_config(self, key: str, value: str, *, path: Optional[str] = None, scope: str = "global") -> None:
+    def set_config(
+        self, key: str, value: str, *, path: Optional[str] = None, scope: GitConfigScope = "global"
+    ) -> None:
         return self._bridge.call(lambda: self._impl.set_config(key, value, path=path, scope=scope))
 
     def status(self, path: str) -> GitStatus:

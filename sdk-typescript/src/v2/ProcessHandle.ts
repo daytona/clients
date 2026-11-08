@@ -163,7 +163,9 @@ export class ProcessHandle {
           deadline === undefined ? undefined : { timeout: remainingWaitBudgetMs(deadline) + WAIT_READ_SLACK_MS },
         )
         consecutiveTransportFailures = 0
-        if (record.state === 'terminal') return waitResult(record)
+        // Checked in full, as everywhere a process record is read: a record
+        // without `state` is malformed, never "still running".
+        if (processFromWire(record).state === 'terminal') return waitResult(record)
       } catch (error) {
         if (!(error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw error
         consecutiveTransportFailures += 1

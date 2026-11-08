@@ -13,7 +13,7 @@ import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROC
 import { UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
-import { bool, int, logFrameFromWire, malformedResponse, nonNegativeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
+import { bool, int, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 
@@ -164,7 +164,7 @@ export function commandSpec(command: ProcessCommand): ProcessSpec {
     if (command.cmd !== undefined) throw badRequest('command takes exactly one of cmd or argv')
     const argv: unknown = command.argv
     if (!Array.isArray(argv) || argv.length === 0 || !argv.every((item) => typeof item === 'string')) {
-      throw badRequest('argv must be a non-empty list of strings')
+      throw badRequest('argv must be a non-empty array of strings')
     }
     return { argv: [...argv] as string[] }
   }
@@ -235,7 +235,7 @@ export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
   const timeoutMs = optional(raw, 'timeoutMs', nonNegativeInt, PROCESS)
   const argv = optional(raw, 'argv', strList, PROCESS)
   const info: ProcessInfo = {
-    id: str(raw, 'id', PROCESS),
+    id: nonEmptyStr(raw, 'id', PROCESS),
     kind: knownOrUnknown(rawKind, PROCESS_KINDS), rawKind,
     state: knownOrUnknown(rawState, PROCESS_STATES), rawState,
     cwd: str(raw, 'cwd', PROCESS),

@@ -37,6 +37,13 @@ export function str(input: WireRecord, field: string, description: string): stri
   return value
 }
 
+/** A non-empty string (an id the SDK builds paths and identities from). */
+export function nonEmptyStr(input: WireRecord, field: string, description: string): string {
+  const value = str(input, field, description)
+  if (value === '') throw malformedResponse(`${description}: ${field} is required`)
+  return value
+}
+
 /** A finite number (a fraction such as a utilization). */
 export function num(input: WireRecord, field: string, description: string): number {
   const value = input[field]
@@ -185,7 +192,6 @@ export function bulkWriteResultFromWire(value: unknown): BulkWriteResult {
   return { files, errors: strList(input, 'errors', d) }
 }
 
-/** The `id` and `kernel` of a `SessionDto`, with every field the contract requires checked (as the Python SDK does). */
 /**
  * The `id` and `kernel` of a `SessionDto`, the only fields the SDK reads (as
  * the Python SDK checks them). A missing or empty id is malformed; when the

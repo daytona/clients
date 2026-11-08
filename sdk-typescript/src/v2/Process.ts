@@ -20,7 +20,7 @@ import { requireSessionId, Session } from './Session.js'
 import type { CreateSessionOptions, SessionJSON } from './Session.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 
 // Preserve internal import paths used by the interpreter and other namespaces.
 export { ProcessHandle } from './ProcessHandle.js'
@@ -204,6 +204,8 @@ export class PtyService {
   /** Start a detached PTY process; without `command` it runs the sandbox shell. The terminal defaults to 80×24. */
   public async start(command?: string, options: PtyStartOptions = {}): Promise<ProcessHandle> {
     assertKnownOptions('PtyStartOptions', options, PTY_START_OPTION_KEYS)
+    // Omitted starts the default shell; anything but a string is refused.
+    if (command !== undefined && typeof command !== 'string') throw badRequest('command must be a string')
     const { terminal, stdin, keepLogs, ...rest } = options
     return startProcess(this.transport, this.process.sandboxId, {
       ...rest,

@@ -433,6 +433,12 @@ class AsyncRecordingService:
         )
 
     async def download(self, id: str) -> bytes:
+        """Download a recording, holding the whole file in memory.
+
+        For a large recording, or one from a sandbox you do not trust, download
+        its ``file_path`` with ``sandbox.fs.download_file()``, which streams to
+        disk with progress and cancellation.
+        """
         return await self._transport.raw(
             RequestSpec("GET", f"/computeruse/recordings/{_quote_path_segment(id)}/download", transfer=True)
         )

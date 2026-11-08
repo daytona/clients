@@ -104,27 +104,21 @@ def _watch_spec(path: str, *, recursive: bool) -> RequestSpec:
 
 
 def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
-    event_type = payload.get("type")
-    if not isinstance(event_type, str):
-        raise create_error(
-            "expected filesystem watch event: type must be a string", 400, "BAD_REQUEST", "SDK"
-        )
-    name = payload.get("name")
-    is_dir = payload.get("isDir")
-    timestamp = payload.get("timestamp")
-    if not isinstance(name, str):
-        raise create_error(
-            "expected filesystem watch event: name must be a string", 400, "BAD_REQUEST", "SDK"
-        )
-    if not isinstance(is_dir, bool):
-        raise create_error(
-            "expected filesystem watch event: isDir must be a boolean", 400, "BAD_REQUEST", "SDK"
-        )
-    if not isinstance(timestamp, int) or isinstance(timestamp, bool):
-        raise create_error(
-            "expected filesystem watch event: timestamp must be an integer", 400, "BAD_REQUEST", "SDK"
-        )
-    return FilesystemEvent(type=event_type, name=name, is_dir=is_dir, timestamp_ms=timestamp)
+    def field(name: str, kind: type[_T], expected: str) -> _T:
+        value = payload.get(name)
+        if not isinstance(value, kind) or (kind is int and isinstance(value, bool)):
+            problem = "is required" if value is None else f"must be {expected}"
+            raise create_error(
+                f"expected filesystem watch event: {name} {problem}", 400, "BAD_REQUEST", "SDK"
+            )
+        return value
+
+    return FilesystemEvent(
+        type=field("type", str, "a string"),
+        name=field("name", str, "a string"),
+        is_dir=field("isDir", bool, "a boolean"),
+        timestamp_ms=field("timestamp", int, "an integer"),
+    )
 
 
 # The delivery a watch callback (or ``on_exit``) runs in: set for exactly
@@ -291,7 +285,12 @@ class AsyncFileSystemService:
         self._file_url_signer = _file_url_signer
 
     async def read_bytes(self, path: str) -> bytes:
-        """Read a file as bytes."""
+        """Read a file as bytes, holding the whole file in memory.
+
+        The whole response is held in memory. For large files, or content from a
+        sandbox you do not trust, use :meth:`download_file`, which streams to disk
+        with progress and cancellation.
+        """
         value = await self._transport.raw(file_download_spec(path, timeout=None))
         return value
 
@@ -450,6 +449,10 @@ class AsyncFileSystemService:
 
     async def read_many(self, paths: Sequence[str]) -> BulkReadResult:
         """Read multiple files, buffering each returned file in memory before returning.
+
+        The whole response is held in memory. For large files, or content from a
+        sandbox you do not trust, use :meth:`download_file`, which streams to disk
+        with progress and cancellation.
 
         Non-200 responses raise the typed SDK error inside the transport;
         only a 200 multipart body reaches the parser.

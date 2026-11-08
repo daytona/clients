@@ -12818,7 +12818,7 @@ describe('toolbox surface', () => {
   it.each([['ls -la'], [[]], [['ls', 5]]])('refuses an argv that is not a non-empty list of strings (%p) before any request', async (argv) => {
     const transport = transportStub()
     await expect(new ProcessService(INTERNAL, transport.object, 'sbx').start({ argv } as never))
-      .rejects.toThrow('argv must be a non-empty list of strings')
+      .rejects.toThrow('argv must be a non-empty array of strings')
     expect(transport.post).not.toHaveBeenCalled()
   })
 
@@ -12846,6 +12846,82 @@ describe('toolbox surface', () => {
       .rejects.toThrow(/expected session response: id is required \(context "isolated-python-/)
     expect(transport.post).toHaveBeenCalledTimes(1)
     expect(transport.delete).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['2026-01-01T24:00:00Z', '2026-01-01T23:60:00Z', '2026-12-31T23:59:60Z', '2026-13-01T00:00:00Z', '2026-00-01T00:00:00Z', '2026-01-00T00:00:00Z', '2026-01-32T00:00:00Z', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00+24:00', '2026-01-01T00:00:00+05:60', '0000-01-01T00:00:00Z'])('refuses the out-of-range timestamp %s, exactly as the Python SDK does', async (value) => {
+    const { isRfc3339 } = await import('../src/v2/toolboxModels')
+    expect(isRfc3339(value)).toBe(false)
+  })
+
+  it('checks the record a timed-out wait re-reads, like the Python SDK', async () => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce({ reason: 'timed_out' }).mockResolvedValueOnce({ id: 'p' })
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').wait())
+      .rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    expect(transport.get).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses a created process record with an empty id, like the Python SDK', async () => {
+    const transport = transportStub()
+    transport.post.mockResolvedValueOnce(createdWire({ id: '' }))
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').start('x')).rejects.toThrow('expected process response: id is required')
+  })
+
+  it.each(['%zz', '%ff'])('refuses a bulk download file part with a bad filename* (%s), like the Python SDK', async (filename) => {
+    const { parseBulkReadResult } = await import('../src/v2/filesystemWire')
+    const part = `--DAYTONA-FILE-BOUNDARY\r\nContent-Disposition: form-data; name="file"; filename*=utf-8''${filename}\r\n\r\nx\r\n--DAYTONA-FILE-BOUNDARY--\r\n`
+    expect(() => parseBulkReadResult(new TextEncoder().encode(part))).toThrow('filename* is not valid percent-encoded UTF-8')
+  })
+
+  it.each([5, null, ''])('refuses deleteContext(%p) before any request, like the Python SDK', async (context) => {
+    const transport = transportStub()
+    await expect(new InterpreterService(INTERNAL, transport.object, 'sbx').deleteContext(context as never))
+      .rejects.toThrow(BadRequestError)
+    expect(transport.delete).not.toHaveBeenCalled()
+  })
+
+  it('refuses a PTY command that is not a string; omitted starts the default shell', async () => {
+    const transport = transportStub()
+    const pty = new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object)
+    await expect(pty.start(null as never)).rejects.toThrow('command must be a string')
+    await expect(pty.attach(5 as never)).rejects.toThrow('command must be a string')
+    expect(transport.post).not.toHaveBeenCalled()
+  })
+
+  it.each(['system', ''])('refuses the git config scope %p, like the Python SDK', async (scope) => {
+    const transport = transportStub()
+    const git = new GitService(INTERNAL, transport.object)
+    await expect(git.getConfig('user.name', { scope: scope as never })).rejects.toThrow("scope must be 'global' or 'local'")
+    await expect(git.setConfig('user.name', 'Ada', { scope: scope as never })).rejects.toThrow("scope must be 'global' or 'local'")
+    expect(transport.get).not.toHaveBeenCalled()
+    expect(transport.post).not.toHaveBeenCalled()
+  })
+
+  it('names what a mistyped LSP documentation must be', async () => {
+    const transport = transportStub()
+    transport.post.mockResolvedValue(undefined)
+    const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
+    transport.post.mockResolvedValueOnce({ isIncomplete: false, items: [{ label: 'x', documentation: 7 }] })
+    await expect(server.completions('u', { line: 0, character: 0 })).rejects.toThrow('documentation must be a string or a markup content with kind and value')
+  })
+
+  it('has a standalone LogPage with exactly the five page fields, like the Python SDK', async () => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce({ frames: [], nextCursor: 'c', truncatedHead: false, eof: true, total: 5 })
+    const page = await new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').logs()
+    expect(Object.keys(page).sort()).toEqual(['eof', 'items', 'nextCursor', 'truncatedHead'])
+  })
+
+  it('runs an isolated run in, and deletes, the id the sandbox returned', async () => {
+    const transport = transportStub()
+    transport.post.mockResolvedValueOnce(sessionWire('server-chosen')).mockResolvedValueOnce(createdWire({ id: 'code', kind: 'code' }))
+    transport.get.mockResolvedValueOnce({ reason: 'exited', exitCode: 0 }).mockResolvedValueOnce({ frames: [], nextCursor: '0', truncatedHead: false, eof: true })
+    transport.delete.mockResolvedValue(undefined)
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    await interpreter.run('1', { isolated: true })
+    expect(transport.post.mock.calls[1]?.[1]).toMatchObject({ sessionId: 'server-chosen' })
+    expect(transport.delete.mock.calls).toEqual([['/sessions/server-chosen']])
+    expect(interpreter['contextQueues'].size).toBe(0)
   })
 
   it('rejects filesystem list envelopes without items', async () => {

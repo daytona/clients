@@ -268,8 +268,9 @@ class AsyncInterpreterService:
         payload = expect_object(await self._transport.send(RequestSpec("GET", "/sessions")))
         items = payload.get("items")
         if not isinstance(items, list):
+            problem = "is required" if items is None else "must be a list"
             raise create_error(
-                "expected session list response: items is required", 400, codes.BAD_REQUEST, "SDK"
+                f"expected session list response: items {problem}", 400, codes.BAD_REQUEST, "SDK"
             )
         contexts: list[AsyncInterpreterContext] = []
         for item in items:
@@ -283,6 +284,10 @@ class AsyncInterpreterService:
         if isinstance(context, (AsyncInterpreterContext, Mapping)):
             context_id, _ = self._context_identity(context)
         else:
+            if not isinstance(context, str) or not context:
+                raise create_error(
+                    "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
+                )
             context_id = context
         try:
             await self._transport.send(RequestSpec("DELETE", f"/sessions/{quote(context_id, safe='')}"))
@@ -353,6 +358,7 @@ class AsyncInterpreterService:
             # spends the same caller budget as the execution itself.
             started = _clock.monotonic()
             context_id = _isolated_context_id(resolved_language)
+            cleanup_id = context_id
             try:
                 isolated_context = await self._create_context(
                     language=resolved_language,
@@ -361,6 +367,9 @@ class AsyncInterpreterService:
                     env=env,
                     request_timeout=timeout,
                 )
+                # The response is the truth: run in and clean up the id the
+                # sandbox returned, even if it differs from the requested one.
+                cleanup_id = isolated_context.context_id
                 remaining = _remaining_budget(timeout, started)
                 # A positive budget that setup consumed expires here; the
                 # caller's own unbounded 0 passes through untouched.
@@ -373,7 +382,7 @@ class AsyncInterpreterService:
                     )
                 return await isolated_context.run(code, cwd=cwd, timeout=remaining)
             finally:
-                await self._delete_context_best_effort(context_id)
+                await self._delete_context_best_effort(cleanup_id)
         gate = self._gate_for(_implicit_context_id(resolved_language))
         return await gate.run(
             timeout,

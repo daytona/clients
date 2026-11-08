@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import base64
+import collections.abc
 import json
 import math
 import re
@@ -667,9 +668,15 @@ def process_create_spec(
     if command is not None:
         body["shellCommand"] = command
     if argv is not None:
-        # A str is a Sequence too: refuse it (and non-string elements) before any request.
-        if isinstance(argv, (str, bytes)) or not all(isinstance(item, str) for item in argv) or not argv:
-            raise create_error("argv must be a non-empty list of strings", 400, "BAD_REQUEST", "SDK")
+        # A Sequence of strings, but not a str / bytes (a Sequence too), a
+        # mapping or a one-shot iterable, refused before any request.
+        if (
+            not isinstance(argv, collections.abc.Sequence)
+            or isinstance(argv, (str, bytes))
+            or not argv
+            or not all(isinstance(item, str) for item in argv)
+        ):
+            raise create_error("argv must be a non-empty sequence of strings", 400, "BAD_REQUEST", "SDK")
         body["argv"] = list(argv)
     if code is not None:
         body["code"] = code
@@ -688,6 +695,8 @@ def process_create_spec(
         "keepLogs": keep_logs,
     }
     if terminal is not None:
+        if not isinstance(terminal, TerminalSize):
+            raise create_error("terminal must be a TerminalSize", 400, "BAD_REQUEST", "SDK")
         optional["terminal"] = {"cols": terminal.cols, "rows": terminal.rows}
     body.update({key: value for key, value in optional.items() if value is not None})
     if wait_ms is None:
@@ -724,6 +733,9 @@ def bare_signal(signal: Optional[str]) -> Optional[str]:
 
 
 def parse_process(payload: ProcessDto) -> ProcessInfo:
+    # An id the SDK builds paths and identities from: empty is malformed.
+    if not payload.id:
+        raise create_error("expected process response: id is required", 400, "BAD_REQUEST", "SDK")
     raw_kind = enum_str(payload.kind)
     raw_state = enum_str(payload.state)
     raw_stdin = enum_str(payload.stdin)
@@ -1188,11 +1200,15 @@ def list_shape(
     """The items of a list response: a bare array or an envelope whose
     ``items`` is an array; anything else is malformed."""
     if isinstance(payload, list):
-        return [expect_object(item) for item in payload], None
-    obj = expect_object(payload)
-    items = obj.get("items")
-    if not isinstance(items, list):
-        raise create_error(f"expected {description}: items is required", 400, "BAD_REQUEST", "SDK")
+        items: JsonValue = payload
+        cursor_holder: JsonObject = {}
+    else:
+        cursor_holder = expect_object(payload)
+        items = cursor_holder.get("items")
+        if not isinstance(items, list):
+            problem = "is required" if items is None else "must be a list"
+            raise create_error(f"expected {description}: items {problem}", 400, "BAD_REQUEST", "SDK")
+    obj = cursor_holder
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             raise create_error(
@@ -1562,6 +1578,18 @@ def _content_disposition_name(header: str) -> Optional[str]:
 def _content_disposition_filename(header: str) -> Optional[str]:
     filename_star = _CONTENT_DISPOSITION_FILENAME_STAR_RE.search(header)
     if filename_star is not None:
-        return unquote(filename_star.group(1), encoding="utf-8", errors="replace")
+        encoded = filename_star.group(1)
+        # Bad percent-encoding or invalid UTF-8 is malformed, as in the TypeScript SDK.
+        try:
+            if re.search(r"%(?![0-9A-Fa-f]{2})", encoded):
+                raise ValueError(encoded)
+            return unquote(encoded, encoding="utf-8", errors="strict")
+        except ValueError:
+            raise create_error(
+                "expected bulk download file part: filename* is not valid percent-encoded UTF-8",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            ) from None
     filename = _CONTENT_DISPOSITION_FILENAME_RE.search(header)
     return filename.group(1) if filename is not None else None

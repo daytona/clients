@@ -22,7 +22,16 @@ from ._gen.toolbox import CommitInfo
 from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
 from .errors import create_error
-from .types import GitCommit, GitCommitResponse, GitRemote, GitStatus, JsonObject, JsonValue, ListResult
+from .types import (
+    GitCommit,
+    GitCommitResponse,
+    GitConfigScope,
+    GitRemote,
+    GitStatus,
+    JsonObject,
+    JsonValue,
+    ListResult,
+)
 
 GIT_REMOTE_TIMEOUT_SECONDS: Final[float] = 30 * 60
 
@@ -257,9 +266,9 @@ class AsyncGitService:
         key: str,
         *,
         path: Optional[str] = None,
-        scope: str = "global",
+        scope: GitConfigScope = "global",
     ) -> Optional[str]:
-        params: Dict[str, JsonValue] = {"key": key, "scope": scope}
+        params: Dict[str, JsonValue] = {"key": key, "scope": _config_scope(scope)}
         if path is not None:
             params["path"] = path
         payload = expect_object(
@@ -278,9 +287,9 @@ class AsyncGitService:
         value: str,
         *,
         path: Optional[str] = None,
-        scope: str = "global",
+        scope: GitConfigScope = "global",
     ) -> None:
-        body: Dict[str, JsonValue] = {"key": key, "value": value, "scope": scope}
+        body: Dict[str, JsonValue] = {"key": key, "value": value, "scope": _config_scope(scope)}
         if path is not None:
             body["path"] = path
         await self._transport.send(RequestSpec("POST", "/git/config", json_body=body))
@@ -309,6 +318,12 @@ class AsyncGitService:
         if set_upstream:
             body["setUpstream"] = True
         await _send_remote(self._transport, RequestSpec("POST", route, json_body=body), timeout)
+
+
+def _config_scope(scope: object) -> str:
+    if scope not in ("global", "local"):
+        raise create_error("scope must be 'global' or 'local'", 400, "BAD_REQUEST", "SDK")
+    return str(scope)
 
 
 def _git_remote_timeout(timeout: Optional[float]) -> float:

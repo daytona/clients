@@ -242,6 +242,11 @@ FilesystemEventType = Union[Literal["create", "write", "remove", "rename", "chmo
 reports is passed through as its string."""
 
 
+GitConfigScope = Literal["global", "local"]
+"""Which git configuration ``get_config`` / ``set_config`` read or write:
+``"global"`` (the default) or ``"local"`` (a repository's, which needs
+``path``)."""
+
 LifecycleAction = Literal["stop", "pause", "delete"]
 """The action a lifecycle trigger fires: ``on_timeout`` / ``on_idle_timeout``.
 

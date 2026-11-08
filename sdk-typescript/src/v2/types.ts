@@ -1012,7 +1012,10 @@ export interface LogFrame {
   readonly timestampMs: number
 }
 
-export interface LogPage extends ListResult<LogFrame> {
+/** One page of a process log (`logs()`). */
+export interface LogPage {
+  /** The frames in this page. */
+  readonly items: readonly LogFrame[]
   /** The cursor to pass to the next `logs()` call to continue after this page. */
   readonly nextCursor: string
   /** Whether retention removed frames older than this page. */

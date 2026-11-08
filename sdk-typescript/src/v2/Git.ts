@@ -213,7 +213,7 @@ export class GitService {
   public async getConfig(key: string, options: GitConfigOptions = {}): Promise<string | null> {
     assertKnownOptions('GitConfigOptions', options, GIT_CONFIG_OPTION_KEYS)
     const data = await this.transport.get<unknown>('/git/config', {
-      params: { key, path: options.path, scope: options.scope ?? 'global' },
+      params: { key, path: options.path, scope: configScope(options.scope) },
     })
     const value = record(data, 'git config response').value
     if (value === undefined || value === null) return null
@@ -227,7 +227,7 @@ export class GitService {
       key,
       value,
       path: options.path,
-      scope: options.scope ?? 'global',
+      scope: configScope(options.scope),
     })
   }
 
@@ -256,6 +256,14 @@ export class GitService {
     const data = await this.transport.get<toolbox.CommitInfo[] | ListResult<toolbox.CommitInfo>>('/git/history', { params: { path } })
     return listItems(data, 'items', 'git history response', gitCommitFromWire)
   }
+}
+
+function configScope(scope: GitConfigScope | undefined): GitConfigScope {
+  if (scope === undefined) return 'global'
+  if (scope !== 'global' && scope !== 'local') {
+    throw new BadRequestError("scope must be 'global' or 'local'", { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  return scope
 }
 
 function validateCloneDepth(depth: number | undefined): number | undefined {

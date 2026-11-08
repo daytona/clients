@@ -334,6 +334,12 @@ export class RecordingService {
     return mapComputerUseRecording(await this.transport.get<toolbox.ComputerUseRecording>(`/computeruse/recordings/${strictUriEncode(id)}`))
   }
 
+  /**
+   * Download a recording, holding the whole file in memory. For a large
+   * recording, or one from a sandbox you do not trust, download its
+   * `filePath` with `sandbox.fs.downloadFile()` (Node.js-only), which streams
+   * to disk with progress and cancellation.
+   */
   public async download(id: string): Promise<Uint8Array> {
     return new Uint8Array(await this.transport.getBytes(`/computeruse/recordings/${strictUriEncode(id)}/download`))
   }
