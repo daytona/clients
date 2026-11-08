@@ -280,3 +280,18 @@ it.each([
     await api.close()
   }
 }, 10_000)
+
+it.each([
+  [{ sandboxes: [], total_relation: 'eq', next_cursor: null }, 'search response is missing its total'],
+  [{ sandboxes: [], total: 0, next_cursor: null }, 'search response is missing its total_relation'],
+] as const)('findByName checks every page as search does: %j', async (body, message) => {
+  // The Python twin checks the same pages.
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.findByName('x')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

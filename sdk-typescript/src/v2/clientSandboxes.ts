@@ -91,15 +91,15 @@ export async function listSandboxes(context: SandboxClientContext, options: List
 export async function searchSandboxes(context: SandboxClientContext, options: SearchSandboxesOptions): Promise<SearchResult<Sandbox>> {
   options = snapshotOptions('SearchSandboxesOptions', options, SEARCH_KEYS) ?? {}
   const data = await context.api.get<SearchPageDto>(SEARCH_PATH, { params: searchQueryParams(options) }).then((response) => response.data)
-  const items = searchPageSandboxes(data)
-  const sandboxes = await sandboxesFromDtos(context, items)
-  const rawTotalRelation = data.total_relation ?? 'eq'
+  // The checked page: its total, relation and cursor are read from it, never defaulted.
+  const page = searchPageSandboxes(data)
+  const sandboxes = await sandboxesFromDtos(context, page.sandboxes)
   return frozenPage({
     items: sandboxes,
-    nextCursor: typeof data.next_cursor === 'string' ? data.next_cursor : undefined,
-    total: data.total ?? 0,
-    totalRelation: knownOrUnknown(rawTotalRelation, SEARCH_TOTAL_RELATIONS),
-    rawTotalRelation,
+    nextCursor: page.nextCursor,
+    total: page.total,
+    totalRelation: knownOrUnknown(page.totalRelation, SEARCH_TOTAL_RELATIONS),
+    rawTotalRelation: page.totalRelation,
   })
 }
 
@@ -117,10 +117,12 @@ export async function findSandboxesByName(context: SandboxClientContext, name: s
       params: { labels: JSON.stringify(labelsWithName(name, undefined)), limit: 100, ...(cursor ? { cursor } : {}) },
       ...(region ? { headers: { 'x-daytona-region': region } } : {}),
     }).then((response) => response.data)
-    const live = searchPageSandboxes(page).filter((sandbox) => sandbox.status !== 'deleted' && sandbox.status !== 'deleting')
+    // Every page is checked as search() checks it, total and relation included.
+    const checked = searchPageSandboxes(page)
+    const live = checked.sandboxes.filter((sandbox) => sandbox.status !== 'deleted' && sandbox.status !== 'deleting')
     const sandboxes = await sandboxesFromDtos(context, live)
     found.push(...sandboxes)
-    const nextCursor = page.next_cursor ?? undefined
+    const nextCursor = checked.nextCursor
     if (!nextCursor || seen.has(nextCursor)) return Object.freeze(found)
     seen.add(nextCursor)
     cursor = nextCursor

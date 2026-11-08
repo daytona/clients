@@ -174,7 +174,7 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
  * extra fields are tolerated. Mirrors Python's `_core.parse_search_page`.
  * @internal
  */
-export function searchPageSandboxes(data: unknown): SandboxDto[] {
+export function searchPageSandboxes(data: unknown): { readonly sandboxes: SandboxDto[]; readonly total: number; readonly totalRelation: string; readonly nextCursor: string | undefined } {
   if (!isJsonObject(data)) throw badRequest('search response is not a JSON object')
   const sandboxes: unknown = data.sandboxes
   if (!Array.isArray(sandboxes)) throw badRequest('search response is missing the sandboxes array')
@@ -184,5 +184,5 @@ export function searchPageSandboxes(data: unknown): SandboxDto[] {
   // A cursor of the wrong type would silently end search() / findByName() early.
   if (data.next_cursor != null && typeof data.next_cursor !== 'string') throw badRequest('search response has a next_cursor that is not a string')
   // SAFETY: every item was checked by assertSandboxResponse above.
-  return sandboxes as SandboxDto[]
+  return { sandboxes: sandboxes as SandboxDto[], total: data.total as number, totalRelation: data.total_relation, nextCursor: data.next_cursor ?? undefined }
 }

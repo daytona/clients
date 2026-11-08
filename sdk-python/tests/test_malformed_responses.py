@@ -503,3 +503,23 @@ async def test_a_search_total_above_2_53_that_a_double_carries_is_accepted() -> 
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             page = await root.v2.search()
     assert page.total == 2**60
+
+
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        (
+            {"sandboxes": [], "total_relation": "eq", "next_cursor": None},
+            "search response is missing its total",
+        ),
+        ({"sandboxes": [], "total": 0, "next_cursor": None}, "search response is missing its total_relation"),
+    ],
+    ids=["no total", "no total_relation"],
+)
+async def test_find_by_name_checks_every_page_as_search_does(body: JsonObject, message: str) -> None:
+    # The TypeScript twin checks the same pages.
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match=f"^{message}$"):
+                await root.v2.find_by_name("x")
