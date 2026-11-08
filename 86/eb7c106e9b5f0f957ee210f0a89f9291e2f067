@@ -1,0 +1,30 @@
+changelog.d/536-region-filter.breaking.md
+  s_0df31975f3464b::t_bd0eabe963041e 2-7
+changelog.d/536.security.md
+  s_0df31975f3464b::t_bd0eabe963041e 8-10
+changelog.d/536-acknowledgements.breaking.md
+  s_0df31975f3464b::t_bd0eabe963041e 3-5,15-16
+cli/README.md
+  s_0df31975f3464b::t_bd0eabe963041e 133-135,253-258,348-350,370-373,433-437
+  s_0df31975f3464b::t_97eb187c132a35 369
+changelog.d/536-file-exact-keys.breaking.md
+  s_0df31975f3464b::t_bd0eabe963041e 1-6
+changelog.d/536-list-envelope.breaking.md
+  s_0df31975f3464b::t_bd0eabe963041e 3-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86eb7c106e9b5f0f957ee210f0a89f9291e2f067",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
