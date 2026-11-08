@@ -90,11 +90,18 @@ Two rules narrow what that covers:
   `sandbox.process.connect(...)`, `Image.from_registry(...)` /
   `Image.fromRegistry(...)`); the class names are public for type annotations
   and `isinstance` / `instanceof` checks, but their constructor parameters may
-  change in any release. The exceptions are the classes you are meant to
-  build: the root client (`Daytona`, Python's `AsyncDaytona`) with its
-  `DaytonaConfig`, the error classes, and the value types a call takes as
-  input (Python dataclasses such as `Resources`; TypeScript takes plain
-  objects).
+  change in any release. The exceptions, the only classes you build
+  yourself, are:
+  - the root client (`Daytona`, Python's `AsyncDaytona`) and Python's
+    `DaytonaConfig` (in TypeScript the config is a plain object);
+  - the error classes;
+  - in Python, the dataclasses that a public method accepts as an argument
+    or option, such as `Resources`, `VolumeMount` and `ComputerUseRegion`
+    (TypeScript takes plain objects for these).
+
+  Every other exported class is built by the SDK: by the client, a service, or
+  a factory such as `Image.from_registry(...)`.
+
 - **Generated wire types are never public.** The types generated from the
   contracts under [`contract/`](../contract/) (Python `daytona.v2._gen`,
   TypeScript `src/v2/gen/`, the CLI's `cli/gen/`) change whenever a contract
