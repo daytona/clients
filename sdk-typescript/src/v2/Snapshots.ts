@@ -44,7 +44,7 @@ export class SnapshotsService {
     if (options.wait !== undefined) {
       params.wait = options.wait
       if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout < 0)) {
-        throw new DaytonaError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+        throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
       }
       if (options.timeout) {
         params.timeout_ms = Math.min(Math.ceil(options.timeout * 1000), SNAPSHOT_LONGPOLL_MAX_MS)

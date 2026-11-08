@@ -63,10 +63,36 @@ def test_root_exports_only_clients_config_constants_and_errors() -> None:
     }
     # The root errors are the shared hierarchy, not v2's classes.
     errors = set(daytona.__all__) - non_errors
-    assert errors == {*_errors.SHARED_ERRORS, "DaytonaValidationError", "DaytonaAuthorizationError"}
+    assert errors == set(_errors.SHARED_ERRORS)
     assert DaytonaError is not daytona_v2.DaytonaError
-    assert daytona.DaytonaValidationError is daytona.DaytonaBadRequestError
-    assert daytona.DaytonaAuthorizationError is daytona.DaytonaForbiddenError
+
+
+@pytest.mark.parametrize("name", ["DaytonaValidationError", "DaytonaAuthorizationError"])
+def test_removed_root_error_synonyms_keep_the_0x_import_guidance(name: str) -> None:
+    # Both were 0.x root names: importing one from the 2.x root names daytona.v0.
+    with pytest.raises(ImportError, match=rf"from daytona\.v0 import {name}"):
+        getattr(daytona, name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "DaytonaAuthenticationError",
+        "DaytonaAuthorizationError",
+        "DaytonaConflictError",
+        "DaytonaConnectionError",
+        "DaytonaNotFoundError",
+        "DaytonaNotSupportedError",
+        "DaytonaRateLimitError",
+        "DaytonaTimeoutError",
+        "DaytonaValidationError",
+        "UnauthorizedError",
+    ],
+)
+def test_v2_exports_no_legacy_error_synonyms(name: str) -> None:
+    assert name not in daytona_v2.__all__
+    assert not hasattr(daytona_v2, name)
+    assert not hasattr(daytona_v2, f"{name}V2")
 
 
 def test_v2_errors_are_caught_by_the_shared_root_classes() -> None:
@@ -80,7 +106,7 @@ def test_v2_errors_are_caught_by_the_shared_root_classes() -> None:
     for timeout in (daytona_v2.RequestTimeoutError("t"), daytona_v2.ClientTimeoutError("t")):
         assert isinstance(timeout, DaytonaTimeoutError)
     assert issubclass(daytona_v2.ForbiddenError, daytona.DaytonaForbiddenError)
-    assert issubclass(daytona_v2.UnauthorizedError, daytona.DaytonaAuthenticationError)
+    assert issubclass(daytona_v2.AuthenticationError, daytona.DaytonaAuthenticationError)
     assert issubclass(daytona_v2.ConnectionError, daytona.DaytonaConnectionError)
     # v2-only categories are not shared: NotSupportedError is v2's InternalServerError.
     assert issubclass(daytona_v2.NotSupportedError, daytona.DaytonaInternalServerError)
@@ -872,7 +898,9 @@ def test_publish_refuses_the_namespace_code_in_only_one_sdk(tmp_path: Path, code
 
 
 def test_publish_refuses_namespace_code_without_a_pin(tmp_path: Path) -> None:
-    result = _publish_mode(_tree(tmp_path, "sdk-python/src/daytona/_client.py", "sdk-typescript/src/v0-unbundled.ts"))
+    result = _publish_mode(
+        _tree(tmp_path, "sdk-python/src/daytona/_client.py", "sdk-typescript/src/v0-unbundled.ts")
+    )
     assert result.returncode != 0
     assert "::error::" in result.stderr
     assert "no scripts/v0-sdk-version pin" in result.stderr
@@ -1046,7 +1074,9 @@ def test_check_no_bundled_v0_catches_a_large_bundled_lockfile(tmp_path: Path, bu
     (clients / "sdk-typescript" / "package.json").write_text('{"name": "@daytona/sdk"}\n')
     filler = "".join(f'    "node_modules/pkg{i}": {{"version": "1.0.0"}},\n' for i in range(8000))
     client = '    "node_modules/@daytona/api-client": {"version": "0.224.0"},\n' if bundled else ""
-    (clients / "sdk-typescript" / "package-lock.json").write_text('{"packages": {\n' + client + filler + "}}\n")
+    (clients / "sdk-typescript" / "package-lock.json").write_text(
+        '{"packages": {\n' + client + filler + "}}\n"
+    )
     assert (clients / "sdk-typescript" / "package-lock.json").stat().st_size > 256 * 1024
     env = {"PATH": "/usr/bin:/bin", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, env=env)

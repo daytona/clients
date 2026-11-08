@@ -452,7 +452,7 @@ def test_desktop_lifetime_types_and_error_are_exported() -> None:
     assert daytona.ComputerUseRestartResponse is ComputerUseRestartResponse
     assert daytona.DesktopNotReadyError is DesktopNotReadyError
     assert issubclass(DesktopNotReadyError, ConflictError)
-    assert codes.DESKTOP_NOT_READY == "DESKTOP_NOT_READY"
+    assert "DESKTOP_NOT_READY" in codes.DAEMON_ERROR_CODES
 
 
 def test_desktop_vocabulary_matches_contract() -> None:

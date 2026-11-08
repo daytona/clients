@@ -12,7 +12,7 @@ import { HttpTransport, boundedRequestTimeout, strictUriEncode, transportFromAxi
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
-import { BadRequestError, ImageBuildFailedError, RequestTimeoutError, TimeoutError } from './errors/DaytonaError.js'
+import { BadRequestError, ImageBuildFailedError, RequestTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
 
 const IMAGE_LONGPOLL_MAX_MS = 60_000
 
@@ -89,10 +89,10 @@ export class ImagesService {
   /** Import a registry image and wait until ready by default. Timeout is in milliseconds; omitted or zero is unbounded. */
   public async pull(ref: string, options: BuildImageOptions & { readonly wait?: boolean; readonly timeout?: number } = {}): Promise<Image> {
     if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout < 0)) {
-      throw new BadRequestError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     const deadline = options.timeout === undefined || options.timeout === 0 ? undefined : Date.now() + options.timeout
-    const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+    const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let activeRequestUsesDeadline = false
@@ -133,11 +133,11 @@ export class ImagesService {
         image = new Image(data)
       }
       if (image.status === 'failed' || image.status === 'error') {
-        throw new ImageBuildFailedError(image.error ?? `image pull ${image.id} failed`, 409, 'IMAGE_BUILD_FAILED', 'SDK', undefined, image.id)
+        throw new ImageBuildFailedError(image.error ?? `image pull ${image.id} failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
       }
       return image
     } catch (error) {
-      if (controller.signal.aborted || (error instanceof TimeoutError && (
+      if (controller.signal.aborted || (error instanceof ClientTimeoutError && (
         (activeRequestUsesDeadline && error.statusCode === undefined)
         || (deadline !== undefined && Date.now() >= deadline)
       ))) throw timeoutError()

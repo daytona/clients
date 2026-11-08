@@ -22,12 +22,12 @@ type BuilderStep =
   | { readonly type: 'entrypoint'; readonly args: readonly string[] }
 
 function assertText(value: string, label: string): string {
-  if (value.trim() === '') throw new DaytonaError(`${label} must be a non-empty string`, 400, 'BAD_REQUEST', 'SDK')
+  if (value.trim() === '') throw new DaytonaError(`${label} must be a non-empty string`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   return value
 }
 
 function assertTextList(values: readonly string[], label: string): readonly string[] {
-  if (values.length === 0) throw new DaytonaError(`${label} requires at least one value`, 400, 'BAD_REQUEST', 'SDK')
+  if (values.length === 0) throw new DaytonaError(`${label} requires at least one value`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   values.forEach((value) => { assertText(value, label) })
   return values
 }

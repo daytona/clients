@@ -479,12 +479,7 @@ def _resource_identity(value: str, sandbox: bool) -> tuple[str, str | None] | No
         return None
     body, separator, region = value.partition("-")
     # The SDK accepts region tags of 1-64 ASCII [A-Za-z0-9_-] characters.
-    if (
-        not body
-        or len(body) > 22
-        or separator
-        and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", region, re.ASCII)
-    ):
+    if not body or len(body) > 22 or separator and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", region, re.ASCII):
         return None
     alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     number = 0

@@ -135,7 +135,7 @@ function implicitContextId(language: string): string {
 function queueDeadline(timeout: number | undefined): number | undefined {
   if (timeout === undefined || timeout === 0) return undefined
   if (!Number.isFinite(timeout) || timeout < 0) {
-    throw new DaytonaError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return Date.now() + timeout
 }
@@ -170,14 +170,14 @@ function assertContextBelongsToSandbox(
 ): InterpreterContextJSON {
   const identity = contextIdentity(context)
   if (identity.sandboxId !== sandboxId) {
-    throw new DaytonaError('interpreter context belongs to a different sandbox', 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError('interpreter context belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return identity
 }
 
 function validateOptionalTimeout(timeout: number | undefined): void {
   if (timeout !== undefined && (!Number.isFinite(timeout) || timeout < 0)) {
-    throw new DaytonaError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
 
@@ -189,7 +189,7 @@ function remainingBudgetMs(timeout: number | undefined, startedAt: number): numb
 
 function assertExplicitContextEnvUnsupported(env: Record<string, string> | undefined): void {
   if (env !== undefined) {
-    throw new DaytonaError('env is only supported when creating a context or running without an explicit context', 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError('env is only supported when creating a context or running without an explicit context', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
 
@@ -455,7 +455,7 @@ export class InterpreterService {
       : assertContextBelongsToSandbox(sessionIdOrContext, this.process.sandboxId)
     const resolvedLanguage = identity.language
     if (resolvedLanguage === undefined) {
-      throw new DaytonaError('language is required when reconnecting an interpreter context by id', 400, 'BAD_REQUEST', 'SDK')
+      throw new DaytonaError('language is required when reconnecting an interpreter context by id', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     const queue = this.queueFor(identity.contextId)
     return new InterpreterContext(
@@ -492,10 +492,10 @@ export class InterpreterService {
   public async run(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterResult> {
     const language = options.language ?? 'python'
     if (options.isolated && (options.sessionId !== undefined || options.context !== undefined)) {
-      throw new DaytonaError('isolated runs cannot also target an explicit interpreter context', 400, 'BAD_REQUEST', 'SDK')
+      throw new DaytonaError('isolated runs cannot also target an explicit interpreter context', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     if (options.context !== undefined && options.sessionId !== undefined) {
-      throw new DaytonaError('interpreter runs accept either context or sessionId, not both', 400, 'BAD_REQUEST', 'SDK')
+      throw new DaytonaError('interpreter runs accept either context or sessionId, not both', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     if (options.isolated) {
       // The throwaway session's POST /sessions is part of this run and spends
@@ -514,7 +514,7 @@ export class InterpreterService {
         }, sessionTimeout)
         const remaining = remainingBudgetMs(options.timeout, startedAt)
         if (remaining !== undefined && remaining <= 0) {
-          throw new DaytonaError('interpreter run timed out while creating its isolated context', 408, 'REQUEST_TIMEOUT', 'SDK')
+          throw new DaytonaError('interpreter run timed out while creating its isolated context', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
         }
         return await this.connectContext(sessionId, language).run(code, {
           cwd: options.cwd,

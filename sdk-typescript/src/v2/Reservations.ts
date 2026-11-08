@@ -133,7 +133,7 @@ export class ReservationsService {
 // Every purchase and renewal carries a key: the caller's, or a fresh one per call.
 function idempotencyHeaders(idempotencyKey: string | undefined) {
   if (idempotencyKey != null && typeof idempotencyKey !== 'string') {
-    throw new DaytonaError('idempotencyKey must be a string', 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError('idempotencyKey must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return { headers: { 'Idempotency-Key': idempotencyKey ?? runtimeUniqueId() } }
 }

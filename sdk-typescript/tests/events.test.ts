@@ -23,7 +23,7 @@ import {
 import { sandboxState } from '../src/v2/http'
 import {
   AuthenticationError,
-  AuthorizationError,
+  ForbiddenError,
   DaytonaError,
   NotFoundError,
   RequestTimeoutError,
@@ -148,18 +148,18 @@ function mockAxios(
   const postFn = jest.fn().mockImplementation(async (url: string) => {
     if (typeof url === 'string' && /\/events\/[^/]+\/ticket$/.test(url)) {
       if (ticketDelayMs > 0) await new Promise((r) => setTimeout(r, ticketDelayMs))
-      if (ticketStatus === 404) throw new NotFoundError('Not Found', 404, 'NOT_FOUND', 'DAYTONA_API')
-      if (ticketStatus === 401) throw new AuthenticationError('Unauthorized', 401, 'UNAUTHORIZED', 'DAYTONA_API')
-      if (ticketStatus === 403) throw new AuthorizationError('Forbidden', 403, 'FORBIDDEN', 'DAYTONA_API')
-      if (ticketStatus >= 400) throw new DaytonaError(`ticket ${ticketStatus}`, ticketStatus)
+      if (ticketStatus === 404) throw new NotFoundError('Not Found', { statusCode: 404, code: 'NOT_FOUND', source: 'DAYTONA_API' })
+      if (ticketStatus === 401) throw new AuthenticationError('Unauthorized', { statusCode: 401, code: 'UNAUTHORIZED', source: 'DAYTONA_API' })
+      if (ticketStatus === 403) throw new ForbiddenError('Forbidden', { statusCode: 403, code: 'FORBIDDEN', source: 'DAYTONA_API' })
+      if (ticketStatus >= 400) throw new DaytonaError(`ticket ${ticketStatus}`, { statusCode: ticketStatus })
       return { data: { ticket: 't0k3n', expires_in_ms: 30_000, subprotocol: 'daytona.events.v1' }, headers: {} }
     }
     return { data: {}, headers: {} }
   })
 
   const getFn = jest.fn().mockImplementation(async () => {
-    if (getStatus === 404) throw new NotFoundError('Not Found', 404, 'NOT_FOUND', 'DAYTONA_API')
-    if (getStatus >= 400) throw new DaytonaError(`get ${getStatus}`, getStatus)
+    if (getStatus === 404) throw new NotFoundError('Not Found', { statusCode: 404, code: 'NOT_FOUND', source: 'DAYTONA_API' })
+    if (getStatus >= 400) throw new DaytonaError(`get ${getStatus}`, { statusCode: getStatus })
     return {
       data: { status: sandboxStatus, id: SANDBOX_ID },
       headers: {},

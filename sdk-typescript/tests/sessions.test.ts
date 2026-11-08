@@ -188,15 +188,15 @@ describe('shell sessions', () => {
     const transport = new HttpTransport('http://toolbox.invalid')
     jest.spyOn(transport, 'delete')
       .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new ProcessNotFoundError('gone', 404, 'PROCESS_NOT_FOUND', 'DAYTONA_DAEMON'))
+      .mockRejectedValueOnce(new ProcessNotFoundError('gone', { statusCode: 404, code: 'PROCESS_NOT_FOUND', source: 'DAYTONA_DAEMON' }))
     const session = new ProcessService(transport, 'sandbox-1').connectSession('shell/!')
     await session.delete()
     await expect(session[Symbol.asyncDispose]()).resolves.toBeUndefined()
   })
 
   it.each([
-    new SessionNotFoundError('missing', 404, 'SESSION_NOT_FOUND', 'DAYTONA_DAEMON'),
-    new SessionEndedError('ended', 410, 'SESSION_ENDED', 'DAYTONA_DAEMON'),
+    new SessionNotFoundError('missing', { statusCode: 404, code: 'SESSION_NOT_FOUND', source: 'DAYTONA_DAEMON' }),
+    new SessionEndedError('ended', { statusCode: 410, code: 'SESSION_ENDED', source: 'DAYTONA_DAEMON' }),
   ])('surfaces %s without recreating a session', async (error) => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')

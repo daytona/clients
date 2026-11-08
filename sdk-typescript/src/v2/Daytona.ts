@@ -6,7 +6,7 @@
 import type { AxiosInstance } from 'axios'
 import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
-import { ConnectionError, DaytonaError, DaytonaAuthenticationError, DaytonaValidationError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
+import { ConnectionError, DaytonaError, AuthenticationError, BadRequestError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
 import { Image, ImageBuilder, isImageBuilder } from './Image.js'
 import { Sandbox, scopedProxyToolboxUrl } from './Sandbox.js'
@@ -220,14 +220,14 @@ function hasText(value: unknown): value is string {
 
 function assertPresentStringOption(name: 'jwtToken' | 'projectId', value: string | undefined): void {
   if (value !== undefined && value.length === 0) {
-    throw new DaytonaValidationError(`${name} must be a non-empty string when provided`)
+    throw new BadRequestError(`${name} must be a non-empty string when provided`)
   }
 }
 
 function connectionPoolMaxsize(value: number | undefined): number | undefined {
   if (value === undefined) return undefined
   if (!Number.isInteger(value) || value <= 0) {
-    throw new DaytonaValidationError('connectionPoolMaxsize must be a positive integer')
+    throw new BadRequestError('connectionPoolMaxsize must be a positive integer')
   }
   return value
 }
@@ -276,7 +276,7 @@ function snapshotSourceString(snapshot: string): string {
 function createWaitSeconds(waitSeconds: number | undefined): number {
   const resolved = waitSeconds ?? 60
   if (!Number.isFinite(resolved) || resolved < 0 || !Number.isInteger(resolved)) {
-    throw new DaytonaError('waitSeconds must be a non-negative integer number of seconds', 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError('waitSeconds must be a non-negative integer number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return resolved
 }
@@ -284,7 +284,7 @@ function createWaitSeconds(waitSeconds: number | undefined): number {
 function createTimeoutSeconds(createTimeoutSeconds: number | undefined): number | undefined {
   if (createTimeoutSeconds === undefined) return undefined
   if (!Number.isFinite(createTimeoutSeconds) || !Number.isInteger(createTimeoutSeconds)) {
-    throw new DaytonaError('createTimeoutSeconds must be an integer number of seconds', 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError('createTimeoutSeconds must be an integer number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return createTimeoutSeconds
 }
@@ -296,7 +296,7 @@ const MAX_INT32 = 2147483647
 function macosCores(cpu: number | undefined): number | undefined {
   if (cpu === undefined) return undefined
   if (typeof cpu !== 'number' || !Number.isInteger(cpu) || cpu < 4 || cpu > MAX_INT32) {
-    throw new DaytonaError('cpu must be an integer between 4 and 2147483647', 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError('cpu must be an integer between 4 and 2147483647', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return cpu
 }
@@ -305,7 +305,7 @@ function macosMib(gib: number | undefined, axis: 'memory' | 'disk', floorMib: nu
   if (gib === undefined) return undefined
   const mib = typeof gib === 'number' && Number.isFinite(gib) ? gib * 1024 : Number.NaN
   if (!Number.isInteger(mib) || mib < floorMib || mib > MAX_INT32) {
-    throw new DaytonaError(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`, 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return mib
 }
@@ -323,7 +323,7 @@ function secondsToMilliseconds(timeout: number): number {
  */
 function resolveIdempotencyKey(idempotencyKey: string | undefined): string | undefined {
   if (idempotencyKey == null) return undefined
-  if (typeof idempotencyKey !== 'string') throw new DaytonaError('idempotencyKey must be a string', 400, 'BAD_REQUEST', 'SDK')
+  if (typeof idempotencyKey !== 'string') throw new DaytonaError('idempotencyKey must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   return idempotencyKey
 }
 
@@ -368,7 +368,7 @@ const NAME_KEY_HASH_PREFIX = 'name:sha256:'
  * a named create made with either SDK.
  */
 export async function idempotencyKeyForName(name: string): Promise<string> {
-  if (typeof name !== 'string') throw new DaytonaError('name must be a string', 400, 'BAD_REQUEST', 'SDK')
+  if (typeof name !== 'string') throw new DaytonaError('name must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   const literal = NAME_KEY_PREFIX + name
   // `/^[\x20-\x7e]*$/` is the API's printable-ASCII rule; `.length` counts
   // UTF-16 units, which equals the byte count for a string that passed it.
@@ -421,7 +421,7 @@ function labelsWithName(name: string | undefined, labels: Record<string, string>
   if (named === undefined) return labels
   const existing = labels?.[NAME_LABEL]
   if (existing !== undefined && existing !== named) {
-    throw new DaytonaError(`labels.${NAME_LABEL} (${JSON.stringify(existing)}) disagrees with name (${JSON.stringify(named)}); the name label is stamped from name, pass one or the other`, 400, 'BAD_REQUEST', 'SDK')
+    throw new DaytonaError(`labels.${NAME_LABEL} (${JSON.stringify(existing)}) disagrees with name (${JSON.stringify(named)}); the name label is stamped from name, pass one or the other`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return { ...(labels ?? {}), [NAME_LABEL]: named }
 }
@@ -484,13 +484,13 @@ export class Daytona {
     const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
     const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
     if (!apiKey && !jwtToken) {
-      throw new DaytonaAuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', 401, undefined, 'SDK')
+      throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, source: 'SDK' })
     }
     if (apiKey && jwtToken) {
-      throw new DaytonaValidationError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)')
+      throw new BadRequestError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)')
     }
     if (jwtToken && !projectId) {
-      throw new DaytonaValidationError('projectId is required when jwtToken is set (set config.projectId or DAYTONA_PROJECT_ID)')
+      throw new BadRequestError('projectId is required when jwtToken is set (set config.projectId or DAYTONA_PROJECT_ID)')
     }
     this.apiKey = apiKey ?? undefined
     const base = apiUrl.replace(/\/+$/, '') || DEFAULT_V2_API_URL
@@ -593,7 +593,7 @@ export class Daytona {
   public async getLimits(options: GetLimitsOptions = {}): Promise<OrganizationLimits> {
     const organizationId = options.organizationId ?? await this.keyOrganizationId()
     if (organizationId.length === 0) {
-      throw new DaytonaValidationError('organizationId must be a non-empty string', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('organizationId must be a non-empty string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     return this.api
       .get<OrganizationLimits>(`/orgs/${strictUriEncode(organizationId)}/limits`)
@@ -605,7 +605,7 @@ export class Daytona {
   private keyOrganizationId(): Promise<string> {
     if (!this.apiKey) {
       return Promise.reject(
-        new DaytonaValidationError('organizationId is required with jwtToken authentication', 400, 'BAD_REQUEST', 'SDK'),
+        new BadRequestError('organizationId is required with jwtToken authentication', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }),
       )
     }
     this.keyOrganization ??= this.currentApiKey().then(
@@ -722,7 +722,7 @@ export class Daytona {
   public async createMacos(image: string, options: CreateMacosSandboxOptions = {}): Promise<Sandbox> {
     const source = imageSourceString(image)
     if (options.autoRenew !== undefined && options.reservation !== 'new') {
-      throw new DaytonaError('macos create takes autoRenew only with reservation: "new"', 400, 'BAD_REQUEST', 'SDK')
+      throw new DaytonaError('macos create takes autoRenew only with reservation: "new"', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     const cores = macosCores(options.cpu)
     const memoryMib = macosMib(options.memory, 'memory', 4096)
@@ -778,7 +778,7 @@ export class Daytona {
     const createOptions: CreateSandboxOptions = { ...options }
     if (deadline !== undefined) {
       const remainingWait = Math.ceil((deadline - Date.now()) / 1000)
-      if (remainingWait <= 0) throw new RequestTimeoutError('image build did not finish before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+      if (remainingWait <= 0) throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       createOptions.waitSeconds = remainingWait
     }
     return this.create(readyImage.id, createOptions)
@@ -788,15 +788,15 @@ export class Daytona {
     for (;;) {
       const remainingTimeout = deadline === undefined ? 0 : (deadline - Date.now()) / 1000
       if (deadline !== undefined && remainingTimeout <= 0) {
-        throw new RequestTimeoutError('image build did not finish before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+        throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       }
       try {
         const image = await this.images.get(imageId, { wait: 'ready', timeout: remainingTimeout })
         if (image.status === 'ready') return image
-        if (image.status === 'failed') throw new ImageBuildFailedError(image.error ?? `image ${image.id} build failed`, 409, 'IMAGE_BUILD_FAILED', 'SDK', undefined, image.id)
+        if (image.status === 'failed') throw new ImageBuildFailedError(image.error ?? `image ${image.id} build failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
       } catch (error) {
         if (error instanceof DaytonaError && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && Date.now() >= deadline) {
-          throw new RequestTimeoutError('image build did not finish before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+          throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
         }
         throw error
       }
@@ -931,7 +931,7 @@ export class Daytona {
    * `'local'` to use the default region.
    */
   public async findByName(name: string, options: { region?: string } = {}): Promise<Sandbox[]> {
-    if (typeof name !== 'string' || name.trim() === '') throw new DaytonaError('name must be a non-blank string', 400, 'BAD_REQUEST', 'SDK')
+    if (typeof name !== 'string' || name.trim() === '') throw new DaytonaError('name must be a non-blank string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     const region = this.createRegion(options)
     const found: Sandbox[] = []
     const seen = new Set<string>()

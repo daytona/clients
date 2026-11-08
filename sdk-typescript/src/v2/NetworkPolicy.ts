@@ -18,11 +18,11 @@ export function createNetworkPolicyCreateField(options: Record<string, unknown>)
 
 export function serializeNetworkPolicyInput(input: unknown): Record<string, unknown> {
   if (!isRecord(input)) {
-    throw new BadRequestError('networkPolicy must be an object', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('networkPolicy must be an object', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const unknownFields = Object.keys(input).filter((field) => !INPUT_FIELDS.has(field))
   if (unknownFields.length > 0) {
-    throw new BadRequestError(`networkPolicy contains unknown fields: ${unknownFields.join(', ')}`, 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError(`networkPolicy contains unknown fields: ${unknownFields.join(', ')}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   // An explicitly `undefined` optional field is the same as an omitted one
   // (computed optionals), while `null` and `[]` keep their distinct meanings.
@@ -30,7 +30,7 @@ export function serializeNetworkPolicyInput(input: unknown): Record<string, unkn
   let blockAll: boolean | undefined
   if (input.blockAll !== undefined && input.blockAll !== null) {
     if (typeof input.blockAll !== 'boolean') {
-      throw new BadRequestError('networkPolicy.blockAll must be a boolean', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('networkPolicy.blockAll must be a boolean', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     blockAll = input.blockAll
   }
@@ -47,9 +47,7 @@ export function serializeNetworkPolicyInput(input: unknown): Record<string, unkn
     // callers can key on one value whichever side refused.
     throw new BadRequestError(
       'network_policy allow_domains requires block_all to be true or omitted',
-      400,
-      'NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL',
-      'SDK',
+      { statusCode: 400, code: 'NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL', source: 'SDK' },
     )
   }
   if (blockAll !== undefined) {
@@ -62,7 +60,7 @@ export function parseNetworkPolicyResponse(response: AxiosResponse<unknown>): Ne
   const data = recordValue(response.data, 'network policy response')
   const etagHeader = response.headers.etag
   if (typeof etagHeader !== 'string' || etagHeader.length === 0) {
-    throw new InternalServerError('network policy response is missing ETag', 500, undefined, 'SDK')
+    throw new InternalServerError('network policy response is missing ETag', { statusCode: 500, source: 'SDK' })
   }
   return {
     desired: optionalNetworkPolicy(data.desired, 'desired'),
@@ -90,14 +88,14 @@ function optionalNetworkPolicy(value: unknown, fieldName: string): NetworkPolicy
 
 function requestStringArray(value: unknown, fieldName: string): string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
-    throw new BadRequestError(`${fieldName} must be an array of strings`, 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError(`${fieldName} must be an array of strings`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return [...value]
 }
 
 function responseStringArray(value: unknown, fieldName: string): string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
-    throw new InternalServerError(`${fieldName} must be an array of strings`, 500, undefined, 'SDK')
+    throw new InternalServerError(`${fieldName} must be an array of strings`, { statusCode: 500, source: 'SDK' })
   }
   return [...value]
 }
@@ -109,12 +107,12 @@ function optionalResponseStringArray(value: unknown, fieldName: string): string[
 
 function requiredBoolean(value: unknown, fieldName: string): boolean {
   if (typeof value === 'boolean') return value
-  throw new InternalServerError(`${fieldName} must be a boolean`, 500, undefined, 'SDK')
+  throw new InternalServerError(`${fieldName} must be a boolean`, { statusCode: 500, source: 'SDK' })
 }
 
 function requiredInteger(value: unknown, fieldName: string): number {
   if (typeof value === 'number' && Number.isInteger(value)) return value
-  throw new InternalServerError(`${fieldName} must be an integer`, 500, undefined, 'SDK')
+  throw new InternalServerError(`${fieldName} must be an integer`, { statusCode: 500, source: 'SDK' })
 }
 
 function optionalInteger(value: unknown, fieldName: string): number | undefined {
@@ -128,7 +126,7 @@ function optionalString(value: unknown): string | undefined {
 
 function recordValue(value: unknown, fieldName: string): Record<string, unknown> {
   if (isRecord(value)) return value
-  throw new InternalServerError(`${fieldName} must be an object`, 500, undefined, 'SDK')
+  throw new InternalServerError(`${fieldName} must be an object`, { statusCode: 500, source: 'SDK' })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,0 +1,16 @@
+**One set of v2 error names** — the v2 error classes have the same names in
+both SDKs: Python `UnauthorizedError` becomes `AuthenticationError`, and
+TypeScript `AuthorizationError` → `ForbiddenError` and `TimeoutError` →
+`ClientTimeoutError`. The legacy synonyms `DaytonaNotFoundError`,
+`DaytonaAuthenticationError`, `DaytonaAuthorizationError`,
+`DaytonaConflictError`, `DaytonaValidationError`, `DaytonaRateLimitError`,
+`DaytonaTimeoutError`, `DaytonaConnectionError`, `DaytonaNotSupportedError`
+and their `…V2` aliases are removed from `daytona.v2` / `@daytona/sdk/v2`
+(use `NotFoundError`, `AuthenticationError`, `ForbiddenError`,
+`ConflictError`, `BadRequestError`, `RateLimitError`, `ClientTimeoutError`,
+`ConnectionError`, `NotSupportedError`); `DaytonaError` / `DaytonaErrorV2`
+stay. The root drops its `DaytonaValidationError` and
+`DaytonaAuthorizationError` aliases: catch `DaytonaBadRequestError` /
+`DaytonaForbiddenError`. Python callers should import the v2 errors by name
+(not `from daytona.v2 import *`): `ConnectionError` and `FileNotFoundError`
+mirror the SDK's categories and shadow the built-ins of the same name.

@@ -122,7 +122,10 @@ def test_the_bundle_is_the_pinned_release() -> None:
     # The publish job passes the tag its gate approved (the pin, or an
     # allow_unpinned_v0 override); otherwise the bundle must be the pin.
     expected = os.environ.get("DAYTONA_V0_EXPECTED_TAG") or (
-        (Path(__file__).resolve().parents[2] / "scripts" / "v0-sdk-version").read_text().splitlines()[0].strip()
+        (Path(__file__).resolve().parents[2] / "scripts" / "v0-sdk-version")
+        .read_text()
+        .splitlines()[0]
+        .strip()
     )
     assert expected == BUNDLED_FROM.rsplit("@", 1)[1]
 

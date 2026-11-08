@@ -5,7 +5,7 @@
 
 import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { ConnectionError, createAxiosDaytonaError, createDaytonaError, DaytonaAuthenticationError, DaytonaError, DaytonaValidationError, errorFromFetchResponse, TimeoutError } from './errors/DaytonaError.js'
+import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
@@ -264,10 +264,10 @@ function errorName(error: unknown): string | undefined {
     : undefined
 }
 
-function timeoutErrorFromAbortSignal(signal: AbortSignalLike | undefined, error: unknown): TimeoutError | undefined {
+function timeoutErrorFromAbortSignal(signal: AbortSignalLike | undefined, error: unknown): ClientTimeoutError | undefined {
   const reason = errorName(error) === 'TimeoutError' ? error : signal?.reason
   if (errorName(reason) === 'TimeoutError') {
-    return new TimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
+    return new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
   }
   return undefined
 }
@@ -304,7 +304,7 @@ export function authHeaders(apiKey?: string): Record<string, string> {
 
 function bearerCredentialFromAuthorizationHeader(header: string): string {
   if (header.startsWith('Bearer ')) return header.slice(7)
-  throw new DaytonaAuthenticationError('auth provider returned a non-Bearer authorization header', 401, 'UNAUTHORIZED', 'SDK')
+  throw new AuthenticationError('auth provider returned a non-Bearer authorization header', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
 }
 
 function daytonaHeadersObject(headers: HeadersInit | undefined): Record<string, string> {
@@ -462,7 +462,7 @@ async function authorizationHeaderForAxiosRequest(
     return await provider.authorizationHeader({ ...options, signal: timeout.signal })
   } catch (error) {
     if (isAbortError(error) && timeout.timedOut()) {
-      throw new TimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
+      throw new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     }
     const timeoutError = timeoutErrorFromAbortSignal(timeout.signal, error)
     if (timeoutError) throw timeoutError
@@ -482,7 +482,7 @@ async function importOtelApi(): Promise<OtelApiLike> {
       return await override()
     } catch (error) {
       if (isNodeModuleMissing(error)) {
-        throw new DaytonaValidationError('otelEnabled requires the optional peer dependency @opentelemetry/api to be installed')
+        throw new BadRequestError('otelEnabled requires the optional peer dependency @opentelemetry/api to be installed')
       }
       throw error
     }
@@ -493,14 +493,14 @@ async function importOtelApi(): Promise<OtelApiLike> {
     // TS2307) — which also means bundlers cannot see it; browser apps pass
     // their own module via `otelApi` instead.
     if (inBrowser()) {
-      throw new DaytonaValidationError('otelEnabled in a browser requires passing your @opentelemetry/api module as `otelApi`')
+      throw new BadRequestError('otelEnabled in a browser requires passing your @opentelemetry/api module as `otelApi`')
     }
     const specifier = '@opentelemetry/api'
     const loaded: unknown = await import(/* @vite-ignore */ /* webpackIgnore: true */ specifier)
     return loaded as OtelApiLike
   } catch (error) {
     if (isNodeModuleMissing(error)) {
-      throw new DaytonaValidationError('otelEnabled requires the optional peer dependency @opentelemetry/api to be installed')
+      throw new BadRequestError('otelEnabled requires the optional peer dependency @opentelemetry/api to be installed')
     }
     throw error
   }
@@ -885,7 +885,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
       // A non-positive lifetime is a broken exchange, not a token to cache.
       const expiresIn = typeof payload.expires_in === 'number' && Number.isFinite(payload.expires_in) && payload.expires_in > 0 ? payload.expires_in : undefined
       if (!accessToken || expiresIn === undefined) {
-        const error = new DaytonaAuthenticationError('auth/token returned an invalid token-exchange payload')
+        const error = new AuthenticationError('auth/token returned an invalid token-exchange payload')
         finalize(response.status, error)
         throw error
       }
@@ -902,7 +902,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
         throw error
       }
       if (isAbortError(error) && timeout.timedOut()) {
-        const timeoutError = new TimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
+        const timeoutError = new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
         finalize(timeoutError.statusCode, timeoutError)
         throw timeoutError
       }
@@ -983,7 +983,7 @@ function timeoutSignal(timeoutMs: number, signal: AbortSignalLike | null | undef
 
 function assertRelativeRequestPath(path: string): string {
   if (ABSOLUTE_REQUEST_URL.test(path)) {
-    throw new DaytonaError(RELATIVE_PATH_ERROR, 400, 'BAD_REQUEST')
+    throw new DaytonaError(RELATIVE_PATH_ERROR, { statusCode: 400, code: 'BAD_REQUEST' })
   }
   return path
 }
@@ -1250,7 +1250,7 @@ export class HttpTransport {
           // The request deadline can fire while the token exchange is still
           // pending; that is the same timeout `send` maps below, not a raw abort.
           if (isAbortError(error) && timeout.timedOut()) {
-            throw new TimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
+            throw new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
           }
           throw error
         }
@@ -1297,12 +1297,12 @@ export class HttpTransport {
             freshToken = await this.options.auth.onUnauthorized(currentAuthToken)
           } catch (err) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, err instanceof Error ? err : new DaytonaAuthenticationError('onUnauthorized raised an error'))
-            throw err instanceof Error ? err : new DaytonaAuthenticationError('onUnauthorized raised an error')
+            finalize(response.status, err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error'))
+            throw err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error')
           }
           if (freshToken !== undefined && freshToken !== currentAuthToken) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, new DaytonaAuthenticationError('request rejected before token refresh retry'))
+            finalize(response.status, new AuthenticationError('request rejected before token refresh retry'))
             retriedUnauthorized = true
             return send(false, undefined, freshToken)
           }
@@ -1310,7 +1310,7 @@ export class HttpTransport {
           const rejectedAuthorization = headers.Authorization
           if (request.canRetryUnauthorized) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, new DaytonaAuthenticationError('request rejected before token refresh retry'))
+            finalize(response.status, new AuthenticationError('request rejected before token refresh retry'))
             retriedUnauthorized = true
             return send(true, rejectedAuthorization)
           }
@@ -1338,7 +1338,7 @@ export class HttpTransport {
           throw error
         }
         if (isAbortError(error) && timeout.timedOut()) {
-          const timeoutError = new TimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
+          const timeoutError = new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
           finalize(timeoutError.statusCode, timeoutError)
           throw timeoutError
         }

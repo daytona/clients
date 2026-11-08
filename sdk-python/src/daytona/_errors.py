@@ -78,10 +78,6 @@ class DaytonaConnectionError(DaytonaError):
     """The API could not be reached."""
 
 
-# The names v0 and v2 both export for two of the categories.
-DaytonaValidationError = DaytonaBadRequestError
-DaytonaAuthorizationError = DaytonaForbiddenError
-
 SHARED_ERRORS = (
     "DaytonaError",
     "DaytonaBadRequestError",

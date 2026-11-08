@@ -47,6 +47,7 @@ from ._gen.api import Sandbox as SandboxDto
 from ._otel import load_opentelemetry_support
 from ._transport import AsyncTransport
 from .errors import (
+    AuthenticationError,
     ClientTimeoutError,
     ConnectionError,
     DaytonaError,
@@ -55,7 +56,6 @@ from .errors import (
     SandboxCreateConnectionError,
     SandboxCreateRequestTimeoutError,
     SandboxTerminalStateError,
-    UnauthorizedError,
     create_error,
 )
 from .image import ImageBuilder
@@ -1319,7 +1319,9 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
             "SDK",
         )
     if not api_key and not jwt_token:
-        raise UnauthorizedError("api_key or jwt_token is required", status_code=401, code=None, source="SDK")
+        raise AuthenticationError(
+            "api_key or jwt_token is required", status_code=401, code=None, source="SDK"
+        )
     project_id = _prefer_explicit(config.project_id, "DAYTONA_PROJECT_ID")
     if jwt_token and not project_id:
         raise create_error("jwt_token requires project_id", 400, "BAD_REQUEST", "SDK")

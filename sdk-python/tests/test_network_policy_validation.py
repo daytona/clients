@@ -61,7 +61,7 @@ async def test_domains_with_block_all_false_rejected() -> None:
                 "python:3.12",
                 network_policy={"allow_domains": ["api.example.com"], "block_all": False},
             )
-        assert excinfo.value.error_code == "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL"
+        assert excinfo.value.code == "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL"
         assert excinfo.value.status_code == 400
     finally:
         await client.close()

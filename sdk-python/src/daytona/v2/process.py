@@ -9,7 +9,8 @@ from urllib.parse import quote
 
 from typing_extensions import assert_never
 
-from . import _clock, codes
+from . import _clock
+from . import _codes as codes
 from ._core import (
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,

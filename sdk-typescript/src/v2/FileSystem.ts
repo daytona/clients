@@ -163,9 +163,7 @@ function assertExpiresInSeconds(expiresInSeconds: number): void {
   if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 1 || expiresInSeconds > SIGNED_FILE_MAX_TTL_SECONDS) {
     throw new BadRequestError(
       `expiresInSeconds must be an integer between 1 and ${SIGNED_FILE_MAX_TTL_SECONDS} (7 days)`,
-      400,
-      'BAD_REQUEST',
-      'SDK',
+      { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' },
     )
   }
 }
@@ -209,7 +207,7 @@ export class FileSystemService {
 
   public async writeBytes(path: string, data: Uint8Array, options: WriteFileOptions = {}): Promise<void> {
     // JavaScript callers migrating from the old write(path, string) get a named error, not a RangeError from TypedArray.set.
-    if (typeof data === 'string') throw new BadRequestError('writeBytes() takes a Uint8Array; use writeText() for strings', 400, 'BAD_REQUEST', 'SDK')
+    if (typeof data === 'string') throw new BadRequestError('writeBytes() takes a Uint8Array; use writeText() for strings', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     const form = new FormData()
     form.append('path', path)
     if (options.mode) form.append('mode', options.mode)
@@ -455,7 +453,7 @@ export class FileSystemService {
 
   private requireFileUrlSigner(): FileUrlSigner {
     if (this.fileUrlSigner === undefined) {
-      throw new DaytonaError('filesystem handle has no pre-signed URL signer', 400, 'BAD_REQUEST')
+      throw new DaytonaError('filesystem handle has no pre-signed URL signer', { statusCode: 400, code: 'BAD_REQUEST' })
     }
     return this.fileUrlSigner
   }

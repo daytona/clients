@@ -46,6 +46,7 @@ from daytona.v2 import (
     codes,
     idempotency_key_for_name,
 )
+from daytona.v2 import _codes as code_names
 from daytona.v2._api_core import expect_sandbox_detail
 from daytona.v2._auth import ProjectTokenAuth
 from daytona.v2._core import (
@@ -100,6 +101,7 @@ from daytona.v2.errors import (
     PROXY_ERROR_CLASSES,
     ROUTER_ERROR_CLASSES,
     AddonUnavailableError,
+    AuthenticationError,
     BadRequestError,
     BillingDisabledError,
     ClientTimeoutError,
@@ -123,7 +125,6 @@ from daytona.v2.errors import (
     SearchUnavailableError,
     ServiceUnavailableError,
     SessionNotFoundError,
-    UnauthorizedError,
     UnsupportedOperationError,
     create_error,
     error_class_from_status,
@@ -2195,7 +2196,7 @@ async def test_filesystem_watch_dir_waits_for_start_and_drains_events():
 
 @pytest.mark.anyio
 async def test_filesystem_watch_dir_raises_setup_error_before_returning_handle():
-    setup_error = create_error("missing path", 404, codes.FILE_NOT_FOUND, "DAYTONA_DAEMON")
+    setup_error = create_error("missing path", 404, code_names.FILE_NOT_FOUND, "DAYTONA_DAEMON")
 
     class Transport:
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
@@ -2206,7 +2207,7 @@ async def test_filesystem_watch_dir_raises_setup_error_before_returning_handle()
     with pytest.raises(type(setup_error)) as exc_info:
         await fs.watch_dir("/missing")
 
-    assert exc_info.value.code == codes.FILE_NOT_FOUND
+    assert exc_info.value.code == code_names.FILE_NOT_FOUND
     assert exc_info.value.status_code == 404
 
 
@@ -3285,28 +3286,28 @@ def test_parsers_tolerate_unknown_fields():
 
 
 def test_errors_are_code_specific_and_carry_code_source():
-    err = create_error("missing", 404, codes.PROCESS_NOT_FOUND, "DAYTONA_DAEMON")
+    err = create_error("missing", 404, code_names.PROCESS_NOT_FOUND, "DAYTONA_DAEMON")
     assert isinstance(err, ProcessNotFoundError)
-    assert err.code == codes.PROCESS_NOT_FOUND
+    assert err.code == code_names.PROCESS_NOT_FOUND
     assert err.source == "DAYTONA_DAEMON"
     assert isinstance(
-        create_error("expired", 409, codes.CURSOR_EXPIRED, "DAYTONA_DAEMON"), CursorExpiredError
+        create_error("expired", 409, code_names.CURSOR_EXPIRED, "DAYTONA_DAEMON"), CursorExpiredError
     )
     assert isinstance(
-        create_error("unsupported", 400, codes.UNSUPPORTED_OPERATION, "DAYTONA_DAEMON"),
+        create_error("unsupported", 400, code_names.UNSUPPORTED_OPERATION, "DAYTONA_DAEMON"),
         UnsupportedOperationError,
     )
     assert isinstance(create_error("not supported", 501, None, "DAYTONA_API"), InternalServerError)
     assert error_class_from_status(501).__name__ == "NotSupportedError"
     assert isinstance(create_error("unavailable", 503, None, "DAYTONA_API"), ServiceUnavailableError)
     assert isinstance(
-        create_error("addon unavailable", 503, codes.ADDON_UNAVAILABLE, "DAYTONA_DAEMON"),
+        create_error("addon unavailable", 503, code_names.ADDON_UNAVAILABLE, "DAYTONA_DAEMON"),
         AddonUnavailableError,
     )
-    addon_unavailable = create_error("not staged", 503, codes.ADDON_UNAVAILABLE, "DAYTONA_DAEMON")
+    addon_unavailable = create_error("not staged", 503, code_names.ADDON_UNAVAILABLE, "DAYTONA_DAEMON")
     assert isinstance(addon_unavailable, AddonUnavailableError)
     assert isinstance(addon_unavailable, ServiceUnavailableError)
-    assert addon_unavailable.code == codes.ADDON_UNAVAILABLE
+    assert addon_unavailable.code == code_names.ADDON_UNAVAILABLE
 
 
 @pytest.mark.anyio
@@ -3618,7 +3619,7 @@ async def test_lsp_completion_parse_errors_raise_typed_bad_request():
     with pytest.raises(DaytonaError, match="expected LSP completion list") as exc_info:
         await server.completions("file:///p/a.py", {"line": 2, "character": 5})
 
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == code_names.BAD_REQUEST
     assert exc_info.value.source == "SDK"
 
 
@@ -3638,7 +3639,7 @@ async def test_lsp_completion_rejects_invalid_mapping_positions_before_request()
     with pytest.raises(DaytonaError, match="expected LSP position") as exc_info:
         await server.completions("file:///p/a.py", {"line": -1, "character": 5})
 
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == code_names.BAD_REQUEST
     assert exc_info.value.source == "SDK"
     assert transport.sent == [
         RequestSpec("POST", "/lsp/start", json_body={"languageId": "python", "pathToProject": "/p"})
@@ -3653,7 +3654,7 @@ async def test_ports_is_in_use_rejects_non_integer_segments_before_request() -> 
     with pytest.raises(DaytonaError, match="port must be an integer") as exc_info:
         await object.__getattribute__(ports, "is_in_use")("39/99")
 
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == code_names.BAD_REQUEST
     assert exc_info.value.source == "SDK"
     assert transport.specs == []
 
@@ -3689,7 +3690,7 @@ async def test_wait_or_interrupt_returns_final_status_when_interrupt_races_termi
             return WaitResult(reason="exited", exit_code=0)
 
         async def kill(self, *, signal="TERM", escalate_after_ms=None, escalate_to="KILL"):
-            raise create_error("already terminal", 409, codes.PROCESS_TERMINAL, "DAYTONA_DAEMON")
+            raise create_error("already terminal", 409, code_names.PROCESS_TERMINAL, "DAYTONA_DAEMON")
 
     handle = Handle()
 
@@ -4581,7 +4582,9 @@ def test_sandbox_from_api_exposes_the_read_side_lifecycle_policy():
 
 def test_parse_lifecycle_passes_an_unknown_action_through_as_its_wire_string():
     """A newer server may add an action; the read side must not fail or rename it."""
-    assert parse_lifecycle({"timeout_seconds": 60, "on_timeout": "future-action"}).on_timeout == "future-action"
+    assert (
+        parse_lifecycle({"timeout_seconds": 60, "on_timeout": "future-action"}).on_timeout == "future-action"
+    )
     assert (
         parse_lifecycle(
             LifecyclePolicy.model_validate(
@@ -4688,40 +4691,40 @@ def test_public_optional_params_are_keyword_only():
 
 
 # The generic codes each source's catalog publishes, pinned per source: the
-# shared codes.GENERIC_CODES is the union, so a subset check against it cannot
+# shared codes.GENERIC_ERROR_CODES is the union, so a subset check against it cannot
 # catch a source DROPPING a generic code it used to emit.
 DAEMON_GENERIC_CODES = frozenset(
     {
-        codes.BAD_GATEWAY,
-        codes.BAD_REQUEST,
-        codes.CONFLICT,
-        codes.FORBIDDEN,
-        codes.GONE,
-        codes.INTERNAL_SERVER_ERROR,
-        codes.METHOD_NOT_ALLOWED,
-        codes.NOT_FOUND,
-        codes.PAYLOAD_TOO_LARGE,
-        codes.REQUEST_TIMEOUT,
-        codes.SERVICE_UNAVAILABLE,
-        codes.TOO_MANY_REQUESTS,
-        codes.UNAUTHORIZED,
-        codes.UNPROCESSABLE_ENTITY,
-        codes.UNSUPPORTED_MEDIA_TYPE,
+        code_names.BAD_GATEWAY,
+        code_names.BAD_REQUEST,
+        code_names.CONFLICT,
+        code_names.FORBIDDEN,
+        code_names.GONE,
+        code_names.INTERNAL_SERVER_ERROR,
+        code_names.METHOD_NOT_ALLOWED,
+        code_names.NOT_FOUND,
+        code_names.PAYLOAD_TOO_LARGE,
+        code_names.REQUEST_TIMEOUT,
+        code_names.SERVICE_UNAVAILABLE,
+        code_names.TOO_MANY_REQUESTS,
+        code_names.UNAUTHORIZED,
+        code_names.UNPROCESSABLE_ENTITY,
+        code_names.UNSUPPORTED_MEDIA_TYPE,
     }
 )
 
 PROXY_GENERIC_CODES = frozenset(
     {
-        codes.BAD_GATEWAY,
-        codes.BAD_REQUEST,
-        codes.CONFLICT,
-        codes.FORBIDDEN,
-        codes.GATEWAY_TIMEOUT,
-        codes.INTERNAL_SERVER_ERROR,
-        codes.METHOD_NOT_ALLOWED,
-        codes.NOT_FOUND,
-        codes.SERVICE_UNAVAILABLE,
-        codes.UNAUTHORIZED,
+        code_names.BAD_GATEWAY,
+        code_names.BAD_REQUEST,
+        code_names.CONFLICT,
+        code_names.FORBIDDEN,
+        code_names.GATEWAY_TIMEOUT,
+        code_names.INTERNAL_SERVER_ERROR,
+        code_names.METHOD_NOT_ALLOWED,
+        code_names.NOT_FOUND,
+        code_names.SERVICE_UNAVAILABLE,
+        code_names.UNAUTHORIZED,
     }
 )
 
@@ -4734,13 +4737,13 @@ async def test_codes_module_matches_toolbox_error_catalog():
     domain = spec["x-daytona-error-codes"]
     generic = spec["x-daytona-generic-codes"]
     assert set(spec["components"]["schemas"]["ErrorCode"]["enum"]) == set(domain)
-    assert set(domain) == codes.DAEMON_CODES
+    assert set(domain) == codes.DAEMON_ERROR_CODES
     # Pinned per-source: a generic code removed from the contract must go
     # red here, so the subset check the artifact would pass is not enough.
     assert set(generic) == DAEMON_GENERIC_CODES
     assert all(meta["source"] == "DAYTONA_DAEMON" for meta in domain.values())
     assert {code: meta["status"] for code, meta in domain.items()} == {
-        code: codes.CODE_STATUS[code] for code in codes.DAEMON_CODES
+        code: codes.CODE_STATUS[code] for code in codes.DAEMON_ERROR_CODES
     }
     assert {code: meta["status"] for code, meta in generic.items()} == {
         code: codes.CODE_STATUS[code] for code in generic
@@ -4759,13 +4762,13 @@ def test_codes_module_matches_api_error_catalog():
     domain = spec["x-daytona-error-codes"]
     generic = spec["x-daytona-generic-codes"]
 
-    assert set(domain) == codes.API_CODES == set(API_ERROR_CLASSES)
+    assert set(domain) == codes.API_ERROR_CODES == set(API_ERROR_CLASSES)
     # The api's generic table mirrors the full shared set (pinned equality,
     # not subset — see DAEMON_GENERIC_CODES above).
-    assert set(generic) == codes.GENERIC_CODES
+    assert set(generic) == codes.GENERIC_ERROR_CODES
     assert all(meta["source"] == "DAYTONA_API" for meta in domain.values())
     assert {code: meta["status"] for code, meta in domain.items()} == {
-        code: codes.CODE_STATUS[code] for code in codes.API_CODES
+        code: codes.CODE_STATUS[code] for code in codes.API_ERROR_CODES
     }
     assert {code: meta["status"] for code, meta in generic.items()} == {
         code: codes.CODE_STATUS[code] for code in generic
@@ -4785,9 +4788,9 @@ def test_codes_module_matches_proxy_error_catalog():
     generic = {entry["code"]: entry["status"] for entry in spec["generic"]}
 
     assert spec["source"] == "DAYTONA_PROXY"
-    assert set(domain) == codes.PROXY_CODES == set(PROXY_ERROR_CLASSES)
+    assert set(domain) == codes.PROXY_ERROR_CODES == set(PROXY_ERROR_CLASSES)
     assert set(generic) == PROXY_GENERIC_CODES
-    assert domain == {code: codes.CODE_STATUS[code] for code in codes.PROXY_CODES}
+    assert domain == {code: codes.CODE_STATUS[code] for code in codes.PROXY_ERROR_CODES}
     assert generic == {code: codes.CODE_STATUS[code] for code in generic}
     assert {entry["code"]: tuple(entry["extras"]) for entry in spec["codes"] + spec["generic"]} == {
         entry["code"]: codes.PROXY_CODE_EXTRAS.get(entry["code"], ())
@@ -4802,10 +4805,10 @@ def test_codes_module_matches_router_error_catalog():
     generic = {entry["code"]: entry["status"] for entry in spec["generic"]}
 
     assert spec["source"] == "DAYTONA_ROUTER"
-    assert set(domain) == codes.ROUTER_CODES == set(ROUTER_ERROR_CLASSES)
+    assert set(domain) == codes.ROUTER_ERROR_CODES == set(ROUTER_ERROR_CLASSES)
     # The router's generic table mirrors the full shared set, like the api's.
-    assert set(generic) == codes.GENERIC_CODES
-    assert domain == {code: codes.CODE_STATUS[code] for code in codes.ROUTER_CODES}
+    assert set(generic) == codes.GENERIC_ERROR_CODES
+    assert domain == {code: codes.CODE_STATUS[code] for code in codes.ROUTER_ERROR_CODES}
     assert generic == {code: codes.CODE_STATUS[code] for code in generic}
     assert {entry["code"]: tuple(entry["extras"]) for entry in spec["codes"] + spec["generic"]} == {
         entry["code"]: codes.ROUTER_CODE_EXTRAS.get(entry["code"], ())
@@ -4815,14 +4818,14 @@ def test_codes_module_matches_router_error_catalog():
 
 def test_router_source_dispatches_by_source_and_code():
     assert isinstance(
-        create_error("two regions", 400, codes.REGION_MISMATCH, "DAYTONA_ROUTER"), BadRequestError
+        create_error("two regions", 400, code_names.REGION_MISMATCH, "DAYTONA_ROUTER"), BadRequestError
     )
     assert isinstance(
-        create_error("temporarily unavailable", 503, codes.PLACEMENT_UNAVAILABLE, "DAYTONA_ROUTER"),
+        create_error("temporarily unavailable", 503, code_names.PLACEMENT_UNAVAILABLE, "DAYTONA_ROUTER"),
         ServiceUnavailableError,
     )
     assert isinstance(
-        create_error("body too large", 413, codes.CREATE_BODY_TOO_LARGE, "DAYTONA_ROUTER"),
+        create_error("body too large", 413, code_names.CREATE_BODY_TOO_LARGE, "DAYTONA_ROUTER"),
         PayloadTooLargeError,
     )
 
@@ -5925,7 +5928,7 @@ def test_interpreter_connect_context_requires_language_when_rehydrating_by_id() 
         interpreter.connect_context("ctx")
 
     assert exc_info.value.status_code == 400
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == code_names.BAD_REQUEST
     assert transport.specs == []
 
 
@@ -5934,7 +5937,7 @@ async def test_interpreter_explicit_context_surfaces_session_not_found_without_r
     transport = RecordingTransport(
         [
             _session_payload("ctx", kernel="python"),
-            create_error("missing", 404, codes.SESSION_NOT_FOUND, "DAYTONA_DAEMON"),
+            create_error("missing", 404, code_names.SESSION_NOT_FOUND, "DAYTONA_DAEMON"),
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))
@@ -5944,7 +5947,7 @@ async def test_interpreter_explicit_context_surfaces_session_not_found_without_r
         await context.run("print(1)")
 
     assert exc_info.value.status_code == 404
-    assert exc_info.value.code == codes.SESSION_NOT_FOUND
+    assert exc_info.value.code == code_names.SESSION_NOT_FOUND
     assert exc_info.value.source == "DAYTONA_DAEMON"
     assert [spec.path for spec in transport.specs] == ["/sessions", "/processes"]
     assert transport.specs[1].json_body == {
@@ -5969,7 +5972,7 @@ async def test_sandbox_run_code_rejects_a_foreign_interpreter_context_without_a_
         await local.run_code("print(1)", context=foreign_context)
 
     assert exc_info.value.status_code == 400
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == code_names.BAD_REQUEST
     assert exc_info.value.source == "SDK"
     assert local_transport.specs == []
     assert foreign_transport.specs == [
@@ -5989,7 +5992,7 @@ async def test_interpreter_delete_context_rejects_a_foreign_context_without_a_wi
         await local.interpreter.delete_context(foreign_context)
 
     assert exc_info.value.status_code == 400
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == code_names.BAD_REQUEST
     assert exc_info.value.source == "SDK"
     assert local_transport.specs == []
     assert foreign_transport.specs == [
@@ -6005,7 +6008,7 @@ async def test_interpreter_isolated_runs_use_throwaway_context_and_delete_best_e
             _process_payload("code", "code", "running", language="python"),
             {"exitCode": 0, "reason": "exited"},
             _log_page_payload([], next_cursor="0"),
-            create_error("gone", 404, codes.SESSION_NOT_FOUND, "DAYTONA_DAEMON"),
+            create_error("gone", 404, code_names.SESSION_NOT_FOUND, "DAYTONA_DAEMON"),
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))
@@ -6041,7 +6044,7 @@ async def test_interpreter_isolated_run_spends_the_caller_budget_on_context_crea
     transport = RecordingTransport(
         [
             _session_payload("isolated-python-12345678123456781234567812345678", kernel="python"),
-            create_error("gone", 404, codes.SESSION_NOT_FOUND, "DAYTONA_DAEMON"),
+            create_error("gone", 404, code_names.SESSION_NOT_FOUND, "DAYTONA_DAEMON"),
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))
@@ -6055,7 +6058,7 @@ async def test_interpreter_isolated_run_spends_the_caller_budget_on_context_crea
         with pytest.raises(DaytonaError) as exc_info:
             await interpreter.run("print(1)", language="python", isolated=True, timeout=2)
 
-    assert exc_info.value.code == codes.REQUEST_TIMEOUT
+    assert exc_info.value.code == code_names.REQUEST_TIMEOUT
     assert [spec.path for spec in transport.specs] == [
         "/sessions",
         "/sessions/isolated-python-12345678123456781234567812345678",
@@ -6985,7 +6988,7 @@ async def test_interpreter_isolated_run_rejects_invalid_timeouts_before_any_requ
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))
     with pytest.raises(DaytonaError) as exc_info:
         await interpreter.run("print(1)", language="python", isolated=True, timeout=-1)
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == code_names.BAD_REQUEST
     assert transport.specs == []
 
 
@@ -7335,7 +7338,7 @@ async def test_sandbox_start_preserves_resume_conflicts_without_starting():
     api = RecordingTransport(
         [
             _sandbox_detail_payload("sbx", "paused", sandbox_class="macos", persistent=True),
-            create_error("conflicting request", 409, codes.CONFLICT, "DAYTONA_API"),
+            create_error("conflicting request", 409, code_names.CONFLICT, "DAYTONA_API"),
         ]
     )
     bind_api(client, api)
@@ -7344,7 +7347,7 @@ async def test_sandbox_start_preserves_resume_conflicts_without_starting():
     with pytest.raises(DaytonaError) as exc:
         await sandbox.start(timeout=1)
 
-    assert exc.value.code == codes.CONFLICT
+    assert exc.value.code == code_names.CONFLICT
 
     assert [spec.path for spec in api.specs] == [
         "/sandboxes/sbx",
@@ -7574,7 +7577,7 @@ async def test_sandbox_wait_for_state_raises_with_the_observed_default_terminal_
     assert isinstance(exc_info.value, ConflictError)
     assert exc_info.value.state == expected_state
     assert exc_info.value.status_code == 409
-    assert exc_info.value.code == codes.CONFLICT
+    assert exc_info.value.code == code_names.CONFLICT
     assert exc_info.value.source == "SDK"
 
 
@@ -7670,7 +7673,7 @@ async def test_sandbox_wait_for_state_rejects_an_empty_target_list_before_pollin
     bind_api(client, api)
     with pytest.raises(DaytonaError) as exc_info:
         await lazy_sandbox(client, "sbx").wait_for_state([], timeout=1)
-    assert (exc_info.value.code, exc_info.value.source) == (codes.BAD_REQUEST, "SDK")
+    assert (exc_info.value.code, exc_info.value.source) == (code_names.BAD_REQUEST, "SDK")
     assert api.specs == []
 
 
@@ -7755,7 +7758,7 @@ async def test_sandbox_wait_for_state_times_out_with_sdk_origin() -> None:
         await sandbox.wait_for_state(["started"], timeout=0.01)
 
     assert exc_info.value.status_code == 408
-    assert exc_info.value.code == codes.REQUEST_TIMEOUT
+    assert exc_info.value.code == code_names.REQUEST_TIMEOUT
     assert exc_info.value.source == "SDK"
 
 
@@ -7804,7 +7807,7 @@ async def test_sandbox_wait_raises_request_timeout_error_on_timeout() -> None:
         await sandbox.wait(timeout=0.01)
 
     assert exc_info.value.status_code == 408
-    assert exc_info.value.code == codes.REQUEST_TIMEOUT
+    assert exc_info.value.code == code_names.REQUEST_TIMEOUT
     assert exc_info.value.source == "SDK"
 
 
@@ -7814,7 +7817,7 @@ async def test_sandbox_delete_sets_destroyed_only_after_follow_up_404():
     api = RecordingTransport(
         [
             {},
-            create_error("missing", 404, codes.NOT_FOUND, "DAYTONA_API"),
+            create_error("missing", 404, code_names.NOT_FOUND, "DAYTONA_API"),
         ]
     )
     bind_api(client, api)
@@ -8034,11 +8037,11 @@ async def test_process_stdin_rejects_known_code_handles_without_a_wire_call() ->
 
     with pytest.raises(UnsupportedOperationError) as stdin_exc:
         await handle.write_stdin("print(1)")
-    assert stdin_exc.value.code == codes.UNSUPPORTED_OPERATION
+    assert stdin_exc.value.code == code_names.UNSUPPORTED_OPERATION
 
     with pytest.raises(UnsupportedOperationError) as eof_exc:
         await handle.close_stdin()
-    assert eof_exc.value.code == codes.UNSUPPORTED_OPERATION
+    assert eof_exc.value.code == code_names.UNSUPPORTED_OPERATION
     assert transport.specs == []
 
 
@@ -8337,7 +8340,7 @@ async def test_wait_or_interrupt_tolerates_queued_unsupported_interrupt(monkeypa
 
         async def kill(self, **_kwargs):
             self.kills += 1
-            raise create_error("queued", 400, codes.UNSUPPORTED_OPERATION, "DAYTONA_DAEMON")
+            raise create_error("queued", 400, code_names.UNSUPPORTED_OPERATION, "DAYTONA_DAEMON")
 
     now = iter([0.0, 0.0, 0.002, 0.002, 0.003, 0.004])
     monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: next(now, 0.004))
@@ -8480,7 +8483,7 @@ async def test_interpreter_context_run_returns_timed_out_without_submitting_when
 async def test_interpreter_failed_close_keeps_the_original_gate_for_reconnects(monkeypatch) -> None:
     transport = RecordingTransport(
         [
-            create_error("still alive", 503, codes.SERVICE_UNAVAILABLE, "DAYTONA_DAEMON"),
+            create_error("still alive", 503, code_names.SERVICE_UNAVAILABLE, "DAYTONA_DAEMON"),
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -8648,7 +8651,7 @@ def test_transport_decodes_json_bytes_errors_streams_and_request_helpers():
             return httpx.Response(204, content=b"")
         if request.url.path == "/bad":
             return httpx.Response(
-                409, json={"message": "exists", "code": codes.NAME_CONFLICT, "source": "DAYTONA_DAEMON"}
+                409, json={"message": "exists", "code": code_names.NAME_CONFLICT, "source": "DAYTONA_DAEMON"}
             )
         if request.url.path == "/stream":
             return httpx.Response(200, text='event: log\ndata: {"cursor":"c"}\n\n')
@@ -8896,11 +8899,10 @@ def test_size_limit_codes_map_to_typed_conflict_errors_with_byte_limits():
 
 
 def test_error_maps_cover_all_code_and_status_branches():
-    for code in codes.DAEMON_CODES:
+    for code in codes.DAEMON_ERROR_CODES:
         err = create_error(f"message {code}", None, code, "DAYTONA_DAEMON")
         assert isinstance(err, CODE_ERROR_CLASSES[code])
         assert err.code == code
-        assert err.error_code == code
         assert err.source == "DAYTONA_DAEMON"
     assert error_class_from_status(None) is DaytonaError
     assert error_class_from_status(418) is DaytonaError
@@ -8966,10 +8968,10 @@ def test_other_429s_stay_rate_limit_errors_and_dispatch_is_source_scoped():
     assert prose.message == "request limit reached"
 
     # LIMIT_EXCEEDED is a DAYTONA_API code: another source falls back to status.
-    foreign = create_error("limit exceeded", 429, codes.LIMIT_EXCEEDED, "DAYTONA_DAEMON")
+    foreign = create_error("limit exceeded", 429, code_names.LIMIT_EXCEEDED, "DAYTONA_DAEMON")
     assert type(foreign) is RateLimitError
     assert not isinstance(foreign, LimitExceededError)
-    assert foreign.code == codes.LIMIT_EXCEEDED
+    assert foreign.code == code_names.LIMIT_EXCEEDED
 
 
 def test_error_status_code_is_the_transport_status_never_a_body_field():
@@ -9709,9 +9711,7 @@ async def test_search_rejects_response_without_sandboxes_array_matches_typescrip
             parse_search_page(body)
     with pytest.raises(BadRequestError, match="expected JSON object"):
         parse_search_page({"sandboxes": [{"id": "sbx"}, "sbx-2"]})
-    assert parse_search_page(
-        {"sandboxes": [{"id": "sbx", "future_field": 1}], "future_top_level": True}
-    ) == (
+    assert parse_search_page({"sandboxes": [{"id": "sbx", "future_field": 1}], "future_top_level": True}) == (
         [{"id": "sbx", "future_field": 1}],
         None,
         0,
@@ -10595,7 +10595,7 @@ def test_daytona_config_rejects_api_key_and_jwt_together() -> None:
 def test_daytona_config_requires_api_key_or_jwt_token(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in ("DAYTONA_API_KEY", "DAYTONA_JWT_TOKEN", "DAYTONA_PROJECT_ID"):
         monkeypatch.delenv(name, raising=False)
-    with pytest.raises(UnauthorizedError, match="api_key or jwt_token is required"):
+    with pytest.raises(AuthenticationError, match="api_key or jwt_token is required"):
         AsyncDaytona(DaytonaConfig())
 
 
@@ -10655,7 +10655,7 @@ def test_daytona_config_treats_blank_env_jwt_as_absent_when_api_key_is_configure
 
 
 def test_daytona_config_rejects_blank_explicit_jwt_without_api_key() -> None:
-    with pytest.raises(UnauthorizedError, match="api_key or jwt_token is required"):
+    with pytest.raises(AuthenticationError, match="api_key or jwt_token is required"):
         AsyncDaytona(DaytonaConfig(jwt_token="", project_id="project-1"))
 
 
@@ -10901,7 +10901,7 @@ async def test_one_shot_streaming_body_is_not_replayed_on_401() -> None:
         yield b"stream-once"
 
     try:
-        with pytest.raises(UnauthorizedError):
+        with pytest.raises(AuthenticationError):
             await transport.request("POST", "/files/upload", content=once())
     finally:
         await transport.close()
@@ -11358,7 +11358,7 @@ async def test_project_token_exchange_invalid_model_raises_typed_bad_request() -
     finally:
         await http.aclose()
 
-    assert (exc_info.value.code, exc_info.value.source) == (codes.BAD_REQUEST, "SDK")
+    assert (exc_info.value.code, exc_info.value.source) == (code_names.BAD_REQUEST, "SDK")
 
 
 @pytest.mark.anyio
@@ -12661,7 +12661,7 @@ def test_create_body_sends_read_only_volume_mounts():
 
 @pytest.mark.anyio
 async def test_volume_service_shapes_routes():
-    missing = create_error("missing", 404, codes.NOT_FOUND, "DAYTONA_API")
+    missing = create_error("missing", 404, code_names.NOT_FOUND, "DAYTONA_API")
     transport = RecordingTransport(
         [
             {"volumes": [_volume_payload("vol")], "nextCursor": "vn"},
@@ -12696,7 +12696,7 @@ async def test_volume_delete_reports_acceptance_and_id_only_is_opt_in():
 
 @pytest.mark.anyio
 async def test_volume_get_does_not_create_when_id_only_lookup_is_missing():
-    missing = create_error("missing", 404, codes.NOT_FOUND, "DAYTONA_API")
+    missing = create_error("missing", 404, code_names.NOT_FOUND, "DAYTONA_API")
     transport = RecordingTransport([missing])
     volume = AsyncVolumeService(transport)  # type: ignore[arg-type]
 

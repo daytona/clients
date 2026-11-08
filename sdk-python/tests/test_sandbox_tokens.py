@@ -26,10 +26,10 @@ import pytest
 from _handles import lazy_sandbox
 
 from daytona.v2 import (
+    AuthenticationError,
     ForbiddenError,
     PreviewLink,
     SandboxAccessToken,
-    UnauthorizedError,
 )
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport
@@ -371,7 +371,7 @@ async def test_second_401_surfaces_after_exactly_one_remint():
         sandbox, _recording_handler(seen, lambda request: httpx.Response(401, json={"error": "unauthorized"}))
     )
 
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(AuthenticationError):
         await sandbox.ports.list()
 
     # Exactly one re-mint and one retry; the second 401 surfaces.
@@ -413,7 +413,7 @@ async def test_caller_supplied_token_is_never_replaced():
     )
 
     # Expiry surfaces to the caller: no mint, no retry, the 401 is theirs.
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(AuthenticationError):
         await sandbox.ports.list()
 
     assert api.specs == []
@@ -734,7 +734,7 @@ async def test_refresh_data_adoption_never_gives_a_caller_supplied_handle_a_mint
     )
 
     # The caller token still rides as-is: the 401 surfaces, nothing is minted.
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(AuthenticationError):
         await sandbox.ports.list()
 
     assert seen == ["Bearer caller_tok"]

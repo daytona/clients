@@ -1,0 +1,129 @@
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+// The v2 error surface: names, constructors, defaults and the codes catalog.
+// sdk-python/tests/test_error_contract.py asserts the same facts.
+
+import * as root from '../src/index'
+import * as v2 from '../src/v2/index'
+import { errorFromEnvelopeBody } from '../src/v2/errors/DaytonaError'
+
+describe('v2 error surface', () => {
+  it('uses the same category names as the Python SDK', () => {
+    expect(new v2.AuthenticationError('x')).toBeInstanceOf(root.DaytonaAuthenticationError)
+    expect(new v2.ForbiddenError('x')).toBeInstanceOf(root.DaytonaForbiddenError)
+    expect(new v2.ClientTimeoutError('x')).toBeInstanceOf(root.DaytonaTimeoutError)
+    expect(new v2.RequestTimeoutError('x')).toBeInstanceOf(root.DaytonaTimeoutError)
+    expect(new v2.ClientTimeoutError('x')).not.toBeInstanceOf(v2.RequestTimeoutError)
+    expect(new v2.GitAuthFailedError('x')).toBeInstanceOf(v2.AuthenticationError)
+    expect(errorFromEnvelopeBody('{}', 401, 'x').constructor).toBe(v2.AuthenticationError)
+    expect(errorFromEnvelopeBody('{}', 403, 'x').constructor).toBe(v2.ForbiddenError)
+  })
+
+  it.each([
+    'DaytonaAuthenticationError',
+    'DaytonaAuthorizationError',
+    'DaytonaConflictError',
+    'DaytonaConnectionError',
+    'DaytonaNotFoundError',
+    'DaytonaNotSupportedError',
+    'DaytonaRateLimitError',
+    'DaytonaTimeoutError',
+    'DaytonaValidationError',
+    'AuthorizationError',
+    'TimeoutError',
+  ])('exports no legacy synonym %s (nor its V2 alias)', (name) => {
+    expect(Object.keys(v2)).not.toContain(name)
+    expect(Object.keys(v2)).not.toContain(`${name}V2`)
+  })
+
+  it('keeps DaytonaError and DaytonaErrorV2 as the v2 base', () => {
+    expect(v2.DaytonaErrorV2).toBe(v2.DaytonaError)
+  })
+
+  it('carries only code, not a second spelling', () => {
+    const error = new v2.NotFoundError('missing', { statusCode: 404, code: 'NOT_FOUND', source: 'DAYTONA_API' })
+    expect(error.code).toBe('NOT_FOUND')
+    expect('errorCode' in error).toBe(false)
+  })
+
+  it('takes the message and an options object', () => {
+    const cause = new Error('socket closed')
+    const error = new v2.ConflictError('busy', { statusCode: 409, code: 'CONFLICT', source: 'DAYTONA_API', traceId: 't-1', retryAfterSeconds: 3, cause })
+    expect(error).toMatchObject({ message: 'busy', statusCode: 409, code: 'CONFLICT', source: 'DAYTONA_API', traceId: 't-1', retryAfterSeconds: 3 })
+    expect(error.cause).toBe(cause)
+    expect(error.name).toBe('ConflictError')
+    const bare = new v2.BadRequestError('bad')
+    expect([bare.statusCode, bare.code, bare.source, bare.traceId]).toEqual([undefined, undefined, undefined, undefined])
+  })
+
+  it('gives TransferCancelledError the same defaults as the Python SDK', () => {
+    const error = new v2.TransferCancelledError()
+    expect([error.message, error.statusCode, error.code, error.source]).toEqual(['file transfer cancelled', 499, 'REQUEST_CANCELLED', 'SDK'])
+    const custom = new v2.TransferCancelledError('upload cancelled', { source: 'CALLER' })
+    expect([custom.message, custom.statusCode, custom.code, custom.source]).toEqual(['upload cancelled', 499, 'REQUEST_CANCELLED', 'CALLER'])
+  })
+
+  it('defaults LimitExceededError.code', () => {
+    expect(new v2.LimitExceededError('limit reached').code).toBe('LIMIT_EXCEEDED')
+    expect(new v2.LimitExceededError('limit reached', { limit: 'max_concurrent_sandboxes', current: 3, max: 3 }).max).toBe(3)
+  })
+
+  it('keeps ImageBuildFailedError.buildError separate from the message', () => {
+    const bare = new v2.ImageBuildFailedError('image img_1 build failed', { imageId: 'img_1' })
+    expect(bare.message).toBe('image img_1 build failed')
+    expect(bare.buildError).toBeUndefined()
+    const recorded = new v2.ImageBuildFailedError('image img_1 build failed', { imageId: 'img_1', buildError: 'RUN exited 1' })
+    expect(recorded.buildError).toBe('RUN exited 1')
+    expect(recorded.message).toBe('image img_1 build failed')
+    const fromWire = errorFromEnvelopeBody(JSON.stringify({ code: 'IMAGE_BUILD_FAILED', source: 'DAYTONA_API', message: 'failed' }), 409, 'x')
+    expect(fromWire).toBeInstanceOf(v2.ImageBuildFailedError)
+    expect((fromWire as v2.ImageBuildFailedError).buildError).toBeUndefined()
+  })
+
+  it('keeps an unknown code verbatim with the status category', () => {
+    const error = errorFromEnvelopeBody(JSON.stringify({ code: 'SOMETHING_NEW', source: 'DAYTONA_SOMETHING', message: 'x' }), 404, 'x')
+    expect(error.constructor).toBe(v2.NotFoundError)
+    expect([error.code, error.source]).toEqual(['SOMETHING_NEW', 'DAYTONA_SOMETHING'])
+    expect(v2.codes.isKnownErrorCode('SOMETHING_NEW')).toBe(false)
+  })
+})
+
+describe('codes namespace', () => {
+  it('has the same member names as the Python SDK', () => {
+    expect(Object.keys(v2.codes).sort()).toEqual([
+      'API_CODE_EXTRAS',
+      'API_ERROR_CODES',
+      'CODE_STATUS',
+      'DAEMON_CODE_EXTRAS',
+      'DAEMON_ERROR_CODES',
+      'GENERIC_ERROR_CODES',
+      'PROXY_CODE_EXTRAS',
+      'PROXY_ERROR_CODES',
+      'ROUTER_CODE_EXTRAS',
+      'ROUTER_ERROR_CODES',
+      'isKnownErrorCode',
+    ])
+  })
+
+  it('replaces the flat catalog exports', () => {
+    for (const name of ['API_ERROR_CODES', 'CODE_STATUS', 'isKnownErrorCode', 'API_CODE_EXTRAS']) {
+      expect(Object.keys(v2)).not.toContain(name)
+    }
+  })
+
+  it('holds frozen data', () => {
+    for (const name of ['API_ERROR_CODES', 'DAEMON_ERROR_CODES', 'GENERIC_ERROR_CODES', 'PROXY_ERROR_CODES', 'ROUTER_ERROR_CODES', 'CODE_STATUS', 'API_CODE_EXTRAS', 'DAEMON_CODE_EXTRAS', 'PROXY_CODE_EXTRAS', 'ROUTER_CODE_EXTRAS'] as const) {
+      expect(Object.isFrozen(v2.codes[name])).toBe(true)
+    }
+    for (const fields of Object.values(v2.codes.API_CODE_EXTRAS)) expect(Object.isFrozen(fields)).toBe(true)
+    expect(() => {
+      ;(v2.codes.CODE_STATUS as Record<string, number>).NOT_FOUND = 500
+    }).toThrow(TypeError)
+    expect(v2.codes.CODE_STATUS.NOT_FOUND).toBe(404)
+    expect(v2.codes.isKnownErrorCode('PROCESS_NOT_FOUND')).toBe(true)
+    expect(v2.codes.isKnownErrorCode(undefined)).toBe(false)
+  })
+})

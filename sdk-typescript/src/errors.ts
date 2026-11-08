@@ -104,6 +104,3 @@ for (const [key, category] of [
   // ESM copy matches the CJS copy's class (and vice versa).
   registerErrorClasses(category, [category])
 }
-
-// Class re-exports, so the aliases work as types as well as values.
-export { DaytonaBadRequestError as DaytonaValidationError, DaytonaForbiddenError as DaytonaAuthorizationError }

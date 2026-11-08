@@ -72,7 +72,7 @@ function inBrowser(): boolean {
 
 async function nodeTransfers(methodName: 'downloadFile' | 'uploadFile'): Promise<NodeTransferModules> {
   if (inBrowser()) {
-    throw new NotSupportedError(`${methodName}() is only supported in Node.js environments`, 501, 'NOT_IMPLEMENTED', 'SDK')
+    throw new NotSupportedError(`${methodName}() is only supported in Node.js environments`, { statusCode: 501, code: 'NOT_IMPLEMENTED', source: 'SDK' })
   }
   // Runtime specifiers: a literal `import('node:fs')` makes bundlers emit a
   // shared chunk for the builtin shim even though this branch is Node-only.
@@ -111,7 +111,7 @@ function normalizeTransferError(error: unknown, signal: AbortSignal | undefined)
   if (error instanceof Error) {
     return error
   }
-  return new DaytonaError(String(error), undefined, undefined, 'SDK')
+  return new DaytonaError(String(error), { source: 'SDK' })
 }
 
 function fileNameFromPath(path: string): string {
@@ -168,7 +168,7 @@ export async function openExclusiveStagingFile(
       throw error
     }
   }
-  throw new DaytonaError('downloadFile() could not allocate a staging file next to the destination', undefined, undefined, 'SDK')
+  throw new DaytonaError('downloadFile() could not allocate a staging file next to the destination', { source: 'SDK' })
 }
 
 function downloadTempPath(localPath: string): string {
@@ -302,7 +302,7 @@ function uploadBody(
               return
             }
             if (bytesSent !== size) {
-              throw new DaytonaError('source file changed size during upload', undefined, undefined, 'SDK')
+              throw new DaytonaError('source file changed size during upload', { source: 'SDK' })
             }
             readingFile = false
             reportProgress(options.onProgress, bytesSent, size, lastReported)
@@ -384,7 +384,7 @@ export async function downloadFile(
   try {
     const response = await transport.fetch(`/files/download${encodeQuery({ path: remotePath })}`, { signal: options.signal })
     if (response.body === null) {
-      throw new DaytonaError('downloadFile() expected a response body', undefined, undefined, 'SDK')
+      throw new DaytonaError('downloadFile() expected a response body', { source: 'SDK' })
     }
     responseBody = response.body
     const staging = await openExclusiveStagingFile(modules.fsPromises, localPath)
@@ -407,7 +407,7 @@ export async function downloadFile(
           const chunk = next.value.subarray(chunkOffset)
           const written = bytesWrittenByCall(await handle.write(chunk), chunk.byteLength)
           if (!Number.isInteger(written) || written <= 0 || written > chunk.byteLength) {
-            throw new DaytonaError('downloadFile() received an invalid write result from the local filesystem', undefined, undefined, 'SDK')
+            throw new DaytonaError('downloadFile() received an invalid write result from the local filesystem', { source: 'SDK' })
           }
           chunkOffset += written
           bytesWritten += written
@@ -424,7 +424,7 @@ export async function downloadFile(
     }
     if (total !== undefined) {
       if (bytesWritten !== total) {
-        throw new DaytonaError('downloadFile() ended before the declared Content-Length was received', undefined, undefined, 'SDK')
+        throw new DaytonaError('downloadFile() ended before the declared Content-Length was received', { source: 'SDK' })
       }
       reportProgress(options.onProgress, bytesWritten, total, lastReported)
     }

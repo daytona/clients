@@ -9,7 +9,7 @@ import { once } from 'node:events'
 import { ImagesService } from '../src/v2/Images.js'
 import { ImageBuilder } from '../src/v2/Image.js'
 import { createHttpClient } from '../src/v2/http.js'
-import { RequestTimeoutError, TimeoutError } from '../src/v2/errors/DaytonaError.js'
+import { RequestTimeoutError, ClientTimeoutError } from '../src/v2/errors/DaytonaError.js'
 
 type Phase = 'post' | 'initial' | 'poll'
 let server: Server
@@ -157,7 +157,7 @@ it.each<Phase>(['post', 'initial'])('preserves a root timeout during %s before t
   // When the transport times out first, without an assumed REQUEST_TIMEOUT code.
   const result = service.pull('alpine', { timeout: 300 })
   // Then the real Axios timeout remains a generic transport timeout.
-  await expect(result).rejects.toBeInstanceOf(TimeoutError)
+  await expect(result).rejects.toBeInstanceOf(ClientTimeoutError)
   await expect(result).rejects.toMatchObject({ message: 'Operation timed out', code: undefined })
 })
 

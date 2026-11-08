@@ -90,7 +90,7 @@ import {
   BillingDisabledError,
   ConnectionError,
   CODE_ERROR_CLASS,
-  DaytonaAuthenticationError,
+  AuthenticationError,
   DaytonaError,
   createAxiosDaytonaError,
   createDaytonaError,
@@ -98,6 +98,7 @@ import {
   errorClassFromStatusCode,
   errorFromFetchResponse,
   errorFromEnvelopeBody,
+  errorOptionsFromEnvelope,
   InternalServerError,
   ImageBuildFailedError,
   ImageClassMismatchError,
@@ -122,7 +123,7 @@ import {
   SnapshotNotReadyError,
   SnapshotNotFoundError,
   statusForCode,
-  TimeoutError,
+  ClientTimeoutError,
   UnsupportedOperationError,
   SandboxCreateConnectionError,
   SandboxCreateRequestTimeoutError,
@@ -2272,7 +2273,7 @@ describe('V2 model', () => {
     const api = clientInstance(client)
     const sandbox = new Sandbox({ id: 'sbx', status: 'paused', class: 'macos', persistent: true }, api, undefined, 'key')
     jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', status: 'paused', class: 'macos', persistent: true } })
-    const error = new DaytonaError('another operation is in progress', 409, 'CONFLICT')
+    const error = new DaytonaError('another operation is in progress', { statusCode: 409, code: 'CONFLICT' })
     const post = jest.spyOn(api, 'post').mockRejectedValue(error)
 
     // When starting requires a resume, Then the original error remains observable.
@@ -2438,7 +2439,7 @@ describe('V2 model', () => {
     const ws = new HubTestWebSocket()
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, () => ws as unknown as WebSocket, ticketApi, { earlyProbeMs: 40, noFrameTimeoutMs: 5_000 })
     const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', 503, 'SERVICE_UNAVAILABLE', 'DAYTONA_API'))
+    const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_API' }))
     try {
       const waiting = sandbox.waitForState(['started'], { timeout: 130 }).catch((error: unknown) => error)
       await jest.advanceTimersByTimeAsync(130)
@@ -2631,7 +2632,7 @@ describe('V2 model', () => {
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
     jest.spyOn(hub, 'wait').mockImplementation(async (_sandboxId, _predicate, options) => {
       await options?.sandboxPollFn?.()
-      throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+      throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     })
     const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
     const now = jest.spyOn(Date, 'now')
@@ -2724,7 +2725,7 @@ describe('V2 model', () => {
     const get = jest.spyOn(api, 'get').mockImplementation(async (_url, config) => {
       const ms = (config as { timeout?: number } | undefined)?.timeout
       return await new Promise((_, reject) => {
-        if (ms !== undefined && ms > 0) setTimeout(() => reject(new RequestTimeoutError('timed out', 408, 'REQUEST_TIMEOUT', 'SDK')), ms)
+        if (ms !== undefined && ms > 0) setTimeout(() => reject(new RequestTimeoutError('timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })), ms)
       })
     })
     const wait = jest.spyOn(hub, 'wait')
@@ -2753,7 +2754,7 @@ describe('V2 model', () => {
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
     jest.spyOn(hub, 'wait').mockImplementation(async (_sandboxId, _predicate, options) => {
       options?.onObserved?.({ state: 'stopped', rawState: 'stopped' })
-      throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+      throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     })
     const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
     sandbox.rawState = 'running'
@@ -2981,7 +2982,7 @@ describe('V2 model', () => {
     // mint failure must not discard it and fail the whole call.
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { url: 'https://p', token: 'preview-token' } })
-      .mockRejectedValueOnce(new DaytonaError('boom', 500))
+      .mockRejectedValueOnce(new DaytonaError('boom', { statusCode: 500 }))
 
     await expect(sandbox.ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: 'preview-token' })
     expect(post).toHaveBeenCalledWith('/sandboxes/sbx/access-token', { operations: [], ports: [8080] })
@@ -3014,7 +3015,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
-    jest.spyOn(api, 'get').mockRejectedValueOnce(new NotFoundError('missing', 404, 'NOT_FOUND'))
+    jest.spyOn(api, 'get').mockRejectedValueOnce(new NotFoundError('missing', { statusCode: 404, code: 'NOT_FOUND' }))
     jest.spyOn(api, 'put').mockResolvedValueOnce({ data: { id: 'ep', port: 8080, public: false, url: 'https://p' } })
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { url: 'https://p', token: 'preview-token' } })
@@ -3939,7 +3940,7 @@ describe('toolbox service request shaping', () => {
 
   it('rejects fs watch setup errors before returning a handle', async () => {
     const transport = transportStub()
-    transport.fetch.mockRejectedValue(new DaytonaError('missing path', 404, 'FILE_NOT_FOUND'))
+    transport.fetch.mockRejectedValue(new DaytonaError('missing path', { statusCode: 404, code: 'FILE_NOT_FOUND' }))
     const fs = new FileSystemService(transport.object)
 
     await expect(fs.watchDir('/missing', () => undefined)).rejects.toMatchObject({
@@ -5299,7 +5300,7 @@ describe('toolbox service request shaping', () => {
       if (path === '/processes/p2/logs') return { frames: [], nextCursor: undefined }
       throw new Error(`unexpected GET ${path}`)
     })
-    transport.delete.mockRejectedValueOnce(new DaytonaError('still alive', 503, 'SERVICE_UNAVAILABLE', 'DAYTONA_DAEMON'))
+    transport.delete.mockRejectedValueOnce(new DaytonaError('still alive', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_DAEMON' }))
 
     const first = context.run('print(1)')
     await firstSubmittedPromise
@@ -5431,11 +5432,11 @@ describe('toolbox service request shaping', () => {
 
   it('deletes an isolated context by id even when setup times out before createContext returns', async () => {
     const transport = transportStub()
-    transport.post.mockRejectedValueOnce(new TimeoutError('timed out', 408, 'CLIENT_TIMEOUT', 'SDK'))
+    transport.post.mockRejectedValueOnce(new ClientTimeoutError('timed out', { statusCode: 408, code: 'CLIENT_TIMEOUT', source: 'SDK' }))
     transport.delete.mockResolvedValue(undefined)
     const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
 
-    await expect(interpreter.run('print(1)', { language: 'python', isolated: true })).rejects.toBeInstanceOf(TimeoutError)
+    await expect(interpreter.run('print(1)', { language: 'python', isolated: true })).rejects.toBeInstanceOf(ClientTimeoutError)
 
     const createPayload = transport.post.mock.calls[0]?.[1]
     const createdContextId = typeof createPayload === 'object' && createPayload !== null && 'id' in createPayload
@@ -5532,7 +5533,7 @@ describe('toolbox service request shaping', () => {
     transport.get
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
       .mockResolvedValueOnce({ frames: [], nextCursor: undefined })
-    transport.delete.mockRejectedValueOnce(new DaytonaError('gone', 404, 'SESSION_NOT_FOUND'))
+    transport.delete.mockRejectedValueOnce(new DaytonaError('gone', { statusCode: 404, code: 'SESSION_NOT_FOUND' }))
     const interpreter = new InterpreterService(transport.object, new ProcessService(transport.object, 'sbx'))
     await expect(interpreter.run('print(1)', { language: 'python', isolated: true })).resolves.toMatchObject({ process: { processId: 'proc', exitCode: 0 } })
 
@@ -5602,7 +5603,7 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     transport.post
       .mockResolvedValueOnce({ id: 'p' })
-      .mockRejectedValueOnce(new DaytonaError('queued', 400, 'UNSUPPORTED_OPERATION'))
+      .mockRejectedValueOnce(new DaytonaError('queued', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' }))
     transport.get
       .mockImplementationOnce(async () => {
         jest.advanceTimersByTime(10)
@@ -5776,7 +5777,7 @@ describe('toolbox service request shaping', () => {
       init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     })) as never
     try {
-      const pending = expect(new HttpTransport('http://toolbox/sbx', 'key', 5).fetch('/events')).rejects.toBeInstanceOf(TimeoutError)
+      const pending = expect(new HttpTransport('http://toolbox/sbx', 'key', 5).fetch('/events')).rejects.toBeInstanceOf(ClientTimeoutError)
       await jest.advanceTimersByTimeAsync(5)
       await pending
     } finally {
@@ -6066,7 +6067,7 @@ describe('toolbox service request shaping', () => {
     try {
       const transport = new HttpTransport('http://toolbox.invalid', undefined, 50, { authProvider })
       const error = await transport.fetch('/events', { method: 'POST', body }).catch((caught: unknown) => caught)
-      expect(error).toBeInstanceOf(DaytonaAuthenticationError)
+      expect(error).toBeInstanceOf(AuthenticationError)
       expect(error).not.toBeInstanceOf(ConnectionError)
     } finally {
       globalThis.fetch = originalFetch
@@ -6078,7 +6079,7 @@ describe('toolbox service request shaping', () => {
   it('detaches the caller abort relay when fetch setup fails before sending the request', async () => {
     const controller = new AbortController()
     const removeSpy = jest.spyOn(controller.signal, 'removeEventListener')
-    const authError = new DaytonaAuthenticationError('token exchange failed', 401, 'UNAUTHORIZED', 'SDK')
+    const authError = new AuthenticationError('token exchange failed', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
     const authProvider = {
       authorizationHeader: jest.fn().mockRejectedValue(authError),
     }
@@ -6088,8 +6089,8 @@ describe('toolbox service request shaping', () => {
     expect(removeSpy).toHaveBeenCalledWith('abort', expect.any(Function))
   })
 
-  it('rethrows DaytonaAuthenticationError unchanged when axios auth setup fails before dispatch', async () => {
-    const authError = new DaytonaAuthenticationError('token exchange failed', 401, 'UNAUTHORIZED', 'SDK')
+  it('rethrows AuthenticationError unchanged when axios auth setup fails before dispatch', async () => {
+    const authError = new AuthenticationError('token exchange failed', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
     const authProvider = {
       authorizationHeader: jest.fn().mockRejectedValue(authError),
     }
@@ -6495,7 +6496,7 @@ describe('toolbox service request shaping', () => {
       await expect(badRequest).rejects.toBeInstanceOf(publicSdk.BadRequestError)
       await expect(badRequest).rejects.toMatchObject({ message: 'expires is too far in the future', statusCode: 400 })
       const forbidden = sandbox.fs.presignedUploadUrl('/tmp/demo.txt')
-      await expect(forbidden).rejects.toBeInstanceOf(publicSdk.AuthorizationError)
+      await expect(forbidden).rejects.toBeInstanceOf(publicSdk.ForbiddenError)
       await expect(forbidden).rejects.toMatchObject({ message: 'missing permission write:sandboxes', statusCode: 403 })
       expect(post).toHaveBeenCalledTimes(2)
     } finally {
@@ -6573,7 +6574,7 @@ describe('toolbox service request shaping', () => {
       .mockRejectedValueOnce(createDaytonaError('sandbox not found', 404, 'NOT_FOUND', 'DAYTONA_API'))
     try {
       const forbidden = sandbox.rotateSigningKey()
-      await expect(forbidden).rejects.toBeInstanceOf(publicSdk.AuthorizationError)
+      await expect(forbidden).rejects.toBeInstanceOf(publicSdk.ForbiddenError)
       await expect(forbidden).rejects.toMatchObject({ message: 'missing permission write:sandboxes', statusCode: 403 })
       const notFound = sandbox.rotateSigningKey()
       await expect(notFound).rejects.toBeInstanceOf(publicSdk.NotFoundError)
@@ -7049,7 +7050,7 @@ describe('toolbox service request shaping', () => {
   })
 
   it('matches Python auth validation: missing credentials auth error, both supplied validation error, jwt without project validation error', () => {
-    expect(() => new Daytona()).toThrow(DaytonaAuthenticationError)
+    expect(() => new Daytona()).toThrow(AuthenticationError)
     expect(() => new Daytona({ apiKey: 'key', jwtToken: 'jwt', projectId: 'project-1' })).toThrow('exactly one of apiKey or jwtToken')
     expect(() => new Daytona({ jwtToken: 'jwt' })).toThrow('projectId is required when jwtToken is set')
   })
@@ -7231,7 +7232,7 @@ describe('toolbox service request shaping', () => {
     clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
     jest.spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(JSON.stringify({ access_token: 'platform', expires_in: expiresIn, token_type: 'Bearer', issued_token_type: 'urn:ietf:params:oauth:token-type:access_token' }), { headers: { 'content-type': 'application/json' } }))
-    await expect(client.listAuditActions()).rejects.toBeInstanceOf(DaytonaAuthenticationError)
+    await expect(client.listAuditActions()).rejects.toBeInstanceOf(AuthenticationError)
   })
 
   it('re-exchanges once after a 401 and retries with the new token', async () => {
@@ -7264,7 +7265,7 @@ describe('toolbox service request shaping', () => {
     try {
       const provider = createPlatformTokenProvider({ baseURL: 'http://api.invalid', jwtToken: 'jwt', projectId: 'p' })
       const transport = new HttpTransport('https://proxy.example/sandbox-api/sbx', undefined, 50, { authProvider: provider })
-      await expect(transport.fetch('/version')).rejects.toBeInstanceOf(TimeoutError)
+      await expect(transport.fetch('/version')).rejects.toBeInstanceOf(ClientTimeoutError)
     } finally {
       fetch.mockRestore()
     }
@@ -7309,7 +7310,7 @@ describe('toolbox service request shaping', () => {
         }),
       }).catch((error: unknown) => error)
       await jest.advanceTimersByTimeAsync(50)
-      expect(await pending).toBeInstanceOf(TimeoutError)
+      expect(await pending).toBeInstanceOf(ClientTimeoutError)
       expect(fetch).not.toHaveBeenCalled()
     } finally {
       globalThis.fetch = originalFetch
@@ -8347,7 +8348,7 @@ describe('toolbox service request shaping', () => {
     const client = withApiUrl('http://api.invalid', () => new Daytona({ apiKey: 'key' }))
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
-      .mockRejectedValueOnce(new TimeoutError('lost response', 408, 'REQUEST_TIMEOUT', 'SDK'))
+      .mockRejectedValueOnce(new ClientTimeoutError('lost response', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }))
       .mockRejectedValueOnce(new ConnectionError('socket closed'))
       .mockResolvedValueOnce({ data: { id: 'sbx-region' } })
     const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx-region', status: 'running' } })
@@ -8496,12 +8497,12 @@ describe('toolbox service request shaping', () => {
   it('surfaces the idempotency key when the create POST itself times out or loses the connection', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const post = jest.spyOn(api, 'post').mockRejectedValueOnce(new TimeoutError('timeout of 50ms exceeded', 408, 'REQUEST_TIMEOUT', 'SDK'))
+    const post = jest.spyOn(api, 'post').mockRejectedValueOnce(new ClientTimeoutError('timeout of 50ms exceeded', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }))
     const get = jest.spyOn(api, 'get')
 
     const timedOut = await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 'run-42' }).catch((error: unknown) => error)
     expect(timedOut).toBeInstanceOf(SandboxCreateRequestTimeoutError)
-    expect(timedOut).toBeInstanceOf(TimeoutError)
+    expect(timedOut).toBeInstanceOf(ClientTimeoutError)
     expect(timedOut).toMatchObject({ idempotencyKey: 'run-42', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     expect((timedOut as Error).message).toContain('run-42')
 
@@ -8514,7 +8515,7 @@ describe('toolbox service request shaping', () => {
     expect((dropped as Error).message).toContain('socket hang up')
 
     // Server-side errors on the POST are not "unknown outcome" and pass through untouched.
-    post.mockRejectedValueOnce(new BadRequestError('bad image', 400, 'BAD_REQUEST'))
+    post.mockRejectedValueOnce(new BadRequestError('bad image', { statusCode: 400, code: 'BAD_REQUEST' }))
     await expect(createFixture(client, { image: Image.base('python:3.12') })).rejects.toBeInstanceOf(BadRequestError)
     expect(get).not.toHaveBeenCalled()
   })
@@ -8523,7 +8524,7 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
-      .mockRejectedValueOnce(new TimeoutError('timeout of 50ms exceeded', 408, 'REQUEST_TIMEOUT', 'SDK'))
+      .mockRejectedValueOnce(new ClientTimeoutError('timeout of 50ms exceeded', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }))
       .mockResolvedValueOnce({ data: { id: 'sbx-first', access_token: null } })
     jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx-first', status: 'running' } })
 
@@ -8679,22 +8680,22 @@ describe('typed error mapping', () => {
   })
 
   it('maps the size-limit codes to typed conflict errors carrying the byte limits', () => {
-    const image = createDaytonaError('image exceeds the maximum size of 50 GiB', 409, 'IMAGE_TOO_LARGE', 'DAYTONA_API', {
+    const image = createDaytonaError('image exceeds the maximum size of 50 GiB', 409, 'IMAGE_TOO_LARGE', 'DAYTONA_API', errorOptionsFromEnvelope({
       code: 'IMAGE_TOO_LARGE',
       max_bytes: 53687091200,
       bytes: 60000000000,
-    } as never)
+    }))
     expect(image).toBeInstanceOf(publicSdk.ImageTooLargeError)
     expect(image).toBeInstanceOf(publicSdk.ConflictError)
     expect((image as InstanceType<typeof publicSdk.ImageTooLargeError>).maxBytes).toBe(53687091200)
     expect((image as InstanceType<typeof publicSdk.ImageTooLargeError>).bytes).toBe(60000000000)
 
     // `bytes` is optional on the wire: an absent or malformed value is undefined, never a guess.
-    const snapshot = createDaytonaError('snapshot exceeds the maximum size of 8 GiB', 409, 'SNAPSHOT_TOO_LARGE', 'DAYTONA_API', {
+    const snapshot = createDaytonaError('snapshot exceeds the maximum size of 8 GiB', 409, 'SNAPSHOT_TOO_LARGE', 'DAYTONA_API', errorOptionsFromEnvelope({
       code: 'SNAPSHOT_TOO_LARGE',
       max_bytes: 8589934592,
       bytes: 'big',
-    } as never)
+    }))
     expect(snapshot).toBeInstanceOf(publicSdk.SnapshotTooLargeError)
     expect(snapshot).toBeInstanceOf(publicSdk.ConflictError)
     expect((snapshot as InstanceType<typeof publicSdk.SnapshotTooLargeError>).maxBytes).toBe(8589934592)
@@ -8706,7 +8707,6 @@ describe('typed error mapping', () => {
       const err = createDaytonaError(`message ${code}`, statusForCode(code), code, 'DAYTONA_DAEMON', { firstAvailableCursor: 'c' })
       expect(err).toBeInstanceOf(CODE_ERROR_CLASS[code])
       expect(err.code).toBe(code)
-      expect(err.errorCode).toBe(code)
       expect(err.source).toBe('DAYTONA_DAEMON')
       expect(err.firstAvailableCursor).toBe('c')
     }
@@ -8735,7 +8735,7 @@ describe('typed error mapping', () => {
     expect(axiosErr.message).toBe('name exists')
     expect(createAxiosDaytonaError({ message: 'Request failed', response: { status: 502, data: 'bad gateway' }, isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never).message).toBe('bad gateway')
 
-    expect(createAxiosDaytonaError({ message: 'timeout of 10ms exceeded', code: 'ECONNABORTED', isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never)).toBeInstanceOf(TimeoutError)
+    expect(createAxiosDaytonaError({ message: 'timeout of 10ms exceeded', code: 'ECONNABORTED', isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never)).toBeInstanceOf(ClientTimeoutError)
     expect(createAxiosDaytonaError({ message: 'socket hang up', code: 'ECONNRESET', request: {}, isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never).name).toBe('ConnectionError')
 
     await expect(errorFromFetchResponse(new Response(JSON.stringify({ message: 'old cursor', code: 'CURSOR_EXPIRED', source: 'DAYTONA_DAEMON', firstAvailableCursor: 'c1' }), { status: 409 }))).resolves.toBeInstanceOf(CursorExpiredError)
@@ -8824,7 +8824,6 @@ describe('typed error mapping', () => {
     expect(err).toMatchObject({
       statusCode: 409,
       code: 'DESKTOP_NOT_READY',
-      errorCode: 'DESKTOP_NOT_READY',
     })
   })
 
@@ -8843,7 +8842,6 @@ describe('typed error mapping', () => {
     expect(err).toMatchObject({
       statusCode: 503,
       code: 'ADDON_UNAVAILABLE',
-      errorCode: 'ADDON_UNAVAILABLE',
     })
   })
 
@@ -8862,7 +8860,6 @@ describe('typed error mapping', () => {
     expect(err).toMatchObject({
       statusCode: 409,
       code: 'ATOMIC_UPLOAD_UNSUPPORTED',
-      errorCode: 'ATOMIC_UPLOAD_UNSUPPORTED',
     })
   })
 
@@ -8888,7 +8885,7 @@ describe('typed error mapping', () => {
     expect(axiosErr).toMatchObject({ statusCode: 429, code: 'LIMIT_EXCEEDED', message: 'organization limit reached', limit: 'max_concurrent_sandboxes', current: 3, max: 3 })
 
     // Malformed extras cost the extra alone, never the classification.
-    const tolerant = createDaytonaError('organization limit reached', 429, 'LIMIT_EXCEEDED', 'DAYTONA_API', { limit: 42, current: '25', max: 25.5 } as never)
+    const tolerant = createDaytonaError('organization limit reached', 429, 'LIMIT_EXCEEDED', 'DAYTONA_API', errorOptionsFromEnvelope({ limit: 42, current: '25', max: 25.5 }))
     expect(tolerant).toBeInstanceOf(LimitExceededError)
     expect((tolerant as LimitExceededError).limit).toBeUndefined()
     expect((tolerant as LimitExceededError).current).toBeUndefined()
@@ -9013,11 +9010,11 @@ describe('toolbox error-code drift', () => {
     for (const meta of Object.values(domain)) expect(meta.source).toBe('DAYTONA_API')
   })
 
-  it('exposes the per-code extras maps from the package root', () => {
-    expect(publicSdk.API_CODE_EXTRAS).toBe(API_CODE_EXTRAS)
-    expect(publicSdk.DAEMON_CODE_EXTRAS).toBe(DAEMON_CODE_EXTRAS)
-    expect(publicSdk.PROXY_CODE_EXTRAS).toBe(PROXY_CODE_EXTRAS)
-    expect(publicSdk.ROUTER_CODE_EXTRAS).toBe(ROUTER_CODE_EXTRAS)
+  it('exposes the per-code extras maps through the codes namespace', () => {
+    expect(publicSdk.codes.API_CODE_EXTRAS).toBe(API_CODE_EXTRAS)
+    expect(publicSdk.codes.DAEMON_CODE_EXTRAS).toBe(DAEMON_CODE_EXTRAS)
+    expect(publicSdk.codes.PROXY_CODE_EXTRAS).toBe(PROXY_CODE_EXTRAS)
+    expect(publicSdk.codes.ROUTER_CODE_EXTRAS).toBe(ROUTER_CODE_EXTRAS)
   })
 
   it('matches the proxy error catalog in the contract artifact', () => {
@@ -9759,7 +9756,7 @@ describe('macOS sandboxes and reservations', () => {
 
   it.each([undefined, 'region-a'])('createMacos on the default API throws the API region conflict unchanged (region %j)', async (region) => {
     const client = defaultApiClient()
-    const notServed = new publicSdk.ConflictError("Region 'region-a' is not available at this API URL", 409, 'CONFLICT', 'DAYTONA_API')
+    const notServed = new publicSdk.ConflictError("Region 'region-a' is not available at this API URL", { statusCode: 409, code: 'CONFLICT', source: 'DAYTONA_API' })
     const post = jest.spyOn(clientInstance(client), 'post').mockRejectedValueOnce(notServed)
     const get = jest.spyOn(clientInstance(client), 'get')
     await expect(client.createMacos('base-macos', { region })).rejects.toBe(notServed)
@@ -9908,7 +9905,7 @@ describe('macOS sandboxes and reservations', () => {
       .mockResolvedValueOnce({ data: { id: 'mac', status: 'stopped', class: 'macos', persistent: true } })
       .mockResolvedValueOnce({ data: { id: 'mac', status: 'running', class: 'macos', persistent: true } })
       .mockResolvedValueOnce({ data: { id: 'mac', status: 'running', class: 'macos', persistent: true } })
-      .mockRejectedValueOnce(new NotFoundError('gone', 404, 'NOT_FOUND'))
+      .mockRejectedValueOnce(new NotFoundError('gone', { statusCode: 404, code: 'NOT_FOUND' }))
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: {} })
     const del = jest.spyOn(clientInstance(client), 'delete').mockResolvedValue({ data: {} })
 
@@ -10368,7 +10365,7 @@ describe('sandbox access tokens', () => {
     const api = clientInstance(client)
     // The shared in-flight promise must make exactly ONE attempt and fail
     // every joiner with it — never N sequential attempts (Python parity).
-    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('boom', 500))
+    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('boom', { statusCode: 500 }))
     const transport = toolboxTransportOf(sandbox)
     const get = jest.spyOn(transport.http, 'get')
 
@@ -10387,7 +10384,7 @@ describe('sandbox access tokens', () => {
     sandbox.accessToken = 'old-jwt'
     sandbox.accessTokenExpiresAt = new Date(Date.now() + 30_000).toISOString()
     const api = clientInstance(client)
-    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('boom', 500))
+    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('boom', { statusCode: 500 }))
     const transport = toolboxTransportOf(sandbox)
     const get = jest.spyOn(transport.http, 'get').mockResolvedValue({ data: { ports: [] } })
 
@@ -10448,7 +10445,7 @@ describe('sandbox access tokens', () => {
     const mint = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-jwt') })
     const transport = toolboxTransportOf(sandbox)
     const get = jest.spyOn(transport.http, 'get')
-      .mockRejectedValueOnce(new DaytonaError('unauthorized', 401))
+      .mockRejectedValueOnce(new DaytonaError('unauthorized', { statusCode: 401 }))
       .mockResolvedValueOnce({ data: new TextEncoder().encode('hello').buffer })
 
     await expect(sandbox.fs.readText('/tmp/a')).resolves.toBe('hello')
@@ -10466,7 +10463,7 @@ describe('sandbox access tokens', () => {
     const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-jwt') })
     const transport = toolboxTransportOf(sandbox)
     const get = jest.spyOn(transport.http, 'get')
-      .mockRejectedValueOnce(new DaytonaError('unauthorized', 401))
+      .mockRejectedValueOnce(new DaytonaError('unauthorized', { statusCode: 401 }))
       .mockResolvedValueOnce({ data: { ports: [3000] } })
 
     const listed = await sandbox.ports.list()
@@ -10485,7 +10482,7 @@ describe('sandbox access tokens', () => {
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-jwt') })
     const transport = toolboxTransportOf(sandbox)
-    const get = jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', 401))
+    const get = jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', { statusCode: 401 }))
 
     await expect(sandbox.ports.list()).rejects.toMatchObject({ statusCode: 401 })
     expect(post).toHaveBeenCalledTimes(1)
@@ -10500,9 +10497,9 @@ describe('sandbox access tokens', () => {
     // The mint is FORBIDDEN (the credential cannot mint for this sandbox):
     // that is the actionable error, not the toolbox 401 the retry started
     // from. The unsupported-route fallback (404/405/501) is a kept, different path.
-    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('forbidden', 403))
+    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('forbidden', { statusCode: 403 }))
     const transport = toolboxTransportOf(sandbox)
-    const get = jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', 401))
+    const get = jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', { statusCode: 401 }))
 
     await expect(sandbox.ports.list()).rejects.toMatchObject({ statusCode: 403 })
     expect(post).toHaveBeenCalledTimes(1)
@@ -10523,7 +10520,7 @@ describe('sandbox access tokens', () => {
 
     const transport = toolboxTransportOf(sandbox)
     expect(transport.token).toBe('caller-token')
-    const get = jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', 401))
+    const get = jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', { statusCode: 401 }))
 
     // The caller token still rides as-is: the 401 surfaces, nothing is minted.
     await expect(sandbox.ports.list()).rejects.toMatchObject({ statusCode: 401 })
@@ -10558,7 +10555,7 @@ describe('sandbox access tokens', () => {
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
     const transport = toolboxTransportOf(sandbox)
-    const get = jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', 401))
+    const get = jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', { statusCode: 401 }))
 
     await expect(sandbox.ports.list()).rejects.toMatchObject({ statusCode: 401 })
     expect(post).not.toHaveBeenCalled()
@@ -10588,7 +10585,7 @@ describe('sandbox access tokens', () => {
     const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX })
     sandbox.sandboxClass = 'linux'
     const api = clientInstance(client)
-    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('not found', 404))
+    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('not found', { statusCode: 404 }))
     const transport = toolboxTransportOf(sandbox)
     const get = jest.spyOn(transport.http, 'get').mockResolvedValue({ data: { ports: [] } })
 
@@ -10631,7 +10628,7 @@ describe('sandbox access tokens', () => {
     const mint = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-sandbox-tok') })
     const transport = toolboxTransportOf(sandbox)
     const get = jest.spyOn(transport.http, 'get')
-      .mockRejectedValueOnce(new DaytonaError('unauthorized', 401))
+      .mockRejectedValueOnce(new DaytonaError('unauthorized', { statusCode: 401 }))
       .mockResolvedValueOnce({ data: { ports: [] } })
 
     const listed = await sandbox.ports.list()
@@ -10652,7 +10649,7 @@ describe('sandbox access tokens', () => {
     try {
       const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
       const api = clientInstance(client)
-      const mint = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('not found', 404))
+      const mint = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('not found', { statusCode: 404 }))
 
       const expired = lazySandbox(client, 'sbx', {
         toolboxUrl: TOOLBOX,
@@ -10670,7 +10667,7 @@ describe('sandbox access tokens', () => {
         accessTokenFromCreate: true,
       } as SandboxConnectOptionsFromCreate)
       const rejectedGet = jest.spyOn(toolboxTransportOf(rejected).http, 'get')
-        .mockRejectedValueOnce(new DaytonaError('unauthorized', 401))
+        .mockRejectedValueOnce(new DaytonaError('unauthorized', { statusCode: 401 }))
         .mockResolvedValue({ data: { ports: [] } })
       await rejected.ports.list()
       await rejected.ports.list()
@@ -10693,7 +10690,7 @@ describe('sandbox access tokens', () => {
     })
     try {
       const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
-      jest.spyOn(clientInstance(client), 'post').mockRejectedValue(new DaytonaError('not found', 404))
+      jest.spyOn(clientInstance(client), 'post').mockRejectedValue(new DaytonaError('not found', { statusCode: 404 }))
       const sandbox = lazySandbox(client, 'sbx', {
         toolboxUrl: TOOLBOX,
         accessToken: 'expired-creation-tok',
@@ -10701,7 +10698,7 @@ describe('sandbox access tokens', () => {
         accessTokenExpiresAt: new Date(Date.now() - 1_000).toISOString(),
       } as SandboxConnectOptionsFromCreate)
       const get = jest.spyOn(toolboxTransportOf(sandbox).http, 'get')
-        .mockRejectedValueOnce(new DaytonaError('unauthorized', 401))
+        .mockRejectedValueOnce(new DaytonaError('unauthorized', { statusCode: 401 }))
         .mockResolvedValueOnce({ data: { ports: [] } })
 
       await sandbox.ports.list()
@@ -10723,7 +10720,7 @@ describe('sandbox access tokens', () => {
     const api = clientInstance(client)
     const mint = jest.spyOn(api, 'post')
     const transport = toolboxTransportOf(sandbox)
-    jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', 401))
+    jest.spyOn(transport.http, 'get').mockRejectedValue(new DaytonaError('unauthorized', { statusCode: 401 }))
 
     await expect(sandbox.ports.list()).rejects.toMatchObject({ statusCode: 401 })
     expect(mint).not.toHaveBeenCalled()
@@ -11682,7 +11679,7 @@ describe('sandbox.docker', () => {
     const transport = transportStub()
     transport.get
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
-      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 750); throw new publicSdk.DaytonaTimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK') })
+      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 750); throw new publicSdk.ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }) })
     const failure = new DockerService(transport.object).waitUntilReady({ timeout: 1_500 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
@@ -11690,7 +11687,7 @@ describe('sandbox.docker', () => {
 
   it('waitUntilReady() rethrows a transport timeout that happens before the deadline', async () => {
     const transport = transportStub()
-    const stalled = new publicSdk.DaytonaTimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
+    const stalled = new publicSdk.ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     transport.get.mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
     await expect(new DockerService(transport.object).waitUntilReady({ timeout: 60_000 })).rejects.toBe(stalled)
   })

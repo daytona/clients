@@ -55,8 +55,6 @@ from ._errors import (
     DaytonaInternalServerError as DaytonaInternalServerError,
     DaytonaServiceUnavailableError as DaytonaServiceUnavailableError,
     DaytonaConnectionError as DaytonaConnectionError,
-    DaytonaValidationError as DaytonaValidationError,
-    DaytonaAuthorizationError as DaytonaAuthorizationError,
 )
 
 __all__ = [
@@ -66,7 +64,6 @@ __all__ = [
     "AsyncDaytonaV2Client",
     "Daytona",
     "DaytonaAuthenticationError",
-    "DaytonaAuthorizationError",
     "DaytonaBadRequestError",
     "DaytonaConfig",
     "DaytonaConflictError",
@@ -81,7 +78,6 @@ __all__ = [
     "DaytonaTimeoutError",
     "DaytonaUnprocessableEntityError",
     "DaytonaV2Client",
-    "DaytonaValidationError",
 ]
 
 if TYPE_CHECKING:

@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, registerV2ErrorClass, TimeoutError } from './errors/DaytonaError.js'
+import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
+import type { ErrorOptions } from './errors/DaytonaError.js'
 import { HttpTransport } from './http.js'
 import type * as api from './gen/api-types.js'
 import { sameBuildLogResource } from './buildLogIdentity.js'
@@ -39,10 +40,22 @@ export interface BuildLogFollowOptions {
 }
 
 /** Last successfully delivered checkpoint. Callback failures never auto-retry. */
+/** {@link BuildLogInterruptedError}'s options: the common ones plus the last delivered cursor. */
+export interface BuildLogInterruptedErrorOptions extends ErrorOptions {
+  readonly cursor?: string
+}
+
+/**
+ * Observation failed; `cursor` is the last successfully delivered checkpoint.
+ * `code` defaults to `BUILD_LOG_INTERRUPTED` and `source` to `SDK`.
+ */
 export class BuildLogInterruptedError extends DaytonaError {
-  public cause?: unknown
-  constructor(message: string, public readonly cursor?: string, code = 'BUILD_LOG_INTERRUPTED', statusCode?: number) {
-    super(message, statusCode, code, 'SDK')
+  public readonly cursor?: string
+
+  constructor(message: string, options: BuildLogInterruptedErrorOptions = {}) {
+    const { cursor, ...rest } = options
+    super(message, { ...rest, code: rest.code ?? 'BUILD_LOG_INTERRUPTED', source: rest.source ?? 'SDK' })
+    this.cursor = cursor
   }
 }
 
@@ -291,12 +304,12 @@ class Observer {
       }
       case 'source_changed': {
         await this.emit({ type: 'source_changed', reason: data.reason })
-        throw new BuildLogInterruptedError(data.reason, this.cursor, 'BUILD_LOG_SOURCE_CHANGED')
+        throw new BuildLogInterruptedError(data.reason, { cursor: this.cursor, code: 'BUILD_LOG_SOURCE_CHANGED' })
       }
       case 'error': {
         await this.emit({ type: 'error', error: data.error, code: data.code, retryable: data.retryable, traceId: data.trace_id ?? undefined })
         if (data.retryable) throw new Retry(data.error)
-        throw new BuildLogInterruptedError(data.error, this.cursor, data.code)
+        throw new BuildLogInterruptedError(data.error, { cursor: this.cursor, code: data.code })
       }
       case 'done': {
         const final = data.cursor ?? undefined
@@ -369,18 +382,18 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
       else timer = setTimeout(expire, Math.min(budget, 2147483647))
     }
     if (reader) for (;;) {
-      if (expired) throw new TimeoutError(`build log ${kind} response timed out`, 408, 'REQUEST_TIMEOUT', 'SDK')
+      if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       const next = await reader.read()
-      if (expired) throw new TimeoutError(`build log ${kind} response timed out`, 408, 'REQUEST_TIMEOUT', 'SDK')
+      if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       if (next.done) break
       size += next.value.byteLength
       if (size > MAX_EVENT) throw new ProtocolError(`oversized build log ${kind} response`)
       body += decoder.decode(next.value, { stream: true })
     }
-    if (expired) throw new TimeoutError(`build log ${kind} response timed out`, 408, 'REQUEST_TIMEOUT', 'SDK')
+    if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     return body + decoder.decode()
   } catch (error) {
-    if (expired) throw new TimeoutError(`build log ${kind} response timed out`, 408, 'REQUEST_TIMEOUT', 'SDK')
+    if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     if (error instanceof DaytonaError || error instanceof ProtocolError) throw error
     throw new ConnectionError(error instanceof Error ? error.message : String(error))
   } finally {
@@ -396,7 +409,7 @@ async function httpError(response: Response, deadline: number | undefined): Prom
   } catch (error) {
     // A denied request stays denied even if its explanatory JSON stalls. Do
     // not turn a known 401/403/etc into an automatically retried timeout.
-    if (error instanceof TimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status)
+    if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status)
     throw error
   }
 }
@@ -455,9 +468,9 @@ export async function readBuildLogs(api: HttpTransport, path: string): Promise<s
   } catch (error) {
     // httpError has already preserved the known HTTP response, even when its
     // diagnostic body was interrupted by our abort timer.
-    if (error instanceof DaytonaError && error.statusCode !== undefined && !(error instanceof TimeoutError || error instanceof ConnectionError)) throw error
-    if (controller.signal.aborted) throw new TimeoutError('build log read timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
-    if (error instanceof ProtocolError) throw new DaytonaError(error.message, undefined, 'BUILD_LOG_PROTOCOL_ERROR')
+    if (error instanceof DaytonaError && error.statusCode !== undefined && !(error instanceof ClientTimeoutError || error instanceof ConnectionError)) throw error
+    if (controller.signal.aborted) throw new ClientTimeoutError('build log read timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    if (error instanceof ProtocolError) throw new DaytonaError(error.message, { code: 'BUILD_LOG_PROTOCOL_ERROR' })
     throw error
   } finally {
     clearTimeout(timer)
@@ -476,12 +489,12 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
   let timer: ReturnType<typeof setTimeout> | undefined
   let observer: Observer | undefined
   const remaining = (): number | undefined => {
-    if (controller.signal.aborted) throw new BuildLogInterruptedError('build log observation canceled or timed out', observer?.cursor ?? options.cursor, options.signal?.aborted ? 'BUILD_LOG_CANCELED' : 'REQUEST_TIMEOUT')
+    if (controller.signal.aborted) throw new BuildLogInterruptedError('build log observation canceled or timed out', { cursor: observer?.cursor ?? options.cursor, code: options.signal?.aborted ? 'BUILD_LOG_CANCELED' : 'REQUEST_TIMEOUT' })
     // Only the caller's observation timeout aborts before explicit completion.
     const budget = callerDeadline === undefined ? undefined : callerDeadline - performance.now()
     if (budget !== undefined && budget <= 0) {
       controller.abort()
-      throw new BuildLogInterruptedError('build log observation timed out', observer?.cursor ?? options.cursor, 'REQUEST_TIMEOUT')
+      throw new BuildLogInterruptedError('build log observation timed out', { cursor: observer?.cursor ?? options.cursor, code: 'REQUEST_TIMEOUT' })
     }
     return budget
   }
@@ -525,9 +538,9 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
         throw new Retry('unexpected EOF before build log done')
       } catch (error) {
         remaining()
-        if (!(error instanceof Retry || error instanceof ConnectionError || error instanceof TimeoutError)) throw error
+        if (!(error instanceof Retry || error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw error
         if (healthy && performance.now() - started >= 10000) failures = 0
-        if (failures >= 5) throw new BuildLogInterruptedError('build log reconnect budget exhausted', observer.cursor)
+        if (failures >= 5) throw new BuildLogInterruptedError('build log reconnect budget exhausted', { cursor: observer.cursor })
         delay = [250, 500, 1000, 2000, 5000][failures++] * (0.8 + Math.random() * 0.2)
         if (error instanceof Retry) delay = Math.max(delay, error.retryAfter)
       } finally {
@@ -540,9 +553,12 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
     if (cause instanceof BuildLogInterruptedError) throw cause
     let code = cause instanceof CallbackError ? 'BUILD_LOG_CALLBACK_ERROR' : cause instanceof ProtocolError ? 'BUILD_LOG_PROTOCOL_ERROR' : cause instanceof DaytonaError ? cause.code : undefined
     if (controller.signal.aborted) code = options.signal?.aborted ? 'BUILD_LOG_CANCELED' : 'REQUEST_TIMEOUT'
-    const error = new BuildLogInterruptedError(cause instanceof Error ? cause.message : String(cause), observer?.cursor ?? options.cursor, code, cause instanceof DaytonaError ? cause.statusCode : undefined)
-    error.cause = cause
-    throw error
+    throw new BuildLogInterruptedError(cause instanceof Error ? cause.message : String(cause), {
+      cursor: observer?.cursor ?? options.cursor,
+      code,
+      statusCode: cause instanceof DaytonaError ? cause.statusCode : undefined,
+      cause,
+    })
   } finally {
     clearTimeout(timer)
     options.signal?.removeEventListener('abort', relay)

@@ -93,14 +93,14 @@ export class ProcessService {
     const sandboxId = requireSessionId(sessionIdOrJSON?.sandboxId, 'sandboxId')
     const sessionId = requireSessionId(sessionIdOrJSON?.sessionId, 'sessionId')
     if (sandboxId !== this.sandboxId) {
-      throw new BadRequestError('session belongs to a different sandbox', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('session belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     return new Session(this, sessionId)
   }
 
   public connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle {
     if (typeof idOrHandle !== 'string' && idOrHandle.sandboxId !== this.sandboxId) {
-      throw new DaytonaError('process handle belongs to a different sandbox', 400, 'BAD_REQUEST')
+      throw new DaytonaError('process handle belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST' })
     }
     return new ProcessHandle(
       this.transport,

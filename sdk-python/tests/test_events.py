@@ -36,11 +36,11 @@ from daytona.v2._events import (
     region_of,
 )
 from daytona.v2.errors import (
+    AuthenticationError,
     DaytonaError,
     NotFoundError,
     RequestTimeoutError,
     SandboxTerminalStateError,
-    UnauthorizedError,
     create_error,
 )
 from daytona.v2.types import SandboxEventsConfig
@@ -1603,7 +1603,7 @@ class TestFallback:
 
         with respx.mock:
             ticket_mock("region-a", status=401)
-            with pytest.raises(UnauthorizedError):
+            with pytest.raises(AuthenticationError):
                 await hub.wait("abc-region-a", _started_predicate(), timeout=5)
 
 
@@ -2310,7 +2310,7 @@ class TestCredentialRefusal:
                         )
                     )
                 await asyncio.sleep(0.1)
-            with pytest.raises(UnauthorizedError):
+            with pytest.raises(AuthenticationError):
                 await asyncio.wait_for(task, timeout=5)
             # Exactly one connection per refusal, and the last one ends the
             # loop: "mint a fresh ticket — once, then give up". A `<=` here

@@ -12,7 +12,7 @@ import { BadRequestError, ProcessNotFoundError } from './errors/DaytonaError.js'
 /** A missing id must never degrade a session command into a plain, stateless exec. */
 export function requireSessionId(value: unknown, field: 'sandboxId' | 'sessionId'): string {
   if (typeof value !== 'string' || value === '') {
-    throw new BadRequestError(`session identity needs a non-empty string ${field}`, 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError(`session identity needs a non-empty string ${field}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return value
 }

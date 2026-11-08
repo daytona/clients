@@ -53,7 +53,7 @@ from ._gen.toolbox import (
 from ._gen.toolbox import (
     TerminalSize as ToolboxTerminalSize,
 )
-from .errors import DaytonaError, ErrorDetails, UnsupportedOperationError, create_error
+from .errors import DaytonaError, UnsupportedOperationError, create_error
 from .types import (
     DISABLED,
     ArtifactRetention,
@@ -134,35 +134,35 @@ def parse_error_payload(status_code: int, payload: JsonObject) -> DaytonaError:
     message = (
         _optional_str(payload.get("message")) or _optional_str(payload.get("error")) or f"HTTP {status_code}"
     )
-    error = create_error(
+    retry_after_ms = payload.get("retryAfterMs")
+    return create_error(
         message,
         status_code,
         _optional_str(payload.get("code")),
         _optional_str(payload.get("source")),
-        details=ErrorDetails(
-            trace_id=_optional_str(payload.get("trace_id")),
-            retry_after_seconds=_optional_int(payload.get("retry_after_seconds")),
-            feature=_optional_str(payload.get("feature")),
-            entitlement=_optional_str(payload.get("entitlement")),
-            replacement=_optional_str(payload.get("replacement")),
-            first_available_cursor=_optional_str(payload.get("firstAvailableCursor")),
-            limit=_optional_str(payload.get("limit")),
-            current=_optional_int(payload.get("current")),
-            max=_optional_int(payload.get("max")),
-            max_bytes=_optional_int(payload.get("max_bytes")),
-            bytes=_optional_int(payload.get("bytes")),
-            stated=_optional_str(payload.get("stated")),
-            actual=_optional_str(payload.get("actual")),
-            region=_optional_str(payload.get("region")),
+        trace_id=_optional_str(payload.get("trace_id")),
+        retry_after_seconds=_optional_int(payload.get("retry_after_seconds")),
+        feature=_optional_str(payload.get("feature")),
+        entitlement=_optional_str(payload.get("entitlement")),
+        replacement=_optional_str(payload.get("replacement")),
+        first_available_cursor=_optional_str(payload.get("firstAvailableCursor")),
+        limit=_optional_str(payload.get("limit")),
+        current=_optional_int(payload.get("current")),
+        max=_optional_int(payload.get("max")),
+        max_bytes=_optional_int(payload.get("max_bytes")),
+        bytes=_optional_int(payload.get("bytes")),
+        stated=_optional_str(payload.get("stated")),
+        actual=_optional_str(payload.get("actual")),
+        region=_optional_str(payload.get("region")),
+        request_id=_optional_str(payload.get("requestId")),
+        retry_after_ms=(
+            retry_after_ms
+            if isinstance(retry_after_ms, int)
+            and not isinstance(retry_after_ms, bool)
+            and retry_after_ms >= 0
+            else None
         ),
     )
-    request_id = payload.get("requestId")
-    retry_after_ms = payload.get("retryAfterMs")
-    if isinstance(request_id, str):
-        error.request_id = request_id
-    if isinstance(retry_after_ms, int) and not isinstance(retry_after_ms, bool) and retry_after_ms >= 0:
-        error.retry_after_ms = retry_after_ms
-    return error
 
 
 def parse_json_bytes(content: bytes) -> JsonValue:

@@ -12,7 +12,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from daytona.v2 import AtomicUploadUnsupportedError, DaytonaError, TransferCancelledError, codes
+from daytona.v2 import AtomicUploadUnsupportedError, DaytonaError, TransferCancelledError
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport, _decode_response
 from daytona.v2.filesystem import (
@@ -226,7 +226,7 @@ async def test_git_clone_rejects_non_boolean_insecure_skip_tls_before_request() 
     with pytest.raises(DaytonaError, match="insecure_skip_tls must be a boolean") as exc_info:
         await git.clone("https://example.invalid/repo.git", "/repo", insecure_skip_tls="false")  # type: ignore[arg-type]
 
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == "BAD_REQUEST"
     assert transport.specs == []
 
 
@@ -608,7 +608,7 @@ async def test_upload_file_raises_when_source_file_shrinks_mid_stream(
     with pytest.raises(DaytonaError, match="source file changed size during upload") as exc_info:
         await fs.upload_file(local_path, "/remote/payload.bin")
 
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == "BAD_REQUEST"
 
 
 def test_upload_preamble_escapes_filename_control_characters() -> None:
@@ -947,7 +947,7 @@ def test_atomic_upload_unsupported_error_is_raised_from_toolbox_envelope() -> No
                 409,
                 json={
                     "message": "atomic upload is not supported on this filesystem",
-                    "code": codes.ATOMIC_UPLOAD_UNSUPPORTED,
+                    "code": "ATOMIC_UPLOAD_UNSUPPORTED",
                     "source": "DAYTONA_DAEMON",
                 },
             )

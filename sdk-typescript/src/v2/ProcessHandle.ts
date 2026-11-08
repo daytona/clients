@@ -6,7 +6,7 @@
 import { encodeQuery, HttpTransport, sseMessages, strictUriEncode } from './http.js'
 import type { KillOptions, LogsOptions, LogsPage, ProcessDto, ProcessHandleJSON, ProcessKind, StreamLogEvent, StreamLogsOptions, WaitResult } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { ConnectionError, DaytonaError, TimeoutError } from './errors/DaytonaError.js'
+import { ConnectionError, DaytonaError, ClientTimeoutError } from './errors/DaytonaError.js'
 import {
   base64Encode, frameFromWire, invalidPtyVerbError, invalidStdinVerbError, processFromWire,
   remainingWaitBudgetMs, signalWire, streamEvent, waitDeadline, waitResult,
@@ -124,7 +124,7 @@ export class ProcessHandle {
         consecutiveTransportFailures = 0
         if (record.state === 'terminal') return waitResult(record)
       } catch (error) {
-        if (!(error instanceof ConnectionError || error instanceof TimeoutError)) throw error
+        if (!(error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw error
         consecutiveTransportFailures += 1
         if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return { reason: 'timed_out' }
         if (consecutiveTransportFailures > WAIT_TRANSPORT_RETRY_LIMIT) throw error
@@ -158,7 +158,7 @@ export class ProcessHandle {
   public async attach(): Promise<PtyDuplex> {
     if (this.kind !== undefined && this.kind !== 'pty') throw invalidPtyVerbError('attach', this.kind)
     const ctor = (globalThis as { WebSocket?: WebSocketCtor }).WebSocket
-    if (!ctor) throw new DaytonaError('WebSocket is not available in this runtime', 400, 'UNSUPPORTED_OPERATION')
+    if (!ctor) throw new DaytonaError('WebSocket is not available in this runtime', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const url = new URL(`${this.transport.baseUrl}/processes/${strictUriEncode(this.id)}/attach`)
     const token = await this.transport.resolveToken()
     if (token) url.searchParams.set('daytona_token', token)

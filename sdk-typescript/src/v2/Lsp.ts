@@ -40,10 +40,10 @@ function documentRequest(languageId: string, pathToProject: string, uri: string)
 
 function positionPayload(position: LspPosition): toolbox.SymbolPosition {
   if (!Number.isInteger(position.line) || position.line < 0) {
-    throw new BadRequestError('expected LSP position: line must be a non-negative integer', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('expected LSP position: line must be a non-negative integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   if (!Number.isInteger(position.character) || position.character < 0) {
-    throw new BadRequestError('expected LSP position: character must be a non-negative integer', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('expected LSP position: character must be a non-negative integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return { line: position.line, character: position.character }
 }

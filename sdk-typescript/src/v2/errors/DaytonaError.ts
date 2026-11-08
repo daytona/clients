@@ -24,28 +24,27 @@ import {
   registerErrorClasses,
 } from '../../errors.js'
 
+/**
+ * The wire error envelope, as parsed from a response body. Internal: the
+ * public constructors take {@link ErrorOptions}; {@link errorOptionsFromEnvelope}
+ * maps one to the other and drops fields of the wrong type.
+ */
 export interface ErrorEnvelope {
   readonly message?: unknown
   readonly error?: unknown
-  readonly source?: string
-  readonly code?: string
-  readonly trace_id?: string
-  readonly retry_after_seconds?: number
-  readonly feature?: string
-  readonly entitlement?: string
-  readonly replacement?: string
-  readonly firstAvailableCursor?: string
-  /** `DAYTONA_ROUTER` `REGION_MISMATCH`: the region the request stated. */
-  readonly stated?: string
-  /** `DAYTONA_ROUTER` `REGION_MISMATCH`: the region actually in effect. */
-  readonly actual?: string
-  /** `DAYTONA_ROUTER` `UNKNOWN_REGION`: the unrecognized region. */
-  readonly region?: string
-  /** `LIMIT_EXCEEDED`: machine name of the exhausted organization limit. */
+  readonly source?: unknown
+  readonly code?: unknown
+  readonly trace_id?: unknown
+  readonly retry_after_seconds?: unknown
+  readonly feature?: unknown
+  readonly entitlement?: unknown
+  readonly replacement?: unknown
+  readonly firstAvailableCursor?: unknown
+  readonly stated?: unknown
+  readonly actual?: unknown
+  readonly region?: unknown
   readonly limit?: unknown
-  /** `LIMIT_EXCEEDED`: the organization's current count for that limit. */
   readonly current?: unknown
-  /** `LIMIT_EXCEEDED`: the maximum the organization is allowed. */
   readonly max?: unknown
   readonly max_bytes?: unknown
   readonly bytes?: unknown
@@ -57,9 +56,60 @@ export interface ErrorEnvelope {
   readonly method?: unknown
 }
 
+/**
+ * What every error constructor accepts besides its message. Every field is
+ * optional; an error built by the caller carries only what it is given.
+ * `code` and `source` are open vocabularies (see {@link DaytonaError}).
+ */
+export interface ErrorOptions {
+  readonly statusCode?: number
+  readonly code?: ErrorCode | (string & {})
+  readonly source?: string
+  readonly traceId?: string
+  /** `OVERLOADED` / `RATE_LIMITED`: how long to wait before retrying. */
+  readonly retryAfterSeconds?: number
+  /** `FEATURE_NOT_ENABLED`: the feature the organization lacks. */
+  readonly feature?: string
+  /** `ENTITLEMENT_REQUIRED`: the entitlement the organization lacks. */
+  readonly entitlement?: string
+  /** `GONE`: what replaces the removed resource or route. */
+  readonly replacement?: string
+  /** `CURSOR_EXPIRED`: the oldest cursor still available. */
+  readonly firstAvailableCursor?: string
+  /** `REGION_MISMATCH`: the region the request stated. */
+  readonly stated?: string
+  /** `REGION_MISMATCH`: the region actually in effect. */
+  readonly actual?: string
+  /** `UNKNOWN_REGION`: the unrecognized region. */
+  readonly region?: string
+  /** `LIMIT_EXCEEDED`: machine name of the exhausted organization limit. */
+  readonly limit?: string
+  /** `LIMIT_EXCEEDED`: the organization's current count for that limit. */
+  readonly current?: number
+  /** `LIMIT_EXCEEDED`, `IDLE_OUT_OF_RANGE`, `CREATE_TTL_OUT_OF_RANGE`: the maximum. */
+  readonly max?: number
+  /** `IMAGE_TOO_LARGE` / `SNAPSHOT_TOO_LARGE`: the size limit in bytes. */
+  readonly maxBytes?: number
+  /** `IMAGE_TOO_LARGE` / `SNAPSHOT_TOO_LARGE`: the artifact's size in bytes. */
+  readonly bytes?: number
+  readonly requestId?: string
+  readonly retryAfterMs?: number
+  /** The underlying failure, when there is one. */
+  readonly cause?: unknown
+}
+
+/**
+ * Base class of every v2 error.
+ *
+ * `code` and `source` are open vocabularies: the server may send a code or
+ * source this SDK release does not know yet. An unknown code keeps its exact
+ * value on `code` and the error falls back to the class for its HTTP status
+ * (`NotFoundError` for a 404, ...). `codes` (from `@daytona/sdk/v2`) lists the
+ * codes this release knows.
+ */
 export class DaytonaError extends Error {
   public readonly statusCode?: number
-  public readonly code?: ErrorCode | string
+  public readonly code?: ErrorCode | (string & {})
   public readonly source?: string
   public readonly traceId?: string
   public readonly retryAfterSeconds?: number
@@ -70,29 +120,38 @@ export class DaytonaError extends Error {
   public readonly stated?: string
   public readonly actual?: string
   public readonly region?: string
-  public readonly errorCode?: string
+  public readonly limit?: string
+  public readonly current?: number
+  public readonly max?: number
+  public readonly maxBytes?: number
+  public readonly bytes?: number
   public readonly requestId?: string
   public readonly retryAfterMs?: number
+  public readonly cause?: unknown
 
-  constructor(message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope) {
+  constructor(message: string, options: ErrorOptions = {}) {
     super(message)
     this.name = new.target.name
-    this.statusCode = statusCode
-    this.code = code
-    this.errorCode = code
-    this.source = source
-    this.traceId = envelope?.trace_id
-    this.retryAfterSeconds = envelope?.retry_after_seconds
-    this.feature = envelope?.feature
-    this.entitlement = envelope?.entitlement
-    this.replacement = envelope?.replacement
-    this.firstAvailableCursor = envelope?.firstAvailableCursor
-    this.stated = typeof envelope?.stated === 'string' ? envelope.stated : undefined
-    this.actual = typeof envelope?.actual === 'string' ? envelope.actual : undefined
-    this.region = typeof envelope?.region === 'string' ? envelope.region : undefined
-    this.requestId = typeof envelope?.requestId === 'string' ? envelope.requestId : undefined
-    this.retryAfterMs = typeof envelope?.retryAfterMs === 'number' && Number.isInteger(envelope.retryAfterMs) && envelope.retryAfterMs >= 0
-      ? envelope.retryAfterMs : undefined
+    this.statusCode = options.statusCode
+    this.code = options.code
+    this.source = options.source
+    this.traceId = options.traceId
+    this.retryAfterSeconds = options.retryAfterSeconds
+    this.feature = options.feature
+    this.entitlement = options.entitlement
+    this.replacement = options.replacement
+    this.firstAvailableCursor = options.firstAvailableCursor
+    this.stated = options.stated
+    this.actual = options.actual
+    this.region = options.region
+    this.limit = options.limit
+    this.current = options.current
+    this.max = options.max
+    this.maxBytes = options.maxBytes
+    this.bytes = options.bytes
+    this.requestId = options.requestId
+    this.retryAfterMs = options.retryAfterMs
+    if (options.cause !== undefined) this.cause = options.cause
     Object.setPrototypeOf(this, new.target.prototype)
   }
 
@@ -143,7 +202,7 @@ export function registerV2ErrorClass(key: string, errorClass: abstract new (...a
 
 export class BadRequestError extends DaytonaError {}
 export class AuthenticationError extends DaytonaError {}
-export class AuthorizationError extends DaytonaError {}
+export class ForbiddenError extends DaytonaError {}
 export class NotFoundError extends DaytonaError {}
 export class RequestTimeoutError extends DaytonaError {}
 
@@ -156,7 +215,7 @@ export class SandboxCreateTimeoutError extends RequestTimeoutError {
   public readonly sandboxId: string
 
   constructor(sandboxId: string) {
-    super(`sandbox ${sandboxId} did not start within the requested timeout`, 408, 'REQUEST_TIMEOUT', 'SDK')
+    super(`sandbox ${sandboxId} did not start within the requested timeout`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     this.sandboxId = sandboxId
   }
 }
@@ -173,7 +232,7 @@ export class DockerWaitTimeoutError extends RequestTimeoutError {
   public readonly status?: DockerStatus
 
   constructor(status: DockerStatus | undefined) {
-    super(`docker did not become ready within the requested timeout${status ? ` (last state: ${status.rawState || status.state})` : ''}`, 408, 'REQUEST_TIMEOUT', 'SDK')
+    super(`docker did not become ready within the requested timeout${status ? ` (last state: ${status.rawState || status.state})` : ''}`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     this.status = status
   }
 }
@@ -187,7 +246,7 @@ export class SandboxTerminalStateError extends ConflictError {
   public readonly rawState?: string
 
   constructor(sandboxId: string, state: SandboxState, rawState?: string) {
-    super(`sandbox ${sandboxId} reached terminal state ${state}`, 409, 'CONFLICT', 'SDK')
+    super(`sandbox ${sandboxId} reached terminal state ${state}`, { statusCode: 409, code: 'CONFLICT', source: 'SDK' })
     this.state = state
     this.rawState = rawState
   }
@@ -204,7 +263,7 @@ export class DockerNotReadyError extends ConflictError {
   public readonly status: DockerStatus
 
   constructor(status: DockerStatus) {
-    super(`docker is ${status.rawState || status.state}${status.reason ? `: ${status.reason}` : ''}`, 409, 'CONFLICT', 'SDK')
+    super(`docker is ${status.rawState || status.state}${status.reason ? `: ${status.reason}` : ''}`, { statusCode: 409, code: 'CONFLICT', source: 'SDK' })
     this.status = status
   }
 }
@@ -228,38 +287,30 @@ export class RateLimitError extends DaytonaError {}
  * Fields are `undefined` when a body omits or malforms them.
  */
 export class LimitExceededError extends RateLimitError {
-  public readonly limit?: string
-  public readonly current?: number
-  public readonly max?: number
-
-  constructor(message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope) {
-    super(message, statusCode, code ?? 'LIMIT_EXCEEDED', source, envelope)
-    this.limit = typeof envelope?.limit === 'string' ? envelope.limit : undefined
-    this.current = limitCount(envelope?.current)
-    this.max = limitCount(envelope?.max)
+  /** `code` defaults to `LIMIT_EXCEEDED`. */
+  constructor(message: string, options: ErrorOptions = {}) {
+    super(message, { ...options, code: options.code ?? 'LIMIT_EXCEEDED' })
   }
 }
 
-class ArtifactTooLargeError extends ConflictError {
-  public readonly maxBytes?: number
-  public readonly bytes?: number
-
-  constructor(message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope) {
-    super(message, statusCode, code, source, envelope)
-    this.maxBytes = limitCount(envelope?.max_bytes)
-    this.bytes = limitCount(envelope?.bytes)
-  }
-}
-
-export class ImageTooLargeError extends ArtifactTooLargeError {}
-export class SnapshotTooLargeError extends ArtifactTooLargeError {}
+/** `IMAGE_TOO_LARGE` (409): `maxBytes` is the limit, `bytes` the image's size. */
+export class ImageTooLargeError extends ConflictError {}
+/** `SNAPSHOT_TOO_LARGE` (409): `maxBytes` is the limit, `bytes` the snapshot's size. */
+export class SnapshotTooLargeError extends ConflictError {}
 
 export class PreconditionRequiredError extends DaytonaError {}
+/** The API or the sandbox could not be reached. */
 export class ConnectionError extends DaytonaError {}
-export class TimeoutError extends DaytonaError {}
+/** The client gave up waiting for a response (its own deadline, not an HTTP 408). */
+export class ClientTimeoutError extends DaytonaError {}
+/**
+ * A local file transfer was cancelled before completion. Defaults: message
+ * `'file transfer cancelled'`, `statusCode` 499, `code` `REQUEST_CANCELLED`,
+ * `source` `SDK`.
+ */
 export class TransferCancelledError extends DaytonaError {
-  constructor(message = 'file transfer cancelled') {
-    super(message, 499, 'REQUEST_CANCELLED', 'SDK')
+  constructor(message = 'file transfer cancelled', options: ErrorOptions = {}) {
+    super(message, { ...options, statusCode: options.statusCode ?? 499, code: options.code ?? 'REQUEST_CANCELLED', source: options.source ?? 'SDK' })
   }
 }
 
@@ -270,15 +321,13 @@ export class TransferCancelledError extends DaytonaError {
  * the same project and API endpoint, to recover the sandbox (or create
  * it if the first request never landed). Always reuse the original create options.
  */
-export class SandboxCreateRequestTimeoutError extends TimeoutError {
+export class SandboxCreateRequestTimeoutError extends ClientTimeoutError {
   public readonly idempotencyKey: string
 
   constructor(idempotencyKey: string) {
     super(
       `sandbox create request timed out before the server answered; retry create() with idempotencyKey=${JSON.stringify(idempotencyKey)} to reconcile`,
-      408,
-      'REQUEST_TIMEOUT',
-      'SDK',
+      { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
     )
     this.idempotencyKey = idempotencyKey
   }
@@ -296,9 +345,7 @@ export class SandboxCreateConnectionError extends ConnectionError {
   constructor(idempotencyKey: string, detail: string) {
     super(
       `sandbox create request failed before the server answered (${detail}); retry create() with idempotencyKey=${JSON.stringify(idempotencyKey)} to reconcile`,
-      undefined,
-      undefined,
-      'SDK',
+      { source: 'SDK' },
     )
     this.idempotencyKey = idempotencyKey
   }
@@ -314,7 +361,7 @@ export class InvalidCursorError extends BadRequestError {}
 export class CursorExpiredError extends ConflictError {}
 export class StdinClosedError extends ConflictError {}
 export class StdinUnavailableError extends ConflictError {}
-export class ProtectedProcessError extends AuthorizationError {}
+export class ProtectedProcessError extends ForbiddenError {}
 export class UnsupportedOperationError extends BadRequestError {}
 export class SessionNotFoundError extends NotFoundError {}
 export class SessionEndedError extends GoneError {}
@@ -324,7 +371,7 @@ export class LspNotStartedError extends ConflictError {}
 export class AddonUnavailableError extends ServiceUnavailableError {}
 export class FileNotFoundError extends NotFoundError {}
 export class InvalidFilePathError extends BadRequestError {}
-export class FileAccessDeniedError extends AuthorizationError {}
+export class FileAccessDeniedError extends ForbiddenError {}
 export class FileReadFailedError extends InternalServerError {}
 export class AtomicUploadUnsupportedError extends ConflictError {}
 export class GitAuthFailedError extends AuthenticationError {}
@@ -343,17 +390,7 @@ export class ProjectBudgetExceededError extends DaytonaError {}
 export class RateLimitedError extends RateLimitError {}
 export class OverloadedError extends RateLimitError {}
 export class NotSupportedForClassError extends ConflictError {}
-export class FeatureNotEnabledError extends AuthorizationError {}
-
-/** `IDLE_OUT_OF_RANGE` / `CREATE_TTL_OUT_OF_RANGE` (400): `max` is the server's ceiling for the knob. */
-class MaxBoundError extends BadRequestError {
-  public readonly max?: number
-
-  constructor(message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope) {
-    super(message, statusCode, code, source, envelope)
-    this.max = limitCount(envelope?.max)
-  }
-}
+export class FeatureNotEnabledError extends ForbiddenError {}
 
 export class ImageNotFoundError extends NotFoundError {}
 export class ImageNotReadyError extends ConflictError {}
@@ -364,21 +401,37 @@ export class ImageNotReadyError extends ConflictError {}
  * it, which converts it first.
  */
 export class ImageFormatOutdatedError extends ConflictError {}
+/** {@link ImageBuildFailedError}'s options: the common ones plus the failed image. */
+export interface ImageBuildFailedErrorOptions extends ErrorOptions {
+  readonly imageId?: string
+  readonly buildError?: string
+}
+
+/**
+ * `IMAGE_BUILD_FAILED` (409), or the SDK's own refusal when
+ * `createFromBuild()`'s image build ends `failed`. `imageId` names the failed
+ * image (so its build log can be fetched) when the SDK knows it; `buildError`
+ * is the build's recorded error, when the image has one. It is separate from
+ * `message`, which is always set.
+ */
 export class ImageBuildFailedError extends ConflictError {
   public readonly imageId?: string
-  public readonly buildError: string
+  public readonly buildError?: string
 
-  constructor(message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope, imageId?: string) {
-    super(message, statusCode, code, source, envelope)
+  constructor(message: string, options: ImageBuildFailedErrorOptions = {}) {
+    const { imageId, buildError, ...rest } = options
+    super(message, rest)
     this.imageId = imageId
-    this.buildError = message
+    this.buildError = buildError
   }
 }
 export class ImageClassMismatchError extends ConflictError {}
 export class ImageNameTakenError extends ConflictError {}
 export class ImageNameReservedError extends BadRequestError {}
-export class IdleOutOfRangeError extends MaxBoundError {}
-export class CreateTtlOutOfRangeError extends MaxBoundError {}
+/** `IDLE_OUT_OF_RANGE` (400): `max` is the server's ceiling. */
+export class IdleOutOfRangeError extends BadRequestError {}
+/** `CREATE_TTL_OUT_OF_RANGE` (400): `max` is the server's ceiling. */
+export class CreateTtlOutOfRangeError extends BadRequestError {}
 export class SnapshotNotFoundError extends NotFoundError {}
 export class SnapshotNotReadyError extends ConflictError {}
 export class SnapshotClassMismatchError extends ConflictError {}
@@ -477,8 +530,8 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   ECR_ACCOUNT_MISMATCH: BadRequestError,
   ECR_CREDENTIALS_INVALID: BadRequestError,
   ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
-  EMAIL_ACCESS_DENIED: AuthorizationError,
-  ENTITLEMENT_REQUIRED: AuthorizationError,
+  EMAIL_ACCESS_DENIED: ForbiddenError,
+  ENTITLEMENT_REQUIRED: ForbiddenError,
   FEATURE_NOT_ENABLED: FeatureNotEnabledError,
   INVALID_FOR_SOURCE: BadRequestError,
   LIMIT_EXCEEDED: LimitExceededError,
@@ -520,8 +573,8 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   RATE_LIMITED: RateLimitedError,
   SEARCH_NOT_CONFIGURED: SearchNotConfiguredError,
   SEARCH_UNAVAILABLE: SearchUnavailableError,
-  SIGNUP_NOT_INVITED: AuthorizationError,
-  USER_SUSPENDED: AuthorizationError,
+  SIGNUP_NOT_INVITED: ForbiddenError,
+  USER_SUSPENDED: ForbiddenError,
   SOURCE_AMBIGUOUS: ConflictError,
   SECRET_ALREADY_EXISTS: SecretAlreadyExistsError,
   WORKLOAD_PLANE_ELSEWHERE: NotSupportedError,
@@ -538,7 +591,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   V0_SANDBOX_NOT_FOUND: NotFoundError,
   V0_SANDBOX_NOT_IMPORTABLE: ConflictError,
   V0_BACKUP_REGISTRY_UNCONFIGURED: ServiceUnavailableError,
-  V0_MIGRATION_DEFAULT_PROJECT_ONLY: AuthorizationError,
+  V0_MIGRATION_DEFAULT_PROJECT_ONLY: ForbiddenError,
 }
 
 export const PROXY_ERROR_CLASS: Record<ProxyErrorCode, typeof DaytonaError> = {
@@ -558,7 +611,7 @@ export const GENERIC_ERROR_CLASS: Readonly<Record<string, typeof DaytonaError>> 
   BAD_GATEWAY: InternalServerError,
   BAD_REQUEST: BadRequestError,
   CONFLICT: ConflictError,
-  FORBIDDEN: AuthorizationError,
+  FORBIDDEN: ForbiddenError,
   GATEWAY_TIMEOUT: InternalServerError,
   GONE: GoneError,
   INTERNAL_SERVER_ERROR: InternalServerError,
@@ -596,7 +649,7 @@ const SOURCE_ERROR_CLASS: Readonly<Record<string, Readonly<Record<string, typeof
 const STATUS_ERROR_CLASS: Record<number, typeof DaytonaError> = {
   400: BadRequestError,
   401: AuthenticationError,
-  403: AuthorizationError,
+  403: ForbiddenError,
   404: NotFoundError,
   408: RequestTimeoutError,
   409: ConflictError,
@@ -618,20 +671,56 @@ export function errorClassFromStatusCode(statusCode?: number): typeof DaytonaErr
   return STATUS_ERROR_CLASS[statusCode] ?? (statusCode >= 500 ? InternalServerError : DaytonaError)
 }
 
-function limitCount(value: unknown): number | undefined {
+function optionalText(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+function optionalInteger(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) ? value : undefined
+}
+
+/**
+ * The constructor options carried by a wire envelope. Fields of the wrong
+ * type are dropped, like the Python SDK's envelope parser does. Internal.
+ */
+export function errorOptionsFromEnvelope(envelope: ErrorEnvelope | undefined): ErrorOptions {
+  if (envelope === undefined) return {}
+  const retryAfterMs = optionalInteger(envelope.retryAfterMs)
+  return {
+    traceId: optionalText(envelope.trace_id),
+    retryAfterSeconds: optionalInteger(envelope.retry_after_seconds),
+    feature: optionalText(envelope.feature),
+    entitlement: optionalText(envelope.entitlement),
+    replacement: optionalText(envelope.replacement),
+    firstAvailableCursor: optionalText(envelope.firstAvailableCursor),
+    stated: optionalText(envelope.stated),
+    actual: optionalText(envelope.actual),
+    region: optionalText(envelope.region),
+    limit: optionalText(envelope.limit),
+    current: optionalInteger(envelope.current),
+    max: optionalInteger(envelope.max),
+    maxBytes: optionalInteger(envelope.max_bytes),
+    bytes: optionalInteger(envelope.bytes),
+    requestId: optionalText(envelope.requestId),
+    retryAfterMs: retryAfterMs !== undefined && retryAfterMs >= 0 ? retryAfterMs : undefined,
+  }
 }
 
 function ownClass<T extends object>(map: T | undefined, key: string): T[keyof T] | undefined {
   return map && Object.prototype.hasOwnProperty.call(map, key) ? map[key as keyof T] : undefined
 }
 
-export function createDaytonaError(message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope): DaytonaError {
+/**
+ * The typed error for a `(source, code)` pair, else for the code alone, else
+ * for the status. Internal: callers outside the SDK construct the class they
+ * want directly.
+ */
+export function createDaytonaError(message: string, statusCode?: number, code?: string, source?: string, extra: ErrorOptions = {}): DaytonaError {
   const ErrorClass =
     ownClass(ownClass(SOURCE_ERROR_CLASS, source ?? ''), code ?? '') ??
     ownClass(GENERIC_ERROR_CLASS, code ?? '') ??
     errorClassFromStatusCode(statusCode)
-  return new ErrorClass(message, statusCode, code, source, envelope)
+  return new ErrorClass(message, { ...extra, statusCode, code, source })
 }
 
 function dataObject(data: unknown): ErrorEnvelope | undefined {
@@ -656,10 +745,11 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   const status = error.response?.status
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
-  if (isAxiosTimeoutError(error)) return new TimeoutError('Operation timed out', status, code, source, envelope)
-  if (!error.response && (error.request || error.code)) return new ConnectionError(error.message, status, code, source, envelope)
+  const extra = errorOptionsFromEnvelope(envelope)
+  if (isAxiosTimeoutError(error)) return new ClientTimeoutError('Operation timed out', { ...extra, statusCode: status, code, source })
+  if (!error.response && (error.request || error.code)) return new ConnectionError(error.message, { ...extra, statusCode: status, code, source })
   const fallback = typeof error.response?.data === 'string' ? error.response.data : error.message
-  return createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, envelope)
+  return createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, errorOptionsFromEnvelope(envelope))
 }
 
 // Reads the unified envelope off a string body for callers that read the body
@@ -688,23 +778,13 @@ export function errorFromEnvelopeBody(
   const message = emptyProseIsAbsent
     ? (typeof parsed?.message === 'string' && parsed.message) || (typeof parsed?.error === 'string' && parsed.error) || fallbackMessage
     : messageFromEnvelope(parsed, fallbackMessage)
-  return createDaytonaError(message, status, code, source, parsed)
+  return createDaytonaError(message, status, code, source, errorOptionsFromEnvelope(parsed))
 }
 
 export async function errorFromFetchResponse(response: Response): Promise<DaytonaError> {
   const text = await response.text()
   return errorFromEnvelopeBody(text, response.status, text || response.statusText)
 }
-
-export const DaytonaNotFoundError = NotFoundError
-export const DaytonaAuthenticationError = AuthenticationError
-export const DaytonaAuthorizationError = AuthorizationError
-export const DaytonaConflictError = ConflictError
-export const DaytonaValidationError = BadRequestError
-export const DaytonaRateLimitError = RateLimitError
-export const DaytonaTimeoutError = TimeoutError
-export const DaytonaConnectionError = ConnectionError
-export const DaytonaNotSupportedError = NotSupportedError
 
 export function statusForCode(code: ErrorCode): number {
   return CODE_STATUS[code]
@@ -713,9 +793,9 @@ export function statusForCode(code: ErrorCode): number {
 registerErrorClasses(RootDaytonaError, [DaytonaError])
 registerErrorClasses(RootDaytonaBadRequestError, [BadRequestError])
 registerErrorClasses(RootDaytonaAuthenticationError, [AuthenticationError])
-registerErrorClasses(RootDaytonaForbiddenError, [AuthorizationError])
+registerErrorClasses(RootDaytonaForbiddenError, [ForbiddenError])
 registerErrorClasses(RootDaytonaNotFoundError, [NotFoundError])
-registerErrorClasses(RootDaytonaTimeoutError, [RequestTimeoutError, TimeoutError])
+registerErrorClasses(RootDaytonaTimeoutError, [RequestTimeoutError, ClientTimeoutError])
 registerErrorClasses(RootDaytonaConflictError, [ConflictError])
 registerErrorClasses(RootDaytonaGoneError, [GoneError])
 registerErrorClasses(RootDaytonaUnprocessableEntityError, [UnprocessableEntityError])
@@ -730,7 +810,7 @@ for (const [key, errorClass] of [
   ['DaytonaError', DaytonaError],
   ['BadRequestError', BadRequestError],
   ['AuthenticationError', AuthenticationError],
-  ['AuthorizationError', AuthorizationError],
+  ['ForbiddenError', ForbiddenError],
   ['NotFoundError', NotFoundError],
   ['RequestTimeoutError', RequestTimeoutError],
   ['SandboxCreateTimeoutError', SandboxCreateTimeoutError],
@@ -753,7 +833,7 @@ for (const [key, errorClass] of [
   ['SnapshotTooLargeError', SnapshotTooLargeError],
   ['PreconditionRequiredError', PreconditionRequiredError],
   ['ConnectionError', ConnectionError],
-  ['TimeoutError', TimeoutError],
+  ['ClientTimeoutError', ClientTimeoutError],
   ['TransferCancelledError', TransferCancelledError],
   ['SandboxCreateRequestTimeoutError', SandboxCreateRequestTimeoutError],
   ['SandboxCreateConnectionError', SandboxCreateConnectionError],

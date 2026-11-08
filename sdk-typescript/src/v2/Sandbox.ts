@@ -126,7 +126,7 @@ function sandboxAccessTokenFromPayload(payload: SandboxAccessTokenPayload | null
   const accessToken = payload?.access_token
   const expiresAt = payload?.expires_at
   if (typeof accessToken !== 'string' || accessToken.length === 0 || typeof expiresAt !== 'string') {
-    throw new DaytonaError('API returned an invalid access token payload', 500)
+    throw new DaytonaError('API returned an invalid access token payload', { statusCode: 500 })
   }
   return credentialSafeInspection({
     accessToken,
@@ -198,7 +198,7 @@ function includesWaitState(states: readonly SandboxWaitState[], state: SandboxSt
 }
 
 function unsupportedOperationError(message: string): UnsupportedOperationError {
-  return new UnsupportedOperationError(message, 400, 'UNSUPPORTED_OPERATION', 'SDK')
+  return new UnsupportedOperationError(message, { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
 }
 
 // Both placeholder spellings are documented (README.md) and must work in
@@ -235,9 +235,7 @@ function assertPlaceholderInPath(url: string): void {
   if (outsidePath.some(hasSandboxIdPlaceholder)) {
     throw new DaytonaError(
       'the {sandboxId} placeholder in a toolbox URL is only supported in the path (e.g. https://toolbox.example/{sandboxId}), not in the scheme, host, query or fragment',
-      400,
-      'BAD_REQUEST',
-      'SDK',
+      { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' },
     )
   }
 }
@@ -322,7 +320,7 @@ function waitQueryState(state: SandboxWaitState | undefined): string | undefined
 
 function validateTimeout(timeout: number): void {
   if (!Number.isFinite(timeout) || timeout < 0) {
-    throw new DaytonaError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST')
+    throw new DaytonaError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST' })
   }
 }
 
@@ -365,12 +363,12 @@ function parseLabels(value: unknown): Record<string, string> {
 
 function labelsBody(labels: unknown): Record<string, string> {
   if (typeof labels !== 'object' || labels === null || Array.isArray(labels)) {
-    throw new BadRequestError('setLabels requires a Record<string, string>', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('setLabels requires a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const output = emptyStringMap()
   for (const [key, value] of Object.entries(labels)) {
     if (typeof value !== 'string') {
-      throw new DaytonaError('setLabels requires a Record<string, string>', 400, 'BAD_REQUEST', 'SDK')
+      throw new DaytonaError('setLabels requires a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     output[key] = value
   }
@@ -382,33 +380,33 @@ function labelsBody(labels: unknown): Record<string, string> {
 // naming the key.
 function validateEnvKey(key: string): string {
   if (key.length === 0 || key.includes('=') || key.includes('\0') || key.includes('\n') || key.includes('\r')) {
-    throw new BadRequestError('env key is not a valid variable name', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('env key is not a valid variable name', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return key
 }
 
 function validateEnvValue(value: string): string {
   if (value.includes('\0')) {
-    throw new BadRequestError('environment values must not contain NUL', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('environment values must not contain NUL', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return value
 }
 
 function updateEnvBody(env: Record<string, string>, options: UpdateEnvOptions): toolbox.EnvRequest {
   if (typeof env !== 'object' || env === null || Array.isArray(env)) {
-    throw new BadRequestError('updateEnv requires env to be a Record<string, string>', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('updateEnv requires env to be a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const outputEnv = emptyStringMap()
   for (const [key, value] of Object.entries(env)) {
     validateEnvKey(key)
     if (typeof value !== 'string') {
-      throw new BadRequestError('updateEnv requires env to be a Record<string, string>', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('updateEnv requires env to be a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     outputEnv[key] = validateEnvValue(value)
   }
   const unset = options.unset ?? []
   if (!Array.isArray(unset) || unset.some((key) => typeof key !== 'string')) {
-    throw new BadRequestError('updateEnv requires unset to be an array of strings', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('updateEnv requires unset to be an array of strings', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return {
     env: outputEnv,
@@ -565,7 +563,7 @@ export class Sandbox {
   }
 
   private createApiTransport(): HttpTransport {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     return new HttpTransport(this.api.defaults.baseURL ?? '', this.apiKey, this.requestTimeout, this.httpOptions)
   }
 
@@ -729,7 +727,7 @@ export class Sandbox {
   }
 
   private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const waitValue = waitQueryState(wait)
     const config = timeout === undefined
       ? waitValue === undefined ? undefined : { timeout: WAIT_FOR_STATE_SLICE_MS + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: WAIT_FOR_STATE_SLICE_MS } }
@@ -839,12 +837,12 @@ export class Sandbox {
   }
 
   private requireToolbox(): HttpTransport {
-    if (!this.toolboxTransport) throw new DaytonaError('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)', 400, 'BAD_REQUEST', 'SDK')
+    if (!this.toolboxTransport) throw new DaytonaError('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     return this.toolboxTransport
   }
 
   private requireApiForPresignedUrls(): AxiosInstance {
-    if (!this.api) throw new DaytonaError('API is not available for pre-signed file URLs', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for pre-signed file URLs', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     return this.api
   }
 
@@ -919,16 +917,16 @@ export class Sandbox {
    * silent narrowing.
    */
   public async createAccessToken(options: CreateAccessTokenOptions = {}): Promise<SandboxAccessToken> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     if (options.ports !== undefined) {
       for (const port of options.ports) {
         if (!Number.isInteger(port) || port < 1 || port > 65535) {
-          throw new DaytonaError(`port must be an integer in 1..65535, got ${port}`, 400, 'BAD_REQUEST', 'SDK')
+          throw new DaytonaError(`port must be an integer in 1..65535, got ${port}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
         }
       }
     }
     if (options.ttlSeconds !== undefined && (!Number.isInteger(options.ttlSeconds) || options.ttlSeconds <= 0)) {
-      throw new DaytonaError('ttlSeconds must be a positive integer', 400, 'BAD_REQUEST', 'SDK')
+      throw new DaytonaError('ttlSeconds must be a positive integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     // Mint directly without an extra metadata request.
     const body: Record<string, unknown> = {}
@@ -1080,7 +1078,7 @@ export class Sandbox {
   }
 
   public async waitForState(states: readonly SandboxWaitState[], options: WaitForStateOptions = {}): Promise<void> {
-    if (states.length === 0) throw new DaytonaError('waitForState() requires at least one target state', 400, 'BAD_REQUEST', 'SDK')
+    if (states.length === 0) throw new DaytonaError('waitForState() requires at least one target state', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     const timeout = options.timeout
     if (timeout !== undefined) validateTimeout(timeout)
     const terminalStates = options.terminalStates ?? DEFAULT_SANDBOX_TERMINAL_STATES
@@ -1109,7 +1107,7 @@ export class Sandbox {
         }
         const remaining = deadline === undefined ? undefined : deadline - Date.now()
         if (remaining !== undefined && remaining <= 0) {
-          throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+          throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
         }
         const sliceMs = remaining === undefined ? WAIT_FOR_STATE_SLICE_MS : Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(remaining))
         await this.refreshDataWithin(sliceMs, waitTarget)
@@ -1137,7 +1135,7 @@ export class Sandbox {
         if (!refreshedByPoll && resolved.state !== 'destroyed') {
           const remaining = remainingRequestBudget(deadline)
           if (remaining !== undefined && remaining <= 0) {
-            throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+            throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
           }
           await this.refreshDataWithin(remaining === undefined ? undefined : Math.min(Math.ceil(remaining), MAX_REQUEST_TIMEOUT_MS))
         }
@@ -1172,7 +1170,7 @@ export class Sandbox {
       }
       const refreshTimeout = remainingRequestBudget(deadline)
       if (refreshTimeout !== undefined && refreshTimeout <= 0) {
-        throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+        throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       }
       const requestTimeout = deadline === undefined ? WAIT_FOR_STATE_SLICE_MS : Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(refreshTimeout ?? 0))
       const pollStarted = Date.now()
@@ -1197,7 +1195,7 @@ export class Sandbox {
 
   /** Start a stopped sandbox, or resume a paused one, and wait until it is started. */
   public async start(options: LifecycleWaitOptions = {}): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const timeout = options.timeout ?? 60_000
     validateTimeout(timeout)
     await this.refreshData()
@@ -1217,7 +1215,7 @@ export class Sandbox {
 
   /** Stop a persistent macOS sandbox. */
   public async stop(): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     await this.requirePersistentMacos('stop')
     const r = await this.api.post(`/sandboxes/${strictUriEncode(this.id)}/stop`)
     this.learnEventDestination(eventDestinationFromHeaders(r.headers))
@@ -1230,7 +1228,7 @@ export class Sandbox {
    * but does not keep its reservation renewing.
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const timeout = options.timeout ?? 60_000
     validateTimeout(timeout)
     await this.requirePersistentMacos('pause')
@@ -1245,7 +1243,7 @@ export class Sandbox {
    * `SandboxTerminalStateError`.
    */
   public async resume(options: LifecycleWaitOptions = {}): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const timeout = options.timeout ?? 60_000
     validateTimeout(timeout)
     await this.requirePersistentMacos('resume')
@@ -1272,7 +1270,7 @@ export class Sandbox {
    * as a create does; insufficient capacity can return `NO_FREE_SLOT`.
    */
   public async fork(options: { name?: string; memory?: boolean; timeout?: number } = {}): Promise<Sandbox> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const sandboxClass = await this.requireSandboxClass()
     const body: LinuxForkRequest = {}
     if (options.name) body.name = options.name
@@ -1310,7 +1308,7 @@ export class Sandbox {
    * the image can already be deleted. Image deletion may still return 409.
    */
   public async delete(): Promise<void> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const r = await this.api.delete(`/sandboxes/${strictUriEncode(this.id)}`)
     this.learnEventDestination(eventDestinationFromHeaders(r.headers))
     try {
@@ -1325,7 +1323,7 @@ export class Sandbox {
   }
 
   public async getNetworkPolicy(): Promise<NetworkPolicyInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const response = await this.api.get(`/sandboxes/${encodeURIComponent(this.id)}/network-policy`)
     return parseNetworkPolicyResponse(response)
   }
@@ -1334,7 +1332,7 @@ export class Sandbox {
     networkPolicy: NetworkPolicyInput,
     options: { ifMatch: string },
   ): Promise<NetworkPolicyInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const response = await this.api.put(
       `/sandboxes/${encodeURIComponent(this.id)}/network-policy`,
       serializeNetworkPolicyInput(networkPolicy),
@@ -1344,7 +1342,7 @@ export class Sandbox {
   }
 
   public async resetNetworkPolicy(options: { ifMatch: string }): Promise<NetworkPolicyInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const response = await this.api.put(`/sandboxes/${encodeURIComponent(this.id)}/network-policy`, 'null', {
       headers: { 'If-Match': options.ifMatch, 'Content-Type': 'application/json' },
     })
@@ -1357,7 +1355,7 @@ export class Sandbox {
    * `replaceSecrets`; `status` is `pending` until the sandbox has applied `desiredRevision`.
    */
   public async getSecrets(): Promise<SandboxSecretsInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this rehydrated sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this rehydrated sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const response = await this.api.get(`/sandboxes/${encodeURIComponent(this.id)}/secrets`)
     return parseSandboxSecretsResponse(response)
   }
@@ -1370,7 +1368,7 @@ export class Sandbox {
    * environment; processes started afterwards see the new names.
    */
   public async replaceSecrets(secrets: readonly string[], options: { ifMatch: string }): Promise<SandboxSecretsInfo> {
-    if (!this.api) throw new DaytonaError('API is not available for this rehydrated sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this rehydrated sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const response = await this.api.put(
       `/sandboxes/${encodeURIComponent(this.id)}/secrets`,
       serializeSandboxSecretsInput(secrets),
@@ -1398,8 +1396,8 @@ export class Sandbox {
    */
   public async updateLifecyclePolicy(options: LifecyclePolicyOptions): Promise<SandboxLifecycle> {
     const body = lifecycleBody(options)
-    if (!body) throw new DaytonaError('updateLifecyclePolicy requires at least one lifecycle field', 400, 'BAD_REQUEST')
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!body) throw new DaytonaError('updateLifecyclePolicy requires at least one lifecycle field', { statusCode: 400, code: 'BAD_REQUEST' })
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const sandboxClass = await this.requireSandboxClass()
     if (sandboxClass === 'macos' && this.persistent === undefined) await this.refreshData()
     assertLifecycleClassSupport(options, {
@@ -1432,7 +1430,7 @@ export class Sandbox {
    * keeps the clock, and what comes back is the state that won.
    */
   public async resetIdleTimer(): Promise<SandboxLifecycle> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const response = await this.api
       .post<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(`/sandboxes/${strictUriEncode(this.id)}/reset-idle-timer`)
       .then((r) => r.data)
@@ -1482,7 +1480,7 @@ export class Sandbox {
    * stopped; it cannot start until the snapshot is `ready`.
    */
   public async snapshotFilesystem(options: CaptureImageOptions = {}): Promise<Image> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const { data } = await this.api.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, {
       name: options.name,
       idle_expiry_seconds: options.idleExpirySeconds,
@@ -1492,7 +1490,7 @@ export class Sandbox {
   }
 
   public async createSnapshot(name: string): Promise<Snapshot> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     // The snapshot response carries its class.
     const http = this.api
     const encodedId = strictUriEncode(this.id)
@@ -1503,7 +1501,7 @@ export class Sandbox {
 
   /** Replace the sandbox's full label set. Pass `{}` to clear all labels; resolves to the applied labels. */
   public async setLabels(labels: Record<string, string>): Promise<Record<string, string>> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const body = labelsBody(labels)
     const requestConfig = { daytona: { routeTemplate: '/sandboxes/{id}/labels', sandboxId: this.id } } as AxiosRequestConfig
     const response = await this.api.put<{ labels?: unknown }>(
@@ -1518,7 +1516,7 @@ export class Sandbox {
 
   /** Return the sandbox entrypoint log as plain text. */
   public async entrypointLogs(): Promise<string> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     const requestConfig = {
       responseType: 'text',
       daytona: { routeTemplate: '/sandboxes/{id}/logs', sandboxId: this.id },
@@ -1540,7 +1538,7 @@ export class Sandbox {
    * Use followBuildLogs for live output and completeness metadata.
    */
   public async buildLogs(): Promise<string> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     return readBuildLogs(this.createApiTransport(), `/sandboxes/${strictUriEncode(this.id)}/build-logs-url`)
   }
 
@@ -1551,7 +1549,7 @@ export class Sandbox {
    * They do not fall back to another log source.
    */
   public async followBuildLogs(options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
-    if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
+    if (!this.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
     return followBuildLogs(this.createApiTransport(), `/sandboxes/${strictUriEncode(this.id)}/build-logs-url`, options)
   }
 }
@@ -1568,5 +1566,5 @@ function readSignedFileUrl(payload: api.SignedFileUrlResponse | unknown): Signed
       return { signature, expiresAt }
     }
   }
-  throw new DaytonaError('API returned an invalid signed file URL payload', 500)
+  throw new DaytonaError('API returned an invalid signed file URL payload', { statusCode: 500 })
 }

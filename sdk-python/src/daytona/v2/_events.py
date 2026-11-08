@@ -43,12 +43,12 @@ from ._core import RequestSpec, expect_object, sandbox_state
 from ._transport import AsyncTransport
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .errors import (
+    AuthenticationError,
     DaytonaError,
     ForbiddenError,
     NotFoundError,
     RequestTimeoutError,
     SandboxTerminalStateError,
-    UnauthorizedError,
     create_error,
 )
 from .types import SandboxEventsConfig, SandboxState
@@ -886,7 +886,7 @@ class WaitHub:
         except Exception as exc:
             if not self._waiter_still_pending(waiter):
                 return
-            if isinstance(exc, (NotFoundError, UnauthorizedError, ForbiddenError)):
+            if isinstance(exc, (NotFoundError, AuthenticationError, ForbiddenError)):
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
                 self._maybe_unsubscribe_for_id(waiter.sandbox_id)
@@ -987,7 +987,7 @@ class WaitHub:
                     if sock.credential_refusals >= _MAX_CREDENTIAL_REFUSALS:
                         self._fail_socket_waiters(
                             sock,
-                            UnauthorizedError(
+                            AuthenticationError(
                                 "the credential was refused by the events socket; mint a new one and retry",
                                 status_code=401,
                                 code="UNAUTHORIZED",
@@ -1062,7 +1062,7 @@ class WaitHub:
             data = expect_object(await self._api.send(RequestSpec("POST", path, timeout=30.0)))
         except NotFoundError as exc:
             raise _PermanentFallbackError() from exc
-        except (UnauthorizedError, ForbiddenError) as exc:
+        except (AuthenticationError, ForbiddenError) as exc:
             raise _AuthError(exc) from exc
         except DaytonaError as exc:
             raise _ReconnectError(f"ticket request failed: {exc}") from exc

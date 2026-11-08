@@ -17,7 +17,7 @@ import {
   BadRequestError,
   DaytonaError,
   AuthenticationError,
-  AuthorizationError,
+  ForbiddenError,
   NotFoundError,
   RequestTimeoutError,
   SandboxTerminalStateError,
@@ -486,9 +486,7 @@ export async function runPollLoop(
     if (remaining !== undefined && remaining <= 0) {
       throw new RequestTimeoutError(
         `sandbox ${sandboxId} did not reach the requested state before timeout`,
-        408,
-        'REQUEST_TIMEOUT',
-        'SDK',
+        { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
       )
     }
     const outcome = await fn()
@@ -608,7 +606,7 @@ export class WaitHub {
         }
       }
     }
-    const err = new ServiceUnavailableError('hub closed', 503, 'SERVICE_UNAVAILABLE', 'SDK')
+    const err = new ServiceUnavailableError('hub closed', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'SDK' })
     for (const list of this.waiters.values()) {
       for (const w of list) {
         this.clearWaiterTimers(w)
@@ -833,9 +831,7 @@ export class WaitHub {
         // be produced by arithmetic: a spent budget is a timeout.
         throw new RequestTimeoutError(
           `sandbox ${sandboxId} did not reach the requested state before timeout`,
-          408,
-          'REQUEST_TIMEOUT',
-          'SDK',
+          { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
         )
       }
       return this.fallbackWait(sandboxId, predicate, remaining)
@@ -940,9 +936,7 @@ export class WaitHub {
           waiter.reject(
             new RequestTimeoutError(
               `sandbox ${sandboxId} did not reach the requested state before timeout`,
-              408,
-              'REQUEST_TIMEOUT',
-              'SDK',
+              { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
             ),
           )
         }).catch(() => { /* ignore */ })
@@ -956,9 +950,7 @@ export class WaitHub {
           waiter.reject(
             new RequestTimeoutError(
               `sandbox ${sandboxId} did not reach the requested state before timeout`,
-              408,
-              'REQUEST_TIMEOUT',
-              'SDK',
+              { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
             ),
           )
         })
@@ -1031,7 +1023,7 @@ export class WaitHub {
       outcome = await sandboxPollFn()
     } catch (err) {
       if (!waiterStillPending(this.waiters, waiter)) return
-      if (err instanceof NotFoundError || err instanceof AuthenticationError || err instanceof AuthorizationError) {
+      if (err instanceof NotFoundError || err instanceof AuthenticationError || err instanceof ForbiddenError) {
         this.clearWaiterTimers(waiter)
         this.removeWaiter(waiter)
         this.maybeUnsubscribeForId(waiter.sandboxId)
@@ -1109,9 +1101,7 @@ export class WaitHub {
       if (remaining !== undefined && remaining <= 0) {
         throw new RequestTimeoutError(
           `sandbox ${sandboxId} did not reach the requested state before timeout`,
-          408,
-          'REQUEST_TIMEOUT',
-          'SDK',
+          { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
         )
       }
 
@@ -1207,9 +1197,7 @@ export class WaitHub {
               sock,
               new AuthenticationError(
                 'the credential was refused by the events socket; mint a new one and retry',
-                401,
-                'UNAUTHORIZED',
-                'SDK',
+                { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' },
               ),
             )
             break
@@ -1373,7 +1361,7 @@ export class WaitHub {
         throw new PermanentFallbackError()
       }
       if (err instanceof AuthenticationError) throw new AuthErrorInternal(err)
-      if (err instanceof AuthorizationError) throw new AuthErrorInternal(err)
+      if (err instanceof ForbiddenError) throw new AuthErrorInternal(err)
       throw err
     }
   }
@@ -1522,9 +1510,7 @@ export class WaitHub {
               sid,
               new BadRequestError(
                 `the server rejected sandbox id '${sid}' as malformed`,
-                400,
-                'BAD_REQUEST',
-                'SDK',
+                { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' },
               ),
             )
             this.releaseSubscription(sock, sid)
@@ -1629,9 +1615,7 @@ export class WaitHub {
         w.reject(
           new NotFoundError(
             `sandbox ${sandboxId} is no longer present; its final state was not retained`,
-            404,
-            'NOT_FOUND',
-            'SDK',
+            { statusCode: 404, code: 'NOT_FOUND', source: 'SDK' },
           ),
         )
       }

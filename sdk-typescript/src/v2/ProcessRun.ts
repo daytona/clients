@@ -60,7 +60,7 @@ export async function runProcess(binding: ProcessBinding, command: ProcessComman
   if (requestedKind === 'pty') {
     throw new UnsupportedOperationError(
       'process.run() does not create PTYs; use sandbox.pty.start() or sandbox.pty.attach()',
-      400, 'UNSUPPORTED_OPERATION', 'SDK',
+      { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
     )
   }
   const requestedTimeout = options.timeout
