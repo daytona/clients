@@ -61,20 +61,31 @@ export function errorImportSuggestions(source: SourceFile, mapping: Mapping): Re
       const qualifier = parent.getParentIfKind(SyntaxKind.ImportType)?.getQualifier();
       if (Node.isIdentifier(qualifier)) names = [qualifier.getText()];
     }
-    const usesError = namespace !== undefined && accesses.some(access => {
-      const receiver = Node.isQualifiedName(access) ? access.getLeft() : access.getExpression();
-      const name = Node.isQualifiedName(access) ? access.getRight().getText() : memberName(access);
-      return name !== undefined && isSharedError(name, mapping) && referencesNamespace(receiver, namespace);
-    });
-    const destructuresError = namespace !== undefined && variables.some(variable => {
-      const binding = variable.getNameNode();
-      const init = variable.getInitializer();
-      return Node.isObjectBindingPattern(binding) && init !== undefined &&
-        binding.getElements().some(entry => !entry.getDotDotDotToken() && isSharedError(bindingKey(entry) ?? '', mapping)) &&
-        referencesNamespace(init, namespace);
-    });
-    if (usesError || destructuresError || names.some(name => isSharedError(name, mapping))) guidance.set(module,
-      'when moving these calls to v2, import shared errors from @daytona/sdk so catches also cover v2 errors; root errors take only a message and have no 0.x fields');
+    // The former root aliases name shared categories too.
+    const shared = (name: string): boolean => isSharedError(name, mapping) || Object.hasOwn(mapping.rootAliasCategories, name);
+    const errorNames = new Set(names.filter(shared));
+    if (namespace !== undefined) {
+      for (const access of accesses) {
+        const receiver = Node.isQualifiedName(access) ? access.getLeft() : access.getExpression();
+        const name = Node.isQualifiedName(access) ? access.getRight().getText() : memberName(access);
+        if (name !== undefined && shared(name) && referencesNamespace(receiver, namespace)) errorNames.add(name);
+      }
+      for (const variable of variables) {
+        const binding = variable.getNameNode();
+        const init = variable.getInitializer();
+        if (!Node.isObjectBindingPattern(binding) || init === undefined || !referencesNamespace(init, namespace)) continue;
+        for (const entry of binding.getElements()) {
+          const key = bindingKey(entry) ?? '';
+          if (!entry.getDotDotDotToken() && shared(key)) errorNames.add(key);
+        }
+      }
+    }
+    if (errorNames.size > 0) {
+      const aliases = [...errorNames].filter(name => Object.hasOwn(mapping.rootAliasCategories, name)).sort();
+      guidance.set(module,
+        'when moving these calls to v2, import shared errors from @daytona/sdk so catches also cover v2 errors; root errors take only a message and have no 0.x fields' +
+        aliases.map((alias, index) => `${index === 0 ? '; ' : ', '}${alias} is ${mapping.rootAliasCategories[alias]} at the root`).join(''));
+    }
   }
   return guidance;
 }

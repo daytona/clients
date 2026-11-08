@@ -122,6 +122,17 @@
     "rootNames": {
       "$ref": "#/$defs/languageStrings"
     },
+    "rootAliasCategories": {
+      "description": "0.x root error aliases the 2.x root no longer exports, each mapped to the shared root category it named. They stay v0 exports.",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^Daytona\\w+Error$": {
+          "type": "string",
+          "pattern": "^Daytona\\w+Error$"
+        }
+      }
+    },
     "movedClientMembers": {
       "$ref": "#/$defs/languageStrings"
     },

@@ -103,6 +103,10 @@
       "DaytonaV2Client"
     ]
   },
+  "rootAliasCategories": {
+    "DaytonaValidationError": "DaytonaBadRequestError",
+    "DaytonaAuthorizationError": "DaytonaForbiddenError"
+  },
   "movedClientMembers": {
     "py": [
       "create",

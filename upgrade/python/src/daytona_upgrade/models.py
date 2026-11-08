@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, TypedDict
 
@@ -93,6 +93,8 @@ class Mapping:
     v0_exports: tuple[str, ...] | None = None
     # The pinned 0.x release SDK 2.x bundles as .v0.
     v0_version: str | None = None
+    # 0.x root error aliases the 2.x root dropped -> the shared category each named.
+    root_alias_categories: dict[str, str] = field(default_factory=dict)
 
     @property
     def root_imports(self) -> tuple[str, ...]:
@@ -170,6 +172,10 @@ def load_mapping(path: Path | None = None, tool_version: str | None = None) -> M
         if isinstance(exports, list) and all(isinstance(name, str) for name in exports)
         else None,
         raw.get("v0Version"),
+        {
+            str(alias): str(category)
+            for alias, category in raw.get("rootAliasCategories", {}).items()
+        },
     )
 
 

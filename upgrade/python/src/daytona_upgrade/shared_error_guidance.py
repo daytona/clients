@@ -14,10 +14,17 @@ from .resolution import dotted
 
 def shared_error_imports(
     flow: Flow, scopes: WorkflowScopes
-) -> tuple[ast.Import | ast.ImportFrom, ...]:
-    """Reuse position-specific proofs to exclude shadowed module references."""
+) -> tuple[tuple[ast.Import | ast.ImportFrom, frozenset[str]], ...]:
+    """Each v0 import that brings shared errors, with the error names it brings.
+
+    Reuse position-specific proofs to exclude shadowed module references. The
+    former root aliases count: they name shared categories too.
+    """
     mapping = flow.resolver.mapping
-    shared_errors = set(mapping.root_names) - set(mapping.root_imports)
+    shared_errors = (set(mapping.root_names) - set(mapping.root_imports)) | set(
+        mapping.root_alias_categories
+    )
+    names: dict[ast.Import | ast.ImportFrom, set[str]] = {}
     modules = {
         old + ".v0"
         for old in mapping.modules
@@ -43,6 +50,9 @@ def shared_error_imports(
                 )
             ):
                 selected.add(node)
+                names.setdefault(node, set()).update(
+                    alias.name for alias in node.names if alias.name in shared_errors
+                )
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 if not is_v0_module(alias.name) and alias.name + ".v0" not in modules:
@@ -80,11 +90,11 @@ def shared_error_imports(
             if (candidate.lineno, candidate.col_offset) < (node.lineno, node.col_offset)
         ]
         if preceding:
-            selected.add(
-                max(preceding, key=lambda node: (node.lineno, node.col_offset))
-            )
+            nearest = max(preceding, key=lambda node: (node.lineno, node.col_offset))
+            selected.add(nearest)
+            names.setdefault(nearest, set()).add(node.attr)
     return tuple(
-        node
+        (node, frozenset(names.get(node, ())))
         for node in scopes.nodes
         if isinstance(node, (ast.Import, ast.ImportFrom)) and node in selected
     )
