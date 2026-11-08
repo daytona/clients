@@ -41,7 +41,9 @@ if (-not $Version) {
   # GitHub lists drafts only to maintainers.
   $tags = @()
   for ($page = 1; $page -le 50; $page++) {
-    $releases = @(Invoke-RestMethod "https://api.github.com/repos/$Repo/releases?per_page=100&page=$page" -UseBasicParsing)
+    # Invoke-RestMethod writes a JSON array as ONE object: the inner
+    # parentheses enumerate it, so $releases holds one entry per release.
+    $releases = @((Invoke-RestMethod "https://api.github.com/repos/$Repo/releases?per_page=100&page=$page" -UseBasicParsing))
     if ($releases.Count -eq 0) { break }
     # Drafts never count, and a stable-looking tag GitHub marks as a
     # pre-release is not stable.

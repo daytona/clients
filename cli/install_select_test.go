@@ -7,12 +7,15 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -82,6 +85,15 @@ func (r releaseIndex) write(t *testing.T, dir string) {
 		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("page-%d.json", page+1)), body, 0o644))
 	}
+}
+
+// pages is the number of non-empty pages GitHub would serve.
+func (r releaseIndex) pages() int {
+	size := r.pageSize
+	if size == 0 {
+		size = 100
+	}
+	return (len(r.tags) + size - 1) / size
 }
 
 var (
@@ -176,6 +188,14 @@ esac
 // returns the output and the version whose binary was downloaded.
 func runInstallSh(t *testing.T, command string, index releaseIndex, env ...string) (string, string, error) {
 	t.Helper()
+	out, got, _, err := runInstallShRequests(t, command, index, env...)
+	return out, got, err
+}
+
+// runInstallShRequests is runInstallSh that also returns the number of
+// release-list requests.
+func runInstallShRequests(t *testing.T, command string, index releaseIndex, env ...string) (string, string, int, error) {
+	t.Helper()
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not on PATH")
 	}
@@ -194,7 +214,18 @@ func runInstallSh(t *testing.T, command string, index releaseIndex, env ...strin
 	)
 	cmd.Env = append(cmd.Env, env...)
 	out, runErr := cmd.CombinedOutput()
-	return string(out), downloadedVersion(t, log, "daytona-linux-amd64"), runErr
+	return string(out), downloadedVersion(t, log, "daytona-linux-amd64"), releaseListRequests(t, log), runErr
+}
+
+// releaseListRequests counts the release-list requests in a curl log.
+func releaseListRequests(t *testing.T, log string) int {
+	t.Helper()
+	body, err := os.ReadFile(log)
+	if os.IsNotExist(err) {
+		return 0
+	}
+	require.NoError(t, err)
+	return strings.Count(string(body), "https://api.github.com/repos/daytona/clients/releases?per_page=100&page=")
 }
 
 func downloadedVersion(t *testing.T, log, asset string) string {
@@ -223,10 +254,12 @@ func TestInstallSh_selectsTheReleaseOfItsChannel(t *testing.T) {
 			}
 
 			// When the installer runs without a version.
-			out, got, err := runInstallSh(t, "sh install.sh"+args, tc.index)
+			out, got, requests, err := runInstallShRequests(t, "sh install.sh"+args, tc.index)
 
-			// Then it installs the expected release, or fails naming the channel.
+			// Then it installs the expected release, or fails naming the
+			// channel, reading each page once and stopping at the first empty one.
 			require.Equal(t, tc.want, got, out)
+			require.Equal(t, tc.index.pages()+1, requests, "release-list requests")
 			if tc.want == "" {
 				require.Error(t, err, out)
 				require.Contains(t, out, "found no "+tc.channel+" 2.x CLI release")
@@ -288,10 +321,22 @@ func TestInstallSh_failsWhenTheReleasesCannotBeListed(t *testing.T) {
 	require.Empty(t, got)
 }
 
-// runInstallPs1 runs command in pwsh with Invoke-RestMethod serving the fake
-// release index and Invoke-WebRequest serving the release assets (or the
-// installer itself), and returns the output and the version downloaded.
+// runInstallPs1 runs command in pwsh and returns the output and the version
+// downloaded (see runInstallPs1Requests).
 func runInstallPs1(t *testing.T, command string, index releaseIndex, env ...string) (string, string, error) {
+	t.Helper()
+	out, got, _, err := runInstallPs1Requests(t, command, index, env...)
+	return out, got, err
+}
+
+// runInstallPs1Requests runs command in pwsh. The release list is served by a
+// local HTTP server to the real Invoke-RestMethod (a wrapper only rewrites the
+// GitHub API host), so the script sees the cmdlet's own output shape: a JSON
+// array arrives as ONE object. Invoke-WebRequest serves the release assets,
+// and Invoke-RestMethod of the README's installer URL returns install.ps1. It
+// returns the output, the version downloaded and the number of release-list
+// requests.
+func runInstallPs1Requests(t *testing.T, command string, index releaseIndex, env ...string) (string, string, int, error) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("the fake release binary is a shell script")
@@ -302,6 +347,21 @@ func runInstallPs1(t *testing.T, command string, index releaseIndex, env ...stri
 	}
 	indexDir, installDir := t.TempDir(), t.TempDir()
 	index.write(t, indexDir)
+	var requests atomic.Int32
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/daytona/clients/releases" || r.URL.Query().Get("per_page") != "100" {
+			http.NotFound(w, r)
+			return
+		}
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		body, err := os.ReadFile(filepath.Join(indexDir, "page-"+r.URL.Query().Get("page")+".json"))
+		if os.IsNotExist(err) {
+			body = []byte("[]")
+		}
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(api.Close)
 	script, err := filepath.Abs("install.ps1")
 	require.NoError(t, err)
 	log := filepath.Join(t.TempDir(), "requests.log")
@@ -311,8 +371,7 @@ function Invoke-RestMethod {
   Add-Content $env:MOCK_LOG $Uri
   if ($Uri -eq "https://raw.githubusercontent.com/daytona/clients/main/cli/install.ps1") { return Get-Content -Raw $env:MOCK_INSTALL_PS1 }
   if ($Uri -notlike "https://api.github.com/repos/daytona/clients/releases?per_page=100&page=*") { throw "unexpected request: $Uri" }
-  $page = Join-Path $env:MOCK_INDEX ("page-" + ($Uri -replace '.*page=', '') + ".json")
-  if (Test-Path $page) { return Get-Content -Raw $page | ConvertFrom-Json } else { return @() }
+  Microsoft.PowerShell.Utility\Invoke-RestMethod ($Uri -replace '^https://api\.github\.com', $env:MOCK_API) -UseBasicParsing
 }
 function Invoke-WebRequest {
   param([Parameter(Position = 0)] $Uri, [switch] $UseBasicParsing, $OutFile)
@@ -330,13 +389,13 @@ try { ` + command + ` } catch { Write-Host "INSTALL_FAILED: $_" }
 		"DAYTONA_INSTALL_DIR="+installDir,
 		"PROCESSOR_ARCHITECTURE=AMD64", "PROCESSOR_ARCHITEW6432=",
 		"TEMP="+t.TempDir(),
-		"MOCK_INDEX="+indexDir, "MOCK_LOG="+log, "MOCK_INSTALL_PS1="+script,
+		"MOCK_API="+api.URL, "MOCK_LOG="+log, "MOCK_INSTALL_PS1="+script,
 		"MOCK_BINARY="+fakeBinary,
 		fmt.Sprintf("MOCK_SUMS=%x  daytona-windows-amd64.exe\n", sha256.Sum256([]byte(fakeBinary))),
 	)
 	cmd.Env = append(cmd.Env, env...)
 	out, runErr := cmd.CombinedOutput()
-	return string(out), downloadedVersion(t, log, "daytona-windows-amd64.exe"), runErr
+	return string(out), downloadedVersion(t, log, "daytona-windows-amd64.exe"), int(requests.Load()), runErr
 }
 
 func TestInstallPs1_selectsTheReleaseOfItsChannel(t *testing.T) {
@@ -349,11 +408,13 @@ func TestInstallPs1_selectsTheReleaseOfItsChannel(t *testing.T) {
 			}
 
 			// When the installer runs without DAYTONA_VERSION, as `irm | iex` does.
-			out, got, err := runInstallPs1(t, `Get-Content -Raw $env:MOCK_INSTALL_PS1 | Invoke-Expression`, tc.index, env...)
+			out, got, requests, err := runInstallPs1Requests(t, `Get-Content -Raw $env:MOCK_INSTALL_PS1 | Invoke-Expression`, tc.index, env...)
 
-			// Then it picks the same release as install.sh.
+			// Then it picks the same release as install.sh, reading each page
+			// once and stopping at the first empty one.
 			require.NoError(t, err, out)
 			require.Equal(t, tc.want, got, out)
+			require.Equal(t, tc.index.pages()+1, requests, "release-list requests")
 			if tc.want == "" {
 				require.Contains(t, out, "INSTALL_FAILED: found no "+map[bool]string{true: tc.channel, false: "stable"}[tc.channel != ""]+" 2.x CLI release")
 				return
