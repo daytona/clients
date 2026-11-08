@@ -16,6 +16,7 @@ from types import MappingProxyType
 from typing import Callable, ClassVar, Dict, Final, Literal, Mapping, Optional, Sequence
 from urllib.parse import quote, urlsplit
 
+import anyio
 from typing_extensions import Self
 
 from . import _clock
@@ -66,7 +67,6 @@ from .docker import AsyncDockerService
 from .errors import (
     DaytonaError,
     NotFoundError,
-    RequestTimeoutError,
     SandboxTerminalStateError,
     create_error,
 )
@@ -187,7 +187,6 @@ class AsyncSandbox:
             "error",
             "access_token",
             "access_token_expires_at",
-            "toolbox_proxy_url",
         }
     )
 
@@ -419,18 +418,19 @@ class AsyncSandbox:
 
     @property
     def access_token(self) -> Optional[str]:
-        """The sandbox access token this handle sends to sandbox services, when it holds one."""
+        """The sandbox-scoped bearer this handle currently authenticates with.
+
+        It comes from the create response (returned only by the first call of
+        a named get-or-create), a caller override (``get(id, access_token=...)``)
+        or a token the handle minted; ``None`` until one is known. Never
+        serialized by :meth:`to_json`.
+        """
         return self._access_token
 
     @property
     def access_token_expires_at(self) -> Optional[datetime]:
         """Expiry of :attr:`access_token`, or ``None`` when not reported."""
         return self._access_token_expires_at
-
-    @property
-    def toolbox_proxy_url(self) -> Optional[str]:
-        """The sandbox-scoped toolbox URL this handle sends sandbox requests to."""
-        return self._toolbox_proxy_url
 
     @classmethod
     def _from_api(
@@ -780,16 +780,17 @@ class AsyncSandbox:
         params: Dict[str, JsonValue] = {}
         if wait is not None:
             params["wait"] = _wait_query_state(wait)
+        root = getattr(api, "request_timeout_seconds", 0) or 0
+        request_timeout = timeout if timeout is None or root <= 0 else min(timeout, root)
         if wait_timeout_ms is not None:
-            params["timeout_ms"] = wait_timeout_ms
-        # A long-poll read is bounded by its server slice plus a little slack —
-        # also when the CALLER set no deadline. "No overall deadline" means the
-        # wait loop keeps issuing slices, never that one stalled connection may
-        # hang it forever (parity with TypeScript's `refreshDataWithin`).
-        request_timeout = timeout
-        if wait_timeout_ms is not None:
-            slice_seconds = wait_timeout_ms / 1000
-            request_timeout = (slice_seconds if timeout is None else timeout) + WAIT_READ_SLACK_SECONDS
+            # A hold ends by the smaller of its slice and the request timeout.
+            # Its read is bounded by the hold plus a little slack — also when
+            # the CALLER set no deadline: "no overall deadline" means the wait
+            # loop keeps issuing slices, never that one stalled connection may
+            # hang it forever (parity with TypeScript's `refreshDataWithin`).
+            hold_ms = wait_timeout_ms if root <= 0 else max(1, min(wait_timeout_ms, math.ceil(root * 1000)))
+            params["timeout_ms"] = hold_ms
+            request_timeout = hold_ms / 1000 + WAIT_READ_SLACK_SECONDS
         fresh = AsyncSandbox._from_api(
             expect_sandbox_detail(
                 await api.send(
@@ -918,7 +919,8 @@ class AsyncSandbox:
                     self.id,
                     predicate,
                     timeout=timeout,
-                    region_hint=self.region,
+                    # `local` names no concrete region.
+                    region_hint=None if (self.region or "").strip().lower() == "local" else self.region,
                     sandbox_poll_fn=_sandbox_poll_fn,
                     on_observed=_on_observed,
                 )
@@ -945,17 +947,14 @@ class AsyncSandbox:
             # resume) hand back this handle, so fill in the rest — toolbox URL,
             # region, resources, error reason — with one GET, as the polling
             # path does, and within the same budget. A destroyed sandbox has
-            # nothing to fill in (the GET would be a 404).
+            # nothing to fill in (the GET would be a 404). The target was
+            # observed, so neither a spent budget nor a failed refresh turns
+            # that success into an error.
             if not refreshed_by_poll and resolved.state != "destroyed":
                 remaining = None if deadline is None else deadline - _clock.monotonic()
-                if remaining is not None and remaining <= 0:
-                    raise create_error(
-                        "sandbox failed to reach the requested state before timeout",
-                        408,
-                        "REQUEST_TIMEOUT",
-                        "SDK",
-                    )
-                await self._refresh_data_within(timeout=remaining)
+                if remaining is None or remaining > 0:
+                    with contextlib.suppress(DaytonaError):
+                        await self._refresh_data_within(timeout=remaining)
             return
 
         fresh = False
@@ -1165,12 +1164,33 @@ class AsyncSandbox:
         )
         fork_id = data.id
         api_token = getattr(self._api, "token", None) if self._api else None
+        # The fork's detail read counts against the wait budget.
+        deadline = _clock.monotonic() + wait_seconds if wait_seconds > 0 else None
+        detail: Optional[Mapping[str, JsonValue]] = None
+        try:
+            with anyio.move_on_after(
+                math.inf if deadline is None else max(0.0, deadline - _clock.monotonic())
+            ):
+                detail = expect_sandbox_detail(
+                    await self._require_api().send(
+                        RequestSpec("GET", f"/sandboxes/{quote(fork_id, safe='')}")
+                    )
+                ).to_dict()
+        except DaytonaError:
+            # The fork exists; a failed read never costs the caller its handle.
+            detail = None
+        accepted = data.to_dict()
         # The fork gets its own toolbox URL from the API; inheriting the
         # parent's override could send its file and process calls to the parent.
         fork = AsyncSandbox._from_api(
-            expect_sandbox_detail(
-                await self._require_api().send(RequestSpec("GET", f"/sandboxes/{quote(fork_id, safe='')}"))
-            ),
+            detail
+            if detail is not None
+            else {
+                "id": fork_id,
+                "status": accepted.get("status"),
+                "forked_from": accepted.get("forked_from") or self.id,
+                "class": sandbox_class,
+            },
             self._api,
             None,
             toolbox_owner=self._toolbox_owner,
@@ -1187,9 +1207,11 @@ class AsyncSandbox:
             # Source and fork share the regional API endpoint that accepted the fork.
             self._learn_endpoint(endpoint)
             fork._learn_endpoint(endpoint)
-        if wait_seconds > 0 and fork.state not in targets:
-            # A spent budget or a terminal state hands back the fork as it is.
-            await _wait_without_raising_for_its_end(fork, targets, wait_seconds)
+        if detail is None or deadline is None or fork.state in targets:
+            return fork
+        remaining = deadline - _clock.monotonic()
+        if remaining > 0:
+            await _wait_without_raising_for_its_end(fork, targets, remaining)
         return fork
 
     async def delete(self, *, timeout: float = 60) -> None:
@@ -1311,6 +1333,7 @@ class AsyncSandbox:
         network_policy: NetworkPolicyInput,
         if_match: str,
     ) -> NetworkPolicyInfo:
+        _require_if_match(if_match)
         response = await self._require_api().put(
             f"/sandboxes/{quote(self.id, safe='')}/network-policy",
             json=serialize_network_policy_input(network_policy),
@@ -1319,6 +1342,7 @@ class AsyncSandbox:
         return parse_network_policy_response(response)
 
     async def reset_network_policy(self, *, if_match: str) -> NetworkPolicyInfo:
+        _require_if_match(if_match)
         response = await self._require_api().request(
             "PUT",
             f"/sandboxes/{quote(self.id, safe='')}/network-policy",
@@ -1350,6 +1374,7 @@ class AsyncSandbox:
         applies asynchronously: poll :meth:`get_secrets` until ``status`` is ``applied``. Running
         processes keep their environment; processes started afterwards see the new names.
         """
+        _require_if_match(if_match)
         response = await self._require_api().put(
             f"/sandboxes/{quote(self.id, safe='')}/secrets",
             json=serialize_sandbox_secrets_input(secrets),
@@ -1535,8 +1560,8 @@ class AsyncSandbox:
         try:
             return await self._refresh_sandbox_token(failed_token=None)
         except Exception as exc:
-            if _mint_route_unsupported(exc):
-                self._sandbox_token_mint_unsupported = True
+            if _mint_route_unavailable(exc):
+                self._sandbox_token_mint_unsupported = _mint_route_unsupported(exc)
                 return await self._fallback_sandbox_bearer()
             # A failed proactive refresh must not fail requests a still-valid
             # token would have served: inside the 60 s refresh lead but before
@@ -1574,8 +1599,8 @@ class AsyncSandbox:
         try:
             return await self._refresh_sandbox_token(failed_token=failed_token)
         except Exception as exc:
-            if _mint_route_unsupported(exc):
-                self._sandbox_token_mint_unsupported = True
+            if _mint_route_unavailable(exc):
+                self._sandbox_token_mint_unsupported = _mint_route_unsupported(exc)
                 return await self._api_credential_retry(failed_token)
             if getattr(exc, "status_code", None) == 403:
                 # A FORBIDDEN mint is the actionable error — this credential
@@ -1673,8 +1698,8 @@ class AsyncSandbox:
         try:
             minted = await self.create_access_token(operations=[], ports=[port])
         except Exception as exc:
-            if _mint_route_unsupported(exc):
-                self._sandbox_token_mint_unsupported = True
+            if _mint_route_unavailable(exc):
+                self._sandbox_token_mint_unsupported = _mint_route_unsupported(exc)
                 return None
             raise
         return minted
@@ -1736,19 +1761,16 @@ class AsyncSandbox:
 async def _wait_without_raising_for_its_end(
     sandbox: AsyncSandbox, states: Sequence[SandboxWaitState], timeout: float
 ) -> None:
-    """Wait for ``states``; a spent budget (the SDK's own timeout) or a terminal state is not an error.
+    """Wait for ``states``; however the wait ends, the handle is kept.
 
-    The create and fork contract: how the wait ended is the caller's to read
-    from ``sandbox.state``. A request failure during the wait (a server 408
-    included) still raises.
+    The create and fork contract: once the create or fork request succeeded,
+    the sandbox exists, so a spent budget, a terminal state or a failed read
+    during the wait (any :class:`DaytonaError`) is not an error. How the wait
+    ended is the caller's to read from ``sandbox.state``. Cancellation still
+    propagates.
     """
-    try:
+    with contextlib.suppress(DaytonaError):
         await sandbox._wait_for_state(states, timeout=timeout)
-    except SandboxTerminalStateError:
-        return
-    except RequestTimeoutError as error:
-        if error.source != "SDK":
-            raise
 
 
 def sandbox_info_from_id(sandbox_id: str) -> _SandboxInfo:
@@ -2061,14 +2083,29 @@ def _rfc3339_epoch(value: Optional[datetime]) -> Optional[float]:
     return value.timestamp() if value is not None else None
 
 
-def _mint_route_unsupported(exc: Exception) -> bool:
-    """A mint failure indicating the access-token route is unavailable.
+def _require_if_match(if_match: object) -> None:
+    if not isinstance(if_match, str) or not if_match:
+        raise create_error(
+            "if_match must be a non-empty string (the etag of the last read)", 400, "BAD_REQUEST", "SDK"
+        )
 
-    404/405/501 on ``POST …/access-token`` marks the route absent; the handle keeps
-    ``access_token or api key`` behavior instead of failing every sandbox service
-    call.
+
+def _mint_route_unsupported(exc: Exception) -> bool:
+    """A mint failure proving the access-token route is absent (405/501).
+
+    The handle then keeps ``access_token or api key`` behavior for its
+    lifetime instead of failing every sandbox service call.
     """
-    return getattr(exc, "status_code", None) in (404, 405, 501)
+    return getattr(exc, "status_code", None) in (405, 501)
+
+
+def _mint_route_unavailable(exc: Exception) -> bool:
+    """A mint failure that falls back to the API credential for this request.
+
+    A 404 is not proof the route is absent (the sandbox may be missing), so it
+    falls back once without disabling minting; 405/501 also disable it.
+    """
+    return _mint_route_unsupported(exc) or getattr(exc, "status_code", None) == 404
 
 
 def _isoformat_or_none(value: datetime | None) -> Optional[str]:

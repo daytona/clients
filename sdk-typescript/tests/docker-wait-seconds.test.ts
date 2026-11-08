@@ -6,6 +6,7 @@
 import { DockerService, DOCKER_WAIT_DEADLINE_GRACE_MS } from '../src/v2/Docker.js'
 import { HttpTransport } from '../src/v2/http.js'
 import { BadRequestError, DockerWaitTimeoutError } from '../src/v2/errors/DaytonaError.js'
+import { INTERNAL } from '../src/v2/internal'
 
 describe('Docker wait seconds', () => {
   beforeEach(() => { jest.useFakeTimers({ now: 0 }) })
@@ -21,7 +22,7 @@ describe('Docker wait seconds', () => {
       return { config, status: 200, statusText: 'OK', headers: {}, data: { state: 'starting', owner: 'daemon' } }
     }
     // When
-    const result = DockerService._create(transport).waitUntilReady({ timeoutSeconds: 1.5 })
+    const result = new DockerService(INTERNAL, transport).waitUntilReady({ timeoutSeconds: 1.5 })
     // Then
     await expect(result).rejects.toBeInstanceOf(DockerWaitTimeoutError)
     expect(polls).toEqual([
@@ -40,7 +41,7 @@ describe('Docker wait seconds', () => {
       return { config, status: 200, statusText: 'OK', headers: {}, data: { state: 'starting', owner: 'daemon' } }
     }
     // When
-    const result = DockerService._create(transport).waitUntilReady()
+    const result = new DockerService(INTERNAL, transport).waitUntilReady()
     // Then
     await expect(result).rejects.toBeInstanceOf(DockerWaitTimeoutError)
     expect(polls).toBe(60)
@@ -58,7 +59,7 @@ describe('Docker wait seconds', () => {
         data: { state: polls === 1 ? 'starting' : 'ready', owner: 'daemon' } }
     }
     // When
-    const result = await DockerService._create(transport).waitUntilReady({ timeoutSeconds: 0 })
+    const result = await new DockerService(INTERNAL, transport).waitUntilReady({ timeoutSeconds: 0 })
     // Then
     expect(result.state).toBe('ready')
     expect(polls).toBe(2)
@@ -66,10 +67,14 @@ describe('Docker wait seconds', () => {
 
   it.each([-1, NaN, Infinity])('rejects invalid seconds %s before making a request', async (timeoutSeconds) => {
     // Given
-    const service = DockerService._create(new HttpTransport('http://toolbox.invalid'))
+    let calls = 0
+    const transport = new HttpTransport('http://toolbox.invalid')
+    transport.http.defaults.adapter = async () => { calls += 1; throw new Error('unexpected HTTP call') }
+    const service = new DockerService(INTERNAL, transport)
     // When
     const result = service.waitUntilReady({ timeoutSeconds })
     // Then
     await expect(result).rejects.toBeInstanceOf(BadRequestError)
+    expect(calls).toBe(0)
   })
 })

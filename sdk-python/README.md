@@ -49,7 +49,9 @@ with Daytona(DaytonaConfig(api_key="dtn_...")) as d:
 `images.pull()` waits until ready by default. Set `wait=False` to skip the
 readiness wait, or `timeout=120` for a 120-second budget (`None` or `0` is
 unbounded). A failed import raises `ImageBuildFailedError` with the server's
-error message. `images.build()` remains non-waiting.
+error message. `images.build()` remains non-waiting. Both take the same image
+options (`name`, `region`, `cpu_arch`, `idle_expiry_seconds`), and their
+submission is an ordinary request, bounded by `request_timeout`.
 
 `with Daytona(...) as d:` releases the client's connection pools when the block
 ends (also on cancellation). A short script may instead let the interpreter
@@ -410,6 +412,10 @@ Every fetched sandbox exposes its metadata, read-only:
 Update it with methods such as `set_labels()` and reload it with
 `refresh_data()`. A class this SDK does not know reads as
 `sandbox_class == "unknown"` with the API's value in `raw_sandbox_class`.
+`sandbox.access_token` is the sandbox-scoped token the handle authenticates
+with (from the create response, a token you pass as
+`d.v2.get(id, access_token=...)`, which the handle never replaces, or one it
+minted); it is `None` until one is known and never serialized.
 
 `sandbox.to_json()` returns a `SandboxHandleJSON`: the handle's metadata as
 camelCase JSON (`sandboxId`, `state`, `sandboxClass`, …, the same shape the
@@ -419,9 +425,12 @@ snapshot, not a way back: reconnect with `d.v2.get(json["sandboxId"])`.
 Resource models are frozen, keyword-only dataclasses: for example, images
 expose `sandbox_class`, `layer_count` and `available_in`; snapshots expose
 `sandbox_class` / `raw_sandbox_class` and `memory_bytes`; volumes expose
-`size_gib` and `used_bytes`. Closed SDK enums map unrecognized values to
-`"unknown"` and keep the original in a `raw_…` sibling. Timestamps are
-timezone-aware `datetime` values; a budget period start is a `date`.
+`size_gib`, `used_bytes` and read-only `options`. An image's `source` is a
+frozen `RegistryImageSource`, `DockerfileImageSource`, `NamedImageSource` or
+`ManifestImageSource`, told apart by `source.type`. Closed SDK enums map
+unrecognized values to `"unknown"` and keep the original in a `raw_…`
+sibling. Timestamps are timezone-aware `datetime` values; a budget period
+start is a `date`. List and search pages are immutable: `items` is a tuple.
 
 Use `sandbox.set_labels(labels={...})` to replace the entire label set
 (`{}` clears it), and `sandbox.entrypoint_logs()` to read the sandbox's
@@ -501,8 +510,10 @@ snapshot = d.v2.create_from_snapshot("worker-after-setup", wait_seconds=60)
 
 `d.v2.create_from_build()` is the slow path: it builds an anonymous image
 first, always waits for that image to become ready, then creates the sandbox
-from the image id. `build_timeout` bounds only the build (seconds; `None` or
-`0` means no deadline). A failed build raises `ImageBuildFailedError` and a
+from the image id. The build submission is an ordinary request, bounded by
+`request_timeout`; `build_timeout` then bounds only the build wait (seconds;
+`None` or `0` means no deadline). A failed build (status `failed` or `error`)
+raises `ImageBuildFailedError` and a
 build that outlasts `build_timeout` raises `RequestTimeoutError`; in both
 cases no sandbox exists. The create then gets the full, independent
 `wait_seconds` budget and takes the same keywords as `create()`.
@@ -518,11 +529,16 @@ sandbox = d.v2.create_from_build(
 
 `wait_seconds` is the create wait budget in whole seconds (default 60). The
 server holds create for up to its own short cap, then the SDK waits for the
-remainder. `wait_seconds=0` returns as soon as the create is accepted. Every
-`create*()` returns the handle when its wait runs out or the sandbox reaches a
-terminal state: check `sandbox.state` and `sandbox.error` before doing work.
-Request failures still raise. `create_timeout_seconds` is the server-side
-queue/boot budget in seconds; `-1` asks the server to apply its maximum.
+remainder. `wait_seconds=0` returns as soon as the create is accepted. Once
+the create request has succeeded, every `create*()` returns the handle however
+its wait ends — the budget runs out, the sandbox reaches a terminal state, or
+a read during the wait fails: check `sandbox.state` and `sandbox.error` before
+doing work. Only a failed create request raises, so a create that raised
+created no sandbox — except `SandboxCreateRequestTimeoutError` (the request
+timed out; retry with its `idempotency_key`) and a cancelled create, which
+may already have created one. `create_timeout_seconds` is the server-side
+queue/boot budget in seconds (an integer, at least `-1`); `-1` asks the server
+to apply its maximum.
 
 Linux sizing uses one `resources=Resources(cpu=, cpu_max=, memory=, memory_max=,
 disk=, disk_max=)` entry: CPU in cores, memory and disk in GiB that must
@@ -531,9 +547,12 @@ Sizes read back exactly. `create_from_snapshot()` inherits the snapshot's
 configuration and takes no resources, CPU selectors, environment, volumes,
 secrets or network policy.
 
-`images.get(id, wait="ready", timeout=60)` and
-`snapshots.get(id, wait="ready", timeout=60)` perform a bounded readiness
-wait. `sandbox.capture_image(name=..., idle_expiry_seconds=...)` captures an
+`images.get(id, wait="ready", timeout=120)` and
+`snapshots.get(id, wait="ready", timeout=120)` wait for the artifact to
+settle (`ready`, `failed` or `error`): they repeat the server's long poll,
+each hold at most 60 s and at most `request_timeout`, until it settles or the
+budget is spent, then return the artifact as last observed. Without a
+timeout, one long poll uses the server's default hold. `sandbox.capture_image(name=..., idle_expiry_seconds=...)` captures an
 image from a sandbox.
 
 ### macOS sandboxes
@@ -817,12 +836,14 @@ the observed public state as `error.state`.
 completion: `stop()` returns at `stopped`, and `delete()` returns at
 `destroyed` (a sandbox disappearing during deletion also means completion).
 Client methods accept a sandbox or its id and the same options, for example
-`d.v2.stop(sandbox.id, timeout=120)`. The server decides which lifecycle
-actions the sandbox supports.
+`d.v2.stop(sandbox.id, timeout=120)`. Once the target state has been
+observed, a failed metadata refresh afterwards does not turn that success into
+an error. The server decides which lifecycle actions the sandbox supports.
 
 `fork(wait_seconds=60)` has its own wait budget; fractions are allowed and
-`0` skips waiting. Like create, fork returns its handle on wait timeout or
-terminal state. A running Linux source produces a running fork; otherwise
+`0` skips waiting; the fork's detail read counts against it. Like create,
+fork returns its handle once the fork request succeeded, however the wait
+ends. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk and settle at `started` or `stopped`.
 

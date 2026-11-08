@@ -147,17 +147,24 @@ image or snapshot will succeed without a conflict. Callers must still handle
 
 ### Create, fork and public metadata
 
-Create and fork return their handle when a readiness wait times out or reaches
-a terminal state (`_wait_without_raising_for_its_end`); request failures,
-including a server 408, still raise. Create uses whole-second `wait_seconds`;
+Once the create or fork request has succeeded, create and fork return their
+handle however the wait ends: budget spent, terminal state or a failed read
+(any `DaytonaError`; `_wait_without_raising_for_its_end`). Only a failed
+request raises; cancellation propagates. The fork's detail read counts
+against `wait_seconds`; if it fails, the handle is built from the fork
+response (id, status, `forked_from`, class) and no wait follows. Once a
+lifecycle wait has observed its target, a failed metadata refresh is
+suppressed. Create uses whole-second `wait_seconds`;
 fork permits fractions and uses `0` to skip waiting. Linux forks refresh the
 source before submission when waiting: running sources wait for `started`,
 paused sources retaining memory wait for `paused`, and other sources wait for
 `stopped`. macOS forks wait for `started` or `stopped`.
 
-`create_from_build()` always waits for the image build with its independent
-`build_timeout` budget (`None` or `0` is unbounded), then creates with the
-caller's full `wait_seconds`. Build failure raises `ImageBuildFailedError`
+`create_from_build()` submits the build as an ordinary request (bounded by
+`request_timeout`), then always waits for the image with its independent
+`build_timeout` budget (`None` or `0` is unbounded), starting after the
+submission, then creates with the caller's full `wait_seconds`. An image in
+`failed` or `error` is a failed build. Build failure raises `ImageBuildFailedError`
 with `image_id` and `build_error`; build timeout raises `RequestTimeoutError`.
 
 All create sizing lives in `resources` (`Resources` / `MacosResources`).
@@ -167,10 +174,20 @@ dataclasses with tuples and timezone-aware datetimes, mapped from the
 generated wire models in `_api_core.py`. The handle's metadata is read-only
 properties over an immutable `_SandboxInfo` snapshot that `_update(...)`
 replaces; `gen_sync.py` emits direct getters for the names in
-`_SYNC_DIRECT_PROPERTIES`. Constructors of exported classes take
-`_`-prefixed parameters and are internal. `to_json()` returns a
+`_SYNC_DIRECT_PROPERTIES`. Constructors of the exported handle and service
+classes take `_`-prefixed parameters and are internal; the model dataclasses
+stay constructible (keyword-only). `to_json()` returns a
 `SandboxHandleJSON` with known metadata but no URLs or credentials; callers
 reconnect with `get(json["sandboxId"])`.
+
+Long polls (sandbox waits, `images.get` / `snapshots.get` with a budget)
+bound each server hold by the smaller of its slice (60 s for artifacts),
+the remaining budget and `request_timeout`; the read adds a few seconds of
+slack. Artifact gets repeat holds until the artifact settles or the budget
+is spent (`services._get_artifact`). `ListResult` / `SearchResult` copy
+`items` into a tuple in their constructors. A sandbox-token mint answered
+with 405/501 disables minting for the handle; a 404 falls back to the API
+credential for that request only.
 
 `list()` / `iter()` accept only `cursor` and `limit`. `search()` carries the
 filters, including public `states`, which map to the API's status vocabulary

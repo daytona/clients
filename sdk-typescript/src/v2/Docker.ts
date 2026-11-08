@@ -5,6 +5,8 @@
 
 import { DockerNotReadyError, DockerWaitTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
 import { encodeQuery, HttpTransport, sleep } from './http.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { WAIT_READ_SLACK_MS } from './Process.js'
 import { DOCKER_OWNERS, DOCKER_STATES } from './types.js'
@@ -70,11 +72,8 @@ function isTerminalDockerStatus(status: DockerStatus): boolean {
  * throw `NotFoundError` (404).
  */
 export class DockerService {
-  private constructor(private readonly transport: HttpTransport) {}
-
-  /** @internal */
-  static _create(transport: HttpTransport): DockerService {
-    return new DockerService(transport)
+  constructor(token: Internal, private readonly transport: HttpTransport) {
+    assertInternal(token, 'DockerService')
   }
 
   /**

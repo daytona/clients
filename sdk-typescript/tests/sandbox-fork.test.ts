@@ -169,18 +169,34 @@ describe('sandbox fork completion', () => {
     expect(fork.state).toBe('queued')
   })
 
-  it.each([403, 408])('propagates HTTP %s from a wait read instead of treating it as a completion timeout', async (status) => {
-    // Given an accepted fork whose metadata read is forbidden.
+  it.each([403, 408])('returns the fork when a wait read fails with HTTP %s', async (status) => {
+    // Given an accepted fork with pending detail metadata.
     const api = await startFakeApi([
       { status: 202, body: { id: 'fork', status: 'pending' } },
+      { status: 200, body: { id: 'fork', class: 'macos', status: 'pending' } },
       { status, body: { code: status === 408 ? 'REQUEST_TIMEOUT' : 'FORBIDDEN', source: 'DAYTONA_API', message: 'request failed' } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'macos' }, createHttpClient(api.url))
     try {
       // When the wait tries to read the fork.
+      const result = await sandbox.fork()
+      // Then successful acquisition retains the last observed state.
+      expect(result).toMatchObject({ id: 'fork', state: 'creating' })
+      expect(api.requests).toHaveLength(3)
+    } finally {
+      await api.close()
+    }
+  })
+
+  it.each([403, 408])('raises when the fork POST fails with HTTP %s', async (status) => {
+    // Given a rejected fork submission.
+    const api = await startFakeApi([{ status, body: { code: status === 408 ? 'REQUEST_TIMEOUT' : 'FORBIDDEN', source: 'DAYTONA_API' } }])
+    const sandbox = createSandbox({ id: 'source', class: 'macos' }, createHttpClient(api.url))
+    try {
+      // When submission fails.
       const result = sandbox.fork()
-      // Then the request failure is still raised.
-      await expect(result).rejects.toMatchObject({ statusCode: status })
+      // Then the failure remains a request error.
+      await expect(result).rejects.toMatchObject({ statusCode: status, source: 'DAYTONA_API' })
     } finally {
       await api.close()
     }

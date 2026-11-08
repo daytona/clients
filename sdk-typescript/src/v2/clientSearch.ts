@@ -5,6 +5,7 @@
 
 import { BadRequestError, createDaytonaError } from './errors/DaytonaError.js'
 import type { SandboxDto, SandboxState, SearchSandboxesOptions, SearchTimestamp } from './types.js'
+import { assertLabels } from './options.js'
 
 export const SEARCH_PATH = '/sandboxes/search'
 
@@ -50,9 +51,7 @@ function commaList(name: string, values: string | readonly string[]): string {
 
 /** `labels` must be a plain object (Python: a `Mapping`); a string or an array is rejected before the request. */
 function labelsParam(labels: unknown): string {
-  if (typeof labels !== 'object' || labels === null || Array.isArray(labels)) {
-    throw createDaytonaError('labels must be an object of string to string', 400, 'BAD_REQUEST', 'SDK')
-  }
+  assertLabels(labels)
   if (Object.keys(labels).length === 0) {
     throw createDaytonaError('labels must name at least one pair', 400, 'BAD_REQUEST', 'SDK')
   }

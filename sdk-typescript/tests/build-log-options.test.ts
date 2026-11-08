@@ -7,10 +7,11 @@ import { ImagesService } from '../src/v2/Images.js'
 import { BadRequestError } from '../src/v2/errors/DaytonaError.js'
 import { HttpTransport } from '../src/v2/http.js'
 import { artifactApi, imageWire } from './artifactFixtures.js'
+import { INTERNAL } from '../src/v2/internal'
 
 function service() {
   const { http } = artifactApi(imageWire())
-  return ImagesService._create(http, new HttpTransport('https://api.example'))
+  return new ImagesService(INTERNAL, http, new HttpTransport('https://api.example'))
 }
 
 afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers() })

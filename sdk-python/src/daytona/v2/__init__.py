@@ -101,8 +101,17 @@ from .types import (
     GitCommitResponse,
     GitStatus,
     Image,
+    CpuArch,
+    DockerfileImageSource,
     ImageRef,
     ImageSource,
+    ImageStatus,
+    JsonValue,
+    ManifestImageSource,
+    NamedImageSource,
+    RegistryImageSource,
+    SandboxState,
+    SearchSandboxState,
     LifecycleAction,
     LifecyclePolicyOptions,
     ListSandboxesOptions,
@@ -354,6 +363,7 @@ ImageV2 = Image
 ResourcesV2 = Resources
 SandboxV2 = Sandbox
 SandboxClassV2 = SandboxClass
+SandboxStateV2 = SandboxState
 SecretV2 = Secret
 VolumeMountV2 = VolumeMount
 
@@ -510,6 +520,15 @@ __all__ = [
     "ImageFormatOutdatedError",
     "ImageRef",
     "ImageSource",
+    "ImageStatus",
+    "RegistryImageSource",
+    "DockerfileImageSource",
+    "NamedImageSource",
+    "ManifestImageSource",
+    "CpuArch",
+    "JsonValue",
+    "SandboxState",
+    "SearchSandboxState",
     "KeepLogs",
     "AsyncImagesService",
     "InternalServerError",
@@ -701,6 +720,7 @@ __all__ = [
     "ResourcesV2",
     "SandboxV2",
     "SandboxClassV2",
+    "SandboxStateV2",
     "SecretV2",
     "VolumeMountV2",
 ]

@@ -250,6 +250,10 @@ function generatedOnThePublicSurface(): Set<string> {
       for (const signature of constructorType.getConstructSignatures()) {
         const constructor = signature.getDeclaration()
         if (constructor !== undefined && !isPublic(constructor)) continue
+        const tokenType = constructor !== undefined && ts.isConstructorDeclaration(constructor) ? constructor.parameters[0]?.type : undefined
+        const tokenSymbol = tokenType !== undefined && ts.isTypeReferenceNode(tokenType) ? checker.getSymbolAtLocation(tokenType.typeName) : undefined
+        // The package does not expose the token, so these constructors are not caller surface.
+        if (tokenSymbol !== undefined && resolve(tokenSymbol).declarations?.some((node) => node.getSourceFile().fileName === join(root, 'src', 'v2', 'internal.ts'))) continue
         visitSignature(`${owner}.constructor`, signature, 0)
       }
       for (const property of constructorType.getProperties()) {

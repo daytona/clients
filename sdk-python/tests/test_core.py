@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import dataclasses
 import hashlib
 import importlib
 import inspect
@@ -30,15 +31,20 @@ from _handles import lazy_sandbox
 from daytona.v2 import (
     AuditActionGroup,
     AuditActionList,
+    DockerfileImageSource,
     FilesystemEvent,
     FilesystemEventType,
     ImageBuilder,
     ImageBuildFailedError,
+    ImageSource,
     MacReservation,
+    ManifestImageSource,
+    NamedImageSource,
     OrganizationLimits,
     ProjectApiKey,
     ProjectApiKeyContext,
     ProjectBudget,
+    RegistryImageSource,
     RequestTimeoutError,
     SandboxCreateConnectionError,
     SandboxCreateRequestTimeoutError,
@@ -341,8 +347,14 @@ _ROUTE_FORWARDING_HELPERS: dict[str, str] = {
     "follow_build_logs": "GET",
     "read_build_logs": "GET",
     "_discover": "GET",
+    "_get_artifact": "GET",
 }
-_ROUTE_FORWARDING_PATH_INDEX = {"follow_build_logs": 1, "read_build_logs": 1, "_discover": 1}
+_ROUTE_FORWARDING_PATH_INDEX = {
+    "follow_build_logs": 1,
+    "read_build_logs": 1,
+    "_discover": 1,
+    "_get_artifact": 1,
+}
 
 
 def _collect_python_route_uses() -> list[_RouteUse]:
@@ -904,23 +916,24 @@ def _image_page_payload(image_id: str) -> dict[str, object]:
 @pytest.mark.parametrize(
     ("source", "expected"),
     [
-        ({"type": "registry", "ref": "python:3.12"}, {"type": "registry", "ref": "python:3.12"}),
+        ({"type": "registry", "ref": "python:3.12"}, RegistryImageSource(ref="python:3.12")),
         (
             {"type": "dockerfile", "context_object": "ctx", "dockerfile": "Dockerfile"},
-            {"type": "dockerfile", "context_object": "ctx", "dockerfile": "Dockerfile"},
+            DockerfileImageSource(context_object="ctx", dockerfile="Dockerfile"),
         ),
-        ({"type": "named", "name": "base"}, {"type": "named", "name": "base"}),
-        ({"type": "manifest", "name": "base"}, {"type": "manifest", "name": "base"}),
+        ({"type": "named", "name": "base"}, NamedImageSource(name="base")),
+        ({"type": "manifest", "name": "base"}, ManifestImageSource(name="base")),
     ],
 )
-def test_image_source_is_a_typed_discriminated_union(
-    source: dict[str, str], expected: dict[str, str]
-) -> None:
+def test_image_source_is_a_frozen_discriminated_union(source: dict[str, str], expected: ImageSource) -> None:
     payload = {**_image_page_payload("img"), "source": source}
 
     image = parse_image(payload)
 
     assert image.source == expected
+    assert image.source is not None and image.source.type == source["type"]
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        image.source.type = "registry"  # type: ignore[misc]
 
 
 def test_contract_enums_normalize_unknown_image_retention_and_snapshot_kind() -> None:
@@ -1017,7 +1030,7 @@ def test_toolbox_proxy_url_is_accepted():
     sandbox = client._sandbox_from_sandbox(
         _sandbox_detail_payload("sbx", "running", toolbox_proxy_url="http://toolbox")
     )
-    assert sandbox.toolbox_proxy_url == "http://toolbox/sbx"
+    assert sandbox._toolbox_proxy_url == "http://toolbox/sbx"
 
 
 @respx.mock
@@ -1229,7 +1242,7 @@ async def test_sandboxes_without_toolbox_proxy_url_resolve_their_details_concurr
     finally:
         await client.close()
 
-    assert [s.toolbox_proxy_url for s in page.items] == [f"https://p.example/sandboxes/{i}" for i in ids]
+    assert [s._toolbox_proxy_url for s in page.items] == [f"https://p.example/sandboxes/{i}" for i in ids]
 
 
 @respx.mock
@@ -1481,7 +1494,7 @@ async def test_direct_scoped_toolbox_url_is_not_scoped_again_on_refresh():
 
     await sandbox.refresh_data()
 
-    assert sandbox.toolbox_proxy_url == "http://toolbox.invalid/sandboxes/sbx"
+    assert sandbox._toolbox_proxy_url == "http://toolbox.invalid/sandboxes/sbx"
 
 
 def test_empty_binary_downloads_remain_empty_bytes():
@@ -1847,7 +1860,7 @@ async def test_presigned_urls_accept_proxy_scoped_toolbox_template_override(monk
         monkeypatch, [_sign_response()], toolbox_url=f"https://tb.example.com/sandboxes/{placeholder}"
     )
 
-    assert sandbox.toolbox_proxy_url == "https://tb.example.com/sandboxes/sbx"
+    assert sandbox._toolbox_proxy_url == "https://tb.example.com/sandboxes/sbx"
     assert await sandbox.fs.presigned_download_url("/tmp/demo.txt") == (
         f"https://tb.example.com/sandboxes/sbx/files/download?path=%2Ftmp%2Fdemo.txt&expires=1781234567&signature={SIGNED_FILE_TEST_SIGNATURE}"
     )
@@ -1879,7 +1892,7 @@ async def test_schemeless_proxy_scoped_override_is_classified_not_rejected(monke
 def test_toolbox_template_percent_encodes_the_sandbox_id_like_typescript(sandbox_id, encoded):
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, sandbox_id, toolbox_url="https://tb.example.com/sandboxes/{sandbox_id}")
-    assert sandbox.toolbox_proxy_url == f"https://tb.example.com/sandboxes/{encoded}"
+    assert sandbox._toolbox_proxy_url == f"https://tb.example.com/sandboxes/{encoded}"
 
 
 @pytest.mark.parametrize(
@@ -1923,8 +1936,8 @@ async def test_fork_does_not_inherit_the_parent_toolbox_override():
 
     forked = await sandbox.fork(wait_seconds=0)
 
-    assert forked.toolbox_proxy_url == "https://proxy.example/forked"
-    assert forked.toolbox_proxy_url != sandbox.toolbox_proxy_url
+    assert forked._toolbox_proxy_url == "https://proxy.example/forked"
+    assert forked._toolbox_proxy_url != sandbox._toolbox_proxy_url
     assert [spec.path for spec in api.specs] == ["/sandboxes/sbx/fork", "/sandboxes/forked"]
     # ...but the events hub IS inherited: it is per process and identity, not
     # per sandbox. A hub-less fork would long-poll every wait, silently.
@@ -2041,7 +2054,7 @@ async def test_fork_without_a_response_toolbox_url_does_not_reuse_the_parents():
 
     forked = await sandbox.fork(wait_seconds=0)
 
-    assert forked.toolbox_proxy_url is None
+    assert forked._toolbox_proxy_url is None
     with pytest.raises(DaytonaError):
         await forked.fs.list("/")
 
@@ -3574,9 +3587,9 @@ async def test_ports_and_lsp_namespaces_shape_requests_and_parse_results():
     ports_api.send = ports_api_send
 
     ports = AsyncPortsService(ports_transport, ports_api, _sandbox_id="sbx")  # type: ignore[arg-type]
-    assert (await ports.list()).items == [3000, 8080]
+    assert list((await ports.list()).items) == [3000, 8080]
     assert await ports.is_in_use(3999) is True
-    assert (await ports.list_endpoints()).items == []
+    assert list((await ports.list_endpoints()).items) == []
     assert await ports.preview_link(8080) == PreviewLink(url="https://p", token="preview-token")
     assert (await ports.expose(8080, public=True)).public is True
     assert not hasattr(ports, "set_public")
@@ -5423,7 +5436,7 @@ async def test_git_init_remotes_and_config_shape_transport_requests():
         "initial_branch": "trunk",
     }
 
-    assert (await git.list_remotes("/repo")).items == [
+    assert list((await git.list_remotes("/repo")).items) == [
         {"name": "origin", "url": "https://example.invalid/repo.git"}
     ]
     assert transport.specs[1].params == {"path": "/repo"}
@@ -5667,7 +5680,7 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
         "password": "p",
     }
     assert (await git.status("/repo")).current_branch == "main"
-    assert (await git.list_branches("/repo")).items == ["main", "dev"]
+    assert list((await git.list_branches("/repo")).items) == ["main", "dev"]
     assert (await git.history("/repo")).items[0]["hash"] == "h"
     await git.create_branch("/repo", "feature")
     await git.delete_branch("/repo", "feature")
@@ -5718,8 +5731,8 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
     await fs.remove("/tmp/a", recursive=True)
     await fs.move("/tmp/a", "/tmp/b")
     assert (await fs.grep("/tmp", "needle")).next_cursor == "fn"
-    assert (await fs.glob("/tmp", "*.txt")).items == ["/tmp/a"]
-    assert (await fs.replace(["/tmp/a"], "old", "new")).items == [{"file": "/tmp/a", "replacements": 1}]
+    assert list((await fs.glob("/tmp", "*.txt")).items) == ["/tmp/a"]
+    assert list((await fs.replace(["/tmp/a"], "old", "new")).items) == [{"file": "/tmp/a", "replacements": 1}]
     await fs.chmod("/tmp/a", mode="0644", owner="me", group="staff")
     assert transport.specs[13].path == "/files/download"
     assert transport.specs[14].path == "/files/upload"
@@ -6826,8 +6839,10 @@ async def test_daytona_create_validates_image_source_class_rules_before_posting(
         with pytest.raises(DaytonaError, match="snapshot must be a non-empty string"):
             await client.create_from_snapshot(blank)
 
-    with pytest.raises(TypeError, match="create_from_build"):
+    with pytest.raises(BadRequestError, match="create_from_build"):
         await client.create(Image.from_dockerfile("FROM python:3.12"))
+    with pytest.raises(BadRequestError, match=r"^create_macos\(\) accepts .*do not build one$"):
+        await client.create_macos(Image.from_dockerfile("FROM python:3.12"))  # type: ignore[arg-type]
     with pytest.raises(Exception, match="non-empty Dockerfile"):
         ImageBuilder.from_dockerfile("   ")
     with pytest.raises(Exception, match="non-empty registry image reference"):
@@ -6955,10 +6970,10 @@ async def test_snapshot_service_get_and_delete_address_one_snapshot() -> None:
     assert transport.specs[1].params == {"wait": "ready", "timeout_ms": 30000}
     assert transport.specs[1].timeout == 35
     assert transport.specs[1].unbounded_read is False
-    # A budget beyond the server's 60s hold ceiling is capped on the wire.
+    # A budget beyond the request timeout (30 s here) holds for the request timeout.
     await snapshots.get("snap/1", wait="ready", timeout=10_000)
-    assert transport.specs[2].params == {"wait": "ready", "timeout_ms": 60000}
-    assert transport.specs[2].timeout == 65
+    assert transport.specs[2].params == {"wait": "ready", "timeout_ms": 30000}
+    assert transport.specs[2].timeout == 35
     # No explicit budget: the server picks the hold, so the read is unbounded
     # rather than cut at the transport default.
     await snapshots.get("snap/1", wait="ready")
@@ -7013,22 +7028,6 @@ async def test_interpreter_isolated_run_rejects_invalid_timeouts_before_any_requ
         await interpreter.run("print(1)", language="python", isolated=True, timeout=-1)
     assert exc_info.value.code == code_names.BAD_REQUEST
     assert transport.specs == []
-
-
-@pytest.mark.anyio
-async def test_image_service_build_and_pull_treat_timeout_zero_as_unbounded() -> None:
-    transport = RecordingTransport(
-        [
-            _image_operation_payload("img-b"),
-            _image_page_payload("img-b"),
-            _image_operation_payload("img-p"),
-            _image_page_payload("img-p"),
-        ]
-    )
-    images = AsyncImagesService(transport)  # type: ignore[arg-type]
-    await images.build(ImageBuilder.from_dockerfile("FROM x"), name="img", timeout=0)
-    await images.pull(image="x", timeout=0)
-    assert [spec.timeout for spec in transport.specs] == [None, None, None, None]
 
 
 @pytest.mark.anyio
@@ -7170,8 +7169,7 @@ async def test_create_from_build_bounds_the_build_by_build_timeout_and_gives_the
         ]
     )
     bind_api(client, api)
-    clock = iter((0.0, 0.0, 0.0, 3.2, 3.2, 3.2))
-    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: next(clock, 3.2))
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: 0.0)
 
     await client.create_from_build(Image.from_dockerfile("FROM python:3.12"), build_timeout=5, wait_seconds=7)
 
@@ -8284,27 +8282,6 @@ async def test_interpreter_timeout_does_not_turn_an_expired_budget_into_an_unbou
 
 
 @pytest.mark.anyio
-async def test_image_service_build_and_pull_forward_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Given a fixed clock, so only network work can consume the pull budget.
-    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: 0.0)
-    api = RecordingTransport(
-        [
-            _image_operation_payload("img-build"),
-            _image_page_payload("img-build"),
-            _image_operation_payload("img-pull"),
-            _image_page_payload("img-pull"),
-        ]
-    )
-    images = AsyncImagesService(api)  # type: ignore[arg-type]
-
-    await images.build(ImageBuilder.from_dockerfile("FROM python:3.12"), name="built", timeout=12.5)
-    await images.pull(image="python:3.12", timeout=3.0)
-
-    assert api.specs[0].timeout == 12.5
-    assert api.specs[2].timeout == 3.0
-
-
-@pytest.mark.anyio
 async def test_interpreter_rejects_env_on_explicit_context_before_posting_processes():
     transport = RecordingTransport([])
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -8353,38 +8330,6 @@ async def test_interpreter_recomputes_wait_budget_after_process_creation():
     assert transport.specs[0].timeout == 10.0
     assert transport.specs[1].timeout == pytest.approx(5.0 + WAIT_READ_SLACK_SECONDS)
     assert transport.specs[1].unbounded_read is False
-
-
-@pytest.mark.anyio
-async def test_images_build_and_pull_keep_unbounded_reads_when_timeout_is_omitted_or_zero() -> None:
-    api = RecordingTransport(
-        [
-            {"id": "img-1", "status": "pending"},
-            _image_page_payload("img-1"),
-            {
-                "id": "img-2",
-                "status": "pending",
-            },
-            _image_page_payload("img-2"),
-            {"id": "img-3", "status": "pending"},
-            _image_page_payload("img-3"),
-            {
-                "id": "img-4",
-                "status": "pending",
-            },
-            _image_page_payload("img-4"),
-        ]
-    )
-    images = AsyncImagesService(api)  # type: ignore[arg-type]
-
-    await images.build(ImageBuilder.from_dockerfile("FROM python:3.12"), name="built")
-    await images.pull(image="python:3.12")
-    await images.build(ImageBuilder.from_dockerfile("FROM python:3.12"), name="built2", timeout=0)
-    await images.pull(image="python:3.12", timeout=0)
-
-    for spec in api.specs[::2]:
-        assert spec.timeout is None
-        assert spec.unbounded_read is True
 
 
 @pytest.mark.anyio
@@ -9698,8 +9643,8 @@ def test_list_and_search_options_are_keyword_only_and_list_has_no_filters():
 
     # ListResult accepts items and next_cursor positionally.
     result: ListResult[str] = ListResult(["a"], "next")
-    assert (result.items, result.next_cursor) == (["a"], "next")
-    assert (result.total, result.total_relation) == (None, None)
+    assert (result.items, result.next_cursor) == (("a",), "next")
+    assert not hasattr(result, "total") and not hasattr(result, "total_relation")
 
     # SearchSandboxesOptions is fully keyword-only.
     with pytest.raises(TypeError):
@@ -9797,7 +9742,7 @@ async def test_search_parses_summary_and_tolerates_unknown_fields():
     assert page.next_cursor == "page-2"
     assert page.total == 10000
     assert page.total_relation == "gte"
-    assert list(page) == page.items
+    assert tuple(page) == page.items
 
 
 @respx.mock
@@ -10071,8 +10016,7 @@ async def test_list_is_one_plain_page_and_prefixes_are_search_filters():
         assert plain_list.calls[0].request.url == httpx.URL(f"{_SEARCH_BASE}/sandboxes")
         assert [sandbox.id for sandbox in page.items] == ["sbx-1", "other"]
         assert page.next_cursor == "p2"
-        assert page.total is None
-        assert page.total_relation is None
+        assert not hasattr(page, "total")
 
         # iter() is how you walk: it follows the cursor page by page (the mocked
         # sequence continues with page 2, so one more GET drains it).
@@ -10968,7 +10912,7 @@ async def test_jwt_auth_retries_once_after_a_401(monkeypatch) -> None:
         await http.aclose()
         await client.close()
 
-    assert page.items == []
+    assert list(page.items) == []
     assert exchange_calls == 2
     assert seen_tokens == ["Bearer platform-1", "Bearer platform-2"]
 
@@ -11581,8 +11525,8 @@ async def test_one_unreadable_fallback_detail_keeps_the_page_and_caps_concurrenc
         await client.close()
 
     assert [s.id for s in page.items] == ids
-    assert page.items[3].toolbox_proxy_url is None
-    assert page.items[4].toolbox_proxy_url == "https://p.example/sandboxes/s4"
+    assert page.items[3]._toolbox_proxy_url is None
+    assert page.items[4]._toolbox_proxy_url == "https://p.example/sandboxes/s4"
     with pytest.raises(DaytonaError, match="has no toolbox URL"):
         _ = page.items[3].process
     assert 1 < peak <= 8
@@ -12769,3 +12713,34 @@ async def test_create_macos_sends_disk_volumes():
         "volumes": [{"volume": "data", "mount_path": "/Users/example/data", "subpath": "proj"}],
         "wait_seconds": 60,
     }
+
+
+@pytest.mark.anyio
+async def test_image_build_and_pull_submissions_are_ordinary_requests_with_one_option_set() -> None:
+    # The submission and its first read keep the client's total request
+    # timeout (no own timeout, no unbounded read), with or without a pull budget.
+    api = RecordingTransport(
+        [
+            _image_operation_payload("img-b"),
+            _image_page_payload("img-b"),
+            _image_operation_payload("img-p"),
+            _image_page_payload("img-p"),
+            _image_operation_payload("img-q"),
+            _image_page_payload("img-q"),
+        ]
+    )
+    images = AsyncImagesService(api)  # type: ignore[arg-type]
+
+    await images.build(ImageBuilder.from_dockerfile("FROM python:3.12"), name="built", cpu_arch="arm64")
+    await images.pull("python:3.12", idle_expiry_seconds=60, cpu_arch="amd64", region="eu", timeout=3600)
+    await images.pull("python:3.12", timeout=0)
+
+    assert [(spec.timeout, spec.unbounded_read) for spec in api.specs] == [(None, False)] * 6
+    assert api.specs[2].json_body == {
+        "source": {"type": "registry", "ref": "python:3.12"},
+        "idle_expiry_seconds": 60,
+        "region_id": "eu",
+        "cpu_arch": "amd64",
+    }
+    with pytest.raises(TypeError):
+        await images.build(ImageBuilder.from_dockerfile("FROM x"), timeout=5)  # type: ignore[call-arg]

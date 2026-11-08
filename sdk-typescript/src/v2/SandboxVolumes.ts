@@ -6,6 +6,8 @@
 import type * as toolbox from './gen/toolbox-types.js'
 import { BadRequestError } from './errors/DaytonaError.js'
 import { HttpTransport, strictUriEncode } from './http.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import { WAIT_READ_SLACK_MS } from './Process.js'
 import { PULL_VOLUME_STATUSES } from './types.js'
 import type { PullVolumeStatus } from './types.js'
@@ -49,11 +51,8 @@ function assertId(value: string, name: string): void {
 
 /** Pull attached volumes in this sandbox; distinct from the platform volume service. */
 export class SandboxVolumesService {
-  private constructor(private readonly transport: HttpTransport) {}
-
-  /** @internal */
-  static _create(transport: HttpTransport): SandboxVolumesService {
-    return new SandboxVolumesService(transport)
+  constructor(token: Internal, private readonly transport: HttpTransport) {
+    assertInternal(token, 'SandboxVolumesService')
   }
 
   /** One submission/check only. Pending and errors never trigger automatic retries. */

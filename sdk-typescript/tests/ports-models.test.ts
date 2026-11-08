@@ -6,6 +6,7 @@
 import axios from 'axios'
 import { inspect } from 'node:util'
 import { PortsService } from '../src/v2/Ports.js'
+import { INTERNAL } from '../src/v2/internal'
 
 describe('preview result inspection', () => {
   it.each([
@@ -22,7 +23,7 @@ describe('preview result inspection', () => {
         : { port: 8080, public: false, url, created_at: '2026-01-01T00:00:00Z' },
     }) })
     // When
-    const result = await operation(PortsService._create(undefined, http, 'sandbox'))
+    const result = await operation(new PortsService(INTERNAL, undefined, http, 'sandbox'))
     // Then
     expect(result.url).toBe(url)
     expect(JSON.parse(JSON.stringify(result))).toMatchObject({ url })
@@ -41,7 +42,7 @@ describe('preview result inspection', () => {
         data: { port: 8080, public: isPublic, url: 'https://preview.invalid', created_at: '2026-01-01T00:00:00Z' } }
     } })
     // When
-    const result = await PortsService._create(undefined, http, 'sandbox').expose(8080, { public: isPublic })
+    const result = await new PortsService(INTERNAL, undefined, http, 'sandbox').expose(8080, { public: isPublic })
     // Then
     expect(result.public).toBe(isPublic)
     expect(requests).toEqual([{ method: 'put', path: '/sandboxes/sandbox/ports/8080', body: { public: isPublic } }])

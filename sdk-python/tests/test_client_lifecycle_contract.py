@@ -5,8 +5,10 @@
 
 Fork completion, create waits that never raise, resource units, read-only
 handle metadata, the SDK-owned models and the names the 2.x surface keeps.
-The TypeScript SDK's tests/client-lifecycle-contract.test.ts holds the same
-rules.
+The TypeScript SDK holds the same rules in tests/sandbox-fork.test.ts,
+tests/create-wait-failures.test.ts, tests/sandbox-waits.test.ts,
+tests/lifecycle-observed-state.test.ts, tests/client-lifecycle-options.test.ts
+and tests/volumes-service.test.ts / tests/secrets-service.test.ts.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Callable, Optional
 
 import pytest
 from _handles import lazy_sandbox
@@ -22,12 +24,18 @@ from _handles import lazy_sandbox
 from daytona import v2
 from daytona.v2 import (
     BadRequestError,
+    ClientTimeoutError,
+    ConnectionError,
+    ForbiddenError,
     ImageBuilder,
     MacosResources,
+    RequestTimeoutError,
     Resources,
+    SandboxCreateRequestTimeoutError,
     Secret,
 )
 from daytona.v2._core import RequestSpec
+from daytona.v2._events import WaitOutcome
 from daytona.v2._sync import Daytona
 from daytona.v2.daytona import AsyncDaytona
 from daytona.v2.errors import create_error
@@ -405,17 +413,118 @@ async def test_lifecycle_requests_reach_the_server_whatever_the_class() -> None:
 
 
 @pytest.mark.anyio
-async def test_a_request_failure_during_the_create_or_fork_wait_still_raises() -> None:
-    # Only how the wait ended is not an error; a failed read during it is.
-    server_timeout = create_error("upstream timed out", 408, "REQUEST_TIMEOUT", "DAYTONA_API")
+@pytest.mark.parametrize(
+    "failure",
+    [
+        create_error("upstream timed out", 408, "REQUEST_TIMEOUT", "DAYTONA_API"),
+        create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API"),
+        ClientTimeoutError(),
+        ConnectionError("connection reset", source="SDK"),
+    ],
+    ids=["server-408", "server-500", "client-timeout", "connection"],
+)
+async def test_a_failed_read_after_a_successful_create_or_fork_returns_the_handle(failure: Exception) -> None:
+    # The create (or fork) request succeeded, so the sandbox exists: a failed
+    # read during the wait never costs the caller its only reference to it.
     client = _client()
-    client._api = _Api([{"id": "sbx", "status": "pending", "wait_cap_seconds": 0}, server_timeout])  # type: ignore[assignment]
-    with pytest.raises(type(server_timeout)) as raised:
-        await client.create("python:3.12", wait_seconds=5)
-    assert raised.value.source == "DAYTONA_API"
+    client._api = _Api([{"id": "sbx", "status": "pending", "wait_cap_seconds": 0}, failure])  # type: ignore[assignment]
+    sandbox = await client.create("python:3.12", wait_seconds=5)
+    assert (sandbox.id, sandbox.state) == ("sbx", "creating")
 
-    sandbox = lazy_sandbox(_client(), "src")
-    sandbox._update(sandbox_class="macos")
-    sandbox._api = _Api([_fork_response("f"), _detail("f", "pending"), server_timeout])  # type: ignore[attr-defined]
-    with pytest.raises(type(server_timeout)):
-        await sandbox.fork(wait_seconds=5)
+    source = lazy_sandbox(_client(), "src")
+    source._update(sandbox_class="macos")
+    source._api = _Api([_fork_response("f"), _detail("f", "pending"), failure])  # type: ignore[attr-defined]
+    fork = await source.fork(wait_seconds=5)
+    assert (fork.id, fork.state) == ("f", "creating")
+
+
+@pytest.mark.anyio
+async def test_a_failed_fork_detail_read_returns_the_handle_from_the_fork_response() -> None:
+    source = lazy_sandbox(_client(), "src")
+    source._update(sandbox_class="macos")
+    api = _Api([_fork_response("f"), create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API")])
+    source._api = api  # type: ignore[attr-defined]
+
+    fork = await source.fork(wait_seconds=5)
+
+    assert (fork.id, fork.state, fork.forked_from, fork.sandbox_class) == ("f", "creating", "src", "macos")
+    # No wait follows an unreadable fork: the two requests are all there is.
+    assert [(spec.method, spec.path) for spec in api.specs] == [
+        ("POST", "/sandboxes/src/fork"),
+        ("GET", "/sandboxes/f"),
+    ]
+
+
+@pytest.mark.anyio
+async def test_a_server_408_on_the_create_post_is_the_servers_error() -> None:
+    client = _client()
+    client._api = _Api([create_error("upstream timed out", 408, "REQUEST_TIMEOUT", "DAYTONA_API")])  # type: ignore[assignment]
+    with pytest.raises(RequestTimeoutError) as raised:
+        await client.create("python:3.12", wait_seconds=5)
+    assert not isinstance(raised.value, SandboxCreateRequestTimeoutError)
+    assert (raised.value.source, raised.value.message) == ("DAYTONA_API", "upstream timed out")
+
+
+@pytest.mark.anyio
+async def test_a_failed_create_post_raises() -> None:
+    client = _client()
+    client._api = _Api([create_error("over the limit", 403, "FORBIDDEN", "DAYTONA_API")])  # type: ignore[assignment]
+    with pytest.raises(ForbiddenError):
+        await client.create("python:3.12", wait_seconds=5)
+
+
+class _ResolvingHub:
+    """An events hub that reports the target state at once, as a socket frame would."""
+
+    enabled = True
+
+    def __init__(self, state: str, raw_state: str) -> None:
+        self.outcome = WaitOutcome(state, raw_state)  # type: ignore[arg-type]
+        self.region_hints: list[Optional[str]] = []
+
+    async def wait(
+        self,
+        sandbox_id: str,
+        predicate: object,
+        *,
+        region_hint: Optional[str],
+        on_observed: Callable[[WaitOutcome], None],
+        **_options: object,
+    ) -> WaitOutcome:
+        self.region_hints.append(region_hint)
+        on_observed(self.outcome)
+        return self.outcome
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("verb", ["wait", "start", "stop"])
+async def test_an_observed_target_survives_a_failed_metadata_refresh(verb: str) -> None:
+    target = {
+        "wait": ("started", "running"),
+        "start": ("started", "running"),
+        "stop": ("stopped", "stopped"),
+    }[verb]
+    sandbox = lazy_sandbox(_client(), "sbx")
+    sandbox._update(sandbox_class="linux", state="stopped" if verb == "start" else "started", raw_state="x")
+    # start() reads the current state first; start() and stop() then send their request.
+    responses: list[object] = {"wait": [], "start": [_detail("sbx", "stopped"), {}], "stop": [{}]}[verb]
+    # The follow-up read that fills in the rest of the metadata fails.
+    responses.append(create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API"))
+    sandbox._api = _Api(responses)  # type: ignore[attr-defined]
+    sandbox._hub = _ResolvingHub(*target)  # type: ignore[assignment]
+
+    await getattr(sandbox, verb)(timeout=5)
+
+    assert sandbox.state == target[0]
+    assert sandbox._api.responses == []  # type: ignore[attr-defined]
+
+
+@pytest.mark.anyio
+async def test_local_is_never_a_region_hint() -> None:
+    sandbox = AsyncSandbox._from_api(
+        _detail("sbx", "running", region_id="Local"), _Api([_detail("sbx", "running")]), None
+    )
+    hub = _ResolvingHub("started", "running")
+    sandbox._hub = hub  # type: ignore[assignment]
+    await sandbox.wait(timeout=5)
+    assert hub.region_hints == [None]

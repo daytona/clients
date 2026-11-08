@@ -8,7 +8,7 @@ import { credentialSafeInspection } from '../diagnostics.js'
 import { DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import type { HttpClientOptions, TransportAuth } from './http.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import type { CreateAccessTokenOptions, SandboxAccessToken } from './types.js'
 
 const ACCESS_TOKEN_KEYS = optionKeys<CreateAccessTokenOptions>()({ operations: true, ports: true, ttlSeconds: true })
@@ -50,7 +50,7 @@ function tokenFromPayload(payload: TokenPayload | null | undefined): SandboxAcce
 }
 
 function mintRouteUnsupported(error: unknown): boolean {
-  return error instanceof DaytonaError && (error.statusCode === 404 || error.statusCode === 405 || error.statusCode === 501)
+  return error instanceof DaytonaError && (error.statusCode === 405 || error.statusCode === 501)
 }
 
 export function rfc3339EpochMs(value: string | undefined): number | undefined {
@@ -87,11 +87,11 @@ export class SandboxAuth {
     if (!this.init.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     for (const port of options.ports ?? []) {
       if (!Number.isInteger(port) || port < 1 || port > 65535) {
-        throw new DaytonaError(`port must be an integer in 1..65535, got ${port}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+        throw badRequest(`port must be an integer in 1..65535, got ${port}`)
       }
     }
     if (options.ttlSeconds !== undefined && (!Number.isInteger(options.ttlSeconds) || options.ttlSeconds <= 0)) {
-      throw new DaytonaError('ttlSeconds must be a positive integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+      throw badRequest('ttlSeconds must be a positive integer')
     }
     const body: { operations?: string[]; ports?: number[]; ttl_seconds?: number } = {}
     if (options.operations !== undefined) body.operations = [...options.operations]
@@ -117,6 +117,7 @@ export class SandboxAuth {
         this.mintUnsupported = true
         return this.compatBearer()
       }
+      if (error instanceof DaytonaError && error.statusCode === 404) return this.apiCredential()
       // A proactive mint failure must not discard a still-valid held token.
       const expiresAtMs = rfc3339EpochMs(this.expiry)
       if (this.token && expiresAtMs !== undefined && expiresAtMs > Date.now()) return this.token
@@ -161,6 +162,7 @@ export class SandboxAuth {
         this.mintUnsupported = true
         return this.apiCredentialRetry(failedToken)
       }
+      if (error instanceof DaytonaError && error.statusCode === 404) return this.apiCredentialRetry(failedToken)
       if (error instanceof DaytonaError && error.statusCode === 403) throw error
       // Keep the original toolbox 401 actionable when a re-mint fails.
       return undefined
@@ -170,7 +172,7 @@ export class SandboxAuth {
   private async refresh(failedToken: string | undefined): Promise<string> {
     if (failedToken === undefined) {
       if (this.fresh() && this.token) return this.token
-    } else if (this.token && this.token !== failedToken) {
+    } else if (this.token && this.token !== failedToken && this.fresh()) {
       return this.token
     }
     this.mint ??= this.mintNow().finally(() => { this.mint = undefined })
@@ -193,6 +195,7 @@ export class SandboxAuth {
         this.mintUnsupported = true
         return undefined
       }
+      if (error instanceof DaytonaError && error.statusCode === 404) return undefined
       throw error
     }
   }

@@ -65,7 +65,7 @@ describe('sandbox observed metadata', () => {
     // When serialized.
     const json = sandbox.toJSON()
     // Then the object itself (before JSON.stringify) follows the presence rules.
-    expect(json).toEqual(expected)
+    expect(json).toEqual({ ...expected, sandboxClass: 'linux', rawSandboxClass: 'linux' })
     expect(Object.values(json)).not.toContain(undefined)
   })
 

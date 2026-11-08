@@ -5,13 +5,15 @@
 
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { JsonValue, ListResult, VolumeState, VolumeType } from './types.js'
 import { VolumeStatus as VOLUME_STATUSES, VolumeType as VOLUME_TYPES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { NotFoundError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 
 /** A volume that preserves files between sandboxes. */
 export interface Volume {
@@ -80,13 +82,9 @@ function mapVolume(volume: api.Volume): Volume {
 
 /** Manage named volumes and attach them with `create({ volumes })`. */
 export class VolumesService {
-  private constructor(private readonly api: AxiosInstance) {
+  constructor(token: Internal, private readonly api: AxiosInstance) {
+    assertInternal(token, 'VolumesService')
     credentialSafeDiagnostics(this, () => ({ type: 'VolumesService' }))
-  }
-
-  /** @internal */
-  static _create(api: AxiosInstance): VolumesService {
-    return new VolumesService(api)
   }
 
   private async listPage(options: ListVolumesOptions): Promise<ListResult<Volume>> {
@@ -119,6 +117,9 @@ export class VolumesService {
 
   /** Get a volume by id or name; optionally create it when absent. */
   public async get(nameOrId: string, options: GetVolumeOptions = {}): Promise<Volume> {
+    if (typeof options !== 'object' || options === null || Array.isArray(options)) {
+      throw badRequest('volumes.get takes options; pass { create: true }')
+    }
     assertKnownOptions('GetVolumeOptions', options, GET_VOLUME_KEYS)
     try {
       const { data } = await this.api.get<api.Volume>(
@@ -137,6 +138,9 @@ export class VolumesService {
   /** Creates a disk volume (ready immediately). */
   public async create(options: CreateVolumeOptions): Promise<Volume> {
     assertKnownOptions('CreateVolumeOptions', options, CREATE_VOLUME_KEYS)
+    if (options.sizeGib !== undefined && (!Number.isInteger(options.sizeGib) || options.sizeGib <= 0)) {
+      throw badRequest('sizeGib must be a positive integer')
+    }
     const body: api.CreateVolumeRequest = { name: options.name, type: 'disk', size_gib: options.sizeGib }
     const { data } = await this.api.post<api.Volume>('/volumes', body)
     return mapVolume(data)

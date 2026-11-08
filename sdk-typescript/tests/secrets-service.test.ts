@@ -5,6 +5,7 @@
 
 import axios from 'axios'
 import { SecretsService } from '../src/v2/Secret.js'
+import { INTERNAL } from '../src/v2/internal'
 
 const wire = { name: 'TOKEN', allowed_domains: ['api.example.com'], description: null,
   created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', future_field: true }
@@ -21,7 +22,7 @@ describe('secret metadata', () => {
     const http = axios.create({ adapter: async (config) => ({ config, status: 200, statusText: 'OK', headers: {},
       data: config.url === '/secrets' ? { secrets: [wire], next_cursor: null } : wire }) })
     // When
-    const result = await operation(SecretsService._create(http))
+    const result = await operation(new SecretsService(INTERNAL, http))
     // Then
     expect(result).toEqual(expected)
   })
@@ -35,7 +36,7 @@ describe('secret metadata', () => {
       return { config, status: 200, statusText: 'OK', headers: {}, data: wire }
     } })
     // When
-    await SecretsService._create(http).set('API/TOKEN', 'value', { allowedDomains: domains, description: 'API access', ifNotExists: true })
+    await new SecretsService(INTERNAL, http).set('API/TOKEN', 'value', { allowedDomains: domains, description: 'API access', ifNotExists: true })
     // Then
     expect(requests).toEqual([{ path: '/secrets/API%2FTOKEN', ifNoneMatch: '*',
       body: { value: 'value', allowed_domains: ['api.example.com'], description: 'API access' } }])

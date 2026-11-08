@@ -5,6 +5,8 @@
 
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import type { CreateReservationOptions, CreateReservationsBulkOptions, ListReservationsOptions, MacReservation, MacReservationBatch, RenewReservationOptions, UpdateReservationOptions } from './macTypes.js'
 import type { ListResult } from './types.js'
 import type * as api from './gen/api-types.js'
@@ -63,13 +65,9 @@ function reservation(value: api.MacReservation): MacReservation {
  * `FeatureNotEnabledError`); listing, reading and turning auto-renew off do not.
  */
 export class ReservationsService {
-  private constructor(private readonly http: AxiosInstance) {
+  constructor(token: Internal, private readonly http: AxiosInstance) {
+    assertInternal(token, 'ReservationsService')
     credentialSafeDiagnostics(this, () => ({ type: 'ReservationsService' }))
-  }
-
-  /** @internal */
-  static _create(http: AxiosInstance): ReservationsService {
-    return new ReservationsService(http)
   }
 
   /**

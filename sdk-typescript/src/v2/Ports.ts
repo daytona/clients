@@ -5,6 +5,8 @@
 
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics, credentialSafeInspection } from '../diagnostics.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import type * as api from './gen/api-types.js'
 import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
@@ -106,7 +108,8 @@ function previewTokenExpiry(token: string): string | undefined {
 
 /** Sandbox port namespace — what is listening inside the sandbox. */
 export class PortsService {
-  private constructor(
+  constructor(
+    token: Internal,
     private readonly transport: HttpTransport | undefined,
     private readonly api?: AxiosInstance,
     private readonly sandboxId?: string,
@@ -114,17 +117,8 @@ export class PortsService {
     // (caller-supplied token, no key, or route unavailable).
     private readonly mintPreviewToken?: (port: number) => Promise<SandboxAccessToken | undefined>,
   ) {
+    assertInternal(token, 'PortsService')
     credentialSafeDiagnostics(this, () => ({ type: 'PortsService' }))
-  }
-
-  /** @internal */
-  static _create(
-    transport: HttpTransport | undefined,
-    api?: AxiosInstance,
-    sandboxId?: string,
-    mintPreviewToken?: (port: number) => Promise<SandboxAccessToken | undefined>,
-  ): PortsService {
-    return new PortsService(transport, api, sandboxId, mintPreviewToken)
   }
 
   /** Every TCP port currently listening in the sandbox. */

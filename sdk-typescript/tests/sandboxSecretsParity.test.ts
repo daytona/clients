@@ -17,7 +17,6 @@ import {
   BadRequestError,
   ConflictError,
   DaytonaError,
-  InternalServerError,
   NotFoundError,
   PreconditionFailedError,
   PreconditionRequiredError,
@@ -221,9 +220,9 @@ describe('sandbox secrets parity', () => {
       await api.close()
     }
 
-    expect(thrown).toBeInstanceOf(InternalServerError)
+    expect(thrown).toBeInstanceOf(BadRequestError)
     const error = thrown as DaytonaError
-    expect([error.statusCode, error.code, error.source, error.message]).toEqual([500, undefined, 'SDK', 'sandbox secrets response is missing ETag'])
+    expect([error.statusCode, error.code, error.source, error.message]).toEqual([400, 'BAD_REQUEST', 'SDK', 'sandbox secrets response is missing the ETag header'])
     expect(api.requests).toHaveLength(1)
   })
 

@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DaytonaError } from './errors/DaytonaError.js'
 import { badRequest } from './options.js'
 import { gibToMib } from './resources.js'
 export { gibToMib } from './resources.js'
@@ -16,12 +15,14 @@ export function hasText(value: unknown): value is string {
 }
 
 /** @internal */
-export function imageSourceString(image: unknown): string {
+export function imageSourceString(image: unknown, method: 'create' | 'createMacos' = 'create'): string {
   if (isImageBuilder(image)) {
-    throw new TypeError('daytona.create() only accepts an image name or img_… id; use daytona.createFromBuild(builder, options) for ImageBuilder sources')
+    throw badRequest(method === 'createMacos'
+      ? 'daytona.createMacos() only accepts an image name or img_… id; macOS sandboxes do not build images'
+      : 'daytona.create() only accepts an image name or img_… id; use daytona.createFromBuild(builder, options) for ImageBuilder sources')
   }
   if (!hasText(image)) {
-    throw new TypeError('daytona.create() only accepts an image name or img_… id')
+    throw badRequest(`daytona.${method}() only accepts an image name or img_… id`)
   }
   return image.trim()
 }
@@ -39,9 +40,9 @@ interface LinuxCreateArguments {
 export function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptions | null | undefined, options: CreateSandboxOptions | undefined): LinuxCreateArguments {
   if (imageOrOptions === undefined || imageOrOptions === null) return { source: undefined, options: options ?? {} }
   if (typeof imageOrOptions === 'object' && !isImageBuilder(imageOrOptions) && !(imageOrOptions instanceof Image) && !Array.isArray(imageOrOptions)) {
-    if (options !== undefined) throw new TypeError('daytona.create() takes options once: create(options) or create(image, options)')
+    if (options !== undefined) throw badRequest('daytona.create() takes options once: create(options) or create(image, options)')
     if (Object.prototype.hasOwnProperty.call(imageOrOptions, 'image') || Object.prototype.hasOwnProperty.call(imageOrOptions, 'snapshot')) {
-      throw new TypeError('daytona.create() takes the image as its first argument: create(image, options), not create({ image })')
+      throw badRequest('daytona.create() takes the image as its first argument: create(image, options), not create({ image })')
     }
     return { source: undefined, options: imageOrOptions }
   }
@@ -50,7 +51,7 @@ export function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptio
 
 /** @internal */
 export function snapshotSourceString(snapshot: string): string {
-  if (!hasText(snapshot)) throw new TypeError('snapshot must be a non-empty snapshot name or snap_… id')
+  if (!hasText(snapshot)) throw badRequest('snapshot must be a non-empty snapshot name or snap_… id')
   return snapshot.trim()
 }
 
@@ -58,7 +59,7 @@ export function snapshotSourceString(snapshot: string): string {
 export function createWaitSeconds(waitSeconds: number | undefined): number {
   const resolved = waitSeconds ?? 60
   if (!Number.isFinite(resolved) || resolved < 0 || !Number.isInteger(resolved)) {
-    throw new DaytonaError('waitSeconds must be a non-negative integer number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('waitSeconds must be a non-negative integer number of seconds')
   }
   return resolved
 }
@@ -66,8 +67,8 @@ export function createWaitSeconds(waitSeconds: number | undefined): number {
 /** @internal */
 export function createTimeoutSeconds(createTimeoutSeconds: number | undefined): number | undefined {
   if (createTimeoutSeconds === undefined) return undefined
-  if (!Number.isFinite(createTimeoutSeconds) || !Number.isInteger(createTimeoutSeconds)) {
-    throw new DaytonaError('createTimeoutSeconds must be an integer number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (!Number.isInteger(createTimeoutSeconds) || createTimeoutSeconds < -1) {
+    throw badRequest('createTimeoutSeconds must be an integer number of seconds >= -1')
   }
   return createTimeoutSeconds
 }
@@ -80,7 +81,7 @@ const MAX_INT32 = 2147483647
 export function macosCores(cpu: number | undefined): number | undefined {
   if (cpu === undefined) return undefined
   if (typeof cpu !== 'number' || !Number.isInteger(cpu) || cpu < 4 || cpu > MAX_INT32) {
-    throw new DaytonaError('cpu must be an integer between 4 and 2147483647', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('cpu must be an integer between 4 and 2147483647')
   }
   return cpu
 }
@@ -90,7 +91,7 @@ export function macosMib(gib: number | undefined, axis: 'memory' | 'disk', floor
   if (gib === undefined) return undefined
   const mib = gibToMib(gib, axis)
   if (mib < floorMib || mib > MAX_INT32) {
-    throw new DaytonaError(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`)
   }
   return mib
 }
@@ -102,7 +103,7 @@ export function macosMib(gib: number | undefined, axis: 'memory' | 'disk', floor
  */
 export function resolveIdempotencyKey(idempotencyKey: string | undefined): string | undefined {
   if (idempotencyKey == null) return undefined
-  if (typeof idempotencyKey !== 'string') throw new DaytonaError('idempotencyKey must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (typeof idempotencyKey !== 'string') throw badRequest('idempotencyKey must be a string')
   return idempotencyKey
 }
 

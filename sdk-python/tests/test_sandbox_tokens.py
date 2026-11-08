@@ -259,7 +259,7 @@ async def test_still_unexpired_token_rides_through_a_transient_refresh_failure()
     _bind_toolbox(sandbox, _recording_handler(seen))
 
     result = await sandbox.ports.list()
-    assert result.items == []
+    assert list(result.items) == []
     await sandbox.ports.list()
     assert seen == ["Bearer old_jwt", "Bearer old_jwt"]
     assert [spec.path for spec in api.specs] == ["/sandboxes/sbx/access-token", "/sandboxes/sbx/access-token"]
@@ -291,7 +291,7 @@ async def test_toolbox_401_mints_once_and_retries_once():
 
     result = await sandbox.ports.list()
 
-    assert result.items == [3000]
+    assert list(result.items) == [3000]
     assert [spec.path for spec in api.specs] == ["/sandboxes/sbx/access-token"]
     assert seen == ["Bearer opaque_secret", "Bearer fresh_jwt"]
     assert sandbox.access_token == "fresh_jwt"
@@ -353,7 +353,7 @@ async def test_jwt_created_handle_remints_through_the_api_transport_after_a_401(
         await client.close()
 
     assert sandbox._sandbox_token_mintable  # type: ignore[attr-defined]
-    assert result.items == [3000]
+    assert list(result.items) == [3000]
     assert exchange_calls == 1
     assert mint_authorization == ["Bearer platform-1"]
     assert seen == ["Bearer opaque_secret", "Bearer fresh_jwt"]
@@ -443,12 +443,13 @@ async def test_create_response_opaque_token_is_used_as_is_until_401():
 
 
 @pytest.mark.anyio
-async def test_mint_route_unsupported_falls_back_to_the_project_key():
+@pytest.mark.parametrize("status", [405, 501])
+async def test_mint_route_unsupported_falls_back_to_the_project_key(status: int):
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
     sandbox._update(sandbox_class="linux")
-    # An unavailable mint route falls back to the API key without repeated mint attempts.
-    api = _RecordingApi([create_error("not found", 404, "NOT_FOUND", "DAYTONA_API")])
+    # An absent mint route (405/501) falls back to the API key without repeated mint attempts.
+    api = _RecordingApi([create_error("unsupported", status, None, "DAYTONA_API")])
     sandbox._api = api  # type: ignore[assignment]
     seen: list[Optional[str]] = []
     _bind_toolbox(sandbox, _recording_handler(seen))
@@ -458,6 +459,29 @@ async def test_mint_route_unsupported_falls_back_to_the_project_key():
 
     assert len(api.specs) == 1
     assert seen == ["Bearer key", "Bearer key"]
+
+
+@pytest.mark.anyio
+async def test_a_mint_404_falls_back_once_and_keeps_minting():
+    client = _client()
+    sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
+    sandbox._update(sandbox_class="linux")
+    # A 404 is not proof the route is absent: that request falls back, the next one mints again.
+    api = _RecordingApi(
+        [
+            create_error("not found", 404, "NOT_FOUND", "DAYTONA_API"),
+            {"access_token": "minted", "expires_at": "2999-01-01T00:00:00Z", "token_type": "Bearer"},
+        ]
+    )
+    sandbox._api = api  # type: ignore[assignment]
+    seen: list[Optional[str]] = []
+    _bind_toolbox(sandbox, _recording_handler(seen))
+
+    await sandbox.ports.list()
+    await sandbox.ports.list()
+
+    assert len(api.specs) == 2
+    assert seen == ["Bearer key", "Bearer minted"]
 
 
 @pytest.mark.anyio
@@ -975,7 +999,8 @@ async def test_jwt_handle_mint_404_falls_back_to_project_token():
         await http.aclose()
         await client.close()  # type: ignore[union-attr]
 
-    assert len(mint_calls) == 1
+    # Each 404 falls back to the project token for that request only.
+    assert len(mint_calls) == 2
     assert seen == ["Bearer platform-tok", "Bearer platform-tok"]
 
 
@@ -1139,7 +1164,7 @@ async def test_from_api_ignores_a_toolbox_url_inside_stored_data(key: str, mint:
         None,
     )
 
-    assert sandbox.toolbox_proxy_url is None
+    assert sandbox._toolbox_proxy_url is None
     with pytest.raises(Exception, match="no toolbox URL"):
         await sandbox.ports.list()
     assert api.specs == []
@@ -1154,4 +1179,4 @@ async def test_from_api_honors_an_explicit_toolbox_url():
         toolbox_url="http://trusted.invalid/sandboxes/sbx",
     )
 
-    assert sandbox.toolbox_proxy_url == "http://trusted.invalid/sandboxes/sbx"
+    assert sandbox._toolbox_proxy_url == "http://trusted.invalid/sandboxes/sbx"

@@ -29,7 +29,7 @@ def parse_sandbox_secrets_response(response: httpx.Response) -> SandboxSecretsIn
     payload = _expect_response_object(parse_json_bytes(response.content))
     etag = response.headers.get("etag")
     if not isinstance(etag, str) or not etag:
-        raise create_error("sandbox secrets response is missing ETag", 500, None, "SDK")
+        raise create_error("sandbox secrets response is missing the ETag header", 400, "BAD_REQUEST", "SDK")
     return SandboxSecretsInfo(
         secrets=tuple(_required_string_list(payload.get("secrets"), field_name="secrets")),
         desired_revision=_required_int(payload.get("desired_revision"), field_name="desired_revision"),
@@ -49,16 +49,16 @@ def parse_sandbox_secrets_response(response: httpx.Response) -> SandboxSecretsIn
 def _expect_response_object(value: JsonValue) -> JsonObject:
     if isinstance(value, dict):
         return value
-    raise create_error("expected JSON object", 500, None, "SDK")
+    raise create_error("expected a JSON object response", 400, "BAD_REQUEST", "SDK")
 
 
 def _required_string_list(value: JsonValue, *, field_name: str) -> list[str]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
-        raise create_error(f"{field_name} must be an array of strings", 500, None, "SDK")
+        raise create_error(f"{field_name} must be an array of strings", 400, "BAD_REQUEST", "SDK")
     items: list[str] = []
     for item in value:
         if not isinstance(item, str):
-            raise create_error(f"{field_name} must be an array of strings", 500, None, "SDK")
+            raise create_error(f"{field_name} must be an array of strings", 400, "BAD_REQUEST", "SDK")
         items.append(item)
     return items
 
@@ -66,7 +66,7 @@ def _required_string_list(value: JsonValue, *, field_name: str) -> list[str]:
 def _required_int(value: JsonValue, *, field_name: str) -> int:
     if isinstance(value, int) and not isinstance(value, bool):
         return value
-    raise create_error(f"{field_name} must be an integer", 500, None, "SDK")
+    raise create_error(f"{field_name} must be an integer", 400, "BAD_REQUEST", "SDK")
 
 
 def _optional_int(value: JsonValue, *, field_name: str) -> int | None:

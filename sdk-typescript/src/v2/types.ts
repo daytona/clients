@@ -166,13 +166,8 @@ export interface ProcessHandleJSON {
 }
 
 export interface ListResult<T> {
-  items: T[]
-  nextCursor?: string
-  /** Only set for search results. */
-  total?: number
-  /** `'eq'` when `total` is exact, `'gte'` when it is a lower bound; only set with `total`. */
-  totalRelation?: SearchTotalRelation
-  rawTotalRelation?: string
+  readonly items: readonly T[]
+  readonly nextCursor?: string
 }
 
 /**
@@ -182,11 +177,11 @@ export interface ListResult<T> {
  * `'gte'`.
  */
 export interface SearchResult<T> {
-  items: T[]
-  nextCursor?: string
-  total: number
-  totalRelation: SearchTotalRelation
-  rawTotalRelation: string
+  readonly items: readonly T[]
+  readonly nextCursor?: string
+  readonly total: number
+  readonly totalRelation: SearchTotalRelation
+  readonly rawTotalRelation: string
 }
 
 export type SearchTotalRelation = (typeof API_SEARCH_TOTAL_RELATIONS)[number] | 'unknown'
@@ -696,7 +691,7 @@ export interface SandboxSearchFilters {
   /** Free text over name and image; also an exact match when it is a sandbox id. */
   readonly q?: string
   /** SDK lifecycle states; `creating` and `error` each match multiple server states. */
-  readonly states?: SandboxState | readonly SandboxState[]
+  readonly states?: Exclude<SandboxState, 'unknown'> | readonly Exclude<SandboxState, 'unknown'>[]
   /** A single value or a list (any-of). */
   readonly sandboxClass?: SandboxClass | readonly SandboxClass[]
   /** A single value or a list (any-of) over region slugs. */

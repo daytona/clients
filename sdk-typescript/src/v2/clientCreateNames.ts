@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DaytonaError } from './errors/DaytonaError.js'
 import { runtimeUniqueId } from './http.js'
+import { assertLabels, badRequest } from './options.js'
 
 /** The label every named create stamps and findByName reads back. */
 const NAME_LABEL = 'name'
@@ -22,7 +22,7 @@ const NAME_KEY_HASH_PREFIX = 'name:sha256:'
  * UTF-8 bytes. Deterministic and identical in the Python SDK.
  */
 async function idempotencyKeyForName(name: string): Promise<string> {
-  if (typeof name !== 'string') throw new DaytonaError('name must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (typeof name !== 'string') throw badRequest('name must be a string')
   const literal = NAME_KEY_PREFIX + name
   // The API's printable-ASCII rule; UTF-16 length equals bytes for these names.
   if (name === name.trim() && literal.length <= IDEMPOTENCY_KEY_MAX_LENGTH && /^[\x20-\x7e]*$/.test(name)) return literal
@@ -67,11 +67,12 @@ export function createIdempotencyKey(body: { readonly name?: string | null; read
  * @internal
  */
 export function labelsWithName(name: string | undefined, labels: Readonly<Record<string, string>> | undefined): Readonly<Record<string, string>> | undefined {
+  if (labels !== undefined) assertLabels(labels)
   const named = namedCreate(name)
   if (named === undefined) return labels
   const existing = labels?.[NAME_LABEL]
   if (existing !== undefined && existing !== named) {
-    throw new DaytonaError(`labels.${NAME_LABEL} (${JSON.stringify(existing)}) disagrees with name (${JSON.stringify(named)}); the name label is stamped from name, pass one or the other`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest(`labels.${NAME_LABEL} (${JSON.stringify(existing)}) disagrees with name (${JSON.stringify(named)}); the name label is stamped from name, pass one or the other`)
   }
   return { ...(labels ?? {}), [NAME_LABEL]: named }
 }

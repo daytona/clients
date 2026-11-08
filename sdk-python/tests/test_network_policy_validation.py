@@ -11,7 +11,6 @@ from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona.v2 import (
     BadRequestError,
-    InternalServerError,
     PreconditionFailedError,
     PreconditionRequiredError,
     ServiceUnavailableError,
@@ -98,11 +97,38 @@ async def test_network_policy_errors_preserve_trace_id_without_auto_retry(
     assert exc_info.value.trace_id == body["trace_id"]
 
 
-async def test_non_object_network_policy_response_raises_internal_server_error() -> None:
+async def test_a_non_object_network_policy_response_is_a_contract_error() -> None:
     with FakeApi([PlannedResponse(200, [])]) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            with pytest.raises(InternalServerError, match="expected JSON object"):
+            with pytest.raises(BadRequestError, match="^expected a JSON object response$") as raised:
                 await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_a_network_policy_response_without_etag_is_a_contract_error() -> None:
+    body = {
+        "desired": None,
+        "desired_revision": 1,
+        "applied": None,
+        "applied_revision": None,
+        "applied_start_id": None,
+        "status": "applied",
+        "error": None,
+    }
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        client = AsyncDaytona(_config_at(api.url, api_key="key"))
+        try:
+            with pytest.raises(BadRequestError) as raised:
+                await lazy_sandbox(client, "sbx").get_network_policy()
+        finally:
+            await client.close()
+    assert (raised.value.status_code, raised.value.code, raised.value.source, raised.value.message) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+        "network_policy response is missing the ETag header",
+    )

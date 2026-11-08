@@ -6,6 +6,7 @@
 import { createServer, type Server } from 'node:http'
 import { Sandbox } from '../src/v2/Sandbox'
 import { SandboxVolumesService } from '../src/v2/SandboxVolumes'
+import { INTERNAL } from '../src/v2/internal'
 import { HttpTransport } from '../src/v2/http'
 import { WAIT_READ_SLACK_MS } from '../src/v2/Process'
 import { BadRequestError, ConflictError, RateLimitError, ServiceUnavailableError, UnsupportedOperationError } from '../src/v2/errors/DaytonaError'
@@ -41,7 +42,7 @@ describe('sandbox volume pull', () => {
   })
 
   it('scopes to the sandbox URL, preserves nullable results and reuses caller identity after pending', async () => {
-    const sandbox = Sandbox._create({ sandbox: "sbx/!'", apiKey: 'token', options: { toolboxUrl: `${base}/sandbox-api/sbx%2F%21%27` } })
+    const sandbox = new Sandbox(INTERNAL, { sandbox: "sbx/!'", apiKey: 'token', options: { toolboxUrl: `${base}/sandbox-api/sbx%2F%21%27` } })
     responses.push(
       { status: 202, body: { requestId: 'req_1', status: 'pending', manifestId: null, futureField: true } },
       { status: 200, body: { requestId: 'req_1', status: 'pulled', manifestId: 'manifest-1' } },
@@ -61,13 +62,13 @@ describe('sandbox volume pull', () => {
 
   test('passes a status this SDK release does not list through', async () => {
     responses.push({ status: 200, body: { requestId: 'r', status: 'superseded', manifestId: null } })
-    const volumes = SandboxVolumesService._create(new HttpTransport(base))
+    const volumes = new SandboxVolumesService(INTERNAL, new HttpTransport(base))
     expect(await volumes.pull('v', { requestId: 'r' })).toEqual({ requestId: 'r', status: 'unknown', rawStatus: 'superseded', manifestId: null })
   })
 
   test.each([null, 'manifest-2'])('unchanged manifest %s', async (manifestId) => {
     responses.push({ status: 200, body: { requestId: 'r', status: 'unchanged', manifestId } })
-    const volumes = SandboxVolumesService._create(new HttpTransport(base))
+    const volumes = new SandboxVolumesService(INTERNAL, new HttpTransport(base))
     expect(await volumes.pull('v', { requestId: 'r' })).toEqual({ requestId: 'r', status: 'unchanged', rawStatus: 'unchanged', manifestId })
   })
 
@@ -85,7 +86,7 @@ describe('sandbox volume pull', () => {
         status: 202, statusText: 'Accepted', headers: {}, config,
       }
     }
-    const volumes = SandboxVolumesService._create(transport)
+    const volumes = new SandboxVolumesService(INTERNAL, transport)
     // When
     const result = await volumes.pull('v', { requestId: 'r', timeoutSeconds })
     // Then
@@ -95,14 +96,14 @@ describe('sandbox volume pull', () => {
   })
 
   test.each(['', 'a/b', '..', 'a%2Fb', 'a?b', 'a#b', 'a b', 'é', 'a\n', 'a'.repeat(129)])('rejects invalid id %j before sending', async (id) => {
-    const volumes = SandboxVolumesService._create(new HttpTransport(base))
+    const volumes = new SandboxVolumesService(INTERNAL, new HttpTransport(base))
     await expect(volumes.pull(id, { requestId: 'r' })).rejects.toBeInstanceOf(BadRequestError)
     await expect(volumes.pull('v', { requestId: id })).rejects.toBeInstanceOf(BadRequestError)
     expect(requests).toHaveLength(0)
   })
 
   test.each([-1, 30.001, NaN, Infinity])('rejects wait %s', async (timeoutSeconds) => {
-    const volumes = SandboxVolumesService._create(new HttpTransport(base))
+    const volumes = new SandboxVolumesService(INTERNAL, new HttpTransport(base))
     await expect(volumes.pull('v', { requestId: 'r', timeoutSeconds })).rejects.toBeInstanceOf(BadRequestError)
     expect(requests).toHaveLength(0)
   })
@@ -114,7 +115,7 @@ describe('sandbox volume pull', () => {
     [400, 'UNSUPPORTED_OPERATION', UnsupportedOperationError],
   ] as const)('propagates %s without retry', async (status, code, errorClass) => {
     responses.push({ status, body: { code, message: 'not ready', source: 'DAYTONA_DAEMON', requestId: 'r', retryAfterMs: 1000 } })
-    const volumes = SandboxVolumesService._create(new HttpTransport(base))
+    const volumes = new SandboxVolumesService(INTERNAL, new HttpTransport(base))
     const result = volumes.pull('v', { requestId: 'r' })
     await expect(result).rejects.toBeInstanceOf(errorClass)
     await expect(result).rejects.toMatchObject({ requestId: 'r', retryAfterMs: 1000, statusCode: status, code })
@@ -122,7 +123,7 @@ describe('sandbox volume pull', () => {
   })
 
   it('caches the volume namespace without sending a request', () => {
-    const sandbox = Sandbox._create({ sandbox: 'sandbox-id', apiKey: 'token', options: { toolboxUrl: base } })
+    const sandbox = new Sandbox(INTERNAL, { sandbox: 'sandbox-id', apiKey: 'token', options: { toolboxUrl: base } })
     const volumes = sandbox.volumes
     expect(sandbox.volumes).toBe(volumes)
     expect(requests).toHaveLength(0)

@@ -2652,7 +2652,7 @@ class TestEndpointLearnedThroughTheTransport:
         from daytona.v2.types import DaytonaConfig
 
         monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "1")
-        for timeout in (3, None):
+        for timeout in (3, 0):
             fc = FakeConnector()
             monkeypatch.setattr(events_module, "_default_connector", fc)
             client = AsyncDaytona(DaytonaConfig(api_key=_API_KEY))
@@ -2662,7 +2662,7 @@ class TestEndpointLearnedThroughTheTransport:
             with respx.mock(assert_all_called=False):
                 ticket_mock("region-a")
                 ws = fc.prepare()
-                task = asyncio.create_task(sandbox._wait_for_state(["started"], timeout=timeout))
+                task = asyncio.create_task(sandbox.wait(timeout=timeout))
                 await drain()
                 ws.inject({"type": "error", "id": "abc-region-a", "code": "NOT_FOUND", "was_known": False})
                 with pytest.raises(NotFoundError):
@@ -2696,7 +2696,7 @@ class TestEndpointLearnedThroughTheTransport:
         with respx.mock:
             ticket = ticket_mock("region-a")
             ws = fc.prepare()
-            task = asyncio.create_task(sandbox._wait_for_state(["started"], timeout=3))
+            task = asyncio.create_task(sandbox.wait(timeout=3))
             await drain()
             ws.inject(
                 {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
@@ -2771,7 +2771,7 @@ class TestPublicWaitForStateProbeBehavior:
                 fc.prepare()
                 with pytest.raises(RequestTimeoutError):
                     await asyncio.wait_for(
-                        sandbox._wait_for_state(["started"], timeout=0.15),
+                        sandbox.wait(timeout=0.15),
                         timeout=1.0,
                     )
             assert len(api.specs) <= 3
@@ -2810,7 +2810,7 @@ class TestPublicWaitForStateProbeBehavior:
             with respx.mock:
                 ticket_mock("region-a")
                 ws = fc.prepare()
-                task = asyncio.create_task(sandbox._wait_for_state(["started"], timeout=0.1))
+                task = asyncio.create_task(sandbox.wait(timeout=0.1))
                 await drain()
                 await asyncio.sleep(0.02)
                 ws.inject(
@@ -2878,7 +2878,7 @@ class TestPublicWaitForStateProbeBehavior:
                 ticket_mock("region-a")
                 fc.prepare()
                 await asyncio.wait_for(
-                    sandbox._wait_for_state(["started", "stopped"], timeout=2.6),
+                    sandbox.wait(until=["started", "stopped"], timeout=2.6),
                     timeout=3.5,
                 )
             assert len(api.specs) >= 2

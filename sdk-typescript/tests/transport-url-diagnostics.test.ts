@@ -6,6 +6,7 @@
 import { inspect } from 'node:util'
 import { Daytona } from '../src/Daytona'
 import { ImagesService } from '../src/v2/Images'
+import { INTERNAL } from '../src/v2/internal'
 import { MacModelsService } from '../src/v2/MacModels'
 import { PortsService } from '../src/v2/Ports'
 import { ReservationsService } from '../src/v2/Reservations'
@@ -30,8 +31,8 @@ it.each(['DAYTONA_V2_API_URL'])('omits credential-bearing URLs from diagnostic v
     root, Reflect.get(root, 'config'), root.v2,
     client, client.defaults, client.defaults.headers, transport, provider,
     ...Object.getOwnPropertySymbols(client).map(symbol => Reflect.get(client, symbol)),
-    sandbox, ImagesService._create(client), SnapshotsService._create(client), ReservationsService._create(client),
-    MacModelsService._create(client), SecretsService._create(client), PortsService._create(transport, client, 'sandbox'),
+    sandbox, new ImagesService(INTERNAL, client), new SnapshotsService(INTERNAL, client), new ReservationsService(INTERNAL, client),
+    new MacModelsService(INTERNAL, client), new SecretsService(INTERNAL, client), new PortsService(INTERNAL, transport, client, 'sandbox'),
     new WaitHub(url, 'key', {}, () => { throw new Error('unexpected socket') }, client),
   ]
   try {

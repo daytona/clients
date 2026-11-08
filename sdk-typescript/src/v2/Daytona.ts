@@ -8,6 +8,7 @@ import { createHttpClient, HttpTransport, strictUriEncode } from './http.js'
 import type { HttpClientOptions } from './http.js'
 import { assertKnownOptions } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { INTERNAL } from './internal.js'
 import { BadRequestError } from './errors/DaytonaError.js'
 import type { ImageBuilder } from './Image.js'
 import { Sandbox } from './Sandbox.js'
@@ -62,12 +63,12 @@ export class Daytona {
     this.httpOptions = connection.httpOptions
     this.apiTransport = new HttpTransport(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
     this.api = createHttpClient(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
-    this.images = ImagesService._create(this.api, this.apiTransport)
-    this.snapshots = SnapshotsService._create(this.api)
-    this.volumes = VolumesService._create(this.api)
-    this.secrets = SecretsService._create(this.api)
-    this.reservations = ReservationsService._create(this.api)
-    this.macModels = MacModelsService._create(this.api)
+    this.images = new ImagesService(INTERNAL, this.api, this.apiTransport)
+    this.snapshots = new SnapshotsService(INTERNAL, this.api)
+    this.volumes = new VolumesService(INTERNAL, this.api)
+    this.secrets = new SecretsService(INTERNAL, this.api)
+    this.reservations = new ReservationsService(INTERNAL, this.api)
+    this.macModels = new MacModelsService(INTERNAL, this.api)
     this.hubShared = config.sharedHub ?? true
     this.hubEventsConfig = eventsHubConfig(connection.events)
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
@@ -250,7 +251,7 @@ export class Daytona {
   // or a bare id, so the input's toolbox URL is trusted here — and only here.
   private buildSandbox(sandboxOrId: SandboxDto | SandboxInfo | string, options: SandboxConnectOptions = {}): Sandbox {
     const fromApi: SandboxConnectOptionsFromCreate = { ...options, toolboxUrlFromApi: true }
-    return Sandbox._create({ sandbox: sandboxOrId, api: this.api, apiKey: this.apiKey, options: fromApi, requestTimeout: this.api.defaults.timeout, httpOptions: this.httpOptions, hub: this.acquireHub() })
+    return new Sandbox(INTERNAL, { sandbox: sandboxOrId, api: this.api, apiKey: this.apiKey, options: fromApi, requestTimeout: this.api.defaults.timeout, httpOptions: this.httpOptions, hub: this.acquireHub() })
   }
 
   /**

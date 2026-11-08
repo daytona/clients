@@ -720,7 +720,7 @@ def test_a_v2_only_program_never_imports_v0() -> None:
             )
             with Daytona(DaytonaConfig(api_key="k")) as client:
                 page = client.v2.list()
-        assert page.items == [], page
+        assert list(page.items) == [], page
         loaded = sorted(name for name in sys.modules if name == "daytona.v0" or name.startswith("daytona.v0."))
         assert not loaded, loaded
         print("ok")

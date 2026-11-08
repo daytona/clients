@@ -44,18 +44,12 @@ class ImagesService:
         name: Optional[str] = None,
         idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
-        cpu_arch: Optional[str] = None,
-        timeout: Optional[float] = None,
+        cpu_arch: Optional[CpuArch] = None,
     ) -> Image:
         """Build (or import) an image from an :class:`ImageBuilder` declaration."""
         return self._bridge.call(
             lambda: self._impl.build(
-                builder,
-                name=name,
-                idle_expiry_seconds=idle_expiry_seconds,
-                region=region,
-                cpu_arch=cpu_arch,
-                timeout=timeout,
+                builder, name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
             )
         )
 
@@ -81,6 +75,7 @@ class ImagesService:
     def get(
         self, image_id: str, *, wait: Literal["ready"] | None = None, timeout: Optional[float] = None
     ) -> Image:
+        """Fetch an image; ``wait="ready"`` waits for it to finish building."""
         return self._bridge.call(lambda: self._impl.get(image_id, wait=wait, timeout=timeout))
 
     def iter(
@@ -135,13 +130,23 @@ class ImagesService:
         image: str,
         *,
         name: Optional[str] = None,
+        idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
+        cpu_arch: Optional[CpuArch] = None,
         wait: bool = True,
         timeout: Optional[float] = None,
     ) -> Image:
         """Import a registry image, waiting until ready unless ``wait=False``."""
         return self._bridge.call(
-            lambda: self._impl.pull(image, name=name, region=region, wait=wait, timeout=timeout)
+            lambda: self._impl.pull(
+                image,
+                name=name,
+                idle_expiry_seconds=idle_expiry_seconds,
+                region=region,
+                cpu_arch=cpu_arch,
+                wait=wait,
+                timeout=timeout,
+            )
         )
 
 
@@ -170,6 +175,7 @@ class SnapshotsService:
     def get(
         self, snapshot_id: str, *, wait: Optional[Literal["ready"]] = None, timeout: Optional[float] = None
     ) -> Snapshot:
+        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`ImagesService.get` does."""
         return self._bridge.call(lambda: self._impl.get(snapshot_id, wait=wait, timeout=timeout))
 
     def iter(
@@ -388,6 +394,6 @@ class MacModelsService:
         """Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; price is null when pricing is unavailable."""
         return self._bridge.call(lambda: self._impl.catalog(region=region))
 
-    def list(self) -> List[MacModel]:
+    def list(self) -> Tuple[MacModel, ...]:
         """Every registered Mac model, ordered by ``id``."""
         return self._bridge.call(lambda: self._impl.list())

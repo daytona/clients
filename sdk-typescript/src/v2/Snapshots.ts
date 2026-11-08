@@ -10,8 +10,10 @@ import type * as api from './gen/api-types.js'
 import { strictUriEncode } from './http.js'
 import type { ListResult } from './types.js'
 import { assertKnownOptions, optionKeys } from './options.js'
-import { artifactRequestOptions } from './artifactOptions.js'
+import { getArtifact } from './artifactOptions.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
+import { INTERNAL, assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 
 export type { GetArtifactOptions } from './artifactOptions.js'
 
@@ -25,12 +27,8 @@ export interface ListSnapshotsOptions {
 const LIST_SNAPSHOTS_OPTION_KEYS = optionKeys<ListSnapshotsOptions>()({ cursor: true, limit: true, name: true, sandboxId: true })
 
 export class SnapshotsService {
-  /** @internal */
-  public static _create(http: AxiosInstance): SnapshotsService {
-    return new SnapshotsService(http)
-  }
-
-  private constructor(private readonly http: AxiosInstance) {
+  constructor(token: Internal, private readonly http: AxiosInstance) {
+    assertInternal(token, 'SnapshotsService')
     credentialSafeDiagnostics(this, () => ({ type: 'SnapshotsService' }))
   }
 
@@ -39,7 +37,7 @@ export class SnapshotsService {
     const { data } = await this.http.get<api.ListSnapshotsResponse>('/snapshots', {
       params: { cursor: options.cursor, limit: options.limit, name: options.name, sandbox_id: options.sandboxId },
     })
-    return { items: data.snapshots.map((snapshot) => Snapshot._create(snapshot)), nextCursor: data.next_cursor ?? undefined }
+    return { items: data.snapshots.map((snapshot) => new Snapshot(INTERNAL, snapshot)), nextCursor: data.next_cursor ?? undefined }
   }
 
   public async *iter(options: ListSnapshotsOptions = {}): AsyncIterable<Snapshot> {
@@ -57,8 +55,8 @@ export class SnapshotsService {
   }
 
   public async get(snapshotId: string, options: GetArtifactOptions = {}): Promise<Snapshot> {
-    const { data } = await this.http.get<api.Snapshot>(`/snapshots/${strictUriEncode(snapshotId)}`, artifactRequestOptions(options))
-    return Snapshot._create(data)
+    const data = await getArtifact<api.Snapshot>(this.http, `/snapshots/${strictUriEncode(snapshotId)}`, options)
+    return new Snapshot(INTERNAL, data)
   }
 
   public async delete(snapshotId: string): Promise<void> {

@@ -24,7 +24,6 @@ from daytona.v2 import (
     BadRequestError,
     ConflictError,
     DaytonaError,
-    InternalServerError,
     NotFoundError,
     PreconditionFailedError,
     PreconditionRequiredError,
@@ -214,17 +213,17 @@ async def test_a_response_without_etag_is_an_sdk_error_not_a_tag_rebuilt_from_th
     with FakeApi([PlannedResponse(status, _secrets_body())]) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            with pytest.raises(InternalServerError) as exc:
+            with pytest.raises(BadRequestError) as exc:
                 await _call(client, call)
         finally:
             await client.close()
 
     error = exc.value
     assert (error.status_code, error.code, error.source, error.message) == (
-        500,
-        None,
+        400,
+        "BAD_REQUEST",
         "SDK",
-        "sandbox secrets response is missing ETag",
+        "sandbox secrets response is missing the ETag header",
     )
     assert len(api.requests) == 1
 

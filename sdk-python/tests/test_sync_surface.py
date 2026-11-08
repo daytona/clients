@@ -490,8 +490,10 @@ def test_iterator_shape_streams_lazily(server: _Server, sync_client: Daytona) ->
 def test_property_shape_passes_data_through(server: _Server, sync_client: Daytona) -> None:
     server.routes[("GET", "/sandboxes/sb-1")] = _sandbox("sb-1")
     sandbox = sync_client.get("sb-1")
-    assert sandbox.toolbox_proxy_url == "http://toolbox.invalid/sandboxes/sb-1"
+    assert (sandbox.id, sandbox.region, sandbox.memory) == ("sb-1", "region-b", 1.0)
     assert sandbox.sandbox_class == "linux"
+    # The toolbox URL is a transport detail, not handle metadata.
+    assert not hasattr(sandbox, "toolbox_proxy_url")
 
 
 def test_sync_create_uses_the_create_response_toolbox_url_without_a_detail_fetch(

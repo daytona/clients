@@ -306,12 +306,17 @@ class Daytona:
             self._bridge.call(lambda: self._impl.find_by_name(name, region=region)), self._bridge, Sandbox
         )
 
-    def get(self, sandbox_id: str, *, toolbox_url: Optional[str] = None) -> Sandbox:
+    def get(
+        self, sandbox_id: str, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
+    ) -> Sandbox:
         """Fetch a sandbox by id."""
         from .sandbox import Sandbox
 
         return Sandbox(
-            self._bridge.call(lambda: self._impl.get(sandbox_id, toolbox_url=toolbox_url)), self._bridge
+            self._bridge.call(
+                lambda: self._impl.get(sandbox_id, toolbox_url=toolbox_url, access_token=access_token)
+            ),
+            self._bridge,
         )
 
     def get_limits(self, *, organization_id: Optional[str] = None) -> OrganizationLimits:
@@ -356,7 +361,7 @@ class Daytona:
         q: Optional[str] = None,
         name_prefix: Optional[str] = None,
         id_prefix: Optional[str] = None,
-        states: Optional[Union[SandboxState, Sequence[SandboxState]]] = None,
+        states: Optional[Union[SearchSandboxState, Sequence[SearchSandboxState]]] = None,
         sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None,
         region: Optional[Union[str, Sequence[str]]] = None,
         image_ref: Optional[str] = None,

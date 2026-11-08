@@ -14,6 +14,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Iterable,
     Iterator,
     List,
     Literal,
@@ -21,6 +22,7 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
+    Tuple,
     TypedDict,
     TypeGuard,
     TypeVar,
@@ -65,6 +67,12 @@ class TransferCancelSignal(Protocol):
     def is_set(self) -> bool: ...
 
 
+#: A sandbox CPU architecture.
+CpuArch = Literal["amd64", "arm64"]
+
+#: An image's build status; the API may add values, so any string can appear.
+ImageStatus = Union[Literal["pending", "building", "ready", "failed"], str]
+
 SandboxState = Literal[
     "queued",
     "creating",
@@ -78,6 +86,21 @@ SandboxState = Literal[
     "destroyed",
     "error",
     "unknown",
+]
+#: The sandbox states ``search(states=...)`` filters on: every
+#: :data:`SandboxState` except ``"unknown"``, which names no API status.
+SearchSandboxState = Literal[
+    "queued",
+    "creating",
+    "starting",
+    "started",
+    "pausing",
+    "paused",
+    "stopping",
+    "stopped",
+    "destroying",
+    "destroyed",
+    "error",
 ]
 SandboxWaitState = Literal[
     "queued",
@@ -284,38 +307,52 @@ class LifecyclePolicyOptions(TypedDict, total=False):
     on_idle_timeout: LifecycleAction
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ListResult(Generic[T]):
-    """Cursor-paginated list result.
-
-    ``total`` and ``total_relation`` are only populated
-    when the result came from search (``Daytona.list()`` with any
-    search filter); they are ``None`` on every other list surface.
+    """One page of a cursor-paginated list: ``items`` and the ``next_cursor``
+    to pass for the next page (``None`` on the last one). Immutable: ``items``
+    is a tuple (any iterable passed in is copied into one).
     """
 
-    items: List[T]
+    items: Tuple[T, ...]
     next_cursor: Optional[str] = None
-    total: Optional[int] = None
-    total_relation: Optional[SearchTotalRelation] = None
-    raw_total_relation: Optional[str] = None
+
+    def __init__(self, items: Iterable[T], next_cursor: Optional[str] = None) -> None:
+        object.__setattr__(self, "items", tuple(items))
+        object.__setattr__(self, "next_cursor", next_cursor)
 
     def __iter__(self) -> Iterator[T]:
         return iter(self.items)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class SearchResult(Generic[T]):
     """One page of ``GET /sandboxes/search`` (``Daytona.search()``).
 
     ``total`` is exact when ``total_relation == "eq"`` and a lower bound when it
-    is ``"gte"`` (exact counting is capped at 10 000).
+    is ``"gte"`` (exact counting is capped at 10 000). Immutable, like
+    :class:`ListResult`.
     """
 
-    items: List[T]
+    items: Tuple[T, ...]
     next_cursor: Optional[str] = None
     total: int = 0
     total_relation: SearchTotalRelation = "eq"
     raw_total_relation: str = "eq"
+
+    def __init__(
+        self,
+        items: Iterable[T],
+        next_cursor: Optional[str] = None,
+        total: int = 0,
+        total_relation: SearchTotalRelation = "eq",
+        raw_total_relation: str = "eq",
+    ) -> None:
+        object.__setattr__(self, "items", tuple(items))
+        object.__setattr__(self, "next_cursor", next_cursor)
+        object.__setattr__(self, "total", total)
+        object.__setattr__(self, "total_relation", total_relation)
+        object.__setattr__(self, "raw_total_relation", raw_total_relation)
 
     def __iter__(self) -> Iterator[T]:
         return iter(self.items)
@@ -549,13 +586,13 @@ class SandboxHandleJSON(TypedDict, total=False):
     imageBuildId: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ImageRef:
     id: str
     name: Optional[str] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SnapshotRef:
     id: str
     name: Optional[str] = None
@@ -574,8 +611,8 @@ class Volume:
     size_gib: Optional[int] = None
     error: Optional[str] = None
     last_used_at: Optional[datetime] = None
-    #: Type-specific settings as JSON (bucket settings and credential secret names).
-    options: Optional[JsonObject] = None
+    #: Type-specific settings as read-only JSON (bucket settings and credential secret names).
+    options: Optional[Mapping[str, JsonValue]] = None
     used_bytes: Optional[int] = None
     used_bytes_at: Optional[datetime] = None
 
@@ -819,25 +856,37 @@ class AuditActionList:
     targets: tuple[AuditActionGroup, ...]
 
 
-class RegistryImageSource(TypedDict):
-    type: Literal["registry"]
+@dataclass(frozen=True, kw_only=True, slots=True)
+class RegistryImageSource:
+    """An image imported from a registry reference."""
+
     ref: str
+    type: Literal["registry"] = "registry"
 
 
-class DockerfileImageSource(TypedDict):
-    type: Literal["dockerfile"]
+@dataclass(frozen=True, kw_only=True, slots=True)
+class DockerfileImageSource:
+    """An image built from a Dockerfile and its uploaded build context."""
+
     context_object: str
     dockerfile: str
+    type: Literal["dockerfile"] = "dockerfile"
 
 
-class NamedImageSource(TypedDict):
-    type: Literal["named"]
+@dataclass(frozen=True, kw_only=True, slots=True)
+class NamedImageSource:
+    """An image that names another image."""
+
     name: str
+    type: Literal["named"] = "named"
 
 
-class ManifestImageSource(TypedDict):
-    type: Literal["manifest"]
+@dataclass(frozen=True, kw_only=True, slots=True)
+class ManifestImageSource:
+    """An image described by a named manifest."""
+
     name: str
+    type: Literal["manifest"] = "manifest"
 
 
 ImageSource = Union[
@@ -854,7 +903,7 @@ class Image:
     name: Optional[str]
     # pending | building | ready | failed (open): the pipeline state of the
     # artifact at its current `format_version`.
-    status: str
+    status: ImageStatus
     region: str
     anonymous: bool
     retention: ArtifactRetention
@@ -1295,7 +1344,7 @@ class SandboxSearchFilters:
     """
 
     q: Optional[str] = None
-    states: Optional[Union[SandboxState, Sequence[SandboxState]]] = None
+    states: Optional[Union[SearchSandboxState, Sequence[SearchSandboxState]]] = None
     sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None
     region: Optional[Union[str, Sequence[str]]] = None
     image_ref: Optional[str] = None

@@ -262,7 +262,7 @@ class Sandbox:
 
     @property
     def access_token(self) -> Optional[str]:
-        """The sandbox access token this handle sends to sandbox services, when it holds one."""
+        """The sandbox-scoped bearer this handle currently authenticates with."""
         return self._impl.access_token
 
     @property
@@ -441,11 +441,6 @@ class Sandbox:
     def state(self) -> SandboxState:
         """The last observed state; ``"unknown"`` before any read and for a state this SDK does not know."""
         return self._impl.state
-
-    @property
-    def toolbox_proxy_url(self) -> Optional[str]:
-        """The sandbox-scoped toolbox URL this handle sends sandbox requests to."""
-        return self._impl.toolbox_proxy_url
 
     @property
     def user(self) -> Optional[str]:

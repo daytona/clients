@@ -146,7 +146,8 @@ describe('sandbox search states', () => {
     // Given
     const client = clientAt('http://api.invalid')
     // When
-    const pending = client.v2.search({ states })
+    // SAFETY: Exercise invalid JavaScript input, including the excluded unknown state.
+    const pending = client.v2.search({ states: states as never })
     // Then
     await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     await client.close()

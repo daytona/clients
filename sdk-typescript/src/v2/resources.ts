@@ -6,8 +6,11 @@
 import { BadRequestError } from './errors/DaytonaError.js'
 
 export function gibToMib(gib: number, field: string): number {
+  if (typeof gib !== 'number' || !Number.isFinite(gib)) {
+    throw new BadRequestError(`${field} must be a GiB value that converts to a whole number of MiB`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
   const mib = gib * 1024
-  if (typeof gib !== 'number' || !Number.isFinite(mib) || !Number.isInteger(mib)) {
+  if (!Number.isFinite(mib) || !Number.isInteger(mib)) {
     throw new BadRequestError(`${field} must be a GiB value that converts to a whole number of MiB`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return mib

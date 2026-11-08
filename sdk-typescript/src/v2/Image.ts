@@ -6,9 +6,11 @@
 import type * as api from './gen/api-types.js'
 import { ImageRetention as IMAGE_RETENTIONS, SnapshotClass as SNAPSHOT_CLASSES, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
-import { DaytonaError } from './errors/DaytonaError.js'
+import { badRequest } from './options.js'
 import type { ArtifactRetention, CpuArch, ImageOrigin, ImageSource, ImageStatus, SnapshotClass, SnapshotKind } from './types.js'
 import type { ImageModel } from './imageModel.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 
 type BuilderSource =
   | { readonly type: 'registry'; readonly ref: string }
@@ -23,12 +25,12 @@ type BuilderStep =
   | { readonly type: 'entrypoint'; readonly args: readonly string[] }
 
 function assertText(value: string, label: string): string {
-  if (value.trim() === '') throw new DaytonaError(`${label} must be a non-empty string`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (typeof value !== 'string' || value.trim() === '') throw badRequest(`${label} must be a non-empty string`)
   return value
 }
 
 function assertTextList(values: readonly string[], label: string): readonly string[] {
-  if (values.length === 0) throw new DaytonaError(`${label} requires at least one value`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (values.length === 0) throw badRequest(`${label} requires at least one value`)
   values.forEach((value) => { assertText(value, label) })
   return values
 }
@@ -168,12 +170,8 @@ export class Image implements ImageModel {
   public readonly deprecated: boolean
   public readonly diskMib: number | null
 
-  /** @internal */
-  public static _create(image: api.ImageListItem): Image {
-    return new Image(image)
-  }
-
-  private constructor(image: api.ImageListItem) {
+  constructor(token: Internal, image: api.ImageListItem) {
+    assertInternal(token, 'Image')
     this.id = image.id
     this.name = image.name ?? null
     this.anonymous = image.anonymous
@@ -217,12 +215,8 @@ export class Snapshot {
   public readonly memoryBytes?: number
   public readonly sandboxId?: string
 
-  /** @internal */
-  public static _create(snapshot: api.Snapshot): Snapshot {
-    return new Snapshot(snapshot)
-  }
-
-  private constructor(snapshot: api.Snapshot) {
+  constructor(token: Internal, snapshot: api.Snapshot) {
+    assertInternal(token, 'Snapshot')
     this.id = snapshot.id
     this.name = snapshot.name
     this.rawSandboxClass = snapshot.class

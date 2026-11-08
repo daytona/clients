@@ -360,6 +360,9 @@ make asynchronous callback work cancellation-aware when needed.
   on Node 22 call `[Symbol.asyncDispose]()` yourself).
   `sandbox.toJSON()` returns a `SandboxHandleJSON` snapshot without credentials
   or URLs. Reconnect using `await daytona.v2.get(info.sandboxId)`.
+  The read-only `sandbox.accessToken` getter is the sandbox-scoped bearer the
+  handle currently authenticates with: from create, a caller override, or a
+  minted token. It is `undefined` until known and is never serialized.
   Sandbox metadata is read-only: use methods such as `setLabels()` to update it
   and `refreshData()` to reload it. Sandboxes expose `labels`, `cpu`, `cpuMax` (cores; 1 core =
   2 vCPUs; a macOS core is one Mac CPU), `memory`,
@@ -481,7 +484,11 @@ volumes, secrets or network policy options.
 
 `images.get(id, { wait: 'ready', timeoutSeconds: 60 })` and
 `snapshots.get(id, { wait: 'ready', timeoutSeconds: 60 })` perform a bounded
-readiness wait. `sandbox.captureImage({ name, idleExpirySeconds })` captures an
+readiness wait in seconds, repeating holds of at most 60 seconds until ready,
+failed, or out of budget, then returning the last observed artifact. An early
+non-terminal response pauses up to one second before retrying. Omitted or zero
+`timeoutSeconds` sends one hold using the server's default.
+`sandbox.captureImage({ name, idleExpirySeconds })` captures an
 image from a sandbox.
 
 ### macOS sandboxes
@@ -770,8 +777,12 @@ Client methods accept a sandbox or its ID and the same options, for example
 which lifecycle actions the sandbox supports.
 
 `fork({ waitSeconds: 60 })` has its own wait budget; fractions are allowed
-and `0` skips waiting. Like create, fork returns its handle on wait timeout
-or terminal state. A running Linux source produces a running fork; otherwise
+and `0` skips waiting. Once their create or fork request succeeds, these calls
+return the handle however the readiness wait ends, including a failed wait
+read. Caller cancellation still propagates; a cancelled create may already
+have created a sandbox. A raised create means no sandbox was created, except
+when the POST times out (the error carries its idempotency key) or the caller
+cancels. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk and settle at `started` or `stopped`.
 

@@ -8,7 +8,7 @@ import { clientAt } from './helpers/client'
 import { startFakeApi } from './networkPolicyTestServer'
 
 describe('create wait error ownership', () => {
-  it.each(['create', 'createFromSnapshot', 'createMacos'] as const)('propagates a server 408 when %s is waiting', async (route) => {
+  it.each(['create', 'createFromSnapshot', 'createMacos'] as const)('returns the handle when %s encounters a server 408 while waiting', async (route) => {
     // Given an accepted create followed by a failed API read.
     const api = await startFakeApi([
       { status: 202, body: { id: 'sbx', status: 'pending', wait_cap_seconds: 0 } },
@@ -21,11 +21,31 @@ describe('create wait error ownership', () => {
         createFromSnapshot: () => client.v2.createFromSnapshot('snap_source'),
         createMacos: () => client.v2.createMacos('macos'),
       }
-      // When the request fails, rather than the SDK wait ending.
+      // When a wait read fails after successful submission.
+      const sandbox = await acquire[route]()
+      // Then acquisition succeeds with the last known state.
+      expect(sandbox).toMatchObject({ id: 'sbx', state: 'creating' })
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+
+  it.each(['create', 'createFromSnapshot', 'createMacos'] as const)('preserves a server 408 when the %s POST fails', async (route) => {
+    // Given a server-originated submission timeout.
+    const api = await startFakeApi([{ status: 408, body: { code: 'REQUEST_TIMEOUT', source: 'DAYTONA_API', message: 'server timeout' } }])
+    const client = clientAt(api.url)
+    try {
+      const acquire = {
+        create: () => client.v2.create(),
+        createFromSnapshot: () => client.v2.createFromSnapshot('snap_source'),
+        createMacos: () => client.v2.createMacos('macos'),
+      }
+      // When submission fails before a handle is available.
       const pending = acquire[route]()
-      // Then the request failure is not converted to a sandbox result.
+      // Then the server error is not reclassified as a client timeout.
       await expect(pending).rejects.toBeInstanceOf(RequestTimeoutError)
-      await expect(pending).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'DAYTONA_API' })
+      await expect(pending).rejects.toMatchObject({ source: 'DAYTONA_API', message: 'server timeout' })
     } finally {
       await client.close()
       await api.close()

@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ClientTimeoutError, ConnectionError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
-import { sandboxState } from './http.js'
+import { ClientTimeoutError, ConnectionError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, TransferCancelledError } from './errors/DaytonaError.js'
+import { sandboxState, sleep } from './http.js'
 import { eventDestinationFromHeaders } from './events.js'
 import { scopedProxyToolboxUrl } from './Sandbox.js'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import { isImageBuilder } from './Image.js'
 import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
-import { assertKnownOptions, optionalSeconds } from './options.js'
+import { assertKnownOptions, badRequest, optionalSeconds } from './options.js'
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS } from './clientOptionKeys.js'
 import { createRegion, createWaitSeconds, rejectV0Target } from './clientCreateOptions.js'
 import { createIdempotencyKey } from './clientCreateNames.js'
@@ -74,14 +74,14 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   try {
     return await sandbox.wait({ until: 'started', timeoutSeconds: remainingWait })
   } catch (error) {
-    if (error instanceof SandboxTerminalStateError || (error instanceof RequestTimeoutError && error.source === 'SDK')) return sandbox
+    if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return sandbox
     throw error
   }
 }
 
 /** @internal */
 export async function buildSandboxImage(images: ImagesService, builder: ImageBuilder, options: CreateFromBuildOptions): Promise<{ readonly image: Image; readonly createOptions: CreateSandboxOptions }> {
-  if (!isImageBuilder(builder)) throw new TypeError('createFromBuild expects an ImageBuilder')
+  if (!isImageBuilder(builder)) throw badRequest('createFromBuild expects an ImageBuilder')
   rejectV0Target(options)
   assertKnownOptions('CreateFromBuildOptions', options, BUILD_CREATE_KEYS, { timeout: 'buildTimeoutSeconds' })
   assertKnownOptions('Resources', options.resources, RESOURCES_KEYS)
@@ -90,22 +90,27 @@ export async function buildSandboxImage(images: ImagesService, builder: ImageBui
   createWaitSeconds(options.waitSeconds)
   const { buildTimeoutSeconds, idleExpirySeconds, ...createOptions } = options
   const budget = optionalSeconds('buildTimeoutSeconds', buildTimeoutSeconds)
-  const deadline = budget === undefined || budget === 0 ? undefined : Date.now() + Math.max(0, Math.ceil(budget * 1000))
   const image = await images.build(builder, { region, idleExpirySeconds, cpuArch: options.cpuArch })
-  const readyImage = await waitForBuiltImage(images, image.id, deadline)
+  const deadline = budget === undefined || budget === 0 ? undefined : Date.now() + Math.max(0, Math.ceil(budget * 1000))
+  const readyImage = await waitForBuiltImage(images, image, deadline)
   return { image: readyImage, createOptions }
 }
 
-async function waitForBuiltImage(images: ImagesService, imageId: string, deadline: number | undefined): Promise<Image> {
+async function waitForBuiltImage(images: ImagesService, initial: Image, deadline: number | undefined): Promise<Image> {
+  let image = initial
   for (;;) {
+    if (image.status === 'ready') return image
+    if (image.status === 'failed' || image.status === 'error') throw new ImageBuildFailedError(image.error ?? `image ${image.id} build failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
     const remainingTimeout = deadline === undefined ? 0 : (deadline - Date.now()) / 1000
     if (deadline !== undefined && remainingTimeout <= 0) {
       throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     }
     try {
-      const image = await images.get(imageId, { wait: 'ready', timeoutSeconds: remainingTimeout })
-      if (image.status === 'ready') return image
-      if (image.status === 'failed') throw new ImageBuildFailedError(image.error ?? `image ${image.id} build failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
+      const started = Date.now()
+      image = await images.get(image.id, { wait: 'ready', timeoutSeconds: remainingTimeout })
+      if (image.status === 'ready' || image.status === 'failed' || image.status === 'error') continue
+      const pause = Math.min(1000 - (Date.now() - started), deadline === undefined ? Infinity : deadline - Date.now())
+      if (pause > 0) await sleep(pause)
     } catch (error) {
       if (error instanceof DaytonaError && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && Date.now() >= deadline) {
         throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })

@@ -8,16 +8,19 @@ import { ImagesService } from '../src/v2/Images.js'
 import { SnapshotsService } from '../src/v2/Snapshots.js'
 import { BadRequestError } from '../src/v2/errors/DaytonaError.js'
 import { artifactApi, imageWire, snapshotWire } from './artifactFixtures.js'
+import { INTERNAL } from '../src/v2/internal'
 
 describe.each([
-  { name: 'image', create: () => { const fixture = artifactApi(imageWire()); return { ...fixture, service: ImagesService._create(fixture.http) } } },
-  { name: 'snapshot', create: () => { const fixture = artifactApi(snapshotWire()); return { ...fixture, service: SnapshotsService._create(fixture.http) } } },
+  { name: 'image', create: () => { const fixture = artifactApi(imageWire()); return { ...fixture, service: new ImagesService(INTERNAL, fixture.http) } } },
+  { name: 'snapshot', create: () => { const fixture = artifactApi(snapshotWire()); return { ...fixture, service: new SnapshotsService(INTERNAL, fixture.http) } } },
 ])('$name get options', ({ create }) => {
+  beforeEach(() => { jest.useFakeTimers() })
+  afterEach(() => { jest.useRealTimers() })
   it.each([
     { seconds: 0.0001, wire: 1, request: 5001 },
     { seconds: 1.25, wire: 1250, request: 6250 },
-    { seconds: 60, wire: 60000, request: 65000 },
-    { seconds: 86400, wire: 60000, request: 65000 },
+    { seconds: 60, wire: 4321, request: 9321 },
+    { seconds: 86400, wire: 4321, request: 9321 },
     { seconds: 0, wire: undefined, request: 0 },
     { seconds: undefined, wire: undefined, request: 0 },
   ])('converts $seconds seconds into a capped wire hold', async ({ seconds, wire, request }) => {
@@ -25,7 +28,8 @@ describe.each([
     const { service, requests } = create()
     // When waiting for readiness with a seconds-based budget.
     await service.get('artifact/one', { wait: 'ready', timeoutSeconds: seconds })
-    // Then the wire gets milliseconds and the transport outlives the server hold.
+    // Then the hold is the smallest of the budget, the request timeout and 60 s,
+    // and the read allows the hold plus network slack.
     expect(requests[0]).toMatchObject({ params: { wait: 'ready', timeout_ms: wire }, timeout: request })
     expect(requests[0]?.path).toContain('artifact%2Fone')
   })
@@ -65,7 +69,7 @@ it('maps every image list filter and returns only the requested page', async () 
   // Given a typed image page with a continuation cursor.
   const { http, requests } = artifactApi({ images: [imageWire()], next_cursor: 'next-image' })
   // When listing one filtered page.
-  const page = await ImagesService._create(http).list({ cursor: 'first', limit: 2, name: 'base', anonymous: false, sandboxId: 'sbx', platform: 'any' })
+  const page = await new ImagesService(INTERNAL, http).list({ cursor: 'first', limit: 2, name: 'base', anonymous: false, sandboxId: 'sbx', platform: 'any' })
   // Then filters use wire names without automatically following the cursor.
   expect(requests).toHaveLength(1)
   expect(requests[0]?.params).toEqual({ cursor: 'first', limit: 2, name: 'base', anonymous: false, sandbox_id: 'sbx', platform: 'any' })
@@ -76,7 +80,7 @@ it('maps every snapshot list filter and returns only the requested page', async 
   // Given a typed snapshot page with a continuation cursor.
   const { http, requests } = artifactApi({ snapshots: [snapshotWire()], next_cursor: 'next-snapshot' })
   // When listing one filtered page.
-  const page = await SnapshotsService._create(http).list({ cursor: 'first', limit: 2, name: 'saved', sandboxId: 'sbx' })
+  const page = await new SnapshotsService(INTERNAL, http).list({ cursor: 'first', limit: 2, name: 'saved', sandboxId: 'sbx' })
   // Then filters use wire names without automatically following the cursor.
   expect(requests).toHaveLength(1)
   expect(requests[0]?.params).toEqual({ cursor: 'first', limit: 2, name: 'saved', sandbox_id: 'sbx' })
@@ -94,7 +98,7 @@ it.each([
   // Given options containing a stale or misspelled key.
   const { http, requests } = artifactApi(imageWire())
   // When invoking the corresponding artifact operation.
-  const pending = run(ImagesService._create(http), SnapshotsService._create(http))
+  const pending = run(new ImagesService(INTERNAL, http), new SnapshotsService(INTERNAL, http))
   // Then malformed options never reach the network.
   await expect(pending).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
   expect(requests).toEqual([])

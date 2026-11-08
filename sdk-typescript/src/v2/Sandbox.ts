@@ -5,6 +5,8 @@
 
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { INTERNAL, assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import { followBuildLogs, readBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { FileSystemService } from './FileSystem.js'
@@ -27,14 +29,17 @@ import {
   assertLifecycleClassSupport,
   createHttpClient,
   HttpTransport,
+  boundedRequestTimeout,
+  sandboxState,
   type HttpClientOptions,
   lifecycleBody,
   parseSandboxLifecycle,
 } from './http.js'
-import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, SandboxTerminalStateError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
-import { assertKnownOptions, optionKeys, optionalSeconds, RENAMED_OPTIONS } from './options.js'
+import { assertIfMatchOptions, assertKnownOptions, badRequest, optionKeys, optionalSeconds, RENAMED_OPTIONS } from './options.js'
+import type { IfMatchOptions } from './options.js'
 import { isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
 import type { SandboxMetadata } from './sandboxMetadata.js'
 import { SandboxAuth, rfc3339EpochMs } from './sandboxAuth.js'
@@ -152,9 +157,8 @@ function assertPlaceholderInPath(url: string): void {
   const pathEnd = rest.startsWith('/') ? firstIndexOf(rest, ['?', '#'], 0) : 0
   const outsidePath = [authority, rest.slice(pathEnd)]
   if (outsidePath.some(hasSandboxIdPlaceholder)) {
-    throw new DaytonaError(
+    throw badRequest(
       'the {sandboxId} placeholder in a toolbox URL is only supported in the path (e.g. https://toolbox.example/{sandboxId}), not in the scheme, host, query or fragment',
-      { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' },
     )
   }
 }
@@ -218,7 +222,7 @@ function labelsBody(labels: unknown): Record<string, string> {
   const output = emptyStringMap()
   for (const [key, value] of Object.entries(labels)) {
     if (typeof value !== 'string') {
-      throw new DaytonaError('setLabels requires a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+      throw badRequest('setLabels requires a Record<string, string>')
     }
     output[key] = value
   }
@@ -277,6 +281,7 @@ export class Sandbox {
   private observed: SandboxMetadata
   private toolboxProxyUrlValue?: string
   private readonly auth: SandboxAuth
+  /** @internal */
   public get toolboxProxyUrl(): string | undefined { return this.toolboxProxyUrlValue }
   public get name(): string | undefined { return this.observed.name }
   public get image(): ImageRef | null { return this.observed.image ?? null }
@@ -316,9 +321,11 @@ export class Sandbox {
   /**
    * macOS only: the ID of the reservation selected for this sandbox.
    * Unset before a reservation is selected, and on search results
-   * (`search()`, a search-routed `list()`), which omit it; `refreshData()` reads it.
+   * (`search()`), which omit it; `refreshData()` reads it.
    */
   public get reservationId(): string | undefined { return this.observed.reservationId }
+  /** The sandbox-scoped bearer currently used: from create, a caller override, or minting.
+   * Undefined until known; never serialized. */
   public get accessToken(): string | undefined { return this.auth.accessToken }
   /**
    * Expiry of `accessToken` (RFC 3339), when known. Undefined for the
@@ -345,12 +352,8 @@ export class Sandbox {
   private lspNamespace?: LspService
   private _hub?: WaitHub
 
-  /** @internal */
-  public static _create(init: SandboxInit): Sandbox {
-    return new Sandbox(init)
-  }
-
-  private constructor(init: SandboxInit) {
+  constructor(token: Internal, init: SandboxInit) {
+    assertInternal(token, 'Sandbox')
     const { sandbox: sandboxOrId, api, apiKey, options = {}, hub } = init
     const sandbox = typeof sandboxOrId === 'string' || isSandboxInfo(sandboxOrId) ? undefined : sandboxOrId
     const info = typeof sandboxOrId === 'string' || !isSandboxInfo(sandboxOrId) ? undefined : sandboxOrId
@@ -431,12 +434,12 @@ export class Sandbox {
 
   /** Docker Engine status inside the sandbox; see {@link DockerService}. */
   public get docker(): DockerService {
-    this.dockerNamespace ??= DockerService._create(this.requireToolbox())
+    this.dockerNamespace ??= new DockerService(INTERNAL, this.requireToolbox())
     return this.dockerNamespace
   }
 
   public get ports(): PortsService {
-    this.portsNamespace ??= PortsService._create(this.toolboxTransport, this.api, this.id, (port) => this.auth.previewToken(port))
+    this.portsNamespace ??= new PortsService(INTERNAL, this.toolboxTransport, this.api, this.id, (port) => this.auth.previewToken(port))
     return this.portsNamespace
   }
 
@@ -451,7 +454,7 @@ export class Sandbox {
   }
 
   public get volumes(): SandboxVolumesService {
-    this.volumesNamespace ??= SandboxVolumesService._create(this.requireToolbox())
+    this.volumesNamespace ??= new SandboxVolumesService(INTERNAL, this.requireToolbox())
     return this.volumesNamespace
   }
 
@@ -511,9 +514,15 @@ export class Sandbox {
   private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState, requestDeadline?: number): Promise<void> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const waitValue = waitQueryState(wait)
-    const config = timeout === undefined
-      ? waitValue === undefined ? undefined : { timeout: WAIT_FOR_STATE_SLICE_MS + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: WAIT_FOR_STATE_SLICE_MS } }
-      : waitValue === undefined ? { timeout } : { timeout: timeout + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: timeout } }
+    // A long poll's hold ends by the smaller of its slice and the request
+    // timeout; its read allows the hold plus network slack. A plain read is
+    // an ordinary request, bounded by the smaller of its budget and the request timeout.
+    const rootTimeout = this.api.defaults.timeout
+    const rootMs = typeof rootTimeout === 'number' && rootTimeout > 0 ? rootTimeout : Infinity
+    const hold = waitValue === undefined ? undefined : Math.min(timeout ?? WAIT_FOR_STATE_SLICE_MS, rootMs)
+    const config = hold !== undefined
+      ? { timeout: hold + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: hold } }
+      : timeout === undefined ? undefined : { timeout: Math.min(timeout, rootMs) }
     const remaining = requestDeadline === undefined ? undefined : requestDeadline - Date.now()
     if (remaining !== undefined && remaining <= 0) {
       throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
@@ -556,7 +565,7 @@ export class Sandbox {
   }
 
   private requireToolbox(): HttpTransport {
-    if (!this.toolboxTransport) throw new DaytonaError('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    if (!this.toolboxTransport) throw badRequest('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)')
     return this.toolboxTransport
   }
 
@@ -742,9 +751,18 @@ export class Sandbox {
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
     // The fork's metadata comes from its detail; its toolbox from the fork
     // response, never the source's per-sandbox override.
-    const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(response.data.id)}`).then((r) => r.data)
-    const fork = Sandbox._create({
-      sandbox: { ...detail, toolbox_proxy_url: response.data.toolbox_proxy_url || detail.toolbox_proxy_url },
+    const deadline = waitSeconds > 0 ? Date.now() + waitSeconds * 1000 : undefined
+    const fork = new Sandbox(INTERNAL, {
+      sandbox: {
+        sandboxId: response.data.id,
+        rawState: response.data.status,
+        state: sandboxState(response.data.status),
+        // A fork has its source's class; it names its source.
+        sandboxClass,
+        rawSandboxClass: sandboxClass,
+        forkedFrom: response.data.forked_from ?? this.id,
+        toolboxProxyUrl: scopedProxyToolboxUrl(response.data.toolbox_proxy_url, response.data.id),
+      },
       api: this.api,
       apiKey: this.apiKey,
       options: { toolboxUrlFromApi: true, autoDelete: options.autoDelete ?? false },
@@ -753,14 +771,25 @@ export class Sandbox {
       hub: this._hub,
     })
     fork.learnEventDestination(eventDestinationFromHeaders(response.headers))
+    try {
+      const timeout = deadline === undefined ? undefined : boundedRequestTimeout(deadline, this.api.defaults.timeout)
+      if (deadline !== undefined && timeout === undefined) return fork
+      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(response.data.id)}`, timeout === undefined ? undefined : { timeout }).then((r) => r.data)
+      fork.observed = metadataFromSandbox(detail)
+      fork.refreshToolbox({ ...detail, toolbox_proxy_url: response.data.toolbox_proxy_url || detail.toolbox_proxy_url })
+    } catch (error) {
+      if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
+      throw error
+    }
     const states: readonly SandboxWaitState[] = sandboxClass === 'macos' ? ['started', 'stopped']
       : sourceState === 'started' ? ['started']
         : sourceState === 'paused' && options.memory !== false ? ['paused'] : ['stopped']
-    if (waitSeconds > 0 && !states.some((state) => state === fork.state)) {
+    const remainingSeconds = deadline === undefined ? 0 : (deadline - Date.now()) / 1000
+    if (remainingSeconds > 0 && !states.some((state) => state === fork.state)) {
       try {
-        await fork.waitForState(states, { timeoutSeconds: waitSeconds })
+        await fork.waitForState(states, { timeoutSeconds: remainingSeconds })
       } catch (error) {
-        if (!(error instanceof SandboxTerminalStateError) && !(error instanceof RequestTimeoutError && error.source === 'SDK')) throw error
+        if (!(error instanceof DaytonaError) || error instanceof TransferCancelledError) throw error
       }
     }
     return fork
@@ -788,8 +817,9 @@ export class Sandbox {
 
   public async updateNetworkPolicy(
     networkPolicy: NetworkPolicyInput,
-    options: { ifMatch: string },
+    options: IfMatchOptions,
   ): Promise<NetworkPolicyInfo> {
+    assertIfMatchOptions(options)
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api.put(
       `/sandboxes/${encodeURIComponent(this.id)}/network-policy`,
@@ -799,7 +829,8 @@ export class Sandbox {
     return parseNetworkPolicyResponse(response)
   }
 
-  public async resetNetworkPolicy(options: { ifMatch: string }): Promise<NetworkPolicyInfo> {
+  public async resetNetworkPolicy(options: IfMatchOptions): Promise<NetworkPolicyInfo> {
+    assertIfMatchOptions(options)
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api.put(`/sandboxes/${encodeURIComponent(this.id)}/network-policy`, 'null', {
       headers: { 'If-Match': options.ifMatch, 'Content-Type': 'application/json' },
@@ -825,7 +856,8 @@ export class Sandbox {
    * asynchronously: poll `getSecrets` until `status` is `applied`. Running processes keep their
    * environment; processes started afterwards see the new names.
    */
-  public async replaceSecrets(secrets: readonly string[], options: { ifMatch: string }): Promise<SandboxSecretsInfo> {
+  public async replaceSecrets(secrets: readonly string[], options: IfMatchOptions): Promise<SandboxSecretsInfo> {
+    assertIfMatchOptions(options)
     if (!this.api) throw createDaytonaError('API is not available for this rehydrated sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api.put(
       `/sandboxes/${encodeURIComponent(this.id)}/secrets`,
@@ -947,7 +979,7 @@ export class Sandbox {
       idle_expiry_seconds: options.idleExpirySeconds,
     } satisfies api.CreateImageCaptureRequest)
     const image = await this.api.get<api.ImageListItem>(`/images/${strictUriEncode(data.id)}`).then((response) => response.data)
-    return Image._create(image)
+    return new Image(INTERNAL, image)
   }
 
   public async createSnapshot(name: string): Promise<Snapshot> {
@@ -957,7 +989,7 @@ export class Sandbox {
     const encodedId = strictUriEncode(this.id)
     const response = await http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name })
     const snapshot = await http.get<api.Snapshot>(`/snapshots/${strictUriEncode(response.data.id)}`).then((result) => result.data)
-    return Snapshot._create(snapshot)
+    return new Snapshot(INTERNAL, snapshot)
   }
 
   /** Replace the sandbox's full label set. Pass `{}` to clear all labels; resolves to the applied labels. */

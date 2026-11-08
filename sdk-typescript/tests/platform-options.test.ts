@@ -13,28 +13,29 @@ import { MacModelsService } from '../src/v2/MacModels.js'
 import { PortsService } from '../src/v2/Ports.js'
 import { DockerService } from '../src/v2/Docker.js'
 import { SandboxVolumesService } from '../src/v2/SandboxVolumes.js'
+import { INTERNAL } from '../src/v2/internal'
 
 const extra = { futureOption: true }
 const cases: readonly { readonly name: string; readonly run: (http: AxiosInstance) => Promise<object | void> }[] = [
-  { name: 'volume get', run: (http) => VolumesService._create(http).get('volume', { ...extra, create: true }) },
-  { name: 'volume create', run: (http) => VolumesService._create(http).create({ ...extra, name: 'data' }) },
-  { name: 'volume delete', run: (http) => VolumesService._create(http).delete('volume', { ...extra, idOnly: true }) },
-  { name: 'volume list', run: (http) => VolumesService._create(http).list({ ...extra, limit: 1 }) },
-  { name: 'volume iter', run: (http) => VolumesService._create(http).iter({ ...extra, limit: 1 })[Symbol.asyncIterator]().next() },
-  { name: 'secret list', run: (http) => SecretsService._create(http).list({ ...extra, limit: 1 }) },
-  { name: 'secret iter', run: (http) => SecretsService._create(http).iter({ ...extra, limit: 1 })[Symbol.asyncIterator]().next() },
-  { name: 'secret set', run: (http) => SecretsService._create(http).set('TOKEN', 'value', { ...extra, allowedDomains: ['example.com'] }) },
-  { name: 'reservation create', run: (http) => ReservationsService._create(http).create({ ...extra, region: 'region-a' }) },
-  { name: 'reservation bulk create', run: (http) => ReservationsService._create(http).createBulk({ ...extra, region: 'region-a', count: 1 }) },
-  { name: 'reservation list', run: (http) => ReservationsService._create(http).list({ ...extra, limit: 1 }) },
-  { name: 'reservation iter', run: (http) => ReservationsService._create(http).iter({ ...extra, limit: 1 })[Symbol.asyncIterator]().next() },
-  { name: 'reservation renew', run: (http) => ReservationsService._create(http).renew('reservation', { ...extra, idempotencyKey: 'key' }) },
-  { name: 'reservation update', run: (http) => ReservationsService._create(http).update('reservation', { ...extra, autoRenew: false }) },
-  { name: 'Mac catalog', run: (http) => MacModelsService._create(http).catalog({ ...extra, region: 'region-a' }) },
-  { name: 'port expose', run: (http) => PortsService._create(undefined, http, 'sandbox').expose(8080, { ...extra, public: false }) },
-  { name: 'signed preview link', run: (http) => PortsService._create(undefined, http, 'sandbox').signedPreviewLink(8080, { ...extra, expiresInSeconds: 60 }) },
-  { name: 'endpoint list', run: (http) => PortsService._create(undefined, http, 'sandbox').listEndpoints({ ...extra, limit: 1 }) },
-  { name: 'endpoint iter', run: (http) => PortsService._create(undefined, http, 'sandbox').iterEndpoints({ ...extra, limit: 1 })[Symbol.asyncIterator]().next() },
+  { name: 'volume get', run: (http) => new VolumesService(INTERNAL, http).get('volume', { ...extra, create: true }) },
+  { name: 'volume create', run: (http) => new VolumesService(INTERNAL, http).create({ ...extra, name: 'data' }) },
+  { name: 'volume delete', run: (http) => new VolumesService(INTERNAL, http).delete('volume', { ...extra, idOnly: true }) },
+  { name: 'volume list', run: (http) => new VolumesService(INTERNAL, http).list({ ...extra, limit: 1 }) },
+  { name: 'volume iter', run: (http) => new VolumesService(INTERNAL, http).iter({ ...extra, limit: 1 })[Symbol.asyncIterator]().next() },
+  { name: 'secret list', run: (http) => new SecretsService(INTERNAL, http).list({ ...extra, limit: 1 }) },
+  { name: 'secret iter', run: (http) => new SecretsService(INTERNAL, http).iter({ ...extra, limit: 1 })[Symbol.asyncIterator]().next() },
+  { name: 'secret set', run: (http) => new SecretsService(INTERNAL, http).set('TOKEN', 'value', { ...extra, allowedDomains: ['example.com'] }) },
+  { name: 'reservation create', run: (http) => new ReservationsService(INTERNAL, http).create({ ...extra, region: 'region-a' }) },
+  { name: 'reservation bulk create', run: (http) => new ReservationsService(INTERNAL, http).createBulk({ ...extra, region: 'region-a', count: 1 }) },
+  { name: 'reservation list', run: (http) => new ReservationsService(INTERNAL, http).list({ ...extra, limit: 1 }) },
+  { name: 'reservation iter', run: (http) => new ReservationsService(INTERNAL, http).iter({ ...extra, limit: 1 })[Symbol.asyncIterator]().next() },
+  { name: 'reservation renew', run: (http) => new ReservationsService(INTERNAL, http).renew('reservation', { ...extra, idempotencyKey: 'key' }) },
+  { name: 'reservation update', run: (http) => new ReservationsService(INTERNAL, http).update('reservation', { ...extra, autoRenew: false }) },
+  { name: 'Mac catalog', run: (http) => new MacModelsService(INTERNAL, http).catalog({ ...extra, region: 'region-a' }) },
+  { name: 'port expose', run: (http) => new PortsService(INTERNAL, undefined, http, 'sandbox').expose(8080, { ...extra, public: false }) },
+  { name: 'signed preview link', run: (http) => new PortsService(INTERNAL, undefined, http, 'sandbox').signedPreviewLink(8080, { ...extra, expiresInSeconds: 60 }) },
+  { name: 'endpoint list', run: (http) => new PortsService(INTERNAL, undefined, http, 'sandbox').listEndpoints({ ...extra, limit: 1 }) },
+  { name: 'endpoint iter', run: (http) => new PortsService(INTERNAL, undefined, http, 'sandbox').iterEndpoints({ ...extra, limit: 1 })[Symbol.asyncIterator]().next() },
 ]
 
 describe('platform option validation', () => {
@@ -54,8 +55,8 @@ describe('platform option validation', () => {
   })
 
   it.each([
-    ['Docker wait', (transport: HttpTransport) => DockerService._create(transport).waitUntilReady({ ...extra, timeoutSeconds: 1 })],
-    ['volume pull', (transport: HttpTransport) => SandboxVolumesService._create(transport).pull('volume', { ...extra, requestId: 'request' })],
+    ['Docker wait', (transport: HttpTransport) => new DockerService(INTERNAL, transport).waitUntilReady({ ...extra, timeoutSeconds: 1 })],
+    ['volume pull', (transport: HttpTransport) => new SandboxVolumesService(INTERNAL, transport).pull('volume', { ...extra, requestId: 'request' })],
   ] as const)('rejects unknown keys before HTTP when calling %s', async (_name, run) => {
     // Given
     let requests = 0
@@ -72,8 +73,8 @@ describe('platform option validation', () => {
   })
 
   it.each([
-    ['Docker wait', (transport: HttpTransport) => DockerService._create(transport).waitUntilReady({ ...{ timeout: 1000 }, timeoutSeconds: 1 })],
-    ['volume pull', (transport: HttpTransport) => SandboxVolumesService._create(transport).pull('volume', { requestId: 'request', ...{ timeout: 1000 } })],
+    ['Docker wait', (transport: HttpTransport) => new DockerService(INTERNAL, transport).waitUntilReady({ ...{ timeout: 1000 }, timeoutSeconds: 1 })],
+    ['volume pull', (transport: HttpTransport) => new SandboxVolumesService(INTERNAL, transport).pull('volume', { requestId: 'request', ...{ timeout: 1000 } })],
   ] as const)('provides the seconds rename hint when %s receives the old timeout key', async (_name, run) => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')

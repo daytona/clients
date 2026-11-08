@@ -82,12 +82,15 @@ class ImagePull:
 
     async def _send(self, spec: RequestSpec, deadline: float | None) -> TransportPayload:
         remaining = self._remaining(deadline)
+        # Every request stays within the smaller of its own bound and the
+        # remaining pull budget. An ordinary request (the submission, the
+        # first read) keeps the client's total request timeout while that is
+        # the smaller one; the enclosing cancel scope also cuts at the deadline.
         request_timeout = spec.timeout
         if remaining is not None:
-            configured_timeout = (
-                spec.timeout if spec.timeout is not None else self.transport.request_timeout_seconds
-            )
-            request_timeout = min(remaining, configured_timeout) if configured_timeout > 0 else remaining
+            own = spec.timeout if spec.timeout is not None else self.transport.request_timeout_seconds
+            if spec.timeout is not None or own <= 0 or remaining < own:
+                request_timeout = min(remaining, own) if own > 0 else remaining
         payload = await self.transport.send(replace(spec, timeout=request_timeout))
         self._remaining(deadline)
         return payload

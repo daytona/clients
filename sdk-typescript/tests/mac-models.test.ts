@@ -5,6 +5,7 @@
 
 import axios from 'axios'
 import { MacModelsService } from '../src/v2/MacModels.js'
+import { INTERNAL } from '../src/v2/internal'
 
 const model = { id: 'm4', name: 'Mac M4', cores: 10, memory_mib: 16384, disk_mib: 245760,
   sandbox_disk_mib: 204800, max_sandboxes: 2, default_size: { cores: 5, memory_mib: 8192, disk_mib: 102400 } }
@@ -17,7 +18,7 @@ describe('Mac model registry', () => {
     const http = axios.create({ adapter: async (config) => ({ config, status: 200, statusText: 'OK', headers: {},
       data: { mac_models: [{ ...model, future_model_field: true }] } }) })
     // When
-    const result = await MacModelsService._create(http).list()
+    const result = await new MacModelsService(INTERNAL, http).list()
     // Then
     expect(result).toEqual([expected])
   })
@@ -35,7 +36,7 @@ describe('Mac model registry', () => {
       } }
     } })
     // When
-    const result = await MacModelsService._create(http).catalog({ region: 'region-a' })
+    const result = await new MacModelsService(INTERNAL, http).catalog({ region: 'region-a' })
     // Then
     expect(params).toEqual([{ region_ids: 'region-a' }])
     expect(result).toEqual({ regions: [{ id: 'region-a', defaultModel: 'm4', models: [

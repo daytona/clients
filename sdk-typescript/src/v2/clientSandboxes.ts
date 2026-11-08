@@ -9,8 +9,7 @@ import type * as api from './gen/api-types.js'
 import { SearchTotalRelation as SEARCH_TOTAL_RELATIONS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { strictUriEncode } from './http.js'
-import { DaytonaError } from './errors/DaytonaError.js'
-import { assertKnownOptions } from './options.js'
+import { assertKnownOptions, badRequest } from './options.js'
 import { CONNECT_KEYS, FIND_KEYS, LIST_KEYS, SEARCH_KEYS } from './clientOptionKeys.js'
 import { createRegion, hasText, rejectV0Target } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
@@ -53,7 +52,7 @@ async function sandboxesFromDtos(context: SandboxClientContext, items: readonly 
 export async function getSandbox(context: SandboxClientContext, id: string, options: SandboxConnectOptions): Promise<Sandbox> {
   assertKnownOptions('SandboxConnectOptions', options, CONNECT_KEYS)
   const sandbox = await context.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(id)}`, undefined).then((response) => response.data)
-  return sandboxFromDto(context, sandbox, options)
+  return context.buildSandbox(sandbox, options)
 }
 
 /** @internal */
@@ -86,7 +85,7 @@ export async function searchSandboxes(context: SandboxClientContext, options: Se
 export async function findSandboxesByName(context: SandboxClientContext, name: string, options: FindByNameOptions): Promise<Sandbox[]> {
   rejectV0Target(options)
   assertKnownOptions('FindByNameOptions', options, FIND_KEYS)
-  if (typeof name !== 'string' || name.trim() === '') throw new DaytonaError('name must be a non-blank string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  if (typeof name !== 'string' || name.trim() === '') throw badRequest('name must be a non-blank string')
   const region = createRegion(options)
   const found: Sandbox[] = []
   const seen = new Set<string>()

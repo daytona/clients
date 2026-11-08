@@ -6,11 +6,10 @@
 import type * as api from './gen/api-types.js'
 import type { CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions } from './types.js'
 import { assertLifecycleClassSupport, lifecycleBody } from './http.js'
-import { assertKnownOptions } from './options.js'
+import { assertKnownOptions, badRequest } from './options.js'
 import { assertCreateNestedOptions, CREATE_KEYS, SNAPSHOT_CREATE_KEYS, MACOS_CREATE_KEYS, RESOURCES_KEYS, MACOS_RESOURCES_KEYS } from './clientOptionKeys.js'
 import { createRegion, rejectV0Target, createWaitSeconds, createTimeoutSeconds, gibToMib, imageSourceString, linuxCreateArguments, macosCores, macosMib, resolveIdempotencyKey, snapshotSourceString } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
-import { DaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
 
 // `image` is optional: an imageless Linux create boots the platform default.
@@ -103,9 +102,9 @@ export function macosCreateRequest(image: string, options: CreateMacosSandboxOpt
   assertKnownOptions('CreateMacosSandboxOptions', options, MACOS_CREATE_KEYS)
   assertKnownOptions('MacosResources', options.resources, MACOS_RESOURCES_KEYS)
   assertCreateNestedOptions(options)
-  const source = imageSourceString(image)
+  const source = imageSourceString(image, 'createMacos')
   if (options.autoRenew !== undefined && options.reservation !== 'new') {
-    throw new DaytonaError('macos create takes autoRenew only with reservation: "new"', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw badRequest('macos create takes autoRenew only with reservation: "new"')
   }
   const cores = macosCores(options.resources?.cpu)
   const memoryMib = macosMib(options.resources?.memory, 'memory', 4096)

@@ -5,6 +5,7 @@
 
 import { createServer, type Server } from 'node:http'
 import { VolumesService } from '../src/v2/Volume.js'
+import { INTERNAL } from '../src/v2/internal'
 import { createHttpClient } from '../src/v2/http.js'
 import { NotFoundError } from '../src/v2/errors/DaytonaError.js'
 
@@ -36,7 +37,7 @@ describe('platform volumes', () => {
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('missing TCP listener')
-    service = VolumesService._create(createHttpClient(`http://127.0.0.1:${address.port}`, 'key'))
+    service = new VolumesService(INTERNAL, createHttpClient(`http://127.0.0.1:${address.port}`, 'key'))
   })
 
   afterEach(async () => {

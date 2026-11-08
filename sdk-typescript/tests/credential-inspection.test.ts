@@ -13,6 +13,7 @@ import { createServer } from 'node:http'
 import axios from 'axios'
 import type { AxiosInstance } from 'axios'
 import { ImagesService } from '../src/v2/Images'
+import { INTERNAL } from '../src/v2/internal'
 import { SnapshotsService } from '../src/v2/Snapshots'
 import { ReservationsService } from '../src/v2/Reservations'
 import { MacModelsService } from '../src/v2/MacModels'
@@ -25,13 +26,13 @@ const ACCESS_TOKEN = 'dtnv_inspection_sandbox_secret'
 const JWT = 'eyJ.inspection_jwt_secret.signature'
 
 const customNamespaces: readonly { readonly name: string; readonly create: (api: AxiosInstance) => object }[] = [
-  { name: 'images', create: (api) => ImagesService._create(api) },
-  { name: 'images with retained config', create: (api) => ImagesService._create(api, { apiKey: API_KEY }) },
-  { name: 'snapshots', create: (api) => SnapshotsService._create(api) },
-  { name: 'reservations', create: (api) => ReservationsService._create(api) },
-  { name: 'Mac models', create: (api) => MacModelsService._create(api) },
-  { name: 'secrets', create: (api) => SecretsService._create(api) },
-  { name: 'ports', create: (api) => PortsService._create(undefined, api, 'sandbox') },
+  { name: 'images', create: (api) => new ImagesService(INTERNAL, api) },
+  { name: 'images with retained config', create: (api) => new ImagesService(INTERNAL, api, { apiKey: API_KEY }) },
+  { name: 'snapshots', create: (api) => new SnapshotsService(INTERNAL, api) },
+  { name: 'reservations', create: (api) => new ReservationsService(INTERNAL, api) },
+  { name: 'Mac models', create: (api) => new MacModelsService(INTERNAL, api) },
+  { name: 'secrets', create: (api) => new SecretsService(INTERNAL, api) },
+  { name: 'ports', create: (api) => new PortsService(INTERNAL, undefined, api, 'sandbox') },
   { name: 'sandbox ports', create: (api) => createSandbox('sandbox', api, undefined, API_KEY).ports },
   { name: 'event hub', create: (api) => new WaitHub('https://api.invalid', API_KEY, {}, () => { throw new Error('unexpected socket') }, api) },
 ]
@@ -82,7 +83,7 @@ describe('credential-safe diagnostics', () => {
     const api = createHttpClient('https://api.invalid', API_KEY)
     const apiConfig = { apiKey: API_KEY, httpOptions: { authProvider: { token: ACCESS_TOKEN, authorizationHeader: async () => `Bearer ${ACCESS_TOKEN}` } } }
     // When
-    const images = ImagesService._create(api, apiConfig)
+    const images = new ImagesService(INTERNAL, api, apiConfig)
     // Then
     expectSafe(images)
     expect(apiConfig.apiKey).toBe(API_KEY)

@@ -30,8 +30,12 @@ image or snapshot will succeed without a conflict. Callers must still handle
 
 ### Create, fork and public metadata
 
-Create and fork return their handle when a readiness wait times out or reaches
-a terminal state; only request failures throw. Create uses whole-second
+After a create or fork POST succeeds, the call returns its handle however the
+readiness wait ends, including any `DaytonaError` from a wait read. Non-SDK
+errors and caller cancellation propagate; a cancelled create may already have
+created a sandbox. A raised create means no sandbox was created, except a
+POST timeout (which carries the idempotency key) or caller cancellation.
+Create uses whole-second
 `waitSeconds`; fork permits fractions and uses `0` to skip waiting. Linux
 forks refresh the source before submission when waiting: running sources wait
 for `started`, paused sources retaining memory wait for `paused`, and other
@@ -41,14 +45,25 @@ sources wait for `stopped`. macOS forks wait for `started` or `stopped`.
 `buildTimeoutSeconds` budget (omitted or `0` is unbounded), then creates with
 the caller's full `waitSeconds`. Build failure throws `ImageBuildFailedError`
 with `imageId` and `buildError`; build timeout throws `RequestTimeoutError`.
+Build submission and its initial lookup are ordinary requests; the build wait
+budget begins afterwards. Every wait read is bounded by the smaller of the
+request timeout and remaining wait budget. Positive artifact-get budgets
+repeat holds capped at 60 seconds and pause up to one second after an early
+non-terminal response; omitted or zero budgets send one default hold.
 
 All create sizing lives in `resources`. GiB values must convert to whole MiB
 without rounding, and sandbox readback divides MiB by 1024 exactly. Public
-models use readonly camelCase fields and SDK-owned types. Public constructors
-for handles and services are private; internal `_create` factories are stripped
-from declarations. `SandboxHandleJSON` includes known metadata but no URLs or
+models use readonly camelCase fields and SDK-owned types. Construction of
+`Sandbox`, `Image`, `Snapshot`, `ImagesService`, `SnapshotsService`,
+`VolumesService`, `SecretsService`, `ReservationsService`, `MacModelsService`,
+`PortsService`, `DockerService` and `SandboxVolumesService` requires the
+package-internal construction token. This does not describe toolbox classes
+such as `Session` or `ProcessService`. `SandboxHandleJSON` includes known metadata but no URLs or
 credentials; callers reconnect with `get(info.sandboxId)`. `autoDelete` defaults
 to false on every acquisition route, including `get()` and `fork()`.
+The read-only `accessToken` getter exposes the sandbox-scoped bearer currently
+used by the handle (create response, caller override, or minted token), is
+`undefined` until known, and is never serialized. The toolbox URL is internal.
 
 `list()` / `iter()` accept only cursor and limit. `search()` carries filters,
 including public `states`, which map to the API's status vocabulary at the

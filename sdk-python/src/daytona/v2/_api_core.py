@@ -212,7 +212,7 @@ def expect_mac_catalog(value: TransportPayload) -> MacCatalog:
 def _timestamp(value: object) -> datetime:
     parsed = parse_timestamp(value)
     if parsed is None:
-        raise create_error("API returned an invalid timestamp", 500, None, "SDK")
+        raise create_error("API returned an invalid timestamp", 400, "BAD_REQUEST", "SDK")
     return parsed
 
 

@@ -16,10 +16,12 @@
 
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { ListResult } from './types.js'
 import { strictUriEncode } from './http.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 
 /** Secret metadata (never the value). */
 export interface Secret {
@@ -60,13 +62,9 @@ function mapSecret(secret: api.Secret): Secret {
 
 /** Service for managing project-scoped secrets. */
 export class SecretsService {
-  private constructor(private readonly api: AxiosInstance) {
+  constructor(token: Internal, private readonly api: AxiosInstance) {
+    assertInternal(token, 'SecretsService')
     credentialSafeDiagnostics(this, () => ({ type: 'SecretsService' }))
-  }
-
-  /** @internal */
-  static _create(api: AxiosInstance): SecretsService {
-    return new SecretsService(api)
   }
 
   /** Lists secret metadata for the project (never values). */
@@ -99,6 +97,9 @@ export class SecretsService {
   /** Creates or updates a secret's value + metadata. */
   public async set(name: string, value: string, options: SetSecretOptions): Promise<Secret> {
     assertKnownOptions('SetSecretOptions', options, SET_SECRET_KEYS)
+    if (!Array.isArray(options?.allowedDomains) || options.allowedDomains.some((domain) => typeof domain !== 'string')) {
+      throw badRequest('allowedDomains must be an array of strings')
+    }
     const body: api.PutSecretRequest = { value, allowed_domains: [...options.allowedDomains] }
     if (options.description !== undefined) body.description = options.description
     const config = options.ifNotExists ? { headers: { 'If-None-Match': '*' } } : undefined

@@ -3,21 +3,26 @@
 
 from __future__ import annotations
 
+import math
 import uuid
+from types import MappingProxyType
 from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
     Dict,
-    List,
     Literal,
     Mapping,
     Optional,
     Sequence,
+    Tuple,
     TypeVar,
 )
 from urllib.parse import quote
 
+import anyio
+
+from . import _clock
 from ._api_core import (
     expect_create_image_resp,
     expect_images_page,
@@ -49,9 +54,10 @@ from ._gen.api import Volume as VolumeWire
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
-from .errors import NotFoundError, create_error
+from .errors import ClientTimeoutError, NotFoundError, create_error
 from .image import ImageBuilder
 from .types import (
+    CpuArch,
     CreateReservationRequest,
     CreateReservationsBulkRequest,
     Image,
@@ -139,8 +145,7 @@ class AsyncImagesService:
         name: Optional[str] = None,
         idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
-        cpu_arch: Optional[str] = None,
-        timeout: Optional[float] = None,
+        cpu_arch: Optional[CpuArch] = None,
     ) -> Image:
         """Build (or import) an image from an :class:`ImageBuilder` declaration.
 
@@ -151,7 +156,9 @@ class AsyncImagesService:
         omitted makes the image anonymous; ``idle_expiry_seconds`` is then its
         idle-retention window — deleted once that long has passed without a
         sandbox being created from it (every create restarts the clock);
-        omitted ⇒ the maximum retention supported by the API.
+        omitted ⇒ the maximum retention supported by the API. The submission
+        is an ordinary request, bounded by the client's request timeout; it
+        returns without waiting for the build (``get(image.id, wait="ready")``).
         """
         if not isinstance(builder, ImageBuilder):
             raise TypeError(
@@ -174,15 +181,7 @@ class AsyncImagesService:
         if rendered_dockerfile is not None:
             body["dockerfile"] = rendered_dockerfile
         created = expect_create_image_resp(
-            await self._transport.send(
-                RequestSpec(
-                    "POST",
-                    "/images",
-                    json_body=body,
-                    timeout=timeout or None,
-                    unbounded_read=timeout in (None, 0),
-                )
-            )
+            await self._transport.send(RequestSpec("POST", "/images", json_body=body))
         )
         return await self.get(created.id)
 
@@ -191,24 +190,32 @@ class AsyncImagesService:
         image: str,
         *,
         name: Optional[str] = None,
+        idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
+        cpu_arch: Optional[CpuArch] = None,
         wait: bool = True,
         timeout: Optional[float] = None,
     ) -> Image:
         """Import a registry image, waiting until ready unless ``wait=False``.
 
-        ``timeout`` is the submission and readiness budget in seconds; omitted
-        or zero waits without a deadline. A failed import raises
+        Takes the same image options as :meth:`build`. ``timeout`` is the
+        total pull budget in seconds (submission and readiness); omitted or
+        zero waits without a deadline. The submission is also bounded by the
+        client's request timeout. A failed import raises
         :class:`ImageBuildFailedError` with the server's recorded error.
         """
         source, _ = ImageBuilder.from_registry(image)._request_source()
         body: JsonObject = {"source": source}
         if name is not None:
             body["name"] = name
+        if idle_expiry_seconds is not None:
+            body["idle_expiry_seconds"] = idle_expiry_seconds
         if region is not None:
             body["region_id"] = region
+        if cpu_arch is not None:
+            body["cpu_arch"] = cpu_arch
         return await ImagePull(self._transport, timeout).run(
-            RequestSpec("POST", "/images", json_body=body, unbounded_read=timeout in (None, 0)), wait=wait
+            RequestSpec("POST", "/images", json_body=body), wait=wait
         )
 
     async def get(
@@ -218,24 +225,21 @@ class AsyncImagesService:
         wait: Literal["ready"] | None = None,
         timeout: Optional[float] = None,
     ) -> Image:
-        params: Dict[str, JsonValue] = {}
-        millis = timeout_millis_from_seconds(timeout) if wait is not None else None
-        if millis:
-            millis = min(millis, _ARTIFACT_LONGPOLL_MAX_MS)
-        if wait is not None:
-            params["wait"] = wait
-            if millis:
-                params["timeout_ms"] = millis
-        response = await self._transport.send(
-            RequestSpec(
-                "GET",
-                f"/images/{_path(image_id)}",
-                params=params,
-                timeout=(millis / 1000 + 5) if millis else None,
-                unbounded_read=wait is not None and not millis,
-            )
+        """Fetch an image; ``wait="ready"`` waits for it to finish building.
+
+        With a positive ``timeout`` (seconds) the wait repeats the server's
+        long poll (each at most 60 s) until the image is ``ready``, ``failed``
+        or ``error``, or the budget is spent, then returns the image as last
+        observed. Without one, a single long poll uses the server's default.
+        """
+        return await _get_artifact(
+            self._transport,
+            f"/images/{_path(image_id)}",
+            wait,
+            timeout,
+            parse_image,
+            lambda image: image.status,
         )
-        return parse_image(response)
 
     async def promote(self, image_id: str, name: str) -> Image:
         """Name an ANONYMOUS image, making it permanent (``PATCH /images/{id}``).
@@ -310,6 +314,66 @@ class AsyncImagesService:
 
 
 _ARTIFACT_LONGPOLL_MAX_MS = 60_000
+#: A long poll that answers sooner than this without a settled status is
+#: followed by a pause, so a server that does not hold is not polled in a loop.
+_ARTIFACT_MIN_POLL_INTERVAL_S = 1.0
+_ARTIFACT_SETTLED_STATUSES = frozenset({"ready", "failed", "error"})
+_ARTIFACT_HOLD_READ_SLACK_S = 5.0
+
+_Artifact = TypeVar("_Artifact")
+
+
+async def _get_artifact(
+    transport: AsyncTransport,
+    path: str,
+    wait: Optional[Literal["ready"]],
+    timeout: Optional[float],
+    parse: Callable[[TransportPayload], _Artifact],
+    status_of: Callable[[_Artifact], str],
+) -> _Artifact:
+    budget_ms = timeout_millis_from_seconds(timeout) if wait is not None else None
+    if wait is None:
+        return parse(await transport.send(RequestSpec("GET", path)))
+    if not budget_ms:
+        return parse(
+            await transport.send(RequestSpec("GET", path, params={"wait": wait}, unbounded_read=True))
+        )
+    deadline = _clock.monotonic() + budget_ms / 1000
+    root = transport.request_timeout_seconds
+    root_ms = math.ceil(root * 1000) if root > 0 else _ARTIFACT_LONGPOLL_MAX_MS
+    last: Optional[_Artifact] = None
+    while True:
+        # Each hold ends by the smallest of the remaining budget, the request
+        # timeout and the server's 60 s cap; the read adds network slack.
+        hold_ms = max(
+            1, min(_ARTIFACT_LONGPOLL_MAX_MS, root_ms, math.ceil((deadline - _clock.monotonic()) * 1000))
+        )
+        started = _clock.monotonic()
+        try:
+            artifact = parse(
+                await transport.send(
+                    RequestSpec(
+                        "GET",
+                        path,
+                        params={"wait": wait, "timeout_ms": hold_ms},
+                        timeout=hold_ms / 1000 + _ARTIFACT_HOLD_READ_SLACK_S,
+                    )
+                )
+            )
+        except ClientTimeoutError:
+            if last is not None and _clock.monotonic() >= deadline:
+                return last
+            raise
+        last = artifact
+        if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES or _clock.monotonic() >= deadline:
+            return artifact
+        elapsed = _clock.monotonic() - started
+        if elapsed < _ARTIFACT_MIN_POLL_INTERVAL_S:
+            await anyio.sleep(
+                min(_ARTIFACT_MIN_POLL_INTERVAL_S - elapsed, max(0.0, deadline - _clock.monotonic()))
+            )
+        if _clock.monotonic() >= deadline:
+            return artifact
 
 
 class AsyncSnapshotsService:
@@ -365,24 +429,15 @@ class AsyncSnapshotsService:
         wait: Optional[Literal["ready"]] = None,
         timeout: Optional[float] = None,
     ) -> Snapshot:
-        params: Dict[str, JsonValue] = {}
-        millis = timeout_millis_from_seconds(timeout) if wait is not None else None
-        if millis:
-            millis = min(millis, _ARTIFACT_LONGPOLL_MAX_MS)
-        if wait is not None:
-            params["wait"] = wait
-            if millis:
-                params["timeout_ms"] = millis
-        response = await self._transport.send(
-            RequestSpec(
-                "GET",
-                f"/snapshots/{_path(snapshot_id)}",
-                params=params,
-                timeout=(millis / 1000 + 5) if millis else None,
-                unbounded_read=wait is not None and not millis,
-            )
+        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`AsyncImagesService.get` does."""
+        return await _get_artifact(
+            self._transport,
+            f"/snapshots/{_path(snapshot_id)}",
+            wait,
+            timeout,
+            lambda payload: parse_snapshot(expect_snapshot(payload)),
+            lambda snapshot: snapshot.status,
         )
-        return parse_snapshot(expect_snapshot(response))
 
     async def delete(self, snapshot_id: str) -> None:
         """Delete a snapshot (409 while sandboxes still depend on it)."""
@@ -452,6 +507,10 @@ class AsyncVolumesService:
 
     async def create(self, *, name: str, size_gib: Optional[int] = None) -> Volume:
         """Create a disk volume (ready immediately); ``size_gib`` omitted uses the server default."""
+        if size_gib is not None and (
+            isinstance(size_gib, bool) or not isinstance(size_gib, int) or size_gib <= 0
+        ):
+            raise create_error("size_gib must be a positive integer number of GiB", 400, "BAD_REQUEST", "SDK")
         body: JsonObject = {"name": name, "type": "disk"}
         if size_gib is not None:
             body["size_gib"] = size_gib
@@ -668,7 +727,9 @@ def _volume(value: VolumeWire) -> Volume:
         size_gib=value.size_gib,
         error=value.error,
         last_used_at=value.last_used_at,
-        options=json_object_from_mapping(value.options) if value.options is not None else None,
+        options=MappingProxyType(json_object_from_mapping(value.options))
+        if value.options is not None
+        else None,
         used_bytes=value.used_bytes,
         used_bytes_at=value.used_bytes_at,
     )
@@ -724,9 +785,9 @@ class AsyncMacModelsService:
     def __init__(self, _transport: AsyncTransport) -> None:
         self._transport = _transport
 
-    async def list(self) -> List[MacModel]:
+    async def list(self) -> Tuple[MacModel, ...]:
         """Every registered Mac model, ordered by ``id``."""
-        return expect_mac_models(await self._transport.send(RequestSpec("GET", "/mac-models")))
+        return tuple(expect_mac_models(await self._transport.send(RequestSpec("GET", "/mac-models"))))
 
     async def catalog(self, *, region: Optional[str] = None) -> MacCatalog:
         """Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; price is null when pricing is unavailable."""
@@ -787,6 +848,8 @@ class AsyncSecretsService:
         ``"*"`` lets the value reach any HTTPS host, including one a
         compromised sandbox controls.
         """
+        if isinstance(allowed_domains, str) or not all(isinstance(domain, str) for domain in allowed_domains):
+            raise create_error("allowed_domains must be a list of strings", 400, "BAD_REQUEST", "SDK")
         body: JsonObject = {"value": value, "allowed_domains": list(allowed_domains)}
         if description is not None:
             body["description"] = description

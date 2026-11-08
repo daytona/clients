@@ -10,7 +10,7 @@ from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse, json_body
 from test_core import _image_page_payload, _sandbox_detail_payload
 
-from daytona.v2 import ImageBuilder, InternalServerError
+from daytona.v2 import BadRequestError, ImageBuilder
 from daytona.v2.daytona import AsyncDaytona
 from daytona.v2.types import DaytonaConfig
 
@@ -270,7 +270,7 @@ async def test_network_policy_response_parser_accepts_non_api_200_compat_success
     assert policy.etag == '"np-4"'
 
 
-async def test_malformed_server_network_policy_arrays_raise_internal_server_error() -> None:
+async def test_malformed_server_network_policy_arrays_are_contract_errors() -> None:
     with FakeApi(
         [
             PlannedResponse(
@@ -290,7 +290,7 @@ async def test_malformed_server_network_policy_arrays_raise_internal_server_erro
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            with pytest.raises(InternalServerError, match="desired.allow_cidrs must be an array of strings"):
+            with pytest.raises(BadRequestError, match="desired.allow_cidrs must be an array of strings"):
                 await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()

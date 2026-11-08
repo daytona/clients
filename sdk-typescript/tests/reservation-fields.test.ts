@@ -6,6 +6,7 @@
 import axios from 'axios'
 import type * as api from '../src/v2/gen/api-types.js'
 import { ReservationsService } from '../src/v2/Reservations.js'
+import { INTERNAL } from '../src/v2/internal'
 import type { MacReservation } from '../src/v2/macTypes.js'
 
 // Full API response fixture, including optional lifecycle and billing fields.
@@ -65,7 +66,7 @@ describe('reservation wire-to-public fields', () => {
       config, status: 200, statusText: 'OK', headers: {}, data: wire,
     }) })
     // When
-    const result = await ReservationsService._create(http).get(wire.id)
+    const result = await new ReservationsService(INTERNAL, http).get(wire.id)
     // Then: exact shapes also exclude the renamed snake_case keys.
     expect(result.capacity).toEqual({ cores: 10, memoryMib: 16384, diskMib: 235520 })
     expect(result.resourcesUsed).toEqual({ cores: 5, memoryMib: 8192, diskMib: 117760 })
@@ -78,7 +79,7 @@ describe('reservation wire-to-public fields', () => {
       config, status: 200, statusText: 'OK', headers: {}, data: { ...wire, ...futureFields },
     }) })
     // When
-    const result = await ReservationsService._create(http).get(wire.id)
+    const result = await new ReservationsService(INTERNAL, http).get(wire.id)
     // Then: only the SDK-owned model is returned.
     expect(result).toEqual(expected)
   })
@@ -93,7 +94,7 @@ describe('reservation wire-to-public fields', () => {
           ? { reservations: [wire], next_cursor: null } : wire,
     }) })
     // When
-    const result = await operation(ReservationsService._create(http))
+    const result = await operation(new ReservationsService(INTERNAL, http))
     // Then: known renamed snake_case fields are absent from the public object.
     expect(result).toEqual(expected)
   })
@@ -105,7 +106,7 @@ describe('reservation wire-to-public fields', () => {
       data: { requested: 2, reserved: 1, reservations: [wire], future_metadata: true },
     }) })
     // When
-    const result = await ReservationsService._create(http).createBulk({ region: wire.region_id, count: 2, minCount: 1 })
+    const result = await new ReservationsService(INTERNAL, http).createBulk({ region: wire.region_id, count: 2, minCount: 1 })
     // Then
     expect(result).toEqual({ requested: 2, reserved: 1, reservations: [expected] })
   })
@@ -117,7 +118,7 @@ describe('reservation wire-to-public fields', () => {
       data: { ...wire, status: 'future_status', origin: 'future_origin', end_reason: 'future_reason' },
     }) })
     // When
-    const result = await ReservationsService._create(http).get(wire.id)
+    const result = await new ReservationsService(INTERNAL, http).get(wire.id)
     // Then
     expect(result).toEqual({ ...expected, status: 'unknown', rawStatus: 'future_status',
       origin: 'unknown', rawOrigin: 'future_origin', endReason: 'unknown', rawEndReason: 'future_reason' })
@@ -133,7 +134,7 @@ describe('reservation wire-to-public fields', () => {
         period_started_at: value, reissued_at: value, renewal_error: value }),
     }) })
     // When
-    const result = await ReservationsService._create(http).get(wire.id)
+    const result = await new ReservationsService(INTERNAL, http).get(wire.id)
     // Then
     expect(result).toEqual({ ...expected, autoRenew: true, slotsUsed: 0,
       activatedAt: undefined, capacity: undefined, model: undefined, endReason: undefined, rawEndReason: undefined,

@@ -62,6 +62,28 @@ export function badRequest(message: string): BadRequestError {
   return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
 }
 
+export interface IfMatchOptions {
+  readonly ifMatch: string
+}
+
+const IF_MATCH_KEYS = optionKeys<IfMatchOptions>()({ ifMatch: true })
+
+/** @internal */
+export function assertIfMatchOptions(options: IfMatchOptions | undefined): void {
+  assertKnownOptions('IfMatchOptions', options, IF_MATCH_KEYS)
+  if (typeof options?.ifMatch !== 'string' || options.ifMatch.length === 0) {
+    throw badRequest('ifMatch must be a non-empty string')
+  }
+}
+
+/** @internal */
+export function assertLabels(labels: unknown): asserts labels is Readonly<Record<string, string>> {
+  if (typeof labels !== 'object' || labels === null || Array.isArray(labels)
+    || Object.values(labels).some((value) => typeof value !== 'string')) {
+    throw badRequest('labels must be an object of string to string')
+  }
+}
+
 /**
  * Every enumerable key of `options`, own or inherited (`for...in`), so an
  * unknown key on a prototype is reported like an own one.

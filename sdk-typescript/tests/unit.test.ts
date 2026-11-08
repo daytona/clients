@@ -23,6 +23,7 @@ import { Daytona, searchQueryParams, searchTimestamp } from '../src/v2/Daytona'
 import { LIST_VALUE_LIST, SINGLE_VALUE_SEARCH, searchConsumerCalls } from './search-options.consumer'
 import { Image as ImageHandle, ImageBuilder, Snapshot } from '../src/v2/Image'
 import { ImagesService } from '../src/v2/Images'
+import { INTERNAL } from '../src/v2/internal'
 import { ComputerUseService, type ComputerUseTransport } from '../src/v2/ComputerUse'
 import {
   mapComputerUseLifecycleResponse,
@@ -450,7 +451,7 @@ function collectHttpRouteUses(
 ): readonly RouteLiteralUse[] {
   // Build-log helpers forward discovery paths; the dynamic proxy URL is not
   // a hard-coded API route. Collect the literal at every forwarding call site.
-  const forwarding = ts.isIdentifier(node.expression) && ['followBuildLogs', 'readBuildLogs', 'discovery'].includes(node.expression.text)
+  const forwarding = ts.isIdentifier(node.expression) && ['followBuildLogs', 'readBuildLogs', 'discovery', 'getArtifact'].includes(node.expression.text)
   if (!forwarding && !ts.isPropertyAccessExpression(node.expression)) return []
   const method = forwarding ? 'GET' : httpMethodForCall(node, scope)
   const arg = node.arguments[forwarding ? 1 : 0]
@@ -459,7 +460,7 @@ function collectHttpRouteUses(
     let parent: ts.Node | undefined = node.parent
     while (parent && !ts.isFunctionDeclaration(parent) && !ts.isMethodDeclaration(parent)) parent = parent.parent
     // Prepared create descriptors are collected at their path definitions.
-    if (parent && ((ts.isFunctionDeclaration(parent) && parent.name && ['followBuildLogs', 'readBuildLogs', 'discovery', 'createSandbox'].includes(parent.name.text)) || (ts.isMethodDeclaration(parent) && parent.name.getText(sourceFile) === 'createSandbox'))) return []
+    if (parent && ((ts.isFunctionDeclaration(parent) && parent.name && ['followBuildLogs', 'readBuildLogs', 'discovery', 'getArtifact', 'createSandbox'].includes(parent.name.text)) || (ts.isMethodDeclaration(parent) && parent.name.getText(sourceFile) === 'createSandbox'))) return []
   }
   const variants = routeVariants(arg, scope, sourceFile)
   const paths = variants.map((raw) => normalizeSdkRoute(raw)).filter((path): path is string => path !== undefined)
@@ -1210,7 +1211,7 @@ describe('V2 model', () => {
     await expect(client.create('')).rejects.toThrow('daytona.create() only accepts an image name or img_… id')
     await expect(client.create('   ', { name: 'x' })).rejects.toThrow('daytona.create() only accepts an image name or img_… id')
     await expect(client.create(ImageBuilder.fromRegistry('python:3.12') as unknown as string)).rejects.toThrow('createFromBuild')
-    await expect(client.create(ImageHandle._create(imageResponse() as never) as unknown as string)).rejects.toThrow('daytona.create() only accepts an image name or img_… id')
+    await expect(client.create(new ImageHandle(INTERNAL, imageResponse() as never) as unknown as string)).rejects.toThrow('daytona.create() only accepts an image name or img_… id')
     await expect(client.create(42 as unknown as string)).rejects.toThrow('daytona.create() only accepts an image name or img_… id')
     await expect(client.create({ name: 'a' } as unknown as string, { name: 'b' })).rejects.toThrow('create(options) or create(image, options)')
     expect(post).not.toHaveBeenCalled()
@@ -2453,8 +2454,9 @@ describe('V2 model', () => {
     await jest.advanceTimersByTimeAsync(200)
     await expect(waiting).resolves.toBe(sandbox)
 
-    expect(get.mock.calls[0]).toEqual(['/sandboxes/sbx', { timeout: 35_000, params: { wait: 'running', timeout_ms: 30000 } }])
-    expect(get.mock.calls[1]).toEqual(['/sandboxes/sbx', { timeout: 35_000, params: { wait: 'running', timeout_ms: 30000 } }])
+    // Each hold ends by the 5 s request timeout; the read adds network slack.
+    expect(get.mock.calls[0]).toEqual(['/sandboxes/sbx', { timeout: 10_000, params: { wait: 'running', timeout_ms: 5_000 } }])
+    expect(get.mock.calls[1]).toEqual(['/sandboxes/sbx', { timeout: 10_000, params: { wait: 'running', timeout_ms: 5_000 } }])
   })
 
   it('rounds waitForState sub-millisecond budgets up before sending timeout_ms', async () => {
@@ -3710,7 +3712,7 @@ describe('creation shape', () => {
     }) as never
 
     try {
-      const service = ImagesService._create(clientInstance(client))
+      const service = new ImagesService(INTERNAL, clientInstance(client))
       await expect(service.followBuildLogs('img_123', { onLogs: () => {} })).resolves.toMatchObject({
         status: 'ready',
       })
@@ -8364,15 +8366,15 @@ describe('toolbox service request shaping', () => {
     const get = jest.spyOn(api, 'get').mockResolvedValue({ data: response })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
 
-    await expect(client.snapshots.get('snap/1')).resolves.toEqual(Snapshot._create(response as never))
+    await expect(client.snapshots.get('snap/1')).resolves.toEqual(new Snapshot(INTERNAL, response as never))
     expect(get.mock.calls[0]).toEqual(['/snapshots/snap%2F1', { params: undefined, timeout: undefined }])
 
-    // wait: 'ready' long-polls; the HTTP timeout outlives the server hold.
+    // Positive budgets share the remaining wait time with the request bound.
     await client.snapshots.get('snap/1', { wait: 'ready', timeoutSeconds: 30 })
     expect(get.mock.calls[1]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: 30000 }, timeout: 35_000 }])
-    // No explicit budget: the server picks the hold, so the request is unbounded.
+    // No explicit budget: the server picks the hold; the request keeps its root bound.
     await client.snapshots.get('snap/1', { wait: 'ready' })
-    expect(get.mock.calls[2]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready' }, timeout: 0 }])
+    expect(get.mock.calls[2]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: undefined }, timeout: 0 }])
     // A budget beyond the server's 60s hold ceiling is capped on the wire (and
     // never becomes an overflowing HTTP timer).
     await client.snapshots.get('snap/1', { wait: 'ready', timeoutSeconds: 10 * 24 * 60 * 60 })
@@ -8701,10 +8703,8 @@ describe('toolbox service request shaping', () => {
     expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
   })
 
-  it('sizes waitForState long-poll slices by the caller budget, not the global requestTimeout', async () => {
-    // A long-poll must be allowed to outlive the short per-request default:
-    // the slice is min(30s, remaining caller budget) and the HTTP timeout
-    // matches the slice, in both SDKs.
+  it('bounds each wait hold by the request timeout and keeps the read within the budget', async () => {
+    // The hold ends by the request timeout; the read adds slack, capped by the caller budget.
     const client = new Daytona({ apiKey: 'key', requestTimeoutSeconds: 0.123 })
     const api = clientInstance(client)
     const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, 123)
@@ -8712,7 +8712,7 @@ describe('toolbox service request shaping', () => {
 
     await sandbox.wait({ until: 'started', timeoutSeconds: 0.5 })
 
-    expect(get).toHaveBeenCalledWith('/sandboxes/sbx', { timeout: 500, params: { wait: 'running', timeout_ms: 500 } })
+    expect(get).toHaveBeenCalledWith('/sandboxes/sbx', { timeout: 500, params: { wait: 'running', timeout_ms: 123 } })
   })
 })
 
@@ -9623,7 +9623,7 @@ describe('sandbox search', () => {
     expect(searchQueryParams({ labels: null as unknown as Record<string, string> })).toEqual({})
     for (const status of [['running', 7], ['running', ''], ['a,b']]) {
       // Deliberately invalid entries a JS caller could pass; the cast only exists to reach the runtime guard.
-      const options = { states: status as unknown as readonly import('../src/v2/types').SandboxState[] }
+      const options = { states: status as unknown as readonly Exclude<import('../src/v2/types').SandboxState, 'unknown'>[] }
       expect(() => searchQueryParams(options)).toThrow(BadRequestError)
       expect(() => searchQueryParams(options)).toThrow('unknown sandbox state')
       await expect(client.search(options)).rejects.toBeInstanceOf(BadRequestError)
@@ -9694,8 +9694,8 @@ describe('sandbox search', () => {
     expect(get.mock.calls[0]).toEqual(['/sandboxes', { params: { cursor: undefined, limit: undefined } }])
     expect(page.items.map((sandbox) => sandbox.id)).toEqual(['sbx-1', 'other'])
     expect(page.nextCursor).toBe('p2')
-    expect(page.total).toBeUndefined()
-    expect(page.totalRelation).toBeUndefined()
+    expect(page).not.toHaveProperty('total')
+    expect(page).not.toHaveProperty('totalRelation')
 
     // iter() is how you walk: it follows the cursor page by page.
     const rest: string[] = []
@@ -10637,7 +10637,7 @@ describe('sandbox access tokens', () => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX })
     const api = clientInstance(client)
-    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('not found', { statusCode: 404 }))
+    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('method not allowed', { statusCode: 405 }))
     const transport = toolboxTransportOf(sandbox)
     const get = jest.spyOn(transport.http, 'get').mockResolvedValue({ data: { ports: [] } })
 
@@ -10699,7 +10699,7 @@ describe('sandbox access tokens', () => {
     try {
       const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
       const api = clientInstance(client)
-      const mint = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('not found', { statusCode: 404 }))
+      const mint = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('method not allowed', { statusCode: 405 }))
 
       const expired = lazySandbox(client, 'sbx', {
         toolboxUrl: TOOLBOX,
@@ -11030,7 +11030,7 @@ describe('toolbox endpoint e2e', () => {
       put: jest.fn().mockResolvedValue({ data: { id: 'ep', port: 8080, public: true, url: 'https://p', created_at: 'now' } }),
       delete: jest.fn().mockResolvedValue({ data: {} }),
     }
-    const ports = PortsService._create(transport.object, portsApi as never, 'sbx')
+    const ports = new PortsService(INTERNAL, transport.object, portsApi as never, 'sbx')
 
     await expect(ports.list()).resolves.toEqual({ items: [3000, 8080] })
     await expect(ports.isInUse(3999)).resolves.toBe(true)
@@ -11641,7 +11641,7 @@ describe('sandbox.docker', () => {
   it('status() reads GET /docker/status without waiting', async () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce(status('failed', { reason: 'service failed', processId: 'p-1' }))
-    const docker = DockerService._create(transport.object)
+    const docker = new DockerService(INTERNAL, transport.object)
     await expect(docker.status()).resolves.toEqual({ state: 'failed', rawState: 'failed', owner: 'daemon', rawOwner: 'daemon', reason: 'service failed', processId: 'p-1' })
     expect(transport.get.mock.calls[0]).toEqual(['/docker/status'])
   })
@@ -11651,7 +11651,7 @@ describe('sandbox.docker', () => {
     transport.get
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting', { processId: 'p-1' }) })
       .mockResolvedValueOnce(status('ready', { processId: 'p-1' }))
-    const docker = DockerService._create(transport.object)
+    const docker = new DockerService(INTERNAL, transport.object)
     await expect(docker.waitUntilReady({ timeoutSeconds: 10 })).resolves.toEqual({ state: 'ready', rawState: 'ready', owner: 'daemon', rawOwner: 'daemon', processId: 'p-1', reason: undefined })
     expect(transport.get.mock.calls).toEqual([
       ['/docker/status?waitMs=1000', { timeout: 1_000 + WAIT_READ_SLACK_MS }],
@@ -11664,7 +11664,7 @@ describe('sandbox.docker', () => {
     transport.get
       .mockResolvedValueOnce(status('deferred', { owner: 'none', reason: 'deferred' }))
       .mockResolvedValueOnce(status('ready'))
-    const docker = DockerService._create(transport.object)
+    const docker = new DockerService(INTERNAL, transport.object)
     const waiting = docker.waitUntilReady()
     await jest.advanceTimersByTimeAsync(499)
     expect(transport.get).toHaveBeenCalledTimes(1)
@@ -11676,7 +11676,7 @@ describe('sandbox.docker', () => {
   it.each(['failed', 'not_present', 'disabled', 'unmanaged', 'unsupported'])('waitUntilReady() raises DockerNotReadyError on terminal state %s', async (state) => {
     const transport = transportStub()
     transport.get.mockResolvedValue(status(state, { reason: 'why' }))
-    const failure = DockerService._create(transport.object).waitUntilReady({ timeoutSeconds: 5 })
+    const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerNotReadyError)
     await expect(failure).rejects.toBeInstanceOf(publicSdk.ConflictError)
     await expect(failure).rejects.toMatchObject({ statusCode: 409, code: 'CONFLICT', source: 'SDK', status: { state, reason: 'why' } })
@@ -11692,7 +11692,7 @@ describe('sandbox.docker', () => {
   it('waitUntilReady() raises DockerWaitTimeoutError with the last status when the budget runs out', async () => {
     const transport = transportStub()
     transport.get.mockImplementation(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
-    const failure = DockerService._create(transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
+    const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     await expect(failure).rejects.toBeInstanceOf(RequestTimeoutError)
     await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', status: { state: 'starting' } })
@@ -11705,7 +11705,7 @@ describe('sandbox.docker', () => {
     transport.get
       .mockResolvedValueOnce(status('deferred', { owner: 'none', reason: 'waiting-for-resource' }))
       .mockResolvedValueOnce(status('ready'))
-    const waiting = DockerService._create(transport.object).waitUntilReady({ timeoutSeconds: 5 })
+    const waiting = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 5 })
     await jest.advanceTimersByTimeAsync(499)
     expect(transport.get).toHaveBeenCalledTimes(1)
     await jest.advanceTimersByTimeAsync(1)
@@ -11716,7 +11716,7 @@ describe('sandbox.docker', () => {
   it('waitUntilReady() caps each request timeout at the deadline plus a small grace', async () => {
     const transport = transportStub()
     transport.get.mockImplementation(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
-    const failure = DockerService._create(transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
+    const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     expect(transport.get.mock.calls).toEqual([
       ['/docker/status?waitMs=1000', { timeout: 1_500 + DOCKER_WAIT_DEADLINE_GRACE_MS }],
@@ -11729,7 +11729,7 @@ describe('sandbox.docker', () => {
     transport.get
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 750); throw new publicSdk.ClientTimeoutError() })
-    const failure = DockerService._create(transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
+    const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
   })
@@ -11738,7 +11738,7 @@ describe('sandbox.docker', () => {
     const transport = transportStub()
     const stalled = new publicSdk.ClientTimeoutError()
     transport.get.mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
-    await expect(DockerService._create(transport.object).waitUntilReady({ timeoutSeconds: 60 })).rejects.toBe(stalled)
+    await expect(new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 60 })).rejects.toBe(stalled)
   })
 
   it('waitUntilReady() against a stalling server ends near the deadline with DockerWaitTimeoutError', async () => {
@@ -11748,7 +11748,7 @@ describe('sandbox.docker', () => {
     await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
     try {
       const { port } = server.address() as AddressInfo
-      const docker = DockerService._create(new HttpTransport(`http://127.0.0.1:${port}`, 'key'))
+      const docker = new DockerService(INTERNAL, new HttpTransport(`http://127.0.0.1:${port}`, 'key'))
       const started = Date.now()
       const failure = docker.waitUntilReady({ timeoutSeconds: 1 })
       await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
@@ -11764,7 +11764,7 @@ describe('sandbox.docker', () => {
   })
 
   it('waitUntilReady() validates its timeout', async () => {
-    const docker = DockerService._create(transportStub().object)
+    const docker = new DockerService(INTERNAL, transportStub().object)
     await expect(docker.waitUntilReady({ timeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     await expect(docker.waitUntilReady({ timeoutSeconds: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
   })

@@ -61,6 +61,7 @@ from .types import (
     BulkReadResult,
     BulkWriteFile,
     BulkWriteResult,
+    DockerfileImageSource,
     DockerStatus,
     Image,
     ImageRef,
@@ -71,9 +72,12 @@ from .types import (
     ListResult,
     LogFrame,
     LogPage,
+    ManifestImageSource,
+    NamedImageSource,
     ProcessInfo,
     ProcessKind,
     ProcessStateFilter,
+    RegistryImageSource,
     SandboxLifecycle,
     SandboxState,
     SearchSandboxesOptions,
@@ -1176,7 +1180,9 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
         elif f.name in _SEARCH_LIST_FIELDS:
             params[wire] = _comma_list(f.name, value)
         elif f.name == "labels":
-            if not isinstance(value, Mapping):
+            if not isinstance(value, Mapping) or not all(
+                isinstance(key, str) and isinstance(item, str) for key, item in value.items()
+            ):
                 raise create_error("labels must be a mapping of string to string", 400, "BAD_REQUEST", "SDK")
             if not value:
                 raise create_error("labels must name at least one pair", 400, "BAD_REQUEST", "SDK")
@@ -1273,17 +1279,13 @@ def _snapshot_kind(value: str) -> SnapshotKind:
 def _image_source(value: object) -> ImageSource | None:
     match value:
         case {"type": "registry", "ref": str(ref)}:
-            return {"type": "registry", "ref": ref}
+            return RegistryImageSource(ref=ref)
         case {"type": "dockerfile", "context_object": str(context_object), "dockerfile": str(dockerfile)}:
-            return {
-                "type": "dockerfile",
-                "context_object": context_object,
-                "dockerfile": dockerfile,
-            }
+            return DockerfileImageSource(context_object=context_object, dockerfile=dockerfile)
         case {"type": "named", "name": str(name)}:
-            return {"type": "named", "name": name}
+            return NamedImageSource(name=name)
         case {"type": "manifest", "name": str(name)}:
-            return {"type": "manifest", "name": name}
+            return ManifestImageSource(name=name)
         case _:
             return None
 
@@ -1302,8 +1304,8 @@ def parse_image(value: object) -> Image:
         sandbox_class=_wire_string(data.get("class") or data.get("var_class")),
         available_in=tuple(_optional_str_list(data.get("region_ids")) or ()),
         origin=str(data["origin"]),
-        created_at=_required_timestamp(data.get("created_at")),
-        updated_at=_required_timestamp(data.get("updated_at") or data.get("created_at")),
+        created_at=_required_timestamp(data.get("created_at"), "created_at"),
+        updated_at=_required_timestamp(data.get("updated_at") or data.get("created_at"), "updated_at"),
         error=_optional_str(data.get("error")),
         expires_at=parse_timestamp(data.get("expires_at")),
         source=_image_source(data.get("source")),
@@ -1332,8 +1334,8 @@ def parse_snapshot(value: object) -> Snapshot:
         sandbox_class="linux" if raw_class == "linux" else "unknown",
         raw_sandbox_class=raw_class,
         available_in=tuple(_optional_str_list(data.get("region_ids")) or ()),
-        created_at=_required_timestamp(data.get("created_at")),
-        updated_at=_required_timestamp(data.get("updated_at") or data.get("created_at")),
+        created_at=_required_timestamp(data.get("created_at"), "created_at"),
+        updated_at=_required_timestamp(data.get("updated_at") or data.get("created_at"), "updated_at"),
         error=_optional_str(data.get("error")),
         bytes=_optional_int(data.get("bytes")),
         memory_bytes=_optional_int(data.get("memory_bytes")),
@@ -1341,10 +1343,10 @@ def parse_snapshot(value: object) -> Snapshot:
     )
 
 
-def _required_timestamp(value: object) -> datetime:
+def _required_timestamp(value: object, field_name: str) -> datetime:
     parsed = parse_timestamp(value)
     if parsed is None:
-        raise create_error("API returned an invalid timestamp", 500, None, "SDK")
+        raise create_error(f"API returned an invalid {field_name} timestamp", 400, "BAD_REQUEST", "SDK")
     return parsed
 
 

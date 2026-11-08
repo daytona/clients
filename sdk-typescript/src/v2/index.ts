@@ -190,6 +190,7 @@ export {
 export { DaytonaError as DaytonaErrorV2 } from './errors/DaytonaError.js'
 export type { ErrorOptions, ImageBuildFailedErrorOptions } from './errors/DaytonaError.js'
 export type { UpdateEnvOptions } from './Sandbox.js'
+export type { IfMatchOptions } from './options.js'
 export type {
   SandboxEventsConfig,
   Resources,

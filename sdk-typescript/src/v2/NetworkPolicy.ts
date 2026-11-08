@@ -6,6 +6,7 @@
 import type { AxiosResponse } from 'axios'
 import { BadRequestError, InternalServerError } from './errors/DaytonaError.js'
 import type { NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput } from './types.js'
+import { badRequest } from './options.js'
 
 const INPUT_FIELDS = new Set(['blockAll', 'allowCidrs', 'allowDomains'])
 
@@ -60,7 +61,7 @@ export function parseNetworkPolicyResponse(response: AxiosResponse<unknown>): Ne
   const data = recordValue(response.data, 'network policy response')
   const etagHeader = response.headers.etag
   if (typeof etagHeader !== 'string' || etagHeader.length === 0) {
-    throw new InternalServerError('network policy response is missing ETag', { statusCode: 500, source: 'SDK' })
+    throw badRequest('network_policy response is missing the ETag header')
   }
   return {
     desired: optionalNetworkPolicy(data.desired, 'desired'),

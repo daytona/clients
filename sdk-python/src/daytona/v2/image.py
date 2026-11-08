@@ -14,7 +14,7 @@ from typing_extensions import Self
 from .errors import create_error
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ImageBuilder:
     """A declarative image source: build one with :meth:`from_registry` or :meth:`from_dockerfile`."""
 

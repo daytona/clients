@@ -101,10 +101,10 @@ from .types import (
     Resources,
     SandboxClass,
     SandboxEventsConfig,
-    SandboxState,
     SearchOrder,
     SearchResult,
     SearchSandboxesOptions,
+    SearchSandboxState,
     SearchSort,
     SearchTimestamp,
     SnapshotRef,
@@ -324,8 +324,8 @@ class AsyncDaytona:
             source_kind="image",
             source=resolved_image,
             name=name,
-            env=_dict_or_none(env),
-            labels=_dict_or_none(labels),
+            env=_dict_or_none(env, "env"),
+            labels=_dict_or_none(labels, "labels"),
             resources=resources,
             ports=ports,
             volumes=volumes,
@@ -382,7 +382,7 @@ class AsyncDaytona:
             source_kind="snapshot",
             source=resolved_snapshot,
             name=name,
-            labels=_dict_or_none(labels),
+            labels=_dict_or_none(labels, "labels"),
             lifecycle_policy=lifecycle_policy,
             ports=ports,
             target=region if region is not None else self._target,
@@ -466,7 +466,7 @@ class AsyncDaytona:
         creating the client. An API that does not serve the region answers
         :class:`ConflictError`; the SDK does not reroute.
         """
-        resolved_image = _require_image_source(image)
+        resolved_image = _require_image_source(image, "create_macos")
         if auto_renew is not None and reservation != "new":
             raise create_error(
                 'macos create takes auto_renew only with reservation="new"', 400, "BAD_REQUEST", "SDK"
@@ -478,8 +478,8 @@ class AsyncDaytona:
             source_kind="image",
             source=resolved_image,
             name=name,
-            env=_dict_or_none(env),
-            labels=_dict_or_none(labels),
+            env=_dict_or_none(env, "env"),
+            labels=_dict_or_none(labels, "labels"),
             secrets=secrets,
             ports=ports,
             persistent=persistent,
@@ -535,8 +535,10 @@ class AsyncDaytona:
     ) -> AsyncSandbox:
         """Build an anonymous image from ``builder``, wait for it, then create the sandbox from it.
 
-        The image build is always awaited, bounded by ``build_timeout``
-        (seconds; ``None`` or ``0`` = no deadline). A failed build raises
+        The build submission is an ordinary request, bounded by the client's
+        request timeout. The build itself is always awaited, bounded by
+        ``build_timeout`` (seconds; ``None`` or ``0`` = no deadline). A failed
+        build (image status ``failed`` or ``error``) raises
         :class:`ImageBuildFailedError` and a build that outlasts
         ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
         no sandbox exists. Then the sandbox is created exactly as by
@@ -549,7 +551,7 @@ class AsyncDaytona:
         region, so it is built where the sandbox will run.
         """
         if not isinstance(builder, ImageBuilder):
-            raise TypeError("create_from_build() takes an ImageBuilder")
+            raise create_error("create_from_build() takes an ImageBuilder", 400, "BAD_REQUEST", "SDK")
         _validate_wait(wait_seconds)
         if build_timeout is not None and (
             isinstance(build_timeout, bool)
@@ -560,7 +562,6 @@ class AsyncDaytona:
             raise create_error(
                 "build_timeout must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
             )
-        deadline = None if not build_timeout else _clock.monotonic() + build_timeout
         target = region if region is not None else self._target
         build_region = target if target and target.strip().lower() != "local" else None
 
@@ -574,9 +575,10 @@ class AsyncDaytona:
             idle_expiry_seconds=idle_expiry_seconds,
             region=build_region,
             cpu_arch=cpu_arch,
-            timeout=None if deadline is None else max(deadline - _clock.monotonic(), 0.001),
         )
-        while image.status not in ("ready", "failed"):
+        # The build budget starts once the submission (an ordinary request) is accepted.
+        deadline = None if not build_timeout else _clock.monotonic() + build_timeout
+        while image.status not in ("ready", "failed", "error"):
             remaining = None if deadline is None else deadline - _clock.monotonic()
             if remaining is not None and remaining <= 0:
                 raise build_timed_out()
@@ -586,7 +588,7 @@ class AsyncDaytona:
                 if deadline is not None and _clock.monotonic() >= deadline:
                     raise build_timed_out(error) from error
                 raise
-        if image.status == "failed":
+        if image.status in ("failed", "error"):
             raise ImageBuildFailedError(
                 image.error or f"image build {image.id} failed",
                 status_code=409,
@@ -719,7 +721,9 @@ class AsyncDaytona:
             hub_provider=self._acquire_hub,
         )
 
-    async def get(self, sandbox_id: str, *, toolbox_url: Optional[str] = None) -> AsyncSandbox:
+    async def get(
+        self, sandbox_id: str, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
+    ) -> AsyncSandbox:
         """Fetch a sandbox by id.
 
         ``toolbox_url`` overrides the toolbox URL the API returns.
@@ -727,12 +731,17 @@ class AsyncDaytona:
         sends this sandbox's toolbox credential there (the API key, a project
         token, or a minted sandbox token), so pass only a URL you trust —
         never one read from stored or user-supplied data.
+
+        ``access_token`` is a sandbox access token the handle sends to sandbox
+        services instead of minting its own; the handle never replaces it.
         """
         return self._sandbox_from_sandbox(
             expect_sandbox_detail(
                 await self._api.send(RequestSpec("GET", f"/sandboxes/{quote(sandbox_id, safe='')}"))
             ),
             toolbox_url=toolbox_url,
+            access_token=access_token,
+            access_token_caller_supplied=access_token is not None,
         )
 
     async def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> list[AsyncSandbox]:
@@ -864,7 +873,7 @@ class AsyncDaytona:
         q: Optional[str] = None,
         name_prefix: Optional[str] = None,
         id_prefix: Optional[str] = None,
-        states: Optional[Union[SandboxState, Sequence[SandboxState]]] = None,
+        states: Optional[Union[SearchSandboxState, Sequence[SearchSandboxState]]] = None,
         sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None,
         region: Optional[Union[str, Sequence[str]]] = None,
         image_ref: Optional[str] = None,
@@ -1113,6 +1122,7 @@ class AsyncDaytona:
         toolbox_url: Optional[str] = None,
         access_token: Optional[str] = None,
         access_token_expires_at: Optional[str] = None,
+        access_token_caller_supplied: bool = False,
     ) -> AsyncSandbox:
         if isinstance(sandbox_data, (SandboxDto, SandboxListItem)):
             sandbox_id = sandbox_data.id
@@ -1136,9 +1146,9 @@ class AsyncDaytona:
             direct_toolbox_url=toolbox_url,
             request_timeout=self._request_timeout,
             access_token_expires_at=access_token_expires_at,
-            # Tokens reach here only from SDK-internal construction paths, so
-            # mint-over stays allowed (the TS twin's accessTokenFromCreate).
-            access_token_caller_supplied=False,
+            # A caller's token (get(access_token=...)) is never replaced; one
+            # from an SDK-internal path may be minted over.
+            access_token_caller_supplied=access_token_caller_supplied,
             hub=self._acquire_hub(),
             hub_provider=self._acquire_hub,
         )
@@ -1171,7 +1181,7 @@ class AsyncDaytona:
             access_token=access_token,
             access_token_expires_at=access_token_expires_at,
         )
-        if toolbox_url is not None or sandbox.toolbox_proxy_url is not None:
+        if toolbox_url is not None or sandbox._toolbox_proxy_url is not None:
             return sandbox
         try:
             detail = expect_object(
@@ -1319,8 +1329,15 @@ def _resolve_connection_pool_maxsize(value: Optional[int]) -> Optional[int]:
     return value
 
 
-def _dict_or_none(value: Optional[Mapping[str, str]]) -> Optional[dict[str, str]]:
-    return dict(value) if isinstance(value, Mapping) else None
+def _dict_or_none(value: Optional[Mapping[str, str]], label: str) -> Optional[dict[str, str]]:
+    """A string-to-string mapping argument, copied; anything else is refused, never dropped."""
+    if value is None:
+        return None
+    if not isinstance(value, Mapping) or not all(
+        isinstance(key, str) and isinstance(item, str) for key, item in value.items()
+    ):
+        raise create_error(f"{label} must be a mapping of string to string", 400, "BAD_REQUEST", "SDK")
+    return dict(value)
 
 
 def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
@@ -1540,8 +1557,17 @@ def _create_body(config: CreateConfig) -> CreateBody:
         body["wait_seconds"] = wait_seconds
     create_timeout_seconds = config.get("create_timeout_seconds")
     if create_timeout_seconds is not None:
-        if isinstance(create_timeout_seconds, bool) or not isinstance(create_timeout_seconds, int):
-            raise create_error("create_timeout_seconds must be an integer", 400, "BAD_REQUEST", "SDK")
+        if (
+            isinstance(create_timeout_seconds, bool)
+            or not isinstance(create_timeout_seconds, int)
+            or create_timeout_seconds < -1
+        ):
+            raise create_error(
+                "create_timeout_seconds must be an integer of at least -1 (-1 = the server maximum)",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         body["create_timeout_seconds"] = create_timeout_seconds
     return body
 
@@ -1601,26 +1627,30 @@ def _validate_wait(wait_seconds: object) -> None:
         raise create_error("wait_seconds must be a non-negative integer", 400, "BAD_REQUEST", "SDK")
 
 
-def _require_image_source(image: str | Image | ImageBuilder) -> str:
+def _require_image_source(image: str | Image | ImageBuilder, method: str = "create") -> str:
     if isinstance(image, str):
         cleaned = image.strip()
         if cleaned:
             return cleaned
         raise create_error("image must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    expected = f"{method}() accepts an image name or img_… id string"
     if isinstance(image, ImageBuilder):
-        raise TypeError(
-            "create() accepts an image name or img_… id string; use create_from_build(...) for ImageBuilder"
+        hint = (
+            "macOS sandboxes boot registered macOS images and do not build one"
+            if method == "create_macos"
+            else "use create_from_build(...) for an ImageBuilder"
         )
+        raise create_error(f"{expected}; {hint}", 400, "BAD_REQUEST", "SDK")
     if isinstance(image, Image):
-        raise TypeError(
-            "create() accepts an image name or img_… id string; pass image.id or use create_from_build(...)"
-        )
-    raise TypeError("create() accepts an image name or img_… id string")
+        raise create_error(f"{expected}; pass image.id", 400, "BAD_REQUEST", "SDK")
+    raise create_error(expected, 400, "BAD_REQUEST", "SDK")
 
 
 def _require_snapshot_source(snapshot: str) -> str:
     if not isinstance(snapshot, str):
-        raise TypeError("create_from_snapshot() accepts a snapshot name or snap_… id string")
+        raise create_error(
+            "create_from_snapshot() accepts a snapshot name or snap_… id string", 400, "BAD_REQUEST", "SDK"
+        )
     cleaned = snapshot.strip()
     if not cleaned:
         raise create_error("snapshot must be a non-empty string", 400, "BAD_REQUEST", "SDK")

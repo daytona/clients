@@ -6,6 +6,7 @@
 import type { AxiosResponse } from 'axios'
 import { BadRequestError, InternalServerError } from './errors/DaytonaError.js'
 import type { SandboxSecretsInfo } from './types.js'
+import { badRequest } from './options.js'
 
 export function serializeSandboxSecretsInput(secrets: readonly string[]): Record<string, readonly string[]> {
   if (!Array.isArray(secrets) || secrets.some((item) => typeof item !== 'string')) {
@@ -18,7 +19,7 @@ export function parseSandboxSecretsResponse(response: AxiosResponse<unknown>): S
   const data = recordValue(response.data, 'sandbox secrets response')
   const etagHeader = response.headers.etag
   if (typeof etagHeader !== 'string' || etagHeader.length === 0) {
-    throw new InternalServerError('sandbox secrets response is missing ETag', { statusCode: 500, source: 'SDK' })
+    throw badRequest('sandbox secrets response is missing the ETag header')
   }
   return {
     secrets: requiredStringArray(data.secrets, 'secrets'),

@@ -14,8 +14,10 @@ import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
 import { ImageBuildFailedError, RequestTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
 import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
-import { artifactRequestOptions } from './artifactOptions.js'
+import { getArtifact } from './artifactOptions.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
+import { INTERNAL, assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 
 export type { GetArtifactOptions } from './artifactOptions.js'
 
@@ -43,15 +45,12 @@ const IMAGE_LONGPOLL_MAX_MS = 60_000
 export class ImagesService {
   private resolvedApiTransport?: HttpTransport
 
-  /** @internal */
-  public static _create(http: AxiosInstance, apiTransport?: HttpTransport | HttpTransportConfig): ImagesService {
-    return new ImagesService(http, apiTransport)
-  }
-
-  private constructor(
+  constructor(
+    token: Internal,
     private readonly http: AxiosInstance,
     private readonly apiTransport?: HttpTransport | HttpTransportConfig,
   ) {
+    assertInternal(token, 'ImagesService')
     credentialSafeDiagnostics(this, () => ({ type: 'ImagesService' }))
   }
 
@@ -83,7 +82,7 @@ export class ImagesService {
         platform: options.platform,
       },
     })
-    return { items: data.images.map((image) => Image._create(image)), nextCursor: data.next_cursor ?? undefined }
+    return { items: data.images.map((image) => new Image(INTERNAL, image)), nextCursor: data.next_cursor ?? undefined }
   }
 
   public async *iter(options: ListImagesOptions = {}): AsyncIterable<Image> {
@@ -101,8 +100,8 @@ export class ImagesService {
   }
 
   public async get(imageId: string, options: GetArtifactOptions = {}): Promise<Image> {
-    const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(imageId)}`, artifactRequestOptions(options))
-    return Image._create(data)
+    const data = await getArtifact<api.ImageListItem>(this.http, `/images/${strictUriEncode(imageId)}`, options)
+    return new Image(INTERNAL, data)
   }
 
   /** Import a registry image and wait until ready by default. Omitted or zero timeoutSeconds is unbounded. */
@@ -136,19 +135,18 @@ export class ImagesService {
       const { data: submitted } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(ImageBuilder.fromRegistry(ref), options), requestOptions())
       const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(submitted.id)}`, requestOptions())
       checkDeadline()
-      let image = Image._create(initial)
+      let image = new Image(INTERNAL, initial)
       if (options.wait === false) return image
       while (image.status !== 'ready' && image.status !== 'failed' && image.status !== 'error') {
         const remaining = deadline === undefined ? undefined : Math.min(Math.ceil(deadline - Date.now()), IMAGE_LONGPOLL_MAX_MS)
         checkDeadline()
-        // Match get(wait='ready'): the server wait owns the request budget, not the root timeout.
-        const config = requestOptions(remaining === undefined ? 0 : remaining + 5_000)
+        const config = requestOptions()
         const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(image.id)}`, {
           ...config,
           params: { wait: 'ready', timeout_ms: remaining },
         })
         checkDeadline()
-        image = Image._create(data)
+        image = new Image(INTERNAL, data)
       }
       if (image.status === 'failed' || image.status === 'error') {
         throw new ImageBuildFailedError(image.error ?? `image pull ${image.id} failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
@@ -173,7 +171,7 @@ export class ImagesService {
    */
   public async promote(imageId: string, name: string): Promise<Image> {
     const { data } = await this.http.patch<api.ImageListItem>(`/images/${strictUriEncode(imageId)}`, { name } satisfies api.PromoteImageRequest)
-    return Image._create(data)
+    return new Image(INTERNAL, data)
   }
 
   public async delete(imageId: string): Promise<void> {

@@ -5,6 +5,8 @@
 
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { MacCatalog, MacCatalogOptions, MacModel } from './macTypes.js'
 import { mapMacModel } from './macMappers.js'
@@ -18,13 +20,9 @@ const MAC_CATALOG_KEYS = optionKeys<MacCatalogOptions>()({ region: true })
  * sandbox disk room in MiB, maximum sandbox count, and default sandbox size. `catalog()` adds free Macs and prices.
  */
 export class MacModelsService {
-  private constructor(private readonly http: AxiosInstance) {
+  constructor(token: Internal, private readonly http: AxiosInstance) {
+    assertInternal(token, 'MacModelsService')
     credentialSafeDiagnostics(this, () => ({ type: 'MacModelsService' }))
-  }
-
-  /** @internal */
-  static _create(http: AxiosInstance): MacModelsService {
-    return new MacModelsService(http)
   }
 
   /** Every registered Mac model, ordered by `id`. */

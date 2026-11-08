@@ -103,8 +103,14 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       context.observe(resolved)
       if (!refreshedByPoll && resolved.state !== 'destroyed') {
         const budget = remaining()
-        if (budget !== undefined && budget <= 0) throw timeoutError()
-        await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_REQUEST_TIMEOUT_MS))
+        if (budget === undefined || budget > 0) {
+          try {
+            await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_REQUEST_TIMEOUT_MS))
+          } catch (error) {
+            if (!(error instanceof DaytonaError)) throw error
+          }
+        }
+        context.observe(resolved)
       }
       return
     } catch (error) {

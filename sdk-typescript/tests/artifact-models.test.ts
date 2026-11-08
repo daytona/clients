@@ -7,6 +7,7 @@ import { Image, Snapshot } from '../src/v2/Image.js'
 import { ImagesService } from '../src/v2/Images.js'
 import { SnapshotsService } from '../src/v2/Snapshots.js'
 import { artifactApi, imageWire, snapshotWire } from './artifactFixtures.js'
+import { INTERNAL } from '../src/v2/internal'
 
 it('maps image metadata and nested sources without exposing wire fields', async () => {
   // Given a typed response with open vocabularies and an extra server field.
@@ -18,16 +19,16 @@ it('maps image metadata and nested sources without exposing wire fields', async 
   }
   const { http } = artifactApi(wire)
   // When reading the image through the service boundary.
-  const image = await ImagesService._create(http).get('img-one')
+  const image = await new ImagesService(INTERNAL, http).get('img-one')
   // Then the SDK exposes normalized camelCase fields and preserves open vocabularies.
   expect(image).toBeInstanceOf(Image)
   expect(image).toMatchObject({
     sandboxClass: 'future-class', retention: 'unknown', rawRetention: 'archival',
     origin: 'future-origin', status: 'future-status', bytes: 1024, layerCount: 7, diskMib: 81920,
     availableIn: ['region-a', 'region-b'], region: 'region-a',
-    source: { type: 'dockerfile', contextObject: 'context-one', dockerfile: 'Dockerfile' },
     createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z',
   })
+  expect(image.source).toEqual({ type: 'dockerfile', contextObject: 'context-one', dockerfile: 'Dockerfile' })
   for (const key of ['class', 'layer_count', 'cursor', 'future_field', 'rawSandboxClass']) {
     expect(image).not.toHaveProperty(key)
   }
@@ -37,7 +38,7 @@ it('normalizes absent image metadata while retaining its nullable name and disk 
   // Given optional fields explicitly null on the wire.
   const wire = imageWire({ name: null, source: null, bytes: null, layer_count: null, error: null, expires_at: null, disk_mib: null })
   // When converting the response into an SDK model.
-  const image = Image._create(wire)
+  const image = new Image(INTERNAL, wire)
   // Then absent optional values use undefined consistently.
   expect(image).toMatchObject({ name: null, diskMib: null, source: undefined, bytes: undefined,
     layerCount: undefined, error: undefined, expiresAt: undefined })
@@ -48,7 +49,7 @@ it.each(['linux', 'future-class'])('normalizes snapshot class %s and keeps the r
   const { http } = artifactApi(snapshotWire({ class: sandboxClass, kind: 'future-kind', bytes: 2048,
     memory_bytes: 1024, sandbox_id: 'sbx-one' }))
   // When reading the snapshot through the service boundary.
-  const snapshot = await SnapshotsService._create(http).get('snap-one')
+  const snapshot = await new SnapshotsService(INTERNAL, http).get('snap-one')
   // Then enum fallbacks preserve raw values and sizes remain distinct.
   expect(snapshot).toBeInstanceOf(Snapshot)
   expect(snapshot).toMatchObject({ sandboxClass: sandboxClass === 'linux' ? 'linux' : 'unknown',
@@ -61,15 +62,15 @@ it('normalizes absent snapshot sizes and source sandbox', () => {
   // Given a snapshot captured without size or source information.
   const wire = snapshotWire({ bytes: null, memory_bytes: null, sandbox_id: null, error: null })
   // When converting the response into an SDK model.
-  const snapshot = Snapshot._create(wire)
+  const snapshot = new Snapshot(INTERNAL, wire)
   // Then optional values are absent, while the known kind remains usable.
   expect(snapshot).toMatchObject({ bytes: undefined, memoryBytes: undefined, sandboxId: undefined,
     error: undefined, kind: 'full', rawKind: 'full' })
 })
 
 it.each([
-  { name: 'image', create: () => { const wire = imageWire(); return { wire, artifact: Image._create(wire) } } },
-  { name: 'snapshot', create: () => { const wire = snapshotWire(); return { wire, artifact: Snapshot._create(wire) } } },
+  { name: 'image', create: () => { const wire = imageWire(); return { wire, artifact: new Image(INTERNAL, wire) } } },
+  { name: 'snapshot', create: () => { const wire = snapshotWire(); return { wire, artifact: new Snapshot(INTERNAL, wire) } } },
 ])('keeps $name availability independent of the response array', ({ create }) => {
   // Given an already-created artifact model.
   const { wire, artifact } = create()
