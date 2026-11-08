@@ -113,6 +113,7 @@ for (const version of ['v2.0.0-beta.1', 'v0.232.0', 'v2.0.0-dev.1']) {
 for (const [title, releases, publishCli, status] of [
   ['the first stable release without the CLI', ['v0.231.0', 'v0.230.0'], 'false', 1],
   ['the first stable release with the CLI', ['v0.231.0'], 'true', 0],
+  ['a stable 2.x release without the CLI when only a later major is stable', ['v0.231.0', 'v3.0.0'], 'false', 1],
   ['a later stable release without the CLI', ['v0.231.0', 'v2.0.0'], 'false', 0],
   ['a stable release when the releases cannot be read', null, 'false', 1],
 ]) {
@@ -288,6 +289,81 @@ test('CLI release: a stable release is not created when the releases cannot be l
   assert.doesNotMatch(readFileSync(join(root, 'gh.log'), 'utf8'), /release (create|upload|edit)/);
 });
 
+// An existing release under the tag: its assets live in $ROOT/published.
+function resumeGh(root, { kind = 'prerelease', stable = [] } = {}) {
+  writeFileSync(join(root, 'stable'), stable.map((t) => `${t}\n`).join(''));
+  executable(join(root, 'bin/gh'), [
+    'echo "$*" >> "$GH_LOG"',
+    'pub="$ROOT/published"',
+    'case "$*" in',
+    `  "release view "*"--json isPrerelease,isDraft"*) echo ${kind} ;;`,
+    '  "release view "*"--json assets"*) ls "$pub" ;;',
+    '  "release view "*) ;;',
+    '  "release list "*) cat "$ROOT/stable" ;;',
+    '  "release download "*"--pattern SHA256SUMS --output "*) [ -f "$pub/SHA256SUMS" ] || exit 1; cp "$pub/SHA256SUMS" "${*: -1}" ;;',
+    '  "release download "*"--dir "*) mkdir -p "${*: -1}"; cp "$pub"/* "${*: -1}/" ;;',
+    '  "release upload "*) shift 3; for f in "$@"; do case "$f" in --*|daytona/clients) ;; *) cp "$f" "$pub/" ;; esac; done ;;',
+    '  "release edit "*) ;;',
+    '  *) echo "unexpected gh $*" >&2; exit 1 ;;',
+    'esac',
+  ].join('\n'));
+}
+
+// cli-dist with real checksums, and the release as published so far.
+function resumeFixture(context, publish) {
+  const root = fixture(context);
+  mkdirSync(join(root, 'cli-dist'));
+  writeFileSync(join(root, 'cli-dist/daytona-linux-amd64'), 'linux binary');
+  writeFileSync(join(root, 'cli-dist/install.sh'), 'installer');
+  const sums = spawnSync('sha256sum', ['daytona-linux-amd64', 'install.sh'], { cwd: join(root, 'cli-dist'), encoding: 'utf8' });
+  writeFileSync(join(root, 'cli-dist/SHA256SUMS'), sums.stdout);
+  mkdirSync(join(root, 'published'));
+  publish(root);
+  return root;
+}
+
+const copyAsset = (root, name) => writeFileSync(join(root, 'published', name), readFileSync(join(root, 'cli-dist', name)));
+
+for (const [title, publish, options, status, expect] of [
+  ['a complete identical release resumes without uploading', (root) => ['daytona-linux-amd64', 'install.sh', 'SHA256SUMS'].forEach((a) => copyAsset(root, a)), {}, 0,
+    { uploads: [], message: /verified against this build's checksums/ }],
+  ['identical checksums with a missing asset uploads only that asset', (root) => ['daytona-linux-amd64', 'SHA256SUMS'].forEach((a) => copyAsset(root, a)), {}, 0,
+    { uploads: ['release upload v2.0.0-rc.2 cli-dist/install.sh --repo daytona/clients'] }],
+  ['a release without SHA256SUMS gets every asset again', (root) => copyAsset(root, 'install.sh'), {}, 0,
+    { uploads: ['release upload v2.0.0-rc.2 cli-dist/SHA256SUMS cli-dist/daytona-linux-amd64 cli-dist/install.sh --repo daytona/clients --clobber'] }],
+  ['different checksums fail without uploading', (root) => { writeFileSync(join(root, 'published/SHA256SUMS'), 'other'); }, {}, 1,
+    { uploads: [], message: /already exists with DIFFERENT content/ }],
+  ['a published asset that does not match the checksums fails', (root) => { ['install.sh', 'SHA256SUMS'].forEach((a) => copyAsset(root, a)); writeFileSync(join(root, 'published/daytona-linux-amd64'), 'tampered'); }, {}, 1,
+    { uploads: [] }],
+]) {
+  test(`CLI release resume: ${title}`, (context) => {
+    // Given: a pre-release already under the tag, published as far as `publish` got.
+    const root = resumeFixture(context, publish);
+    resumeGh(root, options);
+    // When
+    const result = run(root, cliRelease, { CLI_VERSION: '2.0.0-rc.2', SOURCE_SHA: 'abc', ROOT: root, RUNNER_TEMP: root, GITHUB_WORKSPACE: root, GH_LOG: join(root, 'gh.log'), ...channelEnv.rc });
+    // Then
+    assert.equal(result.status, status, result.stdout + result.stderr);
+    const log = readFileSync(join(root, 'gh.log'), 'utf8').split('\n');
+    assert.deepEqual(log.filter((line) => line.startsWith('release upload')), expect.uploads);
+    assert.ok(!log.some((line) => line.startsWith('release create')), 'created a second release');
+    if (expect.message) assert.match(result.stdout, expect.message);
+  });
+}
+
+for (const [stable, latest] of [[['v0.231.0'], true], [['v2.1.0', 'v0.240.0'], false]]) {
+  test(`CLI release resume: a stable release is ${latest ? '' : 'not '}marked Latest again`, (context) => {
+    // Given: the complete stable release, and the repository's other stable releases.
+    const root = resumeFixture(context, (r) => ['daytona-linux-amd64', 'install.sh', 'SHA256SUMS'].forEach((a) => copyAsset(r, a)));
+    resumeGh(root, { kind: 'stable', stable });
+    // When
+    const result = run(root, cliRelease, { CLI_VERSION: '2.0.1', SOURCE_SHA: 'abc', ROOT: root, RUNNER_TEMP: root, GITHUB_WORKSPACE: root, GH_LOG: join(root, 'gh.log'), ...channelEnv.stable });
+    // Then
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(readFileSync(join(root, 'gh.log'), 'utf8').includes('release edit v2.0.1 --repo daytona/clients --latest'), latest);
+  });
+}
+
 test('CLI release: an unknown channel fails before anything is published', (context) => {
   const root = cliFixture(context);
   releaseGh(root);
@@ -320,12 +396,13 @@ function homebrewGh(root, { v0Running = ['0'], formulaVersion, watchExit = 0, ru
     '  head -n 1 "$ROOT/v0-running"; if [ "$(wc -l < "$ROOT/v0-running")" -gt 0 ]; then sed -i 1d "$ROOT/v0-running"; fi; exit 0',
     'fi',
     'case "$*" in',
-    '  "run list --repo daytonaio/homebrew-cli"*--json\\ createdAt*) echo 2026-01-01T00:00:00Z ;;',
-    '  "run list --repo daytonaio/homebrew-cli"*--json*) echo 42 ;;',
-    `  "run list --repo daytonaio/homebrew-cli"*) ${runsReadable ? '' : 'echo "HTTP 403" >&2; exit 1'} ;;`,
+    // Only the channel's tap workflow and formula are answered.
+    '  "run list --repo daytonaio/homebrew-cli --workflow $TAP_WORKFLOW "*--json\\ createdAt*) echo 2026-01-01T00:00:00Z ;;',
+    '  "run list --repo daytonaio/homebrew-cli --workflow $TAP_WORKFLOW "*--json*) echo 42 ;;',
+    `  "run list --repo daytonaio/homebrew-cli --workflow $TAP_WORKFLOW "*) ${runsReadable ? '' : 'echo "HTTP 403" >&2; exit 1'} ;;`,
     '  "api repos/daytonaio/homebrew-cli/dispatches"*) ;;',
     `  "run watch 42"*) exit ${watchExit} ;;`,
-    '  "api repos/daytonaio/homebrew-cli/contents/"*) formula ;;',
+    '  "api repos/daytonaio/homebrew-cli/contents/$FORMULA.rb "*) formula ;;',
     '  *) echo "unexpected gh $*" >&2; exit 1 ;;',
     'esac',
   ].join('\n'));
@@ -335,6 +412,7 @@ function homebrewGh(root, { v0Running = ['0'], formulaVersion, watchExit = 0, ru
 const homebrewStep = step('Point the ${{ needs.gate.outputs.homebrew_formula }} Homebrew formula at the release');
 const homebrewEnv = {
   stable: { CHANNEL: 'stable', FORMULA: 'daytona', EVENT: 'update-version', TAP_WORKFLOW: 'brew_publish.yaml' },
+  rc: { CHANNEL: 'rc', FORMULA: 'daytona-rc', EVENT: 'update-version-rc', TAP_WORKFLOW: 'brew_publish_rc.yaml' },
   alpha: { CHANNEL: 'alpha', FORMULA: 'daytona-alpha', EVENT: 'update-version-alpha', TAP_WORKFLOW: 'brew_publish_alpha.yaml' },
 };
 
@@ -342,6 +420,7 @@ for (const [title, channel, options, status, waits, message] of [
   ['stable waits for running release/v0 publishes, then dispatches', 'stable', { v0Running: ['1', '1', '0'], formulaVersion: '2.0.0' }, 0, 2],
   ['stable fails when the formula was moved after the update', 'stable', { formulaVersion: '0.232.0' }, 1, 0, /is at '0\.232\.0', not 2\.0\.0/],
   ['an alpha does not wait for release/v0', 'alpha', { v0Running: ['1'], formulaVersion: '2.0.0' }, 0, 0],
+  ['an rc goes to daytona-rc and does not wait for release/v0', 'rc', { v0Running: ['1'], formulaVersion: '2.0.0' }, 0, 0],
   ['a failed tap run fails the step', 'alpha', { formulaVersion: '2.0.0', watchExit: 1 }, 1, 0],
   ['unreadable tap runs: the formula naming the version passes', 'alpha', { formulaVersion: ['2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0'], runsReadable: false }, 0, 0, /waiting up to 15 minutes/],
   ['unreadable tap runs: a formula that never moves fails', 'alpha', { formulaVersion: '2.0.0-alpha.8', runsReadable: false }, 1, 0, /is at '2\.0\.0-alpha\.8', not 2\.0\.0/],
@@ -363,6 +442,8 @@ for (const [title, channel, options, status, waits, message] of [
     const v0Checks = log.slice(0, dispatch).filter((line) => line.startsWith('run list --repo daytona/clients')).length;
     assert.equal(v0Checks, channel === 'stable' ? waits + 1 : 0);
     if (message) assert.match(result.stdout, message);
+    // The formula is read from the channel's own file.
+    if (status === 0) assert.ok(log.some((line) => line.startsWith(`api repos/daytonaio/homebrew-cli/contents/${homebrewEnv[channel].FORMULA}.rb `)), 'formula not read back');
   });
 }
 
@@ -377,15 +458,19 @@ for (const [title, answer, version, status] of [
   ['of a package without a latest tag', '200 {"alpha":"2.0.0-alpha.8"}', '2.0.0', 0],
   ['of a package not on npm yet', '404 {}', '2.0.0', 0],
   ['when the registry cannot answer', '503 -', '2.0.0', 1],
+  ['when a 200 transfer did not complete', '200!18 {"alpha":"2.0.0-alpha.8"}', '2.0.1', 1],
 ]) {
   test(`registry check: a stable version ${title}`, (context) => {
     // Given: npm answers the dist-tags request with a status and a body.
     const root = fixture(context);
-    const [code, body] = [answer.slice(0, 3), answer.slice(4)];
+    // "<status>[!<curl exit>] <body>": a curl exit code means the transfer
+    // failed after the status line arrived.
+    const [head, body] = [answer.slice(0, answer.indexOf(' ')), answer.slice(answer.indexOf(' ') + 1)];
+    const [code, curlExit = '0'] = head.split('!');
     executable(join(root, 'bin/curl'), [
       'out=""; url="${*: -1}"',
       'while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done',
-      `case "$url" in *dist-tags) printf '%s' '${body}' > "$out"; printf ${code} ;; *) printf 404 ;; esac`,
+      `case "$url" in *dist-tags) printf '%s' '${body}' > "$out"; printf ${code}; exit ${curlExit} ;; *) printf 404 ;; esac`,
     ].join('\n'));
     // When
     const result = run(root, step('Refuse a version the registry already has (unless force_republish)'), {
@@ -393,7 +478,8 @@ for (const [title, answer, version, status] of [
       NPM_DIST_TAG: 'latest', FORCE: 'true', GH_TOKEN: '' });
     // Then: even force_republish never moves `latest` to a lower version.
     assert.equal(result.status, status, result.stdout + result.stderr);
-    if (status === 1 && code === '200') assert.match(result.stdout, /is below the package's npm latest/);
+    if (status === 1 && code === '200' && curlExit === '0') assert.match(result.stdout, /is below the package's npm latest/);
+    if (curlExit !== '0') assert.match(result.stdout, /the transfer failed/);
     if (code === '503') assert.match(result.stdout, /could not read the npm dist-tags of @daytona\/sdk \(HTTP 503\)/);
   });
 }
@@ -476,10 +562,11 @@ function packumentCurl(root, answers) {
   writeFileSync(join(root, 'answers'), answers.map((a) => `${a}\n`).join(''));
   executable(join(root, 'bin/curl'), [
     'out=""; while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done',
-    'read -r code versions latest < <(head -n 1 "$ROOT/answers")',
+    'read -r head versions latest < <(head -n 1 "$ROOT/answers")',
+    'code="${head%%!*}"; curl_exit=0; [ "$head" = "$code" ] || curl_exit="${head#*!}"',
     'if [ "$(wc -l < "$ROOT/answers")" -gt 1 ]; then sed -i 1d "$ROOT/answers"; fi',
     'node -e \'const [v, l] = process.argv.slice(1); console.log(JSON.stringify({ "dist-tags": { latest: l }, versions: Object.fromEntries(v.split(",").filter(Boolean).map((x) => [x, {}])) }))\' "${versions:-}" "${latest:-}" > "$out"',
-    'printf %s "$code"',
+    'printf %s "$code"; exit "$curl_exit"',
   ].join('\n'));
   executable(join(root, 'bin/sleep'), 'exit 0');
   writeFileSync(join(root, 'clock'), '0');
@@ -493,6 +580,8 @@ for (const [title, mode, version, answers, status, message] of [
   ['check: the same version (a resume)', 'check', '2.0.0', ['200 2.0.0 2.0.0'], 0],
   ['check: a package not on npm yet', 'check', '2.0.0', ['404'], 0, /not on npm yet/],
   ['check: the registry cannot answer', 'check', '2.0.0', ['503'], 1, /HTTP 503/],
+  ['check: a 200 transfer that did not complete', 'check', '2.0.1', ['200!18 2.0.0,2.1.0 2.1.0'], 1, /HTTP 000/],
+  ['verify: retries a transfer that did not complete', 'verify', '2.0.0', ['200!18 0.231.0,2.0.0 0.231.0', '200 0.231.0,2.0.0 2.0.0'], 0],
   ['verify: latest is the highest stable version', 'verify', '2.0.0', ['200 0.231.0,2.0.0 2.0.0'], 0],
   ['verify: waits until the version is visible', 'verify', '2.0.0', ['503', '200 0.231.0 0.231.0', '200 0.231.0,2.0.0 2.0.0'], 0],
   ['verify: latest moved back by another publish', 'verify', '2.0.1', ['200 2.0.0,2.0.1,2.1.0 2.0.1'], 1, /npm dist-tag add @daytona\/sdk@2\.1\.0 latest/],

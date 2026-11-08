@@ -352,7 +352,7 @@ jobs:
               echo "::error::could not list the releases of ${GITHUB_REPOSITORY} to tell whether a stable 2.x CLI release exists"
               exit 1
             fi
-            if ! grep -qE '^v([2-9]|[1-9][0-9]+)\.[0-9]+\.[0-9]+$' <<<"$stable"; then
+            if ! grep -qE '^v2\.[0-9]+\.[0-9]+$' <<<"$stable"; then
               echo "::error::${version} is the first stable 2.x release: it must publish the CLI too (publish_cli), which hands the daytona Homebrew formula and the Latest release over from 0.x"
               exit 1
             fi
@@ -556,11 +556,14 @@ jobs:
           # so a stable version below the package's current `latest` (a
           # backport after a newer stable release) is refused, before anything
           # is built; a 0.x `latest` (before the first stable 2.x) is below.
-          # A package not on npm yet (404), or without a `latest` tag, has
-          # nothing to move back; any other answer fails closed.
+          # A package not on npm yet (a completed 404), or without a `latest`
+          # tag, has nothing to move back; any other answer, and any transfer
+          # that did not complete, fails closed.
           below_latest() { # package version
             local code current
-            code=$(curl -sS --max-time 60 -o /tmp/dist-tags.json -w '%{http_code}' "https://registry.npmjs.org/-/package/${1/\//%2f}/dist-tags") || true
+            if ! code=$(curl -sS --max-time 60 -o /tmp/dist-tags.json -w '%{http_code}' "https://registry.npmjs.org/-/package/${1/\//%2f}/dist-tags"); then
+              echo "::error::could not read the npm dist-tags of $1 (the transfer failed)"; exit 1
+            fi
             case "$code" in
               200) current=$(sed -n 's/.*"latest" *: *"\([^"]*\)".*/\1/p' /tmp/dist-tags.json) ;;
               404) return 1 ;;
@@ -962,9 +965,15 @@ jobs:
         set -euo pipefail
         mode="$1" pkg="$2" version="$3"
         url="https://registry.npmjs.org/${pkg/\//%2f}"
+        # The HTTP status, or 000 when the transfer did not complete (a
+        # truncated document is never judged).
         fetch() {
-          curl -sS --max-time 60 -H 'Accept: application/vnd.npm.install-v1+json' \
-            -o "$RUNNER_TEMP/packument.json" -w '%{http_code}' "${url}?nocache=$(date +%s%N)" || true
+          local code
+          if ! code=$(curl -sS --max-time 60 -H 'Accept: application/vnd.npm.install-v1+json' \
+            -o "$RUNNER_TEMP/packument.json" -w '%{http_code}' "${url}?nocache=$(date +%s%N)"); then
+            code=000
+          fi
+          echo "$code"
         }
         # Exit 0: holds; 1: does not (message on stdout); 2: this version is
         # not visible on the registry yet.
@@ -1322,8 +1331,8 @@ jobs:
             # same SHA256SUMS and every asset we would upload already present
             # (a run that died mid-upload must re-upload, not dispatch Homebrew
             # at a half-populated release).
-            if gh release download "$tag" --repo "$repo" --pattern SHA256SUMS --output /tmp/published.SHA256SUMS; then
-              if ! cmp -s /tmp/published.SHA256SUMS cli-dist/SHA256SUMS; then
+            if gh release download "$tag" --repo "$repo" --pattern SHA256SUMS --output "$RUNNER_TEMP/published.SHA256SUMS"; then
+              if ! cmp -s "$RUNNER_TEMP/published.SHA256SUMS" cli-dist/SHA256SUMS; then
                 echo "::error::release $tag already exists with DIFFERENT content — a version is published once; publish the next version"
                 exit 1
               fi
@@ -1343,9 +1352,9 @@ jobs:
             fi
             # Before Homebrew is pointed at the tag, download every published
             # asset and verify it against THIS build's SHA256SUMS.
-            rm -rf /tmp/verify && mkdir -p /tmp/verify
-            gh release download "$tag" --repo "$repo" --dir /tmp/verify
-            (cd /tmp/verify && cp "$GITHUB_WORKSPACE/cli-dist/SHA256SUMS" ./SHA256SUMS.expected && cmp -s SHA256SUMS SHA256SUMS.expected && sha256sum --check --strict SHA256SUMS.expected)
+            rm -rf "$RUNNER_TEMP/verify" && mkdir -p "$RUNNER_TEMP/verify"
+            gh release download "$tag" --repo "$repo" --dir "$RUNNER_TEMP/verify"
+            (cd "$RUNNER_TEMP/verify" && cp "$GITHUB_WORKSPACE/cli-dist/SHA256SUMS" ./SHA256SUMS.expected && cmp -s SHA256SUMS SHA256SUMS.expected && sha256sum --check --strict SHA256SUMS.expected)
             if [ "$latest" = true ]; then gh release edit "$tag" --repo "$repo" --latest; fi
             echo "release $tag verified against this build's checksums — resuming at the Homebrew dispatch"
             exit 0
