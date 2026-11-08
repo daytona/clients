@@ -501,7 +501,8 @@ skipping exist only in the TypeScript tool).
   also copies it), which throws `BadRequestError` (400, `BAD_REQUEST`, source
   `SDK`) naming the key; inherited enumerable keys count, and a value that is
   not an options object (`null`, a boolean, an array: an older positional
-  argument) is refused. A key in
+  argument; a built-in such as a `Date` or a `Map`) is refused (the root
+  constructor alone reads `null` as no configuration, as Python does `None`). A key in
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
   `requestTimeout`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".

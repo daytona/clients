@@ -194,8 +194,17 @@ def _generated_on_the_public_surface(exports: Optional[Iterable[tuple[str, objec
     def visit(owner: str, member: str, annotation: object) -> None:
         reach(f"{owner}.{member}", annotation)
 
-    for name, value in _public_exports() if exports is None else exports:
+    pending = list(_public_exports() if exports is None else exports)
+    walked_modules: set[str] = set()
+    while pending:
+        name, value = pending.pop(0)
         if isinstance(value, types.ModuleType):
+            # An exported module (`daytona.v2.codes`): walk its own public names.
+            if value.__name__.startswith(_V0) or value.__name__ in walked_modules:
+                continue
+            walked_modules.add(value.__name__)
+            members = getattr(value, "__all__", [m for m in vars(value) if not m.startswith("_")])
+            pending.extend((f"{name}.{member}", getattr(value, member)) for member in members)
             continue
         value_module = getattr(value, "__module__", "") or ""
         if value_module.startswith(_GENERATED):
@@ -256,3 +265,27 @@ def test_the_guard_walks_exported_functions_and_aliases() -> None:
         "probe_public_function(): Sandbox",
         "export ProbeAlias: Sandbox",
     }
+
+
+def test_the_guard_walks_an_exported_module_through_its_all() -> None:
+    from daytona.v2._gen.toolbox.models.process_dto import ProcessDto
+
+    def leak_probe() -> object:
+        raise NotImplementedError
+
+    leak_probe.__annotations__ = {"return": ProcessDto}
+    leak_probe.__module__ = __name__
+    catalog = types.ModuleType("daytona.v2.probe_catalog")
+    catalog.leak_probe = leak_probe  # type: ignore[attr-defined]
+    catalog.hidden_probe = leak_probe  # type: ignore[attr-defined]
+    catalog.__all__ = ["leak_probe"]  # type: ignore[attr-defined]
+    assert _generated_on_the_public_surface([("probe_catalog", catalog)]) == {
+        "probe_catalog.leak_probe(): ProcessDto"
+    }
+
+
+def test_the_public_codes_module_is_walked() -> None:
+    from daytona.v2 import codes
+
+    assert "codes" in v2.__all__
+    assert _generated_on_the_public_surface([("codes", codes)]) == set()

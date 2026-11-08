@@ -133,12 +133,20 @@ export function assertKnownOptions<T>(typeName: string, options: T | undefined, 
   assertKnownKeys(typeName, enumerableKeys(options), known, renamed)
 }
 
-/** Throw `BadRequestError` unless `options` is an object (not `null`, an array or a function). */
+/**
+ * Throw `BadRequestError` unless `options` is an options object: an object
+ * literal, a class instance or a prototype-based object. `null`, primitives,
+ * functions, arrays and other built-ins (`Date`, `Map`, `Set`, `RegExp`, a
+ * typed array, ...: their contents are not enumerable keys, so they would
+ * read as `{}`) are refused.
+ */
 export function assertOptionsObject(typeName: string, options: unknown): asserts options is object {
   if (options === null || typeof options !== 'object' || Array.isArray(options)) {
     const given = options === null ? 'null' : Array.isArray(options) ? 'an array' : `a ${typeof options}`
     throw badRequest(`${typeName} must be an options object, got ${given}`)
   }
+  const tag = Object.prototype.toString.call(options).slice(8, -1)
+  if (tag !== 'Object') throw badRequest(`${typeName} must be an options object, got a built-in ${tag}`)
 }
 
 /**
