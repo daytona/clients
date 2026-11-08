@@ -470,6 +470,11 @@ class Daytona:
 
         ``access_token`` is a sandbox access token the handle sends to sandbox
         services instead of minting its own; the handle never replaces it.
+
+        Both are checked before any request: ``toolbox_url`` must be a
+        non-blank string, and ``access_token`` (sent as a bearer credential)
+        non-empty printable ASCII with no surrounding whitespace, never
+        stripped; ``None`` omits either.
         """
         from .sandbox import Sandbox
 

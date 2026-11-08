@@ -26,3 +26,10 @@ so neither sends header bytes the other would not and neither fails with a
 transport error (Python reported a padded value as a `ConnectionError`, or for
 a create as `SandboxCreateConnectionError`, TypeScript sent it, and Python's
 `find_by_name()` sent a blank region as an empty `x-daytona-region` header).
+`get()`'s connect options are checked too: `toolbox_url` / `toolboxUrl`, when
+given, is a non-blank string, and `access_token` / `accessToken`, sent as a
+bearer credential, follows the header rule (Python raised a raw
+`AttributeError` after the request for a non-string URL, and TypeScript a raw
+`TypeError` and stored a non-string token). A TypeScript `null` for either is
+omitted, as Python's `None` is, so the handle mints its own sandbox token
+(TypeScript took `accessToken: null` as a caller token and never minted).

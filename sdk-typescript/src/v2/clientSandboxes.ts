@@ -13,7 +13,7 @@ import type * as api from './gen/api-types.js'
 import { SearchTotalRelation as SEARCH_TOTAL_RELATIONS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { strictUriEncode } from './http.js'
-import { assertKnownOptions, badRequest, snapshotOptions } from './options.js'
+import { assertKnownOptions, badRequest, headerText, snapshotOptions } from './options.js'
 import { CONNECT_KEYS, FIND_KEYS, LIST_KEYS, SEARCH_KEYS } from './clientOptionKeys.js'
 import { createRegion, hasText, rejectV0Target } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
@@ -68,9 +68,27 @@ export async function getSandbox(context: SandboxClientContext, id: string, opti
   if (options.autoDelete !== undefined && typeof options.autoDelete !== 'boolean') throw badRequest('autoDelete must be a boolean')
   // A blank id would read the sandbox list: refused before any request, as in Python.
   const segment = pathSegment(id, 'sandboxId')
+  const connect = connectOptions(options)
   const sandbox = await context.api.get<api.Sandbox>(`/sandboxes/${segment}`, undefined).then((response) => response.data)
   assertSandboxResponse(sandbox)
-  return context.buildSandbox(sandbox, options)
+  return context.buildSandbox(sandbox, connect)
+}
+
+/**
+ * `get()`'s connect options, checked before any request as in Python: `null`
+ * is omitted; a toolbox URL is a non-blank string; an access token follows
+ * the header rule (it is sent as a bearer credential), never stripped.
+ */
+function connectOptions(options: SandboxConnectOptions): SandboxConnectOptions {
+  const toolboxUrl: unknown = options.toolboxUrl
+  const accessToken: unknown = options.accessToken
+  if (toolboxUrl != null && (typeof toolboxUrl !== 'string' || isBlank(toolboxUrl))) throw badRequest('toolboxUrl must be a non-empty string')
+  if (accessToken != null && typeof accessToken !== 'string') throw badRequest('accessToken must be a string')
+  return {
+    ...(options.autoDelete === undefined ? {} : { autoDelete: options.autoDelete }),
+    ...(typeof toolboxUrl === 'string' ? { toolboxUrl } : {}),
+    ...(typeof accessToken === 'string' ? { accessToken: headerText(accessToken, 'accessToken') } : {}),
+  }
 }
 
 /** @internal */

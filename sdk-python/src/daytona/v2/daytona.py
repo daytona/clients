@@ -849,9 +849,15 @@ class AsyncDaytona:
 
         ``access_token`` is a sandbox access token the handle sends to sandbox
         services instead of minting its own; the handle never replaces it.
+
+        Both are checked before any request: ``toolbox_url`` must be a
+        non-blank string, and ``access_token`` (sent as a bearer credential)
+        non-empty printable ASCII with no surrounding whitespace, never
+        stripped; ``None`` omits either.
         """
         # A blank id would read the sandbox list: refused before any request.
         segment = path_segment(sandbox_id, "sandbox_id")
+        _check_connect_options(toolbox_url, access_token)
         return self._sandbox_from_sandbox(
             sandbox_detail_wire(await self._api.send(RequestSpec("GET", f"/sandboxes/{segment}"))),
             toolbox_url=toolbox_url,
@@ -1576,6 +1582,18 @@ def _named_create(name: CreateConfigValue | None) -> Optional[str]:
     name, so it neither stamps the label nor derives the key.
     """
     return name if isinstance(name, str) and name.strip() else None
+
+
+def _check_connect_options(toolbox_url: object, access_token: object) -> None:
+    """``get()``'s connect options, as TypeScript checks them: ``None`` is
+    omitted; a toolbox URL is a non-blank string; an access token follows the
+    header rule (it is sent as a bearer credential), never stripped."""
+    if toolbox_url is not None and (not isinstance(toolbox_url, str) or not toolbox_url.strip()):
+        raise create_error("toolbox_url must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    if access_token is not None:
+        if not isinstance(access_token, str):
+            raise create_error("access_token must be a string", 400, "BAD_REQUEST", "SDK")
+        header_text(access_token, "access_token")
 
 
 def _resolve_idempotency_key(idempotency_key: Optional[str], name: CreateConfigValue | None = None) -> str:

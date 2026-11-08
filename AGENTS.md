@@ -550,26 +550,41 @@ skipping exist only in the TypeScript tool).
   `IfMatchOptions` of the network-policy and secrets updates); the toolbox
   namespaces' per-call options adopt it area by area, each with its duration
   renames.
-- **TypeScript `null` in options, as it stands.** In the client, lifecycle
-  and platform-service options, TypeScript reads `null` exactly as Python
-  reads `None` for every create, fork, list and search option (nested fields
-  included: omitted where `None` is omitted, refused where it is refused, an
-  explicit null network policy), and also for the image options of
-  `images.build()` / `pull()` and `captureImage()`, the lifecycle-policy
-  fields, `secrets.set()`'s `description`, the reservations'
-  `idempotencyKey`, `macModels.catalog()`'s `region` and `getLimits()`'s
-  `organizationId`. Where Python refuses `None` (a boolean flag such as
-  `images.pull()`'s `wait`, a lifecycle or Docker wait budget, `wait()`'s
-  `until`), TypeScript refuses `null`. The remaining options, whose Python
-  twin reads `None` as omitted, refuse a TypeScript `null` with
-  `BadRequestError` before any request, for now (accepting it later is
-  additive): `images.get()` / `snapshots.get()` `wait` and `timeoutSeconds`,
-  `images.pull()` `timeoutSeconds`, `volumes.create()` `sizeGib`,
-  `ports.signedPreviewLink()` `expiresInSeconds`, `createAccessToken()`
-  `ttlSeconds` / `operations` / `ports`, `followBuildLogs()` (client and
-  sandbox) `cursor` / `timeoutSeconds` / `onEvent`, `reservations.create()` /
-  `createBulk()` `model` / `autoRenew`, `createBulk()` `minCount`, and
-  `sandbox.volumes.pull()` `timeoutSeconds`.
+- **TypeScript `null` in options, as it stands.** Over every option of the
+  client, the `Sandbox` handle's lifecycle and platform calls and the
+  platform services (toolbox namespaces aside), TypeScript reads `null`
+  exactly as Python reads `None` except where noted:
+  - omitted in both: every create, `createFromBuild()` and fork option
+    `None` omits (nested fields included; the network policy is an explicit
+    null in both), every list, `iter()` and search option except
+    `images.list()` / `iter()`'s `anonymous`, `get()`'s `toolboxUrl` /
+    `accessToken`, `findByName()`'s `region`, `getLimits()`'s
+    `organizationId`, `captureImage()`'s `name` / `idleExpirySeconds`, each
+    `updateLifecyclePolicy()` field, the image options of `images.build()` /
+    `pull()` (`name`, `idleExpirySeconds`, `region`, `cpuArch`),
+    `secrets.set()`'s `description`, the reservations' `idempotencyKey`
+    (create, `createBulk()`, `renew()`) and `macModels.catalog()`'s `region`;
+  - refused in both (`BadRequestError` before any request): every lifecycle
+    and Docker wait budget (`start`, `stop`, `pause`, `resume`, `delete` by
+    handle and by id, `wait()`, `docker.waitUntilReady()`), the create and
+    fork `waitSeconds`, `wait()`'s `until`, `ifMatch`, `followBuildLogs()`'s
+    `onLogs`, `images.pull()`'s `wait`, `images.list()` / `iter()`'s
+    `anonymous`, `volumes.get()`'s `create` / `idOnly`, `volumes.create()`'s
+    `name`, `volumes.delete()`'s `idOnly`, `secrets.set()`'s
+    `allowedDomains` / `ifNotExists`, the reservations' `region`,
+    `createBulk()`'s `count`, `reservations.update()`'s `autoRenew`,
+    `ports.expose()`'s `public` and `sandbox.volumes.pull()`'s `requestId`;
+  - TypeScript-only: `autoDelete` (create, `get()`, fork) refuses `null`;
+    `followBuildLogs()`'s `signal` omits it;
+  - TypeScript refuses `null` where Python's `None` omits, for now
+    (accepting it later is additive): `images.get()` / `snapshots.get()`
+    `wait` and `timeoutSeconds`, `images.pull()` `timeoutSeconds`,
+    `volumes.create()` `sizeGib`, `ports.signedPreviewLink()`
+    `expiresInSeconds`, `createAccessToken()` `ttlSeconds` / `operations` /
+    `ports`, `followBuildLogs()` (client and sandbox) `cursor` /
+    `timeoutSeconds` / `onEvent`, `reservations.create()` / `createBulk()`
+    `model` / `autoRenew`, `createBulk()` `minCount`, and
+    `sandbox.volumes.pull()` `timeoutSeconds`.
 - **Errors have one shape.** v2 category names are identical in both SDKs
   (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
