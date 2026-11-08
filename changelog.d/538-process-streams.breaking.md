@@ -14,4 +14,6 @@ warning or error without its message, raises `BadRequestError` (400,
 `BAD_REQUEST`, source `SDK`); an `error` event raises its typed error whether
 or not it carries a cursor. In both SDKs an SSE block without a `data:` line,
 or an unterminated final block, dispatches nothing (TypeScript dispatched
-both). Python yielded bare `LogFrame`s and gains `limit=`.
+both), and one byte-order mark at the very start of a stream is dropped
+(Python kept it, so the stream's first event lost its type and was skipped).
+Python yielded bare `LogFrame`s and gains `limit=`.

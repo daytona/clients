@@ -9,7 +9,6 @@ import functools
 import json
 import math
 import re
-import sys
 import types
 import typing
 from collections.abc import Callable
@@ -985,15 +984,12 @@ def checked_seconds(value: object, name: str = "timeout") -> float | int:
     for a float is still accepted (and then capped by the caller), never an
     ``OverflowError``.
     """
-    valid = (
-        not isinstance(value, bool)
-        and isinstance(value, (int, float))
-        and (isinstance(value, int) or math.isfinite(value))
-        and value >= 0
-    )
-    if not valid:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
-    return value  # type: ignore[return-value]
+    # Narrowed to int | float from here on.
+    if (isinstance(value, float) and not math.isfinite(value)) or value < 0:
+        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+    return value
 
 
 def timeout_millis_from_seconds(timeout: Optional[float], name: str = "timeout") -> Optional[int]:
@@ -1028,19 +1024,23 @@ def wait_budget(timeout: Optional[float]) -> Optional[float]:
     return 0 if above_timer_maximum(seconds) else timeout
 
 
-def is_finite_number(value: float) -> bool:
-    """Whether a JSON number is finite as a float. An ``int`` beyond the float
-    range (which ``JSON.parse`` reads as ``Infinity``) is not; it is compared
-    exactly, never converted, so it cannot raise ``OverflowError``."""
-    if isinstance(value, int):
-        return abs(value) <= sys.float_info.max
-    return math.isfinite(value)
+def finite_number(value: object) -> TypeGuard[Union[int, float]]:
+    """Whether ``value`` is a number a double can carry: an ``int`` or
+    ``float`` (not a ``bool``) that is finite. An ``int`` too large for a
+    float, which ``JSON.parse`` reads as ``Infinity``, is not; the check
+    converts as ``float()`` does, so it never raises ``OverflowError``."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _finite_or_refuse(value: Optional[_NumberT], description: str, expected: str) -> Optional[_NumberT]:
     """A response number the SDK converts: a non-finite one is the
     malformed-response error naming the field."""
-    if value is not None and not is_finite_number(value):
+    if value is not None and not finite_number(value):
         raise create_error(f"expected {description} must be {expected}", 400, "BAD_REQUEST", "SDK")
     return value
 
@@ -1145,6 +1145,9 @@ class SseParser:
         self._event = "message"
         self._id: Optional[str] = None
         self._data_parts: List[str] = []
+        # The event-stream format drops one U+FEFF at the very start of the
+        # stream (TypeScript's TextDecoder does the same); elsewhere it is data.
+        self._at_stream_start = True
 
     def feed(self, raw: str) -> Optional[Tuple[str, JsonObject]]:
         message = self.feed_message(raw)
@@ -1155,6 +1158,9 @@ class SseParser:
         unparsed, so a consumer parses only the events it knows, and the
         message's ``id:`` line (``None`` without one)."""
         line = raw.rstrip("\r\n")
+        if self._at_stream_start:
+            self._at_stream_start = False
+            line = line.removeprefix("\ufeff")
         if not line:
             if not self._data_parts:
                 self._event = "message"

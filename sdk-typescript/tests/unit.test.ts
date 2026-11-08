@@ -12517,6 +12517,23 @@ describe('toolbox surface', () => {
     ])
   })
 
+  // Shared with the Python SDK's test_toolbox_surface.py: the event-stream
+  // format drops one U+FEFF at the very start of the stream; a BOM anywhere
+  // else is data.
+  it('drops one byte-order mark at the start of a log stream and keeps one inside data', async () => {
+    const transport = transportStub()
+    transport.fetch.mockResolvedValue(sseResponse([
+      '\ufeffevent: log\ndata: {"cursor":"c1","channel":"stdout","data":"\ufeffx","timestamp":1}\n\n',
+      'event: eof\ndata: {"cursor":"c2"}\n\n',
+    ]))
+    const events: StreamLogEvent[] = []
+    for await (const event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) events.push(event)
+    expect(events).toEqual([
+      { type: 'log', cursor: 'c1', frame: { cursor: 'c1', channel: 'stdout', data: '\ufeffx', timestampMs: 1 } },
+      { type: 'eof', cursor: 'c2' },
+    ])
+  })
+
   it('makes a positive sub-millisecond duration at least 1 ms and a budget above the timer maximum no limit', async () => {
     const { exactMs, secondsToMs } = await import('../src/v2/ProcessWire')
     expect(exactMs('t', 1e-9)).toBe(1)

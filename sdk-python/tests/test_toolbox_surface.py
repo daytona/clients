@@ -2032,3 +2032,95 @@ async def test_a_process_timeout_ms_beyond_the_float_range_is_a_malformed_respon
         await AsyncProcessService("sbx", transport).start("true")  # type: ignore[arg-type]
     assert "timeoutMs" in str(info.value)
     assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+_FLOAT_EDGE = 2**1024 - 2**970  # the smallest integer float() cannot convert
+
+
+@pytest.mark.parametrize(
+    ("value", "finite"),
+    [
+        (_FLOAT_EDGE - 1, True),
+        (-(_FLOAT_EDGE - 1), True),
+        (_FLOAT_EDGE, False),
+        (-_FLOAT_EDGE, False),
+        (True, False),
+        (float("nan"), False),
+        (float("inf"), False),
+        (float("-inf"), False),
+        (0, True),
+        (1.5, True),
+        ("1", False),
+    ],
+)
+def test_finite_number_matches_what_a_double_can_carry(value: object, finite: bool) -> None:
+    from daytona.v2._core import finite_number
+
+    assert finite_number(value) is finite
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("duration", "accepted"), [(_FLOAT_EDGE - 1, True), (_FLOAT_EDGE, False)])
+async def test_a_recording_duration_at_the_float_edge(duration: int, accepted: bool) -> None:
+    from daytona.v2._core import parse_json_bytes
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    body = (
+        '{"recordings":[{"id":"r","fileName":"r.mp4","filePath":"/r.mp4","startTime":"2026-01-01T00:00:00Z",'
+        f'"status":"completed","durationSeconds":{duration}}}]}}'
+    )
+    cu = AsyncComputerUseService(Transport([parse_json_bytes(body.encode())]))  # type: ignore[arg-type]
+    if accepted:
+        recordings = await cu.recording.list()
+        assert recordings.recordings[0].duration_seconds == duration
+    else:
+        with pytest.raises(BadRequestError, match="durationSeconds must be a number"):
+            await cu.recording.list()
+
+
+# Shared with the TypeScript SDK's unit.test.ts: a stream that starts with a
+# byte-order mark. The event-stream format drops one U+FEFF at the very start
+# of the stream; a BOM anywhere else is data.
+_BOM_STREAM = (
+    "\ufeffevent: log\n"
+    'data: {"cursor":"c1","channel":"stdout","data":"\ufeffx","timestamp":1}\n\n'
+    "event: eof\n"
+    'data: {"cursor":"c2"}\n\n'
+)
+
+
+@pytest.mark.anyio
+async def test_stream_logs_drops_one_byte_order_mark_at_the_start_of_the_stream() -> None:
+    import httpx
+
+    from daytona.v2._transport import AsyncTransport
+
+    def respond(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, content=_BOM_STREAM.encode("utf-8"), headers={"content-type": "text/event-stream"}
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        transport = AsyncTransport("http://toolbox.invalid", client=client)
+        handle = AsyncProcessService("sbx", transport).connect("proc")
+        events = [event async for event in handle.stream_logs()]
+
+    assert events == [
+        StreamLogFrameEvent(
+            cursor="c1", frame=LogFrame(cursor="c1", channel="stdout", data="\ufeffx", timestamp_ms=1)
+        ),
+        StreamLogEofEvent(cursor="c2"),
+    ]
+
+
+def test_the_sse_parser_keeps_a_byte_order_mark_after_the_start_of_the_stream() -> None:
+    from daytona.v2._core import SseParser
+
+    parser = SseParser()
+    assert parser.feed_message("event: log") is None
+    assert parser.feed_message("data: 1") is None
+    assert parser.feed_message("") == ("log", "1", None)
+    # Not at the stream's start: "\ufeffevent" is an unknown field, ignored.
+    assert parser.feed_message("\ufeffevent: eof") is None
+    assert parser.feed_message("data: 2") is None
+    assert parser.feed_message("") == ("message", "2", None)
