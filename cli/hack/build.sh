@@ -24,6 +24,8 @@ for t in $TARGETS; do
   echo "building $out"
   CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "$LDFLAGS" -o "$out" .
 done
+# Every binary must come from a toolchain at or above go.mod's `go` line.
+hack/check-binaries.sh "$(sed -n 's/^go //p' go.mod)" "$DIST"/daytona-*
 # The install scripts ship as release assets beside the binaries and are
 # verified against the same SHA256SUMS by the publish job's resume path and by
 # anyone checking a download — so they are checksummed here too.
