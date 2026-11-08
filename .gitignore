@@ -9,6 +9,8 @@ build/
 **/.mypy_cache/
 **/.ruff_cache/
 examples/package-lock.json
+# oasdiff, installed by scripts/breaking/install-oasdiff.sh
+/.oasdiff/
 
 # Local environment, OS and editor files
 .env.local
