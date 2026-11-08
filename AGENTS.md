@@ -175,6 +175,10 @@ service manages them, `volumes` attaches them on create, and `sandbox.volumes`
 provides pull operations. The CLI exposes `volume` and `sandbox create --volume`
 (also on `create-macos`). Keep these surfaces in parity across the SDKs.
 
+The CLI resolves its API URL from `--api-url`, then `DAYTONA_V2_API_URL`,
+then the profile's saved URL, then `app.DefaultAPIURL`; it never reads
+`DAYTONA_API_URL` or `DAYTONA_REGION` (regions come from `--region` only).
+
 The `daytona` CLI (Go) shares the SDKs' version line but is not part of the
 Python↔TS parity contract. Its wire types (`cli/gen/`) are generated from
 `contract/*.json` by `cli/hack/gen.sh`; its README is public-facing. Verify:
@@ -281,7 +285,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   error class is not keyed. `exports` gives `.` and `./v2` conditional types
   (`require.types` → the CJS declarations in `dist/cjs`), checked by the
   node16 fixture `sdk-typescript/scripts/cjs-types-fixture/` in the tarball smoke.
-- **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DAYTONA_API_URL` → `DEFAULT_V2_API_URL` (the CLI resolves `--api-url` → `DAYTONA_V2_API_URL` → the profile's saved URL → `app.DefaultAPIURL` and never reads `DAYTONA_API_URL` — keep the two defaults equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` and never reads `DAYTONA_API_URL` (passed explicitly as `api_url`/`apiUrl`). Blank = unset; no config field.
+- **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DAYTONA_API_URL` → `DEFAULT_V2_API_URL` (the CLI mirrors this chain under its `--api-url` flag and above the profile's saved URL, `app.DefaultAPIURL` — keep the two defaults equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` and never reads `DAYTONA_API_URL` (passed explicitly as `api_url`/`apiUrl`). Blank = unset; no config field.
 - **TS `d.v0` is the real v0 client, loaded synchronously.** The getter
   builds the 0.x SDK's `Daytona` on first access through the package-internal
   `#v0-loader` import (package.json `"imports"`): `loaders/v0-node.cjs`
