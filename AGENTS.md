@@ -170,7 +170,7 @@ regeneration needs node + a JRE (openapi-generator, tooling pinned under
 
 ## The CLI — `cli/`
 
-Both SDKs, the CLI and the examples support volumes: the client `volume`
+Both SDKs, the CLI and the examples support volumes: the client `volumes`
 service manages them, `volumes` attaches them on create, and `sandbox.volumes`
 provides pull operations. The CLI exposes `volume` and `sandbox create --volume`
 (also on `create-macos`). Keep these surfaces in parity across the SDKs.
@@ -484,8 +484,11 @@ skipping exist only in the TypeScript tool).
   a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
-  so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`);
-  per-call options adopt it area by area, each with its duration renames.
+  to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`) and to
+  every client, sandbox-lifecycle and platform-service options object
+  (nested `resources`, ports and volume mounts included); the toolbox
+  namespaces' per-call options adopt it area by area, each with its duration
+  renames.
 - **Errors have one shape.** v2 category names are identical in both SDKs
   (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
@@ -533,6 +536,10 @@ skipping exist only in the TypeScript tool).
   loops are forbidden; multi-page traversal lives in explicit iterators
   (`iter()`), each with a cursor-cycle guard. Non-pageable list surfaces such
   as `interpreter.list_contexts()` / `listContexts()` stay one-shot arrays.
+  The client's `list()` / `iter()` take only a cursor and a limit; filters
+  belong to `search()`, whose `states` take SDK states and map to the API's
+  status vocabulary at the boundary. `find_by_name` / `findByName` returns
+  every match and is the one documented exception to the one-page rule.
 - **SDK request attribution uses the Daytona header triple.** `X-Daytona-Source`
   (`sdk-typescript`, `sdk-python`, `sdk-python-async`),
   `X-Daytona-SDK-Version`, and `User-Agent: <source>/<version>` on every request.
@@ -547,11 +554,31 @@ skipping exist only in the TypeScript tool).
 - **Region is per create, never config.** `region=` / `{ region }` on every
   create and on `find_by_name` / `findByName`; neither the root nor the v2
   config carries a region or reads `DAYTONA_TARGET`.
-- **`create()` has one typed source.** Python takes `source: str | Image | None`
-  positionally (`str` = snapshot name); TypeScript takes `snapshot` or
-  `image: Image`. `sandbox.fork()` is the only fork entrypoint, and
-  `create()` with no source sends no image field so the server can resolve the
-  platform default.
+- **One create method per source.** `create(image)` takes an image name or
+  id (or none: no image field is sent, so the server resolves the platform
+  default); `create_from_snapshot` / `createFromSnapshot` takes a snapshot and
+  no sizing (the snapshot carries it); `create_from_build` / `createFromBuild`
+  builds an `ImageBuilder`, bounded by its own `build_timeout` /
+  `buildTimeoutSeconds`, then creates from the image with the full create
+  wait; `create_macos` / `createMacos` creates a macOS sandbox. Sizing is one
+  `resources` entry (`Resources`, `MacosResources`) whose GiB values must be
+  whole MiB. `sandbox.fork()` is the only fork entrypoint.
+- **Lifecycle methods wait; create and fork hand back what they observed.**
+  `start`, `stop`, `pause`, `resume` and `delete` wait for their state
+  (`stop` → `stopped`, `delete` → `destroyed`, a 404 during the delete wait
+  included) with `timeout` / `timeoutSeconds` (default 60, `0` = no deadline),
+  raising `RequestTimeoutError` (source `SDK`) or
+  `SandboxTerminalStateError`. `create*()` and `fork()` return the handle when
+  their `wait_seconds` / `waitSeconds` budget runs out or a terminal state is
+  reached; request failures (a server 408 included) still raise. The SDKs do
+  not pre-check lifecycle support by class or persistence: the API decides.
+- **Public models are SDK-owned and immutable.** Python: frozen,
+  keyword-only dataclasses with tuples and timezone-aware datetimes; TS:
+  readonly camelCase interfaces. Sandbox metadata is read-only on the handle
+  (reload with `refresh_data()` / `refreshData()`); constructors of exported
+  handles and services are internal. `to_json()` / `toJSON()` return one
+  credential- and URL-free camelCase `SandboxHandleJSON`, a snapshot only:
+  reconnect with `get(sandboxId)`.
 - **Ports own preview exposure.** Preview/public port verbs live under
   `sandbox.ports` in both SDKs.
 - **LSP is handle-shaped.** `lsp.start(...)` returns an `LspServer` handle;

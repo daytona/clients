@@ -80,6 +80,16 @@ and CI checks that the generated files are current. They type the HTTP
 boundary only: no public export and no type in a public signature comes from
 them, which a test in each SDK enforces.
 
+**SDK-owned models, one lifecycle contract.** Public models are written by
+hand and immutable in both SDKs: frozen, keyword-only dataclasses in Python,
+readonly interfaces in TypeScript, with the same fields. Lifecycle methods
+wait for the state they ask for (`stop()` for `stopped`, `delete()` for
+`destroyed`) with a 60-second default budget, `0` meaning no deadline;
+`create*()` and `fork()` return their handle however their wait ends and
+leave reading the state to the caller. A sandbox handle serializes to the
+same camelCase `SandboxHandleJSON` in both SDKs, so a snapshot written by one
+reads the same in the other.
+
 **Python is async-native, with a generated sync surface.** Python code is
 written once, as `async def` methods on classes named `Async*`
 (`AsyncDaytona`, `AsyncSandbox`). The synchronous surface (`Daytona`,

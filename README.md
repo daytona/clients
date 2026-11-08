@@ -27,13 +27,15 @@ processes, files, Git, code execution, ports, LSP and computer use.
 
 ## The shared V2 model (both languages, one shape)
 
-- **Serializable handles.** `Sandbox` and `ProcessHandle` reconstruct from
-  plain JSON — built for RL rollouts that fan work across workers. A
-  rehydrated `kind:"code"` process handle can still replay logs and wait/kill,
-  but it does not reconstruct a decomposed `InterpreterResult` on another
-  worker.
+- **Serializable handles.** `sandbox.to_json()` / `toJSON()` returns a
+  `SandboxHandleJSON`: a credential-free snapshot of the sandbox's metadata,
+  the same in both SDKs. Another worker reconnects with `d.v2.get(id)`; a
+  process reconnects with `sandbox.process.connect(...)` — built for RL
+  rollouts that fan work across workers. A reconnected `kind:"code"` process
+  handle can still replay logs and wait/kill, but it does not reconstruct a
+  decomposed `InterpreterResult` on another worker.
 - **Detached vs awaited, typed apart.** `start()` → handle; `run()` → result.
-- **Shareable volumes.** The v2 client exposes `volume.create/get/list/delete`,
+- **Shareable volumes.** The v2 client exposes `volumes.create/get/list/delete`,
   with explicit `iter()` traversal for all pages. Attach volumes using the
   `volumes` create option and refresh mounted data with `sandbox.volumes.pull()`.
   The CLI exposes the `volume` command group and `--volume` on Linux and macOS

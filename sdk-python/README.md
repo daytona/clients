@@ -96,7 +96,7 @@ from daytona import AsyncDaytona, DaytonaConfig
 
 async def main() -> None:
     async with AsyncDaytona(DaytonaConfig(api_key="dtn_...")) as d:
-        sandboxes = await asyncio.gather(*(d.v2.create("worker-snapshot") for _ in range(100)))
+        sandboxes = await asyncio.gather(*(d.v2.create_from_snapshot("worker-snapshot") for _ in range(100)))
         results = await asyncio.gather(*(sb.exec("python train_step.py") for sb in sandboxes))
 
 
@@ -237,30 +237,27 @@ create is also the handle of the one-sandbox-per-end-user pattern. Every
 - stamps the name as a label, `labels["name"] == name`, next to any labels you
   pass (an explicit `labels["name"]` that disagrees with `name=` is rejected
   before any request);
-- derives its idempotency key from the name unless you pass `idempotency_key`:
-  `idempotency_key_for_name(name)` is `"name:" + name` when that is a key the
-  API accepts verbatim (printable ASCII, no surrounding whitespace, ≤ 256
-  characters in total), else `"name:sha256:" + hex(sha256(name))`. The
-  derivation is identical in the TypeScript SDK, so a retry can use either SDK
-  without creating a second sandbox.
+- derives a stable idempotency key from the name unless you pass
+  `idempotency_key`. The derivation is identical in the TypeScript SDK, so a
+  retry can use either SDK without creating a second sandbox.
 
 A repeated `create("py312", name="example-user")` is therefore a **get-or-create**: the
 same sandbox comes back (its `access_token` only on the first call), not a
-second sandbox and not a 409 — v2 has no "409 on duplicate name". The exact
-semantics, all server-side:
+second sandbox and not a 409 — v2 has no "409 on duplicate name". This is
+permanent behavior of `name=`. The exact semantics, all server-side:
 
 - **Region-scoped.** Reusing a key with a different regional API endpoint can
   create a second sandbox; use the same `region` and API endpoint for retries.
-- **Exact.** `create("py312", name="example-user", cpu=2)` followed by
-  `create("py312", name="example-user", cpu=8)` is a 409, not a silent replay of the
+- **Exact.** `create("py312", name="example-user", resources=Resources(cpu=2))` followed by
+  `create("py312", name="example-user", resources=Resources(cpu=8))` is a 409, not a silent replay of the
   2-CPU sandbox. Change the arguments and you need a new name or an explicit
   key.
 - **Released on delete.** Delete the sandbox and `create(..., name="example-user")`
   makes a new one.
 
-`find_by_name(name, region=…)` returns the sandboxes carrying that exact `name`
-label, newest first, as a list (names are not unique); `deleted`/`deleting`
-ones are left out. It reads sandbox search with an exact `name` label match,
+`find_by_name(name, region=…)` returns **all** sandboxes carrying that exact `name`
+label, newest first, as a list (names are not unique); `destroyed`/`destroying`
+ones are left out. It is the one list method that is not a single page. It reads sandbox search with an exact `name` label match,
 in the region a create with the same `region` lands in (`region` defaults to
 none, i.e., the server's default, exactly as on `create*()`). A new sandbox
 appears in search shortly after its create, so a lookup right after a
@@ -272,7 +269,7 @@ without search raises `SearchNotConfiguredError` (501). Together:
 existing = d.v2.find_by_name("example-user")
 sandbox = existing[0] if existing else d.v2.create("py312", name="example-user")
 # Two callers racing on an empty result still get ONE sandbox: both creates
-# carry the key "name:example-user", and the second is a replay of the first.
+# use the same name and arguments, so the second is a replay of the first.
 ```
 
 On `AsyncDaytona` the same pattern uses `await`:
@@ -353,25 +350,28 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   lifecycle through `d.v2`: `create`, `get`, `list`, `iter`, `start`,
   `stop`, `pause`, `resume`, `delete`. Both expose the same
   methods; the examples above use the sync form.
-- **Sandbox search** — `d.v2.search(...)` over the eventually consistent,
-  all-region search API (`GET /sandboxes/search`), and `d.v2.list(...)` with
-  any search filter (`status`, `sandbox_class`, `region`, `labels`,
-  resource/timestamp bounds, `sort`, `order`, ...) uses the same search API.
-  Timestamp filters are `created_start_at` / `created_end_at`,
-  `updated_start_at` / `updated_end_at`, and `last_activity_start_at` /
-  `last_activity_end_at`; starts are inclusive and ends are exclusive. Plain
-  `d.v2.list()` stays on the read-your-writes `GET /sandboxes` path.
-- **`Sandbox`** (sync) / **`AsyncSandbox`** (async) — serializable handle with
-  `fork()`, `wait_for_state()` and the `process`, `fs`, `git`, `interpreter`,
+- **Sandbox search** — `d.v2.list(cursor=, limit=)` returns one
+  read-your-writes page (`GET /sandboxes`) without filters, and
+  `d.v2.iter(cursor=, limit=)` walks those pages. `d.v2.search(...)` queries
+  the eventually consistent, all-region search API (`GET /sandboxes/search`)
+  and carries every filter: `states`, `sandbox_class`, `region`, `labels`,
+  `name_prefix` / `id_prefix`, resource/timestamp bounds, `sort`, `order`, ...
+  `states` takes the SDK's sandbox states (`states=["started", "paused"]`);
+  `"unknown"` is not searchable. Timestamp filters are `created_start_at` /
+  `created_end_at`, `updated_start_at` / `updated_end_at`, and
+  `last_activity_start_at` / `last_activity_end_at`; starts are inclusive and
+  ends are exclusive.
+- **`Sandbox`** (sync) / **`AsyncSandbox`** (async) — a handle with
+  `fork()`, `wait()` and the `process`, `fs`, `git`, `interpreter`,
   `pty`, `ports`, `volumes`, `lsp`, `docker` and `computer_use` namespaces.
   Sandbox handles borrow the client's shared transport; they do not need
   closing.
 - **Network policy** (Linux and macOS sandboxes; the API rejects unsupported
   sandbox configurations) — create-time `network_policy` on
   `create` and `create_macos`, plus
-  `get_network_policy()`,
-  `update_network_policy(network_policy=..., if_match=...)`, and
-  `reset_network_policy(if_match=...)` over `GET|PUT /sandboxes/{id}/network-policy`.
+  `sandbox.get_network_policy()`,
+  `sandbox.update_network_policy(network_policy=..., if_match=...)`, and
+  `sandbox.reset_network_policy(if_match=...)` over `GET|PUT /sandboxes/{id}/network-policy`.
   Responses expose desired vs applied state, the latest quoted ETag, pending or
   failed apply state, and the `applied_start_id` of the sandbox start that last
   applied the policy. Writes are full
@@ -389,23 +389,37 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   listed); `block_all=True` with no allow list refuses every lookup except
   platform-managed names.
 - **Runtime-managed sandbox secrets** (supported Linux sandbox configurations)
-  — `sandbox.get_secrets()`, `sandbox.replace_secrets(secrets=[...], if_match=...)`,
-  and root-client `d.v2.get_sandbox_secrets(...)` /
-  `d.v2.replace_sandbox_secrets(...)` over `GET|PUT /sandboxes/{id}/secrets`.
+  — `sandbox.get_secrets()` and `sandbox.replace_secrets(secrets=[...], if_match=...)`
+  over `GET|PUT /sandboxes/{id}/secrets`.
   Responses expose desired secret names, desired/applied revisions, the quoted
   ETag, the apply `status` (`pending`/`applied`/`failed`) with its `error`, and
   capture metadata. Writes are full replacement only,
   use caller-supplied `If-Match`, and never send or return secret values.
-- **Platform namespaces** — `d.v2.images`, `d.v2.snapshots`, `d.v2.volume`,
-  `d.v2.secret`, `d.v2.reservations`, `d.v2.mac_models`.
+- **Platform namespaces** — `d.v2.images`, `d.v2.snapshots`, `d.v2.volumes`,
+  `d.v2.secrets`, `d.v2.reservations`, `d.v2.mac_models`.
 
 ### Sandbox metadata and helpers
 
-Every fetched sandbox exposes its metadata:
+Every fetched sandbox exposes its metadata, read-only:
 `labels`, `cpu` / `cpu_max` (cores; 1 core = 2 vCPUs; a macOS core is one Mac CPU), `memory` / `memory_max`,
-`disk` / `disk_max` (GiB), `sandbox_class`, `region`,
+`disk` / `disk_max` (GiB, exactly the API's MiB / 1024), `sandbox_class` / `raw_sandbox_class`, `region`,
 `persistent`, `spot`, `spot_evicted_at`,
 `lifecycle_policy`, `forked_from`, `user`, and `error` (network policy is read through `get_network_policy()`).
+Update it with methods such as `set_labels()` and reload it with
+`refresh_data()`. A class this SDK does not know reads as
+`sandbox_class == "unknown"` with the API's value in `raw_sandbox_class`.
+
+`sandbox.to_json()` returns a `SandboxHandleJSON`: the handle's metadata as
+camelCase JSON (`sandboxId`, `state`, `sandboxClass`, …, the same shape the
+TypeScript SDK's `toJSON()` writes), without credentials or URLs. It is a
+snapshot, not a way back: reconnect with `d.v2.get(json["sandboxId"])`.
+
+Resource models are frozen, keyword-only dataclasses: for example, images
+expose `sandbox_class`, `layer_count` and `available_in`; snapshots expose
+`sandbox_class` / `raw_sandbox_class` and `memory_bytes`; volumes expose
+`size_gib` and `used_bytes`. Closed SDK enums map unrecognized values to
+`"unknown"` and keep the original in a `raw_…` sibling. Timestamps are
+timezone-aware `datetime` values; a budget period start is a `date`.
 
 Use `sandbox.set_labels(labels={...})` to replace the entire label set
 (`{}` clears it), and `sandbox.entrypoint_logs()` to read the sandbox's
@@ -419,15 +433,16 @@ through `update_env()`, not image-level environment entries.
 
 ### Volumes
 
-Manage volumes with `d.v2.volume.list()`, `iter()`, `get()`, `create()` and
-`delete()`. `get(name, create=True)` creates a missing volume; `id_only=True`
-on `get()` or `delete()` disables name fallback. Deletion returns when the
-API accepts the request, not when deletion finishes.
+Manage volumes with `d.v2.volumes.list()`, `iter()`, `get()`, `create()` and
+`delete()`. `create(name=..., size_gib=...)` and `get(name, create=True)`
+create disk volumes; `id_only=True` on `get()` or `delete(name_or_id)`
+disables name fallback. Deletion returns when the API accepts the request,
+not when deletion finishes.
 
 ```python
 from daytona.v2 import VolumeMount
 
-volume = d.v2.volume.get("data", create=True)
+volume = d.v2.volumes.get("data", create=True)
 sandbox = d.v2.create(
     "py312",
     volumes=[VolumeMount(volume.id, "/mnt/data", subpath="project")],
@@ -455,7 +470,7 @@ result = sandbox.volumes.pull(
 
 On `AsyncDaytona` use `await sandbox.volumes.pull(...)`.
 
-This is separate from the platform `d.v2.volume` management service.
+This is separate from the platform `d.v2.volumes` management service.
 IDs contain 1–128 ASCII letters, digits, underscores or hyphens. `PullVolumeResult`
 has `request_id`, `status` (`pulled`, `unchanged`, `pending`, or `unknown`) and
 nullable `manifest_id`; `raw_status` preserves the server's status string.
@@ -483,20 +498,41 @@ snapshot = d.v2.create_from_snapshot("worker-after-setup", wait_seconds=60)
 ```
 
 `d.v2.create_from_build()` is the slow path: it builds an anonymous image
-first, waits for that image to become ready, then creates the sandbox from the
-image id. If the build fails, it raises `ImageBuildFailedError` and no sandbox
-exists.
+first, always waits for that image to become ready, then creates the sandbox
+from the image id. `build_timeout` bounds only the build (seconds; `None` or
+`0` means no deadline). A failed build raises `ImageBuildFailedError` and a
+build that outlasts `build_timeout` raises `RequestTimeoutError`; in both
+cases no sandbox exists. The create then gets the full, independent
+`wait_seconds` budget and takes the same keywords as `create()`.
 
 ```python
-from daytona.v2 import ImageBuilder
+from daytona.v2 import ImageBuilder, Resources
 
 builder = ImageBuilder.from_registry("python:3.12").run_commands("pip install numpy")
-sandbox = d.v2.create_from_build(builder, cpu=2, memory=4, wait_seconds=60)
+sandbox = d.v2.create_from_build(
+    builder, resources=Resources(cpu=2, memory=4), build_timeout=600, wait_seconds=60
+)
 ```
 
-`wait_seconds` and `create_timeout_seconds` are budgets. The server holds create for up to its own
-short cap, then the SDK long-polls the remainder and returns the sandbox in
-whatever state it reached. `wait_seconds=0` is the explicit async form.
+`wait_seconds` is the create wait budget in whole seconds (default 60). The
+server holds create for up to its own short cap, then the SDK waits for the
+remainder. `wait_seconds=0` returns as soon as the create is accepted. Every
+`create*()` returns the handle when its wait runs out or the sandbox reaches a
+terminal state: check `sandbox.state` and `sandbox.error` before doing work.
+Request failures still raise. `create_timeout_seconds` is the server-side
+queue/boot budget in seconds; `-1` asks the server to apply its maximum.
+
+Linux sizing uses one `resources=Resources(cpu=, cpu_max=, memory=, memory_max=,
+disk=, disk_max=)` entry: CPU in cores, memory and disk in GiB that must
+convert to a whole number of MiB (`value * 1024`), else `BadRequestError`.
+Sizes read back exactly. `create_from_snapshot()` inherits the snapshot's
+configuration and takes no resources, CPU selectors, environment, volumes,
+secrets or network policy.
+
+`images.get(id, wait="ready", timeout=60)` and
+`snapshots.get(id, wait="ready", timeout=60)` perform a bounded readiness
+wait. `sandbox.capture_image(name=..., idle_expiry_seconds=...)` captures an
+image from a sandbox.
 
 ### macOS sandboxes
 
@@ -504,9 +540,10 @@ A macOS sandbox runs on a dedicated Mac reserved by your organization. Create
 one with `d.v2.create_macos(image, ...)` (`POST /sandboxes/macos`);
 `create()` makes Linux sandboxes.
 `image` is a macOS image name
-such as `base-macos`. `cpu` (cores, at least 4), `memory` (GiB, at
-least 4) and `disk` (GiB, at least 80: the whole sandbox disk, macOS included)
-size the sandbox; each omitted value uses half of the Mac running the
+such as `base-macos`. `resources=MacosResources(cpu=, memory=, disk=)` sizes
+the sandbox: `cpu` is an integer number of physical cores (at least 4),
+`memory` is GiB (at least 4) and `disk` is GiB (at least 80: the whole sandbox
+disk, macOS included); each omitted value uses half of the Mac running the
 sandbox, rounded down, on a model that runs two sandboxes, or all of it on a
 model that runs one. The size is fixed when the sandbox is allocated and reported from
 then on (`sandbox.memory` and `sandbox.disk` in exact GiB, `sandbox.reservation_id`
@@ -534,7 +571,11 @@ does not send the create anywhere else.
 A sandbox without a size uses the model's default sandbox size:
 
 ```python
+from daytona.v2 import MacosResources
+
 d.v2.create_macos("base-macos")
+# Or choose resources explicitly:
+d.v2.create_macos("base-macos", resources=MacosResources(cpu=4, memory=8, disk=100))
 ```
 
 A reservation reserves one physical Mac of a named model. Set CPU, memory,
@@ -601,15 +642,15 @@ the sandbox's memory on its Mac and waits for `paused`; `resume()` puts the
 sandbox in `assigned` and waits for `started`. A paused sandbox keeps its Mac
 slot, but pausing stops its reservation from auto-renewing: a reservation that
 holds only paused sandboxes lapses at the end of its period. After a resume,
-`sandbox.mac_boot_mode` reports how the sandbox resumed; `error_reason`
+`sandbox.mac_boot_mode` reports how the sandbox resumed; `sandbox.error`
 provides error details when available.
 
 A macOS `fork()` copies the disk only: omit `memory` or pass `memory=False`
 (`memory=True` answers `NOT_SUPPORTED_FOR_CLASS`). A fork of a running macOS
 sandbox boots with a fresh machine identity; a fork of a paused or stopped
 one rests `stopped`. A fork needs available capacity for its size; insufficient
-capacity can answer `NO_FREE_SLOT` or `MAC_DISK_FULL`. `fork(timeout=…)` waits until
-the macOS fork is `started` or `stopped`.
+capacity can answer `NO_FREE_SLOT` or `MAC_DISK_FULL`. `fork(wait_seconds=…)` (default
+60; `0` returns once accepted) waits until the macOS fork is `started` or `stopped`.
 
 ### Processes
 
@@ -715,8 +756,8 @@ otherwise refuse it.
 ### Ports, LSP, computer use
 
 `ports` owns both listener discovery and preview exposure:
-`list()`, `is_in_use(port)`, `expose(port, public=...)`,
-`set_public(port, public=...)`, `preview_link(port)`,
+`list()`, `is_in_use(port)`, `expose(port, public=...)` (also changes the
+visibility of an exposed port), `preview_link(port)`,
 `signed_preview_link(port, expires_in_seconds=...)`,
 `expire_signed_preview_link(port, token)`, paginated `list_endpoints(...)`, and
 `iter_endpoints(...)`.
@@ -762,28 +803,30 @@ sandbox `env` that sets a reserved name fails the create with `BadRequestError`
 
 ### Waiting for lifecycle states
 
-Use `sandbox.wait_for_state(states, terminal_states=('destroying', 'destroyed', 'error'), *, timeout=None)`
-to wait for a public sandbox state. `timeout` is the caller wait budget in
-seconds; `None` and `0` wait unbounded. If the sandbox reaches a terminal state
-before any target state, the SDK raises a typed conflict error with the
-observed public state attached as `error.state`.
+Use `sandbox.wait(until="started", timeout=120)` to wait for a public
+lifecycle state. `until` also accepts a list of states. The default is
+`started`, with a 60-second budget; `timeout=0` waits without a deadline.
+Running out raises `RequestTimeoutError`; a terminal state (`destroying`,
+`destroyed`, `error`) reached first raises `SandboxTerminalStateError`, with
+the observed public state as `error.state`.
 
-`sandbox.wait(until='started', timeout=60)` is the one-state convenience form:
-it returns the sandbox on success, raises `RequestTimeoutError` when the budget
-runs out, and raises `SandboxTerminalStateError` when a terminal state wins
-first. `timeout=None` and `timeout=0` wait unbounded.
+`start()`, `stop()`, `pause()`, `resume()` and `delete()` take `timeout=`
+(seconds) with the same default and unbounded form. They wait for
+completion: `stop()` returns at `stopped`, and `delete()` returns at
+`destroyed` (a sandbox disappearing during deletion also means completion).
+Client methods accept a sandbox or its id and the same options, for example
+`d.v2.stop(sandbox.id, timeout=120)`. The server decides which lifecycle
+actions the sandbox supports.
 
-### Sandbox deletion is asynchronous
+`fork(wait_seconds=60)` has its own wait budget; fractions are allowed and
+`0` skips waiting. Like create, fork returns its handle on wait timeout or
+terminal state. A running Linux source produces a running fork; otherwise
+the fork is paused if the source was paused and memory was retained, or
+stopped. macOS forks copy only disk and settle at `started` or `stopped`.
 
-`sandbox.delete()` and `d.v2.delete(sandbox)` request deletion and refresh
-the sandbox once; they do not wait for teardown to finish. The handle can
-still report `destroying` when the call returns.
-
-`sandbox.wait_for_state(['destroyed'], timeout=60)` waits for the observed
-lifecycle state. Deleting the image or snapshot immediately afterwards
-can still raise `ConflictError` (409). A missing sandbox during a state wait
-raises `NotFoundError`; only the delete method's follow-up refresh maps a
-404 to `destroyed`.
+After sandbox deletion completes, deleting its image or snapshot can still
+raise `ConflictError` while references are being released. Handle that
+conflict when cleaning up those resources.
 
 ## Errors
 

@@ -225,7 +225,7 @@ export class DockerWaitTimeoutError extends RequestTimeoutError {
 }
 
 /**
- * `waitForState()` saw the sandbox reach a terminal state before any target.
+ * A lifecycle wait (`wait()`, `start()`, `stop()`, ...) saw the sandbox reach a terminal state first.
  * `state` is the observed public sandbox state (e.g. `'destroyed'`).
  */
 export class SandboxTerminalStateError extends ConflictError {

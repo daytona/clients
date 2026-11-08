@@ -31,7 +31,7 @@ version namespace:
 
 ## Volumes
 
-`services.AsyncVolumeService` implements the platform `volume` namespace:
+`services.AsyncVolumesService` implements the platform `volumes` namespace:
 list/iterate, get by name or ID (optionally create on a miss), create and
 delete. `volume.py` re-exports it. `types.py` owns `Volume`, `VolumeMount`,
 `VolumeState` and `VolumeType`. `_api_core.py` parses volume responses with
@@ -128,16 +128,55 @@ print('ok')
 
 ### Delete completion
 
-`AsyncSandbox.delete()` (and its generated sync twin) requests deletion
-without waiting for completion. The v2 client's `delete()` delegates to it.
-`wait_for_state(['destroyed'])` waits for an observed lifecycle state, but
-deleting the sandbox's image or snapshot immediately afterwards can still
-raise `ConflictError` (409).
+`AsyncSandbox.delete(timeout=60)` (and its generated sync twin) requests
+deletion, then waits for `destroyed`. A typed 404 on any read during that wait
+also means completion; the handle is updated to `destroyed` (raw state
+`deleted`). Ordinary `refresh_data()` and other waits still propagate 404. The
+private waiter (`_wait_for_state`) treats `destroying` as progress when
+targeting `destroyed`. `stop()` similarly waits for `stopped`.
 
-The existing waiter treats `destroying` as progress when targeting
-`destroyed`. Its refresh still propagates a typed 404; the 404-to-`destroyed`
-mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
-`refresh_data()` or the waiter.
+All lifecycle methods take `timeout=` in seconds (default 60, `0` unbounded).
+The v2 client's methods delegate to the handle, including when given an id.
+Timeout raises `RequestTimeoutError` (source `SDK`); a terminal state raises
+`SandboxTerminalStateError`. Server errors decide class and persistence
+support, without client-side lifecycle prechecks.
+
+An observed `destroyed` state does not guarantee that deleting the sandbox's
+image or snapshot will succeed without a conflict. Callers must still handle
+`ConflictError` (409) from those operations.
+
+### Create, fork and public metadata
+
+Create and fork return their handle when a readiness wait times out or reaches
+a terminal state (`_wait_without_raising_for_its_end`); request failures,
+including a server 408, still raise. Create uses whole-second `wait_seconds`;
+fork permits fractions and uses `0` to skip waiting. Linux forks refresh the
+source before submission when waiting: running sources wait for `started`,
+paused sources retaining memory wait for `paused`, and other sources wait for
+`stopped`. macOS forks wait for `started` or `stopped`.
+
+`create_from_build()` always waits for the image build with its independent
+`build_timeout` budget (`None` or `0` is unbounded), then creates with the
+caller's full `wait_seconds`. Build failure raises `ImageBuildFailedError`
+with `image_id` and `build_error`; build timeout raises `RequestTimeoutError`.
+
+All create sizing lives in `resources` (`Resources` / `MacosResources`).
+`_core.gib_to_mib` refuses GiB values that do not convert to whole MiB, and
+`mib_to_gib` reads back exactly. Public models are frozen keyword-only
+dataclasses with tuples and timezone-aware datetimes, mapped from the
+generated wire models in `_api_core.py`. The handle's metadata is read-only
+properties over an immutable `_SandboxInfo` snapshot that `_update(...)`
+replaces; `gen_sync.py` emits direct getters for the names in
+`_SYNC_DIRECT_PROPERTIES`. Constructors of exported classes take
+`_`-prefixed parameters and are internal. `to_json()` returns a
+`SandboxHandleJSON` with known metadata but no URLs or credentials; callers
+reconnect with `get(json["sandboxId"])`.
+
+`list()` / `iter()` accept only `cursor` and `limit`. `search()` carries the
+filters, including public `states`, which map to the API's status vocabulary
+at the boundary. Named creates permanently support get-or-create; the
+name-key helpers are internal. `find_by_name()` returns all matches and is
+the explicit exception to the one-page list rule.
 
 - Interpreter runs code through
   `POST /processes {kind:"code", code, language, sessionId?}`.

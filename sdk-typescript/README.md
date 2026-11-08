@@ -63,9 +63,16 @@ types, builders and errors, but not a client (`import { Daytona } from
 '@daytona/sdk/v2'` fails); type a stored v2 client as `DaytonaV2Client` from
 `@daytona/sdk`.
 
-Closing is optional: an idle client does not keep a Node process alive.
-Use `await daytona.close()` to release client resources when you have finished
-using it. Closing the client does not delete its sandboxes.
+`daytona.v2` waits (`create`, `start`, `wait`, …) ride one WebSocket
+per regional API endpoint, shared by the v2 clients in the process that have the same API URL,
+API key or JWT identity, and effective events settings (`sharedHub` and
+`events` on the config). Closing is optional: in Node an idle socket stays open
+for the next wait but does not keep the process alive, so a script can simply
+end; a runtime where the socket cannot be released from the event loop closes
+it 10 s after the last wait instead, and `events.idleCloseSeconds` overrides
+either (values above about 24 days clamp to that maximum). `await daytona.close()`
+releases this client's reference at once; the shared socket closes when the
+last client sharing it closes.
 
 The root client reads `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 `DAYTONA_ORGANIZATION_ID` (scopes a JWT for the v0 namespace),
@@ -150,7 +157,8 @@ Exactly one of `apiKey` or `jwtToken` must be configured. `jwtToken` requires
 project-scoped platform token and reuses it for every request it makes.
 Per-sandbox `accessToken` overrides are unchanged.
 
-`connectionPoolMaxsize` is Node-only and limits the SDK's connection pool size.
+`connectionPoolMaxsize` is Node-only and sets keep-alive `http.Agent` /
+`https.Agent` socket pool sizes for axios-backed SDK requests.
 
 `otelEnabled` is opt-in. When enabled, each SDK HTTP request runs inside a
 client span and injects W3C trace headers. The SDK does not install a tracer
@@ -166,8 +174,9 @@ const daytona = new Daytona({ otelEnabled: true, otelApi: otel })
 ### Regions and safe create retries
 
 Set `DAYTONA_V2_API_URL` only in a test environment that needs a non-default
-v2 API endpoint. `region` on each `create*()` chooses a region ID available
-in your Daytona dashboard. Omit `region` to use the default.
+v2 API endpoint. `region` on each `create*()` chooses an ID returned by `GET /regions`.
+The response identifies the default region and lists region names,
+availability, and published API URLs. Omit `region` to use the default.
 Commands and files target the selected sandbox. When you select a regional
 API endpoint, use resources available through that endpoint.
 
@@ -298,7 +307,7 @@ make asynchronous callback work cancellation-aware when needed.
   services: `images`, `snapshots`, `volumes`, `secrets`, `reservations`,
   `macModels`.
 - **Bucket volumes** — to mount an S3 bucket, create a bucket volume in the
-  dashboard, then attach it when creating a sandbox
+  dashboard or with `POST /volumes`, then attach it when creating a sandbox
   through the `volumes` option.
 - **Sandbox search** — `list({ cursor, limit })` returns one page without
   filters; `iter({ cursor, limit })` traverses those pages. Use `search()` for
@@ -315,12 +324,12 @@ make asynchronous callback work cancellation-aware when needed.
   `create`, `createFromBuild` and `createMacos` (a full-snapshot restore and `sandbox.fork()` inherit the
   source sandbox's policy), plus
   `sandbox.getNetworkPolicy()`, `sandbox.updateNetworkPolicy(networkPolicy, { ifMatch })`, and
-  `sandbox.resetNetworkPolicy({ ifMatch })`.
+  `sandbox.resetNetworkPolicy({ ifMatch })` over `GET|PUT /sandboxes/{id}/network-policy`.
   Responses expose desired vs applied policy, the latest quoted ETag, pending
   or failed apply state, and the `appliedStartId` of the sandbox start that
   received the active policy. Writes are full
-  replacement only; reset clears the policy. The SDK does not automatically
-  refresh or retry a stale `ifMatch`. Domain allow-lists imply default-deny:
+  replacement only; reset is an explicit JSON `null`; the SDK does not auto-GET
+  or auto-retry around stale `If-Match`. Domain allow-lists imply default-deny:
   omitting `blockAll` while setting `allowDomains` lets the API normalize it to
   `true`, while an explicit `blockAll: false` is rejected locally with
   `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. `blockAll: true` with
@@ -334,11 +343,12 @@ make asynchronous callback work cancellation-aware when needed.
   platform-reserved names. Unsupported sandbox configurations return
   `UNSUPPORTED_OPERATION`.
 - **Runtime-managed sandbox secrets** (supported Linux sandbox configurations)
-  — `sandbox.getSecrets()` and `sandbox.replaceSecrets([...], { ifMatch })`.
+  — `sandbox.getSecrets()` and `sandbox.replaceSecrets([...], { ifMatch })` over
+  `GET|PUT /sandboxes/{id}/secrets`.
   Responses expose desired secret names, desired/applied revisions, the quoted
   ETag, the apply `status` (`pending`/`applied`/`failed`) with its `error`, and
   capture metadata. Writes are full replacement only,
-  use caller-supplied `ifMatch`, and never send or return secret values.
+  use caller-supplied `If-Match`, and never send or return secret values.
 - **`Sandbox`** — a serializable handle with `fork()`, `wait()` and
   the `process`, `fs`, `git`, `interpreter`, `pty`, `ports`, `volumes`, `lsp`,
   `docker` and `computerUse` namespaces. Sandbox handles do not need explicit
@@ -475,7 +485,7 @@ image from a sandbox.
 ### macOS sandboxes
 
 A macOS sandbox runs on a dedicated Mac reserved by your organization. Create
-one with `daytona.v2.createMacos(image, options)`.
+one with `daytona.v2.createMacos(image, options)` (`POST /sandboxes/macos`).
 `create()` makes Linux sandboxes. `image` is a macOS image name
 such as `base-macos`. Set `resources: { cpu, memory, disk }`: `cpu` is an
 integer number of physical cores (at least 4), `memory` is GiB (at least 4),
@@ -493,7 +503,7 @@ to be enabled for your organization: otherwise the API answers `403`
 `FEATURE_NOT_ENABLED` (thrown as `FeatureNotEnabledError`). Reading sandboxes
 and reservations, turning auto-renew off, `pause()` and `resume()` are not gated.
 
-Find available regions in your Daytona dashboard.
+Find available regions and their regional API endpoints with `GET /regions`.
 Use `daytona.v2.macModels.catalog({ region: '<region>' })` or
 `daytona mac-model list --region '<region>'` to discover available Mac models
 and current prices. Replace `<region>` and `<model>` in the examples with
@@ -534,7 +544,7 @@ or time out. Reservations are billed per 24-hour period; without `model`,
 `reservations.create()` reserves the region's default model and never upgrades
 an unavailable model to another one.
 
-`daytona.v2.macModels.catalog({ region })` shows, per
+`daytona.v2.macModels.catalog({ region })` (`GET /mac-catalog`) shows, per
 model, how many Macs a purchase can reserve now (`available`, advisory) and the
 `price` of one reservation (absent when pricing is unavailable in the region).
 `reservations.createBulk()` reserves several Macs of one model in one request:
@@ -568,7 +578,7 @@ on a live reservation.
 
 `pause()` and `resume()` work on persistent macOS sandboxes. `pause()` saves
 the sandbox's memory on its Mac and waits for `paused`; `resume()` puts the
-sandbox back on its Mac and waits for `started`. A paused sandbox keeps its Mac
+sandbox in `assigned` and waits for `started`. A paused sandbox keeps its Mac
 slot, but pausing stops its reservation from auto-renewing: a reservation that
 holds only paused sandboxes lapses at the end of its period.
 `sandbox.macBootMode` reports how the macOS sandbox resumed; `sandbox.error`

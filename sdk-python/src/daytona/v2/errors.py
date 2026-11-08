@@ -164,7 +164,7 @@ class DockerNotReadyError(ConflictError):
 
 
 class SandboxTerminalStateError(ConflictError):
-    """``wait_for_state()`` saw the sandbox reach a terminal state before any target.
+    """A lifecycle wait (``wait()``, ``start()``, ``stop()``, ...) saw the sandbox reach a terminal state first.
 
     ``state`` is the observed public sandbox state (e.g. ``"destroyed"``).
     """
