@@ -465,11 +465,14 @@ skipping exist only in the TypeScript tool).
   `reconcileIntervalSeconds`, `idleCloseSeconds`, ...). Fractions are allowed
   unless the wire needs whole seconds (then they are validated). The wire
   keeps its own units (`timeoutMs` for toolbox process execs/waits).
-  Timestamps are not durations. Known exceptions at this point: the
-  per-call TypeScript `timeout` / `executionTimeout` / `escalateAfter` options
-  of the toolbox namespaces (process, interpreter) still take milliseconds
-  until their area is renamed; the client, lifecycle and platform-service
-  options (images, snapshots, volumes, build logs, docker) are in seconds.
+  Timestamps are not durations. Known exceptions at this point, all
+  TypeScript toolbox options that still take milliseconds until their area
+  is renamed: process (`ProcessStartOptions.executionTimeout`, `RunOptions` /
+  `WaitProcessOptions.timeout`, `KillOptions.escalateAfter`), sessions
+  (`SessionStartOptions.executionTimeout`, `SessionRunOptions.timeout`), the
+  interpreter (`InterpreterRunOptions.timeout`) and git (the clone / pull /
+  push `timeout`). The client, lifecycle and platform-service options
+  (images, snapshots, volumes, build logs, docker) are in seconds.
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
   `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
@@ -601,11 +604,11 @@ skipping exist only in the TypeScript tool).
   metadata refresh afterwards does not turn that success into an error.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
   return the handle however their `wait_seconds` / `waitSeconds` wait ends:
-  budget spent, terminal state, or a failed read (any `DaytonaError`). Only a
-  failed create/fork request raises, so "create raised" means no sandbox
-  was created — except a create POST that timed out
-  (`SandboxCreateRequestTimeoutError`, which carries the idempotency key to
-  retry with) and caller cancellation. The lifecycle methods do not
+  budget spent, terminal state, or a failed read (any `DaytonaError`). A
+  raised create or fork means the request itself failed, except for
+  `SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+  carry the idempotency key because a sandbox may exist), caller
+  cancellation, and an unexpected non-SDK error during the wait. The lifecycle methods do not
   pre-check support by class or persistence: the API decides; `fork()` still
   needs the class, because its wait target depends on it.
 - **Public models are SDK-owned and immutable.** Python: frozen,

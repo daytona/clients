@@ -6,21 +6,22 @@ takes `timeout` (Python) / `timeoutSeconds` (TypeScript) in seconds, default
 terminal state raises `SandboxTerminalStateError`. Once the target state has
 been observed, a failed metadata refresh afterwards no longer turns that
 success into an error. Python `wait(timeout=None)` is gone: pass `0` to wait
-without a deadline. TypeScript: on the lifecycle methods, `fork()`,
-`images.pull()`, build-log following, `docker.waitUntilReady()` and
-`sandbox.volumes.pull()`, `{ timeout }` in milliseconds becomes
-`{ timeoutSeconds }` in seconds (divide old values by 1000); on `wait()`,
+without a deadline. TypeScript: on the lifecycle methods, `images.pull()`,
+build-log following, `docker.waitUntilReady()` and `sandbox.volumes.pull()`,
+`{ timeout }` in milliseconds becomes `{ timeoutSeconds }` in seconds (divide
+old values by 1000); on `fork()`, `{ timeout }` in milliseconds becomes
+`{ waitSeconds }` in seconds (divide by 1000 too); on `wait()`,
 `images.get()` and `snapshots.get()`, which already took seconds, only the key
 is renamed to `timeoutSeconds` (keep the values). `wait_for_state()` /
 `waitForState()` is no longer public: use `wait(until=...)`.
 `create*()` and `fork()` now return the sandbox however the wait after a
 successful request ends: the `wait_seconds` / `waitSeconds` budget runs out,
 a terminal state is reached, or a read during the wait fails. Check
-`sandbox.state` and `sandbox.error`. Only a failed create or fork request
-raises, so a create that raised created no sandbox, except a create whose
-request timed out (`SandboxCreateRequestTimeoutError`, which carries the
-idempotency key to retry with) and a cancelled create, which may already have
-created one. `SandboxCreateTimeoutError` is removed, and a server 408 on the
+`sandbox.state` and `sandbox.error`. A raised create or fork means the
+request itself failed, except for `SandboxCreateRequestTimeoutError` and
+`SandboxCreateConnectionError` (they carry the idempotency key because a
+sandbox may exist), caller cancellation, and an unexpected non-SDK error
+during the wait. `SandboxCreateTimeoutError` is removed, and a server 408 on the
 create request is the server's `RequestTimeoutError` in both SDKs. `fork()`
 takes `wait_seconds` / `waitSeconds` (default 60, fractions allowed, `0`
 returns once the fork is accepted) instead of `timeout`, and its detail read

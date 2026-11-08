@@ -12,7 +12,8 @@ gains the last two and Python `build()` loses `timeout`: the build
 submission is an ordinary request, bounded by the request timeout.
 `images.get()` / `snapshots.get()` with `wait="ready"` and a timeout repeat
 the server's long poll until the artifact settles or the whole budget is
-spent; each hold is bounded by the request timeout. `secrets.set()` requires
+spent; the wait budget, not the request timeout, governs each hold (at most
+60 s), and `images.pull()` polls the same way. `secrets.set()` requires
 `allowed_domains` / `allowedDomains` to be a list of strings.
 `sandbox.snapshot_filesystem()` / `snapshotFilesystem()` is renamed
 `capture_image()` / `captureImage()`. `ports.set_public()` / `setPublic()` is
