@@ -332,3 +332,57 @@ test('registry check: a pre-release never reads the latest dist-tag', (context) 
     NPM_DIST_TAG: 'alpha', FORCE: 'false', GH_TOKEN: '' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
+
+// ── The legacy package names never publish from this line ────────────────────
+
+test('the 2.x workflow never names the legacy packages', () => {
+  // The 0.x line publishes the PyPI alias and the npm mirror; their trusted
+  // publishers name this workflow file too, so this line must never build them.
+  for (const name of ['daytona-sdk', 'daytona_sdk', '@daytonaio/']) assert.ok(!workflow.includes(name), name);
+});
+
+test('every upload step checks the name of what it uploads', () => {
+  // Given: each step of the publish job.
+  const steps = workflow.slice(workflow.indexOf('\n  publish:\n')).split('\n      - ').slice(1);
+  const npm = steps.filter((s) => s.includes('npm publish "./$tgz"'));
+  const pypi = steps.filter((s) => s.includes('pypa/gh-action-pypi-publish'));
+  // Then: both npm publishes read the tarball's package name first, and every
+  // PyPI upload follows a step that admits exactly its own distributions.
+  assert.equal(npm.length, 2);
+  for (const s of npm) assert.match(s, /manifest\.name !== "@daytona\/(sdk|upgrade)"/);
+  assert.equal(pypi.length, 2);
+  for (const s of pypi) {
+    const dir = s.match(/packages-dir: (\S+)/)[1];
+    const check = steps[steps.indexOf(s) - 1];
+    assert.match(check, /are exactly the/);
+    assert.ok(check.includes(`find ${dir.replace(/\/$/, '')} `), `${dir} is not the checked directory`);
+  }
+});
+
+for (const [kind, legacy] of [['PyPI', 'daytona_sdk-2.0.0-py3-none-any.whl'], ['npm', '@daytonaio/sdk']]) {
+  test(`refuses a legacy ${kind} artifact under the SDK's upload`, (context) => {
+    // Given: an artifact carrying the legacy name at this run's version.
+    const root = fixture(context);
+    let script; let env;
+    if (kind === 'PyPI') {
+      mkdirSync(join(root, 'pypi-dist'));
+      writeFileSync(join(root, 'pypi-dist', legacy), '');
+      writeFileSync(join(root, 'pypi-dist', 'daytona_sdk-2.0.0.tar.gz'), '');
+      script = step("The PyPI distributions are exactly the SDK's");
+      env = { PYPI_VERSION: '2.0.0' };
+    } else {
+      mkdirSync(join(root, 'pack/package'), { recursive: true });
+      writeFileSync(join(root, 'pack/package/package.json'), JSON.stringify({ name: legacy, version: '2.0.0' }));
+      assert.equal(spawnSync('tar', ['-czf', 'sdk.tgz', 'package'], { cwd: join(root, 'pack') }).status, 0);
+      rmSync(join(root, 'pack/package'), { recursive: true });
+      executable(join(root, 'bin/npm'), 'echo published > "$PUBLISH_LOG"');
+      script = step('Publish @daytona/sdk ${{ needs.gate.outputs.npm }} to npm (OIDC)');
+      env = { NPM_DIST_TAG: 'latest', NPM_VERSION: '2.0.0', RESUME: 'false', PUBLISH_LOG: join(root, 'published') };
+    }
+    // When
+    const result = run(root, script, env);
+    // Then: nothing is uploaded.
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.ok(!existsSync(join(root, 'published')));
+  });
+}
