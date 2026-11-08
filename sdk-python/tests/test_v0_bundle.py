@@ -134,7 +134,7 @@ def test_root_v0_sends_to_daytona_v0_api_url_not_daytona_api_url(
     v0_api: tuple[str, list[tuple[str, str, dict[str, object]]]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Daytona().v0 builds the real bundled client against DAYTONA_V0_API_URL;
-    DAYTONA_API_URL (v2's) points somewhere that would fail if used."""
+    DAYTONA_API_URL (the 0.x SDK's variable) points somewhere that would fail if used."""
     from daytona import Daytona, DaytonaConfig
 
     api_url, seen = v0_api
@@ -334,7 +334,7 @@ def test_the_dotenv_warning_names_remedies_that_work_under_the_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """v0's dotenv warning must not tell a root user to pass api_url (the root
-    rejects it) or set DAYTONA_API_URL (.v0 ignores it and it redirects .v2)."""
+    rejects it) or set DAYTONA_API_URL (SDK 2.x, .v0 included, never reads it)."""
     import warnings
 
     from daytona import Daytona, DaytonaConfig

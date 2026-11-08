@@ -13,7 +13,7 @@ This repository is public and takes contributions from anyone. Everything
 below works with what is in the repository plus, optionally, a Daytona account:
 
 - **Live checks gate on credentials, not on who you are.** When
-  `DAYTONA_API_KEY` (and `DAYTONA_API_URL`, for a deployment other than the
+  `DAYTONA_API_KEY` (and `DAYTONA_V2_API_URL`, for a deployment other than the
   default) are set, run the live suites (`./e2e/run.sh`); when they are not,
   skip them and say so in the PR. Never ask a contributor for credentials, and
   never paste a key, an endpoint that is not public, or a request trace into an
@@ -86,11 +86,10 @@ language: Python `snake_case` ↔ TS `camelCase`. One deliberate difference in
 the root config's v0 routing: Python forwards `connection_pool_maxsize` to
 `d.v0`, TypeScript keeps `connectionPoolMaxsize` v2-only, because the 0.x
 TypeScript SDK has no pool-size setting (`ROOT_CONFIG_ROUTING` in both SDKs
-records it). A second deliberate difference: the TypeScript root copies the
-config's fields once at construction (a getter could otherwise add a URL field
-after the check), while Python reads the live `DaytonaConfig` when it first
-builds `v0` / `v2` and re-checks the URL fields then (`_refuse_url_fields`).
-Both refuse URL fields at any time; only later edits to other fields differ.
+records it). Both roots copy the config's fields once, when the client is
+built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
+caller's object have no effect, and URL fields are refused before and after
+the copy (a getter or property could otherwise add one while it is read).
 
 Versions are NOT bumped per PR, nor anywhere else in git: the tracked
 `version` fields in `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and
@@ -105,8 +104,9 @@ no leading `- `. Rules: [`changelog.d/README.md`](changelog.d/README.md);
 check: `python3 scripts/changelog/assemble.py check --dir changelog.d`.
 
 **One error hierarchy, by construction.** Status-level bases → source-code
-subclasses; each SDK carries a codes module (`codes.py` / `codes.ts`) holding
-one catalog per error source declared in the contracts plus the shared
+subclasses; each SDK carries a codes catalog (`_codes.py` behind the public
+read-only `daytona.v2.codes`; `codes.ts`, exported as the `codes` namespace)
+holding one catalog per error source declared in the contracts plus the shared
 generic table, dispatched on `(source, code)`. Drift tests per SDK hold those
 catalogs to the committed contract: `contract/api-openapi.json`,
 `contract/toolbox-openapi.json`, `contract/proxy-errors.json` and
@@ -202,8 +202,8 @@ Both packages are a thin ROOT over one namespace per API major version:
   every v0 behaviour, including unbound detached methods, is 0.x's.
 - **`v2`** (`sdk-python/src/daytona/v2/`, `sdk-typescript/src/v2/`) is the SDK this
   repo writes; everything below this section describes it. Its client has NO
-  API URL field either: it reads `DAYTONA_V2_API_URL`, else `DAYTONA_API_URL`,
-  at construction, else `DEFAULT_V2_API_URL` (TS through a computed `globalThis.process` lookup, so
+  API URL field either: it reads `DAYTONA_V2_API_URL` at construction, else
+  `DEFAULT_V2_API_URL` (TS through a computed `globalThis.process` lookup, so
   bundlers cannot inline it — browser workers that shim `process.env` rely
   on that). There is no client-level toolbox URL
   either: every sandbox response carries its own, and only a
@@ -233,7 +233,8 @@ Both packages are a thin ROOT over one namespace per API major version:
   never deprecates it. `sdk-python/tests/test_v0_bundle.py` and
   `sdk-typescript/scripts/v0-bundle-smoke.cjs` run against the real bundle in
   sdk-ci and publish (skipped without a bundle). `d.v0` always passes `V0_API_URL`, so
-  `DAYTONA_API_URL` never reaches v0. Python: v0's dependencies are the `v0-sdk`
+  `DAYTONA_API_URL` (the 0.x SDK's variable) never reaches v0; nothing in 2.x
+  reads it. Python: v0's dependencies are the `v0-sdk`
   extra (never plain `v0`: pip < 26 on 3.10 parses `extra == 'v0'` as a
   version and crashes every install), committed EMPTY and filled by the bundle; hatch `artifacts` keeps the
   ignored tree in wheel/sdist. TypeScript: `src/v0` compiles separately
@@ -251,8 +252,9 @@ Both packages are a thin ROOT over one namespace per API major version:
 - **One error hierarchy for both namespaces.** The root defines `DaytonaError`
   plus the 12 categories v0 and v2 share (BadRequest, Authentication,
   Forbidden, NotFound, Timeout, Conflict, Gone, UnprocessableEntity,
-  RateLimit, InternalServer, ServiceUnavailable, Connection; aliases
-  `DaytonaValidationError`, `DaytonaAuthorizationError`). Python
+  RateLimit, InternalServer, ServiceUnavailable, Connection), with no
+  synonyms (`from daytona import DaytonaValidationError` /
+  `DaytonaAuthorizationError` keep the 0.x guiding `ImportError`). Python
   (`daytona/_errors.py`): stateless marker classes that v2's classes also
   inherit in source and that v0's inherit through the bundle's anchored
   rewrite of `common/errors.py`, which FAILS if a class is missing. TypeScript
@@ -261,8 +263,8 @@ Both packages are a thin ROOT over one namespace per API major version:
   by category name, so the ESM root and the CJS-only `./v0` copy share it; v2
   registers at module load, and the bundled v0 entry registers v0's classes
   when it loads (appended by `sdk-typescript/scripts/bundle-v0.mjs`), so v0 error
-  classes imported from `@daytona/sdk/v0` are caught with no `d.v0` access. The aliases are
-  class re-exports (usable as types). Version-specific errors are not
+  classes imported from `@daytona/sdk/v0` are caught with no `d.v0` access.
+  Version-specific errors are not
   re-exported at the root. Python's root `__getattr__` raises `ImportError`
   (not `AttributeError`) on purpose so `from daytona import X` keeps its
   guidance; the cost is that `hasattr(daytona, "Sandbox")` raises.
@@ -281,7 +283,14 @@ Both packages are a thin ROOT over one namespace per API major version:
   error class is not keyed. `exports` gives `.` and `./v2` conditional types
   (`require.types` → the CJS declarations in `dist/cjs`), checked by the
   node16 fixture `sdk-typescript/scripts/cjs-types-fixture/` in the tarball smoke.
-- **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DAYTONA_API_URL` → `DEFAULT_V2_API_URL` (the CLI mirrors this chain under its `--api-url` flag and above the profile's saved URL, `app.DefaultAPIURL` — keep the two defaults equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` and never reads `DAYTONA_API_URL` (passed explicitly as `api_url`/`apiUrl`). Blank = unset; no config field.
+- **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DEFAULT_V2_API_URL` (the CLI's default, `app.DefaultAPIURL`, must stay equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` (passed explicitly as `api_url`/`apiUrl`). `DAYTONA_API_URL` belongs to the 0.x SDKs and CLI: nothing in 2.x reads it. Blank = unset; no config field.
+- **Ambient configuration is normalised the same way in both SDKs.**
+  `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`, `DAYTONA_PROJECT_ID` and
+  `DAYTONA_V2_API_URL` are trimmed and a blank value is unset; explicit config
+  values are used as given; an explicitly empty `project_id` / `projectId` (or
+  an empty JWT without an API key) is a `BadRequestError` (400, `BAD_REQUEST`,
+  source `SDK`), like every invalid-configuration error. The deprecated root
+  `target` stays, deprecated, for all of 2.x.
 - **TS `d.v0` is the real v0 client, loaded synchronously.** The getter
   builds the 0.x SDK's `Daytona` on first access through the package-internal
   `#v0-loader` import (package.json `"imports"`): `loaders/v0-node.cjs`
@@ -381,7 +390,7 @@ Paths below are inside the v2 namespace.
 | fs / git | `filesystem.py`, `git.py` | `FileSystem.ts`, `Git.ts` |
 | Platform services | `services.py`, `snapshot.py`, `secret.py` | `Images.ts`, `Snapshots.ts`, `Volume.ts`, `Secret.ts` |
 | Volume models / sandbox volume operations | `volume.py`, `sandbox_volumes.py` | `Volume.ts`, `SandboxVolumes.ts` |
-| Errors + code catalog | `errors.py`, `codes.py` | `errors/DaytonaError.ts`, `codes.ts` |
+| Errors + code catalog | `errors.py`, `_codes.py` (public view `codes.py`) | `errors/DaytonaError.ts`, `codes.ts` |
 
 ## The migration tool — `upgrade/`
 
@@ -441,11 +450,59 @@ skipping exist only in the TypeScript tool).
   implement interpreter `timeout` CLIENT-side — wait to the deadline, then
   interrupt the kernel (INT, ^C semantics) and return the interrupted result
   (`wait_or_interrupt` / `waitOrInterrupt`).
-- **Public timeout names are `timeout` and `execution_timeout` / `executionTimeout`.**
-  Python timeouts are seconds; TypeScript timeouts are milliseconds. The wire
-  stays `timeoutMs` for toolbox process execs/waits, and the
-  transport-level HTTP deadline is configured once on the root client
-  (`DaytonaConfig.request_timeout` / `Daytona({ requestTimeout })`).
+- **Every duration is in seconds.** Python keeps bare names (`timeout`,
+  `execution_timeout`, `request_timeout`, `escalate_after`,
+  `reconcile_interval`, `idle_close`, ...); API-stored durations keep their
+  `_seconds` names. TypeScript names end in `Seconds` (`timeoutSeconds`,
+  `executionTimeoutSeconds`, `requestTimeoutSeconds`,
+  `reconcileIntervalSeconds`, `idleCloseSeconds`, ...). Fractions are allowed
+  unless the wire needs whole seconds (then they are validated). The wire
+  keeps its own units (`timeoutMs` for toolbox process execs/waits).
+  Timestamps are not durations. (Options not yet renamed in TypeScript still
+  take milliseconds until their area moves.)
+- **The request timeout is a total-time bound, the same in both SDKs.**
+  Configured once on the root client (`DaytonaConfig.request_timeout` /
+  `new Daytona({ requestTimeoutSeconds })`), default 60 s, `0` = no limit. It
+  bounds one ordinary request from sending it to reading the last byte of the
+  response (Python `_request_deadline` around httpx, TS an abort-signal timer
+  armed in the axios interceptor; httpx's and axios' own timeouts are per
+  phase or idle timers, not this). Not cut by it: waits, long polls and holds
+  (they pass their own `timeout`, or `0`; Python `/wait` paths and
+  `unbounded_read`), streams (bounded only until their response headers
+  arrive), and file transfers (Python `RequestSpec(transfer=True)` /
+  `transport.request(..., transfer=True)`, TS `timeout: 0` on axios or
+  `fetch(..., { transfer: true })`), which run until done or cancelled. A new
+  call of one of those kinds must opt out the same way in both SDKs.
+- **TypeScript rejects unknown option keys at runtime.** Every public options
+  object the SDK defines declares its known keys once, with
+  `optionKeys<T>()({ ... })` from `src/v2/options.ts` (a compile error when the
+  list misses a key of `T` or names one `T` lacks), and its entry point calls
+  `assertKnownOptions('TypeName', options, KEYS)`, which throws
+  `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) naming the key. A key in
+  `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
+  `requestTimeout`, `reconcileIntervalMs`, `idleCloseMs`) whose replacement is
+  a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
+  Pass-through maps inside options (`env`, `labels`, ...) are never checked.
+  Python needs no helper: unknown keywords already raise `TypeError`.
+- **Errors have one shape.** v2 category names are identical in both SDKs
+  (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
+  the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
+  `.code` only (no `error_code` / `errorCode`); `code` and `source` are open
+  vocabularies (an unknown code is kept verbatim, the class falls back to the
+  HTTP status). Constructors take the message plus options: TS
+  `new XError(message, options?: ErrorOptions)`, Python
+  `XError(message, *, status_code=None, code=None, source=None, ...)`, with the
+  same defaults (`TransferCancelledError()` → "file transfer cancelled", 499,
+  `REQUEST_CANCELLED`, `SDK`). SDK-raised errors set `source='SDK'` and the
+  catalog's status and code. Python callers should not star-import
+  `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
+  built-ins.
+- **Generated wire types never reach the public surface.** No public export,
+  and no type in a public signature, comes from `daytona.v2._gen` /
+  `src/v2/gen` (alias layers included). `tests/test_public_surface_generated.py`
+  and `tests/public-surface-generated.test.ts` walk everything reachable from
+  the entry points and fail on a new violation or a stale entry in their
+  `ALLOWED` lists, which only shrink.
 - **Signals are bare names on the surface, `SIG*` on the wire** — the mapping
   lives in exactly one place per SDK (`signal_spec` / `signalWire`), and wait
   results strip the prefix on the way back.

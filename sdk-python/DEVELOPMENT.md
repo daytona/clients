@@ -159,7 +159,20 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   link for the sandbox becomes invalid. Like minting, it is refused
   locally on a direct `toolbox_url` handle.
 - Typed errors: status-level base classes plus code-specific subclasses;
-  the code table is drift-tested against `../contract/toolbox-openapi.json`.
+  the code tables (`v2/_codes.py`, public read-only view `daytona.v2.codes`)
+  are drift-tested against the committed catalogs under `../contract/`.
+  Constructors are `XError(message, *, status_code=None, code=None,
+  source=None, ...)`; SDK-raised errors pass the catalog's status and code
+  with `source="SDK"` (`create_error(message, status, code, source)`
+  dispatches a `(source, code)` pair).
+- Request timeout: `request_timeout` (default 60 s, `0` = none) bounds the
+  total time of one ordinary request (`_transport._request_deadline`, an
+  `anyio.fail_after` around the httpx call, whose own timeouts are per phase).
+  A spec with its own budget sets `timeout` (or `unbounded_read`); file
+  transfers set `RequestSpec(transfer=True)` or call
+  `transport.request(..., transfer=True)` and are not bounded; streams are
+  bounded only until their response headers arrive. The TypeScript transport
+  implements the same rule.
 - Build logs use URL-only discovery (`{"url": "https://…/build-logs/…"}`).
   `build_logs()` reads the discovered endpoint with `follow=false&format=text`;
   `follow_build_logs()` uses `follow=true&format=sse` and the processed cursor.

@@ -81,8 +81,9 @@ must preserve `manifestId: null` rather than optionalizing it.
   `src/v0-unbundled.ts` fallback in a source checkout. The fallback is only for
   local typecheck / tests; the published package resolves through `exports`.
 - The root client config does not accept `apiUrl`. Its v2 namespace reads
-  `DAYTONA_V2_API_URL`, then `DAYTONA_API_URL`, or falls back to
-  `DEFAULT_V2_API_URL`. Set environment overrides before constructing a client.
+  `DAYTONA_V2_API_URL`, or falls back to `DEFAULT_V2_API_URL`;
+  `DAYTONA_API_URL` belongs to the 0.x SDK and nothing in 2.x reads it. Set
+  environment overrides before constructing a client.
 - `scripts/build-v0.mjs` emits the unbundled stub when `src/v0/` is absent;
   publish builds require the bundle. When present it builds
   `dist/cjs/v0` (`tsconfig.v0.json`) and the
@@ -103,11 +104,9 @@ must preserve `manifestId: null` rather than optionalizing it.
   aliases for names also exported by v2, and merges the v0 runtime dependency
   set into `package.json`. Re-running it replaces the bundle in place.
 - Names also exported by v0 at the pinned tag (`v0.230.0`) on the v2 surface are committed as
-  `...V2` aliases: `DaytonaAuthenticationError`,
-  `DaytonaAuthorizationError`, `DaytonaConflictError`,
-  `DaytonaConnectionError`, `DaytonaError`, `DaytonaNotFoundError`,
-  `DaytonaRateLimitError`, `DaytonaTimeoutError`, `DaytonaValidationError`,
-  `Image`, `LspServer`, and `Sandbox`.
+  `...V2` aliases: `DaytonaError`, `Image`, `LspServer`, and `Sandbox`.
+  `scripts/bundle-v0.mjs` fails when this set and the pinned release's shared
+  value exports disagree.
 
 - `process`: cursor-replayable `logs()`, SSE `streamLogs()` with
   `Last-Event-ID` resume, `wait()` long-poll; PTY `attach()` relies on Node's
@@ -128,7 +127,67 @@ must preserve `manifestId: null` rather than optionalizing it.
   error in both SDKs. `sandbox.rotateSigningKey()` resolves `void`; outstanding
   links stop working within approximately 30 seconds.
 - Errors: status-level bases → code-specific subclasses; `src/v2/codes.ts`
-  is drift-tested against the committed error catalogs under `../contract/`.
+  is drift-tested against the committed error catalogs under `../contract/`
+  and exported as the frozen `codes` namespace. Constructors take
+  `(message, options?: ErrorOptions)`; a subclass with extra fields extends
+  `ErrorOptions` (`ImageBuildFailedErrorOptions`,
+  `BuildLogInterruptedErrorOptions`). SDK-raised errors pass
+  `{ statusCode, code, source: 'SDK' }`; `createDaytonaError` dispatches a
+  `(source, code)` pair and `errorOptionsFromEnvelope` maps a wire envelope.
+
+### Options objects
+
+Every public options object (constructor configs and per-call options)
+rejects unknown keys at runtime, because a JavaScript caller's typo or an
+option renamed in 2.x would otherwise be ignored silently. `src/v2/options.ts`
+provides the pieces; applying them to a new options type takes two lines:
+
+```ts
+import { assertKnownOptions, optionKeys } from './options.js'
+
+/** The known keys of {@link CreateSandboxOptions}. */
+export const CREATE_SANDBOX_OPTION_KEYS = optionKeys<CreateSandboxOptions>()({
+  name: true,
+  labels: true,
+  waitSeconds: true,
+  // ...every key of CreateSandboxOptions, nothing else
+})
+
+public async create(image: string, options: CreateSandboxOptions = {}): Promise<Sandbox> {
+  assertKnownOptions('CreateSandboxOptions', options, CREATE_SANDBOX_OPTION_KEYS)
+  // ...
+}
+```
+
+- `optionKeys<T>()` is curried so `T` is explicit while the literal's keys are
+  inferred: a key of `T` missing from the list, or a listed key `T` does not
+  have, is a compile error, so the list cannot drift from the type.
+- `assertKnownOptions` throws `BadRequestError` (400, `BAD_REQUEST`, source
+  `SDK`): "`CreateSandboxOptions has no option \`foo\``". When the unknown key
+  is in `RENAMED_OPTIONS` and its replacement is a known key of the type, the
+  message names it: "`CreateSandboxOptions: \`timeout\` was renamed to
+  \`timeoutSeconds\` (seconds)`". The table covers `timeout`,
+  `executionTimeout`, `escalateAfter`, `requestTimeout`, `reconcileIntervalMs`
+  and `idleCloseMs`; add a row when another option is renamed.
+- Check the options object itself, and nested SDK-defined option objects
+  (the root checks `config.events` as `SandboxEventsConfig`); never a
+  pass-through map (`env`, `labels`, request headers).
+- A duration in seconds is validated with `optionalSeconds(name, value)`
+  (finite, non-negative) and converted to milliseconds only at the transport.
+- Test both the rejection and the rename hint for every type you cover (see
+  `tests/client-config.test.ts`).
+
+### Request timeout
+
+`requestTimeoutSeconds` (default 60, `0` = none) bounds the total time of one
+ordinary request: `createConfiguredHttpClient` arms an abort-signal timer per
+axios request (`armRequestDeadline`), because axios' own `timeout` only bounds
+the wait for headers and idle reads in Node. A request with its own budget
+passes `timeout` explicitly (`0` = unbounded): waits and long polls derive it
+from the caller's deadline. File transfers pass `timeout: 0` (axios) or
+`transfer: true` (`HttpTransport.fetch`); other `fetch` calls are streams and
+are bounded only until their response headers arrive. The Python transport
+implements the same rule (`_request_deadline`, `RequestSpec.transfer`).
 - Signals: bare names on the surface (`TERM`, `INT`, …), `SIG*` on the wire.
 - Reserved sandbox `env` names: platform-reserved prefixes plus every
   `DAYTONA_*` name other than

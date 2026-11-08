@@ -12,7 +12,7 @@ lambdaLocal
     lambdaPath: require('node:path').resolve('dist/handler.js'),
     lambdaHandler: 'handler',
     event: {},
-    environment: { DAYTONA_API_URL: process.env.DAYTONA_API_URL, DAYTONA_API_KEY: process.env.DAYTONA_API_KEY },
+    environment: { DAYTONA_V2_API_URL: process.env.DAYTONA_V2_API_URL, DAYTONA_API_KEY: process.env.DAYTONA_API_KEY },
     timeoutMs: 30000,
     verboseLevel: 0,
   })

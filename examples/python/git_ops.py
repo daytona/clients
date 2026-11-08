@@ -5,7 +5,7 @@ Shows clone / add / commit / branches / create_branch / checkout_branch /
 delete_branch / status / push / pull.
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/git_ops.py
 """
 

@@ -2,7 +2,7 @@
  * pagination — list images with iter() or page by page with pagination cursors.
  *
  * Run (from examples):
- *     DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... npx tsx typescript/pagination/index.ts
+ *     DAYTONA_API_KEY=dtn_... npx tsx typescript/pagination/index.ts
  */
 
 import { client, section, info } from '../_common'

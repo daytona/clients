@@ -9,7 +9,7 @@
 #   DAYTONA_API_KEY=dtn_... ./e2e/run.sh py       # python only
 #   DAYTONA_API_KEY=dtn_... ./e2e/run.sh ts       # typescript only
 #
-# Env (see e2e/e2e.py / e2e/e2e.ts headers): DAYTONA_API_URL, DAYTONA_API_KEY (required),
+# Env (see e2e/e2e.py / e2e/e2e.ts headers): DAYTONA_V2_API_URL, DAYTONA_API_KEY (required),
 # SMOKE_IMAGE, DAYTONA_SKIP_TOOLBOX, DAYTONA_SKIP_DOCKERFILE
 # (deployments without image builds), DAYTONA_KEEP.
 set -euo pipefail

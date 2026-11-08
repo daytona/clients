@@ -24,7 +24,7 @@ from .yaml_flow import (
 VARIABLES: Final = frozenset({"DAYTONA_API_URL", "DAYTONA_SERVER_URL"})
 _VARIABLE: Final = re.compile(r"(?<![\w$])DAYTONA_(?:API|SERVER)_URL\b")
 _CLOUD: Final = re.compile(r"(?i:https://app\.daytona\.io)/api/?", re.ASCII)
-_REPORT: Final = "{name} is ignored by SDK 2.x .v0 (it targets Daytona Cloud); .v2 reads DAYTONA_V2_API_URL, then DAYTONA_API_URL, for test environments. Review this setting."
+_REPORT: Final = "{name} is ignored by SDK 2.x: .v0 targets Daytona Cloud, and .v2 reads only DAYTONA_V2_API_URL, for test environments. Review this setting."
 _UNKNOWN_REPORT: Final = (
     "an environment write may set DAYTONA_API_URL or DAYTONA_SERVER_URL; "
     "check that it does not point at a custom API"

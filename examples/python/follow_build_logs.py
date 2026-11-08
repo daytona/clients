@@ -2,7 +2,7 @@
 
 Run: python python/follow_build_logs.py image IMAGE_ID
   or python python/follow_build_logs.py sandbox SANDBOX_ID
-Uses DAYTONA_API_URL and DAYTONA_API_KEY. Requires live build-log support.
+Uses DAYTONA_API_KEY (and DAYTONA_V2_API_URL in test environments). Requires live build-log support.
 """
 from __future__ import annotations
 

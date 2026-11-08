@@ -5,7 +5,7 @@
  * deleteBranch / status / push / pull.
  *
  * Run (from examples):
- *     DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \
+ *     DAYTONA_API_KEY=dtn_... \
  *       npx tsx typescript/git/index.ts
  */
 

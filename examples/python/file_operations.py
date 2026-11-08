@@ -5,7 +5,7 @@ Uses the single-file helpers ``fs.write_bytes(remote_path, bytes)`` and
 ``fs.read_bytes(path)`` (bytes in / bytes out).
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/file_operations.py
 """
 

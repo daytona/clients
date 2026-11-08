@@ -69,30 +69,40 @@ API key or JWT identity, and effective events settings (`sharedHub` and
 `events` on the config). Closing is optional: in Node an idle socket stays open
 for the next wait but does not keep the process alive, so a script can simply
 end; a runtime where the socket cannot be released from the event loop closes
-it 10 s after the last wait instead, and `events.idleCloseMs` overrides either
-(values above 2,147,483,647 ms clamp to that maximum). `await daytona.close()`
+it 10 s after the last wait instead, and `events.idleCloseSeconds` overrides
+either (values above about 24 days clamp to that maximum). `await daytona.close()`
 releases this client's reference at once; the shared socket closes when the
 last client sharing it closes.
 
 The root client reads `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 `DAYTONA_ORGANIZATION_ID` (scopes a JWT for the v0 namespace),
 `DAYTONA_PROJECT_ID` (scopes a JWT for the v2 namespace), and
-`DAYTONA_OTEL_ENABLED` from the environment when a field is omitted. `DAYTONA_API_URL` overrides the v2 API endpoint;
+`DAYTONA_OTEL_ENABLED` from the environment when a field is omitted.
+Environment values are trimmed, and a blank one counts as unset; values you
+pass in the config are used as given (an empty `projectId` is rejected).
+`DAYTONA_V2_API_URL` (test environments only) selects another v2 API endpoint;
 when it is unset the SDK uses its built-in default API URL. `daytona.v0`
-always targets Daytona's v0 API URL and ignores `DAYTONA_API_URL`. Migrating
-from the 0.x SDK, which documented `DAYTONA_API_URL` as its own API URL: unset
-it, or `daytona.v2` sends requests to that (v0) host.
+always targets Daytona's v0 API URL. SDK 2.x never reads `DAYTONA_API_URL`, the
+0.x SDK's variable.
 `daytona.v2` reads `DAYTONA_*` variables from the process environment only;
 `daytona.v0` keeps the 0.x SDK's behaviour of also reading `.env.local` /
 `.env` when `dotenv` is installed. Export the key, or pass `apiKey`, so both
 namespaces see it.
 
+`new Daytona(config)` copies the config: changing the object afterwards has no
+effect on the client. A key the config does not define throws
+`BadRequestError`, and a renamed key names its replacement (`requestTimeout`
+→ `requestTimeoutSeconds`; `events.reconcileIntervalMs` /
+`events.idleCloseMs` → `reconcileIntervalSeconds` / `idleCloseSeconds`).
+`requestTimeoutSeconds` (default 60, `0` = no limit) is the total time one
+ordinary request may take before it throws `ClientTimeoutError`; waits and long
+polls use their own budget, streams are bounded only until their response
+arrives, and file transfers are not bounded.
+
 The root package exports a shared v0/v2 error hierarchy (`DaytonaError`,
 `DaytonaNotFoundError`, `DaytonaTimeoutError`, …). Catch those from
 `@daytona/sdk` when code may see either namespace, including v0 error classes
 imported from `@daytona/sdk/v0`; v2-only errors stay on `@daytona/sdk/v2`.
-`DaytonaValidationError` and `DaytonaAuthorizationError` are aliases of
-`DaytonaBadRequestError` and `DaytonaForbiddenError`.
 
 `@daytona/sdk/v0` is the 0.x Daytona SDK, vendored into this package at a
 pinned release. It exports the 0.x resource types and errors, but not the
@@ -122,7 +132,8 @@ default one has `default: true`. When no default is configured, the create
 throws `DEFAULT_IMAGE_NOT_CONFIGURED` (400).
 
 SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x: the root
-rejects `apiUrl`, and `daytona.v0` ignores `DAYTONA_API_URL`.
+rejects `apiUrl`, and SDK 2.x (`daytona.v0` included) never reads
+`DAYTONA_API_URL`.
 
 `daytona.v0` is the v0 SDK's own `Daytona` client, the same instance on every
 access, so code written against the v0 SDK keeps its types, `instanceof`
@@ -162,8 +173,8 @@ const daytona = new Daytona({ otelEnabled: true, otelApi: otel })
 
 ### Regions and safe create retries
 
-Set `DAYTONA_API_URL` only when you need a non-default v2 API endpoint.
-`region` on each `create*()` chooses an ID returned by `GET /regions`.
+Set `DAYTONA_V2_API_URL` only in a test environment that needs a non-default
+v2 API endpoint. `region` on each `create*()` chooses an ID returned by `GET /regions`.
 The response identifies the default region and lists region names,
 availability, and published API URLs. Omit `region` to use the default.
 Commands and files target the selected sandbox. When you select a regional
@@ -283,8 +294,9 @@ One-shot reads reject responses exceeding 2 MiB of received body bytes with
 A deadline in a state event is server execution metadata, not a client abort:
 the follower still drains final output and waits for `done` with reason
 `deadline`. Your `timeout` and `signal` remain independent observation limits.
-`requestTimeout` bounds discovery, one-shot reads, and error-response bodies,
-including after headers arrive; it does not limit a healthy live log stream.
+`requestTimeoutSeconds` bounds discovery, one-shot reads, and error-response
+bodies, including after headers arrive; it does not limit a healthy live log
+stream.
 
 Pass `cursor` to resume a saved checkpoint. Automatic reconnects preserve
 partial UTF-8 characters; a fresh follower starting mid-character can emit a
@@ -726,10 +738,20 @@ method's follow-up refresh maps a 404 to `destroyed`.
 
 The root `DaytonaError` (from `@daytona/sdk`) catches errors from both
 namespaces and types `statusCode`, `code`, and `source`. The v2 classes
-(`import { NotFoundError, … } from '@daytona/sdk/v2'`) also expose `traceId`
-(v0 errors carry none), and status-level bases (`NotFoundError`,
-`AuthorizationError`, …) have code-specific subclasses so you can catch as
-broadly or narrowly as you need.
+(`import { NotFoundError, … } from '@daytona/sdk/v2'`) have the same names as
+in the Python SDK: `BadRequestError`, `AuthenticationError` (401),
+`ForbiddenError` (403), `NotFoundError`, `ConflictError`, `RateLimitError`,
+`RequestTimeoutError` (408), `ClientTimeoutError` (the client's own request
+timeout), `ConnectionError`, … They also expose `traceId` (v0 errors carry
+none), and the status-level bases have code-specific subclasses so you can
+catch as broadly or narrowly as you need. `code` and `source` are open
+vocabularies: a code this release does not know is kept as sent and the error
+is the class for its HTTP status; the `codes` namespace lists the known codes
+per source (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`,
+`codes.isKnownErrorCode`, …). Constructors take the message plus an
+`ErrorOptions` object (`new NotFoundError('missing', { statusCode: 404, code:
+'NOT_FOUND', source: 'SDK' })`), so tests can build the errors your code
+handles.
 
 ```ts
 import { DaytonaError } from '@daytona/sdk'

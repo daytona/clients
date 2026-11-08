@@ -2,7 +2,7 @@
  * exec-command — run shell commands and interpreter code.
  *
  * Run (from examples):
- *     DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \
+ *     DAYTONA_API_KEY=dtn_... \
  *       npx tsx typescript/exec-command/index.ts
  */
 

@@ -1,7 +1,7 @@
 /** Follow an existing image or sandbox build without buffering its transcript.
  * Run: npx tsx typescript/follow-build-logs/index.ts image IMAGE_ID [CURSOR]
  *   or npx tsx typescript/follow-build-logs/index.ts sandbox SANDBOX_ID [CURSOR]
- * Uses DAYTONA_API_URL and DAYTONA_API_KEY. Requires live build-log support.
+ * Uses DAYTONA_API_KEY (and DAYTONA_V2_API_URL in test environments). Requires live build-log support.
  */
 import { Daytona } from '@daytona/sdk'
 import { BuildLogInterruptedError } from '@daytona/sdk/v2'

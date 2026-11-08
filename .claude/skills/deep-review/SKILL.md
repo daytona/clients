@@ -158,7 +158,7 @@ copies for builds that write files; preserve relative repository paths.
 
 Live checks are optional and credential-gated: when `DAYTONA_API_KEY` is
 already available, run `./e2e/run.sh` (optionally `py` or `ts`), using
-`DAYTONA_API_URL` only when provided. Otherwise skip and say so. Never ask
+`DAYTONA_V2_API_URL` only when provided. Otherwise skip and say so. Never ask
 for credentials, print keys or non-public endpoints, or claim a skipped
 suite passed. A feature needing undeployed API support remains draft until
 its checks pass; the reviewer cannot coordinate deployment by guessing.

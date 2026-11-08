@@ -50,8 +50,8 @@ if TYPE_CHECKING:
     from .v2.types import DaytonaConfig as _DaytonaConfigV2
 
 # v0's own production API. `d.v0` always passes it explicitly, so the bundled
-# v0 client never falls back to `DAYTONA_API_URL`, which addresses v2 test
-# environments.
+# v0 client never falls back to `DAYTONA_API_URL` (the 0.x SDK's variable,
+# which nothing in SDK 2.x reads).
 V0_API_URL: Final[str] = "https://app.daytona.io/api"
 
 

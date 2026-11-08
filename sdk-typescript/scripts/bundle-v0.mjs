@@ -163,8 +163,8 @@ writeFileSync(
 
 // v0's dotenv warning tells the user to pass `apiUrl` to the Daytona
 // constructor or set DAYTONA_API_URL. Under the 2.x root neither works (the root
-// rejects apiUrl, and daytona.v0 never reads DAYTONA_API_URL, which would
-// redirect daytona.v2), and the root is the only way to build a v0 client, so
+// rejects apiUrl, and nothing in SDK 2.x reads DAYTONA_API_URL, daytona.v0
+// included), and the root is the only way to build a v0 client, so
 // the remedy is rewritten for it (bundle_v0_python.py does the same).
 {
   const runtimePath = join(destinationDir, 'utils', 'Runtime.ts')

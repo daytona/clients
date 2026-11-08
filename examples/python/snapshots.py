@@ -11,7 +11,7 @@ Use ``images.follow_build_logs()`` to read build output. This example builds
 an image from a Dockerfile, then boots a sandbox from it.
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/snapshots.py
 """
 
