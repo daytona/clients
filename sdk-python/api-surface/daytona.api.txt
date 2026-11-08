@@ -20,6 +20,7 @@ DaytonaAuthenticationError: class (DaytonaError)
 DaytonaAuthorizationError: alias = DaytonaForbiddenError
 DaytonaBadRequestError: class (DaytonaError)
 DaytonaConfig: dataclass
+DaytonaConfig.__init__: constructor (api_key: str | None = None, *, jwt_token: str | None = None, organization_id: str | None = None, project_id: str | None = None, target: str | None = None, request_timeout: float | None = None, connection_pool_maxsize: int | None = None, otel_enabled: bool | None = None, shared_hub: bool = True, events: SandboxEventsConfig | None = None) -> None
 DaytonaConfig.api_key: field str | None = None
 DaytonaConfig.connection_pool_maxsize: field kw_only int | None = None
 DaytonaConfig.events: field kw_only SandboxEventsConfig | None = None

@@ -110,6 +110,7 @@ AsyncImageService.pull: async def (image: str, *, name: str | None = None, regio
 AsyncInterpreterContext: dataclass frozen
 AsyncInterpreterContext.__aenter__: async def () -> Self
 AsyncInterpreterContext.__aexit__: async def (exc_type: type[BaseException] | None, exc: BaseException | None, traceback: TracebackType | None) -> None
+AsyncInterpreterContext.__init__: internal-constructor (sandbox_id: str, context_id: str, language: str) -> None
 AsyncInterpreterContext.bind: def (runner: Callable[[str, str | None, Mapping[str, str] | None, float | None], Awaitable[InterpreterResult]], closer: Callable[[], Awaitable[None]]) -> Self
 AsyncInterpreterContext.close: async def () -> None
 AsyncInterpreterContext.context_id: field str
@@ -414,16 +415,19 @@ BucketNotEmptyError.message: attribute str
 BucketNotEmptyError.source: attribute str | None
 BucketNotEmptyError.status_code: attribute int | None
 BuildLogChunkEvent: dataclass frozen
+BuildLogChunkEvent.__init__: internal-constructor (data_base64: str, start_offset: str, next_offset: str, cursor: str, type: Literal['log'] = 'log') -> None
 BuildLogChunkEvent.cursor: field str
 BuildLogChunkEvent.data_base64: field str
 BuildLogChunkEvent.next_offset: field str
 BuildLogChunkEvent.start_offset: field str
 BuildLogChunkEvent.type: field Literal['log'] = 'log'
 BuildLogDoneEvent: dataclass frozen
+BuildLogDoneEvent.__init__: internal-constructor (result: BuildLogFollowResult, type: Literal['done'] = 'done') -> None
 BuildLogDoneEvent.result: field BuildLogFollowResult
 BuildLogDoneEvent.type: field Literal['done'] = 'done'
 BuildLogDoneReason: type = Literal['terminal', 'deadline', 'not_applicable', 'resource_deleted', 'unknown']
 BuildLogErrorEvent: dataclass frozen
+BuildLogErrorEvent.__init__: internal-constructor (error: str, code: str, retryable: bool, trace_id: str | None = None, type: Literal['error'] = 'error') -> None
 BuildLogErrorEvent.code: field str
 BuildLogErrorEvent.error: field str
 BuildLogErrorEvent.retryable: field bool
@@ -438,12 +442,14 @@ BuildLogEvent: union-member BuildLogSourceChangedEvent
 BuildLogEvent: union-member BuildLogStateEvent
 BuildLogEvent: union-member BuildLogUnavailableEvent
 BuildLogFollowResult: dataclass frozen
+BuildLogFollowResult.__init__: internal-constructor (status: str, reason: BuildLogDoneReason, output_complete: bool, cursor: str | None = None, raw_reason: str | None = None) -> None
 BuildLogFollowResult.cursor: field str | None = None
 BuildLogFollowResult.output_complete: field bool
 BuildLogFollowResult.raw_reason: field str | None = None
 BuildLogFollowResult.reason: field BuildLogDoneReason
 BuildLogFollowResult.status: field str
 BuildLogGapEvent: dataclass frozen
+BuildLogGapEvent.__init__: internal-constructor (requested_offset: str, first_available_offset: str, dropped_bytes: str, cursor: str, reason: BuildLogGapReason = 'truncated', type: Literal['gap'] = 'gap', raw_reason: str | None = None) -> None
 BuildLogGapEvent.cursor: field str
 BuildLogGapEvent.dropped_bytes: field str
 BuildLogGapEvent.first_available_offset: field str
@@ -460,28 +466,35 @@ BuildLogInterruptedError.message: attribute str
 BuildLogInterruptedError.source: attribute str | None
 BuildLogInterruptedError.status_code: attribute int | None
 BuildLogSourceChangedEvent: dataclass frozen
+BuildLogSourceChangedEvent.__init__: internal-constructor (reason: str, type: Literal['source_changed'] = 'source_changed') -> None
 BuildLogSourceChangedEvent.reason: field str
 BuildLogSourceChangedEvent.type: field Literal['source_changed'] = 'source_changed'
 BuildLogStateEvent: dataclass frozen
+BuildLogStateEvent.__init__: internal-constructor (status: str, error: str | None = None, deadline_at: str | None = None, type: Literal['state'] = 'state') -> None
 BuildLogStateEvent.deadline_at: field str | None = None
 BuildLogStateEvent.error: field str | None = None
 BuildLogStateEvent.status: field str
 BuildLogStateEvent.type: field Literal['state'] = 'state'
 BuildLogUnavailableEvent: dataclass frozen
+BuildLogUnavailableEvent.__init__: internal-constructor (reason: str, type: Literal['unavailable'] = 'unavailable') -> None
 BuildLogUnavailableEvent.reason: field str
 BuildLogUnavailableEvent.type: field Literal['unavailable'] = 'unavailable'
 BulkReadError: dataclass frozen
+BulkReadError.__init__: internal-constructor (path: str, message: str, code: str | None = None, source: str | None = None) -> None
 BulkReadError.code: field str | None = None
 BulkReadError.message: field str
 BulkReadError.path: field str
 BulkReadError.source: field str | None = None
 BulkReadResult: dataclass frozen
+BulkReadResult.__init__: internal-constructor (files: dict[str, bytes], errors: list[BulkReadError] = list()) -> None
 BulkReadResult.errors: field list[BulkReadError] = list()
 BulkReadResult.files: field dict[str, bytes]
 BulkWriteFile: dataclass frozen
+BulkWriteFile.__init__: internal-constructor (path: str, bytes: int) -> None
 BulkWriteFile.bytes: field int
 BulkWriteFile.path: field str
 BulkWriteResult: dataclass frozen
+BulkWriteResult.__init__: internal-constructor (files: list[BulkWriteFile], errors: list[str] = list()) -> None
 BulkWriteResult.errors: field list[str] = list()
 BulkWriteResult.files: field list[BulkWriteFile]
 ChargeNotFoundError: class (DaytonaNotFoundError)
@@ -500,19 +513,23 @@ ClientTimeoutError.message: attribute str
 ClientTimeoutError.source: attribute str | None
 ClientTimeoutError.status_code: attribute int | None
 ComputerUseA11yFindResponse: dataclass frozen
+ComputerUseA11yFindResponse.__init__: internal-constructor (matches: list[ComputerUseAccessibilityNode], truncated: bool) -> None
 ComputerUseA11yFindResponse.matches: field list[ComputerUseAccessibilityNode]
 ComputerUseA11yFindResponse.truncated: field bool
 ComputerUseA11yNameMatch: type = Literal['exact', 'substring', 'regex']
 ComputerUseA11yScope: type = Literal['focused', 'pid', 'all']
 ComputerUseA11yTreeResponse: dataclass frozen
+ComputerUseA11yTreeResponse.__init__: internal-constructor (root: ComputerUseAccessibilityNode, truncated: bool) -> None
 ComputerUseA11yTreeResponse.root: field ComputerUseAccessibilityNode
 ComputerUseA11yTreeResponse.truncated: field bool
 ComputerUseAccessibilityBounds: dataclass frozen
+ComputerUseAccessibilityBounds.__init__: internal-constructor (x: int, y: int, width: int, height: int) -> None
 ComputerUseAccessibilityBounds.height: field int
 ComputerUseAccessibilityBounds.width: field int
 ComputerUseAccessibilityBounds.x: field int
 ComputerUseAccessibilityBounds.y: field int
 ComputerUseAccessibilityNode: dataclass frozen
+ComputerUseAccessibilityNode.__init__: internal-constructor (id: str, role: str, name: str, bounds: ComputerUseAccessibilityBounds, states: list[str], description: str | None = None, actions: list[str] | None = None, children: list[ComputerUseAccessibilityNode] | None = None, value: str | None = None, value_truncated: bool = False) -> None
 ComputerUseAccessibilityNode.actions: field list[str] | None = None
 ComputerUseAccessibilityNode.bounds: field ComputerUseAccessibilityBounds
 ComputerUseAccessibilityNode.children: field list[ComputerUseAccessibilityNode] | None = None
@@ -525,6 +542,7 @@ ComputerUseAccessibilityNode.value: field str | None = None
 ComputerUseAccessibilityNode.value_truncated: field bool = False
 ComputerUseActivityStatus: type = Literal['active', 'inactive', 'unknown']
 ComputerUseDesktopFailure: dataclass frozen
+ComputerUseDesktopFailure.__init__: internal-constructor (code: ComputerUseDesktopFailureCode, message: str, extra_fields: dict[str, JsonValue] | None = None, raw_code: str | None = None) -> None
 ComputerUseDesktopFailure.code: field ComputerUseDesktopFailureCode
 ComputerUseDesktopFailure.extra_fields: field dict[str, JsonValue] | None = None
 ComputerUseDesktopFailure.message: field str
@@ -541,6 +559,7 @@ ComputerUseDesktopFailureCode: union-member 'state_persistence_failed'
 ComputerUseDesktopFailureCode: union-member 'unknown'
 ComputerUseDesktopState: type = Literal['not_started', 'starting', 'ready', 'failed', 'unknown']
 ComputerUseDisplay: dataclass frozen
+ComputerUseDisplay.__init__: internal-constructor (id: int, x: int, y: int, width: int, height: int, is_active: bool) -> None
 ComputerUseDisplay.height: field int
 ComputerUseDisplay.id: field int
 ComputerUseDisplay.is_active: field bool
@@ -548,40 +567,51 @@ ComputerUseDisplay.width: field int
 ComputerUseDisplay.x: field int
 ComputerUseDisplay.y: field int
 ComputerUseDisplayInfoResponse: dataclass frozen
+ComputerUseDisplayInfoResponse.__init__: internal-constructor (displays: list[ComputerUseDisplay]) -> None
 ComputerUseDisplayInfoResponse.displays: field list[ComputerUseDisplay]
 ComputerUseDisplayWindowsResponse: dataclass frozen
+ComputerUseDisplayWindowsResponse.__init__: internal-constructor (windows: list[ComputerUseWindow]) -> None
 ComputerUseDisplayWindowsResponse.windows: field list[ComputerUseWindow]
 ComputerUseFailedStatus: dataclass frozen
+ComputerUseFailedStatus.__init__: internal-constructor (cause: ComputerUseDesktopFailure, status: Literal['inactive'] = 'inactive', desktop: Literal['failed'] = 'failed', extra_fields: dict[str, JsonValue] | None = None) -> None
 ComputerUseFailedStatus.cause: field ComputerUseDesktopFailure
 ComputerUseFailedStatus.desktop: field Literal['failed'] = 'failed'
 ComputerUseFailedStatus.extra_fields: field dict[str, JsonValue] | None = None
 ComputerUseFailedStatus.status: field Literal['inactive'] = 'inactive'
 ComputerUseKeyboardModifier: type = Literal['ctrl', 'alt', 'shift', 'cmd']
 ComputerUseLifecycleResponse: dataclass frozen
+ComputerUseLifecycleResponse.__init__: internal-constructor (message: str, status: dict[str, ComputerUseProcessStatus]) -> None
 ComputerUseLifecycleResponse.message: field str
 ComputerUseLifecycleResponse.status: field dict[str, ComputerUseProcessStatus]
 ComputerUseMouseButton: type = Literal['left', 'right', 'middle']
 ComputerUseNotStartedStatus: dataclass frozen
+ComputerUseNotStartedStatus.__init__: internal-constructor (status: Literal['inactive'] = 'inactive', desktop: Literal['not_started'] = 'not_started', cause: None = None, extra_fields: dict[str, JsonValue] | None = None) -> None
 ComputerUseNotStartedStatus.cause: field None = None
 ComputerUseNotStartedStatus.desktop: field Literal['not_started'] = 'not_started'
 ComputerUseNotStartedStatus.extra_fields: field dict[str, JsonValue] | None = None
 ComputerUseNotStartedStatus.status: field Literal['inactive'] = 'inactive'
 ComputerUsePoint: dataclass frozen
+ComputerUsePoint.__init__: internal-constructor (x: int, y: int) -> None
 ComputerUsePoint.x: field int
 ComputerUsePoint.y: field int
 ComputerUseProcessErrorsResponse: dataclass frozen
+ComputerUseProcessErrorsResponse.__init__: internal-constructor (process_name: str, errors: str) -> None
 ComputerUseProcessErrorsResponse.errors: field str
 ComputerUseProcessErrorsResponse.process_name: field str
 ComputerUseProcessLogsResponse: dataclass frozen
+ComputerUseProcessLogsResponse.__init__: internal-constructor (process_name: str, logs: str) -> None
 ComputerUseProcessLogsResponse.logs: field str
 ComputerUseProcessLogsResponse.process_name: field str
 ComputerUseProcessRestartResponse: dataclass frozen
+ComputerUseProcessRestartResponse.__init__: internal-constructor (message: str, process_name: str) -> None
 ComputerUseProcessRestartResponse.message: field str
 ComputerUseProcessRestartResponse.process_name: field str
 ComputerUseProcessRunningStatus: dataclass frozen
+ComputerUseProcessRunningStatus.__init__: internal-constructor (process_name: str, running: bool) -> None
 ComputerUseProcessRunningStatus.process_name: field str
 ComputerUseProcessRunningStatus.running: field bool
 ComputerUseProcessStatus: dataclass frozen
+ComputerUseProcessStatus.__init__: internal-constructor (running: bool | None = None, priority: int | None = None, auto_restart: bool | None = None, pid: int | None = None, failed: bool | None = None, restart_attempts: int | None = None, restart_backoff_ms: int | None = None, status: str | None = None, extra_fields: dict[str, JsonValue] | None = None) -> None
 ComputerUseProcessStatus.auto_restart: field bool | None = None
 ComputerUseProcessStatus.extra_fields: field dict[str, JsonValue] | None = None
 ComputerUseProcessStatus.failed: field bool | None = None
@@ -592,11 +622,13 @@ ComputerUseProcessStatus.restart_backoff_ms: field int | None = None
 ComputerUseProcessStatus.running: field bool | None = None
 ComputerUseProcessStatus.status: field str | None = None
 ComputerUseReadyStatus: dataclass frozen
+ComputerUseReadyStatus.__init__: internal-constructor (status: Literal['active'] = 'active', desktop: Literal['ready'] = 'ready', cause: None = None, extra_fields: dict[str, JsonValue] | None = None) -> None
 ComputerUseReadyStatus.cause: field None = None
 ComputerUseReadyStatus.desktop: field Literal['ready'] = 'ready'
 ComputerUseReadyStatus.extra_fields: field dict[str, JsonValue] | None = None
 ComputerUseReadyStatus.status: field Literal['active'] = 'active'
 ComputerUseRecording: dataclass frozen
+ComputerUseRecording.__init__: internal-constructor (id: str, file_name: str, file_path: str, start_time: str, status: str, end_time: str | None = None, duration_seconds: float | None = None, size_bytes: int | None = None) -> None
 ComputerUseRecording.duration_seconds: field float | None = None
 ComputerUseRecording.end_time: field str | None = None
 ComputerUseRecording.file_name: field str
@@ -606,24 +638,29 @@ ComputerUseRecording.size_bytes: field int | None = None
 ComputerUseRecording.start_time: field str
 ComputerUseRecording.status: field str
 ComputerUseRecordingsResponse: dataclass frozen
+ComputerUseRecordingsResponse.__init__: internal-constructor (recordings: list[ComputerUseRecording]) -> None
 ComputerUseRecordingsResponse.recordings: field list[ComputerUseRecording]
 ComputerUseRegion: dataclass frozen
+ComputerUseRegion.__init__: internal-constructor (x: int, y: int, width: int, height: int) -> None
 ComputerUseRegion.height: field int
 ComputerUseRegion.width: field int
 ComputerUseRegion.x: field int
 ComputerUseRegion.y: field int
 ComputerUseRestartResponse: dataclass frozen
+ComputerUseRestartResponse.__init__: internal-constructor (message: str, status: Literal['active'] = 'active', desktop: Literal['ready'] = 'ready', extra_fields: dict[str, JsonValue] | None = None) -> None
 ComputerUseRestartResponse.desktop: field Literal['ready'] = 'ready'
 ComputerUseRestartResponse.extra_fields: field dict[str, JsonValue] | None = None
 ComputerUseRestartResponse.message: field str
 ComputerUseRestartResponse.status: field Literal['active'] = 'active'
 ComputerUseScreenshotFormat: type = Literal['png', 'jpeg']
 ComputerUseScreenshotResponse: dataclass frozen
+ComputerUseScreenshotResponse.__init__: internal-constructor (screenshot: str, cursor_position: ComputerUsePoint | None = None, size_bytes: int | None = None) -> None
 ComputerUseScreenshotResponse.cursor_position: field ComputerUsePoint | None = None
 ComputerUseScreenshotResponse.screenshot: field str
 ComputerUseScreenshotResponse.size_bytes: field int | None = None
 ComputerUseScrollDirection: type = Literal['up', 'down']
 ComputerUseScrollResponse: dataclass frozen
+ComputerUseScrollResponse.__init__: internal-constructor (success: bool) -> None
 ComputerUseScrollResponse.success: field bool
 ComputerUseService: class
 ComputerUseService.__init__: internal-constructor (impl: _async.AsyncComputerUseService, bridge: SyncBridge) -> None
@@ -639,6 +676,7 @@ ComputerUseService.start: def () -> ComputerUseLifecycleResult
 ComputerUseService.status: def () -> ComputerUseStatusResponse
 ComputerUseService.stop: def () -> ComputerUseLifecycleResult
 ComputerUseStartingStatus: dataclass frozen
+ComputerUseStartingStatus.__init__: internal-constructor (status: Literal['inactive'] = 'inactive', desktop: Literal['starting'] = 'starting', cause: None = None, extra_fields: dict[str, JsonValue] | None = None) -> None
 ComputerUseStartingStatus.cause: field None = None
 ComputerUseStartingStatus.desktop: field Literal['starting'] = 'starting'
 ComputerUseStartingStatus.extra_fields: field dict[str, JsonValue] | None = None
@@ -650,6 +688,7 @@ ComputerUseStatusResponse: union-member ComputerUseReadyStatus
 ComputerUseStatusResponse: union-member ComputerUseStartingStatus
 ComputerUseStatusResponse: union-member ComputerUseUnknownStatus
 ComputerUseUnknownStatus: dataclass frozen
+ComputerUseUnknownStatus.__init__: internal-constructor (raw_status: str, raw_desktop: str, status: Literal['unknown'] = 'unknown', desktop: Literal['unknown'] = 'unknown', cause: ComputerUseDesktopFailure | None = None, extra_fields: dict[str, JsonValue] | None = None) -> None
 ComputerUseUnknownStatus.cause: field ComputerUseDesktopFailure | None = None
 ComputerUseUnknownStatus.desktop: field Literal['unknown'] = 'unknown'
 ComputerUseUnknownStatus.extra_fields: field dict[str, JsonValue] | None = None
@@ -657,6 +696,7 @@ ComputerUseUnknownStatus.raw_desktop: field str
 ComputerUseUnknownStatus.raw_status: field str
 ComputerUseUnknownStatus.status: field Literal['unknown'] = 'unknown'
 ComputerUseWindow: dataclass frozen
+ComputerUseWindow.__init__: internal-constructor (id: int, title: str, x: int, y: int, width: int, height: int, is_active: bool) -> None
 ComputerUseWindow.height: field int
 ComputerUseWindow.id: field int
 ComputerUseWindow.is_active: field bool
@@ -770,6 +810,7 @@ DockerService.status: def () -> DockerStatus
 DockerService.wait_until_ready: def (*, timeout: float = DOCKER_WAIT_DEFAULT_TIMEOUT_SECONDS) -> DockerStatus
 DockerState: type = Literal['ready', 'starting', 'failed', 'not_present', 'disabled', 'unmanaged', 'deferred', 'unsupported', 'unknown']
 DockerStatus: dataclass frozen
+DockerStatus.__init__: internal-constructor (owner: DockerOwner, state: DockerState, process_id: str | None = None, reason: str | None = None, raw_owner: str | None = None, raw_state: str | None = None) -> None
 DockerStatus.owner: field DockerOwner
 DockerStatus.process_id: field str | None = None
 DockerStatus.raw_owner: field str | None = None
@@ -844,6 +885,7 @@ FileSystemService.write_bytes: def (path: str, content: bytes, *, atomic: bool =
 FileSystemService.write_many: def (files: Mapping[str, bytes], *, atomic: bool = False) -> BulkWriteResult
 FileSystemService.write_text: def (path: str, content: str, *, atomic: bool = False) -> None
 FilesystemEvent: dataclass frozen
+FilesystemEvent.__init__: internal-constructor (type: FilesystemEventType, name: str, is_dir: bool, timestamp: int) -> None
 FilesystemEvent.is_dir: field bool
 FilesystemEvent.name: field str
 FilesystemEvent.timestamp: field int
@@ -932,6 +974,7 @@ IdleOutOfRangeError.message: attribute str
 IdleOutOfRangeError.source: attribute str | None
 IdleOutOfRangeError.status_code: attribute int | None
 Image: dataclass frozen
+Image.__init__: internal-constructor (id: str, name: str | None, status: str, region: str, anonymous: bool, retention: ArtifactRetention, var_class: str, available_in: list[str], origin: str, created_at: str | None = None, error: str | None = None, expires_at: str | None = None, source: ImageSource | None = None, bytes: int | None = None, layer_count: int | None = None, cursor: str | None = None, format_version: int | None = None, format_outdated: bool = False, platform: bool = False, default: bool = False, deprecated: bool = False, updated_at: str | None = None, disk_mib: int | None = None, *, raw_retention: str = '') -> None
 Image.anonymous: field bool
 Image.available_in: field list[str]
 Image.bytes: field int | None = None
@@ -975,6 +1018,7 @@ ImageBuildResponse.to_dict: def () -> dict[str, Any]
 ImageBuildResponse.to_json: def () -> str
 ImageBuildResponse.to_str: def () -> str
 ImageBuilder: dataclass frozen
+ImageBuilder.__init__: internal-constructor (_registry_ref: str | None = None, _dockerfile: str | None = None, _steps: tuple[str, ...] = ()) -> None
 ImageBuilder._dockerfile: field str | None = None
 ImageBuilder._registry_ref: field str | None = None
 ImageBuilder._steps: field tuple[str, ...] = ()
@@ -1050,6 +1094,7 @@ ImageNotReadyError.message: attribute str
 ImageNotReadyError.source: attribute str | None
 ImageNotReadyError.status_code: attribute int | None
 ImageRef: dataclass frozen
+ImageRef.__init__: internal-constructor (id: str, name: str | None = None) -> None
 ImageRef.id: field str
 ImageRef.name: field str | None = None
 ImageService: class
@@ -1092,16 +1137,20 @@ InterpreterContextJSON.context_id: key str
 InterpreterContextJSON.language: key str
 InterpreterContextJSON.sandbox_id: key str
 InterpreterDisplay: dataclass frozen
+InterpreterDisplay.__init__: internal-constructor (mime: str, data: str) -> None
 InterpreterDisplay.data: field str
 InterpreterDisplay.mime: field str
 InterpreterError: dataclass frozen
+InterpreterError.__init__: internal-constructor (name: str, value: str, traceback: list[str] = list()) -> None
 InterpreterError.name: field str
 InterpreterError.traceback: field list[str] = list()
 InterpreterError.value: field str
 InterpreterLogs: dataclass frozen
+InterpreterLogs.__init__: internal-constructor (stdout: str = '', stderr: str = '') -> None
 InterpreterLogs.stderr: field str = ''
 InterpreterLogs.stdout: field str = ''
 InterpreterOutput: dataclass frozen
+InterpreterOutput.__init__: internal-constructor (data: JsonObject, is_main_result: bool, text: str | None = None, html: str | None = None, png: str | None = None, svg: str | None = None, json: JsonValue | None = None) -> None
 InterpreterOutput.data: field JsonObject
 InterpreterOutput.html: field str | None = None
 InterpreterOutput.is_main_result: field bool
@@ -1110,12 +1159,14 @@ InterpreterOutput.png: field str | None = None
 InterpreterOutput.svg: field str | None = None
 InterpreterOutput.text: field str | None = None
 InterpreterProcess: dataclass frozen
+InterpreterProcess.__init__: internal-constructor (process_id: str, exit_code: int | None, signal: str | None, reason: WaitReason | None, raw_reason: str | None = None) -> None
 InterpreterProcess.exit_code: field int | None
 InterpreterProcess.process_id: field str
 InterpreterProcess.raw_reason: field str | None = None
 InterpreterProcess.reason: field WaitReason | None
 InterpreterProcess.signal: field str | None
 InterpreterResult: dataclass frozen
+InterpreterResult.__init__: internal-constructor (process: InterpreterProcess, results: list[InterpreterOutput] = list(), logs: InterpreterLogs = InterpreterLogs(), error: InterpreterError | None = None) -> None
 InterpreterResult.error: field InterpreterError | None = None
 InterpreterResult.logs: field InterpreterLogs = InterpreterLogs()
 InterpreterResult.process: field InterpreterProcess
@@ -1176,6 +1227,7 @@ LimitExceededError.message: attribute str
 LimitExceededError.source: attribute str | None
 LimitExceededError.status_code: attribute int | None
 ListResult: dataclass frozen
+ListResult.__init__: internal-constructor (items: list[T], next_cursor: str | None = None, total: int | None = None, total_relation: SearchTotalRelation | None = None, raw_total_relation: str | None = None) -> None
 ListResult.__iter__: def () -> Iterator[T]
 ListResult.items: field list[T]
 ListResult.next_cursor: field str | None = None
@@ -1183,6 +1235,7 @@ ListResult.raw_total_relation: field str | None = None
 ListResult.total: field int | None = None
 ListResult.total_relation: field SearchTotalRelation | None = None
 ListSandboxesQuery: dataclass frozen (SandboxSearchFilters)
+ListSandboxesQuery.__init__: internal-constructor (cursor: str | None = None, limit: int | None = None, id: str | None = None, name: str | None = None, *, q: str | None = None, status: Sequence[str] | None = None, sandbox_class: SandboxClass | Sequence[SandboxClass] | None = None, region: Sequence[str] | None = None, image_ref: str | None = None, image_ref_prefix: str | None = None, labels: Mapping[str, str] | None = None, spot: bool | None = None, forked_from: str | None = None, min_cores: float | None = None, max_cores: float | None = None, min_memory_mib: int | None = None, max_memory_mib: int | None = None, min_disk_mib: int | None = None, max_disk_mib: int | None = None, created_start_at: SearchTimestamp | None = None, created_end_at: SearchTimestamp | None = None, updated_start_at: SearchTimestamp | None = None, updated_end_at: SearchTimestamp | None = None, last_activity_start_at: SearchTimestamp | None = None, last_activity_end_at: SearchTimestamp | None = None, sort: SearchSort | None = None, order: SearchOrder | None = None) -> None
 ListSandboxesQuery.created_end_at: field kw_only SearchTimestamp | None = None
 ListSandboxesQuery.created_start_at: field kw_only SearchTimestamp | None = None
 ListSandboxesQuery.cursor: field str | None = None
@@ -1212,11 +1265,13 @@ ListSandboxesQuery.updated_end_at: field kw_only SearchTimestamp | None = None
 ListSandboxesQuery.updated_start_at: field kw_only SearchTimestamp | None = None
 ListSandboxesQueryV2: alias = ListSandboxesQuery
 LogFrame: dataclass frozen
+LogFrame.__init__: internal-constructor (cursor: str, channel: str, data: str, timestamp: int | None = None) -> None
 LogFrame.channel: field str
 LogFrame.cursor: field str
 LogFrame.data: field str
 LogFrame.timestamp: field int | None = None
 LogPage: dataclass frozen
+LogPage.__init__: internal-constructor (items: list[LogFrame], next_cursor: str | None = None, truncated_head: bool = False, first_available_cursor: str | None = None) -> None
 LogPage.first_available_cursor: field str | None = None
 LogPage.items: field list[LogFrame]
 LogPage.next_cursor: field str | None = None
@@ -1341,6 +1396,7 @@ MacModelService.__init__: internal-constructor (impl: _async.AsyncMacModelServic
 MacModelService.catalog: def (*, region: str | None = None) -> MacCatalog
 MacModelService.list: def () -> list[MacModel]
 MacReservation: dataclass frozen
+MacReservation.__init__: internal-constructor (id: str, org_id: str, project_id: str, region: str, status: MacReservationStatus, raw_status: str, sandboxes_per_mac: int, period_n: int, period_seconds: int, created_at: datetime, slots_used: int, renewal_pending: bool, auto_renew: bool, origin: MacReservationOrigin, raw_origin: str, resources_used: MacResources, activated_at: datetime | None = None, capacity: MacResources | None = None, model: str | None = None, end_reason: MacReservationEndReason | None = None, raw_end_reason: str | None = None, ended_at: datetime | None = None, pending_mac_started_at: datetime | None = None, period_end: datetime | None = None, period_started_at: datetime | None = None, reissued_at: datetime | None = None, renewal_error: str | None = None) -> None
 MacReservation.activated_at: field datetime | None = None
 MacReservation.auto_renew: field bool
 MacReservation.capacity: field MacResources | None = None
@@ -1369,6 +1425,7 @@ MacReservation.sandboxes_per_mac: field int
 MacReservation.slots_used: field int
 MacReservation.status: field MacReservationStatus
 MacReservationBatch: dataclass frozen
+MacReservationBatch.__init__: internal-constructor (requested: int, reserved: int, reservations: list[MacReservation]) -> None
 MacReservationBatch.requested: field int
 MacReservationBatch.reservations: field list[MacReservation]
 MacReservationBatch.reserved: field int
@@ -1394,11 +1451,13 @@ NameConflictError.message: attribute str
 NameConflictError.source: attribute str | None
 NameConflictError.status_code: attribute int | None
 NetworkPolicy: dataclass frozen
+NetworkPolicy.__init__: internal-constructor (version: int, block_all: bool = False, allow_cidrs: list[str] = list(), allow_domains: list[str] | None = None) -> None
 NetworkPolicy.allow_cidrs: field list[str] = list()
 NetworkPolicy.allow_domains: field list[str] | None = None
 NetworkPolicy.block_all: field bool = False
 NetworkPolicy.version: field int
 NetworkPolicyInfo: dataclass frozen
+NetworkPolicyInfo.__init__: internal-constructor (desired: NetworkPolicy | None, desired_revision: int, etag: str, http_status: int, applied: NetworkPolicy | None = None, applied_revision: int | None = None, applied_start_id: str | None = None, status: str | None = None, error: str | None = None) -> None
 NetworkPolicyInfo.applied: field NetworkPolicy | None = None
 NetworkPolicyInfo.applied_revision: field int | None = None
 NetworkPolicyInfo.applied_start_id: field str | None = None
@@ -1491,6 +1550,7 @@ PlanUnchangedError.message: attribute str
 PlanUnchangedError.source: attribute str | None
 PlanUnchangedError.status_code: attribute int | None
 PortMapping: dataclass frozen
+PortMapping.__init__: internal-constructor (port: int, proto: str = 'tcp') -> None
 PortMapping.port: field int
 PortMapping.proto: field str = 'tcp'
 PortsService: class
@@ -1516,11 +1576,13 @@ PreconditionRequiredError.message: attribute str
 PreconditionRequiredError.source: attribute str | None
 PreconditionRequiredError.status_code: attribute int | None
 PreviewEndpoint: dataclass frozen
+PreviewEndpoint.__init__: internal-constructor (port: int, public: bool, url: str, created_at: str | None = None) -> None
 PreviewEndpoint.created_at: field str | None = None
 PreviewEndpoint.port: field int
 PreviewEndpoint.public: field bool
 PreviewEndpoint.url: field str
 PreviewLink: dataclass frozen
+PreviewLink.__init__: internal-constructor (url: str, token: str, expires_at: str | None = None) -> None
 PreviewLink.expires_at: field str | None = None
 PreviewLink.token: field str
 PreviewLink.url: field str
@@ -1548,10 +1610,12 @@ ProcessHandle.to_json: def () -> dict[str, str]
 ProcessHandle.wait: def (*, timeout: float | None = None) -> WaitResult
 ProcessHandle.write_stdin: def (data: str | bytes) -> None
 ProcessHandleRef: dataclass frozen
+ProcessHandleRef.__init__: internal-constructor (sandbox_id: str, process_id: str, kind: ProcessKind | None = None) -> None
 ProcessHandleRef.kind: field ProcessKind | None = None
 ProcessHandleRef.process_id: field str
 ProcessHandleRef.sandbox_id: field str
 ProcessInfo: dataclass frozen
+ProcessInfo.__init__: internal-constructor (id: str, kind: ProcessInfoKind, state: ProcessState, name: str | None = None, pid: int | None = None, system: bool = False, session_id: str | None = None, shell_command: str | None = None, argv: list[str] | None = None, code: str | None = None, language: str | None = None, shell: str | None = None, resolved_shell: str | None = None, login: bool | None = None, cwd: str | None = None, user: str | None = None, stdin: ProcessStdinMode | None = None, execution_timeout: float | None = None, terminal: TerminalSize | None = None, keep_logs: ProcessKeepLogs | None = None, exit_code: int | None = None, signal: str | None = None, reason: WaitReason | None = None, created_at: str | None = None, started_at: str | None = None, exited_at: str | None = None, truncated_head: bool = False, first_available_cursor: str | None = None, last_cursor: str | None = None, raw_kind: str | None = None, raw_state: str | None = None, raw_stdin: str | None = None, raw_keep_logs: str | None = None, raw_reason: str | None = None) -> None
 ProcessInfo.argv: field list[str] | None = None
 ProcessInfo.code: field str | None = None
 ProcessInfo.created_at: field str | None = None
@@ -1595,6 +1659,7 @@ ProcessNotFoundError.message: attribute str
 ProcessNotFoundError.source: attribute str | None
 ProcessNotFoundError.status_code: attribute int | None
 ProcessResult: dataclass frozen
+ProcessResult.__init__: internal-constructor (process_id: str, exit_code: int | None, signal: str | None, reason: WaitReason | None, stdout: str = '', stderr: str = '', output: str = '', raw_reason: str | None = None) -> None
 ProcessResult.exit_code: field int | None
 ProcessResult.output: field str = ''
 ProcessResult.process_id: field str
@@ -1683,6 +1748,7 @@ PtyService.delete: def (process_id: str) -> None
 PtyService.list: def () -> ListResult[ProcessInfo]
 PtyService.start: def (command: str | None = None, *, cols: int = 80, rows: int = 24, cwd: str | None = None, env: Mapping[str, str] | None = None, name: str | None = None) -> ProcessHandle
 PullVolumeResult: dataclass frozen
+PullVolumeResult.__init__: internal-constructor (request_id: str, status: PullVolumeStatus, manifest_id: str | None, raw_status: str | None = None) -> None
 PullVolumeResult.manifest_id: field str | None
 PullVolumeResult.raw_status: field str | None = None
 PullVolumeResult.request_id: field str
@@ -1726,6 +1792,7 @@ ReservationService.list: def (*, cursor: str | None = None, limit: int | None = 
 ReservationService.renew: def (reservation_id: str, *, idempotency_key: str | None = None) -> MacReservation
 ReservationService.update: def (reservation_id: str, *, auto_renew: bool) -> MacReservation
 Resources: dataclass frozen
+Resources.__init__: internal-constructor (cpu: float | None = None, cpu_max: float | None = None, memory: int | None = None, memory_max: float | None = None, disk: int | None = None, disk_max: float | None = None) -> None
 Resources.cpu: field float | None = None
 Resources.cpu_max: field float | None = None
 Resources.disk: field int | None = None
@@ -1806,6 +1873,7 @@ Sandbox.volumes: readonly property SandboxVolumesService
 Sandbox.wait: def (*, until: SandboxWaitState = 'started', timeout: float | None = 60) -> Self
 Sandbox.wait_for_state: def (states: Sequence[SandboxWaitState], terminal_states: Sequence[SandboxState] = DEFAULT_SANDBOX_TERMINAL_STATES, *, timeout: float | None = None) -> None
 SandboxAccessToken: dataclass frozen
+SandboxAccessToken.__init__: internal-constructor (access_token: str, token_type: str, expires_at: str, operations: Sequence[str], ports: Sequence[int] | None = None) -> None
 SandboxAccessToken.access_token: field str
 SandboxAccessToken.expires_at: field str
 SandboxAccessToken.operations: field Sequence[str]
@@ -1835,10 +1903,12 @@ SandboxCreateTimeoutError.sandbox_id: attribute
 SandboxCreateTimeoutError.source: attribute str | None
 SandboxCreateTimeoutError.status_code: attribute int | None
 SandboxEventsConfig: dataclass frozen
+SandboxEventsConfig.__init__: internal-constructor (enabled: bool = True, reconcile_interval: float | None = 60.0, idle_close: float | None = None) -> None
 SandboxEventsConfig.enabled: field bool = True
 SandboxEventsConfig.idle_close: field float | None = None
 SandboxEventsConfig.reconcile_interval: field float | None = 60.0
 SandboxInfo: dataclass frozen
+SandboxInfo.__init__: internal-constructor (id: str, name: str | None = None, state: SandboxState = 'unknown', image: ImageRef | None = None, target: str | None = None, snapshot: SnapshotRef | None = None, image_build_id: str | None = None, *, region: str | None = None, labels: dict[str, str] = dict(), cpu: float | None = None, cpu_max: float | None = None, memory: float | None = None, memory_max: float | None = None, disk: float | None = None, disk_max: float | None = None, sandbox_class: SandboxClass | None = None, persistent: bool | None = None, spot: bool | None = None, spot_evicted_at: str | None = None, lifecycle_policy: SandboxLifecycle | None = None, forked_from: str | None = None, reservation_id: str | None = None, user: str | None = None, error: str | None = None) -> None
 SandboxInfo.cpu: field kw_only float | None = None
 SandboxInfo.cpu_max: field kw_only float | None = None
 SandboxInfo.disk: field kw_only float | None = None
@@ -1866,6 +1936,7 @@ SandboxInfo.target: field str | None = None
 SandboxInfo.to_json: def () -> dict[str, JsonValue]
 SandboxInfo.user: field kw_only str | None = None
 SandboxLifecycle: dataclass frozen
+SandboxLifecycle.__init__: internal-constructor (timeout_seconds: int | None = None, on_timeout: str | None = None, timeout_at: str | None = None, idle_expiry_seconds: int | None = None, on_idle_timeout: str | None = None, idle_timeout_at: str | None = None, last_activity_at: str | None = None, last_activity_source: str | None = None) -> None
 SandboxLifecycle.idle_expiry_seconds: field int | None = None
 SandboxLifecycle.idle_timeout_at: field str | None = None
 SandboxLifecycle.last_activity_at: field str | None = None
@@ -1880,6 +1951,7 @@ SandboxNotRunningError.message: attribute str
 SandboxNotRunningError.source: attribute str | None
 SandboxNotRunningError.status_code: attribute int | None
 SandboxSearchFilters: dataclass frozen
+SandboxSearchFilters.__init__: internal-constructor (*, q: str | None = None, status: Sequence[str] | None = None, sandbox_class: SandboxClass | Sequence[SandboxClass] | None = None, region: Sequence[str] | None = None, image_ref: str | None = None, image_ref_prefix: str | None = None, labels: Mapping[str, str] | None = None, spot: bool | None = None, forked_from: str | None = None, min_cores: float | None = None, max_cores: float | None = None, min_memory_mib: int | None = None, max_memory_mib: int | None = None, min_disk_mib: int | None = None, max_disk_mib: int | None = None, created_start_at: SearchTimestamp | None = None, created_end_at: SearchTimestamp | None = None, updated_start_at: SearchTimestamp | None = None, updated_end_at: SearchTimestamp | None = None, last_activity_start_at: SearchTimestamp | None = None, last_activity_end_at: SearchTimestamp | None = None, sort: SearchSort | None = None, order: SearchOrder | None = None) -> None
 SandboxSearchFilters.created_end_at: field kw_only SearchTimestamp | None = None
 SandboxSearchFilters.created_start_at: field kw_only SearchTimestamp | None = None
 SandboxSearchFilters.forked_from: field kw_only str | None = None
@@ -1904,6 +1976,7 @@ SandboxSearchFilters.status: field kw_only Sequence[str] | None = None
 SandboxSearchFilters.updated_end_at: field kw_only SearchTimestamp | None = None
 SandboxSearchFilters.updated_start_at: field kw_only SearchTimestamp | None = None
 SandboxSecretsInfo: dataclass frozen
+SandboxSecretsInfo.__init__: internal-constructor (secrets: list[str], desired_revision: int, etag: str, http_status: int, applied_revision: int | None = None, status: str | None = None, error: str | None = None, capture_status: str | None = None, capture_unresolved_count: int | None = None) -> None
 SandboxSecretsInfo.applied_revision: field int | None = None
 SandboxSecretsInfo.capture_status: field str | None = None
 SandboxSecretsInfo.capture_unresolved_count: field int | None = None
@@ -1958,6 +2031,7 @@ SearchNotConfiguredError.source: attribute str | None
 SearchNotConfiguredError.status_code: attribute int | None
 SearchOrder: type = Literal['asc', 'desc']
 SearchResult: dataclass frozen
+SearchResult.__init__: internal-constructor (items: list[T], next_cursor: str | None = None, total: int = 0, total_relation: SearchTotalRelation = 'eq', raw_total_relation: str = 'eq') -> None
 SearchResult.__iter__: def () -> Iterator[T]
 SearchResult.items: field list[T]
 SearchResult.next_cursor: field str | None = None
@@ -1965,6 +2039,7 @@ SearchResult.raw_total_relation: field str = 'eq'
 SearchResult.total: field int = 0
 SearchResult.total_relation: field SearchTotalRelation = 'eq'
 SearchSandboxesQuery: dataclass frozen (SandboxSearchFilters)
+SearchSandboxesQuery.__init__: internal-constructor (*, q: str | None = None, status: Sequence[str] | None = None, sandbox_class: SandboxClass | Sequence[SandboxClass] | None = None, region: Sequence[str] | None = None, image_ref: str | None = None, image_ref_prefix: str | None = None, labels: Mapping[str, str] | None = None, spot: bool | None = None, forked_from: str | None = None, min_cores: float | None = None, max_cores: float | None = None, min_memory_mib: int | None = None, max_memory_mib: int | None = None, min_disk_mib: int | None = None, max_disk_mib: int | None = None, created_start_at: SearchTimestamp | None = None, created_end_at: SearchTimestamp | None = None, updated_start_at: SearchTimestamp | None = None, updated_end_at: SearchTimestamp | None = None, last_activity_start_at: SearchTimestamp | None = None, last_activity_end_at: SearchTimestamp | None = None, sort: SearchSort | None = None, order: SearchOrder | None = None, name_prefix: str | None = None, id_prefix: str | None = None, cursor: str | None = None, limit: int | None = None) -> None
 SearchSandboxesQuery.created_end_at: field kw_only SearchTimestamp | None = None
 SearchSandboxesQuery.created_start_at: field kw_only SearchTimestamp | None = None
 SearchSandboxesQuery.cursor: field kw_only str | None = None
@@ -2054,10 +2129,12 @@ SessionNotFoundError.message: attribute str
 SessionNotFoundError.source: attribute str | None
 SessionNotFoundError.status_code: attribute int | None
 SignedPreviewLink: dataclass frozen
+SignedPreviewLink.__init__: internal-constructor (url: str, token: str, expires_at: str | None = None) -> None
 SignedPreviewLink.expires_at: field str | None = None
 SignedPreviewLink.token: field str
 SignedPreviewLink.url: field str
 Snapshot: dataclass frozen
+Snapshot.__init__: internal-constructor (id: str, name: str, status: str, region: str, kind: SnapshotKind, var_class: str, available_in: list[str], created_at: str | None = None, error: str | None = None, bytes: int | None = None, memory_bytes: int | None = None, sandbox_id: str | None = None, cursor: str | None = None, updated_at: str | None = None, *, raw_kind: str = '') -> None
 Snapshot.available_in: field list[str]
 Snapshot.bytes: field int | None = None
 Snapshot.created_at: field str | None = None
@@ -2111,6 +2188,7 @@ SnapshotNotReadyError.message: attribute str
 SnapshotNotReadyError.source: attribute str | None
 SnapshotNotReadyError.status_code: attribute int | None
 SnapshotRef: dataclass frozen
+SnapshotRef.__init__: internal-constructor (id: str, name: str | None = None) -> None
 SnapshotRef.id: field str
 SnapshotRef.name: field str | None = None
 SnapshotService: class
@@ -2151,6 +2229,7 @@ SystemMetrics.to_dict: def () -> dict[str, Any]
 SystemMetrics.to_json: def () -> str
 SystemMetrics.to_str: def () -> str
 TerminalSize: dataclass frozen
+TerminalSize.__init__: internal-constructor (cols: int, rows: int) -> None
 TerminalSize.cols: field int
 TerminalSize.rows: field int
 TransferCancelSignal: protocol
@@ -2192,6 +2271,7 @@ UnsupportedVolumeTypeError.message: attribute str
 UnsupportedVolumeTypeError.source: attribute str | None
 UnsupportedVolumeTypeError.status_code: attribute int | None
 Volume: dataclass frozen
+Volume.__init__: internal-constructor (id: str, name: str, type: VolumeType, raw_type: str, status: VolumeState, raw_status: str, created_at: datetime, updated_at: datetime, size_gib: int | None = None, error: str | None = None, last_used_at: datetime | None = None, options: JsonObject | None = None, used_bytes: int | None = None, used_bytes_at: datetime | None = None) -> None
 Volume.created_at: field datetime
 Volume.error: field str | None = None
 Volume.id: field str
@@ -2207,6 +2287,7 @@ Volume.updated_at: field datetime
 Volume.used_bytes: field int | None = None
 Volume.used_bytes_at: field datetime | None = None
 VolumeMount: dataclass frozen
+VolumeMount.__init__: internal-constructor (volume_id: str, mount_path: str, subpath: str | None = None, read_only: bool | None = None) -> None
 VolumeMount.mount_path: field str
 VolumeMount.read_only: field bool | None = None
 VolumeMount.subpath: field str | None = None
@@ -2223,6 +2304,7 @@ VolumeState: type = Literal['ready', 'deleting', 'deleted', 'error', 'unknown']
 VolumeType: type = Literal['disk', 'bucket', 'unknown']
 WaitReason: type = Literal['exited', 'signaled', 'timed_out', 'lost', 'failed', 'unknown']
 WaitResult: dataclass frozen
+WaitResult.__init__: internal-constructor (exit_code: int | None = None, signal: str | None = None, reason: WaitReason | None = None, raw_reason: str | None = None) -> None
 WaitResult.exit_code: field int | None = None
 WaitResult.raw_reason: field str | None = None
 WaitResult.reason: field WaitReason | None = None

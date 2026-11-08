@@ -430,6 +430,8 @@ class Namespace:
             return
 
     def fields(self, name: str, cls: type) -> None:
+        positional: list[str] = []
+        keyword: list[str] = []
         for field in dataclasses.fields(cls):
             node = None
             for klass in cls.__mro__:
@@ -449,13 +451,25 @@ class Namespace:
                             default = f" = {expression(kw.value)}()"
                 else:
                     default = f" = {expression(value)}"
+            kw_only = getattr(field, "kw_only", False) is True
             mods = []
-            if getattr(field, "kw_only", False) is True:
+            if kw_only:
                 mods.append("kw_only")
             if not field.init:
                 mods.append("init=False")
             kind = " ".join(["field", *mods])
             self.emit(f"{name}.{field.name}", kind, f"{ann}{default}")
+            if field.init:
+                param = f"{field.name}{': ' + ann if ann else ''}{default}"
+                (keyword if kw_only else positional).append(param)
+        if not cls.__dataclass_params__.init:  # type: ignore[attr-defined]
+            self.constructor(name, cls)
+            return
+        # The generated __init__: field order decides positional calls.
+        params = positional + (["*", *keyword] if keyword else [])
+        public = self.public_constructors or issubclass(cls, BaseException)
+        kind = "constructor" if public else "internal-constructor"
+        self.emit(f"{name}.__init__", kind, f"({', '.join(params)}) -> None")
 
     def typeddict(self, name: str, cls: type) -> None:
         required = getattr(cls, "__required_keys__", frozenset())
