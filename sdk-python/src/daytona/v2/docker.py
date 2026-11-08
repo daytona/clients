@@ -56,8 +56,8 @@ class AsyncDockerService:
     async def wait_until_ready(self, *, timeout: float = DOCKER_WAIT_DEFAULT_TIMEOUT_SECONDS) -> DockerStatus:
         """Poll the Docker status until it is ``ready`` and return that status.
 
-        ``timeout`` is the wait budget in seconds (default 60); ``0`` waits
-        without a deadline — avoid it for sandboxes whose Docker can stay
+        ``timeout`` is the wait budget in seconds (default 60); ``0``, or a
+        value above about 24.8 days, waits without a deadline — avoid it for sandboxes whose Docker can stay
         ``deferred``. Each poll asks the server to hold for up to one second
         while Docker is ``starting``; answers that come back sooner are spaced
         0.5 s apart.

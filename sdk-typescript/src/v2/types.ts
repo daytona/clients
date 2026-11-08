@@ -403,14 +403,14 @@ export interface SandboxLifecycleDto {
 }
 
 export interface LifecycleWaitOptions {
-  /** Wait budget in seconds; default 60; `0` waits without a deadline. */
+  /** Wait budget in seconds; default 60; `0`, or a value above about 24.8 days, waits without a deadline. */
   readonly timeoutSeconds?: number
 }
 
 export interface ForkOptions {
   readonly name?: string
   readonly memory?: boolean
-  /** Wait budget in seconds; default 60; `0` returns immediately after acceptance. */
+  /** Wait budget in seconds; default 60; `0` returns immediately after acceptance; a value above about 24.8 days (the timer maximum) waits with no deadline. */
   readonly waitSeconds?: number
   readonly autoDelete?: boolean
 }
@@ -475,7 +475,7 @@ export interface CreateSandboxOptions extends CreateRequestBaseOptions {
 
 export interface CreateFromBuildOptions extends CreateSandboxOptions {
   readonly idleExpirySeconds?: number
-  /** Image build budget in seconds; omitted or `0` waits without a deadline. */
+  /** Image build budget in seconds; omitted, `0` or a value above about 24.8 days waits without a deadline. */
   readonly buildTimeoutSeconds?: number
 }
 

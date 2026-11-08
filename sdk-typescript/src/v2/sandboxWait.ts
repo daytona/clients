@@ -8,7 +8,7 @@ import { BadRequestError, DaytonaError, NotFoundError, RequestTimeoutError, Sand
 import { targetPredicate } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { sleep } from './http.js'
-import { optionalSeconds } from './options.js'
+import { optionalSeconds, waitDeadline } from './options.js'
 import type { SandboxState, SandboxWaitState } from './types.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 
@@ -60,8 +60,9 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
   if (states.length === 0) throw new BadRequestError('wait requires at least one target state', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   states.forEach(waitQueryState)
   const seconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? 60
-  const timeout = seconds * 1000
-  const deadline = seconds === 0 ? undefined : Date.now() + timeout
+  // 0, or above the timer maximum (about 24.8 days), is no deadline.
+  const deadline = waitDeadline(seconds)
+  const timeout = deadline === undefined ? 0 : seconds * 1000
   const terminalStates = options.terminalStates ?? DEFAULT_SANDBOX_TERMINAL_STATES
   const effectiveTerminal = states.includes('destroyed') ? terminalStates.filter((s) => s !== 'destroying') : terminalStates
   const waitTarget = new Set(states).size === 1 ? states[0] : undefined

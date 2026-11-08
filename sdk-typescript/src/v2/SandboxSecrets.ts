@@ -7,6 +7,7 @@ import type { AxiosResponse } from 'axios'
 import { BadRequestError } from './errors/DaytonaError.js'
 import type { SandboxSecretsInfo } from './types.js'
 import { badRequest } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 export function serializeSandboxSecretsInput(secrets: readonly string[]): Record<string, readonly string[]> {
   if (!Array.isArray(secrets) || secrets.some((item) => typeof item !== 'string')) {
@@ -21,7 +22,7 @@ export function parseSandboxSecretsResponse(response: AxiosResponse<unknown>): S
   if (typeof etagHeader !== 'string' || etagHeader.length === 0) {
     throw badRequest('sandbox secrets response is missing the ETag header')
   }
-  return {
+  return deepFrozen({
     secrets: requiredStringArray(data.secrets, 'secrets'),
     desiredRevision: requiredInteger(data.desired_revision, 'desired_revision'),
     etag: etagHeader,
@@ -31,7 +32,7 @@ export function parseSandboxSecretsResponse(response: AxiosResponse<unknown>): S
     error: optionalString(data.error),
     captureStatus: optionalString(data.capture_status),
     captureUnresolvedCount: optionalInteger(data.capture_unresolved_count, 'capture_unresolved_count'),
-  }
+  })
 }
 
 function requiredStringArray(value: unknown, fieldName: string): string[] {

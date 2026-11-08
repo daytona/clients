@@ -55,7 +55,7 @@ await daytona.v2.delete(sandbox)
 
 `images.pull()` waits until ready by default. Set `{ wait: false }` to skip
 the readiness wait, or `{ timeoutSeconds: 120 }` for a 120-second budget
-(omitted or `0` is unbounded). A failed import throws
+(omitted, `0` or a value above about 24.8 days is unbounded). A failed import throws
 `ImageBuildFailedError` with the server's error message. `images.build()`
 remains non-waiting.
 
@@ -417,6 +417,7 @@ const volume = await daytona.v2.volumes.get('data', { create: true })
 const sandbox = await daytona.v2.create('py312', {
   volumes: [{ volumeId: volume.id, mountPath: '/data' }],
 })
+if (sandbox.state !== 'started') await sandbox.wait()
 const result = await sandbox.volumes.pull(volume.id, {
   requestId: 'refresh-42', // retain this caller-owned ID for retries/checks
   timeoutSeconds: 5, // 0–30 seconds; default 30; fractions are allowed
@@ -472,7 +473,8 @@ const sandbox = await daytona.v2.createFromBuild(builder, {
 ```
 
 `createFromBuild()` always waits for the image build before creating a sandbox.
-`buildTimeoutSeconds` bounds only the build (omitted or `0` means no deadline);
+`buildTimeoutSeconds` bounds only the build (omitted, `0` or a value above about
+24.8 days means no deadline);
 a failed build throws `ImageBuildFailedError`, and an expired build budget
 throws `RequestTimeoutError`. The sandbox then gets the full, independent
 `waitSeconds` budget.
@@ -755,7 +757,8 @@ state is `ready` and resolves with the status. It throws `DockerNotReadyError`
 it decides on the state alone, so every `deferred` status keeps polling), and
 `DockerWaitTimeoutError` when the budget **(seconds, default 60)**
 runs out while Docker is still `starting` or `deferred`, or a status request
-is still unanswered at the deadline. `timeoutSeconds: 0` waits without a deadline. A
+is still unanswered at the deadline. `timeoutSeconds: 0`, or a value above about
+24.8 days, waits without a deadline. A
 Docker failure never makes the sandbox itself unusable.
 
 Set `DAYTONA_DOCKER_START` in the sandbox env to choose how Docker starts:
@@ -775,8 +778,8 @@ sandbox `env` that sets a reserved name fails the create with `BadRequestError`
 
 Use `sandbox.wait({ until: 'started', timeoutSeconds: 120 })` to wait for a
 public lifecycle state. `until` also accepts an array of states. The default
-is `started`, with a 60-second budget; `timeoutSeconds: 0` waits without a
-deadline. Timeout throws `RequestTimeoutError`; a terminal state reached
+is `started`, with a 60-second budget; `timeoutSeconds: 0`, or a value above
+about 24.8 days (the timer maximum), waits without a deadline. Timeout throws `RequestTimeoutError`; a terminal state reached
 first throws `SandboxTerminalStateError`.
 
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` accept
@@ -787,8 +790,8 @@ Client methods accept a sandbox or its ID and the same options, for example
 `daytona.v2.stop(sandbox.id, { timeoutSeconds: 120 })`. The server decides
 which lifecycle actions the sandbox supports.
 
-`fork({ waitSeconds: 60 })` has its own wait budget; fractions are allowed
-and `0` skips waiting. Once their create or fork request succeeds, these calls
+`fork({ waitSeconds: 60 })` has its own wait budget; fractions are allowed,
+`0` skips waiting, and a value above about 24.8 days waits with no deadline. Once their create or fork request succeeds, these calls
 return the handle however the readiness wait ends, including a failed wait
 read. Caller cancellation still propagates; a cancelled create may already
 have created a sandbox. A raised create or fork means the request itself failed, except for

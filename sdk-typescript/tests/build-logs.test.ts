@@ -173,6 +173,45 @@ describe('resumable build logs', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
+  it.each([[3_000_000, true], [2_000_000, false]] as const)('treats a budget of %d s as no deadline only above the timer maximum', async (budget, completes) => {
+    // The clock moves 30 days once the first chunk is delivered: 2,000,000 s
+    // (23 days) is a real deadline that then passes, 3,000,000 s (above the
+    // timer maximum) is none. The Python twin is in tests/test_build_logs.py.
+    let offset = 0
+    const realNow = performance.now.bind(performance)
+    jest.spyOn(performance, 'now').mockImplementation(() => realNow() + offset)
+    const { client } = setup([log('a', 0) + log('b', 1) + done(2)])
+    const output: string[] = []
+    const pending = client.images.followBuildLogs('image', { timeoutSeconds: budget, onLogs: text => { output.push(text); offset += 30 * 86_400_000 } })
+    if (completes) {
+      await expect(pending).resolves.toMatchObject({ outputComplete: true })
+      expect(output).toEqual(['a', 'b'])
+    } else {
+      await expect(pending).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' })
+    }
+  })
+
+  it('hands callbacks frozen events, so none can rewrite the result the call returns', async () => {
+    const { client } = setup([log('a', 0) + done(1)])
+    const events: BuildLogEvent[] = []
+    const writes: unknown[] = []
+    const result = await client.images.followBuildLogs('image', {
+      onLogs: () => undefined,
+      onEvent: event => {
+        events.push(event)
+        try {
+          if (event.type === 'done') (event.result as { status: string }).status = 'rewritten'
+          else (event as { type: string }).type = 'rewritten'
+        } catch (error) { writes.push(error) }
+      },
+    })
+    expect(events.map(event => event.type)).toEqual(['log', 'done'])
+    // Every write throws (ES modules are strict) and changes nothing.
+    expect(writes).toHaveLength(2)
+    expect(result).toMatchObject({ status: 'ready', outputComplete: true })
+    expect(Object.isFrozen(result) && events.every(event => Object.isFrozen(event))).toBe(true)
+  })
+
   it('reads the stream media type case-insensitively', async () => {
     const bytes = new TextEncoder().encode(log('tail', 0) + done(4))
     const reply = new Response(bytes, { headers: { 'content-type': 'Text/Event-Stream; charset=utf-8' } })

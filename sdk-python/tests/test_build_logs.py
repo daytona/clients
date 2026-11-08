@@ -1387,3 +1387,26 @@ def test_sync_ctrl_c_surfaces_canceled_checkpoint_and_closes_the_stream():
             return 42
 
         assert client._bridge.call(answer) == 42
+
+
+@pytest.mark.parametrize(("budget", "completes"), [(3_000_000, True), (2_000_000, False)])
+async def test_a_budget_above_the_timer_maximum_is_no_deadline(monkeypatch, budget, completes):
+    # The clock moves 30 days once the first chunk is delivered: 2,000,000 s
+    # (23 days) is a real deadline that then passes, 3,000,000 s (above the
+    # timer maximum) is none. The TypeScript twin is tests/unbounded-waits.test.ts.
+    now = [0.0]
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: now[0])
+    api, _, _ = setup([log(b"a", 0) + log(b"b", 1) + done(2)])
+    output: list[str] = []
+
+    def on_logs(chunk: str) -> None:
+        output.append(chunk)
+        now[0] += 30 * 86_400.0
+
+    if completes:
+        result = await follow_build_logs(api, DISCOVERY, on_logs=on_logs, timeout=budget)
+        assert output == ["a", "b"] and result.output_complete
+    else:
+        with pytest.raises(BuildLogInterruptedError) as failure:
+            await follow_build_logs(api, DISCOVERY, on_logs=on_logs, timeout=budget)
+        assert failure.value.code == "REQUEST_TIMEOUT"

@@ -11,7 +11,7 @@ import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import { imageOptionsBody, isImageBuilder } from './Image.js'
 import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
-import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions } from './options.js'
+import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions, waitDeadline } from './options.js'
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS, withoutNullOptions } from './clientOptionKeys.js'
 import { createRegion, createWaitSeconds, MAX_WIRE_WAIT_SECONDS, rejectV0Target } from './clientCreateOptions.js'
 import { linuxCreateRequest } from './clientCreateRequests.js'
@@ -118,7 +118,8 @@ export async function buildSandboxImage(images: ImagesService, builder: ImageBui
   // The options the build takes are checked before the (billed) build too.
   imageOptionsBody({ region, idleExpirySeconds, cpuArch: options.cpuArch })
   const image = await images.build(builder, { region, idleExpirySeconds, cpuArch: options.cpuArch })
-  const deadline = budget === undefined || budget === 0 ? undefined : Date.now() + Math.max(0, Math.ceil(budget * 1000))
+  // Omitted, 0, or above the timer maximum (about 24.8 days): no deadline.
+  const deadline = waitDeadline(budget)
   const readyImage = await waitForBuiltImage(images, image, deadline)
   return { image: readyImage, createOptions }
 }

@@ -81,7 +81,10 @@ class ImagesService:
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
-        """Observe a submitted image build. Timeout is in seconds, not execution TTL."""
+        """Observe a submitted image build. ``timeout`` is the observation budget
+        in seconds (not an execution TTL); omitted, ``0`` or a value above about
+        24.8 days adds no deadline.
+        """
         return self._bridge.call(
             lambda: self._impl.follow_build_logs(
                 image_id, on_logs=on_logs, on_event=on_event, cursor=cursor, timeout=timeout
@@ -175,8 +178,8 @@ class ImagesService:
         """Import a registry image, waiting until ready unless ``wait=False``.
 
         Takes the same image options as :meth:`build`. ``timeout`` is the
-        total pull budget in seconds (submission and readiness); omitted or
-        zero waits without a deadline. The submission is also bounded by the
+        total pull budget in seconds (submission and readiness); omitted,
+        zero or a value above about 24.8 days waits without a deadline. The submission is also bounded by the
         client's request timeout. A failed import raises
         :class:`ImageBuildFailedError` with the server's recorded error.
         """

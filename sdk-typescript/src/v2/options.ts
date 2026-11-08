@@ -224,6 +224,18 @@ export function optionalSeconds(name: string, value: number | undefined): number
 export const MAX_TIMER_DELAY_MS = 2_147_483_647
 
 /**
+ * The deadline of a wait budget in seconds, the same rule as Python's
+ * `wait_budget_seconds` for every wait of the client, lifecycle and platform
+ * services: `undefined` (no deadline) for an omitted budget, `0`, or one above
+ * the timer maximum (about 24.8 days); otherwise `now + seconds`.
+ * @internal
+ */
+export function waitDeadline(seconds: number | undefined, now: number = Date.now()): number | undefined {
+  if (seconds === undefined || seconds === 0 || seconds * 1000 > MAX_TIMER_DELAY_MS) return undefined
+  return now + seconds * 1000
+}
+
+/**
  * A request-timeout budget in milliseconds as a timer delay: `0` (and any
  * value above {@link MAX_TIMER_DELAY_MS}, about 24.8 days) means no bound.
  */

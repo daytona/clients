@@ -50,8 +50,8 @@ with Daytona(DaytonaConfig(api_key="dtn_...")) as d:
 ```
 
 `images.pull()` waits until ready by default. Set `wait=False` to skip the
-readiness wait, or `timeout=120` for a 120-second budget (`None` or `0` is
-unbounded). A failed import raises `ImageBuildFailedError` with the server's
+readiness wait, or `timeout=120` for a 120-second budget (`None`, `0` or a
+value above about 24.8 days is unbounded). A failed import raises `ImageBuildFailedError` with the server's
 error message. `images.build()` remains non-waiting. Both take the same image
 options (`name`, `region`, `cpu_arch`, `idle_expiry_seconds`), and their
 submission is an ordinary request, bounded by `request_timeout`.
@@ -102,6 +102,8 @@ from daytona import AsyncDaytona, DaytonaConfig
 async def main() -> None:
     async with AsyncDaytona(DaytonaConfig(api_key="dtn_...")) as d:
         sandboxes = await asyncio.gather(*(d.v2.create_from_snapshot("worker-snapshot") for _ in range(100)))
+        # Each handle comes back even if its wait ended before the sandbox started.
+        await asyncio.gather(*(sb.wait() for sb in sandboxes if sb.state != "started"))
         results = await asyncio.gather(*(sb.exec("python train_step.py") for sb in sandboxes))
 
 
@@ -517,7 +519,7 @@ snapshot = d.v2.create_from_snapshot("worker-after-setup", wait_seconds=60)
 first, always waits for that image to become ready, then creates the sandbox
 from the image id. The build submission is an ordinary request, bounded by
 `request_timeout`; `build_timeout` then bounds only the build wait (seconds;
-`None` or `0` means no deadline). A failed build (status `failed` or `error`)
+`None`, `0` or a value above about 24.8 days means no deadline). A failed build (status `failed` or `error`)
 raises `ImageBuildFailedError` and a
 build that outlasts `build_timeout` raises `RequestTimeoutError`; in both
 cases no sandbox exists. The create then gets the full, independent
@@ -816,7 +818,8 @@ the state is `ready` and returns the status. It raises `DockerNotReadyError`
 `ready` (`failed`, `not_present`, `disabled`, `unmanaged`, or `unsupported`), and
 `DockerWaitTimeoutError` when the budget **(seconds)** runs out while Docker
 is still `starting` or `deferred`, or a status request is still unanswered at
-the deadline. `timeout=0` waits without a deadline. A Docker failure never
+the deadline. `timeout=0`, or a value above about 24.8 days, waits without a
+deadline. A Docker failure never
 makes the sandbox itself unusable.
 
 Set `DAYTONA_DOCKER_START` in the sandbox env to choose how Docker starts:
@@ -836,8 +839,8 @@ sandbox `env` that sets a reserved name fails the create with `BadRequestError`
 
 Use `sandbox.wait(until="started", timeout=120)` to wait for a public
 lifecycle state. `until` also accepts a list of states. The default is
-`started`, with a 60-second budget; `timeout=0` waits without a deadline.
-Running out raises `RequestTimeoutError`; a terminal state (`destroying`,
+`started`, with a 60-second budget; `timeout=0`, or a value above about
+24.8 days (the timer maximum), waits without a deadline. Running out raises `RequestTimeoutError`; a terminal state (`destroying`,
 `destroyed`, `error`) reached first raises `SandboxTerminalStateError`, with
 the observed public state as `error.state`.
 
@@ -850,8 +853,9 @@ Client methods accept a sandbox or its id and the same options, for example
 observed, a failed metadata refresh afterwards does not turn that success into
 an error. The server decides which lifecycle actions the sandbox supports.
 
-`fork(wait_seconds=60)` has its own wait budget; fractions are allowed and
-`0` skips waiting; the fork's detail read counts against it. Like create,
+`fork(wait_seconds=60)` has its own wait budget; fractions are allowed,
+`0` skips waiting, and a value above about 24.8 days waits with no deadline;
+the fork's detail read counts against a finite budget. Like create,
 fork returns its handle once the fork request succeeded, however the wait
 ends. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or

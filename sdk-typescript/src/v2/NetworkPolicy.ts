@@ -7,6 +7,7 @@ import type { AxiosResponse } from 'axios'
 import { BadRequestError } from './errors/DaytonaError.js'
 import type { NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput } from './types.js'
 import { badRequest } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 const INPUT_FIELDS = new Set(['blockAll', 'allowCidrs', 'allowDomains'])
 
@@ -63,7 +64,7 @@ export function parseNetworkPolicyResponse(response: AxiosResponse<unknown>): Ne
   if (typeof etagHeader !== 'string' || etagHeader.length === 0) {
     throw badRequest('network_policy response is missing the ETag header')
   }
-  return {
+  return deepFrozen({
     desired: optionalNetworkPolicy(data.desired, 'desired'),
     desiredRevision: requiredInteger(data.desired_revision, 'desired_revision'),
     etag: etagHeader,
@@ -73,7 +74,7 @@ export function parseNetworkPolicyResponse(response: AxiosResponse<unknown>): Ne
     appliedStartId: optionalString(data.applied_start_id),
     status: optionalString(data.status),
     error: optionalString(data.error),
-  }
+  })
 }
 
 function optionalNetworkPolicy(value: unknown, fieldName: string): NetworkPolicy | undefined {

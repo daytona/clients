@@ -41,12 +41,12 @@ const PULL_VOLUME_RESPONSE: ResponseFields = { requestId: 'string', status: 'str
 
 function pullVolumeResult(data: unknown): PullVolumeResult {
   const result = checkResponse<toolbox.PullVolumeResponse>(data, PULL_VOLUME_RESPONSE, 'volume pull')
-  return {
+  return Object.freeze({
     manifestId: result.manifestId ?? null,
     requestId: result.requestId,
     status: knownOrUnknown(result.status, PULL_VOLUME_STATUSES),
     rawStatus: result.status,
-  }
+  })
 }
 
 function assertId(value: string, name: string): void {

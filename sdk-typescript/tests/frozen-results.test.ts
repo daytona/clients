@@ -101,6 +101,57 @@ it('freezes preview endpoints and links', async () => {
   }
 })
 
+const POLICY = {
+  desired: { version: 2, block_all: false, allow_cidrs: ['1.2.3.4/32'], allow_domains: ['api.example.com'] },
+  desired_revision: 7,
+  applied: { version: 2, block_all: false, allow_cidrs: [], allow_domains: ['a.example.com'] },
+  applied_revision: 6,
+}
+const SECRETS = { secrets: ['KEY'], desired_revision: 3, applied_revision: 3 }
+const ETAG = { ETag: '"e"' }
+const METRICS = { timestamp: TIME, cpuCount: 1, cpuUtilization: 0.5, memoryUsageBytes: 1, memoryTotalBytes: 2, diskUsageBytes: 1, diskTotalBytes: 2 }
+type SandboxCall = (sandbox: ReturnType<typeof createSandbox>) => Promise<unknown>
+
+it.each([
+  ['getNetworkPolicy', (sandbox) => sandbox.getNetworkPolicy(), { status: 200, headers: ETAG, body: POLICY }],
+  ['updateNetworkPolicy', (sandbox) => sandbox.updateNetworkPolicy({ blockAll: false }, { ifMatch: '"e"' }), { status: 200, headers: ETAG, body: POLICY }],
+  ['resetNetworkPolicy', (sandbox) => sandbox.resetNetworkPolicy({ ifMatch: '"e"' }), { status: 200, headers: ETAG, body: POLICY }],
+  ['getSecrets', (sandbox) => sandbox.getSecrets(), { status: 200, headers: ETAG, body: SECRETS }],
+  ['replaceSecrets', (sandbox) => sandbox.replaceSecrets(['KEY'], { ifMatch: '"e"' }), { status: 200, headers: ETAG, body: SECRETS }],
+  ['docker.status', (sandbox) => sandbox.docker.status(), { status: 200, body: { owner: 'daemon', state: 'ready' } }],
+  ['docker.waitUntilReady', (sandbox) => sandbox.docker.waitUntilReady(), { status: 200, body: { owner: 'daemon', state: 'ready' } }],
+  ['volumes.pull', (sandbox) => sandbox.volumes.pull('vol', { requestId: 'r' }), { status: 200, body: { requestId: 'r', status: 'completed', manifestId: null } }],
+  ['metrics', (sandbox) => sandbox.metrics(), { status: 200, body: METRICS }],
+] as ReadonlyArray<readonly [string, SandboxCall, { readonly status: number; readonly headers?: Record<string, string>; readonly body: unknown }]>)('freezes what sandbox.%s returns, at every depth', async (_name, call, reply) => {
+  const api = await startFakeApi([reply])
+  try {
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(api.url, 'key'), undefined, undefined, undefined, { toolboxUrl: api.url, accessToken: 'tok' })
+    const result = await call(sandbox)
+    expect(result).toBeDefined()
+    expect(deeplyFrozen(result)).toBe(true)
+  } finally {
+    await api.close()
+  }
+})
+
+it.each([
+  ['DockerNotReadyError', { owner: 'daemon', state: 'failed', reason: 'boom' }],
+  ['DockerWaitTimeoutError', { owner: 'daemon', state: 'starting' }],
+] as const)('freezes the status a %s carries', async (name, body) => {
+  // `failed` ends the wait at once; `starting` keeps it polling until the 1 s budget runs out.
+  const api = await startFakeApi(Array.from({ length: 30 }, () => ({ status: 200, body })))
+  try {
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(api.url, 'key'), undefined, undefined, undefined, { toolboxUrl: api.url, accessToken: 'tok' })
+    const error: unknown = await sandbox.docker.waitUntilReady({ timeoutSeconds: 1 }).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ name })
+    const status = (error as { readonly status?: unknown }).status
+    expect(status).toMatchObject({ rawState: body.state })
+    expect(Object.isFrozen(status)).toBe(true)
+  } finally {
+    await api.close()
+  }
+}, 10_000)
+
 describe('deepFrozen', () => {
   // Imported here so the walk itself is tested on values no response mapper would build.
   const load = async () => (await import('../src/v2/frozen')).deepFrozen

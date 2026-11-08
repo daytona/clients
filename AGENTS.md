@@ -646,7 +646,11 @@ skipping exist only in the TypeScript tool).
 - **Lifecycle methods wait; create and fork hand back what they observed.**
   `start`, `stop`, `pause`, `resume` and `delete` wait for their state
   (`stop` → `stopped`, `delete` → `destroyed`, a 404 during the delete wait
-  included) with `timeout` / `timeoutSeconds` (default 60, `0` = no deadline),
+  included) with `timeout` / `timeoutSeconds` (default 60, `0` = no deadline;
+  in both SDKs every wait budget of the area, fork's `wait_seconds` /
+  `waitSeconds` included, reads a value above the timer maximum, about
+  24.8 days, as no deadline too: Python `wait_budget_seconds`, TypeScript
+  `waitDeadline`),
   raising `RequestTimeoutError` (source `SDK`) or
   `SandboxTerminalStateError`. Once the target was observed, a failed
   metadata refresh afterwards does not turn that success into an error.

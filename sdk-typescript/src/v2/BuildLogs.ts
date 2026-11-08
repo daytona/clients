@@ -8,7 +8,7 @@
 import { queryText } from './pageParams.js'
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
-import { boundedTimerDelay, badRequest } from './options.js'
+import { boundedTimerDelay, badRequest, waitDeadline } from './options.js'
 import { HttpTransport } from './http.js'
 import type * as api from './gen/api-types.js'
 import { sameBuildLogResource } from './buildLogIdentity.js'
@@ -16,6 +16,7 @@ import { BUILD_LOG_DONE_REASONS, BUILD_LOG_GAP_REASONS } from './types.js'
 import type { BuildLogDoneReason, BuildLogGapReason } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
 import { assertKnownOptions, assertOptionsObject, optionKeys, optionalSeconds } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 export type { BuildLogDoneReason } from './types.js'
 
@@ -39,7 +40,7 @@ export interface BuildLogFollowOptions {
   readonly onLogs: (chunk: string) => void | Promise<void>
   readonly onEvent?: (event: BuildLogEvent) => void | Promise<void>
   readonly cursor?: string
-  /** Total observation budget in seconds; zero/omitted adds no deadline. */
+  /** Total observation budget in seconds; zero, omitted or above about 24.8 days adds no deadline. */
   readonly timeoutSeconds?: number
   readonly signal?: AbortSignal
 }
@@ -272,6 +273,9 @@ class Observer {
     this.offset = this.cursor === undefined ? 0n : undefined
   }
   private async emit(event: BuildLogEvent, output = ''): Promise<void> {
+    // Frozen before any callback sees it: a callback cannot rewrite the event,
+    // nor the `done` result the call returns.
+    deepFrozen(event)
     try {
       if (output) await interruptible(Promise.resolve(this.options.onLogs(output)), this.signal)
       if (this.options.onEvent) await interruptible(Promise.resolve(this.options.onEvent(event)), this.signal)
@@ -529,7 +533,8 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
   const relay = (): void => controller.abort(options.signal?.reason)
   if (options.signal?.aborted) relay()
   else options.signal?.addEventListener('abort', relay, { once: true })
-  const callerDeadline = timeoutSeconds ? performance.now() + timeoutSeconds * 1000 : undefined
+  // Omitted, 0, or above the timer maximum (about 24.8 days): no deadline.
+  const callerDeadline = waitDeadline(timeoutSeconds, performance.now())
   let timer: ReturnType<typeof setTimeout> | undefined
   let observer: Observer | undefined
   const remaining = (): number | undefined => {
@@ -545,7 +550,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
   const arm = (): void => {
     clearTimeout(timer)
     const budget = remaining()
-    if (budget !== undefined) timer = setTimeout(budget > 2147483647 ? arm : () => controller.abort(), Math.min(budget, 2147483647))
+    if (budget !== undefined) timer = setTimeout(() => controller.abort(), budget)
   }
   try {
     observer = new Observer(options, controller.signal)

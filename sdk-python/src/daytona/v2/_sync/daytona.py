@@ -233,7 +233,8 @@ class Daytona:
 
         The build submission is an ordinary request, bounded by the client's
         request timeout. The build itself is always awaited, bounded by
-        ``build_timeout`` (seconds; ``None`` or ``0`` = no deadline). A failed
+        ``build_timeout`` (seconds; ``None``, ``0`` or a value above about
+        24.8 days = no deadline). A failed
         build (image status ``failed`` or ``error``) raises
         :class:`ImageBuildFailedError` and a build that outlasts
         ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases

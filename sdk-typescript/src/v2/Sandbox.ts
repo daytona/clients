@@ -42,8 +42,9 @@ import {
 import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
-import { assertIfMatchOptions, assertKnownOptions, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS } from './options.js'
+import { assertIfMatchOptions, assertKnownOptions, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS, waitDeadline } from './options.js'
 import type { IfMatchOptions } from './options.js'
+import { deepFrozen } from './frozen.js'
 import { assertSandboxResponse, isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
 import type { SandboxMetadata } from './sandboxMetadata.js'
 import { SandboxAuth, rfc3339EpochMs } from './sandboxAuth.js'
@@ -478,7 +479,7 @@ export class Sandbox {
 
   public async metrics(): Promise<SystemMetrics> {
     const data: unknown = await this.requireToolbox().get<unknown>('/system/metrics')
-    return checkResponse<SystemMetrics>(data, SYSTEM_METRICS, 'system metrics')
+    return deepFrozen(checkResponse<SystemMetrics>(data, SYSTEM_METRICS, 'system metrics'))
   }
 
   public get volumes(): SandboxVolumesService {
@@ -796,7 +797,10 @@ export class Sandbox {
     const forked = checkResponse<api.ForkResponse>(response.data, FORK_RESPONSE, 'sandbox fork')
     // The fork's metadata comes from its detail; its toolbox from the fork
     // response, never the source's per-sandbox override.
-    const deadline = waitSeconds > 0 ? Date.now() + waitSeconds * 1000 : undefined
+    // 0 is one request; above the timer maximum (about 24.8 days) the fork
+    // waits with no deadline, as every wait budget does.
+    const waits = waitSeconds > 0
+    const deadline = waitDeadline(waitSeconds)
     const fork = new Sandbox(INTERNAL, {
       sandbox: {
         sandboxId: forked.id,
@@ -818,9 +822,10 @@ export class Sandbox {
     fork.learnEventDestination(eventDestinationFromHeaders(response.headers))
     // waitSeconds 0 is one request, as for create: no detail read, and a zero
     // budget never becomes an unbounded read.
-    if (deadline === undefined) return fork
+    if (!waits) return fork
     try {
-      const timeout = boundedRequestTimeout(deadline, this.api.defaults.timeout)
+      // With no deadline the detail read is an ordinary request, bounded by the request timeout.
+      const timeout = deadline === undefined ? this.api.defaults.timeout : boundedRequestTimeout(deadline, this.api.defaults.timeout)
       if (timeout === undefined) return fork
       const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, { timeout }).then((r) => r.data)
       assertSandboxResponse(detail)
@@ -833,8 +838,9 @@ export class Sandbox {
     const states: readonly SandboxWaitState[] = sandboxClass === 'macos' ? ['started', 'stopped']
       : sourceState === 'started' ? ['started']
         : sourceState === 'paused' && options.memory !== false ? ['paused'] : ['stopped']
+    // `timeoutSeconds: 0` is the state wait's no deadline.
     const remainingSeconds = deadline === undefined ? 0 : (deadline - Date.now()) / 1000
-    if (remainingSeconds > 0 && !states.some((state) => state === fork.state)) {
+    if ((deadline === undefined || remainingSeconds > 0) && !states.some((state) => state === fork.state)) {
       try {
         await fork.waitForState(states, { timeoutSeconds: remainingSeconds })
       } catch (error) {
@@ -1003,8 +1009,8 @@ export class Sandbox {
   /**
    * Wait for one or more public sandbox states.
    *
-   * `timeoutSeconds` is a caller wait budget in seconds. The default is 60; `0`
-   * waits without a deadline. Timeout raises {@link RequestTimeoutError}, and
+   * `timeoutSeconds` is a caller wait budget in seconds. The default is 60; `0`,
+   * or a value above about 24.8 days (the timer maximum), waits without a deadline. Timeout raises {@link RequestTimeoutError}, and
    * a terminal state before the target raises {@link SandboxTerminalStateError}.
    */
   public async wait(options: WaitOptions = {}): Promise<this> {

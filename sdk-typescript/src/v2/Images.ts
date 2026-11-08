@@ -19,7 +19,7 @@ import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
 import { ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
-import { assertKnownOptions, badRequest, optionalSeconds, optionKeys, snapshotOptions } from './options.js'
+import { assertKnownOptions, badRequest, optionalSeconds, optionKeys, snapshotOptions, waitDeadline } from './options.js'
 import { getArtifact } from './artifactOptions.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
 import { INTERNAL, assertInternal } from './internal.js'
@@ -38,7 +38,7 @@ export interface ListImagesOptions {
 
 export interface ImagePullOptions extends BuildImageOptions {
   readonly wait?: boolean
-  /** Total pull budget in seconds; omitted or zero is unbounded. */
+  /** Total pull budget in seconds; omitted, zero or a value above about 24.8 days is unbounded. */
   readonly timeoutSeconds?: number
 }
 
@@ -138,13 +138,14 @@ export class ImagesService {
       (data) => new Image(INTERNAL, data as api.ImageListItem))
   }
 
-  /** Import a registry image and wait until ready by default. Omitted or zero timeoutSeconds is unbounded. */
+  /** Import a registry image and wait until ready by default. Omitted or zero timeoutSeconds, or one above about 24.8 days, is unbounded. */
   public async pull(ref: string, options: ImagePullOptions = {}): Promise<Image> {
     assertKnownOptions('ImagePullOptions', options, IMAGE_PULL_OPTION_KEYS)
     const wait: unknown = options.wait
     if (wait !== undefined && typeof wait !== 'boolean') throw badRequest('wait must be a boolean')
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
-    const deadline = timeoutSeconds === undefined || timeoutSeconds === 0 ? undefined : Date.now() + timeoutSeconds * 1000
+    // Omitted, 0, or above the timer maximum (about 24.8 days): no deadline.
+    const deadline = waitDeadline(timeoutSeconds)
     const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -153,8 +154,8 @@ export class ImagesService {
       if (deadline === undefined) return
       const remaining = deadline - Date.now()
       if (remaining <= 0) controller.abort()
-      // Re-arm very large budgets instead of overflowing the platform timer.
-      else timer = setTimeout(armDeadline, Math.min(Math.ceil(remaining), 2_147_483_647))
+      // A deadline is never beyond the timer maximum; a timer that fires early re-checks.
+      else timer = setTimeout(armDeadline, Math.ceil(remaining))
     }
     const requestOptions = (requestTimeout = this.http.defaults.timeout) => {
       const timeout = deadline === undefined ? requestTimeout : boundedRequestTimeout(deadline, requestTimeout)

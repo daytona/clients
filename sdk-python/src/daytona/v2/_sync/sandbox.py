@@ -126,8 +126,8 @@ class Sandbox:
     def delete(self, *, timeout: float = 60) -> None:
         """Delete the sandbox and wait until it is ``destroyed``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline); running out raises :class:`RequestTimeoutError`, and an
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and an
         ``error`` state raises :class:`SandboxTerminalStateError`. A 404 while
         waiting counts as destroyed. A destroyed sandbox does not guarantee
         that its image can already be deleted: image deletion may still
@@ -246,7 +246,8 @@ class Sandbox:
         ``MAC_DISK_FULL``.
 
         ``wait_seconds`` (default 60; ``0`` returns as soon as the API accepts
-        the fork) bounds the wait for the state the fork settles in: a fork of
+        the fork; a value above about 24.8 days, the timer maximum, waits with
+        no deadline) bounds the wait for the state the fork settles in: a fork of
         a running Linux sandbox ``started``; otherwise it rests — ``paused``
         for a memory fork of a paused source, else ``stopped`` (call
         ``start()``). A macOS fork settles ``started`` or ``stopped``. Like
@@ -277,8 +278,8 @@ class Sandbox:
     def pause(self, *, timeout: float = 60) -> None:
         """Pause the sandbox with its memory and wait until it is ``paused``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline). A pause that fails returns the sandbox to ``started``; this
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
         then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
         keeps its Mac slot but does not keep its reservation renewing. Which
         sandboxes can pause is the API's decision.
@@ -325,8 +326,8 @@ class Sandbox:
     def resume(self, *, timeout: float = 60) -> None:
         """Resume a paused sandbox and wait until it is ``started``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline). A resume that cannot finish ends ``stopped``; this then
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
         raises :class:`SandboxTerminalStateError`.
         """
         return self._bridge.call(lambda: self._impl.resume(timeout=timeout))
@@ -377,8 +378,8 @@ class Sandbox:
     def start(self, *, timeout: float = 60) -> None:
         """Start a stopped sandbox, or resume a paused one, and wait until it is ``started``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline); running out raises :class:`RequestTimeoutError`, and a
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Whether the
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
@@ -388,8 +389,8 @@ class Sandbox:
     def stop(self, *, timeout: float = 60) -> None:
         """Stop the sandbox and wait until it is ``stopped``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline); running out raises :class:`RequestTimeoutError`, and a
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Which
         sandboxes can stop (today: persistent macOS sandboxes) is the API's
         decision; a refusal surfaces as its typed error.
@@ -454,8 +455,8 @@ class Sandbox:
     ) -> Self:
         """Wait until the sandbox reaches ``until`` (one state or any of several) and return ``self``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` waits
-        without a deadline). Running out raises :class:`RequestTimeoutError`;
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a value
+        above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
         reaching ``destroying``, ``destroyed`` or ``error`` first raises
         :class:`SandboxTerminalStateError`.
         """

@@ -31,7 +31,6 @@ from ._api_core import (
 )
 from ._auth import ProjectTokenAuth
 from ._core import (
-    MAX_WAIT_BUDGET_SECONDS,
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     TransportPayload,
@@ -1122,8 +1121,8 @@ class AsyncSandbox:
     ) -> Self:
         """Wait until the sandbox reaches ``until`` (one state or any of several) and return ``self``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` waits
-        without a deadline). Running out raises :class:`RequestTimeoutError`;
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a value
+        above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
         reaching ``destroying``, ``destroyed`` or ``error`` first raises
         :class:`SandboxTerminalStateError`.
         """
@@ -1134,8 +1133,8 @@ class AsyncSandbox:
     async def start(self, *, timeout: float = 60) -> None:
         """Start a stopped sandbox, or resume a paused one, and wait until it is ``started``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline); running out raises :class:`RequestTimeoutError`, and a
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Whether the
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
@@ -1157,8 +1156,8 @@ class AsyncSandbox:
     async def stop(self, *, timeout: float = 60) -> None:
         """Stop the sandbox and wait until it is ``stopped``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline); running out raises :class:`RequestTimeoutError`, and a
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Which
         sandboxes can stop (today: persistent macOS sandboxes) is the API's
         decision; a refusal surfaces as its typed error.
@@ -1170,8 +1169,8 @@ class AsyncSandbox:
     async def pause(self, *, timeout: float = 60) -> None:
         """Pause the sandbox with its memory and wait until it is ``paused``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline). A pause that fails returns the sandbox to ``started``; this
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
         then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
         keeps its Mac slot but does not keep its reservation renewing. Which
         sandboxes can pause is the API's decision.
@@ -1183,8 +1182,8 @@ class AsyncSandbox:
     async def resume(self, *, timeout: float = 60) -> None:
         """Resume a paused sandbox and wait until it is ``started``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline). A resume that cannot finish ends ``stopped``; this then
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
         raises :class:`SandboxTerminalStateError`.
         """
         timeout = _validate_timeout(timeout)
@@ -1210,7 +1209,8 @@ class AsyncSandbox:
         ``MAC_DISK_FULL``.
 
         ``wait_seconds`` (default 60; ``0`` returns as soon as the API accepts
-        the fork) bounds the wait for the state the fork settles in: a fork of
+        the fork; a value above about 24.8 days, the timer maximum, waits with
+        no deadline) bounds the wait for the state the fork settles in: a fork of
         a running Linux sandbox ``started``; otherwise it rests — ``paused``
         for a memory fork of a paused source, else ``stopped`` (call
         ``start()``). A macOS fork settles ``started`` or ``stopped``. Like
@@ -1218,7 +1218,9 @@ class AsyncSandbox:
         when the budget runs out or the fork fails, it returns the handle —
         check ``fork.state``.
         """
-        wait_seconds = _validate_wait_seconds(wait_seconds)
+        budget = _validate_wait_seconds(wait_seconds)
+        # None: no deadline (above the timer maximum); 0.0: one request.
+        waits = budget is None or budget > 0
         if name is not None and (not isinstance(name, str) or not name.strip()):
             raise create_error("fork name must be a non-empty string when given", 400, "BAD_REQUEST", "SDK")
         if memory is not None and not isinstance(memory, bool):
@@ -1228,12 +1230,10 @@ class AsyncSandbox:
         # for every class, so an unknown class is not read first; the fork then
         # carries the source's class only when this handle knows it.
         sandbox_class: Optional[str] = (
-            await self._require_sandbox_class()
-            if wait_seconds > 0
-            else (self.raw_sandbox_class or self.sandbox_class)
+            await self._require_sandbox_class() if waits else (self.raw_sandbox_class or self.sandbox_class)
         )
         targets: list[SandboxWaitState] = ["started", "stopped"]
-        if sandbox_class == "linux" and wait_seconds > 0:
+        if sandbox_class == "linux" and waits:
             # Only a fork of a RUNNING source comes up by itself; the others rest.
             # Read the source's state now (unless reading its class just did).
             if class_known:
@@ -1268,14 +1268,17 @@ class AsyncSandbox:
         )
         fork_id = data.id
         api_token = getattr(self._api, "token", None) if self._api else None
-        # The fork's detail read counts against the wait budget.
-        deadline = _clock.monotonic() + wait_seconds if wait_seconds > 0 else None
+        # The fork's detail read counts against the wait budget; with no
+        # deadline it is an ordinary request, bounded by the request timeout.
+        deadline = _clock.monotonic() + budget if budget is not None and budget > 0 else None
         detail: Optional[Mapping[str, JsonValue]] = None
         # wait_seconds=0 is one request, as for create: no detail read, and a
         # zero budget never becomes an unbounded read.
-        if deadline is not None:
+        if waits:
             try:
-                with anyio.move_on_after(max(0.0, deadline - _clock.monotonic())):
+                with anyio.move_on_after(
+                    math.inf if deadline is None else max(0.0, deadline - _clock.monotonic())
+                ):
                     detail = sandbox_detail_wire(
                         await self._require_api().send(
                             RequestSpec("GET", f"/sandboxes/{quote(fork_id, safe='')}")
@@ -1312,7 +1315,11 @@ class AsyncSandbox:
             # Source and fork share the regional API endpoint that accepted the fork.
             self._learn_endpoint(endpoint)
             fork._learn_endpoint(endpoint)
-        if detail is None or deadline is None or fork.state in targets:
+        if detail is None or not waits or fork.state in targets:
+            return fork
+        if deadline is None:
+            # No deadline: the state wait's 0 is no deadline.
+            await _wait_without_raising_for_its_end(fork, targets, 0)
             return fork
         remaining = deadline - _clock.monotonic()
         if remaining > 0:
@@ -1322,8 +1329,8 @@ class AsyncSandbox:
     async def delete(self, *, timeout: float = 60) -> None:
         """Delete the sandbox and wait until it is ``destroyed``.
 
-        ``timeout`` is the wait budget in seconds (default 60; ``0`` = no
-        deadline); running out raises :class:`RequestTimeoutError`, and an
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and an
         ``error`` state raises :class:`SandboxTerminalStateError`. A 404 while
         waiting counts as destroyed. A destroyed sandbox does not guarantee
         that its image can already be deleted: image deletion may still
@@ -2189,13 +2196,14 @@ def _wait_states(until: object) -> list[SandboxWaitState]:
     return states
 
 
-def _validate_wait_seconds(wait_seconds: float) -> float:
-    """The checked fork budget; ``0`` returns once the fork is accepted, and a
-    value above the timer maximum waits that maximum (it cannot overflow)."""
+def _validate_wait_seconds(wait_seconds: float) -> Optional[float]:
+    """The checked fork budget: ``0.0`` returns once the fork is accepted, and
+    ``None`` (a value above the timer maximum, about 24.8 days) waits with no
+    deadline, as every wait budget in both SDKs does."""
     if wait_seconds == 0 and not isinstance(wait_seconds, bool):
         return 0.0
     budget = wait_budget_seconds(wait_seconds, name="wait_seconds")
-    return MAX_WAIT_BUDGET_SECONDS if budget == 0 else budget
+    return None if budget == 0 else budget
 
 
 def _wait_deadline(timeout: Optional[float]) -> Optional[float]:

@@ -12,7 +12,7 @@ import { WAIT_READ_SLACK_MS } from './Process.js'
 import { DOCKER_OWNERS, DOCKER_STATES } from './types.js'
 import type { DockerOwner, DockerState, DockerStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
-import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
+import { assertKnownOptions, optionKeys, optionalSeconds, waitDeadline } from './options.js'
 import { checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 
@@ -25,19 +25,19 @@ const DOCKER_STATUS: ResponseFields = { owner: 'string', state: 'string', proces
 
 function dockerStatusFromWire(data: unknown): DockerStatus {
   const status = checkResponse<toolbox.DockerStatus>(data, DOCKER_STATUS, 'docker status')
-  return {
+  return Object.freeze({
     owner: knownOrUnknown(status.owner, DOCKER_OWNERS),
     rawOwner: status.owner,
     processId: status.processId,
     reason: status.reason,
     state: knownOrUnknown(status.state, DOCKER_STATES),
     rawState: status.state,
-  }
+  })
 }
 
 export interface DockerWaitOptions {
   /**
-   * Wait budget in seconds. Default 60. `0` waits without a
+   * Wait budget in seconds. Default 60. `0` (or a value above about 24.8 days) waits without a
    * deadline — avoid it for sandboxes whose Docker can stay `deferred`.
    */
   readonly timeoutSeconds?: number
@@ -107,12 +107,13 @@ export class DockerService {
    * budget runs out while Docker is still `starting` or `deferred`,
    * including when a status request is still unanswered at
    * the deadline. No request runs more than a fraction of a second past the
-   * deadline. `timeoutSeconds: 0` waits without a deadline.
+   * deadline. `timeoutSeconds: 0`, or a value above about 24.8 days, waits without a deadline.
    */
   public async waitUntilReady(options: DockerWaitOptions = {}): Promise<DockerStatus> {
     assertKnownOptions('DockerWaitOptions', options, DOCKER_WAIT_KEYS)
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? DOCKER_WAIT_DEFAULT_TIMEOUT_SECONDS
-    const deadline = timeoutSeconds === 0 ? undefined : Date.now() + timeoutSeconds * 1000
+    // 0, or above the timer maximum (about 24.8 days), is no deadline.
+    const deadline = waitDeadline(timeoutSeconds)
     let last: DockerStatus | undefined
     for (;;) {
       const remaining = deadline === undefined ? undefined : Math.ceil(deadline - Date.now())

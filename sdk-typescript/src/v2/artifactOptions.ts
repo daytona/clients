@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { assertKnownOptions, badRequest, MAX_TIMER_DELAY_MS, optionKeys, optionalSeconds } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys, optionalSeconds, waitDeadline } from './options.js'
 import type { AxiosInstance } from 'axios'
 import { sleep } from './http.js'
 import { ClientTimeoutError, RequestTimeoutError } from './errors/DaytonaError.js'
@@ -50,8 +50,8 @@ export async function getArtifact<T extends { readonly status: string }>(http: A
   if (options.wait === undefined) return parse((await http.get<unknown>(path, { params: undefined, timeout: undefined })).data)
   // No budget: one hold of the server's default length, without a client deadline.
   if (seconds === undefined || seconds === 0) return parse((await http.get<unknown>(path, { params: { wait: options.wait, timeout_ms: undefined }, timeout: 0 })).data)
-  const unbounded = seconds * 1000 > MAX_TIMER_DELAY_MS
-  const deadline = unbounded ? undefined : Date.now() + seconds * 1000
+  // Above the timer maximum (about 24.8 days): holds repeat with no deadline.
+  const deadline = waitDeadline(seconds)
   const timedOut = () => new RequestTimeoutError('artifact did not become ready before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
   for (;;) {
     const remaining = deadline === undefined ? undefined : deadline - Date.now()
