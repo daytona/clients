@@ -215,12 +215,12 @@ object type written inline may gain optional members. Overloads: a call
 resolves against the first overload it matches. For a function callers call
 (one the SDK implements, or a method of a type that goes both ways), the
 existing overloads keep their order, a new overload may only come after them,
-only the last overload may widen its parameters (an earlier one may only
-narrow its return type), and an overload may be dropped only when another
-surviving one stands in for it: it accepts every call the dropped one did and
-returns the same or a narrower type. For a signature callers implement (a
-callback, the methods of a type they pass in), no overload or call signature
-may be added or dropped: every implementation would have to change. In
+only the last overload may widen, an earlier one may only narrow its return
+type (renaming a TypeScript parameter aside), and none may be dropped: when a
+later overload really takes all of a dropped one's calls, acknowledge the
+finding. For a signature callers implement (a callback, the methods of a type
+they pass in), no overload or call signature may be added or dropped: every
+implementation would have to change. In
 `contract/*.json`, oasdiff compares the
 contracts as they are; the only finding the `x-daytona-open-enum` tag drops is
 a value added on the response side to an enum tagged open both at the release
