@@ -100,9 +100,11 @@ func commandSurface(root *cobra.Command) []string {
 			kind = "hidden " + kind
 		}
 		lines = append(lines, path+": "+kind)
-		// The positional arguments, as the usage line spells them.
+		// The positional arguments, as the usage line spells them, and the
+		// argument counts the command's validator accepts.
 		_, args, _ := strings.Cut(c.Use, " ")
 		lines = append(lines, strings.TrimSpace(path+": usage "+strings.TrimSpace(args)))
+		lines = append(lines, path+": args "+acceptedArgs(c))
 		for _, alias := range c.Aliases {
 			lines = append(lines, path+": alias "+alias)
 		}
@@ -114,6 +116,41 @@ func commandSurface(root *cobra.Command) []string {
 	}
 	walk(root)
 	return lines
+}
+
+// argsProbed matches ARGS_PROBED in scripts/breaking/breaking_changes.py.
+const argsProbed = 6
+
+// acceptedArgs probes the command's argument validator with 0..argsProbed
+// arguments and spells the counts it accepts: "1", "0-2", "1+" (up to the
+// probe limit), "none".
+func acceptedArgs(c *cobra.Command) string {
+	var accepted []int
+	for n := 0; n <= argsProbed; n++ {
+		if c.ValidateArgs(make([]string, n)) == nil {
+			accepted = append(accepted, n)
+		}
+	}
+	if len(accepted) == 0 {
+		return "none"
+	}
+	var parts []string
+	for i := 0; i < len(accepted); {
+		j := i
+		for j+1 < len(accepted) && accepted[j+1] == accepted[j]+1 {
+			j++
+		}
+		switch {
+		case accepted[j] == argsProbed:
+			parts = append(parts, strconv.Itoa(accepted[i])+"+")
+		case i == j:
+			parts = append(parts, strconv.Itoa(accepted[i]))
+		default:
+			parts = append(parts, strconv.Itoa(accepted[i])+"-"+strconv.Itoa(accepted[j]))
+		}
+		i = j + 1
+	}
+	return strings.Join(parts, ",")
 }
 
 func flagLine(path string, f *pflag.Flag, persistent bool) string {
@@ -152,6 +189,18 @@ func flagLine(path string, f *pflag.Flag, persistent bool) string {
 func envSurface(moduleRoot string) ([]string, error) {
 	fset := token.NewFileSet()
 	var files []*ast.File
+	// Packages go by import path (module path + directory), never by the
+	// last path element: a package name may differ from its directory.
+	modulePath := "local"
+	if mod, err := os.ReadFile(filepath.Join(moduleRoot, "go.mod")); err == nil {
+		for _, line := range strings.Split(string(mod), "\n") {
+			if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "module "); ok {
+				modulePath = strings.TrimSpace(rest)
+				break
+			}
+		}
+	}
+	pkgPath := map[*ast.File]string{}
 	err := filepath.WalkDir(moduleRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -170,6 +219,14 @@ func envSurface(moduleRoot string) ([]string, error) {
 			return err
 		}
 		files = append(files, f)
+		rel, err := filepath.Rel(moduleRoot, filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		pkgPath[f] = modulePath
+		if rel != "." {
+			pkgPath[f] = modulePath + "/" + filepath.ToSlash(rel)
+		}
 		return nil
 	})
 	if err != nil {
@@ -190,7 +247,7 @@ func envSurface(moduleRoot string) ([]string, error) {
 				for i, name := range vs.Names {
 					if i < len(vs.Values) {
 						if lit, ok := vs.Values[i].(*ast.BasicLit); ok && lit.Kind == token.STRING {
-							consts[f.Name.Name+"."+name.Name], _ = strconv.Unquote(lit.Value)
+							consts[pkgPath[f]+"."+name.Name], _ = strconv.Unquote(lit.Value)
 						}
 					}
 				}
@@ -198,7 +255,7 @@ func envSurface(moduleRoot string) ([]string, error) {
 		}
 	}
 
-	// Parameter lists by declaration: "pkg.Func" for a function, ".Method"
+	// Parameter lists by declaration: "import/path.Func" for a function, ".Method"
 	// for every method of that name (a method call does not say its
 	// receiver's type, so all of them are candidates).
 	params := map[string][][]string{}
@@ -217,36 +274,43 @@ func envSurface(moduleRoot string) ([]string, error) {
 					names = append(names, name.Name)
 				}
 			}
-			key := f.Name.Name + "." + fn.Name.Name
+			key := pkgPath[f] + "." + fn.Name.Name
 			if fn.Recv != nil {
 				key = "." + fn.Name.Name
 			}
 			params[key] = append(params[key], names)
 		}
 	}
-	// The package each file's import names refer to.
+	// The import path each file's import names refer to. A module package is
+	// named by its package clause; another one by its last path element.
+	pkgName := map[string]string{}
+	for f, path := range pkgPath {
+		pkgName[path] = f.Name.Name
+	}
 	imports := map[*ast.File]map[string]string{}
 	for _, f := range files {
 		local := map[string]string{}
 		for _, spec := range f.Imports {
 			path, _ := strconv.Unquote(spec.Path.Value)
-			pkg := path[strings.LastIndex(path, "/")+1:]
-			name := pkg
+			name, ok := pkgName[path]
+			if !ok {
+				name = path[strings.LastIndex(path, "/")+1:]
+			}
 			if spec.Name != nil {
 				name = spec.Name.Name
 			}
-			local[name] = pkg
+			local[name] = path
 		}
 		imports[f] = local
 	}
 	callees := func(f *ast.File, fun ast.Expr) [][]string {
 		switch x := fun.(type) {
 		case *ast.Ident:
-			return params[f.Name.Name+"."+x.Name]
+			return params[pkgPath[f]+"."+x.Name]
 		case *ast.SelectorExpr:
 			if pkg, ok := x.X.(*ast.Ident); ok {
-				if name, ok := imports[f][pkg.Name]; ok {
-					return params[name+"."+x.Sel.Name]
+				if path, ok := imports[f][pkg.Name]; ok {
+					return params[path+"."+x.Sel.Name]
 				}
 			}
 			return params["."+x.Sel.Name]
@@ -339,10 +403,10 @@ func envSurface(moduleRoot string) ([]string, error) {
 				case *ast.BasicLit:
 					value, _ = strconv.Unquote(arg.Value)
 				case *ast.Ident:
-					value = consts[f.Name.Name+"."+arg.Name]
+					value = consts[pkgPath[f]+"."+arg.Name]
 				case *ast.SelectorExpr:
 					if pkg, ok := arg.X.(*ast.Ident); ok {
-						value = consts[pkg.Name+"."+arg.Sel.Name]
+						value = consts[imports[f][pkg.Name]+"."+arg.Sel.Name]
 					}
 				}
 			}
@@ -427,6 +491,29 @@ func f() {
 	want := []string{"$DIRECT: env", "$VIA_ALIAS: env", "$VIA_CONST: env", "$VIA_FIELD: env", "$VIA_METHOD: env", "$VIA_PARAM: env", "$VIA_SECOND: env"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	// An imported package whose name differs from its directory.
+	mod := t.TempDir()
+	files := map[string]string{
+		"go.mod":                "module example.com/m\n",
+		"main.go":               "package main\n\nimport (\n\t\"os\"\n\n\t\"example.com/m/internal/v2env\"\n)\n\nfunc main() { env.Read(os.Getenv) }\n",
+		"internal/v2env/env.go": "package env\n\nfunc Read(get func(string) string) { get(\"VIA_RENAMED_PACKAGE\") }\n",
+	}
+	for name, src := range files {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(mod, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(mod, name), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err = envSurface(mod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, ",") != "$VIA_RENAMED_PACKAGE: env" {
+		t.Fatalf("got %v", got)
 	}
 
 	dynamic := write(t, `package x
