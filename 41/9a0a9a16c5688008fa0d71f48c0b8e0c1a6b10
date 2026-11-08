@@ -1,0 +1,34 @@
+.gitignore
+  s_a3ea68093feda0::t_a0dec7e9d5bb18 12-13
+scripts/breaking/test_breaking_changes.py
+  s_a3ea68093feda0::t_bcd44a9d14b9aa 1-282,295-315
+  s_a3ea68093feda0::t_c965dc4c1f424c 283-294
+scripts/breaking/breaking_changes.py
+  s_a3ea68093feda0::t_9ab5d670491835 28-29,73-79,81,443-447,452-454
+  s_a3ea68093feda0::t_3f8e81eba329d9 390,411,464,466
+  s_a3ea68093feda0::t_73c44a2fa891d1 1-27,30-72,80,82-197,202-203,206-212,216-220,222-225,227,229-230,232-233,239-240,242,244,246-247,250-251,254-272,274-281,283,285,287-358,360-375,378,382-389,391-410,412-442,448-451,455-463,465,467-503
+  s_a3ea68093feda0::t_fd85db8b123166 198-201,204-205,213-215,221,226,228,231,234-238,241,243,245,248-249,252-253,273,282,284,286
+  s_a3ea68093feda0::t_d50193536e4d1e 359,376-377,379-381
+.github/workflows/breaking-changes.yaml
+  s_a3ea68093feda0::t_60812f074f2519 1-48
+scripts/gitignore_test.sh
+  s_a3ea68093feda0::t_a0dec7e9d5bb18 33
+scripts/breaking/install-oasdiff.sh
+  s_a3ea68093feda0::t_5ef8bfadf4f048 1-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "419a0a9a16c5688008fa0d71f48c0b8e0c1a6b10",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
