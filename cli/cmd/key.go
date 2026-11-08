@@ -26,7 +26,7 @@ func newKeyCmd() *cobra.Command {
 		mintShort:         "Mint a project API key",
 		listShort:         "List project API keys",
 		revokeShort:       "Revoke a project API key",
-		permissionHelp:    "comma-separated project permissions",
+		permissionHelp:    "project permission (repeatable or comma-separated)",
 		revokeTargetLabel: "key",
 		listHeaders:       []string{"ID", "NAME", "PERMISSIONS", "EXPIRES_AT", "REVOKED_AT"},
 		allowServiceAcct:  true,
@@ -44,7 +44,7 @@ func newKeyCmd() *cobra.Command {
 			}
 			return mgmt.CreateProjectKey(ctx, mc, projectID, req)
 		},
-		list:   mgmt.ListProjectKeys,
+		list:   mgmt.ProjectKeysPage,
 		revoke: mgmt.RevokeProjectKey,
 		token:  func(resp *gen.ProjectApiKeyWithToken) string { return resp.Token },
 		createdKV: func(resp *gen.ProjectApiKeyWithToken) [][2]string {

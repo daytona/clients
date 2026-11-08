@@ -12,6 +12,7 @@ import (
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/spf13/pflag"
 )
 
 func splitCSV(value string, flagName string) ([]string, error) {
@@ -88,4 +89,30 @@ func mustOneOf(count int, names ...string) error {
 func formatTokenOnce(token string) string {
 	// Server-controlled text at a terminal sink: sanitized like every other.
 	return fmt.Sprintf("Token (shown once): %s", output.SanitizeLine(token))
+}
+
+// csvListFlag is a repeatable comma-separated list flag stored as one CSV
+// string: `--role a --role b,c` accumulates to "a,b,c" (splitCSV parses it).
+type csvListFlag struct {
+	target *string
+	set    bool
+}
+
+func (f *csvListFlag) String() string { return *f.target }
+
+func (f *csvListFlag) Type() string { return "strings" }
+
+func (f *csvListFlag) Set(value string) error {
+	if f.set && *f.target != "" {
+		*f.target += "," + value
+	} else {
+		*f.target = value
+	}
+	f.set = true
+	return nil
+}
+
+// addCSVListFlag registers a repeatable comma-separated list flag.
+func addCSVListFlag(fs *pflag.FlagSet, target *string, name, usage string) {
+	fs.Var(&csvListFlag{target: target}, name, usage)
 }

@@ -58,7 +58,7 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if err := runSSHCommand(cmd.Context(), sshBinary, invocation.Args); err != nil {
 				var exitErr *exec.ExitError
 				if errors.As(err, &exitErr) {
-					return cerr.New(exitErr.ExitCode(), "ssh exited with code %d", exitErr.ExitCode())
+					return cerr.New(exitErr.ExitCode(), "ssh exited with code %d", exitErr.ExitCode()).WithSource(cerr.SourceSSH)
 				}
 				return err
 			}

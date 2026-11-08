@@ -52,10 +52,6 @@ func Fingerprint(perms []string) string {
 	return hex.EncodeToString(sum[:8])
 }
 
-func staticSource(apiURL, bearer string) string {
-	return Fingerprint([]string{strings.TrimRight(apiURL, "/"), bearer})
-}
-
 func shortHost(h string) string {
 	h = strings.ToLower(strings.SplitN(h, ".", 2)[0])
 	if len(h) > 16 {

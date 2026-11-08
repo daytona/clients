@@ -21,7 +21,7 @@ func newOrgKeyCmd() *cobra.Command {
 		requireName:       true,
 		listShort:         "List organization API keys",
 		revokeShort:       "Revoke an organization API key",
-		permissionHelp:    "comma-separated organization permissions",
+		permissionHelp:    "organization permission (repeatable or comma-separated)",
 		revokeTargetLabel: "org key",
 		listHeaders:       []string{"ID", "NAME", "PERMISSIONS", "EXPIRES_AT", "REVOKED_AT"},
 		requireScope: func(a *app.App, ctx context.Context) (string, error) {
@@ -30,7 +30,7 @@ func newOrgKeyCmd() *cobra.Command {
 		buildMint: func(ctx context.Context, _ *app.App, mc *mgmtClient, orgID, name string, permissions []string, expiresAt *time.Time, _ string) (*gen.OrganizationApiKeyWithToken, error) {
 			return mgmt.CreateOrgKey(ctx, mc, orgID, gen.CreateOrganizationApiKeyRequest{Name: name, OrgPermissions: permissions, ExpiresAt: expiresAt})
 		},
-		list:   mgmt.ListOrgKeys,
+		list:   mgmt.OrgKeysPage,
 		revoke: mgmt.RevokeOrgKey,
 		token:  func(resp *gen.OrganizationApiKeyWithToken) string { return resp.Token },
 		createdKV: func(resp *gen.OrganizationApiKeyWithToken) [][2]string {

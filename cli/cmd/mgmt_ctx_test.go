@@ -80,7 +80,7 @@ func TestOrgCRUDAndGet(t *testing.T) {
 		t.Fatalf("%+v", last)
 	}
 	// human table output renders the active marker
-	out, _, _ = run(t, d, nil, "org", "list")
+	out, _, _ = run(t, d, nil, "org", "list", "-o", "table")
 	if !has(out, "*") || !has(out, "Acme") {
 		t.Fatalf("table: %q", out)
 	}
@@ -211,7 +211,7 @@ func TestProjectCommands(t *testing.T) {
 	if code != 0 || len(mustJSON(t, out)["items"].([]any)) != 3 {
 		t.Fatalf("%d %s", code, out)
 	}
-	out, _, _ = run(t, d, nil, "project", "list")
+	out, _, _ = run(t, d, nil, "project", "list", "-o", "table")
 	if !has(out, "NAME") {
 		t.Fatal(out)
 	}
@@ -312,7 +312,7 @@ func TestProfileCommands(t *testing.T) {
 	if code != 0 || len(mustJSON(t, out)["items"].([]any)) != 2 {
 		t.Fatalf("%d %s", code, out)
 	}
-	out, _, _ = run(t, d, nil, "profile", "list")
+	out, _, _ = run(t, d, nil, "profile", "list", "-o", "table")
 	if !has(out, "work") || !has(out, "*") {
 		t.Fatal(out)
 	}
@@ -338,9 +338,23 @@ func TestProfileCommands(t *testing.T) {
 		t.Fatal(code)
 	}
 	// config get/set/path
-	out, _, _ = run(t, d, nil, "config", "get", "confirm")
+	out, _, _ = run(t, d, nil, "config", "get", "confirm", "-o", "table")
 	if strings.TrimSpace(out) != "true" {
 		t.Fatal(out)
+	}
+	// Off a terminal the default output is JSON.
+	out, _, _ = run(t, d, nil, "config", "get", "confirm")
+	if mustJSON(t, out)["confirm"] != true {
+		t.Fatal(out)
+	}
+	// A profile named explicitly must exist.
+	_, errb, code := run(t, d, nil, "whoami", "--profile", "ghost")
+	if code != cerr.ExitNotFound || !has(errb, `no profile "ghost"`) {
+		t.Fatalf("%d %s", code, errb)
+	}
+	_, _, code = run(t, d, map[string]string{"DAYTONA_PROFILE": "ghost"}, "whoami")
+	if code != cerr.ExitNotFound {
+		t.Fatal(code)
 	}
 	_, _, code = run(t, d, nil, "config", "set", "confirm", "false")
 	if code != 0 {
@@ -358,14 +372,19 @@ func TestProfileCommands(t *testing.T) {
 	if code != cerr.ExitUsage {
 		t.Fatal(code)
 	}
-	out, _, _ = run(t, d, nil, "config", "path")
+	out, _, _ = run(t, d, nil, "config", "path", "-o", "table")
 	if strings.TrimSpace(out) != d {
 		t.Fatal(out)
 	}
-	// with confirm=false a destructive verb needs no --yes
-	_, _, code = run(t, d, nil, "profile", "delete", "work")
+	// confirm=false turns terminal prompts off; off a terminal a destructive
+	// verb still needs --yes.
+	_, errb, code = run(t, d, nil, "profile", "delete", "work")
+	if code != cerr.ExitUsage || !has(errb, "--yes") {
+		t.Fatalf("confirm=false must not consent off a terminal: %d %s", code, errb)
+	}
+	_, _, code = run(t, d, nil, "profile", "delete", "work", "--yes")
 	if code != 0 {
-		t.Fatal("confirm=false should skip the prompt")
+		t.Fatal(code)
 	}
 }
 

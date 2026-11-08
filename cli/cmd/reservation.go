@@ -77,18 +77,26 @@ func newReservationRenewCommand() *cobra.Command {
 	var idempotencyKey string
 	cmd := &cobra.Command{
 		Use:   "renew ID",
-		Short: "Renew a Mac reservation for another period",
+		Short: "Charge and renew a Mac reservation for another period",
 		Long: "Charge the next period of an active reservation (POST /reservations/{id}/renew); period_end moves out by one period on the same Mac. The SDK twin is reservations.renew(…).\n" +
+			"Asks for confirmation at a terminal; off a terminal pass --yes (or set DAYTONA_YES=1).\n" +
 			"Without --idempotency-key the CLI sends a fresh key; pass your own to retry without paying for a second period.\n" +
-			"Example:\n  daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-2",
+			"Example:\n  daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-2 --yes",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			target := "reservation " + args[0] + " for another period, billed to the organization"
+			if err := a.PreflightConfirm("renew", target); err != nil {
+				return err
+			}
 			if !cmd.Flags().Changed("idempotency-key") {
 				idempotencyKey = uuid.NewString()
 			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
+				return err
+			}
+			if err := a.Confirm("renew", target); err != nil {
 				return err
 			}
 			var reservation gen.MacReservation

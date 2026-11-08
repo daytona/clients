@@ -24,10 +24,10 @@ func TestBillingSettings_useContractRoutesAndShapes(t *testing.T) {
 	}{
 		{name: "automatic top-up get", args: []string{"billing", "automatic-top-up", "get"}, method: http.MethodGet, path: "/automatic-top-up", status: http.StatusOK, response: automaticTopUpFixture()},
 		{name: "automatic top-up set", args: []string{"billing", "automatic-top-up", "set", "--threshold-cents", "1000", "--target-cents", "2000"}, method: http.MethodPut, path: "/automatic-top-up", status: http.StatusOK, response: automaticTopUpFixture(), body: map[string]any{"threshold_cents": float64(1000), "target_cents": float64(2000)}},
-		{name: "automatic top-up delete", args: []string{"billing", "automatic-top-up", "delete"}, method: http.MethodDelete, path: "/automatic-top-up", status: http.StatusNoContent},
+		{name: "automatic top-up delete", args: []string{"billing", "automatic-top-up", "delete", "--yes"}, method: http.MethodDelete, path: "/automatic-top-up", status: http.StatusNoContent},
 		{name: "balance notification get", args: []string{"billing", "balance-notification", "get"}, method: http.MethodGet, path: "/balance-notification", status: http.StatusOK, response: balanceNotificationFixture()},
 		{name: "balance notification set", args: []string{"billing", "balance-notification", "set", "--threshold-cents", "500"}, method: http.MethodPut, path: "/balance-notification", status: http.StatusOK, response: balanceNotificationFixture(), body: map[string]any{"threshold_cents": float64(500)}},
-		{name: "balance notification delete", args: []string{"billing", "balance-notification", "delete"}, method: http.MethodDelete, path: "/balance-notification", status: http.StatusNoContent},
+		{name: "balance notification delete", args: []string{"billing", "balance-notification", "delete", "--yes"}, method: http.MethodDelete, path: "/balance-notification", status: http.StatusNoContent},
 		{name: "coupon redeem", args: []string{"billing", "coupon", "redeem", "SAVE_10"}, method: http.MethodPost, path: "/coupons/redeem", status: http.StatusCreated, response: couponFixture(), body: map[string]any{"code": "SAVE_10"}},
 		{name: "plan get", args: []string{"billing", "plan", "get"}, method: http.MethodGet, path: "/plan", status: http.StatusOK, response: billingPlanFixture()},
 		{name: "plan list", args: []string{"billing", "plan", "list"}, method: http.MethodGet, path: "/plans", status: http.StatusOK, response: map[string]any{"plans": []map[string]any{planFixture()}}},

@@ -24,7 +24,7 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 	}{
 		{
 			name: "import image waits for ready",
-			args: []string{"image", "import", "img", "--ref", "python:3.12"},
+			args: []string{"image", "create", "img", "--ref", "python:3.12"},
 			expected: []expectedRequest{
 				{method: http.MethodPost, path: "/images", status: 202, bodyJSON: `{"name":"img","source":{"type":"registry","ref":"python:3.12"}}`, response: `{"id":"11111111-1111-1111-1111-111111111111","status":"pending"}`},
 				{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111", query: "wait=ready&timeout_ms=55000", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
@@ -32,7 +32,7 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 		},
 		{
 			name:     "import image",
-			args:     []string{"image", "import", "img", "--ref", "python:3.12", "--no-wait"},
+			args:     []string{"image", "create", "img", "--ref", "python:3.12", "--no-wait"},
 			expected: []expectedRequest{{method: http.MethodPost, path: "/images", status: 202, bodyJSON: `{"name":"img","source":{"type":"registry","ref":"python:3.12"}}`, response: `{"id":"11111111-1111-1111-1111-111111111111","status":"pending"}`}},
 		},
 		{

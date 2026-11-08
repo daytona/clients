@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -25,13 +26,18 @@ func GetMe(ctx context.Context, c *api.Client) (*gen.User, error) {
 }
 
 // ListOrgs calls GET /orgs.
+// OrgsPage reads one page of "/orgs".
+func OrgsPage(ctx context.Context, c *api.Client, cursor string, limit int64) (Page[gen.OrganizationListItem], error) {
+	return getPage(ctx, c, "/orgs", cursor, limit, func(resp gen.OrganizationPage) ([]gen.OrganizationListItem, *string) {
+		return resp.Organizations, resp.NextCursor
+	})
+}
+
+// ListOrgs collects every page (resolvers and pickers; the list commands read one page).
 func ListOrgs(ctx context.Context, c *api.Client) ([]gen.OrganizationListItem, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationListItem, *string, error) {
-		var resp gen.OrganizationPage
-		if err := c.Do(ctx, http.MethodGet, "/orgs", cursorQuery(cursor), nil, &resp); err != nil {
-			return nil, nil, err
-		}
-		return resp.Organizations, resp.NextCursor, nil
+		page, err := OrgsPage(ctx, c, cursor, 0)
+		return page.Items, &page.NextCursor, err
 	})
 }
 
@@ -44,13 +50,16 @@ func GetOrg(ctx context.Context, c *api.Client, orgID string) (*gen.Organization
 }
 
 // ListProjects calls GET /orgs/{org_id}/projects.
+// ProjectsPage reads one page of "/orgs/"+url.PathEscape(orgID)+"/projects".
+func ProjectsPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.Project], error) {
+	return getPage(ctx, c, "/orgs/"+url.PathEscape(orgID)+"/projects", cursor, limit, func(resp gen.ProjectPage) ([]gen.Project, *string) { return resp.Projects, resp.NextCursor })
+}
+
+// ListProjects collects every page (resolvers and pickers; the list commands read one page).
 func ListProjects(ctx context.Context, c *api.Client, orgID string) ([]gen.Project, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.Project, *string, error) {
-		var resp gen.ProjectPage
-		if err := c.Do(ctx, http.MethodGet, "/orgs/"+url.PathEscape(orgID)+"/projects", cursorQuery(cursor), nil, &resp); err != nil {
-			return nil, nil, err
-		}
-		return resp.Projects, resp.NextCursor, nil
+		page, err := ProjectsPage(ctx, c, orgID, cursor, 0)
+		return page.Items, &page.NextCursor, err
 	})
 }
 
@@ -75,11 +84,35 @@ func collectAll[T any](ctx context.Context, fetch func(context.Context, string) 
 	}
 }
 
-func cursorQuery(cursor string) url.Values {
-	if cursor == "" {
-		return nil
+// Page is one server page of a management list; NextCursor is empty on the
+// last page.
+type Page[T any] struct {
+	Items      []T
+	NextCursor string
+}
+
+// getPage reads one page: `limit` 0 lets the server choose the page size.
+func getPage[T, P any](ctx context.Context, c *api.Client, path, cursor string, limit int64, extract func(P) ([]T, *string)) (Page[T], error) {
+	query := url.Values{}
+	if cursor != "" {
+		query.Set("cursor", cursor)
 	}
-	return url.Values{"cursor": {cursor}}
+	if limit > 0 {
+		query.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp P
+	if err := c.Do(ctx, http.MethodGet, path, query, nil, &resp); err != nil {
+		return Page[T]{}, err
+	}
+	items, next := extract(resp)
+	page := Page[T]{Items: items, NextCursor: ""}
+	if page.Items == nil {
+		page.Items = []T{}
+	}
+	if next != nil {
+		page.NextCursor = *next
+	}
+	return page, nil
 }
 
 // CreateKey calls POST /projects/{project_id}/api-keys.

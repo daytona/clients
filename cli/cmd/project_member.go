@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/mgmt"
@@ -37,7 +38,8 @@ func newProjectMemberSubcmd() *cobra.Command {
 }
 
 func newProjectMemberListCmd() *cobra.Command {
-	return &cobra.Command{Use: "list", Short: "List members who can access the selected project", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	var flags pageFlags
+	cmd := &cobra.Command{Use: "list", Short: "List members who can access the selected project", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
 		projectID, err := a.RequireProject(ctx, pickProject(a))
@@ -48,12 +50,16 @@ func newProjectMemberListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		items, err := mgmt.ListProjectMembers(ctx, mc, projectID)
+		items, err := mgmtListPage(ctx, flags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.ProjectMember], error) {
+			return mgmt.ProjectMembersPage(ctx, mc, projectID, cursor, limit)
+		})
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), output.List[gen.ProjectMember]{Items: items}, projectMemberTable)
+		return output.ListOut(a.Printer(), items, projectMemberTable)
 	}}
+	addPageFlags(cmd, &flags)
+	return cmd
 }
 
 func newProjectMemberAddCmd() *cobra.Command {

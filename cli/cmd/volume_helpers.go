@@ -58,7 +58,7 @@ func volumeKV(volume gen.Volume) [][2]string {
 // validateVolumeCreateRequest reports invalid bucket options before sending a request.
 func validateVolumeCreateRequest(req gen.CreateVolumeRequest) error {
 	if volumeType(req) == "bucket" && req.SizeGib != nil {
-		return cerr.Usage("--size-gb applies to disk volumes only; a bucket volume has no scratch size")
+		return cerr.Usage("--size-gib applies to disk volumes only; a bucket volume has no scratch size")
 	}
 	if req.Bucket == nil {
 		return nil

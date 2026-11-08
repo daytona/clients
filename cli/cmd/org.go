@@ -133,7 +133,8 @@ func joinComma(s []string) string {
 
 func newOrgCmd() *cobra.Command {
 	c := &cobra.Command{Use: "org", Short: "Organizations: list, select, create, rename, delete, leave, limits", GroupID: GroupManagement}
-	c.AddCommand(&cobra.Command{
+	var listFlags pageFlags
+	list := &cobra.Command{
 		Use: "list", Short: "List the organizations you belong to", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
@@ -141,13 +142,17 @@ func newOrgCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			orgs, err := mgmt.ListOrgs(cmd.Context(), mc)
+			orgs, err := mgmtListPage(cmd.Context(), listFlags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.OrganizationListItem], error) {
+				return mgmt.OrgsPage(ctx, mc, cursor, limit)
+			})
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), output.List[gen.OrganizationListItem]{Items: orgs}, func(os []gen.OrganizationListItem) output.Table { return orgTable(os, a.Profile.OrgID) })
+			return output.ListOut(a.Printer(), orgs, func(os []gen.OrganizationListItem) output.Table { return orgTable(os, a.Profile.OrgID) })
 		},
-	})
+	}
+	addPageFlags(list, &listFlags)
+	c.AddCommand(list)
 	c.AddCommand(&cobra.Command{
 		Use: "get [id|name]", Short: "Show one organization (default: the selected one)", Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -55,7 +55,8 @@ type RegionError struct {
 	Message string `json:"message"`
 }
 
-// List is the envelope every list command emits.
+// List is the envelope every list command emits. ListOut prints Items as an
+// array even when it is nil.
 type List[T any] struct {
 	Items      []T           `json:"items"`
 	NextCursor string        `json:"next_cursor,omitempty"`
@@ -104,6 +105,9 @@ func (p Printer) TableOf(v any, t Table) error {
 
 // ListOut prints a list envelope; `tbl` builds the human table from items.
 func ListOut[T any](p Printer, l List[T], tbl func([]T) Table) error {
+	if l.Items == nil {
+		l.Items = []T{} // `items` is always an array, never null
+	}
 	switch p.Format {
 	case FormatJSON:
 		return p.json(l)
@@ -490,4 +494,54 @@ func (p Printer) plainTable(t Table) error {
 	}
 	_, err := io.WriteString(p.W, sb.String())
 	return err
+}
+
+// NDJSONDataWriter turns a byte stream into NDJSON: every write becomes one
+// {"data": "<text>"} line. A UTF-8 sequence split across writes is held back
+// until it is complete, so no line carries half a character.
+type NDJSONDataWriter struct {
+	enc  *json.Encoder
+	tail []byte
+}
+
+// NewNDJSONDataWriter returns an NDJSONDataWriter writing to w.
+func NewNDJSONDataWriter(w io.Writer) *NDJSONDataWriter {
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	return &NDJSONDataWriter{enc: enc}
+}
+
+func (n *NDJSONDataWriter) Write(p []byte) (int, error) {
+	data := append(n.tail, p...)
+	n.tail = nil
+	cut := len(data)
+	for back := 1; back <= 3 && back <= len(data); back++ {
+		if tail := data[len(data)-back:]; utf8.RuneStart(tail[0]) {
+			if !utf8.FullRune(tail) {
+				cut = len(data) - back
+			}
+			break
+		}
+	}
+	if cut < len(data) {
+		n.tail = append([]byte{}, data[cut:]...)
+		data = data[:cut]
+	}
+	if len(data) == 0 {
+		return len(p), nil
+	}
+	if err := n.enc.Encode(map[string]string{"data": string(data)}); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// Flush writes a held-back partial character (the stream ended inside it).
+func (n *NDJSONDataWriter) Flush() error {
+	if len(n.tail) == 0 {
+		return nil
+	}
+	tail := n.tail
+	n.tail = nil
+	return n.enc.Encode(map[string]string{"data": string(tail)})
 }

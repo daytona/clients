@@ -16,8 +16,9 @@ this machine, then attempts to revoke its cached login-minted project keys again
 the profile's saved API (at most 3 seconds total). Local logout completes even
 when that API is unavailable. Keys whose revocation fails expire server-side.
 
-Does not revoke manually supplied credentials, static-credential exchanges,
-other profiles' keys, keys from other APIs, or the identity provider's session.
+Does not revoke manually supplied credentials, keys an earlier release exchanged
+from them, other profiles' keys, keys from other APIs, or the identity
+provider's session.
 Keys no longer tracked after credential replacement or identity change are
 not revoked.
 --api-key and API URL overrides are not used for logout cleanup.`,

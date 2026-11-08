@@ -27,12 +27,23 @@ const (
 	ExitInterrupted = 130
 )
 
+// Sources of errors the CLI reports itself. Server errors carry the
+// source the server named (DAYTONA_API, DAYTONA_DAEMON, ...).
+const (
+	SourceCLI     = "CLI"     // a local error: usage, configuration, a local wait deadline
+	SourceProcess = "PROCESS" // a sandbox process ended unsuccessfully; its status passed through
+	SourceSSH     = "SSH"     // the system ssh client's exit status passed through
+)
+
 // Error is a CLI error with an exit code and an optional hint line.
 type Error struct {
 	Code int
 	Msg  string
 	Hint string
 	Err  error
+	// Source overrides the reported error source (see Details); empty
+	// means "the wrapped error's source, else CLI".
+	Source string
 }
 
 func (e *Error) Error() string {
@@ -53,6 +64,54 @@ func New(code int, format string, a ...any) *Error {
 func (e *Error) WithHint(format string, a ...any) *Error {
 	e.Hint = fmt.Sprintf(format, a...)
 	return e
+}
+
+// WithSource sets the reported error source.
+func (e *Error) WithSource(source string) *Error {
+	e.Source = source
+	return e
+}
+
+// Detailed is implemented by errors that carry the server's machine-readable
+// error metadata (the API and toolbox error envelopes).
+type Detailed interface {
+	error
+	ErrorCode() string
+	ErrorSource() string
+	ErrorTraceID() string
+}
+
+// Details is the machine-readable form of an error, printed on stderr as
+// {"error": {...}} in JSON output mode. Empty fields are omitted.
+type Details struct {
+	ExitCode int    `json:"exit_code"`
+	Code     string `json:"code,omitempty"`
+	Message  string `json:"message"`
+	Source   string `json:"source,omitempty"`
+	TraceID  string `json:"trace_id,omitempty"`
+	Hint     string `json:"hint,omitempty"`
+}
+
+// DetailsOf collects the exit code, message, hint and any server metadata
+// of err.
+func DetailsOf(err error) Details {
+	d := Details{ExitCode: ExitCode(err), Message: err.Error(), Source: SourceCLI}
+	var ce *Error
+	if errors.As(err, &ce) {
+		d.Hint = ce.Hint
+		if ce.Source != "" {
+			d.Source = ce.Source
+		}
+	}
+	var de Detailed
+	if errors.As(err, &de) {
+		d.Code = de.ErrorCode()
+		if src := de.ErrorSource(); src != "" {
+			d.Source = src
+		}
+		d.TraceID = de.ErrorTraceID()
+	}
+	return d
 }
 
 // Usage is a usage/validation error (exit 2).

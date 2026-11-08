@@ -26,7 +26,7 @@ func TestVolumeCommands_routeAndRenderJSON(t *testing.T) {
 	}{
 		{
 			name:     "create volume",
-			args:     []string{"volume", "create", "data", "--size-gb", "200"},
+			args:     []string{"volume", "create", "data", "--size-gib", "200"},
 			expected: []expectedRequest{{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"name":"data","size_gib":200}`, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")}},
 		},
 		{

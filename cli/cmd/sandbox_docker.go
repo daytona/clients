@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	dockerWaitDefaultTimeout = 60 * time.Second
 	dockerStatusMaxWait      = time.Second
 	dockerStatusPollInterval = 500 * time.Millisecond
 )
@@ -45,7 +44,7 @@ func newSandboxDockerStatusCommand() *cobra.Command {
 			a := FromContext(cmd.Context())
 			var status tbgen.DockerStatus
 			if waitForReady {
-				timeout, err := sandboxDockerWaitTimeout(cmd, a.Globals.Timeout)
+				timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 				if err != nil {
 					return err
 				}
@@ -72,10 +71,11 @@ func newSandboxDockerStatusCommand() *cobra.Command {
 					return err
 				}
 			}
-			return a.Printer().Object(status, sandboxDockerStatusKV(status))
+			return printToolboxObject(a, status, sandboxDockerStatusKV(status))
 		},
 	}
 	cmd.Flags().BoolVar(&waitForReady, "wait", false, "wait until Docker reaches ready")
+	addTimeoutFlag(cmd, "60s", "with --wait, how long to wait for Docker (Go duration)")
 	return cmd
 }
 
@@ -96,13 +96,6 @@ func sandboxDockerStatus(ctx context.Context, toolClient *toolboxclient.Client, 
 		return tbgen.DockerStatus{}, err
 	}
 	return status, nil
-}
-
-func sandboxDockerWaitTimeout(cmd *cobra.Command, raw string) (time.Duration, error) {
-	if flag := cmd.Flags().Lookup("timeout"); flag == nil || !flag.Changed {
-		return dockerWaitDefaultTimeout, nil
-	}
-	return workload.ParseTimeout(raw)
 }
 
 func waitForSandboxDockerReady(ctx context.Context, toolClient *toolboxclient.Client, sandboxID string, timeout time.Duration) (tbgen.DockerStatus, error) {

@@ -17,7 +17,7 @@ func newBillingAutomaticTopUpCmd() *cobra.Command {
 	cmd.AddCommand(
 		newBillingGetCmd[gen.AutomaticTopUp]("get", "/automatic-top-up", ""),
 		newBillingAutomaticTopUpSetCmd(),
-		newBillingDeleteCmd("delete", "/automatic-top-up", "Delete automatic top-up"),
+		newBillingDeleteCmd("delete", "/automatic-top-up", "Delete automatic top-up", "automatic top-up"),
 	)
 	return cmd
 }
@@ -53,7 +53,7 @@ func newBillingBalanceNotificationCmd() *cobra.Command {
 	cmd.AddCommand(
 		newBillingGetCmd[gen.BalanceNotification]("get", "/balance-notification", ""),
 		newBillingBalanceNotificationSetCmd(),
-		newBillingDeleteCmd("delete", "/balance-notification", "Delete the low-balance notification"),
+		newBillingDeleteCmd("delete", "/balance-notification", "Delete the low-balance notification", "the low-balance notification"),
 	)
 	return cmd
 }
@@ -86,10 +86,17 @@ func requireBillingFlag(cmd *cobra.Command, name string) error {
 	return nil
 }
 
-func newBillingDeleteCmd(use string, suffix string, short string) *cobra.Command {
-	return &cobra.Command{Use: use, Short: short, Long: short + ". Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+func newBillingDeleteCmd(use, suffix, short, target string) *cobra.Command {
+	return &cobra.Command{Use: use, Short: short, Long: short + ". Asks for confirmation; off a terminal pass --yes. Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		a := FromContext(cmd.Context())
+		if err := a.PreflightConfirm("delete", target); err != nil {
+			return err
+		}
 		orgID, mc, _, err := billingClient(cmd)
 		if err != nil {
+			return err
+		}
+		if err := a.Confirm("delete", target); err != nil {
 			return err
 		}
 		return mc.Do(cmd.Context(), http.MethodDelete, billingBasePath(orgID)+suffix, nil, nil, nil)

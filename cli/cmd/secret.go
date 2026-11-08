@@ -47,11 +47,14 @@ func newSecretSetCmd() *cobra.Command {
 		if err := mustOneOf(count, "--value", "--from-file", "--stdin"); err != nil {
 			return err
 		}
+		if cmd.Flags().Changed("from-file") && strings.TrimSpace(fromFile) == "" {
+			return cerr.Usage("--from-file is empty; pass the path of the file that holds the value")
+		}
 		if cmd.Flags().Changed("value") {
 			a := FromContext(cmd.Context())
 			a.Info("note: --value puts the secret in the process list and shell history; prefer --stdin or --from-file")
 		}
-		secretValue, err := secretInputValue(value, fromFile, useStdin)
+		secretValue, err := secretInputValue(value, fromFile, cmd.Flags().Changed("from-file"), useStdin)
 		if err != nil {
 			return err
 		}
@@ -206,8 +209,10 @@ func secretPutReq(cmd *cobra.Command, existing *gen.Secret, input secretSetInput
 	return req, nil
 }
 
-func secretInputValue(value string, fromFile string, useStdin bool) (string, error) {
-	if strings.TrimSpace(fromFile) != "" {
+// secretInputValue reads the value from the one source the caller selected
+// (by flag presence, never by the flag's content).
+func secretInputValue(value, fromFile string, fromFileSet, useStdin bool) (string, error) {
+	if fromFileSet {
 		body, err := os.ReadFile(fromFile)
 		if err != nil {
 			return "", cerr.Wrap(cerr.ExitFailure, err, "read %s: %v", fromFile, err)

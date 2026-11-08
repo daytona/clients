@@ -65,11 +65,7 @@ func newSandboxSearchCommand() *cobra.Command {
 			flags.maxMemorySet = cmd.Flags().Changed("max-memory")
 			flags.minDiskSet = cmd.Flags().Changed("min-disk")
 			flags.maxDiskSet = cmd.Flags().Changed("max-disk")
-			region := strings.TrimSpace(a.Globals.Region)
-			if region == "" {
-				region = strings.TrimSpace(a.Getenv("DAYTONA_REGION"))
-			}
-			if region != "" {
+			if region := strings.TrimSpace(a.Globals.Region); region != "" {
 				flags.regions = []string{region}
 			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))

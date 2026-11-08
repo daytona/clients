@@ -48,7 +48,7 @@ func TestKeyAndOrgKeyCommands_JSON(t *testing.T) {
 	if code != 0 || mustJSON(t, out)["items"] == nil {
 		t.Fatalf("org-key list: %d %s", code, out)
 	}
-	require.Empty(t, findRequest(t, f, http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/api-keys").Query)
+	require.Equal(t, "limit=100", findRequest(t, f, http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/api-keys").Query)
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "org-key", "revoke", "33333333-3333-3333-3333-333333333333", "--yes")
 	if code != 0 || mustJSON(t, out)["revoked"] != "33333333-3333-3333-3333-333333333333" {
 		t.Fatalf("org-key revoke: %d %s", code, out)

@@ -76,6 +76,8 @@ func newSnapshotCreateCommand() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "snapshot name")
 	// Not MarkFlagRequired: `name` may come from --file (the RunE checks the
 	// merged body), and cobra would reject the command before RunE runs.
+	addFileFlag(cmd, "")
+	addWaitFlags(cmd)
 	return cmd
 }
 

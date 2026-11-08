@@ -43,9 +43,9 @@ func decodeAndCreateMacos(cmd *cobra.Command, a *app.App, _ sandboxCreateFlags, 
 }
 
 func macosCreateLifecycleFlags(f *pflag.FlagSet, flags *sandboxCreateFlags) {
-	f.StringVar(&flags.onTimeout, "on-timeout", "", "action when --timeout elapses: stop|delete (stop needs --persistent)")
-	f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: stop|delete (stop needs --persistent)")
-	flagPlaceholder(f, "on-timeout", "ACTION")
+	f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, or stop with --persistent")
+	f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete, or stop with --persistent")
+	flagPlaceholder(f, "on-lifecycle-timeout", "ACTION")
 	flagPlaceholder(f, "on-idle-timeout", "ACTION")
 }
 

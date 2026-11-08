@@ -20,17 +20,18 @@ func CreateProjectKey(ctx context.Context, c *api.Client, projectID string, req 
 	return &resp, nil
 }
 
+// ProjectKeysPage reads one page of "/projects/"+url.PathEscape(projectID)+"/api-keys".
+func ProjectKeysPage(ctx context.Context, c *api.Client, projectID string, cursor string, limit int64) (Page[gen.ProjectApiKey], error) {
+	return getPage(ctx, c, "/projects/"+url.PathEscape(projectID)+"/api-keys", cursor, limit, func(resp gen.ProjectApiKeyPage) ([]gen.ProjectApiKey, *string) {
+		return resp.ProjectApiKeys, resp.NextCursor
+	})
+}
+
+// ListProjectKeys collects every page (resolvers and pickers; the list commands read one page).
 func ListProjectKeys(ctx context.Context, c *api.Client, projectID string) ([]gen.ProjectApiKey, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.ProjectApiKey, *string, error) {
-		query := cursorQuery(cursor)
-		if query == nil {
-			query = url.Values{}
-		}
-		var resp gen.ProjectApiKeyPage
-		if err := c.Do(ctx, http.MethodGet, "/projects/"+url.PathEscape(projectID)+"/api-keys", query, nil, &resp); err != nil {
-			return nil, nil, err
-		}
-		return resp.ProjectApiKeys, resp.NextCursor, nil
+		page, err := ProjectKeysPage(ctx, c, projectID, cursor, 0)
+		return page.Items, &page.NextCursor, err
 	})
 }
 
@@ -46,17 +47,18 @@ func CreateOrgKey(ctx context.Context, c *api.Client, orgID string, req gen.Crea
 	return &resp, nil
 }
 
+// OrgKeysPage reads one page of "/orgs/"+url.PathEscape(orgID)+"/api-keys".
+func OrgKeysPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.OrganizationApiKey], error) {
+	return getPage(ctx, c, "/orgs/"+url.PathEscape(orgID)+"/api-keys", cursor, limit, func(resp gen.OrganizationApiKeyPage) ([]gen.OrganizationApiKey, *string) {
+		return resp.OrganizationApiKeys, resp.NextCursor
+	})
+}
+
+// ListOrgKeys collects every page (resolvers and pickers; the list commands read one page).
 func ListOrgKeys(ctx context.Context, c *api.Client, orgID string) ([]gen.OrganizationApiKey, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationApiKey, *string, error) {
-		query := cursorQuery(cursor)
-		if query == nil {
-			query = url.Values{}
-		}
-		var resp gen.OrganizationApiKeyPage
-		if err := c.Do(ctx, http.MethodGet, "/orgs/"+url.PathEscape(orgID)+"/api-keys", query, nil, &resp); err != nil {
-			return nil, nil, err
-		}
-		return resp.OrganizationApiKeys, resp.NextCursor, nil
+		page, err := OrgKeysPage(ctx, c, orgID, cursor, 0)
+		return page.Items, &page.NextCursor, err
 	})
 }
 

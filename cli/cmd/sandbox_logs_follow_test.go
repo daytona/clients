@@ -68,12 +68,12 @@ func TestSandboxLogsFollow_yamlRejected(t *testing.T) {
 	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "-o", "yaml", "sandbox", "logs", "11111111-1111-1111-1111-111111111111", "--follow")
 	require.Equal(t, cerr.ExitUsage, code)
 	require.Contains(t, stderr, "--output yaml is not supported with --follow")
-	require.Len(t, api.requests, 1)
+	require.Empty(t, api.requests, "refused before any request")
 }
 
 func TestSandboxPreviewURL_ttlRequiresSigned(t *testing.T) {
 	api := newFakeAPI(t)
-	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "sandbox", "preview-url", "sbx", "8080", "--ttl", "300")
+	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "sandbox", "port", "preview-url", "sbx", "8080", "--ttl", "5m")
 	require.Equal(t, cerr.ExitUsage, code)
 	require.Contains(t, stderr, "--ttl requires --signed")
 	require.Empty(t, api.requests)

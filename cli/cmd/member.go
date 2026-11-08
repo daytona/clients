@@ -24,7 +24,8 @@ func newMemberCmd() *cobra.Command {
 }
 
 func newMemberListCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags pageFlags
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List members of the selected organization",
 		Long:  "List members of the selected organization.\nExamples:\n  daytona member list\n  daytona member list --org org-123",
@@ -40,13 +41,17 @@ func newMemberListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			items, err := mgmt.ListMembers(ctx, mc, orgID)
+			items, err := mgmtListPage(ctx, flags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.OrganizationMember], error) {
+				return mgmt.MembersPage(ctx, mc, orgID, cursor, limit)
+			})
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), output.List[gen.OrganizationMember]{Items: items}, memberTable)
+			return output.ListOut(a.Printer(), items, memberTable)
 		},
 	}
+	addPageFlags(cmd, &flags)
+	return cmd
 }
 
 func newMemberUpdateCmd() *cobra.Command {
@@ -95,22 +100,22 @@ func newMemberUpdateCmd() *cobra.Command {
 			return a.Printer().Object(updated, [][2]string{{"user_id", member.UserId.String()}, {"roles", joinComma(updated.Roles)}})
 		},
 	}
-	cmd.Flags().StringVar(&roleCSV, "role", "", "comma-separated role slugs")
+	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (repeatable or comma-separated); replaces the member's roles")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "preview the revocation count without committing the role change")
 	return cmd
 }
 
 func newMemberRemoveCmd() *cobra.Command {
-	var preview bool
+	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "remove <user>",
 		Short: "Remove a member from the selected organization",
-		Long:  "Remove a member from the selected organization.\nExamples:\n  daytona member remove user-123 --yes\n  daytona member remove user@example.com --preview",
+		Long:  "Remove a member from the selected organization.\nExamples:\n  daytona member remove user-123 --yes\n  daytona member remove user@example.com --dry-run",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
-			if !preview {
+			if !dryRun {
 				if err := a.PreflightConfirm("remove", "member "+args[0]); err != nil {
 					return err
 				}
@@ -127,7 +132,7 @@ func newMemberRemoveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if preview {
+			if dryRun {
 				resp, err := mgmt.PreviewMemberRemoval(ctx, mc, orgID, memberID)
 				if err != nil {
 					return err
@@ -143,7 +148,7 @@ func newMemberRemoveCmd() *cobra.Command {
 			return a.Printer().Object(map[string]any{"removed": memberID}, [][2]string{{"removed", memberID}})
 		},
 	}
-	cmd.Flags().BoolVar(&preview, "preview", false, "show revoked API-key and preview-grant counts without removing the member")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show revoked API-key and preview-grant counts without removing the member")
 	return cmd
 }
 

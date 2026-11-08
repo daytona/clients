@@ -36,7 +36,7 @@ func TestMemberCommands_JSONAndYesGuard(t *testing.T) {
 	if f.requests[2].Method != http.MethodPost || f.requests[2].Path != "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/update-preview" || f.requests[2].Body["roles"] == nil {
 		t.Fatalf("preview request: %+v", f.requests[2])
 	}
-	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "member", "remove", testUserID, "--preview")
+	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "member", "remove", testUserID, "--dry-run")
 	if code != 0 || mustJSON(t, out)["revoked_api_keys"].(float64) != 3 {
 		t.Fatalf("preview: %d %s", code, out)
 	}

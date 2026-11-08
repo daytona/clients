@@ -30,6 +30,9 @@ func newSandboxLogsCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if follow && a.Format == output.FormatYAML {
+				return cerr.Usage("--output yaml is not supported with --follow")
+			}
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
@@ -37,9 +40,6 @@ func newSandboxLogsCommand() *cobra.Command {
 			resolved, err := workload.ResolveSandbox(cmd.Context(), home, workload.NewCatalogCache(), args[0])
 			if err != nil {
 				return err
-			}
-			if follow && a.Format == output.FormatYAML {
-				return cerr.Usage("--output yaml is not supported with --follow")
 			}
 			path, err := sandboxLogsPath(resolved.Detail, entrypoint)
 			if err != nil {
@@ -109,11 +109,11 @@ func newSandboxUsageCommand() *cobra.Command {
 
 func newSandboxPreviewURLCommand() *cobra.Command {
 	signed := false
-	ttl := int64(60)
+	ttl := secondsFlag{seconds: 60}
 	cmd := &cobra.Command{
-		Use:   "preview-url <id> <port>",
-		Short: "Mint a preview URL",
-		Long:  "Mint a preview URL.\nExamples:\n  daytona sandbox preview-url <id> 8080\n  daytona sandbox preview-url <id> 8080 --signed --ttl 300",
+		Use:   "preview-url <sandbox-id> <port>",
+		Short: "Mint a preview URL for a sandbox port",
+		Long:  "Mint a preview URL for a sandbox port.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Flags().Changed("ttl") && !signed {
@@ -131,7 +131,7 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 			path := fmt.Sprintf("/sandboxes/%s/ports/%s/preview-url", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
 			if signed {
 				path = fmt.Sprintf("/sandboxes/%s/ports/%s/signed-preview-urls", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
-				body := gen.CreateSandboxSignedPreviewUrlRequest{ExpiresInSeconds: &ttl}
+				body := gen.CreateSandboxSignedPreviewUrlRequest{ExpiresInSeconds: &ttl.seconds}
 				var resp gen.SignedPreviewUrl
 				if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, body, &resp); err != nil {
 					return err
@@ -146,16 +146,16 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&signed, "signed", false, "mint a short-lived signed preview URL")
-	cmd.Flags().Int64Var(&ttl, "ttl", ttl, "signed preview TTL in seconds")
+	addSecondsFlag(cmd.Flags(), &ttl, "ttl", "60s", "lifetime of a --signed preview URL (Go duration)")
 	cmd.AddCommand(newSandboxPreviewURLExpireCommand())
 	return cmd
 }
 
 func newSandboxPreviewURLExpireCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "expire <id> <port> <token>",
+		Use:   "expire <sandbox-id> <port> <token>",
 		Short: "Expire one signed preview URL",
-		Long:  "Expire one signed preview URL.\nExample:\n  daytona sandbox preview-url expire <id> 8080 <token>",
+		Long:  "Expire one signed preview URL.\nExample:\n  daytona sandbox port preview-url expire <sandbox-id> 8080 <token>",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())

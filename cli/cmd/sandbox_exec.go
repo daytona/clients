@@ -46,7 +46,6 @@ func newSandboxCommand() *cobra.Command {
 		newSandboxUpdateCommand(),
 		newSandboxLogsCommand(),
 		newSandboxUsageCommand(),
-		newSandboxPreviewURLCommand(),
 		newSandboxExecSubcommand(),
 		newSandboxSSHSubcommand(),
 		newSandboxCPSubcommand(),
@@ -80,9 +79,6 @@ func newSandboxExecSubcommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if a.Globals.File == "-" {
-				return cerr.Usage("exec reads stdin as the process input; --file - is not supported")
-			}
 			execCtx := cmd.Context()
 			cancel := func() {}
 			if timeout > 0 {
@@ -113,11 +109,7 @@ func newSandboxExecSubcommand() *cobra.Command {
 			if user != "" {
 				request.User = &user
 			}
-			stdin, err := processStdinReader(a)
-			if err != nil {
-				return err
-			}
-			if stdin != nil {
+			if stdin := processStdinReader(); stdin != nil {
 				request.Stdin = stdinModePtr(tbgen.Open)
 				result, err := toolClient.StreamProcess(execCtx, toolboxclient.StreamProcessOptions{
 					Request:     request,
@@ -150,6 +142,7 @@ func newSandboxExecSubcommand() *cobra.Command {
 	cmd.Flags().StringArrayVar(&envPairs, "env", nil, "environment variable to set (KEY=VALUE, repeatable)")
 	cmd.Flags().BoolVar(&tty, "tty", false, "run the command in a PTY and attach interactively")
 	cmd.Flags().StringVar(&user, "user", "", "sandbox OS user to run the command as")
+	addTimeoutFlag(cmd, defaultWaitTimeout, "how long the command may run before the CLI stops waiting (Go duration; exit 8)")
 	return cmd
 }
 

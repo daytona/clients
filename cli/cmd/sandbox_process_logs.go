@@ -55,6 +55,7 @@ func newSandboxProcessLogsCommand() *cobra.Command {
 	cmd.Flags().StringVar(&encoding, "encoding", "text", "log encoding: text|base64")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max frames to return")
 	cmd.Flags().BoolVar(&follow, "follow", false, "follow the log stream with SSE")
+	addTimeoutFlag(cmd, defaultWaitTimeout, "with --follow, how long to follow the log (Go duration)")
 	return cmd
 }
 
@@ -84,8 +85,13 @@ func followSandboxProcessLogs(cmd *cobra.Command, a *app.App, toolClient *toolbo
 
 func followSandboxProcessLogsNDJSON(ctx context.Context, a *app.App, toolClient *toolboxclient.Client, processID, cursor, encoding string, limit int, timeout time.Duration) error {
 	encoder := json.NewEncoder(a.Stdout)
+	encoder.SetEscapeHTML(false)
 	result, _, eof, err := toolClient.FollowProcessLogFrames(ctx, processID, cursor, logEncodingOrDefault(encoding), limit, func(frame tbgen.LogFrameDto) error {
-		return encoder.Encode(frame)
+		converted, err := output.SnakeCase(frame)
+		if err != nil {
+			return err
+		}
+		return encoder.Encode(converted)
 	})
 	if err := mapFollowProcessError(ctx, timeout, eof, err); err != nil {
 		return err
@@ -124,7 +130,7 @@ func readSandboxProcessLogs(cmd *cobra.Command, a *app.App, toolClient *toolboxc
 		}
 		return flushLogs()
 	}
-	return a.Printer().Object(page, nil)
+	return printToolboxObject(a, page, nil)
 }
 
 func processLogWriters(a *app.App) (io.Writer, io.Writer, func() error) {

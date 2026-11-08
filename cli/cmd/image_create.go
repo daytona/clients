@@ -19,11 +19,10 @@ import (
 func newImageImportCommand() *cobra.Command {
 	ref := ""
 	cmd := &cobra.Command{
-		Use:     "create <name>",
-		Aliases: []string{"import"},
-		Short:   "Import an image from a registry ref",
-		Long:    "Import an image from a registry ref.\nExample:\n  daytona image create my-base --ref python:3.12",
-		Args:    cobra.ExactArgs(1),
+		Use:   "create <name>",
+		Short: "Import an image from a registry ref",
+		Long:  "Import an image from a registry ref.\nExample:\n  daytona image create my-base --ref python:3.12",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			body, err := input.Load(a.Globals.File, os.Stdin, false)
@@ -57,6 +56,8 @@ func newImageImportCommand() *cobra.Command {
 	cmd.Flags().StringVar(&ref, "ref", "", "registry ref to import")
 	// Not MarkFlagRequired: `source` may come from --file (the RunE checks
 	// the merged body).
+	addFileFlag(cmd, "")
+	addWaitFlags(cmd)
 	return cmd
 }
 
@@ -66,8 +67,12 @@ func newImageBuildCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build <name>",
 		Short: "Build an image from a Dockerfile context",
-		Long:  "Build an image from a Dockerfile context.\nExample:\n  daytona image build my-base --dockerfile Dockerfile --context .",
-		Args:  cobra.ExactArgs(1),
+		Long: "Build an image from a Dockerfile context: a directory, or a tar file uploaded as is.\n" +
+			"A directory is uploaded without what its ignore file excludes, with Docker's rules: <Dockerfile>.dockerignore\n" +
+			"next to the Dockerfile when it exists, else .dockerignore at the context root. The Dockerfile and the\n" +
+			"ignore file are always sent. The 64 MiB context limit counts what is uploaded.\n" +
+			"Example:\n  daytona image build my-base --dockerfile Dockerfile --context .",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			meta, dockerfile, contextFile, err := buildImageMultipartMeta(cmd, a, args[0], dockerfilePath, contextPath)
@@ -85,10 +90,12 @@ func newImageBuildCommand() *cobra.Command {
 			return printCreatedImage(cmd.Context(), a, client, resp)
 		},
 	}
-	cmd.Flags().StringVar(&dockerfilePath, "dockerfile", "", "path to the Dockerfile inside the context")
+	cmd.Flags().StringVar(&dockerfilePath, "dockerfile", "", "path to the Dockerfile inside the context (default Dockerfile)")
 	cmd.Flags().StringVar(&contextPath, "context", "", "path to the build context tar or directory")
 	// Not MarkFlagRequired: both may come from --file
 	// (buildImageMultipartMeta checks the merged values).
+	addFileFlag(cmd, `JSON object {"name", "region_id", "cpu_arch", "dockerfile", "context"} (strings) from a file (or - for stdin); explicit flags override its fields`)
+	addWaitFlags(cmd)
 	return cmd
 }
 

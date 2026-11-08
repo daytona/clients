@@ -254,10 +254,16 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 		require.Equal(t, []string{"arm-basic", "ARM", "Basic", "arm64", "2", "-"}, strings.Fields(lines[3]))
 	})
 
-	t.Run("json is the catalog response verbatim", func(t *testing.T) {
+	t.Run("json is the list envelope of the region's CPU types", func(t *testing.T) {
 		stdout, _, err := runCLI(t, []string{"cpu-type", "list", "--region", "region-b"}, []expectedRequest{routing, catalog})
 		require.NoError(t, err)
-		require.JSONEq(t, cpuCatalogFixture(), stdout)
+		var fixture struct {
+			CPUTypes []json.RawMessage `json:"cpu_types"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(cpuCatalogFixture()), &fixture))
+		want, err := json.Marshal(map[string]any{"items": fixture.CPUTypes, "incomplete": false})
+		require.NoError(t, err)
+		require.JSONEq(t, string(want), stdout)
 	})
 
 	t.Run("empty catalog prints no results", func(t *testing.T) {

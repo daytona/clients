@@ -46,7 +46,8 @@ func TestSandboxDockerStatus_waitPollsUntilReady(t *testing.T) {
 	out := requireJSONStdout(t, stdout)
 	require.Equal(t, "ready", out["state"])
 	require.Equal(t, "daemon", out["owner"])
-	require.Equal(t, "proc-1", out["processId"])
+	require.Equal(t, "proc-1", out["process_id"], "toolbox output is snake_case")
+	require.NotContains(t, out, "processId")
 }
 
 func TestSandboxDockerStatus_waitFailsOnTerminalReason(t *testing.T) {

@@ -37,16 +37,16 @@ func buildSandboxCreateBody(cmd *cobra.Command, a *app.App, flags sandboxCreateF
 	workload.SetIfChanged(body, cmd.Flags(), "cores", "cores", flags.cores)
 	workload.SetIfChanged(body, cmd.Flags(), "memory", "memory_mib", flags.memory)
 	workload.SetIfChanged(body, cmd.Flags(), "disk", "disk_mib", flags.disk)
-	workload.SetIfChanged(body, cmd.Flags(), "cores-max", "cores_max", flags.coresMax)
-	workload.SetIfChanged(body, cmd.Flags(), "mem-max", "memory_max_mib", flags.memMax)
+	workload.SetIfChanged(body, cmd.Flags(), "cpu-max", "cores_max", flags.cpuMax)
+	workload.SetIfChanged(body, cmd.Flags(), "memory-max", "memory_max_mib", flags.memoryMax)
 	workload.SetIfChanged(body, cmd.Flags(), "disk-max", "disk_max_mib", flags.diskMax)
 	workload.SetIfChanged(body, cmd.Flags(), "cpu-arch", "cpu_arch", flags.cpuArch)
 	workload.SetIfChanged(body, cmd.Flags(), "cpu-type", "cpu_type", flags.cpuType)
 	workload.SetIfChanged(body, cmd.Flags(), "user", "user", flags.user)
 	workload.SetIfChanged(body, cmd.Flags(), "persistent", "persistent", flags.persistent)
 	workload.SetIfChanged(body, cmd.Flags(), "spot", "spot", flags.spot)
-	workload.SetIfChanged(body, cmd.Flags(), "wait", "wait_seconds", flags.wait)
-	workload.SetIfChanged(body, cmd.Flags(), "create-ttl", "create_timeout_seconds", flags.createTTL)
+	workload.SetIfChanged(body, cmd.Flags(), "wait", "wait_seconds", flags.wait.seconds)
+	workload.SetIfChanged(body, cmd.Flags(), "create-ttl", "create_timeout_seconds", flags.createTTL.seconds)
 	workload.SetIfChanged(body, cmd.Flags(), "reservation", "reservation", flags.reservation)
 	workload.SetIfChanged(body, cmd.Flags(), "auto-renew", "auto_renew", flags.autoRenew)
 	if err := workload.SetKVMapIfChanged(body, cmd.Flags(), "env", "env", "--env", flags.env); err != nil {
@@ -73,14 +73,14 @@ func buildSandboxCreateBody(cmd *cobra.Command, a *app.App, flags sandboxCreateF
 	if err := setNetworkPolicy(cmd, body, flags); err != nil {
 		return nil, err
 	}
-	if cmd.Flags().Changed("timeout") {
-		workload.NestedBody(body, "lifecycle_policy").Set("timeout_seconds", flags.timeoutSecs)
+	if cmd.Flags().Changed("lifecycle-timeout") {
+		workload.NestedBody(body, "lifecycle_policy").Set("timeout_seconds", flags.lifecycleTTL.seconds)
 	}
-	if cmd.Flags().Changed("on-timeout") {
-		workload.NestedBody(body, "lifecycle_policy").Set("on_timeout", flags.onTimeout)
+	if cmd.Flags().Changed("on-lifecycle-timeout") {
+		workload.NestedBody(body, "lifecycle_policy").Set("on_timeout", flags.onLifecycleTTL)
 	}
 	if cmd.Flags().Changed("idle-timeout") {
-		workload.NestedBody(body, "lifecycle_policy").Set("idle_expiry_seconds", flags.idleTimeout)
+		workload.NestedBody(body, "lifecycle_policy").Set("idle_expiry_seconds", flags.idleTimeout.seconds)
 	}
 	if cmd.Flags().Changed("on-idle-timeout") {
 		workload.NestedBody(body, "lifecycle_policy").Set("on_idle_timeout", flags.onIdleTimeout)

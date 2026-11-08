@@ -167,20 +167,31 @@ func mapError(method, path string, resp *http.Response) error {
 	if hint := hintFor(resp.StatusCode, env); hint != "" {
 		e = e.WithHint("%s", hint)
 	}
-	if code := strings.TrimSpace(env.Code); code != "" {
-		e.Err = &DaemonError{Code: code, Status: resp.StatusCode}
+	traceID := resp.Header.Get("x-daytona-trace-id")
+	if env.TraceId != nil && traceID == "" {
+		traceID = *env.TraceId
+	}
+	if code := strings.TrimSpace(env.Code); code != "" || env.Source != "" || traceID != "" {
+		e.Err = &DaemonError{Code: code, Status: resp.StatusCode, Source: strings.TrimSpace(env.Source), TraceID: traceID}
 	}
 	return e
 }
 
 // DaemonError carries the toolbox API's machine-readable error code
-// (x-daytona-error-codes in the toolbox contract).
+// (x-daytona-error-codes in the toolbox contract), source and trace id.
 type DaemonError struct {
-	Code   string
-	Status int
+	Code    string
+	Status  int
+	Source  string
+	TraceID string
 }
 
 func (d *DaemonError) Error() string { return d.Code }
+
+// ErrorCode, ErrorSource and ErrorTraceID implement cerr.Detailed.
+func (d *DaemonError) ErrorCode() string    { return d.Code }
+func (d *DaemonError) ErrorSource() string  { return d.Source }
+func (d *DaemonError) ErrorTraceID() string { return d.TraceID }
 
 // IsDaemonCode reports whether err carries the given toolbox error code.
 func IsDaemonCode(err error, code string) bool {

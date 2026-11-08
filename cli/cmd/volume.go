@@ -24,7 +24,7 @@ func init() {
 func newVolumeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "volume", Short: "Manage volumes",
-		Long:    "Manage volumes.\nExamples:\n  daytona volume create data --size-gb 200\n  daytona volume list",
+		Long:    "Manage volumes.\nExamples:\n  daytona volume create data --size-gib 200\n  daytona volume list",
 		GroupID: GroupWorkload,
 	}
 	cmd.AddCommand(newVolumeCreateCommand(), newVolumeListCommand(), newVolumeGetCommand(), newVolumeDeleteCommand())
@@ -32,18 +32,18 @@ func newVolumeCommand() *cobra.Command {
 }
 
 func newVolumeCreateCommand() *cobra.Command {
-	sizeGB := int32(100)
+	sizeGiB := int32(100)
 	typeName := "disk"
 	bucketName := ""
 	endpoint := ""
-	region := ""
+	bucketRegion := ""
 	prefix := ""
 	accessKeySecret := ""
 	secretKeySecret := ""
 	pathStyle := false
 	cmd := &cobra.Command{
 		Use: "create <name>", Short: "Create a volume",
-		Long: "Create a volume.\nExamples:\n  daytona volume create data --size-gb 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET",
+		Long: "Create a volume.\nExamples:\n  daytona volume create data --size-gib 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -52,7 +52,7 @@ func newVolumeCreateCommand() *cobra.Command {
 				return err
 			}
 			body.Set("name", args[0])
-			workload.SetIfChanged(body, cmd.Flags(), "size-gb", "size_gib", sizeGB)
+			workload.SetIfChanged(body, cmd.Flags(), "size-gib", "size_gib", sizeGiB)
 			workload.SetIfChanged(body, cmd.Flags(), "type", "type", typeName)
 			if cmd.Flags().Changed("bucket") {
 				bucket := workload.NestedBody(body, "bucket")
@@ -60,7 +60,7 @@ func newVolumeCreateCommand() *cobra.Command {
 				bucket.Set("origin", "external")
 			}
 			workload.SetNestedIfChanged(body, cmd.Flags(), "endpoint", "bucket", "endpoint", endpoint)
-			workload.SetNestedIfChanged(body, cmd.Flags(), "region", "bucket", "region", region)
+			workload.SetNestedIfChanged(body, cmd.Flags(), "bucket-region", "bucket", "region", bucketRegion)
 			workload.SetNestedIfChanged(body, cmd.Flags(), "prefix", "bucket", "prefix", prefix)
 			workload.SetNestedIfChanged(body, cmd.Flags(), "path-style", "bucket", "path_style", pathStyle)
 			if cmd.Flags().Changed("access-key-secret") {
@@ -87,15 +87,16 @@ func newVolumeCreateCommand() *cobra.Command {
 			return a.Printer().Object(resp, volumeKV(resp))
 		},
 	}
-	cmd.Flags().Int32Var(&sizeGB, "size-gb", sizeGB, "volume size in GiB (disk volumes only)")
+	cmd.Flags().Int32Var(&sizeGiB, "size-gib", sizeGiB, "volume size in GiB (disk volumes only)")
 	cmd.Flags().StringVar(&typeName, "type", typeName, "volume type: disk|bucket")
 	cmd.Flags().StringVar(&bucketName, "bucket", bucketName, "customer bucket name; on --type bucket, omitting this creates a platform-owned bucket volume")
 	cmd.Flags().StringVar(&endpoint, "endpoint", endpoint, "S3 endpoint URL for a customer bucket")
-	cmd.Flags().StringVar(&region, "region", region, "bucket region hint")
+	cmd.Flags().StringVar(&bucketRegion, "bucket-region", bucketRegion, "region of a customer bucket (the S3 region, not a Daytona region)")
 	cmd.Flags().StringVar(&prefix, "prefix", prefix, "bucket prefix")
 	cmd.Flags().BoolVar(&pathStyle, "path-style", pathStyle, "use path-style S3 addressing for a customer bucket")
 	cmd.Flags().StringVar(&accessKeySecret, "access-key-secret", accessKeySecret, "project secret name holding the bucket access key")
 	cmd.Flags().StringVar(&secretKeySecret, "secret-key-secret", secretKeySecret, "project secret name holding the bucket secret key")
+	addFileFlag(cmd, "")
 	return cmd
 }
 

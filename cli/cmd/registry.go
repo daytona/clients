@@ -60,7 +60,7 @@ func newRegistrySetCmd() *cobra.Command {
 			if cmd.Flags().Changed("password") {
 				FromContext(cmd.Context()).Info("note: --password puts the credential in the process list and shell history; prefer --password-stdin")
 			}
-			value, err := secretInputValue(password, "", passwordStdin)
+			value, err := secretInputValue(password, "", false, passwordStdin)
 			if err != nil {
 				return err
 			}

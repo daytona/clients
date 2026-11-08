@@ -107,6 +107,7 @@ func newSandboxWaitCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&status, "for", status, "status to wait for")
+	addTimeoutFlag(cmd, defaultWaitTimeout, "how long to wait (Go duration)")
 	return cmd
 }
 
