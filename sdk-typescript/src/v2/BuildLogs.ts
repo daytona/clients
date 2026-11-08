@@ -473,7 +473,7 @@ export async function readBuildLogs(api: HttpTransport, path: string): Promise<s
     // diagnostic body was interrupted by our abort timer.
     if (error instanceof DaytonaError && error.statusCode !== undefined && !(error instanceof ClientTimeoutError || error instanceof ConnectionError)) throw error
     if (controller.signal.aborted) throw new ClientTimeoutError('build log read timed out')
-    if (error instanceof ProtocolError) throw new DaytonaError(error.message, { code: 'BUILD_LOG_PROTOCOL_ERROR' })
+    if (error instanceof ProtocolError) throw new DaytonaError(error.message, { code: 'BUILD_LOG_PROTOCOL_ERROR', source: 'SDK' })
     throw error
   } finally {
     clearTimeout(timer)

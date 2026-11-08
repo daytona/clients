@@ -792,7 +792,7 @@ async function finishAxiosError(
   if (isAbortError(error)) throw error
   if (error instanceof DaytonaError) throw error
   if (error instanceof AxiosError) throw createAxiosDaytonaError(error)
-  throw new DaytonaError(error instanceof Error ? error.message : String(error))
+  throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
 }
 
 class PlatformTokenProvider implements HttpAuthProvider {
@@ -914,7 +914,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
       // A non-positive lifetime is a broken exchange, not a token to cache.
       const expiresIn = typeof payload.expires_in === 'number' && Number.isFinite(payload.expires_in) && payload.expires_in > 0 ? payload.expires_in : undefined
       if (!accessToken || expiresIn === undefined) {
-        const error = new AuthenticationError('auth/token returned an invalid token-exchange payload')
+        const error = new AuthenticationError('auth/token returned an invalid token-exchange payload', { source: 'SDK' })
         finalize(response.status, error)
         throw error
       }
@@ -1013,7 +1013,7 @@ function timeoutSignal(timeoutMs: number, signal: AbortSignalLike | null | undef
 
 function assertRelativeRequestPath(path: string): string {
   if (ABSOLUTE_REQUEST_URL.test(path)) {
-    throw new DaytonaError(RELATIVE_PATH_ERROR, { statusCode: 400, code: 'BAD_REQUEST' })
+    throw createDaytonaError(RELATIVE_PATH_ERROR, 400, 'BAD_REQUEST', 'SDK')
   }
   return path
 }
@@ -1454,12 +1454,12 @@ export class HttpTransport {
             freshToken = await timeoutOnAbort(abortableWait(this.options.auth.onUnauthorized(currentAuthToken), timeout.signal), timeout)
           } catch (err) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error'))
-            throw err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error')
+            finalize(response.status, err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error', { source: 'SDK' }))
+            throw err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error', { source: 'SDK' })
           }
           if (freshToken !== undefined && freshToken !== currentAuthToken) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, new AuthenticationError('request rejected before token refresh retry'))
+            finalize(response.status, new AuthenticationError('request rejected before token refresh retry', { source: 'SDK' }))
             retriedUnauthorized = true
             return send(false, undefined, freshToken)
           }
@@ -1467,7 +1467,7 @@ export class HttpTransport {
           const rejectedAuthorization = headers.Authorization
           if (request.canRetryUnauthorized) {
             await response.body?.cancel().catch(() => undefined)
-            finalize(response.status, new AuthenticationError('request rejected before token refresh retry'))
+            finalize(response.status, new AuthenticationError('request rejected before token refresh retry', { source: 'SDK' }))
             retriedUnauthorized = true
             return send(true, rejectedAuthorization)
           }

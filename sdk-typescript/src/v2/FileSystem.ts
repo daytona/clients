@@ -18,7 +18,7 @@ import type {
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
 import { encodeQuery, HttpTransport, isAbortError, sseMessages, strictUriEncode } from './http.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 
 export type Match = FileMatch
 export type SearchFilesResponse = ListResult<string>
@@ -106,7 +106,7 @@ function filesystemEventType(value: unknown): FilesystemEventType {
     case FilesystemEventType.CHMOD:
       return value
     default:
-      throw new DaytonaError(`invalid filesystem event type: ${String(value)}`)
+      throw new DaytonaError(`invalid filesystem event type: ${String(value)}`, { source: 'SDK' })
   }
 }
 
@@ -115,16 +115,16 @@ function parseFilesystemEvent(data: string): FilesystemEvent {
   try {
     parsed = data ? JSON.parse(data) : {}
   } catch (error) {
-    throw new DaytonaError(error instanceof Error ? error.message : String(error))
+    throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
   }
   if (typeof parsed !== 'object' || parsed === null) {
-    throw new DaytonaError('filesystem watch event must be an object')
+    throw new DaytonaError('filesystem watch event must be an object', { source: 'SDK' })
   }
   const raw = parsed as Record<string, unknown>
-  if (typeof raw.name !== 'string') throw new DaytonaError('filesystem watch event name must be a string')
-  if (typeof raw.isDir !== 'boolean') throw new DaytonaError('filesystem watch event isDir must be a boolean')
+  if (typeof raw.name !== 'string') throw new DaytonaError('filesystem watch event name must be a string', { source: 'SDK' })
+  if (typeof raw.isDir !== 'boolean') throw new DaytonaError('filesystem watch event isDir must be a boolean', { source: 'SDK' })
   if (typeof raw.timestamp !== 'number' || !Number.isFinite(raw.timestamp)) {
-    throw new DaytonaError('filesystem watch event timestamp must be a finite number')
+    throw new DaytonaError('filesystem watch event timestamp must be a finite number', { source: 'SDK' })
   }
   return {
     type: filesystemEventType(raw.type),
@@ -375,7 +375,7 @@ export class FileSystemService {
                 stoppedMidCallback = true
                 break
               }
-              if (winner !== 'done') throw winner.error instanceof Error ? winner.error : new DaytonaError(String(winner.error))
+              if (winner !== 'done') throw winner.error instanceof Error ? winner.error : new DaytonaError(String(winner.error), { source: 'SDK' })
               break
             }
             case 'overflow':
@@ -387,16 +387,16 @@ export class FileSystemService {
           if (stoppedMidCallback) break
         }
         if (started) {
-          if (!stopRequested) notifyExit(new DaytonaError('filesystem watch stream ended unexpectedly'))
+          if (!stopRequested) notifyExit(new DaytonaError('filesystem watch stream ended unexpectedly', { source: 'SDK' }))
           else notifyExit()
           return
         }
-        const error = new DaytonaError('filesystem watch stream ended before start')
+        const error = new DaytonaError('filesystem watch stream ended before start', { source: 'SDK' })
         rejectStarted(error)
         notifyExit(error)
       } catch (error) {
         if (isAbortError(error) && stopRequested) {
-          if (!started) rejectStarted(new DaytonaError('filesystem watch stopped before start'))
+          if (!started) rejectStarted(new DaytonaError('filesystem watch stopped before start', { source: 'SDK' }))
           notifyExit()
           return
         }
@@ -456,7 +456,7 @@ export class FileSystemService {
 
   private requireFileUrlSigner(): FileUrlSigner {
     if (this.fileUrlSigner === undefined) {
-      throw new DaytonaError('filesystem handle has no pre-signed URL signer', { statusCode: 400, code: 'BAD_REQUEST' })
+      throw createDaytonaError('filesystem handle has no pre-signed URL signer', 400, 'BAD_REQUEST', 'SDK')
     }
     return this.fileUrlSigner
   }

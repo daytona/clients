@@ -9,7 +9,7 @@ import type {
   ProcessStartOptions, RunOptions, RunResult, TerminalSize,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import type { PtyDuplex } from './ProcessHandle.js'
 import { commandSource, invalidPtyVerbError, knownProcessKind, processFromWire } from './ProcessWire.js'
@@ -100,7 +100,7 @@ export class ProcessService {
 
   public connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle {
     if (typeof idOrHandle !== 'string' && idOrHandle.sandboxId !== this.sandboxId) {
-      throw new DaytonaError('process handle belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST' })
+      throw createDaytonaError('process handle belongs to a different sandbox', 400, 'BAD_REQUEST', 'SDK')
     }
     return new ProcessHandle(
       this.transport,
