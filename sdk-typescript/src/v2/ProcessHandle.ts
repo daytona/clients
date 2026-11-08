@@ -58,6 +58,10 @@ export class ProcessHandle {
   public readonly kind?: ProcessKind
   private readonly transport: HttpTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport, sandboxId: string, processId: string, kind?: ProcessKind)
+  /** Built by the SDK: get it from `sandbox.process.start()` or `connect()`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: HttpTransport, sandboxId: string, processId: string, kind?: ProcessKind) {
     assertInternal(token, 'ProcessHandle')
     this.transport = transport

@@ -95,6 +95,10 @@ const RECORDING_STOP_KEYS = optionKeys<ComputerUseRecordingStopRequest>()({ id: 
 export class AddonProcessesService {
   private readonly transport: ComputerUseTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'AddonProcessesService')
     this.transport = transport
@@ -128,6 +132,10 @@ export class AddonProcessesService {
 export class MouseService {
   private readonly transport: ComputerUseTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'MouseService')
     this.transport = transport
@@ -161,6 +169,10 @@ export class MouseService {
 export class KeyboardService {
   private readonly transport: ComputerUseTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'KeyboardService')
     this.transport = transport
@@ -187,6 +199,10 @@ export class KeyboardService {
 export class ScreenService {
   private readonly transport: ComputerUseTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'ScreenService')
     this.transport = transport
@@ -221,6 +237,10 @@ export class ScreenService {
 export class DisplayService {
   private readonly transport: ComputerUseTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'DisplayService')
     this.transport = transport
@@ -238,6 +258,10 @@ export class DisplayService {
 export class A11yService {
   private readonly transport: ComputerUseTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'A11yService')
     this.transport = transport
@@ -279,6 +303,10 @@ export class A11yService {
 export class RecordingService {
   private readonly transport: ComputerUseTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'RecordingService')
     this.transport = transport
@@ -318,6 +346,10 @@ export class RecordingService {
 export class ComputerUseLifecycleService {
   private readonly transport: ComputerUseTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'ComputerUseLifecycleService')
     this.transport = transport

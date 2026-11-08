@@ -172,6 +172,10 @@ export class LspServer {
   private readonly languageId: string
   private readonly pathToProject: string
 
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport, languageId: string, pathToProject: string)
+  /** Built by the SDK: get it from `sandbox.lsp.start()`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: HttpTransport, languageId: string, pathToProject: string) {
     assertInternal(token, 'LspServer')
     this.transport = transport
@@ -241,6 +245,10 @@ export class LspServer {
 export class LspService {
   private readonly transport: HttpTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport)
+  /** Built by the SDK: get it from `sandbox.lsp`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: HttpTransport) {
     assertInternal(token, 'LspService')
     this.transport = transport

@@ -339,6 +339,18 @@ export class InterpreterContext {
   readonly #executionQueue: ContextExecutionQueue
   readonly #onClose: () => Promise<void>
 
+  /** @internal */
+  constructor(
+    token: Internal,
+    transport: HttpTransport,
+    sandboxId: string,
+    contextId: string,
+    language: string,
+    executionQueue: ContextExecutionQueue,
+    onClose: () => Promise<void>,
+  )
+  /** Built by the SDK: get it from `sandbox.interpreter.createContext()` or `connectContext()`. */
+  constructor(token: Internal, ...init: never[])
   constructor(
     token: Internal,
     transport: HttpTransport,
@@ -410,6 +422,10 @@ export class InterpreterService {
   private readonly transport: HttpTransport
   private readonly sandboxId: string
 
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport, sandboxId: string)
+  /** Built by the SDK: get it from `sandbox.interpreter`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: HttpTransport, sandboxId: string) {
     assertInternal(token, 'InterpreterService')
     this.transport = transport

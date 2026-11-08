@@ -56,6 +56,10 @@ export class ProcessService {
   public readonly sandboxId: string
   private readonly transport: HttpTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport, sandboxId: string)
+  /** Built by the SDK: get it from `sandbox.process`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: HttpTransport, sandboxId: string) {
     assertInternal(token, 'ProcessService')
     this.transport = transport
@@ -179,6 +183,10 @@ export class PtyService {
   private readonly process: ProcessService
   private readonly transport: HttpTransport
 
+  /** @internal */
+  constructor(token: Internal, process: ProcessService, transport: HttpTransport)
+  /** Built by the SDK: get it from `sandbox.pty`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, process: ProcessService, transport: HttpTransport) {
     assertInternal(token, 'PtyService')
     this.process = process

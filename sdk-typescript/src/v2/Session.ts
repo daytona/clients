@@ -84,6 +84,10 @@ export class Session {
 
   private readonly binding: ProcessBinding
 
+  /** @internal */
+  constructor(token: Internal, binding: ProcessBinding, id: string)
+  /** Built by the SDK: get it from `sandbox.process.createSession()` or `connectSession()`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, binding: ProcessBinding, id: string) {
     assertInternal(token, 'Session')
     this.binding = binding

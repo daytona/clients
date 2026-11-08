@@ -34,6 +34,10 @@ export class ComputerUseService {
 
   private readonly lifecycle: ComputerUseLifecycleService
 
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: ComputerUseTransport) {
     assertInternal(token, 'ComputerUseService')
     this.lifecycle = new ComputerUseLifecycleService(INTERNAL, transport)

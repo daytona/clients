@@ -232,6 +232,10 @@ export class FileSystemService {
   private readonly transport: HttpTransport
   private readonly fileUrlSigner?: FileUrlSigner
 
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport, fileUrlSigner?: FileUrlSigner)
+  /** Built by the SDK: get it from `sandbox.fs`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: HttpTransport, fileUrlSigner?: FileUrlSigner) {
     assertInternal(token, 'FileSystemService')
     this.transport = transport

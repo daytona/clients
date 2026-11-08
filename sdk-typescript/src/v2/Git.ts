@@ -88,6 +88,10 @@ const RESTORE_OPTION_KEYS = optionKeys<RestoreOptions>()({ staged: true, worktre
 export class GitService {
   private readonly transport: HttpTransport
 
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport)
+  /** Built by the SDK: get it from `sandbox.git`. */
+  constructor(token: Internal, ...init: never[])
   constructor(token: Internal, transport: HttpTransport) {
     assertInternal(token, 'GitService')
     this.transport = transport

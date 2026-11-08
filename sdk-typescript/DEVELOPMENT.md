@@ -227,7 +227,13 @@ bearer and the refresh with the same timeout signal.
 (`src/v2/internal.ts`) as their first constructor argument and throw a
 `TypeError` without it. The module is not reachable through the package
 `exports`, so callers get these objects from a sandbox; tests import the token
-directly (`new ProcessService(INTERNAL, transport, 'sbx')`).
+directly (`new ProcessService(INTERNAL, transport, 'sbx')`). The real
+signature is an `/** @internal */` overload (removed by `stripInternal`); the
+published one is `constructor(token: Internal, ...init: never[])`, so no
+declaration names `HttpTransport`, `ComputerUseTransport` or another internal
+input. `tests/public-declarations.test.ts` emits the declarations and holds
+every public class to that (its `ALLOWED` list of the other areas only
+shrinks).
 
 ## Verification
 
