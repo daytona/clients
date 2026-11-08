@@ -408,6 +408,31 @@ describe('request timeout meaning', () => {
       expect(seen).toEqual(['Bearer stale'])
     })
 
+    it.each(['get', 'fetch'] as const)('does not give a sandbox-token retry a fresh window (%s)', async (method) => {
+      // bearer 40 ms + 401 after 50 ms + refresh 10 ms + a 100 ms retry is
+      // about 200 ms: past the 150 ms deadline, though the retry alone fits.
+      let calls = 0
+      handle = (request, response) => {
+        request.resume()
+        calls += 1
+        const stale = request.headers.authorization === 'Bearer stale'
+        setTimeout(() => {
+          response.writeHead(stale ? 401 : 200, { 'Content-Type': 'application/json' })
+          response.end(JSON.stringify(stale ? { code: 'UNAUTHORIZED', message: 'expired' } : { ok: true }))
+        }, stale ? 50 : 100)
+      }
+      const auth = {
+        bearer: async () => { await sleep(40); return 'stale' },
+        onUnauthorized: async () => { await sleep(10); return 'fresh' },
+      }
+      const transport = new HttpTransport(base, undefined, 150, { auth })
+      const call = method === 'get' ? transport.get('/thing') : transport.fetch('/thing').then((response) => response.json())
+      const started = performance.now()
+      await expect(call).rejects.toBeInstanceOf(ClientTimeoutError)
+      expect(performance.now() - started).toBeLessThan(190)
+      expect(calls).toBe(2)
+    })
+
     it.each([
       ['a sandbox token on the axios path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'get'],
       ['a sandbox token on the fetch path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'fetch'],
