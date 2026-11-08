@@ -133,6 +133,8 @@ export class VolumesService {
 
   /** Get a volume by id or name; optionally create it when absent. */
   public async get(nameOrId: string, options: GetVolumeOptions = {}): Promise<Volume> {
+    // The id first, then the options, as Python checks them.
+    const path = `/volumes/${pathSegment(nameOrId, 'nameOrId')}`
     if (typeof options !== 'object' || options === null || Array.isArray(options)) {
       throw badRequest('volumes.get takes options; pass { create: true }')
     }
@@ -144,10 +146,7 @@ export class VolumesService {
       if (value !== undefined && typeof value !== 'boolean') throw badRequest(`${flag} must be a boolean`)
     }
     try {
-      const { data } = await this.api.get<api.Volume>(
-        `/volumes/${pathSegment(nameOrId, 'nameOrId')}`,
-        refConfig(options),
-      )
+      const { data } = await this.api.get<api.Volume>(path, refConfig(options))
       return mapVolume(data)
     } catch (e) {
       if (options.create && !options.idOnly && e instanceof NotFoundError) {

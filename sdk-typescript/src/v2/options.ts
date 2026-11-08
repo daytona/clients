@@ -96,7 +96,7 @@ const IF_MATCH_KEYS = optionKeys<IfMatchOptions>()({ ifMatch: true })
 export function assertIfMatchOptions(options: IfMatchOptions | undefined): void {
   assertKnownOptions('IfMatchOptions', options, IF_MATCH_KEYS)
   if (typeof options?.ifMatch !== 'string' || options.ifMatch.length === 0) {
-    throw badRequest('ifMatch must be a non-empty string')
+    throw badRequest('ifMatch must be a non-empty string (the etag of the last read)')
   }
   // It is sent as the If-Match header.
   headerText(options.ifMatch, 'ifMatch')

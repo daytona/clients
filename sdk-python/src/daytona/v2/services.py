@@ -160,9 +160,13 @@ class AsyncImagesService:
         omitted makes the image anonymous; ``idle_expiry_seconds`` is then its
         idle-retention window — deleted once that long has passed without a
         sandbox being created from it (every create restarts the clock);
-        omitted ⇒ the maximum retention supported by the API. The submission
-        is an ordinary request, bounded by the client's request timeout; it
-        returns without waiting for the build (``get(image.id, wait="ready")``).
+        omitted ⇒ the maximum retention supported by the API. ``region``
+        follows create's rule: omitted, blank or ``local`` (any case, any
+        surrounding whitespace) uses the project's default region and sends no
+        ``region_id``; any other value is sent as given and must be printable
+        ASCII with no leading or trailing whitespace. The submission is an
+        ordinary request, bounded by the client's request timeout; it returns
+        without waiting for the build (``get(image.id, wait="ready")``).
         """
         if not isinstance(builder, ImageBuilder):
             raise create_error(
@@ -685,14 +689,10 @@ class AsyncReservationsService:
 
         The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
         """
+        # The id first, then the options, as TypeScript checks them.
+        path = f"/reservations/{_path(reservation_id, 'reservation_id')}/renew"
         headers = _idempotency_headers(idempotency_key)
-        return _mac_reservation(
-            await self._transport.send(
-                RequestSpec(
-                    "POST", f"/reservations/{_path(reservation_id, 'reservation_id')}/renew", headers=headers
-                )
-            )
-        )
+        return _mac_reservation(await self._transport.send(RequestSpec("POST", path, headers=headers)))
 
     async def update(self, reservation_id: str, *, auto_renew: bool) -> MacReservation:
         """Turn the reservation's auto-renewal on or off.
@@ -701,6 +701,8 @@ class AsyncReservationsService:
         turning it off works without it, so an organization can stop a reservation
         renewing. Raises :class:`ConflictError` when the reservation is no longer live.
         """
+        # The id first, then the options, as TypeScript checks them.
+        path = f"/reservations/{_path(reservation_id, 'reservation_id')}"
         if not isinstance(auto_renew, bool):
             raise create_error("auto_renew must be a boolean", 400, "BAD_REQUEST", "SDK")
         body: UpdateReservationRequest = {"auto_renew": auto_renew}
@@ -708,7 +710,7 @@ class AsyncReservationsService:
             await self._transport.send(
                 RequestSpec(
                     "PATCH",
-                    f"/reservations/{_path(reservation_id, 'reservation_id')}",
+                    path,
                     json_body=json_object_from_mapping(body),
                 )
             )

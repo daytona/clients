@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { selectRegion } from './region.js'
 import { hasLoneSurrogate } from './pathSegment.js'
 import { deepFrozen } from './frozen.js'
 import type * as api from './gen/api-types.js'
@@ -333,6 +334,13 @@ export function imageOptionsBody(options: { readonly name?: unknown; readonly id
   const body: { name?: string; idle_expiry_seconds?: number; region_id?: string; cpu_arch?: string } = {}
   for (const [key, wire] of [['name', 'name'], ['region', 'region_id'], ['cpuArch', 'cpu_arch']] as const) {
     const value: unknown = options[key]
+    if (key === 'region') {
+      // The region rule of create: blank or local selects the default region
+      // (no region_id); any other value follows the header rule and is sent as given.
+      const selected = selectRegion(value)
+      if (selected !== undefined) body.region_id = selected
+      continue
+    }
     if (value === undefined || value === null) continue
     if (typeof value !== 'string') throw badRequest(`${key} must be a string`)
     // The contract's architectures only: SDK inputs are closed.

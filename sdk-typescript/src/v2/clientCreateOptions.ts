@@ -4,6 +4,7 @@
  */
 
 import { badRequest, headerText } from './options.js'
+import { selectRegion } from './region.js'
 import { gibToMib } from './resources.js'
 export { gibToMib } from './resources.js'
 import { Image, isImageBuilder } from './Image.js'
@@ -151,13 +152,6 @@ export function rejectV0Target(options: { readonly region?: string } | undefined
 /** @internal */
 export function createRegion(options: { readonly region?: string }): string | undefined {
   rejectV0Target(options)
-  const resolved: unknown = options.region
-  // `null` is Python's `None`: no region.
-  if (resolved !== undefined && resolved !== null && typeof resolved !== 'string') throw badRequest('region must be a string')
-  // A blank or whitespace-only string, or `local` in any letter case and with
-  // any surrounding whitespace, selects the default region and is not sent (no
-  // x-daytona-region header, no region_id field), as in Python; any other value
-  // is sent as given and must follow the header rule (`headerText`).
-  if (typeof resolved !== 'string' || isBlank(resolved) || strip(resolved).toLowerCase() === 'local') return undefined
-  return headerText(resolved, 'region')
+  // `null` is Python's `None`: no region. The selection rule is `selectRegion`'s.
+  return selectRegion(options.region)
 }

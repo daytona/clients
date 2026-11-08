@@ -55,9 +55,13 @@ class ImagesService:
         omitted makes the image anonymous; ``idle_expiry_seconds`` is then its
         idle-retention window — deleted once that long has passed without a
         sandbox being created from it (every create restarts the clock);
-        omitted ⇒ the maximum retention supported by the API. The submission
-        is an ordinary request, bounded by the client's request timeout; it
-        returns without waiting for the build (``get(image.id, wait="ready")``).
+        omitted ⇒ the maximum retention supported by the API. ``region``
+        follows create's rule: omitted, blank or ``local`` (any case, any
+        surrounding whitespace) uses the project's default region and sends no
+        ``region_id``; any other value is sent as given and must be printable
+        ASCII with no leading or trailing whitespace. The submission is an
+        ordinary request, bounded by the client's request timeout; it returns
+        without waiting for the build (``get(image.id, wait="ready")``).
         """
         return self._bridge.call(
             lambda: self._impl.build(

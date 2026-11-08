@@ -16,7 +16,7 @@ import os
 import socket
 import threading
 from collections.abc import Awaitable, Callable, Iterator
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -946,4 +946,126 @@ async def test_expire_signed_preview_link_needs_a_token(api: FakeApi, token: obj
     async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
         with pytest.raises(BadRequestError, match="^token must be a non-empty string$"):
             await lazy_sandbox(root.v2, "sbx").ports.expire_signed_preview_link(8080, token)  # type: ignore[arg-type]
+    assert api.requests == []
+
+
+@pytest.mark.parametrize("bound", _TIMESTAMPS["refusedAsDates"])
+async def test_a_datetime_bound_outside_years_1_to_9999_in_utc_is_refused(api: FakeApi, bound: str) -> None:
+    # Sent in UTC, the instant falls outside years 0001-9999: the shared
+    # table, as TypeScript reads it with new Date().
+    value = datetime.fromisoformat(bound)
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="without a leap second") as raised:
+            await root.v2.search(created_start_at=value)
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert isinstance(raised.value.__cause__, OverflowError)
+    assert api.requests == []
+
+
+class _NoOffset(tzinfo):
+    """A tzinfo whose utcoffset() is None: naive by Python's own definition."""
+
+    def utcoffset(self, dt: datetime | None) -> timedelta | None:
+        return None
+
+    def dst(self, dt: datetime | None) -> timedelta | None:
+        return None
+
+    def tzname(self, dt: datetime | None) -> str | None:
+        return None
+
+
+class _BadOffset(tzinfo):
+    def __init__(self, offset: object) -> None:
+        self._offset = offset
+
+    def utcoffset(self, dt: datetime | None) -> timedelta | None:
+        return self._offset  # type: ignore[return-value]
+
+    def dst(self, dt: datetime | None) -> timedelta | None:
+        return None
+
+    def tzname(self, dt: datetime | None) -> str | None:
+        return None
+
+
+async def test_a_datetime_without_an_offset_is_taken_as_utc() -> None:
+    with FakeApi([PlannedResponse(200, _EMPTY_SEARCH)]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            await root.v2.search(created_start_at=datetime(2026, 1, 1, 12, tzinfo=_NoOffset()))
+    assert parse_qs(urlsplit(fake.requests[0].path).query)["created_start_at"] == ["2026-01-01T12:00:00Z"]
+
+
+@pytest.mark.parametrize("offset", [timedelta(hours=25), "5"], ids=["out of range", "not a timedelta"])
+async def test_a_datetime_whose_offset_fails_is_refused(api: FakeApi, offset: object) -> None:
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="without a leap second") as raised:
+            await root.v2.search(created_start_at=datetime(2026, 1, 1, tzinfo=_BadOffset(offset)))
+    assert isinstance(raised.value.__cause__, (ValueError, TypeError))
+    assert api.requests == []
+
+
+_IMAGE_SUBMITTED: JsonObject = {"id": "img", "status": "pending"}
+
+
+@pytest.mark.parametrize("region", ["", "  ", "local", " LOCAL "])
+@pytest.mark.parametrize("route", ["build", "pull"])
+async def test_an_image_call_with_a_default_region_sends_no_region_id(route: str, region: str) -> None:
+    with FakeApi([PlannedResponse(500, {"message": "stop"})]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(DaytonaError):
+                if route == "build":
+                    await root.v2.images.build(ImageBuilder.from_registry("alpine"), region=region)
+                else:
+                    await root.v2.images.pull("alpine", region=region, wait=False)
+    assert "region_id" not in json.loads(fake.requests[0].body)
+
+
+@pytest.mark.parametrize("region", [" us", "us ", 5], ids=["leading", "trailing", "number"])
+@pytest.mark.parametrize("route", ["build", "pull"])
+async def test_an_image_call_refuses_a_padded_or_mistyped_region(
+    api: FakeApi, route: str, region: object
+) -> None:
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="^region must "):
+            if route == "build":
+                await root.v2.images.build(ImageBuilder.from_registry("alpine"), region=region)  # type: ignore[arg-type]
+            else:
+                await root.v2.images.pull("alpine", region=region, wait=False)  # type: ignore[arg-type]
+    assert api.requests == []
+
+
+@pytest.mark.parametrize("route", ["build", "pull"])
+async def test_an_image_call_sends_a_named_region(route: str) -> None:
+    with FakeApi([PlannedResponse(500, {"message": "stop"})]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(DaytonaError):
+                if route == "build":
+                    await root.v2.images.build(ImageBuilder.from_registry("alpine"), region="us")
+                else:
+                    await root.v2.images.pull("alpine", region="us", wait=False)
+    assert json.loads(fake.requests[0].body)["region_id"] == "us"
+
+
+# The two SDKs check a call's arguments in the same order, so the first bad
+# one is named alike (the TypeScript twin pins the same rows).
+_ORDER: list[tuple[str, Callable[[AsyncDaytonaV2], Awaitable[object]], str]] = [
+    ("volumes.get", lambda d: d.volumes.get("", create="x"), "name_or_id"),  # type: ignore[arg-type]
+    ("reservations.renew", lambda d: d.reservations.renew("", idempotency_key=" k"), "reservation_id"),
+    ("reservations.update", lambda d: d.reservations.update("", auto_renew="x"), "reservation_id"),  # type: ignore[arg-type]
+    ("secrets.set", lambda d: d.secrets.set("K", 5, allowed_domains=5), "value"),  # type: ignore[arg-type]
+]
+
+
+@pytest.mark.parametrize(("name", "call", "argument"), _ORDER, ids=[case[0] for case in _ORDER])
+async def test_the_first_bad_argument_is_named_as_typescript_names_it(
+    api: FakeApi, name: str, call: Callable[[AsyncDaytonaV2], Awaitable[object]], argument: str
+) -> None:
+    del name
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match=f"^{argument} must "):
+            await call(root.v2)
     assert api.requests == []

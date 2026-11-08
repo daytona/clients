@@ -218,6 +218,14 @@ def image_options_body(
         ("region", "region_id", region),
         ("cpu_arch", "cpu_arch", cpu_arch),
     ):
+        if key == "region":
+            # The region rule of create: blank or local selects the default
+            # region (no region_id); any other value follows the header rule
+            # and is sent as given.
+            selected = region_selector(value)
+            if selected is not None:
+                body[wire] = selected
+            continue
         if value is None:
             continue
         if not isinstance(value, str):
@@ -1364,26 +1372,35 @@ def _rfc3339(value: str) -> bool:
 
 
 def search_timestamp(value: SearchTimestamp) -> str:
-    """RFC 3339 form of a search bound; naive datetimes are taken as UTC.
+    """The wire form of a search bound, as TypeScript's ``searchTimestamp``.
 
-    Anything other than a ``datetime`` or a ``str`` is the SDK's own
-    :class:`BadRequestError` (mirrors the TypeScript ``searchTimestamp``, which
-    also rejects an invalid ``Date``) — never an ``AttributeError`` from the
-    formatter, and no request goes out.
+    A string is checked (an RFC 3339 timestamp without a leap second) and sent
+    exactly as written. A ``datetime`` is sent in UTC, so its UTC instant must
+    fall in years 0001-9999; a naive one (``utcoffset()`` is ``None``, a
+    ``tzinfo`` that returns ``None`` included) is taken as UTC. Anything else,
+    and a ``datetime`` whose conversion fails, is the SDK's own
+    :class:`BadRequestError`, before any request.
     """
-    if isinstance(value, datetime):
-        aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
-        return aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-    # An RFC 3339 timestamp without a leap second (the contract's date-time), the same rule TypeScript checks.
-    if isinstance(value, str) and _rfc3339(value):
-        return value
-    raise create_error(
+    invalid = create_error(
         "timestamp bounds must be a datetime or an RFC 3339 timestamp without a leap second"
         " (year 0001-9999, a real calendar date)",
         400,
         "BAD_REQUEST",
         "SDK",
     )
+    if isinstance(value, datetime):
+        try:
+            aware = value if value.utcoffset() is not None else value.replace(tzinfo=timezone.utc)
+            utc = aware.astimezone(timezone.utc)
+        except (OverflowError, ValueError, TypeError) as error:
+            # An instant outside years 1-9999 in UTC, or a tzinfo with an
+            # out-of-range or mistyped offset.
+            raise invalid from error
+        return utc.isoformat().replace("+00:00", "Z")
+    # An RFC 3339 timestamp without a leap second (the contract's date-time), the same rule TypeScript checks.
+    if isinstance(value, str) and _rfc3339(value):
+        return value
+    raise invalid
 
 
 def _comma_list(name: str, value: object) -> str:
@@ -1447,12 +1464,16 @@ def header_text(value: str, name: str) -> str:
 
 
 def region_selector(region: object) -> Optional[str]:
-    """The region a create (or a lookup) selects: ``None``, a blank or
+    """The region ``create*()``, ``create_from_build()``, ``find_by_name()``
+    and ``images.build()`` / ``pull()`` select: ``None``, a blank or
     whitespace-only string, or ``local`` in any letter case and with any
     surrounding whitespace select the default region and are not sent (no
     ``x-daytona-region`` header, no ``region_id`` field); any other value is
     sent as given and must follow :func:`header_text`'s rule (printable ASCII,
-    no leading or trailing whitespace). As TypeScript's ``createRegion``."""
+    no leading or trailing whitespace). As TypeScript's ``selectRegion``. The
+    reservation calls send ``region`` as given, since their contract reads a
+    blank value or ``local`` as no region; the search and Mac-catalog filters
+    list regions, where ``local`` has no meaning."""
     if region is None:
         return None
     if not isinstance(region, str):

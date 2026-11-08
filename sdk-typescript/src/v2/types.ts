@@ -535,6 +535,12 @@ export interface BuildImageOptions {
    * server maximum.
    */
   readonly idleExpirySeconds?: number
+  /**
+   * The region, by create's rule: omitted, blank or `local` (any case, any
+   * surrounding whitespace) uses the project's default region and sends no
+   * `region_id`; any other value is sent as given and must be printable ASCII
+   * with no leading or trailing whitespace.
+   */
   readonly region?: string
   readonly cpuArch?: CpuArch
 }
@@ -677,7 +683,11 @@ export interface GetLimitsOptions {
 
 export type SearchSort = 'created_at' | 'updated_at' | 'last_activity_at' | 'name' | 'cores' | 'memory_mib' | 'disk_mib'
 export type SearchOrder = 'asc' | 'desc'
-/** An RFC 3339 timestamp without a leap second (year 0001-9999, a real calendar date), or a `Date` in those years (serialized with `toISOString()`, i.e. UTC). */
+/**
+ * A search bound: an RFC 3339 timestamp without a leap second (year 0001-9999,
+ * a real calendar date), checked and sent exactly as written; or a `Date`,
+ * sent in UTC (`toISOString()`), so its UTC instant must fall in years 0001-9999.
+ */
 export type SearchTimestamp = Date | string
 
 /**

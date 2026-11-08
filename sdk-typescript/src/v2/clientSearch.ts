@@ -13,12 +13,15 @@ import { assertSandboxResponse } from './sandboxMetadata.js'
 export const SEARCH_PATH = '/sandboxes/search'
 
 /**
- * RFC 3339 form of a search bound; `Date` values are serialized in UTC.
+ * The wire form of a search bound, as Python's `_core.search_timestamp`. A
+ * string is checked (an RFC 3339 timestamp without a leap second) and sent
+ * exactly as written. A `Date` is sent in UTC, so its UTC instant must fall in
+ * years 0001-9999.
  *
- * An invalid `Date` (`new Date('nope')`, `new Date(NaN)`) and anything other
- * than a `Date` or a string are the SDK's own {@link BadRequestError} — never
- * the `RangeError` `toISOString()` would throw — and no request goes out.
- * Mirrors Python's `_core.search_timestamp`.
+ * An invalid `Date` (`new Date('nope')`, `new Date(NaN)`), a `Date` outside
+ * those years and anything other than a `Date` or a string are the SDK's own
+ * {@link BadRequestError} — never the `RangeError` `toISOString()` would
+ * throw — and no request goes out.
  */
 export function searchTimestamp(value: SearchTimestamp): string {
   if (value instanceof Date) {

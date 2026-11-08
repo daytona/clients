@@ -497,7 +497,7 @@ it('sends a search label with a lone surrogate JSON-escaped', async () => {
   }
 })
 
-const TIMESTAMPS = JSON.parse(readFileSync(join(__dirname, '..', '..', 'sdk-python', 'tests', 'fixtures', 'search-timestamps.json'), 'utf8')) as { readonly refused: readonly string[]; readonly sent: readonly string[] }
+const TIMESTAMPS = JSON.parse(readFileSync(join(__dirname, '..', '..', 'sdk-python', 'tests', 'fixtures', 'search-timestamps.json'), 'utf8')) as { readonly refused: readonly string[]; readonly sent: readonly string[]; readonly refusedAsDates: readonly string[] }
 const EMPTY_SEARCH = { sandboxes: [], total: 0, total_relation: 'eq', next_cursor: null }
 
 it.each(TIMESTAMPS.refused)('refuses the search timestamp %s before any request, as Python does', async (bound) => {
@@ -638,6 +638,87 @@ it.each([['year 0', new Date('0000-06-01T00:00:00Z')], ['year 10000', new Date('
     expect(api.requests).toEqual([])
   } finally {
     await client.close()
+    await api.close()
+  }
+})
+
+it.each(TIMESTAMPS.refusedAsDates)('refuses %s as a Date: its UTC instant falls outside years 0001-9999', async (bound) => {
+  // The shared table, as Python reads it with datetime.fromisoformat().
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.search({ createdStartAt: new Date(bound) })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('without a leap second') })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+const imageCall = (client: Daytona, route: 'build' | 'pull', region: unknown) => route === 'build'
+  ? client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { region: region as never })
+  : client.v2.images.pull('alpine', { region: region as never, wait: false })
+
+it.each((['build', 'pull'] as const).flatMap((route) => ['', '  ', 'local', ' LOCAL '].map((region) => [route, region] as const)))('images.%s with region %j sends no region_id', async (route, region) => {
+  const api = await startFakeApi([{ status: 500, body: { message: 'stop' } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(imageCall(client, route, region)).rejects.toBeDefined()
+    expect(JSON.parse(api.requests[0]?.body ?? '{}')).not.toHaveProperty('region_id')
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each((['build', 'pull'] as const).flatMap((route) => [' us', 'us ', 5].map((region) => [route, region] as const)))('images.%s refuses region %j before any request', async (route, region) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(imageCall(client, route, region)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(/^region must /) })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each(['build', 'pull'] as const)('images.%s sends a named region', async (route) => {
+  const api = await startFakeApi([{ status: 500, body: { message: 'stop' } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(imageCall(client, route, 'us')).rejects.toBeDefined()
+    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ region_id: 'us' })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// The two SDKs check a call's arguments in the same order, so the first bad
+// one is named alike (the Python twin pins the same rows).
+it.each([
+  ['volumes.get', (client: Daytona) => client.v2.volumes.get('', { create: 'x' as never }), 'nameOrId'],
+  ['reservations.renew', (client: Daytona) => client.v2.reservations.renew('', { idempotencyKey: ' k' }), 'id'],
+  ['reservations.update', (client: Daytona) => client.v2.reservations.update('', { autoRenew: 'x' as never }), 'id'],
+  ['secrets.set', (client: Daytona) => client.v2.secrets.set('K', 5 as never, { allowedDomains: 5 as never }), 'value'],
+] as const)('%s names the first bad argument as Python does', async (_name, call, argument) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(new RegExp(`^${argument} must `)) })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('words a missing ifMatch as Python does', async () => {
+  const api = await startFakeApi([])
+  try {
+    await expect(handle(api).resetNetworkPolicy({ ifMatch: '' })).rejects.toMatchObject({ message: 'ifMatch must be a non-empty string (the etag of the last read)' })
+  } finally {
     await api.close()
   }
 })
