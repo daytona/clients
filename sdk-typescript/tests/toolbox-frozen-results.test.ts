@@ -16,7 +16,8 @@ import { FileSystemService } from '../src/v2/FileSystem'
 import { GitService } from '../src/v2/Git'
 import { InterpreterService } from '../src/v2/Interpreter'
 import { LspService } from '../src/v2/Lsp'
-import { ProcessService } from '../src/v2/Process'
+import { ProcessService, PtyService } from '../src/v2/Process'
+import { BadRequestError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
 import { envelopeList, fileMatchFromWire, gitCommitFromWire, gitRemoteFromWire, logFrameFromWire, replaceResultFromWire, systemMetricsFromWire } from '../src/v2/toolboxModels'
@@ -239,7 +240,7 @@ describe('toolbox results are frozen at run time', () => {
     }],
     ['session.run', () => process().connectSession('s').run('true')],
     ['session.get', () => process().connectSession('s').get()],
-    ['pty.list', () => new ProcessService(INTERNAL, transport, 'sbx').list()],
+    ['pty.list', () => new PtyService(INTERNAL, process(), transport).list()],
     ['interpreter.run', () => new InterpreterService(INTERNAL, transport, 'sbx').run('1 + 1')],
     ['fs.list', () => fs().list('/d')],
     ['fs.list ({ items })', () => new FileSystemService(INTERNAL, at('/envelope')).list('/d')],
@@ -257,7 +258,6 @@ describe('toolbox results are frozen at run time', () => {
     ['git.listBranches', () => git().listBranches('/r')],
     ['git.history', () => git().history('/r')],
     ['git.history ({ items })', () => new GitService(INTERNAL, at('/envelope')).history('/r')],
-    ['lsp.documentSymbols ({ items } is refused, so bare only)', async () => (await lsp()).documentSymbols('u')],
     ['lsp.completions', async () => (await lsp()).completions('u', { line: 0, character: 0 })],
     ['lsp.documentSymbols', async () => (await lsp()).documentSymbols('u')],
     ['lsp.workspaceSymbols', async () => (await lsp()).workspaceSymbols('s')],
@@ -296,7 +296,7 @@ describe('toolbox results are frozen at run time', () => {
     ['gitCommitFromWire', async () => gitCommitFromWire({ hash: 'h', message: 'm', author: 'a', email: 'e', timestamp: CREATED_AT })],
     ['gitRemoteFromWire', async () => gitRemoteFromWire({ name: 'origin', url: 'u' })],
     ['mapComputerUseProcessStatus', async () => mapComputerUseProcessStatus(PROCESS_STATUS)],
-    ['sandbox.metrics (its mapper)', async () => systemMetricsFromWire({
+    ['systemMetricsFromWire (sandbox.metrics)', async () => systemMetricsFromWire({
       timestamp: CREATED_AT, cpuCount: 1, cpuUtilization: 0.5, memoryUsageBytes: 1, memoryTotalBytes: 2, diskUsageBytes: 1, diskTotalBytes: 2,
     } satisfies toolbox.Metrics)],
   ]
@@ -312,7 +312,7 @@ describe('toolbox results are frozen at run time', () => {
     ['wait(): long-poll outlasts the budget', () => process().connect('w2').wait({ timeoutSeconds: BUDGET_SECONDS }), 'timed_out'],
     ['wait(): connection drops after the budget', () => process().connect('w3').wait({ timeoutSeconds: BUDGET_SECONDS }), 'timed_out'],
     ['process.run', () => new ProcessService(INTERNAL, at('/slow'), 'sbx').run('sleep', { timeoutSeconds: BUDGET_SECONDS }), 'timed_out'],
-    ['interpreter.run (interrupted)', () => new InterpreterService(INTERNAL, at('/slow'), 'sbx').run('loop()', { timeoutSeconds: BUDGET_SECONDS }), 'exited'],
+    ['interpreter.run (interrupted after its budget: the interrupt\'s result)', () => new InterpreterService(INTERNAL, at('/slow'), 'sbx').run('loop()', { timeoutSeconds: BUDGET_SECONDS }), 'exited'],
     ['interpreter.run (queued past its budget)', async () => {
       const interpreter = new InterpreterService(INTERNAL, at('/slow'), 'sbx')
       const first = interpreter.run('loop()', { timeoutSeconds: BUDGET_SECONDS })
@@ -322,10 +322,18 @@ describe('toolbox results are frozen at run time', () => {
     }, 'timed_out'],
   ]
 
-  it.each(timedOutRows)('timed out: %s', async (_name, call, reason) => {
+  it.each(timedOutRows)('after its budget: %s', async (_name, call, reason) => {
     const result = await call()
     expect(result.reason ?? result.process?.reason).toBe(reason)
     expectDeeplyFrozen(result)
+  })
+
+  it.each(['documentSymbols', 'workspaceSymbols'] as const)('refuses an LSP %s response that is not a bare array', async (method) => {
+    const server = await new LspService(INTERNAL, at('/envelope')).start('python', '/p')
+    const call = method === 'documentSymbols' ? server.documentSymbols('u') : server.workspaceSymbols('s')
+    await expect(call).rejects.toMatchObject({
+      constructor: BadRequestError, message: 'expected LSP symbol list', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+    })
   })
 
   it('freezes the children of an already frozen object, ends on a cycle, and leaves class instances alone', () => {
