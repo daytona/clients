@@ -318,35 +318,117 @@ def object_compatible(old: str, new: str) -> bool:
         old_members = dict(member_key(m) for m in a)
         new_members = dict(member_key(m) for m in b)
         for name, kind in old_members.items():
-            if name not in new_members or not object_compatible(kind, new_members[name]):
+            if name not in new_members or not (
+                object_compatible(kind, new_members[name])
+                or type_compatible(kind, new_members[name], passed_in=False)
+            ):
                 return False
         if any(not name.endswith("?") for name in set(new_members) - set(old_members)):
             return False
     return True
 
 
-def param_compatible(old: str, new: str) -> bool:
+NULLISH = frozenset({"undefined", "null", "None"})
+
+
+def union_set(text: str) -> set[str]:
+    """The members of a type's top-level union; ``Literal[...]`` values count
+    one by one, so ``Literal['a'] | None`` and ``Literal['a', 'b'] | None``
+    compare member by member."""
+    members: set[str] = set()
+    for member in split_top(text.strip(), "|"):
+        literal = re.fullmatch(r"(?:typing\.)?Literal\[(.*)\]", member)
+        if literal:
+            members |= {f"Literal:{value}" for value in split_top(literal[1], ",")}
+        else:
+            members.add(member)
+    return members
+
+
+def type_compatible(old: str, new: str, *, passed_in: bool) -> bool:
+    """``new`` accepts or yields everything ``old`` did: equal, an inline
+    object that gained optional members, or a top-level union that gained
+    members. Growth inside a type argument (``Omit<T, 'a' | 'b'>``) is not
+    recognised: there, widening can remove properties. ``undefined`` /
+    ``null`` / ``None`` may join a parameter's type, nowhere else."""
     if old == new or object_compatible(old, new):
         return True
-    if not is_optional_param(old) and new.startswith(old + " = "):
-        return True  # a required parameter gained a default
-    name, sep, rest = old.partition(":")
-    return bool(sep) and new == f"{name}?:{rest}"  # became optional (TypeScript)
+    old_members, new_members = union_set(old), union_set(new)
+    if not (old_members - NULLISH) <= new_members:
+        return False
+    old_nullish, new_nullish = old_members & NULLISH, new_members & NULLISH
+    return old_nullish <= new_nullish if passed_in else old_nullish == new_nullish
+
+
+def parse_param(text: str) -> tuple[str, str, bool, str, str]:
+    """``(star, name, optional_marker, type, default)`` of one parameter as
+    printed: TypeScript ``name?: T`` / ``...name: T``, Python
+    ``name: T = default`` / ``*args: T`` / ``**kwargs: T``."""
+    head, _, annotation_text = text.partition(":")
+    star = re.match(r"\*\*|\*|\.\.\.", head)
+    marker = star[0] if star else ""
+    name = head[len(marker) :].strip()
+    optional = name.endswith("?")
+    name = name.removesuffix("?")
+    parts = split_top(annotation_text, " = ") if annotation_text else []
+    kind = parts[0].strip() if parts else ""
+    default = " = ".join(parts[1:]) if len(parts) > 1 else ""
+    if not annotation_text and " = " in head:
+        name, _, default = head.partition(" = ")
+        name = name.strip()
+    return marker, name, optional, kind, default.strip()
+
+
+def param_compatible(old: str, new: str, *, positional_names: bool = True) -> bool:
+    """A caller passing ``old`` still can: the same name (only where callers
+    can use it; TypeScript has no keyword arguments), still optional if it
+    was, the same default, and a type accepting at least as much."""
+    if old == new:
+        return True
+    if old in ("*", "/") or new in ("*", "/"):
+        return False
+    o, n = parse_param(old), parse_param(new)
+    if o[0] != n[0] or (positional_names and o[1] != n[1]):
+        return False
+    old_optional, new_optional = o[2] or bool(o[4]), n[2] or bool(n[4])
+    if old_optional and not new_optional:
+        return False
+    if o[4] and o[4] != n[4]:
+        return False
+    return type_compatible(o[3], n[3], passed_in=True)
 
 
 def is_star(param: str) -> bool:
     return param == "*" or (param.startswith("*") and not param.startswith("**"))
 
 
-def compatible_call(old: str, new: str) -> bool:
-    """``new`` accepts every call ``old`` accepted: same prefix and return type,
-    old parameters kept in order (a parameter may gain a default), and every
-    added parameter optional and placed where it shifts no positional one."""
+def return_compatible(old: str, new: str) -> bool:
+    """The text after a parameter list: TypeScript ``: T``, Python ``-> T``,
+    or nothing (a constructor). A ``Promise<…>`` is unwrapped, since a method
+    returning one yields its argument."""
+    o, n = old.strip(), new.strip()
+    for prefix in (":", "->"):
+        if o.startswith(prefix) and n.startswith(prefix):
+            o, n = o[len(prefix) :].strip(), n[len(prefix) :].strip()
+            break
+    else:
+        return o == n
+    po, pn = re.fullmatch(r"Promise<(.*)>", o), re.fullmatch(r"Promise<(.*)>", n)
+    if po and pn:
+        o, n = po[1], pn[1]
+    return type_compatible(o, n, passed_in=False)
+
+
+def compatible_call(old: str, new: str, *, typescript: bool = False) -> bool:
+    """``new`` accepts every call ``old`` accepted: same prefix, a return type
+    yielding no more than before, old parameters kept in order (a parameter
+    may gain a default or a wider type), and every added parameter optional
+    and placed where it shifts no positional one."""
     o, n = old.find("("), new.find("(")
     if o < 0 or n < 0 or old[:o] != new[:n]:
         return False
     oc, nc = matching_paren(old, o), matching_paren(new, n)
-    if oc < 0 or nc < 0 or not object_compatible(old[oc + 1 :], new[nc + 1 :]):
+    if oc < 0 or nc < 0 or not return_compatible(old[oc + 1 :], new[nc + 1 :]):
         return False
     old_params, new_params = split_top(old[o + 1 : oc], ","), split_top(new[n + 1 : nc], ",")
     # Old parameters from here on are keyword-only (Python): an insertion
@@ -354,7 +436,7 @@ def compatible_call(old: str, new: str) -> bool:
     keyword_from = next((i + 1 for i, p in enumerate(old_params) if is_star(p)), len(old_params))
     j = 0
     for param in new_params:
-        if j < len(old_params) and param_compatible(old_params[j], param):
+        if j < len(old_params) and param_compatible(old_params[j], param, positional_names=not typescript):
             j += 1
             continue
         if not is_optional_param(param) or j < min(keyword_from, len(old_params)):
@@ -373,7 +455,7 @@ def union_members(detail: str) -> list[str]:
 # Python class lines list their bases in parentheses. Anchored to the class
 # kinds, so a constructor or method line (`constructor (message?: string)`)
 # never reads as a class gaining bases.
-CLASS_LINE = re.compile(r"(class|dataclass|dataclass frozen|enum|protocol) \((.*)\)")
+CLASS_LINE = re.compile(r"((?:class|dataclass|dataclass frozen|enum|protocol)(?: <[^()]*>)?) \((.*)\)")
 
 
 FLAG_LINE = re.compile(r"((?:[a-z]+ )*)flag (\S+)((?: -\S+(?: \(deprecated\))?)?)( required)? default=(.*)")
@@ -382,7 +464,8 @@ COMMAND_LINE = re.compile(r"((?:[a-z]+ )*)command")
 STILL_ACCEPTED = {"hidden", "deprecated"}
 
 
-ARGS_PROBED = 6  # cli/cmd/surface_test.go probes 0..6 positional arguments
+ARGS_PROBED = 16  # cli/cmd/surface_test.go probes 0..16 positional arguments
+ARGS_UNBOUNDED = -1  # stands for "any number" in arg_counts()
 
 
 def arg_counts(spec: str) -> set[int]:
@@ -390,7 +473,9 @@ def arg_counts(spec: str) -> set[int]:
     counts: set[int] = set()
     for part in spec.split(","):
         if part.endswith("+"):
-            counts |= set(range(int(part[:-1]), ARGS_PROBED + 1))
+            # `N+` has no upper bound; a validator that stops past the probes
+            # prints `N-16` instead, which lacks the unbounded marker.
+            counts |= set(range(int(part[:-1]), ARGS_PROBED + 1)) | {ARGS_UNBOUNDED}
         elif "-" in part:
             low, high = part.split("-")
             counts |= set(range(int(low), int(high) + 1))
@@ -470,9 +555,41 @@ def moved_to_persistent_ancestor(key: str, rests: list[str], new: dict[str, list
     return False
 
 
-def compatible_change(old: str, new: str) -> bool:
+# A member typed by its rest: TypeScript `readonly optional property T`,
+# Python `attribute T`, `readonly property T`, `optional key T`,
+# `field kw_only T = default`.
+MEMBER_LINE = re.compile(r"((?:[a-z]+ )*?(?:property|attribute|key|field(?: kw_only)?(?: init=False)?)) (.*)")
+TUPLE_CONST = re.compile(r"const (readonly )?\[(.*)\]")
+COLLECTION = re.compile(r"(frozenset|set|tuple|list)\((.*)\)")
+
+
+def collection_grew(old: str, new: str) -> bool:
+    """A one-line collection value that only gained elements: a set at any
+    position, a tuple or list at the end (positions are part of its type)."""
+    o, n = TUPLE_CONST.fullmatch(old), TUPLE_CONST.fullmatch(new)
+    if o and n:
+        old_items, new_items = split_top(o[2], ","), split_top(n[2], ",")
+        return o[1] == n[1] and new_items[: len(old_items)] == old_items
+    o, n = COLLECTION.fullmatch(old), COLLECTION.fullmatch(new)
+    if not (o and n and o[1] == n[1]):
+        return False
+    old_items, new_items = split_top(o[2], ","), split_top(n[2], ",")
+    if o[1] in ("frozenset", "set"):
+        return set(old_items) <= set(new_items)
+    return new_items[: len(old_items)] == old_items
+
+
+def item_grew(old: str, new: str) -> bool:
+    """A dict ``item`` line whose key is unchanged and whose value is a
+    collection that only gained elements."""
+    old_key, sep, old_value = old.removeprefix("item ").partition(": ")
+    new_key, _, new_value = new.removeprefix("item ").partition(": ")
+    return bool(sep) and old.startswith("item ") and old_key == new_key and collection_grew(old_value, new_value)
+
+
+def compatible_change(old: str, new: str, *, typescript: bool = False) -> bool:
     """A known-compatible change of one line's rest (kind + signature)."""
-    if object_compatible(old, new) or compatible_call(old, new):
+    if object_compatible(old, new) or compatible_call(old, new, typescript=typescript):
         return True
     if compatible_cli(old, new):
         return True
@@ -482,6 +599,18 @@ def compatible_change(old: str, new: str) -> bool:
         old_m, new_m = union_members(old.partition(" ")[2]), union_members(new.partition(" ")[2])
         if old_m and set(old_m) <= set(new_m):
             return True
+    # A member whose type only gained union members (an output may too:
+    # clients handle values they do not know).
+    o, n = MEMBER_LINE.fullmatch(old), MEMBER_LINE.fullmatch(new)
+    if o and n and o[1] == n[1]:
+        old_parts, new_parts = split_top(o[2], " = "), split_top(n[2], " = ")
+        if old_parts[1:] == new_parts[1:] and type_compatible(old_parts[0], new_parts[0], passed_in=False):
+            return True
+    # A one-line constant collection that only gained elements.
+    if old_kind == new_kind == "const" and collection_grew(old[6:], new[6:]):
+        return True
+    if old_kind == new_kind == "const" and old.startswith("const readonly [") and collection_grew(old, new):
+        return True
     # A Python class that only gained base classes.
     o, n = CLASS_LINE.fullmatch(old), CLASS_LINE.fullmatch(new)
     return bool(o and n and o[1] == n[1] and set(split_top(o[2], ",")) <= set(split_top(n[2], ",")))
@@ -562,6 +691,7 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
     if new_text is None:
         report.breaking.append(snapshot_finding(name, "(the whole snapshot)"))
         return
+    typescript = name.startswith("sdk-typescript/")
     removed_keys: list[str] = []
     for key in sorted(old):
         news = new.get(key)
@@ -583,15 +713,25 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             if rest in news:
                 continue
             line = f"{key}: {rest}"
+            added = [f"{key}: {r}" for r in news if r not in old[key]]
             if informational(rest):
                 report.notices.append(f"{name}: changed (not public API) {line}")
+            elif rest.startswith("flag-group "):
+                report.notices.append(f"{name}: flag group dropped (compatible) {line}")
+            elif rest.startswith("item ") and any(item_grew(rest, candidate) for candidate in news):
+                report.notices.append(f"{name}: compatible change of {line}")
             elif rest.split(" ", 1)[0] in SET_KINDS:
-                report.breaking.append(snapshot_finding(name, line))
-            elif grew_into_lines(rest, news) or any(compatible_change(rest, candidate) for candidate in news):
+                report.breaking.append(snapshot_finding(name, line, added))
+            elif grew_into_lines(rest, news) or any(
+                compatible_change(rest, candidate, typescript=typescript) for candidate in news
+            ):
                 report.notices.append(f"{name}: compatible change of {line}")
             else:
-                added = [f"{key}: {r}" for r in news if r not in old[key]]
                 report.breaking.append(snapshot_finding(name, line, added))
+        # A new flag group restricts the invocations a command accepts.
+        for rest in news:
+            if rest.startswith("flag-group ") and rest not in old[key]:
+                report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}", [f"{key}: {rest}"]))
     new_required_members(name, old, new, report)
 
 

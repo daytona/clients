@@ -86,8 +86,67 @@ class CompatibleCall(unittest.TestCase):
         self.assertFalse(bc.compatible_change("classmethod def (v)", "classmethod def (w, v)"))
         self.assertTrue(bc.compatible_change(ctor, "constructor (message?: string, options?: ErrorOptions)"))
 
+    def test_typescript_positional_names_do_not_matter_python_ones_do(self) -> None:
+        old = "method (id: string): Promise<Sandbox>"
+        self.assertTrue(bc.compatible_change(old, "method (idOrName: string): Promise<Sandbox>", typescript=True))
+        self.assertFalse(bc.compatible_change(old, "method (idOrName: string): Promise<Sandbox>"))
+        self.assertFalse(bc.compatible_change(old, "method (idOrName: number): Promise<Sandbox>", typescript=True))
+        self.assertFalse(bc.compatible_change("def (name: str) -> None", "def (label: str) -> None"))
+
+    def test_growth_at_the_top_level_of_a_position(self) -> None:
+        cases = [
+            # property (an options property, and an output one)
+            ("optional property 'tcp' | 'udp'", "optional property 'sctp' | 'tcp' | 'udp'"),
+            ("readonly property 'a' | 'b'", "readonly property 'a' | 'b' | 'c'"),
+            # TypeScript parameter
+            ("method (proto: 'tcp' | 'udp'): void", "method (proto: 'sctp' | 'tcp' | 'udp'): void"),
+            # Python Literal keyword
+            (
+                "async def (*, platform: Literal['linux', 'macos'] | None = None) -> list[Image]",
+                "async def (*, platform: Literal['arm', 'linux', 'macos'] | None = None) -> list[Image]",
+            ),
+            # return type, inside a Promise
+            ("method (): Promise<'a' | 'b'>", "method (): Promise<'a' | 'b' | 'c'>"),
+            ("def () -> Literal['a']", "def () -> Literal['a', 'b']"),
+            # inline object member
+            ("method (o?: { s?: 'a'; }): void", "method (o?: { s?: 'a' | 'b'; }): void"),
+            # Python field and TypedDict key
+            ("field kw_only Literal['a'] | None = None", "field kw_only Literal['a', 'b'] | None = None"),
+            ("optional key Literal['a']", "optional key Literal['a', 'b']"),
+            # one-line constants
+            ("const readonly ['SANDBOX_NOT_RUNNING']", "const readonly ['SANDBOX_NOT_RUNNING', 'SANDBOX_PAUSED']"),
+            ("const frozenset('SANDBOX_NOT_RUNNING')", "const frozenset('SANDBOX_NOT_RUNNING', 'SANDBOX_PAUSED')"),
+            ("const tuple('a')", "const tuple('a', 'b')"),
+            # a parameter may become nullable
+            ("method (x: string): void", "method (x: string | undefined): void"),
+        ]
+        for old, new in cases:
+            with self.subTest(old=old):
+                self.assertTrue(bc.compatible_change(old, new))
+
+    def test_changes_that_are_not_growth(self) -> None:
+        cases = [
+            ("optional property 'tcp' | 'udp'", "optional property 'tcp'"),
+            # inside a type argument, widening removes properties
+            ("method (o: Omit<Opts, 'a'>): void", "method (o: Omit<Opts, 'a' | 'b'>): void"),
+            ("type = Exclude<K, 'a'>", "type = Exclude<K, 'a' | 'b'>"),
+            # an output that may now be absent
+            ("method (): Promise<Limits>", "method (): Promise<Limits | undefined>"),
+            ("readonly property string", "readonly property string | null"),
+            # tuple positions
+            ("const readonly ['A', 'B']", "const readonly ['B', 'A', 'C']"),
+            ("const tuple('a', 'b')", "const tuple('b', 'a')"),
+            # a field's default
+            ("field kw_only str = 'a'", "field kw_only str | int = 'b'"),
+        ]
+        for old, new in cases:
+            with self.subTest(old=old):
+                self.assertFalse(bc.compatible_change(old, new))
+
     def test_class_gained_base(self) -> None:
         self.assertTrue(bc.compatible_change("class (A)", "class (A, B)"))
+        self.assertTrue(bc.compatible_change("dataclass frozen <T> (A)", "dataclass frozen <T> (A, B)"))
+        self.assertFalse(bc.compatible_change("dataclass frozen <T> (A)", "dataclass frozen <T, U> (A, B)"))
         self.assertFalse(bc.compatible_change("class (A, B)", "class (B)"))
 
 
@@ -154,7 +213,10 @@ class CliLines(unittest.TestCase):
         self.assertTrue(bc.compatible_change("args 0-1", "args 0+"))
         self.assertFalse(bc.compatible_change("args 0-1", "args 1"))
         self.assertFalse(bc.compatible_change("args 0+", "args 0-2"))
-        self.assertEqual(bc.arg_counts("0,2-3,5+"), {0, 2, 3, 5, 6})
+        self.assertEqual(bc.arg_counts("0,2-3,15+"), {0, 2, 3, 15, 16, bc.ARGS_UNBOUNDED})
+        # An unbounded command that now stops after the probed counts.
+        self.assertFalse(bc.compatible_change("args 0+", "args 0-16"))
+        self.assertTrue(bc.compatible_change("args 0-16", "args 0+"))
 
     def test_flag_moved_to_a_required_persistent_parent_flag_breaks(self) -> None:
         old = 'daytona: command\ndaytona x: command\ndaytona x --a: flag bool default="false"'
@@ -309,6 +371,50 @@ class CompareSurface(unittest.TestCase):
         self.assertEqual(len(report.breaking), 1)
         report = bc.Report()
         bc.compare_surface("s.txt", old, old.replace("~Opts@v2/a", "~Opts"), report)
+        self.assertEqual(report.breaking, [])
+
+    def test_dict_item_gained_an_element(self) -> None:
+        old = "codes.API_CODE_EXTRAS: const mappingproxy\ncodes.API_CODE_EXTRAS: item 'GONE': tuple('replacement')"
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, old.replace("tuple('replacement')", "tuple('replacement', 'sunset_at')"), report)
+        self.assertEqual(report.breaking, [])
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, old.replace("tuple('replacement')", "tuple('sunset_at')"), report)
+        # A changed item is printed with its new line, not as removed.
+        self.assertEqual(
+            report.breaking,
+            [
+                bc.snapshot_finding(
+                    "s.txt",
+                    "codes.API_CODE_EXTRAS: item 'GONE': tuple('replacement')",
+                    ["codes.API_CODE_EXTRAS: item 'GONE': tuple('sunset_at')"],
+                )
+            ],
+        )
+
+    def test_new_required_member_of_a_base_of_a_passed_in_type(self) -> None:
+        old = "\n".join(
+            [
+                "Base: interface",
+                "Base.limit: optional property number",
+                "Base: passed-in",
+                "Opts: interface extends Base",
+                "Opts.state: optional property string",
+                "Opts: passed-in",
+            ]
+        )
+        report = bc.Report()
+        bc.compare_surface("s.txt", old, old + "\nBase.team: property string", report)
+        self.assertEqual(report.breaking, [bc.snapshot_finding("s.txt", "Base: passed-in", ["Base.team: property string"])])
+
+    def test_flag_groups(self) -> None:
+        old = 'daytona x: command\ndaytona x --json: flag bool default="false"\ndaytona x --yaml: flag bool default="false"'
+        grouped = old + "\ndaytona x: flag-group mutually-exclusive json yaml"
+        report = bc.Report()
+        bc.compare_surface("cli.txt", old, grouped, report)
+        self.assertEqual(len(report.breaking), 1)
+        report = bc.Report()
+        bc.compare_surface("cli.txt", grouped, old, report)
         self.assertEqual(report.breaking, [])
 
     def test_public_constructor_field_order_swap_breaks(self) -> None:
@@ -610,7 +716,9 @@ class Repository(RepoCase):
         full = self.root / "full"
         self.git("clone", "-q", "--no-tags", self.root.as_uri(), str(full))
         commits = run_in(full, "rev-list", "--count", "HEAD")
-        bc.main(["--root", str(full), "--fetch", "origin"], out=io.StringIO())
+        out = io.StringIO()
+        self.assertEqual(bc.main(["--root", str(full), "--fetch", "origin"], out=out), 1, out.getvalue())
+        self.assertIn('old: daytona --yes: flag bool default="false"', out.getvalue())
         self.assertEqual(run_in(full, "rev-parse", "--is-shallow-repository"), "false")
         self.assertEqual(run_in(full, "rev-list", "--count", "HEAD"), commits)
         self.assertEqual(run_in(full, "tag"), "v2.0.0")
