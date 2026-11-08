@@ -936,6 +936,9 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
         # gained a line, an old overload was changed, and a call that matched
         # it now resolves to the changed one.
         dropped_only = news is not None and all(c in old[key] for c in news)
+        # The new line each old line survives as (itself, or a compatible
+        # change of it), for the overload order below.
+        survives_as: dict[str, str] = {}
         if news is None:
             if is_child(key, removed_keys):
                 continue
@@ -993,11 +996,14 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                 )
             ) is not None:
                 consumed.add(match)
+                if match not in old[key]:
+                    survives_as[rest] = match
                 report.notices.append(f"{name}: compatible change of {line}")
             elif parent_of(key, pass_only) and (
                 match := next((c for c in news if made_optional(rest, c, typescript=typescript)), None)
             ) is not None:
                 consumed.add(match)
+                survives_as[rest] = match
                 report.notices.append(f"{name}: member of a passed-in type made optional {line}")
             else:
                 report.breaking.append(snapshot_finding(name, line, added))
@@ -1026,6 +1032,7 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             ):
                 anchor = next((r for r in old[key] if is_signature(r)), old[key][0])
                 report.breaking.append(snapshot_finding(name, f"{key}: {anchor}", [f"{key}: {rest}"]))
+        overload_order(name, key, old[key], news, survives_as, pass_only, two_way, old, report)
     new_required_members(name, old, new, report)
     new_required_flags(name, old, new, report)
 
@@ -1081,6 +1088,38 @@ def position(key: str, rest: str, entries: dict[str, list[str]], pass_only: set[
         # A settable property: callers write it too.
         return {"direction": BOTH, "implementer": "sdk"}
     return {"direction": BOTH, "implementer": "sdk"}
+
+
+def overload_order(
+    name: str,
+    key: str,
+    olds: list[str],
+    news: list[str],
+    survives_as: dict[str, str],
+    pass_only: set[str],
+    two_way: set[str],
+    entries: dict[str, list[str]],
+    report: Report,
+) -> None:
+    """The overloads of a function the SDK implements, in declaration order
+    (the snapshot keeps it): a call resolves against the first overload it
+    matches, so the surviving old overloads must keep their order, and a new
+    one must come after all of them (placed earlier, it can capture calls
+    that an old one answered)."""
+    old_sig = [r for r in olds if is_signature(r)]
+    new_sig = [r for r in news if is_signature(r)]
+    if not old_sig or len(new_sig) < 2:
+        return
+    if any(f.area == name and dict(f.fields).get("old", "").startswith(f"{key}: ") for f in report.breaking):
+        return
+    if position(key, old_sig[0], entries, pass_only, two_way)["implementer"] != "sdk":
+        return
+    survivors = [r if r in news else survives_as.get(r) for r in old_sig]
+    positions = [new_sig.index(c) for c in survivors if c is not None and c in new_sig]
+    taken = {new_sig[i] for i in positions}
+    added = [i for i, line in enumerate(new_sig) if line not in taken]
+    if positions != sorted(positions) or (positions and any(i < max(positions) for i in added)):
+        report.breaking.append(snapshot_finding(name, f"{key}: {old_sig[0]}", [f"{key}: {r}" for r in new_sig]))
 
 
 def parent_of(key: str, parents: set[str]) -> str | None:

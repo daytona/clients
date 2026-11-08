@@ -356,6 +356,31 @@ class Directions(unittest.TestCase):
         py_new = "S: class\nS.lookup: def (key: str) -> int\nS.lookup: def (key: str | int) -> str"
         self.assertEqual(self.breaks(self.PY, py_old, py_new), 1)
 
+    def test_overload_order_of_sdk_functions(self) -> None:
+        # The snapshot keeps overloads in declaration order; calls resolve
+        # against the first overload they match.
+        for area, a, b in (
+            (self.TS, "f: function (key: string): string", "f: function (key: unknown): number"),
+            (self.PY, "f: def (key: str) -> str", "f: def (key: object) -> int"),
+        ):
+            with self.subTest(area=area):
+                old = f"{a}\n{b}"
+                self.assertEqual(self.breaks(area, old, f"{b}\n{a}"), 1)  # reordered
+        cases = [
+            (self.TS, "f: function (key: number | string): string", "f: function (key: string): number"),
+            (self.PY, "f: def (key: str | int) -> str", "f: def (key: str) -> int"),
+        ]
+        for area, kept, extra in cases:
+            with self.subTest(area=area):
+                self.assertEqual(self.breaks(area, kept, f"{extra}\n{kept}"), 1)  # new overload first
+                self.assertEqual(self.breaks(area, kept, f"{kept}\n{extra}"), 0)  # new overload last
+        # A compatible change keeps its place; methods of a class follow the same rule.
+        old = "C: class\nC.m: method (a: string): string\nC.m: method (a: number): number"
+        self.assertEqual(self.breaks(self.TS, old, old.replace("(a: string)", "(a: string, b?: number)")), 0)
+        self.assertEqual(
+            self.breaks(self.TS, old, "C: class\nC.m: method (a: number): number\nC.m: method (a: string): string"), 1
+        )
+
     def test_new_index_signature_on_a_passed_in_type(self) -> None:
         passed = "O: interface\nO: passed-in\nO.a: property string"
         self.assertEqual(self.breaks(self.TS, passed, passed + "\nO[]: index [key: string]: string"), 1)
