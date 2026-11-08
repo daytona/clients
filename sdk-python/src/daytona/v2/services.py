@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import math
 import uuid
+from collections.abc import Sequence as SequenceABC
 from types import MappingProxyType
 from typing import (
     AsyncIterator,
@@ -848,7 +849,11 @@ class AsyncSecretsService:
         ``"*"`` lets the value reach any HTTPS host, including one a
         compromised sandbox controls.
         """
-        if isinstance(allowed_domains, str) or not all(isinstance(domain, str) for domain in allowed_domains):
+        if (
+            isinstance(allowed_domains, str)
+            or not isinstance(allowed_domains, SequenceABC)
+            or not all(isinstance(domain, str) for domain in allowed_domains)
+        ):
             raise create_error("allowed_domains must be a list of strings", 400, "BAD_REQUEST", "SDK")
         body: JsonObject = {"value": value, "allowed_domains": list(allowed_domains)}
         if description is not None:

@@ -236,7 +236,7 @@ async def test_platform_inputs_are_validated_before_any_request() -> None:
     api = _Api([])
     secrets = AsyncSecretsService(api)  # type: ignore[arg-type]
     volumes = AsyncVolumesService(api)  # type: ignore[arg-type]
-    for domains in ("example.com", ["example.com", 1]):
+    for domains in ("example.com", ["example.com", 1], None, 5):
         with pytest.raises(BadRequestError, match="allowed_domains must be a list of strings"):
             await secrets.set("S", "v", allowed_domains=domains)  # type: ignore[arg-type]
     for size in (0, -1, 1.5, True, float("nan"), float("inf")):
