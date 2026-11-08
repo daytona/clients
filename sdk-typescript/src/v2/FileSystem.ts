@@ -22,7 +22,7 @@ import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
-import { fileInfoFromWire, fileMatchFromWire, replaceResultFromWire } from './toolboxModels.js'
+import { bool, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str } from './toolboxModels.js'
 
 export type { BulkReadError, BulkReadResult, BulkWriteFile, BulkWriteResult }
 export type { DownloadFileOptions, TransferProgressCallback, UploadFileOptions }
@@ -109,17 +109,15 @@ const FILE_PERMISSIONS_OPTION_KEYS = optionKeys<FilePermissionsOptions>()({ mode
 const UPLOAD_FILE_OPTION_KEYS = optionKeys<UploadFileOptions>()({ onProgress: true, signal: true, atomic: true })
 const DOWNLOAD_FILE_OPTION_KEYS = optionKeys<DownloadFileOptions>()({ onProgress: true, signal: true })
 
-/** How long an external `stop()` waits for a running callback where a reentrant call cannot be told apart. */
-const WATCH_STOP_JOIN_TIMEOUT_MS = 5_000
-
 interface AsyncLocalStorageLike<T> {
   getStore(): T | undefined
   run<R>(store: T, callback: () => R): R
 }
 
 /**
- * Where the runtime has one (Node, Bun, Deno), an AsyncLocalStorage tells a
- * `stop()` made by a watch's own callback from an external one; looked up at
+ * Where the runtime has one (Node, Bun, Deno, workerd with Node
+ * compatibility), an AsyncLocalStorage tells a `stop()` / `waitForExit()`
+ * made by a watch's own running callback from an external one; looked up at
  * run time so bundlers do not pull Node modules into a browser build.
  */
 function deliveryScope(): AsyncLocalStorageLike<object> | undefined {
@@ -161,6 +159,8 @@ function contentTypeHeader(headers: unknown): string | undefined {
   return typeof upper === 'string' ? upper : undefined
 }
 
+const WATCH_EVENT = 'filesystem watch event'
+
 function filesystemEventType(value: unknown): FilesystemEventType {
   switch (value) {
     case FilesystemEventType.CREATE:
@@ -170,7 +170,7 @@ function filesystemEventType(value: unknown): FilesystemEventType {
     case FilesystemEventType.CHMOD:
       return value
     default:
-      throw new DaytonaError(`invalid filesystem event type: ${String(value)}`, { source: 'SDK' })
+      throw malformedResponse(`${WATCH_EVENT}: invalid type ${JSON.stringify(value) ?? String(value)}`)
   }
 }
 
@@ -178,26 +178,17 @@ function parseFilesystemEvent(data: string): FilesystemEvent {
   let parsed: unknown
   try {
     parsed = data ? JSON.parse(data) : {}
-  } catch (error) {
-    throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
+  } catch {
+    throw malformedResponse(`${WATCH_EVENT}: the data is not JSON`)
   }
-  if (typeof parsed !== 'object' || parsed === null) {
-    throw new DaytonaError('filesystem watch event must be an object', { source: 'SDK' })
-  }
-  const raw = parsed as Record<string, unknown>
-  if (typeof raw.name !== 'string') throw new DaytonaError('filesystem watch event name must be a string', { source: 'SDK' })
-  if (typeof raw.isDir !== 'boolean') throw new DaytonaError('filesystem watch event isDir must be a boolean', { source: 'SDK' })
-  if (typeof raw.timestamp !== 'number' || !Number.isFinite(raw.timestamp)) {
-    throw new DaytonaError('filesystem watch event timestamp must be a finite number', { source: 'SDK' })
-  }
+  const raw = record(parsed, WATCH_EVENT)
   return {
     type: filesystemEventType(raw.type),
-    name: raw.name,
-    isDir: raw.isDir,
-    timestampMs: raw.timestamp,
+    name: str(raw, 'name', WATCH_EVENT),
+    isDir: bool(raw, 'isDir', WATCH_EVENT),
+    timestampMs: int(raw, 'timestamp', WATCH_EVENT),
   }
 }
-
 
 export interface PresignedUrlOptions {
   /** Whole seconds, 1 to {@link SIGNED_FILE_MAX_TTL_SECONDS}; default 3600. */
@@ -374,9 +365,7 @@ export class FileSystemService {
     const response = await this.transport.get<toolbox.FileInfo[] | ListResult<toolbox.FileInfo>>('/files', {
       params,
     })
-    return Array.isArray(response)
-      ? { items: response.map(fileInfoFromWire) }
-      : { ...response, items: response.items.map(fileInfoFromWire) }
+    return listItems(response, 'items', 'file list response', fileInfoFromWire)
   }
 
   /** Return file metadata. */
@@ -401,9 +390,15 @@ export class FileSystemService {
   /** Search file contents under `path` for the literal substring `pattern`; returns matches with one-based line numbers. */
   public async grep(path: string, pattern: string): Promise<ListResult<FileMatch>> {
     const data = await this.transport.get<toolbox.Match[] | ListResult<toolbox.Match>>('/files/find', { params: { path, pattern } })
-    return Array.isArray(data) ? { items: data.map(fileMatchFromWire) } : { ...data, items: data.items.map(fileMatchFromWire) }
+    return listItems(data, 'items', 'grep response', fileMatchFromWire)
   }
 
+  /**
+   * Watch `path` for changes, calling `onEvent` for each one. Resolves once
+   * the watch is established. Callbacks run one at a time, in order, and are
+   * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
+   * error. `onExit` runs once when the watch ends; its own failure is ignored.
+   */
   /**
    * Watch `path` for changes, calling `onEvent` for each one. Resolves once
    * the watch is established. Callbacks run one at a time, in order, and are
@@ -418,13 +413,16 @@ export class FileSystemService {
     assertKnownOptions('WatchDirOptions', options, WATCH_DIR_OPTION_KEYS)
     const controller = new AbortController()
     const scope = deliveryScope()
-    const scopeToken = {}
     let stopRequested = false
     let exitNotified = false
     let exitError: Error | undefined
     let started = false
-    // True while a callback runs its synchronous part: a stop() made then is
-    // the callback's own, even where no AsyncLocalStorage can tell.
+    // The token of the callback delivery in progress: set for exactly that
+    // delivery and cleared when it settles, so a call the callback schedules
+    // for later (a timer) no longer counts as its own.
+    let activeDelivery: object | undefined
+    // True while a callback runs its synchronous part: a call made then is the
+    // callback's own, even where no AsyncLocalStorage can tell.
     let deliveringSync = false
     let resolveStarted!: () => void
     let rejectStarted!: (error: Error) => void
@@ -436,10 +434,13 @@ export class FileSystemService {
     const exitPromise = new Promise<Error | undefined>((resolve) => {
       resolveExit = resolve
     })
+    const calledFromOwnCallback = (): boolean =>
+      deliveringSync || (activeDelivery !== undefined && scope !== undefined && scope.getStore() === activeDelivery)
     const notifyExit = async (error?: Error): Promise<void> => {
       if (exitNotified) return
       exitNotified = true
       exitError = error
+      // Resolved before onExit runs, so onExit can await waitForExit().
       resolveExit(error)
       // An onExit failure is contained: the watch has already ended.
       try {
@@ -449,14 +450,20 @@ export class FileSystemService {
       }
     }
     const deliver = async (callback: () => void | Promise<void>): Promise<void> => {
+      const token = {}
+      activeDelivery = token
       let result: void | Promise<void>
       deliveringSync = true
       try {
-        result = scope === undefined ? callback() : scope.run(scopeToken, callback)
+        result = scope === undefined ? callback() : scope.run(token, callback)
       } finally {
         deliveringSync = false
       }
-      await result
+      try {
+        await result
+      } finally {
+        activeDelivery = undefined
+      }
     }
     const streamTask = (async () => {
       try {
@@ -482,10 +489,12 @@ export class FileSystemService {
               await deliver(() => onOverflow())
             }
           } catch (error) {
-            // A failing callback ends the watch with its error, even when
-            // stop() was called while it ran.
+            // A failing callback (or a malformed event) ends the watch with
+            // its error, even when stop() was called while it ran.
             controller.abort()
-            await notifyExit(error instanceof Error ? error : new DaytonaError(String(error), { source: 'SDK' }))
+            const normalized = error instanceof Error ? error : new DaytonaError(String(error), { source: 'SDK' })
+            if (!started) rejectStarted(normalized)
+            await notifyExit(normalized)
             return
           }
         }
@@ -512,25 +521,15 @@ export class FileSystemService {
         return exitError
       },
       stop: async () => {
-        const reentrant = deliveringSync || (scope !== undefined && scope.getStore() === scopeToken)
+        const ownCallback = calledFromOwnCallback()
         stopRequested = true
         controller.abort()
-        // The watch's own callback must not wait for itself.
-        if (reentrant) return
-        if (scope !== undefined) {
-          await streamTask
-          return
-        }
-        let timer: ReturnType<typeof setTimeout> | undefined
-        await Promise.race([
-          streamTask,
-          new Promise<void>((resolve) => {
-            timer = setTimeout(resolve, WATCH_STOP_JOIN_TIMEOUT_MS)
-          }),
-        ])
-        if (timer !== undefined) clearTimeout(timer)
+        // The watch's own callback must not wait for itself, and once the
+        // watch has ended (onExit may be the caller) there is nothing to wait for.
+        if (ownCallback || exitNotified) return
+        await streamTask
       },
-      waitForExit: async () => exitPromise,
+      waitForExit: async () => (calledFromOwnCallback() ? exitError : exitPromise),
     }
     await startedPromise
     return handle
@@ -539,16 +538,19 @@ export class FileSystemService {
   /** Return the paths of files under `path` whose base name matches the glob `pattern`. */
   public async glob(path: string, pattern: string): Promise<ListResult<string>> {
     const data = await this.transport.get<toolbox.SearchResponse | string[] | ListResult<string>>('/files/search', { params: { path, pattern } })
-    if (Array.isArray(data)) return { items: data }
-    if ('items' in data) return data
-    return { items: data.files ?? [] }
+    const strings = (path: unknown): string => {
+      if (typeof path !== 'string') throw malformedResponse('glob response: every path must be a string')
+      return path
+    }
+    if (Array.isArray(data)) return listItems(data, 'files', 'glob response', strings)
+    return listItems(data, 'items' in record(data, 'glob response') ? 'items' : 'files', 'glob response', strings)
   }
 
   /** Replace the literal substring `pattern` with `newValue` in `files`. */
   public async replace(files: readonly string[], pattern: string, newValue: string): Promise<ListResult<ReplaceResult>> {
     const body: toolbox.ReplaceRequest = { files: [...files], pattern, newValue }
     const data = await this.transport.post<toolbox.ReplaceResult[] | ListResult<toolbox.ReplaceResult>>('/files/replace', body)
-    return Array.isArray(data) ? { items: data.map(replaceResultFromWire) } : { ...data, items: data.items.map(replaceResultFromWire) }
+    return listItems(data, 'items', 'replace response', replaceResultFromWire)
   }
 
   /** Set file permissions and ownership. */

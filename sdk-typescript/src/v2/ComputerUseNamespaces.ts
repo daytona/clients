@@ -4,17 +4,28 @@
  */
 
 import {
-  mapComputerUseAccessibilityNode,
+  mapComputerUseA11yFind,
+  mapComputerUseA11yTree,
+  mapComputerUseDisplayInfo,
+  mapComputerUseDisplayWindows,
   mapComputerUseLifecycleResponse,
+  mapComputerUsePoint,
+  mapComputerUseProcessErrorsResponse,
+  mapComputerUseProcessLogsResponse,
+  mapComputerUseProcessRestartResponse,
+  mapComputerUseProcessRunningStatus,
   mapComputerUseProcessStatusMap,
   mapComputerUseRecording,
+  mapComputerUseRecordings,
   mapComputerUseRestartResponse,
   mapComputerUseScreenshot,
+  mapComputerUseScrollResponse,
   mapComputerUseStatusResponse,
 } from './ComputerUseMappers.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
+import { exactMs } from './ProcessWire.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { dropUndefined } from './http.js'
 import type {
@@ -66,7 +77,7 @@ const MOUSE_MOVE_KEYS = optionKeys<ComputerUseMouseMoveRequest>()({ x: true, y: 
 const MOUSE_CLICK_KEYS = optionKeys<ComputerUseMouseClickRequest>()({ x: true, y: true, button: true, double: true })
 const MOUSE_DRAG_KEYS = optionKeys<ComputerUseMouseDragRequest>()({ startX: true, startY: true, endX: true, endY: true, button: true })
 const MOUSE_SCROLL_KEYS = optionKeys<ComputerUseMouseScrollRequest>()({ x: true, y: true, direction: true, amount: true })
-const KEYBOARD_TYPE_KEYS = optionKeys<ComputerUseKeyboardTypeRequest>()({ text: true, delay: true })
+const KEYBOARD_TYPE_KEYS = optionKeys<ComputerUseKeyboardTypeRequest>()({ text: true, delaySeconds: true })
 const KEYBOARD_KEY_KEYS = optionKeys<ComputerUseKeyboardKeyRequest>()({ key: true, modifiers: true })
 const KEYBOARD_HOTKEY_KEYS = optionKeys<ComputerUseKeyboardHotkeyRequest>()({ keys: true })
 const SCREENSHOT_KEYS = optionKeys<ComputerUseScreenshotOptions>()({ region: true, format: true, quality: true, scale: true, showCursor: true })
@@ -96,19 +107,21 @@ export class AddonProcessesService {
       ? mapComputerUseProcessStatusMap(
           await this.transport.get<toolbox.ComputerUseProcessStatusMap>('/computeruse/process-status'),
         )
-      : this.transport.get<toolbox.ComputerUseProcessRunningStatus>(`/computeruse/process/${strictUriEncode(name)}/status`)
+      : mapComputerUseProcessRunningStatus(
+          await this.transport.get<toolbox.ComputerUseProcessRunningStatus>(`/computeruse/process/${strictUriEncode(name)}/status`),
+        )
   }
 
   public async restart(name: string): Promise<ComputerUseProcessRestartResponse> {
-    return this.transport.post<toolbox.ComputerUseProcessRestartResponse>(`/computeruse/process/${strictUriEncode(name)}/restart`)
+    return mapComputerUseProcessRestartResponse(await this.transport.post<toolbox.ComputerUseProcessRestartResponse>(`/computeruse/process/${strictUriEncode(name)}/restart`))
   }
 
   public async logs(name: string): Promise<ComputerUseProcessLogsResponse> {
-    return this.transport.get<toolbox.ComputerUseProcessLogsResponse>(`/computeruse/process/${strictUriEncode(name)}/logs`)
+    return mapComputerUseProcessLogsResponse(await this.transport.get<toolbox.ComputerUseProcessLogsResponse>(`/computeruse/process/${strictUriEncode(name)}/logs`))
   }
 
   public async errors(name: string): Promise<ComputerUseProcessErrorsResponse> {
-    return this.transport.get<toolbox.ComputerUseProcessErrorsResponse>(`/computeruse/process/${strictUriEncode(name)}/errors`)
+    return mapComputerUseProcessErrorsResponse(await this.transport.get<toolbox.ComputerUseProcessErrorsResponse>(`/computeruse/process/${strictUriEncode(name)}/errors`))
   }
 }
 
@@ -121,27 +134,27 @@ export class MouseService {
   }
 
   public async position(): Promise<ComputerUsePoint> {
-    return this.transport.get<toolbox.ComputerUsePoint>('/computeruse/mouse/position')
+    return mapComputerUsePoint(await this.transport.get<toolbox.ComputerUsePoint>('/computeruse/mouse/position'))
   }
 
   public async move(request: ComputerUseMouseMoveRequest): Promise<ComputerUsePoint> {
     assertKnownOptions('ComputerUseMouseMoveRequest', request, MOUSE_MOVE_KEYS)
-    return this.transport.post<toolbox.ComputerUsePoint>('/computeruse/mouse/move', request satisfies toolbox.ComputerUseMouseMoveRequest)
+    return mapComputerUsePoint(await this.transport.post<toolbox.ComputerUsePoint>('/computeruse/mouse/move', request satisfies toolbox.ComputerUseMouseMoveRequest))
   }
 
   public async click(request: ComputerUseMouseClickRequest): Promise<ComputerUsePoint> {
     assertKnownOptions('ComputerUseMouseClickRequest', request, MOUSE_CLICK_KEYS)
-    return this.transport.post<toolbox.ComputerUsePoint>('/computeruse/mouse/click', request satisfies toolbox.ComputerUseMouseClickRequest)
+    return mapComputerUsePoint(await this.transport.post<toolbox.ComputerUsePoint>('/computeruse/mouse/click', request satisfies toolbox.ComputerUseMouseClickRequest))
   }
 
   public async drag(request: ComputerUseMouseDragRequest): Promise<ComputerUsePoint> {
     assertKnownOptions('ComputerUseMouseDragRequest', request, MOUSE_DRAG_KEYS)
-    return this.transport.post<toolbox.ComputerUsePoint>('/computeruse/mouse/drag', request satisfies toolbox.ComputerUseMouseDragRequest)
+    return mapComputerUsePoint(await this.transport.post<toolbox.ComputerUsePoint>('/computeruse/mouse/drag', request satisfies toolbox.ComputerUseMouseDragRequest))
   }
 
   public async scroll(request: ComputerUseMouseScrollRequest): Promise<ComputerUseScrollResponse> {
     assertKnownOptions('ComputerUseMouseScrollRequest', request, MOUSE_SCROLL_KEYS)
-    return this.transport.post<toolbox.ComputerUseScrollResponse>('/computeruse/mouse/scroll', request satisfies toolbox.ComputerUseMouseScrollRequest)
+    return mapComputerUseScrollResponse(await this.transport.post<toolbox.ComputerUseScrollResponse>('/computeruse/mouse/scroll', request satisfies toolbox.ComputerUseMouseScrollRequest))
   }
 }
 
@@ -155,7 +168,9 @@ export class KeyboardService {
 
   public async type(request: ComputerUseKeyboardTypeRequest): Promise<void> {
     assertKnownOptions('ComputerUseKeyboardTypeRequest', request, KEYBOARD_TYPE_KEYS)
-    await this.transport.post<void>('/computeruse/keyboard/type', request satisfies toolbox.ComputerUseKeyboardTypeRequest)
+    const delay = exactMs('delaySeconds', request.delaySeconds)
+    const body: toolbox.ComputerUseKeyboardTypeRequest = delay === undefined ? { text: request.text } : { text: request.text, delay }
+    await this.transport.post<void>('/computeruse/keyboard/type', body)
   }
 
   public async key(request: ComputerUseKeyboardKeyRequest): Promise<void> {
@@ -212,11 +227,11 @@ export class DisplayService {
   }
 
   public async info(): Promise<ComputerUseDisplayInfoResponse> {
-    return this.transport.get<toolbox.ComputerUseDisplayInfoResponse>('/computeruse/display/info')
+    return mapComputerUseDisplayInfo(await this.transport.get<toolbox.ComputerUseDisplayInfoResponse>('/computeruse/display/info'))
   }
 
   public async windows(): Promise<ComputerUseDisplayWindowsResponse> {
-    return this.transport.get<toolbox.ComputerUseDisplayWindowsResponse>('/computeruse/display/windows')
+    return mapComputerUseDisplayWindows(await this.transport.get<toolbox.ComputerUseDisplayWindowsResponse>('/computeruse/display/windows'))
   }
 }
 
@@ -236,13 +251,13 @@ export class A11yService {
       maxDepth: options.maxDepth,
     } satisfies toolbox.ComputerUseA11yTreeQuery
     const response = await this.transport.get<toolbox.ComputerUseA11yTreeResponse>('/computeruse/a11y/tree', { params: dropUndefined(query) })
-    return { ...response, root: mapComputerUseAccessibilityNode(response.root) }
+    return mapComputerUseA11yTree(response)
   }
 
   public async find(request: ComputerUseA11yFindRequest): Promise<ComputerUseA11yFindResponse> {
     assertKnownOptions('ComputerUseA11yFindRequest', request, A11Y_FIND_KEYS)
     const response = await this.transport.post<toolbox.ComputerUseA11yFindResponse>('/computeruse/a11y/find', request satisfies toolbox.ComputerUseA11yFindRequest)
-    return { ...response, matches: response.matches.map(mapComputerUseAccessibilityNode) }
+    return mapComputerUseA11yFind(response)
   }
 
   public async focus(request: ComputerUseA11yFocusRequest): Promise<void> {
@@ -284,8 +299,7 @@ export class RecordingService {
   }
 
   public async list(): Promise<ComputerUseRecordingsResponse> {
-    const response = await this.transport.get<toolbox.ComputerUseRecordingsResponse>('/computeruse/recordings')
-    return { recordings: response.recordings.map(mapComputerUseRecording) }
+    return mapComputerUseRecordings(await this.transport.get<toolbox.ComputerUseRecordingsResponse>('/computeruse/recordings'))
   }
 
   public async get(id: string): Promise<ComputerUseRecording> {

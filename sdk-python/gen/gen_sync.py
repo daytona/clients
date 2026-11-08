@@ -27,6 +27,7 @@ import sys
 import typing
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Mapping
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
@@ -467,6 +468,7 @@ def _emit_class(module: str, cls: type) -> str:
         lines.append(f"        return {_wrap_expr(ann_text, f'self._impl.{attr}', 'self._bridge')}")
         lines.append("")
 
+    loop_variants: Mapping[str, str] = getattr(cls, "_SYNC_LOOP_VARIANTS", {})
     for m in sorted(_members(cls), key=lambda m: (m.kind == "property", m.name)):
         if name == "AsyncDaytona" and m.name == "close":
             lines.append("    def close(self) -> None:")
@@ -539,6 +541,14 @@ def _emit_class(module: str, cls: type) -> str:
             lines.append(f"        self._bridge.call(lambda: self._impl.{m.name}({fwd}))")
             lines.append("        return self")
         elif m.kind == "coro":
+            # A method listed in the class's `_SYNC_LOOP_VARIANTS` (a watch's
+            # stop()) can be called from a callback the SDK runs on the loop
+            # thread, where blocking on the loop is impossible: there it calls
+            # the named non-blocking method instead.
+            loop_variant = loop_variants.get(m.name)
+            if loop_variant is not None:
+                lines.append("        if self._bridge.on_loop_thread():")
+                lines.append(f"            return self._impl.{loop_variant}({fwd})")
             inner = f"self._bridge.call(lambda: self._impl.{m.name}({fwd}))"
             lines.append(f"        return {_wrap_expr(m.src_returns or m.returns, inner, 'self._bridge')}")
         elif m.kind == "agen":

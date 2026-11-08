@@ -23,7 +23,7 @@ from ._core import (
     parse_log_page,
     parse_process,
     parse_process_page,
-    parse_sse_lines_async,
+    parse_sse_messages_async,
     parse_wait,
     process_create_spec,
     process_list_spec,
@@ -31,6 +31,7 @@ from ._core import (
     signal_spec,
     stdin_spec,
     timeout_millis_from_seconds,
+    wait_budget,
     wait_spec,
 )
 from ._transport import AsyncTransport
@@ -137,36 +138,45 @@ async def _all_logs(handle: AsyncProcessHandle, *, max_pages: Optional[int] = No
         cursor = page.next_cursor
 
 
-def _stream_log_event(event: str, payload: JsonObject) -> Optional[StreamLogEvent]:
-    """One SSE event of a followed process log; ``None`` for an event this release ignores."""
+def _malformed_event(event: str, field: str) -> DaytonaError:
+    return create_error(f"expected process log {event} event: {field} is required", 400, "BAD_REQUEST", "SDK")
+
+
+def _stream_log_event(event: str, payload: JsonObject, message_id: Optional[str]) -> Optional[StreamLogEvent]:
+    """One SSE event of a followed process log; ``None`` for an event this release ignores.
+
+    An event's cursor is its payload's, else the SSE ``id:`` line's; an event
+    missing a field the contract requires raises the malformed-response error.
+    """
+    if event not in ("log", "state", "warning", "eof", "error"):
+        return None
     cursor_value = payload.get("cursor")
-    cursor = cursor_value if isinstance(cursor_value, str) else None
+    cursor = cursor_value if isinstance(cursor_value, str) and cursor_value else message_id
+    if not cursor:
+        raise _malformed_event(event, "cursor")
     if event == "log":
-        return StreamLogFrameEvent(
-            frame=parse_log_page([expect_log_frame_dto(payload)]).items[0], cursor=cursor
-        )
+        frame = parse_log_page([expect_log_frame_dto({**payload, "cursor": cursor})]).items[0]
+        return StreamLogFrameEvent(frame=frame, cursor=cursor)
     if event == "state":
         return StreamLogStateEvent(result=parse_wait(expect_exit_result(payload)), cursor=cursor)
-    if event == "warning":
-        message = payload.get("message")
-        first_available = payload.get("firstAvailableCursor")
-        return StreamLogWarningEvent(
-            message=message if isinstance(message, str) else "",
-            cursor=cursor,
-            first_available_cursor=first_available if isinstance(first_available, str) else None,
-        )
     if event == "eof":
         return StreamLogEofEvent(cursor=cursor)
-    if event == "error":
-        code = payload.get("code")
-        source = payload.get("source")
-        raise create_error(
-            str(payload.get("message") or "process log stream failed"),
-            None,
-            code if isinstance(code, str) else None,
-            source if isinstance(source, str) else "DAYTONA_DAEMON",
-        )
-    return None
+    message = payload.get("message")
+    if not isinstance(message, str):
+        raise _malformed_event(event, "message")
+    if event == "warning":
+        first_available = payload.get("firstAvailableCursor")
+        if not isinstance(first_available, str):
+            raise _malformed_event(event, "firstAvailableCursor")
+        return StreamLogWarningEvent(message=message, cursor=cursor, first_available_cursor=first_available)
+    code = payload.get("code")
+    source = payload.get("source")
+    raise create_error(
+        message,
+        None,
+        code if isinstance(code, str) else None,
+        source if isinstance(source, str) else "DAYTONA_DAEMON",
+    )
 
 
 def _required_id(value: object, field: str) -> str:
@@ -219,8 +229,7 @@ class AsyncProcessHandle:
         ``timeout`` is the caller wait budget in seconds; ``0`` waits
         unbounded.
         """
-        if timeout is not None:
-            timeout_millis_from_seconds(timeout)
+        timeout = wait_budget(timeout)
         deadline = None if timeout is None or timeout == 0 else _clock.monotonic() + timeout
         consecutive_transport_failures = 0
         while True:
@@ -299,12 +308,12 @@ class AsyncProcessHandle:
         raises the typed error for its code.
         """
         transport = self._require_transport()
-        async for event, payload in parse_sse_lines_async(
+        async for event, payload, message_id in parse_sse_messages_async(
             transport.stream_lines(
                 logs_spec(self.id, cursor=cursor, limit=limit, encoding=encoding, follow=True)
             )
         ):
-            parsed = _stream_log_event(event, payload)
+            parsed = _stream_log_event(event, payload, message_id)
             if parsed is not None:
                 yield parsed
 
@@ -640,6 +649,7 @@ class AsyncProcessService:
             if result.exit_code != 0:
                 raise RuntimeError(result.stderr)
         """
+        timeout = wait_budget(timeout)
         spec = process_create_spec(
             command,
             argv=argv,

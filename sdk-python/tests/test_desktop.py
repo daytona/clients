@@ -60,7 +60,6 @@ _INVALID_STATUS_CASES = (
         },
         "cause on ready",
     ),
-    ({"status": "active", "desktop": "ready", "cause": None}, "null cause on ready"),
     (
         {
             "status": "inactive",
@@ -276,13 +275,14 @@ def test_status_parser_rejects_invalid_wire_invariants(
     description: str,
 ) -> None:
     from daytona.v2.computer_use_core import parse_computer_use_status
-    from daytona.v2.errors import DaytonaError, InternalServerError
+    from daytona.v2.errors import BadRequestError, DaytonaError
 
-    with pytest.raises(InternalServerError) as exc_info:
+    with pytest.raises(BadRequestError) as exc_info:
         parse_computer_use_status(payload)
 
     assert isinstance(exc_info.value, DaytonaError)
-    assert exc_info.value.status_code == 500
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "BAD_REQUEST"
     assert exc_info.value.source == "SDK"
     assert (
         "Invalid computer-use status response" in exc_info.value.message
@@ -339,13 +339,14 @@ def test_restart_parser_rejects_invalid_wire_invariants(
     description: str,
 ) -> None:
     from daytona.v2.computer_use_core import parse_computer_use_restart
-    from daytona.v2.errors import DaytonaError, InternalServerError
+    from daytona.v2.errors import BadRequestError, DaytonaError
 
-    with pytest.raises(InternalServerError) as exc_info:
+    with pytest.raises(BadRequestError) as exc_info:
         parse_computer_use_restart(payload)
 
     assert isinstance(exc_info.value, DaytonaError)
-    assert exc_info.value.status_code == 500
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "BAD_REQUEST"
     assert exc_info.value.source == "SDK"
     assert "Invalid computer-use restart response" in exc_info.value.message, description
 
@@ -513,3 +514,21 @@ def test_sync_computer_use_status_and_restart_go_through_the_bridge() -> None:
         ]
     finally:
         bridge.close()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"status": "inactive", "desktop": "not_started", "cause": None},
+        {"status": "inactive", "desktop": "starting", "cause": None},
+        {"status": "active", "desktop": "ready", "cause": None},
+    ],
+)
+def test_status_parser_reads_an_explicit_null_cause_outside_the_failed_state_as_absent(
+    payload: dict[str, Any],
+) -> None:
+    from daytona.v2.computer_use_core import parse_computer_use_status
+
+    status = parse_computer_use_status(payload)
+
+    assert (status.status, status.desktop, status.cause) == (payload["status"], payload["desktop"], None)

@@ -12,4 +12,6 @@ frames the output came from). Signals are bare names in process metadata too
 back from the log. Type names now match in both SDKs: TypeScript
 `ProcessDto` → `ProcessInfo`, `RunResult` → `ProcessResult`, `LogsPage` →
 `LogPage`; Python `ProcessInfoKind` → `ProcessReportedKind`, `WaitReason` →
-`ProcessReason`, `SignalName` → `ProcessSignal`.
+`ProcessReason`. TypeScript `LogPage.truncatedHead` is always set, and a
+mistyped `exitCode`, `signal` or `reason` is the malformed-response error
+instead of being dropped.

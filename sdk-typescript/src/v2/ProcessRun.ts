@@ -13,6 +13,7 @@ import {
 } from './ProcessWire.js'
 import type { ProcessSpec } from './ProcessWire.js'
 import { INTERNAL } from './internal.js'
+import { record, str } from './toolboxModels.js'
 
 /** Bound toolbox identity shared by ordinary commands and shell-session commands. */
 export interface ProcessBinding {
@@ -44,7 +45,7 @@ export async function startProcess(
 ): Promise<ProcessHandle> {
   const body = bodyFor(spec)
   const data = await transport.post<toolbox.ProcessDto>('/processes', body, config)
-  return new ProcessHandle(INTERNAL, transport, sandboxId, data.id, startedProcessKind(data, body))
+  return new ProcessHandle(INTERNAL, transport, sandboxId, str(record(data, 'process response'), 'id', 'process response'), startedProcessKind(data, body))
 }
 
 /** `process.run()` / `session.run()`: start, wait within `timeoutSeconds`, collect the output. */
@@ -62,7 +63,9 @@ export async function runProcess(
   const started = await binding.transport.post<toolbox.ProcessDto>(`/processes${query}`, body, {
     timeout: requestedTimeout === undefined || requestedTimeout === 0 ? 0 : requestedTimeout + WAIT_READ_SLACK_MS,
   })
-  const handle = new ProcessHandle(INTERNAL, binding.transport, binding.sandboxId, started.id, startedProcessKind(started, body))
+  const handle = new ProcessHandle(
+    INTERNAL, binding.transport, binding.sandboxId, str(record(started, 'process response'), 'id', 'process response'), startedProcessKind(started, body),
+  )
   const settled = started.state === 'terminal'
   const remainingTimeout = requestedTimeout === undefined || requestedTimeout === 0
     ? undefined

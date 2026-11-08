@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Sequence, overload
 from urllib.parse import quote
 
-from ._core import RequestSpec
+from ._core import RequestSpec, timeout_millis_from_seconds
 from ._transport import AsyncTransport
 from .computer_use_core import (
     computer_use_params,
@@ -229,12 +229,13 @@ class AsyncKeyboardService:
     def __init__(self, _transport: AsyncTransport) -> None:
         self._transport = _transport
 
-    async def type(self, *, text: str, delay: int | None = None) -> None:
+    async def type(self, *, text: str, delay: float | None = None) -> None:
+        """Type ``text``; ``delay`` is the pause between key presses in seconds."""
         await self._transport.send(
             RequestSpec(
                 "POST",
                 "/computeruse/keyboard/type",
-                json_body=computer_use_params(text=text, delay=delay),
+                json_body=computer_use_params(text=text, delay=timeout_millis_from_seconds(delay, "delay")),
             )
         )
 

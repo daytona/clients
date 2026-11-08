@@ -12,6 +12,9 @@ import type {
 import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROCESS_STDIN_MODES } from './types.js'
 import { BadRequestError, DaytonaError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
+import { MAX_TIMER_DELAY_MS } from './options.js'
+import { bool, int, malformedResponse, optional, record, str, strList, timestamp } from './toolboxModels.js'
+import type { WireRecord } from './toolboxModels.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 
 export type LogFrameWire = toolbox.LogFrameDto
@@ -47,14 +50,32 @@ function badRequest(message: string): BadRequestError {
   return new BadRequestError(message, SDK)
 }
 
-/** A duration in seconds as whole wire milliseconds, rounded up (`undefined` stays unset). */
-export function secondsToMs(name: string, seconds: number | undefined): number | undefined {
+/**
+ * A duration in seconds as whole wire milliseconds, rounded up (`undefined`
+ * stays unset). A positive duration is at least 1 ms, so it never reads as
+ * `0`; the result is finite.
+ */
+export function exactMs(name: string, seconds: number | undefined): number | undefined {
   if (seconds === undefined) return undefined
   if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
     throw badRequest(`${name} must be a non-negative finite number of seconds`)
   }
+  if (seconds === 0) return 0
   // Round away float noise (0.1 * 1000 = 100.00000000000001) before rounding up.
-  return Math.ceil(Math.round(seconds * 1000 * 1e6) / 1e6)
+  const ms = Math.max(1, Math.ceil(Math.round(seconds * 1000 * 1e6) / 1e6))
+  if (!Number.isFinite(ms)) throw badRequest(`${name} must be a non-negative finite number of seconds`)
+  return ms
+}
+
+/**
+ * A caller budget or deadline in seconds as wire milliseconds, like
+ * {@link exactMs}, except that a budget above the longest timer
+ * ({@link MAX_TIMER_DELAY_MS}, about 24.8 days) is no limit (`0`), as the
+ * client's request timeout is.
+ */
+export function secondsToMs(name: string, seconds: number | undefined): number | undefined {
+  const ms = exactMs(name, seconds)
+  return ms !== undefined && ms > MAX_TIMER_DELAY_MS ? 0 : ms
 }
 
 /** The absolute deadline (epoch ms) of a caller wait budget in seconds; `undefined`/`0` = unbounded. */
@@ -80,9 +101,10 @@ export function bareSignal(signal: unknown): string | undefined {
 }
 
 export function waitResult(input: toolbox.ExitResult): WaitResult {
-  const rawReason = typeof input.reason === 'string' ? input.reason : undefined
-  const exitCode = typeof input.exitCode === 'number' ? input.exitCode : undefined
-  const signal = bareSignal(input.signal)
+  const raw = record(input, 'wait result')
+  const rawReason = optional(raw, 'reason', str, 'wait result')
+  const exitCode = optional(raw, 'exitCode', int, 'wait result')
+  const signal = bareSignal(optional(raw, 'signal', str, 'wait result'))
   return {
     reason: rawReason === undefined ? 'unknown' : knownOrUnknown(rawReason, PROCESS_REASONS),
     ...(rawReason === undefined ? {} : { rawReason }),
@@ -92,12 +114,13 @@ export function waitResult(input: toolbox.ExitResult): WaitResult {
 }
 
 export function frameFromWire(input: LogFrameWire): LogFrame {
-  const { cursor, channel, data, timestamp } = input as Partial<Record<string, unknown>>
-  if (typeof cursor !== 'string' || typeof channel !== 'string' || typeof data !== 'string'
-    || typeof timestamp !== 'number' || !Number.isFinite(timestamp)) {
-    throw badRequest('expected log frame: cursor, channel, data and timestamp are required')
+  const raw = record(input, 'log frame')
+  return {
+    cursor: str(raw, 'cursor', 'log frame'),
+    channel: str(raw, 'channel', 'log frame'),
+    data: str(raw, 'data', 'log frame'),
+    timestampMs: int(raw, 'timestamp', 'log frame'),
   }
-  return { cursor, channel, data, timestampMs: timestamp }
 }
 
 export function knownProcessKind(kind: unknown): ProcessKind | undefined {
@@ -176,7 +199,9 @@ export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
       { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
     )
   }
-  const timeoutMs = secondsToMs('executionTimeoutSeconds', spec.executionTimeoutSeconds)
+  const executionMs = exactMs('executionTimeoutSeconds', spec.executionTimeoutSeconds)
+  // Above the longest timer there is no deadline, as for every SDK duration.
+  const timeoutMs = executionMs !== undefined && executionMs > MAX_TIMER_DELAY_MS ? undefined : executionMs
   const body: toolbox.CreateProcessRequest = {
     shellCommand: spec.cmd, argv: spec.argv === undefined ? undefined : [...spec.argv], code: spec.code, kind: spec.kind,
     name: spec.name, sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : { ...spec.env },
@@ -190,81 +215,92 @@ export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
   return Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined))
 }
 
-function requireString(input: Record<string, unknown>, field: string): string {
-  const value = input[field]
-  if (typeof value !== 'string') throw badRequest(`expected process response: ${field} is required`)
-  return value
-}
+const PROCESS = 'process response'
 
-function optional<T>(value: T | null | undefined): T | undefined {
-  return value === null ? undefined : value
+function terminalFromWire(input: WireRecord): TerminalSize | undefined {
+  const value = input.terminal
+  if (value === undefined || value === null) return undefined
+  const terminal = record(value, `${PROCESS}: terminal`)
+  return { cols: int(terminal, 'cols', `${PROCESS}: terminal`), rows: int(terminal, 'rows', `${PROCESS}: terminal`) }
 }
 
 export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
-  const raw = input as unknown as Record<string, unknown>
-  const rawKind = requireString(raw, 'kind')
-  const rawState = requireString(raw, 'state')
-  const rawStdin = requireString(raw, 'stdin')
-  const rawKeepLogs = requireString(raw, 'keepLogs')
-  // Nullable or malformed open values read as absent, never as a null raw value.
-  const rawReason = typeof input.reason === 'string' ? input.reason : undefined
-  const terminal = optional(input.terminal)
+  const raw = record(input, PROCESS)
+  const rawKind = str(raw, 'kind', PROCESS)
+  const rawState = str(raw, 'state', PROCESS)
+  const rawStdin = str(raw, 'stdin', PROCESS)
+  const rawKeepLogs = str(raw, 'keepLogs', PROCESS)
+  const rawReason = optional(raw, 'reason', str, PROCESS)
+  const timeoutMs = optional(raw, 'timeoutMs', int, PROCESS)
+  const argv = optional(raw, 'argv', strList, PROCESS)
   const info: ProcessInfo = {
-    id: requireString(raw, 'id'),
+    id: str(raw, 'id', PROCESS),
     kind: knownOrUnknown(rawKind, PROCESS_KINDS), rawKind,
     state: knownOrUnknown(rawState, PROCESS_STATES), rawState,
-    cwd: requireString(raw, 'cwd'),
+    cwd: str(raw, 'cwd', PROCESS),
     stdin: knownOrUnknown(rawStdin, PROCESS_STDIN_MODES), rawStdin,
     keepLogs: knownOrUnknown(rawKeepLogs, PROCESS_KEEP_LOGS), rawKeepLogs,
-    createdAt: requireString(raw, 'createdAt'),
-    system: input.system === true,
-    name: optional(input.name),
-    pid: optional(input.pid),
-    sessionId: optional(input.sessionId),
-    argv: optional(input.argv),
-    shellCommand: optional(input.shellCommand),
-    code: optional(input.code),
-    language: optional(input.language),
-    shell: optional(input.shell),
-    resolvedShell: optional(input.resolvedShell),
-    login: optional(input.login),
-    user: optional(input.user),
-    executionTimeoutSeconds: typeof input.timeoutMs === 'number' ? input.timeoutMs / 1000 : undefined,
-    terminal: terminal === undefined ? undefined : { cols: terminal.cols, rows: terminal.rows },
-    exitCode: optional(input.exitCode),
-    signal: bareSignal(input.signal),
+    createdAt: timestamp(raw, 'createdAt', PROCESS),
+    system: optional(raw, 'system', bool, PROCESS) === true,
+    name: optional(raw, 'name', str, PROCESS),
+    pid: optional(raw, 'pid', int, PROCESS),
+    sessionId: optional(raw, 'sessionId', str, PROCESS),
+    argv,
+    shellCommand: optional(raw, 'shellCommand', str, PROCESS),
+    code: optional(raw, 'code', str, PROCESS),
+    language: optional(raw, 'language', str, PROCESS),
+    shell: optional(raw, 'shell', str, PROCESS),
+    resolvedShell: optional(raw, 'resolvedShell', str, PROCESS),
+    login: optional(raw, 'login', bool, PROCESS),
+    user: optional(raw, 'user', str, PROCESS),
+    executionTimeoutSeconds: timeoutMs === undefined ? undefined : timeoutMs / 1000,
+    terminal: terminalFromWire(raw),
+    exitCode: optional(raw, 'exitCode', int, PROCESS),
+    signal: bareSignal(optional(raw, 'signal', str, PROCESS)),
     reason: rawReason === undefined ? undefined : knownOrUnknown(rawReason, PROCESS_REASONS),
     rawReason,
-    startedAt: optional(input.startedAt),
-    exitedAt: optional(input.exitedAt),
-    truncatedHead: input.truncatedHead === true,
-    firstAvailableCursor: optional(input.firstAvailableCursor),
-    lastCursor: optional(input.lastCursor),
+    startedAt: optional(raw, 'startedAt', timestamp, PROCESS),
+    exitedAt: optional(raw, 'exitedAt', timestamp, PROCESS),
+    truncatedHead: bool(raw, 'truncatedHead', PROCESS),
+    firstAvailableCursor: optional(raw, 'firstAvailableCursor', str, PROCESS),
+    lastCursor: optional(raw, 'lastCursor', str, PROCESS),
   }
   return Object.fromEntries(Object.entries(info).filter(([, value]) => value !== undefined)) as unknown as ProcessInfo
 }
 
-/** One SSE event of a followed process log; `undefined` for an event this release ignores. A stream error throws its typed error. */
+/**
+ * One SSE event of a followed process log; `undefined` for an event this
+ * release ignores. An event's cursor is its payload's, else the SSE `id:`
+ * line's; an event missing a field the contract requires throws the
+ * malformed-response error, and a stream error throws its typed error.
+ */
 export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
-  const parsed = message.data ? JSON.parse(message.data) as Record<string, unknown> : {}
-  const cursorValue = typeof parsed.cursor === 'string' ? parsed.cursor : message.id
-  const cursor = cursorValue === undefined || cursorValue === '' ? {} : { cursor: cursorValue }
+  if (!['log', 'state', 'warning', 'eof', 'error'].includes(message.event)) return undefined
+  const description = `process log ${message.event} event`
+  let parsed: unknown
+  try {
+    parsed = message.data ? JSON.parse(message.data) : {}
+  } catch {
+    throw malformedResponse(`${description}: the data is not JSON`)
+  }
+  const payload = record(parsed, description)
+  const cursor = typeof payload.cursor === 'string' && payload.cursor !== '' ? payload.cursor : message.id
+  if (cursor === undefined || cursor === '') throw malformedResponse(`${description}: cursor is required`)
   switch (message.event) {
-    case 'state': return { type: 'state', ...cursor, result: waitResult(parsed as toolbox.ExitResult) }
+    case 'log': return { type: 'log', cursor, frame: frameFromWire({ ...payload, cursor } as LogFrameWire) }
+    case 'state': return { type: 'state', cursor, result: waitResult(payload as toolbox.ExitResult) }
+    case 'eof': return { type: 'eof', cursor }
     case 'warning': return {
-      type: 'warning', ...cursor,
-      message: typeof parsed.message === 'string' ? parsed.message : '',
-      ...(typeof parsed.firstAvailableCursor === 'string' ? { firstAvailableCursor: parsed.firstAvailableCursor } : {}),
+      type: 'warning', cursor,
+      message: str(payload, 'message', description),
+      firstAvailableCursor: str(payload, 'firstAvailableCursor', description),
     }
-    case 'eof': return { type: 'eof', ...cursor }
-    case 'error': throw createDaytonaError(
-      typeof parsed.message === 'string' ? parsed.message : 'process log stream failed',
+    default: throw createDaytonaError(
+      str(payload, 'message', description),
       undefined,
-      typeof parsed.code === 'string' ? parsed.code : undefined,
-      typeof parsed.source === 'string' ? parsed.source : 'DAYTONA_DAEMON',
+      typeof payload.code === 'string' ? payload.code : undefined,
+      typeof payload.source === 'string' ? payload.source : 'DAYTONA_DAEMON',
     )
-    case 'log': return { type: 'log', ...cursor, frame: frameFromWire({ ...parsed, cursor: cursorValue } as LogFrameWire) }
-    default: return undefined
   }
 }
 

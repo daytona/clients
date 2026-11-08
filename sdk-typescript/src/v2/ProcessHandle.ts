@@ -12,11 +12,12 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { ConnectionError, DaytonaError, ClientTimeoutError, UnsupportedOperationError } from './errors/DaytonaError.js'
 import {
   base64Encode, frameFromWire, invalidPtyVerbError, invalidStdinVerbError, processFromWire,
-  remainingWaitBudgetMs, secondsToMs, signalWire, streamEvent, waitDeadline, waitResult,
+  remainingWaitBudgetMs, exactMs, signalWire, streamEvent, waitDeadline, waitResult,
   WAIT_READ_SLACK_MS, WAIT_TRANSPORT_RETRY_LIMIT,
 } from './ProcessWire.js'
 import type { LogFrameWire, LogsWire } from './ProcessWire.js'
 import { assertInternal } from './internal.js'
+import { listItems, optional, record, str } from './toolboxModels.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 
@@ -82,13 +83,14 @@ export class ProcessHandle {
     assertKnownOptions('LogsOptions', options, LOGS_OPTION_KEYS)
     const query = encodeQuery({ cursor: options.cursor, limit: options.limit, encoding: options.encoding })
     const data = await this.transport.get<LogsWire | LogFrameWire[]>(`/processes/${strictUriEncode(this.id)}/logs${query}`)
-    if (Array.isArray(data)) return { items: data.map(frameFromWire) }
-    const items = 'items' in data ? (data.items ?? []) : ('frames' in data ? data.frames : [])
+    if (Array.isArray(data)) return { items: data.map(frameFromWire), truncatedHead: false }
+    const envelope = record(data, 'process log page')
+    const page = listItems(envelope, Array.isArray(envelope.frames) ? 'frames' : 'items', 'process log page', frameFromWire)
+    const firstAvailableCursor = optional(envelope, 'firstAvailableCursor', str, 'process log page')
     return {
-      items: items.map(frameFromWire),
-      nextCursor: 'nextCursor' in data ? data.nextCursor : undefined,
-      truncatedHead: 'truncatedHead' in data ? data.truncatedHead : undefined,
-      firstAvailableCursor: 'firstAvailableCursor' in data ? data.firstAvailableCursor : undefined,
+      ...page,
+      truncatedHead: envelope.truncatedHead === true,
+      ...(firstAvailableCursor === undefined ? {} : { firstAvailableCursor }),
     }
   }
 
@@ -168,7 +170,7 @@ export class ProcessHandle {
   /** Send a signal (default `TERM`), optionally escalating to `escalateTo` after `escalateAfterSeconds`. */
   public async kill(options: KillOptions = {}): Promise<void> {
     assertKnownOptions('KillOptions', options, KILL_OPTION_KEYS)
-    const escalateAfterMs = secondsToMs('escalateAfterSeconds', options.escalateAfterSeconds)
+    const escalateAfterMs = exactMs('escalateAfterSeconds', options.escalateAfterSeconds)
     const body: toolbox.SignalRequest = {
       signal: signalWire(options.signal ?? 'TERM'),
       ...(escalateAfterMs === undefined ? {} : { escalateAfterMs, escalateTo: signalWire(options.escalateTo ?? 'KILL') }),

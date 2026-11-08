@@ -17,6 +17,7 @@ from ._core import (
     expect_session_dto,
     expect_session_list_response,
     timeout_millis_from_seconds,
+    wait_budget,
 )
 from ._transport import AsyncTransport
 from .errors import DaytonaError, create_error
@@ -292,6 +293,7 @@ class AsyncInterpreterService:
         context and what to rerun. ``timeout`` is the caller wait budget in
         seconds; ``0`` waits unbounded.
         """
+        timeout = wait_budget(timeout)
         if isolated and context is not None:
             raise create_error(
                 "isolated runs cannot also target an explicit interpreter context",
@@ -367,7 +369,7 @@ class AsyncInterpreterService:
             timeout: Optional[float],
         ) -> InterpreterResult:
             return await gate.run(
-                timeout,
+                wait_budget(timeout),
                 lambda remaining_timeout: self._run_bound_context(
                     context_id=context_id,
                     language=language,

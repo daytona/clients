@@ -105,16 +105,27 @@ def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
     try:
         event_type = FilesystemEventType(str(payload.get("type")))
     except ValueError as exc:
-        raise create_error(f"invalid filesystem event type: {payload.get('type')}", 500, None, "SDK") from exc
+        raise create_error(
+            f"expected filesystem watch event: invalid type {payload.get('type')!r}",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        ) from exc
     name = payload.get("name")
     is_dir = payload.get("isDir")
     timestamp = payload.get("timestamp")
     if not isinstance(name, str):
-        raise create_error("filesystem watch event name must be a string", 500, None, "SDK")
+        raise create_error(
+            "expected filesystem watch event: name must be a string", 400, "BAD_REQUEST", "SDK"
+        )
     if not isinstance(is_dir, bool):
-        raise create_error("filesystem watch event isDir must be a boolean", 500, None, "SDK")
+        raise create_error(
+            "expected filesystem watch event: isDir must be a boolean", 400, "BAD_REQUEST", "SDK"
+        )
     if not isinstance(timestamp, int) or isinstance(timestamp, bool):
-        raise create_error("filesystem watch event timestamp must be an integer", 500, None, "SDK")
+        raise create_error(
+            "expected filesystem watch event: timestamp must be an integer", 400, "BAD_REQUEST", "SDK"
+        )
     return FilesystemEvent(type=event_type, name=name, is_dir=is_dir, timestamp_ms=timestamp)
 
 
@@ -124,13 +135,25 @@ class AsyncWatchHandle:
     Callbacks run one at a time, in order, and are awaited. A failing event or
     overflow callback ends the watch: that error becomes :attr:`exit_error`
     and is passed to ``on_exit``. Never constructed directly.
+
+    With the synchronous client, callbacks run on the SDK's event-loop thread:
+    there a callback may call its own watch's ``stop()`` (which then returns
+    without waiting), ``wait_for_exit()`` and ``exit_error`` (which return the
+    current exit error), but no other synchronous SDK call.
     """
+
+    # Called on the bridge loop thread (from a callback the SDK runs), the
+    # synchronous twin's stop() / wait_for_exit() use these non-blocking
+    # methods instead of blocking on the loop they run on.
+    _SYNC_LOOP_VARIANTS: Mapping[str, str] = {"stop": "_stop_nowait", "wait_for_exit": "_exit_error_now"}
 
     def __init__(self, _stream: _LineStream, _on_exit: Optional[WatchExitCallback] = None) -> None:
         self._stream = _stream
         self._reader: asyncio.Task[None] | None = None
         self._on_exit = _on_exit
         self._stopped = False
+        self._closing = False
+        self._stop_task: asyncio.Task[None] | None = None
         self._delivering = False
         self._close_error: Exception | None = None
         self._exited = asyncio.Event()
@@ -170,8 +193,9 @@ class AsyncWatchHandle:
         A callback may call ``stop()`` on its own watch; that call returns
         without waiting for itself.
         """
-        if not self._stopped:
-            self._stopped = True
+        self._stopped = True
+        if not self._closing:
+            self._closing = True
             # A stream that fails to close must not stop us from waiting for
             # the reader; the failure is kept so _record_exit() reports it.
             try:
@@ -193,6 +217,16 @@ class AsyncWatchHandle:
             await asyncio.wait_for(self._exited.wait(), timeout=WATCH_STOP_JOIN_TIMEOUT_SECONDS)
         if self._delivering and not reader.done():
             await asyncio.wait({reader})
+
+    def _stop_nowait(self) -> None:
+        """Stop without waiting: no event is delivered after this returns, and
+        the stream closes in the background (see ``_SYNC_LOOP_VARIANTS``)."""
+        self._stopped = True
+        if self._stop_task is None:
+            self._stop_task = asyncio.ensure_future(self.stop())
+
+    def _exit_error_now(self) -> Exception | None:
+        return self._exit_error
 
 
 # Server ceiling on a pre-signed file URL's lifetime (7 days). The API rejects
@@ -386,7 +420,8 @@ class AsyncFileSystemService:
         if depth is not None:
             params["depth"] = depth
         raw_items, next_cursor = list_shape(
-            await self._transport.send(RequestSpec("GET", "/files", params=params))
+            await self._transport.send(RequestSpec("GET", "/files", params=params)),
+            description="file list response",
         )
         items = [expect_file_info(item) for item in raw_items]
         return ListResult(items=items, next_cursor=next_cursor)
@@ -397,7 +432,7 @@ class AsyncFileSystemService:
             await self._transport.send(RequestSpec("GET", "/files/info", params={"path": path}))
         )
 
-    async def mkdir(self, path: str, *, mode: str = "755") -> None:
+    async def mkdir(self, path: str, *, mode: str = "0755") -> None:
         """Create a directory."""
         await self._transport.send(RequestSpec("POST", "/files/folder", params={"path": path, "mode": mode}))
 
@@ -421,7 +456,8 @@ class AsyncFileSystemService:
         items, next_cursor = list_shape(
             await self._transport.send(
                 RequestSpec("GET", "/files/find", params={"path": path, "pattern": pattern})
-            )
+            ),
+            description="grep response",
         )
         return ListResult(items=[_file_match(item) for item in items], next_cursor=next_cursor)
 
@@ -431,12 +467,21 @@ class AsyncFileSystemService:
             RequestSpec("GET", "/files/search", params={"path": path, "pattern": pattern})
         )
         if isinstance(payload, list):
-            return ListResult([str(item) for item in payload], None)
-        obj = expect_object(payload)
-        raw = obj.get("items") if isinstance(obj.get("items"), list) else obj.get("files")
-        items = [str(item) for item in raw] if isinstance(raw, list) else []
-        next_cursor = obj.get("nextCursor") or obj.get("next_cursor")
-        return ListResult(items, str(next_cursor) if isinstance(next_cursor, str) else None)
+            raw: JsonValue = payload
+            next_cursor: JsonValue = None
+        else:
+            obj = expect_object(payload)
+            raw = obj.get("items") if "items" in obj else obj.get("files")
+            next_cursor = obj.get("nextCursor") or obj.get("next_cursor")
+        if not isinstance(raw, list):
+            raise create_error("expected glob response: files is required", 400, "BAD_REQUEST", "SDK")
+        if not all(isinstance(item, str) for item in raw):
+            raise create_error(
+                "expected glob response: every path must be a string", 400, "BAD_REQUEST", "SDK"
+            )
+        return ListResult(
+            [str(item) for item in raw], str(next_cursor) if isinstance(next_cursor, str) else None
+        )
 
     async def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult[ReplaceResult]:
         """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
@@ -447,7 +492,8 @@ class AsyncFileSystemService:
                     "/files/replace",
                     json_body={"files": list(files), "pattern": pattern, "newValue": new_value},
                 )
-            )
+            ),
+            description="replace response",
         )
         return ListResult(items=[_replace_result(item) for item in items], next_cursor=next_cursor)
 
@@ -638,7 +684,12 @@ def _signed_file_url_from_payload(payload: TransportPayload) -> _SignedFileUrl:
     # a string or a malformed object all answer the same invalid-payload error
     # (parity with the TS SDK's ``readSignedFileUrl``).
     if not isinstance(payload, dict):
-        raise create_error("API returned an invalid signed file URL payload", 500, None, "SDK")
+        raise create_error(
+            "expected signed file URL response: signature and expires_at are required",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
     signature = payload.get("signature")
     expires_at = payload.get("expires_at")
     if isinstance(signature, str) and signature and isinstance(expires_at, str):
@@ -648,7 +699,9 @@ def _signed_file_url_from_payload(payload: TransportPayload) -> _SignedFileUrl:
             parsed_expiry = None
         if parsed_expiry is not None and parsed_expiry.tzinfo is not None:
             return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
-    raise create_error("API returned an invalid signed file URL payload", 500, None, "SDK")
+    raise create_error(
+        "expected signed file URL response: signature and expires_at are required", 400, "BAD_REQUEST", "SDK"
+    )
 
 
 def _multipart_boundary() -> str:

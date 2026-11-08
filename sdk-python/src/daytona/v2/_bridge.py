@@ -198,10 +198,20 @@ class SyncBridge:
         on the loop keeps that state single-threaded.
         """
 
+        if self._on_own_loop():
+            # Already on the loop (a callback the SDK runs): the state is
+            # single-threaded here, so read it directly.
+            return operation()
+
         async def on_loop() -> T:
             return operation()
 
         return self.call(on_loop)
+
+    def on_loop_thread(self) -> bool:
+        """Whether the caller runs on this bridge's own event-loop thread, as
+        the callbacks the SDK invokes (a watch's ``on_event``) do."""
+        return self._on_own_loop()
 
     def iterate(self, agen: AsyncIterator[T]) -> Iterator[T]:
         """Drain an async iterator from synchronous code.

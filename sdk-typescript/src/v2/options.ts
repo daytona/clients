@@ -55,6 +55,7 @@ export const RENAMED_OPTIONS: Readonly<Record<string, string>> = Object.freeze({
   requestTimeout: 'requestTimeoutSeconds',
   reconcileIntervalMs: 'reconcileIntervalSeconds',
   idleCloseMs: 'idleCloseSeconds',
+  delay: 'delaySeconds',
 })
 
 /** The SDK's own invalid-input error: status 400, code `BAD_REQUEST`, source `SDK`. */

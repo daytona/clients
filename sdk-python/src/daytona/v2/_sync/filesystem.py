@@ -71,7 +71,7 @@ class FileSystemService:
         """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``)."""
         return self._bridge.call(lambda: self._impl.list(path, depth=depth))
 
-    def mkdir(self, path: str, *, mode: str = "755") -> None:
+    def mkdir(self, path: str, *, mode: str = "0755") -> None:
         """Create a directory."""
         return self._bridge.call(lambda: self._impl.mkdir(path, mode=mode))
 
@@ -183,10 +183,14 @@ class WatchHandle:
 
     def stop(self) -> None:
         """Stop the watch. Returns once a callback already running has finished."""
+        if self._bridge.on_loop_thread():
+            return self._impl._stop_nowait()
         return self._bridge.call(lambda: self._impl.stop())
 
     def wait_for_exit(self) -> Exception | None:
         """Wait until the watch ends; returns :attr:`exit_error`."""
+        if self._bridge.on_loop_thread():
+            return self._impl._exit_error_now()
         return self._bridge.call(lambda: self._impl.wait_for_exit())
 
     @property

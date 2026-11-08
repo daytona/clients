@@ -9,6 +9,8 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
+import { bool, int, malformedResponse, optional, record, str } from './toolboxModels.js'
+import type { WireRecord } from './toolboxModels.js'
 
 /** A zero-based line / UTF-16 character position in a document. */
 export interface LspPosition {
@@ -73,73 +75,78 @@ const COMPLETIONS_OPTION_KEYS = optionKeys<LspCompletionsOptions>()({ context: t
 const COMPLETION_CONTEXT_KEYS = optionKeys<LspCompletionContext>()({ triggerKind: true, triggerCharacter: true })
 const POSITION_KEYS = optionKeys<LspPosition>()({ line: true, character: true })
 
-function malformed(description: string): BadRequestError {
-  return new BadRequestError(`expected ${description}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+function badInput(message: string): BadRequestError {
+  return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
 }
 
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+function nonNegativeInt(input: WireRecord, field: string, description: string): number {
+  const value = int(input, field, description)
+  if (value < 0) throw malformedResponse(`${description}: ${field} must be a non-negative integer`)
+  return value
 }
 
-function positionFromWire(value: unknown): LspPosition {
-  if (!isRecord(value) || typeof value.line !== 'number' || typeof value.character !== 'number') throw malformed('LSP symbol list')
-  return { line: value.line, character: value.character }
+function positionFromWire(value: unknown, description: string): LspPosition {
+  const wire = record(value, description)
+  return { line: nonNegativeInt(wire, 'line', description), character: nonNegativeInt(wire, 'character', description) }
 }
 
-function symbolFromWire(value: toolbox.SymbolInfo): LspSymbol {
-  const raw: unknown = value
-  if (!isRecord(raw) || typeof raw.name !== 'string' || typeof raw.kind !== 'number' || !isRecord(raw.location)) {
-    throw malformed('LSP symbol list')
-  }
-  const location = raw.location
-  if (typeof location.uri !== 'string' || !isRecord(location.range)) throw malformed('LSP symbol list')
+function symbolFromWire(value: unknown): LspSymbol {
+  const d = 'LSP symbol'
+  const wire = record(value, d)
+  const location = record(wire.location, `${d}: location`)
+  const range = record(location.range, `${d}: location.range`)
   return {
-    name: raw.name,
-    kind: raw.kind,
+    name: str(wire, 'name', d),
+    kind: int(wire, 'kind', d),
     location: {
-      uri: location.uri,
-      range: { start: positionFromWire(location.range.start), end: positionFromWire(location.range.end) },
+      uri: str(location, 'uri', `${d}: location`),
+      range: { start: positionFromWire(range.start, `${d}: range.start`), end: positionFromWire(range.end, `${d}: range.end`) },
     },
   }
 }
 
 function symbolsFromWire(value: unknown): LspSymbol[] {
-  if (!Array.isArray(value)) throw malformed('LSP symbol list')
-  return value.map((item: toolbox.SymbolInfo) => symbolFromWire(item))
+  if (!Array.isArray(value)) throw malformedResponse('LSP symbol list')
+  return value.map(symbolFromWire)
 }
 
-function optionalString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined
+function documentationFromWire(wire: WireRecord, d: string): string | LspMarkupContent | undefined {
+  const documentation = wire.documentation
+  if (documentation === undefined || documentation === null) return undefined
+  if (typeof documentation === 'string') return documentation
+  const markup = record(documentation, `${d}: documentation`)
+  return { kind: str(markup, 'kind', `${d}: documentation`), value: str(markup, 'value', `${d}: documentation`) }
 }
 
 function completionItemFromWire(value: unknown): LspCompletionItem {
-  if (!isRecord(value) || typeof value.label !== 'string') throw malformed('LSP completion list')
-  const documentation = value.documentation
+  const d = 'LSP completion item'
+  const wire = record(value, d)
   const item: LspCompletionItem = {
-    label: value.label,
-    kind: typeof value.kind === 'number' ? value.kind : undefined,
-    detail: optionalString(value.detail),
-    documentation: typeof documentation === 'string'
-      ? documentation
-      : isRecord(documentation) && typeof documentation.kind === 'string' && typeof documentation.value === 'string'
-      ? { kind: documentation.kind, value: documentation.value }
-      : undefined,
-    sortText: optionalString(value.sortText),
-    filterText: optionalString(value.filterText),
-    insertText: optionalString(value.insertText),
+    label: str(wire, 'label', d),
+    kind: optional(wire, 'kind', int, d),
+    detail: optional(wire, 'detail', str, d),
+    documentation: documentationFromWire(wire, d),
+    sortText: optional(wire, 'sortText', str, d),
+    filterText: optional(wire, 'filterText', str, d),
+    insertText: optional(wire, 'insertText', str, d),
   }
   return Object.fromEntries(Object.entries(item).filter(([, entry]) => entry !== undefined)) as unknown as LspCompletionItem
 }
 
 function completionListFromWire(value: toolbox.CompletionList): LspCompletionList {
-  const raw: unknown = value
-  if (!isRecord(raw) || typeof raw.isIncomplete !== 'boolean' || !Array.isArray(raw.items)) throw malformed('LSP completion list')
-  return { isIncomplete: raw.isIncomplete, items: raw.items.map(completionItemFromWire) }
+  const d = 'LSP completion list'
+  const wire = record(value, d)
+  const items = wire.items
+  if (!Array.isArray(items)) throw malformedResponse(`${d}: items is required`)
+  return { isIncomplete: bool(wire, 'isIncomplete', d), items: items.map(completionItemFromWire) }
 }
 
 function contextPayload(context: LspCompletionContext): toolbox.CompletionContext {
   assertKnownOptions('LspCompletionContext', context, COMPLETION_CONTEXT_KEYS)
-  if (!Number.isInteger(context.triggerKind)) throw malformed('LSP completion context: triggerKind must be an integer')
+  if (!Number.isInteger(context.triggerKind)) throw badInput('LSP completion context: triggerKind must be an integer')
+  if (context.triggerCharacter !== undefined && typeof context.triggerCharacter !== 'string') {
+    throw badInput('LSP completion context: triggerCharacter must be a string')
+  }
   return context.triggerCharacter === undefined
     ? { triggerKind: context.triggerKind }
     : { triggerKind: context.triggerKind, triggerCharacter: context.triggerCharacter }

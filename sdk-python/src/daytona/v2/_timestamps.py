@@ -15,7 +15,7 @@ from .errors import create_error
 # other than 3 or 6 digits, both of which RFC 3339 allows (Go emits up to 9).
 _RFC3339 = re.compile(
     r"^(?P<date>\d{4}-\d{2}-\d{2})[Tt ](?P<time>\d{2}:\d{2}:\d{2})"
-    r"(?:\.(?P<fraction>\d+))?(?P<offset>[Zz]|[+-]\d{2}:\d{2})$"
+    r"(?:\.(?P<fraction>\d+))?(?P<offset>[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"
 )
 
 

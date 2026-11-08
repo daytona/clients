@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from typing import Dict, Final, Optional, Sequence
 
 from ._core import (
+    MAX_BOUNDED_TIMEOUT_SECONDS,
     RequestSpec,
     TransportPayload,
     _expect_model_from_dict,
@@ -18,7 +20,7 @@ from ._core import (
 )
 from ._gen.toolbox import CommitInfo
 from ._timestamps import parse_timestamp
-from ._transport import AsyncTransport
+from ._transport import AsyncTransport, _request_deadline
 from .errors import create_error
 from .types import GitCommit, GitCommitResponse, GitRemote, GitStatus, JsonObject, JsonValue, ListResult
 
@@ -65,9 +67,7 @@ class AsyncGitService:
             body["depth"] = _git_clone_depth(depth)
         if _git_insecure_skip_tls(insecure_skip_tls):
             body["insecureSkipTls"] = True
-        await self._transport.send(
-            RequestSpec("POST", "/git/clone", json_body=body, timeout=_git_remote_timeout(timeout))
-        )
+        await _send_remote(self._transport, RequestSpec("POST", "/git/clone", json_body=body), timeout)
 
     async def init(
         self,
@@ -101,13 +101,17 @@ class AsyncGitService:
             await _json_payload(self._transport, RequestSpec("GET", "/git/remotes", params={"path": path}))
         )
         raw = payload.get("remotes")
-        items = [_git_remote(expect_object(remote)) for remote in raw] if isinstance(raw, list) else []
-        return ListResult(items, None)
+        if not isinstance(raw, list):
+            raise create_error(
+                "expected git remotes response: remotes is required", 400, "BAD_REQUEST", "SDK"
+            )
+        return ListResult([_git_remote(expect_object(remote)) for remote in raw], None)
 
     async def history(self, path: str) -> ListResult[GitCommit]:
         """List commits, newest first."""
         items, next_cursor = list_shape(
             await _json_payload(self._transport, RequestSpec("GET", "/git/history", params={"path": path})),
+            description="git history response",
         )
         return ListResult([_git_commit(_expect_commit_info(item)) for item in items], next_cursor)
 
@@ -300,17 +304,29 @@ class AsyncGitService:
             body["remote"] = remote
         if set_upstream:
             body["setUpstream"] = True
-        await self._transport.send(
-            RequestSpec("POST", route, json_body=body, timeout=_git_remote_timeout(timeout))
-        )
+        await _send_remote(self._transport, RequestSpec("POST", route, json_body=body), timeout)
 
 
 def _git_remote_timeout(timeout: Optional[float]) -> float:
+    """The total deadline of a remote git operation in seconds; ``0`` is no limit."""
     if timeout is None:
         return GIT_REMOTE_TIMEOUT_SECONDS
-    if not math.isfinite(timeout) or timeout <= 0:
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or not math.isfinite(timeout)
+        or timeout <= 0
+    ):
         raise create_error("timeout must be a positive finite number", 400, "BAD_REQUEST", "SDK")
-    return timeout
+    return 0 if timeout > MAX_BOUNDED_TIMEOUT_SECONDS else timeout
+
+
+async def _send_remote(transport: AsyncTransport, spec: RequestSpec, timeout: Optional[float]) -> None:
+    """Send a clone / pull / push bounded by one total deadline for the whole
+    request, as the TypeScript SDK does, instead of the client's request timeout."""
+    deadline = _git_remote_timeout(timeout)
+    with _request_deadline(deadline):
+        await transport.send(dataclasses.replace(spec, unbounded_read=True))
 
 
 def _git_clone_depth(depth: int) -> int:

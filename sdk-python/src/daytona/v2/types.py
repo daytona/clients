@@ -1001,7 +1001,7 @@ class StreamLogFrameEvent:
     """``stream_logs()``: one log frame."""
 
     frame: LogFrame
-    cursor: Optional[str] = None
+    cursor: str
     type: Literal["log"] = "log"
 
 
@@ -1010,7 +1010,7 @@ class StreamLogStateEvent:
     """``stream_logs()``: the process became terminal."""
 
     result: WaitResult
-    cursor: Optional[str] = None
+    cursor: str
     type: Literal["state"] = "state"
 
 
@@ -1019,8 +1019,8 @@ class StreamLogWarningEvent:
     """``stream_logs()``: frames before ``first_available_cursor`` were evicted."""
 
     message: str
-    cursor: Optional[str] = None
-    first_available_cursor: Optional[str] = None
+    cursor: str
+    first_available_cursor: str
     type: Literal["warning"] = "warning"
 
 
@@ -1028,7 +1028,7 @@ class StreamLogWarningEvent:
 class StreamLogEofEvent:
     """``stream_logs()``: the log is complete; the stream ends after this event."""
 
-    cursor: Optional[str] = None
+    cursor: str
     type: Literal["eof"] = "eof"
 
 

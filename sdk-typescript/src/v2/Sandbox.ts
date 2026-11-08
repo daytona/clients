@@ -1563,12 +1563,12 @@ export { createHttpClient }
 function readSignedFileUrl(payload: api.SignedFileUrlResponse | unknown): SignedFileUrl {
   // Typed against the vendored wire model, but still checked at runtime: a
   // JSON `null` body is a valid axios `data`, and dereferencing it would
-  // surface a raw TypeError instead of the documented invalid-payload error.
+  // surface a raw TypeError instead of the malformed-response error.
   if (payload !== null && typeof payload === 'object' && 'signature' in payload && 'expires_at' in payload) {
     const { signature, expires_at: expiresAt } = payload
     if (typeof signature === 'string' && signature.length > 0 && typeof expiresAt === 'string' && rfc3339EpochMs(expiresAt) !== undefined) {
       return { signature, expiresAt }
     }
   }
-  throw createDaytonaError('API returned an invalid signed file URL payload', 500, undefined, 'SDK')
+  throw createDaytonaError('expected signed file URL response: signature and expires_at are required', 400, 'BAD_REQUEST', 'SDK')
 }

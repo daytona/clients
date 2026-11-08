@@ -10,7 +10,8 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
-import { gitCommitFromWire, gitCommitResponseFromWire, gitRemoteFromWire, gitStatusFromWire } from './toolboxModels.js'
+import { gitCommitFromWire, gitCommitResponseFromWire, gitRemoteFromWire, gitStatusFromWire, listItems, malformedResponse } from './toolboxModels.js'
+import { MAX_TIMER_DELAY_MS } from './options.js'
 
 export interface CloneOptions {
   /** Where to clone to, inside the sandbox. */
@@ -96,6 +97,9 @@ export class GitService {
   public async clone(url: string, options: CloneOptions): Promise<void> {
     assertKnownOptions('CloneOptions', options, CLONE_OPTION_KEYS)
     const depth = validateCloneDepth(options.depth)
+    if (options.insecureSkipTls !== undefined && typeof options.insecureSkipTls !== 'boolean') {
+      throw new BadRequestError('insecureSkipTls must be a boolean', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    }
     const body: toolbox.CloneRequest = {
       url,
       path: options.path,
@@ -152,7 +156,7 @@ export class GitService {
   /** List the configured remotes; URLs come back with any credentials removed. */
   public async listRemotes(path: string): Promise<ListResult<GitRemote>> {
     const data = await this.transport.get<toolbox.ListRemotesResponse | ListResult<toolbox.GitRemote>>('/git/remotes', { params: { path } })
-    return 'items' in data ? { ...data, items: data.items.map(gitRemoteFromWire) } : { items: data.remotes.map(gitRemoteFromWire) }
+    return listItems(data, 'items' in Object(data) ? 'items' : 'remotes', 'git remotes response', gitRemoteFromWire)
   }
 
   public async addRemote(path: string, name: string, url: string): Promise<void> {
@@ -223,9 +227,11 @@ export class GitService {
   /** List branch names: one page of `{ items }`. */
   public async listBranches(path: string): Promise<ListResult<string>> {
     const data = await this.transport.get<toolbox.BranchList | string[] | ListResult<string>>('/git/branches', { params: { path } })
-    if (Array.isArray(data)) return { items: data }
-    if ('items' in data) return data
-    return { items: data.branches }
+    const branch = (name: unknown): string => {
+      if (typeof name !== 'string') throw malformedResponse('git branches response: every branch must be a string')
+      return name
+    }
+    return listItems(data, !Array.isArray(data) && 'items' in Object(data) ? 'items' : 'branches', 'git branches response', branch)
   }
 
   public async createBranch(path: string, name: string): Promise<void> {
@@ -245,7 +251,7 @@ export class GitService {
   /** List commits, newest first. */
   public async history(path: string): Promise<ListResult<GitCommit>> {
     const data = await this.transport.get<toolbox.CommitInfo[] | ListResult<toolbox.CommitInfo>>('/git/history', { params: { path } })
-    return Array.isArray(data) ? { items: data.map(gitCommitFromWire) } : { ...data, items: data.items.map(gitCommitFromWire) }
+    return listItems(data, 'items', 'git history response', gitCommitFromWire)
   }
 }
 
@@ -263,5 +269,7 @@ function timeoutConfig(timeoutSeconds: number | undefined): { readonly timeout: 
   if (typeof timeoutSeconds !== 'number' || !Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
     throw new BadRequestError('timeoutSeconds must be a positive finite number of seconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
-  return { timeout: Math.ceil(timeoutSeconds * 1000) }
+  const timeoutMs = Math.ceil(timeoutSeconds * 1000)
+  // Above the longest timer the request has no deadline, like the client's request timeout.
+  return { timeout: timeoutMs > MAX_TIMER_DELAY_MS ? 0 : timeoutMs }
 }

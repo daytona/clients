@@ -156,7 +156,8 @@ class KeyboardService:
     def key(self, *, key: str, modifiers: Sequence[ComputerUseKeyboardModifier] | None = None) -> None:
         return self._bridge.call(lambda: self._impl.key(key=key, modifiers=modifiers))
 
-    def type(self, *, text: str, delay: int | None = None) -> None:
+    def type(self, *, text: str, delay: float | None = None) -> None:
+        """Type ``text``; ``delay`` is the pause between key presses in seconds."""
         return self._bridge.call(lambda: self._impl.type(text=text, delay=delay))
 
 

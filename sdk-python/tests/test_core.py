@@ -1717,23 +1717,21 @@ async def test_presigned_urls_surface_the_server_400_and_403_as_typed_errors(mon
 async def test_presigned_urls_reject_a_malformed_sign_payload(monkeypatch, payload):
     sandbox, _ = _presigned_sandbox(monkeypatch, [payload])
 
-    with pytest.raises(DaytonaError, match="API returned an invalid signed file URL payload") as info:
+    with pytest.raises(BadRequestError, match="expected signed file URL response") as info:
         await sandbox.fs.presigned_download_url("/tmp/demo.txt")
-    assert info.value.status_code == 500
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 @pytest.mark.anyio
 async def test_presigned_urls_reject_a_null_sign_body(monkeypatch):
     # JSON ``null`` decodes to None; the raw body reaches the payload parser,
-    # which answers the same 500 invalid-payload error the TS SDK raises —
-    # never the transport's 400 "expected JSON object" guard.
+    # which answers the same malformed-response error the TS SDK raises —
+    # never the transport's "expected JSON object" guard.
     sandbox, _ = _presigned_sandbox(monkeypatch, [None])
 
-    with pytest.raises(DaytonaError, match="API returned an invalid signed file URL payload") as info:
+    with pytest.raises(BadRequestError, match="expected signed file URL response") as info:
         await sandbox.fs.presigned_download_url("/f.txt")
-    assert info.value.status_code == 500
-    assert info.value.code is None
-    assert info.value.source == "SDK"
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 def test_signing_key_rotation_is_on_the_public_surface():
@@ -5440,8 +5438,18 @@ async def test_resource_service_iterators_use_iter_everywhere() -> None:
 
 
 @pytest.mark.anyio
-async def test_git_clone_pull_push_use_remote_deadline_defaults_and_positive_overrides():
-    transport = RecordingTransport([{}, {}, {}, {}, {}, {}])
+async def test_git_clone_pull_push_bound_the_whole_request_by_one_total_deadline(monkeypatch):
+    import daytona.v2.git as git_module
+
+    deadlines: list[float] = []
+    real_deadline = git_module._request_deadline
+
+    def recording_deadline(seconds: float):
+        deadlines.append(seconds)
+        return real_deadline(seconds)
+
+    monkeypatch.setattr(git_module, "_request_deadline", recording_deadline)
+    transport = RecordingTransport([{}, {}, {}, {}, {}, {}, {}])
     git = AsyncGitService(transport)  # type: ignore[arg-type]
 
     await git.clone("https://example.invalid/repo.git", "/repo")
@@ -5450,19 +5458,26 @@ async def test_git_clone_pull_push_use_remote_deadline_defaults_and_positive_ove
     await git.clone("https://example.invalid/repo.git", "/repo", timeout=12.5)
     await git.pull("/repo", timeout=3.0)
     await git.push("/repo", timeout=7.0)
+    await git.pull("/repo", timeout=10**9)
 
-    assert transport.specs[0].path == "/git/clone"
-    assert transport.specs[0].unbounded_read is False
-    assert transport.specs[0].timeout == 1800
-    assert transport.specs[1].path == "/git/pull"
-    assert transport.specs[1].unbounded_read is False
-    assert transport.specs[1].timeout == 1800
-    assert transport.specs[2].path == "/git/push"
-    assert transport.specs[2].unbounded_read is False
-    assert transport.specs[2].timeout == 1800
-    assert transport.specs[3].timeout == 12.5
-    assert transport.specs[4].timeout == 3.0
-    assert transport.specs[5].timeout == 7.0
+    assert [spec.path for spec in transport.specs[:3]] == ["/git/clone", "/git/pull", "/git/push"]
+    # Not the client's request timeout, and not httpx's per-phase timeout.
+    assert all(spec.unbounded_read and spec.timeout is None for spec in transport.specs)
+    # A default 30-minute deadline, an override, and above the timer maximum no limit.
+    assert deadlines == [1800, 1800, 1800, 12.5, 3.0, 7.0, 0]
+
+
+@pytest.mark.anyio
+async def test_git_remote_deadline_covers_the_whole_request() -> None:
+    from daytona.v2.errors import ClientTimeoutError
+
+    class SlowTransport:
+        async def send(self, spec: RequestSpec) -> object:
+            await asyncio.sleep(1)
+            return {}
+
+    with pytest.raises(ClientTimeoutError):
+        await AsyncGitService(SlowTransport()).pull("/repo", timeout=0.05)  # type: ignore[arg-type]
 
 
 def test_request_kwargs_keeps_plain_requests_on_transport_defaults():
@@ -9527,14 +9542,29 @@ def test_input_vocabularies_are_exported_from_v2_namespace() -> None:
 
 
 @pytest.mark.anyio
-async def test_computer_use_status_maps_invalid_payloads_to_sdk_internal_errors():
+async def test_computer_use_status_maps_invalid_payloads_to_the_malformed_response_error():
     class Transport:
         async def send(self, spec):
             assert spec.path == "/computeruse/status"
             return {"desktop": "ready"}
 
-    with pytest.raises(InternalServerError, match="Invalid computer-use status response"):
+    with pytest.raises(BadRequestError, match="Invalid computer-use status response") as info:
         await AsyncComputerUseService(Transport()).status()  # type: ignore[arg-type]
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_keyboard_type_delay_is_in_seconds_and_sent_in_milliseconds() -> None:
+    transport = RecordingTransport([{}, {}])
+    keyboard = AsyncComputerUseService(transport).keyboard  # type: ignore[arg-type]
+
+    await keyboard.type(text="hi", delay=0.05)
+    await keyboard.type(text="hi")
+
+    assert transport.specs[0].json_body == {"text": "hi", "delay": 50}
+    assert transport.specs[1].json_body == {"text": "hi"}
+    with pytest.raises(BadRequestError, match="delay must be a non-negative"):
+        await keyboard.type(text="hi", delay=-1)
 
 
 def test_generated_oneof_variants_discriminate_and_models_serialize() -> None:

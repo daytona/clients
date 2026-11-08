@@ -7,5 +7,8 @@ one at a time and are awaited; a failing `on_event` / `onEvent` or overflow
 callback ends the watch with that error (`exit_error` / `exitError`, passed to
 the exit callback) instead of being recorded or ignored; a failing exit
 callback is contained; `stop()` returns once a callback that is already
-running has finished, and a callback can stop its own watch. Events carry
-`timestampMs` / `timestamp_ms`.
+running has finished, and a callback (or the exit callback) can stop its own
+watch and wait for its exit without waiting for itself; with the synchronous
+Python client that includes a plain callback calling its own watch's `stop()`.
+Events carry `timestampMs` / `timestamp_ms`, and a malformed event ends the
+watch with `BadRequestError`.

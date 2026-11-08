@@ -7,6 +7,7 @@ TypeScript SDK's tests/toolbox-surface.test.ts holds the same expectations."""
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -15,7 +16,9 @@ from typing import Optional
 import pytest
 
 from daytona.v2 import (
+    AsyncWatchHandle,
     FileInfo,
+    FilesystemEvent,
     GitCommit,
     GitFileStatus,
     GitStatus,
@@ -35,6 +38,7 @@ from daytona.v2 import (
 from daytona.v2._core import RequestSpec, expect_system_metrics
 from daytona.v2.computer_use_types import ComputerUseDesktopFailure, ComputerUseScreenshot
 from daytona.v2.errors import BadRequestError, ProcessNotFoundError
+from daytona.v2.filesystem import AsyncFileSystemService
 from daytona.v2.git import AsyncGitService
 from daytona.v2.interpreter import AsyncInterpreterService
 from daytona.v2.lsp import AsyncLspServer
@@ -122,11 +126,12 @@ async def test_stream_logs_yields_one_tagged_event_per_server_event_and_raises_a
             "event: log",
             'data: {"cursor":"c1","channel":"stdout","data":"hi","timestamp":43}',
             "",
+            "id: c2",
             "event: state",
             'data: {"reason":"exited","exitCode":7}',
             "",
             "event: warning",
-            'data: {"message":"trimmed","firstAvailableCursor":"c0"}',
+            'data: {"cursor":"c3","message":"trimmed","firstAvailableCursor":"c0"}',
             "",
             "event: future",
             "data: {}",
@@ -135,7 +140,7 @@ async def test_stream_logs_yields_one_tagged_event_per_server_event_and_raises_a
             'data: {"cursor":"c5"}',
             "",
             "event: error",
-            'data: {"message":"gone","code":"PROCESS_NOT_FOUND","source":"DAYTONA_DAEMON"}',
+            'data: {"cursor":"c6","message":"gone","code":"PROCESS_NOT_FOUND","source":"DAYTONA_DAEMON"}',
             "",
         ]
     )
@@ -150,8 +155,10 @@ async def test_stream_logs_yields_one_tagged_event_per_server_event_and_raises_a
         StreamLogFrameEvent(
             cursor="c1", frame=LogFrame(cursor="c1", channel="stdout", data="hi", timestamp_ms=43)
         ),
-        StreamLogStateEvent(result=WaitResult(reason="exited", raw_reason="exited", exit_code=7)),
-        StreamLogWarningEvent(message="trimmed", first_available_cursor="c0"),
+        StreamLogStateEvent(
+            cursor="c2", result=WaitResult(reason="exited", raw_reason="exited", exit_code=7)
+        ),
+        StreamLogWarningEvent(cursor="c3", message="trimmed", first_available_cursor="c0"),
         StreamLogEofEvent(cursor="c5"),
     ]
     assert transport.specs[0].params == {"encoding": "text", "cursor": "a", "limit": 5, "follow": "true"}
@@ -361,3 +368,332 @@ def test_computer_use_results_require_the_contract_fields() -> None:
         ComputerUseScreenshot(screenshot="x")  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         ComputerUseDesktopFailure(code="unknown", message="m")  # type: ignore[call-arg]
+
+
+class _WatchStream:
+    def __init__(self, lines: list[str]) -> None:
+        self._queue: asyncio.Queue[Optional[str]] = asyncio.Queue()
+        for line in lines:
+            self._queue.put_nowait(line)
+        self.closed = False
+
+    def push(self, *lines: str) -> None:
+        for line in lines:
+            self._queue.put_nowait(line)
+
+    async def iter_lines(self) -> AsyncIterator[str]:
+        while True:
+            line = await self._queue.get()
+            if line is None:
+                return
+            yield line
+
+    async def close(self) -> None:
+        if not self.closed:
+            self.closed = True
+            self._queue.put_nowait(None)
+
+
+class _WatchTransport:
+    def __init__(self, stream: _WatchStream) -> None:
+        self.stream = stream
+
+    async def open_stream(self, spec: RequestSpec) -> _WatchStream:
+        return self.stream
+
+
+_FS_A = ("event: fs", 'data: {"type":"create","name":"a.txt","isDir":false,"timestamp":1}', "")
+
+
+@pytest.mark.anyio
+async def test_a_callback_can_stop_its_watch_and_then_wait_for_its_exit() -> None:
+    stream = _WatchStream(["event: start", "data: {}", ""])
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    holder: list[AsyncWatchHandle] = []
+    results: list[object] = []
+
+    async def on_event(_event: FilesystemEvent) -> None:
+        await holder[0].stop()
+        results.append(await holder[0].wait_for_exit())
+
+    holder.append(await fs.watch_dir("/w", on_event))
+    stream.push(*_FS_A)
+
+    assert await asyncio.wait_for(holder[0].wait_for_exit(), timeout=2) is None
+    assert results == [None]
+
+
+@pytest.mark.anyio
+async def test_on_exit_can_stop_and_wait_for_its_own_watch_and_later_stops_return() -> None:
+    stream = _WatchStream(["event: start", "data: {}", ""])
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    holder: list[AsyncWatchHandle] = []
+    done = asyncio.Event()
+
+    async def on_exit(_error: Optional[Exception]) -> None:
+        await holder[0].stop()
+        await holder[0].wait_for_exit()
+        done.set()
+
+    holder.append(await fs.watch_dir("/w", lambda _event: None, on_exit=on_exit))
+    await asyncio.wait_for(holder[0].stop(), timeout=2)
+    await asyncio.wait_for(done.wait(), timeout=2)
+    await asyncio.wait_for(holder[0].stop(), timeout=2)
+
+
+@pytest.mark.anyio
+async def test_malformed_watch_events_end_the_watch_with_a_bad_request_error() -> None:
+    stream = _WatchStream(
+        ["event: start", "data: {}", "", "event: fs", 'data: {"type":"create","name":"a"}', ""]
+    )
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    handle = await fs.watch_dir("/w", lambda _event: None)
+
+    error = await asyncio.wait_for(handle.wait_for_exit(), timeout=2)
+    assert isinstance(error, BadRequestError)
+    assert (error.status_code, error.code, error.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("lines", "field"),
+    [
+        (["event: eof", "data: {}", ""], "cursor"),
+        (["event: warning", 'data: {"cursor":"c","firstAvailableCursor":"c0"}', ""], "message"),
+        (["event: warning", 'data: {"cursor":"c","message":"m"}', ""], "firstAvailableCursor"),
+        (["event: error", 'data: {"cursor":"c"}', ""], "message"),
+        (["event: log", 'data: {"channel":"stdout","data":"x","timestamp":1}', ""], "cursor"),
+    ],
+)
+async def test_stream_logs_rejects_an_event_missing_a_required_field(lines: list[str], field: str) -> None:
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=field) as info:
+        async for _event in handle.stream_logs():
+            pass
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_stream_logs_takes_an_event_cursor_from_the_sse_id_line() -> None:
+    lines = [
+        "id: c1",
+        "event: log",
+        'data: {"channel":"stdout","data":"x","timestamp":1}',
+        "",
+        "id: c2",
+        "event: eof",
+        "data: {}",
+        "",
+    ]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    events = [event async for event in handle.stream_logs()]
+
+    assert events == [
+        StreamLogFrameEvent(
+            cursor="c1", frame=LogFrame(cursor="c1", channel="stdout", data="x", timestamp_ms=1)
+        ),
+        StreamLogEofEvent(cursor="c2"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("timeout", "expected"),
+    [(1e-9, 1), (0.0004, 1), (0.0015, 2), (0, 0), (2_147_483.647, 2_147_483_647)],
+)
+def test_positive_sub_millisecond_durations_are_at_least_one_millisecond(
+    timeout: float, expected: int
+) -> None:
+    from daytona.v2._core import timeout_millis_from_seconds
+
+    assert timeout_millis_from_seconds(timeout) == expected
+
+
+@pytest.mark.anyio
+async def test_a_wait_budget_above_the_timer_maximum_is_no_limit() -> None:
+    transport = Transport([{"reason": "exited", "exitCode": 0}])
+    handle = AsyncProcessService("sbx", transport).connect("proc")  # type: ignore[arg-type]
+
+    await handle.wait(timeout=10**9)
+
+    assert transport.specs[0].params == {"timeoutMs": 0}
+
+
+@pytest.mark.anyio
+async def test_list_remotes_rejects_a_response_without_remotes() -> None:
+    for payload in ({}, {"remotes": None}, {"remotes": "origin"}):
+        with pytest.raises(BadRequestError, match="remotes is required"):
+            await AsyncGitService(Transport([payload])).list_remotes("/repo")  # type: ignore[arg-type]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "context",
+    [
+        LspCompletionContext(trigger_kind="2"),  # type: ignore[arg-type]
+        LspCompletionContext(trigger_kind=True),
+        LspCompletionContext(trigger_kind=2, trigger_character=1),  # type: ignore[arg-type]
+    ],
+)
+async def test_lsp_completion_context_fields_are_type_checked(context: LspCompletionContext) -> None:
+    transport = Transport()
+    server = AsyncLspServer(transport, "python", "/p")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError):
+        await server.completions("file:///a.py", LspPosition(line=0, character=0), context=context)
+    assert transport.specs == []
+
+
+# The same malformed computer-use responses as the TypeScript SDK's
+# "rejects every malformed computer-use result" test.
+_MALFORMED_COMPUTER_USE = [
+    ("screenshot", {"screenshot": "AAAA"}),
+    (
+        "processStatusMap",
+        {
+            "wm": {
+                "Priority": 1,
+                "AutoRestart": True,
+                "Failed": False,
+                "RestartAttempts": 0,
+                "RestartBackoffMs": 0,
+                "Status": "running",
+            }
+        },
+    ),
+    (
+        "processStatusMap",
+        {
+            "wm": {
+                "Running": True,
+                "AutoRestart": True,
+                "Failed": False,
+                "RestartAttempts": 0,
+                "RestartBackoffMs": 0,
+                "Status": "running",
+            }
+        },
+    ),
+    (
+        "processStatusMap",
+        {
+            "wm": {
+                "Running": True,
+                "Priority": 1,
+                "Failed": False,
+                "RestartAttempts": 0,
+                "RestartBackoffMs": 0,
+                "Status": "running",
+            }
+        },
+    ),
+    (
+        "processStatusMap",
+        {
+            "wm": {
+                "Running": True,
+                "Priority": 1,
+                "AutoRestart": True,
+                "RestartAttempts": 0,
+                "RestartBackoffMs": 0,
+                "Status": "running",
+            }
+        },
+    ),
+    (
+        "processStatusMap",
+        {
+            "wm": {
+                "Running": True,
+                "Priority": 1,
+                "AutoRestart": True,
+                "Failed": False,
+                "RestartBackoffMs": 0,
+                "Status": "running",
+            }
+        },
+    ),
+    (
+        "processStatusMap",
+        {
+            "wm": {
+                "Running": True,
+                "Priority": 1,
+                "AutoRestart": True,
+                "Failed": False,
+                "RestartAttempts": 0,
+                "Status": "running",
+            }
+        },
+    ),
+    (
+        "processStatusMap",
+        {
+            "wm": {
+                "Running": True,
+                "Priority": 1,
+                "AutoRestart": True,
+                "Failed": False,
+                "RestartAttempts": 0,
+                "RestartBackoffMs": 0,
+            }
+        },
+    ),
+    ("lifecycleStart", {"message": "ok"}),
+    ("displayInfo", {"displays": [{"id": 0, "x": 0, "y": 0, "width": 1, "height": 1}]}),
+    ("displayWindows", {"windows": [{"id": 1, "x": 0, "y": 0, "width": 1, "height": 1, "isActive": True}]}),
+    ("a11yTree", {"truncated": False}),
+    ("a11yTree", {"root": {"id": "n", "role": "window", "name": "w", "states": []}, "truncated": False}),
+    (
+        "a11yTree",
+        {
+            "root": {
+                "id": "n",
+                "role": "window",
+                "name": "w",
+                "bounds": {"x": 0, "y": 0, "width": 1, "height": 1},
+            },
+            "truncated": False,
+        },
+    ),
+    ("a11yFind", {"truncated": False}),
+    ("recordingGet", {"id": "r", "fileName": "a.mp4", "filePath": "/a.mp4", "status": "recording"}),
+    ("recordingList", {}),
+    ("mousePosition", {"x": 1}),
+    ("scroll", {}),
+    ("processRunning", {"processName": "wm"}),
+    ("processRestart", {"message": "ok"}),
+    ("processLogs", {"processName": "wm"}),
+    ("processErrors", {"processName": "wm"}),
+]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("operation", "payload"), _MALFORMED_COMPUTER_USE)
+async def test_every_malformed_computer_use_result_is_the_malformed_response_error(
+    operation: str, payload: dict[str, object]
+) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    cu = AsyncComputerUseService(Transport([payload]))  # type: ignore[arg-type]
+    calls = {
+        "screenshot": lambda: cu.screen.screenshot(),
+        "processStatusMap": lambda: cu.service.status(),
+        "lifecycleStart": lambda: cu.start(),
+        "displayInfo": lambda: cu.display.info(),
+        "displayWindows": lambda: cu.display.windows(),
+        "a11yTree": lambda: cu.a11y.tree(scope="focused"),
+        "a11yFind": lambda: cu.a11y.find(scope="all"),
+        "recordingGet": lambda: cu.recording.get("r"),
+        "recordingList": lambda: cu.recording.list(),
+        "mousePosition": lambda: cu.mouse.position(),
+        "scroll": lambda: cu.mouse.scroll(x=0, y=0, direction="down"),
+        "processRunning": lambda: cu.service.status("wm"),
+        "processRestart": lambda: cu.service.restart("wm"),
+        "processLogs": lambda: cu.service.logs("wm"),
+        "processErrors": lambda: cu.service.errors("wm"),
+    }
+    with pytest.raises(BadRequestError) as info:
+        await calls[operation]()
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")

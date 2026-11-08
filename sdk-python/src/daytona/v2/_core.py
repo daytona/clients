@@ -637,9 +637,9 @@ def process_create_spec(
             "UNSUPPORTED_OPERATION",
             "SDK",
         )
-    execution_timeout_ms = None
-    if execution_timeout is not None:
-        execution_timeout_ms = timeout_millis_from_seconds(execution_timeout)
+    execution_timeout_ms = timeout_millis_from_seconds(execution_timeout)
+    if execution_timeout is not None and execution_timeout > MAX_BOUNDED_TIMEOUT_SECONDS:
+        execution_timeout_ms = None  # no deadline
     body: JsonObject = {"kind": kind}
     if command is not None:
         body["shellCommand"] = command
@@ -800,15 +800,39 @@ def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
     return ListResult(items=items, next_cursor=str(cursor) if isinstance(cursor, str) else None)
 
 
-def timeout_millis_from_seconds(timeout: Optional[float]) -> Optional[int]:
+# The longest duration that is still a bound, in seconds (about 24.8 days):
+# the TypeScript SDK's timers cannot arm a longer one, so both SDKs read a
+# longer caller budget as no limit, like the client's request timeout.
+MAX_BOUNDED_TIMEOUT_SECONDS = 2_147_483.647
+
+
+def timeout_millis_from_seconds(timeout: Optional[float], name: str = "timeout") -> Optional[int]:
+    """Whole wire milliseconds for a duration in seconds, rounded up: a
+    positive duration is at least 1 ms, so it never reads as ``0``."""
     if timeout is None:
         return None
-    if not math.isfinite(timeout) or timeout < 0:
-        raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or not math.isfinite(timeout)
+        or timeout < 0
+    ):
+        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
     milliseconds = timeout * 1000
-    if not math.isfinite(milliseconds) or milliseconds < 0:
-        raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
-    return math.ceil(round(milliseconds, 6))
+    if not math.isfinite(milliseconds):
+        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+    if timeout == 0:
+        return 0
+    return max(1, math.ceil(round(milliseconds, 6)))
+
+
+def wait_budget(timeout: Optional[float]) -> Optional[float]:
+    """A caller wait budget in seconds, validated: ``None`` and ``0`` keep their
+    meaning, a budget above :data:`MAX_BOUNDED_TIMEOUT_SECONDS` is no limit (``0``)."""
+    timeout_millis_from_seconds(timeout)
+    if timeout is not None and timeout > MAX_BOUNDED_TIMEOUT_SECONDS:
+        return 0
+    return timeout
 
 
 def timeout_seconds_from_millis(timeout_millis: JsonValue | None) -> Optional[float]:
@@ -912,18 +936,26 @@ class SseParser:
 
     def __init__(self) -> None:
         self._event = "message"
+        self._id: Optional[str] = None
         self._data_parts: List[str] = []
 
     def feed(self, raw: str) -> Optional[Tuple[str, JsonObject]]:
+        message = self.feed_message(raw)
+        return None if message is None else (message[0], message[1])
+
+    def feed_message(self, raw: str) -> Optional[Tuple[str, JsonObject, Optional[str]]]:
+        """Like :meth:`feed`, with the message's ``id:`` line (``None`` without one)."""
         line = raw.rstrip("\r\n")
         if not line:
             if not self._data_parts:
                 self._event = "message"
+                self._id = None
                 return None
-            event = (self._event, expect_object(json.loads("\n".join(self._data_parts))))
+            message = (self._event, expect_object(json.loads("\n".join(self._data_parts))), self._id)
             self._event = "message"
+            self._id = None
             self._data_parts = []
-            return event
+            return message
         if line.startswith(":"):
             return None
         name, _, value = line.partition(":")
@@ -932,6 +964,8 @@ class SseParser:
             self._event = value
         elif name == "data":
             self._data_parts.append(value)
+        elif name == "id":
+            self._id = value
         return None
 
 
@@ -941,6 +975,17 @@ def parse_sse_lines(lines: Iterable[str]) -> Iterator[Tuple[str, JsonObject]]:
         event = parser.feed(raw)
         if event is not None:
             yield event
+
+
+async def parse_sse_messages_async(
+    lines: AsyncIterable[str],
+) -> AsyncIterator[Tuple[str, JsonObject, Optional[str]]]:
+    """SSE messages as ``(event, payload, id)``; ``id`` is the message's ``id:`` line."""
+    parser = SseParser()
+    async for raw in lines:
+        message = parser.feed_message(raw)
+        if message is not None:
+            yield message
 
 
 async def parse_sse_lines_async(lines: AsyncIterable[str]) -> AsyncIterator[Tuple[str, JsonObject]]:
@@ -1076,19 +1121,22 @@ def parse_bulk_read_result(content: bytes, *, content_type: Optional[str] = None
     return BulkReadResult(files=files, errors=errors)
 
 
-def list_shape(payload: TransportPayload, *keys: str) -> Tuple[List[JsonObject], Optional[str]]:
+def list_shape(
+    payload: TransportPayload, *keys: str, description: str = "list response"
+) -> Tuple[List[JsonObject], Optional[str]]:
+    """The items of a list response: a bare array or an envelope whose
+    ``items`` (or one of ``keys``) is an array; anything else is malformed."""
     if isinstance(payload, list):
         return [expect_object(item) for item in payload], None
     obj = expect_object(payload)
-    raw_items: JsonValue = []
     for key in ("items", *keys):
         candidate = obj.get(key)
         if isinstance(candidate, list):
-            raw_items = candidate
-            break
-    items = [expect_object(item) for item in raw_items] if isinstance(raw_items, list) else []
-    cursor = obj.get("nextCursor") or obj.get("next_cursor")
-    return items, str(cursor) if isinstance(cursor, str) else None
+            cursor = obj.get("nextCursor") or obj.get("next_cursor")
+            return [expect_object(item) for item in candidate], str(cursor) if isinstance(
+                cursor, str
+            ) else None
+    raise create_error(f"expected {description}: items is required", 400, "BAD_REQUEST", "SDK")
 
 
 _SEARCH_LIST_FIELDS = ("status", "sandbox_class", "region")

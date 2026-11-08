@@ -164,6 +164,14 @@ def _position_payload(position: LspPosition | Mapping[str, int]) -> JsonObject:
 def _context_payload(context: LspCompletionContext) -> JsonObject:
     if not isinstance(context, LspCompletionContext):
         raise create_error("expected LSP completion context", 400, "BAD_REQUEST", "SDK")
+    if isinstance(context.trigger_kind, bool) or not isinstance(context.trigger_kind, int):
+        raise create_error(
+            "LSP completion context: trigger_kind must be an integer", 400, "BAD_REQUEST", "SDK"
+        )
+    if context.trigger_character is not None and not isinstance(context.trigger_character, str):
+        raise create_error(
+            "LSP completion context: trigger_character must be a string", 400, "BAD_REQUEST", "SDK"
+        )
     payload: JsonObject = {"triggerKind": context.trigger_kind}
     if context.trigger_character is not None:
         payload["triggerCharacter"] = context.trigger_character

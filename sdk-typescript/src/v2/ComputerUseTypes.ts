@@ -143,7 +143,8 @@ export interface ComputerUseMouseDragRequest {
   readonly startY: number
   readonly endX: number
   readonly endY: number
-  readonly button: ComputerUseMouseButton
+  /** Default `'left'`. */
+  readonly button?: ComputerUseMouseButton
 }
 
 export interface ComputerUseMouseScrollRequest extends ComputerUsePoint {
@@ -157,7 +158,8 @@ export interface ComputerUseScrollResponse {
 
 export interface ComputerUseKeyboardTypeRequest {
   readonly text: string
-  readonly delay?: number
+  /** Pause between key presses, in seconds. */
+  readonly delaySeconds?: number
 }
 
 export interface ComputerUseKeyboardKeyRequest {

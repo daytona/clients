@@ -253,8 +253,8 @@ def _status_model(
     except DaytonaError as exc:
         raise create_error(
             f"Invalid computer-use status response: {exc.message}",
-            500,
-            None,
+            400,
+            "BAD_REQUEST",
             "SDK",
         ) from exc
 
@@ -266,12 +266,8 @@ def parse_computer_use_status(
     status = enum_str(model.status)
     desktop = enum_str(model.desktop)
     extra_fields = _additional_json_fields(model.additional_properties)
-    # The API omits `cause` outside the failed state; an explicit null there
-    # is a shape the contract never produces, so it is rejected like any other
-    # invariant violation rather than read as "absent".
-    has_cause_key = isinstance(payload, Mapping) and "cause" in payload
-
-    no_cause = model.cause is None and not has_cause_key
+    # Outside the failed state the contract allows `cause` to be omitted or null.
+    no_cause = model.cause is None
 
     if status == "inactive" and desktop == "not_started":
         if no_cause:
@@ -304,8 +300,8 @@ def parse_computer_use_status(
         f"received status={status!r}, desktop={desktop!r}, cause={cause_state}; "
         "expected inactive/not_started or inactive/starting without cause, "
         "active/ready without cause, or inactive/failed with a well-formed cause",
-        500,
-        None,
+        400,
+        "BAD_REQUEST",
         "SDK",
     )
 
@@ -321,8 +317,8 @@ def parse_computer_use_restart(
         except DaytonaError as exc:
             raise create_error(
                 f"Invalid computer-use restart response: {exc.message}",
-                500,
-                None,
+                400,
+                "BAD_REQUEST",
                 "SDK",
             ) from exc
     status = enum_str(model.status)
@@ -332,8 +328,8 @@ def parse_computer_use_restart(
             "Invalid computer-use restart response: "
             f"received message={model.message!r}, status={status!r}, desktop={desktop!r}; "
             "expected a string message with status='active' and desktop='ready'",
-            500,
-            None,
+            400,
+            "BAD_REQUEST",
             "SDK",
         )
     return ComputerUseRestartResponseInfo(

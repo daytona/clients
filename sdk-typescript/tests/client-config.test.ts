@@ -118,6 +118,7 @@ describe('option keys', () => {
       executionTimeout: 'executionTimeoutSeconds',
       escalateAfter: 'escalateAfterSeconds',
       requestTimeout: 'requestTimeoutSeconds',
+      delay: 'delaySeconds',
       reconcileIntervalMs: 'reconcileIntervalSeconds',
       idleCloseMs: 'idleCloseSeconds',
     })

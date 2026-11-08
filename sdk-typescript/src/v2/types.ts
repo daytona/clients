@@ -1013,36 +1013,37 @@ export interface LogFrame {
 }
 
 export interface LogPage extends ListResult<LogFrame> {
-  readonly truncatedHead?: boolean
+  /** Whether retention removed the oldest frames. */
+  readonly truncatedHead: boolean
   readonly firstAvailableCursor?: string
 }
 
 /** `streamLogs()`: one log frame. */
 export interface StreamLogFrameEvent {
   readonly type: 'log'
-  readonly cursor?: string
+  readonly cursor: string
   readonly frame: LogFrame
 }
 
 /** `streamLogs()`: the process became terminal. */
 export interface StreamLogStateEvent {
   readonly type: 'state'
-  readonly cursor?: string
+  readonly cursor: string
   readonly result: WaitResult
 }
 
 /** `streamLogs()`: frames before `firstAvailableCursor` were evicted. */
 export interface StreamLogWarningEvent {
   readonly type: 'warning'
-  readonly cursor?: string
+  readonly cursor: string
   readonly message: string
-  readonly firstAvailableCursor?: string
+  readonly firstAvailableCursor: string
 }
 
 /** `streamLogs()`: the log is complete; the stream ends after this event. */
 export interface StreamLogEofEvent {
   readonly type: 'eof'
-  readonly cursor?: string
+  readonly cursor: string
 }
 
 export type StreamLogEvent = StreamLogFrameEvent | StreamLogStateEvent | StreamLogWarningEvent | StreamLogEofEvent
