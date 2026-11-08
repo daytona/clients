@@ -14,9 +14,11 @@ describe('platform input boundaries', () => {
     { name: 'secret domains', values: [undefined, 'example.com', [3], null, {}] },
     { name: 'volume size', values: [true, NaN, Infinity, -1, 0, 1.5, '4'] },
     { name: 'create timeout', values: [-2, NaN, Infinity, true, 1.5] },
-    { name: 'create labels', values: ['team', ['team'], null, { team: undefined }, { team: 1 }] },
-    { name: 'search labels', values: ['team', ['team'], { team: undefined }, { team: 1 }] },
+    { name: 'create labels', values: ['team', ['team'], null, { team: undefined }, { team: 1 }, new Map([['team', 'a']]), Object.create({ team: 'a' }), new (class Labels { team = 'a' })()] },
+    { name: 'search labels', values: ['team', ['team'], { team: undefined }, { team: 1 }, new Map([['team', 'a']]), Object.create({ team: 'a' })] },
+    { name: 'setLabels', values: [new Map([['team', 'a']]), Object.create({ team: 'a' }), { team: 1 }] },
     { name: 'resources', values: [true, NaN, Infinity, 1n, Symbol('size'), '4'] },
+    { name: 'volume create options', values: [undefined, null, true, {}, { name: '' }, { name: '  ' }, { name: 3 }] },
     { name: 'volume get options', values: [true, false, null, 3, 'create', []] },
   ] as const).flatMap(({ name, values }) => values.map((value: unknown) => ({ name, value }))))('refuses invalid $name=$value before HTTP', async ({ name, value }) => {
     // Given runtime inputs that cannot satisfy the public types.
@@ -30,8 +32,10 @@ describe('platform input boundaries', () => {
         'create timeout': () => client.v2.create({ createTimeoutSeconds: value as never }),
         'create labels': () => client.v2.create({ labels: value as never }),
         'search labels': () => client.v2.search({ labels: value as never }),
+        setLabels: () => createSandbox('sbx', createHttpClient(api.url)).setLabels(value as never),
         resources: () => client.v2.create({ resources: { memory: value as never } }),
         'volume get options': () => client.v2.volumes.get('data', value as never),
+        'volume create options': () => client.v2.volumes.create(value as never),
       }
       // When a caller bypasses compile-time checking.
       const pending: Promise<unknown> = calls[name]()

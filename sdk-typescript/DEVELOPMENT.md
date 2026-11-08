@@ -33,8 +33,10 @@ image or snapshot will succeed without a conflict. Callers must still handle
 After a create or fork POST succeeds, the call returns its handle however the
 readiness wait ends, including any `DaytonaError` from a wait read. Non-SDK
 errors and caller cancellation propagate; a cancelled create may already have
-created a sandbox. A raised create means no sandbox was created, except a
-POST timeout (which carries the idempotency key) or caller cancellation.
+created a sandbox. A raised create or fork means the request itself failed, except for
+`SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+carry the idempotency key because a sandbox may exist), caller cancellation,
+and an unexpected non-SDK error during the wait.
 Create uses whole-second
 `waitSeconds`; fork permits fractions and uses `0` to skip waiting. Linux
 forks refresh the source before submission when waiting: running sources wait
@@ -46,9 +48,11 @@ sources wait for `stopped`. macOS forks wait for `started` or `stopped`.
 the caller's full `waitSeconds`. Build failure throws `ImageBuildFailedError`
 with `imageId` and `buildError`; build timeout throws `RequestTimeoutError`.
 Build submission and its initial lookup are ordinary requests; the build wait
-budget begins afterwards. Every wait read is bounded by the smaller of the
-request timeout and remaining wait budget. Positive artifact-get budgets
-repeat holds capped at 60 seconds and pause up to one second after an early
+budget begins afterwards. Long polls (sandbox waits, image pulls, artifact
+gets) are governed by the wait budget, not the request timeout: each hold is
+the smaller of its slice and the remaining budget, in whole milliseconds, and
+the read allows the hold plus a few seconds of slack. Positive artifact-get
+budgets repeat holds capped at 60 seconds and pause up to one second after an early
 non-terminal response; omitted or zero budgets send one default hold.
 
 All create sizing lives in `resources`. GiB values must convert to whole MiB

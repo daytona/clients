@@ -780,9 +780,10 @@ which lifecycle actions the sandbox supports.
 and `0` skips waiting. Once their create or fork request succeeds, these calls
 return the handle however the readiness wait ends, including a failed wait
 read. Caller cancellation still propagates; a cancelled create may already
-have created a sandbox. A raised create means no sandbox was created, except
-when the POST times out (the error carries its idempotency key) or the caller
-cancels. A running Linux source produces a running fork; otherwise
+have created a sandbox. A raised create or fork means the request itself failed, except for
+`SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+carry the idempotency key because a sandbox may exist), caller cancellation,
+and an unexpected non-SDK error during the wait. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk and settle at `started` or `stopped`.
 

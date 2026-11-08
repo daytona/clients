@@ -4,7 +4,7 @@
  */
 
 import type { AxiosResponse } from 'axios'
-import { BadRequestError, InternalServerError } from './errors/DaytonaError.js'
+import { BadRequestError } from './errors/DaytonaError.js'
 import type { SandboxSecretsInfo } from './types.js'
 import { badRequest } from './options.js'
 
@@ -36,14 +36,14 @@ export function parseSandboxSecretsResponse(response: AxiosResponse<unknown>): S
 
 function requiredStringArray(value: unknown, fieldName: string): string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
-    throw new InternalServerError(`${fieldName} must be an array of strings`, { statusCode: 500, source: 'SDK' })
+    throw badRequest(`${fieldName} must be an array of strings`)
   }
   return [...value]
 }
 
 function requiredInteger(value: unknown, fieldName: string): number {
   if (typeof value === 'number' && Number.isInteger(value)) return value
-  throw new InternalServerError(`${fieldName} must be an integer`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be an integer`)
 }
 
 function optionalInteger(value: unknown, fieldName: string): number | undefined {
@@ -57,7 +57,7 @@ function optionalString(value: unknown): string | undefined {
 
 function recordValue(value: unknown, fieldName: string): Record<string, unknown> {
   if (isRecord(value)) return value
-  throw new InternalServerError(`${fieldName} must be an object`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be an object`)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

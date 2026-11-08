@@ -41,6 +41,7 @@ const IMAGE_PULL_OPTION_KEYS = optionKeys<ImagePullOptions>()({ ...BUILD_IMAGE_O
 const LIST_IMAGES_OPTION_KEYS = optionKeys<ListImagesOptions>()({ cursor: true, limit: true, name: true, anonymous: true, sandboxId: true, platform: true })
 
 const IMAGE_LONGPOLL_MAX_MS = 60_000
+const IMAGE_HOLD_READ_SLACK_MS = 5_000
 
 export class ImagesService {
   private resolvedApiTransport?: HttpTransport
@@ -138,12 +139,15 @@ export class ImagesService {
       let image = new Image(INTERNAL, initial)
       if (options.wait === false) return image
       while (image.status !== 'ready' && image.status !== 'failed' && image.status !== 'error') {
-        const remaining = deadline === undefined ? undefined : Math.min(Math.ceil(deadline - Date.now()), IMAGE_LONGPOLL_MAX_MS)
         checkDeadline()
-        const config = requestOptions()
+        // A long poll is governed by the pull budget, not the request timeout:
+        // the hold is the smaller of the remaining budget and the server's cap,
+        // in whole milliseconds, and the read allows the hold plus slack.
+        const hold = deadline === undefined ? undefined : Math.max(1, Math.min(Math.ceil(deadline - Date.now()), IMAGE_LONGPOLL_MAX_MS))
+        const config = requestOptions(hold === undefined ? 0 : hold + IMAGE_HOLD_READ_SLACK_MS)
         const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(image.id)}`, {
           ...config,
-          params: { wait: 'ready', timeout_ms: remaining },
+          params: { wait: 'ready', timeout_ms: hold },
         })
         checkDeadline()
         image = new Image(INTERNAL, data)

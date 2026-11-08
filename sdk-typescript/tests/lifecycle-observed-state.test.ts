@@ -40,6 +40,19 @@ it.each([
   expect(get).toHaveBeenCalledTimes(method === 'start' ? 2 : 1)
 })
 
+it('keeps the state a successful refresh reads after the hub observed the target', async () => {
+  // Given an event-backed target observation and a detail read showing a later state.
+  const api = createHttpClient('http://api.invalid')
+  const hub = new WaitHub('http://api.invalid', 'key', { enabled: true }, async () => { throw new Error('unexpected socket') }, api)
+  jest.spyOn(hub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
+  jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', status: 'stopping' } })
+  const sandbox = createSandbox('sbx', api, undefined, undefined, undefined, {}, undefined, undefined, hub)
+  // When the wait resolves and the refresh succeeds.
+  await sandbox.wait()
+  // Then the handle reports what the server said last, not the event-time state.
+  expect([sandbox.state, sandbox.rawState]).toEqual(['stopping', 'stopping'])
+})
+
 it('does not refresh or time out when the hub observes its target at the deadline', async () => {
   // Given an event arriving exactly at the caller's deadline.
   jest.useFakeTimers({ now: 0 })
@@ -72,17 +85,19 @@ it('propagates programming errors from the post-observation refresh', async () =
   await expect(pending).rejects.toBe(error)
 })
 
-it('caps sandbox wait reads by the ordinary request timeout', async () => {
+it('holds a sandbox wait for its budget, not the shorter request timeout', async () => {
   // Given a shorter request timeout than the sandbox wait budget.
   const api = createHttpClient('http://api.invalid', undefined, 20)
   const get = jest.spyOn(api, 'get').mockRejectedValue(new RequestTimeoutError('server timeout'))
   const sandbox = createSandbox('sbx', api)
   // When the wait sends a long-poll request.
   const pending = sandbox.wait({ timeoutSeconds: 2 })
-  // Then the hold ends by the request timeout and the read adds slack within the budget.
+  // Then the hold and the read are the wait budget, never the 20 ms request timeout.
   await expect(pending).rejects.toBeInstanceOf(RequestTimeoutError)
   const [, config] = get.mock.calls[0] ?? []
-  expect(config?.params).toEqual({ wait: 'running', timeout_ms: 20 })
+  const hold: unknown = (config?.params as { readonly timeout_ms?: unknown } | undefined)?.timeout_ms
+  expect(hold).toBeGreaterThan(1_000)
+  expect(hold).toBeLessThanOrEqual(2_000)
   expect(config?.timeout).toBeGreaterThan(1_000)
   expect(config?.timeout).toBeLessThanOrEqual(2_000)
 })

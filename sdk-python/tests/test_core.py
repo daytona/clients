@@ -6970,10 +6970,11 @@ async def test_snapshot_service_get_and_delete_address_one_snapshot() -> None:
     assert transport.specs[1].params == {"wait": "ready", "timeout_ms": 30000}
     assert transport.specs[1].timeout == 35
     assert transport.specs[1].unbounded_read is False
-    # A budget beyond the request timeout (30 s here) holds for the request timeout.
+    # A budget beyond the server's 60 s hold ceiling is capped on the wire,
+    # however short the request timeout (30 s here): the wait budget governs.
     await snapshots.get("snap/1", wait="ready", timeout=10_000)
-    assert transport.specs[2].params == {"wait": "ready", "timeout_ms": 30000}
-    assert transport.specs[2].timeout == 35
+    assert transport.specs[2].params == {"wait": "ready", "timeout_ms": 60000}
+    assert transport.specs[2].timeout == 65
     # No explicit budget: the server picks the hold, so the read is unbounded
     # rather than cut at the transport default.
     await snapshots.get("snap/1", wait="ready")

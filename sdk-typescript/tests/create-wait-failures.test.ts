@@ -23,8 +23,12 @@ describe('create wait error ownership', () => {
       }
       // When a wait read fails after successful submission.
       const sandbox = await acquire[route]()
-      // Then acquisition succeeds with the last known state.
+      // Then acquisition succeeds with the last known state, after the failed wait read.
       expect(sandbox).toMatchObject({ id: 'sbx', state: 'creating' })
+      expect(api.requests.map((request) => [request.method, request.path.split('?')[0]])).toEqual([
+        ['POST', { create: '/sandboxes', createFromSnapshot: '/sandboxes/from-snapshot', createMacos: '/sandboxes/macos' }[route]],
+        ['GET', '/sandboxes/sbx'],
+      ])
     } finally {
       await client.close()
       await api.close()
@@ -45,7 +49,7 @@ describe('create wait error ownership', () => {
       const pending = acquire[route]()
       // Then the server error is not reclassified as a client timeout.
       await expect(pending).rejects.toBeInstanceOf(RequestTimeoutError)
-      await expect(pending).rejects.toMatchObject({ source: 'DAYTONA_API', message: 'server timeout' })
+      await expect(pending).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'DAYTONA_API', message: 'server timeout' })
     } finally {
       await client.close()
       await api.close()

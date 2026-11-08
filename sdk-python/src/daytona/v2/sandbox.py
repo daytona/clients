@@ -783,14 +783,14 @@ class AsyncSandbox:
         root = getattr(api, "request_timeout_seconds", 0) or 0
         request_timeout = timeout if timeout is None or root <= 0 else min(timeout, root)
         if wait_timeout_ms is not None:
-            # A hold ends by the smaller of its slice and the request timeout.
-            # Its read is bounded by the hold plus a little slack — also when
-            # the CALLER set no deadline: "no overall deadline" means the wait
-            # loop keeps issuing slices, never that one stalled connection may
-            # hang it forever (parity with TypeScript's `refreshDataWithin`).
-            hold_ms = wait_timeout_ms if root <= 0 else max(1, min(wait_timeout_ms, math.ceil(root * 1000)))
-            params["timeout_ms"] = hold_ms
-            request_timeout = hold_ms / 1000 + WAIT_READ_SLACK_SECONDS
+            # A long poll is governed by the wait budget, not the request
+            # timeout. Its read is bounded by the hold plus a little slack —
+            # also when the CALLER set no deadline: "no overall deadline" means
+            # the wait loop keeps issuing slices, never that one stalled
+            # connection may hang it forever (parity with TypeScript's
+            # `refreshDataWithin`).
+            params["timeout_ms"] = wait_timeout_ms
+            request_timeout = wait_timeout_ms / 1000 + WAIT_READ_SLACK_SECONDS
         fresh = AsyncSandbox._from_api(
             expect_sandbox_detail(
                 await api.send(

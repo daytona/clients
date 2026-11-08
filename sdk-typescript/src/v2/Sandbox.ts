@@ -38,7 +38,7 @@ import {
 import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
-import { assertIfMatchOptions, assertKnownOptions, badRequest, optionKeys, optionalSeconds, RENAMED_OPTIONS } from './options.js'
+import { assertIfMatchOptions, assertKnownOptions, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS } from './options.js'
 import type { IfMatchOptions } from './options.js'
 import { isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
 import type { SandboxMetadata } from './sandboxMetadata.js'
@@ -110,6 +110,7 @@ const CAPTURE_KEYS = optionKeys<CaptureImageOptions>()({ name: true, idleExpiryS
 const UPDATE_ENV_KEYS = optionKeys<UpdateEnvOptions>()({ unset: true })
 const LIFECYCLE_POLICY_KEYS = optionKeys<LifecyclePolicyOptions>()({ timeoutSeconds: true, onTimeout: true, idleExpirySeconds: true, onIdleTimeout: true })
 
+/** @internal */
 interface SandboxInit {
   readonly sandbox: SandboxDto | SandboxInfo | string
   readonly api?: AxiosInstance
@@ -216,16 +217,9 @@ function emptyStringMap(): Record<string, string> {
 }
 
 function labelsBody(labels: unknown): Record<string, string> {
-  if (typeof labels !== 'object' || labels === null || Array.isArray(labels)) {
-    throw new BadRequestError('setLabels requires a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-  }
+  if (!isPlainStringRecord(labels)) throw badRequest('setLabels requires a Record<string, string>')
   const output = emptyStringMap()
-  for (const [key, value] of Object.entries(labels)) {
-    if (typeof value !== 'string') {
-      throw badRequest('setLabels requires a Record<string, string>')
-    }
-    output[key] = value
-  }
+  for (const [key, value] of Object.entries(labels)) output[key] = value
   return output
 }
 
@@ -352,6 +346,10 @@ export class Sandbox {
   private lspNamespace?: LspService
   private _hub?: WaitHub
 
+  /** @internal */
+  constructor(token: Internal, init: SandboxInit)
+  /** Built by the SDK: get a sandbox from `daytona.v2.create*()`, `get()` or `list()`. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, init: SandboxInit) {
     assertInternal(token, 'Sandbox')
     const { sandbox: sandboxOrId, api, apiKey, options = {}, hub } = init
@@ -514,12 +512,12 @@ export class Sandbox {
   private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState, requestDeadline?: number): Promise<void> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const waitValue = waitQueryState(wait)
-    // A long poll's hold ends by the smaller of its slice and the request
-    // timeout; its read allows the hold plus network slack. A plain read is
-    // an ordinary request, bounded by the smaller of its budget and the request timeout.
+    // A long poll is governed by the wait budget, not the request timeout:
+    // its read allows the hold plus network slack. A plain read is an
+    // ordinary request, bounded by the smaller of its budget and the request timeout.
     const rootTimeout = this.api.defaults.timeout
     const rootMs = typeof rootTimeout === 'number' && rootTimeout > 0 ? rootTimeout : Infinity
-    const hold = waitValue === undefined ? undefined : Math.min(timeout ?? WAIT_FOR_STATE_SLICE_MS, rootMs)
+    const hold = waitValue === undefined ? undefined : Math.ceil(timeout ?? WAIT_FOR_STATE_SLICE_MS)
     const config = hold !== undefined
       ? { timeout: hold + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: hold } }
       : timeout === undefined ? undefined : { timeout: Math.min(timeout, rootMs) }

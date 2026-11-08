@@ -38,7 +38,8 @@ interface LinuxCreateArguments {
  * @internal
  */
 export function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptions | null | undefined, options: CreateSandboxOptions | undefined): LinuxCreateArguments {
-  if (imageOrOptions === undefined || imageOrOptions === null) return { source: undefined, options: options ?? {} }
+  // Only an omitted options argument defaults; `null` is refused like any non-object.
+  if (imageOrOptions === undefined || imageOrOptions === null) return { source: undefined, options: options === undefined ? {} : options }
   if (typeof imageOrOptions === 'object' && !isImageBuilder(imageOrOptions) && !(imageOrOptions instanceof Image) && !Array.isArray(imageOrOptions)) {
     if (options !== undefined) throw badRequest('daytona.create() takes options once: create(options) or create(image, options)')
     if (Object.prototype.hasOwnProperty.call(imageOrOptions, 'image') || Object.prototype.hasOwnProperty.call(imageOrOptions, 'snapshot')) {
@@ -46,7 +47,7 @@ export function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptio
     }
     return { source: undefined, options: imageOrOptions }
   }
-  return { source: imageSourceString(imageOrOptions), options: options ?? {} }
+  return { source: imageSourceString(imageOrOptions), options: options === undefined ? {} : options }
 }
 
 /** @internal */

@@ -107,10 +107,10 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
           try {
             await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_REQUEST_TIMEOUT_MS))
           } catch (error) {
+            // The target was observed; a failed refresh keeps that observation.
             if (!(error instanceof DaytonaError)) throw error
           }
         }
-        context.observe(resolved)
       }
       return
     } catch (error) {

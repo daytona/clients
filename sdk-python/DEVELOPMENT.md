@@ -149,8 +149,12 @@ image or snapshot will succeed without a conflict. Callers must still handle
 
 Once the create or fork request has succeeded, create and fork return their
 handle however the wait ends: budget spent, terminal state or a failed read
-(any `DaytonaError`; `_wait_without_raising_for_its_end`). Only a failed
-request raises; cancellation propagates. The fork's detail read counts
+(any `DaytonaError`; `_wait_without_raising_for_its_end`). Non-SDK errors and
+cancellation propagate; a cancelled create may already have created a
+sandbox. A raised create or fork means the request itself failed, except for
+`SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+carry the idempotency key because a sandbox may exist), caller cancellation,
+and an unexpected non-SDK error during the wait. The fork's detail read counts
 against `wait_seconds`; if it fails, the handle is built from the fork
 response (id, status, `forked_from`, class) and no wait follows. Once a
 lifecycle wait has observed its target, a failed metadata refresh is
@@ -180,10 +184,10 @@ stay constructible (keyword-only). `to_json()` returns a
 `SandboxHandleJSON` with known metadata but no URLs or credentials; callers
 reconnect with `get(json["sandboxId"])`.
 
-Long polls (sandbox waits, `images.get` / `snapshots.get` with a budget)
-bound each server hold by the smaller of its slice (60 s for artifacts),
-the remaining budget and `request_timeout`; the read adds a few seconds of
-slack. Artifact gets repeat holds until the artifact settles or the budget
+Long polls (sandbox waits, image pulls, `images.get` / `snapshots.get` with
+a budget) are governed by the wait budget, not `request_timeout`: each server
+hold is the smaller of its slice (60 s for artifacts) and the remaining
+budget, in whole milliseconds, and the read adds a few seconds of slack. Artifact gets repeat holds until the artifact settles or the budget
 is spent (`services._get_artifact`). `ListResult` / `SearchResult` copy
 `items` into a tuple in their constructors. A sandbox-token mint answered
 with 405/501 disables minting for the handle; a 404 falls back to the API

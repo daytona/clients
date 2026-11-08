@@ -31,12 +31,11 @@ export async function getArtifact<T extends { readonly status: string }>(http: A
     const remaining = deadline === undefined ? undefined : deadline - Date.now()
     if (remaining !== undefined && remaining <= 0 && last !== undefined) return last
     const started = Date.now()
-    // Each hold ends by the smaller of the remaining budget, the request
-    // timeout and the server's 60 s cap. The server answers by the end of the
-    // hold, so the read allows the hold plus network slack. A hold of the
-    // server's default length reads without a client deadline.
-    const rootMs = typeof http.defaults.timeout === 'number' && http.defaults.timeout > 0 ? http.defaults.timeout : Infinity
-    const holdMs = remaining === undefined ? undefined : Math.min(60_000, rootMs, Math.max(1, Math.ceil(remaining)))
+    // A long poll is governed by the wait budget, not the request timeout:
+    // each hold is the smaller of the remaining budget and the server's 60 s
+    // cap, in whole milliseconds, and the read allows the hold plus network
+    // slack. A hold of the server's default length reads without a client deadline.
+    const holdMs = remaining === undefined ? undefined : Math.min(60_000, Math.max(1, Math.ceil(remaining)))
     const timeout = options.wait === undefined ? undefined : holdMs === undefined ? 0 : holdMs + HOLD_READ_SLACK_MS
     try {
       const { data } = await http.get<T>(path, {

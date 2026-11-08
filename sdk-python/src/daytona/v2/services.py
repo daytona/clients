@@ -340,15 +340,12 @@ async def _get_artifact(
             await transport.send(RequestSpec("GET", path, params={"wait": wait}, unbounded_read=True))
         )
     deadline = _clock.monotonic() + budget_ms / 1000
-    root = transport.request_timeout_seconds
-    root_ms = math.ceil(root * 1000) if root > 0 else _ARTIFACT_LONGPOLL_MAX_MS
     last: Optional[_Artifact] = None
     while True:
-        # Each hold ends by the smallest of the remaining budget, the request
-        # timeout and the server's 60 s cap; the read adds network slack.
-        hold_ms = max(
-            1, min(_ARTIFACT_LONGPOLL_MAX_MS, root_ms, math.ceil((deadline - _clock.monotonic()) * 1000))
-        )
+        # A long poll is governed by the wait budget, not the request timeout:
+        # each hold is the smaller of the remaining budget and the server's
+        # 60 s cap, in whole milliseconds, and the read adds network slack.
+        hold_ms = max(1, min(_ARTIFACT_LONGPOLL_MAX_MS, math.ceil((deadline - _clock.monotonic()) * 1000)))
         started = _clock.monotonic()
         try:
             artifact = parse(
@@ -508,6 +505,8 @@ class AsyncVolumesService:
 
     async def create(self, *, name: str, size_gib: Optional[int] = None) -> Volume:
         """Create a disk volume (ready immediately); ``size_gib`` omitted uses the server default."""
+        if not isinstance(name, str) or not name.strip():
+            raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         if size_gib is not None and (
             isinstance(size_gib, bool) or not isinstance(size_gib, int) or size_gib <= 0
         ):

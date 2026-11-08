@@ -162,27 +162,28 @@ it.each<Phase>(['post', 'initial'])('preserves a root timeout during %s before t
   await expect(result).rejects.toMatchObject({ message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
 })
 
-it.each([undefined, 0, 1])('preserves the root timeout during a poll when pull timeout is %s', async (timeoutSeconds) => {
-  // Given a real long poll that completes after the root request timeout.
+it.each([undefined, 0, 1])('lets a long poll outlive a shorter request timeout when pull timeout is %s', async (timeoutSeconds) => {
+  // Given a real long poll that answers after the 200 ms request timeout.
   respond = (phase, response) => {
     if (phase !== 'poll') return reply(phase, response)
     timers.add(setTimeout(() => reply(phase, response), 500))
   }
   const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 200))
   // When pulling with an omitted, zero, or finite readiness deadline.
-  const result = service.pull('alpine', { timeoutSeconds })
-  // Then the shorter ordinary request bound remains in force.
-  await expect(result).rejects.toBeInstanceOf(ClientTimeoutError)
+  const image = await service.pull('alpine', { timeoutSeconds })
+  // Then the poll is governed by the pull budget, not the request timeout.
+  expect(image.status).toBe('ready')
+  expect(phases).toEqual(['post', 'initial', 'poll'])
 })
 
-it('preserves the shorter root timeout when a poll never answers', async () => {
-  // Given a real stalled readiness poll and a shorter root timeout.
+it('ends a stalled poll at the pull deadline, not at the shorter request timeout', async () => {
+  // Given a real stalled readiness poll and a shorter request timeout.
   respond = (phase, response) => { if (phase !== 'poll') reply(phase, response) }
   const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 200))
   // When the pull's one-second readiness budget expires.
   const result = service.pull('alpine', { timeoutSeconds: 1 })
-  // Then the active request timeout is not reclassified as pull-budget exhaustion.
-  await expect(result).rejects.toBeInstanceOf(ClientTimeoutError)
+  // Then the pull's own deadline error is raised.
+  await expect(result).rejects.toMatchObject({ message: 'image pull did not finish before timeout', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
 })
 
 it('leaves standalone build acceptance-only', async () => {

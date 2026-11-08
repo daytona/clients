@@ -2106,6 +2106,7 @@ function hubIdentity(
   ])
 }
 
+/** @internal */
 export interface AttachHubOptions {
   readonly apiUrl: string
   readonly apiKey: string
@@ -2116,6 +2117,7 @@ export interface AttachHubOptions {
   readonly _api?: AxiosInstance
 }
 
+/** @internal */
 export function attachHub(options: AttachHubOptions): WaitHub {
   const { apiUrl, apiKey, target, shared, config, wsFactory, _api } = options
 
@@ -2140,6 +2142,7 @@ export function attachHub(options: AttachHubOptions): WaitHub {
   return hub
 }
 
+/** @internal */
 export async function detachHub(
   hub: WaitHub,
   options: {
@@ -2157,5 +2160,5 @@ export async function detachHub(
   }
 }
 
-// Exported for testing only
+/** @internal Exported for testing only. */
 export const _hubRegistryForTest = HUB_REGISTRY

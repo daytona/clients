@@ -21,6 +21,12 @@ it.each([404, 405, 501])('retries minting only for transient HTTP %s', async (st
     // When another toolbox request needs a bearer.
     await sandbox.fs.list('/')
     // Then 404 only affects one request; unsupported routes remain disabled.
+    // Minting goes to the API route, file reads to the toolbox route.
+    const mint = ['POST', '/sandboxes/sandbox/access-token']
+    const read = ['GET', '/toolbox/files']
+    expect(api.requests.map((request) => [request.method, request.path.split('?')[0]])).toEqual(
+      status === 404 ? [mint, read, mint, read] : [mint, read, read],
+    )
     expect(api.requests.filter((request) => request.method === 'POST')).toHaveLength(status === 404 ? 2 : 1)
     const reads = api.requests.filter((request) => request.method === 'GET')
     expect(reads.map((request) => request.headers.authorization)).toEqual(['Bearer key', status === 404 ? 'Bearer minted-bearer' : 'Bearer key'])

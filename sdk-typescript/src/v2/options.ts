@@ -76,12 +76,25 @@ export function assertIfMatchOptions(options: IfMatchOptions | undefined): void 
   }
 }
 
+/**
+ * Whether `value` is a plain object (prototype `Object.prototype` or `null`)
+ * whose enumerable keys are all its own and whose values are all strings. A
+ * `Map`, a class instance or inherited keys would otherwise be dropped silently.
+ * @internal
+ */
+export function isPlainStringRecord(value: unknown): value is Readonly<Record<string, string>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const prototype: unknown = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return false
+  for (const key in value) {
+    if (!Object.prototype.hasOwnProperty.call(value, key) || typeof Reflect.get(value, key) !== 'string') return false
+  }
+  return true
+}
+
 /** @internal */
 export function assertLabels(labels: unknown): asserts labels is Readonly<Record<string, string>> {
-  if (typeof labels !== 'object' || labels === null || Array.isArray(labels)
-    || Object.values(labels).some((value) => typeof value !== 'string')) {
-    throw badRequest('labels must be an object of string to string')
-  }
+  if (!isPlainStringRecord(labels)) throw badRequest('labels must be a plain object of string to string')
 }
 
 /**

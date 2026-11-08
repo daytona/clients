@@ -533,10 +533,12 @@ remainder. `wait_seconds=0` returns as soon as the create is accepted. Once
 the create request has succeeded, every `create*()` returns the handle however
 its wait ends — the budget runs out, the sandbox reaches a terminal state, or
 a read during the wait fails: check `sandbox.state` and `sandbox.error` before
-doing work. Only a failed create request raises, so a create that raised
-created no sandbox — except `SandboxCreateRequestTimeoutError` (the request
-timed out; retry with its `idempotency_key`) and a cancelled create, which
-may already have created one. `create_timeout_seconds` is the server-side
+doing work. A raised create or fork means the request itself failed, except for
+`SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+carry the idempotency key because a sandbox may exist), caller cancellation,
+and an unexpected non-SDK error during the wait. Retry
+those two with their `idempotency_key`; a cancelled create may already have
+created a sandbox. `create_timeout_seconds` is the server-side
 queue/boot budget in seconds (an integer, at least `-1`); `-1` asks the server
 to apply its maximum.
 
@@ -550,7 +552,7 @@ secrets or network policy.
 `images.get(id, wait="ready", timeout=120)` and
 `snapshots.get(id, wait="ready", timeout=120)` wait for the artifact to
 settle (`ready`, `failed` or `error`): they repeat the server's long poll,
-each hold at most 60 s and at most `request_timeout`, until it settles or the
+each hold at most 60 s (the wait budget governs it, not `request_timeout`), until it settles or the
 budget is spent, then return the artifact as last observed. Without a
 timeout, one long poll uses the server's default hold. `sandbox.capture_image(name=..., idle_expiry_seconds=...)` captures an
 image from a sandbox.

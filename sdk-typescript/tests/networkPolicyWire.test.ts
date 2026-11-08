@@ -5,7 +5,7 @@
 
 import { Daytona } from '../src/v2/Daytona'
 import { lazySandbox } from './lazySandbox'
-import { InternalServerError } from '../src/v2/index'
+import { BadRequestError } from '../src/v2/index'
 
 import { jsonBody, startFakeApi } from './networkPolicyTestServer'
 
@@ -194,7 +194,7 @@ describe('network policy wire contract', () => {
     }
   })
 
-  it('classifies malformed server response arrays as internal errors, not client validation errors', async () => {
+  it('classifies malformed server response arrays as contract errors (BadRequestError, source SDK)', async () => {
     const api = await startFakeApi([
       {
         status: 200,
@@ -218,8 +218,9 @@ describe('network policy wire contract', () => {
       } catch (error) {
         thrown = error
       }
-      expect(thrown).toBeInstanceOf(InternalServerError)
-      expect(thrown).toMatchObject({ message: 'desired.allow_cidrs must be an array of strings' })
+      // A response that breaks the contract is the SDK's BadRequestError.
+      expect(thrown).toBeInstanceOf(BadRequestError)
+      expect(thrown).toMatchObject({ message: 'desired.allow_cidrs must be an array of strings', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     } finally {
       await api.close()
     }

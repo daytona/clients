@@ -94,7 +94,7 @@ async def test_images_get_repeats_the_long_poll_until_settled_within_its_budget(
     holds: list[object] = []
 
     class _Holding(_Api):
-        request_timeout_seconds = 0.0  # no request timeout: only the budget and the 60 s cap bound a hold
+        request_timeout_seconds = 0.0
 
         async def send(self, spec: RequestSpec) -> object:
             holds.append(spec.params.get("timeout_ms"))
@@ -108,13 +108,15 @@ async def test_images_get_repeats_the_long_poll_until_settled_within_its_budget(
     # The budget is spent: the image comes back as last observed, no error.
     assert image.status == "building"
 
-    # A request timeout shorter than 60 s bounds each hold too.
+    # A shorter request timeout does not shorten a hold: the wait budget governs,
+    # and each hold is whole milliseconds.
     holds.clear()
     now[0] = 0.0
     _Holding.request_timeout_seconds = 20.0
     api = _Holding([_image("img", "building"), _image("img", "ready")])
-    image = await AsyncImagesService(api).get("img", wait="ready", timeout=150)  # type: ignore[arg-type]
-    assert (holds, image.status) == ([20_000, 20_000], "ready")
+    image = await AsyncImagesService(api).get("img", wait="ready", timeout=90.25)  # type: ignore[arg-type]
+    assert (holds, image.status) == ([60_000, 30_250], "ready")
+    assert all(isinstance(hold, int) for hold in holds)
 
 
 @pytest.mark.anyio
@@ -239,6 +241,9 @@ async def test_platform_inputs_are_validated_before_any_request() -> None:
     for domains in ("example.com", ["example.com", 1], None, 5):
         with pytest.raises(BadRequestError, match="allowed_domains must be a list of strings"):
             await secrets.set("S", "v", allowed_domains=domains)  # type: ignore[arg-type]
+    for blank in ("", "  "):
+        with pytest.raises(BadRequestError, match="name must be a non-empty string"):
+            await volumes.create(name=blank)
     for size in (0, -1, 1.5, True, float("nan"), float("inf")):
         with pytest.raises(BadRequestError, match="size_gib must be a positive integer"):
             await volumes.create(name="v", size_gib=size)  # type: ignore[arg-type]
@@ -276,3 +281,57 @@ def test_public_types_are_exported_and_value_types_keyword_only() -> None:
         ImageRef("img_1", None)  # type: ignore[misc]
     with pytest.raises(TypeError):
         SnapshotRef("snap_1", None)  # type: ignore[misc]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("call", ["pull", "get"])
+async def test_a_long_poll_outlives_a_shorter_request_timeout(call: str) -> None:
+    # The long poll answers after 0.5 s; the request timeout is 0.2 s.
+    async def respond(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(200, json={"id": "img", "status": "pending"})
+        if "wait" in request.url.params:
+            assert request.url.params["timeout_ms"].isdigit()
+            await asyncio.sleep(0.5)
+            return httpx.Response(200, json=_image("img", "ready"))
+        return httpx.Response(200, json=_image("img", "building"))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        transport = AsyncTransport("https://api.test", "key", request_timeout=0.2, client=http)  # type: ignore[arg-type]
+        images = AsyncImagesService(transport)
+        if call == "pull":
+            image = await images.pull("python:3.12", timeout=5)
+        else:
+            image = await images.get("img", wait="ready", timeout=5)
+    # The wait budget governs the poll, not the request timeout.
+    assert image.status == "ready"
+
+
+def test_sdk_built_classes_take_only_private_constructor_parameters() -> None:
+    # The handle and the services are built by the SDK: their constructor
+    # parameters are `_`-prefixed (async classes) or `_impl` / `_bridge` (sync).
+    import inspect
+
+    from daytona.v2 import _sync
+    from daytona.v2.docker import AsyncDockerService
+    from daytona.v2.ports import AsyncPortsService
+    from daytona.v2.sandbox import AsyncSandbox
+    from daytona.v2.sandbox_volumes import AsyncSandboxVolumesService
+    from daytona.v2.services import AsyncReservationsService, AsyncSnapshotsService
+
+    classes: list[type] = [
+        AsyncSandbox,
+        AsyncImagesService,
+        AsyncSnapshotsService,
+        AsyncVolumesService,
+        AsyncSecretsService,
+        AsyncReservationsService,
+        AsyncMacModelsService,
+        AsyncPortsService,
+        AsyncDockerService,
+        AsyncSandboxVolumesService,
+    ]
+    classes += [getattr(_sync, cls.__name__.removeprefix("Async")) for cls in classes]
+    for cls in classes:
+        names = [name for name in inspect.signature(cls.__init__).parameters if name != "self"]
+        assert names and all(name.startswith("_") for name in names), (cls.__name__, names)

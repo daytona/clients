@@ -13,7 +13,7 @@ import { VolumeStatus as VOLUME_STATUSES, VolumeType as VOLUME_TYPES } from './g
 import { knownOrUnknown } from './knownValue.js'
 import { NotFoundError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
-import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys } from './options.js'
 
 /** A volume that preserves files between sandboxes. */
 export interface Volume {
@@ -137,7 +137,10 @@ export class VolumesService {
 
   /** Creates a disk volume (ready immediately). */
   public async create(options: CreateVolumeOptions): Promise<Volume> {
+    // The options are required: an omitted value is refused like any non-object.
+    assertOptionsObject('CreateVolumeOptions', options)
     assertKnownOptions('CreateVolumeOptions', options, CREATE_VOLUME_KEYS)
+    if (typeof options.name !== 'string' || options.name.trim() === '') throw badRequest('name must be a non-empty string')
     if (options.sizeGib !== undefined && (!Number.isInteger(options.sizeGib) || options.sizeGib <= 0)) {
       throw badRequest('sizeGib must be a positive integer')
     }

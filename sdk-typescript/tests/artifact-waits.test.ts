@@ -70,12 +70,12 @@ describe.each(['image', 'snapshot'] as const)('%s readiness budgets', (kind) => 
     expect(requests).toEqual([{ at: 0, hold: undefined, timeout: 0 }])
   })
 
-  it('bounds each hold by the request timeout when it is shorter than the budget', async () => {
+  it('holds for the wait budget even when the request timeout is shorter', async () => {
     // Given a root request timeout shorter than the readiness budget.
     const { service, requests } = fixture(['ready'], 0, 20)
     // When waiting for readiness.
-    await service.get('artifact', { wait: 'ready', timeoutSeconds: 2 })
-    // Then the hold takes the smaller bound and the read adds network slack.
-    expect(requests).toEqual([{ at: 0, hold: 20, timeout: 5020 }])
+    await service.get('artifact', { wait: 'ready', timeoutSeconds: 2.0004 })
+    // Then the hold is the whole (integer) budget and the read outlives it by the slack.
+    expect(requests).toEqual([{ at: 0, hold: 2001, timeout: 7001 }])
   })
 })

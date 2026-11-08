@@ -2454,9 +2454,9 @@ describe('V2 model', () => {
     await jest.advanceTimersByTimeAsync(200)
     await expect(waiting).resolves.toBe(sandbox)
 
-    // Each hold ends by the 5 s request timeout; the read adds network slack.
-    expect(get.mock.calls[0]).toEqual(['/sandboxes/sbx', { timeout: 10_000, params: { wait: 'running', timeout_ms: 5_000 } }])
-    expect(get.mock.calls[1]).toEqual(['/sandboxes/sbx', { timeout: 10_000, params: { wait: 'running', timeout_ms: 5_000 } }])
+    // Each hold is a full 30 s slice despite the 5 s request timeout; the read adds network slack.
+    expect(get.mock.calls[0]).toEqual(['/sandboxes/sbx', { timeout: 35_000, params: { wait: 'running', timeout_ms: 30_000 } }])
+    expect(get.mock.calls[1]).toEqual(['/sandboxes/sbx', { timeout: 35_000, params: { wait: 'running', timeout_ms: 30_000 } }])
   })
 
   it('rounds waitForState sub-millisecond budgets up before sending timeout_ms', async () => {
@@ -8703,8 +8703,8 @@ describe('toolbox service request shaping', () => {
     expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
   })
 
-  it('bounds each wait hold by the request timeout and keeps the read within the budget', async () => {
-    // The hold ends by the request timeout; the read adds slack, capped by the caller budget.
+  it('holds for the wait budget, not the shorter request timeout', async () => {
+    // The hold is the caller budget; the read is capped by that budget, never by the request timeout.
     const client = new Daytona({ apiKey: 'key', requestTimeoutSeconds: 0.123 })
     const api = clientInstance(client)
     const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, 123)
@@ -8712,7 +8712,7 @@ describe('toolbox service request shaping', () => {
 
     await sandbox.wait({ until: 'started', timeoutSeconds: 0.5 })
 
-    expect(get).toHaveBeenCalledWith('/sandboxes/sbx', { timeout: 500, params: { wait: 'running', timeout_ms: 123 } })
+    expect(get).toHaveBeenCalledWith('/sandboxes/sbx', { timeout: 500, params: { wait: 'running', timeout_ms: 500 } })
   })
 })
 
@@ -9616,7 +9616,7 @@ describe('sandbox search', () => {
     for (const labels of ['team=ml', ['team=ml'], 42]) {
       const options = { labels: labels as unknown as Record<string, string> }
       expect(() => searchQueryParams(options)).toThrow(BadRequestError)
-      expect(() => searchQueryParams(options)).toThrow('labels must be an object')
+      expect(() => searchQueryParams(options)).toThrow('labels must be a plain object')
       await expect(client.search(options)).rejects.toBeInstanceOf(BadRequestError)
     }
     // JS `null` is absent (Python's `None`): no parameter, no request-time error.
