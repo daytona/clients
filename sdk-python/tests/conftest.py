@@ -34,10 +34,10 @@ def _long_poll_only_outside_the_events_suite(
 
 @pytest.fixture(autouse=True)
 def _v2_api_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The v2 client takes its API URL from the env (DAYTONA_V2_API_URL, else
-    DAYTONA_API_URL); point every test at the offline host (tests that need
-    another one setenv it) and drop any per-namespace URL the developer's
-    shell exports, which would otherwise win."""
-    monkeypatch.delenv("DAYTONA_V2_API_URL", raising=False)
+    """The v2 client takes its API URL from DAYTONA_V2_API_URL; point every
+    test at the offline host (tests that need another one setenv it) and drop
+    any URL the developer's shell exports for v0 or for the 0.x SDK.
+    DAYTONA_API_URL is set to a host no test may reach: 2.x never reads it."""
+    monkeypatch.setenv("DAYTONA_V2_API_URL", "http://api.invalid")
     monkeypatch.delenv("DAYTONA_V0_API_URL", raising=False)
-    monkeypatch.setenv("DAYTONA_API_URL", "http://api.invalid")
+    monkeypatch.setenv("DAYTONA_API_URL", "http://never-read-by-2x.invalid")

@@ -17,7 +17,7 @@ import importlib
 import os
 import threading
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from types import ModuleType
 from typing import TYPE_CHECKING, Callable, Final, Optional, Union
 
@@ -164,16 +164,22 @@ class DaytonaConfig:
     ``organization_id`` for v0 and ``project_id`` for v2. Fields left unset
     are read from the environment by each namespace.
 
-    There is no region or API URL field here. Pass ``region=`` to a v2 create;
-    ``DAYTONA_V2_API_URL``, else ``DAYTONA_API_URL``, selects the v2 API
-    endpoint and never reaches v0.
+    There is no region or API URL field here. Pass ``region=`` to a v2 create.
+    ``DAYTONA_V2_API_URL`` (test environments only) selects the v2 API
+    endpoint and never reaches v0; ``DAYTONA_API_URL`` belongs to the 0.x SDK
+    and SDK 2.x never reads it.
+
+    ``Daytona(config)`` / ``AsyncDaytona(config)`` copy the fields when the
+    client is built: changing the object afterwards has no effect on it.
 
     ``target`` is deprecated and applies to ``.v0`` only (the v0 client's
     default region). Pass ``target`` to each v0 sandbox create
     (``CreateSandboxFromSnapshotParams(target=...)``) or ``region_id`` to each
     v0 snapshot create instead. Setting it still works and emits a
     ``DeprecationWarning``.
-    ``request_timeout`` (seconds), ``connection_pool_maxsize`` and
+    ``request_timeout`` (seconds; default 60, ``0`` = no limit) is the total
+    time one ordinary v2 request may take; waits, streams and file transfers
+    are not cut by it. ``request_timeout``, ``connection_pool_maxsize`` and
     ``otel_enabled`` tune the v2 client's HTTP transport;
     ``connection_pool_maxsize`` and ``otel_enabled`` reach v0 too.
     ``shared_hub`` and ``events`` (``daytona.v2.SandboxEventsConfig``) configure
@@ -234,6 +240,22 @@ def _refuse_url_fields(config: DaytonaConfig) -> None:
     for name in _REMOVED_URL_FIELDS:
         if name in vars(config) or hasattr(config, name):
             raise TypeError(_REMOVED_URL_FIELD.format(name=name))
+
+
+def _snapshot_config(config: DaytonaConfig) -> DaytonaConfig:
+    """A private copy of ``config``'s fields, taken when the client is built.
+
+    Later changes to the caller's object do not reach the client (the
+    TypeScript root copies its config the same way). URL fields are refused
+    before and after the copy: a property may add one while the fields are
+    read.
+    """
+    _refuse_url_fields(config)
+    snapshot = object.__new__(DaytonaConfig)
+    for config_field in fields(DaytonaConfig):
+        object.__setattr__(snapshot, config_field.name, getattr(config, config_field.name))
+    _refuse_url_fields(config)
+    return snapshot
 
 
 def _load_v0(client_name: str) -> tuple[ModuleType, object]:
@@ -373,7 +395,9 @@ class _Root:
     """State shared by the sync and async root clients."""
 
     def __init__(self, config: Optional[DaytonaConfig] = None) -> None:
-        self._config = config if config is not None else DaytonaConfig()
+        # Snapshot now: later edits to the caller's config do not reach the
+        # namespace clients, which are built from it on first access.
+        self._config = _snapshot_config(config) if config is not None else DaytonaConfig()
         self._lock = threading.Lock()
 
     def __repr__(self) -> str:

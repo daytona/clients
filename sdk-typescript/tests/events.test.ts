@@ -30,7 +30,8 @@ import {
   SandboxTerminalStateError,
   ServiceUnavailableError,
 } from '../src/v2/errors/DaytonaError'
-import type { SandboxEventsConfig, SandboxState } from '../src/v2/types'
+import type { SandboxState } from '../src/v2/types'
+import type { EventsHubConfig } from '../src/v2/events'
 
 /** What every create/start wait registers: reach `started`, reject on a
  *  terminal state (the SDK's DEFAULT_SANDBOX_TERMINAL_STATES). */
@@ -187,7 +188,7 @@ function makeHub(
   } = {},
 ): WaitHub {
   const { enabled = true, reconcileIntervalMs = 0, idleCloseMs } = opts
-  const config: SandboxEventsConfig = { enabled, reconcileIntervalMs, idleCloseMs }
+  const config: EventsHubConfig = { enabled, reconcileIntervalMs, idleCloseMs }
   const api = opts.api ?? mockAxios()
   return new WaitHub(
     API_URL,
@@ -1204,7 +1205,7 @@ describe('WaitHub: shared hub', () => {
 
   test('same identity → same hub instance', () => {
     const api = mockAxios()
-    const config: SandboxEventsConfig = { enabled: true, reconcileIntervalMs: 0 }
+    const config: EventsHubConfig = { enabled: true, reconcileIntervalMs: 0 }
     const hub1 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: true, config })
     const hub2 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: true, config })
     expect(hub1).toBe(hub2)
@@ -1215,7 +1216,7 @@ describe('WaitHub: shared hub', () => {
   test('closing first of two refs keeps hub alive for second', async () => {
     const fc = makeFakeConnector()
     const api = mockAxios()
-    const config: SandboxEventsConfig = { enabled: true, reconcileIntervalMs: 0 }
+    const config: EventsHubConfig = { enabled: true, reconcileIntervalMs: 0 }
     const wsFactory = fc.factory.bind(fc) as unknown as (url: string, protocols: readonly string[]) => WebSocket
     const hub1 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: true, config, wsFactory })
     const hub2 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: true, config, wsFactory })
@@ -1248,7 +1249,7 @@ describe('WaitHub: shared hub', () => {
 
   test('hub identity lowercases scheme and host only', async () => {
     const api = mockAxios()
-    const config: SandboxEventsConfig = { enabled: true, reconcileIntervalMs: 0 }
+    const config: EventsHubConfig = { enabled: true, reconcileIntervalMs: 0 }
     const same = attachHub({ _api: api, apiUrl: 'HTTPS://API.EXAMPLE.com/Case/Path/', apiKey: API_KEY, target: undefined, shared: true, config })
     const sameAgain = attachHub({ _api: api, apiUrl: 'https://api.example.com/Case/Path', apiKey: API_KEY, target: undefined, shared: true, config })
     const different = attachHub({ _api: api, apiUrl: 'https://api.example.com/case/path', apiKey: API_KEY, target: undefined, shared: true, config })
@@ -1261,7 +1262,7 @@ describe('WaitHub: shared hub', () => {
 
   test('sharedHub=false gives each call its own hub', async () => {
     const api = mockAxios()
-    const config: SandboxEventsConfig = { enabled: true, reconcileIntervalMs: 0 }
+    const config: EventsHubConfig = { enabled: true, reconcileIntervalMs: 0 }
     const hub1 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: false, config })
     const hub2 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: false, config })
     expect(hub1).not.toBe(hub2)

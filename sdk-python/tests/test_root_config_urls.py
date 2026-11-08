@@ -27,19 +27,17 @@ def test_client_build_is_refused_when_config_subclass_has_url_field(
         pass
 
     config_class = InheritedConfig if inherited else CustomConfig
-    root = client(config_class(api_key="k"))
 
-    # When building either root's v2 client, then the URL is refused before use.
+    # When building either root client (which snapshots the config), then the
+    # URL is refused before use.
     with pytest.raises(TypeError, match=f"does not take '{name}'.*stay on SDK 0.x"):
-        _ = root.v2
+        client(config_class(api_key="k"))
 
 
 @pytest.mark.parametrize("client", [Daytona, AsyncDaytona])
-@pytest.mark.parametrize("namespace", ["v0", "v2"])
 @pytest.mark.parametrize("name", ["api_url", "server_url", "toolbox_url"])
 def test_client_build_is_refused_when_reading_credentials_adds_a_url(
     client: type[Daytona] | type[AsyncDaytona],
-    namespace: str,
     name: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -60,8 +58,8 @@ def test_client_build_is_refused_when_reading_credentials_adds_a_url(
     monkeypatch.setattr(module, "_Daytona", lambda config: config, raising=False)
     monkeypatch.setattr(module, "_AsyncDaytona", lambda config: config, raising=False)
     monkeypatch.setitem(sys.modules, "daytona.v0", module)
-    root = client(config)
 
-    # When / Then: neither namespace can build a client from the changed config.
+    # When / Then: the root refuses the config while it copies the fields, so
+    # neither namespace can build a client from it.
     with pytest.raises(TypeError, match=f"does not take '{name}'.*stay on SDK 0.x"):
-        getattr(root, namespace)
+        client(config)

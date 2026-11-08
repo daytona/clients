@@ -45,7 +45,7 @@ from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
 from ._gen.api import AuditActionList, ProjectApiKeyWithContext, SandboxListItem
 from ._gen.api import Sandbox as SandboxDto
 from ._otel import load_opentelemetry_support
-from ._transport import AsyncTransport
+from ._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 from .errors import (
     AuthenticationError,
     ClientTimeoutError,
@@ -110,8 +110,8 @@ CreateConfig = dict[str, CreateConfigValue]
 CreateBody = JsonObject
 
 
-# The default Daytona Cloud v2 API. `DAYTONA_V2_API_URL` /
-# `DAYTONA_API_URL` can select a regional API endpoint instead.
+# The default Daytona Cloud v2 API. `DAYTONA_V2_API_URL` (test environments
+# only) selects another endpoint; `DAYTONA_API_URL` belongs to the 0.x SDK.
 DEFAULT_V2_API_URL: Final[str] = "https://api.daytona.com"
 CLOSE_GRACE_SECONDS: Final[float] = 5.0
 _DAYTONA_OTEL_TRUE_VALUES: Final[frozenset[str]] = frozenset({"1", "true"})
@@ -128,6 +128,7 @@ class _ResolvedConfig:
     project_id: Optional[str]
     otel_enabled: bool
     connection_pool_maxsize: Optional[int]
+    request_timeout: float
 
 
 class _UnsetNetworkPolicy:
@@ -158,7 +159,7 @@ class AsyncDaytona:
         # its region with `region=`; "local" sends no selector, so the server
         # resolves the project / organization / platform default.
         self._target = "local"
-        self._request_timeout = config.request_timeout if config is not None else None
+        self._request_timeout = resolved.request_timeout
         shared_hub = config.shared_hub if config is not None else True
         events_config = config.events if config is not None else None
         # `_source` is the X-Daytona-Source label; Daytona passes "sdk-python"
@@ -183,6 +184,7 @@ class AsyncDaytona:
                 project_id=resolved.project_id or "",
                 source=_source,
                 otel=otel,
+                request_timeout=resolved.request_timeout,
             )
         self._api = AsyncTransport(
             self._api_url,
@@ -1292,24 +1294,23 @@ class AsyncDaytona:
 
 def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     config = config or DaytonaConfig()
-    # A blank or whitespace-only value counts as unset.
-    # DAYTONA_V2_API_URL, else DAYTONA_API_URL, else the
-    # default; blank or whitespace-only counts as unset.
-    api_url = (
-        # Trailing slashes are dropped per value, so a slash-only value is
-        # unset and falls through to the next one.
-        (os.environ.get("DAYTONA_V2_API_URL") or "").strip().rstrip("/")
-        or (os.environ.get("DAYTONA_API_URL") or "").strip().rstrip("/")
-        or DEFAULT_V2_API_URL
-    )
-    # An explicit credential wins over the ambient environment: jwt_token
-    # suppresses DAYTONA_API_KEY and api_key suppresses DAYTONA_JWT_TOKEN, so an
-    # exported key never collides with the credential the caller chose.
-    api_key = config.api_key or (None if config.jwt_token else os.environ.get("DAYTONA_API_KEY"))
+    # Only DAYTONA_V2_API_URL selects the endpoint (DAYTONA_API_URL belongs to
+    # the 0.x SDK). Ambient values are trimmed and a blank one is unset; a
+    # slash-only URL is unset too.
+    api_url = (_ambient("DAYTONA_V2_API_URL") or "").rstrip("/") or DEFAULT_V2_API_URL
+    # Explicit values are used as given. An explicit credential wins over the
+    # ambient environment: jwt_token suppresses DAYTONA_API_KEY and api_key
+    # suppresses DAYTONA_JWT_TOKEN, so an exported key never collides with the
+    # credential the caller chose.
+    api_key = config.api_key or (None if config.jwt_token else _ambient("DAYTONA_API_KEY"))
+    if config.jwt_token == "" and not api_key:
+        raise create_error("jwt_token must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
+    if config.project_id == "":
+        raise create_error("project_id must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
     jwt_token = (
-        config.jwt_token
+        (config.jwt_token or None)
         if config.jwt_token is not None
-        else (None if config.api_key else os.environ.get("DAYTONA_JWT_TOKEN"))
+        else (None if config.api_key else _ambient("DAYTONA_JWT_TOKEN"))
     )
     if api_key and jwt_token:
         raise create_error(
@@ -1319,27 +1320,45 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
             "SDK",
         )
     if not api_key and not jwt_token:
-        raise AuthenticationError(
-            "api_key or jwt_token is required", status_code=401, code=None, source="SDK"
-        )
-    project_id = _prefer_explicit(config.project_id, "DAYTONA_PROJECT_ID")
+        raise AuthenticationError("api_key or jwt_token is required", status_code=401, source="SDK")
+    project_id = config.project_id if config.project_id is not None else _ambient("DAYTONA_PROJECT_ID")
     if jwt_token and not project_id:
         raise create_error("jwt_token requires project_id", 400, "BAD_REQUEST", "SDK")
     otel_enabled = (
         config.otel_enabled if config.otel_enabled is not None else _env_truthy("DAYTONA_OTEL_ENABLED")
     )
     return _ResolvedConfig(
-        api_url=api_url.rstrip("/") or DEFAULT_V2_API_URL,
+        api_url=api_url,
         api_key=api_key,
         jwt_token=jwt_token,
         project_id=project_id,
         otel_enabled=otel_enabled,
         connection_pool_maxsize=_resolve_connection_pool_maxsize(config.connection_pool_maxsize),
+        request_timeout=_resolve_request_timeout(config.request_timeout),
     )
 
 
-def _prefer_explicit(explicit: Optional[str], env_var: str) -> Optional[str]:
-    return explicit if explicit is not None else os.environ.get(env_var)
+def _ambient(env_var: str) -> Optional[str]:
+    """An environment value, trimmed; blank or whitespace-only is unset."""
+    return (os.environ.get(env_var) or "").strip() or None
+
+
+def _resolve_request_timeout(value: Optional[float]) -> float:
+    if value is None:
+        return DEFAULT_REQUEST_TIMEOUT_SECONDS
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value < 0
+    ):
+        raise create_error(
+            "request_timeout must be a non-negative number of seconds (0 = no limit)",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return float(value)
 
 
 def _env_truthy(env_var: str) -> bool:

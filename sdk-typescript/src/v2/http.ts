@@ -4,7 +4,7 @@
  */
 
 import axios, { AxiosError } from 'axios'
-import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
 import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
@@ -16,7 +16,15 @@ export const SDK_SOURCE = 'sdk-typescript'
 
 const ABSOLUTE_REQUEST_URL = /^(?:[a-z][a-z\d+\-.]*:)?\/\//i
 const RELATIVE_PATH_ERROR = 'absolute request URLs are not allowed; pass a relative SDK path'
-const DEFAULT_REQUEST_TIMEOUT_MS = 24 * 60 * 60 * 1000
+/**
+ * The default request timeout: the total time one ordinary request may take,
+ * from sending it to reading the last byte of the response. Requests governed
+ * by another budget are not cut by it: waits and long polls pass their own
+ * `timeout` (`0` = none), streams read through `fetch` are bounded only until
+ * their response headers arrive, and file transfers are not bounded at all.
+ * The Python SDK gives `request_timeout` the same meaning.
+ */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 60_000
 const TOKEN_REFRESH_WINDOW_MS = 30_000
 const TOKEN_EXCHANGE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:token-exchange'
 const TOKEN_EXCHANGE_SUBJECT_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:jwt'
@@ -208,6 +216,8 @@ export interface HttpTransportConfig {
 
 export interface FetchRequestInit extends RequestInit {
   readonly bodyFactory?: () => BodyInit | Promise<BodyInit>
+  /** A file transfer: the request timeout does not apply (only the caller's `signal` ends it). */
+  readonly transfer?: boolean
 }
 
 interface OTelImportOverride {
@@ -482,7 +492,7 @@ async function importOtelApi(): Promise<OtelApiLike> {
       return await override()
     } catch (error) {
       if (isNodeModuleMissing(error)) {
-        throw new BadRequestError('otelEnabled requires the optional peer dependency @opentelemetry/api to be installed')
+        throw new BadRequestError('otelEnabled requires the optional peer dependency @opentelemetry/api to be installed', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
       }
       throw error
     }
@@ -493,14 +503,14 @@ async function importOtelApi(): Promise<OtelApiLike> {
     // TS2307) — which also means bundlers cannot see it; browser apps pass
     // their own module via `otelApi` instead.
     if (inBrowser()) {
-      throw new BadRequestError('otelEnabled in a browser requires passing your @opentelemetry/api module as `otelApi`')
+      throw new BadRequestError('otelEnabled in a browser requires passing your @opentelemetry/api module as `otelApi`', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     const specifier = '@opentelemetry/api'
     const loaded: unknown = await import(/* @vite-ignore */ /* webpackIgnore: true */ specifier)
     return loaded as OtelApiLike
   } catch (error) {
     if (isNodeModuleMissing(error)) {
-      throw new BadRequestError('otelEnabled requires the optional peer dependency @opentelemetry/api to be installed')
+      throw new BadRequestError('otelEnabled requires the optional peer dependency @opentelemetry/api to be installed', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     throw error
   }
@@ -543,7 +553,7 @@ async function fetchRequestForAttempt(
   readonly requestInit: RequestInit
   readonly canRetryUnauthorized: boolean
 }> {
-  const { bodyFactory, ...requestInitWithoutFactory } = init ?? {}
+  const { bodyFactory, transfer: _transfer, ...requestInitWithoutFactory } = init ?? {}
   const body = bodyFactory
     ? await abortableWait(Promise.resolve().then(() => bodyFactory()), signal)
     : requestInitWithoutFactory.body
@@ -566,7 +576,7 @@ function fetchRequestWithoutFactory(
   readonly requestInit: RequestInit
   readonly canRetryUnauthorized: boolean
 } {
-  const { bodyFactory: _ignored, ...requestInitWithoutFactory } = init ?? {}
+  const { bodyFactory: _ignored, transfer: _transfer, ...requestInitWithoutFactory } = init ?? {}
   return {
     requestInit: {
       ...requestInitWithoutFactory,
@@ -680,7 +690,7 @@ async function prepareAxiosRequest(
   // (set by finishAxiosError); resolving again here could hand back the token
   // the provider has not yet rotated.
   if (options.authProvider && !options.auth && meta.retriedAfterUnauthorized !== true) {
-    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: config.signal }, timeoutFromAxiosRequest(config, instance)))
+    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: callerSignalOf(config.signal) }, timeoutFromAxiosRequest(config, instance)))
   }
   if (typeof options.connectionPoolMaxsize === 'number' && !inBrowser()) {
     const agents = await nodeAgentsFor(options.connectionPoolMaxsize)
@@ -723,7 +733,10 @@ async function finishAxiosError(
 ): Promise<unknown> {
   const config = error instanceof AxiosError ? error.config as DaytonaAxiosRequestConfig | undefined : undefined
   const meta = config?.daytona
+  // The request's signal carries the deadline's TimeoutError; the caller's
+  // own signal (behind it) is what a token refresh must stay abortable by.
   const signal = config?.signal ?? meta?.signal
+  const callerSignal = callerSignalOf(signal)
   if (options?.otelEnabled && meta?.span) {
     try {
       const bundle = await loadOtelBundle(options.otelApi)
@@ -744,7 +757,7 @@ async function finishAxiosError(
     const rejectedAuthorization = getAxiosHeader(config, 'Authorization')
     const refreshedAuthorization = await authorizationHeaderForAxiosRequest(
       options.authProvider,
-      { forceRefresh: true, rejectedAuthorization, signal: config.signal },
+      { forceRefresh: true, rejectedAuthorization, signal: callerSignal },
       timeoutFromAxiosRequest(config, instance),
     )
     // A one-shot body (stream) was consumed by the first dispatch; replaying it
@@ -756,6 +769,10 @@ async function finishAxiosError(
       return instance.request(config)
     }
   }
+  // The request's own deadline expired: the same error axios' own timeout
+  // gives (and the Python SDK's transport timeout), with no status or code.
+  const reason: unknown = signal?.aborted ? (signal as AbortSignalLike).reason : undefined
+  if (typeof reason === 'object' && reason !== null && deadlineReasons.has(reason)) throw new ClientTimeoutError('Operation timed out')
   const timeoutError = timeoutErrorFromAbortSignal(signal, error)
   if (timeoutError) throw timeoutError
   const abortError = abortErrorFromSignal(signal)
@@ -1038,9 +1055,10 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
       () => ({ type: 'HttpTransportConfig', requestTimeout })),
     configurable: true,
   })
-  instance.interceptors.request.use((config) => prepareAxiosRequest(config as DaytonaAxiosRequestConfig, instance.defaults.baseURL, instance, options))
+  instance.interceptors.request.use((config) => prepareAxiosRequest(armRequestDeadline(config as DaytonaAxiosRequestConfig, instance), instance.defaults.baseURL, instance, options))
   instance.interceptors.response.use(
     (response) => {
+      disarmRequestDeadline(response.config)
       // A caller `validateStatus` that accepts 401 must not let a stale token
       // slip past the one-retry mint/refresh path: route it through the error
       // branch like the default validator would (`postRaw` relies on this).
@@ -1056,9 +1074,63 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
       finishAxiosSuccess(response, options)
       return response
     },
-    (error: unknown) => finishAxiosError(instance, error, options),
+    (error: unknown) => {
+      if (error instanceof AxiosError) disarmRequestDeadline(error.config)
+      return finishAxiosError(instance, error, options)
+    },
   )
   return instance
+}
+
+/** Pending deadline timers, by request config. */
+const requestDeadlines = new WeakMap<AxiosRequestConfig, () => void>()
+/** The abort reasons of expired request deadlines. */
+const deadlineReasons = new WeakSet<object>()
+/** The caller's own signal behind each deadline signal (a 401 retry re-arms from it). */
+const callerSignals = new WeakMap<AbortSignal, AbortSignalLike | undefined>()
+
+/**
+ * Bound the whole request (headers and body) by its timeout: the config's own
+ * `timeout`, else the instance default; `0` = no bound. axios' `timeout` only
+ * bounds the wait for the response headers and the idle time between reads in
+ * Node, so the SDK adds the wall-clock bound itself. The abort carries a
+ * `TimeoutError`, which `finishAxiosError` maps to `ClientTimeoutError`.
+ */
+function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, instance: AxiosInstance): T {
+  disarmRequestDeadline(config)
+  const timeoutMs = timeoutFromAxiosRequest(config, instance)
+  if (!(timeoutMs > 0)) return config
+  const current = config.signal as AbortSignal | undefined
+  const callerSignal: AbortSignalLike | undefined = current !== undefined && callerSignals.has(current) ? callerSignals.get(current) : current
+  const controller = new AbortController()
+  callerSignals.set(controller.signal, callerSignal)
+  const relay = (): void => controller.abort(callerSignal?.reason)
+  if (callerSignal?.aborted) relay()
+  else callerSignal?.addEventListener?.('abort', relay, { once: true })
+  const timer = setTimeout(() => {
+    const reason = new DOMException('request timed out', 'TimeoutError')
+    deadlineReasons.add(reason)
+    controller.abort(reason)
+  }, timeoutMs)
+  unrefTimer(timer)
+  requestDeadlines.set(config, () => {
+    clearTimeout(timer)
+    callerSignal?.removeEventListener?.('abort', relay)
+  })
+  config.signal = controller.signal
+  return config
+}
+
+/** The caller's own signal behind a request's deadline signal (or the signal itself). */
+function callerSignalOf(signal: AbortSignalLike | GenericAbortSignal | undefined): AbortSignalLike | undefined {
+  const own = signal as AbortSignal | undefined
+  return own !== undefined && callerSignals.has(own) ? callerSignals.get(own) : signal as AbortSignalLike | undefined
+}
+
+function disarmRequestDeadline(config: AxiosRequestConfig | undefined): void {
+  if (config === undefined) return
+  requestDeadlines.get(config)?.()
+  requestDeadlines.delete(config)
 }
 
 /**
@@ -1173,8 +1245,9 @@ export class HttpTransport {
     })
   }
 
+  /** A byte download (a file transfer): not bounded by the request timeout. */
   public async getBytes(path: string): Promise<ArrayBuffer> {
-    return this.withAuth({ responseType: 'arraybuffer' }, async (requestConfig) => {
+    return this.withAuth({ responseType: 'arraybuffer', timeout: 0 }, async (requestConfig) => {
       const { data } = await this.http.get<ArrayBuffer>(assertRelativeRequestPath(path), requestConfig)
       return data
     })
@@ -1220,7 +1293,9 @@ export class HttpTransport {
   public async fetch(path: string, init?: FetchRequestInit, checkStatus = true): Promise<Response> {
     const relativePath = assertRelativeRequestPath(path)
     const meta = requestMeta({ url: relativePath }, this.options ?? {})
-    const timeout = timeoutSignal(this.defaultTimeout, init?.signal)
+    // Until the response headers arrive (a stream's body is not bounded);
+    // never for a file transfer, whose upload body is sent before them.
+    const timeout = timeoutSignal(init?.transfer === true ? 0 : this.defaultTimeout, init?.signal)
     // A successful response with a streaming body keeps its span open until
     // the body is fully read (or errors/cancels): a read failure after the
     // headers is still a failed request from the caller's point of view.

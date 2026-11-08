@@ -194,9 +194,11 @@ export class FileSystemService {
     // the wrapper carries the per-sandbox token (minting/refreshing it) and
     // retries once on a 401 — the raw instance only has the static
     // construction-time credential.
+    // A file transfer: not bounded by the request timeout (`timeout: 0`).
     const data = await this.transport.get<ArrayBuffer>('/files/download', {
       params: { path },
       responseType: 'arraybuffer',
+      timeout: 0,
     })
     return new Uint8Array(data)
   }
@@ -214,7 +216,7 @@ export class FileSystemService {
     const ab = new ArrayBuffer(data.byteLength)
     new Uint8Array(ab).set(data)
     form.append('file', new Blob([ab]), path.split('/').pop() || 'file')
-    await this.transport.post('/files/upload', form, { params: uploadQuery(path, options.atomic) })
+    await this.transport.post('/files/upload', form, { params: uploadQuery(path, options.atomic), timeout: 0 })
     if (options.mode) await this.chmod(path, { mode: options.mode })
   }
 
@@ -257,7 +259,7 @@ export class FileSystemService {
       form.append(`files[${index}].file`, new Blob([copyArrayBuffer(data)]), path.split('/').pop() || 'file')
     })
     const atomicParams = uploadManyQuery(options.atomic)
-    const data = await this.transport.post<BulkWriteResult>('/files/bulk-upload', form, atomicParams !== undefined ? { params: atomicParams } : undefined)
+    const data = await this.transport.post<BulkWriteResult>('/files/bulk-upload', form, atomicParams !== undefined ? { params: atomicParams, timeout: 0 } : { timeout: 0 })
     return {
       files: Array.isArray(data.files) ? data.files : [],
       errors: Array.isArray(data.errors) ? data.errors.filter((item): item is string => typeof item === 'string') : [],
@@ -270,6 +272,7 @@ export class FileSystemService {
     // one-retry mint path instead of being swallowed as a payload.
     const response = await this.transport.postRaw<ArrayBuffer | Uint8Array>('/files/bulk-download', { paths }, {
       responseType: 'arraybuffer',
+      timeout: 0,
     })
     const body = toUint8Array(response.data)
     if (response.status !== 200) throw bulkReadHttpError(response.status, body)

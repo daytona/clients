@@ -16,13 +16,13 @@ import { lazySandbox } from './lazySandbox'
 const UUID = '12345678-1234-1234-1234-123456789abc'
 const LOG_URL = 'https://logs.example/build-logs/images/image'
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
-  const previous = process.env.DAYTONA_API_URL
-  process.env.DAYTONA_API_URL = apiUrl
+  const previous = process.env.DAYTONA_V2_API_URL
+  process.env.DAYTONA_V2_API_URL = apiUrl
   try {
     return callback()
   } finally {
-    if (previous === undefined) delete process.env.DAYTONA_API_URL
-    else process.env.DAYTONA_API_URL = previous
+    if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+    else process.env.DAYTONA_V2_API_URL = previous
   }
 }
 
@@ -704,7 +704,7 @@ describe('real HTTP build-log ownership', () => {
     })
     const watchdog = setTimeout(() => { watchdogFired = true; stalled?.destroy() }, 2000)
     try {
-      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeout: 150 }))
+      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeoutSeconds: 0.15 }))
       await expect(lazySandbox(client, 'sbx').buildLogs()).rejects.toMatchObject(status === 200
         ? { code: 'REQUEST_TIMEOUT' }
         : { statusCode: status, message: `build log HTTP ${status}` })
@@ -729,7 +729,7 @@ describe('real HTTP build-log ownership', () => {
       }
     })
     try {
-      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeout: 50 }))
+      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeoutSeconds: 0.05 }))
       const output: string[] = []
       const result = await client.images.followBuildLogs('image', { timeout: 2000, onLogs: text => { output.push(text) }, onEvent: () => {} })
       expect(result).toMatchObject({ reason: 'deadline', rawReason: 'deadline', cursor: cursor(5), outputComplete: false })
@@ -749,7 +749,7 @@ describe('real HTTP build-log ownership', () => {
     const abort = new AbortController()
     const watchdog = setTimeout(() => { watchdogFired = true; abort.abort() }, 12000)
     try {
-      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeout: 50 }))
+      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeoutSeconds: 0.05 }))
       await expect(client.images.followBuildLogs('image', { onLogs: () => {}, signal: abort.signal })).rejects.toThrow('reconnect budget')
       expect(watchdogFired).toBe(false)
       expect(requests).toBe(6)
@@ -774,7 +774,7 @@ describe('real HTTP build-log ownership', () => {
     const abort = new AbortController()
     const watchdog = setTimeout(() => { watchdogFired = true; abort.abort() }, 2000)
     try {
-      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeout: 50 }))
+      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeoutSeconds: 0.05 }))
       await expect(client.images.followBuildLogs('image', { onLogs: () => {}, signal: abort.signal })).rejects.toMatchObject({ statusCode: 401 })
       expect(watchdogFired).toBe(false)
       expect(requests).toBe(2)

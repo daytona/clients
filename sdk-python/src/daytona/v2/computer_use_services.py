@@ -433,7 +433,7 @@ class AsyncRecordingService:
 
     async def download(self, id: str) -> bytes:
         return await self._transport.raw(
-            RequestSpec("GET", f"/computeruse/recordings/{_quote_path_segment(id)}/download")
+            RequestSpec("GET", f"/computeruse/recordings/{_quote_path_segment(id)}/download", transfer=True)
         )
 
     async def delete(self, id: str) -> None:

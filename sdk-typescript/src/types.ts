@@ -10,8 +10,15 @@ import type { SandboxEventsConfig } from './v2/types.js'
  * Configuration shared by both namespaces. Routing per field (also
  * `ROOT_CONFIG_ROUTING`): `apiKey`, `jwtToken`, `otelEnabled` reach v0 and v2;
  * `organizationId` and the deprecated `target` are v0-only; `projectId`,
- * `requestTimeout`, `otelApi`, `connectionPoolMaxsize`, `sharedHub` and `events`
- * are v2-only.
+ * `requestTimeoutSeconds`, `otelApi`, `connectionPoolMaxsize`, `sharedHub` and
+ * `events` are v2-only.
+ *
+ * `new Daytona(config)` copies the fields: changing the object afterwards has
+ * no effect on the client. An unknown field is a `BadRequestError`, and a
+ * renamed one names its replacement (`requestTimeout` → `requestTimeoutSeconds`).
+ * There is no API URL field: `DAYTONA_V2_API_URL` (test environments only)
+ * selects the v2 endpoint; `DAYTONA_API_URL` belongs to the 0.x SDK and SDK 2.x
+ * never reads it.
  */
 export type DaytonaConfig = {
   readonly apiKey?: string
@@ -27,8 +34,13 @@ export type DaytonaConfig = {
   readonly target?: string
   /** v2 only: scopes a JWT to a project. */
   readonly projectId?: string
-  /** v2 only. */
-  readonly requestTimeout?: number
+  /**
+   * v2 only: the total time one ordinary request may take, in seconds
+   * (default 60; `0` = no limit). Waits and long polls use their own budget,
+   * streams are bounded only until their response headers arrive, and file
+   * transfers are not bounded.
+   */
+  readonly requestTimeoutSeconds?: number
   /** Both namespaces. */
   readonly otelEnabled?: boolean
   /** v2 only. */

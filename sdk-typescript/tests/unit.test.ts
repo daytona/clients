@@ -193,16 +193,13 @@ function newClient(): Daytona {
 }
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
-  const previous = { v2: process.env.DAYTONA_V2_API_URL, any: process.env.DAYTONA_API_URL }
+  const previous = process.env.DAYTONA_V2_API_URL
   process.env.DAYTONA_V2_API_URL = apiUrl
-  process.env.DAYTONA_API_URL = apiUrl
   try {
     return callback()
   } finally {
-    if (previous.v2 === undefined) delete process.env.DAYTONA_V2_API_URL
-    else process.env.DAYTONA_V2_API_URL = previous.v2
-    if (previous.any === undefined) delete process.env.DAYTONA_API_URL
-    else process.env.DAYTONA_API_URL = previous.any
+    if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+    else process.env.DAYTONA_V2_API_URL = previous
   }
 }
 
@@ -725,20 +722,16 @@ afterEach(() => {
 })
 
 describe('V2 model', () => {
-  it('withApiUrl overrides and restores both API URL variables', () => {
-    const previous = { v2: process.env.DAYTONA_V2_API_URL, any: process.env.DAYTONA_API_URL }
+  it('withApiUrl overrides and restores DAYTONA_V2_API_URL', () => {
+    const previous = process.env.DAYTONA_V2_API_URL
     process.env.DAYTONA_V2_API_URL = 'https://ambient-v2.example'
-    process.env.DAYTONA_API_URL = 'https://ambient-fallback.example'
     try {
       const client = withApiUrl('https://api.example.com', newClient)
       expect(clientInstance(client).defaults.baseURL).toBe('https://api.example.com')
       expect(process.env.DAYTONA_V2_API_URL).toBe('https://ambient-v2.example')
-      expect(process.env.DAYTONA_API_URL).toBe('https://ambient-fallback.example')
     } finally {
-      if (previous.v2 === undefined) delete process.env.DAYTONA_V2_API_URL
-      else process.env.DAYTONA_V2_API_URL = previous.v2
-      if (previous.any === undefined) delete process.env.DAYTONA_API_URL
-      else process.env.DAYTONA_API_URL = previous.any
+      if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+      else process.env.DAYTONA_V2_API_URL = previous
     }
   })
 
@@ -2399,7 +2392,7 @@ describe('V2 model', () => {
   })
 
   it('waitForState uses API long-poll slices', async () => {
-    const client = new Daytona({ apiKey: 'key', requestTimeout: 5_000 })
+    const client = new Daytona({ apiKey: 'key', requestTimeoutSeconds: 5 })
     const api = clientInstance(client)
     const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key')
     const get = jest.spyOn(api, 'get')
@@ -3962,7 +3955,7 @@ describe('toolbox service request shaping', () => {
 
     expect(result).toEqual({ files: [{ path: '/tmp/a.txt', bytes: 3 }, { path: '/tmp/b.txt', bytes: 2 }], errors: ['file[2]: missing .path metadata'] })
     expect(transport.post.mock.calls[0]?.[0]).toBe('/files/bulk-upload')
-    expect(transport.post.mock.calls[0]?.[2]).toBeUndefined()
+    expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 0 })
 
     const form = transport.post.mock.calls[0]?.[1]
     expect(form).toBeInstanceOf(FormData)
@@ -4003,8 +3996,8 @@ describe('toolbox service request shaping', () => {
     await fs.writeText('/tmp/a.txt', 'hello', { atomic: true })
     await fs.writeMany({ '/tmp/a.txt': new Uint8Array([1, 2, 3]) }, { atomic: true })
 
-    expect(transport.post.mock.calls[0]?.[2]).toEqual({ params: { path: '/tmp/a.txt', atomic: true } })
-    expect(transport.post.mock.calls[1]?.[2]).toEqual({ params: { atomic: true } })
+    expect(transport.post.mock.calls[0]?.[2]).toEqual({ params: { path: '/tmp/a.txt', atomic: true }, timeout: 0 })
+    expect(transport.post.mock.calls[1]?.[2]).toEqual({ params: { atomic: true }, timeout: 0 })
   })
 
   it('streams uploadFile with progress callbacks and atomic query parameters', async () => {
@@ -4703,7 +4696,7 @@ describe('toolbox service request shaping', () => {
     expect(transport.postRaw.mock.calls[0]).toEqual([
       '/files/bulk-download',
       { paths: ['dir/ü.txt', '/nope.txt'] },
-      { responseType: 'arraybuffer' },
+      { responseType: 'arraybuffer', timeout: 0 },
     ])
     const downloaded = result.files['dir/ü.txt']
     expect(downloaded).toBeDefined()
@@ -6218,7 +6211,7 @@ describe('toolbox service request shaping', () => {
 
     expect(get).toHaveBeenCalledTimes(2)
     expect(get).toHaveBeenNthCalledWith(1, '/ok', undefined)
-    expect(get).toHaveBeenNthCalledWith(2, '/bytes', { responseType: 'arraybuffer' })
+    expect(get).toHaveBeenNthCalledWith(2, '/bytes', { responseType: 'arraybuffer', timeout: 0 })
   })
 
   it('omits PTY shellCommand for default-shell PTYs', async () => {
@@ -6336,7 +6329,7 @@ describe('toolbox service request shaping', () => {
     expect(transport.delete.mock.calls[0]?.[1]).toMatchObject({ params: { path: '/tmp/dir' } })
     expect(transport.delete.mock.calls[0]?.[1].params).not.toMatchObject({ recursive: true })
     await fs.writeText('/tmp/file', 'x', { mode: '0644' })
-    expect(transport.post).toHaveBeenCalledWith('/files/upload', expect.any(FormData), { params: { path: '/tmp/file' } })
+    expect(transport.post).toHaveBeenCalledWith('/files/upload', expect.any(FormData), { params: { path: '/tmp/file' }, timeout: 0 })
     expect(transport.post).toHaveBeenCalledWith('/files/permissions', undefined, { params: { path: '/tmp/file', mode: '0644', owner: undefined, group: undefined } })
   })
 
@@ -6910,7 +6903,7 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined).mockResolvedValueOnce([{ file: '/tmp/a', replacements: 1 }])
 
     await expect(fs.readText('/tmp/a')).resolves.toBe('hello')
-    expect(transport.get.mock.calls[0]).toEqual(['/files/download', { params: { path: '/tmp/a' }, responseType: 'arraybuffer' }])
+    expect(transport.get.mock.calls[0]).toEqual(['/files/download', { params: { path: '/tmp/a' }, responseType: 'arraybuffer', timeout: 0 }])
     await expect(fs.list('/tmp', { depth: 2 })).resolves.toEqual({ items: [{ name: 'a', path: '/tmp/a' }] })
     expect(transport.get.mock.calls[1]).toEqual(['/files', { params: { path: '/tmp', depth: 2 } }])
     await expect(fs.stat('/tmp/a')).resolves.toMatchObject({ path: '/tmp/a' })
@@ -7045,7 +7038,7 @@ describe('toolbox service request shaping', () => {
   })
 
   it('binds transport request timeouts at client construction', () => {
-    const client = new Daytona({ apiKey: 'key', requestTimeout: 123 })
+    const client = new Daytona({ apiKey: 'key', requestTimeoutSeconds: 0.123 })
     expect(clientInstance(client).defaults.timeout).toBe(123)
   })
 
@@ -8662,7 +8655,7 @@ describe('toolbox service request shaping', () => {
     // A long-poll must be allowed to outlive the short per-request default:
     // the slice is min(30s, remaining caller budget) and the HTTP timeout
     // matches the slice, in both SDKs.
-    const client = new Daytona({ apiKey: 'key', requestTimeout: 123 })
+    const client = new Daytona({ apiKey: 'key', requestTimeoutSeconds: 0.123 })
     const api = clientInstance(client)
     const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, 123)
     const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', status: 'running' } })
@@ -9743,14 +9736,12 @@ describe('macOS sandboxes and reservations', () => {
 
   /** A client on the default API: no URL in the env. */
   function defaultApiClient(): Daytona {
-    const saved = { v2: process.env.DAYTONA_V2_API_URL, any: process.env.DAYTONA_API_URL }
+    const saved = process.env.DAYTONA_V2_API_URL
     delete process.env.DAYTONA_V2_API_URL
-    delete process.env.DAYTONA_API_URL
     try {
       return macClient()
     } finally {
-      if (saved.v2 !== undefined) process.env.DAYTONA_V2_API_URL = saved.v2
-      if (saved.any !== undefined) process.env.DAYTONA_API_URL = saved.any
+      if (saved !== undefined) process.env.DAYTONA_V2_API_URL = saved
     }
   }
 

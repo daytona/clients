@@ -358,6 +358,7 @@ export async function uploadFile(
     bodyFactory,
     signal: options.signal,
     duplex: 'half',
+    transfer: true,
   }
   try {
     await transport.fetch(`/files/upload${encodeQuery({ path: remotePath, atomic: options.atomic === true ? true : undefined })}`, init)
@@ -382,7 +383,7 @@ export async function downloadFile(
   let responseBody: ResponseBodyLike | null | undefined
   let responseBodyFinished = false
   try {
-    const response = await transport.fetch(`/files/download${encodeQuery({ path: remotePath })}`, { signal: options.signal })
+    const response = await transport.fetch(`/files/download${encodeQuery({ path: remotePath })}`, { signal: options.signal, transfer: true })
     if (response.body === null) {
       throw new DaytonaError('downloadFile() expected a response body', { source: 'SDK' })
     }

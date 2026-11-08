@@ -46,8 +46,10 @@ class ProjectTokenAuth:
         source: str,
         client: httpx.AsyncClient | None = None,
         otel: Optional[OpenTelemetrySupport] = None,
+        request_timeout: float = 0,
     ) -> None:
         self._api_url = api_url.rstrip("/")
+        self._request_timeout = request_timeout
         self._jwt_token = jwt_token
         self._project_id = project_id
         self._source = source
@@ -107,7 +109,10 @@ class ProjectTokenAuth:
 
     async def _exchange_token(self) -> TokenExchange:
         url = f"{self._api_url}/auth/token"
-        from ._transport import client_identity_headers  # local: _transport imports this module
+        from ._transport import (
+            _request_deadline,
+            client_identity_headers,
+        )  # local: _transport imports this module
 
         assert self._client is not None
 
@@ -117,17 +122,18 @@ class ProjectTokenAuth:
         }
         span = self._otel.start_request_span(method="POST", url=url, headers=headers) if self._otel else None
         try:
-            response = await self._client.request(
-                "POST",
-                url,
-                headers=headers,
-                json={
-                    "grant_type": _TOKEN_EXCHANGE_GRANT_TYPE,
-                    "subject_token": self._jwt_token,
-                    "subject_token_type": _TOKEN_SUBJECT_TYPE,
-                    "project_id": self._project_id,
-                },
-            )
+            with _request_deadline(self._request_timeout):
+                response = await self._client.request(
+                    "POST",
+                    url,
+                    headers=headers,
+                    json={
+                        "grant_type": _TOKEN_EXCHANGE_GRANT_TYPE,
+                        "subject_token": self._jwt_token,
+                        "subject_token_type": _TOKEN_SUBJECT_TYPE,
+                        "project_id": self._project_id,
+                    },
+                )
         except httpx.TimeoutException as error:
             if span is not None:
                 span.finish(error=error)

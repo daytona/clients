@@ -358,13 +358,15 @@ class SandboxEventsConfig:
 class DaytonaConfig:
     """Configuration for the v2 Daytona client.
 
-    There is no API URL here: the client reads ``DAYTONA_V2_API_URL``, else
-    ``DAYTONA_API_URL``, else uses
-    ``DEFAULT_V2_API_URL``. There is no region either: pass ``region=`` to a
-    create.
+    There is no API URL here: the client reads ``DAYTONA_V2_API_URL`` (test
+    environments only), else uses ``DEFAULT_V2_API_URL``; ``DAYTONA_API_URL``
+    belongs to the 0.x SDK and is never read. There is no region either: pass
+    ``region=`` to a create.
 
-    ``request_timeout`` is the per-request HTTP timeout in seconds; ``0`` keeps
-    the transport unbounded.  ``shared_hub`` controls whether this instance
+    ``request_timeout`` is the total time one ordinary request may take, in
+    seconds (default 60; ``0`` = no limit). Waits and long polls use their own
+    budget, streams are bounded only until their response headers arrive, and
+    file transfers are not bounded.  ``shared_hub`` controls whether this instance
     shares the shared :class:`~daytona.v2._events.WaitHub` for its event loop and
     hub identity (default) or gets its own private one.  ``events`` customises
     that identity and the hub's behaviour; ``None`` uses defaults.

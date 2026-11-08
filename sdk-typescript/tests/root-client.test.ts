@@ -47,8 +47,8 @@ class FakeV0Daytona {
 
 afterEach(() => {
   jest.restoreAllMocks()
-    process.env.DAYTONA_API_URL = 'http://api.invalid'
-  delete process.env.DAYTONA_V2_API_URL
+  process.env.DAYTONA_V2_API_URL = 'http://api.invalid'
+  process.env.DAYTONA_API_URL = 'http://never-read-by-2x.invalid'
   delete process.env.DAYTONA_V0_API_URL
   FakeV0Daytona.instances.length = 0
 })
@@ -85,7 +85,7 @@ function missingV0Entry(): Error {
 
 describe('root Daytona client', () => {
   it('builds and caches v2 lazily with the default API URL', () => {
-    delete process.env.DAYTONA_API_URL
+    delete process.env.DAYTONA_V2_API_URL
     const root = new Daytona({ apiKey: 'key' })
 
     expect('create' in root).toBe(false)
@@ -162,15 +162,15 @@ describe('root Daytona client', () => {
     expect(disposed).toHaveLength(1)
   })
 
-  it.each(['', '   ', '\t\n'])('treats a blank or whitespace DAYTONA_API_URL (%j) as unset', (blank) => {
-    process.env.DAYTONA_API_URL = blank
+  it.each(['', '   ', '\t\n'])('treats a blank or whitespace DAYTONA_V2_API_URL (%j) as unset', (blank) => {
+    process.env.DAYTONA_V2_API_URL = blank
     const v2 = new DaytonaV2({ apiKey: 'key' })
 
     expect(v2['api'].defaults.baseURL).toBe(DEFAULT_V2_API_URL)
   })
 
   it('defaults the v2 client itself to DEFAULT_V2_API_URL instead of requiring apiUrl', () => {
-    delete process.env.DAYTONA_API_URL
+    delete process.env.DAYTONA_V2_API_URL
     const v2 = new DaytonaV2({ apiKey: 'key' })
 
     expect(v2['api'].defaults.baseURL).toBe(DEFAULT_V2_API_URL)
@@ -241,10 +241,10 @@ describe('root Daytona client', () => {
     expect(new RequestTimeoutError('timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })).toBeInstanceOf(DaytonaTimeoutError)
   })
 
-  it('prefers DAYTONA_API_URL for v2 and passes JWT exchange inputs through', () => {
-    process.env.DAYTONA_API_URL = 'https://preview.example'
+  it('reads DAYTONA_V2_API_URL for v2 and passes JWT exchange inputs through', () => {
+    process.env.DAYTONA_V2_API_URL = 'https://preview.example'
 
-    const v2 = new Daytona({ jwtToken: 'jwt', projectId: 'project-id', requestTimeout: 12_345 }).v2
+    const v2 = new Daytona({ jwtToken: 'jwt', projectId: 'project-id', requestTimeoutSeconds: 12.345 }).v2
 
     expect(v2['api'].defaults.baseURL).toBe('https://preview.example')
     expect(v2['httpOptions'].authProvider).toBeDefined()
@@ -280,7 +280,7 @@ describe('root Daytona client', () => {
         organizationId: 'org',
         target: 'eu',
         projectId: 'proj',
-        requestTimeout: 5,
+        requestTimeoutSeconds: 5,
         otelEnabled: true,
         connectionPoolMaxsize: 4,
       }), () => ({ RootOnlyClientV0: FakeV0Daytona }))
@@ -470,7 +470,7 @@ describe('root rejects URL options from untyped callers', () => {
 
 describe('v2 rejects unsupported options from untyped callers', () => {
   it.each([
-    ['apiUrl', "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL (or DAYTONA_API_URL) to select an API endpoint"],
+    ['apiUrl', "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL to select an API endpoint"],
     ['target', "does not take 'target'"],
     ['toolboxUrl', "does not take 'toolboxUrl'"],
   ])('constructor rejects %s', (option, message) => {
@@ -569,19 +569,11 @@ describe('per-namespace API URL env vars (dev / non-prod)', () => {
     return { url: `http://127.0.0.1:${port}`, seen, close: () => new Promise((resolve) => server.close(() => resolve())) }
   }
 
-  it.each([
-    ['DAYTONA_V2_API_URL over DAYTONA_API_URL', { v2: true, shared: 'http://shared.invalid' }],
-    ['DAYTONA_API_URL when DAYTONA_V2_API_URL is blank', { v2: false, shared: undefined, blankV2: true }],
-  ])('v2 sends to %s', async (_label, opts) => {
+  it('v2 sends to DAYTONA_V2_API_URL and never to DAYTONA_API_URL', async () => {
     const server = await listServer()
     try {
-      if (opts.v2) {
-        process.env.DAYTONA_V2_API_URL = server.url
-        process.env.DAYTONA_API_URL = opts.shared as string
-      } else {
-        process.env.DAYTONA_V2_API_URL = '   '
-        process.env.DAYTONA_API_URL = server.url
-      }
+      process.env.DAYTONA_V2_API_URL = server.url
+      process.env.DAYTONA_API_URL = 'http://v0-sdk.invalid'
       await new Daytona({ apiKey: 'key' }).v2.list()
       expect(server.seen.some((path) => path.startsWith('/sandboxes'))).toBe(true)
     } finally {
@@ -589,10 +581,11 @@ describe('per-namespace API URL env vars (dev / non-prod)', () => {
     }
   })
 
-  it('v2 treats a slash-only DAYTONA_V2_API_URL as unset and falls back to DAYTONA_API_URL', () => {
-    process.env.DAYTONA_V2_API_URL = '//'
-    process.env.DAYTONA_API_URL = 'http://shared.invalid/'
-    expect(new DaytonaV2({ apiKey: 'key' })['api'].defaults.baseURL).toBe('http://shared.invalid')
+  it.each([undefined, '   ', '//'])('v2 does not fall back to DAYTONA_API_URL when DAYTONA_V2_API_URL is %j', (v2Url) => {
+    if (v2Url === undefined) delete process.env.DAYTONA_V2_API_URL
+    else process.env.DAYTONA_V2_API_URL = v2Url
+    process.env.DAYTONA_API_URL = 'http://v0-sdk.invalid/'
+    expect(new DaytonaV2({ apiKey: 'key' })['api'].defaults.baseURL).toBe(DEFAULT_V2_API_URL)
   })
 
   it('v2 strips trailing slashes from DAYTONA_V2_API_URL', () => {

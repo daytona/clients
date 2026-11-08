@@ -170,7 +170,7 @@ export class Daytona {
       apiKey: this.config.apiKey,
       jwtToken: this.config.jwtToken,
       projectId: this.config.projectId,
-      requestTimeout: this.config.requestTimeout,
+      requestTimeoutSeconds: this.config.requestTimeoutSeconds,
       otelEnabled: this.config.otelEnabled,
       otelApi: this.config.otelApi,
       connectionPoolMaxsize: this.config.connectionPoolMaxsize,
@@ -256,7 +256,7 @@ export class Daytona {
       apiUrl: v0ApiUrl(),
       // Python parity (`otel_enabled` reaches v0 too). v0 at v0.230.0 has no
       // pool-size field and takes its timeout in its own unit, so
-      // connectionPoolMaxsize / requestTimeout stay v2-only (ROOT_CONFIG_ROUTING).
+      // connectionPoolMaxsize / requestTimeoutSeconds stay v2-only (ROOT_CONFIG_ROUTING).
       ...(this.config.otelEnabled === undefined ? {} : { otelEnabled: this.config.otelEnabled }),
     })
   }

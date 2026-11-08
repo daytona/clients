@@ -10,13 +10,13 @@ import { lazySandbox } from './lazySandbox'
 import { type PlannedResponse, startFakeApi } from './networkPolicyTestServer'
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
-  const previous = process.env.DAYTONA_API_URL
-  process.env.DAYTONA_API_URL = apiUrl
+  const previous = process.env.DAYTONA_V2_API_URL
+  process.env.DAYTONA_V2_API_URL = apiUrl
   try {
     return callback()
   } finally {
-    if (previous === undefined) delete process.env.DAYTONA_API_URL
-    else process.env.DAYTONA_API_URL = previous
+    if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+    else process.env.DAYTONA_V2_API_URL = previous
   }
 }
 

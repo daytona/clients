@@ -1,0 +1,195 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+"""Client configuration: the environment, the request timeout and its meaning.
+
+The TypeScript SDK's tests/client-config.test.ts asserts the same behaviour.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from typing import AsyncIterator
+
+import httpx
+import pytest
+import respx
+
+from daytona import AsyncDaytona, DaytonaConfig
+from daytona.v2 import AuthenticationError, BadRequestError, ClientTimeoutError
+from daytona.v2._core import RequestSpec, file_download_spec
+from daytona.v2._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
+
+BASE = "http://api.invalid"
+
+
+def _v2(config: DaytonaConfig) -> object:
+    return AsyncDaytona(config).v2
+
+
+@pytest.fixture
+def clean_env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
+    for name in ("DAYTONA_API_KEY", "DAYTONA_JWT_TOKEN", "DAYTONA_PROJECT_ID"):
+        monkeypatch.delenv(name, raising=False)
+    return monkeypatch
+
+
+def test_ambient_credentials_are_trimmed(clean_env: pytest.MonkeyPatch) -> None:
+    clean_env.setenv("DAYTONA_API_KEY", "  dtn_key \n")
+    v2 = _v2(DaytonaConfig())
+    assert v2._api_key == "dtn_key"  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
+def test_a_blank_ambient_api_key_is_unset(clean_env: pytest.MonkeyPatch, blank: str) -> None:
+    clean_env.setenv("DAYTONA_API_KEY", blank)
+    with pytest.raises(AuthenticationError, match="api_key or jwt_token is required"):
+        _v2(DaytonaConfig())
+
+
+def test_a_blank_ambient_api_key_does_not_collide_with_a_jwt(clean_env: pytest.MonkeyPatch) -> None:
+    clean_env.setenv("DAYTONA_API_KEY", "  ")
+    clean_env.setenv("DAYTONA_JWT_TOKEN", " jwt-token ")
+    clean_env.setenv("DAYTONA_PROJECT_ID", " project-1 ")
+    v2 = _v2(DaytonaConfig())
+    assert v2._api_key is None  # type: ignore[attr-defined]
+    assert v2._auth._jwt_token == "jwt-token"  # type: ignore[attr-defined]
+    assert v2._auth._project_id == "project-1"  # type: ignore[attr-defined]
+
+
+def test_a_blank_ambient_project_is_unset(clean_env: pytest.MonkeyPatch) -> None:
+    clean_env.setenv("DAYTONA_PROJECT_ID", "   ")
+    with pytest.raises(BadRequestError, match="jwt_token requires project_id"):
+        _v2(DaytonaConfig(jwt_token="jwt-token"))
+
+
+def test_an_explicitly_empty_project_id_is_rejected(clean_env: pytest.MonkeyPatch) -> None:
+    clean_env.setenv("DAYTONA_PROJECT_ID", "project-from-env")
+    with pytest.raises(BadRequestError, match="project_id must be a non-empty string") as excinfo:
+        _v2(DaytonaConfig(api_key="dtn_key", project_id=""))
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
+
+
+def test_explicit_values_are_used_as_given(clean_env: pytest.MonkeyPatch) -> None:
+    v2 = _v2(DaytonaConfig(jwt_token=" jwt ", project_id=" p "))
+    assert v2._auth._jwt_token == " jwt "  # type: ignore[attr-defined]
+    assert v2._auth._project_id == " p "  # type: ignore[attr-defined]
+
+
+def test_v2_never_reads_daytona_api_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DAYTONA_V2_API_URL")
+    monkeypatch.setenv("DAYTONA_API_URL", "http://v0-sdk.invalid")
+    v2 = _v2(DaytonaConfig(api_key="k"))
+    assert v2._api_url == "https://api.daytona.com"  # type: ignore[attr-defined]
+
+
+def test_the_request_timeout_defaults_to_sixty_seconds() -> None:
+    assert DEFAULT_REQUEST_TIMEOUT_SECONDS == 60.0
+    v2 = _v2(DaytonaConfig(api_key="k"))
+    assert v2._api.request_timeout_seconds == 60.0  # type: ignore[attr-defined]
+    assert v2._toolbox.request_timeout_seconds == 60.0  # type: ignore[attr-defined]
+    assert AsyncTransport(BASE).request_timeout_seconds == 60.0
+
+
+@pytest.mark.parametrize("bad", [-1, float("inf"), float("nan"), True, "60"])
+def test_an_invalid_request_timeout_is_rejected(bad: object) -> None:
+    with pytest.raises(BadRequestError, match="request_timeout must be a non-negative number") as excinfo:
+        _v2(DaytonaConfig(api_key="k", request_timeout=bad))  # type: ignore[arg-type]
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
+
+
+def _trickle(chunks: int, every: float) -> httpx.Response:
+    async def body() -> AsyncIterator[bytes]:
+        for _ in range(chunks):
+            await asyncio.sleep(every)
+            yield b"x"
+
+    return httpx.Response(200, content=body())
+
+
+async def _late(delay: float) -> httpx.Response:
+    await asyncio.sleep(delay)
+    return httpx.Response(200, json={"ok": True})
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_the_request_timeout_bounds_the_whole_ordinary_request() -> None:
+    # Every chunk arrives well inside the timeout, so a per-read timeout would
+    # never fire: the request timeout is the total time.
+    respx.get(f"{BASE}/slow-body").mock(side_effect=lambda _request: _trickle(chunks=8, every=0.05))
+    transport = AsyncTransport(BASE, "k", request_timeout=0.15)
+    started = time.monotonic()
+    with pytest.raises(ClientTimeoutError):
+        await transport.send(RequestSpec("GET", "/slow-body"))
+    assert time.monotonic() - started < 0.35
+    await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_the_request_timeout_bounds_the_raw_request_path() -> None:
+    respx.put(f"{BASE}/slow").mock(side_effect=lambda _request: _late(0.4))
+    transport = AsyncTransport(BASE, "k", request_timeout=0.1)
+    with pytest.raises(ClientTimeoutError):
+        await transport.put("/slow")
+    await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_zero_disables_the_request_timeout() -> None:
+    respx.get(f"{BASE}/slow-body").mock(side_effect=lambda _request: _trickle(chunks=4, every=0.05))
+    transport = AsyncTransport(BASE, "k", request_timeout=0)
+    assert await transport.send(RequestSpec("GET", "/slow-body")) == b"xxxx"
+    await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_waits_with_their_own_budget_are_not_cut_by_the_request_timeout() -> None:
+    respx.get(f"{BASE}/processes/p/wait").mock(side_effect=lambda _request: _late(0.3))
+    respx.get(f"{BASE}/hold").mock(side_effect=lambda _request: _late(0.3))
+    transport = AsyncTransport(BASE, "k", request_timeout=0.1)
+    assert await transport.send(RequestSpec("GET", "/processes/p/wait")) == {"ok": True}
+    assert await transport.send(RequestSpec("GET", "/hold", timeout=5.0)) == {"ok": True}
+    assert await transport.send(RequestSpec("GET", "/hold", unbounded_read=True)) == {"ok": True}
+    await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_file_transfers_are_not_cut_by_the_request_timeout() -> None:
+    respx.get(f"{BASE}/files/download").mock(side_effect=lambda _request: _trickle(chunks=6, every=0.05))
+    respx.post(f"{BASE}/files/upload").mock(side_effect=lambda _request: _late(0.3))
+    transport = AsyncTransport(BASE, "k", request_timeout=0.1)
+    assert await transport.raw(file_download_spec("/a", timeout=None)) == b"xxxxxx"
+    response = await transport.request("POST", "/files/upload", transfer=True, content=b"data")
+    assert response.status_code == 200
+    stream = await transport.open_stream(file_download_spec("/a", timeout=None))
+    assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"xxxxxx"
+    await stream.close()
+    await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_streams_are_bounded_until_their_headers_only() -> None:
+    respx.get(f"{BASE}/logs").mock(side_effect=lambda _request: _trickle(chunks=6, every=0.05))
+    respx.get(f"{BASE}/stalled").mock(side_effect=lambda _request: _late(0.4))
+    transport = AsyncTransport(BASE, "k", request_timeout=0.1)
+    stream = await transport.open_stream(RequestSpec("GET", "/logs"))
+    assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"xxxxxx"
+    await stream.close()
+    with pytest.raises(ClientTimeoutError):
+        await transport.open_stream(RequestSpec("GET", "/stalled"))
+    await transport.close()

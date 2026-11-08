@@ -190,7 +190,7 @@ def _config_at(api_url: str, **kwargs: object) -> DaytonaConfig:
     """A v2 config whose client talks to ``api_url``: the v2 client reads its
     URL from the env (the autouse conftest fixture restores it and clears
     DAYTONA_V2_API_URL)."""
-    os.environ["DAYTONA_API_URL"] = api_url
+    os.environ["DAYTONA_V2_API_URL"] = api_url
     return DaytonaConfig(**kwargs)
 
 
@@ -2108,7 +2108,7 @@ async def test_filesystem_read_many_parses_multipart_successes_and_errors():
         (
             "POST",
             "/files/bulk-download",
-            {"json": {"paths": ["dir/ü.txt", "/nope.txt"]}},
+            {"transfer": True, "json": {"paths": ["dir/ü.txt", "/nope.txt"]}},
         )
     ]
 
@@ -10655,8 +10655,13 @@ def test_daytona_config_treats_blank_env_jwt_as_absent_when_api_key_is_configure
 
 
 def test_daytona_config_rejects_blank_explicit_jwt_without_api_key() -> None:
-    with pytest.raises(AuthenticationError, match="api_key or jwt_token is required"):
+    with pytest.raises(BadRequestError, match="jwt_token must be a non-empty string") as excinfo:
         AsyncDaytona(DaytonaConfig(jwt_token="", project_id="project-1"))
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
 
 
 @pytest.mark.anyio
@@ -12195,7 +12200,6 @@ async def test_create_macos_on_the_default_api_raises_the_api_region_conflict_un
     from daytona.v2.errors import ConflictError
 
     monkeypatch.delenv("DAYTONA_V2_API_URL", raising=False)
-    monkeypatch.delenv("DAYTONA_API_URL", raising=False)
     not_served = "conflict: region 'region-c' is not available at this API URL"
     create = respx.post("https://api.daytona.com/sandboxes/macos").mock(
         return_value=httpx.Response(

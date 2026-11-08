@@ -503,7 +503,7 @@ def test_from_daytona_import_v0_imports_the_bundled_submodule(monkeypatch: pytes
 
 
 def test_v2_is_built_lazily_once_from_the_shared_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("DAYTONA_API_URL", raising=False)
+    monkeypatch.delenv("DAYTONA_V2_API_URL", raising=False)
     monkeypatch.delenv("DAYTONA_API_KEY", raising=False)
     client = Daytona(DaytonaConfig(api_key="dtn_key", request_timeout=7.5, organization_id="org-for-v0-only"))
     assert client._v2 is None
@@ -520,14 +520,14 @@ def test_v2_is_built_lazily_once_from_the_shared_config(monkeypatch: pytest.Monk
 
 
 def test_v2_api_url_is_the_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DAYTONA_API_URL", "http://test-env.invalid/")
+    monkeypatch.setenv("DAYTONA_V2_API_URL", "http://test-env.invalid/")
     with Daytona(DaytonaConfig(api_key="k")) as client:
         assert client.v2._impl._api_url == "http://test-env.invalid"
 
 
 @pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
 def test_a_blank_or_whitespace_api_url_counts_as_unset(monkeypatch: pytest.MonkeyPatch, blank: str) -> None:
-    monkeypatch.setenv("DAYTONA_API_URL", blank)
+    monkeypatch.setenv("DAYTONA_V2_API_URL", blank)
     with Daytona(DaytonaConfig(api_key="k")) as client:
         assert client.v2._impl._api_url == DEFAULT_V2_API_URL
 
@@ -660,7 +660,7 @@ def _fake_v0(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
 
 def test_v0_gets_the_shared_credentials_and_its_own_url(monkeypatch: pytest.MonkeyPatch) -> None:
     _fake_v0(monkeypatch)
-    monkeypatch.setenv("DAYTONA_API_URL", "http://v2-test-env.invalid")
+    monkeypatch.setenv("DAYTONA_V2_API_URL", "http://v2-test-env.invalid")
     with pytest.warns(DeprecationWarning):
         config = DaytonaConfig(
             api_key="dtn_key", organization_id="org", target="us", project_id="v2-only", otel_enabled=True
@@ -673,7 +673,7 @@ def test_v0_gets_the_shared_credentials_and_its_own_url(monkeypatch: pytest.Monk
         "api_key": "dtn_key",
         "jwt_token": None,
         "organization_id": "org",
-        # DAYTONA_API_URL addresses v2 test environments; v0 never sees it.
+        # DAYTONA_V2_API_URL addresses v2 test environments; v0 never sees it.
         "api_url": V0_API_URL,
         "target": "us",
         "otel_enabled": True,
@@ -731,7 +731,7 @@ def test_a_v2_only_program_never_imports_v0() -> None:
         capture_output=True,
         text=True,
         cwd=ROOT,
-        env={"DAYTONA_API_URL": "http://api.invalid", "PATH": "/usr/bin:/bin"},
+        env={"DAYTONA_V2_API_URL": "http://api.invalid", "PATH": "/usr/bin:/bin"},
         timeout=60,
         check=False,
     )
@@ -1435,14 +1435,15 @@ def _v2_list_host(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> str:
     ("env", "host"),
     [
         (
-            {"DAYTONA_V2_API_URL": "http://v2.invalid", "DAYTONA_API_URL": "http://fallback.invalid"},
+            {"DAYTONA_V2_API_URL": "http://v2.invalid", "DAYTONA_API_URL": "http://v0-sdk.invalid"},
             "v2.invalid",
         ),
-        ({"DAYTONA_V2_API_URL": "   ", "DAYTONA_API_URL": "http://fallback.invalid"}, "fallback.invalid"),
-        ({"DAYTONA_API_URL": "http://fallback.invalid"}, "fallback.invalid"),
-        ({"DAYTONA_V2_API_URL": "", "DAYTONA_API_URL": " \t"}, "api.daytona.com"),
-        ({"DAYTONA_V2_API_URL": "http://v2.invalid//"}, "v2.invalid"),
-        ({"DAYTONA_V2_API_URL": "//", "DAYTONA_API_URL": "http://fallback.invalid"}, "fallback.invalid"),
+        # DAYTONA_API_URL belongs to the 0.x SDK: 2.x never falls back to it.
+        ({"DAYTONA_V2_API_URL": "   ", "DAYTONA_API_URL": "http://v0-sdk.invalid"}, "api.daytona.com"),
+        ({"DAYTONA_API_URL": "http://v0-sdk.invalid"}, "api.daytona.com"),
+        ({"DAYTONA_V2_API_URL": " \t"}, "api.daytona.com"),
+        ({"DAYTONA_V2_API_URL": " http://v2.invalid// "}, "v2.invalid"),
+        ({"DAYTONA_V2_API_URL": "//", "DAYTONA_API_URL": "http://v0-sdk.invalid"}, "api.daytona.com"),
     ],
 )
 def test_v2_api_url_resolution_order(monkeypatch: pytest.MonkeyPatch, env: dict[str, str], host: str) -> None:
@@ -1648,12 +1649,25 @@ def test_setting_a_url_field_on_a_config_after_construction_is_refused(name: str
         setattr(config, name, "https://self.example/api")
 
 
-def test_a_url_field_smuggled_into_the_config_dict_stops_the_client_build() -> None:
+@pytest.mark.parametrize("cls", [Daytona, AsyncDaytona])
+def test_a_url_field_smuggled_into_the_config_dict_stops_the_client_build(cls: type) -> None:
     config = DaytonaConfig(api_key="k")
     vars(config)["api_url"] = "https://self.example/api"
-    root = Daytona(config)
     with pytest.raises(TypeError, match="stay on SDK 0.x"):
-        _ = root.v2
+        cls(config)
+
+
+@pytest.mark.parametrize("cls", [Daytona, AsyncDaytona])
+def test_the_client_snapshots_the_config_when_it_is_built(cls: type) -> None:
+    config = DaytonaConfig(api_key="first", project_id="p-1", request_timeout=5)
+    root = cls(config)
+    config.api_key = "second"
+    config.project_id = "p-2"
+    config.request_timeout = 9
+    vars(config)["api_url"] = "https://self.example/api"  # too late to matter
+    impl = root.v2 if cls is AsyncDaytona else root.v2._impl
+    assert (impl._api_key, impl._request_timeout) == ("first", 5)
+    assert root._config is not config
 
 
 def test_server_url_in_the_constructor_names_the_field() -> None:

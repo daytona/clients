@@ -4,6 +4,8 @@
  */
 
 import type { DaytonaConfig } from './types.js'
+import { assertKnownOptions, optionKeys } from './v2/options.js'
+import { SANDBOX_EVENTS_CONFIG_KEYS } from './v2/types.js'
 
 export const V0_API_URL = 'https://app.daytona.io/api'
 
@@ -33,7 +35,7 @@ export const ROOT_CONFIG_ROUTING: { readonly [TKey in keyof Required<DaytonaConf
   organizationId: 'v0',
   target: 'v0',
   projectId: 'v2',
-  requestTimeout: 'v2',
+  requestTimeoutSeconds: 'v2',
   otelEnabled: 'both',
   otelApi: 'v2',
   connectionPoolMaxsize: 'v2',
@@ -71,6 +73,21 @@ export function resetTargetDeprecationWarningForTests(): void {
   warnedHolder[TARGET_DEPRECATION_WARNED] = false
 }
 
+/** The known keys of the root `DaytonaConfig`. */
+export const ROOT_CONFIG_KEYS = optionKeys<DaytonaConfig>()({
+  apiKey: true,
+  jwtToken: true,
+  organizationId: true,
+  target: true,
+  projectId: true,
+  requestTimeoutSeconds: true,
+  otelEnabled: true,
+  otelApi: true,
+  connectionPoolMaxsize: true,
+  sharedHub: true,
+  events: true,
+})
+
 /** The same text as the Python SDK's (parity). */
 const CUSTOM_API_URL = 'SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.'
 const REMOVED_URL_FIELDS = ['apiUrl', 'serverUrl', 'toolboxUrl'] as const
@@ -81,6 +98,8 @@ export function snapshotConfig(config: DaytonaConfig): DaytonaConfig {
   for (const removed of REMOVED_URL_FIELDS) {
     if (removed in config || Reflect.get(config, removed) !== undefined) throw new TypeError(`DaytonaConfig does not take '${removed}': ${CUSTOM_API_URL}`)
   }
+  assertKnownOptions('DaytonaConfig', config, ROOT_CONFIG_KEYS)
+  assertKnownOptions('SandboxEventsConfig', config.events, SANDBOX_EVENTS_CONFIG_KEYS)
   // Accumulate defined fields once so getters cannot change the checked snapshot.
   // Read through prototypes and Proxy get traps, regardless of their has result.
   const fields: Record<string, unknown> = {}

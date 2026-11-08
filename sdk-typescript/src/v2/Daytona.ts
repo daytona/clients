@@ -4,7 +4,8 @@
  */
 
 import type { AxiosInstance } from 'axios'
-import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
+import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
+import { assertKnownOptions, optionalSeconds } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { ConnectionError, DaytonaError, AuthenticationError, BadRequestError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
@@ -19,10 +20,11 @@ import { SnapshotsService } from './Snapshots.js'
 import { VolumeService } from './Volume.js'
 import type * as api from './gen/api-types.js'
 import { SearchTotalRelation as SEARCH_TOTAL_RELATIONS } from './gen/api-enums.js'
+import { SANDBOX_EVENTS_CONFIG_KEYS, V2_CONFIG_KEYS } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
-import { attachHub, eventDestinationFromHeaders, detachHub } from './events.js'
-import type { WaitHub } from './events.js'
-import type { BuildImageOptions, CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions, CreateSandboxResponse, DaytonaConfig, GetLimitsOptions, ListResult, ListSandboxesOptions, NetworkPolicyInfo, NetworkPolicyInput, OrganizationLimits, ProjectBudget, SandboxConnectOptions, SandboxEventsConfig, SandboxHandleJSON, SandboxSearchFilters, SandboxSecretsInfo, SearchResult, SearchSandboxesOptions, SearchTimestamp, SandboxDto } from './types.js'
+import { attachHub, eventDestinationFromHeaders, detachHub, eventsHubConfig } from './events.js'
+import type { EventsHubConfig, WaitHub } from './events.js'
+import type { BuildImageOptions, CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions, CreateSandboxResponse, DaytonaConfig, GetLimitsOptions, ListResult, ListSandboxesOptions, NetworkPolicyInfo, NetworkPolicyInput, OrganizationLimits, ProjectBudget, SandboxConnectOptions, SandboxHandleJSON, SandboxSearchFilters, SandboxSecretsInfo, SearchResult, SearchSandboxesOptions, SearchTimestamp, SandboxDto } from './types.js'
 import type { HttpClientOptions } from './http.js'
 
 // `image` is optional: an imageless Linux create boots the platform default.
@@ -33,8 +35,9 @@ type LinuxCreateRequest = Omit<api.CreateSandboxRequest, 'image'> & {
 
 
 /**
- * The default Daytona Cloud v2 API, used when neither `DAYTONA_V2_API_URL` nor
- * `DAYTONA_API_URL` is set. These variables can select a regional API endpoint.
+ * The default Daytona Cloud v2 API, used unless `DAYTONA_V2_API_URL` (test
+ * environments only) selects another endpoint. `DAYTONA_API_URL` belongs to
+ * the 0.x SDK; SDK 2.x never reads it.
  */
 export const DEFAULT_V2_API_URL = 'https://api.daytona.com'
 
@@ -220,14 +223,14 @@ function hasText(value: unknown): value is string {
 
 function assertPresentStringOption(name: 'jwtToken' | 'projectId', value: string | undefined): void {
   if (value !== undefined && value.length === 0) {
-    throw new BadRequestError(`${name} must be a non-empty string when provided`)
+    throw new BadRequestError(`${name} must be a non-empty string when provided`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
 
 function connectionPoolMaxsize(value: number | undefined): number | undefined {
   if (value === undefined) return undefined
   if (!Number.isInteger(value) || value <= 0) {
-    throw new BadRequestError('connectionPoolMaxsize must be a positive integer')
+    throw new BadRequestError('connectionPoolMaxsize must be a positive integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return value
 }
@@ -443,7 +446,7 @@ export class Daytona {
   private readonly apiUrl: string
   private readonly httpOptions: HttpClientOptions
   private readonly hubShared: boolean
-  private readonly hubEventsConfig: SandboxEventsConfig
+  private readonly hubEventsConfig: EventsHubConfig
   private readonly hubIdentityKey: string
   private hub: WaitHub | undefined
   private closed = false
@@ -455,23 +458,25 @@ export class Daytona {
       if (unsupported in config) {
         throw new TypeError(
           unsupported === 'apiUrl'
-            ? "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL (or DAYTONA_API_URL) to select an API endpoint"
+            ? "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL to select an API endpoint"
             : unsupported === 'target'
               ? "the v2 client does not take 'target': pass 'region' to each create"
               : "the v2 client does not take 'toolboxUrl': each sandbox carries its own toolbox URL",
         )
       }
     }
-    // DAYTONA_V2_API_URL, else DAYTONA_API_URL, else the
-    // default; read through the computed-key env lookup (bundler-safe).
-    // Trailing slashes are dropped per value, so a slash-only value is unset
-    // and falls through to the next one.
-    const urlFromEnv = (name: string) => optionalNonBlankEnv(name)?.replace(/\/+$/, '') || undefined
-    const apiUrl = urlFromEnv('DAYTONA_V2_API_URL') ?? urlFromEnv('DAYTONA_API_URL') ?? DEFAULT_V2_API_URL
-    // An explicit credential wins over the ambient environment: config.jwtToken
-    // suppresses DAYTONA_API_KEY and config.apiKey suppresses DAYTONA_JWT_TOKEN,
-    // so an exported key never collides with the credential the caller chose.
-    const apiKey = config.apiKey || (config.jwtToken ? undefined : env('DAYTONA_API_KEY'))
+    assertKnownOptions('DaytonaConfig', config, V2_CONFIG_KEYS)
+    assertKnownOptions('SandboxEventsConfig', config.events, SANDBOX_EVENTS_CONFIG_KEYS)
+    // Only DAYTONA_V2_API_URL selects the endpoint (DAYTONA_API_URL belongs to
+    // the 0.x SDK); read through the computed-key env lookup (bundler-safe).
+    // Ambient values are trimmed and a blank one is unset; a slash-only URL
+    // is unset too.
+    const apiUrl = optionalNonBlankEnv('DAYTONA_V2_API_URL')?.replace(/\/+$/, '') || DEFAULT_V2_API_URL
+    // Explicit values are used as given. An explicit credential wins over the
+    // ambient environment: config.jwtToken suppresses DAYTONA_API_KEY and
+    // config.apiKey suppresses DAYTONA_JWT_TOKEN, so an exported key never
+    // collides with the credential the caller chose.
+    const apiKey = config.apiKey || (config.jwtToken ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
     const ignoreBlankJwtToken = config.jwtToken === '' && typeof apiKey === 'string' && apiKey.length > 0
     if (!ignoreBlankJwtToken) {
       assertPresentStringOption('jwtToken', config.jwtToken)
@@ -481,16 +486,18 @@ export class Daytona {
       ? undefined
       : config.jwtToken ?? (config.apiKey ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
     const projectId = config.projectId ?? optionalNonBlankEnv('DAYTONA_PROJECT_ID')
+    const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
+    const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : requestTimeoutSeconds * 1000
     const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
     const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
     if (!apiKey && !jwtToken) {
       throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, source: 'SDK' })
     }
     if (apiKey && jwtToken) {
-      throw new BadRequestError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)')
+      throw new BadRequestError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     if (jwtToken && !projectId) {
-      throw new BadRequestError('projectId is required when jwtToken is set (set config.projectId or DAYTONA_PROJECT_ID)')
+      throw new BadRequestError('projectId is required when jwtToken is set (set config.projectId or DAYTONA_PROJECT_ID)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     this.apiKey = apiKey ?? undefined
     const base = apiUrl.replace(/\/+$/, '') || DEFAULT_V2_API_URL
@@ -505,7 +512,7 @@ export class Daytona {
         baseURL: base,
         jwtToken,
         projectId,
-        requestTimeout: config.requestTimeout,
+        requestTimeout: requestTimeoutMs,
         otelEnabled,
         otelApi: config.otelApi,
       }) : undefined,
@@ -513,8 +520,8 @@ export class Daytona {
       otelEnabled,
       otelApi: config.otelApi,
     }
-    this.apiTransport = new HttpTransport(base, this.apiKey, config.requestTimeout, this.httpOptions)
-    this.api = createHttpClient(base, this.apiKey, config.requestTimeout, this.httpOptions)
+    this.apiTransport = new HttpTransport(base, this.apiKey, requestTimeoutMs, this.httpOptions)
+    this.api = createHttpClient(base, this.apiKey, requestTimeoutMs, this.httpOptions)
     this.images = new ImagesService(this.api, this.apiTransport)
     this.snapshots = new SnapshotsService(this.api)
     this.volume = new VolumeService(this.api)
@@ -522,7 +529,7 @@ export class Daytona {
     this.reservations = new ReservationsService(this.api)
     this.macModels = new MacModelsService(this.api)
     this.hubShared = config.sharedHub ?? true
-    this.hubEventsConfig = config.events ?? {}
+    this.hubEventsConfig = eventsHubConfig(config.events)
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
   }
 

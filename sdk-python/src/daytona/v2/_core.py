@@ -118,6 +118,10 @@ class RequestSpec:
     files: Optional[Dict[str, MultipartPart]] = None
     timeout: Optional[float] = None
     unbounded_read: bool = False
+    # A file transfer (upload, download, the bulk byte calls): never bounded by
+    # the client's request timeout. It runs until it finishes or the caller
+    # cancels it.
+    transfer: bool = False
     headers: Dict[str, str] = field(default_factory=dict)
     # Called with the response headers of a successful request (status < 400)
     # before the body is decoded. The events hub learns a sandbox's service
@@ -951,7 +955,7 @@ def delete_process_spec(process_id: str) -> RequestSpec:
 
 
 def file_download_spec(path: str, *, timeout: Optional[float]) -> RequestSpec:
-    return RequestSpec("GET", "/files/download", params={"path": path}, timeout=timeout)
+    return RequestSpec("GET", "/files/download", params={"path": path}, timeout=timeout, transfer=True)
 
 
 def file_upload_spec(
@@ -962,7 +966,12 @@ def file_upload_spec(
     if atomic:
         params["atomic"] = True
     return RequestSpec(
-        "POST", "/files/upload", params=params, files={"file": (name, content)}, timeout=timeout
+        "POST",
+        "/files/upload",
+        params=params,
+        files={"file": (name, content)},
+        timeout=timeout,
+        transfer=True,
     )
 
 
@@ -977,11 +986,15 @@ def file_bulk_upload_spec(
     params: Dict[str, JsonValue] = {}
     if atomic:
         params["atomic"] = True
-    return RequestSpec("POST", "/files/bulk-upload", params=params, files=parts, timeout=timeout)
+    return RequestSpec(
+        "POST", "/files/bulk-upload", params=params, files=parts, timeout=timeout, transfer=True
+    )
 
 
 def bulk_download_spec(paths: Sequence[str], *, timeout: Optional[float]) -> RequestSpec:
-    return RequestSpec("POST", "/files/bulk-download", json_body={"paths": list(paths)}, timeout=timeout)
+    return RequestSpec(
+        "POST", "/files/bulk-download", json_body={"paths": list(paths)}, timeout=timeout, transfer=True
+    )
 
 
 def parse_bulk_write_result(payload: JsonValue) -> BulkWriteResult:

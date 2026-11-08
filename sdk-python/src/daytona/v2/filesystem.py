@@ -314,6 +314,7 @@ class AsyncFileSystemService:
             self._transport.request(
                 "POST",
                 "/files/upload",
+                transfer=True,
                 params=_atomic_params(path=remote_path, atomic=atomic),
                 headers=headers,
                 content_factory=lambda attempt: _upload_multipart_content(
@@ -398,7 +399,7 @@ class AsyncFileSystemService:
         request_kwargs = {"json": spec.json_body}
         if spec.timeout is not None:
             request_kwargs["timeout"] = spec.timeout
-        response = await self._transport.request(spec.method, spec.path, **request_kwargs)
+        response = await self._transport.request(spec.method, spec.path, transfer=True, **request_kwargs)
         return parse_bulk_read_result(response.content, content_type=response.headers.get("content-type"))
 
     async def list(self, path: str, *, depth: Optional[int] = None) -> ListResult[FileInfo]:

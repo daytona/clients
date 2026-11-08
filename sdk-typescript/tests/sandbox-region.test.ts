@@ -8,14 +8,11 @@ import { Sandbox } from '../src/v2/Sandbox'
 import { startFakeApi } from './networkPolicyTestServer'
 
 describe('sandbox region', () => {
-  const originalApiUrl = process.env.DAYTONA_API_URL
-  const originalV2ApiUrl = process.env.DAYTONA_V2_API_URL
+  const originalApiUrl = process.env.DAYTONA_V2_API_URL
   beforeEach(() => { delete process.env.DAYTONA_V2_API_URL })
   afterEach(() => {
-    if (originalApiUrl === undefined) delete process.env.DAYTONA_API_URL
-    else process.env.DAYTONA_API_URL = originalApiUrl
-    if (originalV2ApiUrl === undefined) delete process.env.DAYTONA_V2_API_URL
-    else process.env.DAYTONA_V2_API_URL = originalV2ApiUrl
+    if (originalApiUrl === undefined) delete process.env.DAYTONA_V2_API_URL
+    else process.env.DAYTONA_V2_API_URL = originalApiUrl
   })
   describe.each(['create', 'get'])('%s', (operation) => {
     it.each([
@@ -31,7 +28,7 @@ describe('sandbox region', () => {
         status: 200,
         body: { id: fixture.id, ...(operation === 'get' ? { region_id: fixture.region } : {}), name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', wait_cap_seconds: 0 },
       }])
-      process.env.DAYTONA_API_URL = api.url
+      process.env.DAYTONA_V2_API_URL = api.url
       const client = new Daytona({ apiKey: 'key' })
       try {
         // When a public operation produces a sandbox.
@@ -56,7 +53,7 @@ describe('sandbox region', () => {
       { status: 200, body: { ...response, region_id: 'region-a' } },
       { status: 200, body: { ...response, region_id: '' } },
     ])
-    process.env.DAYTONA_API_URL = api.url
+    process.env.DAYTONA_V2_API_URL = api.url
     const client = new Daytona({ apiKey: 'key' })
     try {
       const sandbox = await client.get(id)
@@ -97,7 +94,7 @@ describe('sandbox region', () => {
       id: '57VSdKNrJGxnSAabjcHD4M-region-a', name: 'test', status: 'running',
       toolbox_proxy_url: 'http://toolbox.invalid', wait_cap_seconds: 0,
     } }])
-    process.env.DAYTONA_API_URL = api.url
+    process.env.DAYTONA_V2_API_URL = api.url
     const client = new Daytona({ apiKey: 'key' })
     try {
       // When the default region is requested.

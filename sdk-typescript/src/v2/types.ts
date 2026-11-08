@@ -4,6 +4,7 @@
  */
 
 import type { OtelApiLike } from './http.js'
+import { optionKeys } from './options.js'
 /** Public V2 SDK types. */
 
 import type * as api from './gen/api-types.js'
@@ -44,52 +45,82 @@ type AssertExact<T extends true> = T
 /**
  * Configuration for the sandbox-state events hub (WebSocket-based waiting).
  *
- * `enabled` defaults to `true`. `reconcileIntervalMs` defaults to 60 000 (ms);
- * `0` disables the periodic re-subscribe timer. `idleCloseMs` closes the
+ * `enabled` defaults to `true`. `reconcileIntervalSeconds` defaults to 60;
+ * `0` disables the periodic re-subscribe timer. `idleCloseSeconds` closes the
  * events socket that long after its last waiter leaves; unset, the socket
  * stays open. In Node an idle socket does not keep the process alive, so a
  * script that never calls `daytona.close()` still exits; a runtime where the
  * socket cannot be released that way (no `ws` package) closes it after
- * 10 000 ms instead. `0` keeps the socket open until `close()`.
+ * 10 seconds instead. `0` keeps the socket open until `close()`.
  */
 export interface SandboxEventsConfig {
   /** Enable WebSocket-based waiting; default `true`. */
-  enabled?: boolean
-  /** Reconcile timer interval in ms; default 60 000; 0 disables. Values above 2 147 483 647 clamp to that maximum. */
-  reconcileIntervalMs?: number
-  /** Close an idle events socket after this many ms; default never (10 000
+  readonly enabled?: boolean
+  /** Reconcile timer interval in seconds; default 60; `0` disables. Values above about 24 days clamp to that maximum. */
+  readonly reconcileIntervalSeconds?: number
+  /** Close an idle events socket after this many seconds; default never (10
    *  where an idle socket would keep the process alive); `0` = never. Values
-   *  above 2 147 483 647 clamp to that maximum. */
-  idleCloseMs?: number
+   *  above about 24 days clamp to that maximum. */
+  readonly idleCloseSeconds?: number
 }
 
+/** The known keys of {@link SandboxEventsConfig}. */
+export const SANDBOX_EVENTS_CONFIG_KEYS = optionKeys<SandboxEventsConfig>()({
+  enabled: true,
+  reconcileIntervalSeconds: true,
+  idleCloseSeconds: true,
+})
+
+/**
+ * The v2 client's configuration (built by the root `Daytona` from its own
+ * config). There is no API URL field: `DAYTONA_V2_API_URL` (test environments
+ * only) selects the endpoint.
+ */
 export interface DaytonaConfig {
   /** Bearer API key for API and sandbox requests. */
-  apiKey?: string
+  readonly apiKey?: string
   /** Signed-in OIDC JWT exchanged lazily for a short-lived project token. */
-  jwtToken?: string
+  readonly jwtToken?: string
   /** Project id required with `jwtToken`; scopes the exchanged platform token. */
-  projectId?: string
-  /** Per-request HTTP timeout in milliseconds; `0` keeps the transport unbounded. */
-  requestTimeout?: number
+  readonly projectId?: string
+  /**
+   * The total time one ordinary request may take, in seconds (default 60;
+   * `0` = no limit). Waits and long polls use their own budget, streams are
+   * bounded only until their response headers arrive, and file transfers are
+   * not bounded.
+   */
+  readonly requestTimeoutSeconds?: number
   /** Emit OpenTelemetry spans around SDK HTTP requests when the optional API package is installed. */
-  otelEnabled?: boolean
+  readonly otelEnabled?: boolean
   /**
    * Your application's `@opentelemetry/api` module (`import * as otel from
    * '@opentelemetry/api'`). Optional in Node, where the SDK resolves the
    * optional peer itself; required for `otelEnabled` in bundled browser apps.
    */
-  otelApi?: OtelApiLike
+  readonly otelApi?: OtelApiLike
   /** Node-only keep-alive socket pool size for axios-backed HTTP requests. */
-  connectionPoolMaxsize?: number
+  readonly connectionPoolMaxsize?: number
   /**
    * When `true` (default) all `Daytona` instances with the same identity share
    * one `WaitHub`. When `false` each instance gets its own private hub.
    */
-  sharedHub?: boolean
+  readonly sharedHub?: boolean
   /** Customise the sandbox-state events hub. `undefined` uses the defaults. */
-  events?: SandboxEventsConfig
+  readonly events?: SandboxEventsConfig
 }
+
+/** The known keys of the v2 {@link DaytonaConfig}. */
+export const V2_CONFIG_KEYS = optionKeys<DaytonaConfig>()({
+  apiKey: true,
+  jwtToken: true,
+  projectId: true,
+  requestTimeoutSeconds: true,
+  otelEnabled: true,
+  otelApi: true,
+  connectionPoolMaxsize: true,
+  sharedHub: true,
+  events: true,
+})
 
 export interface SandboxInfo {
   sandboxId: string

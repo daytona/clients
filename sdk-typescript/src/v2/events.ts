@@ -52,6 +52,26 @@ const BACKOFF_BASE_MS = 250
 const BACKOFF_CAP_MS = 30_000
 const MAX_IDS_PER_FRAME = 1_000
 const FALLBACK_RETRY_MS = 60_000
+/**
+ * The hub's own settings, in milliseconds: {@link SandboxEventsConfig} after
+ * {@link eventsHubConfig} converted its seconds. Internal.
+ */
+export interface EventsHubConfig {
+  readonly enabled?: boolean
+  readonly reconcileIntervalMs?: number
+  readonly idleCloseMs?: number
+}
+
+/** The hub settings for a public {@link SandboxEventsConfig} (seconds → ms). */
+export function eventsHubConfig(config: SandboxEventsConfig | undefined): EventsHubConfig {
+  const ms = (seconds: number | undefined): number | undefined => seconds === undefined ? undefined : seconds * 1000
+  return {
+    enabled: config?.enabled,
+    reconcileIntervalMs: ms(config?.reconcileIntervalSeconds),
+    idleCloseMs: ms(config?.idleCloseSeconds),
+  }
+}
+
 /** The server's close code for a credential that is no longer valid. */
 const CLOSE_UNAUTHORIZED = 4401
 const TRANSIENT_FAILURE_THRESHOLD = 3
@@ -508,7 +528,7 @@ export class WaitHub {
   private readonly learned: Map<string, string>
   private readonly waiters: Map<string, Waiter[]>
   private readonly known: Map<string, true>
-  private readonly config: Required<Omit<SandboxEventsConfig, 'idleCloseMs'>> & { idleCloseMs: number | undefined }
+  private readonly config: { readonly enabled: boolean; readonly reconcileIntervalMs: number; readonly idleCloseMs: number | undefined }
   private readonly wsFactory: WebSocketFactory
   private readonly openTimeoutMs: number
   private readonly noFrameTimeoutMs: number
@@ -523,7 +543,7 @@ export class WaitHub {
   constructor(
     apiUrl: string,
     apiKey: string,
-    config: SandboxEventsConfig,
+    config: EventsHubConfig,
     wsFactory: WebSocketFactory,
     api?: AxiosInstance,
     timings: {
@@ -2069,7 +2089,7 @@ function hubIdentity(
   apiUrl: string,
   apiKey: string,
   target: string | undefined,
-  config: SandboxEventsConfig,
+  config: EventsHubConfig,
 ): string {
   return JSON.stringify([
     normalizeHubUrlIdentity(apiUrl),
@@ -2086,7 +2106,7 @@ export interface AttachHubOptions {
   readonly apiKey: string
   readonly target: string | undefined
   readonly shared: boolean
-  readonly config: SandboxEventsConfig
+  readonly config: EventsHubConfig
   readonly wsFactory?: WebSocketFactory
   readonly _api?: AxiosInstance
 }

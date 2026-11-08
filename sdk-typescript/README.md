@@ -35,7 +35,7 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona({
   apiKey: 'dtn_…', // a project API key, minted in the dashboard
-  requestTimeout: 30_000, // milliseconds
+  requestTimeoutSeconds: 30, // total time per ordinary request (default 60)
   // jwtToken: 'eyJ…',   // optional alternative to apiKey
   // projectId: '00000000-0000-0000-0000-000000000000',
   // organizationId: 'org-id', // v0 only
