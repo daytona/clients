@@ -674,10 +674,12 @@ skipping exist only in the TypeScript tool).
   raising `RequestTimeoutError` (source `SDK`) or
   `SandboxTerminalStateError`. A terminal state the events hub reports (it
   can hold one from before the request, e.g. `error` while a DELETE already
-  moves the sandbox on) is confirmed with one read, which decides: a target
-  state returns (for delete a 404 too), a terminal state raises with the read
-  state, and any other state keeps polling under the same deadline; a failed
-  read keeps the reported state. Once the target was observed, a failed
+  moves the sandbox on) is confirmed with one read while the wait has budget
+  left, unless that state already came from a full read or is `destroyed`;
+  the read decides: a target state returns (for delete a 404 too), a terminal
+  state raises with the read state, and any other state keeps polling under
+  the same deadline. Without that read, or when it fails, the reported state
+  raises. Once the target was observed, a failed
   metadata refresh afterwards does not turn that success into an error.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
   return the handle however their `wait_seconds` / `waitSeconds` wait ends:

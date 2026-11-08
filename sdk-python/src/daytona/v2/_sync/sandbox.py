@@ -129,7 +129,8 @@ class Sandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and an
         ``error`` state raises :class:`SandboxTerminalStateError` (one the
-        events hub reports is confirmed with one read first). A 404 while
+        events hub reports is confirmed with one read first, while the wait
+        has budget left and unless it already came from a full read). A 404 while
         waiting counts as destroyed. A destroyed sandbox does not guarantee
         that its image can already be deleted: image deletion may still
         answer 409 for a while.
@@ -460,7 +461,9 @@ class Sandbox:
         above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
         reaching ``destroying``, ``destroyed`` or ``error`` first raises
         :class:`SandboxTerminalStateError`. A terminal state the events hub
-        reports is confirmed with one read before it raises.
+        reports is confirmed with one read before it raises, while the wait has
+        budget left, unless that state already came from a full read or is
+        ``destroyed``.
         """
         self._bridge.call(lambda: self._impl.wait(until=until, timeout=timeout))
         return self

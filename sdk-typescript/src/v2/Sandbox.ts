@@ -853,7 +853,8 @@ export class Sandbox {
   /**
    * Delete the sandbox and wait until destroyed (or no longer found). An
    * `error` state throws {@link SandboxTerminalStateError}; one the events hub
-   * reports is confirmed with one read first.
+   * reports is confirmed with one read first, while the wait has budget left
+   * and unless it already came from a full read.
    * Returning, a `destroyed` state, or a subsequent 404 does not guarantee that
    * the image can already be deleted. Image deletion may still return 409.
    */
@@ -1014,7 +1015,9 @@ export class Sandbox {
    * `timeoutSeconds` is a caller wait budget in seconds. The default is 60; `0`,
    * or a value above about 24.8 days (the timer maximum), waits without a deadline. Timeout raises {@link RequestTimeoutError}, and
    * a terminal state before the target raises {@link SandboxTerminalStateError}.
-   * A terminal state the events hub reports is confirmed with one read before it raises.
+   * A terminal state the events hub reports is confirmed with one read before it raises,
+   * while the wait has budget left, unless that state already came from a full read or
+   * is `destroyed`.
    */
   public async wait(options: WaitOptions = {}): Promise<this> {
     assertKnownOptions('WaitOptions', options, WAIT_KEYS)

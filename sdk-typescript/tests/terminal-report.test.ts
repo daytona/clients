@@ -72,6 +72,18 @@ it('throws with the read state when the read confirms the error', async () => {
   expect(outcome.error).toMatchObject({ state: 'error', rawState: 'failed' })
 })
 
+it('throws with the read state when the read finds another terminal state', async () => {
+  // The hub reports `error`; the read finds `deleting` (`destroying`, terminal
+  // for a wait for `started`): the read decides, so the error and the handle
+  // carry `destroying`, not the reported `error`.
+  const { api, sandbox, outcome } = await run([{ status: 200, body: detail('deleting') }], 'wait')
+  expect(sentRequest(api, 1, 0).method).toBe('GET')
+  if (outcome.ok) throw new Error('expected the wait to throw')
+  expect(outcome.error).toBeInstanceOf(SandboxTerminalStateError)
+  expect(outcome.error).toMatchObject({ state: 'destroying', rawState: 'deleting' })
+  expect([sandbox.state, sandbox.rawState]).toEqual(['destroying', 'deleting'])
+})
+
 it('polls on after a held terminal state read as starting, until started', async () => {
   const { api, sandbox, outcome } = await run([{ status: 200, body: detail('booting') }, { status: 200, body: detail('running') }], 'wait')
   expect(outcome).toEqual({ ok: true })

@@ -110,6 +110,26 @@ async def test_a_held_error_confirmed_by_the_read_raises_with_the_read_state(
     assert (raised.value.state, raised.value.raw_state) == ("error", "failed")
 
 
+async def test_a_held_error_read_as_another_terminal_state_raises_with_the_read_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The hub reports `error`; the read finds `deleting` (`destroying`, terminal
+    # for a wait for `started`): the read decides, so the error and the handle
+    # carry `destroying`, not the reported `error`.
+    hub = HeldErrorHub()
+    with FakeApi([PlannedResponse(200, _detail("deleting"))]) as fake:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = _handle(root, hub)
+            with pytest.raises(SandboxTerminalStateError) as raised:
+                await sandbox.wait(until="started", timeout=10)
+    assert [(request.method, request.path.split("?")[0]) for request in fake.requests] == [
+        ("GET", "/sandboxes/sbx")
+    ]
+    assert (raised.value.state, raised.value.raw_state) == ("destroying", "deleting")
+    assert (sandbox.state, sandbox.raw_state) == ("destroying", "deleting")
+
+
 async def test_a_held_terminal_state_then_starting_polls_on_until_started(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

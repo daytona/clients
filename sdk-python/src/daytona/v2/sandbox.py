@@ -944,10 +944,13 @@ class AsyncSandbox:
         wait unbounded. If the sandbox reaches a terminal state before any
         target state, a typed conflict error is raised with the observed public
         sandbox state attached as ``error.state``. A terminal state the events
-        hub reports is confirmed with one read, which decides: a target state
-        returns, another terminal state raises, and any other state means the
-        report was stale, so the wait polls on under the same deadline.
-        ``missing_is_destroyed`` (delete) reads a 404 as ``destroyed``.
+        hub reports is confirmed with one read while the wait has budget left,
+        unless that state already came from a full read or is ``destroyed``;
+        the read decides: a target state returns, another terminal state
+        raises, and any other state means the report was stale, so the wait
+        polls on under the same deadline. Without that read, or when it fails,
+        the reported state raises. ``missing_is_destroyed`` (delete) reads a
+        404 as ``destroyed``.
         """
         if not states:
             raise create_error("wait requires at least one target state", 400, "BAD_REQUEST", "SDK")
@@ -1146,7 +1149,9 @@ class AsyncSandbox:
         above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
         reaching ``destroying``, ``destroyed`` or ``error`` first raises
         :class:`SandboxTerminalStateError`. A terminal state the events hub
-        reports is confirmed with one read before it raises.
+        reports is confirmed with one read before it raises, while the wait has
+        budget left, unless that state already came from a full read or is
+        ``destroyed``.
         """
         timeout = _validate_timeout(timeout)
         await self._wait_for_state(_wait_states(until), timeout=timeout)
@@ -1354,7 +1359,8 @@ class AsyncSandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and an
         ``error`` state raises :class:`SandboxTerminalStateError` (one the
-        events hub reports is confirmed with one read first). A 404 while
+        events hub reports is confirmed with one read first, while the wait
+        has budget left and unless it already came from a full read). A 404 while
         waiting counts as destroyed. A destroyed sandbox does not guarantee
         that its image can already be deleted: image deletion may still
         answer 409 for a while.

@@ -63,13 +63,23 @@ test('the root close() is never suggested as a v2-namespace close', () => {
 // 24.8 days) as no deadline, so a 0.x fork that waited without a deadline maps
 // to a budget above it rather than to a finite one.
 const TIMER_MAXIMUM_SECONDS = 2_147_483.647;
-for (const id of ['sandbox.fork', 'sandbox._experimental_fork', 'client.fork', 'client._experimental_fork']) {
-  for (const language of ['py', 'ts']) {
-    const entry = mapping.suggestions.find((candidate) => candidate.id === id);
-    if (!entry?.v2[language]) continue;
+// Every fork row and language that must carry the suggestion. The client rows
+// are TypeScript-only: the 0.x Python client had no fork (its v0.py is null),
+// so they have no Python form.
+const FORK_ROWS = [
+  ['sandbox.fork', ['py', 'ts']],
+  ['sandbox._experimental_fork', ['py', 'ts']],
+  ['client.fork', ['ts']],
+  ['client._experimental_fork', ['ts']],
+];
+for (const [id, languages] of FORK_ROWS) {
+  for (const language of languages) {
     test(`${language} ${id} keeps a 0.x unbounded wait unbounded`, () => {
-      // Given: the fork suggestion and its notes.
+      // Given: the fork suggestion and its notes, which must exist.
+      const entry = mapping.suggestions.find((candidate) => candidate.id === id);
+      assert.ok(entry, `missing mapping row ${id}`);
       const suggestion = entry.v2[language];
+      assert.equal(typeof suggestion, 'string', `missing ${language} suggestion for ${id}`);
       const notes = entry.notes[language].join(' ');
       // When: reading the budget it passes for a 0.x timeout of 0.
       const budget = /\b(\d+) \* 86_400\b/.exec(suggestion);
