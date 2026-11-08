@@ -7385,6 +7385,20 @@ describe('toolbox service request shaping', () => {
     await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, message, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
+  // Decoded strictly, as the Python SDK's test_core.py asserts for the same
+  // bytes: invalid UTF-8 and a leading byte-order mark are no JSON object.
+  it.each([
+    ['invalid UTF-8', Uint8Array.from([...new TextEncoder().encode('{"access_token": "t'), 0xff, ...new TextEncoder().encode('k", "expires_in": 60}')])],
+    ['a leading byte-order mark', Uint8Array.from([0xef, 0xbb, 0xbf, ...new TextEncoder().encode('{"access_token": "tok", "expires_in": 60}')])],
+  ])('refuses a token exchange body with %s', async (_label, body) => {
+    const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
+    clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { headers: { 'content-type': 'application/json' } }))
+    await expect(client.listAuditActions()).rejects.toMatchObject({
+      constructor: BadRequestError, message: 'token exchange response is not a JSON object', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+    })
+  })
+
   // JSON.parse cannot tell 60.0 from 60; Python's test_core.py takes the same values.
   it.each(['60', '60.0', '1e2'])('takes an integral expires_in written as %s', async (raw) => {
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })

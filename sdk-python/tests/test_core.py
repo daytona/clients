@@ -11566,6 +11566,12 @@ async def test_project_token_exchange_invalid_model_raises_typed_bad_request() -
 # The TypeScript SDK's unit.test.ts asserts the same messages for the same bodies.
 _TOKEN_EXCHANGE_CASES = [
     (b"not json", "token exchange response is not a JSON object"),
+    # Decoded strictly: invalid UTF-8, and a leading byte-order mark.
+    (b'{"access_token": "t\xffk", "expires_in": 60}', "token exchange response is not a JSON object"),
+    (
+        b'\xef\xbb\xbf{"access_token": "tok", "expires_in": 60}',
+        "token exchange response is not a JSON object",
+    ),
     (b"[]", "token exchange response is not a JSON object"),
     (b"", "token exchange response is not a JSON object"),
     (b'{"expires_in": 300}', "token exchange response access_token must be a non-empty string"),

@@ -180,9 +180,11 @@ def _token_exchange(body: bytes) -> _TokenExchange:
     TypeScript SDK's for the same response.
     """
     try:
-        # A body nested past the decoder's limit is the malformed-response
-        # error (loads_json), like every other response the SDK decodes.
-        payload: object = loads_json(body, "token exchange response")
+        # Decoded strictly, as every other response body is and as the
+        # TypeScript SDK does: invalid UTF-8 or a leading byte-order mark is
+        # no JSON object (json.loads on bytes would strip the BOM). A body
+        # nested past the decoder's limit is the malformed-response error.
+        payload: object = loads_json(body.decode("utf-8"), "token exchange response")
     except ValueError:
         payload = None
     if not isinstance(payload, dict):
