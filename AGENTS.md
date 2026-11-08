@@ -86,7 +86,9 @@ language: Python `snake_case` ↔ TS `camelCase`. One deliberate difference in
 the root config's v0 routing: Python forwards `connection_pool_maxsize` to
 `d.v0`, TypeScript keeps `connectionPoolMaxsize` v2-only, because the 0.x
 TypeScript SDK has no pool-size setting (`ROOT_CONFIG_ROUTING` in both SDKs
-records it). Both roots copy the config's fields once, when the client is
+records it). Another: TypeScript `get()`, `create*()` and `fork()` take
+`autoDelete` (dispose the sandbox with `await using`); Python has no
+counterpart, because its handles have no disposal hook. Both roots copy the config's fields once, when the client is
 built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
 caller's object have no effect, and URL fields are refused before and after
 the copy (a getter or property could otherwise add one while it is read).
@@ -465,8 +467,9 @@ skipping exist only in the TypeScript tool).
   keeps its own units (`timeoutMs` for toolbox process execs/waits).
   Timestamps are not durations. Known exceptions at this point: the
   per-call TypeScript `timeout` / `executionTimeout` / `escalateAfter` options
-  (process, interpreter, docker, build-log, image, snapshot and volume calls)
-  still take milliseconds until their area is renamed.
+  of the toolbox namespaces (process, interpreter) still take milliseconds
+  until their area is renamed; the client, lifecycle and platform-service
+  options (images, snapshots, volumes, build logs, docker) are in seconds.
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
   `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
@@ -485,8 +488,8 @@ skipping exist only in the TypeScript tool).
   `transport.request(..., transfer=True)`, TS `timeout: 0` on axios or
   `fetch(..., { transfer: true })`), which run until done or cancelled. A new
   call of one of those kinds must opt out the same way in both SDKs.
-- **TypeScript rejects unknown option keys at runtime** (the rule; applied so
-  far to the client configuration, see below). A covered options object
+- **TypeScript rejects unknown option keys at runtime** (the rule; where it
+  applies so far is listed below). A covered options object
   declares its known keys once, with
   `optionKeys<T>()({ ... })` from `src/v2/options.ts` (a compile error when the
   list misses a key of `T` or names one `T` lacks), and its entry point calls
@@ -500,7 +503,8 @@ skipping exist only in the TypeScript tool).
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
   to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`) and to
   every client, sandbox-lifecycle and platform-service options object
-  (nested `resources`, ports and volume mounts included); the toolbox
+  (nested `resources`, ports and volume mounts included, and the
+  `IfMatchOptions` of the network-policy and secrets updates); the toolbox
   namespaces' per-call options adopt it area by area, each with its duration
   renames.
 - **Errors have one shape.** v2 category names are identical in both SDKs
@@ -589,15 +593,27 @@ skipping exist only in the TypeScript tool).
   (`stop` → `stopped`, `delete` → `destroyed`, a 404 during the delete wait
   included) with `timeout` / `timeoutSeconds` (default 60, `0` = no deadline),
   raising `RequestTimeoutError` (source `SDK`) or
-  `SandboxTerminalStateError`. `create*()` and `fork()` return the handle when
-  their `wait_seconds` / `waitSeconds` budget runs out or a terminal state is
-  reached; request failures (a server 408 included) still raise. The SDKs do
-  not pre-check lifecycle support by class or persistence: the API decides.
+  `SandboxTerminalStateError`. Once the target was observed, a failed
+  metadata refresh afterwards does not turn that success into an error.
+  Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
+  return the handle however their `wait_seconds` / `waitSeconds` wait ends:
+  budget spent, terminal state, or a failed read (any `DaytonaError`). Only a
+  failed create/fork request raises, so "create raised" means no sandbox
+  was created — except a create POST that timed out
+  (`SandboxCreateRequestTimeoutError`, which carries the idempotency key to
+  retry with) and caller cancellation. The lifecycle methods do not
+  pre-check support by class or persistence: the API decides; `fork()` still
+  needs the class, because its wait target depends on it.
 - **Public models are SDK-owned and immutable.** Python: frozen,
   keyword-only dataclasses with tuples and timezone-aware datetimes; TS:
   readonly camelCase interfaces. Sandbox metadata is read-only on the handle
-  (reload with `refresh_data()` / `refreshData()`); constructors of exported
-  handles and services are internal. `to_json()` / `toJSON()` return one
+  (reload with `refresh_data()` / `refreshData()`); constructors of the
+  exported handle and service classes are internal (TS: the `INTERNAL`
+  token from `src/v2/internal.ts`; Python: `_`-prefixed parameters), while
+  Python's model dataclasses stay constructible. List and search pages are
+  immutable (Python tuples, TS `readonly T[]`). The handle exposes the
+  sandbox-scoped `access_token` / `accessToken` it authenticates with, but
+  not its toolbox URL. `to_json()` / `toJSON()` return one
   credential- and URL-free camelCase `SandboxHandleJSON`, a snapshot only:
   reconnect with `get(sandboxId)`.
 - **Ports own preview exposure.** Preview/public port verbs live under

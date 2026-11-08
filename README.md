@@ -31,7 +31,7 @@ processes, files, Git, code execution, ports, LSP and computer use.
   `SandboxHandleJSON`: a credential-free snapshot of the sandbox's metadata,
   the same in both SDKs. Another worker reconnects with `d.v2.get(id)`; a
   process reconnects with `sandbox.process.connect(...)` — built for RL
-  rollouts that fan work across workers. A reconnected `kind:"code"` process
+  rollouts that fan work across workers. A reconnected code process (`ProcessKind` `code`)
   handle can still replay logs and wait/kill, but it does not reconstruct a
   decomposed `InterpreterResult` on another worker.
 - **Detached vs awaited, typed apart.** `start()` → handle; `run()` → result.
