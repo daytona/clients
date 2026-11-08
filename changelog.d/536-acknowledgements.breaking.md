@@ -19,5 +19,6 @@ was given. `secret set` now prints the secret's metadata the API returns, like
 `registry set` the registry credential's metadata, like `registry get` (it
 printed `{"host": "ghcr.io", "updated": true}`). They read the stored resource
 first, so they need read as well as write access. The `secret` and `registry`
-commands never print the secret value or the registry password, even when a
-response holds a `value` or `password` field.
+commands drop a top-level `value` (secrets) or `password` (registries) field,
+matched in any case, from what they print, so the credential set with
+`secret set` or `registry set` is not printed even when a response returns it.

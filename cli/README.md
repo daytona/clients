@@ -397,9 +397,11 @@ request.
   resource first so the options you do not pass keep their values: they need
   read as well as write access.
 - The one exception to printing the API's JSON as it came: `secret get`,
-  `set` and `list` drop a `value` field, and `registry get`, `set` and
-  `list` a `password` field (any case), in every output format. The CLI
-  never prints a write-only credential, whatever a response holds.
+  `set` and `list` drop a top-level `value` field, and `registry get`, `set`
+  and `list` a top-level `password` field, matched in any case, in every
+  output format. These are the fields that carry the credential in
+  `secret set` and `registry set`, so the CLI does not print them back even
+  when a response returns them.
 - With JSON or YAML output (including the default off a terminal) an error
   is one JSON line on stderr:
   `{"error": {"exit_code": 4, "code": "FORBIDDEN", "message": "…", "source": "DAYTONA_API", "trace_id": "…", "hint": "…"}}`.
