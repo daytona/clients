@@ -68,14 +68,15 @@ export function withoutNullOptions<T extends object>(options: T): T {
   let copy: Record<string, unknown> | undefined
   for (const key of NULL_MEANS_OMITTED) {
     if (Reflect.get(options, key) !== null) continue
-    copy ??= Object.fromEntries(enumerableEntries(options))
+    // SAFETY: an options object is a string-keyed record.
+    copy ??= Object.fromEntries(enumerableEntries(options as Readonly<Record<string, unknown>>))
     copy[key] = undefined
   }
   // SAFETY: the same keys and values, with Python's omitted `None`s left out.
   return (copy ?? options) as T
 }
 
-function enumerableEntries(options: object): [string, unknown][] {
+function enumerableEntries(options: Readonly<Record<string, unknown>>): [string, unknown][] {
   const entries: [string, unknown][] = []
   for (const key in options) entries.push([key, Reflect.get(options, key)])
   return entries
