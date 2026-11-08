@@ -37,7 +37,7 @@ import {
 } from './http.js'
 import type { TransportAuth } from './http.js'
 import { BadRequestError, DaytonaError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError, UnsupportedOperationError } from './errors/DaytonaError.js'
-import { eventDestinationFromHeaders, regionOf, targetPredicate } from './events.js'
+import { eventDestinationFromHeaders, regionOf, targetPredicate, waitQueryKey } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 import type {
@@ -728,12 +728,13 @@ export class Sandbox {
     await this.refreshDataWithin()
   }
 
-  private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState): Promise<void> {
+  private async refreshDataWithin(timeout?: number, wait?: SandboxWaitState, exact = false): Promise<void> {
     if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
     const waitValue = waitQueryState(wait)
+    const waitKey = exact ? 'wait_exact' : 'wait'
     const config = timeout === undefined
-      ? waitValue === undefined ? undefined : { timeout: WAIT_FOR_STATE_SLICE_MS + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: WAIT_FOR_STATE_SLICE_MS } }
-      : waitValue === undefined ? { timeout } : { timeout: timeout + WAIT_READ_SLACK_MS, params: { wait: waitValue, timeout_ms: timeout } }
+      ? waitValue === undefined ? undefined : { timeout: WAIT_FOR_STATE_SLICE_MS + WAIT_READ_SLACK_MS, params: { [waitKey]: waitValue, timeout_ms: WAIT_FOR_STATE_SLICE_MS } }
+      : waitValue === undefined ? { timeout } : { timeout: timeout + WAIT_READ_SLACK_MS, params: { [waitKey]: waitValue, timeout_ms: timeout } }
     const sandbox = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(this.id)}`, config).then((response) => response.data)
     this.applySandbox(sandbox)
     this.refreshToolbox(sandbox)
@@ -1087,6 +1088,8 @@ export class Sandbox {
     const deadline = timeout === undefined || timeout === 0 ? undefined : Date.now() + timeout
     const waitTarget = new Set(states).size === 1 ? states[0] : undefined
     const effectiveTerminal = states.includes('destroyed') ? terminalStates.filter((s) => s !== 'destroying') : terminalStates
+    const waitValue = waitQueryState(waitTarget)
+    const exact = waitValue !== undefined && waitQueryKey(waitValue, effectiveTerminal) === 'wait_exact'
 
     if (this._hub !== undefined && this._hub.enabled) {
       const predicate = targetPredicate(
@@ -1112,7 +1115,7 @@ export class Sandbox {
           throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
         }
         const sliceMs = remaining === undefined ? WAIT_FOR_STATE_SLICE_MS : Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(remaining))
-        await this.refreshDataWithin(sliceMs, waitTarget)
+        await this.refreshDataWithin(sliceMs, waitTarget, exact)
         lastPollEnd = Date.now()
         refreshedByPoll = true
         return { state: this.state ?? 'unknown', rawState: this.rawState ?? '' }
@@ -1148,14 +1151,25 @@ export class Sandbox {
           // Fill in the error reason within the wait's budget. A destroyed
           // sandbox has nothing to fill in (the GET would 404), and a spent
           // budget skips it: the terminal state is the outcome either way.
+          let freshRead = refreshedByPoll
           const remaining = remainingRequestBudget(deadline)
           if (!refreshedByPoll && error.state !== 'destroyed' && (remaining === undefined || remaining > 0)) {
             try {
               await this.refreshDataWithin(remaining === undefined ? undefined : Math.min(Math.ceil(remaining), MAX_REQUEST_TIMEOUT_MS))
+              freshRead = true
             } catch {
               // The terminal state is the error to report; a failed or
               // timed-out refresh must not replace it.
             }
+          }
+          // The hub reports only the state. When the read that followed
+          // still shows that state, name the server's explanation for it (why
+          // a deletion did not finish, say) in the error.
+          // `failed` and `lost` share the public `error`; match the wire
+          // status too, so one's explanation never labels the other.
+          if (freshRead && error.reason === undefined && this.errorReason && this.state === error.state
+            && (error.rawState === undefined || this.rawState === error.rawState)) {
+            throw new SandboxTerminalStateError(this.id, error.state, error.rawState, this.errorReason)
           }
         }
         throw error
@@ -1167,7 +1181,7 @@ export class Sandbox {
       if (fresh) {
         if (this.state !== undefined && includesWaitState(states, this.state)) return
         if (this.state !== undefined && effectiveTerminal.includes(this.state)) {
-          throw new SandboxTerminalStateError(this.id, this.state, this.rawState)
+          throw new SandboxTerminalStateError(this.id, this.state, this.rawState, this.errorReason)
         }
       }
       const refreshTimeout = remainingRequestBudget(deadline)
@@ -1176,11 +1190,11 @@ export class Sandbox {
       }
       const requestTimeout = deadline === undefined ? WAIT_FOR_STATE_SLICE_MS : Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(refreshTimeout ?? 0))
       const pollStarted = Date.now()
-      await this.refreshDataWithin(requestTimeout, waitTarget)
+      await this.refreshDataWithin(requestTimeout, waitTarget, exact)
       fresh = true
       if (this.state !== undefined && includesWaitState(states, this.state)) return
       if (this.state !== undefined && effectiveTerminal.includes(this.state)) {
-        throw new SandboxTerminalStateError(this.id, this.state, this.rawState)
+        throw new SandboxTerminalStateError(this.id, this.state, this.rawState, this.errorReason)
       }
       const elapsed = Date.now() - pollStarted
       if (elapsed < WAIT_FOR_STATE_MIN_INTERVAL_MS) {

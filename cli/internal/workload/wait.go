@@ -73,7 +73,12 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 				return false, cerr.New(cerr.ExitConflict, "sandbox %s reached %s, not %s", options.ID, detail.Status, options.Target)
 			}
 			switch detail.Status {
-			case "failed", "lost", "deleted":
+			case "failed", "lost":
+				if detail.Error != nil && *detail.Error != "" {
+					return false, cerr.New(cerr.ExitConflict, "sandbox %s reached %s, not %s: %s", options.ID, detail.Status, options.Target, *detail.Error)
+				}
+				return false, cerr.New(cerr.ExitConflict, "sandbox %s reached %s, not %s", options.ID, detail.Status, options.Target)
+			case "deleted":
 				return false, cerr.New(cerr.ExitConflict, "sandbox %s reached %s, not %s", options.ID, detail.Status, options.Target)
 			case "deleting":
 				if options.Target == "deleted" {
