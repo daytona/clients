@@ -136,6 +136,8 @@ test('a recursive callback interface the caller passes in stays passed in', () =
 test('passed-in forms: a type parameter constraint, a function value, a settable class property', () => {
   const v2 = generateFixture(`
     export interface GOpts { a: string }
+    export interface UOpts { a: string }
+    export declare function unused<T extends UOpts>(): T[]
     export interface COpts { a: string }
     export interface SOpts { a: string }
     export declare function configure<T extends GOpts>(o: T): void
@@ -144,6 +146,9 @@ test('passed-in forms: a type parameter constraint, a function value, a settable
     export declare function client(): Client
   `)
   assert.ok(v2.includes('GOpts: passed-in'), v2.join('\n'))
+  // A constraint callers must satisfy with their type argument, even when no
+  // parameter uses it.
+  assert.ok(v2.some((line) => line.startsWith('UOpts: ') && line.includes('passed-in')), v2.join('\n'))
   assert.ok(v2.includes('COpts: passed-in'), v2.join('\n'))
   // Callers read it and may assign it: both ways.
   assert.ok(v2.includes('SOpts: returned also-passed-in'), v2.join('\n'))

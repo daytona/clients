@@ -174,7 +174,11 @@ way round: its parameters are returned and its return type is passed in.
 Who implements an interface's or object type's methods is solved from the
 known directions up: once the type is passed in, callers do; once it is
 handed out, the SDK does; a type reached neither way counts as the SDK's.
-Callers also pass in the constraint of a type parameter (`<T extends Opts>`),
+Callers also pass in the constraint of every type parameter of a function the
+SDK implements (`f<T extends Opts>()`: callers choose `T`, which must satisfy
+`Opts`, whether or not a parameter uses it); for a callback callers
+implement, the SDK chooses the type argument, so the constraint is returned.
+They also pass in
 the parameters of an exported function value (`export const f = (o: Opts) =>`)
 and the type of a settable class property, which they may assign. Any other
 object type (an interface or an object type alias; other declarations carry

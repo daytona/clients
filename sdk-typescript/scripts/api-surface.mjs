@@ -253,6 +253,8 @@ function surfaces(checker, program) {
   // inputs (the SDK passes the arguments, the caller returns the value).
   function flowSignature(sig, into) {
     const other = into === inputs ? outputs : inputs
+    // Whoever calls it chooses the type arguments.
+    for (const tp of sig.typeParameters ?? []) collectInputs(tp, new Set(), false, other)
     for (const param of sig.parameters) {
       const decl = param.valueDeclaration
       if (decl) collectInputs(checker.getTypeOfSymbolAtLocation(param, decl), new Set(), false, other)
@@ -371,7 +373,12 @@ function surfaces(checker, program) {
     }
 
     function reachSignature(sig, seen = new Set(), passedIn = true) {
-      for (const tp of sig.typeParameters ?? []) reach(checker.getBaseConstraintOfType(tp), seen)
+      for (const tp of sig.typeParameters ?? []) {
+        reach(checker.getBaseConstraintOfType(tp), seen)
+        // Callers choose each type argument, which must satisfy the
+        // constraint, used elsewhere in the signature or not.
+        if (passedIn) collectInputs(tp)
+      }
       for (const param of sig.parameters) {
         const decl = param.valueDeclaration
         if (!decl) continue
