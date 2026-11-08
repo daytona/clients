@@ -18,13 +18,16 @@ import (
 // FanOut queries each distinct normalized API base URL once, except when
 // ForListCursor preserves independent alias streams. The first region
 // for a URL names that endpoint's cursor and errors. The `only` argument
-// restricts the selection to one region.
+// restricts the selection to the endpoints that serve that region or a
+// region inside it (the caller filters their items by region).
 // An unknown `only` region is a usage error before any list request. When
 // some endpoints fail, the result is incomplete (PartialError maps it to exit
-// 7); when every endpoint fails, the first failure is returned as the error,
-// with its own exit code and server metadata. A cancelled or expired ctx is
-// the caller's, not an endpoint's: it is returned as the error (exit 130 or
-// 8) instead of a partial list.
+// 7). When every endpoint fails, the command fails: with the endpoint's own
+// error when there was one endpoint, else with an error that keeps the first
+// endpoint's exit code and server metadata and whose message lists every
+// endpoint's failure. A cancelled or expired ctx is the caller's, not an
+// endpoint's: it is returned as the error (exit 130 or 8) instead of a
+// partial list.
 func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only string,
 	fetch func(ctx context.Context, c *api.Client, region string) (Page[T], error),
 	less func(a, b T) bool) (output.List[T], error) {
@@ -35,15 +38,25 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 	if cat != nil {
 		if only != "" {
 			if r := cat.Find(only); r != nil {
+				scope := cat.scopeBases(home.BaseURL, only)
 				if cat.HasListAliases() {
 					for _, alias := range cat.OrderedRegions() {
-						if cat.listAliases[alias.Id] && BaseFor(alias, home.BaseURL) == BaseFor(*r, home.BaseURL) {
+						if _, ok := scope[BaseFor(alias, home.BaseURL)]; ok && cat.listAliases[alias.Id] {
 							targets = append(targets, alias)
 						}
 					}
 				}
 				if len(targets) == 0 {
+					// R's own endpoint first, then the other endpoints that
+					// serve a region inside R, each named by scopeBases.
 					targets = append(targets, *r)
+					ownBase := BaseFor(*r, home.BaseURL)
+					for _, region := range cat.OrderedRegions() {
+						base := BaseFor(region, home.BaseURL)
+						if base != ownBase && scope[base] == region.Id {
+							targets = append(targets, region)
+						}
+					}
 				}
 			} else {
 				return output.List[T]{}, cerr.Usage("unknown region %q", only).WithHint("`daytona region list` shows the regions")

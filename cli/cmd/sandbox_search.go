@@ -83,10 +83,7 @@ func newSandboxSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := writeSandboxSearchResult(a.Printer(), list); err != nil {
-				return err
-			}
-			return sandboxSearchPartialError(list)
+			return writeSandboxSearchResult(a.Printer(), list)
 		},
 	}
 	addPageFlags(cmd, &flags.pageFlags)

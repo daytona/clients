@@ -40,12 +40,9 @@ func TestVolumeCommands_routeAndRenderJSON(t *testing.T) {
 			expected: []expectedRequest{{method: http.MethodGet, path: "/volumes/55555555-5555-5555-5555-555555555555", status: 200, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")}},
 		},
 		{
-			name: "delete volume",
-			args: []string{"volume", "delete", "55555555-5555-5555-5555-555555555555", "--yes"},
-			expected: []expectedRequest{
-				{method: http.MethodGet, path: "/volumes/55555555-5555-5555-5555-555555555555", status: 200, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")},
-				{method: http.MethodDelete, path: "/volumes/55555555-5555-5555-5555-555555555555", query: "id_only=true", status: 202, response: `{"id":"55555555-5555-5555-5555-555555555555","status":"deleting"}`},
-			},
+			name:     "delete volume",
+			args:     []string{"volume", "delete", "55555555-5555-5555-5555-555555555555", "--yes"},
+			expected: []expectedRequest{{method: http.MethodDelete, path: "/volumes/55555555-5555-5555-5555-555555555555", status: 202, response: `{"id":"55555555-5555-5555-5555-555555555555","status":"deleting"}`}},
 		},
 	}
 	for _, tt := range tests {
@@ -66,4 +63,14 @@ func TestVolumeList_tableNamesTheCapacityColumnInGiB(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, stdout, "SIZE_GIB")
 	require.NotContains(t, stdout, "SIZE_GB")
+}
+
+// A volume delete the API answers without an operation acknowledges the
+// reference as given, after exactly one request.
+func TestVolumeDelete_withoutAnOperationAcknowledgesTheReference(t *testing.T) {
+	stdout, _, err := runCLI(t, []string{"volume", "delete", "data", "--yes"}, []expectedRequest{
+		{method: http.MethodDelete, path: "/volumes/data", status: 204},
+	})
+	require.NoError(t, err)
+	require.True(t, isAck(t, stdout, "ref", "data", "deleted"), stdout)
 }

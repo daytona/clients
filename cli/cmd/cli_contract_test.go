@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -475,24 +476,45 @@ func TestImageBuildExplicitEmptyFlagsDoNotFallBackToTheFile(t *testing.T) {
 	}
 }
 
-// A lifecycle flag merges into a differently cased lifecycle_policy from
-// --file instead of competing with it.
-func TestSandboxCreateLifecycleFlagMergesIntoACaseVariantFileKey(t *testing.T) {
-	body := filepath.Join(t.TempDir(), "create.json")
-	require.NoError(t, os.WriteFile(body, []byte(`{"Lifecycle_Policy":{"on_timeout":"delete"}}`), 0o600))
-	_, _, err := runCLI(t, []string{"sandbox", "create", "--file", body, "--lifecycle-timeout", "1h", "--no-wait"}, []expectedRequest{{
-		method:   http.MethodPost,
-		path:     "/sandboxes",
-		status:   202,
-		bodyJSON: `{"lifecycle_policy":{"on_timeout":"delete","timeout_seconds":3600}}`,
-		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
-	}})
-	require.NoError(t, err)
+// --file keys name request fields exactly, on every command: a key that
+// differs only in case is an unknown field, also when a flag sets the field.
+func TestFileKeysAreExactOnEveryCommand(t *testing.T) {
+	dir := t.TempDir()
+	for _, tc := range []struct {
+		body string
+		args []string
+	}{
+		{`{"Name":"x"}`, []string{"sandbox", "create", "--no-wait"}},
+		{`{"Lifecycle_Policy":{"on_timeout":"delete"}}`, []string{"sandbox", "create", "--lifecycle-timeout", "1h", "--no-wait"}},
+		{`{"lifecycle_policy":{"On_Timeout":"delete"}}`, []string{"sandbox", "create", "--no-wait"}},
+		{`{"volumes":[{"volume":"v","Mount_Path":"/m"}]}`, []string{"sandbox", "create", "--no-wait"}},
+		{`{"Name":"x"}`, []string{"sandbox", "create-from-snapshot", "snap", "--no-wait"}},
+		{`{"Type":"disk"}`, []string{"volume", "create", "vol"}},
+		{`{"bucket":{"Name":"b"}}`, []string{"volume", "create", "vol", "--type", "bucket"}},
+		{`{"Name":"x"}`, []string{"snapshot", "create", "s", "--no-wait"}},
+		{`{"Source":{"type":"registry","ref":"python:3.12"}}`, []string{"image", "create", "img", "--no-wait"}},
+		{`{"Labels":{"a":"b"}}`, []string{"sandbox", "update", "s"}},
+		{`{"lifecycle_policy":{"Timeout_Seconds":60}}`, []string{"sandbox", "update", "s"}},
+		{`{"Dockerfile":"Dockerfile","context":"."}`, []string{"image", "build", "img", "--no-wait"}},
+		{`{"Model":"m"}`, []string{"reservation", "create", "--region", "r", "--yes"}},
+	} {
+		path := filepath.Join(dir, "body.json")
+		require.NoError(t, os.WriteFile(path, []byte(tc.body), 0o600))
+		f := newFakeAPI(t)
+		f.on(http.MethodGet, "/sandboxes/s", 200, sandboxDetailFixture("s", "linux", "running"))
+		args := append([]string{"--api-url", f.srv.URL, "--api-key", "k"}, tc.args...)
+		_, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, append(args, "--file", path)...)
+		require.Equal(t, cerr.ExitUsage, code, "%v %s: %s", tc.args, tc.body, stderr)
+		require.Contains(t, errorObject(t, stderr)["message"], "unknown field", tc.body)
+		for _, r := range f.requests {
+			require.Equal(t, http.MethodGet, r.Method, "%v %s: nothing is sent", tc.args, tc.body)
+		}
+	}
 }
 
 // env and labels keys are the user's names: keys that differ only in case
-// are distinct and sent as given. Two spellings of one field are refused.
-func TestSandboxCreateFileCaseVariants(t *testing.T) {
+// are distinct and sent as given.
+func TestSandboxCreateFileMapKeysAreSentAsGiven(t *testing.T) {
 	body := filepath.Join(t.TempDir(), "create.json")
 	require.NoError(t, os.WriteFile(body, []byte(`{"env":{"PATH":"1","path":"2"},"labels":{"a":"1","A":"2"}}`), 0o600))
 	_, _, err := runCLI(t, []string{"sandbox", "create", "--file", body, "--no-wait"}, []expectedRequest{{
@@ -503,16 +525,6 @@ func TestSandboxCreateFileCaseVariants(t *testing.T) {
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
 	}})
 	require.NoError(t, err)
-
-	for _, content := range []string{
-		`{"cores_max":1,"CORES_MAX":2}`,
-		`{"lifecycle_policy":{"on_timeout":"delete","ON_TIMEOUT":"stop"}}`,
-	} {
-		require.NoError(t, os.WriteFile(body, []byte(content), 0o600))
-		_, _, err = runCLI(t, []string{"sandbox", "create", "--file", body, "--no-wait"}, nil)
-		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), content)
-		require.ErrorContains(t, err, "name the same field", content)
-	}
 }
 
 func TestSandboxUpdateRefusesANonObjectLifecyclePolicyEvenWithFlags(t *testing.T) {
@@ -757,4 +769,94 @@ func TestRegionFlagFiltersListsOnASharedAPI(t *testing.T) {
 	stdout, stderr, code = runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list")
 	require.Equal(t, 0, code, stderr)
 	require.ElementsMatch(t, []string{"a-us", "b-eu"}, ids(stdout))
+}
+
+// --region on a parent region asks every API that serves a region inside it:
+// a child region with its own API is not missed.
+func TestRegionFlagOnAParentAsksEveryChildAPI(t *testing.T) {
+	var usQueries atomic.Int32
+	us := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		usQueries.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "/images") {
+			_, _ = w.Write([]byte(`{"images":[{"id":"i-us","status":"ready","region_id":"us","region_ids":["us"]}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"sandboxes":[{"id":"sb1-us","name":"a","status":"running","region_id":"us"}],"next_cursor":"u2"}`))
+	}))
+	defer us.Close()
+	f := newFakeAPI(t)
+	f.on(http.MethodGet, "/regions", 200, `{"regions":[{"id":"earth","name":"Earth","available":false,"parent_region_ids":[]},{"id":"us","name":"US","available":true,"parent_region_ids":["earth"],"api_base_url":"`+us.URL+`"},{"id":"eu","name":"EU","available":true,"parent_region_ids":["earth"]},{"id":"mars","name":"Mars","available":true,"parent_region_ids":[]}],"default_region_id":null}`)
+	f.handle(http.MethodGet, "/sandboxes", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"sandboxes":[{"id":"sb2-eu","name":"b","status":"running","region_id":"eu"},{"id":"sb3-mars","name":"c","status":"running","region_id":"mars"}]}`))
+	})
+	f.handle(http.MethodGet, "/images", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"images":[{"id":"i-eu","status":"ready","region_id":"eu","region_ids":["eu"]},{"id":"i-mars","status":"ready","region_id":"mars","region_ids":["mars"]}]}`))
+	})
+	ids := func(stdout string) []string {
+		var out []string
+		for _, item := range mustJSON(t, stdout)["items"].([]any) {
+			out = append(out, item.(map[string]any)["id"].(string))
+		}
+		return out
+	}
+	env := map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}
+	stdout, stderr, code := runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list", "--region", "earth")
+	require.Equal(t, 0, code, stderr)
+	require.ElementsMatch(t, []string{"sb1-us", "sb2-eu"}, ids(stdout))
+	next := mustJSON(t, stdout)["next_cursor"].(string)
+	require.Contains(t, next, "us:u2", "the child API's cursor is kept")
+	homeQueries := len(f.requests)
+	stdout, stderr, code = runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list", "--region", "earth", "--cursor", next)
+	require.Equal(t, 0, code, stderr)
+	require.Equal(t, []string{"sb1-us"}, ids(stdout), "resuming asks only the unfinished child API")
+	for _, r := range f.requests[homeQueries:] {
+		require.NotEqual(t, "/sandboxes", r.Path)
+	}
+	usQueries.Store(0)
+	stdout, stderr, code = runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "image", "list", "--region", "earth")
+	require.Equal(t, 0, code, stderr)
+	require.ElementsMatch(t, []string{"i-us", "i-eu"}, ids(stdout))
+	require.Equal(t, int32(1), usQueries.Load())
+	// A region whose scope holds no other API asks only its own.
+	stdout, stderr, code = runReported(t, cfgDir(t), env, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list", "--region", "eu")
+	require.Equal(t, 0, code, stderr)
+	require.Equal(t, []string{"sb2-eu"}, ids(stdout))
+	require.Equal(t, int32(1), usQueries.Load())
+}
+
+// Login modes conflict only when both are selected: false values are fine.
+func TestLoginModeFlagsConflictOnlyWhenSelected(t *testing.T) {
+	for _, args := range [][]string{
+		{"login", "--device", "--browser"},
+		{"login", "--device=true", "--browser=true"},
+		{"login", "--token", "dtn_x", "--device"},
+		{"login", "--token", "dtn_x", "--client-id", "c"},
+	} {
+		_, stderr, code := runReported(t, cfgDir(t), nil, args...)
+		require.Equal(t, cerr.ExitUsage, code, "%v: %s", args, stderr)
+	}
+	_, stderr, code := runReported(t, cfgDir(t), nil, "login", "--token", "dtn_x", "--device=false", "--browser=false")
+	require.Equal(t, 0, code, stderr)
+	// A false --device does not conflict with --browser: the browser flow
+	// starts (and fails here, with no API to reach), not a usage error.
+	_, stderr, code = runReported(t, cfgDir(t), nil, "--api-url", "http://127.0.0.1:1", "login", "--device=false", "--browser")
+	require.NotEqual(t, cerr.ExitUsage, code, stderr)
+}
+
+// The old lifecycle --timeout SECONDS names its replacement.
+func TestOldLifecycleTimeoutNamesItsReplacement(t *testing.T) {
+	for _, args := range [][]string{
+		{"sandbox", "create", "--timeout", "3600"},
+		{"sandbox", "create", "--timeout", "+3600"},
+		{"sandbox", "create-macos", "--timeout", "60"},
+		{"sandbox", "update", "s", "--timeout", "3600"},
+	} {
+		_, stderr, code := runReported(t, cfgDir(t), nil, args...)
+		require.Equal(t, cerr.ExitUsage, code, args)
+		require.Contains(t, errorObject(t, stderr)["hint"], "--lifecycle-timeout", args)
+	}
+	_, stderr, code := runReported(t, cfgDir(t), nil, "sandbox", "wait", "s", "--timeout", "30")
+	require.Equal(t, cerr.ExitUsage, code)
+	require.NotContains(t, stderr, "--lifecycle-timeout", "sandbox wait never had a lifecycle --timeout")
 }

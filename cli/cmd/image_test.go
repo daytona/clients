@@ -63,12 +63,10 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 		},
 		{
 			name: "delete image",
-			// A name is resolved first: the acknowledgement names the id.
-			args: []string{"image", "delete", "py312", "--yes"},
-			expected: []expectedRequest{
-				{method: http.MethodGet, path: "/images/py312", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
-				{method: http.MethodDelete, path: "/images/11111111-1111-1111-1111-111111111111", query: "id_only=true", status: 204},
-			},
+			// One request: the API resolves an id or a name, and the
+			// acknowledgement repeats the reference as given.
+			args:     []string{"image", "delete", "py312", "--yes"},
+			expected: []expectedRequest{{method: http.MethodDelete, path: "/images/py312", status: 204}},
 		},
 	}
 	for _, tt := range tests {
@@ -77,7 +75,7 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, requireJSONStdout(t, stdout))
 			if tt.name == "delete image" {
-				require.True(t, isAck(t, stdout, "id", "11111111-1111-1111-1111-111111111111", "deleted"), stdout)
+				require.True(t, isAck(t, stdout, "ref", "py312", "deleted"), stdout)
 			}
 		})
 	}

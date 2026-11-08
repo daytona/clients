@@ -68,7 +68,7 @@ func newImageDeleteCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <id-or-name>",
 		Short: "Delete an image",
-		Long:  "Delete an image by id or name; the acknowledgement names its id.\nExample:\n  daytona image delete <id-or-name> --yes",
+		Long:  "Delete an image by id or name; the acknowledgement repeats the reference as given.\nExample:\n  daytona image delete <id-or-name> --yes",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -79,14 +79,10 @@ func newImageDeleteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			id, err := resolveResourceID(cmd.Context(), client, "/images/", args[0], func(v gen.Image) string { return v.Id })
-			if err != nil {
+			if err := client.Do(cmd.Context(), http.MethodDelete, "/images/"+url.PathEscape(args[0]), nil, nil, nil); err != nil {
 				return err
 			}
-			if err := client.Do(cmd.Context(), http.MethodDelete, "/images/"+url.PathEscape(id), idOnly, nil, nil); err != nil {
-				return err
-			}
-			return printAck(a, "id", id, "deleted", "")
+			return printAck(a, "ref", args[0], "deleted", "")
 		},
 	}
 }

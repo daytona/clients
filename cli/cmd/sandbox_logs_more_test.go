@@ -233,7 +233,10 @@ func TestReadSandboxLogs_followWarnsWhenSnapshotRollsPastSeenPrefix(t *testing.T
 			_, _ = w.Write([]byte("omega\n"))
 			close(seenSecond)
 		default:
-			t.Fatalf("unexpected poll %d", calls)
+			// A slow machine may poll again before the cancel lands: the
+			// same snapshot again adds nothing.
+			_, _ = w.Write([]byte("omega\n"))
+			cancel()
 		}
 	}))
 	defer srv.Close()

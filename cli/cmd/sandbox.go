@@ -261,9 +261,10 @@ func printSandboxDetail(ctx context.Context, id string) error {
 
 // regionFilter reports whether a region id is the --region the list was
 // narrowed to or a region inside it; every region matches without --region.
-// The list API has no region filter, and regions without their own API base
-// URL share one: the CLI drops the other regions' items after the request,
-// while the cursor still advances over the API's whole page.
+// The list API has no region filter: the CLI asks every API that serves the
+// region or a region inside it, then drops the other regions' items (regions
+// without their own API base URL share one), while the cursor still advances
+// over each API's whole page.
 func (source regionalListSource) regionFilter(ctx context.Context) (func(string) bool, error) {
 	if source.region == "" {
 		return func(string) bool { return true }, nil
@@ -276,19 +277,7 @@ func (source regionalListSource) regionFilter(ctx context.Context) (func(string)
 	if selected == nil {
 		return nil, cerr.Usage("unknown region %q", source.region).WithHint("`daytona region list` shows the regions")
 	}
-	return func(id string) bool {
-		if strings.EqualFold(id, selected.Id) {
-			return true
-		}
-		if r := cat.Find(id); r != nil {
-			for _, parent := range r.ParentRegionIds {
-				if strings.EqualFold(parent, selected.Id) {
-					return true
-				}
-			}
-		}
-		return false
-	}, nil
+	return func(id string) bool { return cat.InScope(selected.Id, id) }, nil
 }
 
 // keepItems returns the items keep accepts, in order.

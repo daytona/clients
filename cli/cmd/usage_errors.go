@@ -50,7 +50,7 @@ func rejectUnknownSubcommand(cmd *cobra.Command, args []string) error {
 // replacement.
 var renamedCommands = map[string]string{
 	"daytona invite show":         "invite get",
-	"daytona sandbox preview-url": "sandbox port preview-url (and `sandbox port preview-url expire`)",
+	"daytona sandbox preview-url": "sandbox port preview-url",
 	"daytona image import":        "image create NAME --ref REF",
 }
 

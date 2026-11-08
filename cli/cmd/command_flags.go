@@ -142,7 +142,7 @@ var lifecycleCommands = map[string]bool{
 	"daytona sandbox create-macos":         true,
 }
 
-var bareTimeoutValue = regexp.MustCompile(`^invalid argument "-?[0-9]+" for "--timeout" flag`)
+var bareTimeoutValue = regexp.MustCompile(`^invalid argument "[+-]?[0-9]+" for "--timeout" flag`)
 
 // lifecycleTimeoutHint explains a bare-number --timeout on the commands
 // where it used to be the sandbox lifetime in seconds.

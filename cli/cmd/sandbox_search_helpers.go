@@ -22,8 +22,6 @@ type sandboxSearchResult struct {
 	NextCursor    string                         `json:"next_cursor,omitempty"`
 	Total         int64                          `json:"total"`
 	TotalRelation string                         `json:"total_relation"`
-	Incomplete    bool                           `json:"incomplete"`
-	Errors        []output.RegionError           `json:"errors,omitempty"`
 }
 
 func fetchSandboxSearchPage(ctx context.Context, client *api.Client, queryText string, flags sandboxSearchFlags, cursor string) (sandboxSearchResult, error) {
@@ -95,7 +93,6 @@ func collectSandboxSearchPages(ctx context.Context, cursor string, fetch func(co
 	if err != nil {
 		return sandboxSearchResult{}, err
 	}
-	combined.Errors = dedupeSandboxSearchErrors(combined.Errors)
 	for combined.NextCursor != "" {
 		next := combined.NextCursor
 		if _, ok := seen[next]; ok {
@@ -108,33 +105,15 @@ func collectSandboxSearchPages(ctx context.Context, cursor string, fetch func(co
 		}
 		combined.Items = append(combined.Items, page.Items...)
 		combined.NextCursor = page.NextCursor
-		combined.Incomplete = combined.Incomplete || page.Incomplete
-		combined.Errors = dedupeSandboxSearchErrors(append(combined.Errors, page.Errors...))
 	}
 	return combined, nil
-}
-
-func dedupeSandboxSearchErrors(errors []output.RegionError) []output.RegionError {
-	if len(errors) < 2 {
-		return errors
-	}
-	seen := make(map[string]struct{}, len(errors))
-	deduped := make([]output.RegionError, 0, len(errors))
-	for _, item := range errors {
-		if _, ok := seen[item.Region]; ok {
-			continue
-		}
-		seen[item.Region] = struct{}{}
-		deduped = append(deduped, item)
-	}
-	return deduped
 }
 
 func writeSandboxSearchResult(p output.Printer, list sandboxSearchResult) error {
 	if p.Format == output.FormatJSON || p.Format == output.FormatYAML {
 		return p.Object(list, nil)
 	}
-	if err := listOutRaw(p, output.List[api.Raw[gen.SandboxListItem]]{Items: list.Items, NextCursor: list.NextCursor, Incomplete: list.Incomplete, Errors: list.Errors}, sandboxSearchTable); err != nil {
+	if err := listOutRaw(p, output.List[api.Raw[gen.SandboxListItem]]{Items: list.Items, NextCursor: list.NextCursor}, sandboxSearchTable); err != nil {
 		return err
 	}
 	relation := "exact"
@@ -143,17 +122,6 @@ func writeSandboxSearchResult(p output.Printer, list sandboxSearchResult) error 
 	}
 	_, err := fmt.Fprintf(p.W, "\n%d matches (%s)\n", list.Total, relation)
 	return err
-}
-
-func sandboxSearchPartialError(list sandboxSearchResult) error {
-	if !list.Incomplete {
-		return nil
-	}
-	parts := make([]string, 0, len(list.Errors))
-	for _, item := range list.Errors {
-		parts = append(parts, item.Region)
-	}
-	return cerr.New(cerr.ExitPartial, "results for the listed regions may be incomplete: %s", strings.Join(parts, ", ")).WithHint("hits from those regions may still be shown")
 }
 
 func sandboxSearchTable(items []gen.SandboxListItem) output.Table {
