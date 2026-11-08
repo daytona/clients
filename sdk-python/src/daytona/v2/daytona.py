@@ -1307,7 +1307,8 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     # DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
     # the caller chose.
     for name in ("api_key", "jwt_token", "project_id"):
-        if getattr(config, name) == "":
+        value: object = getattr(config, name)
+        if value is not None and (not isinstance(value, str) or value == ""):
             raise create_error(f"{name} must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
     api_key = (
         config.api_key
