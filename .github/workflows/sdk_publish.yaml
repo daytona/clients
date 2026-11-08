@@ -404,7 +404,9 @@ jobs:
           fi
           missing=()
           grep -Eq "types: *\[ *${EVENT} *\]" <<<"$workflow" || missing+=("a repository_dispatch trigger on ${EVENT}")
-          grep -Eq '^run-name:.*client_payload\.version' <<<"$workflow" || missing+=("a run-name ending in the dispatched version (the publish job finds its run by it)")
+          # The run's title must END with the version: the publish job matches
+          # titles with endswith("v<version>").
+          grep -Eq "^run-name:.*[\$][{][{] *github[.]event[.]client_payload[.]version *[}][}][\"']?[[:space:]]*\$" <<<"$workflow" || missing+=("a run-name ending in the dispatched version (the publish job finds its run by it)")
           grep -Fq "${FORMULA}.rb" <<<"$workflow" || missing+=("an update of ${FORMULA}.rb")
           for m in "${missing[@]}"; do echo "::error::${tap}/.github/workflows/${TAP_WORKFLOW} lacks ${m}"; done
           [ "${#missing[@]}" -eq 0 ] || exit 1
@@ -944,6 +946,66 @@ jobs:
       # never overwritten. A full re-run repeats registry-check, which still
       # refuses an already-published version unless force_republish is set.
       RESUME: ${{ inputs.force_republish || github.run_attempt != '1' }}
+      # Keeps npm `latest` on the highest stable version, run as
+      # `bash -c "$NPM_LATEST_GUARD" guard check|verify <package> <version>`
+      # around each `npm publish --tag latest` (the 0.x line guards its
+      # publishes the same way). `npm publish --tag latest` moves the tag
+      # even to a lower version, and registry-check saw the registry before
+      # the build: another stable publish may have landed since.
+      #   check   right before publishing: no published stable version above
+      #           this one (the same version, a resume, is fine);
+      #   verify  after publishing: once this version is visible, `latest`
+      #           is the highest published stable version; retried for up to
+      #           5 minutes while the registry catches up, then fails with the
+      #           command that restores the tag.
+      NPM_LATEST_GUARD: |
+        set -euo pipefail
+        mode="$1" pkg="$2" version="$3"
+        url="https://registry.npmjs.org/${pkg/\//%2f}"
+        fetch() {
+          curl -sS --max-time 60 -H 'Accept: application/vnd.npm.install-v1+json' \
+            -o "$RUNNER_TEMP/packument.json" -w '%{http_code}' "${url}?nocache=$(date +%s%N)" || true
+        }
+        # Exit 0: holds; 1: does not (message on stdout); 2: this version is
+        # not visible on the registry yet.
+        judge() {
+          # shellcheck disable=SC2016 # JavaScript, not shell, in single quotes
+          node -e '
+            const [mode, pkg, version] = process.argv.slice(1);
+            const doc = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            const parse = (v) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.exec(v)?.slice(1).map(Number);
+            const above = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+            const stable = Object.keys(doc.versions ?? {}).filter(parse).sort((a, b) => above(parse(b), parse(a)));
+            if (mode === "check") {
+              const higher = stable.filter((v) => above(parse(v), parse(version)) > 0);
+              if (higher.length) { console.log(`::error::${pkg}@${higher[0]} is already published: publishing ${version} with --tag latest would move latest back`); process.exit(1); }
+              process.exit(0);
+            }
+            if (!(version in (doc.versions ?? {}))) { console.log(`${pkg}@${version} is not visible on the registry yet`); process.exit(2); }
+            const latest = doc["dist-tags"]?.latest;
+            if (latest !== stable[0]) { console.log(`::error::npm latest of ${pkg} is ${latest}, not the highest stable version ${stable[0]} (another publish landed in between); restore it with: npm dist-tag add ${pkg}@${stable[0]} latest`); process.exit(1); }
+            console.log(`npm latest of ${pkg}: ${latest}`);
+          ' "$mode" "$pkg" "$version" < "$RUNNER_TEMP/packument.json"
+        }
+        case "$mode" in
+          check)
+            code=$(fetch)
+            case "$code" in
+              200) judge ;;
+              404) echo "${pkg} is not on npm yet: nothing to move back" ;;
+              *)   echo "::error::the npm registry answered HTTP ${code:-000} for ${pkg}"; exit 1 ;;
+            esac ;;
+          verify)
+            deadline=$(( $(date +%s) + 300 ))
+            while :; do
+              rc=1 out=""
+              if [ "$(fetch)" = 200 ]; then out=$(judge) && rc=0 || rc=$?; fi
+              [ "$rc" -ne 0 ] || { echo "$out"; exit 0; }
+              if [ "$(date +%s)" -ge "$deadline" ]; then echo "${out:-::error::could not read ${pkg} from the npm registry}"; exit 1; fi
+              sleep 10
+            done ;;
+          *) echo "::error::usage: guard check|verify <package> <version>"; exit 2 ;;
+        esac
     steps:
       # Fail closed before any publishing credential is used: every requested target
       # must have a successful build (the job condition only rules out a
@@ -1065,7 +1127,9 @@ jobs:
           if [ "$RESUME" = true ]; then
             code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fsdk/${NPM_VERSION}") || true
             case "$code" in
-              200) echo "::notice::@daytona/sdk@${NPM_VERSION} is already on npm — skipping (force_republish or re-run)"; exit 0 ;;
+              200) echo "::notice::@daytona/sdk@${NPM_VERSION} is already on npm — skipping (force_republish or re-run)"
+                   if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard verify @daytona/sdk "$NPM_VERSION"; fi
+                   exit 0 ;;
               404) ;;
               *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/sdk ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
             esac
@@ -1083,7 +1147,9 @@ jobs:
           # publishes.
           # "./" is load-bearing: npm reads a bare `pack/x.tgz` as GitHub
           # shorthand (`git ls-remote ssh://git@github.com/pack/x.tgz.git`).
+          if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard check @daytona/sdk "$NPM_VERSION"; fi
           npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
+          if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard verify @daytona/sdk "$NPM_VERSION"; fi
 
       # ── Migration tool: PyPI daytona-upgrade, npm @daytona/upgrade ──
       # Like the 0.x line's client packages: the tool writes this SDK release
@@ -1169,7 +1235,9 @@ jobs:
           if [ "$RESUME" = true ]; then
             code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fupgrade/${NPM_VERSION}") || true
             case "$code" in
-              200) echo "::notice::@daytona/upgrade@${NPM_VERSION} is already on npm — skipping (force_republish or re-run)"; exit 0 ;;
+              200) echo "::notice::@daytona/upgrade@${NPM_VERSION} is already on npm — skipping (force_republish or re-run)"
+                   if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard verify @daytona/upgrade "$NPM_VERSION"; fi
+                   exit 0 ;;
               404) ;;
               *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/upgrade ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
             esac
@@ -1181,7 +1249,9 @@ jobs:
             if (manifest.name !== "@daytona/upgrade" || manifest.version !== process.env.NPM_VERSION) {
               console.error(`::error::the migration tool tarball is ${manifest.name}@${manifest.version}`); process.exit(1);
             }'
+          if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard check @daytona/upgrade "$NPM_VERSION"; fi
           npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
+          if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard verify @daytona/upgrade "$NPM_VERSION"; fi
 
       # ── CLI: GitHub Release + the channel's Homebrew formula ──
       - name: Download the CLI release assets
@@ -1230,8 +1300,11 @@ jobs:
           # stable vX.Y.Z of the repository (every line's releases count).
           latest=false
           if [ "$expected_kind" = stable ]; then
-            highest=$({ gh release list --repo "$repo" --limit 1000 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'; echo "$tag"; } \
-              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+            if ! stable=$(gh release list --repo "$repo" --limit 1000 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'); then
+              echo "::error::could not list the releases of $repo to tell whether $tag is the highest stable release"
+              exit 1
+            fi
+            highest=$(printf '%s\n%s\n' "$stable" "$tag" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
             [ "$highest" = "$tag" ] && latest=true
             echo "highest stable release: ${highest} — ${tag} becomes Latest: ${latest}"
           fi
@@ -1326,9 +1399,25 @@ jobs:
           # downstream formula run so a failed formula update fails THIS job
           # instead of leaving Homebrew silently stale.
           runs_url="https://github.com/${tap}/actions/workflows/${TAP_WORKFLOW}"
+          # The formula on the tap's default branch must end up naming this
+          # version: read it back, for up to $1 seconds.
+          formula_names_version() {
+            local deadline=$(( $(date +%s) + $1 )) formula_version
+            while :; do
+              formula_version="$(gh api "repos/${tap}/contents/${FORMULA}.rb" --jq .content | base64 -d | sed -n 's/^  version "\(.*\)"$/\1/p' | head -n 1)" || formula_version=""
+              if [ "$formula_version" = "$CLI_VERSION" ]; then echo "${FORMULA} formula: ${formula_version}"; return 0; fi
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "::error::${tap} ${FORMULA}.rb is at '${formula_version}', not ${CLI_VERSION} — the update failed, or another update landed after it; see $runs_url and re-run this job"
+                return 1
+              fi
+              sleep 15
+            done
+          }
           if ! gh run list --repo "$tap" --workflow "$TAP_WORKFLOW" --limit 1 >/dev/null 2>&1; then
-            echo "::warning::GITHUBBOT_TOKEN cannot read workflow runs on ${tap} — verify the ${FORMULA} formula update by hand: $runs_url"
-            exit 0
+            # Without the runs, the formula itself is the evidence.
+            echo "::warning::GITHUBBOT_TOKEN cannot read workflow runs on ${tap}; waiting up to 15 minutes for ${FORMULA}.rb to name ${CLI_VERSION} instead"
+            formula_names_version 900
+            exit
           fi
           # The tap workflow names its run after the dispatched version
           # (`run-name: … v<version>`; the gate checked it), so the match is
@@ -1346,13 +1435,7 @@ jobs:
           fi
           echo "waiting for ${tap} run $run_id"
           gh run watch "$run_id" --repo "$tap" --exit-status --interval 15
-          # The formula on the tap's default branch must now name this version.
-          formula_version="$(gh api "repos/${tap}/contents/${FORMULA}.rb" --jq .content | base64 -d | sed -n 's/^  version "\(.*\)"$/\1/p' | head -n 1)"
-          if [ "$formula_version" != "$CLI_VERSION" ]; then
-            echo "::error::${tap} ${FORMULA}.rb is at '${formula_version}' after the update, not ${CLI_VERSION} — another update landed after this one; re-run this job"
-            exit 1
-          fi
-          echo "${FORMULA} formula: ${formula_version}"
+          formula_names_version 0
 
   # The version is recorded as a tag on the published commit. The CLI
   # release creates it; an SDK-only run (publish_cli=false) creates it here.

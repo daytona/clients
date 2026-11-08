@@ -63,12 +63,17 @@ for (const tag of ['alpha', 'beta', 'next', 'latest', '', 'stable', 'latest\ninj
     // When: running the credential-bearing publish step with the supplied dist-tag.
     const result = spawnSync('bash', ['-c', step('Publish the migration tool to npm (OIDC)')], {
       cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
-        NPM_DIST_TAG: tag, NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log },
+        NPM_DIST_TAG: tag, NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log,
+        // The npm latest guard has its own tests (publish-channels.test.mjs).
+        NPM_LATEST_GUARD: 'echo "guard $*" >> "$GUARD_LOG"', GUARD_LOG: join(root, 'guard') },
     });
     // Then: only an allowed dist-tag reaches npm.
     assert.equal(result.status, valid ? 0 : 1, result.stderr);
     if (valid) assert.equal(readFileSync(log, 'utf8'), 'published\n');
     else assert.throws(() => readFileSync(log), { code: 'ENOENT' });
+    // A publish under `latest` is checked before and verified after.
+    if (tag === 'latest') assert.equal(readFileSync(join(root, 'guard'), 'utf8'), 'guard check @daytona/upgrade 2.0.0-alpha.8\nguard verify @daytona/upgrade 2.0.0-alpha.8\n');
+    else assert.throws(() => readFileSync(join(root, 'guard')), { code: 'ENOENT' });
   });
 }
 

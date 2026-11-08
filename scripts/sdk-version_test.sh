@@ -87,6 +87,8 @@ grep -qF -- "\"\$pypi\" =~ ^\${num}\.\${num}\.\${num}((a|rc)\${num})?\$" ../.git
   || fail "sdk_publish.yaml's PyPI gate regex differs from this test's"
 grep -qF -- "\"\$npm\" =~ ^\${num}\.\${num}\.\${num}(-(alpha|rc)\.\${num})?\$" ../.github/workflows/sdk_publish.yaml \
   || fail "sdk_publish.yaml's npm gate regex differs from this test's"
+grep -qF -- "\"\$cli\" =~ ^\${num}\.\${num}\.\${num}(-(alpha|rc)\.\${num})?\$" ../.github/workflows/sdk_publish.yaml \
+  || fail "sdk_publish.yaml's CLI gate regex differs from this test's"
 for t in v2.0.0-alpha.3 v2.0.0-rc.2 v2.0.0 v2.1.10; do
   eval "$(./sdk-version.sh "$t")"
   [[ "$pypi" =~ $pypi_re ]] || fail "$t: pypi '$pypi' must pass the gate"
