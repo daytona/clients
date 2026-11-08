@@ -48,6 +48,7 @@ type githubRelease struct {
 	CreatedAt       string         `json:"created_at"`
 	Assets          []any          `json:"assets"`
 	Body            string         `json:"body"`
+	MentionsCount   *int           `json:"mentions_count"` // GitHub's last field: a number, here also null
 }
 
 type reorderedRelease struct {
@@ -56,6 +57,9 @@ type reorderedRelease struct {
 	Body       string         `json:"body"`
 	Author     map[string]any `json:"author"`
 	TagName    string         `json:"tag_name"`
+	// Ends the object with a number or null, so the next object's first
+	// field (a flag) follows a value that no closing token ends.
+	MentionsCount *int `json:"mentions_count"`
 }
 
 // write stores the index as page-N.json files in dir.
@@ -71,18 +75,25 @@ func (r releaseIndex) write(t *testing.T, dir string) {
 	for page := 0; page*size < len(r.tags); page++ {
 		end := min((page+1)*size, len(r.tags))
 		var releases []any
-		for _, tag := range r.tags[page*size : end] {
+		for i, tag := range r.tags[page*size : end] {
+			// A numeric mentions_count, and null on every third release.
+			var mentions *int
+			if i%3 != 2 {
+				n := i + 3
+				mentions = &n
+			}
 			draft, prerelease := slices.Contains(r.draft, tag), strings.Contains(tag, "-") || slices.Contains(r.prerelease, tag)
 			author := map[string]any{"login": "release-bot", "tag_name": "v9.9.9", "draft": false, "prerelease": false}
 			body := `Install: "tag_name": "v9.9.9", "prerelease": false, "draft": false {[\`
 			if r.reordered {
-				releases = append(releases, reorderedRelease{Prerelease: prerelease, Draft: draft, Body: body, Author: author, TagName: tag})
+				releases = append(releases, reorderedRelease{Prerelease: prerelease, Draft: draft, Body: body, Author: author, TagName: tag, MentionsCount: mentions})
 				continue
 			}
 			releases = append(releases, githubRelease{
 				URL: "https://api.github.com/repos/daytona/clients/releases/1", Author: author, TagName: tag, TargetCommitish: "main",
 				Name: "daytona CLI " + tag, Draft: draft, Prerelease: prerelease, CreatedAt: "2026-11-01T00:00:00Z",
 				Assets: []any{map[string]any{"name": "daytona-linux-amd64", "label": "", "draft": true}}, Body: body,
+				MentionsCount: mentions,
 			})
 		}
 		body, err := json.Marshal(releases)
@@ -315,6 +326,48 @@ func TestInstallSh_rejectsUsageErrors(t *testing.T) {
 			require.Empty(t, got)
 		})
 	}
+}
+
+// A release object that ends with a number (GitHub's mentions_count) before
+// one whose flags come first: the second, higher release must not be lost.
+var trailingNumberIndex = releaseIndex{raw: []string{
+	`[{"url":"a","tag_name":"v2.1.0","draft":false,"prerelease":false,"mentions_count":3},` +
+		`{"draft":false,"prerelease":false,"tag_name":"v2.2.0","url":"b"},` +
+		`{"url":"c","tag_name":"v2.0.0","draft":false,"prerelease":false,"mentions_count":null},` +
+		`{"prerelease":false,"tag_name":"v2.1.5","draft":false}]`,
+}}
+
+func TestInstallSh_readsAReleaseAfterOneEndingInANumber(t *testing.T) {
+	out, got, requests, err := runInstallShRequests(t, "sh install.sh", trailingNumberIndex)
+
+	require.NoError(t, err, out)
+	require.Equal(t, "2.2.0", got)
+	require.Equal(t, 2, requests)
+}
+
+// A page whose only release has an empty tag is read (that release is no 2.x
+// release), not mistaken for one that could not be read; a tag with blanks
+// does not shift the draft and prerelease fields.
+func TestInstallSh_readsAPageWhoseReleaseHasNoUsableTag(t *testing.T) {
+	index := releaseIndex{raw: []string{
+		`[{"tag_name":"v2.1.0","draft":false,"prerelease":false},{"tag_name":"v2.3.0 x","draft":false,"prerelease":false}]`,
+		`[{"prerelease":true,"draft":false,"tag_name":"","mentions_count":0}]`,
+	}}
+
+	out, got, requests, err := runInstallShRequests(t, "sh install.sh", index)
+
+	require.NoError(t, err, out)
+	require.Equal(t, "2.1.0", got)
+	require.Equal(t, 3, requests)
+}
+
+func TestInstallPs1_readsAReleaseAfterOneEndingInANumber(t *testing.T) {
+	out, got, requests, err := runInstallPs1Requests(t, `Get-Content -Raw $env:MOCK_INSTALL_PS1 | Invoke-Expression`, trailingNumberIndex)
+
+	require.NoError(t, err, out)
+	require.NotContains(t, out, "INSTALL_FAILED")
+	require.Equal(t, "2.2.0", got)
+	require.Equal(t, 2, requests)
 }
 
 func TestInstallSh_failsOnAPageItCannotRead(t *testing.T) {

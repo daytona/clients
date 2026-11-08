@@ -85,7 +85,7 @@ if [ -z "$VERSION" ]; then
         if (esc) next
         instr = 0
         if (depth == 2 && !value) key = str
-        else if (depth == 2 && key == "tag_name") tag = str
+        else if (depth == 2 && key == "tag_name") { tag = str; hastag = 1 }
         if (depth == 2) value = 0
         next
       }
@@ -93,10 +93,14 @@ if [ -z "$VERSION" ]; then
         n = length($0)
         for (i = 1; i <= n; i++) {
           c = substr($0, i, 1)
-          if (c == "{" || c == "[") { if (depth == 1) { tag = ""; draft = ""; pre = "" } depth++; continue }
+          # A number or null value (the last field of a release object can
+          # be one) is never closed by a token here: reset it on entry.
+          if (c == "{" || c == "[") { if (depth == 1) { tag = ""; hastag = 0; draft = ""; pre = "" } depth++; value = 0; continue }
           if (c == "}" || c == "]") {
             depth--
-            if (depth == 1 && tag != "" && draft != "" && pre != "") print tag, draft, pre
+            # One line per release with all three fields; a tag that is empty
+            # or holds blanks stays one field (and is no release version).
+            if (depth == 1 && hastag && draft != "" && pre != "") { gsub(/[ \t]/, "_", tag); print (tag == "" ? "-" : tag), draft, pre }
             if (depth == 2) value = 0
             continue
           }
