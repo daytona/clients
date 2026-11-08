@@ -18,11 +18,11 @@ import type {
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
 import { encodeQuery, HttpTransport, isAbortError, sseMessages, strictUriEncode } from './http.js'
-import { BadRequestError, createDaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, ConnectionError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
-import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str } from './toolboxModels.js'
+import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str, strList } from './toolboxModels.js'
 
 export type { BulkReadError, BulkReadResult, BulkWriteFile, BulkWriteResult }
 export type { DownloadFileOptions, TransferProgressCallback, UploadFileOptions }
@@ -478,13 +478,15 @@ export class FileSystemService {
             return
           }
         }
+        // A stream that ends on its own is a dropped connection, as a
+        // truncated body is: ConnectionError, as in the Python SDK.
         if (started) {
-          await notifyExit(stopRequested ? undefined : createDaytonaError('filesystem watch stream ended unexpectedly', 500, undefined, 'SDK'))
+          await notifyExit(stopRequested ? undefined : new ConnectionError('filesystem watch stream ended unexpectedly'))
           return
         }
         const error = stopRequested
           ? createDaytonaError('filesystem watch stopped before start', undefined, undefined, 'SDK')
-          : createDaytonaError('filesystem watch stream ended before start', 500, undefined, 'SDK')
+          : new ConnectionError('filesystem watch stream ended before start')
         rejectStarted(error)
         await notifyExit(stopRequested ? undefined : error)
       } catch (error) {
@@ -493,7 +495,12 @@ export class FileSystemService {
           await notifyExit()
           return
         }
-        const normalized = error instanceof Error ? error : createDaytonaError(String(error), undefined, undefined, 'SDK')
+        // The SDK's own errors pass through; anything else from opening or
+        // reading the stream (undici's "terminated" on a truncated body) is a
+        // dropped connection, as the Python transport reports it.
+        const normalized = error instanceof DaytonaError
+          ? error
+          : new ConnectionError(error instanceof Error ? error.message : String(error))
         if (!started) rejectStarted(normalized)
         await notifyExit(normalized)
       }
@@ -521,13 +528,9 @@ export class FileSystemService {
 
   /** Return the paths of files under `path` whose base name matches the glob `pattern`. */
   public async glob(path: string, pattern: string): Promise<ListResult<string>> {
-    const data = await this.transport.get<toolbox.SearchResponse | string[] | ListResult<string>>('/files/search', { params: { path, pattern } })
-    const strings = (path: unknown): string => {
-      if (typeof path !== 'string') throw malformedResponse('glob response: every path must be a string')
-      return path
-    }
-    if (Array.isArray(data)) return listItems(data, 'files', 'glob response', strings)
-    return listItems(data, 'items' in record(data, 'glob response') ? 'items' : 'files', 'glob response', strings)
+    // The contract's SearchResponse: { files } only.
+    const data = await this.transport.get<toolbox.SearchResponse>('/files/search', { params: { path, pattern } })
+    return { items: strList(record(data, 'glob response'), 'files', 'glob response') }
   }
 
   /** Replace the literal substring `pattern` with `newValue` in `files`. */

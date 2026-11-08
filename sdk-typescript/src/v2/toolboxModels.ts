@@ -58,6 +58,13 @@ export function nonNegativeInt(input: WireRecord, field: string, description: st
   return value
 }
 
+/** A non-negative integer JavaScript represents exactly, for ids with the contract's `maximum: 9007199254740991`. */
+export function nonNegativeSafeInt(input: WireRecord, field: string, description: string): number {
+  const value = input[field]
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw malformed(description, field, value, 'a non-negative safe integer')
+  return value
+}
+
 /** A positive integer, for the contract's integer fields with `minimum: 1`. */
 export function positiveInt(input: WireRecord, field: string, description: string): number {
   const value = input[field]
@@ -97,7 +104,8 @@ export function isRfc3339(value: string): boolean {
   // setUTCFullYear, not Date.UTC: Date.UTC maps years 0-99 to 1900-1999.
   const date = new Date(0)
   date.setUTCFullYear(year, month - 1, day)
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  // Year 0000 has no Python datetime, so neither SDK accepts it.
+  return year >= 1 && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
     && hour <= 23 && minute <= 59 && second <= 59
 }
 

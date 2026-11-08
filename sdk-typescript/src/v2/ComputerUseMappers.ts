@@ -30,7 +30,7 @@ import type {
 } from './ComputerUseTypes.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { knownOrUnknown } from './knownValue.js'
-import { bool, int, malformedResponse, nonNegativeInt, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
+import { bool, int, malformedResponse, nonNegativeInt, nonNegativeSafeInt, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 
 // Every computer-use result is checked against the contract at this boundary:
@@ -184,7 +184,7 @@ export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessSt
     ...(pid === undefined ? {} : { pid }),
     failed: bool(wire, 'Failed', d),
     restartAttempts: nonNegativeInt(wire, 'RestartAttempts', d),
-    restartBackoffMs: nonNegativeInt(wire, 'RestartBackoffMs', d),
+    restartBackoffSeconds: nonNegativeInt(wire, 'RestartBackoffMs', d) / 1000,
     status: str(wire, 'Status', d),
   }
   // Unknown wire fields go in the named bag only, as in the Python SDK.
@@ -254,7 +254,7 @@ function mapComputerUseWindow(window: unknown): ComputerUseWindow {
   const d = 'computer-use window'
   const wire = record(window, d)
   return {
-    id: nonNegativeInt(wire, 'id', d), title: str(wire, 'title', d), x: int(wire, 'x', d), y: int(wire, 'y', d),
+    id: nonNegativeSafeInt(wire, 'id', d), title: str(wire, 'title', d), x: int(wire, 'x', d), y: int(wire, 'y', d),
     width: nonNegativeInt(wire, 'width', d), height: nonNegativeInt(wire, 'height', d), isActive: bool(wire, 'isActive', d),
   }
 }

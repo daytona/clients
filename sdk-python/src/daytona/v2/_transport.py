@@ -364,6 +364,7 @@ class AsyncResponseStream:
         self._stream = stream
         self._response = response
         self._closed = False
+        self._close_lock = anyio.Lock()
         # A client created for this response alone (open_exclusive_stream).
         # Closing the stream closes it; a borrowed client is never closed here.
         self._owned_client = owned_client
@@ -432,6 +433,17 @@ class AsyncResponseStream:
     async def close(self) -> None:
         if self._closed:
             return
+        # Single-flight: a second close() (a stop() racing the reader's own
+        # close) waits for the release in progress instead of re-entering the
+        # response's context manager, which raises RuntimeError. Shielded like
+        # the release itself (each bounded by its grace window), so a
+        # cancelled reader still reaches the release.
+        with anyio.CancelScope(shield=True):
+            async with self._close_lock:
+                if not self._closed:
+                    await self._close_once()
+
+    async def _close_once(self) -> None:
         if self._owned_client is not None:
             await self._close_owned()
             return

@@ -10,7 +10,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
-import { gitCommitFromWire, gitCommitResponseFromWire, gitRemoteFromWire, gitStatusFromWire, envelopeList, listItems, record, strList } from './toolboxModels.js'
+import { gitCommitFromWire, gitCommitResponseFromWire, gitRemoteFromWire, gitStatusFromWire, envelopeList, listItems, malformedResponse, record, strList } from './toolboxModels.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
 
 export interface CloneOptions {
@@ -208,10 +208,13 @@ export class GitService {
 
   public async getConfig(key: string, options: GitConfigOptions = {}): Promise<string | null> {
     assertKnownOptions('GitConfigOptions', options, GIT_CONFIG_OPTION_KEYS)
-    const data = await this.transport.get<{ value?: string | null }>('/git/config', {
+    const data = await this.transport.get<unknown>('/git/config', {
       params: { key, path: options.path, scope: options.scope ?? 'global' },
     })
-    return typeof data.value === 'string' ? data.value : null
+    const value = record(data, 'git config response').value
+    if (value === undefined || value === null) return null
+    if (typeof value !== 'string') throw malformedResponse('git config response: value must be a string or null')
+    return value
   }
 
   public async setConfig(key: string, value: string, options: GitConfigOptions = {}): Promise<void> {

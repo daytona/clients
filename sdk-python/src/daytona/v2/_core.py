@@ -574,6 +574,8 @@ def expect_docker_status(value: TransportPayload) -> DockerStatus:
 
 
 def expect_status_response(value: TransportPayload) -> GitStatus:
+    # Checked before the generated model, which iterates the field first.
+    _require_list_field(value, "fileStatus", "git status response")
     model = _expect_model_from_dict(
         value, StatusResponseModel, "git status response", StatusResponseModel.from_dict
     )
@@ -903,9 +905,20 @@ def logs_spec(
         params["cursor"] = cursor
     if limit is not None:
         params["limit"] = limit
+    headers: Dict[str, str] = {}
     if follow:
         params["follow"] = "true"
-    return RequestSpec("GET", f"/processes/{quote(process_id, safe='')}/logs", params=params, timeout=None)
+        # The same headers the TypeScript SDK sends on a followed log.
+        headers["Accept"] = "text/event-stream"
+        if cursor:
+            headers["Last-Event-ID"] = cursor
+    return RequestSpec(
+        "GET",
+        f"/processes/{quote(process_id, safe='')}/logs",
+        params=params,
+        timeout=None,
+        headers=headers,
+    )
 
 
 def _require_list_field(payload: object, field: str, description: str) -> None:
@@ -1140,16 +1153,34 @@ def parse_bulk_read_result(content: bytes, *, content_type: Optional[str] = None
             files[path] = body
             continue
         if part_name == "error":
-            payload = expect_object(parse_json_bytes(body))
-            errors.append(
-                BulkReadError(
-                    path=_optional_str(payload.get("path")) or "",
-                    message=str(payload.get("message") or ""),
-                    code=_optional_str(payload.get("code")),
-                    source=_optional_str(payload.get("source")),
-                )
-            )
+            errors.append(_bulk_read_error(body))
     return BulkReadResult(files=files, errors=errors)
+
+
+def _bulk_read_error(body: bytes) -> BulkReadError:
+    """One bulk-download error part: a JSON object with string ``path`` and
+    ``message`` (``code`` / ``source`` strings when present)."""
+    description = "bulk download error part"
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        raise create_error(
+            f"expected {description}: the data is not JSON", 400, "BAD_REQUEST", "SDK"
+        ) from None
+    if not isinstance(payload, dict):
+        raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    for name in ("path", "message"):
+        if not isinstance(payload.get(name), str):
+            raise create_error(f"expected {description}: {name} must be a string", 400, "BAD_REQUEST", "SDK")
+    for name in ("code", "source"):
+        if payload.get(name) is not None and not isinstance(payload.get(name), str):
+            raise create_error(f"expected {description}: {name} must be a string", 400, "BAD_REQUEST", "SDK")
+    return BulkReadError(
+        path=payload["path"],
+        message=payload["message"],
+        code=_optional_str(payload.get("code")),
+        source=_optional_str(payload.get("source")),
+    )
 
 
 def list_shape(

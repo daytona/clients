@@ -959,6 +959,7 @@ async def test_malformed_filesystem_results_name_the_field(
         "2026-02-30T00:00:00Z",
         "2026-01-01T00:00:00",
         "Jan 1 2026",
+        "0000-01-01T00:00:00Z",
     ],
 )
 def test_timestamps_reject_what_is_not_rfc_3339_like_the_typescript_sdk(value: str) -> None:
@@ -1148,3 +1149,155 @@ async def test_stream_logs_uses_the_sse_id_only_when_the_payload_has_no_cursor(c
     with pytest.raises(BadRequestError, match="eof event: cursor must be a non-empty string"):
         async for _event in handle.stream_logs():
             pass
+
+
+def _error_part(body: bytes) -> bytes:
+    return (
+        b"--DAYTONA-FILE-BOUNDARY\r\n"
+        b'Content-Disposition: form-data; name="error"\r\n'
+        b"Content-Type: application/json\r\n\r\n" + body + b"\r\n--DAYTONA-FILE-BOUNDARY--\r\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        (b"not-json", "bulk download error part: the data is not JSON"),
+        (b"[]", "expected bulk download error part"),
+        (b'{"path": 42, "message": "m"}', "bulk download error part: path must be a string"),
+        (
+            b'{"path": "/a", "message": {"unexpected": true}}',
+            "bulk download error part: message must be a string",
+        ),
+        (b'{"path": "/a", "message": "m", "code": 99}', "bulk download error part: code must be a string"),
+    ],
+)
+def test_read_many_rejects_a_malformed_error_part(body: bytes, message: str) -> None:
+    from daytona.v2._core import parse_bulk_read_result
+
+    with pytest.raises(BadRequestError, match=message):
+        parse_bulk_read_result(_error_part(body))
+
+
+def test_read_many_reads_a_contract_error_part() -> None:
+    from daytona.v2._core import parse_bulk_read_result
+    from daytona.v2.types import BulkReadError
+
+    result = parse_bulk_read_result(
+        _error_part(b'{"path": "/a", "message": "missing", "code": "FILE_NOT_FOUND"}')
+    )
+
+    assert result.errors == [BulkReadError(path="/a", message="missing", code="FILE_NOT_FOUND", source=None)]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("operation", "payload", "message"),
+    [
+        (
+            "status",
+            {"currentBranch": "m", "ahead": 0, "behind": 0, "branchPublished": True, "fileStatus": 42},
+            "fileStatus must be a list",
+        ),
+        (
+            "status",
+            {"currentBranch": "m", "ahead": 0, "behind": 0, "branchPublished": True, "fileStatus": {}},
+            "fileStatus must be a list",
+        ),
+        ("get_config", {"value": 42}, "value must be a string or null"),
+        ("get_config", None, "expected JSON object"),
+        ("start", {"message": "ok", "status": "wrong"}, "status must be a map of process statuses"),
+        ("stop", {"message": "ok", "status": [1]}, "status must be a map of process statuses"),
+        ("start", {"message": "ok", "status": {"wm": "x"}}, "status must be a map of process statuses"),
+        ("glob", ["/a"], "expected glob response"),
+        ("glob", {"items": ["/a"]}, "glob response: files is required"),
+        ("glob", {"files": [42]}, "files must be a list of strings"),
+    ],
+)
+async def test_response_paths_reject_what_breaks_the_contract(
+    operation: str, payload: JsonValue, message: str
+) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    transport = Transport([payload])
+    git = AsyncGitService(transport)  # type: ignore[arg-type]
+    cu = AsyncComputerUseService(transport)  # type: ignore[arg-type]
+    fs = AsyncFileSystemService(transport)  # type: ignore[arg-type]
+    calls = {
+        "status": lambda: git.status("/repo"),
+        "get_config": lambda: git.get_config("user.name"),
+        "start": lambda: cu.start(),
+        "stop": lambda: cu.stop(),
+        "glob": lambda: fs.glob("/", "*"),
+    }
+
+    with pytest.raises(BadRequestError, match=message) as info:
+        await calls[operation]()
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_git_config_value_reads_a_string_or_null() -> None:
+    git = AsyncGitService(Transport([{"value": "Ada"}, {"value": None}, {}]))  # type: ignore[arg-type]
+
+    assert [await git.get_config("user.name") for _ in range(3)] == ["Ada", None, None]
+
+
+@pytest.mark.anyio
+async def test_display_windows_rejects_an_id_above_the_contract_maximum() -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    window = {"id": 9007199254740992, "title": "t", "x": 0, "y": 0, "width": 1, "height": 1, "isActive": True}
+    cu = AsyncComputerUseService(Transport([{"windows": [window]}]))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="less than or equal to 9007199254740991"):
+        await cu.display.windows()
+
+
+@pytest.mark.anyio
+async def test_addon_process_restart_backoff_is_in_seconds() -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    status = {
+        "Running": True,
+        "Priority": 1,
+        "AutoRestart": True,
+        "Failed": False,
+        "RestartAttempts": 2,
+        "RestartBackoffMs": 1500,
+        "Status": "running",
+    }
+    statuses = await AsyncComputerUseService(Transport([{"wm": status}])).service.status()  # type: ignore[arg-type]
+
+    assert statuses["wm"].restart_backoff == 1.5
+
+
+@pytest.mark.anyio
+async def test_sse_blocks_without_data_and_an_unterminated_final_block_dispatch_nothing() -> None:
+    lines = [
+        "event: log",
+        'data: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}',
+        "",
+        "event: eof",
+        "id: c2",
+        "",
+        "event: eof",
+        'data: {"cursor":"c3"}',
+    ]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    assert [event.type async for event in handle.stream_logs()] == ["log"]
+
+
+@pytest.mark.anyio
+async def test_stream_logs_sends_the_same_headers_as_the_typescript_sdk() -> None:
+    from daytona.v2._core import logs_spec
+
+    assert logs_spec("p", cursor="c1", limit=None, encoding="text", follow=True).headers == {
+        "Accept": "text/event-stream",
+        "Last-Event-ID": "c1",
+    }
+    assert logs_spec("p", cursor=None, limit=None, encoding="text", follow=True).headers == {
+        "Accept": "text/event-stream"
+    }
+    assert logs_spec("p", cursor="c1", limit=None, encoding="text", follow=False).headers == {}

@@ -5,6 +5,7 @@
 
 import { createDaytonaError, DaytonaError } from './errors/DaytonaError.js'
 import type { BulkReadError, BulkReadResult } from './types.js'
+import { malformedResponse, optional, record, str } from './toolboxModels.js'
 
 const DAYTONA_FILE_BOUNDARY = 'DAYTONA-FILE-BOUNDARY'
 const MULTIPART_BOUNDARY_RE = /\bboundary\s*=\s*(?:"([^"]+)"|([^;]+))/i
@@ -28,13 +29,7 @@ export function parseBulkReadResult(body: Uint8Array, contentType?: string): Bul
         break
       }
       case 'error': {
-        const payload = parseJsonObject(part.body)
-        errors.push({
-          path: stringField(payload.path),
-          code: optionalStringField(payload.code),
-          message: stringField(payload.message),
-          source: optionalStringField(payload.source),
-        })
+        errors.push(bulkReadErrorFromPart(part.body))
         break
       }
       default:
@@ -114,24 +109,27 @@ function contentDispositionFilename(header: string): string | undefined {
   return /filename="([^"]*)"/i.exec(header)?.[1]
 }
 
-function parseJsonObject(body: Uint8Array): Record<string, unknown> {
-  const payload: unknown = JSON.parse(BODY_DECODER.decode(body))
-  if (isRecord(payload)) {
-    return payload
+const ERROR_PART = 'bulk download error part'
+
+/** One error part: a JSON object with string `path` and `message` (`code` / `source` strings when present). */
+function bulkReadErrorFromPart(body: Uint8Array): BulkReadError {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(BODY_DECODER.decode(body))
+  } catch {
+    throw malformedResponse(`${ERROR_PART}: the data is not JSON`)
   }
-  throw createDaytonaError('expected JSON object', 400, 'BAD_REQUEST', 'SDK')
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function stringField(value: unknown): string {
-  return typeof value === 'string' ? value : ''
-}
-
-function optionalStringField(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined
+  const payload = record(parsed, ERROR_PART)
+  const path = str(payload, 'path', ERROR_PART)
+  const message = str(payload, 'message', ERROR_PART)
+  const code = optional(payload, 'code', str, ERROR_PART)
+  const source = optional(payload, 'source', str, ERROR_PART)
+  return {
+    path,
+    message,
+    ...(code === undefined ? {} : { code }),
+    ...(source === undefined ? {} : { source }),
+  }
 }
 
 function asciiBytes(value: string): Uint8Array {

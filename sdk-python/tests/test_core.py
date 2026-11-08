@@ -2499,10 +2499,10 @@ async def test_filesystem_watch_dir_overflow_callback_error_ends_the_watch():
 
 
 @pytest.mark.anyio
-async def test_filesystem_watch_dir_stop_reports_a_close_failure_even_when_the_reader_exits_cleanly() -> None:
-    """stop() closes the stream best-effort; if that close raises but the
-    reader then exits normally (its own close is idempotent and quiet), the
-    failure must still reach exit_error/on_exit rather than vanish."""
+async def test_filesystem_watch_dir_stop_ends_without_an_error_when_its_close_fails() -> None:
+    """stop() closes the stream best-effort; a close that raises after the
+    caller's own stop() is not an exit error: the watch ends cleanly, as in
+    the TypeScript SDK."""
 
     class FailsOnceStream(ControlledSseStream):
         def __init__(self) -> None:
@@ -2530,8 +2530,8 @@ async def test_filesystem_watch_dir_stop_reports_a_close_failure_even_when_the_r
 
     await asyncio.wait_for(handle.stop(), timeout=2)
 
-    assert isinstance(handle.exit_error, OSError)
-    assert [type(error) for error in exits] == [OSError]
+    assert handle.exit_error is None
+    assert exits == [None]
 
 
 @pytest.mark.anyio
@@ -2566,8 +2566,8 @@ async def test_daytona_aexit_closes_transports_even_when_the_body_is_cancelled()
 async def test_filesystem_watch_dir_stop_survives_a_stream_that_fails_to_close() -> None:
     """The reader closes the stream in its `finally`. If close() raises, the
     task must still record exit (waking stop()/wait_for_exit() and firing
-    on_exit) and stop() must return cleanly — a failed teardown is reported
-    through exit_error, not thrown at whoever called stop()."""
+    on_exit) and stop() must return cleanly. After the caller's stop() the
+    failed teardown is no exit error; a watch that ends on its own reports it."""
 
     class ExplodingCloseStream(ControlledSseStream):
         async def close(self) -> None:
@@ -2589,9 +2589,20 @@ async def test_filesystem_watch_dir_stop_survives_a_stream_that_fails_to_close()
 
     await asyncio.wait_for(handle.stop(), timeout=2)  # neither raises nor hangs on a missed exit
 
-    assert isinstance(handle.exit_error, OSError)
-    assert isinstance(await handle.wait_for_exit(), OSError)
-    assert [type(error) for error in exits] == [OSError]
+    assert handle.exit_error is None
+    assert await handle.wait_for_exit() is None
+    assert exits == [None]
+
+    # A watch that ends on its own: the stream drop wins over the close failure.
+    stream = ExplodingCloseStream()
+    stream.push("event: start")
+    stream.push("data: {}")
+    stream.push("")
+    handle = await fs.watch_dir("/workspace", lambda _event: None)
+    stream._lines.put_nowait(None)  # the server ends the stream
+    error = await asyncio.wait_for(handle.wait_for_exit(), timeout=2)
+    assert isinstance(error, ConnectionError)
+    assert str(error) == "filesystem watch stream ended unexpectedly"
 
 
 @pytest.mark.anyio

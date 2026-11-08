@@ -266,7 +266,11 @@ class AsyncGitService:
             await _json_payload(self._transport, RequestSpec("GET", "/git/config", params=params))
         )
         value = payload.get("value")
-        return value if isinstance(value, str) else None
+        if value is not None and not isinstance(value, str):
+            raise create_error(
+                "expected git config response: value must be a string or null", 400, "BAD_REQUEST", "SDK"
+            )
+        return value
 
     async def set_config(
         self,

@@ -141,7 +141,8 @@ class ComputerUseProcessStatus:
     auto_restart: bool
     failed: bool
     restart_attempts: int
-    restart_backoff_ms: int
+    restart_backoff: float
+    """The current restart backoff, in seconds."""
     status: str
     pid: Optional[int] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None

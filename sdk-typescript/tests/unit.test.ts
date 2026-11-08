@@ -11668,7 +11668,7 @@ describe('computer-use namespace', () => {
             pid: 42,
             failed: true,
             restartAttempts: 3,
-            restartBackoffMs: 1500,
+            restartBackoffSeconds: 1.5,
             status: 'failed',
             extraFields: { extraFutureField: 'kept' },
           },
@@ -12074,7 +12074,7 @@ describe('toolbox surface', () => {
       id: 'rec', fileName: 'a.mp4', filePath: '/a.mp4', startTime: '2026-01-01T00:00:00Z', status: 'recording',
     })
     await expect(computerUse.service.status()).resolves.toStrictEqual({
-      wm: { running: true, priority: 1, autoRestart: true, failed: false, restartAttempts: 0, restartBackoffMs: 0, status: 'running' },
+      wm: { running: true, priority: 1, autoRestart: true, failed: false, restartAttempts: 0, restartBackoffSeconds: 0, status: 'running' },
     })
   })
 
@@ -12466,7 +12466,7 @@ describe('toolbox surface', () => {
   it.each([
     ['screenshot', { screenshot: 'AA', sizeBytes: -1 }, 'computer-use screenshot response: sizeBytes must be a non-negative integer'],
     ['displayInfo', { displays: [{ id: 0, x: -5, y: 0, width: -1, height: 1, isActive: true }] }, 'computer-use display: width must be a non-negative integer'],
-    ['displayWindows', { windows: [{ id: -1, title: 't', x: 0, y: 0, width: 1, height: 1, isActive: true }] }, 'computer-use window: id must be a non-negative integer'],
+    ['displayWindows', { windows: [{ id: -1, title: 't', x: 0, y: 0, width: 1, height: 1, isActive: true }] }, 'computer-use window: id must be a non-negative safe integer'],
     ['processStatus', { wm: { Running: true, Priority: 1, AutoRestart: true, Failed: false, RestartAttempts: -1, RestartBackoffMs: 0, Status: 'ok' } }, 'computer-use process status: RestartAttempts must be a non-negative integer'],
   ] as const)('rejects a negative %s value where the contract has minimum 0', async (operation, payload, message) => {
     const transport = transportStub()
@@ -12494,7 +12494,7 @@ describe('toolbox surface', () => {
   it('reads RFC 3339 timestamps like the Python SDK', async () => {
     const { isRfc3339 } = await import('../src/v2/toolboxModels')
     for (const value of ['2026-01-01T00:00:00.123456789Z', '0001-01-01t00:00:00z', '0099-06-01 12:00:00+00:00']) expect(isRfc3339(value)).toBe(true)
-    for (const value of ['2026-01-01T00:00:00Z\n', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00', 'Jan 1 2026', '0099-02-29T00:00:00Z']) expect(isRfc3339(value)).toBe(false)
+    for (const value of ['2026-01-01T00:00:00Z\n', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00', 'Jan 1 2026', '0099-02-29T00:00:00Z', '0000-01-01T00:00:00Z']) expect(isRfc3339(value)).toBe(false)
   })
 
   it('accepts only the contract shape of the git branch and remote lists, like the Python SDK', async () => {
@@ -12592,6 +12592,67 @@ describe('toolbox surface', () => {
     }
   })
 
+  it.each([
+    ['not-json', 'bulk download error part: the data is not JSON'],
+    ['[]', 'bulk download error part'],
+    ['{"path":42,"message":"m"}', 'bulk download error part: path must be a string'],
+    ['{"path":"/a","message":{"unexpected":true}}', 'bulk download error part: message must be a string'],
+    ['{"path":"/a","message":"m","code":99}', 'bulk download error part: code must be a string'],
+  ])('rejects a malformed bulk download error part (%s), like the Python SDK', async (body, message) => {
+    const { parseBulkReadResult } = await import('../src/v2/filesystemWire')
+    const part = `--DAYTONA-FILE-BOUNDARY\r\nContent-Disposition: form-data; name="error"\r\nContent-Type: application/json\r\n\r\n${body}\r\n--DAYTONA-FILE-BOUNDARY--\r\n`
+    expect(() => parseBulkReadResult(new TextEncoder().encode(part))).toThrow(`expected ${message}`)
+  })
+
+  it.each([
+    ['status', { currentBranch: 'm', ahead: 0, behind: 0, branchPublished: true, fileStatus: 42 }, 'git status response: fileStatus must be a list'],
+    ['status', { currentBranch: 'm', ahead: 0, behind: 0, branchPublished: true, fileStatus: {} }, 'git status response: fileStatus must be a list'],
+    ['getConfig', { value: 42 }, 'git config response: value must be a string or null'],
+    ['getConfig', null, 'git config response'],
+    ['start', { message: 'ok', status: 'wrong' }, 'computer-use process status map'],
+    ['stop', { message: 'ok', status: [1] }, 'computer-use process status map'],
+    ['start', { message: 'ok', status: { wm: 'x' } }, 'computer-use process status'],
+    ['glob', ['/a'], 'glob response'],
+    ['glob', { items: ['/a'] }, 'glob response: files is required'],
+    ['glob', { files: [42] }, 'glob response: files must be a list of strings'],
+    ['windows', { windows: [{ id: 9007199254740992, title: 't', x: 0, y: 0, width: 1, height: 1, isActive: true }] }, 'computer-use window: id must be a non-negative safe integer'],
+  ] as const)('rejects a %s response that breaks the contract (%p), like the Python SDK', async (operation, payload, message) => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce(payload)
+    transport.post.mockResolvedValueOnce(payload)
+    const git = new GitService(INTERNAL, transport.object)
+    const cu = new ComputerUseService(INTERNAL, transport.computerUseObject)
+    const fs = new FileSystemService(INTERNAL, transport.object)
+    const calls = {
+      status: () => git.status('/repo'),
+      getConfig: () => git.getConfig('user.name'),
+      start: () => cu.start(),
+      stop: () => cu.stop(),
+      glob: () => fs.glob('/', '*'),
+      windows: () => cu.display.windows(),
+    }
+    await expect(calls[operation]()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`expected ${message}`) })
+  })
+
+  it('reads a git config value as a string or null', async () => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce({ value: 'Ada' }).mockResolvedValueOnce({ value: null }).mockResolvedValueOnce({})
+    const git = new GitService(INTERNAL, transport.object)
+    for (const expected of ['Ada', null, null]) await expect(git.getConfig('user.name')).resolves.toBe(expected)
+  })
+
+  it('dispatches no SSE block without a data line and drops an unterminated final block, like the Python SDK', async () => {
+    const transport = transportStub()
+    transport.fetch.mockResolvedValueOnce(sseResponse([
+      'event: log\ndata: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}\n\n',
+      'event: eof\nid: c2\n\n',
+      'event: eof\ndata: {"cursor":"c3"}',
+    ]))
+    const types: string[] = []
+    for await (const event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) types.push(event.type)
+    expect(types).toEqual(['log'])
+  })
+
   it('rejects filesystem list envelopes without items', async () => {
     const transport = transportStub()
     const fs = new FileSystemService(INTERNAL, transport.object)
@@ -12599,7 +12660,7 @@ describe('toolbox surface', () => {
     transport.post.mockResolvedValueOnce({})
     await expect(fs.list('/')).rejects.toThrow('expected file list response: items is required')
     await expect(fs.grep('/', 'x')).rejects.toThrow('expected grep response: items is required')
-    await expect(fs.glob('/', '*')).rejects.toThrow('expected glob response: every path must be a string')
+    await expect(fs.glob('/', '*')).rejects.toThrow('expected glob response: files must be a list of strings')
     await expect(fs.replace(['/a'], 'x', 'y')).rejects.toThrow('expected replace response: items is required')
   })
 

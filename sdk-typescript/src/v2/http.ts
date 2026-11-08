@@ -1639,11 +1639,8 @@ export async function* sseMessages(response: Response): AsyncIterable<SseMessage
         boundary = findSseBoundary(buffer)
       }
     }
-    const tail = buffer.replace(/\r$/, '')
-    if (tail.trim()) {
-      const message = parseSseMessage(tail)
-      if (message) yield message
-    }
+    // An unterminated final block is discarded, as the event-stream format
+    // (and the Python SDK) does: it may be a message cut off mid-way.
   } finally {
     if (!streamDone) {
       await reader.cancel()
@@ -1665,7 +1662,8 @@ function parseSseMessage(raw: string): SseMessage | undefined {
     if (field === 'id') id = value
     if (field === 'data') data.push(value)
   }
-  if (!data.length && !id) return undefined
+  // A block without a `data:` line dispatches nothing (the event-stream format, as in Python).
+  if (!data.length) return undefined
   return { event, id, data: data.join('\n') }
 }
 

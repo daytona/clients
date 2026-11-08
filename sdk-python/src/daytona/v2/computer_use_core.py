@@ -121,6 +121,16 @@ def expect_computer_use_display_windows_response(
 
 
 def expect_computer_use_lifecycle_response(value: TransportPayload) -> ComputerUseLifecycleResponse:
+    # Checked before the generated model, which calls .items() on the map first.
+    if isinstance(value, dict) and "status" in value:
+        status = value["status"]
+        if not isinstance(status, dict) or not all(isinstance(entry, dict) for entry in status.values()):
+            raise create_error(
+                "expected computer-use lifecycle response: status must be a map of process statuses",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
     return _expect_model_from_dict(
         value,
         ComputerUseLifecycleResponse,
@@ -373,7 +383,7 @@ def parse_computer_use_process_status_map(
             pid=raw.pid,
             failed=raw.failed,
             restart_attempts=raw.restart_attempts,
-            restart_backoff_ms=raw.restart_backoff_ms,
+            restart_backoff=raw.restart_backoff_ms / 1000,
             status=raw.status,
             extra_fields={wire_key_to_sdk_key(key): value for key, value in extra_fields.items()}
             if extra_fields

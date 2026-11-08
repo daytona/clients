@@ -89,7 +89,8 @@ export interface ComputerUseProcessStatus {
   readonly pid?: number
   readonly failed: boolean
   readonly restartAttempts: number
-  readonly restartBackoffMs: number
+  /** The current restart backoff, in seconds. */
+  readonly restartBackoffSeconds: number
   readonly status: string
   readonly extraFields?: Record<string, unknown>
 }

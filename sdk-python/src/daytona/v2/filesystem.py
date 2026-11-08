@@ -35,7 +35,6 @@ from ._core import (
     TransportPayload,
     bulk_download_spec,
     expect_file_info,
-    expect_object,
     file_bulk_upload_spec,
     file_download_spec,
     file_upload_spec,
@@ -49,7 +48,7 @@ from ._core import (
 )
 from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
-from .errors import TransferCancelledError, create_error
+from .errors import ConnectionError, TransferCancelledError, create_error
 from .types import (
     BulkReadResult,
     BulkWriteResult,
@@ -165,7 +164,6 @@ class AsyncWatchHandle:
         self._stop_task: asyncio.Task[None] | None = None
         # The token of the callback (or on_exit) call in progress; None between calls.
         self._active_delivery: object | None = None
-        self._close_error: Exception | None = None
         self._exited = asyncio.Event()
         # Set once on_exit has returned: an external stop() returns after it.
         self._exit_done = asyncio.Event()
@@ -181,9 +179,7 @@ class AsyncWatchHandle:
         if self._exit_notified:
             return
         self._exit_notified = True
-        # A stream that failed to close on stop() is an exit error too; an
-        # earlier reader error still wins, matching the reader's own policy.
-        self._exit_error = error or self._close_error
+        self._exit_error = error
         self._exited.set()
         try:
             if self._on_exit is not None:
@@ -232,11 +228,9 @@ class AsyncWatchHandle:
         if not self._closing:
             self._closing = True
             # A stream that fails to close must not stop us from waiting for
-            # the reader; the failure is kept so _record_exit() reports it.
-            try:
+            # the reader; after stop() the watch ends without an error.
+            with contextlib.suppress(Exception):
                 await self._stream.close()
-            except Exception as close_error:
-                self._close_error = close_error
         reader = self._reader
         if reader is None:
             await self._record_exit(None)
@@ -520,22 +514,17 @@ class AsyncFileSystemService:
         payload = await self._transport.send(
             RequestSpec("GET", "/files/search", params={"path": path, "pattern": pattern})
         )
-        if isinstance(payload, list):
-            raw: JsonValue = payload
-            next_cursor: JsonValue = None
-        else:
-            obj = expect_object(payload)
-            raw = obj.get("items") if "items" in obj else obj.get("files")
-            next_cursor = obj.get("nextCursor") or obj.get("next_cursor")
+        # The contract's SearchResponse: { files } only.
+        if not isinstance(payload, dict):
+            raise create_error("expected glob response", 400, "BAD_REQUEST", "SDK")
+        raw = payload.get("files")
         if not isinstance(raw, list):
             raise create_error("expected glob response: files is required", 400, "BAD_REQUEST", "SDK")
         if not all(isinstance(item, str) for item in raw):
             raise create_error(
-                "expected glob response: every path must be a string", 400, "BAD_REQUEST", "SDK"
+                "expected glob response: files must be a list of strings", 400, "BAD_REQUEST", "SDK"
             )
-        return ListResult(
-            [str(item) for item in raw], str(next_cursor) if isinstance(next_cursor, str) else None
-        )
+        return ListResult([str(item) for item in raw], None)
 
     async def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult[ReplaceResult]:
         """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
@@ -616,13 +605,13 @@ class AsyncFileSystemService:
                     if event_name == "overflow" and on_overflow is not None:
                         await deliver(on_overflow)
                         continue
+                # A stream that ends on its own is a dropped connection, as a
+                # truncated body is (the transport raises ConnectionError).
                 if started:
                     if not handle._stopped:
-                        exit_error = create_error(
-                            "filesystem watch stream ended unexpectedly", 500, None, "SDK"
-                        )
+                        exit_error = ConnectionError("filesystem watch stream ended unexpectedly")
                 else:
-                    exit_error = create_error("filesystem watch stream ended before start", 500, None, "SDK")
+                    exit_error = ConnectionError("filesystem watch stream ended before start")
                     reader_error.append(exit_error)
                     ready.set()
             except Exception as exc:
@@ -639,11 +628,13 @@ class AsyncFileSystemService:
             finally:
                 # _record_exit must run whatever close() does: it is what wakes
                 # wait_for_exit()/stop() and fires on_exit. A close() failure is
-                # the exit error if nothing earlier already was.
+                # the exit error if nothing earlier already was, unless the
+                # caller stopped the watch (then it ends without an error).
                 try:
                     await stream.close()
                 except Exception as close_error:
-                    exit_error = exit_error or close_error
+                    if not handle._stopped:
+                        exit_error = exit_error or close_error
                 await handle._record_exit(exit_error)
 
         reader = asyncio.ensure_future(read_events())
