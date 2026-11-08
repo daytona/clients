@@ -90,8 +90,9 @@ Two rules narrow what that covers:
   `sandbox.process.connect(...)`, `Image.from_registry(...)` /
   `Image.fromRegistry(...)`); the class names are public for type annotations
   and `isinstance` / `instanceof` checks, but their constructor parameters may
-  change in any release. The exceptions, the only classes you build
-  yourself, are:
+  change in any release. The exceptions are the only classes you build
+  yourself; their constructor parameters are public signatures like any
+  other:
   - the root client (`Daytona`, Python's `AsyncDaytona`) and Python's
     `DaytonaConfig` (in TypeScript the config is a plain object);
   - the error classes;
@@ -206,7 +207,7 @@ scripts depend on. Within a major version, these stay compatible:
 - the request bodies `--file` / `-f` accepts.
 
 A MINOR release can add commands, flags, output fields and values; a script
-that reads JSON output must ignore fields it doesn't know. Not covered (may
+that reads JSON or YAML output must ignore fields it doesn't know. Not covered (may
 change in any release): the layout of `--output table`, help text, and
 progress output.
 
