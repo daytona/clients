@@ -1,0 +1,13 @@
+**Support and stability policy for 2.x** — `docs/VERSIONING.md` now states
+what 2.x keeps stable and for how long. The SDKs support Python 3.10+ and
+Node.js 22.15+; a minor release may drop a Python or Node.js version only once
+it has reached its upstream end of life. Every API path a 2.x SDK calls stays
+valid for all of 2.x. Constructors of exported classes are not public API
+(get instances from the client; the root client, its config, the error classes
+and input value types are the exceptions), and types generated from the API
+contracts are never public. The bundled `.v0` namespace moves only to a 0.x
+release that stays compatible for `.v0` callers, runtime floor included. The
+`daytona` CLI keeps its command paths, flags, JSON output fields, exit codes,
+environment variables, configuration files and `--file` request bodies
+compatible within a major version; table layout, help text and progress output
+may change in any release.
