@@ -8,9 +8,11 @@ cause, … })` with the exported `ErrorOptions` type, Python
 Python `ErrorDetails` holder is gone; its fields are keywords). Defaults agree:
 `TransferCancelledError()` is "file transfer cancelled" with status 499, code
 `REQUEST_CANCELLED` and source `SDK` in both SDKs, and `LimitExceededError`
-defaults its code to `LIMIT_EXCEEDED`. The client's own timeout,
+defaults its code to `LIMIT_EXCEEDED`; a field passed as `None` / `undefined`
+takes its default too. The client's own timeout,
 `ClientTimeoutError`, has one shape on every request path in both SDKs:
-"operation timed out", status 408, code `REQUEST_TIMEOUT`, source `SDK` (it
+status 408, code `REQUEST_TIMEOUT`, source `SDK`, and by default the message
+"operation timed out" (the build-log readers say which read timed out) (it
 used to carry no fields in Python and on TypeScript's axios path), and
 `ConnectionError` carries source `SDK`. A TypeScript create POST that hits the
 request timeout now raises `SandboxCreateRequestTimeoutError` with its
