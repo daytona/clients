@@ -146,6 +146,12 @@ type PlatformToken = {
 }
 
 type DaytonaRequestMeta = {
+  /**
+   * When the request's total deadline expires (`nowMs()` clock). Set when the
+   * deadline is first armed and kept across a 401 refresh and its retry, so
+   * one call never gets a second full budget.
+   */
+  readonly deadlineAt?: number
   readonly routeTemplate?: string
   readonly sandboxId?: string
   readonly retryOnUnauthorized?: boolean
@@ -691,7 +697,9 @@ async function prepareAxiosRequest(
   // (set by finishAxiosError); resolving again here could hand back the token
   // the provider has not yet rotated.
   if (options.authProvider && !options.auth && meta.retriedAfterUnauthorized !== true) {
-    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: callerSignalOf(config.signal) }, timeoutFromAxiosRequest(config, instance)))
+    // Inside the request's deadline: its signal aborts the exchange when the
+    // budget runs out (and relays the caller's own abort).
+    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: config.signal }, remainingBudgetMs(config, instance)))
   }
   if (typeof options.connectionPoolMaxsize === 'number' && !inBrowser()) {
     const agents = await nodeAgentsFor(options.connectionPoolMaxsize)
@@ -756,10 +764,13 @@ async function finishAxiosError(
   ) {
     const retryMeta = meta ?? requestMeta(config, options)
     const rejectedAuthorization = getAxiosHeader(config, 'Authorization')
+    // The refresh and the retry spend what is left of the original deadline.
+    const refreshBudget = remainingBudgetMs(config, instance)
+    if (refreshBudget < 0) throw new ClientTimeoutError()
     const refreshedAuthorization = await authorizationHeaderForAxiosRequest(
       options.authProvider,
       { forceRefresh: true, rejectedAuthorization, signal: callerSignal },
-      timeoutFromAxiosRequest(config, instance),
+      refreshBudget,
     )
     // A one-shot body (stream) was consumed by the first dispatch; replaying it
     // would send an empty or partial body. The token is rotated for the next
@@ -1057,7 +1068,17 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
       () => ({ type: 'HttpTransportConfig', requestTimeout })),
     configurable: true,
   })
-  instance.interceptors.request.use((config) => prepareAxiosRequest(armRequestDeadline(config as DaytonaAxiosRequestConfig, instance), instance.defaults.baseURL, instance, options))
+  instance.interceptors.request.use(async (config) => {
+    const armed = armRequestDeadline(config as DaytonaAxiosRequestConfig, instance)
+    try {
+      return await prepareAxiosRequest(armed, instance.defaults.baseURL, instance, options)
+    } catch (error) {
+      // A setup failure (the bearer, OTel) never reaches the response
+      // interceptors' AxiosError path: release the deadline here.
+      disarmRequestDeadline(armed)
+      throw error
+    }
+  })
   instance.interceptors.response.use(
     (response) => {
       disarmRequestDeadline(response.config)
@@ -1104,7 +1125,12 @@ function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, inst
   // maximum would fire at once, so it means no bound there as well.
   if (typeof config.timeout === 'number') config.timeout = boundedTimerDelay(config.timeout)
   const timeoutMs = boundedTimerDelay(timeoutFromAxiosRequest(config, instance))
-  if (timeoutMs === 0) return config
+  // A retry (or a caller that already spent part of the budget) keeps the
+  // original deadline instead of starting a new one.
+  const deadlineAt = config.daytona?.deadlineAt ?? (timeoutMs === 0 ? undefined : nowMs() + timeoutMs)
+  if (deadlineAt === undefined) return config
+  config.daytona = { ...config.daytona, deadlineAt }
+  const delay = Math.max(0, Math.ceil(deadlineAt - nowMs()))
   const current = config.signal as AbortSignal | undefined
   const callerSignal: AbortSignalLike | undefined = current !== undefined && callerSignals.has(current) ? callerSignals.get(current) : current
   const controller = new AbortController()
@@ -1116,7 +1142,7 @@ function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, inst
     const reason = new DOMException('request timed out', 'TimeoutError')
     deadlineReasons.add(reason)
     controller.abort(reason)
-  }, timeoutMs)
+  }, delay)
   unrefTimer(timer)
   requestDeadlines.set(config, () => {
     clearTimeout(timer)
@@ -1124,6 +1150,17 @@ function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, inst
   })
   config.signal = controller.signal
   return config
+}
+
+/**
+ * What is left of a request's budget, in ms: its deadline's remainder (below
+ * zero once it has passed), else its configured timeout (`0` = unbounded).
+ */
+function remainingBudgetMs(config: DaytonaAxiosRequestConfig, instance: AxiosInstance): number {
+  const deadlineAt = config.daytona?.deadlineAt
+  if (deadlineAt === undefined) return boundedTimerDelay(timeoutFromAxiosRequest(config, instance))
+  const remaining = Math.ceil(deadlineAt - nowMs())
+  return remaining > 0 ? remaining : -1
 }
 
 /** The caller's own signal behind a request's deadline signal (or the signal itself). */
@@ -1173,6 +1210,39 @@ export function boundedRequestTimeout(deadline: number | undefined, configuredTi
 export interface TransportAuth {
   bearer(): Promise<string | undefined>
   onUnauthorized(failedToken: string | undefined): Promise<string | undefined>
+}
+
+/**
+ * `promise`, or `ClientTimeoutError` once the absolute deadline (`nowMs()`
+ * clock) passes. The work itself is not cancelled; a missing deadline waits.
+ */
+async function withinDeadline<T>(promise: Promise<T>, deadlineAt: number | undefined): Promise<T> {
+  if (deadlineAt === undefined) return promise
+  const remaining = deadlineAt - nowMs()
+  if (remaining <= 0) {
+    promise.catch(() => undefined)
+    throw new ClientTimeoutError()
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expired = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new ClientTimeoutError()), Math.ceil(remaining))
+    unrefTimer(timer)
+  })
+  try {
+    return await Promise.race([promise, expired])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Map an abort caused by the request's own deadline to `ClientTimeoutError`. */
+async function timeoutOnAbort<T>(promise: Promise<T>, timeout: { readonly timedOut: () => boolean }): Promise<T> {
+  try {
+    return await promise
+  } catch (error) {
+    if (isAbortError(error) && timeout.timedOut()) throw new ClientTimeoutError()
+    throw error
+  }
 }
 
 /** Merge a resolved bearer into a request config (overriding the instance default). */
@@ -1231,15 +1301,22 @@ export class HttpTransport {
    * the request runs untouched on the instance's static credential.
    */
   private async withAuth<T>(config: AxiosRequestConfig | undefined, run: (config?: AxiosRequestConfig) => Promise<T>): Promise<T> {
-    if (!this.options?.auth) return run(config)
-    const token = await this.options.auth.bearer()
+    const auth = this.options?.auth
+    if (!auth) return run(config)
+    // One deadline for the whole call: the bearer (a token mint), the request,
+    // a 401 refresh and its retry. The request interceptor keeps `deadlineAt`.
+    const budget = boundedTimerDelay(typeof config?.timeout === 'number' ? config.timeout : this.defaultTimeout)
+    const deadlineAt = budget === 0 ? undefined : nowMs() + budget
+    const bounded = (requestConfig: AxiosRequestConfig | undefined): AxiosRequestConfig | undefined =>
+      deadlineAt === undefined ? requestConfig : { ...requestConfig, daytona: { deadlineAt } } as DaytonaAxiosRequestConfig
+    const token = await withinDeadline(auth.bearer(), deadlineAt)
     try {
-      return await run(withBearer(config, token))
+      return await run(bounded(withBearer(config, token)))
     } catch (error) {
       if (!(error instanceof DaytonaError) || error.statusCode !== 401) throw error
-      const fresh = await this.options.auth.onUnauthorized(token)
+      const fresh = await withinDeadline(auth.onUnauthorized(token), deadlineAt)
       if (fresh === undefined || fresh === token) throw error
-      return run(withBearer(config, fresh))
+      return run(bounded(withBearer(config, fresh)))
     }
   }
 
@@ -1321,7 +1398,7 @@ export class HttpTransport {
         currentAuthToken = retryToken
         sdkAuthorization = `Bearer ${retryToken}`
       } else if (this.options?.auth) {
-        currentAuthToken = await this.options.auth.bearer()
+        currentAuthToken = await timeoutOnAbort(abortableWait(this.options.auth.bearer(), timeout.signal), timeout)
         if (currentAuthToken !== undefined) sdkAuthorization = `Bearer ${currentAuthToken}`
       } else if (this.options?.authProvider) {
         try {
@@ -1374,7 +1451,7 @@ export class HttpTransport {
         if (response.status === 401 && this.options?.auth && retryToken === undefined && !retriedUnauthorized && request.canRetryUnauthorized) {
           let freshToken: string | undefined
           try {
-            freshToken = await this.options.auth.onUnauthorized(currentAuthToken)
+            freshToken = await timeoutOnAbort(abortableWait(this.options.auth.onUnauthorized(currentAuthToken), timeout.signal), timeout)
           } catch (err) {
             await response.body?.cancel().catch(() => undefined)
             finalize(response.status, err instanceof Error ? err : new AuthenticationError('onUnauthorized raised an error'))

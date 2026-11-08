@@ -355,6 +355,47 @@ describe('request timeout meaning', () => {
     expect(await response.json()).toEqual({ ok: true })
   })
 
+  describe('one deadline for the bearer, a 401 refresh and the retry', () => {
+    // Each step fits the 150 ms timeout on its own; together (about 260 ms)
+    // they do not, so a fresh window per step would let the call succeed.
+    const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+    const unauthorizedThenOk = (request: IncomingMessage, response: ServerResponse): void => {
+      request.resume()
+      setTimeout(() => {
+        const stale = request.headers.authorization === 'Bearer stale'
+        response.writeHead(stale ? 401 : 200, { 'Content-Type': 'application/json' })
+        response.end(JSON.stringify(stale ? { code: 'UNAUTHORIZED', message: 'expired' } : { ok: true }))
+      }, 50)
+    }
+    const slowSandboxAuth = (delay: number) => ({
+      bearer: async () => { await sleep(delay); return 'stale' },
+      onUnauthorized: async () => { await sleep(delay); return 'fresh' },
+    })
+    const slowProvider = (delay: number) => ({
+      authorizationHeader: async (options?: { readonly forceRefresh?: boolean; readonly signal?: AbortSignal }) => {
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, delay)
+          options?.signal?.addEventListener('abort', () => { clearTimeout(timer); reject(options.signal?.reason) }, { once: true })
+        })
+        return options?.forceRefresh ? 'Bearer fresh' : 'Bearer stale'
+      },
+    })
+
+    it.each([
+      ['a sandbox token on the axios path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'get'],
+      ['a sandbox token on the fetch path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'fetch'],
+      ['a project token on the axios path', (delay: number) => new HttpTransport(base, undefined, 150, { authProvider: slowProvider(delay) }), 'get'],
+      ['a project token on the fetch path', (delay: number) => new HttpTransport(base, undefined, 150, { authProvider: slowProvider(delay) }), 'fetch'],
+    ] as const)('with %s', async (_label, transport, method) => {
+      handle = unauthorizedThenOk
+      const call = (t: HttpTransport) => method === 'get' ? t.get('/thing') : t.fetch('/thing').then((response) => response.json())
+      const started = performance.now()
+      await expect(call(transport(80))).rejects.toBeInstanceOf(ClientTimeoutError)
+      expect(performance.now() - started).toBeLessThan(250)
+      await expect(call(transport(10))).resolves.toEqual({ ok: true })
+    })
+  })
+
   it('bounds a stream only until its headers arrive', async () => {
     const transport = new HttpTransport(base, 'k', 100)
     handle = trickle(6, 50)
