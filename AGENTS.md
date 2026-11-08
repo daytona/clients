@@ -558,7 +558,8 @@ shows up in review:
 
 The `Breaking changes` workflow compares these snapshots and `contract/*.json`
 (oasdiff for the OpenAPI files) with the last stable release tag
-(`python3 scripts/breaking/breaking_changes.py`, oasdiff from
+(`python3 scripts/breaking/breaking_changes.py --github-repo daytona/clients
+--base "$(git merge-base HEAD origin/main)"` locally, oasdiff from
 `scripts/breaking/install-oasdiff.sh`). A real break (a removal or an
 incompatible change) needs a `changelog.d/*.breaking.md` fragment in the PR.
 A change the check misreads as breaking goes into

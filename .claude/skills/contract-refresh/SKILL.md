@@ -74,7 +74,8 @@ new contract files; this skill turns them into a working SDK change.
    ```bash
    git fetch --tags origin main
    OASDIFF=$(scripts/breaking/install-oasdiff.sh) \
-     python3 scripts/breaking/breaking_changes.py --base "$(git merge-base HEAD origin/main)"
+     python3 scripts/breaking/breaking_changes.py --github-repo daytona/clients \
+       --base "$(git merge-base HEAD origin/main)"
    ```
 
 ## PR

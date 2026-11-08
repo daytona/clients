@@ -515,9 +515,13 @@ def findings(root: Path, baseline: str, side: str | None, oasdiff: Callable[[], 
 
 
 def breaking_fragments(root: Path, since: str) -> list[str]:
+    """Breaking fragments added since ``since``. A fragment that only moved
+    (same text under a new name) announces nothing new."""
     present = sorted(p.relative_to(root).as_posix() for p in (root / "changelog.d").glob("*.breaking.md"))
     before = files_at(root, since, "changelog.d", ".breaking.md")
-    return [p for p in present if p not in before]
+    read_before = reader_at(root, since)
+    texts_before = {read_before(p) for p in before}
+    return [p for p in present if p not in before and (root / p).read_text(encoding="utf-8") not in texts_before]
 
 
 SNAPSHOT_KEYS = ("old", "new")

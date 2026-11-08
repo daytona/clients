@@ -393,6 +393,10 @@ class Repository(RepoCase):
         self.write("contract/proxy-errors.json", json.dumps({"codes": [], "generic": []}))
         code, out = self.run_check("--base", base)
         self.assertEqual(code, 1, out)
+        # Renaming the earlier fragment announces nothing new.
+        (self.root / "changelog.d/old.breaking.md").rename(self.root / "changelog.d/renamed.breaking.md")
+        code, out = self.run_check("--base", base)
+        self.assertEqual(code, 1, out)
         self.write("changelog.d/new.breaking.md", "**Removed** code A.\n")
         code, out = self.run_check("--base", base)
         self.assertEqual(code, 0, out)
