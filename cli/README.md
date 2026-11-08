@@ -122,16 +122,18 @@ whose logs hold Docker's output. Add `--wait` to poll until Docker is `ready`;
 
 `daytona image build <name> --context DIR` uploads the directory without what
 its ignore file excludes: `<Dockerfile>.dockerignore` next to the Dockerfile
-when it exists, otherwise `.dockerignore` at the context root. Every path is
-matched with Docker's pattern rules: `#` comments, `*`, `?`, `**` and
-character classes; patterns are evaluated in order and the last one that
-matches a path decides; a pattern that matches a parent directory applies to
-everything inside it; `!` re-includes. An excluded directory is still walked
-when a `!` pattern could re-include something inside it, as BuildKit does.
-BuildKit's own per-path decisions can still differ when a `!` pattern is
-followed by patterns that match a parent directory. The Dockerfile and the ignore file are always uploaded, even when a pattern
-matches them. The 64 MiB context limit counts what is uploaded. A `--context` tar file is
-uploaded as is, and `sandbox cp` never filters.
+when it exists, otherwise `.dockerignore` at the context root. What is
+uploaded matches what `docker build` (BuildKit) uploads: the ignore file is
+read as Docker reads it (`#` comment lines, `*`, `?`, `**`, character
+classes, `!` exceptions), patterns are evaluated in order and the last one
+that matches decides, and a pattern that matched a directory applies to
+everything inside it. So `!config` after `**/*.pem` uploads `config/` but
+not `config/server.pem`. An excluded directory is walked only when a `!`
+pattern could re-include something inside it; an unreadable excluded
+directory is skipped. The Dockerfile and the ignore file are always uploaded,
+even when a pattern matches them. The 64 MiB context limit counts what is
+uploaded. A `--context` tar file is uploaded as is, and `sandbox cp` never
+filters.
 
 ### macOS sandboxes
 
@@ -236,14 +238,22 @@ never prompts:
 - Destructive and billable commands (`delete`, `remove`, `revoke`, `leave`,
   billing setting deletes, `billing plan set`, `billing automatic-top-up
   set`, Mac purchases, `reservation renew`) prompt at a
-  terminal; off a terminal they refuse unless `--yes` or `DAYTONA_YES=1` is
-  given, before anything reaches the server. `daytona config set confirm false`
+  terminal; in non-interactive mode (no terminal, `-o json|yaml`, or `CI`
+  set) they refuse unless `--yes` or `DAYTONA_YES=1` is given, before
+  anything reaches the server. `daytona config set confirm false`
   turns the terminal prompts off; it never consents off a terminal.
 - Every list returns one page and prints the list envelope. `--limit` (1 to
-  200, default 100; the billing lists have their own smaller bounds),
+  200, default 100; the billing lists have their own: `billing balances`,
+  `charges` and `invoices` 1 to 100, default 25; `billing payment-methods` 1
+  to 100, default 20; `billing usage-periods` 1 to 60, default 12),
   `--cursor <token>` and `--all` page through it. `sandbox list` and `image list` query each distinct API
   base URL in the region catalog once for fresh listings and regional cursors,
-  unless `--region` narrows them. Saved cursors resume unfinished pages.
+  unless `--region` narrows them. With `--region R` they print only the items
+  in R or a region inside it (`region_id` for sandboxes; `region_id` or
+  `region_ids` for images); the list API has no region filter and regions
+  can share an API, so a page can then hold fewer than `--limit` items while
+  the cursor still advances over the API's page. Saved cursors resume
+  unfinished pages.
   Results merge regional cursors and de-duplicate resources by ID. The
   catalogs (`region`, `cpu-type`, `mac-model`, `role`, `billing plan`) and the
   in-sandbox lists (`sandbox port list`, `sandbox process list`) are returned
@@ -251,8 +261,9 @@ never prompts:
   `image list` is a usage error (exit 2) before any list request. When some
   regions fail, the list prints the others' items with `"incomplete": true`
   and one `errors` entry per failed region, and exits **7**; when every region
-  fails, the command fails with that failure (for example exit 3 for a
-  refused credential) and prints no list.
+  fails, the command fails with the first region's exit code, `code`,
+  `source` and `trace_id` (for example exit 3 for a refused credential),
+  names every region's failure in the message, and prints no list.
 - Sandbox search time filters use half-open ranges: `--created-start-at` /
   `--created-end-at`, `--updated-start-at` / `--updated-end-at`, and
   `--last-activity-start-at` / `--last-activity-end-at`. Start bounds are
@@ -353,7 +364,9 @@ request.
   the field that names it plus a boolean named after the action, e.g.
   `{"id": "img1", "deleted": true}`:
   - `id`: `image`, `snapshot`, `org`, `project delete` (`deleted`; `volume
-    delete` prints the API's operation when it returns one), `key` /
+    delete` prints the API's operation when it returns one; `image`,
+    `snapshot` and `volume delete` take an id or a name and print the
+    resource's id), `key` /
     `org-key` / `invite revoke` (`revoked`), `service-account delete`
     (`archived`), `project service-account remove` (`removed`), `org leave`
     (`left`);
@@ -371,7 +384,8 @@ request.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,
   `process attach` and `cp`, `--follow` in table mode, `billing invoice pdf`,
   `docs`, `completion`, `help` and `--version`.
-- The local selections (`org use`, `profile use`) print nothing.
+- The local configuration commands (`org use`, `profile use`, `profile
+  delete`, `config set`, `logout`) print nothing on stdout.
 - With JSON or YAML output (including the default off a terminal) an error
   is one JSON line on stderr:
   `{"error": {"exit_code": 4, "code": "FORBIDDEN", "message": "…", "source": "DAYTONA_API", "trace_id": "…", "hint": "…"}}`.
@@ -395,7 +409,7 @@ request.
 | `4` | permission denied: HTTP 403 |
 | `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE` that does not exist (on the commands that use the selected profile) |
 | `6` | conflict: HTTP 409, 412 and 501, and HTTP 429 `LIMIT_EXCEEDED` (an organization limit) |
-| `7` | partial result: `sandbox list` / `image list` reached only some regions; the others' items are printed with each failure in `errors` (when no region answers, the failure's own code applies) |
+| `7` | partial result: `sandbox list` / `image list` reached only some regions; the others' items are printed with each failure in `errors` (when no region answers, the first region's failure decides the code) |
 | `8` | timed out: `--timeout` passed, a request timed out, or HTTP 408 / 504 |
 | `130` | interrupted (Ctrl-C), or a confirmation prompt answered no |
 
@@ -488,6 +502,8 @@ IDs; a selection given by name appears in `org_ref` / `project_ref`, and
 | `DAYTONA_OIDC_CLIENT_ID` | the OIDC client a browser or device login uses |
 | `CI` | any value makes the CLI non-interactive |
 | `NO_COLOR`, `TERM=dumb` | no colour |
+| `SSH_CONNECTION`, `SSH_TTY`, `SSH_CLIENT` | any of them makes `login` use the device flow instead of the browser (`--browser` overrides) |
+| `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | the HTTP proxy for API requests (Go's standard handling) |
 
 The CLI does not read `DAYTONA_API_URL` (a value set for the 0.x CLI does not
 redirect it) or `DAYTONA_REGION` (pass `--region`). A login saves the API URL
