@@ -139,10 +139,13 @@ func flagLine(path string, f *pflag.Flag, persistent bool) string {
 	return path + " --" + f.Name + ": " + strings.Join(kind, " ")
 }
 
-// envSurface lists the environment variables the CLI reads: the string
-// argument of every Getenv / getenv / LookupEnv call in the module's
-// non-test sources (generated code excluded). An argument that is not a
-// string literal or a string constant fails, so no read goes unlisted.
+// envSurface lists the environment variables the CLI reads, from the
+// module's non-test sources (generated code excluded): the string argument of
+// every call through os.Getenv / os.LookupEnv or through a name that holds
+// one. A reader name is any variable or field assigned os.Getenv /
+// os.LookupEnv or another reader, and any parameter of a module function that
+// a reader is passed to. An argument that is not a string literal or constant
+// fails, so no read goes unlisted.
 func envSurface(moduleRoot string) ([]string, error) {
 	fset := token.NewFileSet()
 	var files []*ast.File
@@ -177,7 +180,10 @@ func envSurface(moduleRoot string) ([]string, error) {
 				continue
 			}
 			for _, spec := range gen.Specs {
-				vs := spec.(*ast.ValueSpec)
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
 				for i, name := range vs.Names {
 					if i < len(vs.Values) {
 						if lit, ok := vs.Values[i].(*ast.BasicLit); ok && lit.Kind == token.STRING {
@@ -188,33 +194,112 @@ func envSurface(moduleRoot string) ([]string, error) {
 			}
 		}
 	}
+
+	params := map[string][]string{} // function or method name -> parameter names
+	for _, f := range files {
+		for _, decl := range f.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			for _, field := range fn.Type.Params.List {
+				names := []string{"_"}
+				if len(field.Names) > 0 {
+					names = names[:0]
+					for _, name := range field.Names {
+						names = append(names, name.Name)
+					}
+				}
+				params[fn.Name.Name] = append(params[fn.Name.Name], names...)
+			}
+		}
+	}
+	readers := map[string]bool{}
+	isOSReader := func(e ast.Expr) bool {
+		sel, ok := e.(*ast.SelectorExpr)
+		if !ok {
+			return false
+		}
+		pkg, ok := sel.X.(*ast.Ident)
+		return ok && pkg.Name == "os" && (sel.Sel.Name == "Getenv" || sel.Sel.Name == "LookupEnv")
+	}
+	isReader := func(e ast.Expr) bool {
+		switch x := e.(type) {
+		case *ast.Ident:
+			return readers[x.Name]
+		case *ast.SelectorExpr:
+			return isOSReader(x) || readers[x.Sel.Name]
+		}
+		return false
+	}
+	nameOf := func(e ast.Expr) string {
+		switch x := e.(type) {
+		case *ast.Ident:
+			return x.Name
+		case *ast.SelectorExpr:
+			return x.Sel.Name
+		}
+		return ""
+	}
+	add := func(name string) bool {
+		if name == "" || name == "_" || readers[name] {
+			return false
+		}
+		readers[name] = true
+		return true
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, f := range files {
+			ast.Inspect(f, func(n ast.Node) bool {
+				switch x := n.(type) {
+				case *ast.CallExpr:
+					for i, arg := range x.Args {
+						if names := params[nameOf(x.Fun)]; isReader(arg) && i < len(names) {
+							changed = add(names[i]) || changed
+						}
+					}
+				case *ast.AssignStmt:
+					for i, rhs := range x.Rhs {
+						if i < len(x.Lhs) && isReader(rhs) {
+							changed = add(nameOf(x.Lhs[i])) || changed
+						}
+					}
+				case *ast.ValueSpec:
+					for i, value := range x.Values {
+						if i < len(x.Names) && isReader(value) {
+							changed = add(x.Names[i].Name) || changed
+						}
+					}
+				case *ast.KeyValueExpr:
+					if isReader(x.Value) {
+						changed = add(nameOf(x.Key)) || changed
+					}
+				}
+				return true
+			})
+		}
+	}
+
 	seen := map[string]bool{}
 	var problems []string
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
-			if !ok || len(call.Args) != 1 {
-				return true
-			}
-			var name string
-			switch fn := call.Fun.(type) {
-			case *ast.Ident:
-				name = fn.Name
-			case *ast.SelectorExpr:
-				name = fn.Sel.Name
-			}
-			if name != "Getenv" && name != "getenv" && name != "LookupEnv" {
+			if !ok || !isReader(call.Fun) {
 				return true
 			}
 			var value string
-			switch arg := call.Args[0].(type) {
-			case *ast.BasicLit:
-				value, _ = strconv.Unquote(arg.Value)
-			case *ast.Ident:
-				value = consts[f.Name.Name+"."+arg.Name]
-			case *ast.SelectorExpr:
-				if pkg, ok := arg.X.(*ast.Ident); ok {
-					value = consts[pkg.Name+"."+arg.Sel.Name]
+			if len(call.Args) == 1 {
+				switch arg := call.Args[0].(type) {
+				case *ast.BasicLit:
+					value, _ = strconv.Unquote(arg.Value)
+				case *ast.Ident:
+					value = consts[f.Name.Name+"."+arg.Name]
+				case *ast.SelectorExpr:
+					if pkg, ok := arg.X.(*ast.Ident); ok {
+						value = consts[pkg.Name+"."+arg.Sel.Name]
+					}
 				}
 			}
 			if value == "" {
@@ -248,4 +333,55 @@ func renderSurface(lines []string) string {
 	header := "# Public surface of the daytona CLI: commands, flags and the environment variables it reads.\n" +
 		"# Generated by cli/cmd/surface_test.go; do not edit. Regenerate: " + surfaceRegenerate + ".\n"
 	return header + strings.Join(lines, "\n") + "\n"
+}
+
+func TestEnvSurfaceFollowsReaders(t *testing.T) {
+	write := func(t *testing.T, src string) string {
+		t.Helper()
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "x.go"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return dir
+	}
+	dir := write(t, `package x
+
+import "os"
+
+const name = "VIA_CONST"
+
+type opts struct{ Lookup func(string) string }
+
+func helper(get func(string) (string, bool)) { get("VIA_PARAM") }
+
+func f() {
+	os.Getenv("DIRECT")
+	read := os.Getenv
+	read("VIA_ALIAS")
+	again := read
+	again(name)
+	o := opts{Lookup: os.Getenv}
+	o.Lookup("VIA_FIELD")
+	helper(os.LookupEnv)
+}
+`)
+	got, err := envSurface(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(got)
+	want := []string{"$DIRECT: env", "$VIA_ALIAS: env", "$VIA_CONST: env", "$VIA_FIELD: env", "$VIA_PARAM: env"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	dynamic := write(t, `package x
+
+import "os"
+
+func f(key string) { read := os.Getenv; read(key) }
+`)
+	if _, err := envSurface(dynamic); err == nil || !strings.Contains(err.Error(), "not a string constant") {
+		t.Fatalf("a read with a dynamic name must fail, got %v", err)
+	}
 }
