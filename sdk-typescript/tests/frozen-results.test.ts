@@ -169,6 +169,15 @@ describe('deepFrozen', () => {
     expect(Object.isFrozen(deep)).toBe(true)
   })
 
+  it('walks into an object that is already frozen', async () => {
+    const deepFrozen = await load()
+    const leaf = {}
+    const inner = { leaf }
+    const value = deepFrozen({ outer: Object.freeze({ inner }) })
+    expect(Object.isFrozen(value) && Object.isFrozen(value.outer)).toBe(true)
+    expect(Object.isFrozen(inner) && Object.isFrozen(leaf)).toBe(true)
+  })
+
   it('ends on a cycle', async () => {
     // A synchronous loop cannot be interrupted by a Jest timeout, so the cyclic
     // freeze runs in a worker the test terminates: a regression fails in seconds.

@@ -7,14 +7,17 @@ the platform services (the lifecycle methods by handle and by id, `wait()`,
 `images.pull()`, `images.get()` / `snapshots.get()` with `wait="ready"`,
 `docker.wait_until_ready()`, `create_from_build()`'s build timeout,
 `follow_build_logs()` and fork's `wait_seconds`) reads a value above the timer
-maximum, about 24.8 days, as no deadline in both SDKs (TypeScript armed a real
-deadline about 35 days out for 3,000,000 s, and Python's fork capped it at
-24.8 days); running out raises `RequestTimeoutError` (source `SDK`), even when
-a held read is still unanswered at the deadline, and a terminal state raises
-`SandboxTerminalStateError`. Once the target state has been observed, a failed
-metadata refresh afterwards no longer turns that success into an error. The
-lifecycle methods no longer refuse calls by sandbox class or persistence
-before sending them: the API decides. `wait_for_state()` / `waitForState()` is
-no longer public: use `wait(until=...)`, whose states are checked before any
-request (an invalid one is a `BadRequestError`). Python `wait(timeout=None)`
-is gone: pass `0` to wait without a deadline.
+maximum, about 24.8 days, as no deadline in both SDKs (before, both SDKs
+treated it as a real deadline: a 3,000,000 s budget ended after about 34.7
+days, in TypeScript given as 3,000,000,000 ms for every one of these options
+but `wait()`, which took seconds; `images.get()` / `snapshots.get()` made one
+long poll of at most 60 s whatever the budget, and `create_from_build()` had
+no build timeout of its own); running out raises `RequestTimeoutError` (source
+`SDK`), even when a held read is still unanswered at the deadline, and a
+terminal state raises `SandboxTerminalStateError`. Once the target state has
+been observed, a failed metadata refresh afterwards no longer turns that
+success into an error. The lifecycle methods no longer refuse calls by sandbox
+class or persistence before sending them: the API decides. `wait_for_state()`
+/ `waitForState()` is no longer public: use `wait(until=...)`, whose states
+are checked before any request (an invalid one is a `BadRequestError`). Python
+`wait(timeout=None)` is gone: pass `0` to wait without a deadline.

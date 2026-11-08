@@ -20,6 +20,6 @@ SDK); `images.list()` / `snapshots.list()` check `name`, `sandbox_id`,
 `anonymous` (a boolean; TypeScript `null` is refused, as Python refuses
 `None`) and `platform` (`"true"`, `"false"` or `"any"`). A query value with a
 lone surrogate (a cursor, a filter, a search list or timestamp) is refused
-rather than escaping as a raw `UnicodeEncodeError` or `URIError`. Search
-`labels` are sent as JSON, which escapes a lone surrogate, as a request body
-does.
+rather than escaping as a raw `UnicodeEncodeError` (Python) or failing as a
+`ConnectionError` (TypeScript). Search `labels` are sent as JSON, which
+escapes a lone surrogate, as a request body does.
