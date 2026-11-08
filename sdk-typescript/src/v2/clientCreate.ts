@@ -19,6 +19,7 @@ import { createIdempotencyKey } from './clientCreateNames.js'
 import type { PreparedSandboxCreate } from './clientCreateRequests.js'
 import type { SandboxClientContext } from './clientSandboxes.js'
 import type { CreateFromBuildOptions, CreateSandboxOptions, CreateSandboxResponse } from './types.js'
+import { WAIT_READ_SLACK_MS } from './ProcessWire.js'
 
 /** @internal */
 export async function createSandbox(context: SandboxClientContext, request: PreparedSandboxCreate): Promise<Sandbox> {
@@ -32,7 +33,13 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   // The create response first associates the sandbox id with its regional
   // API endpoint for the events hub.
   let createdEventDestination: string | undefined
+  // A create that asks the server to hold is a long poll: the hold plus read
+  // slack is never cut by a shorter request timeout. No limit (0) stays no
+  // limit; a create with waitSeconds 0 is an ordinary request.
+  const rootMs = context.api.defaults.timeout
+  const holdTimeout = wait > 0 && typeof rootMs === 'number' && rootMs > 0 ? Math.max(rootMs, wait * 1000 + WAIT_READ_SLACK_MS) : undefined
   const created = await context.api.post<CreateSandboxResponse>(path, body, {
+    ...(holdTimeout === undefined ? {} : { timeout: holdTimeout }),
     headers: { 'Idempotency-Key': idempotencyKey, ...(region ? { 'x-daytona-region': region } : {}) },
   }).then((response) => {
     createdEventDestination = eventDestinationFromHeaders(response.headers) || undefined

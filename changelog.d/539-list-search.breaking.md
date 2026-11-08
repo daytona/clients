@@ -12,3 +12,8 @@ refused (and excluded from the type: Python `SearchSandboxState`). The
 `SearchResult` keeps them. List and search pages are immutable: Python `items`
 is a tuple, TypeScript fields are `readonly` with `readonly T[]` items.
 `find_by_name()` / `findByName()` still returns every match.
+A list response that breaks its page shape (no array, a non-object entry, a
+non-string `next_cursor`) is a `BadRequestError` naming the field in
+TypeScript too, for sandboxes, images, snapshots, volumes, secrets,
+reservations, Mac models, preview endpoints and ports; it used to throw a raw
+`TypeError` (a volume list without `volumes` read as empty).

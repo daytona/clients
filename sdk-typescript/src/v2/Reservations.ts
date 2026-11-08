@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { assertInternal } from './internal.js'
@@ -108,7 +109,8 @@ export class ReservationsService {
   public async list(options: ListReservationsOptions = {}): Promise<ListResult<MacReservation>> {
     assertKnownOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS)
     const { data } = await this.http.get<api.ListReservationsResponse>('/reservations', { params: options })
-    return { items: data.reservations.map(reservation), nextCursor: data.next_cursor ?? undefined }
+    const page = listPage<api.MacReservation>(data, 'reservations', 'reservation list')
+    return { items: page.items.map(reservation), nextCursor: page.nextCursor }
   }
 
   public async *iter(options: ListReservationsOptions = {}): AsyncIterable<MacReservation> {

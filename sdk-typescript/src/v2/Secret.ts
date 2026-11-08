@@ -14,6 +14,7 @@
  * Uses the `/secrets` routes, scoped to the API key's project.
  */
 
+import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { assertInternal } from './internal.js'
@@ -75,7 +76,8 @@ export class SecretsService {
   public async list(options: ListSecretsOptions = {}): Promise<ListResult<Secret>> {
     assertKnownOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS)
     const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: options })
-    return { items: data.secrets.map(mapSecret), nextCursor: data.next_cursor ?? undefined }
+    const page = listPage<api.Secret>(data, 'secrets', 'secret list')
+    return { items: page.items.map(mapSecret), nextCursor: page.nextCursor }
   }
 
   public async *iter(options: ListSecretsOptions = {}): AsyncIterable<Secret> {

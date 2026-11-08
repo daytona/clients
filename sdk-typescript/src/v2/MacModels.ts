@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { assertInternal } from './internal.js'
@@ -32,7 +33,8 @@ export class MacModelsService {
   /** Every registered Mac model, ordered by `id`. */
   public async list(): Promise<readonly MacModel[]> {
     const { data } = await this.http.get<api.MacModelList>('/mac-models')
-    return data.mac_models.map(mapMacModel)
+    // The registry is not paged: `mac_models` is its whole envelope.
+    return listPage<api.MacModel>(data, 'mac_models', 'Mac model list').items.map(mapMacModel)
   }
 
   /** Free Macs and prices per model. Availability is advisory; price is absent when unavailable. */

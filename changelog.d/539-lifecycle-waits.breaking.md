@@ -36,7 +36,11 @@ The create then gets the full `wait_seconds` / `waitSeconds`. No read of a
 wait outlives its deadline: a long-poll read the deadline cuts is the wait
 running out (`RequestTimeoutError` for the lifecycle methods, the returned
 handle for `create*()` / `fork()`), never a `ClientTimeoutError` after the
-budget (Python used to overrun it by the read slack). An image that
+budget (Python used to overrun it by the read slack). A create that asks
+the server to hold its response (`wait_seconds` / `waitSeconds` above `0`) is
+bounded by that hold plus a few seconds, never less than the request timeout,
+so a request timeout shorter than the hold no longer turns a healthy create
+into `SandboxCreateRequestTimeoutError`. An image that
 ends in `failed` or `error` raises `ImageBuildFailedError`. The lifecycle
 methods no longer refuse calls by sandbox class or persistence before sending
 them: the API decides.

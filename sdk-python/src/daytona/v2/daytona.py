@@ -41,6 +41,7 @@ from ._api_core import (
 )
 from ._auth import ProjectTokenAuth
 from ._core import (
+    WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     _optional_int,
     artifact_ref_from_wire,
@@ -716,6 +717,15 @@ class AsyncDaytona:
             if endpoint:
                 created_endpoints.append(endpoint)
 
+        # A create that asks the server to hold is a long poll: the hold plus
+        # read slack is never cut by a shorter request timeout. No limit stays
+        # no limit; a create with wait_seconds=0 is an ordinary request.
+        root_timeout = getattr(self._api, "request_timeout_seconds", 0) or 0
+        hold_timeout = (
+            max(root_timeout, wait_budget + WAIT_READ_SLACK_SECONDS)
+            if wait_budget > 0 and root_timeout > 0
+            else None
+        )
         try:
             data = expect_object(
                 await self._api.send(
@@ -723,6 +733,7 @@ class AsyncDaytona:
                         "POST",
                         path,
                         json_body=body,
+                        timeout=hold_timeout,
                         headers={
                             "Idempotency-Key": create_key,
                             **({"x-daytona-region": target} if target is not None else {}),

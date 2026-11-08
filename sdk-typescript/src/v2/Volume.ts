@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { assertInternal } from './internal.js'
@@ -97,7 +98,8 @@ export class VolumesService {
       limit: options.limit,
     }
     const { data } = await this.api.get<api.ListVolumesResponse>('/volumes', { params })
-    return { items: (data.volumes ?? []).map(mapVolume), nextCursor: data.next_cursor ?? undefined }
+    const page = listPage<api.Volume>(data, 'volumes', 'volume list')
+    return { items: page.items.map(mapVolume), nextCursor: page.nextCursor }
   }
 
   public async list(options: ListVolumesOptions = {}): Promise<ListResult<Volume>> {

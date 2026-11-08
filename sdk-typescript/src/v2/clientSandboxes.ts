@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import type * as api from './gen/api-types.js'
@@ -63,9 +64,10 @@ export async function listSandboxes(context: SandboxClientContext, options: List
   const listResponse = await context.api.get<api.ListSandboxesResponse>('/sandboxes', {
     params: { cursor: options.cursor, limit: options.limit },
   }).then((response) => response.data)
-  const nextCursor = listResponse.next_cursor ?? ('nextCursor' in listResponse && typeof listResponse.nextCursor === 'string' ? listResponse.nextCursor : undefined)
-  listResponse.sandboxes.forEach(assertSandboxResponse)
-  return { items: await sandboxesFromDtos(context, listResponse.sandboxes), nextCursor }
+  const page = listPage<api.Sandbox>(listResponse, 'sandboxes', 'sandbox list')
+  const nextCursor = page.nextCursor ?? ('nextCursor' in listResponse && typeof listResponse.nextCursor === 'string' ? listResponse.nextCursor : undefined)
+  page.items.forEach(assertSandboxResponse)
+  return { items: await sandboxesFromDtos(context, page.items), nextCursor }
 }
 
 /** @internal */

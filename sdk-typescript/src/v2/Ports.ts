@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics, credentialSafeInspection } from '../diagnostics.js'
 import { assertInternal } from './internal.js'
@@ -13,7 +14,7 @@ import { BadRequestError, DaytonaError, createDaytonaError } from './errors/Dayt
 import { strictUriEncode } from './http.js'
 import { HttpTransport } from './http.js'
 import type { ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, SignedPreviewLink } from './types.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 
 /**
  * Request header (and its value) that skips the preview warning page. Send it
@@ -133,8 +134,10 @@ export class PortsService {
 
   /** Every TCP port currently listening in the sandbox. */
   public async list(): Promise<ListResult<number>> {
-    const response = await this.requireToolbox().get<toolbox.PortList>('/port')
-    return { items: response.ports }
+    const response: unknown = await this.requireToolbox().get<toolbox.PortList>('/port')
+    const ports: unknown = typeof response === 'object' && response !== null ? Reflect.get(response, 'ports') : undefined
+    if (!Array.isArray(ports) || !ports.every((port) => Number.isInteger(port))) throw badRequest('port list response is missing the ports array of integers')
+    return { items: ports }
   }
 
   /**
@@ -155,7 +158,8 @@ export class PortsService {
     const page = await this.requireApi()
       .get<api.EndpointListResponse>(this.portsPath(), { params: options })
       .then((response) => response.data)
-    return { items: page.ports.map(mapPreviewEndpoint), nextCursor: page.next_cursor ?? undefined }
+    const endpoints = listPage<api.PreviewEndpoint>(page, 'ports', 'preview endpoint list')
+    return { items: endpoints.items.map(mapPreviewEndpoint), nextCursor: endpoints.nextCursor }
   }
 
   public async *iterEndpoints(options: ListEndpointsOptions = {}): AsyncIterable<PreviewEndpoint> {

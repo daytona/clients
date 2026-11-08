@@ -20,7 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from daytona import AsyncDaytona, Daytona, DaytonaConfig
-from daytona.v2 import ClientTimeoutError, RequestTimeoutError
+from daytona.v2 import ClientTimeoutError, RequestTimeoutError, SandboxCreateRequestTimeoutError
 
 _DETAIL = {
     "id": "sbx-1",
@@ -39,7 +39,7 @@ _DETAIL = {
 class _StallingApi:
     """Answers lifecycle requests at once and holds every `wait=` read for 30 s."""
 
-    def __init__(self) -> None:
+    def __init__(self, post_hold: float = 0) -> None:
         stop = threading.Event()
         self.stop = stop
 
@@ -65,7 +65,11 @@ class _StallingApi:
                     stop.wait(30)
                     return
                 if self.command == "POST" and self.path == "/sandboxes":
-                    self._reply(200, {"id": "sbx-1", "status": "pending", "wait_cap_seconds": 0})
+                    # The server's create hold, before it answers.
+                    stop.wait(post_hold)
+                    self._reply(
+                        200, {"id": "sbx-1", "status": "pending", "wait_cap_seconds": 60 if post_hold else 0}
+                    )
                     return
                 self._reply(200, _DETAIL if self.command == "GET" else {})
 
@@ -85,8 +89,8 @@ class _StallingApi:
 
 
 @pytest.fixture
-def api(monkeypatch: pytest.MonkeyPatch) -> Iterator[_StallingApi]:
-    server = _StallingApi()
+def api(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> Iterator[_StallingApi]:
+    server = _StallingApi(post_hold=getattr(request, "param", 0))
     monkeypatch.setenv("DAYTONA_V2_API_URL", server.url)
     monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "0")
     try:
@@ -140,3 +144,32 @@ def test_a_stalled_long_poll_ends_at_the_wait_deadline_sync(api: _StallingApi, v
         elapsed = time.monotonic() - started
     assert not isinstance(raised.value, ClientTimeoutError)
     assert 0.4 <= elapsed < 0.5 + _SLACK
+
+
+# A create POST that asks the server to hold is a long poll: a request timeout
+# shorter than the hold does not cut it, and the create returns its handle.
+_SHORT = DaytonaConfig(api_key="key", request_timeout=1)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("api", [2.5], indirect=True)
+async def test_a_create_hold_longer_than_the_request_timeout_returns_the_handle(api: _StallingApi) -> None:
+    async with AsyncDaytona(_SHORT) as root:
+        sandbox = await root.v2.create("img_1", wait_seconds=3)
+    assert (sandbox.id, sandbox.state) == ("sbx-1", "creating")
+
+
+@pytest.mark.parametrize("api", [2.5], indirect=True)
+def test_a_create_hold_longer_than_the_request_timeout_returns_the_handle_sync(api: _StallingApi) -> None:
+    with Daytona(_SHORT) as root:
+        sandbox = root.v2.create("img_1", wait_seconds=3)
+    assert sandbox.id == "sbx-1"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("api", [2.5], indirect=True)
+async def test_a_create_without_a_hold_stays_an_ordinary_request(api: _StallingApi) -> None:
+    # wait_seconds=0 asks for no hold: the request timeout bounds the POST.
+    async with AsyncDaytona(_SHORT) as root:
+        with pytest.raises(SandboxCreateRequestTimeoutError):
+            await root.v2.create("img_1", wait_seconds=0)

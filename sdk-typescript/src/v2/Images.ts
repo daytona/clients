@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
@@ -92,7 +93,8 @@ export class ImagesService {
         platform: options.platform,
       },
     })
-    return { items: data.images.map((image) => new Image(INTERNAL, image)), nextCursor: data.next_cursor ?? undefined }
+    const page = listPage<api.ImageListItem>(data, 'images', 'image list')
+    return { items: page.items.map((image) => new Image(INTERNAL, image)), nextCursor: page.nextCursor }
   }
 
   public async *iter(options: ListImagesOptions = {}): AsyncIterable<Image> {

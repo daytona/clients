@@ -492,7 +492,8 @@ skipping exist only in the TypeScript tool).
   `transport.request(..., transfer=True)`, TS `timeout: 0` on axios or
   `fetch(..., { transfer: true })`), which run until done or cancelled. A new
   call of one of those kinds must opt out the same way in both SDKs.
-  A per-call timeout (a wait's budget plus its slack, a git remote call, the
+  A per-call timeout (a wait's budget plus its slack, a create's server hold
+  plus its slack but never less than the request timeout, a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout`) replaces
   the request timeout for that request with the same meaning: total time
@@ -541,7 +542,7 @@ skipping exist only in the TypeScript tool).
   `tests/sdk-raised-errors.test.ts`, holds to a shrinking list); local
   I/O and protocol failures carry the source only. A response that breaks the
   contract is `BadRequestError` 400 `BAD_REQUEST` `SDK` naming the field (the
-  rule; network policy, sandbox secrets and sandbox objects follow it; known
+  rule; network policy, sandbox secrets, sandbox objects and list pages follow it; known
   exceptions at this point, which still raise `InternalServerError` 500 with
   no code: the computer-use status mappers, and the filesystem signed URL and
   watch events, until their areas adopt it). Python callers should not star-import
