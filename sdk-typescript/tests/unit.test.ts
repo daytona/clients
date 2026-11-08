@@ -7335,11 +7335,27 @@ describe('toolbox service request shaping', () => {
     ['{"access_token": "t", "expires_in": "soon"}', 'token exchange response expires_in must be a positive integer'],
     ['{"access_token": "t", "expires_in": 9007199254740992}', 'token exchange response expires_in must be a positive integer'],
     ['{"access_token": "t", "expires_in": 1.5}', 'token exchange response expires_in must be a positive integer'],
+    ['{"access_token": "t", "expires_in": 60.5}', 'token exchange response expires_in must be a positive integer'],
+    ['{"access_token": "t", "expires_in": true}', 'token exchange response expires_in must be a positive integer'],
+    ['{"access_token": "t", "expires_in": 9007199254740992.0}', 'token exchange response expires_in must be a positive integer'],
   ])('names what is wrong with the token exchange body %p', async (body, message) => {
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
     clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { headers: { 'content-type': 'application/json' } }))
     await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, message, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  // JSON.parse cannot tell 60.0 from 60; Python's test_core.py takes the same values.
+  it.each(['60', '60.0', '1e2'])('takes an integral expires_in written as %s', async (raw) => {
+    const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
+    const auths: string[] = []
+    clientInstance(client).defaults.adapter = async (config) => {
+      auths.push(responseHeaders(config).get('authorization') ?? '')
+      return { data: { items: [] }, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`{"access_token": "platform", "expires_in": ${raw}}`, { headers: { 'content-type': 'application/json' } }))
+    await client.listAuditActions()
+    expect(auths).toEqual(['Bearer platform'])
   })
 
   it('reads only the token exchange fields it uses (no token_type / issued_token_type needed, as in Python)', async () => {

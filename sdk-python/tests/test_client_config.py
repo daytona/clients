@@ -340,6 +340,12 @@ async def test_a_per_call_timeout_bounds_opening_a_stream_in_place_of_the_reques
     roomy = AsyncTransport(BASE, "k", request_timeout=10)
     with pytest.raises(ClientTimeoutError):
         await getattr(roomy, opener)(RequestSpec("GET", "/logs", timeout=0.15))
+    # Headers inside a short per-call timeout: the body, which takes twice as
+    # long as that timeout, is never cut by it.
+    respx.get(f"{BASE}/fast-headers").mock(side_effect=lambda _request: _trickle(chunks=6, every=0.05))
+    stream = await getattr(roomy, opener)(RequestSpec("GET", "/fast-headers", timeout=0.15))
+    assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"xxxxxx"
+    await stream.close()
     # Without one, the request timeout bounds opening the exclusive stream too.
     with pytest.raises(ClientTimeoutError):
         await open_(RequestSpec("GET", "/logs"))

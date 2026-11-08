@@ -45,6 +45,17 @@ from daytona.v2 import types as daytona_v2_types
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _repo_scripts() -> Path:
+    """The repository's ``scripts/``, which the release-script tests drive.
+
+    An sdist has only the SDK, so those tests skip there.
+    """
+    scripts = ROOT.parent / "scripts"
+    if not scripts.is_dir():
+        pytest.skip("the repository's scripts/ is not in this tree (an sdist)")
+    return scripts
+
+
 def test_root_exports_only_clients_config_constants_and_errors() -> None:
     non_errors = {
         name
@@ -86,8 +97,11 @@ def test_removed_root_error_synonyms_name_the_surviving_category_and_daytona_v0(
     assert f"use the root `{category}`" in message, message
     assert f"from daytona.v0 import {name}" in message, message
     assert category in daytona.__all__
-    mapping = json.loads(_UPGRADE_MAPPING.read_text())
-    assert mapping["rootAliasCategories"][name] == category
+    # The pairing matches the migration tool's table, when this checkout has it
+    # (the sdist does not).
+    if _UPGRADE_MAPPING.is_file():
+        mapping = json.loads(_UPGRADE_MAPPING.read_text(encoding="utf-8"))
+        assert mapping["rootAliasCategories"][name] == category
 
 
 @pytest.mark.parametrize(
@@ -132,7 +146,7 @@ def test_v0_errors_rewritten_by_the_bundle_are_caught_by_the_shared_root_classes
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Run the bundle's errors rewrite on a v0-shaped module and catch its errors at the root."""
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -171,7 +185,7 @@ def test_v0_errors_rewritten_by_the_bundle_are_caught_by_the_shared_root_classes
 
 
 def test_the_bundle_errors_rewrite_refuses_a_class_already_inheriting_a_marker(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -192,7 +206,7 @@ def test_the_bundle_errors_rewrite_refuses_a_class_already_inheriting_a_marker(t
 
 
 def test_the_bundle_errors_self_check_rejects_a_duplicate_base() -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -211,7 +225,7 @@ def test_the_bundle_errors_self_check_rejects_a_duplicate_base() -> None:
 
 
 def test_the_bundle_errors_rewrite_fails_on_a_missing_class(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -223,7 +237,7 @@ def test_the_bundle_errors_rewrite_fails_on_a_missing_class(tmp_path: Path) -> N
 
 
 def _bundler() -> types.ModuleType:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -757,7 +771,7 @@ def test_a_v2_only_program_never_imports_v0() -> None:
 
 def _resolve_v0_tag(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh")],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh")],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", **env},
@@ -768,7 +782,7 @@ def _resolve_v0_tag(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 
 def test_the_v0_namespace_is_the_pinned_0x_tag() -> None:
     """scripts/v0-sdk-version is the single source of the vendored v0 tag."""
-    pin = (ROOT.parent / "scripts" / "v0-sdk-version").read_text().splitlines()[0].strip()
+    pin = (_repo_scripts() / "v0-sdk-version").read_text().splitlines()[0].strip()
     assert pin.startswith("v0."), "the v0 namespace vendors the 0.x SDK at a pinned tag"
     result = _resolve_v0_tag({})
     assert result.returncode == 0, result.stderr
@@ -776,11 +790,11 @@ def test_the_v0_namespace_is_the_pinned_0x_tag() -> None:
 
 
 def test_the_pin_records_the_tag_commit() -> None:
-    lines = (ROOT.parent / "scripts" / "v0-sdk-version").read_text().splitlines()
+    lines = (_repo_scripts() / "v0-sdk-version").read_text().splitlines()
     assert len(lines) == 2
     assert re.fullmatch(r"[0-9a-f]{40}", lines[1]), lines
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--sha"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--sha"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin"},
@@ -869,7 +883,7 @@ def test_root_config_routing_covers_every_field_and_matches_the_v0_forwarding(
 
 def _publish_mode(tree: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), str(tree)],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), str(tree)],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", **(env or {})},
@@ -931,7 +945,7 @@ def test_publish_refuses_a_pin_without_the_namespace_code(tmp_path: Path) -> Non
 
 
 def test_this_tree_bundles_v0() -> None:
-    assert _publish_mode(ROOT.parent).stdout.strip() == "bundle"
+    assert _publish_mode(_repo_scripts().parent).stdout.strip() == "bundle"
 
 
 def test_an_override_equal_to_the_pinned_tag_keeps_the_commit_check(tmp_path: Path) -> None:
@@ -940,7 +954,7 @@ def test_an_override_equal_to_the_pinned_tag_keeps_the_commit_check(tmp_path: Pa
     pin = tmp_path / "pin"
     pin.write_text("v0.224.0\n" + "a" * 40 + "\n")
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--sha"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--sha"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", "DAYTONA_V0_PIN_FILE": str(pin), "DAYTONA_V0_TAG": "v0.224.0"},
@@ -950,7 +964,7 @@ def test_an_override_equal_to_the_pinned_tag_keeps_the_commit_check(tmp_path: Pa
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "a" * 40
     other = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--sha"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--sha"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", "DAYTONA_V0_PIN_FILE": str(pin), "DAYTONA_V0_TAG": "v0.225.0"},
@@ -982,7 +996,7 @@ def test_an_override_equal_to_the_pinned_tag_refuses_a_moved_tag(tmp_path: Path)
     pin = tmp_path / "pin"
     pin.write_text(f"v0.224.0\n{pinned}\n")
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--verify"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--verify"],
         capture_output=True,
         text=True,
         env={
@@ -1001,7 +1015,7 @@ def test_an_override_equal_to_the_pinned_tag_refuses_a_moved_tag(tmp_path: Path)
         ["git", "-C", str(work), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
     spoofed = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--verify"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--verify"],
         capture_output=True,
         text=True,
         env={
@@ -1032,7 +1046,7 @@ def test_an_override_equal_to_the_pinned_tag_refuses_a_moved_tag(tmp_path: Path)
 )
 def test_publishing_with_a_v0_tag_override_needs_allow_unpinned(env: dict[str, str], ok: bool) -> None:
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), "--check-override"],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), "--check-override"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", **env},
@@ -1059,7 +1073,7 @@ def test_check_override_compares_against_the_pin_file_being_published(
     pin = tmp_path / "pin"
     pin.write_text("v0.223.1\r\n" + "c" * 40 + "\n")
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), "--check-override"],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), "--check-override"],
         capture_output=True,
         text=True,
         env={
@@ -1085,7 +1099,7 @@ def test_check_no_bundled_v0_catches_a_large_bundled_lockfile(tmp_path: Path, bu
     (clients / "sdk-python").mkdir()
     (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("[project.optional-dependencies]\nv0-sdk = []\n")
     (clients / "sdk-typescript" / "package.json").write_text('{"name": "@daytona/sdk"}\n')
     filler = "".join(f'    "node_modules/pkg{i}": {{"version": "1.0.0"}},\n' for i in range(8000))
@@ -1119,7 +1133,7 @@ def test_root_config_rejects_url_fields_saying_to_stay_on_0x(name: str) -> None:
 
 
 def test_the_python_bundler_refuses_symlinks(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -1169,7 +1183,7 @@ def test_dir_lists_v0_only_when_the_bundle_exists(monkeypatch: pytest.MonkeyPatc
 
 
 def test_the_python_bundler_refuses_an_unaliased_dotted_import(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -1183,7 +1197,7 @@ def test_the_python_bundler_refuses_an_unaliased_dotted_import(tmp_path: Path) -
 
 def test_check_override_refuses_a_multi_line_tag() -> None:
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), "--check-override"],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), "--check-override"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", "DAYTONA_V0_TAG": "v9.9.9\n::notice::forged", "PUBLISH_PYPI": "true"},
@@ -1210,7 +1224,7 @@ def test_check_no_bundled_v0_refuses_committed_bundles(tmp_path: Path, bundle_di
     (clients / "sdk-python").mkdir(exist_ok=True)
     (clients / "sdk-typescript").mkdir(exist_ok=True)
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / bundle_dir / "index.py").write_text("")
     (clients / "sdk-typescript" / "package.json").write_text("{}\n")
@@ -1231,7 +1245,7 @@ def test_check_no_bundled_v0_is_case_insensitive(tmp_path: Path) -> None:
     (clients / "sdk-python" / "src" / "daytona" / "V0").mkdir(parents=True)
     (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / "sdk-python" / "src" / "daytona" / "V0" / "x.py").write_text("")
     (clients / "sdk-typescript" / "package.json").write_text("{}\n")
@@ -1247,7 +1261,7 @@ def test_check_no_bundled_v0_is_case_insensitive(tmp_path: Path) -> None:
 
 
 def test_the_python_bundler_refuses_an_unrewritten_sdk_version_lookup(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -1265,7 +1279,7 @@ def test_check_no_bundled_v0_catches_an_entry_at_the_exact_path(tmp_path: Path) 
     (clients / "sdk-python" / "src" / "daytona").mkdir(parents=True)
     (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / "sdk-python" / "src" / "daytona" / "v0").symlink_to("/nonexistent")
     (clients / "sdk-typescript" / "package.json").write_text("{}\n")
@@ -1294,7 +1308,7 @@ def test_check_no_bundled_v0_catches_v0_only_dependencies(tmp_path: Path, manife
     (clients / "sdk-python").mkdir()
     (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / "sdk-typescript" / "package.json").write_text(manifest + "\n")
     (clients / "sdk-typescript" / "package-lock.json").write_text(
@@ -1326,7 +1340,7 @@ def test_check_dist_artifacts_reads_member_lists(tmp_path: Path, bundled: bool) 
         for name in ["src/daytona/py.typed"] + (["src/daytona/v0/_bundle.py"] if bundled else []):
             info = tarfile.TarInfo(f"daytona-2.0.0/{name}")
             sdist.addfile(info, io.BytesIO(b""))
-    script = str(ROOT.parent / "scripts" / "check_dist_artifacts.py")
+    script = str(_repo_scripts() / "check_dist_artifacts.py")
     plain = subprocess.run(
         [sys.executable, script, "python", str(tmp_path)], capture_output=True, text=True, check=False
     )
@@ -1491,7 +1505,7 @@ def test_v0_api_url_honours_its_own_var_and_ignores_daytona_api_url(
 
 def test_the_publish_mode_markers_exist_in_this_tree() -> None:
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), "--check-markers"],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), "--check-markers"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin"},
