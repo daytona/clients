@@ -22,6 +22,8 @@ import (
 
 // Pattern is one compiled line of a .dockerignore file.
 type Pattern struct {
+	raw       string // the line as given, for errors
+	err       error  // why the pattern cannot match: reported when evaluated
 	text      string // cleaned, slash-separated, without the leading `!`
 	exclusion bool   // a `!` line: re-includes what earlier lines excluded
 	kind      matchKind
@@ -96,7 +98,23 @@ func ReadPatterns(r io.Reader) ([]string, error) {
 	return out, nil
 }
 
-// New compiles patterns (as ReadPatterns returns them).
+// PatternError is a pattern that cannot be matched, reported when the walk
+// first evaluates it, as `docker build` does.
+type PatternError struct {
+	Pattern string
+	Err     error
+}
+
+func (e *PatternError) Error() string {
+	return fmt.Sprintf("invalid pattern %q: %v", e.Pattern, e.Err)
+}
+
+func (e *PatternError) Unwrap() error { return e.Err }
+
+// New compiles patterns (as ReadPatterns returns them). Like
+// patternmatcher.New it refuses only an illegal `!` and a pattern that
+// filepath.Match refuses; a pattern that does not compile is an error only
+// when a path is matched against it (PatternError).
 func New(patterns []string) (*Matcher, error) {
 	m := &Matcher{}
 	for _, raw := range patterns {
@@ -105,7 +123,7 @@ func New(patterns []string) (*Matcher, error) {
 			continue
 		}
 		// Like patternmatcher.New: the whole line is cleaned before a leading
-		// `!` is read, so `!../x` cleans to `x` (an inclusion) and `!/` to
+		// `!` is read, so `!/../x` cleans to `x` (an inclusion) and `!/` to
 		// the illegal `!`.
 		text = path.Clean(text)
 		p := &Pattern{}
@@ -117,12 +135,13 @@ func New(patterns []string) (*Matcher, error) {
 			m.exclusions = true
 			text = text[1:]
 		}
-		if _, err := path.Match(text, "."); err != nil {
+		if _, err := filepath.Match(filepath.FromSlash(text), "."); err != nil {
 			return nil, fmt.Errorf("invalid pattern %q: %w", raw, err)
 		}
 		p.text = text
+		p.raw = raw
 		if err := p.compile(); err != nil {
-			return nil, fmt.Errorf("invalid pattern %q: %w", raw, err)
+			p.err = &PatternError{Pattern: raw, Err: err}
 		}
 		m.patterns = append(m.patterns, p)
 		if p.exclusion && strings.ContainsAny(withoutTrailingGlob(p.text), patternChars) {
@@ -147,8 +166,9 @@ func withoutTrailingGlob(text string) string {
 // does: a pattern that matched the parent directory matches the path too,
 // and every other pattern is evaluated against the path alone, in order,
 // while it can still change the outcome. It returns whether the path is
-// excluded and the results to hand to the entries inside it.
-func (m *Matcher) Match(rel string, parent Results) (bool, Results) {
+// excluded and the results to hand to the entries inside it, or the
+// PatternError of a pattern evaluated here that cannot be matched.
+func (m *Matcher) Match(rel string, parent Results) (bool, Results, error) {
 	rel = path.Clean(rel)
 	results := Results{matched: make([]bool, len(m.patterns))}
 	known := len(parent.matched) == len(m.patterns) && len(m.patterns) > 0
@@ -160,6 +180,9 @@ func (m *Matcher) Match(rel string, parent Results) (bool, Results) {
 			// exclusion (`!`) line only while it is excluded.
 			if p.exclusion != excluded {
 				continue
+			}
+			if p.err != nil {
+				return false, results, p.err
 			}
 			match = p.match(rel)
 			if !match && !known {
@@ -177,24 +200,27 @@ func (m *Matcher) Match(rel string, parent Results) (bool, Results) {
 			excluded = !p.exclusion
 		}
 	}
-	return excluded, results
+	return excluded, results, nil
 }
 
 // Excluded reports whether the slash-separated context path rel is excluded
 // when the walk reaches it: each parent directory is matched first and its
 // results are carried down, as in a walk of the context.
-func (m *Matcher) Excluded(rel string) bool {
+func (m *Matcher) Excluded(rel string) (bool, error) {
 	rel = path.Clean(rel)
 	if rel == "." {
-		return false
+		return false, nil
 	}
 	var results Results
 	excluded := false
 	parts := strings.Split(rel, "/")
 	for i := range parts {
-		excluded, results = m.Match(strings.Join(parts[:i+1], "/"), results)
+		var err error
+		if excluded, results, err = m.Match(strings.Join(parts[:i+1], "/"), results); err != nil {
+			return false, err
+		}
 	}
-	return excluded
+	return excluded, nil
 }
 
 // MayReinclude reports whether an excluded directory must still be walked
@@ -330,14 +356,17 @@ func NewFilter(m *Matcher, always ...string) *Filter {
 // not, whether the walk still looks inside it. parent is the state Keep
 // returned for the entry's directory (nil at the context root); state is
 // handed to the directory's own entries.
-func (f *Filter) Keep(rel string, isDir bool, parent any) (keep, descend bool, state any) {
+func (f *Filter) Keep(rel string, isDir bool, parent any) (keep, descend bool, state any, err error) {
 	parentResults, _ := parent.(Results)
-	excluded, results := f.matcher.Match(rel, parentResults)
+	excluded, results, err := f.matcher.Match(rel, parentResults)
+	if err != nil {
+		return false, false, nil, err
+	}
 	if isDir {
 		state = results
 	}
 	if !excluded || f.always[rel] {
-		return true, true, state
+		return true, true, state, nil
 	}
-	return false, isDir && (f.alwaysDirs[rel] || f.matcher.MayReinclude(rel)), state
+	return false, isDir && (f.alwaysDirs[rel] || f.matcher.MayReinclude(rel)), state, nil
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -19,13 +20,16 @@ import (
 
 // testdata/buildkit_cases.json holds ignore files, context trees and the
 // entries `docker build` (BuildKit's context walker, fsutil.Walk with the
-// ignore file's patterns) uploads for them: hand-picked cases, including
-// secrets inside a re-included directory, and random ones. The CLI's walk
-// must upload exactly the same entries.
+// ignore file's patterns) uploads for them, or `fails` when BuildKit refuses
+// the ignore file: hand-picked cases, including secrets inside a
+// re-included directory and patterns that cannot be matched (an error only
+// when evaluated), and random ones. The CLI's walk must upload exactly the
+// same entries, and fail exactly where BuildKit fails.
 type buildKitCase struct {
 	Ignore   string   `json:"ignore"`
 	Files    []string `json:"files"`
 	Uploaded []string `json:"uploaded"`
+	Fails    bool     `json:"fails,omitempty"`
 }
 
 func TestWalkUploadsWhatBuildKitUploads(t *testing.T) {
@@ -45,22 +49,36 @@ func TestWalkUploadsWhatBuildKitUploads(t *testing.T) {
 			require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
 			require.NoError(t, os.WriteFile(p, []byte("x"), 0o600))
 		}
-		patterns, err := dockerignore.ReadPatterns(strings.NewReader(c.Ignore))
-		require.NoError(t, err, i)
-		m, err := dockerignore.New(patterns)
-		require.NoError(t, err, i)
 		uploaded := []string{}
-		err = toolbox.WalkArchiveEntries(root, dockerignore.NewFilter(m), func(rel, _ string, info os.FileInfo) error {
-			if info.IsDir() {
+		err := walkWithIgnoreFile(root, c.Ignore, func(rel string, isDir bool) {
+			if isDir {
 				rel += "/"
 			}
 			uploaded = append(uploaded, rel)
-			return nil
 		})
-		require.NoError(t, err, i)
+		if c.Fails {
+			require.Error(t, err, "case %d: ignore %q", i, c.Ignore)
+			continue
+		}
+		require.NoError(t, err, "case %d: ignore %q", i, c.Ignore)
 		sort.Strings(uploaded)
 		require.Equal(t, c.Uploaded, uploaded, "case %d: ignore %q, files %q", i, c.Ignore, c.Files)
 	}
+}
+
+func walkWithIgnoreFile(root, ignore string, fn func(rel string, isDir bool)) error {
+	patterns, err := dockerignore.ReadPatterns(strings.NewReader(ignore))
+	if err != nil {
+		return err
+	}
+	m, err := dockerignore.New(patterns)
+	if err != nil {
+		return err
+	}
+	return toolbox.WalkArchiveEntries(root, dockerignore.NewFilter(m), func(rel, _ string, info os.FileInfo) error {
+		fn(rel, info.IsDir())
+		return nil
+	})
 }
 
 // Paths given to NewFilter are kept without matching them, so a name with
@@ -85,6 +103,9 @@ func TestFilterAlwaysKeepsTheGivenPaths(t *testing.T) {
 // An excluded directory no exception can reach is never read, and a
 // permission error on an excluded directory is ignored, as BuildKit does.
 func TestWalkSkipsUnreadableExcludedDirectories(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a mode-000 directory stays readable on Windows")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a mode-000 directory")
 	}

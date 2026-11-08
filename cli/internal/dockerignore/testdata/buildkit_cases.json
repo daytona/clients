@@ -277,6 +277,31 @@
   ]
  },
  {
+  "ignore": "a\n!foo\\q\n",
+  "files": [
+   "a",
+   "b"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "foo\\q\n",
+  "files": [
+   "a"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "x*/[\n",
+  "files": [
+   "a"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
   "ignore": "a/\n",
   "files": [
    "a/x",
@@ -287,17 +312,214 @@
   ]
  },
  {
-  "ignore": "./certs/[a-c]/\\*\n[a-c]\n*.pem/README.md\n! **/docs/b\n*.log/**/ab\r\n",
+  "ignore": " #build/docs\ndocs/*.pem\n! [!a]/\\*/\r\n./node_modules/[a]/node_modules\n!a.log\r\n**\n",
+  "files": [
+   "*/b",
+   "*/foo",
+   "*/keep"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "[\nx y/keep/certs\n",
+  "files": [
+   "certs"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "#!*.key/a\n..\n   \n!.\n   \n! /..\n",
+  "files": [
+   ".env/README.md",
+   ".env/build/ab/c",
+   ".env/build/c/",
+   ".env/build/certs",
+   ".env/build/x y",
+   ".env/node_modules",
+   "b",
+   "node_modules",
+   "x y/a"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "#foo/*/[!a]\n./*/[a-\r\na.log\r\n./[a-/x\\q\n",
+  "files": [
+   "[a]/a/",
+   "[a]/ab"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "docs/[\nkeep\r\n #**/[a-\r\n!build/ab/ab\n",
+  "files": [
+   "k.key/"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "./\\[a\\]/a/\\*\n*\na/node_modules\n! ../[a-/build\n*.pem/**/*.key\r\n",
   "files": [
    "b",
    "node_modules"
   ],
-  "uploaded": [
-   "node_modules"
-  ]
+  "uploaded": [],
+  "fails": true
  },
  {
-  "ignore": "﻿a.log\n #!certs/[!a]\n*.key/?\n/docs/*\r\n",
+  "ignore": "ab\n! config/ab\n",
+  "files": [
+   "ab/.env/[a]/.env",
+   "ab/.env/[a]/foo",
+   "ab/.env/[a]/node_modules",
+   "ab/.env/a/certs",
+   "ab/.env/keep/b",
+   "ab/.env/keep/k.key",
+   "ab/a/a",
+   "ab/foo"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "README.md/build\nx y/a\\\n#!a\\/..\n./*.log/.env\nconfig\r\n",
+  "files": [
+   "c",
+   "keep/a.log/*",
+   "keep/x y"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "../config\n[\n./certs/certs\n #! node_modules/b\n!**/node_modules\n",
+  "files": [
+   "keep"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "./**\r\n   \r\nbuild\n[a-\n",
+  "files": [
+   "a.log/a.log",
+   "a.log/node_modules/a/README.md",
+   "certs"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "﻿   \n!docs/[!a]\n/[\nb/a\\/[!a]\n   \n",
+  "files": [
+   "README.md/",
+   "build",
+   "k.key"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": " #!*.log/[\n! node_modules/[\n!a/[a]/?/\r\n! ./x\\q\n?\n",
+  "files": [
+   "a.log",
+   "ab/[a]/config/",
+   "ab/[a]/foo",
+   "ab/[a]/x y",
+   "build/README.md/config/",
+   "build/certs/README.md/",
+   "build/certs/a.log",
+   "build/certs/c",
+   "build/config/certs/build",
+   "build/config/certs/server.pem",
+   "server.pem"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "#x\\q/\n#! [a-/keep/a\\\n./*.log/\\*/[a-\n",
+  "files": [
+   "k.key/a.log",
+   "k.key/docs/a",
+   "k.key/docs/build/keep",
+   "k.key/docs/build/server.pem",
+   "k.key/docs/keep/README.md",
+   "k.key/docs/keep/b",
+   "k.key/docs/keep/server.pem",
+   "k.key/docs/keep/x y"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": " #! x\\q/**\n/x\\q/[a-c]/*.key\n",
+  "files": [
+   "node_modules/README.md",
+   "node_modules/c/node_modules/.env",
+   "node_modules/c/node_modules/a.log",
+   "node_modules/c/node_modules/config",
+   "node_modules/c/node_modules/k.key",
+   "node_modules/c/x y/foo",
+   "node_modules/k.key"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "#docs/*.pem\n   \n*.log/..\r\n! x y\n[!a]/[a-/\\*\n",
+  "files": [
+   "certs/a",
+   "certs/x y/README.md",
+   "certs/x y/foo/.env",
+   "certs/x y/foo/ab",
+   "certs/x y/foo/k.key",
+   "docs/[a]/",
+   "docs/b/foo",
+   "docs/b/node_modules/*",
+   "docs/b/node_modules/b",
+   "docs/b/node_modules/keep",
+   "server.pem/build/README.md",
+   "server.pem/build/k.key/",
+   "server.pem/c"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "!./a.log/\\[a\\]/node_modules\r\n #a\\/a\\\n#! x y\r\nab/a\\\n",
+  "files": [
+   "build/",
+   "keep"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "﻿/[a-\nconfig/*/x y/\n**\n#! README.md/.env/a\\\n",
+  "files": [
+   "ab/config",
+   "ab/foo",
+   "ab/k.key",
+   "server.pem"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": " #!x\\q/certs\nbuild\n!b/node_modules/\n!./b\n",
+  "files": [
+   "config/.env",
+   "config/[a]"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "﻿*.key\n #!certs/b\ncerts/b\n/keep/node_modules\r\n",
   "files": [
    "a.log/README.md",
    "a.log/docs",
@@ -307,24 +529,56 @@
    "keep/node_modules"
   ],
   "uploaded": [
+   "a.log/",
+   "a.log/README.md",
+   "a.log/docs",
    "keep/",
    "keep/.env",
    "keep/[a]/",
-   "keep/a",
-   "keep/node_modules"
+   "keep/a"
   ]
  },
  {
-  "ignore": "! ./\\[a\\]/docs/ab\n[a-c]/*.pem\nnode_modules\n?\r\n",
+  "ignore": "! [\r\n #! README.md/*.log\n./?/\\*/certs\nfoo/*.key\n./[!a]/ab\n!a.log\n",
   "files": [
-   "*",
-   "node_modules/certs",
-   "node_modules/x y"
+   "a/node_modules",
+   "a/server.pem/.env"
   ],
-  "uploaded": []
+  "uploaded": [],
+  "fails": true
  },
  {
-  "ignore": "ab/*.pem/[a]\n!node_modules/keep/\\[a\\]\n*/\nc/build\n",
+  "ignore": "/*/config\nconfig/c/certs\n?\r\n",
+  "files": [
+   "a",
+   "c/[a]",
+   "c/x y",
+   "keep/ab",
+   "keep/b",
+   "keep/docs",
+   "node_modules"
+  ],
+  "uploaded": [
+   "keep/",
+   "keep/ab",
+   "keep/b",
+   "keep/docs",
+   "node_modules"
+  ]
+ },
+ {
+  "ignore": "!a\\/\n",
+  "files": [
+   "a.log/[a]",
+   "a.log/certs",
+   "a.log/foo/*",
+   "keep/config"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "\\[a\\]/*.pem/x\\q\n!README.md/[a-/ab\n[/\n[a-/.env\n",
   "files": [
    "b/[a]/*",
    "b/[a]/a",
@@ -345,10 +599,43 @@
    "foo/k.key/server.pem/c",
    "k.key"
   ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "#!.env\nab/\\[a\\]\n[a-/[a-/certs\ndocs/keep/*\n./[!a]/**/\r\n #?\r\n",
+  "files": [
+   "README.md"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "!a\\/\nREADME.md/[a]\r\n",
+  "files": [
+   "foo"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "config/certs/\nnode_modules\r\n#build/x y/x y\n*\n",
+  "files": [
+   "ab",
+   "foo"
+  ],
   "uploaded": []
  },
  {
-  "ignore": "?\r\n./[!a]\n**/*.key\r\n #\\[a\\]\n! ab\n",
+  "ignore": "./b/docs/?\r\n!README.md/certs\n!/[a-/x\\q\ncerts/**/..\n",
+  "files": [
+   "k.key"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "[!a]\r\n./b\nkeep/\\[a\\]\r\n #x\\q\n! ab\n",
   "files": [
    "build/",
    "c/*",
@@ -364,77 +651,145 @@
    "certs/x y",
    "keep"
   ],
-  "uploaded": [
-   "build/",
-   "certs/",
-   "certs/[a]",
-   "certs/a/",
-   "certs/a/.env",
-   "certs/a/build/",
-   "certs/a/c/",
-   "certs/a/c/config",
-   "certs/a/c/server.pem",
-   "certs/a/docs",
-   "certs/config",
-   "certs/x y",
-   "keep"
-  ]
+  "uploaded": [],
+  "fails": true
  },
  {
-  "ignore": "node_modules/config\n\\[a\\]\n!.env/config/*.key\n",
+  "ignore": "[/config\ncerts\n!./**/*.key\n",
   "files": [
    "[a]",
    "docs",
    "foo"
   ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "﻿*.log\r\n",
+  "files": [
+   "a.log/a/build/",
+   "a.log/a/c/keep",
+   "build/"
+  ],
   "uploaded": [
-   "docs",
+   "build/"
+  ]
+ },
+ {
+  "ignore": "﻿ #*.log/*/\n   \r\n   \nb\n[a]/[a-\ncerts/\\*/*.key/\n",
+  "files": [
+   "k.key/.env",
+   "k.key/README.md",
+   "k.key/config",
+   "k.key/foo"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "[!a]/keep/..\n!*\n! **/keep/[!a]\n! ./[\n/[a]/*.pem/\\[a\\]\n!foo\n",
+  "files": [
+   "certs/README.md/ab/a",
+   "certs/README.md/ab/b",
+   "certs/README.md/ab/build",
+   "certs/README.md/ab/c",
+   "certs/README.md/certs",
+   "certs/README.md/config/keep",
+   "certs/README.md/config/server.pem",
+   "certs/b/c/a",
+   "certs/b/c/ab",
+   "certs/b/c/docs",
+   "certs/b/docs",
+   "certs/config",
+   "certs/k.key"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "[\r\n #/foo/[a-c]\r\n./*.key/.env\r\n#![/x y\r\n",
+  "files": [
+   "[a]/a.log/",
+   "[a]/build/README.md/config",
+   "[a]/build/README.md/k.key",
+   "[a]/build/b",
+   "[a]/build/build/[a]",
+   "[a]/build/build/build",
+   "[a]/build/k.key",
+   "[a]/certs/README.md/.env",
+   "[a]/certs/README.md/README.md",
+   "[a]/certs/README.md/x y",
+   "[a]/certs/[a]/.env",
+   "[a]/certs/[a]/certs",
+   "[a]/certs/[a]/k.key",
+   "[a]/certs/certs/ab",
+   "[a]/certs/certs/foo",
+   "b/",
+   "k.key"
+  ],
+  "uploaded": [],
+  "fails": true
+ },
+ {
+  "ignore": "**/*\n/**/c/**\n #/*.log/[a-/.\n   \n*\nc\n",
+  "files": [
+   "config/build"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "﻿config/**/.\n!./x y\n",
+  "files": [
+   "*",
+   "config/.env/a.log/",
+   "config/.env/keep/[a]",
+   "config/.env/keep/a",
+   "config/.env/keep/docs",
+   "config/.env/keep/x y",
+   "config/node_modules",
+   "foo"
+  ],
+  "uploaded": [
+   "*",
+   "config/",
    "foo"
   ]
  },
  {
-  "ignore": "*/c/*.pem\n[a-c]/.\n[a]\n!*.pem/[!a]\n/ab\r\n*.log\n",
+  "ignore": "/docs/*\r\n   \ndocs/[!a]/x y\n[a]/foo\n",
   "files": [
-   "a",
-   "k.key"
+   "README.md",
+   "c",
+   "certs/*/foo/",
+   "certs/*/x y",
+   "certs/b",
+   "certs/docs",
+   "docs/*/ab",
+   "docs/*/certs",
+   "docs/README.md/a.log/",
+   "docs/README.md/node_modules",
+   "docs/README.md/x y",
+   "docs/b",
+   "docs/server.pem"
   ],
   "uploaded": [
-   "k.key"
+   "README.md",
+   "c",
+   "certs/",
+   "certs/*/",
+   "certs/*/foo/",
+   "certs/*/x y",
+   "certs/b",
+   "certs/docs",
+   "docs/"
   ]
  },
  {
-  "ignore": "   \n/**\n! ./?/x y/b\n",
+  "ignore": "**/README.md\n*\n!/./certs\n",
   "files": [
-   "*",
-   "[a]"
+   "b/[a]"
   ],
   "uploaded": []
- },
- {
-  "ignore": "x y/\\[a\\]/\n*/build/*\n #!/[!a]/build/keep\r\n*.pem/keep/c\n! /[a]\n**/\n",
-  "files": [
-   "a/certs",
-   "a/keep/*",
-   "a/keep/config/*",
-   "a/keep/config/c",
-   "a/keep/config/server.pem",
-   "a/keep/k.key",
-   "a/node_modules/.env",
-   "a/node_modules/b",
-   "foo",
-   "server.pem/"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #!keep/\\*/[!a]\n/ab\nnode_modules/docs\n! certs/.env\n! ./*.log/../[a-c]\n",
-  "files": [
-   "ab",
-   "build"
-  ],
-  "uploaded": [
-   "build"
-  ]
  },
  {
   "ignore": "./**\n",
@@ -453,138 +808,137 @@
   "uploaded": []
  },
  {
-  "ignore": "[a-c]\r\n! *.pem/foo/*.pem/\n*\n../a/\n[!a]/\n",
+  "ignore": "[a-c]/[a]/../\n! [!a]\r\n![a-c]/\\[a\\]\n #.env/a\\/../\r\n! c\n",
   "files": [
+   "*",
+   "b/*/a",
+   "b/*/docs/",
+   "b/*/keep",
+   "b/b/[a]/README.md",
+   "b/b/[a]/c",
+   "b/b/docs",
+   "b/b/k.key",
+   "b/k.key",
    "foo"
   ],
-  "uploaded": []
+  "uploaded": [
+   "*",
+   "foo"
+  ]
  },
  {
-  "ignore": "./**\n   \n!foo/x y\n",
+  "ignore": "/*.log\n!b/*.log\n",
   "files": [
-   "ab/",
-   "b/a/.env/",
-   "b/a/build/[a]",
-   "b/a/build/b",
-   "b/a/build/certs",
-   "b/a/build/server.pem",
-   "b/a/certs/README.md",
-   "b/a/certs/certs",
-   "b/a/x y",
-   "b/node_modules",
-   "b/server.pem",
-   "config/README.md/build",
-   "config/README.md/foo/a.log",
-   "config/README.md/foo/config",
-   "config/README.md/foo/k.key",
-   "config/README.md/foo/server.pem",
-   "config/b/*/",
-   "config/docs",
-   "x y"
+   "a.log"
   ],
   "uploaded": []
  },
  {
-  "ignore": "!a.log/[!a]\n/ab\n[a-c]/keep/[a-c]\n",
+  "ignore": "?/[a-c]\n!x y/docs\r\n #*.key/docs\r\n!.\ncerts/foo\n",
   "files": [
-   "README.md/b",
-   "README.md/build",
-   "README.md/certs/[a]",
-   "README.md/certs/node_modules",
-   "README.md/x y",
-   "[a]/",
-   "ab",
-   "docs"
-  ],
-  "uploaded": [
-   "README.md/",
-   "README.md/b",
-   "README.md/build",
-   "README.md/certs/",
-   "README.md/certs/[a]",
-   "README.md/certs/node_modules",
-   "README.md/x y",
-   "[a]/",
-   "docs"
-  ]
- },
- {
-  "ignore": "foo\n!../\\[a\\]\n./*/c\ncerts\n[a]/README.md/\r\nkeep/a.log\r\n",
-  "files": [
-   "a/README.md",
-   "a/[a]",
-   "a/a.log",
-   "a/server.pem",
-   "build/",
-   "config",
-   "server.pem/.env"
-  ],
-  "uploaded": [
-   "a/",
-   "a/[a]",
-   "a/a.log",
-   "a/server.pem",
-   "build/",
-   "config",
-   "server.pem/",
-   "server.pem/.env"
-  ]
- },
- {
-  "ignore": "node_modules/keep\n.env/\n #*.pem/../*/\n",
-  "files": [
-   "docs",
-   "k.key",
-   "keep",
-   "x y/README.md",
-   "x y/certs",
-   "x y/docs/build"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "   \n! /[a-c]\n!*.log/\r\n**/**/[!a]\r\n   \n",
-  "files": [
-   "README.md",
-   "k.key/c",
-   "k.key/foo",
-   "k.key/keep/c/a"
-  ],
-  "uploaded": [
-   "README.md",
-   "k.key/",
-   "k.key/c",
-   "k.key/foo",
-   "k.key/keep/",
-   "k.key/keep/c/"
-  ]
- },
- {
-  "ignore": " #! *.pem/*.pem/node_modules/\n   \nb\n*.key\nkeep/\\*/\\[a\\]\n",
-  "files": [
-   "*/k.key/b",
-   "a.log",
-   "docs",
-   "k.key"
+   "*/c",
+   "*/x y/",
+   "build"
   ],
   "uploaded": [
    "*/",
-   "*/k.key/",
-   "*/k.key/b",
-   "a.log",
-   "docs"
+   "*/x y/",
+   "build"
   ]
  },
  {
-  "ignore": "a.log/foo\nb/README.md/\n/a\nfoo/**\n",
+  "ignore": "./.env\n*\n/config/[!a]/.\n   \n! keep/**\n",
   "files": [
-   "[a]",
-   "foo/keep"
+   "foo/c/config",
+   "keep"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "﻿*.pem/a.log/c\n!\\[a\\]/[a-c]/x\\q\r\n*.key\n",
+  "files": [
+   "b",
+   "docs/*",
+   "docs/x y",
+   "k.key/*",
+   "k.key/b/README.md/",
+   "k.key/b/keep",
+   "k.key/certs/docs/.env",
+   "k.key/certs/docs/README.md",
+   "k.key/certs/docs/c"
   ],
   "uploaded": [
-   "[a]",
-   "foo/"
+   "b",
+   "docs/",
+   "docs/*",
+   "docs/x y"
   ]
+ },
+ {
+  "ignore": "**/*.pem\ncerts/foo/*.key/\n!b/b\n #ab/**\nnode_modules/keep/certs\r\n! /\\*/ab\n",
+  "files": [
+   "a.log",
+   "node_modules/a.log/README.md/[a]",
+   "node_modules/a.log/README.md/a.log",
+   "node_modules/a.log/README.md/c",
+   "node_modules/a.log/README.md/server.pem",
+   "node_modules/a.log/a.log/b",
+   "node_modules/a.log/a.log/build",
+   "node_modules/a.log/a.log/docs",
+   "node_modules/a.log/a.log/server.pem",
+   "node_modules/a.log/config",
+   "node_modules/a.log/keep/certs",
+   "node_modules/a.log/keep/keep",
+   "node_modules/a.log/keep/server.pem",
+   "node_modules/b",
+   "node_modules/c",
+   "node_modules/config",
+   "x y"
+  ],
+  "uploaded": [
+   "a.log",
+   "node_modules/",
+   "node_modules/a.log/",
+   "node_modules/a.log/README.md/",
+   "node_modules/a.log/README.md/[a]",
+   "node_modules/a.log/README.md/a.log",
+   "node_modules/a.log/README.md/c",
+   "node_modules/a.log/a.log/",
+   "node_modules/a.log/a.log/b",
+   "node_modules/a.log/a.log/build",
+   "node_modules/a.log/a.log/docs",
+   "node_modules/a.log/config",
+   "node_modules/a.log/keep/",
+   "node_modules/a.log/keep/certs",
+   "node_modules/a.log/keep/keep",
+   "node_modules/b",
+   "node_modules/c",
+   "node_modules/config",
+   "x y"
+  ]
+ },
+ {
+  "ignore": "!a/*.pem/build\ndocs\n*.pem\n",
+  "files": [
+   "server.pem"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "./**\n #.\n",
+  "files": [
+   "[a]/",
+   "a",
+   "c"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "**/keep\r\n*\n",
+  "files": [
+   "build"
+  ],
+  "uploaded": []
  },
  {
   "ignore": "   \n**\n./certs\n",
@@ -597,89 +951,106 @@
   "uploaded": []
  },
  {
-  "ignore": "﻿*/foo\n**\n #![!a]/\\*\n! keep/*.key/\n   \n![!a]/*.pem/node_modules\n",
+  "ignore": "﻿ #*.key\nab/\r\n[!a]/[a-c]/a\n #!docs/a.log/*\n!README.md/\r\n",
   "files": [
+   "README.md/certs",
    "ab",
-   "certs",
-   "config/node_modules",
-   "config/x y/server.pem"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "build/\n",
-  "files": [
-   "build"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "   \nkeep\n!./foo/*\n",
-  "files": [
-   "a.log",
-   "keep"
+   "b/docs/a/build",
+   "b/docs/a/certs",
+   "b/docs/a/k.key",
+   "b/docs/a/node_modules",
+   "b/docs/ab/[a]",
+   "b/docs/ab/foo",
+   "b/docs/ab/x y",
+   "b/docs/docs"
   ],
   "uploaded": [
-   "a.log"
+   "README.md/",
+   "README.md/certs",
+   "b/",
+   "b/docs/",
+   "b/docs/a/",
+   "b/docs/a/build",
+   "b/docs/a/certs",
+   "b/docs/a/k.key",
+   "b/docs/a/node_modules",
+   "b/docs/ab/",
+   "b/docs/ab/[a]",
+   "b/docs/ab/foo",
+   "b/docs/ab/x y",
+   "b/docs/docs"
   ]
  },
  {
-  "ignore": "! **/[a-c]/[!a]\n!*.key/b/b\r\nconfig/config\n**/*.pem/ab\nb\n",
+  "ignore": "build\n   \n #!\\[a\\]/\r\n",
   "files": [
-   "[a]",
-   "b"
-  ],
-  "uploaded": [
-   "[a]"
-  ]
- },
- {
-  "ignore": "\\[a\\]\r\nnode_modules/*.key\nab/..\r\n",
-  "files": [
-   "[a]"
+   "build/README.md",
+   "build/a.log",
+   "build/b"
   ],
   "uploaded": []
  },
  {
-  "ignore": " #build/?\r\n/node_modules\r\n! keep\na\n #keep/\\*\r\n*.log/build\r\n",
-  "files": [
-   "a"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "certs\r\n!\\[a\\]/\n",
+  "ignore": "! ../x\\q/docs/\n*/.\n! *.key/[a]/x y\n",
   "files": [
    "b",
-   "certs/*",
-   "certs/config/README.md",
-   "certs/config/x y",
-   "certs/x y/README.md/ab",
-   "certs/x y/README.md/server.pem",
-   "certs/x y/b/*",
-   "certs/x y/b/c",
-   "certs/x y/certs/*",
-   "certs/x y/server.pem"
+   "certs",
+   "docs/README.md",
+   "docs/[a]",
+   "docs/foo/config",
+   "docs/foo/node_modules",
+   "docs/foo/server.pem",
+   "docs/server.pem/ab",
+   "docs/server.pem/certs/.env",
+   "docs/server.pem/certs/README.md",
+   "docs/server.pem/certs/docs",
+   "docs/server.pem/certs/node_modules",
+   "docs/server.pem/x y",
+   "keep"
   ],
-  "uploaded": [
-   "b"
-  ]
+  "uploaded": []
  },
  {
-  "ignore": "*.log/*.key/config/\na.log\n!ab/docs/?\n",
+  "ignore": "**\n   \n#x\\q/*/?\n!build/foo/\\*\nbuild/[a]/*.key\r\n",
   "files": [
-   ".env/c",
-   ".env/k.key",
-   "a.log"
+   ".env/[a]",
+   ".env/b/.env",
+   ".env/build",
+   ".env/k.key/",
+   "[a]"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "node_modules/certs/\\[a\\]\n!./b/ab/*.key\n[a-c]/\r\n!config/.\nab/x y\n! docs/keep/[a]\n",
+  "files": [
+   "*",
+   "README.md/README.md",
+   "README.md/server.pem/.env",
+   "README.md/server.pem/k.key",
+   "README.md/x y/README.md",
+   "b/a.log",
+   "b/ab/[a]/README.md",
+   "b/ab/config",
+   "b/ab/server.pem/.env",
+   "b/ab/server.pem/foo",
+   "b/k.key/",
+   "k.key/"
   ],
   "uploaded": [
-   ".env/",
-   ".env/c",
-   ".env/k.key"
+   "*",
+   "README.md/",
+   "README.md/README.md",
+   "README.md/server.pem/",
+   "README.md/server.pem/.env",
+   "README.md/server.pem/k.key",
+   "README.md/x y/",
+   "README.md/x y/README.md",
+   "k.key/"
   ]
  },
  {
-  "ignore": "   \ndocs\n/../keep\n!*.key/*.pem\n",
+  "ignore": "   \nconfig\n/**/docs\n!certs/*\n",
   "files": [
    "ab/config",
    "docs/a"
@@ -690,129 +1061,74 @@
   ]
  },
  {
-  "ignore": "! ./\\*\n**\nx y/c/a\ncerts/config/x y\r\n   \n   \n",
+  "ignore": "*/node_modules/..\n\\*\na/[a-c]/\n",
   "files": [
-   "[a]"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "*\r\n",
-  "files": [
-   ".env",
-   "k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "certs\n/ab\r\n!\\[a\\]/build/build\n!*/certs/x y\r\n#config/ab\r\n",
-  "files": [
-   "ab/",
-   "b/keep",
-   "b/node_modules",
-   "certs/README.md",
-   "certs/build",
-   "certs/node_modules/*/ab",
-   "certs/node_modules/*/b",
-   "certs/node_modules/*/node_modules",
-   "certs/node_modules/*/x y",
-   "certs/node_modules/a.log",
-   "certs/node_modules/b",
-   "certs/node_modules/foo"
-  ],
-  "uploaded": [
-   "b/",
-   "b/keep",
-   "b/node_modules"
-  ]
- },
- {
-  "ignore": "./*\n#/.env/README.md\n   \r\n",
-  "files": [
-   "*/README.md/*/",
-   "*/README.md/README.md",
-   "*/README.md/b",
-   "*/README.md/c/keep"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿#!.env/a.log/a.log\n #foo/?/README.md\n**/.\n#a\n../certs\n!*.key\n",
-  "files": [
-   "[a]",
-   "ab",
+   "*/README.md/",
+   "*/b",
+   "*/build/*",
+   "*/build/.env",
+   "*/build/a.log/*",
+   "*/build/a.log/a.log",
+   "*/build/a.log/build",
+   "*/docs/",
    "x y"
   ],
   "uploaded": []
  },
  {
-  "ignore": "foo/*.pem/build\n[!a]\r\n./**\n[a-c]/node_modules\n #docs/ab/docs\nREADME.md/\\[a\\]\r\n",
+  "ignore": "./a/*.log\n#! *.pem/a.log/..\r\n/[a-c]\n#**/a\n.env\n",
   "files": [
+   "[a]",
+   "a/.env/certs",
+   "a/certs",
+   "a/docs/[a]",
+   "a/docs/c",
+   "a/server.pem"
+  ],
+  "uploaded": [
    "[a]"
+  ]
+ },
+ {
+  "ignore": "! /c/node_modules/a\r\nbuild\n./b\r\n!.\n",
+  "files": [
+   "ab/",
+   "build",
+   "config",
+   "keep"
+  ],
+  "uploaded": [
+   "ab/",
+   "config",
+   "keep"
+  ]
+ },
+ {
+  "ignore": "build/b/config\n/\\[a\\]/*.log/*.pem\n*.pem/a\\/\\*\n!/\\*/?\n*/**\n",
+  "files": [
+   ".env/build",
+   ".env/certs",
+   ".env/server.pem",
+   "README.md",
+   "[a]",
+   "build"
+  ],
+  "uploaded": [
+   ".env/",
+   "README.md",
+   "[a]",
+   "build"
+  ]
+ },
+ {
+  "ignore": "config/config/..\n   \n./*.log/b\r\n",
+  "files": [
+   "config/"
   ],
   "uploaded": []
  },
  {
-  "ignore": "!*.key/node_modules\n #[!a]/b\n**/README.md\ncerts/*\nconfig/*.pem/docs\n",
-  "files": [
-   ".env",
-   "docs",
-   "k.key/b/",
-   "node_modules/README.md",
-   "node_modules/foo/*",
-   "node_modules/foo/build",
-   "node_modules/foo/certs/.env",
-   "node_modules/foo/server.pem",
-   "node_modules/k.key"
-  ],
-  "uploaded": [
-   ".env",
-   "docs",
-   "k.key/",
-   "k.key/b/",
-   "node_modules/",
-   "node_modules/foo/",
-   "node_modules/foo/*",
-   "node_modules/foo/build",
-   "node_modules/foo/certs/",
-   "node_modules/foo/certs/.env",
-   "node_modules/foo/server.pem",
-   "node_modules/k.key"
-  ]
- },
- {
-  "ignore": "[a-c]\n/config\n",
-  "files": [
-   "config/config/keep/*",
-   "config/config/keep/certs",
-   "config/keep"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #.env\n?\n! *.log/*/\n",
-  "files": [
-   "README.md/ab",
-   "README.md/docs/docs",
-   "README.md/docs/k.key",
-   "README.md/x y/build/.env",
-   "a",
-   "a.log"
-  ],
-  "uploaded": [
-   "README.md/",
-   "README.md/ab",
-   "README.md/docs/",
-   "README.md/docs/docs",
-   "README.md/docs/k.key",
-   "README.md/x y/",
-   "README.md/x y/build/",
-   "README.md/x y/build/.env",
-   "a.log"
-  ]
- },
- {
-  "ignore": "foo/.env/README.md\n/foo/a/ab\r\n?\n!././?/keep\n   \n",
+  "ignore": "foo/.env/*.pem\n/./node_modules/\\[a\\]\r\n?\n!./a\\/.env/c\n   \n",
   "files": [
    "c",
    "certs",
@@ -826,131 +1142,116 @@
   ]
  },
  {
-  "ignore": "! [a]\n*/*\n",
+  "ignore": "   \r\n!a/foo/?/\nb/*.key/.env\r\n   \n!foo/\n**/build/*\n",
   "files": [
-   ".env",
-   "docs",
-   "x y/c",
-   "x y/server.pem/a.log",
-   "x y/server.pem/k.key/.env",
-   "x y/server.pem/k.key/config"
-  ],
-  "uploaded": [
-   ".env",
-   "docs",
-   "x y/"
-  ]
- },
- {
-  "ignore": "\\*/docs/[!a]\n![!a]/\\*/docs\n! /docs/node_modules\n./*/*\nkeep/build\na.log/x y/node_modules\n",
-  "files": [
-   "c",
-   "k.key/c",
-   "k.key/certs/docs",
-   "k.key/certs/foo/foo",
-   "k.key/certs/keep/",
-   "k.key/certs/server.pem/.env",
-   "k.key/config/"
-  ],
-  "uploaded": [
-   "c",
-   "k.key/"
-  ]
- },
- {
-  "ignore": "/[a-c]/config\nb\r\n! ab\n/docs\n #! a.log/b/.\n",
-  "files": [
-   "*",
-   ".env",
-   "docs"
-  ],
-  "uploaded": [
-   "*",
-   ".env"
-  ]
- },
- {
-  "ignore": "*\n!?\n!*/?\n!..\n",
-  "files": [
-   "node_modules",
-   "server.pem"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "   \ndocs/build/\\*\r\nnode_modules/*.key/[!a]\n[a-c]/\n!../\\*/\nbuild\r\n",
-  "files": [
-   "[a]",
-   "c/foo",
-   "c/x y",
-   "server.pem"
-  ],
-  "uploaded": [
-   "[a]",
-   "server.pem"
-  ]
- },
- {
-  "ignore": "config/config\n**\n!\\*/ab\n",
-  "files": [
-   "[a]",
-   "a.log"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "   \r\n!**/ab/.\r\n*.key/*.log\n./foo\n#[!a]/**\n!*.pem\n",
-  "files": [
-   ".env",
-   "b",
-   "certs",
-   "foo"
-  ],
-  "uploaded": [
-   ".env",
-   "b",
-   "certs"
-  ]
- },
- {
-  "ignore": "*.log\r\n #! *.log/**\n",
-  "files": [
-   "a.log",
    "certs/*",
-   "certs/[a]",
-   "certs/a/.env",
-   "certs/a/server.pem",
-   "certs/build/README.md",
-   "certs/build/c"
+   "foo/b",
+   "foo/build/c",
+   "foo/build/server.pem/[a]",
+   "foo/build/server.pem/b",
+   "foo/server.pem",
+   "x y"
   ],
   "uploaded": [
    "certs/",
    "certs/*",
-   "certs/[a]",
-   "certs/a/",
-   "certs/a/.env",
-   "certs/a/server.pem",
-   "certs/build/",
-   "certs/build/README.md",
-   "certs/build/c"
+   "foo/",
+   "foo/b",
+   "foo/build/",
+   "foo/server.pem",
+   "x y"
   ]
  },
  {
-  "ignore": "*\n",
+  "ignore": "/\\[a\\]\r\n././*.key\n./README.md\n",
   "files": [
-   "server.pem/node_modules"
+   "*/certs",
+   "*/foo",
+   "[a]",
+   "ab/.env",
+   "ab/a.log",
+   "ab/docs/[a]/foo",
+   "ab/docs/[a]/server.pem",
+   "ab/docs/ab",
+   "ab/docs/k.key",
+   "ab/docs/server.pem",
+   "certs"
+  ],
+  "uploaded": [
+   "*/",
+   "*/certs",
+   "*/foo",
+   "ab/",
+   "ab/.env",
+   "ab/a.log",
+   "ab/docs/",
+   "ab/docs/[a]/",
+   "ab/docs/[a]/foo",
+   "ab/docs/[a]/server.pem",
+   "ab/docs/ab",
+   "ab/docs/k.key",
+   "ab/docs/server.pem",
+   "certs"
+  ]
+ },
+ {
+  "ignore": "./b/.\n   \n! ./\\*\n#*/foo/[a]\n",
+  "files": [
+   ".env",
+   "b",
+   "c/",
+   "node_modules/README.md/",
+   "node_modules/[a]",
+   "node_modules/c/*",
+   "node_modules/server.pem/.env/",
+   "node_modules/server.pem/docs/a.log",
+   "node_modules/server.pem/docs/x y",
+   "node_modules/server.pem/foo"
+  ],
+  "uploaded": [
+   ".env",
+   "c/",
+   "node_modules/",
+   "node_modules/README.md/",
+   "node_modules/[a]",
+   "node_modules/c/",
+   "node_modules/c/*",
+   "node_modules/server.pem/",
+   "node_modules/server.pem/.env/",
+   "node_modules/server.pem/docs/",
+   "node_modules/server.pem/docs/a.log",
+   "node_modules/server.pem/docs/x y",
+   "node_modules/server.pem/foo"
+  ]
+ },
+ {
+  "ignore": "docs/.\r\n! /[a-c]\n!keep/certs/.env\n",
+  "files": [
+   "ab",
+   "certs/",
+   "docs"
+  ],
+  "uploaded": [
+   "ab",
+   "certs/"
+  ]
+ },
+ {
+  "ignore": "!\\[a\\]\n*\n*.log/[!a]\n! .env/keep/build\n../keep\n",
+  "files": [
+   "*"
   ],
   "uploaded": []
  },
  {
-  "ignore": "**\n#[a-c]/node_modules/*.key\n!/a.log/foo/certs\n*.key/..\n#README.md/\n #!node_modules/a.log/.\r\n",
+  "ignore": "**\n#node_modules/*.pem/*.key\n!/a.log/?/certs\nx y/c\n#*.pem/\n #!*.pem/[a]/?\r\n",
   "files": [
    "certs/"
   ],
   "uploaded": []
  },
  {
-  "ignore": "! [a-c]/**\n?/\n.env/[a-c]\n! *.log/keep/\nbuild\n",
+  "ignore": "! [a-c]/\\*\n?/\nbuild/*.pem\n! *.log/c/\n?\n",
   "files": [
    ".env/a/[a]",
    ".env/a/config",
@@ -970,6 +1271,9 @@
   ],
   "uploaded": [
    ".env/",
+   ".env/a/",
+   ".env/a/[a]",
+   ".env/a/config",
    ".env/build",
    ".env/certs/",
    ".env/server.pem",
@@ -977,237 +1281,182 @@
   ]
  },
  {
-  "ignore": "**\r\n/../node_modules\r\n",
+  "ignore": "! [a-c]/*.log/*.pem\n!/x y/c/certs\n*\r\n",
   "files": [
-   ".env",
-   "c/build/",
-   "c/config",
-   "c/server.pem",
-   "x y/c"
+   "a",
+   "x y"
   ],
   "uploaded": []
  },
  {
-  "ignore": "**\n!b\n![a]/ab\r\n![!a]/*/docs/\n*.pem/foo/\n   \n",
+  "ignore": "[a]\n",
   "files": [
-   "build/a",
-   "build/keep/*/a",
-   "build/keep/*/ab",
-   "build/keep/*/build",
-   "build/keep/*/foo",
-   "build/keep/.env",
-   "c/a/",
-   "foo",
-   "k.key"
+   "*",
+   "a",
+   "k.key/ab/README.md",
+   "k.key/ab/a/.env",
+   "k.key/ab/a/ab",
+   "k.key/ab/a/c",
+   "k.key/ab/a/server.pem",
+   "k.key/ab/ab",
+   "k.key/ab/c"
+  ],
+  "uploaded": [
+   "*",
+   "k.key/",
+   "k.key/ab/",
+   "k.key/ab/README.md",
+   "k.key/ab/a/",
+   "k.key/ab/a/.env",
+   "k.key/ab/a/ab",
+   "k.key/ab/a/c",
+   "k.key/ab/a/server.pem",
+   "k.key/ab/ab",
+   "k.key/ab/c"
+  ]
+ },
+ {
+  "ignore": "**\n*/ab/x y\n",
+  "files": [
+   "README.md"
   ],
   "uploaded": []
  },
  {
-  "ignore": "./**\na/.env\n/b\nconfig/a\n",
+  "ignore": "   \nb\n#?/x\\q/[a]/\n! keep/foo/\n*\n   \n",
   "files": [
-   ".env",
-   "k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿/../**\n #! certs\r\n**/*.key/build\n! [a]/*/\r\n./[!a]/.\n! ./?/*/[!a]\n",
-  "files": [
-   "README.md",
-   "c/README.md",
-   "c/c",
-   "certs/c",
-   "certs/foo/[a]",
-   "certs/foo/a.log/",
-   "certs/foo/server.pem/certs",
-   "certs/foo/server.pem/server.pem"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿build\n**/\n!./[!a]/.env\n!ab/[!a]\n! b/foo/*/\n#! a/x y/b\n",
-  "files": [
+   "ab",
+   "build",
    "certs"
   ],
   "uploaded": []
  },
  {
-  "ignore": "node_modules\n #*.pem\n*.log\r\n[a-c]/keep/*\n.env/b/certs\n! /[!a]/?/\\*\n",
+  "ignore": "*\n #*.pem\nnode_modules\r\n[a-c]/docs/node_modules\nfoo/./x y\n! /[!a]/b/..\n",
   "files": [
    "*",
    "a.log",
    "foo/",
    "keep"
   ],
+  "uploaded": []
+ },
+ {
+  "ignore": "foo/*.key\n! config/*.pem/\\[a\\]\n#!/\\[a\\]\n#![/ab/\r\n.env/../b\n   \n",
+  "files": [
+   "ab",
+   "b",
+   "certs",
+   "x y"
+  ],
   "uploaded": [
+   "ab",
+   "certs",
+   "x y"
+  ]
+ },
+ {
+  "ignore": "   \r\n/keep/a.log\r\nnode_modules/../README.md\n\\[a\\]/ab/a.log\n",
+  "files": [
+   "README.md",
+   "[a]/b/*",
+   "[a]/b/.env/a",
+   "[a]/b/.env/build",
+   "[a]/b/.env/k.key",
+   "[a]/b/config",
+   "[a]/config",
+   "a"
+  ],
+  "uploaded": [
+   "[a]/",
+   "[a]/b/",
+   "[a]/b/*",
+   "[a]/b/.env/",
+   "[a]/b/.env/a",
+   "[a]/b/.env/build",
+   "[a]/b/.env/k.key",
+   "[a]/b/config",
+   "[a]/config",
+   "a"
+  ]
+ },
+ {
+  "ignore": "**\n   \nx y\r\n",
+  "files": [
+   "foo",
+   "server.pem"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "! config/keep\n#./*.pem/build/x y\n?\n   \n!a\\/ab/ab\n[a]/a.log\n",
+  "files": [
    "*",
-   "foo/",
+   "README.md",
+   "keep"
+  ],
+  "uploaded": [
+   "README.md",
    "keep"
   ]
  },
  {
-  "ignore": "﻿ab/[!a]\n.env/.\na\n*/*.log/\\[a\\]\n",
+  "ignore": "docs/*.log/\\*/\n! ./?/*.log\r\n![!a]/\\*\n?\na.log/keep/[a]\n",
   "files": [
-   ".env/node_modules/foo/ab",
-   ".env/node_modules/foo/node_modules",
-   ".env/node_modules/k.key",
-   ".env/node_modules/keep/.env",
-   ".env/node_modules/keep/build",
-   ".env/node_modules/keep/config",
-   "docs"
+   "ab/b",
+   "c/c/",
+   "c/certs/.env",
+   "c/node_modules"
   ],
   "uploaded": [
-   "docs"
+   "ab/",
+   "ab/b"
   ]
  },
  {
-  "ignore": " #../../[!a]\r\n[a]/[a-c]/config\nab\n! /certs/node_modules/node_modules\r\n",
+  "ignore": "\\*/\n",
   "files": [
-   "a/.env",
-   "a/a",
-   "b/a.log/[a]",
-   "b/a.log/a/*",
-   "b/a.log/a/a.log",
-   "b/a.log/a/c",
-   "b/a.log/a/x y",
-   "b/a.log/ab",
-   "b/a.log/config/a",
-   "b/a.log/config/c",
-   "b/a.log/config/certs",
-   "b/a.log/config/node_modules",
-   "b/c",
-   "b/keep/a",
-   "b/keep/c",
-   "b/keep/keep/foo",
-   "b/keep/keep/server.pem"
+   "*",
+   "server.pem/.env",
+   "server.pem/foo"
   ],
   "uploaded": [
-   "b/",
-   "b/a.log/",
-   "b/a.log/[a]",
-   "b/a.log/a/",
-   "b/a.log/a/*",
-   "b/a.log/a/a.log",
-   "b/a.log/a/c",
-   "b/a.log/a/x y",
-   "b/a.log/ab",
-   "b/a.log/config/",
-   "b/a.log/config/a",
-   "b/a.log/config/c",
-   "b/a.log/config/certs",
-   "b/a.log/config/node_modules",
-   "b/c",
-   "b/keep/",
-   "b/keep/a",
-   "b/keep/c",
-   "b/keep/keep/",
-   "b/keep/keep/foo",
-   "b/keep/keep/server.pem"
+   "server.pem/",
+   "server.pem/.env",
+   "server.pem/foo"
   ]
  },
  {
-  "ignore": "config/\\*\n./**\r\nb/\n#/docs/keep/build\n*.log\r\n#c/certs\n",
+  "ignore": "\\*\r\n#/c/[a]\r\n#*/a\\/a.log\n",
   "files": [
-   "ab/a.log",
-   "ab/config"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "**/\na/*.log\r\n!keep/?/\\[a\\]\r\n",
-  "files": [
-   "a/ab",
-   "a/node_modules",
-   "node_modules"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "/\\*/**\n*\nc/a.log/config\n #! c/foo/..\n#!*/[a]/**\n!./[!a]\n",
-  "files": [
-   "certs"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "../foo/.\n?\n./c/README.md/c\na/.\n #build/a/[a-c]\n",
-  "files": [
-   "*/docs",
-   "certs",
-   "config/a",
-   "config/build",
-   "config/x y"
+   "*/.env",
+   "*/certs",
+   "certs/build/build",
+   "certs/build/certs/",
+   "certs/build/foo",
+   "certs/build/x y",
+   "certs/docs",
+   "certs/foo/.env/config",
+   "certs/foo/.env/node_modules",
+   "certs/x y"
   ],
   "uploaded": [
-   "certs",
-   "config/",
-   "config/a",
-   "config/build",
-   "config/x y"
+   "certs/",
+   "certs/build/",
+   "certs/build/build",
+   "certs/build/certs/",
+   "certs/build/foo",
+   "certs/build/x y",
+   "certs/docs",
+   "certs/foo/",
+   "certs/foo/.env/",
+   "certs/foo/.env/config",
+   "certs/foo/.env/node_modules",
+   "certs/x y"
   ]
  },
  {
-  "ignore": "﻿[!a]\n!*.log/[!a]\n/*.pem/foo/..\n/certs/?/[a]\n",
-  "files": [
-   "a",
-   "b",
-   "c",
-   "server.pem"
-  ],
-  "uploaded": [
-   "b",
-   "c"
-  ]
- },
- {
-  "ignore": "!config/*.log/config\n**/build\n\\*/certs/docs\nb/x y\n",
-  "files": [
-   ".env/",
-   "README.md",
-   "x y/README.md/",
-   "x y/b/a.log",
-   "x y/b/b",
-   "x y/b/server.pem",
-   "x y/certs/k.key",
-   "x y/certs/keep/README.md",
-   "x y/certs/keep/build",
-   "x y/certs/node_modules/.env",
-   "x y/certs/node_modules/ab",
-   "x y/certs/node_modules/k.key",
-   "x y/certs/node_modules/keep"
-  ],
-  "uploaded": [
-   ".env/",
-   "README.md",
-   "x y/",
-   "x y/README.md/",
-   "x y/b/",
-   "x y/b/a.log",
-   "x y/b/b",
-   "x y/b/server.pem",
-   "x y/certs/",
-   "x y/certs/k.key",
-   "x y/certs/keep/",
-   "x y/certs/keep/README.md",
-   "x y/certs/node_modules/",
-   "x y/certs/node_modules/.env",
-   "x y/certs/node_modules/ab",
-   "x y/certs/node_modules/k.key",
-   "x y/certs/node_modules/keep"
-  ]
- },
- {
-  "ignore": "! /*.pem/ab\n[a-c]\n",
-  "files": [
-   "b",
-   "server.pem"
-  ],
-  "uploaded": [
-   "server.pem"
-  ]
- },
- {
-  "ignore": "﻿[a-c]\n#./docs/a\n./?\n   \nc/?/\\[a\\]\nb\n",
+  "ignore": "﻿*\n#./../[\n./.\n   \nkeep/foo/a.log\nbuild\n",
   "files": [
    "*/build",
    "*/node_modules",
@@ -1218,60 +1467,42 @@
   "uploaded": []
  },
  {
-  "ignore": "   \n/b/ab/[a-c]\r\nkeep/certs\n./*\n#docs\n",
+  "ignore": "*/**/build\n   \n",
   "files": [
-   "*"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "a/\n!\\*/[!a]\n[!a]/c/*.pem\r\n/?\r\n",
-  "files": [
-   "b"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "!x y\r\n   \r\n!b/../?/\n*\n #!x y\n",
-  "files": [
-   "foo/*",
-   "foo/c",
-   "foo/keep/README.md",
-   "foo/keep/[a]/",
-   "foo/node_modules"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "!docs\n!a/[a]\n!**/\\[a\\]/[a-c]\r\n\\[a\\]\n!*.key/\n #./docs/[a-c]\n",
-  "files": [
-   "[a]/*/b",
-   "[a]/*/build",
-   "[a]/[a]",
-   "[a]/keep",
-   "k.key/README.md",
-   "k.key/a.log",
-   "k.key/b/[a]/a",
-   "k.key/b/[a]/x y",
-   "k.key/b/ab",
-   "k.key/node_modules",
+   "config",
+   "node_modules/a.log/a.log",
+   "node_modules/a.log/build/ab",
+   "node_modules/a.log/build/build",
+   "node_modules/a.log/build/node_modules",
+   "node_modules/a.log/foo",
+   "node_modules/a.log/server.pem/",
+   "node_modules/certs/keep",
+   "node_modules/config/build",
    "server.pem"
   ],
   "uploaded": [
-   "k.key/",
-   "k.key/README.md",
-   "k.key/a.log",
-   "k.key/b/",
-   "k.key/b/[a]/",
-   "k.key/b/[a]/a",
-   "k.key/b/[a]/x y",
-   "k.key/b/ab",
-   "k.key/node_modules",
+   "config",
+   "node_modules/",
+   "node_modules/a.log/",
+   "node_modules/a.log/a.log",
+   "node_modules/a.log/foo",
+   "node_modules/a.log/server.pem/",
+   "node_modules/certs/",
+   "node_modules/certs/keep",
+   "node_modules/config/",
    "server.pem"
   ]
  },
  {
-  "ignore": "#![a-c]/?\r\n[a-c]\n![a]\n #! keep/\r\n**/ab/a\n",
+  "ignore": "*\n! certs/a/\\[a\\]\n#node_modules/\\*/..\n",
+  "files": [
+   "*",
+   "x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "#!*/b\r\nnode_modules\n!x y\n #! **/\r\nc/a.log/a\n",
   "files": [
    "c",
    "node_modules/README.md/docs/[a]",
@@ -1283,202 +1514,78 @@
    "node_modules/server.pem/k.key/foo"
   ],
   "uploaded": [
-   "node_modules/",
-   "node_modules/README.md/",
-   "node_modules/README.md/docs/",
-   "node_modules/README.md/docs/[a]",
-   "node_modules/README.md/docs/c",
-   "node_modules/README.md/docs/x y",
-   "node_modules/ab",
-   "node_modules/docs",
-   "node_modules/server.pem/",
-   "node_modules/server.pem/k.key/",
-   "node_modules/server.pem/k.key/README.md",
-   "node_modules/server.pem/k.key/foo"
+   "c"
   ]
  },
  {
-  "ignore": "#..\ncerts\n! config/\\*\r\n! [a-c]/./\n!config\n #!*.log\n",
+  "ignore": "!/*.key\na.log/\n",
   "files": [
-   "certs/ab/c/",
-   "certs/ab/docs",
-   "certs/ab/node_modules",
-   "certs/build/config",
-   "certs/config",
-   "node_modules",
-   "server.pem"
+   "a.log",
+   "k.key/*",
+   "k.key/[a]"
   ],
   "uploaded": [
-   "node_modules",
-   "server.pem"
+   "k.key/",
+   "k.key/*",
+   "k.key/[a]"
   ]
  },
  {
-  "ignore": "﻿!.env\n**/\n.env\na.log\n./a.log/**\nx y\n",
+  "ignore": "﻿/**/*\n #**\n! [!a]\r\nREADME.md\n",
   "files": [
-   "build"
+   ".env",
+   "config/[a]/k.key/",
+   "config/ab",
+   "config/b",
+   "config/node_modules/*",
+   "config/node_modules/a",
+   "config/node_modules/build",
+   "config/node_modules/server.pem",
+   "x y"
   ],
   "uploaded": []
  },
  {
-  "ignore": "*\n   \n",
+  "ignore": "   \nfoo\nab/ab\n.env/\r\n/../ab/.env\r\n*.key\n",
   "files": [
-   "[a]",
-   "config",
-   "docs/build",
-   "server.pem"
+   ".env/",
+   "keep/.env",
+   "keep/config",
+   "keep/docs/README.md",
+   "keep/x y",
+   "x y"
   ],
-  "uploaded": []
+  "uploaded": [
+   "keep/",
+   "keep/.env",
+   "keep/config",
+   "keep/docs/",
+   "keep/docs/README.md",
+   "keep/x y",
+   "x y"
+  ]
  },
  {
-  "ignore": "﻿[a-c]\n   \n/certs\n**/**\n",
-  "files": [
-   "a.log"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿**/\n/build/\\*\r\n   \n[a]/*.pem/config\n",
-  "files": [
-   ".env/README.md/ab/",
-   ".env/README.md/build",
-   ".env/README.md/config/README.md",
-   ".env/README.md/config/ab",
-   ".env/README.md/config/c",
-   ".env/README.md/docs",
-   ".env/certs",
-   ".env/docs/a",
-   ".env/docs/build/a.log",
-   ".env/docs/build/foo",
-   ".env/docs/build/keep",
-   ".env/docs/c",
-   ".env/docs/x y",
-   ".env/k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "*.pem/*.pem/[a-c]\n*\n#[!a]/?\n#!./b/b\n   \n #*.key\n",
+  "ignore": "node_modules/*.pem/a\n[a-c]\n#b/b\n#!foo/a\\/build\n   \n #x y\n",
   "files": [
    "README.md",
    "a/[a]",
    "a/k.key",
    "a/keep"
   ],
-  "uploaded": []
+  "uploaded": [
+   "README.md"
+  ]
  },
  {
-  "ignore": "![!a]/./\n**\nconfig/[a]/docs\r\n #*.key\r\n",
+  "ignore": "﻿/../.env/node_modules\nbuild/a\\/\\*\n/certs/../[a-c]\n! certs/build\n/keep/*/certs\na/*.pem/*.pem\n",
   "files": [
-   "b",
-   "keep/*",
-   "keep/.env/a.log/.env",
-   "keep/.env/a.log/a",
-   "keep/.env/a.log/b",
-   "keep/ab",
-   "keep/x y/*"
+   "a"
   ],
   "uploaded": []
  },
  {
-  "ignore": "a.log/certs\n   \n #*.key/.env/README.md\n?\n! \\*/[a]/\\*\n! ./keep\n",
-  "files": [
-   "[a]",
-   "a.log/README.md",
-   "a.log/certs",
-   "a.log/docs",
-   "a.log/k.key/a.log",
-   "a.log/k.key/foo",
-   "a.log/k.key/node_modules",
-   "build"
-  ],
-  "uploaded": [
-   "[a]",
-   "a.log/",
-   "a.log/README.md",
-   "a.log/docs",
-   "a.log/k.key/",
-   "a.log/k.key/a.log",
-   "a.log/k.key/foo",
-   "a.log/k.key/node_modules",
-   "build"
-  ]
- },
- {
-  "ignore": "[!a]\n![a-c]\n #/[!a]/build/..\n*.pem/./\n",
-  "files": [
-   "*/ab",
-   "*/c/*",
-   "*/c/b",
-   "*/c/build",
-   "*/c/x y/*",
-   "*/c/x y/a.log",
-   "*/c/x y/config",
-   "*/c/x y/k.key",
-   "*/keep",
-   "a.log",
-   "config/*",
-   "server.pem/a",
-   "server.pem/build/a/ab",
-   "server.pem/build/a/foo",
-   "server.pem/build/k.key",
-   "server.pem/certs",
-   "server.pem/node_modules"
-  ],
-  "uploaded": [
-   "*/",
-   "*/ab",
-   "*/c/",
-   "*/c/*",
-   "*/c/b",
-   "*/c/build",
-   "*/c/x y/",
-   "*/c/x y/*",
-   "*/c/x y/a.log",
-   "*/c/x y/config",
-   "*/c/x y/k.key",
-   "*/keep",
-   "a.log",
-   "config/",
-   "config/*"
-  ]
- },
- {
-  "ignore": "**\n*/a.log/foo/\r\n./\r\n/../*.pem/?\n\\[a\\]/foo/a.log\n",
-  "files": [
-   "README.md/*",
-   "README.md/.env",
-   "README.md/c/",
-   "README.md/keep",
-   "a/README.md/[a]",
-   "a/README.md/a/",
-   "a/README.md/foo",
-   "a/README.md/k.key/a",
-   "a/README.md/k.key/config",
-   "a/README.md/k.key/keep",
-   "a/c",
-   "a/certs/[a]",
-   "a/certs/ab",
-   "a/k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": ".env\n[a-c]/\\[a\\]/[!a]\n! ./certs/[!a]/README.md\n! *.pem/../\\*\n",
-  "files": [
-   ".env",
-   "a",
-   "foo",
-   "node_modules/"
-  ],
-  "uploaded": [
-   "a",
-   "foo",
-   "node_modules/"
-  ]
- },
- {
-  "ignore": "**\r\nbuild/a.log\r\n! \\*/foo\n",
+  "ignore": "config\r\n[!a]/ab\r\n! **/[!a]\n",
   "files": [
    "config",
    "docs/*",
@@ -1486,154 +1593,121 @@
    "docs/b",
    "docs/certs"
   ],
-  "uploaded": []
- },
- {
-  "ignore": "./?/certs/\\[a\\]\n   \n/README.md/[a-c]/certs\n/*/c/a.log\n?/.\n   \n",
-  "files": [
-   "a"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #**/c\n!./\\[a\\]/certs/*.log\n./**\n!/[a-c]/[a-c]\n!docs/*.key/[a]\r\n",
-  "files": [
-   "*/a",
-   "*/a.log/a/",
-   "*/a.log/b",
-   "*/ab",
-   ".env/",
-   "build/README.md",
-   "build/[a]/*",
-   "x y"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "README.md\n![!a]/b/b\n   \n #! ./*/build\n",
-  "files": [
-   "README.md"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #!certs/../config\n   \r\n[a-c]\n!README.md/a.log/*.log\r\n! ab/c/*.log\nnode_modules\n",
-  "files": [
-   "*/",
-   "README.md",
-   "b",
-   "x y"
-  ],
   "uploaded": [
-   "*/",
-   "README.md",
-   "x y"
+   "docs/",
+   "docs/*",
+   "docs/[a]",
+   "docs/b",
+   "docs/certs"
   ]
  },
  {
-  "ignore": "docs/*/a.log\n! docs/build/node_modules\n*\r\n/?/\\*/\\*\n../docs/docs\n #certs\n",
+  "ignore": "./*\r\n",
   "files": [
-   "c",
-   "node_modules",
-   "server.pem/"
+   "*",
+   "a.log/a/a/ab",
+   "a.log/a/a/docs",
+   "a.log/a/a/foo",
+   "a.log/a/a/x y",
+   "a.log/a/ab",
+   "a.log/b",
+   "a.log/certs"
   ],
   "uploaded": []
  },
  {
-  "ignore": " #!\\[a\\]/./docs\r\n*/\n*\n#! config\n   \n #!\\*/\\[a\\]/README.md\n",
+  "ignore": "﻿ #node_modules/README.md\n**\nx y\n! **/build/config\n",
   "files": [
-   "a.log",
-   "b",
-   "docs"
+   "*/[a]",
+   "*/certs/a.log/",
+   "*/certs/a/",
+   "*/certs/certs/",
+   "*/certs/server.pem",
+   "*/foo",
+   "a",
+   "build",
+   "c"
   ],
   "uploaded": []
  },
  {
-  "ignore": "*\ndocs/foo/certs\nx y/certs/.\r\n/..\n",
+  "ignore": "*.key\n./*\r\n[a-c]/a\\/..\n",
+  "files": [
+   "c"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "README.md\n../[!a]/x\\q\n*.key/[a]/?\r\n/keep\n",
   "files": [
    "README.md"
   ],
   "uploaded": []
  },
  {
-  "ignore": "   \nc/./**\n*.pem\n #! *.log/c/\n/*.key/x y\r\n#\\[a\\]\n",
+  "ignore": "! /c\nab/*.log/README.md\nb\r\nc\nkeep/config/[a-c]\n",
+  "files": [
+   "README.md/ab",
+   "README.md/certs",
+   "README.md/k.key/*/README.md",
+   "README.md/k.key/*/a",
+   "README.md/k.key/*/certs",
+   "README.md/k.key/*/keep",
+   "README.md/k.key/k.key/*",
+   "README.md/k.key/k.key/c",
+   "README.md/k.key/k.key/docs",
+   "README.md/k.key/k.key/server.pem",
+   "README.md/k.key/keep/a.log",
+   "README.md/x y",
+   "c",
+   "config",
+   "node_modules/b"
+  ],
+  "uploaded": [
+   "README.md/",
+   "README.md/ab",
+   "README.md/certs",
+   "README.md/k.key/",
+   "README.md/k.key/*/",
+   "README.md/k.key/*/README.md",
+   "README.md/k.key/*/a",
+   "README.md/k.key/*/certs",
+   "README.md/k.key/*/keep",
+   "README.md/k.key/k.key/",
+   "README.md/k.key/k.key/*",
+   "README.md/k.key/k.key/c",
+   "README.md/k.key/k.key/docs",
+   "README.md/k.key/k.key/server.pem",
+   "README.md/k.key/keep/",
+   "README.md/k.key/keep/a.log",
+   "README.md/x y",
+   "config",
+   "node_modules/",
+   "node_modules/b"
+  ]
+ },
+ {
+  "ignore": "   \nc/?/..\nREADME.md\n #! node_modules/../\n/ab/certs\r\n#ab\n",
   "files": [
    "c/",
    "server.pem/"
   ],
   "uploaded": [
-   "c/"
+   "server.pem/"
   ]
  },
  {
-  "ignore": "./[a-c]\n",
+  "ignore": "#a.log\n!/*.key\r\nc\n../docs/*\r\n #keep/[!a]/?\n",
   "files": [
    "*",
-   ".env",
-   "b",
-   "build"
+   "c"
   ],
   "uploaded": [
-   "*",
-   ".env",
-   "build"
+   "*"
   ]
  },
  {
-  "ignore": "?\n! /*.log\n[!a]/a.log\nkeep/*.pem\r\n!*/keep\n#!node_modules/\n",
-  "files": [
-   "README.md/*",
-   "README.md/.env/a.log/*",
-   "README.md/.env/a.log/README.md",
-   "README.md/.env/a.log/ab",
-   "README.md/.env/foo",
-   "README.md/.env/server.pem",
-   "a/*/.env/",
-   "a/*/a/",
-   "a/*/build",
-   "a/*/docs/[a]",
-   "a/a.log/a.log/build",
-   "a/a.log/b",
-   "a/a.log/certs/b",
-   "a/a.log/certs/c",
-   "a/a.log/certs/docs",
-   "a/a.log/certs/k.key",
-   "a/a.log/foo/c",
-   "a/a.log/foo/docs",
-   "a/a.log/foo/keep",
-   "a/c",
-   "a/node_modules/*/.env",
-   "a/node_modules/*/b",
-   "a/node_modules/docs",
-   "a/node_modules/foo/README.md",
-   "a/node_modules/foo/a",
-   "a/node_modules/foo/a.log",
-   "build",
-   "x y"
-  ],
-  "uploaded": [
-   "README.md/",
-   "README.md/*",
-   "README.md/.env/",
-   "README.md/.env/a.log/",
-   "README.md/.env/a.log/*",
-   "README.md/.env/a.log/README.md",
-   "README.md/.env/a.log/ab",
-   "README.md/.env/foo",
-   "README.md/.env/server.pem",
-   "build",
-   "x y"
-  ]
- },
- {
-  "ignore": "**/[a-c]/..\n",
-  "files": [
-   "certs"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "! b/*.pem\n! */a.log\r\n././?/?\n   \n*/README.md/.env\n! x y\n",
+  "ignore": "! build/a\n! node_modules/[a]\r\n./[!a]/b/build\n   \n*/*/.\n! [a]\n",
   "files": [
    "a/[a]",
    "a/b/",
@@ -1642,391 +1716,140 @@
    "a/k.key/"
   ],
   "uploaded": [
-   "a/",
-   "a/[a]",
-   "a/certs/",
-   "a/certs/README.md",
-   "a/certs/b",
-   "a/k.key/"
+   "a/"
   ]
  },
  {
-  "ignore": "*\n!*.key/b\n[a-c]/*.key/[a]\r\n./docs/[!a]\n!./*/node_modules/a\n",
+  "ignore": "﻿/certs/*.log/.\n#../README.md/*.log\n**\n",
   "files": [
-   "README.md/docs"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "?/\nkeep\nc/\r\n\\[a\\]\n",
-  "files": [
-   "c/*"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "#!*.pem\n/build\r\n #[a-c]/*\r\n![a-c]\n**\n!c/\\*/\n",
-  "files": [
-   "build/[a]/*/",
-   "build/[a]/.env/k.key",
-   "build/[a]/[a]",
-   "certs",
    "x y"
   ],
   "uploaded": []
  },
  {
-  "ignore": "﻿ #config/.env/*.log\r\n #! /keep\n*\n!*.log\r\n",
+  "ignore": "**\n./x\\q\r\n!b/[a]/.env\n",
   "files": [
+   ".env",
+   "c/*/k.key",
+   "c/*/keep",
+   "c/node_modules",
+   "c/server.pem",
+   "config"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "a.log\nconfig/*.pem/\nx y\r\n!x y/a/a\n",
+  "files": [
+   "certs",
+   "config",
+   "x y"
+  ],
+  "uploaded": [
+   "certs",
+   "config"
+  ]
+ },
+ {
+  "ignore": "./c\na.log/node_modules/config\r\n #!docs/[!a]/.env\n![a-c]/[!a]\r\n",
+  "files": [
+   "c/ab",
+   "c/certs",
+   "c/server.pem"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "   \nbuild/docs/[a]\n!./a.log\n[!a]\r\nbuild\ndocs/[a]/ab\n",
+  "files": [
+   "*",
+   ".env",
    "build",
-   "config/c",
-   "config/certs"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "./**/build\r\n**/\\[a\\]/build\nfoo\n! README.md/*/[a]\n/foo/*/config\n",
-  "files": [
-   "docs/*",
-   "docs/a.log",
-   "docs/c",
-   "docs/config/build",
-   "docs/config/certs",
-   "k.key"
-  ],
-  "uploaded": [
-   "docs/",
-   "docs/*",
-   "docs/a.log",
-   "docs/c",
-   "docs/config/",
-   "docs/config/certs",
-   "k.key"
-  ]
- },
- {
-  "ignore": "/b\nb/\\*/b\n!b/[!a]\r\n\\*\n",
-  "files": [
-   "*/",
-   "b",
-   "k.key/.env/",
-   "k.key/a.log/[a]/b",
-   "k.key/a.log/server.pem/*"
-  ],
-  "uploaded": [
-   "k.key/",
-   "k.key/.env/",
-   "k.key/a.log/",
-   "k.key/a.log/[a]/",
-   "k.key/a.log/[a]/b",
-   "k.key/a.log/server.pem/",
-   "k.key/a.log/server.pem/*"
-  ]
- },
- {
-  "ignore": "!\\[a\\]/a.log/a.log\nREADME.md\n!docs/*.key/[a]\n! \\[a\\]\r\n",
-  "files": [
-   "*/[a]/b",
-   "*/[a]/certs",
-   "*/x y/.env",
-   "*/x y/[a]/README.md",
-   "*/x y/[a]/node_modules",
-   "*/x y/foo",
-   "README.md",
-   "node_modules/[a]",
-   "node_modules/c",
-   "node_modules/foo"
-  ],
-  "uploaded": [
-   "*/",
-   "*/[a]/",
-   "*/[a]/b",
-   "*/[a]/certs",
-   "*/x y/",
-   "*/x y/.env",
-   "*/x y/[a]/",
-   "*/x y/[a]/README.md",
-   "*/x y/[a]/node_modules",
-   "*/x y/foo",
-   "node_modules/",
-   "node_modules/[a]",
-   "node_modules/c",
-   "node_modules/foo"
-  ]
- },
- {
-  "ignore": "./\\*\n",
-  "files": [
-   "*",
-   "foo/foo/docs/config",
-   "foo/foo/keep",
-   "foo/foo/server.pem"
-  ],
-  "uploaded": [
-   "foo/",
-   "foo/foo/",
-   "foo/foo/docs/",
-   "foo/foo/docs/config",
-   "foo/foo/keep",
-   "foo/foo/server.pem"
-  ]
- },
- {
-  "ignore": "./**\n   \r\n*.pem/*.log\ncerts\r\n",
-  "files": [
-   "k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "?/\n",
-  "files": [
-   "c",
-   "config/",
-   "k.key",
-   "server.pem"
-  ],
-  "uploaded": [
-   "config/",
-   "k.key",
-   "server.pem"
-  ]
- },
- {
-  "ignore": "!keep/a.log/docs\r\n[a]/x y/\\*\nnode_modules/docs/keep\n?\n",
-  "files": [
-   "a"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "./.env\nREADME.md/..\n!b\n*\n*/README.md\n",
-  "files": [
-   "k.key/"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "! *.log/a/ab\n#! *.pem/README.md/*.log\nnode_modules/[a-c]\n#! ./*.log/config/**\nab/\\*/a.log\n",
-  "files": [
-   ".env/",
-   "k.key/",
-   "node_modules/.env",
-   "node_modules/b/"
-  ],
-  "uploaded": [
-   ".env/",
-   "k.key/",
-   "node_modules/",
-   "node_modules/.env"
-  ]
- },
- {
-  "ignore": "   \n*\nab/[a-c]\n",
-  "files": [
-   "[a]",
-   "a.log",
-   "certs/"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "*\r\n",
-  "files": [
-   "node_modules"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "/.\n!/*.log/build/.env\r\n   \n #![a]\n**/[a-c]\r\n",
-  "files": [
-   "*",
-   "README.md",
-   "a.log",
-   "a/README.md",
-   "a/a/",
-   "a/b/.env/*",
-   "a/b/.env/c",
-   "a/b/.env/docs"
+   "docs"
   ],
   "uploaded": [
    "*",
-   "README.md",
-   "a.log"
+   ".env",
+   "docs"
   ]
  },
  {
-  "ignore": "?/*.log\nc\n!*.log\n!*.log/**/foo\r\nb\n!/a\n",
+  "ignore": "#README.md/c/build\n/[a-c]\n!README.md\r\n",
   "files": [
-   "README.md",
-   "ab",
    "c/README.md",
-   "c/config",
-   "c/k.key"
+   "c/certs/.env/a.log",
+   "c/certs/.env/k.key",
+   "c/certs/.env/server.pem",
+   "c/certs/.env/x y",
+   "c/certs/b/b",
+   "c/certs/b/build",
+   "c/certs/b/docs",
+   "c/certs/config",
+   "c/certs/k.key/*",
+   "c/certs/k.key/README.md",
+   "c/certs/k.key/certs",
+   "c/server.pem"
   ],
-  "uploaded": [
-   "README.md",
+  "uploaded": []
+ },
+ {
+  "ignore": "   \n#!/*.log/../config\nab\n   \n?/a\\/[a]\r\n",
+  "files": [
    "ab"
-  ]
- },
- {
-  "ignore": "!keep\n#foo\n*/\n?\n",
-  "files": [
-   "build/*",
-   "certs"
   ],
   "uploaded": []
  },
  {
-  "ignore": "a/.\n",
+  "ignore": "*\n../foo/c\nab\n #b/x\\q/*.log\n./b/ab\n/**/config/a.log\r\n",
   "files": [
-   "a/",
-   "build/[a]/",
-   "build/build/keep",
-   "build/node_modules",
-   "build/server.pem",
-   "x y"
-  ],
-  "uploaded": [
-   "build/",
-   "build/[a]/",
-   "build/build/",
-   "build/build/keep",
-   "build/node_modules",
-   "build/server.pem",
-   "x y"
-  ]
- },
- {
-  "ignore": "a/*/a.log\n./**\n/.env/*.log\n.env/config/node_modules/\n",
-  "files": [
-   "[a]/*",
-   "[a]/README.md",
-   "[a]/[a]",
-   "a.log"
+   "*"
   ],
   "uploaded": []
  },
  {
-  "ignore": "*/\r\n! README.md/\\[a\\]\n#!node_modules\r\n",
+  "ignore": "**\n #[!a]/\\*\r\n   \n!.env\n../\n",
   "files": [
-   ".env/"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "/../a.log/keep\n!?/config\n**\r\n! c\n",
-  "files": [
-   "build/x y/a.log",
-   "build/x y/build",
-   "build/x y/docs/README.md",
-   "build/x y/x y/*",
-   "c",
-   "foo",
+   "docs",
    "node_modules"
   ],
-  "uploaded": [
-   "c"
-  ]
+  "uploaded": []
  },
  {
-  "ignore": "!c/..\n   \n\\*/.\n**/node_modules\n",
+  "ignore": "a.log/keep\n*.log/\n! a/[!a]/b\n",
   "files": [
-   "a/[a]",
-   "a/a.log/.env",
-   "a/a.log/ab",
-   "a/a.log/c/.env",
-   "a/a.log/c/certs",
-   "a/a.log/c/server.pem",
-   "a/a.log/c/x y",
-   "a/a.log/config/README.md",
-   "a/node_modules",
-   "build/build",
-   "certs",
-   "keep"
+   "[a]/README.md",
+   "a",
+   "a.log"
   ],
   "uploaded": [
-   "a/",
-   "a/[a]",
-   "a/a.log/",
-   "a/a.log/.env",
-   "a/a.log/ab",
-   "a/a.log/c/",
-   "a/a.log/c/.env",
-   "a/a.log/c/certs",
-   "a/a.log/c/server.pem",
-   "a/a.log/c/x y",
-   "a/a.log/config/",
-   "a/a.log/config/README.md",
-   "build/",
-   "build/build",
-   "certs",
-   "keep"
+   "[a]/",
+   "[a]/README.md",
+   "a"
   ]
  },
  {
-  "ignore": "#\\[a\\]/x y/\n*.pem\n/*.pem\n!./a/[a-c]/*.key\n",
+  "ignore": "﻿! ./.env/a\n![!a]/x\\q\n./c\n",
   "files": [
-   "docs/a/",
-   "docs/b",
-   "docs/foo",
-   "docs/node_modules",
-   "server.pem/"
+   "c/*",
+   "c/.env",
+   "c/[a]"
   ],
-  "uploaded": [
-   "docs/",
-   "docs/a/",
-   "docs/b",
-   "docs/foo",
-   "docs/node_modules"
-  ]
+  "uploaded": []
  },
  {
-  "ignore": "#README.md/node_modules/\\*\n#././[a-c]\n#README.md/c/certs\n**\n/?/README.md\n",
+  "ignore": "#node_modules/*.log/[a-\n#./?/[\n#*.pem/**/x\\q\nkeep\n/build/README.md\n",
   "files": [
    "docs",
    "keep/.env",
    "keep/b/",
    "keep/node_modules"
   ],
-  "uploaded": []
- },
- {
-  "ignore": "config/b\r\n!a\r\n!keep\n!.\n\\*/certs/\\[a\\]\n**/*/.\n",
-  "files": [
-   ".env/",
-   "a.log",
-   "foo/README.md"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "keep/.env/*.pem\r\n/?\nfoo\n*.log/*\n! keep/*/keep\n",
-  "files": [
-   "README.md",
-   "build/",
-   "c",
-   "k.key/README.md",
-   "k.key/[a]"
-  ],
   "uploaded": [
-   "README.md",
-   "build/",
-   "k.key/",
-   "k.key/README.md",
-   "k.key/[a]"
+   "docs"
   ]
  },
  {
-  "ignore": "**\n./*.key/*.pem\nnode_modules\r\n!/a.log/c/*.pem\n!build/config\n! [!a]\n",
-  "files": [
-   "[a]",
-   "keep"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "b/../keep\n   \n! x y\n!config/build/keep/\r\n./../config\nc/\n",
+  "ignore": "build/\\*/\\*\n   \n! a.log\n!**/b/**/\r\n.env/../keep\nc/\n",
   "files": [
    "README.md",
    "[a]",
@@ -2041,330 +1864,143 @@
   ]
  },
  {
-  "ignore": "﻿node_modules/\\[a\\]/node_modules\n! /**\n!*.log\n! foo/..\n#./ab/*.key/[!a]\ndocs\r\n",
+  "ignore": "#!*.key/*.key/x\\q\n?\ndocs/[a]\r\n*.key/a\\/[!a]\n",
   "files": [
-   ".env/keep/.env",
-   ".env/keep/config",
-   ".env/keep/docs",
-   ".env/x y",
+   ".env/b/",
+   "[a]",
+   "b",
    "docs"
   ],
   "uploaded": [
    ".env/",
-   ".env/keep/",
-   ".env/keep/.env",
-   ".env/keep/config",
-   ".env/keep/docs",
-   ".env/x y"
-  ]
- },
- {
-  "ignore": "!README.md\nkeep\n #! *.pem/../a.log\n",
-  "files": [
-   "a.log",
-   "ab/docs"
-  ],
-  "uploaded": [
-   "ab/",
-   "ab/docs"
-  ]
- },
- {
-  "ignore": "!config/ab/[!a]\n./*/*\n",
-  "files": [
-   "b",
-   "build",
-   "x y/README.md",
-   "x y/a.log",
-   "x y/ab/[a]/*",
-   "x y/ab/[a]/certs",
-   "x y/ab/a.log",
-   "x y/ab/build",
-   "x y/ab/server.pem"
-  ],
-  "uploaded": [
-   "b",
-   "build",
-   "x y/"
-  ]
- },
- {
-  "ignore": "!*/?/\\[a\\]\n./build/\na.log/node_modules\r\n\\[a\\]/foo\n",
-  "files": [
-   "a",
-   "build",
-   "x y"
-  ],
-  "uploaded": [
-   "a",
-   "x y"
-  ]
- },
- {
-  "ignore": "*/\n",
-  "files": [
-   "ab/a/README.md",
-   "ab/x y/ab/",
-   "ab/x y/build",
-   "certs",
+   ".env/b/",
+   "[a]",
    "docs"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #*.key/*.key/[!a]\r\nnode_modules/*.key/?\n./docs/keep\n./certs/[a-c]/README.md\n*.pem\r\nnode_modules/build/build\n",
-  "files": [
-   "[a]",
-   "config/a",
-   "server.pem/*",
-   "server.pem/server.pem"
-  ],
-  "uploaded": [
-   "[a]",
-   "config/",
-   "config/a"
   ]
  },
  {
-  "ignore": "certs/certs/build\n**\ndocs\n*.log/../..\n..\n",
+  "ignore": "!../ab/\n*\n",
   "files": [
-   ".env/.env/build",
-   ".env/.env/node_modules/",
-   ".env/c/b",
-   ".env/foo",
-   ".env/x y"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "./a.log\nab/build/\\[a\\]\n",
-  "files": [
-   "a.log",
-   "k.key/.env",
-   "k.key/README.md/",
-   "k.key/config/build",
-   "k.key/config/certs/ab",
-   "k.key/x y",
-   "node_modules"
-  ],
-  "uploaded": [
-   "k.key/",
-   "k.key/.env",
-   "k.key/README.md/",
-   "k.key/config/",
-   "k.key/config/build",
-   "k.key/config/certs/",
-   "k.key/config/certs/ab",
-   "k.key/x y",
-   "node_modules"
-  ]
- },
- {
-  "ignore": "#*.key/?\r\n#!c/[a]/foo\n#! *.pem/*.log\r\n #.env/certs\nc\n",
-  "files": [
-   "a.log/x y/c/x y",
-   "a.log/x y/x y/config",
-   "a.log/x y/x y/keep",
-   "a.log/x y/x y/x y",
-   "b",
-   "c/a",
-   "c/c/.env/node_modules",
-   "c/c/foo",
-   "c/c/keep",
-   "c/foo/a",
-   "c/foo/docs/a",
-   "c/foo/docs/keep",
-   "c/foo/foo",
-   "c/foo/x y",
-   "c/keep",
-   "x y/"
-  ],
-  "uploaded": [
-   "a.log/",
-   "a.log/x y/",
-   "a.log/x y/c/",
-   "a.log/x y/c/x y",
-   "a.log/x y/x y/",
-   "a.log/x y/x y/config",
-   "a.log/x y/x y/keep",
-   "a.log/x y/x y/x y",
-   "b",
-   "x y/"
-  ]
- },
- {
-  "ignore": "foo\n!docs/c\n*.pem/.\n",
-  "files": [
-   "[a]/certs/*",
-   "[a]/certs/b/.env",
-   "[a]/certs/b/a",
-   "[a]/certs/build/",
-   "[a]/certs/docs/keep",
-   "[a]/certs/docs/server.pem",
-   "[a]/foo/a/",
-   "[a]/foo/certs/",
-   "[a]/foo/config",
-   "[a]/foo/server.pem",
-   "[a]/keep/README.md",
-   "[a]/keep/foo/c",
-   "[a]/keep/foo/certs",
-   "[a]/keep/keep",
-   "config/ab/k.key",
-   "config/ab/server.pem/c",
-   "config/ab/server.pem/k.key",
-   "config/keep/*/README.md",
-   "config/keep/*/certs",
-   "config/keep/*/node_modules",
-   "config/keep/*/server.pem",
-   "foo/a.log/keep/*",
-   "foo/a.log/keep/b",
-   "foo/ab/[a]/[a]",
-   "foo/ab/[a]/ab",
-   "foo/ab/[a]/server.pem",
-   "foo/ab/x y/ab",
-   "foo/ab/x y/c",
-   "foo/ab/x y/keep",
-   "foo/ab/x y/server.pem",
-   "foo/build",
-   "server.pem"
-  ],
-  "uploaded": [
-   "[a]/",
-   "[a]/certs/",
-   "[a]/certs/*",
-   "[a]/certs/b/",
-   "[a]/certs/b/.env",
-   "[a]/certs/b/a",
-   "[a]/certs/build/",
-   "[a]/certs/docs/",
-   "[a]/certs/docs/keep",
-   "[a]/certs/docs/server.pem",
-   "[a]/foo/",
-   "[a]/foo/a/",
-   "[a]/foo/certs/",
-   "[a]/foo/config",
-   "[a]/foo/server.pem",
-   "[a]/keep/",
-   "[a]/keep/README.md",
-   "[a]/keep/foo/",
-   "[a]/keep/foo/c",
-   "[a]/keep/foo/certs",
-   "[a]/keep/keep",
-   "config/",
-   "config/ab/",
-   "config/ab/k.key",
-   "config/ab/server.pem/",
-   "config/ab/server.pem/c",
-   "config/ab/server.pem/k.key",
-   "config/keep/",
-   "config/keep/*/",
-   "config/keep/*/README.md",
-   "config/keep/*/certs",
-   "config/keep/*/node_modules",
-   "config/keep/*/server.pem"
-  ]
- },
- {
-  "ignore": "!docs\n./foo\r\n[a]/certs/c\r\n?/[a]/keep\n**\n..\n",
-  "files": [
-   "b",
-   "certs",
+   "[a]/.env/certs/",
+   "[a]/c",
+   "[a]/config",
+   "[a]/foo",
    "k.key",
    "x y"
   ],
   "uploaded": []
  },
  {
-  "ignore": "#./README.md\n!./config\r\n!\\*/c/*.log\r\n! \\*/*.log/config\n./**\n   \n",
+  "ignore": "![a-c]\n**\n #! *.pem/c/a.log\n",
   "files": [
-   "foo"
+   "a.log",
+   "ab/docs"
   ],
   "uploaded": []
  },
  {
-  "ignore": "!?/config\nbuild/config\r\n./*/b\n./*.log\n",
+  "ignore": "foo/c/README.md\n/ab\n",
   "files": [
-   ".env",
-   "[a]",
-   "a.log"
+   "README.md",
+   "ab",
+   "certs/config/README.md"
   ],
   "uploaded": [
-   ".env",
-   "[a]"
+   "README.md",
+   "certs/",
+   "certs/config/",
+   "certs/config/README.md"
   ]
  },
  {
-  "ignore": "x y\n./*\n#**\r\n*.key\n#!/\\[a\\]\n",
+  "ignore": "foo/x y\n #\\[a\\]/\\*/[a]\r\n./certs\n\\*/x y\r\n**\r\n",
   "files": [
    "a",
-   "foo",
-   "server.pem"
+   "ab/server.pem",
+   "ab/x y"
   ],
   "uploaded": []
  },
  {
-  "ignore": " #./[a-c]/[!a]/*.pem\n*.key/..\nab\r\n?/\n",
+  "ignore": "   \n/?\n",
   "files": [
-   "a",
-   "certs",
-   "keep",
-   "server.pem"
+   "a.log",
+   "b/*/config",
+   "b/*/server.pem",
+   "b/config",
+   "build"
   ],
   "uploaded": [
-   "certs",
-   "keep",
-   "server.pem"
+   "a.log",
+   "build"
   ]
  },
  {
-  "ignore": "!x y\ndocs\n",
+  "ignore": "?\n?\n   \n*.pem/a.log\n#[a-c]\n",
   "files": [
-   "[a]/c/README.md",
-   "[a]/c/b",
-   "[a]/c/build",
-   "[a]/c/node_modules",
-   "[a]/node_modules",
+   "b/a.log",
+   "b/ab/a.log",
+   "b/docs",
+   "certs",
+   "keep"
+  ],
+  "uploaded": [
+   "certs",
+   "keep"
+  ]
+ },
+ {
+  "ignore": "#\\*/ab\r\n\\*/docs/foo\nkeep\n   \n! config/node_modules/README.md\n!x y/?\n",
+  "files": [
    "c",
-   "docs"
+   "keep"
   ],
   "uploaded": [
-   "[a]/",
-   "[a]/c/",
-   "[a]/c/README.md",
-   "[a]/c/b",
-   "[a]/c/build",
-   "[a]/c/node_modules",
-   "[a]/node_modules",
    "c"
   ]
  },
  {
-  "ignore": "a\n! .env/[a-c]/?\r\n#\\*/\n #/ab/*\n",
+  "ignore": "docs/*.log\n*\r\n./ab\n! node_modules\n",
   "files": [
-   "*/README.md",
-   "*/docs/",
-   "a",
-   "x y"
+   "c/ab/docs/README.md",
+   "c/ab/docs/build",
+   "c/ab/docs/keep",
+   "c/c",
+   "c/k.key/.env",
+   "c/k.key/c/a.log",
+   "c/k.key/c/foo",
+   "c/k.key/x y/ab",
+   "c/k.key/x y/foo",
+   "c/k.key/x y/server.pem",
+   "c/keep/.env/",
+   "c/keep/b/b",
+   "c/keep/b/x y",
+   "c/keep/keep",
+   "k.key",
+   "node_modules/*",
+   "node_modules/.env",
+   "node_modules/b/[a]",
+   "node_modules/x y"
   ],
   "uploaded": [
-   "*/",
-   "*/README.md",
-   "*/docs/",
-   "x y"
+   "node_modules/",
+   "node_modules/*",
+   "node_modules/.env",
+   "node_modules/b/",
+   "node_modules/b/[a]",
+   "node_modules/x y"
   ]
  },
  {
-  "ignore": "certs\n   \n! node_modules/.env\n*.log/?/*.key\r\n #a.log\n",
+  "ignore": " #*/docs\n**\n",
   "files": [
-   "a",
-   "certs"
+   "ab",
+   "node_modules"
   ],
-  "uploaded": [
-   "a"
-  ]
+  "uploaded": []
  },
  {
-  "ignore": "*/*/?\n!b/c/?\nnode_modules\n",
+  "ignore": "README.md/node_modules/build\n!a\\/../.env\n*\n",
   "files": [
    "README.md/config/a.log",
    "README.md/config/a/a.log",
@@ -2380,160 +2016,102 @@
    "c/config",
    "certs"
   ],
+  "uploaded": []
+ },
+ {
+  "ignore": "node_modules/ab/\n[!a]/[a]\n!./*.pem/keep\n   \n",
+  "files": [
+   "b/.env",
+   "b/docs/README.md/node_modules",
+   "keep/.env/",
+   "keep/README.md/build",
+   "keep/README.md/x y",
+   "keep/docs",
+   "keep/x y/",
+   "node_modules/ab",
+   "node_modules/config/.env",
+   "node_modules/config/a/certs",
+   "node_modules/config/a/k.key",
+   "node_modules/foo/",
+   "node_modules/x y"
+  ],
   "uploaded": [
-   "README.md/",
-   "README.md/config/",
-   "README.md/config/a.log",
-   "README.md/config/docs/",
-   "README.md/config/docs/keep",
-   "README.md/config/node_modules",
-   "README.md/keep/",
-   "README.md/keep/certs",
-   "README.md/keep/config",
-   "README.md/keep/server.pem/",
-   "README.md/keep/server.pem/foo",
-   "c/",
-   "c/.env/",
-   "c/.env/.env",
-   "c/.env/ab",
-   "c/certs",
-   "c/config",
-   "certs"
+   "b/",
+   "b/.env",
+   "b/docs/",
+   "b/docs/README.md/",
+   "b/docs/README.md/node_modules",
+   "keep/",
+   "keep/.env/",
+   "keep/README.md/",
+   "keep/README.md/build",
+   "keep/README.md/x y",
+   "keep/docs",
+   "keep/x y/",
+   "node_modules/",
+   "node_modules/config/",
+   "node_modules/config/.env",
+   "node_modules/config/a/",
+   "node_modules/config/a/certs",
+   "node_modules/config/a/k.key",
+   "node_modules/foo/",
+   "node_modules/x y"
   ]
  },
  {
-  "ignore": "foo/*.pem\r\n[a-c]/a/a.log\n#./../x y/.env\r\n**\n./../ab/[!a]\n/node_modules/keep\n",
+  "ignore": "./**/*.log/..\n#build/b\n./[a]\n./node_modules/build\n#!a.log/c/[!a]\n",
   "files": [
-   "a/*",
-   "a/README.md/b",
-   "a/README.md/keep/.env",
-   "a/README.md/keep/README.md",
-   "a/README.md/keep/docs",
-   "a/[a]/a.log",
-   "a/[a]/config",
-   "a/[a]/server.pem",
-   "a/k.key/a/k.key",
-   "a/k.key/x y/[a]",
-   "a/k.key/x y/a",
+   "[a]"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "node_modules/config\n./a\\/a/foo\n[a-c]\n",
+  "files": [
+   "*",
+   "a/README.md",
+   "a/server.pem"
+  ],
+  "uploaded": [
+   "*"
+  ]
+ },
+ {
+  "ignore": "/*\n",
+  "files": [
+   "*",
+   "config/certs"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "﻿**\n!./.\n! build/\\*/ab\r\n",
+  "files": [
+   "a.log",
+   "certs",
+   "node_modules/README.md/",
+   "node_modules/ab",
+   "node_modules/x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "/?/[a]/ab\n! /build\n*\n*.pem/node_modules/.\n",
+  "files": [
+   "build",
+   "docs"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": " #node_modules\nab\n/*.log\n #!c/x\\q/a.log\n#foo\r\n",
+  "files": [
    "ab"
   ],
   "uploaded": []
  },
  {
-  "ignore": "build/*.log/build\n   \nx y\n",
-  "files": [
-   "build/b",
-   "build/foo",
-   "build/node_modules/*/.env",
-   "build/node_modules/*/certs",
-   "build/node_modules/*/docs",
-   "build/node_modules/*/k.key",
-   "build/node_modules/.env/a.log",
-   "build/node_modules/.env/certs",
-   "build/node_modules/.env/foo",
-   "build/node_modules/README.md/.env",
-   "build/node_modules/README.md/docs",
-   "build/node_modules/config/foo",
-   "certs",
-   "x y"
-  ],
-  "uploaded": [
-   "build/",
-   "build/b",
-   "build/foo",
-   "build/node_modules/",
-   "build/node_modules/*/",
-   "build/node_modules/*/.env",
-   "build/node_modules/*/certs",
-   "build/node_modules/*/docs",
-   "build/node_modules/*/k.key",
-   "build/node_modules/.env/",
-   "build/node_modules/.env/a.log",
-   "build/node_modules/.env/certs",
-   "build/node_modules/.env/foo",
-   "build/node_modules/README.md/",
-   "build/node_modules/README.md/.env",
-   "build/node_modules/README.md/docs",
-   "build/node_modules/config/",
-   "build/node_modules/config/foo",
-   "certs"
-  ]
- },
- {
-  "ignore": " #!x y/**/keep\r\n./*\n #/a/[a]\n#c/certs\n! ./README.md/../build\n",
-  "files": [
-   "a"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "?/*.log/[a-c]\n/docs/*.pem\nc\n #/*.log/a/build\r\n?/\n",
-  "files": [
-   "README.md",
-   "a/a.log/a",
-   "a/a.log/b",
-   "a/a.log/keep/foo",
-   "a/a.log/x y/c",
-   "a/a.log/x y/config",
-   "c",
-   "k.key/docs/",
-   "k.key/keep",
-   "k.key/x y"
-  ],
-  "uploaded": [
-   "README.md",
-   "k.key/",
-   "k.key/docs/",
-   "k.key/keep",
-   "k.key/x y"
-  ]
- },
- {
-  "ignore": "   \n**/*\n**\nREADME.md\n",
-  "files": [
-   "*"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #a.log/../[a-c]\r\n   \n./*/../x y\n",
-  "files": [
-   "build/*",
-   "build/[a]",
-   "x y/build",
-   "x y/c/certs/README.md",
-   "x y/c/certs/certs",
-   "x y/c/certs/foo",
-   "x y/c/foo",
-   "x y/foo"
-  ],
-  "uploaded": [
-   "build/",
-   "build/*",
-   "build/[a]"
-  ]
- },
- {
-  "ignore": "﻿foo/foo/build\nnode_modules\n[!a]/keep/foo\n! [a]/**\n../x y/\\*\ncerts\n",
-  "files": [
-   "foo/",
-   "node_modules/",
-   "x y"
-  ],
-  "uploaded": [
-   "foo/",
-   "x y"
-  ]
- },
- {
-  "ignore": "/b/certs\nab/keep/?\n**\n",
-  "files": [
-   "b"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "c\n",
+  "ignore": "**\n",
   "files": [
    "[a]/.env",
    "[a]/node_modules/keep",
@@ -2542,38 +2120,10 @@
    "c/config",
    "node_modules"
   ],
-  "uploaded": [
-   "[a]/",
-   "[a]/.env",
-   "[a]/node_modules/",
-   "[a]/node_modules/keep",
-   "node_modules"
-  ]
+  "uploaded": []
  },
  {
-  "ignore": "!a/*.key\n #[a]/**\ncerts\nbuild/./\n",
-  "files": [
-   "certs",
-   "foo/",
-   "server.pem"
-  ],
-  "uploaded": [
-   "foo/",
-   "server.pem"
-  ]
- },
- {
-  "ignore": "../node_modules\n\\[a\\]\r\n #?/a.log/keep\r\n",
-  "files": [
-   "[a]",
-   "a"
-  ],
-  "uploaded": [
-   "a"
-  ]
- },
- {
-  "ignore": "!*/docs/*\nkeep\nfoo/keep/foo\r\n",
+  "ignore": "!*/c/[a-c]\n**\nfoo/docs/?\r\n",
   "files": [
    "a/config/",
    "k.key/c",
@@ -2589,608 +2139,548 @@
    "keep/a/a/server.pem",
    "keep/foo"
   ],
-  "uploaded": [
-   "a/",
-   "a/config/",
-   "k.key/",
-   "k.key/c"
-  ]
- },
- {
-  "ignore": "!certs/*.log/foo\n\\*/b\n",
-  "files": [
-   "*/b/b",
-   "*/b/build",
-   "*/b/k.key",
-   "k.key/certs/foo/config",
-   "k.key/certs/foo/x y",
-   "k.key/certs/x y",
-   "server.pem"
-  ],
-  "uploaded": [
-   "*/",
-   "k.key/",
-   "k.key/certs/",
-   "k.key/certs/foo/",
-   "k.key/certs/foo/config",
-   "k.key/certs/foo/x y",
-   "k.key/certs/x y",
-   "server.pem"
-  ]
- },
- {
-  "ignore": "[a-c]\n! *\nkeep\n   \n!*.log\n",
-  "files": [
-   "c",
-   "keep/build/.env",
-   "keep/server.pem",
-   "keep/x y/a",
-   "keep/x y/a.log",
-   "keep/x y/node_modules/",
-   "node_modules/b"
-  ],
-  "uploaded": [
-   "c",
-   "node_modules/",
-   "node_modules/b"
-  ]
- },
- {
-  "ignore": "! README.md\n! **/a\n**/keep\n   \n #! build/?/\\*\n",
-  "files": [
-   "*",
-   "config/build/",
-   "config/foo",
-   "config/keep"
-  ],
-  "uploaded": [
-   "*",
-   "config/",
-   "config/build/",
-   "config/foo"
-  ]
- },
- {
-  "ignore": "!certs\n**\n! /[!a]/[a-c]/config\r\n",
-  "files": [
-   ".env/a",
-   ".env/c",
-   ".env/config",
-   "[a]/[a]/x y/ab",
-   "[a]/[a]/x y/config",
-   "[a]/[a]/x y/node_modules",
-   "[a]/a.log",
-   "[a]/build",
-   "[a]/certs",
-   "config"
-  ],
   "uploaded": []
  },
  {
-  "ignore": "!../\n!ab/b\n[a-c]\n",
-  "files": [
-   "[a]/a.log",
-   "[a]/docs",
-   "[a]/keep",
-   "a",
-   "docs"
-  ],
-  "uploaded": [
-   "[a]/",
-   "[a]/a.log",
-   "[a]/docs",
-   "[a]/keep",
-   "docs"
-  ]
- },
- {
-  "ignore": "*/x y\r\n",
-  "files": [
-   "[a]/ab",
-   "[a]/certs",
-   "[a]/docs/*",
-   "[a]/docs/x y",
-   "[a]/x y/",
-   "build/[a]",
-   "build/certs",
-   "config"
-  ],
-  "uploaded": [
-   "[a]/",
-   "[a]/ab",
-   "[a]/certs",
-   "[a]/docs/",
-   "[a]/docs/*",
-   "[a]/docs/x y",
-   "build/",
-   "build/[a]",
-   "build/certs",
-   "config"
-  ]
- },
- {
-  "ignore": "﻿   \nc\n!node_modules/[a]\n?\n",
-  "files": [
-   "*",
-   "a.log"
-  ],
-  "uploaded": [
-   "a.log"
-  ]
- },
- {
-  "ignore": " #[!a]/\n #!c/.env\r\na.log/foo\n! README.md/b/\n**\r\n",
-  "files": [
-   ".env",
-   "README.md",
-   "node_modules/a/b/.env",
-   "node_modules/a/b/c",
-   "node_modules/a/b/certs",
-   "node_modules/a/b/keep",
-   "node_modules/c/ab/*",
-   "node_modules/c/ab/build",
-   "node_modules/c/ab/config",
-   "node_modules/c/keep",
-   "node_modules/c/node_modules",
-   "node_modules/foo"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "/*.key/b\n   \n*.log/build/..\n**/a/\n #foo\n",
-  "files": [
-   "a.log/*",
-   "a.log/README.md",
-   "a.log/[a]/[a]",
-   "a.log/[a]/ab/b",
-   "certs",
-   "x y/build",
-   "x y/config/.env/.env",
-   "x y/config/.env/[a]",
-   "x y/config/.env/c",
-   "x y/config/a.log",
-   "x y/config/b",
-   "x y/k.key/config"
-  ],
-  "uploaded": [
-   "certs",
-   "x y/",
-   "x y/build",
-   "x y/config/",
-   "x y/config/.env/",
-   "x y/config/.env/.env",
-   "x y/config/.env/[a]",
-   "x y/config/.env/c",
-   "x y/config/a.log",
-   "x y/config/b",
-   "x y/k.key/",
-   "x y/k.key/config"
-  ]
- },
- {
-  "ignore": "*\n/a.log/../*.pem\n!x y/certs/\n.env\nnode_modules/c\n #./../\\*\n",
-  "files": [
-   ".env",
-   "config",
-   "k.key/ab",
-   "k.key/certs",
-   "k.key/docs/*",
-   "k.key/docs/config",
-   "k.key/docs/foo",
-   "k.key/x y/a.log/b",
-   "k.key/x y/a.log/build",
-   "k.key/x y/a.log/x y",
-   "k.key/x y/c/",
-   "k.key/x y/node_modules/",
-   "keep"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "\\[a\\]\r\n!foo/\\[a\\]\n/node_modules\n",
-  "files": [
-   "[a]",
-   "c"
-  ],
-  "uploaded": [
-   "c"
-  ]
- },
- {
-  "ignore": "*\n?/certs/\nconfig/./ab\n",
-  "files": [
-   "*",
-   "k.key/ab"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "! /config/certs\r\n! keep\r\n   \r\n**/build/docs\n*\nnode_modules/*\n",
-  "files": [
-   "b/b/",
-   "b/build/certs",
-   "b/build/keep",
-   "b/server.pem/[a]",
-   "b/server.pem/b",
-   "b/x y"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "#certs/..\n.env/\n.env/keep\r\n!ab/b/\n\\*/*.pem/build/\n   \n",
-  "files": [
-   ".env",
-   "a.log",
-   "certs/[a]/README.md/*",
-   "certs/[a]/README.md/a",
-   "certs/[a]/README.md/a.log",
-   "certs/[a]/certs/ab",
-   "certs/[a]/certs/x y",
-   "certs/[a]/docs",
-   "certs/[a]/node_modules/ab",
-   "certs/[a]/node_modules/foo",
-   "certs/[a]/node_modules/keep",
-   "certs/[a]/node_modules/server.pem",
-   "certs/foo",
-   "keep"
-  ],
-  "uploaded": [
-   "a.log",
-   "certs/",
-   "certs/[a]/",
-   "certs/[a]/README.md/",
-   "certs/[a]/README.md/*",
-   "certs/[a]/README.md/a",
-   "certs/[a]/README.md/a.log",
-   "certs/[a]/certs/",
-   "certs/[a]/certs/ab",
-   "certs/[a]/certs/x y",
-   "certs/[a]/docs",
-   "certs/[a]/node_modules/",
-   "certs/[a]/node_modules/ab",
-   "certs/[a]/node_modules/foo",
-   "certs/[a]/node_modules/keep",
-   "certs/[a]/node_modules/server.pem",
-   "certs/foo",
-   "keep"
-  ]
- },
- {
-  "ignore": "! b\n! \\[a\\]/c/\nab\n",
+  "ignore": "docs/certs/[a]\n#\\*/[a]/a.log\n./**/x y\nfoo\n/*.log/c/config\n",
   "files": [
    "ab",
-   "config",
-   "node_modules"
+   "k.key/.env/a",
+   "k.key/.env/certs/server.pem",
+   "k.key/.env/docs/build",
+   "k.key/.env/docs/c",
+   "k.key/.env/docs/foo",
+   "k.key/.env/docs/x y",
+   "k.key/README.md/README.md/",
+   "k.key/README.md/ab/b",
+   "k.key/README.md/ab/c",
+   "k.key/README.md/ab/server.pem",
+   "k.key/README.md/ab/x y",
+   "k.key/README.md/k.key",
+   "k.key/k.key"
   ],
   "uploaded": [
-   "config",
-   "node_modules"
+   "ab",
+   "k.key/",
+   "k.key/.env/",
+   "k.key/.env/a",
+   "k.key/.env/certs/",
+   "k.key/.env/certs/server.pem",
+   "k.key/.env/docs/",
+   "k.key/.env/docs/build",
+   "k.key/.env/docs/c",
+   "k.key/.env/docs/foo",
+   "k.key/README.md/",
+   "k.key/README.md/README.md/",
+   "k.key/README.md/ab/",
+   "k.key/README.md/ab/b",
+   "k.key/README.md/ab/c",
+   "k.key/README.md/ab/server.pem",
+   "k.key/README.md/k.key",
+   "k.key/k.key"
   ]
  },
  {
-  "ignore": "a/\\*/**\n!ab/a.log\r\n#!ab\n/node_modules/\\[a\\]/..\n",
+  "ignore": " #./docs\n.env\r\n",
   "files": [
-   "k.key",
-   "node_modules"
+   ".env",
+   "README.md/",
+   "config",
+   "k.key"
   ],
   "uploaded": [
+   "README.md/",
+   "config",
    "k.key"
   ]
  },
  {
-  "ignore": "*.pem\n../docs/[!a]\n!/c\n/..\n   \n   \n",
+  "ignore": " #certs\n./docs/*.pem\nREADME.md/a/keep\n#./.\nbuild\n",
   "files": [
-   ".env",
-   "certs/",
-   "server.pem/ab",
-   "server.pem/b/.env",
-   "server.pem/b/certs",
-   "server.pem/b/keep/",
-   "server.pem/build/build/a.log",
-   "server.pem/build/build/ab",
-   "server.pem/build/build/certs",
-   "server.pem/build/build/x y",
-   "server.pem/build/certs/node_modules",
-   "server.pem/build/docs/a",
-   "server.pem/build/docs/b",
-   "server.pem/build/node_modules",
-   "server.pem/foo"
+   "build",
+   "certs",
+   "x y"
   ],
   "uploaded": [
-   ".env",
-   "certs/"
+   "certs",
+   "x y"
   ]
  },
  {
-  "ignore": "*\n#/[a]\r\n./keep/keep\n! config\n   \n",
+  "ignore": ".env\n./keep/?/docs\n #/a\\/**\n",
   "files": [
-   "certs"
+   ".env",
+   "ab/*",
+   "ab/a.log",
+   "keep",
+   "x y"
+  ],
+  "uploaded": [
+   "ab/",
+   "ab/*",
+   "ab/a.log",
+   "keep",
+   "x y"
+  ]
+ },
+ {
+  "ignore": "! node_modules/*\n/\\*\n",
+  "files": [
+   "*",
+   ".env",
+   "build",
+   "node_modules"
+  ],
+  "uploaded": [
+   ".env",
+   "build",
+   "node_modules"
+  ]
+ },
+ {
+  "ignore": "./README.md\r\nkeep/\\*/certs\n./..\r\n[a-c]/.\n",
+  "files": [
+   "c/[a]/a/a.log",
+   "c/[a]/a/b",
+   "c/[a]/a/keep",
+   "c/[a]/build/a",
+   "c/[a]/server.pem/README.md",
+   "c/[a]/server.pem/ab",
+   "c/[a]/server.pem/docs",
+   "c/a",
+   "c/a.log",
+   "certs",
+   "config"
+  ],
+  "uploaded": [
+   "certs",
+   "config"
+  ]
+ },
+ {
+  "ignore": " #/certs/*.key/..\r\n**\n #!/[a]/node_modules\n.env/README.md/a\n",
+  "files": [
+   "node_modules",
+   "x y"
   ],
   "uploaded": []
  },
  {
-  "ignore": "!docs/config/config\n! b/a/x y\n #b/**/.env\nREADME.md/**\n./.env\n",
+  "ignore": "*\r\n/*/\\*/docs\n!c/keep\n #\\*\n",
   "files": [
-   ".env/b",
-   ".env/keep",
-   "config/c",
-   "config/k.key",
-   "config/node_modules",
-   "config/server.pem"
+   "README.md",
+   "ab/a",
+   "ab/foo/[a]",
+   "ab/foo/build/node_modules",
+   "ab/foo/foo/a",
+   "ab/foo/foo/config",
+   "ab/foo/k.key",
+   "foo"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "!*.log/certs\n#docs\n**\n",
+  "files": [
+   "a/config/",
+   "b",
+   "k.key/README.md"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "! \\[a\\]/*.pem\nconfig/[!a]\r\n/*/a.log\r\n",
+  "files": [
+   "[a]/*/b",
+   "[a]/*/build/[a]",
+   "[a]/*/build/b",
+   "[a]/*/build/build",
+   "[a]/*/build/docs",
+   "[a]/keep",
+   "ab/",
+   "docs/README.md",
+   "docs/a.log",
+   "docs/c",
+   "docs/docs",
+   "node_modules/"
   ],
   "uploaded": [
-   "config/",
-   "config/c",
-   "config/k.key",
-   "config/node_modules",
-   "config/server.pem"
+   "[a]/",
+   "[a]/*/",
+   "[a]/*/b",
+   "[a]/*/build/",
+   "[a]/*/build/[a]",
+   "[a]/*/build/b",
+   "[a]/*/build/build",
+   "[a]/*/build/docs",
+   "[a]/keep",
+   "ab/",
+   "docs/",
+   "docs/README.md",
+   "docs/c",
+   "docs/docs",
+   "node_modules/"
   ]
  },
  {
-  "ignore": "**\n",
+  "ignore": "?\n #ab\nb/README.md/\\*\n#!..\n*.log/.\r\n",
+  "files": [
+   "README.md",
+   "a",
+   "b",
+   "c/ab",
+   "c/k.key/[a]",
+   "c/k.key/a"
+  ],
+  "uploaded": [
+   "README.md"
+  ]
+ },
+ {
+  "ignore": "!a/..\r\n*\n",
+  "files": [
+   "README.md/",
+   "x y/b/node_modules",
+   "x y/build"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "/node_modules/../*\n#! a/node_modules/*.pem\n!**/[a]\r\n",
   "files": [
    "foo"
   ],
   "uploaded": []
  },
  {
-  "ignore": "*.pem\n/\\*\n",
+  "ignore": ".\n!.env\n[a]\nbuild\n   \r\n #!/a.log/README.md\n",
   "files": [
-   "b",
-   "docs/[a]/server.pem",
-   "docs/k.key/",
-   "docs/server.pem/ab",
-   "docs/server.pem/x y",
-   "docs/x y/b",
-   "docs/x y/certs",
-   "docs/x y/k.key/a.log",
-   "docs/x y/k.key/certs",
-   "docs/x y/k.key/config",
-   "docs/x y/k.key/x y",
-   "docs/x y/server.pem",
+   "build/build",
+   "build/keep",
+   "config",
+   "foo",
+   "node_modules/certs",
+   "node_modules/server.pem/*",
+   "node_modules/server.pem/foo/"
+  ],
+  "uploaded": [
+   "config",
+   "foo",
+   "node_modules/",
+   "node_modules/certs",
+   "node_modules/server.pem/",
+   "node_modules/server.pem/*",
+   "node_modules/server.pem/foo/"
+  ]
+ },
+ {
+  "ignore": "x y\n**/ab\n./?\n",
+  "files": [
+   ".env/.env",
+   ".env/a/",
+   ".env/docs/[a]/ab",
+   ".env/docs/[a]/keep",
+   ".env/docs/b",
+   ".env/docs/docs",
+   ".env/docs/k.key",
+   ".env/node_modules/x y",
+   "README.md",
+   "a.log"
+  ],
+  "uploaded": [
+   ".env/",
+   ".env/.env",
+   ".env/a/",
+   ".env/docs/",
+   ".env/docs/[a]/",
+   ".env/docs/[a]/keep",
+   ".env/docs/b",
+   ".env/docs/docs",
+   ".env/docs/k.key",
+   ".env/node_modules/",
+   ".env/node_modules/x y",
+   "README.md",
+   "a.log"
+  ]
+ },
+ {
+  "ignore": "! docs/..\n\\*\r\n   \n",
+  "files": [
+   "*",
+   "README.md",
    "server.pem",
    "x y"
   ],
   "uploaded": [
-   "b",
-   "docs/",
-   "docs/[a]/",
-   "docs/[a]/server.pem",
-   "docs/k.key/",
-   "docs/server.pem/",
-   "docs/server.pem/ab",
-   "docs/server.pem/x y",
-   "docs/x y/",
-   "docs/x y/b",
-   "docs/x y/certs",
-   "docs/x y/k.key/",
-   "docs/x y/k.key/a.log",
-   "docs/x y/k.key/certs",
-   "docs/x y/k.key/config",
-   "docs/x y/k.key/x y",
-   "docs/x y/server.pem",
+   "README.md",
+   "server.pem",
    "x y"
   ]
  },
  {
-  "ignore": "#! ?/b/README.md\r\n   \n./?\nnode_modules\n",
+  "ignore": "! foo\n! x y/docs/\nab\n",
   "files": [
-   "*"
+   "ab",
+   "config",
+   "node_modules"
   ],
-  "uploaded": []
+  "uploaded": [
+   "config",
+   "node_modules"
+  ]
  },
  {
-  "ignore": "!b/c\n**\nconfig/node_modules\n   \n",
+  "ignore": "\\*/**/*.log\n./.env\nnode_modules/../.env\n! \\*/a\\/node_modules\nkeep/[a]\n",
   "files": [
-   "README.md",
+   ".env/*",
+   "README.md/*",
+   "README.md/keep",
+   "README.md/x y",
+   "config",
+   "node_modules"
+  ],
+  "uploaded": [
+   "README.md/",
+   "README.md/*",
+   "README.md/keep",
+   "README.md/x y",
+   "config",
+   "node_modules"
+  ]
+ },
+ {
+  "ignore": "a/\r\n",
+  "files": [
+   ".env/ab/.env",
+   ".env/ab/keep/ab",
+   "a",
+   "c",
+   "docs/*",
+   "docs/certs"
+  ],
+  "uploaded": [
+   ".env/",
+   ".env/ab/",
+   ".env/ab/.env",
+   ".env/ab/keep/",
+   ".env/ab/keep/ab",
+   "c",
+   "docs/",
+   "docs/*",
+   "docs/certs"
+  ]
+ },
+ {
+  "ignore": "!node_modules/*.pem\n./ab/.\n",
+  "files": [
+   "ab",
    "build",
-   "k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #.env/docs/?/\nfoo\n**\nREADME.md/b/[a-c]\n",
-  "files": [
-   "*/[a]/*",
-   "*/[a]/[a]",
-   "*/a.log",
-   "config/"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "./\\[a\\]\n",
-  "files": [
-   "[a]",
-   "a/",
    "foo"
   ],
   "uploaded": [
-   "a/",
+   "build",
    "foo"
   ]
  },
  {
-  "ignore": "﻿*\n!./foo/[a]\n",
-  "files": [
-   "README.md",
-   "b",
-   "certs",
-   "k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "! \\[a\\]/foo/..\n #.\n   \nfoo\n   \n",
-  "files": [
-   "*",
-   "foo"
-  ],
-  "uploaded": [
-   "*"
-  ]
- },
- {
-  "ignore": " #[a-c]/certs\n!*\nnode_modules/**/docs\n**\n",
-  "files": [
-   "a/a",
-   "a/docs"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿   \ndocs\n!\\*/c/?\n",
-  "files": [
-   "a.log/[a]",
-   "a.log/c/foo/[a]",
-   "a.log/c/foo/a.log",
-   "a.log/c/k.key/.env",
-   "a.log/foo/a",
-   "a.log/foo/config/*",
-   "a.log/foo/config/ab",
-   "a.log/foo/config/k.key",
-   "a.log/foo/config/x y",
-   "a.log/foo/foo",
-   "a.log/x y",
-   "c/certs/*",
-   "c/certs/.env",
-   "c/certs/docs/*",
-   "c/certs/docs/README.md",
-   "c/certs/docs/docs",
-   "c/certs/docs/node_modules",
-   "c/certs/foo",
-   "docs/"
-  ],
-  "uploaded": [
-   "a.log/",
-   "a.log/[a]",
-   "a.log/c/",
-   "a.log/c/foo/",
-   "a.log/c/foo/[a]",
-   "a.log/c/foo/a.log",
-   "a.log/c/k.key/",
-   "a.log/c/k.key/.env",
-   "a.log/foo/",
-   "a.log/foo/a",
-   "a.log/foo/config/",
-   "a.log/foo/config/*",
-   "a.log/foo/config/ab",
-   "a.log/foo/config/k.key",
-   "a.log/foo/config/x y",
-   "a.log/foo/foo",
-   "a.log/x y",
-   "c/",
-   "c/certs/",
-   "c/certs/*",
-   "c/certs/.env",
-   "c/certs/docs/",
-   "c/certs/docs/*",
-   "c/certs/docs/README.md",
-   "c/certs/docs/docs",
-   "c/certs/docs/node_modules",
-   "c/certs/foo"
-  ]
- },
- {
-  "ignore": "   \n*\n![a]\n   \r\n",
-  "files": [
-   "*/foo/",
-   "*/keep",
-   "*/server.pem/",
-   "*/x y/ab/certs",
-   "*/x y/ab/server.pem",
-   "*/x y/server.pem",
-   "config/b",
-   "config/build",
-   "config/docs",
-   "config/foo"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "#!\\[a\\]\r\n\\[a\\]\n*\r\n#x y/ab\n   \n",
+  "ignore": "﻿!/[!a]\r\n!../README.md\n! ./\\*/certs\n[a]/*.key\n.env\n#docs/\r\n",
   "files": [
    ".env",
+   "c/[a]",
+   "c/b/a.log/[a]",
+   "c/b/keep",
+   "node_modules",
+   "server.pem/*/certs",
+   "server.pem/*/k.key/"
+  ],
+  "uploaded": [
+   "c/",
+   "c/[a]",
+   "c/b/",
+   "c/b/a.log/",
+   "c/b/a.log/[a]",
+   "c/b/keep",
+   "node_modules",
+   "server.pem/",
+   "server.pem/*/",
+   "server.pem/*/certs",
+   "server.pem/*/k.key/"
+  ]
+ },
+ {
+  "ignore": "!./a/docs/c\ndocs/README.md/config\n   \n\\*/x y/README.md\n*\r\n/*.key/a/ab\r\n",
+  "files": [
    "[a]",
-   "node_modules/certs/c",
-   "node_modules/certs/docs/foo",
-   "node_modules/certs/node_modules/",
-   "node_modules/k.key/a.log",
-   "node_modules/k.key/certs/README.md",
-   "node_modules/k.key/certs/build",
-   "node_modules/k.key/certs/keep"
+   "ab",
+   "build"
   ],
   "uploaded": []
  },
  {
-  "ignore": "!keep/*\n!build\n*.key/[a-c]\n\\[a\\]/a/build\n",
+  "ignore": "**/?\n",
   "files": [
    "a",
-   "certs",
-   "k.key/.env",
-   "k.key/[a]/",
-   "k.key/a",
-   "k.key/c/a",
-   "server.pem/"
+   "ab/config",
+   "docs"
   ],
   "uploaded": [
-   "a",
-   "certs",
-   "k.key/",
-   "k.key/.env",
-   "k.key/[a]/",
-   "server.pem/"
+   "ab/",
+   "ab/config",
+   "docs"
   ]
  },
  {
-  "ignore": "keep\n   \r\n!README.md/[!a]\n!docs/build/*.key/\n!ab/*.key/x y\r\n",
+  "ignore": "! a\\/*.pem/?\n!x\\q/x y/\\[a\\]\nbuild/\\*\n.env\n",
   "files": [
-   "README.md",
-   "config",
-   "docs/.env",
-   "docs/[a]",
-   "docs/a",
-   "docs/build",
-   "keep/[a]"
+   ".env",
+   "a"
   ],
   "uploaded": [
-   "README.md",
-   "config",
-   "docs/",
-   "docs/.env",
-   "docs/[a]",
-   "docs/a",
-   "docs/build"
+   "a"
   ]
  },
  {
-  "ignore": "*/c/..\n*.log\r\n**\n",
+  "ignore": "\\[a\\]/\n./.env/certs\nkeep\n!/**/a\\/**\n",
+  "files": [
+   "*",
+   "ab",
+   "c/server.pem",
+   "keep/build/.env",
+   "keep/build/k.key",
+   "keep/c",
+   "keep/config"
+  ],
+  "uploaded": [
+   "*",
+   "ab",
+   "c/",
+   "c/server.pem"
+  ]
+ },
+ {
+  "ignore": "#! ./.env/*.pem\r\n   \n./.env\n*\n",
+  "files": [
+   "*"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "/[a-c]\n[!a]/\\[a\\]/\\*/\n!*.log/*.pem\r\n!c/keep/\n",
+  "files": [
+   "a.log",
+   "b/x y",
+   "config"
+  ],
+  "uploaded": [
+   "a.log",
+   "config"
+  ]
+ },
+ {
+  "ignore": "   \nb/*.pem/certs\n**\r\n",
+  "files": [
+   ".env",
+   "server.pem/"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "keep/*/README.md\r\nx y/\n\\*\r\n./\\*/certs\n",
+  "files": [
+   "x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "\\*\nc/x y/\n!docs/c\n?\r\n",
+  "files": [
+   "README.md/*",
+   "README.md/x y/*",
+   "README.md/x y/b/",
+   "README.md/x y/certs/README.md",
+   "README.md/x y/certs/c",
+   "README.md/x y/certs/docs",
+   "README.md/x y/server.pem",
+   "a/README.md",
+   "a/foo/a/",
+   "a/foo/ab",
+   "a/foo/build",
+   "a/foo/config",
+   "c/README.md",
+   "c/docs",
+   "c/server.pem"
+  ],
+  "uploaded": [
+   "README.md/",
+   "README.md/*",
+   "README.md/x y/",
+   "README.md/x y/*",
+   "README.md/x y/b/",
+   "README.md/x y/certs/",
+   "README.md/x y/certs/README.md",
+   "README.md/x y/certs/c",
+   "README.md/x y/certs/docs",
+   "README.md/x y/server.pem"
+  ]
+ },
+ {
+  "ignore": "[a-c]/**/..\na\r\nc\n",
   "files": [
    "a",
    "build",
    "certs/",
    "config"
   ],
-  "uploaded": []
+  "uploaded": [
+   "build",
+   "certs/",
+   "config"
+  ]
  },
  {
-  "ignore": "﻿**\nREADME.md/node_modules\n",
+  "ignore": "*\n #x y/\\*\n",
   "files": [
-   "foo",
-   "node_modules"
+   "certs",
+   "config"
   ],
   "uploaded": []
  },
  {
-  "ignore": "!node_modules\r\nconfig/.env/?\nbuild\n*\n",
+  "ignore": "!docs/x\\q/config/\n../**\r\n./*.key\n**\n",
   "files": [
-   "ab",
-   "x y"
+   "c/[a]",
+   "c/b",
+   "c/docs",
+   "c/k.key/README.md",
+   "c/k.key/foo"
   ],
   "uploaded": []
  },
  {
-  "ignore": "   \r\n./[!a]/*.pem\r\n#! **/build\n",
+  "ignore": "!certs\n#/node_modules/\\*/foo\n.env\n./[!a]/docs\n",
+  "files": [
+   "*",
+   ".env/.env",
+   ".env/a.log",
+   ".env/x y",
+   "a.log",
+   "keep"
+  ],
+  "uploaded": [
+   "*",
+   "a.log",
+   "keep"
+  ]
+ },
+ {
+  "ignore": "././**/ab\r\na\\/b/x y/\na/../build/\n.env\n",
+  "files": [
+   "ab"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "   \r\n./[!a]/*\r\n#! ../?\n",
   "files": [
    "a/c/",
    "a/server.pem/c",
@@ -3199,13 +2689,12 @@
   ],
   "uploaded": [
    "a/",
-   "a/c/",
    "keep",
    "x y"
   ]
  },
  {
-  "ignore": "!x y/\\*/?\n**\r\n   \n",
+  "ignore": "!x\\q/../.\n**\r\n   \n",
   "files": [
    ".env/README.md/README.md/b",
    ".env/README.md/a",
@@ -3222,68 +2711,42 @@
   "uploaded": []
  },
  {
-  "ignore": "[a-c]/a\n! *.key/README.md\n?/[a-c]/keep/\n?\n.env\n   \n",
+  "ignore": "/\\[a\\]\n   \n",
   "files": [
-   "README.md/a.log",
-   "README.md/build/[a]",
-   "README.md/k.key/c/server.pem",
-   "README.md/server.pem/",
-   "b/[a]/a.log",
-   "b/[a]/c/.env",
-   "b/[a]/c/README.md",
-   "b/[a]/c/build",
-   "b/[a]/docs",
-   "b/[a]/node_modules/ab",
-   "b/[a]/node_modules/b",
-   "b/[a]/node_modules/c",
-   "foo/.env",
-   "foo/[a]/*/ab",
-   "foo/[a]/*/x y",
-   "foo/a.log/"
+   "[a]",
+   "foo/c",
+   "foo/config",
+   "foo/x y",
+   "keep",
+   "node_modules/c",
+   "node_modules/config/*/",
+   "node_modules/keep"
   ],
   "uploaded": [
-   "README.md/",
-   "README.md/a.log",
-   "README.md/build/",
-   "README.md/build/[a]",
-   "README.md/k.key/",
-   "README.md/k.key/c/",
-   "README.md/k.key/c/server.pem",
-   "README.md/server.pem/",
    "foo/",
-   "foo/.env",
-   "foo/[a]/",
-   "foo/[a]/*/",
-   "foo/[a]/*/ab",
-   "foo/[a]/*/x y",
-   "foo/a.log/"
+   "foo/c",
+   "foo/config",
+   "foo/x y",
+   "keep",
+   "node_modules/",
+   "node_modules/c",
+   "node_modules/config/",
+   "node_modules/config/*/",
+   "node_modules/keep"
   ]
  },
  {
-  "ignore": "﻿   \r\n*.pem\na.log/.env/*.pem\nkeep\n #c/*.log/*.pem\n",
+  "ignore": "﻿ #!*.key\r\n*.key/\r\n*.key/a.log/node_modules\r\n",
   "files": [
-   "README.md",
-   "b/",
-   "build",
+   "k.key",
    "keep"
   ],
   "uploaded": [
-   "README.md",
-   "b/",
-   "build"
+   "keep"
   ]
  },
  {
-  "ignore": "a\n*\n#!/config\n #/[a]\n../*.key\n#../..\n",
-  "files": [
-   "*",
-   ".env/",
-   "keep"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿!*.key\nREADME.md/[!a]\r\n**/a\n",
+  "ignore": "﻿!\\[a\\]\n[a-c]/foo\r\n**/README.md\n",
   "files": [
    "a/",
    "keep",
@@ -3299,118 +2762,54 @@
    "server.pem/keep"
   ],
   "uploaded": [
+   "a/",
    "keep",
    "server.pem/",
    "server.pem/ab/",
    "server.pem/ab/a.log/",
    "server.pem/ab/k.key",
    "server.pem/ab/node_modules/",
+   "server.pem/ab/node_modules/a",
    "server.pem/ab/node_modules/ab",
    "server.pem/ab/node_modules/build",
    "server.pem/ab/node_modules/config",
    "server.pem/certs/",
    "server.pem/certs/.env",
-   "server.pem/certs/README.md",
+   "server.pem/certs/a",
    "server.pem/keep"
   ]
  },
  {
-  "ignore": "node_modules\n! ../\\*\n!\\*/?/certs\n",
+  "ignore": "a.log/ab\n!**/a\r\n**\n",
   "files": [
-   "*",
-   "node_modules/README.md",
-   "server.pem"
-  ],
-  "uploaded": [
-   "*",
-   "server.pem"
-  ]
- },
- {
-  "ignore": "**\n!.env\n./README.md/docs\n[!a]/node_modules/keep\n!keep/docs\nfoo/foo/[a]\n",
-  "files": [
-   "c/foo",
-   "x y/"
+   "[a]/.env",
+   "[a]/c",
+   "[a]/node_modules",
+   "a/*",
+   "a/a",
+   "a/a.log/config/README.md",
+   "a/a.log/config/[a]",
+   "a/a.log/config/node_modules",
+   "a/node_modules",
+   "keep/c",
+   "keep/keep"
   ],
   "uploaded": []
  },
  {
-  "ignore": " #!build/foo/*.pem\r\nconfig\n! config/\n#keep/[!a]/*\n/\\*/.\n! /*.pem/x y/foo\r\n",
+  "ignore": "*.pem\r\nbuild\nc/keep\n!/config\n",
   "files": [
    "*",
-   ".env",
-   "build",
-   "docs"
+   "build/",
+   "certs/"
   ],
   "uploaded": [
-   ".env",
-   "build",
-   "docs"
+   "*",
+   "certs/"
   ]
  },
  {
-  "ignore": "/../c/.env\n*.key\n*/\n! .env/?/README.md\n! /.env/c/\\[a\\]\n",
-  "files": [
-   "foo"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "[a]\n #! ab/*.pem/[!a]/\n #!../\\*\n\\*/../.env\nab\r\na.log\n",
-  "files": [
-   ".env/",
-   "ab/ab/a.log/.env",
-   "ab/ab/a.log/build",
-   "ab/ab/a.log/k.key",
-   "ab/ab/b",
-   "ab/config",
-   "ab/docs/README.md",
-   "ab/docs/docs",
-   "ab/docs/k.key/build",
-   "ab/docs/x y",
-   "ab/foo/b",
-   "ab/foo/config/c",
-   "ab/foo/keep",
-   "node_modules"
-  ],
-  "uploaded": [
-   "node_modules"
-  ]
- },
- {
-  "ignore": "#./a/b/a\n**/.env\nfoo\n!./node_modules/b\n/./*\n",
-  "files": [
-   "c",
-   "docs",
-   "server.pem/certs/*/.env",
-   "server.pem/certs/*/ab",
-   "server.pem/certs/*/node_modules",
-   "server.pem/certs/.env",
-   "server.pem/certs/k.key/[a]",
-   "server.pem/certs/k.key/c",
-   "server.pem/certs/k.key/node_modules",
-   "server.pem/foo",
-   "server.pem/server.pem/.env/",
-   "server.pem/server.pem/[a]",
-   "server.pem/x y/README.md",
-   "server.pem/x y/[a]",
-   "server.pem/x y/a",
-   "server.pem/x y/foo"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "#! README.md/[!a]\n/*.pem\n#![a-c]\n#!./[a-c]/ab/config\n   \n   \n",
-  "files": [
-   "a/",
-   "server.pem"
-  ],
-  "uploaded": [
-   "a/"
-  ]
- },
- {
-  "ignore": "\\[a\\]/**\nb/[a-c]\n#!config\n! x y/certs\n/*.log\n",
+  "ignore": "[a]/keep\nb/*.log\n#![a-\n! [a]/\\[a\\]\n/a\n",
   "files": [
    "a",
    "a.log",
@@ -3418,120 +2817,41 @@
    "x y"
   ],
   "uploaded": [
-   "a",
+   "a.log",
    "b/",
    "b/docs",
    "x y"
   ]
  },
  {
-  "ignore": "**\n #./ab\n#**/foo\nkeep/node_modules/[a-c]\r\n #! ?/[a]\n",
+  "ignore": " #!./README.md\n#/[a-/a/.env\n#./c\n!config/[a-c]/config\n!keep\n**\n",
   "files": [
-   "a",
-   "a.log",
-   "certs/.env",
-   "certs/docs"
+   "a.log"
   ],
   "uploaded": []
  },
  {
-  "ignore": "a.log\n[a]\r\n.env/?\n.env/docs/\\*\n",
+  "ignore": "#[!a]/\n![!a]/.env/..\n#./\\*\n #!/[!a]/\\*\r\n/**\n",
   "files": [
-   "a/",
-   "build",
-   "keep/a.log"
-  ],
-  "uploaded": [
-   "build",
-   "keep/",
-   "keep/a.log"
-  ]
- },
- {
-  "ignore": "./node_modules/certs\n./../b/certs\n/certs/*.key/\\*\n!*.pem/**\nx y/[a]/certs\n/*\r\n",
-  "files": [
-   "*/[a]",
-   "*/a.log",
-   "*/k.key",
-   "*/server.pem",
    ".env",
-   "ab"
+   "node_modules"
   ],
   "uploaded": []
  },
  {
-  "ignore": "!node_modules/foo\n*.key\nab/../config\n",
+  "ignore": "﻿a.log/config\r\n/.env\n!*.log/c/\n #./*.pem/build\r\n\\*/[a-c]\n! config/\\[a\\]/.env/\n",
   "files": [
-   "certs",
-   "config"
-  ],
-  "uploaded": [
-   "certs"
-  ]
- },
- {
-  "ignore": "/./ab\n[a-c]/**\n #!a.log/\\[a\\]/foo/\n   \n!/\\*/c/*.pem\n!foo/\\*\n",
-  "files": [
-   "ab",
-   "config/README.md/",
-   "config/certs/",
-   "config/k.key"
-  ],
-  "uploaded": [
-   "config/",
-   "config/README.md/",
-   "config/certs/",
-   "config/k.key"
-  ]
- },
- {
-  "ignore": "! /[!a]/node_modules\n/*.key\n?\n![a-c]/x y/config\n",
-  "files": [
-   "c/x y"
+   ".env/config",
+   ".env/x y/build/certs",
+   ".env/x y/build/config",
+   ".env/x y/build/server.pem",
+   ".env/x y/x y/c",
+   ".env/x y/x y/k.key"
   ],
   "uploaded": []
  },
  {
-  "ignore": "!/*.pem/keep/x y\r\n!certs\n\\*/\\*\n #! ./build/foo\r\n[a-c]\n",
-  "files": [
-   "b/*/a/build",
-   "b/*/a/node_modules",
-   "b/*/ab/README.md",
-   "b/*/ab/c",
-   "b/*/ab/docs",
-   "b/*/b",
-   "b/*/k.key",
-   "b/keep",
-   "docs",
-   "foo"
-  ],
-  "uploaded": [
-   "docs",
-   "foo"
-  ]
- },
- {
-  "ignore": "!./[!a]/keep\r\n! \\*/certs\n*/*.key/../\r\n./*.pem/docs\nfoo\n/./config\n",
-  "files": [
-   "a.log/",
-   "k.key",
-   "keep"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "[!a]\ncerts\n!/ab/[a]\nc/*.key\nconfig/a/.env/\n",
-  "files": [
-   "a",
-   "certs",
-   "x y"
-  ],
-  "uploaded": [
-   "x y"
-  ]
- },
- {
-  "ignore": "certs\na.log\n#! \\*\r\n",
+  "ignore": "a.log\nx y\n#! [a-\r\n",
   "files": [
    "c/build",
    "c/c",
@@ -3546,22 +2866,27 @@
    "c/c",
    "c/node_modules",
    "c/server.pem",
-   "x y/",
-   "x y/config"
+   "certs"
   ]
  },
  {
-  "ignore": "**/*\r\n",
+  "ignore": "!*.log/\\[a\\]/\n   \n!ab/docs/\n[a-c]\n",
   "files": [
+   "*/ab",
    ".env",
-   "[a]",
-   "a.log",
-   "b"
+   "a/",
+   "docs/keep"
   ],
-  "uploaded": []
+  "uploaded": [
+   "*/",
+   "*/ab",
+   ".env",
+   "docs/",
+   "docs/keep"
+  ]
  },
  {
-  "ignore": "!a.log/c\n*/\n",
+  "ignore": "!x y/c\n*.log/\n",
   "files": [
    "a.log/README.md",
    "a.log/build/certs",
@@ -3571,129 +2896,43 @@
    "c/build",
    "server.pem"
   ],
+  "uploaded": [
+   "c/",
+   "c/build",
+   "server.pem"
+  ]
+ },
+ {
+  "ignore": "*.key/[!a]\r\n#ab/\r\nx y/certs/x y\n.env\n   \n",
+  "files": [
+   "*",
+   ".env",
+   "ab",
+   "k.key/"
+  ],
+  "uploaded": [
+   "*",
+   "ab",
+   "k.key/"
+  ]
+ },
+ {
+  "ignore": "﻿foo\nconfig\r\n../build/*\r\n! /*.pem/config/keep\r\n/docs\r\nx y\n",
+  "files": [
+   "docs/ab/",
+   "docs/k.key"
+  ],
   "uploaded": []
  },
  {
-  "ignore": "! [a-c]/c\r\na.log\n[a]/c\n",
+  "ignore": "**\n#./[\n! config/foo\n! config\n",
   "files": [
-   "a.log",
-   "b",
-   "c"
+   "keep"
   ],
-  "uploaded": [
-   "b",
-   "c"
-  ]
+  "uploaded": []
  },
  {
-  "ignore": "?/*.pem/?\n#!config/c/build\r\nfoo\n! [a]\n**/certs\r\n! /build/ab\n",
-  "files": [
-   "config",
-   "foo"
-  ],
-  "uploaded": [
-   "config"
-  ]
- },
- {
-  "ignore": "﻿!\\[a\\]\nc\n[!a]/keep/.env\n!docs\n?\n! ./*.log/\\[a\\]/*\n",
-  "files": [
-   "[a]/*",
-   "[a]/a.log",
-   "[a]/node_modules",
-   "c"
-  ],
-  "uploaded": [
-   "[a]/",
-   "[a]/*",
-   "[a]/a.log",
-   "[a]/node_modules"
-  ]
- },
- {
-  "ignore": "./*.key/../*\n#foo/ab/*\n#.env\n![a-c]/*/?/\n!config\n",
-  "files": [
-   "b/",
-   "config"
-  ],
-  "uploaded": [
-   "config"
-  ]
- },
- {
-  "ignore": "./[!a]\n   \n",
-  "files": [
-   "a",
-   "certs/ab/"
-  ],
-  "uploaded": [
-   "certs/",
-   "certs/ab/"
-  ]
- },
- {
-  "ignore": "!./[a-c]/*.key/..\n./[a-c]/docs\nkeep/x y/?\n",
-  "files": [
-   ".env",
-   "a.log",
-   "b/.env/",
-   "b/docs",
-   "certs/[a]/k.key/docs",
-   "certs/[a]/k.key/x y",
-   "certs/a/x y",
-   "certs/foo"
-  ],
-  "uploaded": [
-   ".env",
-   "a.log",
-   "b/",
-   "b/.env/",
-   "certs/",
-   "certs/[a]/",
-   "certs/[a]/k.key/",
-   "certs/[a]/k.key/docs",
-   "certs/[a]/k.key/x y",
-   "certs/a/",
-   "certs/a/x y",
-   "certs/foo"
-  ]
- },
- {
-  "ignore": "!config\n**/?\n#! .\nab/build\n!c\n/c/node_modules\r\n",
-  "files": [
-   ".env/config/k.key",
-   ".env/config/x y",
-   ".env/docs/b",
-   ".env/docs/foo",
-   ".env/docs/k.key/config",
-   ".env/docs/k.key/k.key",
-   "config"
-  ],
-  "uploaded": [
-   ".env/",
-   ".env/config/",
-   ".env/config/k.key",
-   ".env/config/x y",
-   ".env/docs/",
-   ".env/docs/foo",
-   ".env/docs/k.key/",
-   ".env/docs/k.key/config",
-   ".env/docs/k.key/k.key",
-   "config"
-  ]
- },
- {
-  "ignore": "build\n.env/foo/docs\n[a-c]/keep/**\r\n/certs/foo/a.log\n!a.log\n   \n",
-  "files": [
-   "ab",
-   "build"
-  ],
-  "uploaded": [
-   "ab"
-  ]
- },
- {
-  "ignore": "﻿ #certs\n! c/b/c/\n*.pem/\n",
+  "ignore": "﻿ #[a]\n! ../b/keep/\n*.pem/\n",
   "files": [
    "ab",
    "server.pem/.env"
@@ -3703,269 +2942,96 @@
   ]
  },
  {
-  "ignore": "*/[a]/..\r\n#![a-c]/\\*/build\n*.log/ab\n   \n",
-  "files": [
-   "[a]/c/ab",
-   "[a]/c/keep/docs",
-   "[a]/server.pem",
-   "c/*",
-   "c/[a]",
-   "c/certs/",
-   "c/config/c",
-   "c/config/certs/config",
-   "certs/ab/README.md/",
-   "certs/ab/build",
-   "certs/ab/c/ab",
-   "certs/ab/node_modules",
-   "certs/config/",
-   "certs/k.key",
-   "foo/.env",
-   "foo/k.key/c",
-   "foo/k.key/keep"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "   \r\n.\n**/**\nc\na/build/README.md\n   \r\n",
-  "files": [
-   "README.md/.env",
-   "README.md/ab/",
-   "README.md/docs/a.log/",
-   "README.md/docs/certs",
-   "README.md/docs/k.key/",
-   "README.md/docs/server.pem",
-   "[a]",
-   "certs"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿ #!docs/ab\n!foo\n!./*/node_modules/c\nREADME.md/x y/[a]\nnode_modules\n",
-  "files": [
-   "certs",
-   "k.key",
-   "node_modules"
-  ],
-  "uploaded": [
-   "certs",
-   "k.key"
-  ]
- },
- {
-  "ignore": " #!config/**\n./ab/certs\n[!a]/.\r\nbuild/*/?/\n! /ab/./[!a]\n!keep\n",
-  "files": [
-   "a"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #!a/../**\nb/*.log\n   \n?/?/[a]\n #*.key/**/..\n#x y/README.md\n",
+  "ignore": "!certs/\n! x\\q/keep/..\r\n*.log/\n.env/x y\n!?/ab\r\n",
   "files": [
    "README.md",
-   "node_modules",
-   "x y/build",
-   "x y/server.pem"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "\\[a\\]/*.log/a\n #a.log/../\\*\n/certs\nconfig/config/**\n! .env/.\n! */\\[a\\]/*\n",
-  "files": [
-   "*/foo",
-   "*/keep"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "**/../**\r\n/\\*/*/node_modules\r\n   \n#! \\[a\\]/*.log\n",
-  "files": [
    "a.log",
-   "c/certs",
-   "c/foo",
-   "keep/[a]/README.md",
-   "keep/[a]/keep",
-   "keep/a.log",
-   "keep/a/a.log/",
-   "keep/a/a/ab",
-   "keep/a/a/foo",
-   "keep/keep/c/README.md",
-   "keep/keep/c/a.log",
-   "keep/keep/c/ab",
-   "keep/keep/c/build",
-   "keep/keep/keep/build"
+   "config",
+   "docs"
   ],
-  "uploaded": []
+  "uploaded": [
+   "README.md",
+   "config",
+   "docs"
+  ]
  },
  {
-  "ignore": "!c/build/a.log\n*.log\n./a.log\n./c/?\n/*.log\n",
+  "ignore": "\\*/*.key/*.key\r\n/[a]\r\n",
   "files": [
-   "c/a/a.log/[a]",
-   "c/a/a.log/node_modules",
-   "c/a/a.log/server.pem",
-   "c/a/foo",
-   "c/server.pem/*/*",
-   "c/server.pem/*/k.key",
-   "c/server.pem/a.log/keep",
-   "c/server.pem/a.log/server.pem",
-   "c/server.pem/node_modules/.env",
-   "c/server.pem/node_modules/config",
-   "c/server.pem/node_modules/server.pem",
-   "foo",
+   "a",
+   "build"
+  ],
+  "uploaded": [
+   "build"
+  ]
+ },
+ {
+  "ignore": "   \n #a\\/[a]/\n #?/c\r\nnode_modules/../?\n! \\[a\\]/README.md/**\n[a-c]/docs/**\r\n",
+  "files": [
+   "*",
+   "docs/certs",
+   "docs/x y",
+   "foo/ab/keep",
+   "foo/k.key",
    "k.key"
   ],
   "uploaded": [
-   "c/",
-   "c/server.pem/",
-   "c/server.pem/*/",
-   "c/server.pem/*/*",
-   "c/server.pem/*/k.key",
-   "c/server.pem/a.log/",
-   "c/server.pem/a.log/keep",
-   "c/server.pem/a.log/server.pem",
-   "c/server.pem/node_modules/",
-   "c/server.pem/node_modules/.env",
-   "c/server.pem/node_modules/config",
-   "c/server.pem/node_modules/server.pem",
-   "foo",
+   "docs/",
+   "docs/certs",
+   "docs/x y",
+   "foo/",
+   "foo/ab/",
+   "foo/ab/keep",
+   "foo/k.key",
    "k.key"
   ]
  },
  {
-  "ignore": "\\[a\\]/.env/*.key\n!\\[a\\]\nkeep\na.log/../*/\n",
+  "ignore": "   \nx y\n #README.md\r\n #!*.key\n",
   "files": [
-   "*"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "   \r\n/?/foo\n",
-  "files": [
-   "b/certs/docs",
-   "b/certs/x y",
-   "b/docs",
-   "b/foo",
-   "k.key/a",
-   "k.key/b",
-   "k.key/keep",
-   "server.pem/server.pem",
-   "server.pem/x y"
-  ],
-  "uploaded": [
-   "b/",
-   "b/certs/",
-   "b/certs/docs",
-   "b/certs/x y",
-   "b/docs",
-   "k.key/",
-   "k.key/a",
-   "k.key/b",
-   "k.key/keep",
-   "server.pem/",
-   "server.pem/server.pem",
-   "server.pem/x y"
-  ]
- },
- {
-  "ignore": "﻿#!a/..\n! docs\n*\r\n",
-  "files": [
-   "build/*",
-   "build/config",
+   "build",
    "keep",
+   "x y/server.pem/.env",
+   "x y/server.pem/[a]/a",
+   "x y/server.pem/[a]/server.pem",
+   "x y/server.pem/config/"
+  ],
+  "uploaded": [
+   "build",
+   "keep"
+  ]
+ },
+ {
+  "ignore": "﻿!ab/*.log\r\n**/x y\n!*.pem\r\n",
+  "files": [
+   "c",
+   "server.pem",
    "x y"
   ],
-  "uploaded": []
- },
- {
-  "ignore": "./.env\nab/a.log/README.md\n\\[a\\]/?/\\[a\\]\n   \n",
-  "files": [
-   ".env/.env",
-   ".env/a.log/*/README.md",
-   ".env/a.log/*/docs",
-   ".env/a.log/*/server.pem",
-   ".env/a.log/*/x y",
-   ".env/a.log/config",
-   "build",
-   "docs"
-  ],
   "uploaded": [
-   "build",
-   "docs"
+   "c",
+   "server.pem"
   ]
  },
  {
-  "ignore": " #! \\*\n   \r\na.log/\n\\*/*\n",
-  "files": [
-   "*/ab/ab",
-   "*/ab/b",
-   "*/config/README.md/a.log",
-   "*/config/README.md/b",
-   "*/config/README.md/config",
-   "*/config/config",
-   "*/config/x y",
-   "*/keep",
-   ".env",
-   "[a]/certs/b",
-   "[a]/keep/",
-   "config/*",
-   "config/a.log",
-   "config/b",
-   "config/certs"
-  ],
-  "uploaded": [
-   "*/",
-   ".env",
-   "[a]/",
-   "[a]/certs/",
-   "[a]/certs/b",
-   "[a]/keep/",
-   "config/",
-   "config/*",
-   "config/a.log",
-   "config/b",
-   "config/certs"
-  ]
- },
- {
-  "ignore": "c/../[a-c]\n   \n #!**/certs\n\\*/[a]\n",
+  "ignore": "ab/keep/\nx y/a.log\n#!ab\n! *.pem/certs\n! ../x y/[!a]/\n",
   "files": [
    "*",
-   "b",
-   "certs/ab",
-   "node_modules"
+   "ab/c",
+   "ab/keep/[a]",
+   "ab/keep/docs",
+   "docs/README.md"
   ],
   "uploaded": [
    "*",
-   "certs/",
-   "certs/ab",
-   "node_modules"
-  ]
- },
- {
-  "ignore": "[a]/.\n #!.env/?\n/c\n./docs/node_modules\n",
-  "files": [
    "ab/",
-   "c/"
-  ],
-  "uploaded": [
-   "ab/"
+   "ab/c",
+   "docs/",
+   "docs/README.md"
   ]
  },
  {
-  "ignore": "docs/[!a]\n.env\n!./**/*.key\n #foo\n #! ..\r\n",
-  "files": [
-   "*",
-   ".env",
-   "README.md",
-   "k.key"
-  ],
-  "uploaded": [
-   "*",
-   "README.md",
-   "k.key"
-  ]
- },
- {
-  "ignore": "./*/config/..\n/[a]\n",
+  "ignore": "./*.pem/keep/docs\n/ab\n",
   "files": [
    "[a]/[a]",
    "[a]/a.log",
@@ -3978,356 +3044,89 @@
    "c/README.md",
    "c/a.log"
   ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿   \nb\r\n*.pem/../a.log/\n.env/config/**\n",
-  "files": [
+  "uploaded": [
+   "[a]/",
+   "[a]/[a]",
+   "[a]/a.log",
+   "[a]/b",
+   "[a]/build/",
+   "[a]/build/node_modules/",
    "a",
-   "b"
-  ],
-  "uploaded": [
-   "a"
-  ]
- },
- {
-  "ignore": "**/./b\r\n![a]/config/\\*\ndocs\r\n./c\n!/README.md\n",
-  "files": [
-   "[a]",
-   "b",
-   "certs/README.md",
-   "certs/b",
-   "node_modules"
-  ],
-  "uploaded": [
-   "[a]",
-   "certs/",
-   "certs/README.md",
-   "node_modules"
-  ]
- },
- {
-  "ignore": "\\*\n#\\*/.\nx y/*.pem/build\n[!a]/ab/\\[a\\]\nkeep/*\n",
-  "files": [
-   "README.md/keep",
-   "c/.env",
-   "c/b",
-   "c/node_modules",
-   "keep/[a]"
-  ],
-  "uploaded": [
-   "README.md/",
-   "README.md/keep",
    "c/",
+   "c/*",
    "c/.env",
-   "c/b",
-   "c/node_modules",
-   "keep/"
+   "c/README.md",
+   "c/a.log"
   ]
  },
  {
-  "ignore": "#./*.pem/foo\n! [a]/*\r\n/*\n",
+  "ignore": "a.log/*.key/\n#config/**\n!x y/**/\n*\n! x y/[!a]/README.md\n #?/certs/foo\n",
   "files": [
-   "*",
-   "docs/.env",
-   "docs/config",
-   "docs/docs",
-   "docs/node_modules/node_modules",
-   "k.key/",
-   "node_modules"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "\\*\ndocs/a.log\n/keep/[!a]\n**\r\n",
-  "files": [
-   "[a]/foo",
-   "[a]/server.pem",
-   "build/",
-   "certs",
-   "x y/ab",
-   "x y/certs",
-   "x y/docs/*",
-   "x y/docs/k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "*\n #a.log/\\[a\\]/*\n![a]/./\\*\n #!build\r\n!build/a/docs\r\n   \n",
-  "files": [
-   "a.log",
-   "config/README.md/foo",
-   "config/a",
-   "config/docs",
-   "keep/"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "![a]/a.log\n! ./\\[a\\]/?/*.pem\nab\n#?/./b/\na.log\r\n*\r\n",
-  "files": [
-   "certs",
-   "docs/README.md/keep",
-   "docs/build",
-   "docs/node_modules/b/c",
-   "docs/node_modules/b/server.pem",
-   "docs/node_modules/c/*",
-   "docs/node_modules/c/a.log",
-   "docs/node_modules/c/build",
-   "docs/node_modules/c/docs",
-   "docs/node_modules/server.pem/k.key",
-   "docs/node_modules/server.pem/x y",
-   "node_modules"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "*.pem/./.\n?\n./node_modules/b/..\n",
-  "files": [
-   "build",
-   "keep/server.pem/README.md",
-   "keep/server.pem/[a]",
-   "keep/server.pem/server.pem",
-   "node_modules/certs/a",
-   "node_modules/certs/server.pem",
-   "node_modules/server.pem"
-  ],
-  "uploaded": [
-   "build",
-   "keep/",
-   "keep/server.pem/",
-   "keep/server.pem/README.md",
-   "keep/server.pem/[a]",
-   "keep/server.pem/server.pem"
-  ]
- },
- {
-  "ignore": "*\r\n./keep\n!**/\\*/docs\ncerts/./\n",
-  "files": [
-   "b",
-   "c",
-   "k.key"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": " #keep/c/node_modules\nab/\\*\n#!README.md\n\\*\n./\\[a\\]\r\n",
-  "files": [
-   "[a]/*/[a]",
-   "[a]/*/c",
-   "[a]/*/certs/README.md",
-   "[a]/*/certs/b",
-   "[a]/*/certs/server.pem"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "!a.log/\\[a\\]/certs/\n./*.log/README.md\n[a]\n   \n",
-  "files": [
-   "a"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "! ../[a]\n./*.pem/node_modules\r\n #\\*/../\n/.env/.env\n*/config\n[a]/node_modules\n",
-  "files": [
-   "certs/config",
-   "certs/k.key",
-   "k.key/README.md",
-   "k.key/a.log",
-   "k.key/c/a.log",
-   "k.key/c/ab/[a]",
-   "k.key/c/ab/a",
-   "k.key/c/ab/a.log",
-   "k.key/c/ab/foo",
-   "k.key/c/config",
-   "k.key/config/x y/a",
-   "k.key/config/x y/b"
-  ],
-  "uploaded": [
-   "certs/",
-   "certs/k.key",
-   "k.key/",
-   "k.key/README.md",
-   "k.key/a.log",
-   "k.key/c/",
-   "k.key/c/a.log",
-   "k.key/c/ab/",
-   "k.key/c/ab/[a]",
-   "k.key/c/ab/a",
-   "k.key/c/ab/a.log",
-   "k.key/c/ab/foo",
-   "k.key/c/config"
-  ]
- },
- {
-  "ignore": "node_modules\n! ?/*.log\n #!./[a]/[!a]/c\n #!x y/*.key\n",
-  "files": [
-   "b",
-   "c",
-   "keep/a.log/",
-   "keep/ab",
-   "keep/node_modules/[a]/",
-   "keep/node_modules/a/",
-   "keep/x y",
-   "node_modules"
-  ],
-  "uploaded": [
-   "b",
-   "c",
-   "keep/",
-   "keep/a.log/",
-   "keep/ab",
-   "keep/node_modules/",
-   "keep/node_modules/[a]/",
-   "keep/node_modules/a/",
-   "keep/x y"
-  ]
- },
- {
-  "ignore": "?\n./\na.log\r\n!..\r\n #node_modules/?/keep\r\n! **/certs/config\n",
-  "files": [
-   "README.md",
-   "a/",
-   "config",
-   "keep"
-  ],
-  "uploaded": [
-   "README.md",
-   "config",
-   "keep"
-  ]
- },
- {
-  "ignore": "**\n/certs\n #![!a]\n#/.\n",
-  "files": [
-   "*",
-   "docs",
-   "x y"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "[a-c]/a.log\r\n!*\n#!c\r\n   \n*.key/config\n",
-  "files": [
-   "b/a.log/x y/",
-   "b/config",
-   "c/ab/README.md",
-   "c/ab/build",
-   "c/ab/node_modules",
-   "c/ab/x y/a",
-   "c/ab/x y/foo",
-   "c/ab/x y/server.pem",
-   "c/x y",
-   "docs",
-   "server.pem/server.pem/.env/build",
-   "server.pem/server.pem/.env/server.pem",
-   "server.pem/server.pem/ab/build",
-   "server.pem/server.pem/ab/config",
-   "server.pem/server.pem/server.pem"
-  ],
-  "uploaded": [
-   "b/",
-   "b/config",
-   "c/",
-   "c/ab/",
-   "c/ab/README.md",
-   "c/ab/build",
-   "c/ab/node_modules",
-   "c/ab/x y/",
-   "c/ab/x y/a",
-   "c/ab/x y/foo",
-   "c/ab/x y/server.pem",
-   "c/x y",
-   "docs",
-   "server.pem/",
-   "server.pem/server.pem/",
-   "server.pem/server.pem/.env/",
-   "server.pem/server.pem/.env/build",
-   "server.pem/server.pem/.env/server.pem",
-   "server.pem/server.pem/ab/",
-   "server.pem/server.pem/ab/build",
-   "server.pem/server.pem/ab/config",
-   "server.pem/server.pem/server.pem"
-  ]
- },
- {
-  "ignore": "[a-c]/\\[a\\]\n! a.log\n.\na/.\n #[!a]/README.md/*\r\n",
-  "files": [
-   "a"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "../?/x y/\nc\n[a]\n*.pem\nREADME.md\n./*.key/a/[a]\n",
-  "files": [
-   ".env",
-   "README.md",
-   "ab"
-  ],
-  "uploaded": [
-   ".env",
-   "ab"
-  ]
- },
- {
-  "ignore": "﻿a/.env/\\*\n   \nb\r\n   \n.env/*.key\n",
-  "files": [
-   "b"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "**/foo/[a-c]/\r\n**\n#! foo/\\*\nkeep/.\r\n",
-  "files": [
-   "a/*/",
-   "a/README.md/*/.env",
-   "a/README.md/*/a",
-   "a/README.md/*/ab",
-   "a/README.md/.env",
-   "a/README.md/foo",
-   "a/README.md/x y/a",
-   "a/build",
-   "a/docs/.env",
-   "a/docs/README.md/docs",
-   "a/docs/x y/ab",
-   "build"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "!.\n*\r\n[a-c]/[a]\n./?/keep/*\n/**\n",
-  "files": [
-   "ab",
-   "docs/",
-   "x y"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "*\n!a/./*.key\r\n#! certs\nb/node_modules/build\na.log/foo\r\n",
-  "files": [
-   "ab",
-   "build",
-   "c/certs",
+   "foo",
    "server.pem"
   ],
   "uploaded": []
  },
  {
-  "ignore": "   \n #\\*\nc\n   \r\n#c\n[a]/\n",
+  "ignore": "﻿/\\*\r\n",
   "files": [
-   "a",
-   "foo",
-   "node_modules"
+   "*",
+   "k.key"
   ],
   "uploaded": [
-   "foo",
-   "node_modules"
+   "k.key"
   ]
  },
  {
-  "ignore": "#!README.md/*.key/node_modules/\r\nc/..\n./*.pem\n",
+  "ignore": "./\\*/node_modules\n/**\n!./build/certs/**\n#node_modules\n",
+  "files": [
+   ".env",
+   "README.md",
+   "b/a",
+   "b/a.log"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "*.log/*.key/**\n! ./**\nconfig/a\nkeep\n",
+  "files": [
+   "*/x y",
+   "keep"
+  ],
+  "uploaded": [
+   "*/",
+   "*/x y"
+  ]
+ },
+ {
+  "ignore": "?\n",
+  "files": [
+   "a.log/.env",
+   "a.log/[a]",
+   "c/build",
+   "foo/[a]",
+   "foo/b/README.md",
+   "foo/b/config",
+   "foo/b/node_modules/",
+   "foo/config/",
+   "k.key"
+  ],
+  "uploaded": [
+   "a.log/",
+   "a.log/.env",
+   "a.log/[a]",
+   "foo/",
+   "foo/[a]",
+   "foo/b/",
+   "foo/b/README.md",
+   "foo/b/config",
+   "foo/b/node_modules/",
+   "foo/config/",
+   "k.key"
+  ]
+ },
+ {
+  "ignore": "#!*.log/*.key/node_modules/\r\ndocs/\\*\n./node_modules\n",
   "files": [
    "*",
    "node_modules",
@@ -4335,81 +3134,44 @@
   ],
   "uploaded": [
    "*",
-   "node_modules"
+   "server.pem/"
   ]
  },
  {
-  "ignore": "keep\n",
-  "files": [
-   "b",
-   "build/README.md/a",
-   "build/README.md/server.pem",
-   "build/[a]/.env",
-   "build/[a]/build",
-   "build/[a]/k.key",
-   "build/a",
-   "keep"
-  ],
-  "uploaded": [
-   "b",
-   "build/",
-   "build/README.md/",
-   "build/README.md/a",
-   "build/README.md/server.pem",
-   "build/[a]/",
-   "build/[a]/.env",
-   "build/[a]/build",
-   "build/[a]/k.key",
-   "build/a"
-  ]
- },
- {
-  "ignore": "**\n!*.log/\n!./[a-c]\nbuild/a.log\nconfig/**\n",
+  "ignore": "! /keep\r\na\n*/\r\n\\*\n[!a]/config/x y\n",
   "files": [
    "a",
-   "config",
-   "docs/",
+   "c",
    "server.pem"
   ],
-  "uploaded": [
-   "a"
-  ]
+  "uploaded": []
  },
  {
-  "ignore": "./keep/[a-c]/a\n[a-c]\r\nc/README.md\n[!a]/node_modules\n./\\[a\\]/a/foo\n",
+  "ignore": "[!a]/a.log/keep\r\n!a/README.md\n*.log/\n! x y/*/**\r\n",
   "files": [
-   "c",
-   "k.key/*",
-   "k.key/foo"
+   "*",
+   "a.log/",
+   "certs"
   ],
   "uploaded": [
-   "k.key/",
-   "k.key/*",
-   "k.key/foo"
+   "*",
+   "certs"
   ]
  },
  {
-  "ignore": "/a.log\r\n[!a]/*.log\n",
+  "ignore": "! ./\\[a\\]\nbuild\n! c\nREADME.md/**/[!a]\n",
   "files": [
-   "a/*/node_modules",
-   "a/a.log/.env",
-   "a/a.log/a",
-   "a/a.log/k.key",
-   "c",
+   "build/",
    "certs",
-   "node_modules"
+   "docs"
   ],
   "uploaded": [
-   "a/",
-   "a/*/",
-   "a/*/node_modules",
-   "c",
    "certs",
-   "node_modules"
+   "docs"
   ]
  },
  {
-  "ignore": "./foo\na\r\nc/keep/b\n\\[a\\]\r\n",
+  "ignore": "./[!a]\nREADME.md\r\nkeep/../build\ncerts\r\n",
   "files": [
    ".env/a.log/c/*",
    ".env/a.log/c/foo",
@@ -4432,286 +3194,37 @@
   ]
  },
  {
-  "ignore": "./**/c/docs\na.log/.env/[a]\r\n![!a]/README.md\n![a-c]/README.md/**\nkeep/\n*.pem\n",
+  "ignore": " #! *.log/a.log\nfoo\n.\r\n**\r\n\\[a\\]\n! ./../[a-c]\n",
   "files": [
-   "keep/a.log/README.md",
-   "keep/a.log/k.key",
-   "keep/build/build/.env",
-   "keep/build/build/a",
-   "keep/build/build/x y",
-   "keep/build/node_modules",
-   "keep/config",
-   "x y"
-  ],
-  "uploaded": [
-   "x y"
-  ]
- },
- {
-  "ignore": "﻿ #! /[!a]/[a-c]\n!certs/\n/a.log\n!certs/\\*\nnode_modules/*.key/\\*\n! [a]/[a]/a\n",
-  "files": [
-   "a.log",
-   "b",
-   "c",
-   "certs"
-  ],
-  "uploaded": [
-   "b",
-   "c",
-   "certs"
-  ]
- },
- {
-  "ignore": "*\n.env/README.md\r\n!node_modules/a.log/node_modules/\r\n   \n",
-  "files": [
-   "[a]/.env/.env",
-   "[a]/.env/a",
-   "[a]/.env/k.key/a.log",
-   "[a]/README.md",
-   "[a]/b/a.log",
-   "[a]/b/build",
-   "[a]/b/x y/a.log",
-   "[a]/docs/c/b",
-   "[a]/docs/c/node_modules",
-   "[a]/docs/config/",
-   "a",
-   "c/",
-   "certs/.env/config",
-   "certs/.env/docs/",
-   "certs/.env/keep",
-   "certs/ab/README.md/[a]",
-   "certs/ab/c",
-   "certs/ab/certs",
-   "certs/ab/server.pem",
-   "certs/config/.env",
-   "certs/config/c/node_modules",
-   "certs/config/c/server.pem",
-   "certs/node_modules/keep"
+   ".env"
   ],
   "uploaded": []
  },
  {
-  "ignore": "*\n!\\[a\\]\n#[a-c]/*\n",
+  "ignore": "**/\n #[!a]\n!node_modules/certs/\\*\r\na\n!keep\n",
   "files": [
-   "README.md",
    "build",
-   "server.pem"
+   "node_modules"
   ],
   "uploaded": []
  },
  {
-  "ignore": "! ../certs\n**\r\n #!/README.md/ab/c\n!./README.md\n   \n*.log\n",
+  "ignore": "!*/*.log\n**/\nx y/ab/\r\n",
   "files": [
-   "a.log",
-   "foo"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "/?\n",
-  "files": [
-   "a.log/a.log",
-   "a.log/keep",
-   "a.log/x y/[a]/README.md",
-   "a.log/x y/[a]/a.log",
-   "a.log/x y/[a]/certs",
-   "a.log/x y/[a]/foo",
-   "a.log/x y/build/a.log",
-   "a.log/x y/config",
-   "a.log/x y/docs",
    "b",
-   "c",
-   "docs"
-  ],
-  "uploaded": [
-   "a.log/",
-   "a.log/a.log",
-   "a.log/keep",
-   "a.log/x y/",
-   "a.log/x y/[a]/",
-   "a.log/x y/[a]/README.md",
-   "a.log/x y/[a]/a.log",
-   "a.log/x y/[a]/certs",
-   "a.log/x y/[a]/foo",
-   "a.log/x y/build/",
-   "a.log/x y/build/a.log",
-   "a.log/x y/config",
-   "a.log/x y/docs",
-   "docs"
-  ]
- },
- {
-  "ignore": "./b\r\na.log/.\n**/\\*\nx y/**\n   \n!*\n",
-  "files": [
-   "certs/README.md/",
-   "certs/keep/a.log",
-   "certs/keep/k.key",
-   "certs/x y/",
-   "docs/*/config",
-   "server.pem/",
-   "x y"
-  ],
-  "uploaded": [
-   "certs/",
-   "certs/README.md/",
-   "certs/keep/",
-   "certs/keep/a.log",
-   "certs/keep/k.key",
-   "certs/x y/",
-   "docs/",
-   "server.pem/",
-   "x y"
-  ]
- },
- {
-  "ignore": "*\n!ab/b/docs\ndocs/node_modules/build\n!*.key/.\r\n./docs/keep\n",
-  "files": [
-   "*",
-   "config",
-   "docs",
    "server.pem"
   ],
   "uploaded": []
  },
  {
-  "ignore": "/[a-c]/c/build\n#! *.key/certs\r\n!docs/build\r\nfoo\nbuild/\\*/**\nbuild\n",
+  "ignore": "!.env/[a-c]/.\r\n! *.pem\n! /certs\n*\n!\\*/\r\n",
   "files": [
-   "foo",
-   "keep",
-   "server.pem/.env",
-   "server.pem/a.log",
-   "server.pem/x y",
-   "x y"
-  ],
-  "uploaded": [
-   "keep",
-   "server.pem/",
-   "server.pem/.env",
-   "server.pem/a.log",
-   "server.pem/x y",
-   "x y"
-  ]
- },
- {
-  "ignore": "#*.key\n   \nab/?\n*\r\n",
-  "files": [
-   "x y"
+   "keep"
   ],
   "uploaded": []
  },
  {
-  "ignore": "a.log/*.pem/**\n*\n",
-  "files": [
-   "docs",
-   "k.key",
-   "keep",
-   "node_modules"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "node_modules/a/a.log\r\n.\r\n! docs\n!*.key\n!node_modules/c/**\n*\n",
-  "files": [
-   "node_modules/"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "README.md/.env/config\n./*\nREADME.md\n!\\*\n!\\[a\\]/config/\\*\n",
-  "files": [
-   "[a]",
-   "node_modules"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "/**/\\[a\\]/README.md\n../README.md\n #!/*.key/[a]/x y\n./a.log\n",
-  "files": [
-   "build/[a]/*/",
-   "build/[a]/README.md",
-   "build/[a]/b/ab",
-   "build/[a]/b/k.key",
-   "build/[a]/b/node_modules",
-   "build/[a]/k.key/.env",
-   "build/[a]/k.key/README.md",
-   "build/[a]/k.key/a.log",
-   "build/[a]/k.key/build",
-   "build/a",
-   "build/c",
-   "c/"
-  ],
-  "uploaded": [
-   "build/",
-   "build/[a]/",
-   "build/[a]/*/",
-   "build/[a]/b/",
-   "build/[a]/b/ab",
-   "build/[a]/b/k.key",
-   "build/[a]/b/node_modules",
-   "build/[a]/k.key/",
-   "build/[a]/k.key/.env",
-   "build/[a]/k.key/README.md",
-   "build/[a]/k.key/a.log",
-   "build/[a]/k.key/build",
-   "build/a",
-   "build/c",
-   "c/"
-  ]
- },
- {
-  "ignore": "*/?\nc/*.pem/ab\n**\r\n",
-  "files": [
-   ".env",
-   "README.md",
-   "b/ab"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "﻿*.log\r\n!c/build\n",
-  "files": [
-   "a.log/",
-   "certs/b/a",
-   "certs/b/certs/",
-   "certs/node_modules/a/README.md",
-   "certs/node_modules/a/a",
-   "certs/node_modules/a/a.log",
-   "certs/node_modules/a/server.pem",
-   "certs/node_modules/ab/*",
-   "certs/node_modules/ab/k.key",
-   "certs/node_modules/ab/keep",
-   "certs/node_modules/b",
-   "certs/node_modules/x y"
-  ],
-  "uploaded": [
-   "certs/",
-   "certs/b/",
-   "certs/b/a",
-   "certs/b/certs/",
-   "certs/node_modules/",
-   "certs/node_modules/a/",
-   "certs/node_modules/a/README.md",
-   "certs/node_modules/a/a",
-   "certs/node_modules/a/a.log",
-   "certs/node_modules/a/server.pem",
-   "certs/node_modules/ab/",
-   "certs/node_modules/ab/*",
-   "certs/node_modules/ab/k.key",
-   "certs/node_modules/ab/keep",
-   "certs/node_modules/b",
-   "certs/node_modules/x y"
-  ]
- },
- {
-  "ignore": " #!b/*.pem\r\nx y/keep/\\[a\\]\n./a\n/docs\r\nb\r\n!README.md/\n",
-  "files": [
-   "a/b",
-   "a/node_modules"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "a/*.key/\n!/[!a]/.env/certs\ncerts\n",
+  "ignore": "*.pem/ab/\n!/[!a]/?/a.log\nab\n",
   "files": [
    "a.log",
    "ab/",
@@ -4722,128 +3235,1390 @@
   ],
   "uploaded": [
    "a.log",
-   "ab/",
    "c/",
    "c/ab",
-   "c/docs/"
+   "c/docs/",
+   "certs/",
+   "certs/*",
+   "certs/.env"
   ]
  },
  {
-  "ignore": "﻿/[!a]/node_modules/b\n/docs/foo\n   \nb\nconfig/./.env/\r\n*.log\n",
+  "ignore": "/*\n",
+  "files": [
+   "b/"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "#./*/\n/*\n",
+  "files": [
+   ".env/a",
+   ".env/config",
+   "b",
+   "k.key/build/",
+   "k.key/x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "#\\*/[\r\n/node_modules\n#foo/..\n../**/\n",
+  "files": [
+   "foo/[a]",
+   "node_modules"
+  ],
+  "uploaded": [
+   "foo/",
+   "foo/[a]"
+  ]
+ },
+ {
+  "ignore": "*/.\na\\/foo\n[a-c]\n",
   "files": [
    "a.log"
   ],
   "uploaded": []
  },
  {
-  "ignore": " #config/certs\n[a]/[a-c]/build\n**\n   \r\n   \n./?/*.key/*.pem\n",
+  "ignore": "*/keep\n",
   "files": [
-   "ab",
-   "keep"
+   "a.log",
+   "node_modules/*",
+   "node_modules/a",
+   "node_modules/keep"
   ],
-  "uploaded": []
+  "uploaded": [
+   "a.log",
+   "node_modules/",
+   "node_modules/*",
+   "node_modules/a"
+  ]
  },
  {
-  "ignore": "﻿[a]/*/*.log\n./ab\r\n",
+  "ignore": "**\n*.pem/.env/[a]\n",
   "files": [
-   "ab"
-  ],
-  "uploaded": []
- },
- {
-  "ignore": "**\n#! \\*/*.pem\n #*\r\n   \r\n#[a]/foo\n*.pem/*.key/[!a]\n",
-  "files": [
-   "a",
+   "ab/.env",
    "docs"
   ],
   "uploaded": []
  },
  {
-  "ignore": "﻿./node_modules/*.log/docs\n*/certs\n #!./a/b/[!a]\n/a/build/[a]\n #! /ab/a/*.log\r\n",
+  "ignore": "!x\\q/*.pem/\n*.log/../**\r\nx y/\n",
   "files": [
-   ".env",
+   "node_modules"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "keep/[a]/\\[a\\]\n #..\n/*\n#config/a\n![a]\n./*/x\\q/.\n",
+  "files": [
+   "README.md",
+   "build"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "﻿ #/build/.env\ndocs\n! [a-c]\n! ./c/[a]\n[!a]\r\nc/b/foo/\n",
+  "files": [
+   "docs"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "./foo\n",
+  "files": [
    "certs",
-   "keep/b",
-   "keep/build",
-   "keep/certs/",
-   "keep/k.key"
+   "docs/certs",
+   "docs/node_modules/README.md/a.log",
+   "docs/node_modules/README.md/docs",
+   "docs/node_modules/README.md/x y",
+   "docs/node_modules/a.log/keep",
+   "docs/node_modules/a.log/node_modules",
+   "foo",
+   "x y/README.md/",
+   "x y/a/x y",
+   "x y/build",
+   "x y/server.pem"
   ],
   "uploaded": [
-   ".env",
    "certs",
-   "keep/",
-   "keep/b",
-   "keep/build",
-   "keep/k.key"
+   "docs/",
+   "docs/certs",
+   "docs/node_modules/",
+   "docs/node_modules/README.md/",
+   "docs/node_modules/README.md/a.log",
+   "docs/node_modules/README.md/docs",
+   "docs/node_modules/README.md/x y",
+   "docs/node_modules/a.log/",
+   "docs/node_modules/a.log/keep",
+   "docs/node_modules/a.log/node_modules",
+   "x y/",
+   "x y/README.md/",
+   "x y/a/",
+   "x y/a/x y",
+   "x y/build",
+   "x y/server.pem"
   ]
  },
  {
-  "ignore": "*.key\n?/\n!\\*\n #./certs\n./build/config\r\n",
+  "ignore": "x y\r\n #./c/[a-c]\n",
+  "files": [
+   "build",
+   "certs",
+   "docs/.env",
+   "docs/a.log/",
+   "docs/build",
+   "docs/server.pem",
+   "x y/b/ab/README.md",
+   "x y/b/ab/build",
+   "x y/b/keep/*"
+  ],
+  "uploaded": [
+   "build",
+   "certs",
+   "docs/",
+   "docs/.env",
+   "docs/a.log/",
+   "docs/build",
+   "docs/server.pem"
+  ]
+ },
+ {
+  "ignore": "!build/README.md\n*\nab/**/\n![a-c]/*.key/..\n",
+  "files": [
+   "*",
+   "README.md",
+   "a",
+   "c"
+  ],
+  "uploaded": [
+   "a",
+   "c"
+  ]
+ },
+ {
+  "ignore": "config\n*\nx y/c/[a]/\n",
+  "files": [
+   "c/node_modules/",
+   "foo",
+   "server.pem"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "*\n*.log\n! config\n#.env/ab\r\n#a\\/./?\n#./\\[a\\]/a.log\n",
+  "files": [
+   "*",
+   "[a]",
+   "x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "build\n./*/**/**\n   \n #a.log\n[/[a-c]\n",
+  "files": [
+   "a.log/*",
+   "a.log/a",
+   "a.log/server.pem"
+  ],
+  "uploaded": [
+   "a.log/"
+  ]
+ },
+ {
+  "ignore": "\\[a\\]/*.pem\nnode_modules/ab\n*.pem/a\n#..\n",
+  "files": [
+   "build",
+   "server.pem/README.md",
+   "server.pem/a/.env",
+   "server.pem/a/foo/*",
+   "server.pem/a/foo/k.key",
+   "server.pem/a/node_modules"
+  ],
+  "uploaded": [
+   "build",
+   "server.pem/",
+   "server.pem/README.md"
+  ]
+ },
+ {
+  "ignore": "   \n! /../a.log/[a-c]\n! */x y/*\n*\n",
+  "files": [
+   "docs",
+   "keep/ab",
+   "x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "#! keep\n   \n#!*\n**\n./**/\\*/\n",
+  "files": [
+   "README.md/ab",
+   "README.md/certs/.env",
+   "README.md/certs/ab",
+   "README.md/certs/x y/b",
+   "README.md/certs/x y/certs",
+   "README.md/certs/x y/k.key",
+   "README.md/keep/",
+   "build/[a]",
+   "build/a.log/README.md",
+   "build/a.log/build",
+   "build/foo",
+   "build/node_modules",
+   "config",
+   "docs"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "/certs\r\nx y/a\n",
+  "files": [
+   "*/c",
+   "*/server.pem/",
+   "b",
+   "certs"
+  ],
+  "uploaded": [
+   "*/",
+   "*/c",
+   "*/server.pem/",
+   "b"
+  ]
+ },
+ {
+  "ignore": "certs\n! *.pem/*.pem\n #**/\n!README.md\r\n?/\\*\n/foo/x y\n",
+  "files": [
+   "*/",
+   "build",
+   "certs/.env/*/.env",
+   "certs/.env/foo",
+   "certs/.env/keep/a.log",
+   "certs/.env/keep/certs",
+   "certs/.env/keep/docs",
+   "certs/.env/keep/foo",
+   "certs/.env/server.pem",
+   "certs/a.log",
+   "certs/k.key",
+   "keep"
+  ],
+  "uploaded": [
+   "*/",
+   "build",
+   "keep"
+  ]
+ },
+ {
+  "ignore": "certs/../*.pem\n   \ncerts/a.log/\n*.key\r\n #!/./x y\n!../x y/**\n",
+  "files": [
+   "*",
+   "a",
+   "a.log/.env",
+   "a.log/a",
+   "server.pem/README.md",
+   "server.pem/ab",
+   "server.pem/keep"
+  ],
+  "uploaded": [
+   "*",
+   "a",
+   "a.log/",
+   "a.log/.env",
+   "a.log/a"
+  ]
+ },
+ {
+  "ignore": "./**\n! ./?/node_modules/c\n*.pem/docs/[a-c]\r\n",
+  "files": [
+   "certs/README.md/.env/build",
+   "certs/README.md/a",
+   "certs/README.md/certs/b",
+   "certs/README.md/certs/build",
+   "certs/README.md/foo",
+   "certs/build/k.key",
+   "k.key",
+   "server.pem/"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "﻿\\[a\\]/b\n!config/foo/x y\n/README.md\n![a-c]\ncerts\n!a/README.md\n",
+  "files": [
+   "c/a.log/a.log",
+   "c/a.log/ab",
+   "c/a.log/server.pem",
+   "c/config/b/k.key",
+   "c/config/node_modules",
+   "c/keep",
+   "certs"
+  ],
+  "uploaded": [
+   "c/",
+   "c/a.log/",
+   "c/a.log/a.log",
+   "c/a.log/ab",
+   "c/a.log/server.pem",
+   "c/config/",
+   "c/config/b/",
+   "c/config/b/k.key",
+   "c/config/node_modules",
+   "c/keep"
+  ]
+ },
+ {
+  "ignore": " #/*.key/**/[a-c]\n   \r\n*\nfoo\n #!./\\[a\\]/?/\r\n",
+  "files": [
+   "docs"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "./build\nx y/\n*.log\n",
+  "files": [
+   "*/.env",
+   "a.log/README.md",
+   "a.log/c",
+   "c/"
+  ],
+  "uploaded": [
+   "*/",
+   "*/.env",
+   "c/"
+  ]
+ },
+ {
+  "ignore": "foo\n",
+  "files": [
+   "[a]",
+   "config",
+   "foo/node_modules",
+   "server.pem"
+  ],
+  "uploaded": [
+   "[a]",
+   "config",
+   "server.pem"
+  ]
+ },
+ {
+  "ignore": "﻿   \n*\na.log/build\n",
   "files": [
    "c"
   ],
   "uploaded": []
  },
  {
-  "ignore": "﻿**\n   \n",
+  "ignore": "﻿!**\nREADME.md\n#!node_modules/README.md/[!a]\n.env\r\n",
   "files": [
-   "[a]/",
-   "ab/"
+   "README.md",
+   "a/foo",
+   "foo/.env/*/[a]",
+   "foo/.env/server.pem",
+   "foo/a.log",
+   "node_modules/foo"
+  ],
+  "uploaded": [
+   "a/",
+   "a/foo",
+   "foo/",
+   "foo/.env/",
+   "foo/.env/*/",
+   "foo/.env/*/[a]",
+   "foo/.env/server.pem",
+   "foo/a.log",
+   "node_modules/",
+   "node_modules/foo"
+  ]
+ },
+ {
+  "ignore": "#[a]/keep\n*.key/certs/b\n?/*.pem/b\n   \n**/*\n",
+  "files": [
+   ".env",
+   "ab/a.log/foo",
+   "ab/a.log/node_modules/",
+   "ab/c",
+   "ab/keep/foo/",
+   "ab/keep/keep/c",
+   "foo"
   ],
   "uploaded": []
  },
  {
-  "ignore": "/a\n   \n#..\r\nab\n",
+  "ignore": "b/ab\ndocs\n![a-c]/c\na/\r\n! [a]/keep/?\n",
   "files": [
-   "a",
-   "b/",
-   "build",
-   "config"
+   "docs/certs",
+   "docs/node_modules"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "!./docs\n!.env/\n#[a-/\n! node_modules\nab\n",
+  "files": [
+   "README.md",
+   "ab",
+   "k.key",
+   "x y"
   ],
   "uploaded": [
-   "b/",
-   "build",
-   "config"
+   "README.md",
+   "k.key",
+   "x y"
   ]
  },
  {
-  "ignore": "./README.md\r\n",
+  "ignore": "﻿?/*\n**/*.key/node_modules\nab/../.env\nREADME.md/./c\n",
+  "files": [
+   ".env/a",
+   "build/build/*/README.md",
+   "build/build/*/ab",
+   "build/build/docs/a.log",
+   "build/build/foo",
+   "build/build/keep",
+   "certs/a.log",
+   "certs/ab",
+   "certs/b/"
+  ],
+  "uploaded": [
+   "build/",
+   "build/build/",
+   "build/build/*/",
+   "build/build/*/README.md",
+   "build/build/*/ab",
+   "build/build/docs/",
+   "build/build/docs/a.log",
+   "build/build/foo",
+   "build/build/keep",
+   "certs/",
+   "certs/a.log",
+   "certs/ab",
+   "certs/b/"
+  ]
+ },
+ {
+  "ignore": "/*.log\r\n   \n",
+  "files": [
+   "a.log/README.md/",
+   "a.log/server.pem/*/b",
+   "a.log/server.pem/*/build",
+   "a.log/server.pem/*/keep",
+   "a.log/server.pem/build",
+   "a.log/server.pem/foo",
+   "ab",
+   "node_modules"
+  ],
+  "uploaded": [
+   "ab",
+   "node_modules"
+  ]
+ },
+ {
+  "ignore": "./build\nfoo/c/[a-c]\n! [a-c]/[a-c]/*\na.log/*.key\n../ab/*\n",
+  "files": [
+   ".env",
+   "build",
+   "keep"
+  ],
+  "uploaded": [
+   ".env",
+   "keep"
+  ]
+ },
+ {
+  "ignore": "x y/../[a]\nx\\q/..\n!foo\n!x y\r\n",
+  "files": [
+   "*",
+   "a/c/.env",
+   "a/c/server.pem",
+   "a/c/x y/certs",
+   "a/foo/b/README.md",
+   "a/foo/b/b",
+   "a/foo/b/node_modules",
+   "a/foo/docs/certs",
+   "a/foo/docs/keep",
+   "a/node_modules"
+  ],
+  "uploaded": [
+   "*"
+  ]
+ },
+ {
+  "ignore": "ab/./?\n**/c/*.log\n#!*.pem/ab/keep\n**\n[!a]/[!a]/..\r\n",
+  "files": [
+   "build"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "﻿*.key/..\n #/./*\n#!..\n**\n",
+  "files": [
+   "build/",
+   "c/node_modules",
+   "config"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "[!a]/c/\\[a\\]\r\n! ./**\nb/?/?/\r\n!a\n**/[a-c]\n",
+  "files": [
+   "README.md/c/a",
+   "README.md/c/b/",
+   "README.md/c/k.key/",
+   "README.md/c/keep",
+   "README.md/certs",
+   "README.md/config",
+   "README.md/keep",
+   "ab",
+   "config",
+   "k.key/README.md",
+   "k.key/b/",
+   "k.key/build/",
+   "k.key/server.pem"
+  ],
+  "uploaded": [
+   "README.md/",
+   "README.md/certs",
+   "README.md/config",
+   "README.md/keep",
+   "ab",
+   "config",
+   "k.key/",
+   "k.key/README.md",
+   "k.key/build/",
+   "k.key/server.pem"
+  ]
+ },
+ {
+  "ignore": "**/\n",
+  "files": [
+   "node_modules"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "[!a]/x y/config/\nb/node_modules\n #b/certs\n #!*.key/?\n*/\\*\n",
+  "files": [
+   "[a]",
+   "a.log",
+   "a/*/[a]",
+   "a/*/x y",
+   "a/.env",
+   "a/docs",
+   "a/keep",
+   "docs"
+  ],
+  "uploaded": [
+   "[a]",
+   "a.log",
+   "a/",
+   "a/.env",
+   "a/docs",
+   "a/keep",
+   "docs"
+  ]
+ },
+ {
+  "ignore": "**\n",
+  "files": [
+   "certs",
+   "foo/a/.env",
+   "foo/a/docs",
+   "foo/a/k.key/*",
+   "foo/a/k.key/ab",
+   "foo/a/k.key/node_modules",
+   "foo/a/x y",
+   "keep/ab",
+   "keep/build",
+   "keep/docs/k.key"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "   \n**\n",
+  "files": [
+   "k.key"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "   \n/*\n*.key/x y/a.log/\n",
+  "files": [
+   ".env/*",
+   "README.md",
+   "[a]/",
+   "b"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "./**/**/\r\n!x y\n**/node_modules\n",
+  "files": [
+   "server.pem"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "﻿keep/[!a]\n!*.pem\n!b/\\*/*.key/\nc/*.log\n*.key\r\n**\n",
+  "files": [
+   "[a]/a.log/[a]",
+   "[a]/a.log/node_modules/k.key",
+   "[a]/a.log/server.pem",
+   "[a]/k.key",
+   "a.log",
+   "build",
+   "foo/"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "a/*.log/README.md\n?/.\r\n../config\n",
+  "files": [
+   "b",
+   "docs/ab/",
+   "docs/c/foo/[a]",
+   "docs/c/k.key",
+   "docs/c/keep",
+   "docs/docs",
+   "node_modules",
+   "server.pem"
+  ],
+  "uploaded": [
+   "docs/",
+   "docs/ab/",
+   "docs/c/",
+   "docs/c/foo/",
+   "docs/c/foo/[a]",
+   "docs/c/k.key",
+   "docs/c/keep",
+   "docs/docs",
+   "node_modules",
+   "server.pem"
+  ]
+ },
+ {
+  "ignore": "/\\*/certs/\\[a\\]\n #[!a]\r\n!**/foo\n.env/build/\nab\n",
+  "files": [
+   ".env",
+   "ab"
+  ],
+  "uploaded": [
+   ".env"
+  ]
+ },
+ {
+  "ignore": "./docs/.env\n./.env\n!README.md\n",
+  "files": [
+   ".env",
+   "node_modules"
+  ],
+  "uploaded": [
+   "node_modules"
+  ]
+ },
+ {
+  "ignore": "keep/x y\nbuild\n*\n   \n! ./a\\/[!a]\n[a-c]/[a]/x\\q\n",
+  "files": [
+   "README.md/a/",
+   "a",
+   "a.log",
+   "c/x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "./node_modules\r\n!a.log/.env/x y\nc\r\n",
+  "files": [
+   ".env",
+   "a.log",
+   "c",
+   "server.pem/"
+  ],
+  "uploaded": [
+   ".env",
+   "a.log",
+   "server.pem/"
+  ]
+ },
+ {
+  "ignore": "x y/a.log/c\n/c\r\n #README.md/[a]\nkeep/certs\n #ab\r\n[a-c]\n",
+  "files": [
+   "b/k.key/"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "﻿./keep\ndocs/foo\r\n[a-c]\nnode_modules/./keep\n!x y/\nx\\q/*.key/\n",
+  "files": [
+   "a/README.md",
+   "a/a.log",
+   "a/build",
+   "a/node_modules"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "!*.log/keep\r\n! [a-c]/..\na/\\*/\\[a\\]\r\nc\n[a-c]\n",
+  "files": [
+   "a.log",
+   "c",
+   "docs"
+  ],
+  "uploaded": [
+   "a.log",
+   "docs"
+  ]
+ },
+ {
+  "ignore": "?\r\n   \n/x y/config\nfoo/node_modules/\\[a\\]\n",
+  "files": [
+   "README.md/a.log",
+   "b",
+   "foo/",
+   "k.key/*/certs/",
+   "k.key/*/node_modules/",
+   "k.key/certs",
+   "k.key/config"
+  ],
+  "uploaded": [
+   "README.md/",
+   "README.md/a.log",
+   "foo/",
+   "k.key/",
+   "k.key/*/",
+   "k.key/*/certs/",
+   "k.key/*/node_modules/",
+   "k.key/certs",
+   "k.key/config"
+  ]
+ },
+ {
+  "ignore": "[!a]/\\*\n*.log/[a-c]/**\n./\\[a\\]\n!/c\n#./[a-\nc/x y/foo\n",
+  "files": [
+   "[a]",
+   "config",
+   "keep/a/*/",
+   "keep/b",
+   "keep/build/README.md/k.key",
+   "keep/build/k.key/"
+  ],
+  "uploaded": [
+   "config",
+   "keep/",
+   "keep/a/",
+   "keep/a/*/",
+   "keep/b",
+   "keep/build/",
+   "keep/build/README.md/",
+   "keep/build/README.md/k.key",
+   "keep/build/k.key/"
+  ]
+ },
+ {
+  "ignore": "! keep/\nab/certs/*\r\n! keep/*/b\n![a-c]/**/foo\r\n!build/./**\nREADME.md/../*\n",
   "files": [
    "README.md/",
-   "k.key",
-   "x y"
+   "a.log",
+   "docs/foo",
+   "docs/keep/server.pem",
+   "docs/node_modules/.env",
+   "docs/node_modules/a/.env",
+   "docs/node_modules/a/x y",
+   "docs/node_modules/c",
+   "docs/node_modules/foo",
+   "server.pem/c/ab",
+   "server.pem/c/certs/.env",
+   "server.pem/c/certs/a",
+   "server.pem/c/certs/config",
+   "server.pem/c/certs/node_modules"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "!a/\n! [a]/..\n!node_modules/[!a]/a\n./b\r\n",
+  "files": [
+   ".env",
+   "README.md",
+   "b/a",
+   "b/foo",
+   "node_modules"
   ],
   "uploaded": [
-   "k.key",
-   "x y"
+   ".env",
+   "README.md",
+   "node_modules"
   ]
  },
  {
-  "ignore": "   \r\nREADME.md\r\n*\n#./README.md/[a]\nx y/foo\n",
+  "ignore": "keep\na\\/\\[a\\]/README.md\n #docs/build\n",
   "files": [
-   "[a]/a.log/docs",
-   "[a]/a.log/k.key",
-   "[a]/a.log/keep/*",
-   "[a]/a.log/keep/k.key",
-   "[a]/ab/[a]",
-   "[a]/ab/k.key/docs",
-   "[a]/ab/x y",
-   "[a]/k.key/README.md/README.md",
-   "[a]/k.key/README.md/[a]",
-   "[a]/k.key/README.md/a.log",
-   "[a]/k.key/b/",
-   "[a]/k.key/server.pem/README.md",
-   "[a]/x y",
-   "node_modules",
-   "x y/ab/[a]",
-   "x y/ab/ab",
-   "x y/ab/b/README.md",
-   "x y/ab/b/ab",
-   "x y/ab/b/certs",
-   "x y/c/[a]",
-   "x y/c/k.key",
-   "x y/docs/[a]"
+   "README.md",
+   "a",
+   "ab",
+   "keep/"
+  ],
+  "uploaded": [
+   "README.md",
+   "a",
+   "ab"
+  ]
+ },
+ {
+  "ignore": "keep/\ndocs\n   \n",
+  "files": [
+   "certs",
+   "docs"
+  ],
+  "uploaded": [
+   "certs"
+  ]
+ },
+ {
+  "ignore": "*\n!*.pem\n!node_modules/node_modules\n! a.log/[a]\n!./b/node_modules/.\n",
+  "files": [
+   "*",
+   "build/README.md",
+   "build/docs",
+   "build/keep",
+   "build/node_modules/",
+   "certs",
+   "keep"
   ],
   "uploaded": []
+ },
+ {
+  "ignore": "﻿c\n",
+  "files": [
+   "build/b/a.log",
+   "build/b/b/README.md",
+   "build/b/b/node_modules",
+   "build/b/c",
+   "build/b/config",
+   "c"
+  ],
+  "uploaded": [
+   "build/",
+   "build/b/",
+   "build/b/a.log",
+   "build/b/b/",
+   "build/b/b/README.md",
+   "build/b/b/node_modules",
+   "build/b/c",
+   "build/b/config"
+  ]
+ },
+ {
+  "ignore": "\\*\nREADME.md/*\nbuild\n",
+  "files": [
+   "[a]",
+   "build",
+   "foo/*/.env/build",
+   "foo/node_modules",
+   "foo/x y"
+  ],
+  "uploaded": [
+   "[a]",
+   "foo/",
+   "foo/*/",
+   "foo/*/.env/",
+   "foo/*/.env/build",
+   "foo/node_modules",
+   "foo/x y"
+  ]
+ },
+ {
+  "ignore": "!/[!a]/\\[a\\]\r\n #![a]/c/..\n*.pem/node_modules\n./*/**\r\n",
+  "files": [
+   "*",
+   "a.log/",
+   "server.pem/*/build/*",
+   "server.pem/*/build/[a]",
+   "server.pem/*/build/a",
+   "server.pem/*/build/server.pem",
+   "server.pem/*/docs/",
+   "server.pem/*/keep/",
+   "server.pem/*/node_modules",
+   "server.pem/[a]",
+   "server.pem/build"
+  ],
+  "uploaded": [
+   "*",
+   "a.log/",
+   "server.pem/"
+  ]
+ },
+ {
+  "ignore": "[a-c]\n/**\nREADME.md/a.log/..\n! config/build\n   \n/*.pem\r\n",
+  "files": [
+   "b/a.log/README.md",
+   "b/a.log/keep",
+   "b/a.log/node_modules",
+   "b/a/a",
+   "b/a/server.pem/README.md",
+   "b/a/server.pem/[a]",
+   "b/a/server.pem/config",
+   "b/a/server.pem/foo",
+   "b/certs",
+   "b/k.key/config/",
+   "b/k.key/foo",
+   "config",
+   "k.key"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "*/b\r\n   \r\n!c/**/c\nREADME.md\n!node_modules/*.log/[!a]\n",
+  "files": [
+   "README.md/a.log",
+   "README.md/x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "   \n #.env\n/?/**/**\r\n!?/b/**\ndocs/build/build\n!\\[a\\]\n",
+  "files": [
+   "a.log",
+   "b/.env/certs",
+   "b/.env/k.key/c",
+   "b/.env/k.key/keep",
+   "b/.env/k.key/node_modules",
+   "b/[a]",
+   "b/build/",
+   "c",
+   "server.pem"
+  ],
+  "uploaded": [
+   "a.log",
+   "b/",
+   "c",
+   "server.pem"
+  ]
+ },
+ {
+  "ignore": "!/build/[a]\r\n./a.log\n! ./.env/a.log\n",
+  "files": [
+   "a.log",
+   "a/*",
+   "a/build",
+   "a/docs",
+   "a/x y/",
+   "docs"
+  ],
+  "uploaded": [
+   "a/",
+   "a/*",
+   "a/build",
+   "a/docs",
+   "a/x y/",
+   "docs"
+  ]
+ },
+ {
+  "ignore": "ab/[!a]\n#!ab\n! foo/docs\n./b/c/\n#*/./.\r\n./**\r\n",
+  "files": [
+   "server.pem/c",
+   "server.pem/certs",
+   "x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "**\r\n*.pem/\n   \r\n/*/*.key/docs\n!a/./[a-c]\n#! [\n",
+  "files": [
+   "docs",
+   "keep/",
+   "x y/.env/",
+   "x y/a.log"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "!*.log/certs\n#!b/README.md\nnode_modules/\n#! ./b/docs\n! [a-c]/*.log\n",
+  "files": [
+   "*/server.pem",
+   "[a]",
+   "a",
+   "node_modules"
+  ],
+  "uploaded": [
+   "*/",
+   "*/server.pem",
+   "[a]",
+   "a"
+  ]
+ },
+ {
+  "ignore": "!ab/\\*/a\r\n   \n.\n[a-c]/*.log\r\n**/?\r\n#*.log/a\\/[a]/\n",
+  "files": [
+   "node_modules/*/",
+   "node_modules/docs",
+   "node_modules/keep",
+   "node_modules/x y"
+  ],
+  "uploaded": [
+   "node_modules/",
+   "node_modules/docs",
+   "node_modules/keep",
+   "node_modules/x y"
+  ]
+ },
+ {
+  "ignore": "[a-c]\n!README.md/x y/\\[a\\]\n[a-c]\n",
+  "files": [
+   "build",
+   "c/",
+   "keep"
+  ],
+  "uploaded": [
+   "build",
+   "keep"
+  ]
+ },
+ {
+  "ignore": "! a\r\n!./a\\/foo\n   \n*\n",
+  "files": [
+   "docs/config",
+   "docs/docs/a.log",
+   "docs/docs/certs",
+   "docs/docs/x y/a.log",
+   "docs/docs/x y/ab",
+   "keep",
+   "server.pem"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "**/node_modules\nbuild/.\ndocs/*.pem/x y\n #!*.log/docs\n*.log/b\n#/*/keep/[!a]\r\n",
+  "files": [
+   "README.md/*/",
+   "[a]/.env",
+   "build"
+  ],
+  "uploaded": [
+   "README.md/",
+   "README.md/*/",
+   "[a]/",
+   "[a]/.env"
+  ]
+ },
+ {
+  "ignore": "! /\\*/*/keep\r\n #*.key/*/*.key\n#! a/[a-c]/foo/\r\n/keep\n",
+  "files": [
+   "ab/certs/",
+   "ab/node_modules/",
+   "ab/server.pem/config",
+   "ab/server.pem/k.key/README.md",
+   "ab/server.pem/k.key/docs",
+   "ab/server.pem/k.key/k.key",
+   "ab/server.pem/server.pem",
+   "ab/x y",
+   "c",
+   "keep"
+  ],
+  "uploaded": [
+   "ab/",
+   "ab/certs/",
+   "ab/node_modules/",
+   "ab/server.pem/",
+   "ab/server.pem/config",
+   "ab/server.pem/k.key/",
+   "ab/server.pem/k.key/README.md",
+   "ab/server.pem/k.key/docs",
+   "ab/server.pem/k.key/k.key",
+   "ab/server.pem/server.pem",
+   "ab/x y",
+   "c"
+  ]
+ },
+ {
+  "ignore": "./a\\/../..\nfoo\n![a]/[!a]\nb/a.log/c\n   \n[!a]/..\n",
+  "files": [
+   "a/c",
+   "a/foo",
+   "ab/node_modules/.env/b",
+   "ab/node_modules/.env/c",
+   "ab/node_modules/x y/",
+   "foo/a.log",
+   "foo/docs"
+  ],
+  "uploaded": [
+   "a/",
+   "a/c",
+   "a/foo",
+   "ab/",
+   "ab/node_modules/",
+   "ab/node_modules/.env/",
+   "ab/node_modules/.env/b",
+   "ab/node_modules/.env/c",
+   "ab/node_modules/x y/"
+  ]
+ },
+ {
+  "ignore": "*.pem/config\n/*.key/certs/docs\n![a-c]\n[!a]/\\[a\\]\r\nconfig\n**\n",
+  "files": [
+   "c"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "../config/a\n!keep/.\nx y/\\[a\\]\r\nbuild\n!*.key/./node_modules\r\n!*.key/x y\n",
+  "files": [
+   "build",
+   "certs/a/",
+   "certs/ab"
+  ],
+  "uploaded": [
+   "certs/",
+   "certs/a/",
+   "certs/ab"
+  ]
+ },
+ {
+  "ignore": "**\n",
+  "files": [
+   "x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "! *.key/a/*\n   \ncerts\r\n**\n*.key\r\n#![a-c]/a\\\n",
+  "files": [
+   "k.key"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "#[a-c]\n!*/**\n! *.log/keep/[!a]\n![a-c]/*/.env\n #ab/../[!a]\n",
+  "files": [
+   "[a]",
+   "a",
+   "config/docs/",
+   "foo/*/ab/k.key",
+   "foo/*/ab/node_modules",
+   "foo/ab",
+   "foo/node_modules",
+   "foo/server.pem"
+  ],
+  "uploaded": [
+   "[a]",
+   "config/",
+   "config/docs/",
+   "foo/",
+   "foo/*/",
+   "foo/*/ab/",
+   "foo/*/ab/k.key",
+   "foo/*/ab/node_modules",
+   "foo/ab",
+   "foo/node_modules",
+   "foo/server.pem"
+  ]
+ },
+ {
+  "ignore": "[/ab/[a]\r\nb\r\n   \n../**\nab\n   \n",
+  "files": [
+   "*",
+   ".env",
+   "ab/a/c/c",
+   "ab/a/c/keep",
+   "ab/a/c/x y",
+   "ab/a/k.key",
+   "ab/a/x y",
+   "ab/c",
+   "ab/foo",
+   "ab/server.pem/a",
+   "ab/server.pem/certs/c",
+   "ab/server.pem/certs/keep",
+   "ab/server.pem/certs/server.pem",
+   "ab/server.pem/docs/",
+   "ab/server.pem/x y/ab",
+   "ab/server.pem/x y/k.key"
+  ],
+  "uploaded": [
+   "*",
+   ".env"
+  ]
+ },
+ {
+  "ignore": "!docs/ab/certs\n #!.env/certs\r\n#build/a\n#!a.log/keep/c\n   \r\n[a-c]\r\n",
+  "files": [
+   "*",
+   "a",
+   "keep"
+  ],
+  "uploaded": [
+   "*",
+   "keep"
+  ]
+ },
+ {
+  "ignore": " #!config/\n\\*\n   \r\nfoo/\\[a\\]\n",
+  "files": [
+   "*",
+   "a"
+  ],
+  "uploaded": [
+   "a"
+  ]
+ },
+ {
+  "ignore": "c/foo/[a]\r\n/*\r\n#!..\n",
+  "files": [
+   "a",
+   "certs",
+   "foo"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "!a\n!./*.key/foo\r\n!**\r\n\\[a\\]\n\\[a\\]/docs/x y\n",
+  "files": [
+   "[a]",
+   "docs"
+  ],
+  "uploaded": [
+   "docs"
+  ]
+ },
+ {
+  "ignore": ".\n#build\n#!b/*/build\n   \r\n?/b/.\r\n**/b/[a-c]\r\n",
+  "files": [
+   ".env/a.log/c/",
+   ".env/a.log/keep/[a]",
+   ".env/a.log/keep/b",
+   ".env/a.log/keep/node_modules",
+   ".env/a.log/server.pem",
+   ".env/b",
+   "b/a/README.md",
+   "b/a/docs",
+   "build/[a]",
+   "x y/node_modules/.env",
+   "x y/node_modules/[a]"
+  ],
+  "uploaded": [
+   ".env/",
+   ".env/a.log/",
+   ".env/a.log/c/",
+   ".env/a.log/keep/",
+   ".env/a.log/keep/[a]",
+   ".env/a.log/keep/b",
+   ".env/a.log/keep/node_modules",
+   ".env/a.log/server.pem",
+   ".env/b",
+   "b/",
+   "build/",
+   "build/[a]",
+   "x y/",
+   "x y/node_modules/",
+   "x y/node_modules/.env",
+   "x y/node_modules/[a]"
+  ]
+ },
+ {
+  "ignore": "   \nx y\n#[/config\n./x y/a.log\na\\/[a]\n",
+  "files": [
+   "x y/b",
+   "x y/certs",
+   "x y/x y/"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "\\[a\\]/README.md\n #!\\*/[a]\n./[a-c]/certs\n",
+  "files": [
+   "c/certs",
+   "c/node_modules",
+   "c/x y",
+   "certs/build/c/build",
+   "certs/build/c/config",
+   "certs/build/c/docs",
+   "certs/build/docs/build",
+   "certs/build/docs/c",
+   "certs/build/docs/foo",
+   "certs/build/docs/k.key",
+   "config/"
+  ],
+  "uploaded": [
+   "c/",
+   "c/node_modules",
+   "c/x y",
+   "certs/",
+   "certs/build/",
+   "certs/build/c/",
+   "certs/build/c/build",
+   "certs/build/c/config",
+   "certs/build/c/docs",
+   "certs/build/docs/",
+   "certs/build/docs/build",
+   "certs/build/docs/c",
+   "certs/build/docs/foo",
+   "certs/build/docs/k.key",
+   "config/"
+  ]
+ },
+ {
+  "ignore": "c/\\[a\\]\n[a]\r\n!./?/\\*\n!**/b/certs/\n\\[a\\]\nb/config\n",
+  "files": [
+   "[a]",
+   "config"
+  ],
+  "uploaded": [
+   "config"
+  ]
+ },
+ {
+  "ignore": "#*.pem/.env/.env\n*\n   \n*.pem/b/\\[a\\]/\n   \n*\n",
+  "files": [
+   "README.md/README.md/",
+   "README.md/a",
+   "README.md/b",
+   "node_modules"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": " #! [/c/[!a]\r\n./?\n",
+  "files": [
+   "b/build/*/b",
+   "b/build/[a]",
+   "b/build/server.pem",
+   "b/config/",
+   "k.key"
+  ],
+  "uploaded": [
+   "k.key"
+  ]
+ },
+ {
+  "ignore": "?/certs\n**/[a-c]/\n",
+  "files": [
+   ".env",
+   "a",
+   "a.log/b",
+   "k.key"
+  ],
+  "uploaded": [
+   ".env",
+   "a.log/",
+   "k.key"
+  ]
+ },
+ {
+  "ignore": "./b\n**/foo/**\n\\[a\\]/certs/[a]\n[a-c]/foo\r\n**\n",
+  "files": [
+   "c/",
+   "x y"
+  ],
+  "uploaded": []
+ },
+ {
+  "ignore": "! c\n*.log/build\nab/[a-c]\r\nconfig\n",
+  "files": [
+   ".env",
+   "a.log",
+   "config",
+   "docs"
+  ],
+  "uploaded": [
+   ".env",
+   "a.log",
+   "docs"
+  ]
  }
 ]

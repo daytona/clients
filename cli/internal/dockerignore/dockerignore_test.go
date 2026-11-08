@@ -64,17 +64,17 @@ func TestExcluded_dockerSemantics(t *testing.T) {
 		"web/node_modules_not/file": false,
 	}
 	for rel, want := range cases {
-		require.Equal(t, want, m.Excluded(rel), rel)
+		require.Equal(t, want, m.excludes(rel), rel)
 	}
 }
 
 func TestExcluded_lastMatchingPatternWins(t *testing.T) {
 	m := matcher(t, "*.txt\n!important.txt\nimportant.txt\n")
-	require.True(t, m.Excluded("important.txt"))
+	require.True(t, m.excludes("important.txt"))
 	m = matcher(t, "secrets\n!secrets/public\n")
-	require.True(t, m.Excluded("secrets/private.key"))
-	require.False(t, m.Excluded("secrets/public"))
-	require.False(t, m.Excluded("secrets/public/cert.pem"))
+	require.True(t, m.excludes("secrets/private.key"))
+	require.False(t, m.excludes("secrets/public"))
+	require.False(t, m.excludes("secrets/public/cert.pem"))
 }
 
 func TestMayReinclude_onlyForDirectoriesHoldingAnException(t *testing.T) {
@@ -85,8 +85,8 @@ func TestMayReinclude_onlyForDirectoriesHoldingAnException(t *testing.T) {
 	// A wildcard exception can match below any directory.
 	wild := matcher(t, "vendor\n!**/LICENSE\n")
 	require.True(t, wild.MayReinclude("vendor"))
-	require.True(t, wild.Excluded("vendor/lib/code.go"))
-	require.False(t, wild.Excluded("vendor/lib/LICENSE"))
+	require.True(t, wild.excludes("vendor/lib/code.go"))
+	require.False(t, wild.excludes("vendor/lib/LICENSE"))
 }
 
 func TestNew_rejectsInvalidPatterns(t *testing.T) {
@@ -98,10 +98,10 @@ func TestNew_rejectsInvalidPatterns(t *testing.T) {
 
 func TestExcluded_escapedMetacharacters(t *testing.T) {
 	m := matcher(t, `file\*.txt`+"\nv1.0\n")
-	require.True(t, m.Excluded("file*.txt"))
-	require.False(t, m.Excluded("fileX.txt"))
-	require.True(t, m.Excluded("v1.0"))
-	require.False(t, m.Excluded("v1x0"))
+	require.True(t, m.excludes("file*.txt"))
+	require.False(t, m.excludes("fileX.txt"))
+	require.True(t, m.excludes("v1.0"))
+	require.False(t, m.excludes("v1x0"))
 }
 
 // A pattern counts for a path's parent directories only if it was evaluated
@@ -112,37 +112,37 @@ func TestExcluded_carriesParentResultsLikeBuildKit(t *testing.T) {
 	// A leading `**` without `/` is a suffix match.
 	m := matcher(t, "**foo\n")
 	for _, rel := range []string{"foo", "x/foo", "barfoo", "x/barfoo"} {
-		require.True(t, m.Excluded(rel), rel)
+		require.True(t, m.excludes(rel), rel)
 	}
 	// `^` is not escaped: the pattern can never match.
 	m = matcher(t, "*.log^\n")
-	require.False(t, m.Excluded("app.log^"))
-	require.False(t, m.Excluded("app.log"))
+	require.False(t, m.excludes("app.log^"))
+	require.False(t, m.excludes("app.log"))
 	// `!config` re-includes the directory, not the secrets inside it.
 	secrets := matcher(t, "**/*.pem\n**/.env\n!config\n")
-	require.False(t, secrets.Excluded("config"))
-	require.False(t, secrets.Excluded("config/app.yaml"))
-	require.True(t, secrets.Excluded("config/server.pem"))
-	require.True(t, secrets.Excluded("config/.env"))
-	require.True(t, matcher(t, "**/*.key\n!certs\n").Excluded("certs/server.key"))
+	require.False(t, secrets.excludes("config"))
+	require.False(t, secrets.excludes("config/app.yaml"))
+	require.True(t, secrets.excludes("config/server.pem"))
+	require.True(t, secrets.excludes("config/.env"))
+	require.True(t, matcher(t, "**/*.key\n!certs\n").excludes("certs/server.key"))
 	// The second `docs` is skipped at `docs` (already excluded there), so it
 	// does not count for what is inside.
-	require.False(t, matcher(t, "docs\n!docs/README.md\ndocs\n").Excluded("docs/README.md"))
-	require.True(t, matcher(t, "*/*.log\n!build\n").Excluded("build/x.log"))
+	require.False(t, matcher(t, "docs\n!docs/README.md\ndocs\n").excludes("docs/README.md"))
+	require.True(t, matcher(t, "*/*.log\n!build\n").excludes("build/x.log"))
 	// A pattern that matched a parent directory applies to its contents.
-	require.True(t, matcher(t, "a/b\n!a\n").Excluded("a/b/c"))
+	require.True(t, matcher(t, "a/b\n!a\n").excludes("a/b/c"))
 }
 
 func TestExcluded_wildcards(t *testing.T) {
 	// `**` in the middle spans zero or more segments.
 	m := matcher(t, "a/**/c\n")
 	for rel, want := range map[string]bool{"a/c": true, "a/b/c": true, "a/b/d/c": true, "a/b/x": false} {
-		require.Equal(t, want, m.Excluded(rel), rel)
+		require.Equal(t, want, m.excludes(rel), rel)
 	}
 	// `?` is one character other than `/`.
 	m = matcher(t, "a?c\n")
-	require.True(t, m.Excluded("abc"))
-	require.False(t, m.Excluded("a/c"))
+	require.True(t, m.excludes("abc"))
+	require.False(t, m.excludes("a/c"))
 }
 
 func TestReadPatterns_likeDockersIgnorefile(t *testing.T) {
@@ -155,7 +155,7 @@ func TestReadPatterns_likeDockersIgnorefile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"\uFEFF*.log"}, patterns)
 	// The matcher then skips it, as Docker's does: the pattern is `*.log`.
-	require.True(t, matcher(t, "\n\xEF\xBB\xBF*.log\n").Excluded("a.log"))
+	require.True(t, matcher(t, "\n\xEF\xBB\xBF*.log\n").excludes("a.log"))
 	// A line longer than 64 KiB is an error.
 	_, err = ReadPatterns(strings.NewReader(strings.Repeat("a", 70*1024) + "\n"))
 	require.Error(t, err)
@@ -163,7 +163,7 @@ func TestReadPatterns_likeDockersIgnorefile(t *testing.T) {
 
 func TestNew_cleansTheWholeLineBeforeReadingTheExclamationMark(t *testing.T) {
 	// `!../../*` cleans to `*`, an inclusion.
-	require.True(t, matcher(t, "!../../*\n").Excluded("anything"))
+	require.True(t, matcher(t, "!../../*\n").excludes("anything"))
 	// `!/` cleans to the illegal `!`.
 	patterns, err := ReadPatterns(strings.NewReader("!/\n"))
 	require.NoError(t, err)
@@ -180,8 +180,31 @@ func TestMayReinclude_followsBuildKit(t *testing.T) {
 	require.True(t, matcher(t, "build\n!*.txt\n").MayReinclude("other"))
 }
 
-func TestNew_rejectsAnEscapeTheMatcherCannotCompile(t *testing.T) {
-	// Docker's matcher fails with "syntax error in pattern" on `foo\q`.
-	_, err := New([]string{`foo\q`})
+// A pattern that does not compile is an error only once a path is matched
+// against it, as in Docker's matcher; one never evaluated is harmless.
+func TestPatternThatDoesNotCompileFailsWhenEvaluated(t *testing.T) {
+	m, err := New([]string{`foo\q`})
+	require.NoError(t, err)
+	_, err = m.Excluded("x")
+	var pe *PatternError
+	require.ErrorAs(t, err, &pe)
+	require.Equal(t, `foo\q`, pe.Pattern)
+	// The exception is never evaluated: nothing is excluded when it comes.
+	m, err = New([]string{"a", `!foo\q`})
+	require.NoError(t, err)
+	excluded, err := m.Excluded("b")
+	require.NoError(t, err)
+	require.False(t, excluded)
+	// filepath.Match's syntax check is still up front.
+	_, err = New([]string{"[a-"})
 	require.Error(t, err)
+}
+
+// excludes is Excluded for patterns that compile.
+func (m *Matcher) excludes(rel string) bool {
+	excluded, err := m.Excluded(rel)
+	if err != nil {
+		panic(err)
+	}
+	return excluded
 }

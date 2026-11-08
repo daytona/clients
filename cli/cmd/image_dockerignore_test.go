@@ -186,3 +186,21 @@ func TestImageBuildContext_dockerfileWithPatternCharactersIsAlwaysUploaded(t *te
 	names, _ := uploadedEntries(t, upload)
 	require.Equal(t, []string{".dockerignore", "d/", "d/Docker[1]file"}, names)
 }
+
+// A pattern that cannot be matched fails the build only when the walk
+// evaluates it, as `docker build` does.
+func TestImageBuildContext_unmatchablePatternFailsOnlyWhenEvaluated(t *testing.T) {
+	root := t.TempDir()
+	writeContextFiles(t, root, map[string]string{".dockerignore": "foo\\q\n", "Dockerfile": "FROM scratch\n"})
+	_, err := imageContextUploadForPath(root, "Dockerfile")
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.Contains(t, err.Error(), ".dockerignore")
+	require.Contains(t, err.Error(), "invalid pattern")
+
+	root = t.TempDir()
+	writeContextFiles(t, root, map[string]string{".dockerignore": "a\n!foo\\q\n", "Dockerfile": "FROM scratch\n", "b": "x"})
+	upload, err := imageContextUploadForPath(root, "Dockerfile")
+	require.NoError(t, err, "an exception that is never evaluated is harmless")
+	names, _ := uploadedEntries(t, upload)
+	require.Equal(t, []string{".dockerignore", "Dockerfile", "b"}, names)
+}

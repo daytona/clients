@@ -35,8 +35,9 @@ type ArchiveFilter interface {
 	// not, whether the walk still looks inside it (something below it may be
 	// kept; its directory entry is then written before the first kept child).
 	// parent is the state Keep returned for the entry's directory (nil for an
-	// entry at the top); state is handed to the directory's own entries.
-	Keep(rel string, isDir bool, parent any) (keep, descend bool, state any)
+	// entry at the top); state is handed to the directory's own entries. An
+	// error ends the walk.
+	Keep(rel string, isDir bool, parent any) (keep, descend bool, state any, err error)
 }
 
 // ArchiveDirectory streams dir as a tar archive with every entry.
@@ -153,7 +154,9 @@ func WalkArchiveEntries(dir string, filter ArchiveFilter, fn func(rel, current s
 		}
 		keep, descend, state := true, true, any(nil)
 		if filter != nil {
-			keep, descend, state = filter.Keep(rel, entry.IsDir(), parent)
+			if keep, descend, state, err = filter.Keep(rel, entry.IsDir(), parent); err != nil {
+				return err
+			}
 		}
 		if entry.IsDir() {
 			if !keep && !descend {

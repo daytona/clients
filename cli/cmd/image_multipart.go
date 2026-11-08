@@ -239,7 +239,23 @@ func loadBuildContextFilter(contextDir, dockerfilePath string) (toolboxclient.Ar
 		}
 		// Kept by path, not by a `!` pattern: a name with `[`, `*` or `?`
 		// would be read as a pattern.
-		return dockerignore.NewFilter(matcher, ".dockerignore", name, dockerfile), nil
+		return ignoreFileFilter{Filter: dockerignore.NewFilter(matcher, ".dockerignore", name, dockerfile), name: name}, nil
 	}
 	return nil, nil
+}
+
+// ignoreFileFilter reports a pattern of the ignore file name that cannot be
+// matched as a usage error, when the walk first evaluates it.
+type ignoreFileFilter struct {
+	*dockerignore.Filter
+	name string
+}
+
+func (f ignoreFileFilter) Keep(rel string, isDir bool, parent any) (bool, bool, any, error) {
+	keep, descend, state, err := f.Filter.Keep(rel, isDir, parent)
+	var pe *dockerignore.PatternError
+	if errors.As(err, &pe) {
+		return false, false, nil, cerr.Usage("%s: %v", f.name, pe)
+	}
+	return keep, descend, state, err
 }

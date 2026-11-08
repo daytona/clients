@@ -315,10 +315,18 @@ func TestImageBuild_rejectsNonRegularContextEntries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires unix socket entry")
 	}
-	root := t.TempDir()
-	contextDir := filepath.Join(root, "context")
+	// A short directory: a socket path is limited to about 104 bytes, which a
+	// long TMPDIR plus t.TempDir()'s name can exceed.
+	dir := ""
+	if len(os.TempDir()) > 64 {
+		dir = "/tmp"
+	}
+	root, err := os.MkdirTemp(dir, "s")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	contextDir := filepath.Join(root, "c")
 	require.NoError(t, os.MkdirAll(contextDir, 0o755))
-	socketPath := filepath.Join(contextDir, "bad.sock")
+	socketPath := filepath.Join(contextDir, "b.sock")
 	listener, err := net.Listen("unix", socketPath)
 	require.NoError(t, err)
 	defer listener.Close()
