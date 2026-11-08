@@ -87,8 +87,8 @@ Two rules narrow what that covers:
 
 - **Constructors of exported classes are not public API.** Instances come from
   the client and its services (`d.v2.create()`, `d.v2.get(id)`,
-  `sandbox.process.connect(...)`, `Image.from_registry(...)` /
-  `Image.fromRegistry(...)`); the class names are public for type annotations
+  `sandbox.process.connect(...)`, `ImageBuilder.from_registry(...)` /
+  `ImageBuilder.fromRegistry(...)`); the class names are public for type annotations
   and `isinstance` / `instanceof` checks, but their constructor parameters may
   change in any release. The exceptions are the only classes you build
   yourself; their constructor parameters are public signatures like any
@@ -101,7 +101,7 @@ Two rules narrow what that covers:
     (TypeScript takes plain objects for these).
 
   Every other exported class is built by the SDK: by the client, a service, or
-  a factory such as `Image.from_registry(...)`.
+  a factory such as `ImageBuilder.from_registry(...)`.
 
 - **Generated wire types are never public.** The types generated from the
   contracts under [`contract/`](../contract/) (Python `daytona.v2._gen`,
