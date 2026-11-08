@@ -228,3 +228,27 @@ __all__ = ["Kind", "OnKind", "Pair", "Counts", "use"]
     assert "~_Map: type = dict[str, int]" in lines
     # A nested alias that is not exported is listed on its own.
     assert "~Either: type = int | str" in lines
+
+
+def test_overloads_keep_their_declaration_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    source = """
+from __future__ import annotations
+
+from typing import overload
+
+
+@overload
+def probe(key: str) -> str: ...
+@overload
+def probe(key: bytes) -> int: ...
+def probe(key: str | bytes) -> str | int:
+    return key if isinstance(key, str) else len(key)
+
+
+__all__ = ["probe"]
+"""
+    from api_surface import render
+
+    rendered = render("probe", probe_surface(tmp_path, monkeypatch, source)).splitlines()
+    lines = [line for line in rendered if line.startswith("probe: ")]
+    assert lines == ["probe: def (key: str) -> str", "probe: def (key: bytes) -> int"]
