@@ -126,6 +126,29 @@ describe('option keys', () => {
     if (value !== null) expectBadRequest(() => new Daytona(value as never), `DaytonaConfig must be an options object, got ${given}`)
   })
 
+  it.each([
+    [new Date(0), 'a built-in Date'],
+    [new Map([['create', true]]), 'a built-in Map'],
+    [new Set(['create']), 'a built-in Set'],
+    [/create/, 'a built-in RegExp'],
+    [Promise.resolve(), 'a built-in Promise'],
+    [new Uint8Array(1), 'a built-in Uint8Array'],
+    [new ArrayBuffer(1), 'a built-in ArrayBuffer'],
+  ])('refuses a built-in %p, whose contents would read as no options', (value, given) => {
+    const keys = optionKeys<{ readonly create?: boolean }>()({ create: true })
+    expectBadRequest(() => assertKnownOptions('VolumeGetOptions', value as never, keys), `VolumeGetOptions must be an options object, got ${given}`)
+    expectBadRequest(() => new Daytona(value as never), `DaytonaConfig must be an options object, got ${given}`)
+  })
+
+  it('accepts class instances and prototype-based options objects', () => {
+    class Options { public create = true }
+    const keys = optionKeys<{ readonly create?: boolean }>()({ create: true })
+    expect(() => assertKnownOptions('VolumeGetOptions', new Options(), keys)).not.toThrow()
+    expect(() => assertKnownOptions('VolumeGetOptions', Object.create({ create: true }) as never, keys)).not.toThrow()
+    expect(() => assertKnownOptions('VolumeGetOptions', Object.create(null) as never, keys)).not.toThrow()
+    expectBadRequest(() => assertKnownOptions('VolumeGetOptions', Object.create({ creat: true }) as never, keys), 'VolumeGetOptions has no option `creat`')
+  })
+
   it('carries the rename hints the duration rename needs', () => {
     expect(RENAMED_OPTIONS).toEqual({
       timeout: 'timeoutSeconds',
