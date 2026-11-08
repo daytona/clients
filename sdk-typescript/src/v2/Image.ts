@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { deepFrozen } from './frozen.js'
 import type * as api from './gen/api-types.js'
 import { ImageRetention as IMAGE_RETENTIONS, SnapshotClass as SNAPSHOT_CLASSES, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
@@ -208,7 +209,7 @@ export class Image implements ImageModel {
     this.region = image.region_id
     this.rawRetention = image.retention
     this.retention = knownOrUnknown(image.retention, IMAGE_RETENTIONS)
-    this.source = image.source === undefined || image.source === null ? undefined : imageSource(image.source)
+    this.source = image.source === undefined || image.source === null ? undefined : deepFrozen(imageSource(image.source))
     this.status = image.status
     this.formatVersion = image.format_version
     this.formatOutdated = image.format_outdated
@@ -216,6 +217,8 @@ export class Image implements ImageModel {
     this.default = image.default === true
     this.deprecated = image.deprecated === true
     this.diskMib = image.disk_mib ?? null
+    // An SDK-owned data model with no live state: frozen at run time.
+    Object.freeze(this)
   }
 }
 
@@ -258,6 +261,7 @@ export class Snapshot {
     this.bytes = snapshot.bytes ?? undefined
     this.memoryBytes = snapshot.memory_bytes ?? undefined
     this.sandboxId = snapshot.sandbox_id ?? undefined
+    Object.freeze(this)
   }
 }
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { deepFrozen, frozenPage } from './frozen.js'
 import { isBlank } from './pyText.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
@@ -72,7 +73,7 @@ const VOLUME: ResponseFields = {
 
 function mapVolume(value: api.Volume): Volume {
   const volume = checkResponse<api.Volume>(value, VOLUME, 'volume')
-  return {
+  return deepFrozen({
     id: volume.id,
     name: volume.name,
     type: knownOrUnknown(volume.type, VOLUME_TYPES),
@@ -84,10 +85,11 @@ function mapVolume(value: api.Volume): Volume {
     sizeGib: volume.size_gib ?? undefined,
     error: volume.error ?? undefined,
     lastUsedAt: volume.last_used_at ?? undefined,
-    options: volume.options == null ? undefined : Object.freeze({ ...volume.options }),
+    // A copy, deep-frozen with the model.
+    options: volume.options == null ? undefined : structuredClone(volume.options),
     usedBytes: volume.used_bytes ?? undefined,
     usedBytesAt: volume.used_bytes_at ?? undefined,
-  }
+  })
 }
 
 /** Manage named volumes and attach them with `create({ volumes })`. */
@@ -108,7 +110,7 @@ export class VolumesService {
     }
     const { data } = await this.api.get<api.ListVolumesResponse>('/volumes', { params })
     const page = listPage<api.Volume>(data, 'volumes', 'volume list')
-    return { items: page.items.map(mapVolume), nextCursor: page.nextCursor }
+    return frozenPage({ items: page.items.map(mapVolume), nextCursor: page.nextCursor })
   }
 
   public async list(options: ListVolumesOptions = {}): Promise<ListResult<Volume>> {

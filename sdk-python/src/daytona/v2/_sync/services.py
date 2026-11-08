@@ -46,7 +46,19 @@ class ImagesService:
         region: Optional[str] = None,
         cpu_arch: Optional[CpuArch] = None,
     ) -> Image:
-        """Build (or import) an image from an :class:`ImageBuilder` declaration."""
+        """Build (or import) an image from an :class:`ImageBuilder` declaration.
+
+        The builder is the only way to say WHAT to build — ``ImageBuilder.
+        from_dockerfile(...)``, ``.from_registry(...)``, or the fluent
+        ``.run_commands`` / ``.env`` / ``.workdir`` chain — in both SDKs
+        (parity with TypeScript's ``images.build(builder, options)``). ``name``
+        omitted makes the image anonymous; ``idle_expiry_seconds`` is then its
+        idle-retention window — deleted once that long has passed without a
+        sandbox being created from it (every create restarts the clock);
+        omitted ⇒ the maximum retention supported by the API. The submission
+        is an ordinary request, bounded by the client's request timeout; it
+        returns without waiting for the build (``get(image.id, wait="ready")``).
+        """
         return self._bridge.call(
             lambda: self._impl.build(
                 builder, name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
@@ -75,7 +87,13 @@ class ImagesService:
     def get(
         self, image_id: str, *, wait: Literal["ready"] | None = None, timeout: Optional[float] = None
     ) -> Image:
-        """Fetch an image; ``wait="ready"`` waits for it to finish building."""
+        """Fetch an image; ``wait="ready"`` waits for it to finish building.
+
+        With a positive ``timeout`` (seconds) the wait repeats the server's
+        long poll (each at most 60 s) until the image is ``ready``, ``failed``
+        or ``error``, or the budget is spent, then returns the image as last
+        observed. Without one, a single long poll uses the server's default.
+        """
         return self._bridge.call(lambda: self._impl.get(image_id, wait=wait, timeout=timeout))
 
     def iter(
@@ -109,7 +127,13 @@ class ImagesService:
         limit: Optional[int] = None,
         platform: Optional[Literal["true", "false", "any"]] = None,
     ) -> ListResult[Image]:
-        """List images (``GET /images``)."""
+        """List images (``GET /images``).
+
+        ``platform`` picks the shared images Daytona publishes for every
+        project: ``"false"`` (the server default) lists the project's own
+        images, ``"true"`` lists only the non-deprecated platform images (the
+        default one carries ``default=True``), and ``"any"`` lists both.
+        """
         return self._bridge.call(
             lambda: self._impl.list(
                 anonymous=anonymous,
@@ -122,7 +146,12 @@ class ImagesService:
         )
 
     def promote(self, image_id: str, name: str) -> Image:
-        """Name an ANONYMOUS image, making it permanent (``PATCH /images/{id}``)."""
+        """Name an ANONYMOUS image, making it permanent (``PATCH /images/{id}``).
+
+        Promotion only: an image that already has a name answers 409 — renaming
+        a named image is not offered (sandboxes reference images by id, so a
+        rename would silently relabel every sandbox created from it).
+        """
         return self._bridge.call(lambda: self._impl.promote(image_id, name))
 
     def pull(
@@ -136,7 +165,14 @@ class ImagesService:
         wait: bool = True,
         timeout: Optional[float] = None,
     ) -> Image:
-        """Import a registry image, waiting until ready unless ``wait=False``."""
+        """Import a registry image, waiting until ready unless ``wait=False``.
+
+        Takes the same image options as :meth:`build`. ``timeout`` is the
+        total pull budget in seconds (submission and readiness); omitted or
+        zero waits without a deadline. The submission is also bounded by the
+        client's request timeout. A failed import raises
+        :class:`ImageBuildFailedError` with the server's recorded error.
+        """
         return self._bridge.call(
             lambda: self._impl.pull(
                 image,
@@ -242,7 +278,15 @@ class VolumesService:
 
 
 class SecretsService:
-    """Project secret namespace."""
+    """Project secret namespace.
+
+    Project-scoped secrets: named key/value pairs stored
+    encrypted in the project. Attach one or more to a sandbox at creation via
+    the ``secrets`` create parameter (a list of names). Attached secrets are
+    available to outbound HTTPS requests to their allowed domains, not plain
+    HTTP requests. Their values never enter the sandbox and are never returned
+    by the API (write-only).
+    """
 
     _async_type = _async.AsyncSecretsService
 
@@ -283,7 +327,13 @@ class SecretsService:
         description: Optional[str] = None,
         if_not_exists: bool = False,
     ) -> Secret:
-        """Create or update a write-only secret."""
+        """Create or update a write-only secret.
+
+        ``allowed_domains``: The hosts where this secret's value may be sent
+        (exact or ``*.`` wildcard), or ``["*"]`` for any verified host.
+        ``"*"`` lets the value reach any HTTPS host, including one a
+        compromised sandbox controls.
+        """
         return self._bridge.call(
             lambda: self._impl.set(
                 name,
@@ -296,7 +346,16 @@ class SecretsService:
 
 
 class ReservationsService:
-    """Dedicated-Mac reservations, which macOS sandboxes run on."""
+    """Dedicated-Mac reservations, which macOS sandboxes run on.
+
+    A macOS sandbox runs on a Mac the organization has reserved: reserve one
+    here, or let a macOS create buy one (``reservation="new"``, or the
+    organization's auto-reserve). A reservation lasts 24-hour periods, each
+    charged when it starts. Reserving, renewing and turning auto-renew on need
+    macOS access enabled for the organization (otherwise ``403``
+    ``FEATURE_NOT_ENABLED``, raised as :class:`FeatureNotEnabledError`);
+    listing, reading and turning auto-renew off do not.
+    """
 
     _async_type = _async.AsyncReservationsService
 
@@ -321,7 +380,19 @@ class ReservationsService:
         idempotency_key: Optional[str] = None,
         auto_renew: Optional[bool] = None,
     ) -> MacReservation:
-        """Reserve a Mac of ``model`` in ``region``."""
+        """Reserve a Mac of ``model`` in ``region``.
+
+        ``model``: Mac model slug from GET /mac-models. Omitted uses the region's default model. An unavailable model is never upgraded.
+
+        The request always carries an ``Idempotency-Key``: ``idempotency_key``
+        when given, otherwise a random UUID the SDK generates for this call.
+        Pass your own key if you may retry, so a retry after a lost response
+        returns the same reservation instead of reserving a second Mac.
+        ``auto_renew`` defaults server-side to the organization's auto-reserve
+        setting. Raises :class:`ConflictError` with
+        ``code == "NO_MAC_AVAILABLE"`` when no Mac of that model is free in the
+        region.
+        """
         return self._bridge.call(
             lambda: self._impl.create(
                 region=region, model=model, idempotency_key=idempotency_key, auto_renew=auto_renew
@@ -338,7 +409,10 @@ class ReservationsService:
         auto_renew: Optional[bool] = None,
         idempotency_key: Optional[str] = None,
     ) -> MacReservationBatch:
-        """Reserve count Macs of one model in region in one request."""
+        """Reserve count Macs of one model in region in one request.
+
+        min_count (default count) is the fewest to accept: with fewer Macs free, the request reserves as many as are free, or none, failing with ConflictError code == "NO_MAC_AVAILABLE" when fewer than min_count are free. The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
+        """
         return self._bridge.call(
             lambda: self._impl.create_bulk(
                 region=region,
@@ -364,16 +438,30 @@ class ReservationsService:
         return self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit))
 
     def renew(self, reservation_id: str, *, idempotency_key: Optional[str] = None) -> MacReservation:
-        """Renew the reservation for its next period, which the server charges."""
+        """Renew the reservation for its next period, which the server charges.
+
+        The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
+        """
         return self._bridge.call(lambda: self._impl.renew(reservation_id, idempotency_key=idempotency_key))
 
     def update(self, reservation_id: str, *, auto_renew: bool) -> MacReservation:
-        """Turn the reservation's auto-renewal on or off."""
+        """Turn the reservation's auto-renewal on or off.
+
+        Turning it on needs macOS access enabled for the organization;
+        turning it off works without it, so an organization can stop a reservation
+        renewing. Raises :class:`ConflictError` when the reservation is no longer live.
+        """
         return self._bridge.call(lambda: self._impl.update(reservation_id, auto_renew=auto_renew))
 
 
 class MacModelsService:
-    """The Mac model registry (``GET /mac-models``)."""
+    """The Mac model registry (``GET /mac-models``).
+
+    Lists the models ``reservations.create(model=...)`` accepts, with each
+    model's CPU cores, physical memory, physical SSD capacity and sandbox
+    disk room in MiB, maximum sandbox count, and default sandbox size. ``catalog()`` adds free Macs
+    and prices.
+    """
 
     _async_type = _async.AsyncMacModelsService
 

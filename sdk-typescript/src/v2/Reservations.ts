@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -26,7 +27,7 @@ const UPDATE_RESERVATION_KEYS = optionKeys<UpdateReservationOptions>()({ autoRen
 
 function reservation(wire: api.MacReservation): MacReservation {
   const value = checkResponse<api.MacReservation>(wire, MAC_RESERVATION, 'reservation')
-  return {
+  return deepFrozen({
     id: value.id,
     region: value.region_id,
     orgId: value.org_id,
@@ -54,7 +55,7 @@ function reservation(wire: api.MacReservation): MacReservation {
     rawEndReason: value.end_reason ?? undefined,
     origin: knownOrUnknown(value.origin, ORIGINS),
     rawOrigin: value.origin,
-  }
+  })
 }
 
 /**
@@ -107,7 +108,7 @@ export class ReservationsService {
     if (options.autoRenew !== undefined) body.auto_renew = options.autoRenew
     const { data } = await this.http.post<api.MacReservationBatch>('/reservations/bulk', body, idempotencyHeaders(options.idempotencyKey))
     const batch = checkResponse<api.MacReservationBatch>(data, { requested: 'integer', reserved: 'integer', reservations: arrayOf(nested(MAC_RESERVATION)) }, 'reservation batch')
-    return { requested: batch.requested, reserved: batch.reserved, reservations: batch.reservations.map(reservation) }
+    return deepFrozen({ requested: batch.requested, reserved: batch.reserved, reservations: batch.reservations.map(reservation) })
   }
 
   /** One page of the organization's reservations. */
@@ -115,7 +116,7 @@ export class ReservationsService {
     options = snapshotOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS) ?? {}
     const { data } = await this.http.get<api.ListReservationsResponse>('/reservations', { params: options })
     const page = listPage<api.MacReservation>(data, 'reservations', 'reservation list')
-    return { items: page.items.map(reservation), nextCursor: page.nextCursor }
+    return frozenPage({ items: page.items.map(reservation), nextCursor: page.nextCursor })
   }
 
   public async *iter(options: ListReservationsOptions = {}): AsyncIterable<MacReservation> {

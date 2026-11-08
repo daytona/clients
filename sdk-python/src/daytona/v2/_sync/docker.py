@@ -17,7 +17,11 @@ from ..docker import *
 
 
 class DockerService:
-    """Read-only Docker Engine status. Nothing here starts or restarts Docker."""
+    """Read-only Docker Engine status. Nothing here starts or restarts Docker.
+
+    A sandbox without Docker status support answers :meth:`status` and
+    :meth:`wait_until_ready` with a ``NotFoundError`` (404).
+    """
 
     _async_type = _async.AsyncDockerService
 
@@ -35,9 +39,27 @@ class DockerService:
         return hash(self._impl)
 
     def status(self) -> DockerStatus:
-        """Return the current Docker Engine status for this boot, answered immediately."""
+        """Return the current Docker Engine status for this boot, answered immediately.
+
+        Raises ``NotFoundError`` (404) when the sandbox does not support the route.
+        """
         return self._bridge.call(lambda: self._impl.status())
 
     def wait_until_ready(self, *, timeout: float = DOCKER_WAIT_DEFAULT_TIMEOUT_SECONDS) -> DockerStatus:
-        """Poll the Docker status until it is ``ready`` and return that status."""
+        """Poll the Docker status until it is ``ready`` and return that status.
+
+        ``timeout`` is the wait budget in seconds (default 60); ``0`` waits
+        without a deadline — avoid it for sandboxes whose Docker can stay
+        ``deferred``. Each poll asks the server to hold for up to one second
+        while Docker is ``starting``; answers that come back sooner are spaced
+        0.5 s apart.
+
+        Raises :class:`DockerNotReadyError` as soon as Docker settles in a
+        state that cannot become ``ready`` (``failed``, ``not_present``,
+        ``disabled``, ``unmanaged``, or ``unsupported``), and
+        :class:`DockerWaitTimeoutError` when the budget runs out while Docker
+        is still ``starting`` or ``deferred`` — including
+        when a status request is still unanswered at the deadline. No request
+        runs more than a fraction of a second past the deadline.
+        """
         return self._bridge.call(lambda: self._impl.wait_until_ready(timeout=timeout))

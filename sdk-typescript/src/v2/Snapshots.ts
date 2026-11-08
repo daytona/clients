@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -43,7 +44,7 @@ export class SnapshotsService {
       params: { cursor: options.cursor, limit: options.limit, name: options.name, sandbox_id: options.sandboxId },
     })
     const page = listPage<api.Snapshot>(data, 'snapshots', 'snapshot list')
-    return { items: page.items.map((snapshot) => new Snapshot(INTERNAL, snapshot)), nextCursor: page.nextCursor }
+    return frozenPage({ items: page.items.map((snapshot) => new Snapshot(INTERNAL, snapshot)), nextCursor: page.nextCursor })
   }
 
   public async *iter(options: ListSnapshotsOptions = {}): AsyncIterable<Snapshot> {

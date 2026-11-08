@@ -272,7 +272,10 @@ class ScreenService:
         scale: float | None = None,
         show_cursor: bool | None = None,
     ) -> ComputerUseScreenshot:
-        """Capture the screen, or ``region`` of it."""
+        """Capture the screen, or ``region`` of it.
+
+        Setting any of ``format``, ``quality`` or ``scale`` returns a compressed image.
+        """
         return self._bridge.call(
             lambda: self._impl.screenshot(
                 region=region, format=format, quality=quality, scale=scale, show_cursor=show_cursor

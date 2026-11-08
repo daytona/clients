@@ -177,7 +177,8 @@ def test_plain_methods_run_on_the_bridge_loop_unless_loop_free(async_cls: type, 
             assert isinstance(twin_prop, property), f"{sync_cls.__name__}.{name} is no longer a property"
             body = textwrap.dedent(inspect.getsource(twin_prop.fget))  # type: ignore[arg-type]
             if name in getattr(async_cls, "_SYNC_DIRECT_PROPERTIES", frozenset()):
-                assert "call_sync" not in body, (
+                # Any bridge access would stop working once the client closes.
+                assert "_bridge" not in body and "self._impl." in body, (
                     f"{sync_cls.__name__}.{name} should read the snapshot directly"
                 )
             else:

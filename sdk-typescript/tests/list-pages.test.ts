@@ -64,13 +64,29 @@ describe.each(LISTS)('the %s list', (_name, field, list) => {
   })
 })
 
-it.each([{ items: [] }, { ports: ['3000'] }, { ports: [3000.5] }])('refuses a port list body %j with BadRequestError', async (body) => {
+it.each([
+  [{ items: [] }, 'port list response is missing its ports'],
+  [{ ports: ['3000'] }, 'port list response has a ports[0] that is not a 32-bit integer'],
+  [{ ports: [3000.5] }, 'port list response has a ports[0] that is not a 32-bit integer'],
+  // The contract types a port as an int32 and declares no range: 1e20 is out, 70000 is in.
+  [{ ports: [1e20] }, 'port list response has a ports[0] that is not a 32-bit integer'],
+] as const)('refuses a port list body %j with BadRequestError', async (body, message) => {
   const api = await startFakeApi([{ status: 200, body }])
   try {
     const sandbox = createSandbox({ sandboxId: 'sbx', sandboxClass: 'linux' }, createHttpClient(api.url, 'key'), undefined, 'key', undefined, { toolboxUrl: api.url, accessToken: 'tok' })
-    await expect(sandbox.ports.list()).rejects.toMatchObject({
-      statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'port list response is missing the ports array of integers',
-    })
+    await expect(sandbox.ports.list()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  } finally {
+    await api.close()
+  }
+})
+
+it('reads a port list of int32 values, with no range of its own', async () => {
+  const api = await startFakeApi([{ status: 200, body: { ports: [3000, 70000] } }])
+  try {
+    const sandbox = createSandbox({ sandboxId: 'sbx', sandboxClass: 'linux' }, createHttpClient(api.url, 'key'), undefined, 'key', undefined, { toolboxUrl: api.url, accessToken: 'tok' })
+    const page = await sandbox.ports.list()
+    expect(page.items).toEqual([3000, 70000])
+    expect(Object.isFrozen(page) && Object.isFrozen(page.items)).toBe(true)
   } finally {
     await api.close()
   }

@@ -84,15 +84,20 @@ it('charges the fork detail read to the wait budget', async () => {
 })
 
 it('builds a toolbox-less detail handle without fetching the same resource again', async () => {
-  // Given a complete API detail response without a toolbox URL or class.
-  const api = await startFakeApi([{ status: 200, body: { id: 'sandbox', class: 'linux', status: 'stopped', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } }])
+  // Given a complete API detail response without a toolbox URL.
+  const api = await startFakeApi([
+    { status: 200, body: { id: 'sandbox', class: 'linux', status: 'stopped', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+    { status: 200, body: { id: 'sandbox', status: 'stopped', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
+  ])
   const client = clientAt(api.url)
   try {
     // When connecting to the sandbox.
     const sandbox = await client.v2.get('sandbox')
-    // Then the response is mapped directly and a missing class defaults to Linux.
+    // Then the response is mapped directly, with no second read.
     expect(sandbox).toMatchObject({ id: 'sandbox', state: 'stopped', sandboxClass: 'linux', rawSandboxClass: 'linux' })
     expect(api.requests).toHaveLength(1)
+    // And a detail without the required class is a contract error, never a guessed Linux.
+    await expect(client.v2.get('sandbox')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox response is missing its class' })
   } finally {
     await client.close()
     await api.close()

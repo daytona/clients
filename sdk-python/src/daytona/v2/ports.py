@@ -110,6 +110,15 @@ class AsyncPortsService:
 
     async def list(self) -> ListResult[int]:
         payload = expect_port_list(await self._require_toolbox().send(RequestSpec("GET", "/port")))
+        # The contract types each port as an int32 and declares no range.
+        for index, port in enumerate(payload.ports):
+            if not -(2**31) <= port <= 2**31 - 1:
+                raise create_error(
+                    f"port list response has a ports[{index}] that is not a 32-bit integer",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
         return ListResult(items=list(payload.ports))
 
     async def is_in_use(self, port: int) -> bool:

@@ -10,6 +10,7 @@ import { strictUriEncode } from './http.js'
 import type { HttpClientOptions, TransportAuth } from './http.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { arrayOf, checkResponse } from './responseFields.js'
+import { deepFrozen } from './frozen.js'
 import type { ResponseFields } from './responseFields.js'
 import type { CreateAccessTokenOptions, SandboxAccessToken } from './types.js'
 
@@ -44,13 +45,13 @@ function tokenFromPayload(payload: TokenPayload | null | undefined): SandboxAcce
   // An expiry that does not parse would read as never expiring and skip the proactive refresh.
   if (rfc3339EpochMs(token.expires_at) === undefined) throw badRequest('sandbox access token response has an expires_at that is not a timestamp')
   const expiresAt = token.expires_at
-  return credentialSafeInspection({
+  return deepFrozen(credentialSafeInspection({
     accessToken: token.access_token,
     tokenType: token.token_type,
     expiresAt,
     operations: [...token.operations],
     ports: token.ports == null ? undefined : [...token.ports],
-  }, () => ({ type: 'SandboxAccessToken', expiresAt }))
+  }, () => ({ type: 'SandboxAccessToken', expiresAt })))
 }
 
 function mintRouteUnsupported(error: unknown): boolean {

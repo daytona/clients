@@ -121,7 +121,61 @@ class Daytona:
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
     ) -> Sandbox:
-        """Create a Linux sandbox from a registered image name or ``img_…`` id."""
+        """Create a Linux sandbox from a registered image name or ``img_…`` id.
+
+        Omitting ``image`` boots the platform default image, the Linux image
+        Daytona marks as default (``images.list(platform="true")`` shows
+        it with ``default=True``); the returned sandbox's ``image`` names the
+        image the server booted. When no default is configured the create
+        fails with ``DEFAULT_IMAGE_NOT_CONFIGURED`` (400). An empty or
+        whitespace-only ``image`` is still an error, raised before any request.
+        Snapshots and image builds have their own methods:
+        :meth:`create_from_snapshot`, :meth:`create_from_build`.
+
+        **Waiting.** The server holds this create briefly, so a sandbox that
+        reaches ``started`` within that hold returns in one round trip; the SDK
+        waits for any remainder of ``wait_seconds`` (whole seconds, default 60;
+        ``0`` returns as soon as the API accepts the create).
+        ``create_timeout_seconds`` is the server's own budget for reaching
+        ``started`` before it deletes the sandbox. ``create()`` never raises
+        because of how its wait ended: when the budget runs out, or the sandbox
+        reaches ``error``, it returns the handle — check ``sandbox.state``. It
+        raises when the request itself fails (validation, authentication,
+        limits, :class:`SandboxCreateRequestTimeoutError`,
+        :class:`SandboxCreateConnectionError`).
+
+        **Names.** ``name`` is non-unique display metadata and the handle of the
+        one-sandbox-per-end-user pattern: a named create stamps
+        ``labels["name"] = name`` (:meth:`find_by_name` reads it back) and,
+        unless ``idempotency_key`` is given, derives its idempotency key from
+        the name. A repeated or retried ``create(image, name="example-user")``
+        at one regional API endpoint is therefore a get-or-create: the same
+        sandbox comes back, not a second one — until the first is deleted,
+        which releases the key. This is permanent behaviour of ``name=``. The
+        guarantee is scoped to a regional API endpoint (creates of one end user
+        that reach two regional API endpoints make two sandboxes; pin them to
+        one region), per class, and exact: a same-name create with different
+        arguments is a 409, never a silent replay of the first sandbox's
+        parameters. An explicit ``idempotency_key`` always wins.
+
+        **Visible resources.** ``resources`` sizes the sandbox (cores and GiB;
+        see :class:`Resources`). Burstable sandboxes start with the burst
+        ceiling (``resources.cpu_max`` / ``memory_max``, or the deployment cap
+        when omitted), so ``nproc`` and ``/proc/meminfo`` report that ceiling,
+        not the guaranteed ``cpu``. Tools that size themselves from the CPU
+        count (``pytest -n auto``, ``make -j$(nproc)``) start one worker per
+        visible CPU. Pass an explicit worker count when you need the guarantee
+        instead of the ceiling.
+
+        ``network_policy`` sets the sandbox's egress policy from its first boot
+        (``None`` sends an explicit "no policy"); change it later with
+        :meth:`Sandbox.update_network_policy`.
+
+        Creating Linux sandboxes requires Linux access enabled for the organization.
+        Otherwise a caller holding ``write:sandboxes`` gets
+        ``403`` ``FEATURE_NOT_ENABLED`` (raised as
+        :class:`FeatureNotEnabledError`).
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -175,7 +229,23 @@ class Daytona:
         idle_expiry_seconds: Optional[int] = None,
         build_timeout: Optional[float] = None,
     ) -> Sandbox:
-        """Build an anonymous image from ``builder``, wait for it, then create the sandbox from it."""
+        """Build an anonymous image from ``builder``, wait for it, then create the sandbox from it.
+
+        The build submission is an ordinary request, bounded by the client's
+        request timeout. The build itself is always awaited, bounded by
+        ``build_timeout`` (seconds; ``None`` or ``0`` = no deadline). A failed
+        build (image status ``failed`` or ``error``) raises
+        :class:`ImageBuildFailedError` and a build that outlasts
+        ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
+        no sandbox exists. Then the sandbox is created exactly as by
+        :meth:`create` with the same keywords — ``wait_seconds`` is the create's
+        own wait, and the create never raises because of how that wait ended.
+
+        ``idle_expiry_seconds`` is the anonymous image's idle-retention window
+        (see ``images.build``). ``region`` and ``cpu_arch`` apply to both the
+        build and the create: a Dockerfile-built image boots only in its own
+        region, so it is built where the sandbox will run.
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -220,7 +290,19 @@ class Daytona:
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
     ) -> Sandbox:
-        """Create a Linux sandbox that resumes a memory snapshot (name or ``snap_…`` id)."""
+        """Create a Linux sandbox that resumes a memory snapshot (name or ``snap_…`` id).
+
+        The sandbox continues from the snapshot's memory and disk, so its size,
+        environment and attachments are the snapshot's own. ``name``,
+        ``idempotency_key``, ``wait_seconds`` and ``create_timeout_seconds``
+        behave as on :meth:`create`, and like :meth:`create` this never raises
+        because of how its wait ended.
+
+        Creating Linux sandboxes requires Linux access enabled for the organization.
+        Otherwise a caller holding ``write:sandboxes`` gets
+        ``403`` ``FEATURE_NOT_ENABLED`` (raised as
+        :class:`FeatureNotEnabledError`).
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -262,7 +344,53 @@ class Daytona:
         create_timeout_seconds: Optional[int] = None,
         network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
     ) -> Sandbox:
-        """Create a macOS sandbox on a reserved Mac from a macOS image name."""
+        """Create a macOS sandbox on a reserved Mac from a macOS image name.
+
+        ``resources`` sizes the sandbox (:class:`MacosResources`: physical CPU
+        cores, at least 4; memory in GiB, at least 4; disk in GiB, at least 80,
+        macOS included; memory and disk must convert to whole MiB). Each
+        omitted value uses half of the claiming Mac, rounded down, on a model
+        that runs two sandboxes, or all of it on a model that runs one. The
+        first successful claim fixes the size, which the sandbox reports from
+        then on.
+
+        ``persistent``: Stop keeps the disk on the same Mac. Start and resume use that Mac. Delete erases the disk. At reservation end, the disk is saved as an anonymous image before the Mac is erased; a lost Mac saves it if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
+
+        ``volumes`` attaches disk volumes read-write. A sandbox with volumes
+        cannot be persistent; bucket volumes and ``read_only`` are rejected
+        with :class:`BadRequestError`.
+
+        ``reservation`` picks the Mac's reservation (``daytona.reservations``):
+        ``None`` uses any fitting reservation of the organization in the region (or
+        lets the organization's auto-reserve buy one), ``"new"`` buys a reservation of
+        the cheapest model that fits.
+        A reservation ID targets that reservation at claim. Acceptance does not reserve room; the sandbox can wait for room or time out.
+        ``auto_renew`` is allowed only with ``reservation="new"``. With no reservation
+        to use it raises :class:`ConflictError` (``NO_ACTIVE_RESERVATION``,
+        ``NO_FREE_SLOT``, ``MAC_DISK_FULL``, ``AUTO_RESERVE_LIMIT_REACHED``,
+        ``NO_MAC_AVAILABLE``). ``name``, ``idempotency_key``, ``wait_seconds``
+        and ``create_timeout_seconds`` behave as on :meth:`create`, and like
+        :meth:`create` this never raises because of how its wait ended.
+
+        Creating macOS sandboxes requires macOS access enabled for the organization;
+        otherwise the API answers ``403``
+        ``FEATURE_NOT_ENABLED`` (raised as :class:`FeatureNotEnabledError`).
+
+        ``secrets`` attaches project secrets by name, as on :meth:`create`.
+        Their values are available to HTTPS requests to the secret's allowed
+        domains without entering the sandbox. Attaching needs ``read:secrets``.
+
+        ``network_policy`` sets the sandbox's egress policy, as on
+        :meth:`create`: it applies from the sandbox's first boot. If the policy
+        cannot be enforced, the API answers ``503``. Change it later with
+        :meth:`Sandbox.update_network_policy`.
+
+        Find regions and their regional API endpoints with ``GET /regions``;
+        discover Mac models and prices with ``mac_models.catalog(region="<region>")``.
+        To select a regional API endpoint, set ``DAYTONA_V2_API_URL`` before
+        creating the client. An API that does not serve the region answers
+        :class:`ConflictError`; the SDK does not reroute.
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -291,7 +419,12 @@ class Daytona:
         )
 
     def current_api_key(self) -> ProjectApiKey:
-        """Describe the API key this client authenticates with."""
+        """Describe the API key this client authenticates with.
+
+        Returns its name, masked display parts, the project and organization it
+        acts in, its permissions, expiry and last use. The token itself is
+        never returned.
+        """
         return self._bridge.call(lambda: self._impl.current_api_key())
 
     def delete(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
@@ -299,13 +432,40 @@ class Daytona:
         return self._bridge.call(lambda: self._impl.delete(_rt.unwrap(sandbox), timeout=timeout))
 
     def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> tuple[Sandbox, ...]:
-        """Sandboxes created with ``name=name``, newest first; ``()`` when none."""
+        """Sandboxes created with ``name=name``, newest first; ``()`` when none.
+
+        Exact match on the ``labels["name"]`` every ``create*(name=…)`` stamps,
+        read through sandbox search. Names are not unique, so this is a tuple —
+        every match, read page by page: the one list method that is not a
+        single page. A get-or-create caller takes ``[0]`` when it is non-empty
+        and calls ``create(..., name=name)`` otherwise — and because that create
+        derives the same key as the first one, a lost race between two such
+        callers still yields one sandbox. A new sandbox becomes searchable
+        shortly after its create. Sandboxes that are ``destroyed`` or
+        ``destroying`` are left out. A deployment without search raises
+        :class:`SearchNotConfiguredError` (501).
+
+        ``region`` scopes the read the way it scopes a create: it is sent as
+        the same ``x-daytona-region`` selector ``create*()`` sends, and
+        ``"local"`` (or omitting it) means the default region — so the
+        lookup uses the same regional API endpoint as the named create.
+        """
         return _rt.wrap(self._bridge.call(lambda: self._impl.find_by_name(name, region=region)), self._bridge)  # type: ignore[return-value]
 
     def get(
         self, sandbox_id: str, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
     ) -> Sandbox:
-        """Fetch a sandbox by id."""
+        """Fetch a sandbox by id.
+
+        ``toolbox_url`` overrides the toolbox URL the API returns.
+        The SDK
+        sends this sandbox's toolbox credential there (the API key, a project
+        token, or a minted sandbox token), so pass only a URL you trust —
+        never one read from stored or user-supplied data.
+
+        ``access_token`` is a sandbox access token the handle sends to sandbox
+        services instead of minting its own; the handle never replaces it.
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -316,11 +476,25 @@ class Daytona:
         )
 
     def get_limits(self, *, organization_id: Optional[str] = None) -> OrganizationLimits:
-        """Return the organization's limits and current usage."""
+        """Return the organization's limits and current usage.
+
+        A null ``limit`` means unlimited. With an API key the organization
+        defaults to the key's own, looked up once and cached; with
+        ``jwt_token`` authentication pass ``organization_id``. The credential
+        needs the ``read:limits`` permission. Member counts (``members``) are
+        not included: they are served to signed-in members only.
+        """
         return self._bridge.call(lambda: self._impl.get_limits(organization_id=organization_id))
 
     def get_project_budget(self) -> ProjectBudget:
-        """Return the monthly spend budget of the API key's project."""
+        """Return the monthly spend budget of the API key's project.
+
+        An unset budget is returned with nullable limit and period fields. The key needs the
+        ``read:spending`` permission. Spend is calculated at list price, before
+        credits, and lags usage by several minutes. While the project is over
+        its budget, creating or starting a sandbox in it raises
+        ``ProjectBudgetExceededError``.
+        """
         return self._bridge.call(lambda: self._impl.get_project_budget())
 
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[Sandbox]:
@@ -332,7 +506,12 @@ class Daytona:
         )
 
     def list(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> ListResult[Sandbox]:
-        """List sandboxes as one page ``{items, next_cursor}`` (``GET /sandboxes``), newest first."""
+        """List sandboxes as one page ``{items, next_cursor}`` (``GET /sandboxes``), newest first.
+
+        Read-your-writes: a sandbox you just created is in the result. Walk
+        further pages with :meth:`iter` or the returned cursor. Filtering is
+        :meth:`search`'s job.
+        """
         from .sandbox import Sandbox
 
         return _rt.wrap_page(
@@ -382,7 +561,44 @@ class Daytona:
         limit: Optional[int] = None,
         cursor: Optional[str] = None,
     ) -> SearchResult[Sandbox]:
-        """Search sandboxes across every region (``GET /sandboxes/search``), one page."""
+        """Search sandboxes across every region (``GET /sandboxes/search``), one page.
+
+        Every parameter is optional and they combine as AND. ``q`` is free text
+        over name and image (or an exact id); ``name_prefix``/``id_prefix`` match
+        the start of the name or id; ``states``, ``sandbox_class`` and
+        ``region`` accept a single value or a list (any-of). ``states`` are the
+        SDK's sandbox states (``started``, ``stopped``, ``error``, ...), each
+        sent as the API status names it covers; ``"unknown"`` is refused.
+        ``labels`` is a containment match; the ``min_*``/``max_*`` bounds are
+        inclusive, ``*_start_at`` timestamp bounds are inclusive, and
+        ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 strings or
+        ``datetime`` objects (naive values are taken as UTC). ``sort`` defaults
+        to ``created_at`` and ``order`` to ``desc``; ``limit`` is clamped to
+        1..200 by the server. Returns a :class:`SearchResult` whose ``items``
+        are the same :class:`Sandbox` handles :meth:`list` returns.
+
+        Consistency: search is **eventually consistent**. Results may be briefly
+        stale after a create, update or delete, so a sandbox you
+        just created may not be in the result yet — use :meth:`get` or
+        :meth:`list` for read-your-writes. Results span every region.
+
+        Cursor: ``next_cursor`` is opaque and bound to the exact filter and sort
+        that produced it — presenting it with a different filter or sort is a
+        400, never a silent reset. Paging is best-effort under concurrent
+        mutation: each page reflects current results, so a sandbox whose sort field
+        (``status``, ``name``, ``memory_mib``, ``updated_at``, ...) changes between
+        two page fetches can appear on both pages or on neither, and creates or
+        deletes mid-walk shift later pages.
+
+        Errors: 400 (:class:`BadRequestError`) for a malformed or mismatched
+        cursor, an unknown ``sandbox_class``/``sort`` value, a non-object
+        ``labels`` or a ``min`` above its ``max``; 501
+        (:class:`SearchNotConfiguredError` with
+        ``code == "SEARCH_NOT_CONFIGURED"``) when the API has search
+        disabled; 503 (:class:`SearchUnavailableError` with
+        ``code == "SEARCH_UNAVAILABLE"``) when search is unavailable. On 501/503
+        callers may fall back to :meth:`list`, which does not use search.
+        """
         from .sandbox import Sandbox
 
         return _rt.wrap_page(

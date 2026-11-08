@@ -47,11 +47,6 @@ export function parseLabels(value: unknown, what = 'sandbox'): Readonly<Record<s
   return Object.freeze(Object.fromEntries(entries) as Record<string, string>)
 }
 
-/**
- * Refuse a sandbox object from the API that breaks the contract: every one
- * carries its `class`. A `BadRequestError` (400, `BAD_REQUEST`, source `SDK`).
- * @internal
- */
 const ARTIFACT_REF: ResponseFields = { id: 'string', name: 'string?' }
 
 // The contract fields the handle reads, required ones without `?` (Python
@@ -69,6 +64,12 @@ const SANDBOX: ResponseFields = {
   last_activity_at: 'string?', create_timeout_at: 'string?',
 }
 
+/**
+ * Refuse a sandbox object from the API that breaks the contract: a missing
+ * required field the handle reads, or a wrong type, is a `BadRequestError`
+ * (400, `BAD_REQUEST`, source `SDK`) naming the field.
+ * @internal
+ */
 export function assertSandboxResponse(sandbox: unknown): asserts sandbox is SandboxDto {
   const checked = checkResponse<SandboxDto>(sandbox, SANDBOX, 'sandbox')
   // An empty id or class is as unusable as a missing one.

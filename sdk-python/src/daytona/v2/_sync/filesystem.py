@@ -65,7 +65,10 @@ class FileSystemService:
         return self._bridge.call(lambda: self._impl.glob(path, pattern))
 
     def grep(self, path: str, pattern: str) -> ListResult:
-        """Search file contents under ``path`` for the literal substring ``pattern``."""
+        """Search file contents under ``path`` for the literal substring ``pattern``.
+
+        Returns matches with one-based line numbers.
+        """
         return self._bridge.call(lambda: self._impl.grep(path, pattern))
 
     def list(self, path: str, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
@@ -81,13 +84,21 @@ class FileSystemService:
         return self._bridge.call(lambda: self._impl.move(source, destination))
 
     def presigned_download_url(self, path: str, *, expires_in_seconds: int = 3600) -> str:
-        """Return a pre-signed download URL for a sandbox file."""
+        """Return a pre-signed download URL for a sandbox file.
+
+        The signature is minted by the API; ``expires_in_seconds``
+        must be between 1 and :data:`SIGNED_FILE_MAX_TTL_SECONDS` (7 days).
+        """
         return self._bridge.call(
             lambda: self._impl.presigned_download_url(path, expires_in_seconds=expires_in_seconds)
         )
 
     def presigned_upload_url(self, path: str, *, expires_in_seconds: int = 3600) -> str:
-        """Return a pre-signed upload URL for a sandbox file."""
+        """Return a pre-signed upload URL for a sandbox file.
+
+        The signature is minted by the API; ``expires_in_seconds``
+        must be between 1 and :data:`SIGNED_FILE_MAX_TTL_SECONDS` (7 days).
+        """
         return self._bridge.call(
             lambda: self._impl.presigned_upload_url(path, expires_in_seconds=expires_in_seconds)
         )
@@ -97,7 +108,11 @@ class FileSystemService:
         return self._bridge.call(lambda: self._impl.read_bytes(path))
 
     def read_many(self, paths: Sequence[str]) -> BulkReadResult:
-        """Read multiple files, buffering each returned file in memory before returning."""
+        """Read multiple files, buffering each returned file in memory before returning.
+
+        Non-200 responses raise the typed SDK error inside the transport;
+        only a 200 multipart body reaches the parser.
+        """
         return self._bridge.call(lambda: self._impl.read_many(paths))
 
     def read_text(self, path: str) -> str:
@@ -164,7 +179,13 @@ class FileSystemService:
 
 
 class WatchHandle:
-    """A running directory watch."""
+    """A running directory watch.
+
+    Single-task, single-loop: the reader is one ``asyncio.Task`` and every
+    method runs on the same loop, so the sync version's five locks collapse to
+    plain attributes. Only the exit event survives, because ``wait_for_exit``
+    genuinely waits.
+    """
 
     _async_type = _async.AsyncWatchHandle
 

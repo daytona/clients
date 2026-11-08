@@ -37,5 +37,11 @@ class SandboxVolumesService:
         return hash(self._impl)
 
     def pull(self, volume_id: str, *, request_id: str, timeout: Optional[float] = None) -> PullVolumeResult:
-        """Submit/check once; timeout is a server wait in seconds (0–30, default 30)."""
+        """Submit/check once; timeout is a server wait in seconds (0–30, default 30).
+
+        Zero does not wait: it submits a new request_id, or returns a known one's
+        last outcome without retrying it; a timeout above zero retries pending,
+        unavailable or rate-limited work. Expiry does not cancel work. Neither
+        retries nor identities are automatic.
+        """
         return self._bridge.call(lambda: self._impl.pull(volume_id, request_id=request_id, timeout=timeout))

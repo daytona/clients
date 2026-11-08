@@ -232,13 +232,13 @@ async def test_get_takes_a_caller_access_token_the_handle_never_replaces() -> No
 @pytest.mark.parametrize("if_match", ["", None])
 async def test_if_match_must_be_a_non_empty_string(if_match: object) -> None:
     sandbox = lazy_sandbox(AsyncDaytona(DaytonaConfig(api_key="key")), "sbx")
-    for call in (
-        sandbox.update_network_policy(network_policy={"block_all": True}, if_match=if_match),  # type: ignore[arg-type]
-        sandbox.reset_network_policy(if_match=if_match),  # type: ignore[arg-type]
-        sandbox.replace_secrets(secrets=[], if_match=if_match),  # type: ignore[arg-type]
-    ):
-        with pytest.raises(BadRequestError, match="if_match must be a non-empty string"):
-            await call
+    # Each operation runs inside its own pytest.raises, so all three are checked.
+    with pytest.raises(BadRequestError, match="if_match must be a non-empty string"):
+        await sandbox.update_network_policy(network_policy={"block_all": True}, if_match=if_match)  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="if_match must be a non-empty string"):
+        await sandbox.reset_network_policy(if_match=if_match)  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="if_match must be a non-empty string"):
+        await sandbox.replace_secrets(secrets=[], if_match=if_match)  # type: ignore[arg-type]
 
 
 @pytest.mark.anyio

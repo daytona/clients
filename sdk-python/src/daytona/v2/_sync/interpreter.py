@@ -107,7 +107,15 @@ class InterpreterService:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
-        """Execute code and return the parsed interpreter result."""
+        """Execute code and return the parsed interpreter result.
+
+        A rehydrated ``kind='code'`` process handle can still replay logs and
+        wait/kill, but it does not reconstruct this decomposed result on
+        another worker. A vanished explicit context surfaces the API's typed
+        ``SESSION_NOT_FOUND`` error; callers decide whether to recreate the
+        context and what to rerun. ``timeout`` is the caller wait budget in
+        seconds; ``0`` waits unbounded.
+        """
         return self._bridge.call(
             lambda: self._impl.run(
                 code,

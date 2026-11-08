@@ -61,7 +61,11 @@ class ProcessHandle:
         return self._bridge.call(lambda: self._impl.close_stdin())
 
     def delete(self) -> None:
-        """Delete the process record and retained logs, stopping it first."""
+        """Delete the process record and retained logs, stopping it first.
+
+        Raises ``UnsupportedOperationError`` for a running code cell and for a
+        session command that has not stopped within 5 s: delete its session.
+        """
         return self._bridge.call(lambda: self._impl.delete())
 
     @classmethod
@@ -110,7 +114,11 @@ class ProcessHandle:
         return self._impl.to_json()
 
     def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
-        """Wait for terminal state using the process long-poll contract."""
+        """Wait for terminal state using the process long-poll contract.
+
+        ``timeout`` is the caller wait budget in seconds; ``0`` waits
+        unbounded.
+        """
         return self._bridge.call(lambda: self._impl.wait(timeout=timeout))
 
     def write_stdin(self, data: Union[str, bytes]) -> None:
@@ -155,7 +163,11 @@ class ProcessService:
         login: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> Session:
-        """Create one persistent shell; cwd and env apply to all its commands."""
+        """Create one persistent shell; cwd and env apply to all its commands.
+
+        ``shell`` must be a POSIX shell (bash, sh, dash, zsh, ksh) on Linux
+        and macOS; another shell is refused when the session is created.
+        """
         from .session import Session
 
         return Session(
@@ -199,7 +211,50 @@ class ProcessService:
         terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
     ) -> ProcessResult:
-        """Start a process, wait for its shell to exit, and collect its output."""
+        """Start a process, wait for its shell to exit, and collect its output.
+
+        The common case is one round trip: the sandbox starts the process, holds
+        the request until it exits (or ``timeout`` expires), and returns the
+        output inline. A process that outlives the wait window or produces more
+        output than fits in one page falls back to split calls automatically.
+
+        The result holds the output available when the call returns:
+        its per-process log is bounded, so very large output loses its oldest
+        frames, and a result that timed out collects only the first few log
+        pages.
+
+        **Shell selection.** A string ``command`` runs through the sandbox shell
+        (``bash``, else ``sh``; pin another with ``shell=``). Quote globs and brackets
+        (``pip install -e '.[test]'``) so the command means the same under any
+        shell. Use ``argv=`` to bypass the shell entirely, which is the safe
+        form for untrusted arguments. For persistent shell state, use :meth:`create_session`.
+
+        **Background processes.** The call returns when the shell exits. If the
+        command forks a background child that holds its output descriptors open
+        (e.g. ``python3 -m http.server 8000 &``), the call waits at most ~2
+        seconds for output to drain and then returns; output the child writes
+        later is not part of the result. For a long-running server prefer
+        :meth:`start`, which returns a :class:`ProcessHandle` immediately, or
+        redirect: ``nohup cmd > server.log 2>&1 &``.
+
+        :param command: Shell command string; mutually exclusive with ``argv``.
+        :param argv: Argument vector for shell-free execution.
+        :param cwd: Working directory inside the sandbox.
+        :param env: Extra environment variables merged into the process environment.
+        :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
+        :param timeout: Caller wait budget in seconds. Omit to wait until the process
+            ends. Does not kill the process on expiry.
+        :param execution_timeout: Server-side deadline in seconds. The sandbox kills
+            the process tree when this expires.
+        :returns: :class:`~daytona.v2.types.ProcessResult` with ``stdout``, ``stderr``,
+            ``output``, ``exit_code``, and ``reason``.
+
+        Example::
+
+            result = await sandbox.process.run("pip install httpx")
+            if result.exit_code != 0:
+                raise RuntimeError(result.stderr)
+        """
         return self._bridge.call(
             lambda: self._impl.run(
                 command,
@@ -234,7 +289,35 @@ class ProcessService:
         terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
     ) -> ProcessHandle:
-        """Start a detached process and return a handle immediately."""
+        """Start a detached process and return a handle immediately.
+
+        Unlike :meth:`run`, this returns as soon as the sandbox has started the
+        process. Use the returned :class:`ProcessHandle` to stream logs
+        (``handle.stream_logs()``), wait for exit (``handle.wait()``), or kill
+        (``handle.kill()``). This is the right choice for long-running servers —
+        call ``start()`` once, then poll the port or stream logs to confirm the
+        server is ready.
+
+        **Shell selection.** A string ``command`` runs through the sandbox shell
+        (``bash``, else ``sh``; pin another with ``shell=``). Quote globs and brackets
+        (``pip install -e '.[test]'``). Use ``argv=`` to bypass the shell for
+        untrusted input. For persistent shell state, use :meth:`create_session`.
+
+        :param command: Shell command string; mutually exclusive with ``argv``.
+        :param argv: Argument vector for shell-free execution.
+        :param cwd: Working directory inside the sandbox.
+        :param env: Extra environment variables merged into the process environment.
+        :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
+        :param execution_timeout: Server-side deadline in seconds. The sandbox kills
+            the process tree when this expires.
+        :returns: Bound :class:`ProcessHandle` — logs, wait, and kill are available
+            immediately.
+
+        Example — start an HTTP server and wait for it to be ready::
+
+            handle = await sandbox.process.start("python3 -m http.server 8000")
+            # poll or stream logs; the process keeps running in the background
+        """
         return ProcessHandle(
             self._bridge.call(
                 lambda: self._impl.start(

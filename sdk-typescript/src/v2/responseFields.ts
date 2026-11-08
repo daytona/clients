@@ -5,7 +5,7 @@
 
 import { badRequest } from './options.js'
 
-type Scalar = 'string' | 'number' | 'integer' | 'boolean' | 'object'
+type Scalar = 'string' | 'number' | 'integer' | 'int32' | 'boolean' | 'object'
 
 /**
  * `true`: the field may be absent or null. `'nullable'`: the contract requires
@@ -43,6 +43,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function article(kind: string): string {
+  if (kind === 'int32') return 'a 32-bit integer'
   return /^[aeiou]/.test(kind) ? `an ${kind}` : `a ${kind}`
 }
 
@@ -70,6 +71,8 @@ function checkField(value: unknown, spec: FieldSpec, path: string, what: string)
   const ok = kind === 'string' ? typeof value === 'string'
     : kind === 'number' ? typeof value === 'number' && Number.isFinite(value)
       : kind === 'integer' ? Number.isSafeInteger(value)
+        // The contract's int32 format: its type rules out anything wider.
+        : kind === 'int32' ? Number.isInteger(value) && (value as number) >= -2_147_483_648 && (value as number) <= 2_147_483_647
         : kind === 'boolean' ? typeof value === 'boolean'
           : isObject(value)
   if (!ok) throw badRequest(`${what} response has a ${path} that is not ${article(kind)}`)

@@ -1570,8 +1570,10 @@ class AsyncSandbox:
         """
         body: JsonObject = {}
         if operations is not None:
-            if isinstance(operations, (str, bytes)) or not isinstance(operations, Sequence) or not all(
-                isinstance(operation, str) for operation in operations
+            if (
+                isinstance(operations, (str, bytes))
+                or not isinstance(operations, Sequence)
+                or not all(isinstance(operation, str) for operation in operations)
             ):
                 raise create_error("operations must be a list of strings", 400, "BAD_REQUEST", "SDK")
             body["operations"] = list(operations)

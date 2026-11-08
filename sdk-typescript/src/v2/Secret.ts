@@ -14,6 +14,7 @@
  * Uses the `/secrets` routes, scoped to the API key's project.
  */
 
+import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -57,13 +58,13 @@ const SECRET: ResponseFields = { name: 'string', allowed_domains: arrayOf('strin
 
 function mapSecret(value: api.Secret): Secret {
   const secret = checkResponse<api.Secret>(value, SECRET, 'secret')
-  return {
+  return deepFrozen({
     name: secret.name,
     allowedDomains: [...secret.allowed_domains],
     description: secret.description ?? undefined,
     createdAt: secret.created_at,
     updatedAt: secret.updated_at,
-  }
+  })
 }
 
 /** Service for managing project-scoped secrets. */
@@ -82,7 +83,7 @@ export class SecretsService {
     options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
     const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: options })
     const page = listPage<api.Secret>(data, 'secrets', 'secret list')
-    return { items: page.items.map(mapSecret), nextCursor: page.nextCursor }
+    return frozenPage({ items: page.items.map(mapSecret), nextCursor: page.nextCursor })
   }
 
   public async *iter(options: ListSecretsOptions = {}): AsyncIterable<Secret> {

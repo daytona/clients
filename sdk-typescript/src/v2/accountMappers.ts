@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { deepFrozen } from './frozen.js'
 import type * as api from './gen/api-types.js'
 import type { AuditActionList, OrganizationLimits, ProjectApiKey, ProjectBudget, UsageLimit } from './accountTypes.js'
 import { arrayOf, checkResponse, nested } from './responseFields.js'
@@ -34,12 +35,12 @@ const ORGANIZATION_LIMITS: ResponseFields = {
 
 export function auditActionList(value: api.AuditActionList): AuditActionList {
   const data = checkResponse<api.AuditActionList>(value, AUDIT_ACTIONS, 'audit actions')
-  return { targets: data.targets.map((group) => ({ targetType: group.target_type, actions: [...group.actions] })) }
+  return deepFrozen({ targets: data.targets.map((group) => ({ targetType: group.target_type, actions: [...group.actions] })) })
 }
 
 export function projectApiKey(value: api.ProjectApiKeyWithContext): ProjectApiKey {
   const data = checkResponse<api.ProjectApiKeyWithContext>(value, API_KEY, 'API key')
-  return {
+  return deepFrozen({
     id: data.id,
     name: data.name,
     projectId: data.project_id,
@@ -54,12 +55,12 @@ export function projectApiKey(value: api.ProjectApiKeyWithContext): ProjectApiKe
     serviceAccountId: data.service_account_id ?? undefined,
     serviceAccountName: data.service_account_name ?? undefined,
     context: { orgId: data.context.org_id, orgName: data.context.org_name, projectName: data.context.project_name },
-  }
+  })
 }
 
 export function projectBudget(value: api.ProjectBudget): ProjectBudget {
   const data = checkResponse<api.ProjectBudget>(value, PROJECT_BUDGET, 'project budget')
-  return {
+  return deepFrozen({
     monthlyLimitCents: data.monthly_limit_cents ?? undefined,
     periodStartDate: data.period_start_date ?? undefined,
     spentCents: data.spent_cents ?? undefined,
@@ -68,7 +69,7 @@ export function projectBudget(value: api.ProjectBudget): ProjectBudget {
     evaluatedAt: data.evaluated_at ?? undefined,
     exceededAt: data.exceeded_at ?? undefined,
     stopAt: data.stop_at ?? undefined,
-  }
+  })
 }
 
 function usageLimit(data: { readonly limit: number | null; readonly usage: number }): UsageLimit {
@@ -77,7 +78,7 @@ function usageLimit(data: { readonly limit: number | null; readonly usage: numbe
 
 export function organizationLimits(value: api.OrganizationLimits): OrganizationLimits {
   const data = checkResponse<api.OrganizationLimits>(value, ORGANIZATION_LIMITS, 'organization limits')
-  return {
+  return deepFrozen({
     sandboxes: { concurrent: usageLimit(data.sandboxes.concurrent), total: usageLimit(data.sandboxes.total) },
     imageBuilds: { concurrent: usageLimit(data.image_builds.concurrent) },
     storage: { volumes: usageLimit(data.storage.volumes), images: usageLimit(data.storage.images), snapshots: usageLimit(data.storage.snapshots) },
@@ -92,5 +93,5 @@ export function organizationLimits(value: api.OrganizationLimits): OrganizationL
       ...usageLimit(data.members),
       pendingInvitations: data.members.pending_invitations,
     },
-  }
+  })
 }

@@ -182,9 +182,12 @@ it('ends a stalled poll at the pull deadline, not at the shorter request timeout
   respond = (phase, response) => { if (phase !== 'poll') reply(phase, response) }
   const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 200))
   // When the pull's one-second readiness budget expires.
+  const started = performance.now()
   const result = service.pull('alpine', { timeoutSeconds: 1 })
-  // Then the pull's own deadline error is raised.
+  // Then the pull's own deadline error is raised, and not before the budget:
+  // the 200 ms request timeout does not cut the stalled poll.
   await expect(result).rejects.toMatchObject({ message: 'image pull did not finish before timeout', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+  expect(performance.now() - started).toBeGreaterThanOrEqual(950)
 })
 
 it('leaves standalone build acceptance-only', async () => {

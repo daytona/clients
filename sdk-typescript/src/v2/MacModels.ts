@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { deepFrozen } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -44,7 +45,7 @@ export class MacModelsService {
   public async list(): Promise<readonly MacModel[]> {
     const { data } = await this.http.get<api.MacModelList>('/mac-models')
     // The registry is not paged: `mac_models` is its whole envelope.
-    return listPage<api.MacModel>(data, 'mac_models', 'Mac model list').items.map(mapMacModel)
+    return Object.freeze(listPage<api.MacModel>(data, 'mac_models', 'Mac model list').items.map(mapMacModel))
   }
 
   /** Free Macs and prices per model. Availability is advisory; price is absent when unavailable. */
@@ -52,7 +53,7 @@ export class MacModelsService {
     assertKnownOptions('MacCatalogOptions', options, MAC_CATALOG_KEYS)
     const response = await this.http.get<api.MacCatalog>('/mac-catalog', options.region === undefined ? undefined : { params: { region_ids: options.region } })
     const data = checkResponse<api.MacCatalog>(response.data, MAC_CATALOG, 'Mac catalog')
-    return {
+    return deepFrozen({
       regions: data.regions.map((region) => ({
         id: region.id,
         defaultModel: region.default_model,
@@ -67,6 +68,6 @@ export class MacModelsService {
           },
         })),
       })),
-    }
+    })
   }
 }

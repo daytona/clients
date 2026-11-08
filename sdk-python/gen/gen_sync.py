@@ -132,14 +132,27 @@ _LOOP_FREE = {"to_json", "ref", "from_json", "from_id", "connect"}
 
 
 def _sync_doc(doc: str) -> str:
-    """First docstring line for a sync twin: cross-references to wrapped
-    async classes (``:class:`AsyncDockerService` ``) name the sync twin."""
-    line = doc.strip().splitlines()[0]
+    """The full docstring for a sync twin: cross-references to wrapped async
+    classes (``:class:`AsyncDockerService` ``) name the sync twin."""
+    text = inspect.cleandoc(doc)
     return re.sub(
         r"(?<![\w.])Async(" + "|".join(sorted(n.removeprefix("Async") for n in WRAPPED)) + r")(?![\w])",
         r"\1",
-        line,
+        text,
     )
+
+
+def _doc_block(doc: str, indent: str) -> list[str]:
+    """``doc`` as docstring source lines at ``indent`` (raw when it holds a backslash)."""
+    text = _sync_doc(doc)
+    prefix = 'r"""' if "\\" in text else '"""'
+    lines = text.split("\n")
+    if len(lines) == 1:
+        return [f'{indent}{prefix}{lines[0]}"""']
+    out = [f"{indent}{prefix}{lines[0]}"]
+    out.extend(f"{indent}{line}" if line else "" for line in lines[1:])
+    out.append(f'{indent}"""')
+    return out
 
 
 @dataclass
@@ -434,8 +447,7 @@ def _emit_class(module: str, cls: type) -> str:
         _index_source(module)
     lines: list[str] = []
     lines.append(f"class {_twin(name)}:")
-    doc = _sync_doc(cls.__doc__ or f"Synchronous {_twin(name)}.")
-    lines.append(f'    """{doc}"""')
+    lines.extend(_doc_block(cls.__doc__ or f"Synchronous {_twin(name)}.", "    "))
     lines.append("")
     lines.append(f"    _async_type = _async.{name}")
     lines.append("")
@@ -504,7 +516,7 @@ def _emit_class(module: str, cls: type) -> str:
             lines.append("    @property")
             lines.append(f"    def {m.name}(self) -> {ret}:")
             if m.doc:
-                lines.append(f'        """{_sync_doc(m.doc)}"""')
+                lines.extend(_doc_block(m.doc, "        "))
             if m.name in direct_properties:
                 inner = f"self._impl.{m.name}"
             else:
@@ -523,7 +535,7 @@ def _emit_class(module: str, cls: type) -> str:
             lines.append("    @classmethod")
             lines.append(f"    def {m.name}(cls, {decl}) -> {ret}:")
             if m.doc:
-                lines.append(f'        """{_sync_doc(m.doc)}"""')
+                lines.extend(_doc_block(m.doc, "        "))
             lines.append(
                 f"        return {_wrap_expr(m.src_returns or m.returns, f'_async.{name}.{m.name}({fwd})', '_rt.UNBOUND')}"
             )
@@ -539,7 +551,7 @@ def _emit_class(module: str, cls: type) -> str:
         sig = f"self{', ' if decl else ''}{decl}"
         lines.append(f"    def {m.name}({sig}) -> {ret}:")
         if m.doc:
-            lines.append(f'        """{_sync_doc(m.doc)}"""')
+            lines.extend(_doc_block(m.doc, "        "))
         if m.kind == "coro" and (m.src_returns or "") == "Self":
             # A fluent method returns the SAME handle (`-> Self`): the sync twin
             # must return itself, not a second wrapper around the same impl
@@ -695,7 +707,7 @@ def render_module(module: str, names: list[str]) -> str:
     # TYPE_CHECKING for annotations; constructed at runtime through a lazy
     # resolver so the package stays cycle-free.
     # Docstrings are prose: a bare twin name there (``Sandbox``) is not a use.
-    code = "\n".join(line for line in body.split("\n") if not line.lstrip().startswith('"""'))
+    code = re.sub(r'r?"""(?:[^"\\]|\\.|"(?!""))*"""', "", body)
     others = sorted(
         n for n in WRAPPED if n not in names and re.search(rf"(?<![\w.]){_twin(n)}(?![\w])", code)
     )

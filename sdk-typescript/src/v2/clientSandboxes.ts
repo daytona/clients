@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
@@ -79,7 +80,7 @@ export async function listSandboxes(context: SandboxClientContext, options: List
   const page = listPage<api.Sandbox>(listResponse, 'sandboxes', 'sandbox list')
   const nextCursor = page.nextCursor ?? ('nextCursor' in listResponse && typeof listResponse.nextCursor === 'string' ? listResponse.nextCursor : undefined)
   page.items.forEach(assertSandboxResponse)
-  return { items: await sandboxesFromDtos(context, page.items), nextCursor }
+  return frozenPage({ items: await sandboxesFromDtos(context, page.items), nextCursor })
 }
 
 /** @internal */
@@ -89,13 +90,13 @@ export async function searchSandboxes(context: SandboxClientContext, options: Se
   const items = searchPageSandboxes(data)
   const sandboxes = await sandboxesFromDtos(context, items)
   const rawTotalRelation = data.total_relation ?? 'eq'
-  return {
+  return frozenPage({
     items: sandboxes,
     nextCursor: typeof data.next_cursor === 'string' ? data.next_cursor : undefined,
     total: data.total ?? 0,
     totalRelation: knownOrUnknown(rawTotalRelation, SEARCH_TOTAL_RELATIONS),
     rawTotalRelation,
-  }
+  })
 }
 
 /** @internal */
