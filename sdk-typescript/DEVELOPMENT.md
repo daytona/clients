@@ -161,7 +161,8 @@ overload that matches, and the breaking-change check compares them in that
 order: for a function callers call, the existing overloads keep their order, a
 new one comes after them, only the last may widen, an earlier one may only
 narrow its return type (parameter names aside), and none may be dropped
-(acknowledge it when a later overload takes all its calls); a signature
+(acknowledge it only when the later overload its calls now reach takes them
+all and returns the same or a narrower type); a signature
 callers implement gains or loses no overload; see
 `docs/VERSIONING.md`, "Breaking-change check"). A declaration of this package that a listed
 signature uses but no entry point exports (the v2 client behind the root's

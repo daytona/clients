@@ -216,8 +216,9 @@ resolves against the first overload it matches. For a function callers call
 (one the SDK implements, or a method of a type that goes both ways), the
 existing overloads keep their order, a new overload may only come after them,
 only the last overload may widen, an earlier one may only narrow its return
-type (renaming a TypeScript parameter aside), and none may be dropped: when a
-later overload really takes all of a dropped one's calls, acknowledge the
+type (renaming a TypeScript parameter aside), and none may be dropped: when the
+later overload a dropped one's calls now reach (the first that accepts them)
+takes all of them and returns the same or a narrower type, acknowledge the
 finding. For a signature callers implement (a callback, the methods of a type
 they pass in), no overload or call signature may be added or dropped: every
 implementation would have to change. In

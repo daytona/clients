@@ -191,8 +191,9 @@ their declaration order (calls resolve against the first overload that
 matches, and the breaking-change check compares them in that order: for a
 function callers call, the existing overloads keep their order, a new one
 comes after them, only the last may widen, an earlier one may only narrow its
-return type, and none may be dropped (acknowledge it when a later overload
-takes all its calls); a protocol method callers implement gains or loses no
+return type, and none may be dropped (acknowledge it only when the later
+overload its calls now reach takes them all and returns the same or a narrower
+type); a protocol method callers implement gains or loses no
 overload; see `docs/VERSIONING.md`, "Breaking-change check"). A
 `daytona` class or type alias that a listed
 signature uses but neither namespace exports (the v2 clients behind the
