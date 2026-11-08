@@ -106,9 +106,9 @@ Two rules narrow what that covers:
 - **Generated wire types are never public.** The types generated from the
   contracts under [`contract/`](../contract/) (Python `daytona.v2._gen`,
   TypeScript `src/v2/gen/`, the CLI's `cli/gen/`) change whenever a contract
-  does. No public export or public signature uses one: every type the SDKs
-  expose is written in the SDK, so a contract change reaches you only through
-  the surface described here.
+  does. From `2.0.0` on, no public export or public signature uses one: every
+  type the SDKs expose is written in the SDK, so a contract change reaches you
+  only through the surface described here.
 
 Not covered (may change in any release): anything under an `_`-prefixed name,
 internal modules not re-exported from the entry point, the `X-Daytona-Source` /
@@ -172,10 +172,12 @@ The skew is observable: every SDK request carries `X-Daytona-Source` and
 `X-Daytona-SDK-Version` (and `User-Agent: <source>/<version>`), so the API
 can see which SDK version each call came from.
 
-**The API paths a 2.x SDK calls stay valid for all of 2.x.** Until `3.0.0`,
-the API neither removes nor renames a path that any 2.x SDK release calls. An
-older 2.x SDK outside the window above can miss newer behavior, but it does
-not start failing because an endpoint it uses went away.
+**The API paths a stable 2.x SDK calls stay valid for all of 2.x.** From
+`2.0.0` until `3.0.0`, the API neither removes nor renames a path that any
+stable 2.x SDK release calls (pre-releases may still break, see
+[Pre-stable](#pre-stable-alpha)). An older 2.x SDK outside the window above can
+miss newer behavior, but it does not start failing because an endpoint it uses
+went away.
 
 ## Supported runtimes
 
