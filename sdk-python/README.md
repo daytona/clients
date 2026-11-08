@@ -712,14 +712,20 @@ receives; a failing `on_exit` is ignored. A watch whose stream drops ends with
 `ConnectionError`. `on_exit` runs exactly once for a watch `watch_dir()`
 returned; a failure before the watch starts (a refused connection, an HTTP
 error, a stream that ends before `start`) is raised from `watch_dir()` and
-does not call it. `stop()` returns once a callback that
-is already running, and `on_exit`, have finished, and a callback (or
-`on_exit`) may stop its own watch, also from a task it started.
+does not call it. No callback runs before `watch_dir()` has returned.
+`stop()` returns once a callback that is already running, and `on_exit`, have
+finished, and a callback (or `on_exit`) may stop its own watch through the
+handle `watch_dir()` returned, also from a task it started.
 With the synchronous `Daytona` client the callbacks run on the SDK's
 event-loop thread. There a callback may call its own watch's `stop()` (which
 returns without waiting), `wait_for_exit()` and `exit_error`. Any other
 synchronous SDK call, including another watch's methods, raises a
-`DaytonaError` (source `SDK`, no code), which ends the watch.
+`DaytonaError` (source `SDK`, no code), which ends the watch. Deliveries start
+as the synchronous `watch_dir()` returns, but because callbacks run on another
+thread, the first events can reach a callback before the caller has stored the
+returned handle. To end a synchronous watch from an event without that race,
+signal the caller's thread (a `threading.Event`, for example) and call
+`stop()` there.
 
 `read_bytes()`, `read_text()`, `read_many()` and the computer-use recording
 `download()` hold the whole response in memory. For large files, or content

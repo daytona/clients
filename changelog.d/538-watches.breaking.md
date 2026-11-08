@@ -19,10 +19,17 @@ watch `watch_dir()` / `watchDir()` returned, exactly once: a failure before
 the watch starts (a refused connection, an HTTP error, a stream that ends or
 breaks before `start`, a cancellation) is raised from that call and never
 calls it (TypeScript called it for these, Python for a stream that broke
-before `start`). Events carry `timestampMs` / `timestamp_ms`, and a malformed
-event ends the watch with `BadRequestError`. A watch whose stream ends on its
-own, or is cut short, ends with `ConnectionError` (source `SDK`) in both SDKs
-(Python raised a 500 `InternalServerError`, TypeScript a plain `DaytonaError`
-or the runtime's own error), and a stream that fails to close after the
-caller's own `stop()` no longer becomes the exit error (Python could report a
-`RuntimeError` when `stop()` raced the reader's close).
+before `start`). No callback runs before `watch_dir()` / `watchDir()` has
+returned, so a callback can stop its own watch through the returned handle
+(Python delivered events that arrived with `start` first, so such a callback
+failed with a `NameError`); with the synchronous Python client deliveries
+start as `watch_dir()` returns, but the first events can still reach a
+callback before the caller has stored the handle, so end a synchronous watch
+from an event by signalling the caller's thread (a `threading.Event`) and
+calling `stop()` there. Events carry `timestampMs` / `timestamp_ms`, and a
+malformed event ends the watch with `BadRequestError`. A watch whose stream
+ends on its own, or is cut short, ends with `ConnectionError` (source `SDK`)
+in both SDKs (Python raised a 500 `InternalServerError`, TypeScript a plain
+`DaytonaError` or the runtime's own error), and a stream that fails to close
+after the caller's own `stop()` no longer becomes the exit error (Python could
+report a `RuntimeError` when `stop()` raced the reader's close).

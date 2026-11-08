@@ -1498,7 +1498,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations",
+          "Optional arguments become keyword-only; request_timeout is replaced by timeout (seconds, one deadline for the whole operation); v0 request_timeout=0 (no limit) becomes timeout=0, and omitting timeout selects the 30-minute default",
           "Use False rather than None for an omitted insecure_skip_tls value"
         ],
         "ts": [
@@ -1694,7 +1694,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations"
+          "Optional arguments become keyword-only; request_timeout is replaced by timeout (seconds, one deadline for the whole operation); v0 request_timeout=0 (no limit) becomes timeout=0, and omitting timeout selects the 30-minute default"
         ],
         "ts": [
           "Optional arguments move into an options object"
@@ -1717,7 +1717,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations"
+          "Optional arguments become keyword-only; request_timeout is replaced by timeout (seconds, one deadline for the whole operation); v0 request_timeout=0 (no limit) becomes timeout=0, and omitting timeout selects the 30-minute default"
         ],
         "ts": [
           "Optional arguments move into an options object"

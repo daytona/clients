@@ -39,14 +39,20 @@ refused, as is a file part whose `filename*` is not valid percent-encoded
 UTF-8), a window id up to 2^53 - 1 and a `cpuUtilization` between 0 and 1, an
 RFC 3339 timestamp with the same field ranges (hour 00-23, no leap second,
 offset within ±23:59), a created process record's non-empty `id`, the record a
-timed-out `wait()` re-reads (TypeScript), and the interpreter session
-responses for the fields they read (`id`, `kernel`; a missing or empty `id`
-names a context id the caller chose, which may have been created), and
-`glob()` accepts only the API's `{ files }` response. A process log stream or
-watch skips an event it does not know (whatever its data) and raises the error
-for a known event whose data is not JSON; Python ended the stream with a
-`JSONDecodeError`. `mkdir()` defaults to mode `"0755"` in both SDKs.
-TypeScript `readText()` decodes strictly as UTF-8 and keeps a leading
-byte-order mark, like Python; `WriteFileOptions.mode` is removed (use
-`chmod()`), as are the aliases `Match`, `SearchFilesResponse`,
+timed-out `wait()` re-reads, in full (Python checked only its generated model,
+so an empty `id` or a bad `createdAt` still returned a result), every list,
+map and nested-object field of a response before Python decodes it (Python
+read a `{}` or `""` list as empty, so a `run()` whose inline log `frames` was
+malformed returned no output, and raised a raw `TypeError` for a number; this
+covers `run()` / `exec()` / `session.run()` logs, the display, window and
+recording lists and accessibility nodes), a finite recording `durationSeconds`
+(Python), and the interpreter session responses for the fields they read
+(`id`, `kernel`; a missing or empty `id` names a context id the caller chose,
+which may have been created), and `glob()` accepts only the API's `{ files }`
+response. A process log stream or watch skips an event it does not know
+(whatever its data) and raises the error for a known event whose data is not
+JSON; Python ended the stream with a `JSONDecodeError`. `mkdir()` defaults to
+mode `"0755"` in both SDKs. TypeScript `readText()` decodes strictly as UTF-8
+and keeps a leading byte-order mark, like Python; `WriteFileOptions.mode` is
+removed (use `chmod()`), as are the aliases `Match`, `SearchFilesResponse`,
 `FilePermissionsParams` and `ListBranchResponse`.

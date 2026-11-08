@@ -161,6 +161,18 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   there raises `BridgeError`. Whether a call is a watch's own callback's is
   decided by the per-delivery token in `_WATCH_DELIVERY` (a `ContextVar`, so
   tasks the callback starts inherit it), never by the current task.
+- A watch delivers nothing before `watch_dir()` has handed out its handle
+  (`AsyncWatchHandle._published`). The async `watch_dir()` releases it as its
+  last step, unless it runs on a sync client's bridge loop
+  (`_bridge.on_a_bridge_loop()`); there the sync twin, listed in the async
+  class's `_SYNC_AFTER_WRAP` (`AsyncFileSystemService`: `watch_dir` →
+  `_publish`), posts the release to the loop with `SyncBridge.post()` once it
+  has built its `WatchHandle`. Events read before `start` are held until
+  `start` arrives.
+- Generated models decode through `_expect_model_from_dict`, which first
+  checks every list, map and nested-model field of the payload against the
+  model's field types (`_check_container_fields`, an explicit stack): the
+  generated `from_dict` would iterate whatever is there.
 - SSE: `SseParser.feed_message()` yields the raw `data:` text; a consumer
   parses only the events it knows, with `sse_json()` (the malformed-response
   error for non-JSON data). Handles reconnect through their namespace

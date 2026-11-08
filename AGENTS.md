@@ -634,7 +634,14 @@ skipping exist only in the TypeScript tool).
   watch `watch_dir()` / `watchDir()` returned and runs exactly once; any
   failure before that call returns (a refused connection, an HTTP error, a
   stream that ends or breaks before `start`, a cancellation) is raised from
-  it and never calls the exit callback. A process log stream cut short is
+  it and never calls the exit callback. No callback runs before the watch
+  is handed out: async Python releases deliveries as `watch_dir()` returns,
+  TS one promise job later (after a direct `await watchDir()` resumes; a
+  promise job, not a timer, so fake timers cannot hold it), and the sync
+  Python twin posts the release to the loop as it returns its handle
+  (`_SYNC_AFTER_WRAP`), so a sync callback can still run before the caller
+  stores the handle (documented: signal the caller's thread to stop it).
+  Events read before `start` are held and delivered after it. A process log stream cut short is
   `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
   and so is one that ends without `eof`: the server ends it with `eof`, so
   an iteration that ends normally always has the whole log.

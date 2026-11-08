@@ -33,6 +33,8 @@ sys.path[:0] = [str(EXAMPLES / "python"), str(EXAMPLES)]
 from _common import RUN
 
 from daytona.v2 import (
+    GitCommitResponse,
+    GitStatus,
     ImageBuilder,
     ImageBuildFailedError,
     InterpreterError,
@@ -41,6 +43,7 @@ from daytona.v2 import (
     InterpreterResult,
     ListResult,
     ProcessResult,
+    ReplaceResult,
 )
 from daytona.v2._sync.daytona import Daytona as SyncDaytona
 from daytona.v2._sync.filesystem import FileSystemService
@@ -175,19 +178,22 @@ class FakeWorld:
         fs.write_bytes.side_effect = lambda path, data, **_: files.__setitem__(path, data)
         fs.read_bytes.side_effect = lambda path, **_: files[path]
 
-        def replace(paths: list[str], pattern: str, new_value: str, **_: object) -> None:
+        def replace(paths: list[str], pattern: str, new_value: str, **_: object) -> ListResult[ReplaceResult]:
             for path in paths:
                 files[path] = files[path].decode().replace(pattern, new_value).encode()
+            return ListResult(items=[ReplaceResult(file=path, success=True) for path in paths])
 
         fs.replace.side_effect = replace
-        fs.list.return_value = SimpleNamespace(items=[])
-        fs.glob.return_value = SimpleNamespace(items=[])
+        fs.list.return_value = ListResult(items=[])
+        fs.glob.return_value = ListResult(items=[])
         sandbox.fs = fs
 
         git = create_autospec(GitService, instance=True)
-        git.commit.return_value = SimpleNamespace(hash="abc1234")
-        git.status.return_value = SimpleNamespace(current_branch="master")
-        git.list_branches.return_value = SimpleNamespace(items=["master"])
+        git.commit.return_value = GitCommitResponse(hash="abc1234")
+        git.status.return_value = GitStatus(
+            current_branch="master", ahead=0, behind=0, branch_published=False, file_status=[]
+        )
+        git.list_branches.return_value = ListResult(items=["master"])
         sandbox.git = git
 
         sandbox.build_logs.return_value = 'STEP 2: the marker\n'

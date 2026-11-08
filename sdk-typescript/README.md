@@ -656,8 +656,9 @@ failing `onEvent` or `onOverflow` ends the watch with that error, which
 is ignored. A watch whose stream drops ends with `ConnectionError`. `onExit`
 runs exactly once for a watch `watchDir()` returned; a failure before the
 watch starts (a refused connection, an HTTP error, a stream that ends before
-`start`) rejects `watchDir()` and does not call it. `stop()` resolves once a callback that is already running, and
-`onExit`, have finished, and a callback (or `onExit`) may stop its own watch and await
+`start`) rejects `watchDir()` and does not call it. No callback runs before
+the caller of `await watchDir()` has the handle. `stop()` resolves once a callback that is already running, and
+`onExit`, have finished, and a callback (or `onExit`) may stop its own watch through that handle and await
 `waitForExit()` without waiting for itself. In runtimes without
 `AsyncLocalStorage` (browsers), a callback that stops its own watch after an
 `await` must not await that `stop()`.
