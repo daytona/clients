@@ -6,8 +6,7 @@ interfaces (for example `Image.sandboxClass` / `layerCount`,
 `ProjectApiKeyWithContext` → `ProjectApiKey`). Python `Image.source` is one
 of the frozen `RegistryImageSource`, `DockerfileImageSource`,
 `NamedImageSource` and `ManifestImageSource` (read `image.source.ref`, not
-`image.source["ref"]`), with the same `type` discriminator as TypeScript, and
-`Volume.options` is a read-only mapping. Removed exports include
+`image.source["ref"]`), with the same `type` discriminator as TypeScript. Removed exports include
 `SandboxInfo`, `SandboxStateSnapshot`, `SnapshotDetail`, `ImageListItem`,
 `ImageBuildResponse` and the TypeScript DTO aliases; Python now exports
 `SandboxState`, `JsonValue`, `CpuArch` and `ImageStatus`. Sandbox metadata is
@@ -37,7 +36,5 @@ transport types), and Python's take `_`-prefixed parameters; Python's model
 dataclasses stay constructible, keyword-only (`ImageBuilder`, `ImageRef` and
 `SnapshotRef` included). `NAME_LABEL` and `idempotency_key_for_name` /
 `idempotencyKeyForName` are no longer exported (named creates are still
-get-or-create), `images.build()` refuses anything but an `ImageBuilder` with
-`BadRequestError` (Python raised `TypeError`), and Python
-`ImageBuilder.render_dockerfile()` is renamed
-`to_dockerfile()`.
+get-or-create). Python `Sandbox.labels` is a fresh `dict` on every read
+(`Mapping` to type checkers): changing it changes nothing on the handle.

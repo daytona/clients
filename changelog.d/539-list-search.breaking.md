@@ -10,8 +10,11 @@ refused (and excluded from the type: Python `SearchSandboxState`). The
 `FindByNameOptions`. `ListResult` no longer has `total` /
 `total_relation` / `raw_total_relation` (`totalRelation` / `rawTotalRelation`);
 `SearchResult` keeps them. List and search pages are immutable: Python `items`
-is a tuple, TypeScript fields are `readonly` with `readonly T[]` items.
-`find_by_name()` / `findByName()` still returns every match.
+is a tuple, TypeScript fields are `readonly` with `readonly T[]` items. Python
+`ListResult` / `SearchResult` take keyword arguments only and are no longer
+iterable: `.items` is the one way to the entries, as in TypeScript.
+`find_by_name()` / `findByName()` still returns every match, now as a tuple /
+`readonly Sandbox[]`, and Python `mac_models.list()` returns a tuple.
 A list response that breaks its page shape (no array, a non-object entry, a
 non-string `next_cursor`) is a `BadRequestError` naming the field in
 TypeScript too, for sandboxes, images, snapshots, volumes, secrets,

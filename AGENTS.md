@@ -492,8 +492,10 @@ skipping exist only in the TypeScript tool).
   `transport.request(..., transfer=True)`, TS `timeout: 0` on axios or
   `fetch(..., { transfer: true })`), which run until done or cancelled. A new
   call of one of those kinds must opt out the same way in both SDKs.
-  A per-call timeout (a wait's budget plus its slack, a create's server hold
-  plus its slack but never less than the request timeout, a git remote call, the
+  A per-call timeout (a wait's budget plus its slack; a create POST that
+  asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
+  healthy hold is never cut, while a create with no hold stays an ordinary
+  request; a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
   `timeout`) replaces the request timeout for that call with the same
@@ -550,11 +552,14 @@ skipping exist only in the TypeScript tool).
   `tests/sdk-raised-errors.test.ts`, holds to a shrinking list); local
   I/O and protocol failures carry the source only. A response that breaks the
   contract is `BadRequestError` 400 `BAD_REQUEST` `SDK` naming the field (the
-  rule; network policy, sandbox secrets, sandbox objects, list pages and the
-  account responses follow it; known
-  exceptions at this point, which still raise `InternalServerError` 500 with
-  no code: the computer-use status mappers, and the filesystem signed URL and
-  watch events, until their areas adopt it). Python callers should not star-import
+  rule: every response the client, lifecycle and platform services map is
+  checked against the contract fields it reads, nested fields and list items
+  included — TS `checkResponse` in `src/v2/responseFields.ts`, Python the
+  generated models through `expect_*` — and an id another request follows is
+  checked before that request; known exceptions at this point, in the
+  toolbox area, which still raise `InternalServerError` 500 with no code: the
+  computer-use status mappers, and the filesystem signed URL and watch
+  events, until their area adopts it). Python callers should not star-import
   `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
   built-ins.
 - **Generated wire types must not reach the public surface** (the rule; the
@@ -642,8 +647,12 @@ skipping exist only in the TypeScript tool).
   (reload with `refresh_data()` / `refreshData()`); constructors of the
   exported handle and service classes are internal (TS: the `INTERNAL`
   token from `src/v2/internal.ts`; Python: `_`-prefixed parameters), while
-  Python's model dataclasses stay constructible. List and search pages are
-  immutable (Python tuples, TS `readonly T[]`). The handle exposes the
+  Python's model dataclasses stay constructible. Their mapping fields
+  (`Volume.options`, `Sandbox.labels`) are plain `dict` copies typed
+  `Mapping`, never `MappingProxyType`, so `asdict` / `deepcopy` / `pickle` /
+  `json.dumps` work. List and search pages are immutable (Python tuples, TS
+  `readonly T[]`), keyword-only and not iterable in Python: `.items` is the
+  one way in, in both SDKs. The handle exposes the
   sandbox-scoped `access_token` / `accessToken` it authenticates with, but
   not its toolbox URL. `to_json()` / `toJSON()` return one
   credential- and URL-free camelCase `SandboxHandleJSON`, a snapshot only:
