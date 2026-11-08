@@ -23,6 +23,9 @@ is built:
   publish job finds and waits for its run.
 
 After the run, the publish job reads `<formula>.rb` back and fails unless its
-`version` is the published one. The tap's `scripts/update_sha.sh` accepts only
+`version` is the published one. If the job's token cannot list the tap's
+runs, it skips waiting for the run and instead reads the formula back for up
+to 15 minutes, failing unless it names the published version; the formula
+update is verified either way. The tap's `scripts/update_sha.sh` accepts only
 the version shape of each formula, so a dispatch meant for one channel never
 moves another.

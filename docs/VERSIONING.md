@@ -176,8 +176,9 @@ derives").
   GitHub Release, Homebrew `daytona-alpha`, installer channel `alpha`.
 - No other pre-release kind is published (no formula or installer channel
   follows betas). Pre-releases never become npm `latest` or GitHub's
-  **Latest**, and installers take them only with an explicit channel or
-  version.
+  **Latest**. The CLI installers take them only with an explicit channel or
+  version, with one exception before `2.0.0`: while no stable 2.x release
+  exists, the default installs the newest pre-release and says so.
 - The 0.x line publishes from `release/v0` under `daytona@0` (Homebrew) and,
   once a stable 2.x release exists, the npm line tag `v0-latest`.
 

@@ -34,8 +34,9 @@ curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh
 On Windows set `$env:DAYTONA_CHANNEL` (`stable`, `rc` or `alpha`) or
 `$env:DAYTONA_VERSION` before running the installer. The `rc` channel
 installs the highest release candidate or stable release, `alpha` the highest
-alpha, release candidate or stable release. `--dir` (`DAYTONA_INSTALL_DIR`)
-picks the install directory.
+alpha, release candidate or stable release. The install directory is
+`--dir` for `install.sh` and `$env:DAYTONA_INSTALL_DIR` for `install.ps1`
+(`DAYTONA_INSTALL_DIR` works for both).
 
 Homebrew (macOS / Linux):
 

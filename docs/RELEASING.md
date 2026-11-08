@@ -359,6 +359,7 @@ To reproduce a release build locally (nothing is uploaded), run what the
 build jobs of `sdk_publish.yaml` run, including the v0 bundle:
 
 ```bash
+python -m pip install build                       # the Python build front end (the build job installs it too)
 scripts/sdk-version.sh v2.0.0                     # the registry spellings
 scripts/release-channel.sh v2.0.0                 # the channel
 bash scripts/bundle-v0.sh --lang all              # the pinned v0 namespace (scripts/v0-sdk-version)
