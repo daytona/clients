@@ -1,0 +1,59 @@
+cli/cmd/volume_test.go
+  s_0df31975f3464b::t_371602915e6758 43-44
+  s_0df31975f3464b::t_82ab8a1596aebc 45,67-75
+  s_0df31975f3464b::t_76836db4f5138e 76
+cli/cmd/usage_errors.go
+  s_0df31975f3464b::t_8843358fe1488e 53
+cli/cmd/sandbox_logs_more_test.go
+  s_0df31975f3464b::t_d38e6d994c49c1 236-239
+cli/cmd/cli_contract_test.go
+  s_0df31975f3464b::t_7fb2cab4e2bc42 826-845,862
+  s_0df31975f3464b::t_aa5aeb5fbf9c9d 846-861
+  s_0df31975f3464b::t_8389a120fd80c5 479-512,516-517
+  s_0df31975f3464b::t_26c7d0ca605b47 807-816,820,825
+  s_0df31975f3464b::t_53e834c010823f 15,773-806,817-819,821-824
+cli/cmd/snapshot_test.go
+  s_0df31975f3464b::t_371602915e6758 39-40
+  s_0df31975f3464b::t_82ab8a1596aebc 41,65
+cli/cmd/image_test.go
+  s_0df31975f3464b::t_82ab8a1596aebc 66-69,78
+cli/cmd/sandbox_search_helpers.go
+  s_0df31975f3464b::t_d5a0f6ca4f9bdb 116
+cli/cmd/sandbox.go
+  s_0df31975f3464b::t_bae913b7e58039 264-267,280
+cli/cmd/auth_login_command.go
+  s_0df31975f3464b::t_7fb2cab4e2bc42 51-59
+cli/cmd/command_flags.go
+  s_0df31975f3464b::t_8843358fe1488e 145
+cli/cmd/sandbox_logs_follow_test.go
+  s_0df31975f3464b::t_f0242628745bf3 44-47
+cli/cmd/sandbox_search.go
+  s_0df31975f3464b::t_a6f94205e27344 86
+cli/cmd/image.go
+  s_0df31975f3464b::t_674ae7367630f2 71,82,85
+cli/internal/regions/fanout.go
+  s_0df31975f3464b::t_bae913b7e58039 21-22,25-30,41,44,50-51,53-59
+cli/cmd/sandbox_search_test.go
+  s_0df31975f3464b::t_aac5bdd9653536 154-161,163-171
+  s_0df31975f3464b::t_c909c347861050 162
+cli/cmd/volume.go
+  s_0df31975f3464b::t_674ae7367630f2 166,177,181
+cli/internal/regions/list_targets.go
+  s_0df31975f3464b::t_bae913b7e58039 29-68,70-72,78,91-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1b3b4e27879d7022de914392e1d480ec07b6097a",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
