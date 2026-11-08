@@ -127,15 +127,18 @@ downloads every asset from this repository's release of it.
 A formula never moves to a lower version. Before dispatching, the publish job
 reads the channel's formula: if it names a higher version (alpha < rc <
 stable for the same `X.Y.Z`), the formula is left alone and the job succeeds.
-For a stable release the gate has already refused that case; for the rc and
-alpha formulae it happens when an older pre-release publishes after a newer
-one (pre-releases may publish any commit). If the formula names the same
-version (a resumed run), the job only reads it back. With the tap's 2.x
-routing change merged (see [below](#the-first-stable-release-200)), the tap's
-`scripts/update_sha.sh` refuses a lower version too. At the end of a stable
-run, GitHub's Latest is pinned on the highest stable release again (a 0.x
+This check reads the formula itself, so it holds independently of the gate:
+the gate's no-backport rule reads the releases and tags, not the formula. For
+the rc and alpha formulae it is what keeps a formula on a newer pre-release
+when an older one publishes later (pre-releases may publish any commit). If
+the formula names the same version (a resumed run), the job only reads it
+back. With the tap's 2.x routing change merged (see
+[below](#the-first-stable-release-200)), the tap's `scripts/update_sha.sh`
+refuses a lower version too. At the end of a stable run that publishes the
+CLI, GitHub's Latest is pinned on the highest stable release again (a 0.x
 `release.yaml` run re-pins Latest as well; the Homebrew step waits for
-running ones).
+running ones). A stable run without the CLI creates no GitHub Release, so it
+does not touch Latest.
 
 ## Automated release (recommended)
 
@@ -352,12 +355,14 @@ Procedure:
    first 2.x release candidate or stable release publishes. It gives
    `brew_publish.yaml` and `brew_publish_rc.yaml` a `run-name` ending in the
    version (like `brew_publish_alpha.yaml`); makes `scripts/update_sha.sh`
-   rewrite every formula URL to `daytona/clients` (the `daytona-rc` formula
-   still downloads from another repository) and refuse a lower version than
-   the formula names; and pins the tap workflows' actions by commit. The gate
-   checks the `run-name` and fails the run before anything is built without
-   it; the read-back after the tap run fails if the formula's URLs do not
-   point at this repository's release.
+   rewrite every formula URL it updates to `daytona/clients` and refuse a
+   lower version than the formula names; and pins the tap workflows' actions
+   by commit. Before that change, the live `daytona-rc` formula still names
+   an older release candidate from another repository; the first 2.x release
+   candidate's tap run rewrites its URLs, and no 2.x publish reads the
+   formula back before that. The gate checks the `run-name` and fails the run
+   before anything is built without it; the read-back after the tap run fails
+   if the formula's URLs do not point at this repository's release.
 2. **READMEs.** Open a pull request that switches the published READMEs
    from alpha to stable wording, merge it right before step 3, and publish
    no alpha after it: the READMEs ship with the packages, and before 2.0.0

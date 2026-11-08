@@ -121,6 +121,7 @@ for (const [title, releases, publishCli, status, message = /must publish the CLI
   ['a stable 2.x release without the CLI when only a later major is stable', ['v0.231.0', 'v3.0.0'], 'false', 1],
   ['a stable version below the highest stable 2.x release', ['v0.240.0', 'v2.1.0', 'v2.0.0'], 'true', 1, /below the highest stable 2\.x release v2\.1\.0/],
   ['a stable version below the highest, numeric order', ['v2.0.10'], 'true', 1, /below the highest stable 2\.x release v2\.0\.10/],
+  ['an SDK-only stable version below the highest stable 2.x release', ['v2.1.0', 'v2.0.0'], 'false', 1, /below the highest stable 2\.x release v2\.1\.0/],
   ['the highest stable 2.x release itself (a resume)', ['v2.0.1', 'v2.0.0'], 'true', 0],
   ['a stable version above the highest stable 2.x release', ['v2.0.0', 'v0.240.0'], 'false', 0],
   ['a stable version above a higher 0.x release', ['v0.300.0', 'v2.0.0'], 'true', 0],
@@ -426,15 +427,16 @@ test('CLI release: an unknown channel fails before anything is published', (cont
 // token can list the tap's runs.
 // v0Running / v0ReleaseRunning: the counts of in-progress release/v0
 // sdk_publish.yaml / release.yaml runs successive checks see.
-// urlRepo: the repository the formula's url lines download from.
-function homebrewGh(root, { v0Running = ['0'], v0ReleaseRunning = ['0'], before = '0.231.0', formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100, urlRepo = 'daytona/clients' }) {
+// urlRepo: the repository the formula's url lines download from;
+// beforeUrlRepo: the one they name before the tap run.
+function homebrewGh(root, { v0Running = ['0'], v0ReleaseRunning = ['0'], before = '0.231.0', formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100, urlRepo = 'daytona/clients', beforeUrlRepo = urlRepo }) {
   writeFileSync(join(root, 'v0-running'), v0Running.join('\n'));
   writeFileSync(join(root, 'v0-release-running'), v0ReleaseRunning.join('\n'));
-  writeFileSync(join(root, 'formula-versions'), [before].concat(formulaVersion).join('\n'));
+  writeFileSync(join(root, 'formula-versions'), [`${before} ${beforeUrlRepo}`].concat([].concat(formulaVersion ?? []).map((v) => `${v} ${urlRepo}`)).map((l) => `${l}\n`).join(''));
   executable(join(root, 'bin/formula'), [
-    'v=$(head -n 1 "$ROOT/formula-versions")',
-    'if [ "$(wc -l < "$ROOT/formula-versions")" -gt 0 ]; then sed -i 1d "$ROOT/formula-versions"; fi',
-    `u='    url "https://github.com/${urlRepo}/releases/download/v#{version}/daytona-'`,
+    'read -r v repo < <(head -n 1 "$ROOT/formula-versions")',
+    'if [ "$(wc -l < "$ROOT/formula-versions")" -gt 1 ]; then sed -i 1d "$ROOT/formula-versions"; fi',
+    'u="    url \\"https://github.com/${repo}/releases/download/v#{version}/daytona-"',
     'printf \'class Daytona < Formula\\n  desc "Daytona CLI"\\n  version "%s"\\n  if OS.mac?\\n%sdarwin-arm64"\\n  else\\n%slinux-amd64"\\n  end\\nend\\n\' "$v" "$u" "$u" | base64 -w0',
   ].join('\n'));
   // A clock that moves clockStep seconds per read, so deadlines pass without waiting.
@@ -486,6 +488,7 @@ for (const [title, channel, options, status, waits, message, version = '2.0.0', 
   ['an older alpha leaves a higher alpha formula alone', 'alpha', { before: '2.1.0-alpha.10' }, 0, 0, /above 2\.1\.0-alpha\.9/, '2.1.0-alpha.9', false],
   ['a higher alpha counter moves the formula (numeric, not text, order)', 'alpha', { before: '2.1.0-alpha.9', formulaVersion: '2.1.0-alpha.10' }, 0, 0, undefined, '2.1.0-alpha.10'],
   ['the same version (a resume) is read back, not dispatched', 'stable', { before: '2.0.0', formulaVersion: '2.0.0' }, 0, 0, /already names 2\.0\.0/, '2.0.0', false],
+  ['the first 2.x rc: a daytona-rc formula from another repository, rewritten by the tap run, passes', 'rc', { before: '0.127.0', beforeUrlRepo: 'daytonaio/daytona', formulaVersion: '2.0.0' }, 0, 0],
   ['a formula that downloads from another repository fails the read-back', 'rc', { before: '0.127.0', formulaVersion: '2.0.0', urlRepo: 'daytonaio/daytona' }, 1, 0, /does not download it from daytona\/clients's release: +url "https:\/\/github\.com\/daytonaio\/daytona/],
   ['a formula naming an unknown version fails before dispatching', 'stable', { before: '2.0.0-beta.1' }, 1, 0, /not a release version/, '2.0.0', false],
 ]) {
