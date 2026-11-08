@@ -389,6 +389,25 @@ describe('request timeout meaning', () => {
       },
     })
 
+    it('aborts a project-token refresh that ignores its signal at the remaining budget, and sends no retry', async () => {
+      const seen: (string | undefined)[] = []
+      handle = (request, response) => {
+        seen.push(request.headers.authorization)
+        unauthorizedThenOk(request, response)
+      }
+      const deaf = {
+        authorizationHeader: async (options?: { readonly forceRefresh?: boolean }) => {
+          if (options?.forceRefresh) await sleep(300)
+          return options?.forceRefresh ? 'Bearer fresh' : 'Bearer stale'
+        },
+      }
+      const started = performance.now()
+      await expect(new HttpTransport(base, undefined, 150, { authProvider: deaf }).get('/thing')).rejects.toBeInstanceOf(ClientTimeoutError)
+      expect(performance.now() - started).toBeLessThan(250)
+      await sleep(250)
+      expect(seen).toEqual(['Bearer stale'])
+    })
+
     it.each([
       ['a sandbox token on the axios path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'get'],
       ['a sandbox token on the fetch path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'fetch'],

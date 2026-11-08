@@ -476,7 +476,8 @@ async function authorizationHeaderForAxiosRequest(
 ): Promise<string> {
   const timeout = timeoutSignal(timeoutMs, options.signal)
   try {
-    return await provider.authorizationHeader({ ...options, signal: timeout.signal })
+    // Bounded even when a provider ignores the signal it is given.
+    return await abortableWait(provider.authorizationHeader({ ...options, signal: timeout.signal }), timeout.signal)
   } catch (error) {
     if (isAbortError(error) && timeout.timedOut()) {
       throw new ClientTimeoutError()
@@ -1138,14 +1139,17 @@ function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, inst
   const relay = (): void => controller.abort(callerSignal?.reason)
   if (callerSignal?.aborted) relay()
   else callerSignal?.addEventListener?.('abort', relay, { once: true })
-  const timer = setTimeout(() => {
+  const expire = (): void => {
     const reason = new DOMException('request timed out', 'TimeoutError')
     deadlineReasons.add(reason)
     controller.abort(reason)
-  }, delay)
-  unrefTimer(timer)
+  }
+  // A retry whose deadline already passed is aborted before it is sent.
+  if (delay === 0) expire()
+  const timer = delay === 0 ? undefined : setTimeout(expire, delay)
+  if (timer !== undefined) unrefTimer(timer)
   requestDeadlines.set(config, () => {
-    clearTimeout(timer)
+    if (timer !== undefined) clearTimeout(timer)
     callerSignal?.removeEventListener?.('abort', relay)
   })
   config.signal = controller.signal
