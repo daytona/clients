@@ -11,6 +11,7 @@ DaytonaAuthenticationError.constructor: constructor (message?: string)
 DaytonaAuthorizationError: alias = DaytonaForbiddenError
 DaytonaBadRequestError: class extends DaytonaError
 DaytonaBadRequestError.constructor: constructor (message?: string)
+DaytonaConfig: passed-in
 DaytonaConfig: type = {...}
 DaytonaConfig.apiKey: readonly optional property string
 DaytonaConfig.connectionPoolMaxsize: readonly optional property number
@@ -54,11 +55,12 @@ DaytonaV2Client: type = DaytonaV2
 DaytonaValidationError: alias = DaytonaBadRequestError
 Daytona[Symbol.asyncDispose]: method (): Promise<void>
 V0_API_URL: const 'https://app.daytona.io/api'
+~AbortSignalLike: passed-in
 ~AbortSignalLike: type = {...}
 ~AbortSignalLike.aborted: readonly property boolean
-~AbortSignalLike.addEventListener: optional property (type: 'abort', listener: () => void, options?: boolean | AddEventListenerOptions) => void
+~AbortSignalLike.addEventListener: optional property (type: 'abort', listener: () => void, options?: AddEventListenerOptions | boolean) => void
 ~AbortSignalLike.reason: readonly optional property unknown
-~AbortSignalLike.removeEventListener: optional property (type: 'abort', listener: () => void, options?: boolean | EventListenerOptions) => void
+~AbortSignalLike.removeEventListener: optional property (type: 'abort', listener: () => void, options?: EventListenerOptions | boolean) => void
 ~Daytona@v2/Daytona: class
 ~Daytona@v2/Daytona.close: method (): Promise<void>
 ~Daytona@v2/Daytona.constructor: internal-constructor (config?: DaytonaConfig)
@@ -102,6 +104,7 @@ V0_API_URL: const 'https://app.daytona.io/api'
 ~HttpClientOptions.otelApi: readonly optional property OtelApiLike
 ~HttpClientOptions.otelEnabled: readonly optional property boolean
 ~HttpClientOptions.sandboxId: readonly optional property string
+~InternalOptions: passed-in
 ~InternalOptions: type = {...}
 ~InternalOptions.v0ModuleLoader: readonly optional property () => V0Exports
 ~TransportAuth: interface

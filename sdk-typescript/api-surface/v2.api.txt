@@ -207,8 +207,8 @@ ApiErrorCode: union-member 'V0_MIGRATION_DEFAULT_PROJECT_ONLY'
 ApiErrorCode: union-member 'V0_SANDBOX_NOT_FOUND'
 ApiErrorCode: union-member 'V0_SANDBOX_NOT_IMPORTABLE'
 ApiErrorCode: union-member 'WORKLOAD_PLANE_ELSEWHERE'
-ArtifactClass: type = (string & {}) | 'linux'
-ArtifactRetention: type = 'permanent' | 'idle' | 'unknown'
+ArtifactClass: type = 'linux' | (string & {})
+ArtifactRetention: type = 'idle' | 'permanent' | 'unknown'
 AtomicUploadUnsupportedError: class extends ConflictError
 AtomicUploadUnsupportedError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 AuditActionGroup: type = {...}
@@ -241,11 +241,12 @@ BucketDeleteFailedError.constructor: constructor (message: string, statusCode?: 
 BucketNotEmptyError: class extends ConflictError
 BucketNotEmptyError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 BuildImageOptions: interface
+BuildImageOptions: passed-in
 BuildImageOptions.cpuArch: optional property CpuArch
 BuildImageOptions.idleExpirySeconds: optional property number
 BuildImageOptions.name: optional property string
 BuildImageOptions.region: optional property string
-BuildLogDoneReason: type = 'terminal' | 'deadline' | 'not_applicable' | 'resource_deleted' | 'unknown'
+BuildLogDoneReason: type = 'deadline' | 'not_applicable' | 'resource_deleted' | 'terminal' | 'unknown'
 BuildLogEvent: type = union
 BuildLogEvent: union-member { type: 'done'; result: BuildLogFollowResult; }
 BuildLogEvent: union-member { type: 'error'; error: string; code: string; retryable: boolean; traceId?: string; }
@@ -255,9 +256,10 @@ BuildLogEvent: union-member { type: 'source_changed'; reason: string; }
 BuildLogEvent: union-member { type: 'state'; status: string; error?: string; deadlineAt?: string; }
 BuildLogEvent: union-member { type: 'unavailable'; reason: string; }
 BuildLogFollowOptions: interface
+BuildLogFollowOptions: passed-in
 BuildLogFollowOptions.cursor: optional property string
-BuildLogFollowOptions.onEvent: optional property (event: BuildLogEvent) => void | Promise<void>
-BuildLogFollowOptions.onLogs: property (chunk: string) => void | Promise<void>
+BuildLogFollowOptions.onEvent: optional property (event: BuildLogEvent) => Promise<void> | void
+BuildLogFollowOptions.onLogs: property (chunk: string) => Promise<void> | void
 BuildLogFollowOptions.signal: optional property AbortSignal
 BuildLogFollowOptions.timeout: optional property number
 BuildLogFollowResult: interface
@@ -287,6 +289,7 @@ BulkWriteResult.errors: property string[]
 BulkWriteResult.files: property BulkWriteFile[]
 CODE_STATUS: const Record<ErrorCode, number>
 CaptureImageOptions: interface
+CaptureImageOptions: passed-in
 CaptureImageOptions.idleExpirySeconds: optional property number
 CaptureImageOptions.name: optional property string
 ChargeNotFoundError: class extends NotFoundError
@@ -294,6 +297,7 @@ ChargeNotFoundError.constructor: constructor (message: string, statusCode?: numb
 ChargeNotSucceededError: class extends ConflictError
 ChargeNotSucceededError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 CloneOptions: interface
+CloneOptions: passed-in
 CloneOptions.branch: optional property string
 CloneOptions.commitId: optional property string
 CloneOptions.depth: optional property number
@@ -303,10 +307,12 @@ CloneOptions.path: property string
 CloneOptions.timeout: optional property number
 CloneOptions.username: optional property string
 CommitOptions: interface
+CommitOptions: passed-in
 CommitOptions.allowEmpty: optional property boolean
 CommitOptions.author: property string
 CommitOptions.email: property string
 ComputerUseA11yFindRequest: interface
+ComputerUseA11yFindRequest: passed-in
 ComputerUseA11yFindRequest.limit: optional property number
 ComputerUseA11yFindRequest.name: optional property string
 ComputerUseA11yFindRequest.nameMatch: optional property ComputerUseA11yNameMatch
@@ -318,16 +324,20 @@ ComputerUseA11yFindResponse: interface
 ComputerUseA11yFindResponse.matches: property ComputerUseAccessibilityNode[]
 ComputerUseA11yFindResponse.truncated: property boolean
 ComputerUseA11yFocusRequest: interface
+ComputerUseA11yFocusRequest: passed-in
 ComputerUseA11yFocusRequest.id: property string
 ComputerUseA11yInvokeRequest: interface
+ComputerUseA11yInvokeRequest: passed-in
 ComputerUseA11yInvokeRequest.action: optional property string
 ComputerUseA11yInvokeRequest.id: property string
-ComputerUseA11yNameMatch: type = 'substring' | 'exact' | 'regex'
-ComputerUseA11yScope: type = 'pid' | 'all' | 'focused'
+ComputerUseA11yNameMatch: type = 'exact' | 'regex' | 'substring'
+ComputerUseA11yScope: type = 'all' | 'focused' | 'pid'
 ComputerUseA11ySetValueRequest: interface
+ComputerUseA11ySetValueRequest: passed-in
 ComputerUseA11ySetValueRequest.id: property string
 ComputerUseA11ySetValueRequest.value: property string
 ComputerUseA11yTreeOptions: interface
+ComputerUseA11yTreeOptions: passed-in
 ComputerUseA11yTreeOptions.maxDepth: optional property number
 ComputerUseA11yTreeOptions.pid: optional property number
 ComputerUseA11yTreeOptions.scope: property ComputerUseA11yScope
@@ -366,7 +376,7 @@ ComputerUseDesktopFailureCode: union-member 'start_interrupted'
 ComputerUseDesktopFailureCode: union-member 'state_corrupt'
 ComputerUseDesktopFailureCode: union-member 'state_persistence_failed'
 ComputerUseDesktopFailureCode: union-member 'unknown'
-ComputerUseDesktopState: type = 'failed' | 'ready' | 'not_started' | 'starting' | 'unknown'
+ComputerUseDesktopState: type = 'failed' | 'not_started' | 'ready' | 'starting' | 'unknown'
 ComputerUseDisplay: interface
 ComputerUseDisplay.height: property number
 ComputerUseDisplay.id: property number
@@ -384,29 +394,36 @@ ComputerUseFailedStatus.desktop: property 'failed'
 ComputerUseFailedStatus.extraFields: optional property Record<string, unknown>
 ComputerUseFailedStatus.status: property 'inactive'
 ComputerUseKeyboardHotkeyRequest: interface
+ComputerUseKeyboardHotkeyRequest: passed-in
 ComputerUseKeyboardHotkeyRequest.keys: property string
 ComputerUseKeyboardKeyRequest: interface
+ComputerUseKeyboardKeyRequest: passed-in
 ComputerUseKeyboardKeyRequest.key: property string
 ComputerUseKeyboardKeyRequest.modifiers: optional property ComputerUseKeyboardModifier[]
-ComputerUseKeyboardModifier: type = 'cmd' | 'shift' | 'ctrl' | 'alt'
+ComputerUseKeyboardModifier: type = 'alt' | 'cmd' | 'ctrl' | 'shift'
 ComputerUseKeyboardTypeRequest: interface
+ComputerUseKeyboardTypeRequest: passed-in
 ComputerUseKeyboardTypeRequest.delay: optional property number
 ComputerUseKeyboardTypeRequest.text: property string
 ComputerUseLifecycleResponse: interface
 ComputerUseLifecycleResponse.message: property string
 ComputerUseLifecycleResponse.status: property Record<string, ComputerUseProcessStatus>
-ComputerUseMouseButton: type = 'left' | 'right' | 'middle'
+ComputerUseMouseButton: type = 'left' | 'middle' | 'right'
 ComputerUseMouseClickRequest: interface extends ComputerUsePoint
+ComputerUseMouseClickRequest: passed-in
 ComputerUseMouseClickRequest.button: optional property ComputerUseMouseButton
 ComputerUseMouseClickRequest.double: optional property boolean
 ComputerUseMouseDragRequest: interface
+ComputerUseMouseDragRequest: passed-in
 ComputerUseMouseDragRequest.button: property ComputerUseMouseButton
 ComputerUseMouseDragRequest.endX: property number
 ComputerUseMouseDragRequest.endY: property number
 ComputerUseMouseDragRequest.startX: property number
 ComputerUseMouseDragRequest.startY: property number
 ComputerUseMouseMoveRequest: interface extends ComputerUsePoint
+ComputerUseMouseMoveRequest: passed-in
 ComputerUseMouseScrollRequest: interface extends ComputerUsePoint
+ComputerUseMouseScrollRequest: passed-in
 ComputerUseMouseScrollRequest.amount: optional property number
 ComputerUseMouseScrollRequest.direction: property ComputerUseScrollDirection
 ComputerUseNotStartedStatus: interface
@@ -454,12 +471,15 @@ ComputerUseRecording.sizeBytes: optional property number
 ComputerUseRecording.startTime: property string
 ComputerUseRecording.status: property string
 ComputerUseRecordingStartRequest: interface
+ComputerUseRecordingStartRequest: passed-in
 ComputerUseRecordingStartRequest.label: optional property string
 ComputerUseRecordingStopRequest: interface
+ComputerUseRecordingStopRequest: passed-in
 ComputerUseRecordingStopRequest.id: property string
 ComputerUseRecordingsResponse: interface
 ComputerUseRecordingsResponse.recordings: property ComputerUseRecording[]
 ComputerUseRegion: interface
+ComputerUseRegion: passed-in
 ComputerUseRegion.height: property number
 ComputerUseRegion.width: property number
 ComputerUseRegion.x: property number
@@ -469,8 +489,9 @@ ComputerUseRestartResponse.desktop: property 'ready'
 ComputerUseRestartResponse.extraFields: optional property Record<string, unknown>
 ComputerUseRestartResponse.message: property string
 ComputerUseRestartResponse.status: property 'active'
-ComputerUseScreenshotFormat: type = 'png' | 'jpeg'
+ComputerUseScreenshotFormat: type = 'jpeg' | 'png'
 ComputerUseScreenshotOptions: interface
+ComputerUseScreenshotOptions: passed-in
 ComputerUseScreenshotOptions.format: optional property ComputerUseScreenshotFormat
 ComputerUseScreenshotOptions.quality: optional property number
 ComputerUseScreenshotOptions.region: optional property ComputerUseRegion
@@ -480,7 +501,7 @@ ComputerUseScreenshotResponse: interface
 ComputerUseScreenshotResponse.cursorPosition: optional property ComputerUsePoint
 ComputerUseScreenshotResponse.screenshot: property string
 ComputerUseScreenshotResponse.sizeBytes: optional property number
-ComputerUseScrollDirection: type = 'up' | 'down'
+ComputerUseScrollDirection: type = 'down' | 'up'
 ComputerUseScrollResponse: interface
 ComputerUseScrollResponse.success: property boolean
 ComputerUseService: class
@@ -545,10 +566,12 @@ CpuTypeInfo.cpuArch: property CpuArch
 CpuTypeInfo.id: property string
 CpuTypeInfo.name: property string
 CreateAccessTokenOptions: interface
+CreateAccessTokenOptions: passed-in
 CreateAccessTokenOptions.operations: readonly optional property readonly string[]
 CreateAccessTokenOptions.ports: readonly optional property readonly number[]
 CreateAccessTokenOptions.ttlSeconds: readonly optional property number
 CreateMacosSandboxOptions: interface extends Omit<CreateRequestBaseOptions, 'cpuArch' | 'cpuType'>
+CreateMacosSandboxOptions: passed-in
 CreateMacosSandboxOptions.autoRenew: optional property boolean
 CreateMacosSandboxOptions.cpu: optional property number
 CreateMacosSandboxOptions.disk: optional property number
@@ -557,7 +580,7 @@ CreateMacosSandboxOptions.envVars: optional property Record<string, string>
 CreateMacosSandboxOptions.memory: optional property number
 CreateMacosSandboxOptions.networkPolicy: optional property NetworkPolicyInput | null
 CreateMacosSandboxOptions.persistent: optional property boolean
-CreateMacosSandboxOptions.reservation: optional property (string & {}) | 'new'
+CreateMacosSandboxOptions.reservation: optional property 'new' | (string & {})
 CreateMacosSandboxOptions.secrets: optional property string[]
 CreateMacosSandboxOptions.volumes: optional property VolumeMount[]
 CreateRequestBaseOptions: interface
@@ -572,11 +595,13 @@ CreateRequestBaseOptions.ports: optional property PortMapping[]
 CreateRequestBaseOptions.region: optional property string
 CreateRequestBaseOptions.waitSeconds: optional property number
 CreateReservationOptions: interface
+CreateReservationOptions: passed-in
 CreateReservationOptions.autoRenew: optional property boolean
 CreateReservationOptions.idempotencyKey: optional property string
 CreateReservationOptions.model: optional property string
 CreateReservationOptions.region: property string
 CreateReservationsBulkOptions: interface
+CreateReservationsBulkOptions: passed-in
 CreateReservationsBulkOptions.autoRenew: optional property boolean
 CreateReservationsBulkOptions.count: property number
 CreateReservationsBulkOptions.idempotencyKey: optional property string
@@ -584,7 +609,9 @@ CreateReservationsBulkOptions.minCount: optional property number
 CreateReservationsBulkOptions.model: optional property string
 CreateReservationsBulkOptions.region: property string
 CreateSandboxFromSnapshotOptions: interface extends CreateRequestBaseOptions
+CreateSandboxFromSnapshotOptions: passed-in
 CreateSandboxOptions: interface extends CreateRequestBaseOptions
+CreateSandboxOptions: passed-in
 CreateSandboxOptions.cpu: optional property number
 CreateSandboxOptions.disk: optional property number
 CreateSandboxOptions.env: optional property Record<string, string>
@@ -597,6 +624,7 @@ CreateSandboxOptions.spot: optional property boolean
 CreateSandboxOptions.user: optional property string
 CreateSandboxOptions.volumes: optional property VolumeMount[]
 CreateSessionOptions: interface
+CreateSessionOptions: passed-in
 CreateSessionOptions.cwd: readonly optional property string
 CreateSessionOptions.env: readonly optional property Readonly<Record<string, string>>
 CreateSessionOptions.login: readonly optional property boolean
@@ -605,6 +633,7 @@ CreateSessionOptions.shell: readonly optional property string
 CreateTtlOutOfRangeError: class extends MaxBoundError
 CreateTtlOutOfRangeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 CredentialOptions: interface
+CredentialOptions: passed-in
 CredentialOptions.branch: optional property string
 CredentialOptions.password: optional property string
 CredentialOptions.remote: optional property string
@@ -716,12 +745,12 @@ DisplayService.windows: method (): Promise<ComputerUseDisplayWindowsResponse>
 DockerNotReadyError: class extends ConflictError
 DockerNotReadyError.constructor: constructor (status: DockerStatus)
 DockerNotReadyError.status: readonly property DockerStatus
-DockerOwner: type = 'none' | 'daemon' | 'entrypoint' | 'unknown'
+DockerOwner: type = 'daemon' | 'entrypoint' | 'none' | 'unknown'
 DockerService: class
 DockerService.constructor: internal-constructor (transport: HttpTransport)
 DockerService.status: method (): Promise<DockerStatus>
 DockerService.waitUntilReady: method (options?: DockerWaitOptions): Promise<DockerStatus>
-DockerState: type = 'failed' | 'ready' | 'starting' | 'not_present' | 'disabled' | 'unmanaged' | 'deferred' | 'unsupported' | 'unknown'
+DockerState: type = 'deferred' | 'disabled' | 'failed' | 'not_present' | 'ready' | 'starting' | 'unknown' | 'unmanaged' | 'unsupported'
 DockerStatus: interface
 DockerStatus.owner: property DockerOwner
 DockerStatus.processId: optional property string | null
@@ -730,11 +759,13 @@ DockerStatus.rawState: property string
 DockerStatus.reason: optional property string | null
 DockerStatus.state: property DockerState
 DockerWaitOptions: interface
+DockerWaitOptions: passed-in
 DockerWaitOptions.timeout: readonly optional property number
 DockerWaitTimeoutError: class extends RequestTimeoutError
 DockerWaitTimeoutError.constructor: constructor (status: DockerStatus | undefined)
 DockerWaitTimeoutError.status: readonly optional property DockerStatus
 DownloadFileOptions: interface
+DownloadFileOptions: passed-in
 DownloadFileOptions.onProgress: readonly optional property TransferProgressCallback
 DownloadFileOptions.signal: readonly optional property AbortSignal
 ErrorCode: type = union
@@ -883,6 +914,7 @@ ErrorCode: union-member 'V0_SANDBOX_NOT_FOUND'
 ErrorCode: union-member 'V0_SANDBOX_NOT_IMPORTABLE'
 ErrorCode: union-member 'WORKLOAD_PLANE_ELSEWHERE'
 ExposePortOptions: interface
+ExposePortOptions: passed-in
 ExposePortOptions.public: readonly optional property boolean
 FeatureNotEnabledError: class extends AuthorizationError
 FeatureNotEnabledError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
@@ -906,6 +938,7 @@ FileMatch.line: property number
 FileNotFoundError: class extends NotFoundError
 FileNotFoundError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 FilePermissionsOptions: interface
+FilePermissionsOptions: passed-in
 FilePermissionsOptions.group: optional property string
 FilePermissionsOptions.mode: optional property string
 FilePermissionsOptions.owner: optional property string
@@ -930,7 +963,7 @@ FileSystemService.remove: method (path: string, options?: { recursive?: boolean;
 FileSystemService.replace: method (files: string[], pattern: string, newValue: string): Promise<ListResult<ReplaceResult>>
 FileSystemService.stat: method (path: string): Promise<FileInfo>
 FileSystemService.uploadFile: method (localPath: string, remotePath: string, options?: UploadFileOptions): Promise<void>
-FileSystemService.watchDir: method (path: string, onEvent: (event: FilesystemEvent) => void | Promise<void>, options?: WatchDirOptions): Promise<WatchHandle>
+FileSystemService.watchDir: method (path: string, onEvent: (event: FilesystemEvent) => Promise<void> | void, options?: WatchDirOptions): Promise<WatchHandle>
 FileSystemService.writeBytes: method (path: string, data: Uint8Array, options?: WriteFileOptions): Promise<void>
 FileSystemService.writeMany: method (files: Record<string, Uint8Array>, options?: WriteManyOptions): Promise<BulkWriteResult>
 FileSystemService.writeText: method (path: string, text: string, options?: WriteFileOptions): Promise<void>
@@ -984,6 +1017,7 @@ GenericErrorCode: union-member 'UNAUTHORIZED'
 GenericErrorCode: union-member 'UNPROCESSABLE_ENTITY'
 GenericErrorCode: union-member 'UNSUPPORTED_MEDIA_TYPE'
 GetLimitsOptions: interface
+GetLimitsOptions: passed-in
 GetLimitsOptions.organizationId: optional property string
 GitAuthFailedError: class extends AuthenticationError
 GitAuthFailedError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
@@ -1075,7 +1109,7 @@ ImageBuilder.fromRegistry: static method (ref: string): ImageBuilder
 ImageBuilder.pipInstall: method (...packages: readonly string[]): ImageBuilder
 ImageBuilder.runCommands: method (...commands: readonly string[]): ImageBuilder
 ImageBuilder.toDockerfile: method (): string
-ImageBuilder.toRequestSource: method (): { source: NonNullable<api.CreateImageRequest['source']>; } | { dockerfile: string; }
+ImageBuilder.toRequestSource: method (): { dockerfile: string; } | { source: NonNullable<api.CreateImageRequest['source']>; }
 ImageBuilder.user: method (name: string): ImageBuilder
 ImageBuilder.workdir: method (path: string): ImageBuilder
 ImageClassMismatchError: class extends ConflictError
@@ -1114,7 +1148,7 @@ ImageNotFoundError: class extends NotFoundError
 ImageNotFoundError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 ImageNotReadyError: class extends ConflictError
 ImageNotReadyError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
-ImageOrigin: type = (string & {}) | 'registry' | 'dockerfile' | 'capture'
+ImageOrigin: type = 'capture' | 'dockerfile' | 'registry' | (string & {})
 ImageRef: interface
 ImageRef.id: readonly property string
 ImageRef.name: readonly property string | null
@@ -1123,7 +1157,7 @@ ImageSource: union-member { readonly type: 'dockerfile'; readonly contextObject:
 ImageSource: union-member { readonly type: 'manifest'; readonly name: string; }
 ImageSource: union-member { readonly type: 'named'; readonly name: string; }
 ImageSource: union-member { readonly type: 'registry'; readonly ref: string; }
-ImageStatus: type = (string & {}) | 'pending' | 'failed' | 'ready' | 'building'
+ImageStatus: type = 'building' | 'failed' | 'pending' | 'ready' | (string & {})
 ImageTooLargeError: class extends ArtifactTooLargeError
 ImageTooLargeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 ImageV2: alias = Image
@@ -1133,8 +1167,8 @@ ImagesService.constructor: internal-constructor (http: AxiosInstance, apiTranspo
 ImagesService.delete: method (imageId: string): Promise<void>
 ImagesService.followBuildLogs: method (imageId: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult>
 ImagesService.get: method (imageId: string, options?: { wait?: 'ready'; timeout?: number; }): Promise<Image>
-ImagesService.iter: method (options?: { cursor?: string; limit?: number; name?: string; anonymous?: boolean; sandboxId?: string; platform?: 'true' | 'false' | 'any'; }): AsyncIterable<Image>
-ImagesService.list: method (options?: { cursor?: string; limit?: number; name?: string; anonymous?: boolean; sandboxId?: string; platform?: 'true' | 'false' | 'any'; }): Promise<ListResult<Image>>
+ImagesService.iter: method (options?: { cursor?: string; limit?: number; name?: string; anonymous?: boolean; sandboxId?: string; platform?: 'any' | 'false' | 'true'; }): AsyncIterable<Image>
+ImagesService.list: method (options?: { cursor?: string; limit?: number; name?: string; anonymous?: boolean; sandboxId?: string; platform?: 'any' | 'false' | 'true'; }): Promise<ListResult<Image>>
 ImagesService.promote: method (imageId: string, name: string): Promise<Image>
 ImagesService.pull: method (ref: string, options?: BuildImageOptions & { readonly wait?: boolean; readonly timeout?: number; }): Promise<Image>
 InternalServerError: class extends DaytonaError
@@ -1144,7 +1178,7 @@ InterpreterContext.close: method (): Promise<void>
 InterpreterContext.constructor: internal-constructor (transport: HttpTransport, sandboxId: string, id: string, language: string, executionQueue: ContextExecutionQueue, onClose: () => Promise<void>)
 InterpreterContext.id: readonly property string
 InterpreterContext.language: readonly property string
-InterpreterContext.run: method (code: string, options?: Omit<InterpreterRunOptions, 'sessionId' | 'language' | 'isolated' | 'context'>): Promise<InterpreterResult>
+InterpreterContext.run: method (code: string, options?: Omit<InterpreterRunOptions, 'context' | 'isolated' | 'language' | 'sessionId'>): Promise<InterpreterResult>
 InterpreterContext.sandboxId: readonly property string
 InterpreterContext.toJSON: method (): InterpreterContextJSON
 InterpreterContextJSON: interface
@@ -1152,11 +1186,13 @@ InterpreterContextJSON.contextId: readonly property string
 InterpreterContextJSON.language: readonly property string
 InterpreterContextJSON.sandboxId: readonly property string
 InterpreterContextOptions: interface
+InterpreterContextOptions: passed-in
 InterpreterContextOptions.cwd: optional property string
 InterpreterContextOptions.env: optional property Record<string, string>
 InterpreterContextOptions.id: optional property string
 InterpreterContextOptions.language: property string
 InterpreterContextReference: interface
+InterpreterContextReference: passed-in
 InterpreterContextReference.id: readonly property string
 InterpreterContextReference.language: readonly property string
 InterpreterContextReference.sandboxId: readonly property string
@@ -1182,7 +1218,8 @@ InterpreterResult.logs: property InterpreterLogs
 InterpreterResult.process: property InterpreterProcess
 InterpreterResult.results: property InterpreterOutput[]
 InterpreterRunOptions: interface
-InterpreterRunOptions.context: optional property InterpreterContextReference | InterpreterContextJSON
+InterpreterRunOptions: passed-in
+InterpreterRunOptions.context: optional property InterpreterContextJSON | InterpreterContextReference
 InterpreterRunOptions.cwd: optional property string
 InterpreterRunOptions.env: optional property Record<string, string>
 InterpreterRunOptions.isolated: optional property boolean
@@ -1194,7 +1231,7 @@ InterpreterService.connectContext: method (context: InterpreterContextJSON): Int
 InterpreterService.connectContext: method (sessionId: string, language: string): InterpreterContext
 InterpreterService.constructor: internal-constructor (transport: HttpTransport, process: ProcessService)
 InterpreterService.createContext: method (options: InterpreterContextOptions): Promise<InterpreterContext>
-InterpreterService.deleteContext: method (sessionIdOrContext: string | InterpreterContext | InterpreterContextJSON): Promise<void>
+InterpreterService.deleteContext: method (sessionIdOrContext: InterpreterContext | InterpreterContextJSON | string): Promise<void>
 InterpreterService.listContexts: method (): Promise<InterpreterContext[]>
 InterpreterService.run: method (code: string, options?: InterpreterRunOptions): Promise<InterpreterResult>
 InvalidCursorError: class extends BadRequestError
@@ -1207,7 +1244,7 @@ InvoiceNotFoundError: class extends NotFoundError
 InvoiceNotFoundError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 InvoiceNotPayableError: class extends ConflictError
 InvoiceNotPayableError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
-KeepLogs: type = 'none' | 'until_cleanup' | 'on_exit_ttl'
+KeepLogs: type = 'none' | 'on_exit_ttl' | 'until_cleanup'
 KernelUnavailableError: class extends ServiceUnavailableError
 KernelUnavailableError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 KeyboardService: class
@@ -1216,11 +1253,13 @@ KeyboardService.hotkey: method (request: ComputerUseKeyboardHotkeyRequest): Prom
 KeyboardService.key: method (request: ComputerUseKeyboardKeyRequest): Promise<void>
 KeyboardService.type: method (request: ComputerUseKeyboardTypeRequest): Promise<void>
 KillOptions: interface
+KillOptions: passed-in
 KillOptions.escalateAfter: optional property number
 KillOptions.escalateTo: optional property ProcessSignal
 KillOptions.signal: optional property ProcessSignal
-LifecycleAction: type = 'stop' | 'pause' | 'delete'
+LifecycleAction: type = 'delete' | 'pause' | 'stop'
 LifecyclePolicyOptions: interface
+LifecyclePolicyOptions: passed-in
 LifecyclePolicyOptions.idleExpirySeconds: optional property number
 LifecyclePolicyOptions.onIdleTimeout: optional property LifecycleAction
 LifecyclePolicyOptions.onTimeout: optional property LifecycleAction
@@ -1233,9 +1272,11 @@ LimitExceededError.max: readonly optional property number
 ListBranchResponse: type = {...}
 ListBranchResponse.branches: property string[]
 ListEndpointsOptions: interface
+ListEndpointsOptions: passed-in
 ListEndpointsOptions.cursor: readonly optional property string
 ListEndpointsOptions.limit: readonly optional property number
 ListReservationsOptions: interface
+ListReservationsOptions: passed-in
 ListReservationsOptions.cursor: readonly optional property string
 ListReservationsOptions.limit: readonly optional property number
 ListResult: interface <T>
@@ -1245,15 +1286,18 @@ ListResult.rawTotalRelation: optional property string
 ListResult.total: optional property number
 ListResult.totalRelation: optional property SearchTotalRelation
 ListSandboxesOptions: interface extends SandboxSearchFilters
+ListSandboxesOptions: passed-in
 ListSandboxesOptions.cursor: optional property string
 ListSandboxesOptions.id: optional property string
 ListSandboxesOptions.limit: optional property number
 ListSandboxesOptions.name: optional property string
 ListSandboxesQuery: type = ListSandboxesOptions
 ListSecretsOptions: interface
+ListSecretsOptions: passed-in
 ListSecretsOptions.cursor: readonly optional property string
 ListSecretsOptions.limit: readonly optional property number
 ListVolumesOptions: interface
+ListVolumesOptions: passed-in
 ListVolumesOptions.cursor: readonly optional property string
 ListVolumesOptions.limit: readonly optional property number
 LogFrame: interface
@@ -1263,8 +1307,9 @@ LogFrame.data: property string
 LogFrame.encoding: optional property string
 LogFrame.timestamp: optional property number
 LogsOptions: interface
+LogsOptions: passed-in
 LogsOptions.cursor: optional property string
-LogsOptions.encoding: optional property 'text' | 'base64'
+LogsOptions.encoding: optional property 'base64' | 'text'
 LogsOptions.limit: optional property number
 LogsPage: interface extends ListResult<LogFrame>
 LogsPage.firstAvailableCursor: optional property string
@@ -1272,6 +1317,7 @@ LogsPage.truncatedHead: optional property boolean
 LspCompletionItem: type = { [key: string]: unknown; } & Omit<{ detail?: string | undefined; documentation?: string | { kind: string; value: string; } | undefined; filterText?: string | undefined; insertText?: string | undefined; kind?: number | undefined; sortText?: string | undefined; label: string; }, 'documentation'> & { documentation?: unknown; }
 LspCompletionList: type = Omit<toolbox.CompletionList, 'items'> & { items: LspCompletionItem[]; }
 LspCompletionsOptions: interface
+LspCompletionsOptions: passed-in
 LspCompletionsOptions.context: readonly optional property { triggerCharacter?: string | null; triggerKind: number; } | undefined
 LspLocation: type = {...}
 LspLocation.range: property { end: components['schemas']['SymbolPosition']; start: components['schemas']['SymbolPosition']; }
@@ -1348,9 +1394,9 @@ MacReservation.sandboxesPerMac: property number
 MacReservation.slotsUsed: property number
 MacReservation.status: property MacReservationStatus
 MacReservationBatch: type = Omit<api.MacReservationBatch, 'reservations'> & { reservations: MacReservation[]; }
-MacReservationEndReason: type = 'expired' | 'released' | 'charge_failed' | 'not_accepted' | 'reissued' | 'operator' | 'unknown'
-MacReservationOrigin: type = 'explicit' | 'auto' | 'unknown'
-MacReservationStatus: type = 'failed' | 'released' | 'pending_charge' | 'pending_mac' | 'active' | 'ending' | 'unknown'
+MacReservationEndReason: type = 'charge_failed' | 'expired' | 'not_accepted' | 'operator' | 'reissued' | 'released' | 'unknown'
+MacReservationOrigin: type = 'auto' | 'explicit' | 'unknown'
+MacReservationStatus: type = 'active' | 'ending' | 'failed' | 'pending_charge' | 'pending_mac' | 'released' | 'unknown'
 Match: type = {...}
 Match.content: property string
 Match.file: property string
@@ -1383,6 +1429,7 @@ NetworkPolicyInfo.etag: property string
 NetworkPolicyInfo.httpStatus: property number
 NetworkPolicyInfo.status: optional property string
 NetworkPolicyInput: interface
+NetworkPolicyInput: passed-in
 NetworkPolicyInput.allowCidrs: optional property string[]
 NetworkPolicyInput.allowDomains: optional property string[] | null
 NetworkPolicyInput.blockAll: optional property boolean | null
@@ -1406,6 +1453,7 @@ OrganizationLimits.storage: property { images: components['schemas']['UsageLimit
 OriginImportOnlyError: class extends BadRequestError
 OriginImportOnlyError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 OtelApiLike: interface
+OtelApiLike: passed-in
 OtelApiLike.SpanKind: readonly property { readonly CLIENT: number; }
 OtelApiLike.SpanStatusCode: readonly property { readonly OK: number; readonly ERROR: number; }
 OtelApiLike.context: readonly property { active(): OtelContextLike; }
@@ -1434,6 +1482,7 @@ PortInUseResponse.isInUse: property boolean
 PortListResponse: type = {...}
 PortListResponse.ports: property number[]
 PortMapping: interface
+PortMapping: passed-in
 PortMapping.port: property number
 PortMapping.proto: optional property 'tcp' | 'udp'
 PortsService: class
@@ -1453,6 +1502,7 @@ PreconditionFailedError.constructor: constructor (message: string, statusCode?: 
 PreconditionRequiredError: class extends DaytonaError
 PreconditionRequiredError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 PresignedUrlOptions: interface
+PresignedUrlOptions: passed-in
 PresignedUrlOptions.expiresInSeconds: optional property number
 PreviewEndpoint: interface
 PreviewEndpoint.createdAt: optional property string
@@ -1463,7 +1513,7 @@ PreviewLink: interface
 PreviewLink.expiresAt: optional property string
 PreviewLink.token: property string
 PreviewLink.url: property string
-ProcessCommand: type = string | { cmd: string; argv?: never; } | { argv: readonly string[]; cmd?: never; }
+ProcessCommand: type = string | { argv: readonly string[]; cmd?: never; } | { cmd: string; argv?: never; }
 ProcessDto: interface
 ProcessDto.argv: optional property string[]
 ProcessDto.code: optional property string
@@ -1516,26 +1566,27 @@ ProcessHandle.sandboxId: readonly property string
 ProcessHandle.streamLogs: method (options?: StreamLogsOptions): AsyncIterable<StreamLogEvent>
 ProcessHandle.toJSON: method (): ProcessHandleJSON
 ProcessHandle.wait: method (options?: WaitProcessOptions): Promise<WaitResult>
-ProcessHandle.writeStdin: method (data: string | Uint8Array): Promise<void>
+ProcessHandle.writeStdin: method (data: Uint8Array | string): Promise<void>
 ProcessHandleJSON: interface
 ProcessHandleJSON.kind: optional property ProcessKind
 ProcessHandleJSON.processId: property string
 ProcessHandleJSON.sandboxId: property string
 ProcessKeepLogs: type = 'unknown' | KeepLogs
-ProcessKind: type = 'exec' | 'pty' | 'code' | 'session'
+ProcessKind: type = 'code' | 'exec' | 'pty' | 'session'
 ProcessListOptions: interface
+ProcessListOptions: passed-in
 ProcessListOptions.kind: optional property ProcessKind
 ProcessListOptions.name: optional property string
 ProcessListOptions.pid: optional property number
 ProcessListOptions.sessionId: optional property string
-ProcessListOptions.state: optional property 'terminal' | 'running' | 'all'
+ProcessListOptions.state: optional property 'all' | 'running' | 'terminal'
 ProcessNotFoundError: class extends NotFoundError
 ProcessNotFoundError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
-ProcessReason: type = 'failed' | 'lost' | 'exited' | 'signaled' | 'timed_out' | 'unknown'
+ProcessReason: type = 'exited' | 'failed' | 'lost' | 'signaled' | 'timed_out' | 'unknown'
 ProcessReportedKind: type = 'unknown' | ProcessKind
 ProcessService: class
-ProcessService.connect: method (idOrHandle: string | ProcessHandleJSON): ProcessHandle
-ProcessService.connectSession: method (sessionIdOrJSON: string | SessionJSON): Session
+ProcessService.connect: method (idOrHandle: ProcessHandleJSON | string): ProcessHandle
+ProcessService.connectSession: method (sessionIdOrJSON: SessionJSON | string): Session
 ProcessService.constructor: internal-constructor (transport: HttpTransport, sandboxId: string)
 ProcessService.createSession: method (options?: CreateSessionOptions): Promise<Session>
 ProcessService.get: method (id: string): Promise<ProcessDto>
@@ -1544,10 +1595,11 @@ ProcessService.run: method (command: ProcessCommand, options?: RunOptions): Prom
 ProcessService.sandboxId: readonly property string
 ProcessService.start: method (command: ProcessCommand, options?: ProcessStartOptions): Promise<ProcessHandle>
 ProcessService.transport: readonly property HttpTransport
-ProcessSignal: type = 'TERM' | 'KILL' | 'INT' | 'HUP' | 'QUIT' | 'USR1' | 'USR2'
+ProcessSignal: type = 'HUP' | 'INT' | 'KILL' | 'QUIT' | 'TERM' | 'USR1' | 'USR2'
 ProcessStartFailedError: class extends BadRequestError
 ProcessStartFailedError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 ProcessStartOptions: interface
+ProcessStartOptions: passed-in
 ProcessStartOptions.argv: optional property string[]
 ProcessStartOptions.cmd: optional property string
 ProcessStartOptions.cwd: optional property string
@@ -1557,11 +1609,11 @@ ProcessStartOptions.keepLogs: optional property KeepLogs
 ProcessStartOptions.login: optional property boolean
 ProcessStartOptions.name: optional property string
 ProcessStartOptions.shell: optional property string
-ProcessStartOptions.stdin: optional property 'open' | 'closed'
+ProcessStartOptions.stdin: optional property 'closed' | 'open'
 ProcessStartOptions.terminal: optional property { cols: number; rows: number; }
 ProcessStartOptions.user: optional property string
-ProcessState: type = 'terminal' | 'running' | 'starting' | 'provisioning' | 'unknown'
-ProcessStdinMode: type = 'open' | 'closed' | 'unknown'
+ProcessState: type = 'provisioning' | 'running' | 'starting' | 'terminal' | 'unknown'
+ProcessStdinMode: type = 'closed' | 'open' | 'unknown'
 ProcessTerminalError: class extends ConflictError
 ProcessTerminalError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 ProjectApiKeyWithContext: type = { created_at: string; created_by?: string | null; expires_at?: string | null; id: string; imported_from?: string | null; key_prefix?: string | null; key_suffix?: string | null; last_used_at?: string | null; name: string; project_id: string; project_permissions: string[]; revoked_at?: string | null; service_account_id?: string | null; service_account_name?: string | null; sync_to_v0: boolean; sync_to_v1: boolean; } & { context: components['schemas']['ProjectApiKeyContext']; }
@@ -1582,15 +1634,16 @@ ProxyErrorCode: type = 'SANDBOX_NOT_RUNNING'
 PtyDuplex: interface
 PtyDuplex.close: method (): void
 PtyDuplex.readable: property AsyncIterable<Uint8Array<ArrayBufferLike>>
-PtyDuplex.write: method (data: string | Uint8Array): void
+PtyDuplex.write: method (data: Uint8Array | string): void
 PtyService: class
 PtyService.attach: method (command?: string, options?: Omit<ProcessStartOptions, 'cmd'> & { terminal?: TerminalSize; }): Promise<{ handle: ProcessHandle; connection: PtyDuplex; }>
-PtyService.connect: method (idOrHandle: string | ProcessHandleJSON): ProcessHandle
+PtyService.connect: method (idOrHandle: ProcessHandleJSON | string): ProcessHandle
 PtyService.constructor: internal-constructor (process: ProcessService)
-PtyService.delete: method (idOrHandle: string | ProcessHandleJSON): Promise<void>
+PtyService.delete: method (idOrHandle: ProcessHandleJSON | string): Promise<void>
 PtyService.list: method (): Promise<ListResult<ProcessDto>>
 PtyService.start: method (command?: string, options?: Omit<ProcessStartOptions, 'cmd'> & { terminal?: TerminalSize; }): Promise<ProcessHandle>
 PullVolumeOptions: interface
+PullVolumeOptions: passed-in
 PullVolumeOptions.requestId: readonly property string
 PullVolumeOptions.timeout: readonly optional property number
 PullVolumeResult: interface
@@ -1600,6 +1653,7 @@ PullVolumeResult.requestId: readonly property string
 PullVolumeResult.status: readonly property PullVolumeStatus
 PullVolumeStatus: type = 'pending' | 'pulled' | 'unchanged' | 'unknown'
 PushOptions: interface extends CredentialOptions
+PushOptions: passed-in
 PushOptions.setUpstream: optional property boolean
 ROUTER_CODE_EXTRAS: const Partial<Record<ErrorCode, readonly string[]>>
 ROUTER_ERROR_CODES: const readonly tuple
@@ -1614,7 +1668,9 @@ RateLimitError.constructor: constructor (message: string, statusCode?: number, c
 RateLimitedError: class extends RateLimitError
 RateLimitedError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 ReadFileOptions: interface
+ReadFileOptions: passed-in
 ReadManyOptions: interface
+ReadManyOptions: passed-in
 ReadOnlyUnsupportedError: class extends BadRequestError
 ReadOnlyUnsupportedError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 RecordingService: class
@@ -1626,6 +1682,7 @@ RecordingService.list: method (): Promise<ComputerUseRecordingsResponse>
 RecordingService.start: method (request?: ComputerUseRecordingStartRequest): Promise<ComputerUseRecording>
 RecordingService.stop: method (request: ComputerUseRecordingStopRequest): Promise<ComputerUseRecording>
 RenewReservationOptions: interface
+RenewReservationOptions: passed-in
 RenewReservationOptions.idempotencyKey: optional property string
 ReplaceResult: interface
 ReplaceResult.error: optional property string
@@ -1643,10 +1700,12 @@ ReservationsService.list: method (options?: ListReservationsOptions): Promise<Li
 ReservationsService.renew: method (id: string, options?: RenewReservationOptions): Promise<MacReservation>
 ReservationsService.update: method (id: string, options: UpdateReservationOptions): Promise<MacReservation>
 ResetOptions: interface
+ResetOptions: passed-in
 ResetOptions.files: optional property string[]
 ResetOptions.mode: optional property string
 ResetOptions.target: optional property string
 Resources: interface
+Resources: passed-in
 Resources.cpu: optional property number
 Resources.cpuMax: optional property number
 Resources.disk: optional property number
@@ -1654,6 +1713,7 @@ Resources.diskMax: optional property number
 Resources.memory: optional property number
 Resources.memoryMax: optional property number
 RestoreOptions: interface
+RestoreOptions: passed-in
 RestoreOptions.source: optional property string
 RestoreOptions.staged: optional property boolean
 RestoreOptions.worktree: optional property boolean
@@ -1746,6 +1806,7 @@ SandboxAccessToken.ports: readonly optional property readonly number[]
 SandboxAccessToken.tokenType: readonly property string
 SandboxClass: type = 'linux' | 'macos'
 SandboxConnectOptions: interface
+SandboxConnectOptions: passed-in
 SandboxConnectOptions.accessToken: optional property string
 SandboxConnectOptions.autoDelete: optional property boolean
 SandboxConnectOptions.toolboxUrl: optional property string
@@ -1792,6 +1853,7 @@ SandboxDto.toolbox_proxy_url: optional property string | null
 SandboxDto.updated_at: optional property string | null
 SandboxDto.user: optional property string | null
 SandboxEventsConfig: interface
+SandboxEventsConfig: passed-in
 SandboxEventsConfig.enabled: optional property boolean
 SandboxEventsConfig.idleCloseMs: optional property number
 SandboxEventsConfig.reconcileIntervalMs: optional property number
@@ -1859,11 +1921,11 @@ SandboxSearchFilters.minDiskMib: optional property number
 SandboxSearchFilters.minMemoryMib: optional property number
 SandboxSearchFilters.order: optional property SearchOrder
 SandboxSearchFilters.q: optional property string
-SandboxSearchFilters.region: optional property string | readonly string[]
+SandboxSearchFilters.region: optional property readonly string[] | string
 SandboxSearchFilters.sandboxClass: optional property SandboxClass | readonly SandboxClass[]
 SandboxSearchFilters.sort: optional property SearchSort
 SandboxSearchFilters.spot: optional property boolean
-SandboxSearchFilters.status: optional property string | readonly string[]
+SandboxSearchFilters.status: optional property readonly string[] | string
 SandboxSearchFilters.updatedEndAt: optional property SearchTimestamp
 SandboxSearchFilters.updatedStartAt: optional property SearchTimestamp
 SandboxSecretsInfo: interface
@@ -1891,11 +1953,11 @@ SandboxState: union-member 'stopping'
 SandboxState: union-member 'unknown'
 SandboxStateSnapshot: type = {...}
 SandboxStateSnapshot.bytes: optional property number | null
-SandboxStateSnapshot.class: property (string & {}) | 'linux'
+SandboxStateSnapshot.class: property 'linux' | (string & {})
 SandboxStateSnapshot.created_at: property string
 SandboxStateSnapshot.error: optional property string | null
 SandboxStateSnapshot.id: property string
-SandboxStateSnapshot.kind: property (string & {}) | 'full'
+SandboxStateSnapshot.kind: property 'full' | (string & {})
 SandboxStateSnapshot.memory_bytes: optional property number | null
 SandboxStateSnapshot.name: property string
 SandboxStateSnapshot.region_id: property string
@@ -1911,7 +1973,7 @@ SandboxV2: alias = Sandbox
 SandboxVolumesService: class
 SandboxVolumesService.constructor: internal-constructor (transport: HttpTransport)
 SandboxVolumesService.pull: method (volumeId: string, options: PullVolumeOptions): Promise<PullVolumeResult>
-SandboxWaitState: type = 'queued' | 'pausing' | 'paused' | 'stopping' | 'stopped' | 'starting' | 'started' | 'destroying' | 'destroyed'
+SandboxWaitState: type = 'destroyed' | 'destroying' | 'paused' | 'pausing' | 'queued' | 'started' | 'starting' | 'stopped' | 'stopping'
 Sandbox[Symbol.asyncDispose]: method (): Promise<void>
 ScreenService: class
 ScreenService.constructor: internal-constructor (transport: ComputerUseTransport)
@@ -1927,12 +1989,13 @@ SearchResult.rawTotalRelation: property string
 SearchResult.total: property number
 SearchResult.totalRelation: property SearchTotalRelation
 SearchSandboxesOptions: interface extends SandboxSearchFilters
+SearchSandboxesOptions: passed-in
 SearchSandboxesOptions.cursor: optional property string
 SearchSandboxesOptions.idPrefix: optional property string
 SearchSandboxesOptions.limit: optional property number
 SearchSandboxesOptions.namePrefix: optional property string
-SearchSort: type = 'created_at' | 'updated_at' | 'last_activity_at' | 'name' | 'cores' | 'memory_mib' | 'disk_mib'
-SearchTimestamp: type = string | Date
+SearchSort: type = 'cores' | 'created_at' | 'disk_mib' | 'last_activity_at' | 'memory_mib' | 'name' | 'updated_at'
+SearchTimestamp: type = Date | string
 SearchTotalRelation: type = 'eq' | 'gte' | 'unknown'
 SearchUnavailableError: class extends ServiceUnavailableError
 SearchUnavailableError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
@@ -1970,16 +2033,20 @@ SessionJSON.sessionId: readonly property string
 SessionNotFoundError: class extends NotFoundError
 SessionNotFoundError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 SessionRunOptions: interface extends SessionStartOptions
+SessionRunOptions: passed-in
 SessionRunOptions.timeout: readonly optional property number
 SessionStartOptions: interface
+SessionStartOptions: passed-in
 SessionStartOptions.executionTimeout: readonly optional property number
 SessionStartOptions.keepLogs: readonly optional property KeepLogs
 SessionStartOptions.name: readonly optional property string
-SessionStartOptions.stdin: readonly optional property 'open' | 'closed'
+SessionStartOptions.stdin: readonly optional property 'closed' | 'open'
 Session[Symbol.asyncDispose]: method (): Promise<void>
 SetPortPublicOptions: interface
+SetPortPublicOptions: passed-in
 SetPortPublicOptions.public: readonly property boolean
 SetSecretOptions: interface
+SetSecretOptions: passed-in
 SetSecretOptions.allowedDomains: property string[]
 SetSecretOptions.description: optional property string
 SetSecretOptions.ifNotExists: optional property boolean
@@ -1988,6 +2055,7 @@ SignedPreviewLink.expiresAt: optional property string
 SignedPreviewLink.token: property string
 SignedPreviewLink.url: property string
 SignedPreviewLinkOptions: interface
+SignedPreviewLinkOptions: passed-in
 SignedPreviewLinkOptions.expiresInSeconds: readonly optional property number
 Snapshot: class
 Snapshot.availableIn: readonly property string[]
@@ -2008,11 +2076,11 @@ SnapshotClassMismatchError: class extends ConflictError
 SnapshotClassMismatchError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 SnapshotDetail: type = {...}
 SnapshotDetail.bytes: optional property number | null
-SnapshotDetail.class: property (string & {}) | 'linux'
+SnapshotDetail.class: property 'linux' | (string & {})
 SnapshotDetail.created_at: property string
 SnapshotDetail.error: optional property string | null
 SnapshotDetail.id: property string
-SnapshotDetail.kind: property (string & {}) | 'full'
+SnapshotDetail.kind: property 'full' | (string & {})
 SnapshotDetail.memory_bytes: optional property number | null
 SnapshotDetail.name: property string
 SnapshotDetail.region_id: property string
@@ -2047,6 +2115,7 @@ StreamLogEvent: union-member { type: 'log'; cursor?: string; frame: LogFrame; }
 StreamLogEvent: union-member { type: 'state'; cursor?: string; result: WaitResult; }
 StreamLogEvent: union-member { type: 'warning'; cursor?: string; message: string; firstAvailableCursor?: string; }
 StreamLogsOptions: interface extends LogsOptions
+StreamLogsOptions: passed-in
 StreamLogsOptions.signal: optional property AbortSignal
 SystemMetrics: interface
 SystemMetrics.cpuCount: readonly property number
@@ -2064,6 +2133,7 @@ TimeoutError.constructor: constructor (message: string, statusCode?: number, cod
 TransferCancelledError: class extends DaytonaError
 TransferCancelledError.constructor: constructor (message?: string)
 TransferProgressCallback: interface
+TransferProgressCallback: passed-in
 TransferProgressCallback(): call (bytes: number, total?: number): void
 UnknownPlanError: class extends BadRequestError
 UnknownPlanError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
@@ -2076,10 +2146,13 @@ UnsupportedOperationError.constructor: constructor (message: string, statusCode?
 UnsupportedVolumeTypeError: class extends BadRequestError
 UnsupportedVolumeTypeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 UpdateEnvOptions: interface
+UpdateEnvOptions: passed-in
 UpdateEnvOptions.unset: readonly optional property readonly string[]
 UpdateReservationOptions: interface
+UpdateReservationOptions: passed-in
 UpdateReservationOptions.autoRenew: property boolean
 UploadFileOptions: interface
+UploadFileOptions: passed-in
 UploadFileOptions.atomic: readonly optional property boolean
 UploadFileOptions.onProgress: readonly optional property TransferProgressCallback
 UploadFileOptions.signal: readonly optional property AbortSignal
@@ -2099,11 +2172,13 @@ Volume.updatedAt: readonly property string
 Volume.usedBytes: readonly optional property number | null
 Volume.usedBytesAt: readonly optional property string | null
 VolumeMount: interface
+VolumeMount: passed-in
 VolumeMount.mountPath: readonly property string
 VolumeMount.readOnly: readonly optional property boolean
 VolumeMount.subpath: readonly optional property string
 VolumeMount.volumeId: readonly property string
 VolumeRefOptions: interface
+VolumeRefOptions: passed-in
 VolumeRefOptions.idOnly: readonly optional property boolean
 VolumeService: class
 VolumeService.constructor: internal-constructor (api: AxiosInstance)
@@ -2112,21 +2187,24 @@ VolumeService.delete: method (volume: Volume | string, options?: VolumeRefOption
 VolumeService.get: method (nameOrId: string, create?: boolean, options?: VolumeRefOptions): Promise<Volume>
 VolumeService.iter: method (options?: ListVolumesOptions): AsyncIterable<Volume>
 VolumeService.list: method (options?: ListVolumesOptions): Promise<ListResult<Volume>>
-VolumeState: type = 'deleting' | 'deleted' | 'ready' | 'error' | 'unknown'
-VolumeType: type = 'disk' | 'bucket' | 'unknown'
+VolumeState: type = 'deleted' | 'deleting' | 'error' | 'ready' | 'unknown'
+VolumeType: type = 'bucket' | 'disk' | 'unknown'
 WaitForStateOptions: interface
+WaitForStateOptions: passed-in
 WaitForStateOptions.terminalStates: optional property readonly SandboxState[]
 WaitForStateOptions.timeout: optional property number
 WaitOptions: interface
+WaitOptions: passed-in
 WaitOptions.timeout: optional property number
 WaitOptions.until: optional property SandboxWaitState | readonly SandboxWaitState[]
 WaitResult: type = union
 WaitResult: union-member { reason: 'exited'; exitCode: number; signal?: undefined; rawReason?: string; }
-WaitResult: union-member { reason: 'lost' | 'failed'; exitCode?: number; signal?: string; rawReason?: string; }
+WaitResult: union-member { reason: 'failed' | 'lost'; exitCode?: number; signal?: string; rawReason?: string; }
 WaitResult: union-member { reason: 'signaled'; signal: string; exitCode?: undefined; rawReason?: string; }
 WaitResult: union-member { reason: 'timed_out'; exitCode?: undefined; signal?: undefined; rawReason?: string; }
 WaitResult: union-member { reason: 'unknown'; exitCode?: number; signal?: string; rawReason: string; }
 WatchDirOptions: interface
+WatchDirOptions: passed-in
 WatchDirOptions.onExit: optional property (err?: Error) => void
 WatchDirOptions.onOverflow: optional property () => void
 WatchDirOptions.recursive: optional property boolean
@@ -2135,9 +2213,11 @@ WatchHandle.exitError: readonly property Error | undefined
 WatchHandle.stop: method (): Promise<void>
 WatchHandle.waitForExit: method (): Promise<Error | undefined>
 WriteFileOptions: interface
+WriteFileOptions: passed-in
 WriteFileOptions.atomic: optional property boolean
 WriteFileOptions.mode: optional property string
 WriteManyOptions: interface
+WriteManyOptions: passed-in
 WriteManyOptions.atomic: optional property boolean
 idempotencyKeyForName: function (name: string): Promise<string>
 isKnownErrorCode: function (code: string | undefined): code is ErrorCode
@@ -2145,11 +2225,13 @@ isKnownErrorCode: function (code: string | undefined): code is ErrorCode
 ~ArtifactTooLargeError.bytes: readonly optional property number
 ~ArtifactTooLargeError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 ~ArtifactTooLargeError.maxBytes: readonly optional property number
+~AuthorizationHeaderOptions: passed-in
 ~AuthorizationHeaderOptions: type = {...}
 ~AuthorizationHeaderOptions.forceRefresh: readonly optional property boolean
 ~AuthorizationHeaderOptions.rejectedAuthorization: readonly optional property string
 ~CompletionList: type = Omit<{ isIncomplete: boolean; items: components['schemas']['CompletionItem'][]; }, 'items'> & { items: CompletionItem[]; }
 ~ErrorEnvelope: interface
+~ErrorEnvelope: passed-in
 ~ErrorEnvelope.actual: readonly optional property string
 ~ErrorEnvelope.bytes: readonly optional property unknown
 ~ErrorEnvelope.code: readonly optional property string
@@ -2175,8 +2257,10 @@ isKnownErrorCode: function (code: string | undefined): code is ErrorCode
 ~ErrorEnvelope.timestamp: readonly optional property unknown
 ~ErrorEnvelope.trace_id: readonly optional property string
 ~FetchRequestInit: interface extends RequestInit
+~FetchRequestInit: passed-in
 ~FetchRequestInit.bodyFactory: readonly optional property () => BodyInit | Promise<BodyInit>
 ~GitConfigOptions: interface
+~GitConfigOptions: passed-in
 ~GitConfigOptions.path: optional property string
 ~GitConfigOptions.scope: optional property GitConfigScope
 ~HttpTransport: class
@@ -2196,8 +2280,10 @@ isKnownErrorCode: function (code: string | undefined): code is ErrorCode
 ~HttpTransport.token: readonly property string | undefined
 ~HttpTransport.withBaseUrl: method (baseUrl: string): HttpTransport
 ~InitOptions: interface
+~InitOptions: passed-in
 ~InitOptions.bare: optional property boolean
 ~InitOptions.initialBranch: optional property string
+~LifecycleWaitOptions: passed-in
 ~LifecycleWaitOptions: type = {...}
 ~LifecycleWaitOptions.timeout: readonly optional property number
 ~MacReservationBatch@v2/gen/api-types: type = Omit<{ requested: number; reservations: components['schemas']['MacReservation'][]; reserved: number; }, 'reservations'> & { reservations: MacReservation[]; }
@@ -2220,10 +2306,11 @@ isKnownErrorCode: function (code: string | undefined): code is ErrorCode
 ~OtelSpanLike: interface
 ~OtelSpanLike.end: method (): void
 ~OtelSpanLike.recordException: method (error: Error): void
-~OtelSpanLike.setAttribute: method (name: string, value: string | number | boolean): void
+~OtelSpanLike.setAttribute: method (name: string, value: boolean | number | string): void
 ~OtelSpanLike.setStatus: method (status: { readonly code: number; readonly message?: string; }): void
 ~OtelSpanLike.spanContext: method (): OtelSpanContextLike
 ~OtelTracerLike: interface
-~OtelTracerLike.startSpan: method (name: string, options: { readonly kind: number; readonly attributes: Record<string, string | number | boolean>; }): OtelSpanLike
+~OtelTracerLike.startSpan: method (name: string, options: { readonly kind: number; readonly attributes: Record<string, boolean | number | string>; }): OtelSpanLike
 ~WaitProcessOptions: interface
+~WaitProcessOptions: passed-in
 ~WaitProcessOptions.timeout: optional property number

@@ -43,6 +43,32 @@ describe('public surface snapshot', () => {
     expect(lines.some((line) => line.startsWith('~Daytona@v2/Daytona.constructor: internal-constructor '))).toBe(true)
   })
 
+  it('prints union members in a canonical order, independent of the order files are checked', () => {
+    // The checker orders union members by internal type id; the generator
+    // sorts them, so an unrelated change cannot reorder an untouched line.
+    const literalUnion = /'[^']*'(?: \| '[^']*')+/g
+    const unsorted: string[] = []
+    for (const file of ['index.api.txt', 'v2.api.txt']) {
+      for (const line of snapshot(file)) {
+        for (const match of line.match(literalUnion) ?? []) {
+          const members = match.split(' | ')
+          if (members.join() !== [...members].sort().join()) unsorted.push(line)
+        }
+      }
+    }
+    expect(unsorted).toEqual([])
+    expect(snapshot('v2.api.txt')).toContain("ComputerUseMouseButton: type = 'left' | 'middle' | 'right'")
+  })
+
+  it('marks the object types callers pass in, and only those', () => {
+    const lines = snapshot('v2.api.txt')
+    for (const name of ['PortMapping', 'CreateSandboxOptions', 'VolumeMount', '~LifecycleWaitOptions', '~ErrorEnvelope', 'OtelApiLike']) {
+      expect(lines).toContain(`${name}: passed-in`)
+    }
+    // Returned to the caller, never passed in: may gain required members.
+    expect(lines).not.toContain('OrganizationLimits: passed-in')
+  })
+
   it('expands an options type that a public signature uses without exporting it', () => {
     const lines = snapshot('v2.api.txt')
     expect(lines.some((line) => line.startsWith('Sandbox.pause: method (options?: LifecycleWaitOptions)'))).toBe(true)

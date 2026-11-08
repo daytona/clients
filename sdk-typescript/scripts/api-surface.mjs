@@ -25,11 +25,31 @@ const ENTRIES = [
   { spec: '@daytona/sdk/v2', file: 'src/v2/index.ts', out: 'api-surface/v2.api.txt' },
 ]
 
-const TYPE_FLAGS =
-  ts.TypeFormatFlags.NoTruncation |
-  ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope |
-  ts.TypeFormatFlags.WriteClassExpressionAsTypeLiteral |
-  ts.TypeFormatFlags.UseSingleQuotesForStringLiteralType
+const BUILDER_FLAGS =
+  ts.NodeBuilderFlags.NoTruncation |
+  ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope |
+  ts.NodeBuilderFlags.WriteClassExpressionAsTypeLiteral |
+  ts.NodeBuilderFlags.UseSingleQuotesForStringLiteralType |
+  ts.NodeBuilderFlags.IgnoreErrors
+
+// Types are printed from the checker's type nodes with every union's members
+// sorted: the checker orders them by internal type id, which depends on the
+// order files are checked, so an unrelated change elsewhere would reorder them.
+const printer = ts.createPrinter({ removeComments: true, omitTrailingSemicolon: true })
+const printFile = ts.createSourceFile('surface.d.ts', '', ts.ScriptTarget.Latest)
+const printNode = (node) => oneLine(printer.printNode(ts.EmitHint.Unspecified, node, printFile))
+const LAST = new Set(['null', 'undefined'])
+
+function sortUnions(node) {
+  const visit = (n) => {
+    const updated = ts.visitEachChild(n, visit, undefined)
+    if (!ts.isUnionTypeNode(updated)) return updated
+    const keyed = updated.types.map((t) => [LAST.has(printNode(t)) ? 1 : 0, printNode(t), t])
+    keyed.sort((a, b) => a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0))
+    return ts.factory.updateUnionTypeNode(updated, ts.factory.createNodeArray(keyed.map((k) => k[2])))
+  }
+  return visit(node)
+}
 
 function createProgram() {
   const configPath = join(root, 'tsconfig.json')
@@ -119,16 +139,77 @@ function surfaces(checker, program) {
   const named = new Map()
   for (const { exportsByTarget } of perEntry) for (const target of exportsByTarget.keys()) named.set(target, target.name)
   const usedNames = new Set(exportedNames)
+  // Types callers pass in: named in a parameter of a listed signature, or in
+  // a property of such a type. A new required member breaks those callers,
+  // so each gets a `Name: passed-in` line for the breaking-change check. A
+  // type the SDK also returns (a return type, a property of a class or of a
+  // returned type) is left out: callers hand back what they were given.
+  const inputs = new Set()
+  const outputs = new Set()
+  const listedAt = new Map()
 
   // The v2 namespace first, so a declaration both reach is listed with v2.
   for (const state of [...perEntry].reverse()) emitEntry(state)
+  for (const into of [inputs, outputs]) {
+    const done = new Set()
+    for (let pending = [...into]; pending.length; pending = [...into].filter((sym) => !done.has(sym))) {
+      for (const sym of pending) {
+        done.add(sym)
+        collectInputs(checker.getDeclaredTypeOfSymbol(sym), new Set(), true, into)
+      }
+    }
+  }
+  for (const sym of inputs) {
+    if (outputs.has(sym)) continue
+    const at = listedAt.get(sym)
+    // Only object types have members a caller supplies.
+    const head = new RegExp(`^${at?.name.replace(/[.*+?^${}()|[\]\\/@~]/g, '\\$&')}: (interface|type (<.*> )?= \\{\\.\\.\\.\\})`)
+    if (at && at.lines.some((line) => head.test(line))) at.lines.push(`${at.name}: passed-in`)
+  }
   return perEntry.map(({ entry, lines }) => ({ entry, lines }))
+
+  // Records the named declarations of this package a parameter type uses,
+  // through unions, intersections, type arguments and inline object types;
+  // not through function types (their parameters flow the other way).
+  function collectInputs(type, seen = new Set(), top = false, into = inputs) {
+    if (!type || seen.has(type)) return
+    seen.add(type)
+    const record = (sym) => {
+      if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
+      if (sym.declarations?.length && sym.declarations.every(isReachableSource)) into.add(sym)
+    }
+    if (type.aliasSymbol && !top) {
+      record(type.aliasSymbol)
+      for (const arg of type.aliasTypeArguments ?? []) collectInputs(arg, seen, false, into)
+      return
+    }
+    if (type.flags & (ts.TypeFlags.Union | ts.TypeFlags.Intersection)) {
+      for (const member of type.types) collectInputs(member, seen, false, into)
+      return
+    }
+    if (!(type.flags & ts.TypeFlags.Object)) return
+    if (type.objectFlags & ts.ObjectFlags.Reference) {
+      for (const arg of checker.getTypeArguments(type)) collectInputs(arg, seen, false, into)
+    }
+    const sym = type.symbol
+    if (sym && sym.flags & (ts.SymbolFlags.Class | ts.SymbolFlags.Interface) && !top) {
+      if (sym.flags & ts.SymbolFlags.Interface) record(sym)
+      return
+    }
+    if (checker.isTupleType(type) || checker.isArrayType(type)) return
+    if (checker.getSignaturesOfType(type, ts.SignatureKind.Call).length) return
+    for (const prop of checker.getPropertiesOfType(type)) {
+      const decl = prop.declarations?.[0]
+      if (decl && !(prop.flags & ts.SymbolFlags.Method)) collectInputs(checker.getTypeOfSymbolAtLocation(prop, decl), seen, false, into)
+    }
+  }
 
   function emitEntry({ entry, exported, exportsByTarget, lines }) {
     const queue = []
     const emit = (name, kind, signature = '') => lines.push(`${name}: ${kind}${signature ? ` ${oneLine(signature)}` : ''}`)
-    const typeText = (type, at) => checker.typeToString(type, at, TYPE_FLAGS)
-    const signatureText = (sig, at) => checker.signatureToString(sig, at, TYPE_FLAGS)
+    const typeText = (type, at, extra = 0) => printNode(sortUnions(checker.typeToTypeNode(type, at, BUILDER_FLAGS | extra)))
+    const signatureText = (sig, at) =>
+      printNode(sortUnions(checker.signatureToSignatureDeclaration(sig, ts.SyntaxKind.CallSignature, at, BUILDER_FLAGS)))
 
     function want(sym) {
       if (!sym) return
@@ -177,18 +258,22 @@ function surfaces(checker, program) {
         if (decl) reach(checker.getTypeOfSymbolAtLocation(prop, decl), seen)
       }
       for (const kind of [ts.SignatureKind.Call, ts.SignatureKind.Construct]) {
-        for (const sig of checker.getSignaturesOfType(type, kind)) reachSignature(sig, seen)
+        for (const sig of checker.getSignaturesOfType(type, kind)) reachSignature(sig, seen, false)
       }
       for (const info of checker.getIndexInfosOfType(type)) reach(info.type, seen)
     }
 
-    function reachSignature(sig, seen = new Set()) {
+    function reachSignature(sig, seen = new Set(), passedIn = true) {
       for (const tp of sig.typeParameters ?? []) reach(checker.getBaseConstraintOfType(tp), seen)
       for (const param of sig.parameters) {
         const decl = param.valueDeclaration
-        if (decl) reach(checker.getTypeOfSymbolAtLocation(param, decl), seen)
+        if (!decl) continue
+        const type = checker.getTypeOfSymbolAtLocation(param, decl)
+        reach(type, seen)
+        if (passedIn) collectInputs(type)
       }
       reach(checker.getReturnTypeOfSignature(sig), seen)
+      if (passedIn) collectInputs(checker.getReturnTypeOfSignature(sig), new Set(), false, outputs)
     }
 
     function ownedHere(member, container) {
@@ -218,6 +303,7 @@ function surfaces(checker, program) {
         const mods = [statics ? 'static' : '', flags & ts.ModifierFlags.Abstract ? 'abstract' : ''].filter(Boolean)
         const isMethod = member.flags & ts.SymbolFlags.Method
         if (isMethod) {
+          if (member.flags & ts.SymbolFlags.Optional) mods.push('optional')
           for (const sig of checker.getSignaturesOfType(memberType, ts.SignatureKind.Call).filter(isPublicSignature)) {
             reachSignature(sig)
             emit(name, [...mods, 'method'].join(' '), signatureText(sig, decl))
@@ -234,6 +320,7 @@ function surfaces(checker, program) {
           if (decl.type) shown = checker.getTypeFromTypeNode(decl.type)
         }
         reach(shown)
+        if (container.flags & ts.SymbolFlags.Class) collectInputs(shown, new Set(), false, outputs)
         emit(name, [...mods, 'property'].join(' '), typeText(shown, decl))
       }
       for (const kind of [ts.SignatureKind.Call, ts.SignatureKind.Construct]) {
@@ -300,7 +387,7 @@ function surfaces(checker, program) {
         return
       }
       reach(type, new Set(), true)
-      const text = checker.typeToString(type, decl, TYPE_FLAGS | ts.TypeFormatFlags.InTypeAlias)
+      const text = typeText(type, decl, ts.NodeBuilderFlags.InTypeAlias)
       if (type.flags & ts.TypeFlags.Union && text.length > LONG) {
         emit(name, 'type', `${typeParams(decl)} = union`)
         for (const member of type.types) emit(name, 'union-member', typeText(member, decl))
@@ -354,6 +441,9 @@ function surfaces(checker, program) {
       // A name can be both a value and a type (a const and a type alias).
       if (flags & ts.SymbolFlags.Interface && !(flags & ts.SymbolFlags.Class)) emitInterface(name, sym)
       if (flags & ts.SymbolFlags.TypeAlias) emitTypeAlias(name, sym)
+      if (flags & (ts.SymbolFlags.Interface | ts.SymbolFlags.TypeAlias) && !(flags & ts.SymbolFlags.Class)) {
+        listedAt.set(sym, { name, lines })
+      }
     }
 
     for (const { name, target } of exported) {
