@@ -201,10 +201,17 @@ values may be added to enums the contract marks open). A removed or
 incompatibly changed export, signature, command, flag, environment variable,
 report field or value, endpoint or error code fails the check, and so does a
 new required member of a type callers pass in. In the SDK and CLI surfaces,
-widening a union or adding an enum value counts as compatible, on output
-types too, because clients must handle values they do not know; in
-`contract/*.json`, an enum the contract does not mark open is still compared
-by oasdiff's rules, where a new response value is a break. The migration
+every type position has a direction. A value callers supply (a parameter of
+an SDK function, a member of a type only passed in, the return value of a
+callback they implement) may widen but not narrow. A value the SDK supplies
+(a return value, a member of a returned type, an argument the SDK passes to
+a callers' callback) may narrow, and may widen only by adding an enum value
+or a member to an existing union, because clients must handle values they do
+not know; it may never gain `undefined`, `null` or `None`. A position used
+both ways, or whose direction the check cannot tell (a type alias), may only
+gain enum values or union members. In `contract/*.json`, an enum the contract
+does not mark open is still compared by oasdiff's rules, where a new response
+value is a break. The migration
 tool's report fields keep their types: it may only gain fields, values, flags
 and short aliases for its flags. A real break
 needs a `changelog.d/<id>.breaking.md` fragment in the pull request; the
