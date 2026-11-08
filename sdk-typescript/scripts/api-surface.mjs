@@ -173,9 +173,15 @@ function surfaces(checker, program) {
   for (const state of [...perEntry].reverse()) emitEntry(state)
   const baseInputs = new Set(inputs)
   const baseOutputs = new Set(outputs)
-  let callerImplemented = new Set()
-  let sdkImplemented = new Set(deferred.map((d) => d.container))
-  for (let round = 0; round < 20; round++) {
+  // Solved from the known directions up (a least fixed point, so no guess
+  // can sustain itself): a container is caller-implemented once it is passed
+  // in, SDK-implemented once it is handed out. A container reached neither
+  // way (an exported interface no signature names) counts as the SDK's, and
+  // only after the solution without it is stable.
+  const containers = new Set(deferred.map((d) => d.container))
+  const callerImplemented = new Set()
+  const sdkImplemented = new Set()
+  const solve = () => {
     inputs = new Set(baseInputs)
     outputs = new Set(baseOutputs)
     for (const { container, sig } of deferred) {
@@ -192,14 +198,25 @@ function surfaces(checker, program) {
         }
       }
     }
-    const containers = new Set(deferred.map((d) => d.container))
-    const nextCaller = new Set([...containers].filter((sym) => inputs.has(sym)))
-    const nextSdk = new Set([...containers].filter((sym) => !inputs.has(sym) || outputs.has(sym)))
-    const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x))
-    if (same(nextCaller, callerImplemented) && same(nextSdk, sdkImplemented)) break
-    callerImplemented = nextCaller
-    sdkImplemented = nextSdk
   }
+  for (let changed = true; changed; ) {
+    changed = false
+    solve()
+    const grow = (set, sym) => {
+      if (set.has(sym)) return
+      set.add(sym)
+      changed = true
+    }
+    for (const sym of containers) {
+      if (inputs.has(sym)) grow(callerImplemented, sym)
+      if (outputs.has(sym)) grow(sdkImplemented, sym)
+    }
+    if (changed) continue
+    for (const sym of containers) {
+      if (!callerImplemented.has(sym) && !sdkImplemented.has(sym)) grow(sdkImplemented, sym)
+    }
+  }
+  solve()
   // A base interface's members are listed under the base, so the base is
   // passed in whenever an interface extending it is, even if the SDK also
   // returns it: callers building the derived type supply its members.
@@ -251,6 +268,11 @@ function surfaces(checker, program) {
   function collectInputs(type, seen = new Set(), top = false, into = inputs) {
     if (!type || seen.has(type)) return
     seen.add(type)
+    if (type.flags & ts.TypeFlags.TypeParameter) {
+      // `<T extends Opts>(o: T)`: callers pass an `Opts`.
+      collectInputs(checker.getBaseConstraintOfType(type), seen, false, into)
+      return
+    }
     const record = (sym) => {
       if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
       if (sym.declarations?.length && sym.declarations.every(isReachableSource)) into.add(sym)
@@ -411,7 +433,11 @@ function surfaces(checker, program) {
           if (decl.type) shown = checker.getTypeFromTypeNode(decl.type)
         }
         reach(shown)
-        if (container.flags & ts.SymbolFlags.Class) collectInputs(shown, new Set(), false, outputs)
+        if (container.flags & ts.SymbolFlags.Class) {
+          collectInputs(shown, new Set(), false, outputs)
+          // A settable property: callers assign it too.
+          if (!mods.includes('readonly')) collectInputs(shown)
+        }
         emit(name, [...mods, 'property'].join(' '), typeText(shown, decl))
       }
       for (const kind of [ts.SignatureKind.Call, ts.SignatureKind.Construct]) {
@@ -521,7 +547,11 @@ function surfaces(checker, program) {
       } else if (flags & ts.SymbolFlags.Variable) {
         const decl = sym.declarations[0]
         const keyword = ts.getCombinedNodeFlags(decl) & ts.NodeFlags.Const ? 'const' : 'let'
-        emitValue(name, keyword, checker.getTypeOfSymbolAtLocation(sym, decl), decl)
+        const valueType = checker.getTypeOfSymbolAtLocation(sym, decl)
+        // A function value (`export const make = (o: Opts) => ...`) is the
+        // SDK's: callers pass its arguments.
+        for (const sig of checker.getSignaturesOfType(valueType, ts.SignatureKind.Call)) reachSignature(sig)
+        emitValue(name, keyword, valueType, decl)
       } else if (flags & ts.SymbolFlags.ValueModule) {
         emit(name, 'namespace')
         for (const member of checker.getExportsOfModule(sym)) {

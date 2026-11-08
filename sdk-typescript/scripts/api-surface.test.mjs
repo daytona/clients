@@ -7,7 +7,9 @@
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import ts from 'typescript'
 import { generate, printSignature, printType } from './api-surface.mjs'
@@ -119,4 +121,56 @@ test('a type both passed in and handed to a callback is not passed-in only', () 
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('a recursive callback interface the caller passes in stays passed in', () => {
+  const v2 = generateFixture(`
+    export interface Ev { name: string }
+    export interface Handler { onEvent(e: Ev): Handler | undefined }
+    export declare function listen(h: Handler): void
+  `)
+  assert.ok(v2.includes('Handler: passed-in'), v2.join('\n'))
+  assert.ok(!v2.includes('Handler: returned also-passed-in'), v2.join('\n'))
+})
+
+test('passed-in forms: a type parameter constraint, a function value, a settable class property', () => {
+  const v2 = generateFixture(`
+    export interface GOpts { a: string }
+    export interface COpts { a: string }
+    export interface SOpts { a: string }
+    export declare function configure<T extends GOpts>(o: T): void
+    export const make = (o: COpts): number => o.a.length
+    export declare class Client { config: SOpts }
+    export declare function client(): Client
+  `)
+  assert.ok(v2.includes('GOpts: passed-in'), v2.join('\n'))
+  assert.ok(v2.includes('COpts: passed-in'), v2.join('\n'))
+  // Callers read it and may assign it: both ways.
+  assert.ok(v2.includes('SOpts: returned also-passed-in'), v2.join('\n'))
+})
+
+test('a call signature the caller implements gaining an overload is reported, end to end', () => {
+  const base = generateFixture(`
+    export interface ProgressFn { (bytes: number): void }
+    export interface ProgressSink { report(bytes: number): void }
+    export declare function track(fn: ProgressFn, sink: ProgressSink): void
+  `)
+  const head = generateFixture(`
+    export interface ProgressFn { (bytes: number): void; (event: { bytes: number; total: number }): void }
+    export interface ProgressSink { report(bytes: number): void; report(event: { bytes: number; total: number }): void }
+    export declare function track(fn: ProgressFn, sink: ProgressSink): void
+  `)
+  const checker = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'scripts', 'breaking', 'breaking_changes.py')
+  const driver = [
+    'import sys',
+    `sys.path.insert(0, ${JSON.stringify(dirname(checker))})`,
+    'import breaking_changes as bc',
+    'old, new = sys.stdin.read().split("\\0")',
+    'r = bc.Report()',
+    'bc.compare_surface("sdk-typescript/api-surface/v2.api.txt", old, new, r)',
+    'print(len(r.breaking))',
+  ].join('\n')
+  const found = spawnSync('python3', ['-c', driver], { input: `${base.join('\n')}\0${head.join('\n')}`, encoding: 'utf8' })
+  assert.equal(found.status, 0, found.stderr)
+  assert.equal(found.stdout.trim(), '2', `${base.join('\n')}\n---\n${head.join('\n')}`)
 })

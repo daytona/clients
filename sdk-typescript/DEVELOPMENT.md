@@ -170,8 +170,15 @@ follow who implements a function: the parameters of a function the SDK
 implements are passed in and its return type is returned; for a callback the
 caller implements and passes in (a function-typed parameter or property, or a
 method of an interface or object type the caller passes in) it is the other
-way round: its parameters are returned and its return type is passed in. Any
-other type that is both passed in and returned gets
+way round: its parameters are returned and its return type is passed in.
+Who implements an interface's or object type's methods is solved from the
+known directions up: once the type is passed in, callers do; once it is
+handed out, the SDK does; a type reached neither way counts as the SDK's.
+Callers also pass in the constraint of a type parameter (`<T extends Opts>`),
+the parameters of an exported function value (`export const f = (o: Opts) =>`)
+and the type of a settable class property, which they may assign. Any other
+object type (an interface or an object type alias; other declarations carry
+no marker) that is both passed in and returned gets
 `Name: returned also-passed-in`. A member of a type that is only passed in may
 become optional; one of a type that goes both ways may not. `scripts/api-surface.mjs` reads it with the
 TypeScript compiler API (`@internal` exports, members and overloads excluded,

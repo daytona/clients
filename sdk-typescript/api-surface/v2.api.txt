@@ -1153,6 +1153,7 @@ ImageNotReadyError: class extends ConflictError
 ImageNotReadyError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 ImageOrigin: type = 'capture' | 'dockerfile' | 'registry' | (string & {})
 ImageRef: interface
+ImageRef: returned also-passed-in
 ImageRef.id: readonly property string
 ImageRef.name: readonly property string | null
 ImageSource: type = union
@@ -1890,6 +1891,7 @@ SandboxInfo.target: optional property string
 SandboxInfo.toolboxProxyUrl: optional property string
 SandboxInfo.user: optional property string
 SandboxLifecycle: interface
+SandboxLifecycle: returned also-passed-in
 SandboxLifecycle.idleExpirySeconds: optional property number
 SandboxLifecycle.idleTimeoutAt: optional property string
 SandboxLifecycle.lastActivityAt: optional property string
@@ -2101,6 +2103,7 @@ SnapshotNotFoundError.constructor: constructor (message: string, statusCode?: nu
 SnapshotNotReadyError: class extends ConflictError
 SnapshotNotReadyError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 SnapshotRef: interface
+SnapshotRef: returned also-passed-in
 SnapshotRef.id: readonly property string
 SnapshotRef.name: readonly property string | null
 SnapshotTooLargeError: class extends ArtifactTooLargeError
