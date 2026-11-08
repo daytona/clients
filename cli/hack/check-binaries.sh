@@ -15,6 +15,16 @@ set -euo pipefail
 [ $# -ge 2 ] || { echo "usage: $(basename "$0") MIN_GO_VERSION BINARY..." >&2; exit 2; }
 min="$1"; shift
 
+# at_least A B: version A >= version B, numerically per dot-separated field
+# (no `sort -V`: macOS's sort lacks it).
+at_least() {
+  awk -v a="$1" -v b="$2" 'BEGIN {
+    na = split(a, x, "."); nb = split(b, y, "."); n = na > nb ? na : nb
+    for (i = 1; i <= n; i++) { if (x[i] + 0 > y[i] + 0) exit 0; if (x[i] + 0 < y[i] + 0) exit 1 }
+    exit 0
+  }'
+}
+
 fail=0
 for bin in "$@"; do
   if ! info=$(go version -m "$bin" 2>&1); then
@@ -22,7 +32,7 @@ for bin in "$@"; do
     fail=1; continue
   fi
   built=$(sed -n '1s/^[^:]*: go\([0-9][0-9.]*\).*$/\1/p' <<<"$info")
-  if [ -z "$built" ] || [ "$(printf '%s\n%s\n' "$min" "$built" | sort -V | head -n 1)" != "$min" ]; then
+  if [ -z "$built" ] || ! at_least "$built" "$min"; then
     echo "check-binaries: $bin was built with go${built:-?}, below the required go${min}" >&2
     fail=1
   fi

@@ -60,6 +60,8 @@ func TestCheckBinaries_readsTheBuildInformation(t *testing.T) {
 		name, min, bin, message string
 	}{
 		{name: "patched static build", min: "1.26.10", bin: good},
+		{name: "numeric, not lexical, comparison", min: "1.26.9", bin: good},
+		{name: "a floor without a patch number", min: "1.26", bin: good},
 		{name: "toolchain below the floor", min: "1.26.11", bin: good, message: "below the required go1.26.11"},
 		{name: "floor on a higher minor", min: "1.27.0", bin: good, message: "below the required go1.27.0"},
 		{name: "without -trimpath", min: "1.26.10", bin: untrimmed, message: "lacks 'build -trimpath=true'"},
