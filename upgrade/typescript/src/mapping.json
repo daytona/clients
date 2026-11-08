@@ -3848,14 +3848,14 @@
       },
       "v2": {
         "py": null,
-        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ name, memory: false, waitSeconds: timeout || 3600 }))"
+        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ name, memory: false, waitSeconds: timeout === 0 ? 3600 : timeout }))"
       },
       "category": "differs",
       "notes": {
         "py": [],
         "ts": [
           "Fork moved to the v2 sandbox handle; there is no client.v2.fork",
-          "v0 took seconds and always waited (60 s by default; 0 waited without a deadline); v2 waitSeconds is seconds too (default 60), but waitSeconds: 0 returns once the fork is accepted, so the suggestion uses a one-hour budget for a v0 timeout of 0; however the wait ends, the fork is returned: check fork.state",
+          "v0 took seconds and always waited (60 s by default; 0 waited without a deadline); v2 waitSeconds is seconds and defaults to 60 too, so leave it out when the 0.x call did, but waitSeconds: 0 returns once the fork is accepted, so the suggestion uses a one-hour budget for a v0 timeout of 0; however the wait ends, the fork is returned: check fork.state",
           "memory: false preserves v0 filesystem-only cloning",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ]
@@ -3872,7 +3872,7 @@
       },
       "v2": {
         "py": null,
-        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ name, memory: false, waitSeconds: timeout || 3600 }))"
+        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ name, memory: false, waitSeconds: timeout === 0 ? 3600 : timeout }))"
       },
       "category": "differs",
       "notes": {
@@ -3880,7 +3880,7 @@
         "ts": [
           "Deprecated alias of fork in 0.x",
           "Fork moved to the v2 sandbox handle; there is no client.v2.fork",
-          "v0 took seconds and always waited (60 s by default; 0 waited without a deadline); v2 waitSeconds is seconds too (default 60), but waitSeconds: 0 returns once the fork is accepted, so the suggestion uses a one-hour budget for a v0 timeout of 0; however the wait ends, the fork is returned: check fork.state",
+          "v0 took seconds and always waited (60 s by default; 0 waited without a deadline); v2 waitSeconds is seconds and defaults to 60 too, so leave it out when the 0.x call did, but waitSeconds: 0 returns once the fork is accepted, so the suggestion uses a one-hour budget for a v0 timeout of 0; however the wait ends, the fork is returned: check fork.state",
           "memory: false preserves v0 filesystem-only cloning",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ]
@@ -4674,19 +4674,19 @@
         "ts": "fork"
       },
       "v2": {
-        "py": "{sandbox}.fork(name=name, memory=False, wait_seconds=timeout or 3600)",
-        "ts": "{sandbox}.fork({ name, memory: false, waitSeconds: timeout || 3600 })"
+        "py": "{sandbox}.fork(name=name, memory=False, wait_seconds=3600 if timeout in (None, 0) else timeout)",
+        "ts": "{sandbox}.fork({ name, memory: false, waitSeconds: timeout === 0 ? 3600 : timeout })"
       },
       "category": "differs",
       "notes": {
         "py": [
           "memory=False preserves v0 filesystem-only cloning; v2 otherwise includes memory",
-          "name, memory and wait_seconds are keyword-only; wait_seconds is seconds (default 60, the v0 default), but wait_seconds=0 returns once the fork is accepted, while a v0 timeout of 0 or None waited without a deadline: v2 has no unbounded fork wait, so the suggestion uses a one-hour budget for those; however the wait ends, the fork is returned: check fork.state",
+          "name, memory and wait_seconds are keyword-only; wait_seconds is seconds and defaults to 60, like v0, so omit it when the 0.x call omitted timeout; wait_seconds=0 returns once the fork is accepted, while a v0 timeout of 0 or None waited without a deadline: v2 has no unbounded fork wait, so the suggestion uses a one-hour budget for those; however the wait ends, the fork is returned: check fork.state",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ],
         "ts": [
           "memory: false preserves v0 filesystem-only cloning; v2 otherwise includes memory",
-          "timeout becomes waitSeconds in the options object, still seconds (default 60, the v0 default); waitSeconds: 0 returns once the fork is accepted, while a v0 timeout of 0 waited without a deadline: v2 has no unbounded fork wait, so the suggestion uses a one-hour budget for it; however the wait ends, the fork is returned: check fork.state",
+          "timeout becomes waitSeconds in the options object, still seconds and defaulting to 60 like v0, so leave it out when the 0.x call did; waitSeconds: 0 returns once the fork is accepted, while a v0 timeout of 0 waited without a deadline: v2 has no unbounded fork wait, so the suggestion uses a one-hour budget for it; however the wait ends, the fork is returned: check fork.state",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ]
       },
@@ -4701,21 +4701,21 @@
         "ts": "_experimental_fork"
       },
       "v2": {
-        "py": "{sandbox}.fork(name=name, memory=False, wait_seconds=timeout or 3600)",
-        "ts": "{sandbox}.fork({ name, memory: false, waitSeconds: timeout || 3600 })"
+        "py": "{sandbox}.fork(name=name, memory=False, wait_seconds=3600 if timeout in (None, 0) else timeout)",
+        "ts": "{sandbox}.fork({ name, memory: false, waitSeconds: timeout === 0 ? 3600 : timeout })"
       },
       "category": "differs",
       "notes": {
         "py": [
           "Deprecated alias of fork in 0.x",
           "memory=False preserves v0 filesystem-only cloning; v2 otherwise includes memory",
-          "name, memory and wait_seconds are keyword-only; wait_seconds is seconds (default 60, the v0 default), but wait_seconds=0 returns once the fork is accepted, while a v0 timeout of 0 or None waited without a deadline: v2 has no unbounded fork wait, so the suggestion uses a one-hour budget for those; however the wait ends, the fork is returned: check fork.state",
+          "name, memory and wait_seconds are keyword-only; wait_seconds is seconds and defaults to 60, like v0, so omit it when the 0.x call omitted timeout; wait_seconds=0 returns once the fork is accepted, while a v0 timeout of 0 or None waited without a deadline: v2 has no unbounded fork wait, so the suggestion uses a one-hour budget for those; however the wait ends, the fork is returned: check fork.state",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ],
         "ts": [
           "Deprecated alias of fork in 0.x",
           "memory: false preserves v0 filesystem-only cloning; v2 otherwise includes memory",
-          "timeout becomes waitSeconds in the options object, still seconds (default 60, the v0 default); waitSeconds: 0 returns once the fork is accepted, while a v0 timeout of 0 waited without a deadline: v2 has no unbounded fork wait, so the suggestion uses a one-hour budget for it; however the wait ends, the fork is returned: check fork.state",
+          "timeout becomes waitSeconds in the options object, still seconds and defaulting to 60 like v0, so leave it out when the 0.x call did; waitSeconds: 0 returns once the fork is accepted, while a v0 timeout of 0 waited without a deadline: v2 has no unbounded fork wait, so the suggestion uses a one-hour budget for it; however the wait ends, the fork is returned: check fork.state",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ]
       },
