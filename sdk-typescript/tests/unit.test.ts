@@ -7254,7 +7254,7 @@ describe('toolbox service request shaping', () => {
     expect(auths).toEqual(['Bearer platform-1', 'Bearer platform-2'])
   })
 
-  it('maps a request deadline that fires during the token exchange to TimeoutError', async () => {
+  it('maps a request deadline that fires during the token exchange to ClientTimeoutError', async () => {
     jest.useRealTimers()
     const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input: string | URL | Request) => {
       if (String(input).endsWith('/auth/token')) return new Promise<Response>(() => undefined) // hangs

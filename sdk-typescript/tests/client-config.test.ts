@@ -20,6 +20,12 @@ import { FileSystemService } from '../src/v2/FileSystem'
 const ENV = ['DAYTONA_API_KEY', 'DAYTONA_JWT_TOKEN', 'DAYTONA_PROJECT_ID'] as const
 const saved = Object.fromEntries(ENV.map((name) => [name, process.env[name]]))
 
+// Every test starts from no ambient credentials: a developer's or CI's
+// exported values must not change what a test observes.
+beforeEach(() => {
+  for (const name of ENV) delete process.env[name]
+})
+
 afterEach(() => {
   for (const name of ENV) {
     const value = saved[name]
@@ -164,8 +170,10 @@ describe('environment', () => {
     try {
       expect(new DaytonaV2({ apiKey: 'k' })['apiUrl']).toBe('https://api.daytona.com')
     } finally {
-      process.env.DAYTONA_V2_API_URL = previous.v2
-      process.env.DAYTONA_API_URL = previous.v0sdk
+      if (previous.v2 === undefined) delete process.env.DAYTONA_V2_API_URL
+      else process.env.DAYTONA_V2_API_URL = previous.v2
+      if (previous.v0sdk === undefined) delete process.env.DAYTONA_API_URL
+      else process.env.DAYTONA_API_URL = previous.v0sdk
     }
   })
 })
