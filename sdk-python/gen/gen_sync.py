@@ -584,12 +584,15 @@ def _emit_class(module: str, cls: type) -> str:
 
 
 def _container_twin(ret: str) -> tuple[str, str] | None:
-    """('list'|'iter'|'page', SyncName) when ret is a container of exactly one wrapped class."""
+    """('list'|'tuple'|'iter'|'page', SyncName) when ret is a container of exactly one wrapped class."""
     import re
 
     m = re.fullmatch(r"(list|List|Sequence)\[(\w+)\]", ret)
     if m and m.group(2) in WRAPPED:
         return ("list", _twin(m.group(2)))
+    m = re.fullmatch(r"(tuple|Tuple)\[(\w+), \.\.\.\]", ret)
+    if m and m.group(2) in WRAPPED:
+        return ("tuple", _twin(m.group(2)))
     m = re.fullmatch(r"(Iterator|AsyncIterator)\[(\w+)\]", ret)
     if m and m.group(2) in WRAPPED:
         return ("iter", _twin(m.group(2)))
@@ -659,7 +662,7 @@ def _wrap_expr(ret: object, inner: str, bridge: str) -> str:
 
     - no SDK handle in the return type: pass the value through, fully typed;
     - exactly one handle class: construct its Sync twin directly (typed);
-    - list/iterator/page of one handle class: typed container helper;
+    - list/tuple/iterator/page of one handle class: typed container helper;
     - anything else containing handles: the erased registry walk in ``_wrap``.
     """
     if ret is None or not _mentions_wrapped(ret):
@@ -673,6 +676,8 @@ def _wrap_expr(ret: object, inner: str, bridge: str) -> str:
             kind, name = container
             if kind == "list":
                 return f"_rt.wrap_list({inner}, {bridge}, {name})"
+            if kind == "tuple":
+                return f"_rt.wrap_tuple({inner}, {bridge}, {name})"
             if kind == "iter":
                 return f"_rt.wrap_iter({inner}, {bridge}, {name})"
             return f"_rt.wrap_page({inner}, {bridge}, {name})  # type: ignore[return-value]"

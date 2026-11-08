@@ -283,3 +283,48 @@ it.each(CAPPED_WAITS)('%s sends a wait of %d as the timer maximum, with no clien
     server.close()
   }
 }, 10_000)
+
+// Every id or name a caller puts into a request path in the platform services
+// (the Python twin pins the same calls): a string that is not blank by
+// Python's whitespace set, refused with BadRequestError naming the argument.
+const PATH_CALLS: ReadonlyArray<readonly [string, string, (client: Daytona, api: FakeApi, value: never) => Promise<unknown>]> = [
+  ['images.get', 'imageId', (client, _api, value) => client.v2.images.get(value)],
+  ['images.get wait', 'imageId', (client, _api, value) => client.v2.images.get(value, { wait: 'ready', timeoutSeconds: 1 })],
+  ['images.delete', 'imageId', (client, _api, value) => client.v2.images.delete(value)],
+  ['images.promote id', 'imageId', (client, _api, value) => client.v2.images.promote(value, 'named')],
+  ['images.promote name', 'name', (client, _api, value) => client.v2.images.promote('img', value)],
+  ['images.followBuildLogs', 'imageId', (client, _api, value) => client.v2.images.followBuildLogs(value, { onLogs: () => undefined })],
+  ['snapshots.get', 'snapshotId', (client, _api, value) => client.v2.snapshots.get(value)],
+  ['snapshots.delete', 'snapshotId', (client, _api, value) => client.v2.snapshots.delete(value)],
+  ['volumes.get', 'nameOrId', (client, _api, value) => client.v2.volumes.get(value)],
+  ['volumes.delete', 'nameOrId', (client, _api, value) => client.v2.volumes.delete(value)],
+  ['secrets.get', 'name', (client, _api, value) => client.v2.secrets.get(value)],
+  ['secrets.set', 'name', (client, _api, value) => client.v2.secrets.set(value, 'value', { allowedDomains: ['*'] })],
+  ['secrets.delete', 'name', (client, _api, value) => client.v2.secrets.delete(value)],
+  ['reservations.get', 'id', (client, _api, value) => client.v2.reservations.get(value)],
+  ['reservations.renew', 'id', (client, _api, value) => client.v2.reservations.renew(value)],
+  ['reservations.update', 'id', (client, _api, value) => client.v2.reservations.update(value, { autoRenew: true })],
+  ['getLimits', 'organizationId', (client, _api, value) => client.v2.getLimits({ organizationId: value })],
+  ['createSnapshot', 'name', (_client, api, value) => handle(api).createSnapshot(value)],
+  ['sandbox.volumes.pull', 'volumeId', (_client, api, value) => withToolbox(api).volumes.pull(value, { requestId: 'r' })],
+]
+const PATH_VALUES: ReadonlyArray<readonly [string, unknown]> = [['null', null], ['undefined', undefined], ['a number', 5], ['empty', ''], ['blank', ' \t\u2028']]
+// `getLimits({ organizationId: undefined | null })` is the key's own
+// organization (Python's `None`), not a refusal.
+const PATH_CASES = PATH_CALLS.flatMap(([name, argument, call]) => PATH_VALUES
+  .filter(([label]) => !(name === 'getLimits' && (label === 'undefined' || label === 'null')))
+  .map(([label, value]) => [`${name} with ${label}`, argument, call, value] as const))
+
+it.each(PATH_CASES)('refuses %s as the path id or name before any request', async (_name, argument, call, value) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    const error = await call(client, api, value as never).then(() => undefined, (failure: unknown) => failure)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(new RegExp(`^${argument} must `)) })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

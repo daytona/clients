@@ -15,7 +15,6 @@ budget above the timer maximum (about 24.8 days) waits without a deadline in
 both SDKs. Without a timeout (omitted or `0`), `wait="ready"` makes one hold
 of the server's default length and returns what the server reports. Their
 `wait` must be `"ready"` or omitted, and their timeout is checked with or
-without `wait` (Python ignored an invalid one without it). `images.pull()`
-takes a boolean `wait` instead (Python `wait: bool = True`, TypeScript `wait?:
-boolean`), waits for the image with the same bounded holds and pauses up to a
-second between early non-terminal answers.
+without `wait`. `images.pull()` takes a boolean `wait` instead (Python `wait:
+bool = True`, TypeScript `wait?: boolean`), waits for the image with the same
+bounded holds and pauses up to a second between early non-terminal answers.

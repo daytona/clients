@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
-import { isBlank } from './pyText.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -15,7 +15,6 @@ import type { JsonValue, ListResult, VolumeState, VolumeType } from './types.js'
 import { VolumeStatus as VOLUME_STATUSES, VolumeType as VOLUME_TYPES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { NotFoundError } from './errors/DaytonaError.js'
-import { strictUriEncode } from './http.js'
 import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
@@ -141,7 +140,7 @@ export class VolumesService {
     assertKnownOptions('GetVolumeOptions', options, GET_VOLUME_KEYS)
     try {
       const { data } = await this.api.get<api.Volume>(
-        `/volumes/${strictUriEncode(nameOrId)}`,
+        `/volumes/${pathSegment(nameOrId, 'nameOrId')}`,
         refConfig(options),
       )
       return mapVolume(data)
@@ -170,8 +169,8 @@ export class VolumesService {
   /** Requests deletion and returns once the API accepts it. */
   public async delete(nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> {
     assertKnownOptions('DeleteVolumeOptions', options, DELETE_VOLUME_KEYS)
-    if (typeof nameOrId !== 'string' || isBlank(nameOrId)) throw badRequest('nameOrId must be a non-empty string')
+    const path = `/volumes/${pathSegment(nameOrId, 'nameOrId')}`
     if (options.idOnly !== undefined && typeof options.idOnly !== 'boolean') throw badRequest('idOnly must be a boolean')
-    await this.api.delete(`/volumes/${strictUriEncode(nameOrId)}`, refConfig(options))
+    await this.api.delete(path, refConfig(options))
   }
 }

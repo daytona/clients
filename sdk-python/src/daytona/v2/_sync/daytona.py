@@ -450,7 +450,11 @@ class Daytona:
         ``"local"`` (or omitting it) means the default region — so the
         lookup uses the same regional API endpoint as the named create.
         """
-        return _rt.wrap(self._bridge.call(lambda: self._impl.find_by_name(name, region=region)), self._bridge)  # type: ignore[return-value]
+        from .sandbox import Sandbox
+
+        return _rt.wrap_tuple(
+            self._bridge.call(lambda: self._impl.find_by_name(name, region=region)), self._bridge, Sandbox
+        )
 
     def get(
         self, sandbox_id: str, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None

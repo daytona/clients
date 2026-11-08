@@ -13,6 +13,8 @@ import { PULL_VOLUME_STATUSES } from './types.js'
 import type { PullVolumeStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
 import { assertKnownOptions, assertOptionsObject, optionKeys, optionalSeconds } from './options.js'
+import { checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 
 export interface PullVolumeOptions {
   /** Caller-owned identity. Retain it when checking pending work or retrying. */
@@ -34,9 +36,13 @@ export interface PullVolumeResult {
   readonly rawStatus: string
 }
 
-function pullVolumeResult(result: toolbox.PullVolumeResponse): PullVolumeResult {
+// The contract's required fields; `manifestId` is required and nullable.
+const PULL_VOLUME_RESPONSE: ResponseFields = { requestId: 'string', status: 'string', manifestId: 'string|null' }
+
+function pullVolumeResult(data: unknown): PullVolumeResult {
+  const result = checkResponse<toolbox.PullVolumeResponse>(data, PULL_VOLUME_RESPONSE, 'volume pull')
   return {
-    manifestId: result.manifestId,
+    manifestId: result.manifestId ?? null,
     requestId: result.requestId,
     status: knownOrUnknown(result.status, PULL_VOLUME_STATUSES),
     rawStatus: result.status,

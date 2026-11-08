@@ -462,3 +462,95 @@ async def test_an_artifact_get_checks_its_timeout_with_or_without_wait(
             with pytest.raises(BadRequestError, match="timeout must be a non-negative finite number"):
                 await service.get("art", wait=wait, timeout=timeout)  # type: ignore[arg-type]
     assert fake.requests == []
+
+
+# Every id or name a caller puts into a request path in the platform services
+# (the TypeScript twin pins the same calls): a string that is not blank by
+# Python's whitespace set, refused with BadRequestError naming the argument.
+_PATH_CALLS: list[tuple[str, str, Callable[[AsyncDaytonaV2, object], Awaitable[object]]]] = [
+    ("images.get", "image_id", lambda d, v: d.images.get(v)),  # type: ignore[arg-type]
+    ("images.get wait", "image_id", lambda d, v: d.images.get(v, wait="ready", timeout=1)),  # type: ignore[arg-type]
+    ("images.delete", "image_id", lambda d, v: d.images.delete(v)),  # type: ignore[arg-type]
+    ("images.promote id", "image_id", lambda d, v: d.images.promote(v, "named")),  # type: ignore[arg-type]
+    ("images.promote name", "name", lambda d, v: d.images.promote("img", v)),  # type: ignore[arg-type]
+    (
+        "images.follow_build_logs",
+        "image_id",
+        lambda d, v: d.images.follow_build_logs(v, on_logs=lambda _chunk: None),  # type: ignore[arg-type]
+    ),
+    ("snapshots.get", "snapshot_id", lambda d, v: d.snapshots.get(v)),  # type: ignore[arg-type]
+    ("snapshots.delete", "snapshot_id", lambda d, v: d.snapshots.delete(v)),  # type: ignore[arg-type]
+    ("volumes.get", "name_or_id", lambda d, v: d.volumes.get(v)),  # type: ignore[arg-type]
+    ("volumes.delete", "name_or_id", lambda d, v: d.volumes.delete(v)),  # type: ignore[arg-type]
+    ("secrets.get", "name", lambda d, v: d.secrets.get(v)),  # type: ignore[arg-type]
+    ("secrets.set", "name", lambda d, v: d.secrets.set(v, "value", allowed_domains=["*"])),  # type: ignore[arg-type]
+    ("secrets.delete", "name", lambda d, v: d.secrets.delete(v)),  # type: ignore[arg-type]
+    ("reservations.get", "reservation_id", lambda d, v: d.reservations.get(v)),  # type: ignore[arg-type]
+    ("reservations.renew", "reservation_id", lambda d, v: d.reservations.renew(v)),  # type: ignore[arg-type]
+    (
+        "reservations.update",
+        "reservation_id",
+        lambda d, v: d.reservations.update(v, auto_renew=True),  # type: ignore[arg-type]
+    ),
+    ("get_limits", "organization_id", lambda d, v: d.get_limits(organization_id=v)),  # type: ignore[arg-type]
+    ("create_snapshot", "name", lambda d, v: lazy_sandbox(d, "sbx").create_snapshot(v)),  # type: ignore[arg-type]
+    (
+        "sandbox.volumes.pull",
+        "volume_id",
+        lambda d, v: lazy_sandbox(d, "sbx", toolbox_url="http://127.0.0.1:9", access_token="t").volumes.pull(
+            v,  # type: ignore[arg-type]
+            request_id="r",
+        ),
+    ),
+]
+
+
+_PATH_VALUES: list[tuple[str, object]] = [
+    ("None", None),
+    ("number", 5),
+    ("empty", ""),
+    ("blank", " \t\u2028"),
+]
+# get_limits(organization_id=None) is the key's own organization, not a refusal.
+_PATH_CASES = [
+    (call_name, argument, call, value)
+    for call_name, argument, call in _PATH_CALLS
+    for label, value in _PATH_VALUES
+    if not (call_name == "get_limits" and label == "None")
+]
+
+
+@pytest.mark.parametrize(
+    ("call_name", "argument", "call", "value"),
+    _PATH_CASES,
+    ids=[
+        f"{case[0]}-{label}"
+        for case in _PATH_CALLS
+        for label, _ in _PATH_VALUES
+        if not (case[0] == "get_limits" and label == "None")
+    ],
+)
+async def test_a_path_id_or_name_must_be_a_non_blank_string(
+    api: FakeApi,
+    call_name: str,
+    argument: str,
+    call: Callable[[AsyncDaytonaV2, object], Awaitable[object]],
+    value: object,
+) -> None:
+    del call_name
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match=f"^{argument} must ") as raised:
+            await call(root.v2, value)
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert api.requests == []
+
+
+async def test_set_labels_takes_labels_positionally_and_returns_a_plain_dict() -> None:
+    with FakeApi([PlannedResponse(200, {"id": "sbx", "labels": {"team": "ml"}})] * 2) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = lazy_sandbox(root.v2, "sbx")
+            applied = await sandbox.set_labels({"team": "ml"})
+            by_keyword = await sandbox.set_labels(labels={"team": "ml"})
+    assert type(applied) is dict and applied == {"team": "ml"} == by_keyword
+    assert [json.loads(request.body) for request in fake.requests] == [{"labels": {"team": "ml"}}] * 2

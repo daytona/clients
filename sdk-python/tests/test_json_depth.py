@@ -101,3 +101,15 @@ def test_a_volume_whose_options_nest_10000_levels_maps() -> None:
         )
     )
     assert volume.options is not None and "child" in volume.options
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_loads_json_refuses_the_non_json_constants(constant: str) -> None:
+    with pytest.raises(ValueError, match=f"invalid JSON constant {constant}"):
+        loads_json(f'{{"x": {constant}}}')
+
+
+def test_an_overflowing_number_token_still_decodes_and_its_field_decides() -> None:
+    # 1e400 is JSON; it decodes to inf, and the field it lands in refuses it.
+    value = loads_json('{"x": 1e400}')
+    assert isinstance(value, dict) and value["x"] == float("inf")

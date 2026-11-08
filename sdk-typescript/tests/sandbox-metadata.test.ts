@@ -119,7 +119,7 @@ describe('sandbox observed metadata', () => {
     // Given a key-backed handle whose first toolbox request must mint a token.
     const api = await startFakeApi([
       { status: 200, body: { access_token: 'minted-fixture', expires_at: '2030-01-01T00:00:00Z', operations: ['toolbox'], token_type: 'Bearer' } },
-      { status: 200, body: {} },
+      { status: 200, body: { timestamp: '2030-01-01T00:00:00Z', cpuCount: 1, cpuUtilization: 0, memoryUsageBytes: 0, memoryTotalBytes: 1, diskUsageBytes: 0, diskTotalBytes: 1 } },
     ])
     const sandbox = createSandbox('sbx', createHttpClient(api.url), undefined, 'project-fixture', undefined, { toolboxUrl: api.url })
     try {

@@ -155,8 +155,8 @@ export class PortsService {
    * `false` that reads like "nothing is listening there".
    */
   public async isInUse(port: number): Promise<boolean> {
-    const response = await this.requireToolbox().get<toolbox.PortInUseResponse>(`/port/${portSegment(port)}/in-use`)
-    return response.isInUse
+    const response = await this.requireToolbox().get<unknown>(`/port/${portSegment(port)}/in-use`)
+    return checkResponse<toolbox.PortInUseResponse>(response, { isInUse: 'boolean' }, 'port in use').isInUse
   }
 
   public async listEndpoints(options: ListEndpointsOptions = {}): Promise<ListResult<PreviewEndpoint>> {

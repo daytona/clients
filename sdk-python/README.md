@@ -437,7 +437,7 @@ unrecognized values to `"unknown"` and keep the original in a `raw_…`
 sibling. Timestamps are timezone-aware `datetime` values; a budget period
 start is a `date`. List and search pages are immutable: `items` is a tuple.
 
-Use `sandbox.set_labels(labels={...})` to replace the entire label set
+Use `sandbox.set_labels({...})` to replace the entire label set
 (`{}` clears it), and `sandbox.entrypoint_logs()` to read the sandbox's
 entrypoint-session log as plain text. On `AsyncDaytona` prefix these with
 `await`.

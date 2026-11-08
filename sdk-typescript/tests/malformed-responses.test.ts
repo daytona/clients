@@ -14,6 +14,7 @@ import type { FakeApi } from './networkPolicyTestServer'
 type Call = (client: Daytona, api: FakeApi) => Promise<unknown>
 
 const source = (api: FakeApi) => createSandbox({ id: 'src', class: 'linux', status: 'stopped' }, createHttpClient(api.url, 'key'))
+const withToolbox = (api: FakeApi) => createSandbox({ id: 'src', class: 'linux', status: 'started' }, createHttpClient(api.url, 'key'), undefined, 'key', undefined, { toolboxUrl: api.url, accessToken: 'tok' })
 
 // The malformed-response rule, for every read of the client, lifecycle and
 // platform-service area: a `{}` body is a BadRequestError (400, BAD_REQUEST,
@@ -46,6 +47,14 @@ const CALLS: readonly (readonly [string, Call, string])[] = [
   ['createAccessToken', (_client, api) => source(api).createAccessToken(), 'sandbox access token response is missing its access_token'],
   ['ports.expose', (_client, api) => source(api).ports.expose(8080), 'preview endpoint response is missing its port'],
   ['ports.signedPreviewLink', (_client, api) => source(api).ports.signedPreviewLink(8080), 'signed preview url response is missing its url'],
+  // Toolbox reads this area maps (a waiting Docker read fails at once, not at its deadline).
+  ['docker.status', (_client, api) => withToolbox(api).docker.status(), 'docker status response is missing its owner'],
+  ['docker.waitUntilReady', (_client, api) => withToolbox(api).docker.waitUntilReady({ timeoutSeconds: 30 }), 'docker status response is missing its owner'],
+  ['volumes.pull', (_client, api) => withToolbox(api).volumes.pull('vol1', { requestId: 'r1' }), 'volume pull response is missing its requestId'],
+  ['ports.isInUse', (_client, api) => withToolbox(api).ports.isInUse(3000), 'port in use response is missing its isInUse'],
+  ['metrics', (_client, api) => withToolbox(api).metrics(), 'system metrics response is missing its timestamp'],
+  ['updateLifecyclePolicy', (_client, api) => source(api).updateLifecyclePolicy({ timeoutSeconds: 60 }), 'sandbox lifecycle policy response is missing its id'],
+  ['resetIdleTimer', (_client, api) => source(api).resetIdleTimer(), 'sandbox lifecycle policy response is missing its id'],
 ]
 
 it.each(CALLS)('%s refuses a {} body with BadRequestError and sends nothing after it', async (_name, call, message) => {
@@ -195,6 +204,18 @@ it.each([
     // No class read first: the route is the same for every class.
     expect(api.requests.map((request) => [request.method, request.path])).toEqual([['POST', '/sandboxes/src/fork']])
     expect(fork.sandboxClass).toBe(sandboxClass)
+  } finally {
+    await api.close()
+  }
+})
+
+it.each([
+  ['a timeout_seconds that is a string', { id: 'src', lifecycle_policy: { timeout_seconds: '60' } }, 'sandbox lifecycle policy response has a lifecycle_policy.timeout_seconds that is not a 32-bit integer'],
+  ['no lifecycle_policy', { id: 'src' }, 'sandbox lifecycle policy response is missing its lifecycle_policy'],
+] as const)('refuses a lifecycle echo with %s, as Python does', async (_name, body, message) => {
+  const api = await startFakeApi([{ status: 200, body }])
+  try {
+    await expect(source(api).resetIdleTimer()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
   } finally {
     await api.close()
   }

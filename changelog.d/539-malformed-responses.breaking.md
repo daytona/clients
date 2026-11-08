@@ -3,12 +3,14 @@ the client, sandbox lifecycle and platform services are checked against the
 contract fields the SDK reads, nested fields and list items included: images,
 snapshots, volumes, secrets, reservations (and bulk reservations), Mac models
 and the catalog, the account responses, ports' preview endpoints and links,
-sandbox access tokens, the sandbox body, and list and search pages. A missing
-required field or a wrong type is a `BadRequestError` (400, `BAD_REQUEST`,
-source `SDK`) naming the field, before any further request: `images.build()` /
-`pull()`, `capture_image()` / `captureImage()`, `create_snapshot()` /
-`createSnapshot()` and `fork()` check the id they follow. TypeScript used to
-throw a raw `TypeError`, build a model with missing fields, or request
+the Docker status, a volume pull, port-in-use, system metrics, the
+lifecycle-policy update and idle-timer reset, sandbox access tokens, the
+sandbox body, and list and search pages. A missing required field or a wrong
+type is a `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) naming the
+field, before any further request: `images.build()` / `pull()`,
+`capture_image()` / `captureImage()`, `create_snapshot()` / `createSnapshot()`
+and `fork()` check the id they follow. TypeScript used to throw a raw
+`TypeError`, build a model with missing fields, or request
 `/images/undefined`; Python `images.get()` raised a raw `KeyError`. An access
 token whose `expires_at` does not parse, a malformed access-token response and
 a non-text entrypoint log are `BadRequestError` too (they were 500 with no

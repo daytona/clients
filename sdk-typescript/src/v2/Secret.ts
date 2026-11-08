@@ -14,6 +14,7 @@
  * Uses the `/secrets` routes, scoped to the API key's project.
  */
 
+import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
@@ -22,7 +23,6 @@ import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { ListResult } from './types.js'
-import { strictUriEncode } from './http.js'
 import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
@@ -102,12 +102,13 @@ export class SecretsService {
 
   /** Gets one secret's metadata (never its value). */
   public async get(name: string): Promise<Secret> {
-    const { data } = await this.api.get<api.Secret>(`/secrets/${strictUriEncode(name)}`)
+    const { data } = await this.api.get<api.Secret>(`/secrets/${pathSegment(name, 'name')}`)
     return mapSecret(data)
   }
 
   /** Creates or updates a secret's value + metadata. */
   public async set(name: string, value: string, options: SetSecretOptions): Promise<Secret> {
+    const path = `/secrets/${pathSegment(name, 'name')}`
     // The options are required: an omitted value is refused like any non-object.
     assertOptionsObject('SetSecretOptions', options)
     assertKnownOptions('SetSecretOptions', options, SET_SECRET_KEYS)
@@ -117,11 +118,11 @@ export class SecretsService {
     const body: api.PutSecretRequest = { value, allowed_domains: [...options.allowedDomains] }
     if (options.description !== undefined) body.description = options.description
     const config = options.ifNotExists ? { headers: { 'If-None-Match': '*' } } : undefined
-    const { data } = await this.api.put<api.Secret>(`/secrets/${strictUriEncode(name)}`, body, config)
+    const { data } = await this.api.put<api.Secret>(path, body, config)
     return mapSecret(data)
   }
 
   public async delete(name: string): Promise<void> {
-    await this.api.delete(`/secrets/${strictUriEncode(name)}`)
+    await this.api.delete(`/secrets/${pathSegment(name, 'name')}`)
   }
 }

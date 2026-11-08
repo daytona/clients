@@ -13,10 +13,18 @@ import { DOCKER_OWNERS, DOCKER_STATES } from './types.js'
 import type { DockerOwner, DockerState, DockerStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
 import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
+import { checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 
 export type { DockerOwner, DockerState, DockerStatus } from './types.js'
 
-function dockerStatusFromWire(status: toolbox.DockerStatus): DockerStatus {
+// The contract's required fields, checked before the mapper reads them (the
+// malformed-response rule): a malformed status fails at once rather than read
+// as `unknown` until a wait's deadline.
+const DOCKER_STATUS: ResponseFields = { owner: 'string', state: 'string', processId: 'string?', reason: 'string?' }
+
+function dockerStatusFromWire(data: unknown): DockerStatus {
+  const status = checkResponse<toolbox.DockerStatus>(data, DOCKER_STATUS, 'docker status')
   return {
     owner: knownOrUnknown(status.owner, DOCKER_OWNERS),
     rawOwner: status.owner,

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pathSegment } from './pathSegment.js'
+import { isBlank } from './pyText.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
@@ -74,7 +76,7 @@ export class ImagesService {
   }
 
   public async followBuildLogs(imageId: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
-    return followBuildLogs(this.getApiTransport(), `/images/${strictUriEncode(imageId)}/build-logs-url`, options)
+    return followBuildLogs(this.getApiTransport(), `/images/${pathSegment(imageId, 'imageId')}/build-logs-url`, options)
   }
 
   public async build(builder: ImageBuilder, options: BuildImageOptions = {}): Promise<Image> {
@@ -116,7 +118,7 @@ export class ImagesService {
   }
 
   public async get(imageId: string, options: GetArtifactOptions = {}): Promise<Image> {
-    return getArtifact(this.http, `/images/${strictUriEncode(imageId)}`, options, 
+    return getArtifact(this.http, `/images/${pathSegment(imageId, 'imageId')}`, options, 
       // SAFETY: the Image constructor checks the response against the contract.
       (data) => new Image(INTERNAL, data as api.ImageListItem))
   }
@@ -203,12 +205,15 @@ export class ImagesService {
    * would silently relabel every sandbox created from it).
    */
   public async promote(imageId: string, name: string): Promise<Image> {
-    const { data } = await this.http.patch<api.ImageListItem>(`/images/${strictUriEncode(imageId)}`, { name } satisfies api.PromoteImageRequest)
+    const path = `/images/${pathSegment(imageId, 'imageId')}`
+    const promoted: unknown = name
+    if (typeof promoted !== 'string' || isBlank(promoted)) throw badRequest('name must be a non-empty string')
+    const { data } = await this.http.patch<api.ImageListItem>(path, { name } satisfies api.PromoteImageRequest)
     return new Image(INTERNAL, data)
   }
 
   public async delete(imageId: string): Promise<void> {
-    await this.http.delete(`/images/${strictUriEncode(imageId)}`)
+    await this.http.delete(`/images/${pathSegment(imageId, 'imageId')}`)
   }
 }
 

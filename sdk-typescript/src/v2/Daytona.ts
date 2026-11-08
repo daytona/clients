@@ -140,7 +140,7 @@ export class Daytona {
   public async getLimits(options: GetLimitsOptions = {}): Promise<OrganizationLimits> {
     assertKnownOptions('GetLimitsOptions', options, LIMITS_KEYS)
     const organizationId = options.organizationId ?? await this.keyOrganizationId()
-    if (organizationId.length === 0) {
+    if (typeof organizationId !== 'string' || isBlank(organizationId)) {
       throw new BadRequestError('organizationId must be a non-empty string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     return this.api

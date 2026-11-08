@@ -275,6 +275,28 @@ function subMsMicros(value: string | undefined): number {
 
 // allow: SIZE_OK — Public handle facade preserves the toolbox namespaces; metadata,
 // token ownership and wait engines are isolated in their own internal modules.
+// The lifecycle echo of the policy update and the idle-timer reset (the
+// contract's `SandboxLifecyclePolicy`), checked before it is mapped.
+const LIFECYCLE_ECHO: ResponseFields = {
+  id: 'string',
+  lifecycle_policy: {
+    fields: {
+      timeout_seconds: 'int32?', on_timeout: 'string?', timeout_at: 'string?', idle_expiry_seconds: 'int32?',
+      on_idle_timeout: 'string?', idle_timeout_at: 'string?', last_activity_at: 'string?', last_activity_source: 'string?',
+    },
+    optional: false,
+  },
+}
+
+function checkLifecycleEcho(data: unknown): { lifecycle_policy: SandboxLifecycleDto; id: string } {
+  return checkResponse<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(data, LIFECYCLE_ECHO, 'sandbox lifecycle policy')
+}
+
+const SYSTEM_METRICS: ResponseFields = {
+  timestamp: 'string', cpuCount: 'integer', cpuUtilization: 'number', memoryUsageBytes: 'integer',
+  memoryTotalBytes: 'integer', diskUsageBytes: 'integer', diskTotalBytes: 'integer',
+}
+
 export class Sandbox {
   private readonly sandboxId: string
   /** The sandbox id, fixed for the handle's lifetime (read-only at run time too). */
@@ -455,7 +477,8 @@ export class Sandbox {
 
 
   public async metrics(): Promise<SystemMetrics> {
-    return this.requireToolbox().get<SystemMetrics>('/system/metrics')
+    const data: unknown = await this.requireToolbox().get<unknown>('/system/metrics')
+    return checkResponse<SystemMetrics>(data, SYSTEM_METRICS, 'system metrics')
   }
 
   public get volumes(): SandboxVolumesService {
@@ -926,7 +949,7 @@ export class Sandbox {
     const resp = await this.api
       .patch<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(`/sandboxes/${strictUriEncode(this.id)}/lifecycle-policy`, body)
     this.learnEventDestination(eventDestinationFromHeaders(resp.headers))
-    const policy = Object.freeze(parseSandboxLifecycle(resp.data))
+    const policy = Object.freeze(parseSandboxLifecycle(checkLifecycleEcho(resp.data)))
     this.observed.lifecyclePolicy = policy
     return policy
   }
@@ -950,8 +973,8 @@ export class Sandbox {
   public async resetIdleTimer(): Promise<SandboxLifecycle> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.api
-      .post<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(`/sandboxes/${strictUriEncode(this.id)}/reset-idle-timer`)
-      .then((r) => r.data)
+      .post<unknown>(`/sandboxes/${strictUriEncode(this.id)}/reset-idle-timer`)
+      .then((r) => checkLifecycleEcho(r.data))
     const fresh = Object.freeze(parseSandboxLifecycle(response))
     // Concurrent resets can return out of order, and a late-arriving older
     // echo must not roll the cached clock backwards. A real reset always
@@ -1011,6 +1034,8 @@ export class Sandbox {
   }
 
   public async createSnapshot(name: string): Promise<Snapshot> {
+    const snapshotName: unknown = name
+    if (typeof snapshotName !== 'string' || isBlank(snapshotName)) throw badRequest('name must be a non-empty string')
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     // The snapshot response carries its class.
     const http = this.api

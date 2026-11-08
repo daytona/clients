@@ -177,12 +177,19 @@ def _too_deep(description: str) -> DaytonaError:
     return create_error(f"expected {description}: the JSON is nested too deeply", 400, "BAD_REQUEST", "SDK")
 
 
+def _refuse_json_constant(name: str) -> JsonValue:
+    """``NaN``, ``Infinity`` and ``-Infinity`` are not JSON; ``JSON.parse``
+    refuses them too."""
+    raise ValueError(f"invalid JSON constant {name}")
+
+
 def loads_json(text: Union[str, bytes], description: str = "JSON response") -> JsonValue:
     """``json.loads`` for a response body: a body nested deeper than the
     decoder's recursion limit is the malformed-response error, never a raw
-    ``RecursionError``. Invalid JSON still raises ``ValueError``."""
+    ``RecursionError``. Invalid JSON, including the non-standard constants
+    ``NaN``, ``Infinity`` and ``-Infinity``, raises ``ValueError``."""
     try:
-        value: JsonValue = json.loads(text)
+        value: JsonValue = json.loads(text, parse_constant=_refuse_json_constant)
     except RecursionError:
         raise _too_deep(description) from None
     return value
@@ -938,13 +945,15 @@ INT32_MAX: int = 2_147_483_647
 MAX_SAFE_INTEGER: int = 2**53 - 1
 
 
-def finite_number(value: object) -> bool:
-    """A real number a double can carry: not a bool, finite, and an integer
-    ``float()`` converts (one it cannot is not finite, never an ``OverflowError``)."""
+def finite_number(value: object) -> TypeGuard[Union[int, float]]:
+    """Whether ``value`` is a number a double can carry: an ``int`` or
+    ``float`` (not a ``bool``) that is finite. An ``int`` too large for a
+    float, which ``JSON.parse`` reads as ``Infinity``, is not; the check
+    converts as ``float()`` does, so it never raises ``OverflowError``."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return False
     try:
-        return math.isfinite(float(value))
+        return math.isfinite(value)
     except OverflowError:
         return False
 
@@ -1568,7 +1577,7 @@ def gib_to_mib(gib: object, *, label: str) -> int:
 
 def mib_to_gib(mib: object) -> Optional[float]:
     """The wire's MiB as GiB, exactly (``mib / 1024``); ``None`` when absent."""
-    if not isinstance(mib, int) or isinstance(mib, bool):
+    if not isinstance(mib, int) or isinstance(mib, bool) or not finite_number(mib):
         return None
     return mib / 1024
 

@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pathSegment } from './pathSegment.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { Snapshot } from './Image.js'
 import type * as api from './gen/api-types.js'
-import { strictUriEncode } from './http.js'
 import type { ListResult } from './types.js'
 import { assertKnownOptions, optionKeys, snapshotOptions } from './options.js'
 import { getArtifact } from './artifactOptions.js'
@@ -62,12 +62,12 @@ export class SnapshotsService {
   }
 
   public async get(snapshotId: string, options: GetArtifactOptions = {}): Promise<Snapshot> {
-    return getArtifact(this.http, `/snapshots/${strictUriEncode(snapshotId)}`, options, 
+    return getArtifact(this.http, `/snapshots/${pathSegment(snapshotId, 'snapshotId')}`, options, 
       // SAFETY: the Snapshot constructor checks the response against the contract.
       (data) => new Snapshot(INTERNAL, data as api.Snapshot))
   }
 
   public async delete(snapshotId: string): Promise<void> {
-    await this.http.delete(`/snapshots/${strictUriEncode(snapshotId)}`)
+    await this.http.delete(`/snapshots/${pathSegment(snapshotId, 'snapshotId')}`)
   }
 }

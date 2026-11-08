@@ -6,13 +6,14 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import dataclasses
+import enum
 import math
 import time
 from collections.abc import Mapping as MappingABC
 from collections.abc import Sequence as SequenceABC
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Callable, ClassVar, Dict, Final, Literal, Mapping, Optional, Sequence, get_args
+from typing import Callable, ClassVar, Dict, Final, Literal, Mapping, Optional, Sequence, Union, get_args
 from urllib.parse import quote, urlsplit
 
 import anyio
@@ -24,6 +25,7 @@ from ._api_core import (
     expect_create_snapshot_resp,
     expect_fork_resp,
     expect_image,
+    expect_sandbox_lifecycle_policy,
     expect_snapshot,
     sandbox_detail_wire,
 )
@@ -38,6 +40,7 @@ from ._core import (
     assert_lifecycle_class_support,
     enum_str,
     expect_object,
+    finite_number,
     image_options_body,
     lifecycle_body,
     mib_to_gib,
@@ -149,6 +152,15 @@ class _SandboxTokenAuth:
 
 
 _INVALID_ENV_KEY_REASON: Final = "env key is not a valid variable name"
+
+
+class _Unset(enum.Enum):
+    """``_update``'s "leave this field as it is" marker (``None`` is a value)."""
+
+    UNSET = 0
+
+
+_UNSET = _Unset.UNSET
 
 
 class AsyncSandbox:
@@ -285,14 +297,42 @@ class AsyncSandbox:
         else:
             self._toolbox.auth_provider = None
 
-    def _update(self, **changes: object) -> None:
+    def _update(
+        self,
+        *,
+        state: Union[SandboxState, _Unset] = _UNSET,
+        raw_state: Union[str, _Unset] = _UNSET,
+        labels: Union[Mapping[str, str], _Unset] = _UNSET,
+        sandbox_class: Union[Optional[Literal["linux", "macos", "unknown"]], _Unset] = _UNSET,
+        raw_sandbox_class: Union[Optional[str], _Unset] = _UNSET,
+        persistent: Union[Optional[bool], _Unset] = _UNSET,
+        lifecycle_policy: Union[Optional[SandboxLifecycle], _Unset] = _UNSET,
+        wire_timestamps: Union[Mapping[str, str], _Unset] = _UNSET,
+    ) -> None:
         """Replace observed metadata fields (internal: the SDK's own reads)."""
-        if "lifecycle_policy" in changes and "wire_timestamps" not in changes:
-            # A policy read without its wire strings must not keep the old ones.
-            changes["wire_timestamps"] = {
-                key: value for key, value in self._info.wire_timestamps.items() if key == "spotEvictedAt"
-            }
-        self._info = dataclasses.replace(self._info, **changes)  # type: ignore[arg-type]
+        info = self._info
+        if not isinstance(lifecycle_policy, _Unset):
+            info = dataclasses.replace(info, lifecycle_policy=lifecycle_policy)
+            if isinstance(wire_timestamps, _Unset):
+                # A policy read without its wire strings must not keep the old ones.
+                wire_timestamps = {
+                    key: value for key, value in info.wire_timestamps.items() if key == "spotEvictedAt"
+                }
+        if not isinstance(wire_timestamps, _Unset):
+            info = dataclasses.replace(info, wire_timestamps=wire_timestamps)
+        if not isinstance(state, _Unset):
+            info = dataclasses.replace(info, state=state)
+        if not isinstance(raw_state, _Unset):
+            info = dataclasses.replace(info, raw_state=raw_state)
+        if not isinstance(labels, _Unset):
+            info = dataclasses.replace(info, labels=labels)
+        if not isinstance(sandbox_class, _Unset):
+            info = dataclasses.replace(info, sandbox_class=sandbox_class)
+        if not isinstance(raw_sandbox_class, _Unset):
+            info = dataclasses.replace(info, raw_sandbox_class=raw_sandbox_class)
+        if not isinstance(persistent, _Unset):
+            info = dataclasses.replace(info, persistent=persistent)
+        self._info = info
 
     def _update_lifecycle(self, policy: SandboxLifecycle, data: Mapping[str, JsonValue]) -> None:
         """Replace the lifecycle policy with one read from ``data``, keeping its wire timestamps."""
@@ -704,17 +744,19 @@ class AsyncSandbox:
             payload["region"] = info.region
         if info.labels:
             payload["labels"] = dict(info.labels)
-        for key, number in (
-            ("cpu", info.cpu),
-            ("cpuMax", info.cpu_max),
-            ("memory", info.memory),
-            ("memoryMax", info.memory_max),
-            ("disk", info.disk),
-            ("diskMax", info.disk_max),
-        ):
-            if number is not None:
-                # An integral size is written as an integer, as JavaScript's JSON does.
-                payload[key] = int(number) if float(number).is_integer() else number  # type: ignore[literal-required]
+        # An integral size is written as an integer, as JavaScript's JSON does.
+        if info.cpu is not None:
+            payload["cpu"] = _json_number(info.cpu)
+        if info.cpu_max is not None:
+            payload["cpuMax"] = _json_number(info.cpu_max)
+        if info.memory is not None:
+            payload["memory"] = _json_number(info.memory)
+        if info.memory_max is not None:
+            payload["memoryMax"] = _json_number(info.memory_max)
+        if info.disk is not None:
+            payload["disk"] = _json_number(info.disk)
+        if info.disk_max is not None:
+            payload["diskMax"] = _json_number(info.disk_max)
         if info.sandbox_class is not None:
             payload["sandboxClass"] = info.sandbox_class
         if info.raw_sandbox_class is not None:
@@ -743,8 +785,12 @@ class AsyncSandbox:
             payload["imageBuildId"] = info.image_build_id
         return payload
 
-    async def set_labels(self, *, labels: Mapping[str, str]) -> Dict[str, str]:
-        """Replace the sandbox label set; pass ``{}`` to clear all labels."""
+    async def set_labels(self, labels: Mapping[str, str]) -> Mapping[str, str]:
+        """Replace the sandbox label set; pass ``{}`` to clear all labels.
+
+        Returns the labels the API applied, as a fresh plain ``dict`` (typed
+        ``Mapping``, as :attr:`labels` is): changing it changes nothing.
+        """
         response = expect_object(
             await self._require_api().send(
                 RequestSpec(
@@ -1329,7 +1375,7 @@ class AsyncSandbox:
             persistent=True if self.persistent is None else self.persistent,
             action="update_lifecycle_policy",
         )
-        data = expect_object(
+        data = expect_sandbox_lifecycle_policy(
             await self._require_api().send(
                 RequestSpec(
                     "PATCH",
@@ -1361,7 +1407,7 @@ class AsyncSandbox:
         activity bump keeps the clock, and what comes back is the state that
         won.
         """
-        data = expect_object(
+        data = expect_sandbox_lifecycle_policy(
             await self._require_api().send(
                 RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/reset-idle-timer")
             )
@@ -1471,6 +1517,8 @@ class AsyncSandbox:
         )
 
     async def create_snapshot(self, name: str) -> Snapshot:
+        if not isinstance(name, str) or not name.strip():
+            raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         created = expect_create_snapshot_resp(
             await self._require_api().send(
                 RequestSpec(
@@ -1839,6 +1887,10 @@ async def _wait_without_raising_for_its_end(
         await sandbox._wait_for_state(states, timeout=timeout)
 
 
+def _json_number(number: float) -> Union[int, float]:
+    return int(number) if float(number).is_integer() else number
+
+
 def sandbox_info_from_id(sandbox_id: str) -> _SandboxInfo:
     return _SandboxInfo(id=sandbox_id)
 
@@ -1943,7 +1995,9 @@ def _sandbox_toolbox_base(sandbox_data: Mapping[str, JsonValue]) -> Optional[str
 
 
 def _optional_number(value: object) -> Optional[float]:
-    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+    # The model check at the boundary refuses a non-finite number; this
+    # conversion never raises OverflowError either way.
+    return float(value) if finite_number(value) else None
 
 
 def _sandbox_labels(value: object) -> Dict[str, str]:

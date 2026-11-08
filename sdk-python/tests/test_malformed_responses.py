@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 from collections.abc import Awaitable, Callable
 
+import anyio
 import pytest
 from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
@@ -20,6 +21,7 @@ from network_policy_test_server import FakeApi, PlannedResponse
 from daytona import AsyncDaytona, DaytonaConfig
 from daytona.v2 import BadRequestError, ImageBuilder
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
+from daytona.v2.sandbox import AsyncSandbox
 from daytona.v2.types import JsonObject, JsonValue
 
 pytestmark = pytest.mark.anyio
@@ -284,6 +286,17 @@ async def test_a_network_policy_body_nested_too_deeply_names_the_response() -> N
                 await lazy_sandbox(root.v2, "src").get_network_policy()
 
 
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+async def test_a_network_policy_body_with_a_non_json_constant_names_the_response(constant: str) -> None:
+    # Not JSON (JSON.parse refuses them too): the malformed-response error.
+    body = f'{{"block_all": false, "allow_cidrs": [], "allow_domains": [], "x": {constant}}}'.encode()
+    with FakeApi([PlannedResponse(200, body, {"ETag": '"e"'})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match="^network policy response is not JSON$"):
+                await lazy_sandbox(root.v2, "src").get_network_policy()
+
+
 @pytest.mark.parametrize(
     ("labels", "field"),
     [({"team": 1}, r"labels\.team"), ("team", r"labels that is not an object")],
@@ -293,8 +306,6 @@ async def test_a_sandbox_object_with_malformed_labels_is_a_contract_error(
     labels: JsonValue, field: str
 ) -> None:
     # Every path that builds a handle from a sandbox object, as in TypeScript.
-    from daytona.v2.sandbox import AsyncSandbox
-
     with pytest.raises(BadRequestError, match=field):
         AsyncSandbox._from_api({**_DETAIL, "labels": labels}, None, None)
 
@@ -306,3 +317,59 @@ async def test_a_list_cursor_of_the_wrong_type_is_a_contract_error(key: str) -> 
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             with pytest.raises(BadRequestError, match=f"has a {key} that is not a string"):
                 await root.v2.list()
+
+
+# Toolbox reads this area maps (the TypeScript twin covers the same four): a
+# `{}` body is the malformed-response error, and a waiting Docker read fails at
+# once rather than at its deadline.
+_TOOLBOX_CALLS: list[tuple[str, Callable[[AsyncSandbox], Awaitable[object]]]] = [
+    ("docker.status", lambda s: s.docker.status()),
+    ("docker.wait_until_ready", lambda s: s.docker.wait_until_ready(timeout=30)),
+    ("volumes.pull", lambda s: s.volumes.pull("vol1", request_id="r1")),
+    ("ports.is_in_use", lambda s: s.ports.is_in_use(3000)),
+    ("metrics", lambda s: s.metrics()),
+]
+
+
+@pytest.mark.parametrize(("name", "call"), _TOOLBOX_CALLS, ids=[case[0] for case in _TOOLBOX_CALLS])
+async def test_an_empty_toolbox_body_is_a_contract_error(
+    name: str, call: Callable[[AsyncSandbox], Awaitable[object]]
+) -> None:
+    del name
+    with FakeApi([PlannedResponse(200, {})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = lazy_sandbox(root.v2, "src", toolbox_url=api.url, access_token="tok")
+            with anyio.fail_after(5), pytest.raises(BadRequestError) as raised:
+                await call(sandbox)
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert len(api.requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("body", "field"),
+    [
+        ({}, "id"),
+        ({"id": "src"}, "lifecycle_policy"),
+        ({"id": "src", "lifecycle_policy": {"timeout_seconds": "60"}}, "timeout_seconds"),
+    ],
+    ids=["empty", "no lifecycle_policy", "timeout_seconds a string"],
+)
+@pytest.mark.parametrize("verb", ["update_lifecycle_policy", "reset_idle_timer"])
+async def test_a_malformed_lifecycle_echo_is_a_contract_error(
+    verb: str, body: JsonObject, field: str
+) -> None:
+    # The TypeScript twin covers the same echoes.
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = lazy_sandbox(root.v2, "src")
+            sandbox._update(sandbox_class="linux", persistent=False)
+            with pytest.raises(BadRequestError, match=f"sandbox lifecycle policy response.*{field}"):
+                if verb == "reset_idle_timer":
+                    await sandbox.reset_idle_timer()
+                else:
+                    await sandbox.update_lifecycle_policy(timeout_seconds=60)
+    assert len(api.requests) == 1

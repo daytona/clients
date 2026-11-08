@@ -934,7 +934,7 @@ class AsyncDaytona:
         not included: they are served to signed-in members only.
         """
         org_id = organization_id if organization_id is not None else await self._key_organization_id()
-        if not org_id:
+        if not isinstance(org_id, str) or not org_id.strip():
             raise create_error("organization_id must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         return expect_organization_limits(
             await self._api.send(RequestSpec("GET", f"/orgs/{quote(org_id, safe='')}/limits"))
@@ -1684,7 +1684,7 @@ def _create_body(config: CreateConfig) -> CreateBody:
             if cores is None:
                 continue
             # A double on the wire: any finite positive number a double carries.
-            if not finite_number(cores) or cores <= 0:  # type: ignore[operator]
+            if not finite_number(cores) or cores <= 0:
                 raise create_error(
                     f"resources.{label} must be a positive number of cores", 400, "BAD_REQUEST", "SDK"
                 )

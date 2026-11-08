@@ -84,7 +84,12 @@ from .types import (
 _T = TypeVar("_T")
 
 
-def _path(value: str) -> str:
+def _path(value: object, name: str) -> str:
+    """A caller's id or name as one request-path segment: a string that is not
+    blank (Python's whitespace), else :class:`BadRequestError` naming
+    ``name``, before any request."""
+    if not isinstance(value, str) or not value.strip():
+        raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
     return quote(value, safe="")
 
 
@@ -132,7 +137,7 @@ class AsyncImagesService:
         """Observe a submitted image build. Timeout is in seconds, not execution TTL."""
         return await follow_build_logs(
             self._transport,
-            f"/images/{_path(image_id)}/build-logs-url",
+            f"/images/{_path(image_id, 'image_id')}/build-logs-url",
             on_logs=on_logs,
             on_event=on_event,
             cursor=cursor,
@@ -234,7 +239,7 @@ class AsyncImagesService:
         """
         return await _get_artifact(
             self._transport,
-            f"/images/{_path(image_id)}",
+            f"/images/{_path(image_id, 'image_id')}",
             wait,
             timeout,
             expect_image,
@@ -248,13 +253,14 @@ class AsyncImagesService:
         a named image is not offered (sandboxes reference images by id, so a
         rename would silently relabel every sandbox created from it).
         """
-        await self._transport.send(
-            RequestSpec("PATCH", f"/images/{_path(image_id)}", json_body={"name": name})
-        )
+        path = f"/images/{_path(image_id, 'image_id')}"
+        if not isinstance(name, str) or not name.strip():
+            raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        await self._transport.send(RequestSpec("PATCH", path, json_body={"name": name}))
         return await self.get(image_id)
 
     async def delete(self, image_id: str) -> None:
-        await self._transport.send(RequestSpec("DELETE", f"/images/{_path(image_id)}"))
+        await self._transport.send(RequestSpec("DELETE", f"/images/{_path(image_id, 'image_id')}"))
 
     async def list(
         self,
@@ -389,7 +395,11 @@ async def _get_artifact(
             )
         except ClientTimeoutError as error:
             # Only expiry of this wait's own cap is the wait running out.
-            if remaining is not None and (remaining <= slack_read or _clock.monotonic() >= deadline):  # type: ignore[operator]
+            if (
+                deadline is not None
+                and remaining is not None
+                and (remaining <= slack_read or _clock.monotonic() >= deadline)
+            ):
                 raise timed_out() from error
             raise
         if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES:
@@ -462,7 +472,7 @@ class AsyncSnapshotsService:
         """Fetch a snapshot; ``wait="ready"`` waits as :meth:`AsyncImagesService.get` does."""
         return await _get_artifact(
             self._transport,
-            f"/snapshots/{_path(snapshot_id)}",
+            f"/snapshots/{_path(snapshot_id, 'snapshot_id')}",
             wait,
             timeout,
             lambda payload: parse_snapshot(expect_snapshot(payload)),
@@ -471,7 +481,7 @@ class AsyncSnapshotsService:
 
     async def delete(self, snapshot_id: str) -> None:
         """Delete a snapshot (409 while sandboxes still depend on it)."""
-        await self._transport.send(RequestSpec("DELETE", f"/snapshots/{_path(snapshot_id)}"))
+        await self._transport.send(RequestSpec("DELETE", f"/snapshots/{_path(snapshot_id, 'snapshot_id')}"))
 
 
 class AsyncVolumesService:
@@ -521,15 +531,10 @@ class AsyncVolumesService:
 
     async def get(self, name_or_id: str, *, create: bool = False, id_only: bool = False) -> Volume:
         """Fetch by id or name; ``id_only`` disables name fallback."""
+        path = f"/volumes/{_path(name_or_id, 'name_or_id')}"
         params: Dict[str, JsonValue] = {"id_only": True} if id_only else {}
         try:
-            return _volume(
-                expect_volume(
-                    await self._transport.send(
-                        RequestSpec("GET", f"/volumes/{_path(name_or_id)}", params=params)
-                    )
-                )
-            )
+            return _volume(expect_volume(await self._transport.send(RequestSpec("GET", path, params=params))))
         except NotFoundError:
             if not create or id_only:
                 raise
@@ -552,12 +557,11 @@ class AsyncVolumesService:
 
     async def delete(self, name_or_id: str, *, id_only: bool = False) -> None:
         """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
-        if not isinstance(name_or_id, str) or not name_or_id.strip():
-            raise create_error("name_or_id must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        path = f"/volumes/{_path(name_or_id, 'name_or_id')}"
         if not isinstance(id_only, bool):
             raise create_error("id_only must be a boolean", 400, "BAD_REQUEST", "SDK")
         params: Dict[str, JsonValue] = {"id_only": True} if id_only else {}
-        await self._transport.send(RequestSpec("DELETE", f"/volumes/{_path(name_or_id)}", params=params))
+        await self._transport.send(RequestSpec("DELETE", path, params=params))
 
 
 class AsyncReservationsService:
@@ -679,7 +683,9 @@ class AsyncReservationsService:
 
     async def get(self, reservation_id: str) -> MacReservation:
         return _mac_reservation(
-            await self._transport.send(RequestSpec("GET", f"/reservations/{_path(reservation_id)}"))
+            await self._transport.send(
+                RequestSpec("GET", f"/reservations/{_path(reservation_id, 'reservation_id')}")
+            )
         )
 
     async def renew(self, reservation_id: str, *, idempotency_key: Optional[str] = None) -> MacReservation:
@@ -690,7 +696,9 @@ class AsyncReservationsService:
         headers = _idempotency_headers(idempotency_key)
         return _mac_reservation(
             await self._transport.send(
-                RequestSpec("POST", f"/reservations/{_path(reservation_id)}/renew", headers=headers)
+                RequestSpec(
+                    "POST", f"/reservations/{_path(reservation_id, 'reservation_id')}/renew", headers=headers
+                )
             )
         )
 
@@ -708,7 +716,7 @@ class AsyncReservationsService:
             await self._transport.send(
                 RequestSpec(
                     "PATCH",
-                    f"/reservations/{_path(reservation_id)}",
+                    f"/reservations/{_path(reservation_id, 'reservation_id')}",
                     json_body=json_object_from_mapping(body),
                 )
             )
@@ -902,7 +910,9 @@ class AsyncSecretsService:
 
     async def get(self, name: str) -> Secret:
         """Fetch one secret's metadata (never its value)."""
-        return expect_secret(await self._transport.send(RequestSpec("GET", f"/secrets/{_path(name)}")))
+        return expect_secret(
+            await self._transport.send(RequestSpec("GET", f"/secrets/{_path(name, 'name')}"))
+        )
 
     async def set(
         self,
@@ -920,6 +930,7 @@ class AsyncSecretsService:
         ``"*"`` lets the value reach any HTTPS host, including one a
         compromised sandbox controls.
         """
+        path = f"/secrets/{_path(name, 'name')}"
         if (
             isinstance(allowed_domains, str)
             or not isinstance(allowed_domains, SequenceABC)
@@ -931,11 +942,9 @@ class AsyncSecretsService:
             body["description"] = description
         headers = {"If-None-Match": "*"} if if_not_exists else {}
         return expect_secret(
-            await self._transport.send(
-                RequestSpec("PUT", f"/secrets/{_path(name)}", json_body=body, headers=headers)
-            )
+            await self._transport.send(RequestSpec("PUT", path, json_body=body, headers=headers))
         )
 
     async def delete(self, name: str) -> None:
         """Delete a secret."""
-        await self._transport.send(RequestSpec("DELETE", f"/secrets/{_path(name)}"))
+        await self._transport.send(RequestSpec("DELETE", f"/secrets/{_path(name, 'name')}"))

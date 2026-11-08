@@ -23,7 +23,7 @@ from ._gen.api import (
     Volume,
     VolumePage,
 )
-from .errors import create_error
+from .errors import DaytonaError, create_error
 from .types import (
     AuditActionGroup,
     AuditActionList,
@@ -291,6 +291,54 @@ def expect_preview_endpoint(value: TransportPayload) -> SandboxPort:
 
 def expect_daytona_preview_url(value: TransportPayload) -> PreviewUrl:
     return _expect_model_from_dict(value, PreviewUrl, "preview url response", PreviewUrl.from_dict)
+
+
+_LIFECYCLE_INTEGERS = ("timeout_seconds", "idle_expiry_seconds")
+_LIFECYCLE_STRINGS = (
+    "on_timeout",
+    "timeout_at",
+    "on_idle_timeout",
+    "idle_timeout_at",
+    "last_activity_at",
+    "last_activity_source",
+)
+
+
+def expect_sandbox_lifecycle_policy(value: TransportPayload) -> JsonObject:
+    """The lifecycle echo of ``PATCH .../lifecycle-policy`` and
+    ``POST .../reset-idle-timer`` (the contract's ``SandboxLifecyclePolicy``),
+    checked field by field as TypeScript checks it: a required string ``id``
+    and ``lifecycle_policy`` object, whose optional fields are 32-bit integers
+    or strings when present. Timestamps stay strings here: an unparseable
+    activity clock is a degenerate echo the handle keeps out of its cache, not
+    a malformed response. The raw object is returned because the handle keeps
+    the wire timestamps verbatim."""
+    what = "sandbox lifecycle policy response"
+
+    def malformed(message: str) -> DaytonaError:
+        return create_error(f"{what} {message}", 400, "BAD_REQUEST", "SDK")
+
+    data = expect_object(value)
+    if "id" not in data or data["id"] is None:
+        raise malformed("is missing its id")
+    if not isinstance(data["id"], str):
+        raise malformed("has an id that is not a string")
+    policy = data.get("lifecycle_policy")
+    if policy is None:
+        raise malformed("is missing its lifecycle_policy")
+    if not isinstance(policy, dict):
+        raise malformed("has a lifecycle_policy that is not an object")
+    for key in _LIFECYCLE_INTEGERS:
+        number = policy.get(key)
+        if number is not None and (
+            isinstance(number, bool) or not isinstance(number, int) or not -(2**31) <= number < 2**31
+        ):
+            raise malformed(f"has a lifecycle_policy.{key} that is not a 32-bit integer")
+    for key in _LIFECYCLE_STRINGS:
+        text = policy.get(key)
+        if text is not None and not isinstance(text, str):
+            raise malformed(f"has a lifecycle_policy.{key} that is not a string")
+    return data
 
 
 def expect_secret(value: TransportPayload) -> Secret:

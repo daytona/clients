@@ -4261,13 +4261,16 @@ async def test_update_lifecycle_policy_patches_only_the_passed_keys():
         [
             _sandbox_detail_payload("sbx", "running", sandbox_class="macos", persistent=True),
             {
-                "timeout_seconds": 300,
-                "on_timeout": "stop",
-                "timeout_at": "2026-08-28T10:00:00Z",
-                "idle_expiry_seconds": 900,
-                "on_idle_timeout": "stop",
-                "last_activity_at": "2026-08-27T09:00:00Z",
-                "last_activity_source": "traffic",
+                "id": "sbx",
+                "lifecycle_policy": {
+                    "timeout_seconds": 300,
+                    "on_timeout": "stop",
+                    "timeout_at": "2026-08-28T10:00:00Z",
+                    "idle_expiry_seconds": 900,
+                    "on_idle_timeout": "stop",
+                    "last_activity_at": "2026-08-27T09:00:00Z",
+                    "last_activity_source": "traffic",
+                },
             },
         ]
     )
@@ -4430,10 +4433,7 @@ async def test_reset_idle_timer_keeps_a_valid_cached_clock_over_a_clockless_echo
 async def test_reset_idle_timer_accepts_a_clockless_echo_into_an_empty_cache():
     """With nothing valid to protect, the fresh echo still wins."""
     api = RecordingTransport(
-        [
-            _sandbox_detail_payload("sbx", "running"),
-            {"lifecycle_policy": {"idle_expiry_seconds": 900, "on_idle_timeout": "stop"}, "id": "sbx"},
-        ]
+        [{"lifecycle_policy": {"idle_expiry_seconds": 900, "on_idle_timeout": "stop"}, "id": "sbx"}]
     )
     sandbox = AsyncSandbox(sandbox_info_from_id("sbx"), api, None)
     fresh = await sandbox.reset_idle_timer()
@@ -4515,8 +4515,8 @@ async def test_update_lifecycle_policy_leaves_pair_coherence_to_the_merged_state
     api = RecordingTransport(
         [
             _sandbox_detail_payload("sbx", "running", sandbox_class="macos", persistent=True),
-            {"idle_expiry_seconds": 1800, "on_idle_timeout": "stop"},
-            {"idle_expiry_seconds": 1800, "on_idle_timeout": "delete"},
+            {"id": "sbx", "lifecycle_policy": {"idle_expiry_seconds": 1800, "on_idle_timeout": "stop"}},
+            {"id": "sbx", "lifecycle_policy": {"idle_expiry_seconds": 1800, "on_idle_timeout": "delete"}},
         ]
     )
     sandbox = AsyncSandbox(sandbox_info_from_id("sbx"), api, None)
@@ -4541,7 +4541,10 @@ async def test_update_lifecycle_policy_cannot_trip_the_unknown_field_guard():
     api = RecordingTransport(
         [
             _sandbox_detail_payload("sbx", "running"),
-            {"timeout_seconds": 3600, "timeout_at": "2026-09-01T00:00:00Z"},
+            {
+                "id": "sbx",
+                "lifecycle_policy": {"timeout_seconds": 3600, "timeout_at": "2026-09-01T00:00:00Z"},
+            },
         ]
     )
     sandbox = AsyncSandbox(sandbox_info_from_id("sbx"), api, None)
@@ -4556,7 +4559,7 @@ async def test_update_lifecycle_policy_distinguishes_omitted_disabled_and_value(
     omitted_api = RecordingTransport(
         [
             _sandbox_detail_payload("sbx", "running"),
-            {"timeout_seconds": 60},
+            {"id": "sbx", "lifecycle_policy": {"timeout_seconds": 60}},
         ]
     )
     omitted = AsyncSandbox(sandbox_info_from_id("sbx"), omitted_api, None)
@@ -4566,7 +4569,7 @@ async def test_update_lifecycle_policy_distinguishes_omitted_disabled_and_value(
     disabled_api = RecordingTransport(
         [
             _sandbox_detail_payload("sbx", "running"),
-            {"idle_expiry_seconds": None, "on_idle_timeout": None},
+            {"id": "sbx", "lifecycle_policy": {"idle_expiry_seconds": None, "on_idle_timeout": None}},
         ]
     )
     disabled = AsyncSandbox(sandbox_info_from_id("sbx"), disabled_api, None)
@@ -4576,7 +4579,7 @@ async def test_update_lifecycle_policy_distinguishes_omitted_disabled_and_value(
     value_api = RecordingTransport(
         [
             _sandbox_detail_payload("sbx", "running"),
-            {"idle_expiry_seconds": 3600, "on_idle_timeout": "delete"},
+            {"id": "sbx", "lifecycle_policy": {"idle_expiry_seconds": 3600, "on_idle_timeout": "delete"}},
         ]
     )
     value = AsyncSandbox(sandbox_info_from_id("sbx"), value_api, None)

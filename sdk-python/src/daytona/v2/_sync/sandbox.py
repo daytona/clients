@@ -366,9 +366,13 @@ class Sandbox:
             )
         )
 
-    def set_labels(self, *, labels: Mapping[str, str]) -> Dict[str, str]:
-        """Replace the sandbox label set; pass ``{}`` to clear all labels."""
-        return self._bridge.call(lambda: self._impl.set_labels(labels=labels))
+    def set_labels(self, labels: Mapping[str, str]) -> Mapping[str, str]:
+        """Replace the sandbox label set; pass ``{}`` to clear all labels.
+
+        Returns the labels the API applied, as a fresh plain ``dict`` (typed
+        ``Mapping``, as :attr:`labels` is): changing it changes nothing.
+        """
+        return self._bridge.call(lambda: self._impl.set_labels(labels))
 
     def start(self, *, timeout: float = 60) -> None:
         """Start a stopped sandbox, or resume a paused one, and wait until it is ``started``.

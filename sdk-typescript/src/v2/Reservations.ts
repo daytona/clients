@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
@@ -12,7 +13,7 @@ import type { Internal } from './internal.js'
 import type { CreateReservationOptions, CreateReservationsBulkOptions, ListReservationsOptions, MacReservation, MacReservationBatch, RenewReservationOptions, UpdateReservationOptions } from './macTypes.js'
 import type { ListResult } from './types.js'
 import type * as api from './gen/api-types.js'
-import { runtimeUniqueId, strictUriEncode } from './http.js'
+import { runtimeUniqueId } from './http.js'
 import { MacReservationEndReason as END_REASONS, MacReservationOrigin as ORIGINS, MacReservationStatus as STATUSES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { mapMacResources } from './macMappers.js'
@@ -152,7 +153,7 @@ export class ReservationsService {
   }
 
   public async get(id: string): Promise<MacReservation> {
-    const { data } = await this.http.get<api.MacReservation>(`/reservations/${strictUriEncode(id)}`)
+    const { data } = await this.http.get<api.MacReservation>(`/reservations/${pathSegment(id, 'id')}`)
     return reservation(data)
   }
 
@@ -161,7 +162,7 @@ export class ReservationsService {
    */
   public async renew(id: string, options: RenewReservationOptions = {}): Promise<MacReservation> {
     assertKnownOptions('RenewReservationOptions', options, RENEW_RESERVATION_KEYS)
-    const { data } = await this.http.post<api.MacReservation>(`/reservations/${strictUriEncode(id)}/renew`, undefined, idempotencyHeaders(options.idempotencyKey))
+    const { data } = await this.http.post<api.MacReservation>(`/reservations/${pathSegment(id, 'id')}/renew`, undefined, idempotencyHeaders(options.idempotencyKey))
     return reservation(data)
   }
 
@@ -172,12 +173,13 @@ export class ReservationsService {
    * `ConflictError` when the reservation is no longer live.
    */
   public async update(id: string, options: UpdateReservationOptions): Promise<MacReservation> {
+    const path = `/reservations/${pathSegment(id, 'id')}`
     assertOptionsObject('UpdateReservationOptions', options)
     assertKnownOptions('UpdateReservationOptions', options, UPDATE_RESERVATION_KEYS)
     // The one field to change is required: no empty PATCH is sent.
     if (typeof options.autoRenew !== 'boolean') throw badRequest('autoRenew must be a boolean')
     const body: api.UpdateReservationRequest = { auto_renew: options.autoRenew }
-    const { data } = await this.http.patch<api.MacReservation>(`/reservations/${strictUriEncode(id)}`, body)
+    const { data } = await this.http.patch<api.MacReservation>(path, body)
     return reservation(data)
   }
 }
