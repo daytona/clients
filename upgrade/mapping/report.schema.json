@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/daytona/clients/upgrade/mapping/report.schema.json",
   "title": "daytona-upgrade JSON report",
-  "description": "The --json output of both daytona-upgrade tools (npm and PyPI). Within a major version every field and value listed here keeps its name, type and meaning. A minor release can add fields and add values to the vocabularies (each lists its values under `examples`), so this schema accepts both and a reader must ignore what it doesn't know. Both tools' tests validate their output against a strict copy: no unlisted fields, only the listed values.",
+  "description": "The --json output of both daytona-upgrade tools (npm and PyPI). From 2.0.0 on, within a major version every field and value listed here keeps its name, type and meaning. A minor release can add fields and add values to the vocabularies (each lists its values under `examples`), so this schema accepts both and a reader must ignore what it doesn't know. Both tools' tests validate their output against a strict copy: no unlisted fields, only the listed values.",
   "type": "object",
   "required": ["tool", "version", "language", "mode", "root", "dryRun", "changedFiles", "dependencies", "items", "nextSteps"],
   "properties": {

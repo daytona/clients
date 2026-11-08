@@ -85,7 +85,8 @@ internal modules not re-exported from the entry point, the `X-Daytona-Source` /
 ### The migration tool
 
 The migration tool (`npx @daytona/upgrade`, `uvx daytona-upgrade`) is covered
-too. Within a major version, these stay compatible:
+too. From `2.0.0` on (pre-releases may still break, see
+[Pre-stable](#pre-stable-alpha)), within a major version these stay compatible:
 
 - its flags, and what the exit codes `0`, `1` and `2` mean;
 - its `--json` report: every field and value in
