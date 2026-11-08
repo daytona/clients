@@ -631,7 +631,10 @@ PTY handles only. `stream_logs()` yields one `StreamLogEvent` per server
 event, each carrying its resume `cursor`: `StreamLogFrameEvent` (a
 `LogFrame` on `.frame`), `StreamLogStateEvent` (the process ended),
 `StreamLogWarningEvent` (older frames were evicted) and `StreamLogEofEvent`;
-a stream error raises its typed error. `timeout=` is the
+a stream error raises its typed error and a stream cut short raises
+`ConnectionError`. An iteration that ends without a `StreamLogEofEvent` did
+not reach the end of the log: call `stream_logs(cursor=...)` again with the
+last event's cursor. `timeout=` is the
 caller wait budget **(seconds)**, and `timeout=0` means wait unbounded.
 `execution_timeout=` is the process deadline **(seconds)** for server-managed
 runs that support one; `kill(escalate_after=)` is in seconds too. Signals are
@@ -705,7 +708,10 @@ milliseconds; `type` is `"create"`, `"write"`, `"remove"`, `"rename"`,
 a time and are awaited. A failing `on_event` or `on_overflow` ends the watch
 with that error, which `exit_error` / `wait_for_exit()` report and `on_exit`
 receives; a failing `on_exit` is ignored. A watch whose stream drops ends with
-`ConnectionError`. `stop()` returns once a callback that
+`ConnectionError`. `on_exit` runs exactly once for a watch `watch_dir()`
+returned; a failure before the watch starts (a refused connection, an HTTP
+error, a stream that ends before `start`) is raised from `watch_dir()` and
+does not call it. `stop()` returns once a callback that
 is already running, and `on_exit`, have finished, and a callback (or
 `on_exit`) may stop its own watch, also from a task it started.
 With the synchronous `Daytona` client the callbacks run on the SDK's

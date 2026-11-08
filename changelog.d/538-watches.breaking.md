@@ -14,11 +14,15 @@ and wait for its exit without waiting for itself, also from a task it started
 (Python deadlocked on `create_task`, `gather` and, on 3.10 and 3.11,
 `wait_for`); with the synchronous Python client that includes a plain callback
 calling its own watch's `stop()`, while calling another watch's `stop()` /
-`wait_for_exit()` raises `BridgeError`. Events carry `timestampMs` /
-`timestamp_ms`, and a malformed event ends the watch with `BadRequestError`. A
-watch whose stream ends on its own, or is cut short, ends with
-`ConnectionError` (source `SDK`) in both SDKs (Python raised a 500
-`InternalServerError`, TypeScript a plain `DaytonaError` or the runtime's own
-error), and a stream that fails to close after the caller's own `stop()` no
-longer becomes the exit error (Python could report a `RuntimeError` when
-`stop()` raced the reader's close).
+`wait_for_exit()` raises a `DaytonaError`. The exit callback runs only for a
+watch `watch_dir()` / `watchDir()` returned, exactly once: a failure before
+the watch starts (a refused connection, an HTTP error, a stream that ends or
+breaks before `start`, a cancellation) is raised from that call and never
+calls it (TypeScript called it for these, Python for a stream that broke
+before `start`). Events carry `timestampMs` / `timestamp_ms`, and a malformed
+event ends the watch with `BadRequestError`. A watch whose stream ends on its
+own, or is cut short, ends with `ConnectionError` (source `SDK`) in both SDKs
+(Python raised a 500 `InternalServerError`, TypeScript a plain `DaytonaError`
+or the runtime's own error), and a stream that fails to close after the
+caller's own `stop()` no longer becomes the exit error (Python could report a
+`RuntimeError` when `stop()` raced the reader's close).

@@ -577,7 +577,9 @@ delete its context or session), signal-aware `kill()` with escalation,
 `StreamLogEvent` per server event, each carrying its resume `cursor`
 (`StreamLogFrameEvent`, `StreamLogStateEvent`, `StreamLogWarningEvent`,
 `StreamLogEofEvent`, told apart by `type`); a stream error throws its typed
-error. Every duration is in seconds: `timeoutSeconds` is the caller wait
+error and a stream cut short throws `ConnectionError`. An iteration that ends
+without a `StreamLogEofEvent` did not reach the end of the log: call
+`streamLogs({ cursor })` again with the last event's cursor. Every duration is in seconds: `timeoutSeconds` is the caller wait
 budget (omitted or `0` waits unbounded), `executionTimeoutSeconds` the process
 deadline for server-managed runs that support one, and
 `kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
@@ -649,7 +651,10 @@ later sandbox adds, passed through as its string).
 Callbacks may return promises; they run one at a time and are awaited. A
 failing `onEvent` or `onOverflow` ends the watch with that error, which
 `exitError` / `waitForExit()` report and `onExit` receives; a failing `onExit`
-is ignored. A watch whose stream drops ends with `ConnectionError`. `stop()` resolves once a callback that is already running, and
+is ignored. A watch whose stream drops ends with `ConnectionError`. `onExit`
+runs exactly once for a watch `watchDir()` returned; a failure before the
+watch starts (a refused connection, an HTTP error, a stream that ends before
+`start`) rejects `watchDir()` and does not call it. `stop()` resolves once a callback that is already running, and
 `onExit`, have finished, and a callback (or `onExit`) may stop its own watch and await
 `waitForExit()` without waiting for itself. In runtimes without
 `AsyncLocalStorage` (browsers), a callback that stops its own watch after an

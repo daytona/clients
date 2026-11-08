@@ -610,7 +610,13 @@ skipping exist only in the TypeScript tool).
   error; an SSE block without a `data:` line, or an unterminated final one,
   dispatches nothing. A watch whose stream ends on its own (or is cut short)
   ends with `ConnectionError` (source `SDK`), and a close failure after the
-  caller's own `stop()` is not an exit error.
+  caller's own `stop()` is not an exit error. The exit callback belongs to a
+  watch `watch_dir()` / `watchDir()` returned and runs exactly once; any
+  failure before that call returns (a refused connection, an HTTP error, a
+  stream that ends or breaks before `start`, a cancellation) is raised from
+  it and never calls the exit callback. A process log stream cut short is
+  `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
+  and one that ends without `eof` means "resume from the last cursor".
 - **Toolbox results are SDK-owned models.** File info, grep / replace items,
   git status / commits / remotes, system metrics, the LSP types and the
   computer-use results are hand-written (Python frozen keyword-only
