@@ -122,14 +122,14 @@ whose logs hold Docker's output. Add `--wait` to poll until Docker is `ready`;
 
 `daytona image build <name> --context DIR` uploads the directory without what
 its ignore file excludes: `<Dockerfile>.dockerignore` next to the Dockerfile
-when it exists, otherwise `.dockerignore` at the context root. Matching
-follows Docker's pattern matcher, the one its classic builder uses: `#`
-comments, `*`, `?`, `**` and character classes; patterns are evaluated in
-order and the last one that matches a path decides; a pattern that matches a
-parent directory applies to everything inside it; `!` re-includes. BuildKit's
-context walker treats a few exception patterns for parent directories
-differently. The Dockerfile and the ignore file are always uploaded. The
-64 MiB context limit counts what is uploaded. A `--context` tar file is
+when it exists, otherwise `.dockerignore` at the context root. Every path is
+matched with Docker's pattern rules: `#` comments, `*`, `?`, `**` and
+character classes; patterns are evaluated in order and the last one that
+matches a path decides; a pattern that matches a parent directory applies to
+everything inside it; `!` re-includes. An excluded directory is still walked
+when a `!` pattern could re-include something inside it, as BuildKit does.
+The Dockerfile and the ignore file are always uploaded, even when a pattern
+matches them. The 64 MiB context limit counts what is uploaded. A `--context` tar file is
 uploaded as is, and `sandbox cp` never filters.
 
 ### macOS sandboxes
@@ -245,8 +245,12 @@ never prompts:
   Results merge regional cursors and de-duplicate resources by ID. The
   catalogs (`region`, `cpu-type`, `mac-model`, `role`, `billing plan`) and the
   in-sandbox lists (`sandbox port list`, `sandbox process list`) are returned
-  whole and take no paging flags. A sandbox or image list that could
-  not reach every region prints what it has and exits **7**.
+  whole and take no paging flags. An unknown `--region` on `sandbox list` or
+  `image list` is a usage error (exit 2) before any list request. When some
+  regions fail, the list prints the others' items with `"incomplete": true`
+  and one `errors` entry per failed region, and exits **7**; when every region
+  fails, the command fails with that failure (for example exit 3 for a
+  refused credential) and prints no list.
 - Sandbox search time filters use half-open ranges: `--created-start-at` /
   `--created-end-at`, `--updated-start-at` / `--updated-end-at`, and
   `--last-activity-start-at` / `--last-activity-end-at`. Start bounds are
@@ -262,7 +266,10 @@ never prompts:
   `--permission`, `--label`, `--env`, `--allow-domain`, …).
 - Long operations wait for completion by default; `--no-wait` returns the
   accepted resource immediately. `--timeout` bounds the CLI's own wait (default
-  `10m`; the server keeps working) and exits **8** when it passes.
+  `10m`; the server keeps working) and exits **8** when it passes. A
+  `--timeout` with nothing to wait for is refused (exit 2): with `--no-wait`,
+  on `image logs` / `sandbox process logs` without `--follow`, and on
+  `sandbox docker status` without `--wait`.
 - Bucket volumes are created with `daytona volume create NAME --type bucket`; add
   `--bucket`, `--endpoint`, `--bucket-region`, `--prefix`, `--path-style`,
   `--access-key-secret`, and `--secret-key-secret` for a customer bucket.
@@ -311,22 +318,37 @@ request.
 
 ### JSON output
 
-- An object command prints the API's resource representation: the fields and
-  names (snake_case) the API returns, so a field the API adds appears without
-  a CLI release.
+- A command that shows an API resource prints the JSON the API returned, and
+  a list prints each item as the API returned it: the API's field names
+  (snake_case), its nulls, and fields a newer API adds, without a CLI
+  release. A field the API leaves out is absent; the CLI never fills one in.
 - Output that comes from inside the sandbox (`sandbox process list`, `get`,
-  `wait`, `logs`, `sandbox docker status`) is converted to snake_case
-  (`exit_code`, `next_cursor`, `process_id`, `truncated_head`).
+  `wait`, `logs`, `sandbox docker status`) is the toolbox API's JSON with every
+  key converted to snake_case (`exit_code`, `next_cursor`, `process_id`,
+  `truncated_head`) and signal names without `SIG`.
 - A list prints `{"items": [...], "incomplete": false}` plus `next_cursor` when
-  another page exists and `errors` (`[{"region", "status", "message"}]`) when a
-  region failed; `items` is always an array. `sandbox search` adds `total`
+  another page exists and `errors` (`[{"region", "status", "code", "source",
+  "message"}]`, absent fields omitted) when a region failed; `items` is
+  always an array. `sandbox search` adds `total`
   and `total_relation`. `cpu-type list` and `mac-model list` print the same
   envelope with or without `--region` (with `--region`, `mac-model list` items
   are the region's catalog entries: `model`, `available`, `price`).
 - `--follow` with `-o json` streams NDJSON, one object per line:
-  `{"data": "..."}` chunks for `sandbox logs` and `image logs`, one log frame
-  (`channel`, `cursor`, `data`, `timestamp`) for `sandbox process logs`. YAML
-  is refused with `--follow` (exit 2).
+  `{"data": "..."}` chunks for `sandbox logs` and `image logs`, one toolbox log
+  frame (`channel`, `cursor`, `data`, `timestamp` in Unix milliseconds) for
+  `sandbox process logs`. YAML is refused with `--follow` (exit 2).
+- The CLI's own shapes, for output no single API response holds:
+  `{"logs": "<text>"}` (`sandbox logs` and `image logs` without `--follow`);
+  `whoami` (`profile`, `api_url`, `credential_source`, `context_resolved`,
+  and `org_id`, `project_id`, `org_ref`, `project_ref`, `user`, `org` when
+  known); `version` (`version`, `go`, `os`, `arch`, and `api_url`,
+  `api_version`, `api_build_sha`, `api_built_at`, `skew_warning` when known);
+  `profile list` rows; `config get` / `config path`; `reservation create
+  --dry-run`; `region list` items, which are the API's region objects with
+  `price_multiplier` added; and the acknowledgements of commands whose API
+  answer is empty (`{"id", "deleted": true}`, `{"revoked": …}`,
+  `{"name", "updated": true}`, …). They omit what they do not know rather
+  than print empty values.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,
   `process attach` and `cp`, `--follow` in table mode, `billing invoice pdf`,
   `docs`, `completion`, `help` and `--version`.
@@ -338,8 +360,10 @@ request.
   `code`, `source` and `trace_id` come from the server when it sent them and
   are omitted otherwise, so a server error is never attributed to the CLI; a
   local error has `source` `CLI`, and a passed-through exit status `PROCESS`
-  or `SSH`. Both `code` and `source` are open vocabularies. With table output errors are an `error:`
-  line and an optional `hint:` line.
+  or `SSH`. A partial list (exit 7) has no `code` or `source` of its own: each
+  failed region's are in the list's `errors`. Both `code` and `source` are
+  open vocabularies. With table output errors are an `error:` line and an
+  optional `hint:` line.
 
 ### Exit codes
 
@@ -352,7 +376,7 @@ request.
 | `4` | permission denied: HTTP 403 |
 | `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE` that does not exist (on the commands that use the selected profile) |
 | `6` | conflict: HTTP 409, 412 and 501, and HTTP 429 `LIMIT_EXCEEDED` (an organization limit) |
-| `7` | partial result: some regions or items failed; the rest is printed |
+| `7` | partial result: `sandbox list` / `image list` reached only some regions; the others' items are printed with each failure in `errors` (when no region answers, the failure's own code applies) |
 | `8` | timed out: `--timeout` passed, a request timed out, or HTTP 408 / 504 |
 | `130` | interrupted (Ctrl-C), or a confirmation prompt answered no |
 
@@ -380,7 +404,7 @@ API's request fields:
 | `sandbox update` | `{"labels": {...}, "lifecycle_policy": {...}}` only: `labels` replaces the label set, `lifecycle_policy` takes `timeout_seconds`, `on_timeout`, `idle_expiry_seconds` (`-1` clears), `on_idle_timeout`. The CLI sends them as two requests (labels first) |
 | `snapshot create` | `name` |
 | `image create` | `name` (the positional argument wins), `source` (`{"type": "registry", "ref": "..."}`), `region_id`, `cpu_arch`, `idle_expiry_seconds`; a `dockerfile` field is refused (use `image build`) |
-| `image build` | the CLI's own descriptor, all strings: `dockerfile`, `context` (local paths), `region_id`, `cpu_arch`; `--dockerfile` and `--context` win even when given empty (then refused) |
+| `image build` | the CLI's own descriptor, all strings: `name` (the positional argument wins), `context` (a local directory or tar file), `dockerfile` (a path inside the context), `region_id`, `cpu_arch`; `--dockerfile` and `--context` win even when given empty (then refused) |
 | `volume create` | `name` (the positional argument wins), `type`, `size_gib`, `bucket` (`name`, `origin`, `endpoint`, `region`, `prefix`, `path_style`, `credentials`) |
 | `reservation create` | `region_id`, `model`, `auto_renew`; with `--count` the bulk request, which adds `count` and `min_count`. `--count` selects the bulk request; a `count` field alone is rejected |
 
@@ -434,7 +458,7 @@ IDs; a selection given by name appears in `org_ref` / `project_ref`, and
 | Variable | Meaning |
 |---|---|
 | `DAYTONA_API_KEY` | credential, below `--api-key`; blank counts as unset |
-| `DAYTONA_PROFILE` | profile, below `--profile`; it must exist (`profile`, `config`, `help`, `docs` and completion still run when it does not) |
+| `DAYTONA_PROFILE` | profile, below `--profile`; it must exist (`profile`, `config`, `version`, `help`, `docs` and completion still run when it does not) |
 | `DAYTONA_ORG`, `DAYTONA_PROJECT` | organization and project for this call (ID or name), below `--org` / `--project` |
 | `DAYTONA_YES` | `1` or `true` confirms destructive and billable commands, like `--yes` |
 | `DAYTONA_V2_API_URL` | another API, for test environments only; below `--api-url`, above the profile's saved URL |
