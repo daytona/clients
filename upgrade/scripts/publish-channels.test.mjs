@@ -110,10 +110,15 @@ for (const version of ['v2.0.0-beta.1', 'v0.232.0', 'v2.0.0-dev.1', 'v2.0.0-rc.1
   });
 }
 
-for (const [title, releases, publishCli, status] of [
+for (const [title, releases, publishCli, status, message = /must publish the CLI too/] of [
   ['the first stable release without the CLI', ['v0.231.0', 'v0.230.0'], 'false', 1],
   ['the first stable release with the CLI', ['v0.231.0'], 'true', 0],
   ['a stable 2.x release without the CLI when only a later major is stable', ['v0.231.0', 'v3.0.0'], 'false', 1],
+  ['a stable version below the highest stable 2.x release', ['v0.240.0', 'v2.1.0', 'v2.0.0'], 'true', 1, /below the highest stable 2\.x release v2\.1\.0/],
+  ['a stable version below the highest, numeric order', ['v2.0.10'], 'true', 1, /below the highest stable 2\.x release v2\.0\.10/],
+  ['the highest stable 2.x release itself (a resume)', ['v2.0.1', 'v2.0.0'], 'true', 0],
+  ['a stable version above the highest stable 2.x release', ['v2.0.0', 'v0.240.0'], 'false', 0],
+  ['a stable version above a higher 0.x release', ['v0.300.0', 'v2.0.0'], 'true', 0],
   ['a later stable release without the CLI', ['v0.231.0', 'v2.0.0'], 'false', 0],
   ['a stable release when the releases cannot be read', null, 'false', 1],
 ]) {
@@ -123,11 +128,19 @@ for (const [title, releases, publishCli, status] of [
     // When: an SDK-only (or full) stable run reaches the gate.
     const result = run(root, gateScript, { VERSION_INPUT: 'v2.0.1', SOURCE_SHA: sha, GITHUB_OUTPUT: join(root, 'output'),
       PUBLISH_PYPI: 'true', PUBLISH_NPM: 'true', PUBLISH_CLI: publishCli, PUBLISH_UPGRADE: 'true' });
-    // Then: the handover of the default channels from 0.x needs the CLI release.
+    // Then: the handover of the default channels from 0.x needs the CLI
+    // release, and no stable version below the highest stable 2.x publishes.
     assert.equal(result.status, status, result.stdout + result.stderr);
-    if (status === 1 && releases) assert.match(result.stdout, /must publish the CLI too/);
+    if (status === 1 && releases) assert.match(result.stdout, message);
   });
 }
+
+test('gate: no input skips the stable-backport refusal', () => {
+  // The refusal runs in every mode: the gate step reads no force_republish
+  // (or any other) input that could turn it off.
+  const env = workflow.split('        name: Derive registry versions and the release channel (branch rule + gate)\n')[1].split('        run: |')[0];
+  assert.doesNotMatch(env, /force_republish|FORCE/);
+});
 
 // ── gate: the Homebrew tap takes this channel ────────────────────────────────
 
@@ -244,7 +257,7 @@ for (const [title, version, channel, stable, flags, notFlags] of [
     assert.ok(create, 'no release created');
     for (const flag of flags) assert.ok(create.split(' ').includes(flag), `${flag} missing: ${create}`);
     for (const flag of notFlags) assert.ok(!create.split(' ').includes(flag), `${flag} present: ${create}`);
-    assert.match(create, new RegExp(`brew install daytonaio/cli/${channelEnv[channel].FORMULA}\``));
+    assert.ok(create.includes(`brew install daytonaio/cli/${channelEnv[channel].FORMULA}\``), create);
   });
 }
 
@@ -257,7 +270,7 @@ for (const [channel, kind] of [['stable', 'prerelease'], ['alpha', 'stable'], ['
     const result = run(root, cliRelease, { CLI_VERSION: '2.0.0', SOURCE_SHA: 'abc', ROOT: root, GH_LOG: join(root, 'gh.log'), ...channelEnv[channel] });
     // Then: nothing is uploaded and Homebrew is not reached.
     assert.equal(result.status, 1, result.stdout + result.stderr);
-    assert.match(result.stdout, new RegExp(`is a ${kind}, not the`));
+    assert.ok(result.stdout.includes(`is a ${kind}, not the`), result.stdout);
     assert.doesNotMatch(readFileSync(join(root, 'gh.log'), 'utf8'), /release (create|upload|edit)/);
   });
 }
@@ -276,7 +289,7 @@ for (const [title, releases, latest] of [
     assert.equal(result.status, 0, result.stdout + result.stderr);
     const log = readFileSync(join(root, 'gh.log'), 'utf8');
     assert.match(log, /release list .*--exclude-drafts --exclude-pre-releases/);
-    assert.match(log.split('\n').find((line) => line.startsWith('release create')), new RegExp(` --latest=${latest} `));
+    assert.ok(log.split('\n').find((line) => line.startsWith('release create')).includes(` --latest=${latest} `));
   });
 }
 
@@ -380,8 +393,11 @@ test('CLI release: an unknown channel fails before anything is published', (cont
 // version, or the list of versions, successive reads see after that (the last
 // one repeats). watchExit: the tap run's result. runsReadable: whether the
 // token can list the tap's runs.
-function homebrewGh(root, { v0Running = ['0'], before = '0.231.0', formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100 }) {
+// v0Running / v0ReleaseRunning: the counts of in-progress release/v0
+// sdk_publish.yaml / release.yaml runs successive checks see.
+function homebrewGh(root, { v0Running = ['0'], v0ReleaseRunning = ['0'], before = '0.231.0', formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100 }) {
   writeFileSync(join(root, 'v0-running'), v0Running.join('\n'));
+  writeFileSync(join(root, 'v0-release-running'), v0ReleaseRunning.join('\n'));
   writeFileSync(join(root, 'formula-versions'), [before].concat(formulaVersion).join('\n'));
   executable(join(root, 'bin/formula'), [
     'v=$(head -n 1 "$ROOT/formula-versions")',
@@ -394,7 +410,9 @@ function homebrewGh(root, { v0Running = ['0'], before = '0.231.0', formulaVersio
   executable(join(root, 'bin/gh'), [
     'echo "$*" >> "$GH_LOG"',
     'if [[ "$*" == "run list --repo daytona/clients"* ]]; then',
-    '  head -n 1 "$ROOT/v0-running"; if [ "$(wc -l < "$ROOT/v0-running")" -gt 0 ]; then sed -i 1d "$ROOT/v0-running"; fi; exit 0',
+    '  q="$ROOT/v0-running"; [[ "$*" != *"--workflow release.yaml "* ]] || q="$ROOT/v0-release-running"',
+    '  [[ "$*" == *"--branch release/v0 --status in_progress"* ]] || { echo "unexpected gh $*" >&2; exit 1; }',
+    '  head -n 1 "$q"; if [ "$(wc -l < "$q")" -gt 0 ]; then sed -i 1d "$q"; fi; exit 0',
     'fi',
     'case "$*" in',
     // Only the channel's tap workflow and formula are answered.
@@ -419,6 +437,7 @@ const homebrewEnv = {
 
 for (const [title, channel, options, status, waits, message, version = '2.0.0', dispatched = true] of [
   ['stable waits for running release/v0 publishes, then dispatches', 'stable', { v0Running: ['1', '1', '0'], formulaVersion: '2.0.0' }, 0, 2],
+  ['stable waits for running release/v0 releases too', 'stable', { v0ReleaseRunning: ['1', '0'], formulaVersion: '2.0.0' }, 0, 1],
   ['stable fails when the formula was moved after the update', 'stable', { formulaVersion: '0.232.0' }, 1, 0, /is at '0\.232\.0', not 2\.0\.0/],
   ['an alpha does not wait for release/v0', 'alpha', { v0Running: ['1'], before: '2.0.0-alpha.8', formulaVersion: '2.0.0' }, 0, 0],
   ['an rc goes to daytona-rc and does not wait for release/v0', 'rc', { v0Running: ['1'], before: '0.127.0', formulaVersion: '2.0.0' }, 0, 0],
@@ -458,10 +477,11 @@ for (const [title, channel, options, status, waits, message, version = '2.0.0', 
       return;
     }
     assert.ok(dispatch >= 0, 'no dispatch');
-    assert.match(log[dispatch], new RegExp(`event_type=${homebrewEnv[channel].EVENT} `));
-    assert.match(log[dispatch], new RegExp(`client_payload\\[version\\]=v${version.replace(/\./g, '\\.')}$`));
+    assert.ok(log[dispatch].includes(`event_type=${homebrewEnv[channel].EVENT} `), log[dispatch]);
+    assert.ok(log[dispatch].endsWith(`client_payload[version]=v${version}`), log[dispatch]);
+    // Each check asks for both release/v0 workflows.
     const v0Checks = log.slice(0, dispatch).filter((line) => line.startsWith('run list --repo daytona/clients')).length;
-    assert.equal(v0Checks, channel === 'stable' ? waits + 1 : 0);
+    assert.equal(v0Checks, channel === 'stable' ? 2 * (waits + 1) : 0);
     // The formula is read from the channel's own file, before the dispatch and after it.
     assert.ok(log.slice(0, dispatch).some((line) => line.startsWith(`api repos/daytonaio/homebrew-cli/contents/${homebrewEnv[channel].FORMULA}.rb `)), 'formula not read before dispatching');
     if (status === 0) assert.ok(formulaReads >= 2, 'formula not read back');
@@ -639,4 +659,40 @@ test('every npm publish under latest is guarded before and verified after', () =
     assert.equal(lines[at + 1], `if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard verify ${pkg} "$NPM_VERSION"; fi`);
     assert.ok(lines.some((line, i) => line.includes('is already on npm — skipping') && lines[i + 1].includes(`guard verify ${pkg}`)), `resume of ${pkg} not verified`);
   }
+});
+
+// ── publish: GitHub's Latest stays on the highest stable release ─────────────
+
+const latestStep = step("Keep GitHub's Latest on the highest stable release");
+
+for (const [title, releases, latest] of [
+  ['re-pins Latest to the highest stable release, numerically', ['v2.0.10 stable', 'v2.0.9 stable', 'v0.240.0 stable', 'v2.1.0 prerelease', 'v2.2.0 draft'], 'v2.0.10'],
+  ['a later 0.x release does not take Latest from 2.x', ['v0.300.0 stable', 'v2.0.0 stable'], 'v2.0.0'],
+]) {
+  test(`Latest: ${title}`, (context) => {
+    // Given: releases of every kind.
+    const root = fixture(context);
+    releaseGh(root, { releases });
+    // When
+    const result = run(root, latestStep, { ROOT: root, GH_LOG: join(root, 'gh.log') });
+    // Then: only the highest published stable release is marked Latest.
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    const edits = readFileSync(join(root, 'gh.log'), 'utf8').split('\n').filter((line) => line.startsWith('release edit'));
+    assert.deepEqual(edits, [`release edit ${latest} --repo daytona/clients --latest`]);
+  });
+}
+
+test('Latest: fails when the releases cannot be listed', (context) => {
+  const root = fixture(context);
+  releaseGh(root, { releases: null });
+  const result = run(root, latestStep, { ROOT: root, GH_LOG: join(root, 'gh.log') });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.doesNotMatch(readFileSync(join(root, 'gh.log'), 'utf8'), /release edit/);
+});
+
+test('Latest is re-pinned after the Homebrew update, for stable releases only', () => {
+  const at = (name) => workflow.indexOf(`      - name: ${name}`);
+  assert.ok(at("Keep GitHub's Latest on the highest stable release") > at('Point the ${{ needs.gate.outputs.homebrew_formula }} Homebrew formula at the release'));
+  const condition = workflow.split("      - name: Keep GitHub's Latest on the highest stable release\n")[1].split('\n').find((line) => line.trim().startsWith('if:'));
+  assert.ok(condition.includes("needs.gate.outputs.channel == 'stable'"), condition);
 });

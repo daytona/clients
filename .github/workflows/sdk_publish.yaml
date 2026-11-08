@@ -182,8 +182,11 @@ permissions: {}
 # Two runs of one version would both pass the registry check, and the second
 # would half-fail on the registries: queue them instead.
 concurrency:
-  # `v2.0.0-alpha.3` and `2.0.0-alpha.3` are the same version.
-  group: sdk-publish-${{ startsWith(inputs.version, 'v') && inputs.version || format('v{0}', inputs.version) }}
+  # Pre-releases queue per version (`v2.0.0-alpha.3` and `2.0.0-alpha.3` are
+  # the same version). Every stable version shares one group: stable runs
+  # decide npm `latest`, GitHub's Latest and the `daytona` formula, and two of
+  # them at once could leave a lower version on top.
+  group: ${{ contains(inputs.version, '-') && format('sdk-publish-{0}', startsWith(inputs.version, 'v') && inputs.version || format('v{0}', inputs.version)) || 'sdk-publish-stable' }}
   cancel-in-progress: false
 
 jobs:
@@ -350,17 +353,28 @@ jobs:
           echo "$channel_out"
           channel=$(sed -n 's/^channel=//p' <<<"$channel_out")
           npm_dist_tag=$(sed -n 's/^npm_dist_tag=//p' <<<"$channel_out")
-          # The first stable 2.x CLI release hands the `daytona` Homebrew
-          # formula, npm `latest` and GitHub's Latest release over from 0.x
-          # (release/v0 checks for a stable 2.x GitHub Release on every run),
-          # so it cannot be an SDK-only run: the SDKs would be stable while
-          # the 0.x line kept the default CLI channels.
-          if [ "$channel" = stable ] && [ "$PUBLISH_CLI" != true ]; then
+          if [ "$channel" = stable ]; then
             if ! stable=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'); then
-              echo "::error::could not list the releases of ${GITHUB_REPOSITORY} to tell whether a stable 2.x CLI release exists"
+              echo "::error::could not list the releases of ${GITHUB_REPOSITORY} to tell which stable 2.x releases exist"
               exit 1
             fi
-            if ! grep -qE '^v2\.[0-9]+\.[0-9]+$' <<<"$stable"; then
+            # 2.x has no stable backports: fixes ship in a release above the
+            # highest stable 2.x release (npm `latest`, the `daytona` formula
+            # and GitHub's Latest all follow the highest one). The same
+            # version is a resume. This holds in every mode: the gate has no
+            # force_republish input.
+            highest=$(grep -E '^v2\.[0-9]+\.[0-9]+$' <<<"$stable" | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 || true)
+            if [ -n "$highest" ] && [ "$highest" != "$version" ] \
+              && [ "$(printf '%s\n%s\n' "$highest" "$version" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)" = "$highest" ]; then
+              echo "::error::${version} is below the highest stable 2.x release v${highest}: 2.x publishes no stable backports, so fixes ship in a release above v${highest}"
+              exit 1
+            fi
+            # The first stable 2.x CLI release hands the `daytona` Homebrew
+            # formula, npm `latest` and GitHub's Latest release over from 0.x
+            # (release/v0 checks for a stable 2.x GitHub Release on every
+            # run), so it cannot be an SDK-only run: the SDKs would be stable
+            # while the 0.x line kept the default CLI channels.
+            if [ -z "$highest" ] && [ "$PUBLISH_CLI" != true ]; then
               echo "::error::${version} is the first stable 2.x release: it must publish the CLI too (publish_cli), which hands the daytona Homebrew formula and the Latest release over from 0.x"
               exit 1
             fi
@@ -1410,11 +1424,17 @@ jobs:
           tap=daytonaio/homebrew-cli
           [ -n "$FORMULA" ] && [ -n "$EVENT" ] && [ -n "$TAP_WORKFLOW" ] || { echo "::error::the gate derived no Homebrew formula for channel '${CHANNEL}'"; exit 1; }
           if [ "$CHANNEL" = stable ]; then
+            # release/v0's sdk_publish.yaml may still move the formula, and
+            # its release.yaml re-pins GitHub's Latest.
             for i in $(seq 1 60); do
-              running="$(GH_TOKEN="$REPO_TOKEN" gh run list --repo "$GITHUB_REPOSITORY" --workflow sdk_publish.yaml --branch release/v0 --status in_progress --json databaseId --jq 'length')"
+              running=0
+              for workflow in sdk_publish.yaml release.yaml; do
+                n="$(GH_TOKEN="$REPO_TOKEN" gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch release/v0 --status in_progress --json databaseId --jq 'length')"
+                running=$(( running + n ))
+              done
               [ "$running" = 0 ] && break
-              [ "$i" -lt 60 ] || { echo "::error::a release/v0 publish has been running for 30 minutes; re-run this job once it finishes so the ${FORMULA} formula update lands after it"; exit 1; }
-              echo "waiting for ${running} running release/v0 publish run(s): they may still move the ${FORMULA} formula"
+              [ "$i" -lt 60 ] || { echo "::error::a release/v0 release or publish has been running for 30 minutes; re-run this job once it finishes so the ${FORMULA} formula update lands after it"; exit 1; }
+              echo "waiting for ${running} running release/v0 release or publish run(s): they may still move the ${FORMULA} formula or GitHub's Latest"
               sleep 30
             done
           fi
@@ -1505,6 +1525,25 @@ jobs:
           gh run watch "$run_id" --repo "$tap" --exit-status --interval 15
           # A read right after the tap's push can still see the old file.
           formula_names_version 60
+      # A release/v0 release.yaml run that read the releases before this
+      # run's release existed may have re-pinned GitHub's Latest to 0.x since;
+      # the Homebrew step waited for those runs. Pin it on the highest stable
+      # release again (the gate refuses a stable version below it).
+      - name: Keep GitHub's Latest on the highest stable release
+        id: latest
+        if: needs.gate.outputs.cli != '' && needs.gate.outputs.channel == 'stable'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! stable=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'); then
+            echo "::error::could not list the releases of $GITHUB_REPOSITORY"
+            exit 1
+          fi
+          highest=$(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' <<<"$stable" | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)
+          [ -n "$highest" ] || { echo "::error::no stable release of $GITHUB_REPOSITORY found"; exit 1; }
+          gh release edit "v${highest}" --repo "$GITHUB_REPOSITORY" --latest
+          echo "GitHub Latest: v${highest}"
 
   # The version is recorded as a tag on the published commit. The CLI
   # release creates it; an SDK-only run (publish_cli=false) creates it here.
