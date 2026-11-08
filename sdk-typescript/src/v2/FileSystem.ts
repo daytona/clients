@@ -90,7 +90,10 @@ export interface RemoveOptions {
 
 export interface WatchDirOptions {
   readonly recursive?: boolean
-  /** Runs once when the watch ends: no error after `stop()`, else the error that ended it. Its own failure is ignored. */
+  /**
+   * Runs once when a watch `watchDir()` returned ends: no error after `stop()`,
+   * else the error that ended it. Its own failure is ignored.
+   */
   readonly onExit?: (error?: Error) => void | Promise<void>
   /** The sandbox dropped events. */
   readonly onOverflow?: () => void | Promise<void>
@@ -385,6 +388,8 @@ export class FileSystemService {
    * the watch is established. Callbacks run one at a time, in order, and are
    * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
    * error. `onExit` runs once when the watch ends; its own failure is ignored.
+   * A failure before the watch starts rejects this call and does not call
+   * `onExit`.
    */
   public async watchDir(
     path: string,
@@ -423,7 +428,9 @@ export class FileSystemService {
       exitError = error
       // Resolved before onExit runs, so onExit can await waitForExit().
       resolveExit(error)
-      const onExit = options.onExit
+      // The exit callback belongs to a watch watchDir() returned: a failure
+      // before start is thrown from watchDir() instead (as in Python).
+      const onExit = started ? options.onExit : undefined
       if (onExit === undefined) return
       // onExit runs as a delivery, so its own stop() / waitForExit() calls do
       // not wait for it; its failure is contained: the watch has already ended.

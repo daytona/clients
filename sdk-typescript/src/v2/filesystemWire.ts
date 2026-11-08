@@ -115,7 +115,8 @@ const ERROR_PART = 'bulk download error part'
 function bulkReadErrorFromPart(body: Uint8Array): BulkReadError {
   let parsed: unknown
   try {
-    parsed = JSON.parse(BODY_DECODER.decode(body))
+    // Fatal: invalid UTF-8 is malformed, never replaced by U+FFFD (as in Python).
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body))
   } catch {
     throw malformedResponse(`${ERROR_PART}: the data is not JSON`)
   }

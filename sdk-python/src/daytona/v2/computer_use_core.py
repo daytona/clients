@@ -370,6 +370,22 @@ def _additional_json_fields(
     return extra or None
 
 
+# The contract's RestartBackoffMs is an int64 (minimum 0); both SDKs read it up
+# to the largest integer JavaScript represents exactly.
+_MAX_EXACT_INTEGER = 2**53 - 1
+
+
+def _restart_backoff_seconds(milliseconds: int) -> float:
+    if not 0 <= milliseconds <= _MAX_EXACT_INTEGER:
+        raise create_error(
+            "expected computer-use process status: RestartBackoffMs must be a non-negative safe integer",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return milliseconds / 1000
+
+
 def parse_computer_use_process_status_map(
     payload: ComputerUseProcessStatusMap,
 ) -> Dict[str, ComputerUseProcessStatusInfo]:
@@ -383,7 +399,7 @@ def parse_computer_use_process_status_map(
             pid=raw.pid,
             failed=raw.failed,
             restart_attempts=raw.restart_attempts,
-            restart_backoff=raw.restart_backoff_ms / 1000,
+            restart_backoff=_restart_backoff_seconds(raw.restart_backoff_ms),
             status=raw.status,
             extra_fields={wire_key_to_sdk_key(key): value for key, value in extra_fields.items()}
             if extra_fields

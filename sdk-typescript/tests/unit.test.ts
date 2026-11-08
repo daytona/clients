@@ -12702,6 +12702,33 @@ describe('toolbox surface', () => {
     })()).rejects.toBeInstanceOf(ProcessNotFoundError)
   })
 
+  it.each([2 ** 53, -1, 1.5])('rejects an out-of-range RestartBackoffMs (%p), like the Python SDK', async (backoff) => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce({ wm: { Running: true, Priority: 1, AutoRestart: true, Failed: false, RestartAttempts: 0, RestartBackoffMs: backoff, Status: 'ok' } })
+    await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).service.status())
+      .rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('RestartBackoffMs') })
+  })
+
+  it('refuses a bulk download error part that is not UTF-8, like the Python SDK', async () => {
+    const { parseBulkReadResult } = await import('../src/v2/filesystemWire')
+    const encoder = new TextEncoder()
+    const head = encoder.encode('--DAYTONA-FILE-BOUNDARY\r\nContent-Disposition: form-data; name="error"\r\nContent-Type: application/json\r\n\r\n{"path":"/a","message":"')
+    const tail = encoder.encode('"}\r\n--DAYTONA-FILE-BOUNDARY--\r\n')
+    const body = new Uint8Array([...head, 0xff, ...tail])
+    expect(() => parseBulkReadResult(body)).toThrow('expected bulk download error part: the data is not JSON')
+  })
+
+  it.each([['c', 5], ['c', ''], ['c', { language: 'python' }], ['', 'python']] as const)('refuses an interpreter context identity it could not write back (%p, %p)', (contextId, language) => {
+    const interpreter = new InterpreterService(INTERNAL, transportStub().object, 'sbx')
+    expect(() => interpreter.connectContext(contextId as never, language as never)).toThrow(BadRequestError)
+  })
+
+  it('round-trips a reconnected interpreter context identity', () => {
+    const interpreter = new InterpreterService(INTERNAL, transportStub().object, 'sbx')
+    const context = interpreter.connectContext('c', 'python')
+    expect(interpreter.connectContext(context.toJSON()).toJSON()).toEqual({ sandboxId: 'sbx', contextId: 'c', language: 'python' })
+  })
+
   it('rejects filesystem list envelopes without items', async () => {
     const transport = transportStub()
     const fs = new FileSystemService(INTERNAL, transport.object)

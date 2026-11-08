@@ -322,7 +322,9 @@ class AsyncProcessHandle:
         Yields one :data:`StreamLogEvent` per server event: ``log`` (a frame),
         ``state`` (the process became terminal), ``warning`` (frames before
         ``first_available_cursor`` were evicted) and ``eof``. A stream error
-        raises the typed error for its code.
+        raises the typed error for its code; a stream cut short raises
+        ``ConnectionError``. An iteration that ends without an ``eof`` event
+        did not reach the end of the log: resume from the last event's cursor.
         """
         transport = self._require_transport()
         async for event, data, message_id in parse_sse_messages_async(

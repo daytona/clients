@@ -95,7 +95,9 @@ export class ProcessHandle {
    * one {@link StreamLogEvent} per server event: `log` (a frame), `state`
    * (the process became terminal), `warning` (frames before
    * `firstAvailableCursor` were evicted) and `eof`. A stream error throws the
-   * typed error for its code.
+   * typed error for its code; a stream cut short throws `ConnectionError`. An
+   * iteration that ends without an `eof` event did not reach the end of the
+   * log: resume from the last event's cursor.
    */
   public async *streamLogs(options: StreamLogsOptions = {}): AsyncIterable<StreamLogEvent> {
     assertKnownOptions('StreamLogsOptions', options, STREAM_LOGS_OPTION_KEYS)

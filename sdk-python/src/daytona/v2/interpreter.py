@@ -361,6 +361,16 @@ class AsyncInterpreterService:
         )
 
     def _bind_context(self, context_id: str, language: str) -> AsyncInterpreterContext:
+        # Every context identity round-trips through to_json(): a non-string id
+        # or language would be written in a shape neither SDK reads back.
+        if not isinstance(context_id, str) or not context_id:
+            raise create_error(
+                "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
+            )
+        if not isinstance(language, str) or not language:
+            raise create_error(
+                "interpreter context language must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
+            )
         gate = self._gate_for(context_id)
 
         async def run_bound(

@@ -1628,6 +1628,22 @@ function normalizeSseNewlines(value: string): string {
   return value.replace(/\r\n|\r/g, '\n')
 }
 
+/**
+ * One read of an SSE body. A failure of the body itself (a truncated body or a
+ * reset socket: undici's "terminated") is a dropped connection, so every SSE
+ * consumer sees `ConnectionError` (source `SDK`, the runtime's error as its
+ * cause), as the Python transport reports it. An abort and the SDK's own
+ * errors pass through unchanged.
+ */
+async function readSseChunk(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<ReadableStreamReadResult<Uint8Array>> {
+  try {
+    return await reader.read()
+  } catch (error) {
+    if (error instanceof DaytonaError || isAbortError(error)) throw error
+    throw new ConnectionError(error instanceof Error ? error.message : String(error), { cause: error })
+  }
+}
+
 export async function* sseMessages(response: Response): AsyncIterable<SseMessage> {
   const body = response.body
   if (!body) return
@@ -1637,7 +1653,7 @@ export async function* sseMessages(response: Response): AsyncIterable<SseMessage
   let streamDone = false
   try {
     for (;;) {
-      const { value, done } = await reader.read()
+      const { value, done } = await readSseChunk(reader)
       if (done) {
         streamDone = true
         break
@@ -1656,7 +1672,9 @@ export async function* sseMessages(response: Response): AsyncIterable<SseMessage
     // (and the Python SDK) does: it may be a message cut off mid-way.
   } finally {
     if (!streamDone) {
-      await reader.cancel()
+      // An errored body rejects cancel() with its stored error, which would
+      // replace the error already being thrown; that one wins.
+      await reader.cancel().catch(() => undefined)
     }
     reader.releaseLock()
   }

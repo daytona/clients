@@ -108,3 +108,92 @@ async def test_a_watch_whose_stream_drops_ends_with_a_connection_error(
     assert error.source == "SDK"
     if message is not None:
         assert str(error) == message
+
+
+class _SetupHandler(BaseHTTPRequestHandler):
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+    def do_GET(self) -> None:
+        if self.path.startswith("/w404"):
+            body = json.dumps(
+                {"code": "FILE_NOT_FOUND", "message": "no such path", "source": "DAYTONA_DAEMON"}
+            )
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body.encode())
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        self.wfile.write(b": no start frame\n\n")
+        self.wfile.flush()
+        self.close_connection = True
+
+
+@pytest.fixture
+def setup_base() -> Iterator[str]:
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _SetupHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["refused", "w404", "nostart"])
+async def test_a_watch_that_fails_before_start_raises_without_calling_on_exit(
+    setup_base: str, case: str
+) -> None:
+    from daytona.v2.errors import DaytonaError
+
+    base = "http://127.0.0.1:9" if case == "refused" else f"{setup_base}/{case}"
+    transport = AsyncTransport(base)
+    exits: list[Optional[Exception]] = []
+    try:
+        with pytest.raises(DaytonaError) as info:
+            await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None, on_exit=exits.append)
+    finally:
+        await transport.close()
+
+    expected = {"refused": ConnectionError, "w404": DaytonaError, "nostart": ConnectionError}[case]
+    assert isinstance(info.value, expected)
+    if case == "w404":
+        assert info.value.status_code == 404
+    await asyncio.sleep(0.05)
+    assert exits == []
+
+
+@pytest.mark.anyio
+async def test_cancelling_watch_dir_during_the_handshake_calls_no_exit_callback() -> None:
+    from daytona.v2.filesystem import AsyncFileSystemService as Service
+
+    class Hold:
+        def __init__(self) -> None:
+            self.release = asyncio.Event()
+
+        async def iter_lines(self):
+            await self.release.wait()
+            return
+            yield  # pragma: no cover
+
+        async def close(self) -> None:
+            self.release.set()
+
+    class Transport:
+        async def open_stream(self, spec: RequestSpec) -> Hold:
+            return Hold()
+
+    exits: list[Optional[Exception]] = []
+    task = asyncio.ensure_future(Service(Transport()).watch_dir("/", lambda _e: None, on_exit=exits.append))  # type: ignore[arg-type]
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.sleep(0.05)
+    assert exits == []

@@ -477,6 +477,10 @@ export class InterpreterService {
   }
 
   private bindContext(contextId: string, language: string): InterpreterContext {
+    // Every context identity round-trips through toJSON(): a non-string id or
+    // language would be written in a shape neither SDK reads back.
+    if (typeof contextId !== 'string' || contextId === '') throw badRequest('interpreter context id must be a non-empty string')
+    if (typeof language !== 'string' || language === '') throw badRequest('interpreter context language must be a non-empty string')
     const queue = this.queueFor(contextId)
     return new InterpreterContext(
       INTERNAL,

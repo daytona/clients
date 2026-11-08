@@ -1323,3 +1323,53 @@ async def test_a_stream_error_event_raises_its_typed_error_even_without_a_cursor
     with pytest.raises(ProcessNotFoundError):
         async for _event in handle.stream_logs():
             pass
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("backoff", [10**400, 2**53, -1])
+async def test_an_out_of_range_restart_backoff_is_the_malformed_response_error(backoff: int) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    status = {
+        "Running": True,
+        "Priority": 1,
+        "AutoRestart": True,
+        "Failed": False,
+        "RestartAttempts": 0,
+        "RestartBackoffMs": backoff,
+        "Status": "running",
+    }
+    cu = AsyncComputerUseService(Transport([{"wm": status}]))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="RestartBackoffMs") as info:
+        await cu.service.status()
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+def test_read_many_refuses_an_error_part_that_is_not_utf_8() -> None:
+    from daytona.v2._core import parse_bulk_read_result
+
+    with pytest.raises(BadRequestError, match="bulk download error part: the data is not JSON"):
+        parse_bulk_read_result(_error_part(b'{"path": "/a", "message": "\xff"}'))
+
+
+@pytest.mark.parametrize(("context_id", "language"), [("c", 5), ("c", ""), (5, "python"), ("", "python")])
+def test_connect_context_refuses_an_identity_it_could_not_write_back(
+    context_id: object, language: object
+) -> None:
+    interpreter = AsyncInterpreterService("sbx", Transport(), AsyncProcessService("sbx", Transport()))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="interpreter context"):
+        interpreter.connect_context(context_id, language=language)  # type: ignore[arg-type]
+
+
+def test_a_reconnected_context_identity_round_trips() -> None:
+    interpreter = AsyncInterpreterService("sbx", Transport(), AsyncProcessService("sbx", Transport()))  # type: ignore[arg-type]
+
+    context = interpreter.connect_context("c", language="python")
+
+    assert interpreter.connect_context(context.to_json()).to_json() == {
+        "sandboxId": "sbx",
+        "contextId": "c",
+        "language": "python",
+    }

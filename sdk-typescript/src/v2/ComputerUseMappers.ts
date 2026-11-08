@@ -184,7 +184,7 @@ export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessSt
     ...(pid === undefined ? {} : { pid }),
     failed: bool(wire, 'Failed', d),
     restartAttempts: nonNegativeInt(wire, 'RestartAttempts', d),
-    restartBackoffSeconds: nonNegativeInt(wire, 'RestartBackoffMs', d) / 1000,
+    restartBackoffSeconds: nonNegativeSafeInt(wire, 'RestartBackoffMs', d) / 1000,
     status: str(wire, 'Status', d),
   }
   // Unknown wire fields go in the named bag only, as in the Python SDK.

@@ -175,14 +175,14 @@ class AsyncWatchHandle:
         """Why the watch ended: ``None`` while running or after ``stop()``."""
         return self._exit_error
 
-    async def _record_exit(self, error: Exception | None) -> None:
+    async def _record_exit(self, error: Exception | None, *, notify: bool = True) -> None:
         if self._exit_notified:
             return
         self._exit_notified = True
         self._exit_error = error
         self._exited.set()
         try:
-            if self._on_exit is not None:
+            if notify and self._on_exit is not None:
                 on_exit = self._on_exit
                 # An on_exit failure is contained: the watch has already ended.
                 with contextlib.suppress(Exception):
@@ -572,7 +572,8 @@ class AsyncFileSystemService:
         Returns once the watch is established. Callbacks (plain or coroutine
         functions) run one at a time, in order. A failing ``on_event`` or
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
-        when the watch ends, and its own failure is ignored.
+        when the watch ends, and its own failure is ignored. A failure before
+        the watch starts is raised from this call and does not call ``on_exit``.
         """
         stream = await self._transport.open_stream(_watch_spec(path, recursive=recursive))
         handle = AsyncWatchHandle(stream, on_exit)
@@ -611,15 +612,17 @@ class AsyncFileSystemService:
                     if not handle._stopped:
                         exit_error = ConnectionError("filesystem watch stream ended unexpectedly")
                 else:
-                    exit_error = ConnectionError("filesystem watch stream ended before start")
-                    reader_error.append(exit_error)
+                    # Ended before start: watch_dir() raises it (no handle was
+                    # returned), unless watch_dir() itself stopped the handle.
+                    if not handle._stopped:
+                        reader_error.append(ConnectionError("filesystem watch stream ended before start"))
                     ready.set()
             except Exception as exc:
                 if not started:
-                    # watch_dir() raises this; on_exit / exit_error must see it too,
-                    # matching the TypeScript handle's pre-start failure path.
-                    exit_error = exc
-                    reader_error.append(exc)
+                    # watch_dir() raises this; the watch never started, so the
+                    # exit callback does not run (as in the TypeScript SDK).
+                    if not handle._stopped:
+                        reader_error.append(exc)
                     ready.set()
                 elif not handle._stopped or exc in callback_error:
                     # A failing callback ends the watch with its error, even
@@ -635,7 +638,9 @@ class AsyncFileSystemService:
                 except Exception as close_error:
                     if not handle._stopped:
                         exit_error = exit_error or close_error
-                await handle._record_exit(exit_error)
+                # The exit callback belongs to a watch watch_dir() returned:
+                # a failure before start is raised from watch_dir() instead.
+                await handle._record_exit(exit_error, notify=started)
 
         reader = asyncio.ensure_future(read_events())
         handle._reader = reader

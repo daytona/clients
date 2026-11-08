@@ -2214,7 +2214,9 @@ async def test_filesystem_watch_dir_raises_setup_error_before_returning_handle()
 
 
 @pytest.mark.anyio
-async def test_filesystem_watch_dir_pre_start_stream_failure_reaches_exit_error_and_on_exit():
+async def test_filesystem_watch_dir_pre_start_stream_failure_is_raised_without_on_exit():
+    # The exit callback belongs to a watch watch_dir() returned; a failure
+    # before start is raised from watch_dir() instead, as in the TypeScript SDK.
     stream_error = RuntimeError("socket reset before the start frame")
 
     class FailingStream:
@@ -2236,7 +2238,7 @@ async def test_filesystem_watch_dir_pre_start_stream_failure_reaches_exit_error_
         await fs.watch_dir("/tmp", lambda _event: None, on_exit=seen.append)
 
     assert exc_info.value is stream_error
-    assert seen == [stream_error]
+    assert seen == []
 
 
 @pytest.mark.anyio
