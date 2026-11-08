@@ -6114,6 +6114,25 @@ describe('toolbox service request shaping', () => {
     expect(authProvider.authorizationHeader).not.toHaveBeenCalled()
   })
 
+  it('keeps the request meta a caller set when it arms the deadline for a sandbox token', async () => {
+    const auth = { bearer: jest.fn().mockResolvedValue('sbx-tok'), onUnauthorized: jest.fn().mockResolvedValue(undefined) }
+    const transport = new HttpTransport('http://toolbox/sbx', undefined, 5000, { auth })
+    const seen: unknown[] = []
+    transport.http.defaults.adapter = async (config) => {
+      seen.push((config as { daytona?: unknown }).daytona)
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
+    }
+
+    await transport.get('/path', { daytona: { routeTemplate: '/custom/{id}', sandboxId: 'sbx', retryOnUnauthorized: false } } as never)
+
+    expect(seen).toEqual([expect.objectContaining({
+      routeTemplate: '/custom/{id}',
+      sandboxId: 'sbx',
+      retryOnUnauthorized: false,
+      deadlineAt: expect.any(Number),
+    })])
+  })
+
   it('fetch keeps a caller Authorization header when the SDK auth source yields no bearer', async () => {
     const auth = { bearer: jest.fn().mockResolvedValue(undefined), onUnauthorized: jest.fn().mockResolvedValue(undefined) }
     const seen: Array<string | null> = []

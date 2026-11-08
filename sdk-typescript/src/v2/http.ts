@@ -1337,7 +1337,10 @@ export class HttpTransport {
     const budget = boundedTimerDelay(typeof config?.timeout === 'number' ? config.timeout : this.defaultTimeout)
     const deadlineAt = budget === 0 ? undefined : nowMs() + budget
     const bounded = (requestConfig: AxiosRequestConfig | undefined): AxiosRequestConfig | undefined =>
-      deadlineAt === undefined ? requestConfig : { ...requestConfig, daytona: { deadlineAt } } as DaytonaAxiosRequestConfig
+      deadlineAt === undefined
+        ? requestConfig
+        // Keep the caller's request meta (route template, sandbox id, retry flag).
+        : { ...requestConfig, daytona: { ...(requestConfig as DaytonaAxiosRequestConfig | undefined)?.daytona, deadlineAt } } as DaytonaAxiosRequestConfig
     const token = await withinDeadline(auth.bearer(), deadlineAt)
     try {
       return await run(bounded(withBearer(config, token)))
