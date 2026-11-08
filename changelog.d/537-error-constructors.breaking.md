@@ -25,7 +25,7 @@ error constructor given a second argument that is not an options object
 (`new NotFoundError('x', 404)` from plain JavaScript) throws `BadRequestError`
 instead of dropping it. Errors the TypeScript SDK raises itself now carry the
 catalog's class, as in Python: an invalid argument (a negative timeout, a
-blank name, an invalid image step, ...) is a `BadRequestError` (it was the base
+blank name or create source, an invalid image step, ...) is a `BadRequestError` (it was the base
 `DaytonaError` with status 400), so `instanceof BadRequestError` and the root
 `DaytonaBadRequestError` catch it; an interpreter run that times out creating
 its isolated context is a `RequestTimeoutError`; an invalid project-token
