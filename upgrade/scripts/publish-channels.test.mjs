@@ -611,6 +611,7 @@ for (const [title, mode, version, answers, status, message] of [
   ['verify: waits until the version is visible', 'verify', '2.0.0', ['503', '200 0.231.0 0.231.0', '200 0.231.0,2.0.0 2.0.0'], 0],
   ['verify: latest moved back by another publish', 'verify', '2.0.1', ['200 2.0.0,2.0.1,2.1.0 2.0.1'], 1, /npm dist-tag add @daytona\/sdk@2\.1\.0 latest/],
   ['verify: the version never appears', 'verify', '2.0.0', ['200 0.231.0 0.231.0'], 1, /not visible on the registry yet/],
+  ['verify: the registry never answers', 'verify', '2.0.0', ['503'], 1, /could not read @daytona\/sdk from the npm registry \(last answer: HTTP 503\)/],
 ]) {
   test(`npm latest guard ${title}`, (context) => {
     // Given: what the registry answers.

@@ -1026,10 +1026,10 @@ jobs:
           verify)
             deadline=$(( $(date +%s) + 300 ))
             while :; do
-              rc=1 out=""
-              if [ "$(fetch)" = 200 ]; then out=$(judge) && rc=0 || rc=$?; fi
+              rc=1 out="" code=$(fetch)
+              if [ "$code" = 200 ]; then out=$(judge) && rc=0 || rc=$?; fi
               [ "$rc" -ne 0 ] || { echo "$out"; exit 0; }
-              if [ "$(date +%s)" -ge "$deadline" ]; then echo "${out:-::error::could not read ${pkg} from the npm registry}"; exit 1; fi
+              if [ "$(date +%s)" -ge "$deadline" ]; then echo "${out:-::error::could not read ${pkg} from the npm registry (last answer: HTTP ${code})}"; exit 1; fi
               sleep 10
             done ;;
           *) echo "::error::usage: guard check|verify <package> <version>"; exit 2 ;;
