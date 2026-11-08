@@ -293,7 +293,13 @@ go build ./... && go test ./...
 golangci-lint run ./...
 ./hack/gen.sh      # regenerate wire types from ../contract/*.json
 ./hack/build.sh    # six release binaries + SHA256SUMS into dist/
+go test ./cmd -run TestPublicSurface -update   # regenerate api-surface/daytona.api.txt
 ```
+
+`api-surface/daytona.api.txt` lists the CLI's public surface: every command
+path with its aliases, every flag with its type, shorthand and default, and
+the environment variables the CLI reads. `go test` fails when it is stale;
+regenerate it after changing any of them and commit the result.
 
 Wire types are generated from the public `contract/` OpenAPI artifacts and
 must not be edited by hand.
