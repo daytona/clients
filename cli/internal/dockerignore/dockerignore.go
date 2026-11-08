@@ -146,14 +146,19 @@ func (m *Matcher) Excluded(rel string) bool {
 }
 
 // MayReinclude reports whether an excluded directory must still be walked
-// because a `!` pattern names something inside it.
+// because a `!` pattern may name something inside it: an exception that is a
+// plain path below the directory, or any exception with a wildcard (such as
+// `!**/keep.txt`), which can match anywhere.
 func (m *Matcher) MayReinclude(dir string) bool {
 	if !m.exclusions {
 		return false
 	}
 	prefix := path.Clean(dir) + "/"
 	for _, p := range m.patterns {
-		if p.exclusion && strings.HasPrefix(p.text+"/", prefix) {
+		if !p.exclusion {
+			continue
+		}
+		if p.kind != matchExact || strings.HasPrefix(p.text+"/", prefix) {
 			return true
 		}
 	}

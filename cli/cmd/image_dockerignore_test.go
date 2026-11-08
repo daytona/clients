@@ -123,6 +123,21 @@ func TestImageBuildContext_dockerfileSpecificIgnoreFileWins(t *testing.T) {
 	}, names)
 }
 
+func TestImageBuildContext_wildcardExceptionReachesIntoExcludedDirectories(t *testing.T) {
+	root := t.TempDir()
+	writeContextFiles(t, root, map[string]string{
+		".dockerignore":          "vendor\n!**/LICENSE\n",
+		"Dockerfile":             "FROM scratch\n",
+		"vendor/lib/code.go":     "package lib\n",
+		"vendor/lib/LICENSE":     "license",
+		"vendor/other/notes.txt": "x",
+	})
+	upload, err := imageContextUploadForPath(root, "Dockerfile")
+	require.NoError(t, err)
+	names, _ := uploadedEntries(t, upload)
+	require.Equal(t, []string{".dockerignore", "Dockerfile", "vendor/", "vendor/lib/", "vendor/lib/LICENSE"}, names)
+}
+
 func TestImageBuildContext_withoutIgnoreFileUploadsEverything(t *testing.T) {
 	root := t.TempDir()
 	writeContextFiles(t, root, map[string]string{"Dockerfile": "FROM scratch\n", ".env": "x"})

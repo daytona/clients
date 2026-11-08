@@ -82,6 +82,11 @@ func TestMayReinclude_onlyForDirectoriesHoldingAnException(t *testing.T) {
 	require.True(t, m.MayReinclude("secrets"))
 	require.False(t, m.MayReinclude("other"))
 	require.False(t, matcher(t, "secrets\n").MayReinclude("secrets"))
+	// A wildcard exception can match below any directory.
+	wild := matcher(t, "vendor\n!**/LICENSE\n")
+	require.True(t, wild.MayReinclude("vendor"))
+	require.True(t, wild.Excluded("vendor/lib/code.go"))
+	require.False(t, wild.Excluded("vendor/lib/LICENSE"))
 }
 
 func TestNew_rejectsInvalidPatterns(t *testing.T) {
