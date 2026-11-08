@@ -221,14 +221,28 @@ def test_workflow_includes_client_calls_that_receive_the_sandbox() -> None:
     )
 
 
-@pytest.mark.parametrize("method", ["clone", "pull", "push"])
+@pytest.mark.parametrize(
+    ("method", "call"),
+    [
+        # Each 0.x method's own call shape (daytona 0.x _async/git.py).
+        (
+            "clone",
+            "clone('https://example.test/r.git', '/repo', branch='main', request_timeout=0)",
+        ),
+        ("pull", "pull('/repo', username='u', password='p', request_timeout=0)"),
+        (
+            "push",
+            "push('/repo', username='u', password='p', set_upstream=True, request_timeout=0)",
+        ),
+    ],
+)
 def test_git_remote_calls_carry_request_timeout_into_the_v2_timeout(
-    method: str,
+    method: str, call: str
 ) -> None:
     # Given a 0.x git call with request_timeout=0 (no limit).
     source = (
         "from daytona import Daytona\napi = Daytona()\nbox = api.v0.create()\n"
-        f"box.git.{method}('https://example.test/r.git', '/repo', request_timeout=0)\n"
+        f"box.git.{call}\n"
     )
     # When producing guidance from the published mapping.
     mapping = load_mapping()
