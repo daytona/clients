@@ -211,13 +211,17 @@ existing union, because clients must handle values they do not know; it may
 never gain `undefined`, `null` or `None` (`Literal[None]` included). A
 position used both ways, or whose direction the check cannot tell (a type
 alias), may only gain enum values or union members. In any of them, an
-object type written inline may gain optional members. A function or method
-that callers implement (a callback, the methods of a type they pass in) may
-not gain an overload or call signature: every implementation would have to
-accept it. A function the SDK implements may gain an overload only after its
-existing ones, which keep their order, because a call resolves against the
-first overload it matches; changing an overload breaks even next to a wider
-one, and dropping a narrower overload while a wider one stays is compatible. In `contract/*.json`, oasdiff compares the
+object type written inline may gain optional members. Overloads: a call
+resolves against the first overload it matches. For a function callers call
+(one the SDK implements, or a method of a type that goes both ways), the
+existing overloads keep their order, a new overload may only come after them,
+only the last overload may widen its parameters (an earlier one may only
+narrow its return type), and an overload may be dropped only when another
+surviving one stands in for it: it accepts every call the dropped one did and
+returns the same or a narrower type. For a signature callers implement (a
+callback, the methods of a type they pass in), no overload or call signature
+may be added or dropped: every implementation would have to change. In
+`contract/*.json`, oasdiff compares the
 contracts as they are; the only finding the `x-daytona-open-enum` tag drops is
 a value added on the response side to an enum tagged open both at the release
 and now. Removing a value callers

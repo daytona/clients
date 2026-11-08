@@ -188,7 +188,12 @@ name in `daytona.__all__` / `daytona.v2.__all__` with its kind and signature
 properties, attributes, dataclass fields, enum members and TypedDict keys),
 one declaration per line, sorted, except that the overloads of one name keep
 their declaration order (calls resolve against the first overload that
-matches, and the breaking-change check compares them in that order). A
+matches, and the breaking-change check compares them in that order: for a
+function callers call, the existing overloads keep their order, a new one
+comes after them, only the last may widen its parameters, and one may be
+dropped only when a survivor accepts its calls and returns the same or a
+narrower type; a protocol method callers implement gains or loses no
+overload; see `docs/VERSIONING.md`, "Breaking-change check"). A
 `daytona` class or type alias that a listed
 signature uses but neither namespace exports (the v2 clients behind the
 root's `.v2`, a `Literal` alias, a generated model) is listed as `~Name`

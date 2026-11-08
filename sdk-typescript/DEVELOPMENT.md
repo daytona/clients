@@ -158,7 +158,11 @@ members of exported classes, interfaces and object types, enum members, and
 long unions one member per line. Lines are sorted, except that the overloads
 of one name keep their declaration order (calls resolve against the first
 overload that matches, and the breaking-change check compares them in that
-order). A declaration of this package that a listed
+order: for a function callers call, the existing overloads keep their order, a
+new one comes after them, only the last may widen its parameters, and one may
+be dropped only when a survivor accepts its calls and returns the same or a
+narrower type; a signature callers implement gains or loses no overload; see
+`docs/VERSIONING.md`, "Breaking-change check"). A declaration of this package that a listed
 signature uses but no entry point exports (the v2 client behind the root's
 `.v2`, an options type that is not exported) is listed as `~Name`
 (`~Name@path` when the name is taken), in the file of the first entry point
