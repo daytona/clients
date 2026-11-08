@@ -807,6 +807,10 @@ def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
 # longer caller budget as no limit, like the client's request timeout.
 MAX_BOUNDED_TIMEOUT_SECONDS = 2_147_483.647
 
+# The largest millisecond value the SDKs put on the wire: the largest integer
+# JavaScript represents exactly, so both SDKs refuse the same durations.
+MAX_WIRE_MILLISECONDS = 2**53 - 1
+
 
 def checked_seconds(value: object, name: str = "timeout") -> float | int:
     """A finite, non-negative number of seconds, or the SDK's ``BadRequestError``.
@@ -835,12 +839,12 @@ def timeout_millis_from_seconds(timeout: Optional[float], name: str = "timeout")
     seconds = checked_seconds(timeout, name)
     if seconds == 0:
         return 0
+    # The largest wire value both SDKs send exactly (a JavaScript safe integer).
+    if seconds * 1000 > MAX_WIRE_MILLISECONDS:
+        raise create_error(f"{name} is too large", 400, "BAD_REQUEST", "SDK")
     if isinstance(seconds, int):
         return seconds * 1000
-    milliseconds = seconds * 1000
-    if not math.isfinite(milliseconds):
-        raise create_error(f"{name} is too large", 400, "BAD_REQUEST", "SDK")
-    return max(1, math.ceil(round(milliseconds, 6)))
+    return max(1, math.ceil(round(seconds * 1000, 6)))
 
 
 def above_timer_maximum(seconds: float) -> bool:

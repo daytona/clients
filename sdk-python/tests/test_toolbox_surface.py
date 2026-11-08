@@ -1118,7 +1118,10 @@ async def test_huge_durations_mean_no_limit_and_never_overflow() -> None:
 
     for huge in (1e308, 10**400):
         assert wait_budget(huge) == 0
-    assert timeout_millis_from_seconds(10**400) == 10**403
+    assert timeout_millis_from_seconds(9_007_199_254_740) == 9_007_199_254_740_000
+    for too_large in (10**400, 9_007_199_254_741, 1e300):
+        with pytest.raises(BadRequestError, match="timeout is too large"):
+            timeout_millis_from_seconds(too_large)
     with pytest.raises(BadRequestError, match="escalate_after is too large"):
         timeout_millis_from_seconds(1e308, "escalate_after")
     for bad in (float("inf"), float("nan"), -1, True, "1"):
