@@ -9,6 +9,7 @@ import functools
 import json
 import math
 import re
+import sys
 import types
 import typing
 from collections.abc import Callable
@@ -134,6 +135,7 @@ _CONTENT_DISPOSITION_NAME_RE = re.compile(r'name="([^"]+)"', re.IGNORECASE)
 _CONTENT_DISPOSITION_FILENAME_RE = re.compile(r'filename="([^"]*)"', re.IGNORECASE)
 _CONTENT_DISPOSITION_FILENAME_STAR_RE = re.compile(r"filename\*=utf-8''([^;]+)", re.IGNORECASE)
 ModelT = TypeVar("ModelT")
+_NumberT = TypeVar("_NumberT", int, float)
 
 
 @dataclass(frozen=True)
@@ -920,7 +922,9 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         resolved_shell=payload.resolved_shell,
         login=payload.login,
         user=payload.user,
-        execution_timeout=timeout_seconds_from_millis(payload.timeout_ms),
+        execution_timeout=timeout_seconds_from_millis(
+            _finite_or_refuse(payload.timeout_ms, "process response: timeoutMs", "a non-negative integer")
+        ),
         terminal=_parse_terminal(payload.terminal),
         exit_code=payload.exit_code,
         signal=bare_signal(payload.signal),
@@ -1022,6 +1026,23 @@ def wait_budget(timeout: Optional[float]) -> Optional[float]:
         return None
     seconds = checked_seconds(timeout)
     return 0 if above_timer_maximum(seconds) else timeout
+
+
+def is_finite_number(value: float) -> bool:
+    """Whether a JSON number is finite as a float. An ``int`` beyond the float
+    range (which ``JSON.parse`` reads as ``Infinity``) is not; it is compared
+    exactly, never converted, so it cannot raise ``OverflowError``."""
+    if isinstance(value, int):
+        return abs(value) <= sys.float_info.max
+    return math.isfinite(value)
+
+
+def _finite_or_refuse(value: Optional[_NumberT], description: str, expected: str) -> Optional[_NumberT]:
+    """A response number the SDK converts: a non-finite one is the
+    malformed-response error naming the field."""
+    if value is not None and not is_finite_number(value):
+        raise create_error(f"expected {description} must be {expected}", 400, "BAD_REQUEST", "SDK")
+    return value
 
 
 def timeout_seconds_from_millis(timeout_millis: JsonValue | None) -> Optional[float]:

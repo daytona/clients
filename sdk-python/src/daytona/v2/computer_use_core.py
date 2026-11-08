@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import math
 import re
 from typing import Dict, Final, List, Mapping, Optional, Tuple
 
@@ -12,6 +11,7 @@ from ._core import (
     TransportPayload,
     _expect_model_from_dict,
     enum_str,
+    is_finite_number,
     is_json_value,
 )
 from ._gen.toolbox import (
@@ -554,8 +554,9 @@ def parse_computer_use_recording(payload: ComputerUseRecording) -> ComputerUseRe
 
 
 def _finite_or_none(value: Optional[float], description: str) -> Optional[float]:
-    """A JSON number the decoder read as ``inf`` (``1e309``) is no number."""
-    if value is not None and not math.isfinite(value):
+    """A JSON number the decoder read as ``inf`` (``1e309``), or an integer
+    beyond the float range, is no number."""
+    if value is not None and not is_finite_number(value):
         raise create_error(f"expected {description} must be a number", 400, "BAD_REQUEST", "SDK")
     return value
 

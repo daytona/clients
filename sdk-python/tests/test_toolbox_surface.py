@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Optional
@@ -1974,7 +1975,7 @@ def test_the_generated_model_boundary_checks_nested_lists_and_maps_without_recur
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("duration", ["1e309", "-1e309", "NaN"])
+@pytest.mark.parametrize("duration", ["1e309", "-1e309", "NaN", "1" + "0" * 400, "-1" + "0" * 400])
 async def test_a_recording_duration_that_is_not_a_finite_number_is_a_malformed_response(
     duration: str,
 ) -> None:
@@ -2017,3 +2018,17 @@ def test_a_one_of_field_keeps_its_non_object_values() -> None:
 
     # documentation is a string or a markup object: the model decides.
     _check_container_fields({"label": "x", "documentation": "plain text"}, CompletionItem, "completion item")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("timeout_ms", ["1" + "0" * 400, "1e309"])
+async def test_a_process_timeout_ms_beyond_the_float_range_is_a_malformed_response(timeout_ms: str) -> None:
+    from daytona.v2._core import parse_json_bytes
+
+    body = json.dumps(_process()).removesuffix("}") + f', "timeoutMs": {timeout_ms}}}'
+    transport = Transport([parse_json_bytes(body.encode())])
+
+    with pytest.raises(BadRequestError) as info:
+        await AsyncProcessService("sbx", transport).start("true")  # type: ignore[arg-type]
+    assert "timeoutMs" in str(info.value)
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
