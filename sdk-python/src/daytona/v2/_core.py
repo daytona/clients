@@ -1292,7 +1292,7 @@ def list_shape(payload: TransportPayload, *keys: str) -> Tuple[List[JsonObject],
 
 
 _SEARCH_LIST_FIELDS = ("sandbox_class", "region")
-_SEARCH_BOOLEAN_FIELDS = ("spot", "persistent")
+_SEARCH_BOOLEAN_FIELDS = ("spot",)
 _SEARCH_NUMBER_FIELDS = ("min_cores", "max_cores")
 _SEARCH_INTEGER_FIELDS = ("min_memory_mib", "max_memory_mib", "min_disk_mib", "max_disk_mib")
 _SEARCH_CHOICES: Dict[str, Tuple[str, ...]] = {
@@ -1342,6 +1342,13 @@ def _wire_statuses(states: object) -> str:
     return ",".join(wire)
 
 
+_RFC3339 = re.compile(
+    r"\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)"
+    r"(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)",
+    re.ASCII,
+)
+
+
 def search_timestamp(value: SearchTimestamp) -> str:
     """RFC 3339 form of a search bound; naive datetimes are taken as UTC.
 
@@ -1353,24 +1360,34 @@ def search_timestamp(value: SearchTimestamp) -> str:
     if isinstance(value, datetime):
         aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
         return aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-    if isinstance(value, str):
+    # An RFC 3339 date-time (the contract's format), the same pattern TypeScript checks.
+    if isinstance(value, str) and _RFC3339.fullmatch(value) is not None:
         return value
     raise create_error("timestamp bounds must be a datetime or an RFC 3339 string", 400, "BAD_REQUEST", "SDK")
 
 
-def _comma_list(name: str, value: Union[str, Sequence[str]]) -> str:
-    items = [value] if isinstance(value, str) else list(value)
+def _comma_list(name: str, value: object) -> str:
+    # A string or a sequence of strings (not a mapping, whose keys would be
+    # sent), as TypeScript takes a string or an array.
+    if isinstance(value, str):
+        items: list[object] = [value]
+    elif isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        items = list(value)
+    else:
+        raise create_error(f"{name} must be a string or a list of strings", 400, "BAD_REQUEST", "SDK")
     # An empty list is not "no filter": the server reads an empty parameter as
     # absent, so `status=[]` would silently become an unfiltered search (and
     # change `list()` pagination). Refuse it here, like `[""]`.
     if not items:
         raise create_error(f"{name} must name at least one value", 400, "BAD_REQUEST", "SDK")
+    texts: list[str] = []
     for item in items:
         if not isinstance(item, str) or not item or "," in item:
             raise create_error(
                 f"{name} entries must be non-empty strings without commas", 400, "BAD_REQUEST", "SDK"
             )
-    return ",".join(items)
+        texts.append(item)
+    return ",".join(texts)
 
 
 def has_surrogate(value: str) -> bool:
@@ -1388,9 +1405,11 @@ def query_text(value: str, name: str) -> str:
 
 
 def header_text(value: str, name: str) -> str:
-    """A caller string sent as a header value: printable ASCII only (the HTTP
-    clients cannot send anything else in both SDKs), else
-    :class:`BadRequestError` naming ``name``, before any request."""
+    """A caller string sent as a header value: printable ASCII only, else
+    :class:`BadRequestError` naming ``name``, before any request. TypeScript
+    applies the same rule (``headerText``), so both SDKs refuse the same
+    values: neither sends header bytes the other would not, and neither fails
+    with a raw transport error for a value outside it."""
     if not all(" " <= char <= "~" for char in value):
         raise create_error(f"{name} must be printable ASCII", 400, "BAD_REQUEST", "SDK")
     return value
@@ -1432,7 +1451,15 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
         if f.name == "states":
             params[wire] = _wire_statuses(value)
         elif f.name in _SEARCH_LIST_FIELDS:
-            params[wire] = query_text(_comma_list(f.name, value), f.name)
+            joined = _comma_list(f.name, value)
+            # The contract's classes only: SDK inputs are closed.
+            if f.name == "sandbox_class" and any(
+                item not in ("linux", "macos") for item in joined.split(",")
+            ):
+                raise create_error(
+                    'sandbox_class entries must be "linux" or "macos"', 400, "BAD_REQUEST", "SDK"
+                )
+            params[wire] = query_text(joined, f.name)
         elif f.name == "labels":
             if not isinstance(value, Mapping) or not all(
                 isinstance(key, str) and isinstance(item, str) for key, item in value.items()

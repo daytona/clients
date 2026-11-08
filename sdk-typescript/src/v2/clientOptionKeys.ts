@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isBlank } from './pyText.js'
 import { assertKnownOptions, assertLabels, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys } from './options.js'
 import type {
   CreateRequestBaseOptions, CreateSandboxOptions, CreateSandboxFromSnapshotOptions,
@@ -155,8 +156,9 @@ export function assertCreateNestedOptions(options: CreateValueOptions): void {
     assertOptionsObject('VolumeMount', volume)
     assertKnownOptions('VolumeMount', volume, VOLUME_KEYS)
     const { volumeId, mountPath, subpath, readOnly } = volume as VolumeMount
-    if (typeof volumeId !== 'string' || volumeId.trim() === '') throw badRequest('volumes[].volumeId must be a non-empty string')
-    if (typeof mountPath !== 'string' || mountPath.trim() === '') throw badRequest('volumes[].mountPath must be a non-empty string')
+    // Python's whitespace set, as Python's `str.strip()` tests blankness.
+    if (typeof volumeId !== 'string' || isBlank(volumeId)) throw badRequest('volumes[].volumeId must be a non-empty string')
+    if (typeof mountPath !== 'string' || isBlank(mountPath)) throw badRequest('volumes[].mountPath must be a non-empty string')
     if (subpath !== undefined && typeof subpath !== 'string') throw badRequest('volumes[].subpath must be a string')
     if (readOnly !== undefined && typeof readOnly !== 'boolean') throw badRequest('volumes[].readOnly must be a boolean')
   }

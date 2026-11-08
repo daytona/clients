@@ -607,12 +607,26 @@ async def test_cursor_contents_are_opaque_and_returned_unchanged():
     assert len(requests) == 2
 
 
-@pytest.mark.parametrize("checkpoint", ["", "bad\x00cursor", "bad\rcursor", "bad\ncursor", "x" * 2049])
+@pytest.mark.parametrize(
+    "checkpoint", ["", "bad\x00cursor", "bad\rcursor", "bad\ncursor", "a\tb", "a\x7fb", "x" * 2049, 5]
+)
 async def test_invalid_caller_cursor_rejected_without_request(checkpoint):
+    # One cursor rule in both SDKs: a caller's cursor that breaks it is
+    # BadRequestError naming it, before any request.
     api, requests, _ = setup([])
-    with pytest.raises(BuildLogInterruptedError):
+    with pytest.raises(BadRequestError, match="^cursor must be"):
         await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None, cursor=checkpoint)
     assert requests == []
+
+
+async def test_a_server_cursor_with_a_tab_is_a_protocol_error():
+    # The same rule for server-sent ids: TypeScript refuses it too.
+    api, _, _ = setup(
+        [event("log", {"data_base64": "eA==", "start_offset": "0", "next_offset": "1"}, "a\tb")]
+    )
+    with pytest.raises(BuildLogInterruptedError) as failure:
+        await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+    assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
 
 
 async def test_resumed_cursor_establishes_offset_from_first_log_event():

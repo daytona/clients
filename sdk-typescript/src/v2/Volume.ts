@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isBlank } from './pyText.js'
 import { pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
@@ -155,7 +156,7 @@ export class VolumesService {
     // The options are required: an omitted value is refused like any non-object.
     assertOptionsObject('CreateVolumeOptions', options)
     assertKnownOptions('CreateVolumeOptions', options, CREATE_VOLUME_KEYS)
-    if (typeof options.name !== 'string' || options.name.trim() === '') throw badRequest('name must be a non-empty string')
+    if (typeof options.name !== 'string' || isBlank(options.name)) throw badRequest('name must be a non-empty string')
     if (options.sizeGib !== undefined && (!Number.isInteger(options.sizeGib) || options.sizeGib <= 0)) {
       throw badRequest('sizeGib must be a positive integer')
     }

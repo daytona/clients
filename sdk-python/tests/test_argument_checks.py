@@ -18,6 +18,7 @@ import threading
 from collections.abc import Awaitable, Callable, Iterator
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
 
 import anyio
 import pytest
@@ -32,6 +33,7 @@ from daytona.v2 import (
     PortMapping,
     RequestTimeoutError,
     Resources,
+    VolumeMount,
 )
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
 from daytona.v2.errors import create_error
@@ -153,6 +155,41 @@ _REFUSED: list[tuple[str, Call]] = [
     # A lone surrogate in a query value, and a header value outside printable
     # ASCII (the TypeScript twin pins the same rows).
     ("list cursor with a lone surrogate", lambda d, _url: d.list(cursor="a\ud800b")),
+    ("search sandbox_class with a lone surrogate", lambda d, _url: d.search(sandbox_class="a\ud800b")),  # type: ignore[arg-type]
+    ("search region with a lone surrogate", lambda d, _url: d.search(region="a\ud800b")),
+    (
+        "search created_start_at with a lone surrogate",
+        lambda d, _url: d.search(created_start_at="2026-01-01T00:00:00Z\ud800"),
+    ),
+    ("search region a number", lambda d, _url: d.search(region=5)),  # type: ignore[arg-type]
+    ("search region a dict", lambda d, _url: d.search(region={"r": "x"})),  # type: ignore[arg-type]
+    ("search region [1]", lambda d, _url: d.search(region=[1])),  # type: ignore[list-item]
+    ("search sandbox_class a number", lambda d, _url: d.search(sandbox_class=5)),  # type: ignore[arg-type]
+    ("search sandbox_class a dict", lambda d, _url: d.search(sandbox_class={"linux": "x"})),  # type: ignore[arg-type]
+    ("search sandbox_class [1]", lambda d, _url: d.search(sandbox_class=[1])),  # type: ignore[list-item]
+    ("search sandbox_class bogus", lambda d, _url: d.search(sandbox_class="bogus")),  # type: ignore[arg-type]
+    ("search created_start_at not RFC 3339", lambda d, _url: d.search(created_start_at="yesterday")),
+    ("volumes.create name U+001C", lambda d, _url: d.volumes.create(name="\u001c")),
+    (
+        "create volumes[].volume_id U+001C",
+        lambda d, _url: d.create(volumes=[VolumeMount(volume_id="\u001c", mount_path="/m")]),
+    ),
+    (
+        "follow_build_logs cursor a number",
+        lambda d, _url: d.images.follow_build_logs("img", on_logs=print, cursor=5),
+    ),  # type: ignore[arg-type]
+    (
+        "follow_build_logs cursor with a tab",
+        lambda d, _url: d.images.follow_build_logs("img", on_logs=print, cursor="a\tb"),
+    ),
+    (
+        "follow_build_logs cursor empty",
+        lambda d, _url: d.images.follow_build_logs("img", on_logs=print, cursor=""),
+    ),
+    (
+        "sandbox follow_build_logs cursor with DEL",
+        lambda d, _url: lazy_sandbox(d, "sbx").follow_build_logs(on_logs=print, cursor="a\x7fb"),
+    ),
     ("search name_prefix with a lone surrogate", lambda d, _url: d.search(name_prefix="a\ud800b")),
     ("images.list name with a lone surrogate", lambda d, _url: d.images.list(name="a\ud800b")),
     ("create idempotency_key non-ASCII", lambda d, _url: d.create(idempotency_key="k\u00e9y")),
@@ -699,3 +736,48 @@ async def test_a_path_id_with_an_astral_character_is_percent_encoded_as_utf8() -
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             await root.v2.secrets.get("a\U0001f600")
     assert fake.requests[0].path == "/secrets/a%F0%9F%98%80"
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda d: d.volumes.create(name="\ufeff"),
+        lambda d: d.create(volumes=[VolumeMount(volume_id="v", mount_path="\ufeff")]),
+    ],
+    ids=["volumes.create name U+FEFF", "create volumes[].mount_path U+FEFF"],
+)
+async def test_u_feff_is_not_python_whitespace_and_is_sent(
+    call: Callable[[AsyncDaytonaV2], Awaitable[object]],
+) -> None:
+    # Python's whitespace set (U+FEFF is not in it, U+001C is); TypeScript tests the same set.
+    with FakeApi([PlannedResponse(500, {"message": "stop"})]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(DaytonaError) as raised:
+                await call(root.v2)
+    assert not isinstance(raised.value, BadRequestError)
+    assert len(fake.requests) == 1
+
+
+async def test_valid_search_classes_and_timestamps_are_sent() -> None:
+    with FakeApi(
+        [PlannedResponse(200, {"sandboxes": [], "total": 0, "total_relation": "eq", "next_cursor": None})]
+    ) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            await root.v2.search(
+                sandbox_class=("linux", "macos"), created_start_at="2026-01-01T00:00:00.5+02:00"
+            )
+    query = parse_qs(urlsplit(fake.requests[0].path).query)
+    assert (query["class"], query["created_start_at"]) == (["linux,macos"], ["2026-01-01T00:00:00.5+02:00"])
+
+
+async def test_a_search_label_with_a_lone_surrogate_is_sent_json_escaped() -> None:
+    # Labels are sent as JSON, which escapes a lone surrogate (as a body does).
+    with FakeApi(
+        [PlannedResponse(200, {"sandboxes": [], "total": 0, "total_relation": "eq", "next_cursor": None})]
+    ) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            await root.v2.search(labels={"team": "a\ud800b"})
+    assert "%5Cud800" in fake.requests[0].path

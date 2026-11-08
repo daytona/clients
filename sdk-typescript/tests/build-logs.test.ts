@@ -328,10 +328,16 @@ describe('resumable build logs', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
-  it.each(['', 'a\0b', 'a\rb', 'a\nb', 'a'.repeat(2049)])('rejects unsafe or oversized caller cursor without HTTP: %j', async checkpoint => {
+  it.each(['', 'a\0b', 'a\rb', 'a\nb', 'a\tb', 'a\x7fb', 'a'.repeat(2049), 5])('rejects unsafe or oversized caller cursor without HTTP: %j', async checkpoint => {
+    // One cursor rule in both SDKs: a caller's cursor that breaks it is BadRequestError naming it.
     const { client, fetch } = setup([])
-    await expect(client.images.followBuildLogs('image', { cursor: checkpoint, onLogs: () => {} })).rejects.toBeInstanceOf(BuildLogInterruptedError)
+    await expect(client.images.followBuildLogs('image', { cursor: checkpoint as never, onLogs: () => {} })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(/^cursor must be/) })
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('refuses a server cursor with a tab as a protocol error, as Python does', async () => {
+    const { client } = setup([event('log', { data_base64: 'eA==', start_offset: '0', next_offset: '1' }, 'a\tb')])
+    await expect(client.images.followBuildLogs('image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
   })
 
   it.each(['abc', 'opaque+/= token', '☃:opaque'])('preserves an opaque resumed cursor %j without decoding it', async checkpoint => {

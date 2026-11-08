@@ -43,6 +43,10 @@ def _build(case: dict[str, object]) -> ImageBuilder:
             builder = builder.pip_install(*argument)
         elif op == "env":
             builder = builder.env(argument)
+        elif op == "env-map":
+            # The fixture's pairs as an iterable that is not a mapping: Python's
+            # counterpart of a TypeScript Map.
+            builder = builder.env(iter(argument))
         else:
             builder = builder.workdir(argument)
     return builder

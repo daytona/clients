@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { headerText } from './pageParams.js'
-import { badRequest } from './options.js'
+import { badRequest, headerText } from './options.js'
 import { gibToMib } from './resources.js'
 export { gibToMib } from './resources.js'
 import { Image, isImageBuilder } from './Image.js'

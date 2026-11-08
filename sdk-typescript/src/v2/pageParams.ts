@@ -17,19 +17,6 @@ export function queryText(value: string, name: string): string {
   return value
 }
 
-/**
- * A caller string sent as a header value: printable ASCII only (the HTTP
- * clients cannot send anything else in both SDKs), else `BadRequestError`
- * naming `name`, before any request, as in Python.
- * @internal
- */
-export function headerText(value: string, name: string): string {
-  for (let index = 0; index < value.length; index++) {
-    const unit = value.charCodeAt(index)
-    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII`)
-  }
-  return value
-}
 
 /**
  * The `cursor` / `limit` query of a list: a string cursor and an integer limit

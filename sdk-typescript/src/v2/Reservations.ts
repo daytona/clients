@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { headerText, pageParams } from './pageParams.js'
+import { pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -18,7 +18,7 @@ import { runtimeUniqueId } from './http.js'
 import { MacReservationEndReason as END_REASONS, MacReservationOrigin as ORIGINS, MacReservationStatus as STATUSES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { mapMacResources } from './macMappers.js'
-import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
+import { assertKnownOptions, assertOptionsObject, badRequest, headerText, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse, MAC_RESERVATION, nested } from './responseFields.js'
 
 const CREATE_RESERVATION_KEYS = optionKeys<CreateReservationOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true })

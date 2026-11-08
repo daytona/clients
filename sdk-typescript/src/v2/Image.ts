@@ -7,7 +7,7 @@ import { deepFrozen } from './frozen.js'
 import type * as api from './gen/api-types.js'
 import { ImageRetention as IMAGE_RETENTIONS, SnapshotClass as SNAPSHOT_CLASSES, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
-import { badRequest } from './options.js'
+import { badRequest, isPlainRecord } from './options.js'
 import { isBlank, strip } from './pyText.js'
 import type { ArtifactRetention, CpuArch, ImageOrigin, ImageSource, ImageStatus, SnapshotClass, SnapshotKind } from './types.js'
 import type { ImageModel } from './imageModel.js'
@@ -124,8 +124,10 @@ export class ImageBuilder {
   public env(values: Record<string, string>): ImageBuilder
   public env(nameOrValues: string | Record<string, string>, value?: string): ImageBuilder {
     const given: unknown = nameOrValues
-    if (typeof given !== 'string' && (typeof given !== 'object' || given === null || Array.isArray(given))) {
-      throw badRequest('ImageBuilder.env takes a name and a value, or an object of names to values')
+    // A plain object is the counterpart of Python's mapping; a Map, a Date or a
+    // class instance would read as empty and drop the step, so it is refused.
+    if (typeof given !== 'string' && !isPlainRecord(given)) {
+      throw badRequest('ImageBuilder.env takes a name and a value, or a mapping of names to values')
     }
     const pairs: ReadonlyArray<readonly [string, string]> = typeof nameOrValues === 'string'
       ? [[rawText(nameOrValues, 'ImageBuilder.env name'), assertText(value, 'ImageBuilder.env value')]]

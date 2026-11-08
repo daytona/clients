@@ -5,6 +5,7 @@
 
 // allow: SIZE_OK — One resumable build-log state machine owns discovery, cursors, and cancellation.
 
+import { queryText } from './pageParams.js'
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
 import { boundedTimerDelay, badRequest } from './options.js'
@@ -101,11 +102,20 @@ function offset(str: string): bigint {
   if (!/^(0|[1-9][0-9]{0,19})$/.test(str) || BigInt(str) > 18446744073709551615n) throw new ProtocolError('invalid uint64 offset')
   return BigInt(str)
 }
+// Cursors are opaque. One rule in both SDKs and both directions: non-empty,
+// bounded, and no C0 control character or DEL; offset continuity comes from
+// the event's public byte-offset fields.
+function cursorOk(str: string): boolean {
+  return str.length > 0 && str.length <= 2048 && !/[\x00-\x1f\x7f]/.test(str)
+}
 function cursor(str: string): string {
-  // Cursors are opaque. Apply only client-side size and SSE safety bounds;
-  // offset continuity comes from the event's public byte-offset fields.
-  if (!str || str.length > 2048 || /[\x00-\x1f\x7f]/.test(str)) throw new ProtocolError('invalid cursor')
+  if (!cursorOk(str)) throw new ProtocolError('invalid cursor')
   return str
+}
+/** A caller's resume cursor: BadRequestError naming it, before any request, as in Python; it is sent as a query value. */
+function callerCursor(value: unknown): string {
+  if (typeof value !== 'string' || !cursorOk(value)) throw badRequest('cursor must be a non-empty string of at most 2048 characters with no control characters')
+  return queryText(value, 'cursor')
 }
 function bytes(str: string): Uint8Array {
   if (str.length > 87384 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(str)) throw new ProtocolError('invalid base64')
@@ -508,6 +518,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
   if (typeof options.onLogs !== 'function') throw badRequest('onLogs must be a function')
   const onEvent: unknown = options.onEvent
   if (onEvent !== undefined && typeof onEvent !== 'function') throw badRequest('onEvent must be a function when given')
+  if (options.cursor !== undefined) callerCursor(options.cursor)
   const controller = new AbortController()
   const relay = (): void => controller.abort(options.signal?.reason)
   if (options.signal?.aborted) relay()

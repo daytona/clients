@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { strip } from './pyText.js'
 import { BadRequestError, DaytonaError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
 import { targetPredicate } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
@@ -96,7 +97,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     try {
       const resolved = await context.hub.wait(context.id, targetPredicate(new Set<SandboxState>(states), new Set(effectiveTerminal)), {
         timeout,
-        regionHint: context.region?.trim().toLowerCase() === 'local' ? undefined : context.region,
+        regionHint: context.region !== undefined && strip(context.region).toLowerCase() === 'local' ? undefined : context.region,
         sandboxPollFn,
         onObserved: (outcome) => { refreshedByPoll = false; context.observe(outcome) },
       })

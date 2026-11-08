@@ -111,6 +111,19 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   // A lone surrogate in a query value, and a header value outside printable
   // ASCII (the Python twin pins the same rows).
   ['list cursor with a lone surrogate', (client) => client.v2.list({ cursor: 'a\ud800b' })],
+  ['search sandboxClass with a lone surrogate', (client) => client.v2.search({ sandboxClass: 'a\ud800b' as never })],
+  ['search region with a lone surrogate', (client) => client.v2.search({ region: 'a\ud800b' })],
+  ['search createdStartAt with a lone surrogate', (client) => client.v2.search({ createdStartAt: '2026-01-01T00:00:00Z\ud800' })],
+  ['search region a number', (client) => client.v2.search({ region: 5 as never })],
+  ['search region an object', (client) => client.v2.search({ region: { r: 'x' } as never })],
+  ['search region [1]', (client) => client.v2.search({ region: [1] as never })],
+  ['search sandboxClass a number', (client) => client.v2.search({ sandboxClass: 5 as never })],
+  ['search sandboxClass an object', (client) => client.v2.search({ sandboxClass: { linux: 'x' } as never })],
+  ['search sandboxClass [1]', (client) => client.v2.search({ sandboxClass: [1] as never })],
+  ['search sandboxClass bogus', (client) => client.v2.search({ sandboxClass: 'bogus' as never })],
+  ['search createdStartAt not RFC 3339', (client) => client.v2.search({ createdStartAt: 'yesterday' })],
+  ['volumes.create name U+001C', (client) => client.v2.volumes.create({ name: '\u001c' })],
+  ['create volumes[].volumeId U+001C', (client) => client.v2.create({ volumes: [{ volumeId: '\u001c', mountPath: '/m' }] })],
   ['search namePrefix with a lone surrogate', (client) => client.v2.search({ namePrefix: 'a\ud800b' })],
   ['images.list name with a lone surrogate', (client) => client.v2.images.list({ name: 'a\ud800b' })],
   ['create idempotencyKey non-ASCII', (client) => client.v2.create({ idempotencyKey: 'k\u00e9y' })],
@@ -426,6 +439,49 @@ it('accepts the contract bounds: limit 200, idleExpirySeconds -1, cpuArch arm64,
     expect(api.requests[0]?.path).toBe('/sandboxes?cursor=c&limit=200')
     expect(JSON.parse(api.requests[1]?.body ?? '{}')).toMatchObject({ idle_expiry_seconds: -1, cpu_arch: 'arm64' })
     expect(api.requests[3]?.headers['if-none-match']).toBe('*')
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([
+  ['volumes.create name U+FEFF', (client: Daytona) => client.v2.volumes.create({ name: '\ufeff' })],
+  ['create volumes[].mountPath U+FEFF', (client: Daytona) => client.v2.create({ volumes: [{ volumeId: 'v', mountPath: '\ufeff' }] })],
+] as const)('sends %s: U+FEFF is not Python whitespace', async (_name, call) => {
+  // Python's whitespace set (U+FEFF is not in it, U+001C is); Python tests the same set.
+  const api = await startFakeApi([{ status: 500, body: { message: 'stop' } }])
+  const client = clientAt(api.url)
+  try {
+    const error = await call(client).then(() => undefined, (failure: unknown) => failure)
+    expect(error).not.toBeInstanceOf(BadRequestError)
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('sends valid search classes and timestamps', async () => {
+  const api = await startFakeApi([{ status: 200, body: { sandboxes: [], total: 0, total_relation: 'eq', next_cursor: null } }])
+  const client = clientAt(api.url)
+  try {
+    await client.v2.search({ sandboxClass: ['linux', 'macos'], createdStartAt: '2026-01-01T00:00:00.5+02:00' })
+    const query = new URL(api.requests[0]?.path ?? '', 'http://x').searchParams
+    expect([query.get('class'), query.get('created_start_at')]).toEqual(['linux,macos', '2026-01-01T00:00:00.5+02:00'])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('sends a search label with a lone surrogate JSON-escaped', async () => {
+  // Labels are sent as JSON, which escapes a lone surrogate (as a body does).
+  const api = await startFakeApi([{ status: 200, body: { sandboxes: [], total: 0, total_relation: 'eq', next_cursor: null } }])
+  const client = clientAt(api.url)
+  try {
+    await client.v2.search({ labels: { team: 'a\ud800b' } })
+    expect(api.requests[0]?.path).toContain('%5Cud800')
   } finally {
     await client.close()
     await api.close()

@@ -26,7 +26,7 @@ from pydantic import BaseModel
 from typing_extensions import Unpack
 
 from . import _clock
-from ._core import RequestSpec, parse_error_payload, wait_budget_seconds
+from ._core import RequestSpec, parse_error_payload, query_text, wait_budget_seconds
 from ._gen.api import (
     BuildLogChunk,
     BuildLogDone,
@@ -261,13 +261,33 @@ def _offset(value: object) -> int:
     return int(text)
 
 
+def _cursor_ok(text: str) -> bool:
+    # Cursors are opaque. One rule in both SDKs and both directions: non-empty,
+    # bounded, and no C0 control character or DEL; their encoding and contents
+    # are not inferred.
+    return bool(text) and len(text) <= 2048 and re.search(r"[\x00-\x1f\x7f]", text) is None
+
+
 def _cursor(value: object) -> str:
+    """A server-sent cursor: one that breaks the rule is the protocol error."""
     text = _text(value)
-    # Cursors are opaque. Bound their size and exclude SSE framing characters,
-    # but do not infer their encoding or contents.
-    if not text or len(text) > 2048 or re.search(r"[\x00\r\n]", text):
+    if not _cursor_ok(text):
         raise _ProtocolError("invalid cursor")
     return text
+
+
+def _caller_cursor(value: object) -> str:
+    """A caller's resume cursor: one that breaks the rule is BadRequestError
+    naming it, before any request, as in TypeScript. It is sent as a query
+    value, so a lone surrogate is refused too."""
+    if not isinstance(value, str) or not _cursor_ok(value):
+        raise create_error(
+            "cursor must be a non-empty string of at most 2048 characters with no control characters",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return query_text(value, "cursor")
 
 
 def _bytes(value: object) -> bytes:
@@ -732,6 +752,8 @@ async def follow_build_logs(
         raise create_error("on_logs must be a callable", 400, "BAD_REQUEST", "SDK")
     if on_event is not None and not callable(on_event):
         raise create_error("on_event must be a callable when given", 400, "BAD_REQUEST", "SDK")
+    if cursor is not None:
+        cursor = _caller_cursor(cursor)
     caller_deadline = _clock.monotonic() + timeout if timeout else None
     observer: _Observer | None = None
     try:

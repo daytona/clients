@@ -151,6 +151,24 @@
         ]
       ],
       "error": "ImageBuilder.env key \"A\" appears more than once after stripping"
+    },
+    {
+      "name": "env a Map (TypeScript) / a non-mapping (Python)",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-map",
+          [
+            [
+              "K",
+              "v"
+            ]
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.env takes a name and a value, or a mapping of names to values"
     }
   ]
 }

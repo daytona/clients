@@ -64,6 +64,22 @@ export function badRequest(message: string): BadRequestError {
   return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
 }
 
+/**
+ * A caller string sent as a header value: printable ASCII only, else
+ * `BadRequestError` naming `name`, before any request. Python applies the same
+ * rule (`header_text`), so both SDKs refuse the same values: neither sends
+ * header bytes the other would not, and neither fails with a raw transport
+ * error for a value outside it.
+ * @internal
+ */
+export function headerText(value: string, name: string): string {
+  for (let index = 0; index < value.length; index++) {
+    const unit = value.charCodeAt(index)
+    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII`)
+  }
+  return value
+}
+
 export interface IfMatchOptions {
   readonly ifMatch: string
 }
@@ -76,8 +92,8 @@ export function assertIfMatchOptions(options: IfMatchOptions | undefined): void 
   if (typeof options?.ifMatch !== 'string' || options.ifMatch.length === 0) {
     throw badRequest('ifMatch must be a non-empty string')
   }
-  // It is sent as the If-Match header: printable ASCII only, as in Python.
-  if (!/^[\x20-\x7e]*$/.test(options.ifMatch)) throw badRequest('ifMatch must be printable ASCII')
+  // It is sent as the If-Match header.
+  headerText(options.ifMatch, 'ifMatch')
 }
 
 /**
@@ -87,11 +103,26 @@ export function assertIfMatchOptions(options: IfMatchOptions | undefined): void 
  * @internal
  */
 export function isPlainStringRecord(value: unknown): value is Readonly<Record<string, string>> {
+  if (!isPlainRecord(value)) return false
+  for (const key in value) {
+    if (typeof Reflect.get(value, key) !== 'string') return false
+  }
+  return true
+}
+
+/**
+ * Whether `value` is a plain object (prototype `Object.prototype` or `null`)
+ * whose enumerable keys are all its own: JavaScript's counterpart of a Python
+ * mapping argument. A `Map`, a `Date`, a class instance or inherited keys
+ * would otherwise be read as empty.
+ * @internal
+ */
+export function isPlainRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const prototype: unknown = Object.getPrototypeOf(value)
   if (prototype !== Object.prototype && prototype !== null) return false
   for (const key in value) {
-    if (!Object.prototype.hasOwnProperty.call(value, key) || typeof Reflect.get(value, key) !== 'string') return false
+    if (!Object.prototype.hasOwnProperty.call(value, key)) return false
   }
   return true
 }

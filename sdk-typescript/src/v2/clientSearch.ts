@@ -7,7 +7,7 @@ import { BadRequestError, createDaytonaError } from './errors/DaytonaError.js'
 import type { SandboxDto, SandboxState, SearchSandboxesOptions, SearchTimestamp } from './types.js'
 import { assertLabels, badRequest } from './options.js'
 import { optionalQueryText, pageParams, queryText } from './pageParams.js'
-import { SandboxSearchSort, SortOrder } from './gen/api-enums.js'
+import { SandboxClass, SandboxSearchSort, SortOrder } from './gen/api-enums.js'
 import { assertSandboxResponse } from './sandboxMetadata.js'
 
 export const SEARCH_PATH = '/sandboxes/search'
@@ -27,9 +27,12 @@ export function searchTimestamp(value: SearchTimestamp): string {
     }
     return value.toISOString()
   }
-  if (typeof value === 'string') return value
+  // An RFC 3339 date-time (the contract's format), the same pattern Python checks.
+  if (typeof value === 'string' && RFC3339.test(value)) return value
   throw createDaytonaError('timestamp bounds must be a valid Date or an RFC 3339 string', 400, 'BAD_REQUEST', 'SDK')
 }
+
+const RFC3339 = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
 
 // Input-boundary checks mirror Python's `_core.search_params` byte for byte:
 // a bare string is one entry (the option types are `string | readonly
@@ -37,7 +40,12 @@ export function searchTimestamp(value: SearchTimestamp): string {
 // cannot stop — non-string entries, commas and empties are the SDK's own
 // BadRequestError, and no request goes out for any of them.
 function commaList(name: string, values: string | readonly string[]): string {
-  const items: readonly unknown[] = typeof values === 'string' ? [values] : Array.isArray(values) ? values : []
+  const given: unknown = values
+  // A string or an array of strings, as Python takes a string or a sequence.
+  if (typeof given !== 'string' && !Array.isArray(given)) {
+    throw createDaytonaError(`${name} must be a string or a list of strings`, 400, 'BAD_REQUEST', 'SDK')
+  }
+  const items: readonly unknown[] = typeof given === 'string' ? [given] : given
   // An empty list is not "no filter": the server reads an empty parameter as
   // absent, so `status: []` would silently become an unfiltered search.
   // Refuse it, like ['']; a non-array lands here instead of a raw TypeError.
@@ -50,6 +58,15 @@ function commaList(name: string, values: string | readonly string[]): string {
     }
   }
   return items.join(',')
+}
+
+// The contract's classes only: SDK inputs are closed.
+function searchClasses(values: string | readonly string[]): string {
+  const joined = commaList('sandboxClass', values)
+  if (joined.split(',').some((item) => !(SandboxClass as readonly string[]).includes(item))) {
+    throw createDaytonaError('sandboxClass entries must be "linux" or "macos"', 400, 'BAD_REQUEST', 'SDK')
+  }
+  return joined
 }
 
 /** `labels` must be a plain object (Python: a `Mapping`); a string or an array is rejected before the request. */
@@ -104,7 +121,7 @@ export function searchQueryParams(input: SearchSandboxesOptions): SearchQueryPar
     name_prefix: optionalQueryText(options.namePrefix, 'namePrefix'),
     id_prefix: optionalQueryText(options.idPrefix, 'idPrefix'),
     status: options.states === undefined ? undefined : searchStates(options.states),
-    class: options.sandboxClass === undefined ? undefined : queryText(commaList('sandboxClass', options.sandboxClass), 'sandboxClass'),
+    class: options.sandboxClass === undefined ? undefined : queryText(searchClasses(options.sandboxClass), 'sandboxClass'),
     region_ids: options.region === undefined ? undefined : queryText(commaList('region', options.region), 'region'),
     image_ref: optionalQueryText(options.imageRef, 'imageRef'),
     image_ref_prefix: optionalQueryText(options.imageRefPrefix, 'imageRefPrefix'),
