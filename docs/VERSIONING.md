@@ -4,8 +4,10 @@ The Daytona SDKs — Python [`daytona`](https://pypi.org/project/daytona/)
 (import `daytona`) and TypeScript [`@daytona/sdk`](https://www.npmjs.com/package/@daytona/sdk) —
 and the `daytona` CLI carry the **platform version**: a
 [Semantic Versioning 2.0.0](https://semver.org/) `MAJOR.MINOR.PATCH`, with a
-`-alpha.N` / `-rc.N` pre-release identifier while the platform is pre-stable
-(PyPI uses the PEP 440 spelling of the same number, see below).
+`-alpha.N` / `-rc.N` pre-release identifier on a pre-release: before `2.0.0`
+every release, after it the releases that lead up to a stable one (see
+[Pre-releases](#pre-releases); PyPI uses the PEP 440 spelling of the same
+number, see below).
 
 ## One version line
 
@@ -48,8 +50,8 @@ the next release increments:
   depend on (descriptions, examples, tightened documentation), or no spec
   change at all together with fixes in the implementation.
 
-Pre-stable, every spec change takes the next alpha counter instead (see
-[Pre-stable](#pre-stable-alpha)).
+Pre-releases are numbered differently: before `2.0.0`, every spec change took
+the next alpha counter (see [Pre-releases](#pre-releases)).
 
 ### When the SDK surface moves without the spec
 
@@ -82,14 +84,18 @@ Not covered (may change in any release): anything under an `_`-prefixed name,
 internal modules not re-exported from the entry point, the `X-Daytona-Source` /
 `X-Daytona-SDK-Version` / `User-Agent` header values, test/build tooling, and examples.
 
-## Pre-stable (alpha)
+<a id="pre-stable-alpha"></a>
 
-Before `2.0.0`, every release was a `2.0.0-alpha.N` pre-release, the SDK
-surface was considered unstable, and **breaking changes could land in any
-alpha.** The spec diff was not classified into major/minor/patch then: a spec
-change drafted the next alpha counter.
+## Pre-releases
 
-Pre-releases after `2.0.0` (`-alpha.N`, `-rc.N`, see
+**Before `2.0.0` (pre-stable).** The policy was alpha only: releases were
+`2.0.0-alpha.N` pre-releases, the SDK surface was considered unstable, and
+**breaking changes could land in any alpha.** The spec diff was not
+classified into major/minor/patch then: a spec change drafted the next alpha
+counter. The one exception is the `2.0.0-rc.1` (PyPI `2.0.0rc1`) published
+before that policy ([Release channels](#release-channels)).
+
+**From `2.0.0` on.** Pre-releases (`-alpha.N`, `-rc.N`, see
 [Release channels](#release-channels)) keep those rules for the release they
 lead up to: **breaking changes may land between the pre-releases of the next
 MAJOR, never in a stable MINOR or PATCH.** A pre-release of a MINOR may change
@@ -139,8 +145,8 @@ An installed SDK is expected to work against an API that is **ahead of it by
 up to one MINOR within the same MAJOR** — the API's additive changes do not
 break an older SDK, and the SDKs tolerate unknown response fields
 everywhere. An SDK that is a MAJOR behind, or ahead of the API it talks to,
-is outside the supported window. Pre-stable, the same expectation holds
-across alpha numbers of `2.0.0`, with the caveat that alphas may break.
+is outside the supported window. Before `2.0.0`, the same expectation held
+across alpha numbers of `2.0.0`, with the caveat that alphas could break.
 
 The skew is observable: every SDK request carries `X-Daytona-Source` and
 `X-Daytona-SDK-Version` (and `User-Agent: <source>/<version>`), so the API

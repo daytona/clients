@@ -48,13 +48,15 @@ formula by hand ([`../../scripts/release-channel.sh`](../../scripts/release-chan
 
 | Version | npm dist-tag | PyPI | CLI GitHub Release | Homebrew formula |
 |---|---|---|---|---|
-| `vX.Y.Z` | `latest` | normal release | normal release (Latest when it is the highest stable release) | `daytona` |
+| stable 2.x `v2.Y.Z` | `latest` | normal release | normal release (Latest when it is the highest stable release) | `daytona` |
 | `vX.Y.Z-rc.N` | `next` | `X.Y.ZrcN` | pre-release | `daytona-rc` |
 | `vX.Y.Z-alpha.N` | `alpha` | `X.Y.ZaN` | pre-release | `daytona-alpha` |
 
 A pre-release never becomes `latest` or the Latest release. The publish gate
 takes alpha, rc and stable versions; no channel follows betas, so the gate
-refuses them. The 0.x line keeps the `daytona@0` formula.
+refuses them. Stable 0.x releases are the exception to the stable row: they
+publish from `release/v0` to the `daytona@0` formula and, once a stable 2.x
+release exists, under the npm line tag `v0-latest`.
 
 **Two release lines, same-named workflows.**
 
@@ -98,7 +100,9 @@ pre-release on `latest`. Deriving it from the version removes the mistake.
 - A fix in one SDK ships only when the next release publishes both.
 - Contributors never edit version fields. Maintainers pick no numbers by hand
   either: the contract diff and the version input decide.
-- Every release before `2.0.0` was an alpha. Pre-release users install a
+- Before `2.0.0` the policy was alpha only (the npm `2.0.0-rc.1` / PyPI
+  `2.0.0rc1` published before that policy are the one exception). Pre-release
+  users install a
   channel explicitly (`npm install @daytona/sdk@alpha` or `@next`, a pinned
   PyPI version, `--channel alpha` for the CLI installer); Python users pin the
   exact pre-release, because a release candidate published to PyPI before

@@ -244,24 +244,31 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
 ### The v0 pin
 
 The tool refuses projects on a newer 0.x minor than the release SDK 2.x
-bundles as `.v0` (`scripts/v0-sdk-version`). Bumping the pin is a manual PR:
-write the new tag and the commit it peels to into `scripts/v0-sdk-version`,
-then run `node upgrade/scripts/check-v0-surface.mjs --src <0.x checkout>
---write-v0-exports` (updates the tool's `v0Version` / `v0Exports` and names
-any 0.x method without a mapping row), `node upgrade/scripts/sync-mapping.mjs`
-and `node upgrade/scripts/gen-guide.mjs`, and add a changelog fragment.
+bundles as `.v0` (`scripts/v0-sdk-version`). Bumping the pin is a manual PR,
+at least a MINOR release even without a spec change
+([VERSIONING.md](VERSIONING.md)). In this order:
 
-Before moving the pin, check the new 0.x release
-([VERSIONING.md](VERSIONING.md)):
-
-- its runtime floors are not above 2.x's: `requires-python` in its
-  `sdk-python/pyproject.toml` against `sdk-python/pyproject.toml` here
-  (Python 3.10), and `engines.node` in its `sdk-typescript/package.json`, if
-  it declares one, against `sdk-typescript/package.json` here (Node 22.15);
-- `.v0` callers stay compatible: the release only adds to the 0.x surface the
-  previous pin bundled (`check-v0-surface.mjs` lists what changed).
-
-A release that moves the pin is at least a MINOR, even without a spec change.
+1. **Check the new 0.x release first, against the current pin**, before
+   anything is written:
+   - its runtime floors are not above 2.x's: `requires-python` in its
+     `sdk-python/pyproject.toml` against `sdk-python/pyproject.toml` here
+     (Python 3.10), and `engines.node` in its `sdk-typescript/package.json`,
+     if it declares one, against `sdk-typescript/package.json` here
+     (Node 22.15);
+   - `.v0` callers stay compatible. Run
+     `node upgrade/scripts/check-v0-surface.mjs --src <new 0.x checkout>`
+     without `--write-v0-exports`: it compares the new release with the
+     export list and client members recorded for the current pin, and lists
+     every difference. A `nonexistent` name is one the current pin has and
+     the new release dropped, which breaks `.v0` callers: do not move the pin
+     to it. A `missing` name is new surface (additions are fine; give new
+     methods mapping rows). The tool sees names, not signatures: read the
+     0.x changelog between the two tags for changed parameters or behavior.
+2. **Move the pin:** write the new tag and the commit it peels to into
+   `scripts/v0-sdk-version`, run the same command with `--write-v0-exports`
+   (records the new `v0Version` / `v0Exports`), then
+   `node upgrade/scripts/sync-mapping.mjs` and
+   `node upgrade/scripts/gen-guide.mjs`, and add a changelog fragment.
 
 > **Registries reject re-uploading an existing version.** A version is
 > published once. If a publish half-fails, re-run the failed publish job, or
@@ -306,8 +313,13 @@ Procedure:
      `2.0.0a8` / `2.0.0-alpha.8` examples;
    - `sdk-python/pyproject.toml`: the `Development Status :: 3 - Alpha`
      classifier (shown on PyPI).
+   - `upgrade/MIGRATION.md`, which is generated: edit the two "Until SDK
+     2.0.0 is out, … the exact alpha" paragraphs in
+     `upgrade/scripts/gen-guide.mjs` (install commands and tool runs), then
+     run `node upgrade/scripts/gen-guide.mjs`; never edit the guide itself.
 
-   Then `git grep -n -i alpha -- '*.md' ':!CHANGELOG.md' ':!changelog.d' ':!docs'`
+   Then `node upgrade/scripts/gen-guide.mjs --check` passes, and
+   `git grep -n -i alpha -- '*.md' ':!CHANGELOG.md' ':!changelog.d' ':!docs'`
    should list only channel names (`--channel alpha`, `daytona-alpha`) and
    examples of how a pre-release is pinned, no install advice.
 3. **Prepare.** Run `prepare-release.yaml` with `v2.0.0` and merge the
