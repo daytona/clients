@@ -16,6 +16,7 @@ import { FileSystemService } from '../src/v2/FileSystem'
 import { BadRequestError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
+import { parseBulkReadResult } from '../src/v2/filesystemWire'
 
 const FILE_INFO = {
   name: 'a', path: '/d/a', size: 3, mode: '-rw-r--r--', modTime: 'x', modifiedAt: '2026-01-01T00:00:00Z',
@@ -39,7 +40,8 @@ describe('JSON response bodies', () => {
       request.resume()
       // /<body>/<content type: json | text>/...
       const [, body = 'valid', type = 'json'] = (request.url ?? '').split('/')
-      response.writeHead(200, { 'Content-Type': type === 'json' ? 'application/json; charset=utf-8' : 'text/plain' })
+      const contentType = type === 'json' ? 'application/json; charset=utf-8' : type === 'mixed' ? 'Application/JSON; charset=UTF-8' : 'text/plain'
+      response.writeHead(200, { 'Content-Type': contentType })
       response.end(BODIES[body])
     })
     server.listen(0, '127.0.0.1')
@@ -72,5 +74,20 @@ describe('JSON response bodies', () => {
     await expect(fs('valid').stat('/d/a')).resolves.toMatchObject({ size: 3 })
     await expect(fs('empty').remove('/a')).resolves.toBeUndefined()
     await expect(fs('bad', 'text').remove('/a')).resolves.toBeUndefined()
+  })
+
+  it('reads a mixed-case JSON content type as JSON', async () => {
+    await expect(fs('bad', 'mixed').stat('/a')).rejects.toMatchObject({
+      message: 'expected JSON response: the body is not valid JSON', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+    })
+    await expect(fs('valid', 'mixed').stat('/d/a')).resolves.toMatchObject({ size: 3 })
+  })
+
+  it('reads a mixed-case multipart Boundary parameter', () => {
+    const body = new TextEncoder().encode(
+      '--XyZ\r\nContent-Disposition: form-data; name="file"; filename="/a"\r\nContent-Type: application/octet-stream\r\n\r\nhi\r\n--XyZ--\r\n',
+    )
+    const result = parseBulkReadResult(body, 'Multipart/Form-Data; Boundary="XyZ"')
+    expect(new TextDecoder().decode(result.files['/a'])).toBe('hi')
   })
 })

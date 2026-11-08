@@ -2303,3 +2303,26 @@ async def test_a_valid_json_body_and_a_non_json_content_type_are_unaffected() ->
     assert (await fs.stat("/d/a")).size == 3
     await AsyncFileSystemService(_file_transport(b"{bad", "text/plain")).remove("/a")  # type: ignore[arg-type]
     await AsyncFileSystemService(_file_transport(b"", "application/json")).remove("/a")  # type: ignore[arg-type]
+
+
+@pytest.mark.anyio
+async def test_a_mixed_case_json_content_type_is_still_json() -> None:
+    mixed = "Application/JSON; charset=UTF-8"
+    fs = AsyncFileSystemService(_file_transport(b"{bad", mixed))  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="expected JSON response: the body is not valid JSON"):
+        await fs.stat("/a")
+    fs = AsyncFileSystemService(_file_transport(json.dumps(_FILE_INFO).encode(), mixed))  # type: ignore[arg-type]
+    assert (await fs.stat("/d/a")).size == 3
+
+
+def test_a_mixed_case_multipart_boundary_parameter_is_read() -> None:
+    from daytona.v2._core import parse_bulk_read_result
+
+    body = (
+        b"--XyZ\r\n"
+        b'Content-Disposition: form-data; name="file"; filename="/a"\r\n'
+        b"Content-Type: application/octet-stream\r\n\r\n"
+        b"hi\r\n--XyZ--\r\n"
+    )
+    result = parse_bulk_read_result(body, content_type='Multipart/Form-Data; Boundary="XyZ"')
+    assert result.files == {"/a": b"hi"}

@@ -1173,7 +1173,8 @@ def _request_headers(
 def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
     if response.status_code >= 400:
         raise error_from_response(response.status_code, response.content)
-    content_type = response.headers.get("content-type", "")
+    # Media types are case-insensitive (``Application/JSON``).
+    content_type = response.headers.get("content-type", "").lower()
     if "application/json" in content_type:
         try:
             return parse_json_bytes(response.content)
