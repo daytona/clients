@@ -700,7 +700,9 @@ async function prepareAxiosRequest(
   if (options.authProvider && !options.auth && meta.retriedAfterUnauthorized !== true) {
     // Inside the request's deadline: its signal aborts the exchange when the
     // budget runs out (and relays the caller's own abort).
-    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: config.signal }, remainingBudgetMs(config, instance)))
+    const budget = remainingBudgetMs(config, instance)
+    if (budget < 0) throw requestBudgetTimeout()
+    setAxiosHeader(config, 'Authorization', await authorizationHeaderForAxiosRequest(options.authProvider, { signal: config.signal }, budget))
   }
   if (typeof options.connectionPoolMaxsize === 'number' && !inBrowser()) {
     const agents = await nodeAgentsFor(options.connectionPoolMaxsize)

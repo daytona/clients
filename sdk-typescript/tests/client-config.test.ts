@@ -423,6 +423,13 @@ describe('request timeout meaning', () => {
       expect(seen).toEqual(['Bearer stale'])
     })
 
+    it('times out at once, without waiting on the provider, when the budget is already spent', async () => {
+      const never = { authorizationHeader: (): Promise<string> => new Promise<string>(() => undefined) }
+      const client = createHttpClient(base, undefined, 150, { authProvider: never })
+      const spent = { daytona: { deadlineAt: 0 } } as never
+      await expect(client.get('/thing', spent)).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    })
+
     it.each(['get', 'fetch'] as const)('does not give a sandbox-token retry a fresh window (%s)', async (method) => {
       // bearer 40 ms + 401 after 50 ms + refresh 10 ms + a 100 ms retry is
       // about 200 ms: past the 150 ms deadline, though the retry alone fits.
