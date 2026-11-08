@@ -300,8 +300,10 @@ go test ./cmd -run TestPublicSurface -update   # regenerate api-surface/daytona.
 path with its aliases, positional arguments, the argument counts it accepts
 and the flag groups cobra enforces on it (mutually exclusive, one required,
 required together); every flag with its type, shorthand and default and its
-hidden, persistent, deprecated and required state; and the environment
-variables the CLI reads. `go test` fails when it is stale;
+hidden, persistent and deprecated state and whether cobra marks it required;
+and the environment variables the CLI reads. A requirement the command checks
+itself (such as `image create` needing `--ref` unless `--file` supplies the
+image) is not in the snapshot. `go test` fails when it is stale;
 regenerate it after changing any of them and commit the result.
 
 Wire types are generated from the public `contract/` OpenAPI artifacts and

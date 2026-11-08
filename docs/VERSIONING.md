@@ -204,9 +204,9 @@ new required member of a type callers pass in. In the SDK and CLI surfaces,
 widening a union or adding an enum value counts as compatible, on output
 types too, because clients must handle values they do not know; in
 `contract/*.json`, an enum the contract does not mark open is still compared
-by oasdiff's rules, where a new response value is a break, and the migration
-tool's report fields keep their types (it may only gain fields, values and
-flags). A real break
+by oasdiff's rules, where a new response value is a break. The migration
+tool's report fields keep their types: it may only gain fields, values, flags
+and short aliases for its flags. A real break
 needs a `changelog.d/<id>.breaking.md` fragment in the pull request; the
 maintainer publishing the next release then decides the MAJOR bump. A change
 the check misreads as breaking is acknowledged in
