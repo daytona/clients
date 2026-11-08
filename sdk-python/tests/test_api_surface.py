@@ -210,11 +210,21 @@ Kind = Literal["a", "b"]
 Either = Union[int, str]
 OnKind = Callable[[Kind], None]
 Pair = tuple[Either, Kind]
+Counts = dict[str, int]
+_Map = dict[str, int]
 
-__all__ = ["Kind", "OnKind", "Pair"]
+
+def use(m: _Map) -> None: ...
+
+
+__all__ = ["Kind", "OnKind", "Pair", "Counts", "use"]
 """
     lines = probe_surface(tmp_path, monkeypatch, source)
     assert "OnKind: type = Callable[[Kind], None]" in lines
+    # A parameterised builtin is an alias, not a class (Python 3.10 says
+    # `isinstance(dict[str, int], type)`).
     assert "Pair: type = tuple[Either, Kind]" in lines
+    assert "Counts: type = dict[str, int]" in lines
+    assert "~_Map: type = dict[str, int]" in lines
     # A nested alias that is not exported is listed on its own.
     assert "~Either: type = int | str" in lines

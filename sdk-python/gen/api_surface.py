@@ -480,7 +480,7 @@ class Surface:
         """List ``found`` under ``~Name`` if it is an unlisted ``daytona``
         class or type alias; return its identity when it is a class."""
         obj = found.obj
-        if isinstance(obj, type):
+        if is_class(obj):
             if not obj.__module__.startswith("daytona") or obj.__module__.startswith("daytona.v0"):
                 return None
             if hasattr(obj, "_root_form") and hasattr(obj, "_load"):
@@ -526,7 +526,7 @@ class Surface:
             if found is None:
                 continue
             self.want(found)
-            if isinstance(found.obj, type):
+            if is_class(found.obj):
                 (same if sign > 0 else other).add(id(found.obj))
             elif not isinstance(found.obj, types.ModuleType) and found.home.startswith("daytona"):
                 alias_same, alias_other = self.alias_polar(found.home, found.name)
@@ -622,7 +622,7 @@ class Surface:
         if origin is not None:
             head = self.type_name(origin) if isinstance(origin, type) else str(origin).replace("typing.", "")
             return f"{head}[{', '.join(self.runtime_type(a) for a in args)}]" if args else head
-        if isinstance(obj, type):
+        if is_class(obj):
             self.want(Resolved(obj, obj.__module__, obj.__name__))
             return self.type_name(obj)
         if obj is Ellipsis:
@@ -650,7 +650,7 @@ class Surface:
                 continue
             if own_object(obj):
                 self.named[id(obj)] = name
-                if isinstance(obj, type):
+                if is_class(obj):
                     self.roots.add(id(obj))
             found = resolve_name(module.__name__, name)
             self.value(name, obj, module.__name__, source=(found.home, found.name) if found else None)
@@ -658,7 +658,7 @@ class Surface:
     def value(
         self, name: str, obj: object, module_name: str | None = None, *, source: tuple[str, str] | None = None
     ) -> None:
-        if isinstance(obj, type):
+        if is_class(obj):
             self.cls(name, obj)
         elif isinstance(obj, types.ModuleType):
             self.module_(name, obj)
@@ -941,7 +941,7 @@ class Surface:
         elif inspect.isfunction(raw):
             for node in function_defs(raw, body):
                 self.emit(name, def_kind(node), self.signature(node, module_name, drop_first=True))
-        elif isinstance(raw, type):
+        elif is_class(raw):
             self.emit(name, "class", self.type_name(raw))
         elif isinstance(raw, SCALARS):
             stmts = body.get(name.rsplit(".", 1)[1], [])
@@ -1013,12 +1013,18 @@ def strip_required(annotation_text: str) -> str:
     return f"ReadOnly[{inner}]" if readonly else inner
 
 
+def is_class(obj: object) -> bool:
+    """A class, not a parameterised generic: on Python 3.10, ``dict[str, int]``
+    and ``tuple[int, str]`` are instances of ``type`` too."""
+    return isinstance(obj, type) and not isinstance(obj, types.GenericAlias)
+
+
 def own_object(obj: object) -> bool:
     """Whether an exported value is this package's own declaration (an
     export like ``MacBootMode = str`` names a builtin, which keeps its name)."""
     if isinstance(obj, SCALARS):
         return False
-    return not (isinstance(obj, type) and not obj.__module__.startswith("daytona"))
+    return not (is_class(obj) and not obj.__module__.startswith("daytona"))
 
 
 def render(module_name: str, lines: list[str]) -> str:
