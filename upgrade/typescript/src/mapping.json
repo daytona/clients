@@ -1492,7 +1492,7 @@
         "ts": "clone"
       },
       "v2": {
-        "py": "{sandbox}.git.clone(url, path, branch=branch, commit_id=commit_id, username=username, password=password, insecure_skip_tls=insecure_skip_tls, depth=depth)",
+        "py": "{sandbox}.git.clone(url, path, branch=branch, commit_id=commit_id, username=username, password=password, insecure_skip_tls=insecure_skip_tls, depth=depth, timeout=request_timeout)",
         "ts": "{sandbox}.git.clone(url, { path, branch, commitId, username, password, insecureSkipTls, depth })"
       },
       "category": "differs",
@@ -1688,7 +1688,7 @@
         "ts": "pull"
       },
       "v2": {
-        "py": "{sandbox}.git.pull(path, username=username, password=password, branch=branch, remote=remote)",
+        "py": "{sandbox}.git.pull(path, username=username, password=password, branch=branch, remote=remote, timeout=request_timeout)",
         "ts": "{sandbox}.git.pull(path, { username, password, branch, remote })"
       },
       "category": "differs",
@@ -1711,7 +1711,7 @@
         "ts": "push"
       },
       "v2": {
-        "py": "{sandbox}.git.push(path, username=username, password=password, branch=branch, remote=remote, set_upstream=set_upstream)",
+        "py": "{sandbox}.git.push(path, username=username, password=password, branch=branch, remote=remote, set_upstream=set_upstream, timeout=request_timeout)",
         "ts": "{sandbox}.git.push(path, { username, password, branch, remote, setUpstream })"
       },
       "category": "differs",
