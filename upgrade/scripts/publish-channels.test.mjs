@@ -29,7 +29,7 @@ function step(name) {
 
 function fixture(context) {
   const root = mkdtempSync(join(tmpdir(), 'publish-channels-'));
-  context.after(() => rmSync(root, { recursive: true, force: true }));
+  context.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
   mkdirSync(join(root, 'bin'));
   return root;
 }
