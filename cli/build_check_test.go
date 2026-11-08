@@ -45,6 +45,22 @@ func buildTiny(t *testing.T, dir, name string, flags []string, env ...string) st
 	return out
 }
 
+func TestCheckBinaries_reportsEveryGoodBinaryAfterABadOne(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not on PATH")
+	}
+	dir := t.TempDir()
+	bad := buildTiny(t, dir, "daytona-linux-amd64", nil, "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64")
+	good := buildTiny(t, dir, "daytona-linux-arm64", []string{"-trimpath"}, "CGO_ENABLED=0", "GOOS=linux", "GOARCH=arm64")
+
+	out, err := exec.Command("bash", "hack/check-binaries.sh", "1.26.10", bad, good).CombinedOutput()
+
+	require.Error(t, err, string(out))
+	require.Contains(t, string(out), bad+" lacks 'build -trimpath=true'")
+	require.Contains(t, string(out), good+": go")
+	require.NotContains(t, string(out), bad+": go")
+}
+
 func TestCheckBinaries_readsTheBuildInformation(t *testing.T) {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash not on PATH")

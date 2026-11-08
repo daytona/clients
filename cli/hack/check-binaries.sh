@@ -27,6 +27,7 @@ at_least() {
 
 fail=0
 for bin in "$@"; do
+  bad=0
   if ! info=$(go version -m "$bin" 2>&1); then
     echo "check-binaries: $bin: not a Go binary: $info" >&2
     fail=1; continue
@@ -34,16 +35,16 @@ for bin in "$@"; do
   built=$(sed -n '1s/^[^:]*: go\([0-9][0-9.]*\).*$/\1/p' <<<"$info")
   if [ -z "$built" ] || ! at_least "$built" "$min"; then
     echo "check-binaries: $bin was built with go${built:-?}, below the required go${min}" >&2
-    fail=1
+    bad=1
   fi
   name=$(basename "$bin" .exe)
   goos=$(cut -d- -f2 <<<"$name"); goarch=$(cut -d- -f3 <<<"$name")
   for want in "build	CGO_ENABLED=0" "build	-trimpath=true" "build	GOOS=${goos}" "build	GOARCH=${goarch}"; do
     if ! grep -qxF "	${want}" <<<"$info"; then
       echo "check-binaries: $bin lacks '${want//	/ }' in its build information" >&2
-      fail=1
+      bad=1
     fi
   done
-  [ "$fail" -ne 0 ] || echo "$bin: go${built} ${goos}/${goarch}"
+  if [ "$bad" -eq 0 ]; then echo "$bin: go${built} ${goos}/${goarch}"; else fail=1; fi
 done
 exit "$fail"
