@@ -154,19 +154,26 @@ When an API needs to change:
 ## Release channels
 
 The version's pre-release identifier picks the channel, so it never has to be
-chosen by hand: the publish workflow's gate derives the npm dist-tag from the
-version (output `npm_dist_tag`) and the publish job's npm step publishes with it.
+chosen by hand: the publish workflow's gate derives the channel from the
+version ([`scripts/release-channel.sh`](../scripts/release-channel.sh)), and
+the npm dist-tag, the kind of the CLI's GitHub Release and the Homebrew
+formula follow from it ([RELEASING.md](RELEASING.md), "What a version
+derives").
 
-- **Stable** (`vX.Y.Z`): published to the `latest` tag (npm) / normal release (PyPI).
-- **Pre-release**: each stage has its own npm dist-tag so it never becomes
-  `latest`: `vX.Y.Z-alpha.N` → `alpha`, `vX.Y.Z-beta.N` → `beta`,
-  `vX.Y.Z-rc.N` → `next`; PyPI uses the PEP 440 forms `X.Y.ZaN` / `X.Y.ZbN` /
-  `X.Y.ZrcN` and recognizes them automatically as pre-releases.
-- **Current policy (until general availability): alpha only.** The publish workflow
-  ([RELEASING.md](RELEASING.md)) rejects a version that is not an alpha, so
-  today every npm publish lands on `alpha`; widening to rc, then stable, is
-  decided together with the platform's stable release, and relaxes only that
-  gate — the dist-tag follows the version.
+- **Stable** (`vX.Y.Z`): npm `latest`, a normal PyPI release, a normal GitHub
+  Release of the CLI (GitHub's **Latest** while it is the highest stable
+  release), Homebrew `daytona`. The CLI installers install the highest stable
+  release by default.
+- **Release candidate** (`vX.Y.Z-rc.N`): npm `next`, PyPI `X.Y.ZrcN`, a
+  pre-release GitHub Release, Homebrew `daytona-rc`, installer channel `rc`.
+- **Alpha** (`vX.Y.Z-alpha.N`): npm `alpha`, PyPI `X.Y.ZaN`, a pre-release
+  GitHub Release, Homebrew `daytona-alpha`, installer channel `alpha`.
+- No other pre-release kind is published (no formula or installer channel
+  follows betas). Pre-releases never become npm `latest` or GitHub's
+  **Latest**, and installers take them only with an explicit channel or
+  version.
+- The 0.x line publishes from `release/v0` under `daytona@0` (Homebrew) and,
+  once a stable 2.x release exists, the npm line tag `v0-latest`.
 
 **The published `2.0.0-rc.1` / `2.0.0rc1` outrank every alpha.** Both
 registries already carry a release-candidate from before this policy: npm
@@ -175,7 +182,7 @@ both sort `rc` above `alpha`, so for a resolver those two artifacts beat every
 `2.0.0-alpha.N` / `2.0.0aN` that is published now: `npm update` and a
 `^2.0.0-alpha.N` range resolve to `2.0.0-rc.1`, and `pip install -U --pre
 daytona` resolves to `2.0.0rc1` (the PyPI half and the pin-the-exact-alpha
-advice are in [RELEASING.md](RELEASING.md), "ALPHA-ONLY until general availability").
+advice are in [RELEASING.md](RELEASING.md), "The version picks the channel").
 Users on the rc never move to an alpha through an upgrade command; they
 install the alpha explicitly (`npm install @daytona/sdk@alpha`,
 `pip install daytona==2.0.0aN`). The collision also binds the version space:

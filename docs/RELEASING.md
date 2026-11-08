@@ -8,28 +8,24 @@ How to publish the two client SDKs and the `daytona` CLI.
 > publish workflow derives each registry's spelling from it and records it as
 > the tag `vX.Y.Z[-pre.N]` on the published commit.
 
-> **Preferred path: on-demand release via CI.** Run
+> **The only path: on-demand release via CI.** Run
 > [`.github/workflows/sdk_publish.yaml`](../.github/workflows/sdk_publish.yaml)
 > (Actions → *SDK Publish* → *Run workflow*, or `gh workflow run`). It
 > publishes using **OIDC Trusted Publishing** — no tokens, no 2FA/OTP — and
 > **commits nothing**: the version is stamped into the manifest inside the
-> runner only. The manual steps further down are the fallback.
+> runner only. There is [no manual publish](#no-manual-publish).
 
-> **ALPHA-ONLY until general availability.** The publish workflow
-> **hard-rejects any version that is not an alpha pre-release** — no stable,
-> rc or beta version can ship by accident. The version must be
-> `vX.Y.Z-alpha.K`, which derives Python `X.Y.ZaK` (PEP 440, e.g. `2.0.0a1`)
-> and TypeScript / CLI `X.Y.Z-alpha.K` (e.g. `2.0.0-alpha.1`). npm publishes
-> under the `alpha` dist-tag (never `latest` — see VERSIONING.md "Release
-> channels"), and pip skips PyPI pre-releases unless asked. Tell users to pin
-> the exact alpha (`pip install daytona==X.Y.ZaK`) rather than
-> `pip install --pre daytona`: PEP 440 sorts `rc` above `a`, and a `2.0.0rc1`
-> already exists on PyPI, so `--pre` would resolve that instead of a newer
-> alpha. npm users use `npm install @daytona/sdk@alpha`. Manual publishes must
-> follow the same rule. Widening the gate (rc, then stable) is done by
-> relaxing the alpha-only regexes in `sdk_publish.yaml`'s gate — nothing else:
-> the npm dist-tag is derived from the version (`-rc.N` → `next`, stable →
-> `latest`), so it follows automatically.
+> **The version picks the channel.** The publish workflow accepts
+> `vX.Y.Z` (stable), `vX.Y.Z-rc.N` (release candidate) and `vX.Y.Z-alpha.N`
+> (alpha), and derives everything channel-specific from it
+> ([`scripts/release-channel.sh`](../scripts/release-channel.sh)): the npm
+> dist-tag, whether the CLI's GitHub Release is a pre-release, and which
+> Homebrew formula follows it ([below](#what-a-version-derives)). A beta, or
+> anything else, is refused. Tell users of a pre-release to pin it exactly
+> (`pip install daytona==X.Y.ZaK`, `npm install @daytona/sdk@X.Y.Z-alpha.K`)
+> rather than `pip install --pre daytona`: PEP 440 sorts `rc` above `a`, and a
+> stale `2.0.0rc1` exists on PyPI ([VERSIONING.md](VERSIONING.md), "Release
+> channels").
 
 See also: [VERSIONING.md](VERSIONING.md) · [CHANGELOG.md](../CHANGELOG.md) ·
 [`changelog.d/`](../changelog.d/) (changelog fragments).
@@ -90,13 +86,33 @@ next needs a deployment.
 ## What a version derives
 
 The gate computes these with [`scripts/sdk-version.sh`](../scripts/sdk-version.sh)
+(the registry spellings) and
+[`scripts/release-channel.sh`](../scripts/release-channel.sh) (the channel),
 and rejects anything that is not a release version:
 
 | Target | From `v2.0.0-alpha.3` | Mechanism |
 |---|---|---|
 | npm `@daytona/sdk` | `2.0.0-alpha.3` | `npm version` + `npm run stamp-version` in the runner's checkout |
 | CLI GitHub Release (and tag) | `v2.0.0-alpha.3` | `VERSION=2.0.0-alpha.3 hack/build.sh` (ldflags) |
-| PyPI `daytona` | `2.0.0a3` — PEP 440: `-alpha.N` → `aN`, `-beta.N` → `bN`, `-rc.N` → `rcN`; stable unchanged | `sed` on `pyproject.toml` in the runner's checkout |
+| PyPI `daytona` | `2.0.0a3` — PEP 440: `-alpha.N` → `aN`, `-rc.N` → `rcN`; stable unchanged | `sed` on `pyproject.toml` in the runner's checkout |
+
+| Version | Channel | npm dist-tag | CLI GitHub Release | Homebrew formula (tap workflow) |
+|---|---|---|---|---|
+| `vX.Y.Z-alpha.N` | alpha | `alpha` | pre-release | `daytona-alpha` (`brew_publish_alpha.yaml`) |
+| `vX.Y.Z-rc.N` | rc | `next` | pre-release | `daytona-rc` (`brew_publish_rc.yaml`) |
+| `vX.Y.Z` | stable | `latest` | release; **Latest** when it is the repository's highest stable release | `daytona` (`brew_publish.yaml`) |
+
+The migration tool takes the SDKs' dist-tag. The 0.x line keeps its own
+`daytona@0` formula and publishes from `release/v0`. A stable version below a
+package's current npm `latest` is refused before anything is built
+(`npm publish --tag latest` would move the tag back).
+
+The formulae live in the tap
+[`daytonaio/homebrew-cli`](https://github.com/daytonaio/homebrew-cli)
+([`cli/hack/homebrew/README.md`](../cli/hack/homebrew/README.md)). The gate
+checks that the tap has the channel's formula and a workflow that takes its
+event and names its run after the version; after the tap run, the publish job
+reads the formula back and fails unless it names the published version.
 
 ## Automated release (recommended)
 
@@ -168,7 +184,7 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 |-----|----------|---------|---------------------|---------|
 | Python | [PyPI](https://pypi.org/project/daytona/) | `daytona` | `import daytona` | PEP 440 spelling of the version, stamped into `sdk-python/pyproject.toml` at publish |
 | TypeScript | [npm](https://www.npmjs.com/package/@daytona/sdk) | `@daytona/sdk` | `from '@daytona/sdk'` | the version without `v`, stamped into `sdk-typescript/package.json` + `src/version.ts` at publish |
-| CLI | [GitHub Releases](https://github.com/daytona/clients/releases) + Homebrew `daytona-alpha` | `daytona` | `daytona` | the version, stamped by `hack/build.sh` ldflags at publish |
+| CLI | [GitHub Releases](https://github.com/daytona/clients/releases) + the channel's Homebrew formula | `daytona` | `daytona` | the version, stamped by `hack/build.sh` ldflags at publish; every binary checked with `go version -m` (toolchain at or above `cli/go.mod`'s `go` line) |
 | Migration tool (Python) | [PyPI](https://pypi.org/project/daytona-upgrade/) | `daytona-upgrade` | `uvx daytona-upgrade@<version>` | the PyPI spelling, stamped into `upgrade/python/pyproject.toml` at publish |
 | Migration tool (TypeScript) | [npm](https://www.npmjs.com/package/@daytona/upgrade) | `@daytona/upgrade` | `npx @daytona/upgrade@<version>` | the npm spelling, stamped into `upgrade/typescript/package.json` at publish |
 
@@ -232,167 +248,101 @@ and `node upgrade/scripts/gen-guide.mjs`, and add a changelog fragment.
 > `force_republish=true`, to finish the targets that did not land — do not
 > attempt to overwrite.
 
----
+## The first stable release (2.0.0)
 
-# Manual release (fallback)
+Until a stable 2.x GitHub Release exists, the 0.x line on `release/v0` keeps
+three defaults: the `daytona` Homebrew formula, npm `latest` of
+`@daytona/sdk`, and GitHub's **Latest** release. Its publish workflows look
+for a stable 2.x release on every run (`hack/stable-v2-release.sh` there) and
+stop taking those defaults once one exists. The first stable 2.x run hands
+all three over in one go, so the gate refuses a first stable run without
+`publish_cli`.
 
-## 0. Pre-flight (both SDKs)
+Procedure:
 
-From the repository root:
+1. **Tap.** The tap's `brew_publish.yaml` and `brew_publish_rc.yaml` name
+   their run after the version (`run-name`), like `brew_publish_alpha.yaml`.
+   The gate checks this and fails the run before anything is built
+   otherwise.
+2. **Prepare.** Run `prepare-release.yaml` with `v2.0.0` and merge the
+   release PR.
+3. **No 0.x publish at the same time.** Do not dispatch `release.yaml` or
+   `sdk_publish.yaml` on `release/v0` until step 5 is done. The 2.x run also
+   waits for running `release/v0` publish runs before it dispatches the
+   `daytona` formula update, and reads the formula back afterwards, but a 0.x
+   run started in the gap would still have to be undone.
+4. **Publish** from the merge commit:
 
-```bash
-# TypeScript: types, tests, and a clean build must pass
-cd sdk-typescript && npm install && npm run typecheck && npm test && npm run build && cd ..
+   ```bash
+   gh workflow run sdk_publish.yaml --ref main -f version=v2.0.0
+   ```
 
-# Python: unit tests
-cd sdk-python && .venv/bin/pytest && cd ..   # or your preferred env
-```
+   It publishes PyPI `daytona==2.0.0`, npm `@daytona/sdk@2.0.0` and
+   `@daytona/upgrade@2.0.0` under `latest`, `daytona-upgrade==2.0.0`, the CLI
+   release `v2.0.0` (a normal release, marked **Latest**), and moves the
+   `daytona` formula to `2.0.0`.
+5. **Check:**
 
-Derive the registry versions with the same helper the workflow runs:
+   ```bash
+   npm view @daytona/sdk dist-tags              # latest: 2.0.0
+   npm view @daytona/upgrade dist-tags          # latest: 2.0.0
+   gh release view --repo daytona/clients --json tagName --jq .tagName   # v2.0.0 (Latest)
+   gh api repos/daytonaio/homebrew-cli/contents/daytona.rb --jq .content | base64 -d | grep '^  version'
+   curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh   # installs 2.0.0
+   ```
 
-```bash
-scripts/sdk-version.sh v2.0.0-alpha.3
-# version=2.0.0-alpha.3  npm=2.0.0-alpha.3  cli=2.0.0-alpha.3  cli_tag=v2.0.0-alpha.3  pypi=2.0.0a3
-```
+6. **0.x from then on:** `release/v0` publishes update only `daytona@0`, and
+   an npm publish there needs `npm_tag: v0-latest` (its workflow refuses
+   `latest` once a stable 2.x release exists).
 
-Use those values below; do not pick a number by hand.
+If a 0.x run did overlap and the `daytona` formula shows a 0.x version,
+re-run the 2.x run's failed publish job once the 0.x run has finished: it
+resumes at the Homebrew update.
 
----
+## No manual publish
 
-## 1. Python → PyPI
+There is no manual publish path. A package built outside
+`sdk_publish.yaml` would skip the v0 bundle (`Daytona().v0` would not work),
+the checks of the built artifacts, the migration tool's lockstep and the
+`release` approval. If a run half-lands, resume it (re-run the failed publish
+job, or dispatch the same version from the same commit with
+`force_republish=true`); if the workflow itself is broken, fix it in a pull
+request.
 
-### One-time setup
-
-Build tooling lives in a throwaway virtualenv (kept out of the package dir so it
-never leaks into the sdist):
-
-```bash
-python3 -m venv /tmp/daytona-publish-venv
-/tmp/daytona-publish-venv/bin/pip install --upgrade build twine
-```
-
-> On Debian/Ubuntu you may first need `sudo apt install python3.12-venv`.
-> The venv lives in `/tmp` and does **not** survive a reboot — recreate it when
-> gone.
-
-Store a PyPI API token (from <https://pypi.org/manage/account/token/>) in
-`~/.pypi.token` (the file should contain just the `pypi-...` string).
-
-### Publish
-
-```bash
-cd sdk-python
-
-# 1. Stamp the derived version (the `pypi=` value) into the working tree — do not commit it.
-#    Edit pyproject.toml -> [project].version = "X.Y.ZaK"  (PEP 440 alpha — see the alpha-only note above)
-
-# 2. Clean + build sdist and wheel.
-rm -rf dist build
-/tmp/daytona-publish-venv/bin/python -m build
-
-# 3. Validate metadata renders on PyPI.
-/tmp/daytona-publish-venv/bin/python -m twine check dist/*
-
-# 4. Upload.
-/tmp/daytona-publish-venv/bin/python -m twine upload dist/* \
-  -u __token__ -p "$(tr -d '\n\r' < ~/.pypi.token)"
-```
-
-Username is literally `__token__`; the password is the token.
-
-Verify:
+To reproduce a release build locally (nothing is uploaded), run what the
+build jobs of `sdk_publish.yaml` run, including the v0 bundle:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://pypi.org/pypi/daytona/json   # 200
-pip install "daytona==X.Y.ZaK"   # the alpha you just published; a bare install finds no stable release
-python -c "import daytona; print(daytona.Daytona)"
+scripts/sdk-version.sh v2.0.0                     # the registry spellings
+scripts/release-channel.sh v2.0.0                 # the channel
+bash scripts/bundle-v0.sh --lang all              # the pinned v0 namespace (scripts/v0-sdk-version)
+(cd sdk-python && python -m build && python ../scripts/check_dist_artifacts.py python dist --v0)
+(cd sdk-typescript && npm install && DAYTONA_REQUIRE_V0_BUNDLE=1 npm run build \
+  && npm pack --pack-destination pack && python3 ../scripts/check_dist_artifacts.py npm pack --v0)
+(cd cli && VERSION=2.0.0 ./hack/build.sh)       # six binaries, SHA256SUMS, go version -m check
 ```
 
----
-
-## 2. TypeScript → npm
-
-### One-time setup
-
-You must be logged in to npm as a user with publish rights on `@daytona/sdk`.
-
-> **Important — npm auth gotcha:**
-> npm now **blocks granular / automation access tokens from directly
-> publishing** (see <https://gh.io/npm-gat-bypass2fa-deprecation>). Symptoms:
-> `npm publish` returns
-> `403 ... Two-factor authentication or granular access token with bypass 2fa
-> enabled is required`, and **`--otp` is silently ignored**.
->
-> The reliable path is an **interactive browser login** (the default `npm login`
-> web flow), which creates a session npm accepts for publishing:
->
-> ```bash
-> npm login          # opens a browser; complete the login there
-> npm whoami         # must print your username
-> ```
->
-> If you hit `EOTP`, that's good — auth succeeded and it just wants the code
-> (npm may email it). Re-run with `--otp=CODE`.
-
-### Publish
-
-```bash
-cd sdk-typescript
-
-# 1. Stamp the derived version (the `npm=` value) into the working tree — do not commit it.
-npm version X.Y.Z-alpha.K --no-git-tag-version  # alpha-only until general availability (updates package.json + lockfile)
-
-# 2. Publish. `prepublishOnly` runs `clean && build` automatically (and build's
-#    prebuild re-stamps src/version.ts), so the freshly compiled dist/
-#    (ESM + CJS + .d.ts) is what ships.
-npm publish --access public --tag alpha
-
-#    If the account requires an OTP, append it (check email/authenticator):
-#    npm publish --otp=CODE
-```
-
-Notes:
-- `publishConfig.access` is `public` in `package.json`, so no `--access` flag
-  is needed even though npm defaults new packages to restricted for orgs.
-- `dist/` is gitignored; it is (re)built by `prepublishOnly` at publish time and
-  included via the `files` allowlist. Never commit `dist/`.
-- To ship a pre-built dir without rebuilding, use
-  `npm publish --ignore-scripts` (only if you already ran `npm run build`).
-
-Verify:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://registry.npmjs.org/@daytona%2fsdk   # 200
-npm view @daytona/sdk@alpha version   # the alpha dist-tag; `latest` is the pre-V2 line and never moves
-```
-
----
-
-## 3. Post-release
-
-Discard the stamped manifests (`git checkout -- sdk-python/pyproject.toml
-sdk-typescript/package.json sdk-typescript/package-lock.json
-sdk-typescript/src/version.ts`) — the CI path does not read the tracked `version`
-fields either — and tag the published commit `vX.Y.Z[-pre.N]`.
+The build jobs also run both SDKs' suites and smoke tests against the bundle
+(`build-python`, `build-npm`). Discard the bundle afterwards
+(`git clean -fdX sdk-python/src/daytona/v0 sdk-typescript/src/v0` and
+`git checkout -- sdk-python/pyproject.toml sdk-typescript/package.json
+sdk-typescript/package-lock.json`).
 
 ## Publish checklist
 
 - [ ] The version is right for the branch (`scripts/sdk-version.sh <version>`
-      shows what each registry gets)
-- [ ] Pre-flight passed (typecheck, tests, build) for both SDKs
-- [ ] `twine check` passed (Python, manual path)
-- [ ] `npm pack --dry-run` looks right (TS, manual path): includes `dist/` + `README.md`
-- [ ] Published + verified install on both registries (and the CLI release,
-      when published)
+      and `scripts/release-channel.sh <version>` show what each target gets)
 - [ ] Stable / rc: the prepare-release PR merged before publishing
+- [ ] The run summary shows every requested target published
 - [ ] The version's tag points at the published commit
+- [ ] The first stable 2.x release: [its procedure](#the-first-stable-release-200)
 
 ---
 
 ## References
 
-- [Automated release](#automated-release-recommended) — the CI workflow (top of
-  this doc) is the recommended path; the manual steps above are the fallback.
+- [Automated release](#automated-release-recommended) — the CI workflow, the
+  only publish path.
 - [VERSIONING.md](VERSIONING.md) — one version line, what the numbers mean,
   the compatibility window.
 - PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/).
