@@ -85,7 +85,7 @@ async function main(): Promise<number> {
       ok = false
     }
   } finally {
-    if (!KEEP || boxes.some((box) => box.state !== 'started')) {
+    if (!KEEP) {
       for (const box of boxes) {
         try {
           await box.delete()

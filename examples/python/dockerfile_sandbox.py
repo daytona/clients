@@ -136,7 +136,7 @@ def main() -> int:
             except Exception as exc:
                 info(f"could not delete {sandbox.id}: {exc}")
         elif sandbox is not None:
-            info(f"DAYTONA_KEEP=1 — leaving {sandbox.id} running")
+            info(f"DAYTONA_KEEP=1 — leaving {sandbox.id} ({sandbox.state}) in place")
             info(f'connect with: daytona.get("{sandbox.id}")')
 
     return 0 if ok else 1

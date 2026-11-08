@@ -113,7 +113,7 @@ async function main() {
     }
   } finally {
     section('cleanup')
-    if (sandbox && (!keep || sandbox.state !== 'started')) {
+    if (sandbox && !keep) {
       try {
         await daytona.delete(sandbox)
         info(`deleted ${sandbox.id}`)
@@ -122,7 +122,7 @@ async function main() {
         info(`could not delete ${sandbox.id}: ${error}`)
       }
     } else if (sandbox) {
-      info(`DAYTONA_KEEP=1 — leaving ${sandbox.id} running`)
+      info(`DAYTONA_KEEP=1 — leaving ${sandbox.id} (${sandbox.state ?? 'unknown'}) in place`)
       info(`connect with: daytona.get('${sandbox.id}')`)
     }
   }
