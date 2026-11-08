@@ -339,6 +339,41 @@ func TestInstallSh_anEmptyPageWithWhitespaceEndsTheList(t *testing.T) {
 	require.Equal(t, 2, requests)
 }
 
+// 50 pages are read; one release per page stands in for 100.
+var (
+	fiftyPages     = releaseIndex{tags: append([]string{"v2.0.1"}, repeatTags("v0.%d.0", 49)...), pageSize: 1}
+	fiftyOnePages  = releaseIndex{tags: append([]string{"v2.0.1"}, repeatTags("v0.%d.0", 50)...), pageSize: 1}
+	tooManyMessage = "daytona/clients has more than 5000 releases, more than this installer reads"
+)
+
+func TestInstallSh_readsUpToFiftyPagesAndFailsBeyond(t *testing.T) {
+	out, got, requests, err := runInstallShRequests(t, "sh install.sh", fiftyPages)
+	require.NoError(t, err, out)
+	require.Equal(t, "2.0.1", got)
+	require.Equal(t, 51, requests, "50 pages and the empty one after them")
+
+	out, got, requests, err = runInstallShRequests(t, "sh install.sh", fiftyOnePages)
+	require.Error(t, err, out)
+	require.Contains(t, out, tooManyMessage+"; pass --version X.Y.Z")
+	require.Empty(t, got)
+	require.Equal(t, 51, requests)
+}
+
+func TestInstallPs1_readsUpToFiftyPagesAndFailsBeyond(t *testing.T) {
+	const command = `Get-Content -Raw $env:MOCK_INSTALL_PS1 | Invoke-Expression`
+	out, got, requests, err := runInstallPs1Requests(t, command, fiftyPages)
+	require.NoError(t, err, out)
+	require.NotContains(t, out, "INSTALL_FAILED")
+	require.Equal(t, "2.0.1", got)
+	require.Equal(t, 51, requests, "50 pages and the empty one after them")
+
+	out, got, requests, err = runInstallPs1Requests(t, command, fiftyOnePages)
+	require.NoError(t, err, out)
+	require.Contains(t, out, "INSTALL_FAILED: "+tooManyMessage+"; set DAYTONA_VERSION")
+	require.Empty(t, got)
+	require.Equal(t, 51, requests)
+}
+
 func TestInstallSh_failsWhenTheReleasesCannotBeListed(t *testing.T) {
 	out, got, err := runInstallSh(t, "sh install.sh", postGAIndex, "DAYTONA_RELEASE_REPO=daytona/unreachable")
 

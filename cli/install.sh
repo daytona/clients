@@ -5,7 +5,7 @@
 # Install the daytona CLI (Linux/macOS).
 #
 #   curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh
-#   … | sh -s -- --channel rc                  # newest release candidate or stable
+#   … | sh -s -- --channel rc                  # highest release candidate or stable release
 #   … | sh -s -- --version 2.1.0-alpha.2       # an exact version
 #   … | DAYTONA_INSTALL_DIR=~/.local/bin sh    # a custom directory
 #
@@ -118,10 +118,15 @@ if [ -z "$VERSION" ]; then
       echo "could not read the release list of ${REPO} (page ${page}); pass --version X.Y.Z" >&2
       exit 1
     fi
+    # At most 50 pages (5,000 releases) are read; a longer list is an error,
+    # never a truncated one.
+    if [ "$page" -gt 50 ]; then
+      echo "${REPO} has more than 5000 releases, more than this installer reads; pass --version X.Y.Z" >&2
+      exit 1
+    fi
     tags="${tags}${found}
 "
     page=$((page + 1))
-    [ "$page" -le 50 ] || break
   done
   # Drafts never count, and a stable-looking tag GitHub marks as a pre-release
   # is not stable.

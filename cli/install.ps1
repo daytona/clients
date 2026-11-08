@@ -4,7 +4,7 @@
 # Install the daytona CLI on Windows.
 #
 #   irm https://raw.githubusercontent.com/daytona/clients/main/cli/install.ps1 | iex
-#   $env:DAYTONA_CHANNEL = "rc"; irm … | iex              # newest release candidate or stable
+#   $env:DAYTONA_CHANNEL = "rc"; irm … | iex              # highest release candidate or stable release
 #   $env:DAYTONA_VERSION = "2.1.0-alpha.2"; irm … | iex   # an exact version
 #
 # Without DAYTONA_VERSION it installs the highest stable 2.x release (vX.Y.Z),
@@ -40,11 +40,14 @@ if (-not $Version) {
   # Every published release of the repository (it also carries the 0.x line).
   # GitHub lists drafts only to maintainers.
   $tags = @()
-  for ($page = 1; $page -le 50; $page++) {
+  for ($page = 1; ; $page++) {
     # Invoke-RestMethod writes a JSON array as ONE object: the inner
     # parentheses enumerate it, so $releases holds one entry per release.
     $releases = @((Invoke-RestMethod "https://api.github.com/repos/$Repo/releases?per_page=100&page=$page" -UseBasicParsing))
     if ($releases.Count -eq 0) { break }
+    # At most 50 pages (5,000 releases) are read; a longer list is an error,
+    # never a truncated one.
+    if ($page -gt 50) { throw "$Repo has more than 5000 releases, more than this installer reads; set DAYTONA_VERSION" }
     # Drafts never count, and a stable-looking tag GitHub marks as a
     # pre-release is not stable.
     $tags += @($releases | Where-Object { -not $_.draft -and -not ($_.prerelease -and "$($_.tag_name)" -notlike "*-*") } | ForEach-Object { $_.tag_name })
