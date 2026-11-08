@@ -1008,7 +1008,7 @@ LifecyclePolicyConfig.on_idle_timeout: optional key LifecycleAction
 LifecyclePolicyConfig.on_timeout: optional key LifecycleAction
 LifecyclePolicyConfig.timeout_seconds: optional key int
 LimitExceededError: class (DaytonaRateLimitError)
-ListResult: dataclass frozen
+ListResult: dataclass frozen <T>
 ListResult.__init__: internal-constructor (items: list[T], next_cursor: str | None = None, total: int | None = None, total_relation: SearchTotalRelation | None = None, raw_total_relation: str | None = None) -> None
 ListResult.__iter__: def () -> Iterator[T]
 ListResult.items: field list[T]
@@ -1677,7 +1677,7 @@ ScreenService.__init__: internal-constructor (impl: _async.AsyncScreenService, b
 ScreenService.screenshot: def (*, region: ComputerUseRegion | None = None, format: ComputerUseScreenshotFormat | None = None, quality: int | None = None, scale: float | None = None, show_cursor: bool | None = None) -> ComputerUseScreenshot
 SearchNotConfiguredError: class (DaytonaNotSupportedError)
 SearchOrder: type = Literal['asc', 'desc']
-SearchResult: dataclass frozen
+SearchResult: dataclass frozen <T>
 SearchResult.__init__: internal-constructor (items: list[T], next_cursor: str | None = None, total: int = 0, total_relation: SearchTotalRelation = 'eq', raw_total_relation: str = 'eq') -> None
 SearchResult.__iter__: def () -> Iterator[T]
 SearchResult.items: field list[T]

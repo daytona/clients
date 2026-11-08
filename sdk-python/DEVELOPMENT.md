@@ -197,7 +197,8 @@ or a field of one; a dataclass whose fields are all private is built by a
 factory). A TypedDict or protocol callers pass in gets a `Name: passed-in`
 line: a new required key or member of it is a breaking change (required-ness
 of TypedDict keys is read from `Required[...]` / `NotRequired[...]` and
-`total=` in the source). Annotations and defaults come from the source, so the text is the
+`total=` in the source). Class lines carry their generic parameters
+(`ListResult: dataclass frozen <T>`). Annotations and defaults come from the source, so the text is the
 same on every supported Python. Regenerate after any change
 to the public surface and commit the result; CI runs the check:
 

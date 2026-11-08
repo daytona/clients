@@ -88,3 +88,8 @@ def test_types_callers_pass_in_are_marked() -> None:
 def test_a_base_from_the_other_namespace_is_qualified() -> None:
     lines = snapshot("daytona.v2.api.txt")
     assert "DaytonaError: class (daytona.DaytonaError)" in lines
+
+
+def test_generic_parameters_are_printed() -> None:
+    lines = snapshot("daytona.v2.api.txt")
+    assert "ListResult: dataclass frozen <T>" in lines

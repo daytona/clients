@@ -705,6 +705,10 @@ class Surface:
             return
         bases = self.public_bases(cls)
         based = f"({', '.join(bases)})" if bases else ""
+        # Generic parameters, like TypeScript's `interface <T>`.
+        params = [p for p in getattr(cls, "__parameters__", ()) if isinstance(p, typing.TypeVar)]
+        if params:
+            based = f"<{', '.join(p.__name__ for p in params)}>{' ' + based if based else ''}"
         if dataclasses.is_dataclass(cls):
             params = cls.__dataclass_params__  # type: ignore[attr-defined]
             flags = " frozen" if params.frozen else ""
@@ -715,7 +719,8 @@ class Surface:
             for member in cls:
                 self.emit(f"{name}.{member.name}", "enum-member", f"= {member.value!r}")
         elif typing.is_typeddict(cls) if hasattr(typing, "is_typeddict") else False:
-            self.emit(name, "typeddict", "total" if cls.__total__ else "total=False")
+            total = "total" if cls.__total__ else "total=False"
+            self.emit(name, "typeddict", f"{based.split(' ', 1)[0]} {total}" if based.startswith("<") else total)
             self.typeddict(name, cls)
             return
         elif getattr(cls, "_is_protocol", False):
