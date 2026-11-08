@@ -84,17 +84,23 @@ internal modules not re-exported from the entry point, the `X-Daytona-Source` /
 
 ## Pre-stable (alpha)
 
-Until the platform cuts `2.0.0`, every release is a `2.0.0-alpha.N`
-pre-release and the SDK surface is considered unstable: **breaking changes
-may land in any alpha.** Pre-stable, the spec diff is not classified into
-major/minor/patch — a spec change drafts the next alpha counter. We still
-call breaking changes out explicitly in the changelog, as a
+Before `2.0.0`, every release was a `2.0.0-alpha.N` pre-release, the SDK
+surface was considered unstable, and **breaking changes could land in any
+alpha.** The spec diff was not classified into major/minor/patch then: a spec
+change drafted the next alpha counter.
+
+Pre-releases after `2.0.0` (`-alpha.N`, `-rc.N`, see
+[Release channels](#release-channels)) keep those rules for the release they
+lead up to: **breaking changes may land between the pre-releases of the next
+MAJOR, never in a stable MINOR or PATCH.** A pre-release of a MINOR may change
+what that MINOR adds until its stable release, but not what a stable release
+already shipped.
+
+Either way, breaking changes are called out in the changelog, as a
 `<id>.breaking.md` fragment under [`changelog.d/`](../changelog.d/), which the
 release assembles into the `### BREAKING` section of
-[CHANGELOG.md](../CHANGELOG.md).
-
-Cutting `2.0.0` is a platform decision; after it, breaking changes require a
-MAJOR bump.
+[CHANGELOG.md](../CHANGELOG.md). Since `2.0.0`, a breaking change in a stable
+release requires a MAJOR bump.
 
 ## Two SDKs, one version line
 

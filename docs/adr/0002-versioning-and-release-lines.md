@@ -42,22 +42,19 @@ that version. [`../../scripts/sdk-version.sh`](../../scripts/sdk-version.sh)
 derives each registry's spelling: `v2.0.0-alpha.3` becomes `2.0.0-alpha.3` on
 npm and the CLI, and `2.0.0a3` (PEP 440) on PyPI.
 
-**Pre-release channels follow the version.** The version's pre-release
-identifier picks the npm dist-tag, so nobody chooses it by hand:
+**Channels follow the version.** The version's pre-release identifier picks
+the channel, so nobody chooses a dist-tag, a release kind or a Homebrew
+formula by hand ([`../../scripts/release-channel.sh`](../../scripts/release-channel.sh)):
 
-| Version | npm dist-tag | PyPI |
-|---|---|---|
-| `vX.Y.Z` | `latest` | normal release |
-| `vX.Y.Z-alpha.N` | `alpha` | `X.Y.ZaN` |
-| `vX.Y.Z-beta.N` | `beta` | `X.Y.ZbN` |
-| `vX.Y.Z-rc.N` | `next` | `X.Y.ZrcN` |
+| Version | npm dist-tag | PyPI | CLI GitHub Release | Homebrew formula |
+|---|---|---|---|---|
+| `vX.Y.Z` | `latest` | normal release | normal release (Latest when it is the highest stable release) | `daytona` |
+| `vX.Y.Z-rc.N` | `next` | `X.Y.ZrcN` | pre-release | `daytona-rc` |
+| `vX.Y.Z-alpha.N` | `alpha` | `X.Y.ZaN` | pre-release | `daytona-alpha` |
 
-A pre-release never becomes `latest`.
-
-**Alpha only until general availability.** The publish gate rejects any
-version that isn't an alpha. Widening to release candidates, and then to
-stable, means relaxing that gate and nothing else: the dist-tag already
-follows the version.
+A pre-release never becomes `latest` or the Latest release. The publish gate
+takes alpha, rc and stable versions; no channel follows betas, so the gate
+refuses them. The 0.x line keeps the `daytona@0` formula.
 
 **Two release lines, same-named workflows.**
 
@@ -101,10 +98,11 @@ pre-release on `latest`. Deriving it from the version removes the mistake.
 - A fix in one SDK ships only when the next release publishes both.
 - Contributors never edit version fields. Maintainers pick no numbers by hand
   either: the contract diff and the version input decide.
-- Every release before general availability is an alpha. npm users install it
-  with `npm install @daytona/sdk@alpha`; Python users pin the exact alpha,
-  because a release candidate published to PyPI earlier sorts above every
-  alpha.
+- Every release before `2.0.0` was an alpha. Pre-release users install a
+  channel explicitly (`npm install @daytona/sdk@alpha` or `@next`, a pinned
+  PyPI version, `--channel alpha` for the CLI installer); Python users pin the
+  exact pre-release, because a release candidate published to PyPI before
+  `2.0.0` sorts above every `2.0.0` alpha.
 - Registries refuse to re-upload a version. A half-finished publish resumes
   with `force_republish`, which skips targets that already landed and never
   overwrites one.
