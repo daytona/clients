@@ -623,7 +623,8 @@ skipping exist only in the TypeScript tool).
   stream that ends or breaks before `start`, a cancellation) is raised from
   it and never calls the exit callback. A process log stream cut short is
   `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
-  and one that ends without `eof` means "resume from the last cursor".
+  and so is one that ends without `eof`: the server ends it with `eof`, so
+  an iteration that ends normally always has the whole log.
 - **Toolbox results are SDK-owned models.** File info, grep / replace items,
   git status / commits / remotes, system metrics, the LSP types and the
   computer-use results are hand-written (Python frozen keyword-only

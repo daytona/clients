@@ -632,10 +632,10 @@ event of a supported type (an event of another type is skipped), each
 carrying its resume `cursor`, and stops after the `eof` event: `StreamLogFrameEvent` (a
 `LogFrame` on `.frame`), `StreamLogStateEvent` (the process ended),
 `StreamLogWarningEvent` (older frames were evicted) and `StreamLogEofEvent`;
-a stream error raises its typed error and a stream cut short raises
-`ConnectionError`. An iteration that ends without a `StreamLogEofEvent` did
-not reach the end of the log: call `stream_logs(cursor=...)` again with the
-last event's cursor. `timeout=` is the
+a stream error raises its typed error. The sandbox ends the stream with
+`eof`, so an iteration that ends normally has the whole log; a stream cut
+short, or one that ends without `eof`, raises `ConnectionError`: call
+`stream_logs(cursor=...)` again with the last event's cursor. `timeout=` is the
 caller wait budget **(seconds)**, and `timeout=0` means wait unbounded.
 `execution_timeout=` is the process deadline **(seconds)** for server-managed
 runs that support one; `kill(escalate_after=)` is in seconds too. Signals are
@@ -716,10 +716,10 @@ does not call it. `stop()` returns once a callback that
 is already running, and `on_exit`, have finished, and a callback (or
 `on_exit`) may stop its own watch, also from a task it started.
 With the synchronous `Daytona` client the callbacks run on the SDK's
-event-loop thread: there a callback may call its own watch's `stop()` (which
-then returns without waiting), `wait_for_exit()` and `exit_error`, but no other
-synchronous SDK method, another watch's included (that raises a
-`DaytonaError`, which ends the watch).
+event-loop thread. There a callback may call its own watch's `stop()` (which
+returns without waiting), `wait_for_exit()` and `exit_error`. Any other
+synchronous SDK call, including another watch's methods, raises a
+`DaytonaError` (source `SDK`, no code), which ends the watch.
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
@@ -757,8 +757,9 @@ recreate it.
 ### Git
 
 `clone()`, `pull()` and `push()` use a dedicated **30-minute** remote-operation
-deadline by default, and each accepts a positive per-call `timeout=` override
-**(seconds)**.
+deadline by default, and each accepts a per-call `timeout=` override
+**(seconds)**: one total deadline for the whole request (`0` means no limit,
+as for every timeout).
 `clone()` also accepts `depth=` for shallow clones and
 `insecure_skip_tls=True` for one clone operation. `pull()` and `push()` accept
 `branch=` and `remote=`; `push()` also accepts `set_upstream=True`.

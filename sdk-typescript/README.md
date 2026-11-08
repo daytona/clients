@@ -578,9 +578,10 @@ delete its context or session), signal-aware `kill()` with escalation,
 type is skipped), each carrying its resume `cursor`, and stops after `eof`
 (`StreamLogFrameEvent`, `StreamLogStateEvent`, `StreamLogWarningEvent`,
 `StreamLogEofEvent`, told apart by `type`); a stream error throws its typed
-error and a stream cut short throws `ConnectionError`. An iteration that ends
-without a `StreamLogEofEvent` did not reach the end of the log: call
-`streamLogs({ cursor })` again with the last event's cursor. Every duration is in seconds: `timeoutSeconds` is the caller wait
+error. The sandbox ends the stream with `eof`, so an iteration that ends
+normally has the whole log; a stream cut short, or one that ends without
+`eof`, throws `ConnectionError`: call `streamLogs({ cursor })` again with the
+last event's cursor. Every duration is in seconds: `timeoutSeconds` is the caller wait
 budget (omitted or `0` waits unbounded), `executionTimeoutSeconds` the process
 deadline for server-managed runs that support one, and
 `kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
@@ -698,8 +699,9 @@ code-process handle later does not recreate it.
 ### Git
 
 `clone()`, `pull()` and `push()` use a dedicated **30-minute** remote-operation
-deadline by default, and each accepts a positive per-call `timeoutSeconds`
-override. The deadline bounds the whole request, not each read.
+deadline by default, and each accepts a per-call `timeoutSeconds` override:
+one total deadline for the whole request, not each read (`0` means no limit,
+as for every timeout).
 
 `git.clone(url, { path, branch, commitId, depth, insecureSkipTls, username,
 password })` adds optional shallow-clone depth and per-call TLS verification

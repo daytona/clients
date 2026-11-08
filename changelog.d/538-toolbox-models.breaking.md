@@ -33,13 +33,15 @@ computer-use `start()` / `stop()` status map, a `get_config()` / `getConfig()`
 value (a string or null), the error parts of `read_many()` / `readMany()`
 (both require a string `path` and `message`, which were filled in with empty
 strings, and leave the optional `code` / `source` absent / `None` when not
-sent; a part of any other type, or that is not valid UTF-8 JSON, is refused)
-and a window id up to 2^53 - 1, and `glob()` accepts only the API's
-`{ files }` response. A process log stream or watch skips an event it does not
-know (whatever its data) and raises the error for a known event whose data is
-not JSON; Python ended the stream with a `JSONDecodeError`. `mkdir()` defaults
-to mode `"0755"` in both SDKs. TypeScript `readText()` decodes strictly as
-UTF-8 and keeps a leading byte-order mark, like Python;
-`WriteFileOptions.mode` is removed (use `chmod()`), as are the aliases
-`Match`, `SearchFilesResponse`, `FilePermissionsParams` and
-`ListBranchResponse`.
+sent; a part of any other type, or that is not valid UTF-8 JSON, is refused) a
+window id up to 2^53 - 1 and a `cpuUtilization` between 0 and 1, and the
+interpreter session responses for the fields they read (`id`, `kernel`; a
+missing or empty `id` names a context id the caller chose, which may have been
+created), and `glob()` accepts only the API's `{ files }` response. A process
+log stream or watch skips an event it does not know (whatever its data) and
+raises the error for a known event whose data is not JSON; Python ended the
+stream with a `JSONDecodeError`. `mkdir()` defaults to mode `"0755"` in both
+SDKs. TypeScript `readText()` decodes strictly as UTF-8 and keeps a leading
+byte-order mark, like Python; `WriteFileOptions.mode` is removed (use
+`chmod()`), as are the aliases `Match`, `SearchFilesResponse`,
+`FilePermissionsParams` and `ListBranchResponse`.

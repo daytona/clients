@@ -173,8 +173,9 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
   message names it: "`CreateSandboxOptions: \`timeout\` was renamed to
   \`timeoutSeconds\` (seconds)`". The table covers `timeout`,
   `executionTimeout`, `escalateAfter`, `requestTimeout`, the 0.x client
-  configuration's `requestTimeoutMs`, `reconcileIntervalMs`, `idleCloseMs`
-  and `delay` (`keyboard.type()`); add a row when another option is renamed.
+  configuration's `requestTimeoutMs`, `reconcileIntervalMs` and
+  `idleCloseMs`, and the `keyboard.type()` option `delay`; add a row when
+  another option is renamed.
 - Check the options object itself, and nested SDK-defined option objects
   (the root checks `config.events` as `SandboxEventsConfig`, `pty.start()`
   checks `terminal` as `TerminalSize`); never a pass-through map (`env`,
