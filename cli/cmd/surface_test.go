@@ -105,6 +105,7 @@ func commandSurface(root *cobra.Command) []string {
 		_, args, _ := strings.Cut(c.Use, " ")
 		lines = append(lines, strings.TrimSpace(path+": usage "+strings.TrimSpace(args)))
 		lines = append(lines, path+": args "+acceptedArgs(c))
+		lines = append(lines, flagGroups(c)...)
 		for _, alias := range c.Aliases {
 			lines = append(lines, path+": alias "+alias)
 		}
@@ -119,11 +120,17 @@ func commandSurface(root *cobra.Command) []string {
 }
 
 // argsProbed matches ARGS_PROBED in scripts/breaking/breaking_changes.py.
-const argsProbed = 6
+const argsProbed = 16
+
+// argsUnbounded stands for "any number": a validator that also accepts this
+// many arguments has no upper bound the CLI would reach.
+const argsUnbounded = 4096
 
 // acceptedArgs probes the command's argument validator with 0..argsProbed
-// arguments and spells the counts it accepts: "1", "0-2", "1+" (up to the
-// probe limit), "none".
+// arguments and spells the counts it accepts: "1", "0-2", "1+" (no upper
+// bound), "none". A count range that reaches argsProbed is written "N+" only
+// when the validator also accepts argsUnbounded arguments, so a new upper
+// bound shows up.
 func acceptedArgs(c *cobra.Command) string {
 	var accepted []int
 	for n := 0; n <= argsProbed; n++ {
@@ -131,6 +138,7 @@ func acceptedArgs(c *cobra.Command) string {
 			accepted = append(accepted, n)
 		}
 	}
+	unbounded := c.ValidateArgs(make([]string, argsUnbounded)) == nil
 	if len(accepted) == 0 {
 		return "none"
 	}
@@ -141,7 +149,7 @@ func acceptedArgs(c *cobra.Command) string {
 			j++
 		}
 		switch {
-		case accepted[j] == argsProbed:
+		case accepted[j] == argsProbed && unbounded:
 			parts = append(parts, strconv.Itoa(accepted[i])+"+")
 		case i == j:
 			parts = append(parts, strconv.Itoa(accepted[i]))
@@ -151,6 +159,35 @@ func acceptedArgs(c *cobra.Command) string {
 		i = j + 1
 	}
 	return strings.Join(parts, ",")
+}
+
+// Cobra's flag-group annotations (MarkFlagsMutuallyExclusive,
+// MarkFlagsOneRequired, MarkFlagsRequiredTogether).
+var flagGroupKinds = map[string]string{
+	"cobra_annotation_mutually_exclusive":     "mutually-exclusive",
+	"cobra_annotation_one_required":           "one-required",
+	"cobra_annotation_required_if_others_set": "required-together",
+}
+
+// flagGroups lists the command's flag groups, one line each:
+// `<path>: flag-group <kind> <flag> <flag>...`.
+func flagGroups(c *cobra.Command) []string {
+	seen := map[string]bool{}
+	var lines []string
+	c.LocalFlags().VisitAll(func(f *pflag.Flag) {
+		for annotation, kind := range flagGroupKinds {
+			for _, group := range f.Annotations[annotation] {
+				names := strings.Fields(group)
+				sort.Strings(names)
+				line := c.CommandPath() + ": flag-group " + kind + " " + strings.Join(names, " ")
+				if !seen[line] {
+					seen[line] = true
+					lines = append(lines, line)
+				}
+			}
+		}
+	})
+	return lines
 }
 
 func flagLine(path string, f *pflag.Flag, persistent bool) string {
@@ -524,5 +561,22 @@ func f(key string) { read := os.Getenv; read(key) }
 `)
 	if _, err := envSurface(dynamic); err == nil || !strings.Contains(err.Error(), "not a string constant") {
 		t.Fatalf("a read with a dynamic name must fail, got %v", err)
+	}
+}
+
+func TestCommandSurfaceRecordsArgumentBoundsAndFlagGroups(t *testing.T) {
+	root := &cobra.Command{Use: "x"}
+	arbitrary := &cobra.Command{Use: "any [args]...", Args: cobra.ArbitraryArgs, Run: func(*cobra.Command, []string) {}}
+	six := &cobra.Command{Use: "six [args]...", Args: cobra.RangeArgs(0, 6), Run: func(*cobra.Command, []string) {}}
+	grouped := &cobra.Command{Use: "grouped", Run: func(*cobra.Command, []string) {}}
+	grouped.Flags().Bool("json", false, "")
+	grouped.Flags().Bool("yaml", false, "")
+	grouped.MarkFlagsMutuallyExclusive("yaml", "json")
+	root.AddCommand(arbitrary, six, grouped)
+	lines := strings.Join(commandSurface(root), "\n")
+	for _, want := range []string{"x any: args 0+", "x six: args 0-6", "x grouped: flag-group mutually-exclusive json yaml"} {
+		if !strings.Contains(lines, want) {
+			t.Errorf("missing %q in:\n%s", want, lines)
+		}
 	}
 }

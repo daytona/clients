@@ -297,8 +297,8 @@ go test ./cmd -run TestPublicSurface -update   # regenerate api-surface/daytona.
 ```
 
 `api-surface/daytona.api.txt` lists the CLI's public surface: every command
-path with its aliases, positional arguments and the argument counts it
-accepts, every flag with its type,
+path with its aliases, positional arguments, the argument counts it accepts
+and its flag groups (mutually exclusive, one required, required together), every flag with its type,
 shorthand and default, and the environment variables the CLI reads. `go test` fails when it is stale;
 regenerate it after changing any of them and commit the result.
 
