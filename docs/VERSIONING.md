@@ -187,6 +187,21 @@ later. Deprecating the npm
 rc (`npm deprecate`) or yanking the PyPI one is the maintainers' call and is
 not done by any workflow.
 
+## Breaking-change check
+
+From the first stable release on, every pull request is compared with the
+latest stable release tag (the highest `vX.Y.Z` without a pre-release suffix)
+by the `Breaking changes` workflow (`scripts/breaking/breaking_changes.py`).
+It diffs the committed public-surface snapshots (`sdk-typescript/api-surface/`,
+`sdk-python/api-surface/`, `cli/api-surface/`, kept current by the SDK and CLI
+CI) and `contract/*.json` (oasdiff for the OpenAPI contracts; values may be
+added to enums the contract marks open). A removed or incompatibly changed
+export, signature, command, flag, environment variable, endpoint or error code
+fails the check unless the pull request adds a `changelog.d/<id>.breaking.md`
+fragment; the maintainer publishing the next release then decides the MAJOR
+bump. Until a stable tag exists the check reports "no stable release yet" and
+passes.
+
 ## See also
 
 - [CHANGELOG.md](../CHANGELOG.md) — what changed in each version; unreleased

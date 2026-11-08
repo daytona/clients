@@ -328,6 +328,12 @@ jobs:
       - name: src/version.ts matches package.json
         run: npm run stamp-version && git diff --exit-code -- src/version.ts
       - run: npm run typecheck
+      # The committed public surface (api-surface/*.api.txt) matches the
+      # source; the Breaking changes workflow compares it with the last
+      # stable release.
+      - name: Public surface snapshot is up to date
+        if: matrix.node == '22'
+        run: npm run api-surface:check
       - run: npm test -- --coverage --coverageReporters=lcov
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.node == '22'
@@ -362,6 +368,12 @@ jobs:
         run: ruff check .
       - name: Type check
         run: mypy
+      # The committed public surface (api-surface/*.api.txt) matches the
+      # source; the text is the same on every supported Python, so one
+      # version checks it.
+      - name: Public surface snapshot is up to date
+        if: matrix.python == '3.12'
+        run: python gen/api_surface.py --check
       - name: Test
         run: pytest --cov=daytona --cov-report=xml
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -529,6 +529,26 @@ python3 scripts/changelog/assemble.py check --dir changelog.d
 scripts/gen-contract-types.sh --check     # only after touching contract/ or a generator
 ```
 
+**Public-surface snapshots.** Each area commits its public surface, one
+declaration per line (`<name>: <kind>[ <signature>]`): exported names with
+their kinds and signatures and the members of classes and options types
+(`sdk-typescript/api-surface/`, `sdk-python/api-surface/`), the CLI's
+commands, flags and environment variables (`cli/api-surface/`). CI fails when
+a snapshot is stale; regenerate after any change to the public surface and
+commit the diff, which is how the change shows up in review:
+
+```bash
+(cd sdk-typescript && npm run api-surface)                     # check: npm run api-surface:check
+(cd sdk-python && .venv/bin/python gen/api_surface.py)         # check: --check
+(cd cli && go test ./cmd -run TestPublicSurface -update)       # check: go test ./cmd
+```
+
+The `Breaking changes` workflow compares these snapshots and `contract/*.json`
+(oasdiff for the OpenAPI files) with the last stable release tag
+(`python3 scripts/breaking/breaking_changes.py`, oasdiff from
+`scripts/breaking/install-oasdiff.sh`); a removal or incompatible change fails
+unless the PR adds a `changelog.d/*.breaking.md` fragment.
+
 TypeScript runtime compatibility (the packed package in Node, Bun, Deno,
 bundlers, Next.js, Nuxt, Remix, workerd, Lambda, Azure Functions and a
 browser, against a local mock API; CI workflow `TypeScript runtimes`):
