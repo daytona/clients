@@ -558,10 +558,36 @@ def params_compatible(old_params: list[str], new_params: list[str], implementer:
     return j == len(old_params)
 
 
-# The kinds of a signature line: what precedes its parameter list.
-SIGNATURE_HEAD = re.compile(
-    r"(?:[a-z-]+ )*(?:method|function|constructor|internal-constructor|call|new|def) ?(?:<.*>)?"
-)
+# The kind words of a signature line, before its type parameters.
+SIGNATURE_KIND = re.compile(r"(?:[a-z-]+ )*(?:method|function|constructor|internal-constructor|call|new|def) ?")
+
+
+def parameter_list_at(rest: str) -> int:
+    """Where a signature line's parameter list opens, or -1 when the line is
+    no signature: after its kind words and a balanced type-parameter list
+    (``<T extends (x: number) => void>``, whose parentheses and ``=>`` are
+    part of it)."""
+    kind = SIGNATURE_KIND.match(rest)
+    if not kind:
+        return -1
+    at = kind.end()
+    if rest[at : at + 1] == "<":
+        end = matching_paren(rest, at)
+        if end < 0:
+            return -1
+        at = end + 1
+    return at if rest[at : at + 1] == "(" else -1
+
+
+def split_signature(rest: str) -> tuple[str, str, str] | None:
+    """``(head, parameters, tail)`` of a signature line."""
+    at = parameter_list_at(rest)
+    if at < 0:
+        return None
+    close = matching_paren(rest, at)
+    if close < 0:
+        return None
+    return rest[:at], rest[at + 1 : close], rest[close + 1 :].strip()
 
 
 def compatible_call(old: str, new: str, *, typescript: bool = False, implementer: str = "sdk") -> bool:
@@ -570,8 +596,8 @@ def compatible_call(old: str, new: str, *, typescript: bool = False, implementer
     implements it: the SDK (callers call it: parameters IN, return value
     OUT), callers (a method of a type they pass in: parameters OUT, return
     value IN), or both (unchanged)."""
-    o, n = old.find("("), new.find("(")
-    if o < 0 or n < 0 or old[:o] != new[:n] or not SIGNATURE_HEAD.fullmatch(old[:o]):
+    o, n = parameter_list_at(old), parameter_list_at(new)
+    if o < 0 or n < 0 or old[:o] != new[:n]:
         return False
     oc, nc = matching_paren(old, o), matching_paren(new, n)
     if oc < 0 or nc < 0:
@@ -1041,8 +1067,7 @@ MEMBER_KINDS = ("property", "attribute", "key", "field")
 
 
 def is_signature(rest: str) -> bool:
-    at = rest.find("(")
-    return at > 0 and SIGNATURE_HEAD.fullmatch(rest[:at]) is not None
+    return parameter_list_at(rest) > 0
 
 
 def owner_of(key: str, entries: dict[str, list[str]]) -> str | None:
@@ -1101,20 +1126,45 @@ def overload_order(
     entries: dict[str, list[str]],
     report: Report,
 ) -> None:
-    """The overloads of a function the SDK implements, in declaration order
-    (the snapshot keeps it): a call resolves against the first overload it
-    matches, so the surviving old overloads must keep their order, and a new
-    one must come after all of them (placed earlier, it can capture calls
-    that an old one answered)."""
+    """The overloads of a function callers call (the SDK implements it, or
+    it belongs to a type that goes both ways), in declaration order (the
+    snapshot keeps it). A call resolves against the first overload it
+    matches, so:
+    - the surviving old overloads keep their order, and a new one comes
+      after all of them (placed earlier, it can capture calls an old one
+      answered);
+    - an overload with a later one after it may only narrow its return
+      type: widening or adding parameters (optional ones included) can
+      capture calls a later overload answered. The last overload follows
+      the normal rules.
+    Stops at the first finding for the key: a second, independent break
+    under the same key is not listed (the exit status is the same)."""
     old_sig = [r for r in olds if is_signature(r)]
     new_sig = [r for r in news if is_signature(r)]
-    if not old_sig or len(new_sig) < 2:
+    if not old_sig:
         return
     if any(f.area == name and dict(f.fields).get("old", "").startswith(f"{key}: ") for f in report.breaking):
         return
-    if position(key, old_sig[0], entries, pass_only, two_way)["implementer"] != "sdk":
+    if position(key, old_sig[0], entries, pass_only, two_way)["implementer"] not in ("sdk", "both"):
         return
     survivors = [r if r in news else survives_as.get(r) for r in old_sig]
+    for old_line, now in zip(old_sig[:-1], survivors[:-1]):
+        if now is None or now == old_line:
+            continue
+        o, n = split_signature(old_line), split_signature(now)
+        if o is None or n is None or o[:2] != n[:2]:
+            report.breaking.append(snapshot_finding(name, f"{key}: {old_line}", [f"{key}: {now}"]))
+            return
+        old_ret, new_ret = o[2], n[2]
+        for prefix in (":", "->"):
+            if old_ret.startswith(prefix) and new_ret.startswith(prefix):
+                old_ret, new_ret = unwrap_promise(old_ret[len(prefix) :].strip(), new_ret[len(prefix) :].strip())
+                break
+        if not type_compatible(old_ret, new_ret, OUT):
+            report.breaking.append(snapshot_finding(name, f"{key}: {old_line}", [f"{key}: {now}"]))
+            return
+    if len(new_sig) < 2:
+        return
     positions = [new_sig.index(c) for c in survivors if c is not None and c in new_sig]
     taken = {new_sig[i] for i in positions}
     added = [i for i, line in enumerate(new_sig) if line not in taken]

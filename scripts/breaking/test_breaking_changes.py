@@ -374,11 +374,56 @@ class Directions(unittest.TestCase):
             with self.subTest(area=area):
                 self.assertEqual(self.breaks(area, kept, f"{extra}\n{kept}"), 1)  # new overload first
                 self.assertEqual(self.breaks(area, kept, f"{kept}\n{extra}"), 0)  # new overload last
-        # A compatible change keeps its place; methods of a class follow the same rule.
+        # A compatible change of the last overload keeps its place; methods of
+        # a class follow the same rule.
         old = "C: class\nC.m: method (a: string): string\nC.m: method (a: number): number"
-        self.assertEqual(self.breaks(self.TS, old, old.replace("(a: string)", "(a: string, b?: number)")), 0)
+        self.assertEqual(self.breaks(self.TS, old, old.replace("(a: number)", "(a: number, b?: number)")), 0)
         self.assertEqual(
             self.breaks(self.TS, old, "C: class\nC.m: method (a: number): number\nC.m: method (a: string): string"), 1
+        )
+
+    def test_generic_overloads_with_parentheses_in_type_parameters(self) -> None:
+        gen = "f: function <T extends (x: number) => void>(cb: T): string"
+        other = "f: function (key: unknown): number"
+        self.assertTrue(bc.is_signature(gen.split(": ", 1)[1]))
+        self.assertTrue(bc.is_signature("method <T extends { a: (x: number) => void; }>(cb: T): void"))
+        self.assertEqual(self.breaks(self.TS, f"{gen}\n{other}", f"{other}\n{gen}"), 1)  # reordered
+        self.assertEqual(self.breaks(self.TS, other, f"{gen}\n{other}"), 1)  # inserted first
+        self.assertEqual(self.breaks(self.TS, gen, gen.replace("(cb: T)", "(cb: T, at?: number)")), 0)
+        passed = "O: interface\nO: passed-in\nO.m: method (a: string): void"
+        self.assertEqual(
+            self.breaks(self.TS, passed, passed + "\nO.m: method <T extends (x: number) => void>(cb: T): void"), 1
+        )
+
+    def test_overloads_of_a_two_way_type_keep_their_order(self) -> None:
+        old = "P: interface\nP: returned also-passed-in\nP.m: method (a: string): string\nP.m: method (a: unknown): number"
+        swapped = "P: interface\nP: returned also-passed-in\nP.m: method (a: unknown): number\nP.m: method (a: string): string"
+        self.assertEqual(self.breaks(self.TS, old, swapped), 1)
+        # Callers implement a passed-in type's methods: the order is theirs.
+        self.assertEqual(self.breaks(self.TS, old.replace("returned also-passed-in", "passed-in"), swapped.replace("returned also-passed-in", "passed-in")), 0)
+
+    def test_only_the_last_overload_may_widen(self) -> None:
+        two = "f: function (a: string): string\nf: function (a: unknown): number"
+        self.assertEqual(self.breaks(self.TS, two, two.replace("(a: string): string", "(a: number | string): string")), 1)
+        self.assertEqual(self.breaks(self.TS, two, two.replace("(a: unknown): number", "(a: unknown, b?: number): number")), 0)
+        # A narrower return (a union that lost a member) is fine anywhere.
+        wide = "f: function (a: string): number | string\nf: function (a: unknown): number"
+        self.assertEqual(self.breaks(self.TS, wide, wide.replace("(a: string): number | string", "(a: string): string")), 0)
+        self.assertEqual(self.breaks(self.TS, two, two.replace("(a: string): string", "(a: string, b?: number): string")), 1)
+        one = "f: function (a: string): string"
+        self.assertEqual(self.breaks(self.TS, one, "f: function (a: number | string): string"), 0)
+        py = "f: def (a: str) -> str\nf: def (a: object) -> int"
+        self.assertEqual(self.breaks(self.PY, py, py.replace("(a: str) -> str", "(a: str | int) -> str")), 1)
+
+    def test_a_dropped_overload_needs_a_surviving_stand_in(self) -> None:
+        self.assertEqual(
+            self.breaks(self.TS, "f: function (a: string): string\nf: function (a: unknown): number", "f: function (a: unknown): number"), 1
+        )
+        self.assertEqual(
+            self.breaks(
+                self.TS, "f: function (a: string): string\nf: function (a: number | string): string", "f: function (a: number | string): string"
+            ),
+            0,
         )
 
     def test_new_index_signature_on_a_passed_in_type(self) -> None:
