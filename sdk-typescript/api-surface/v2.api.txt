@@ -432,6 +432,7 @@ ComputerUseNotStartedStatus.desktop: property 'not_started'
 ComputerUseNotStartedStatus.extraFields: optional property Record<string, unknown>
 ComputerUseNotStartedStatus.status: property 'inactive'
 ComputerUsePoint: interface
+ComputerUsePoint: passed-in
 ComputerUsePoint.x: property number
 ComputerUsePoint.y: property number
 ComputerUseProcessErrorsResponse: interface
@@ -584,6 +585,7 @@ CreateMacosSandboxOptions.reservation: optional property 'new' | (string & {})
 CreateMacosSandboxOptions.secrets: optional property string[]
 CreateMacosSandboxOptions.volumes: optional property VolumeMount[]
 CreateRequestBaseOptions: interface
+CreateRequestBaseOptions: passed-in
 CreateRequestBaseOptions.cpuArch: optional property CpuArch
 CreateRequestBaseOptions.cpuType: optional property string
 CreateRequestBaseOptions.createTimeoutSeconds: optional property number
@@ -1905,6 +1907,7 @@ SandboxLifecycleDto.timeout_seconds: optional property number | null
 SandboxNotRunningError: class extends ConflictError
 SandboxNotRunningError.constructor: constructor (message: string, statusCode?: number, code?: string, source?: string, envelope?: ErrorEnvelope)
 SandboxSearchFilters: interface
+SandboxSearchFilters: passed-in
 SandboxSearchFilters.createdEndAt: optional property SearchTimestamp
 SandboxSearchFilters.createdStartAt: optional property SearchTimestamp
 SandboxSearchFilters.forkedFrom: optional property string

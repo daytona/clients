@@ -14,7 +14,7 @@
 // Line format, shared with the Python and CLI snapshots and read by
 // scripts/breaking/breaking_changes.py: `<name>: <kind>[ <signature>]`.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, sep } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
@@ -40,15 +40,30 @@ const printFile = ts.createSourceFile('surface.d.ts', '', ts.ScriptTarget.Latest
 const printNode = (node) => oneLine(printer.printNode(ts.EmitHint.Unspecified, node, printFile))
 const LAST = new Set(['null', 'undefined'])
 
-function sortUnions(node) {
-  const visit = (n) => {
-    const updated = ts.visitEachChild(n, visit, undefined)
-    if (!ts.isUnionTypeNode(updated)) return updated
-    const keyed = updated.types.map((t) => [LAST.has(printNode(t)) ? 1 : 0, printNode(t), t])
-    keyed.sort((a, b) => a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0))
-    return ts.factory.updateUnionTypeNode(updated, ts.factory.createNodeArray(keyed.map((k) => k[2])))
+export function sortUnions(node) {
+  const sorter = (context) => (top) => {
+    const visit = (n) => {
+      const updated = ts.visitEachChild(n, visit, context)
+      if (!ts.isUnionTypeNode(updated)) return updated
+      const keyed = updated.types.map((t) => [LAST.has(printNode(t)) ? 1 : 0, printNode(t), t])
+      keyed.sort((a, b) => a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0))
+      return context.factory.updateUnionTypeNode(updated, context.factory.createNodeArray(keyed.map((k) => k[2])))
+    }
+    return ts.visitNode(top, visit)
   }
-  return visit(node)
+  const result = ts.transform(node, [sorter])
+  const [sorted] = result.transformed
+  result.dispose()
+  return sorted
+}
+
+// The printed text of a type or a signature, unions sorted.
+export function printType(checker, type, at, extra = 0) {
+  return printNode(sortUnions(checker.typeToTypeNode(type, at, BUILDER_FLAGS | extra)))
+}
+
+export function printSignature(checker, sig, at) {
+  return printNode(sortUnions(checker.signatureToSignatureDeclaration(sig, ts.SyntaxKind.CallSignature, at, BUILDER_FLAGS)))
 }
 
 function createProgram() {
@@ -159,8 +174,17 @@ function surfaces(checker, program) {
       }
     }
   }
-  for (const sym of inputs) {
-    if (outputs.has(sym)) continue
+  // A base interface's members are listed under the base, so the base is
+  // passed in whenever an interface extending it is, even if the SDK also
+  // returns it: callers building the derived type supply its members.
+  const passedIn = new Set([...inputs].filter((sym) => !outputs.has(sym)))
+  for (const sym of passedIn) {
+    if (!(sym.flags & ts.SymbolFlags.Interface)) continue
+    const bases = new Set()
+    for (const base of checker.getBaseTypes(checker.getDeclaredTypeOfSymbol(sym))) collectInputs(base, new Set(), false, bases)
+    for (const base of bases) passedIn.add(base)
+  }
+  for (const sym of passedIn) {
     const at = listedAt.get(sym)
     // Only object types have members a caller supplies.
     const head = new RegExp(`^${at?.name.replace(/[.*+?^${}()|[\]\\/@~]/g, '\\$&')}: (interface|type (<.*> )?= \\{\\.\\.\\.\\})`)
@@ -198,6 +222,7 @@ function surfaces(checker, program) {
     }
     if (checker.isTupleType(type) || checker.isArrayType(type)) return
     if (checker.getSignaturesOfType(type, ts.SignatureKind.Call).length) return
+    for (const info of checker.getIndexInfosOfType(type)) collectInputs(info.type, seen, false, into)
     for (const prop of checker.getPropertiesOfType(type)) {
       const decl = prop.declarations?.[0]
       if (decl && !(prop.flags & ts.SymbolFlags.Method)) collectInputs(checker.getTypeOfSymbolAtLocation(prop, decl), seen, false, into)
@@ -207,9 +232,8 @@ function surfaces(checker, program) {
   function emitEntry({ entry, exported, exportsByTarget, lines }) {
     const queue = []
     const emit = (name, kind, signature = '') => lines.push(`${name}: ${kind}${signature ? ` ${oneLine(signature)}` : ''}`)
-    const typeText = (type, at, extra = 0) => printNode(sortUnions(checker.typeToTypeNode(type, at, BUILDER_FLAGS | extra)))
-    const signatureText = (sig, at) =>
-      printNode(sortUnions(checker.signatureToSignatureDeclaration(sig, ts.SyntaxKind.CallSignature, at, BUILDER_FLAGS)))
+    const typeText = (type, at, extra = 0) => printType(checker, type, at, extra)
+    const signatureText = (sig, at) => printSignature(checker, sig, at)
 
     function want(sym) {
       if (!sym) return
@@ -526,4 +550,6 @@ function main(argv) {
   return 0
 }
 
-process.exitCode = main(process.argv.slice(2))
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  process.exitCode = main(process.argv.slice(2))
+}

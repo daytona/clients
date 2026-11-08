@@ -62,7 +62,8 @@ describe('public surface snapshot', () => {
 
   it('marks the object types callers pass in, and only those', () => {
     const lines = snapshot('v2.api.txt')
-    for (const name of ['PortMapping', 'CreateSandboxOptions', 'VolumeMount', '~LifecycleWaitOptions', '~ErrorEnvelope', 'OtelApiLike']) {
+    // Base interfaces of passed-in options too: their members are listed under the base.
+    for (const name of ['PortMapping', 'CreateSandboxOptions', 'CreateRequestBaseOptions', 'SandboxSearchFilters', 'ComputerUsePoint', 'VolumeMount', '~LifecycleWaitOptions', '~ErrorEnvelope', 'OtelApiLike']) {
       expect(lines).toContain(`${name}: passed-in`)
     }
     // Returned to the caller, never passed in: may gain required members.
