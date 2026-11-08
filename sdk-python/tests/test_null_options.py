@@ -16,7 +16,7 @@ from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona import AsyncDaytona, DaytonaConfig
-from daytona.v2 import BadRequestError
+from daytona.v2 import BadRequestError, MacosResources, PortMapping, Resources, VolumeMount
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
 from daytona.v2.types import JsonObject
 
@@ -86,14 +86,78 @@ async def test_fork_none_name_and_memory_are_omitted_and_wait_none_refused() -> 
         "forked_from": "src",
         "toolbox_proxy_url": "https://p.example",
     }
-    detail: JsonObject = {"id": "src", "class": "linux", "name": "src", "status": "stopped", "cpu": 1,
-                          "cores_max": 1, "memory_mib": 1024, "disk_mib": 1024, "port_map": [], "region_id": "r"}  # fmt: skip
-    with FakeApi([PlannedResponse(200, detail), PlannedResponse(200, fork)]) as api:
+    with FakeApi([PlannedResponse(200, fork)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             source = lazy_sandbox(root.v2, "src")
             await source.fork(name=None, memory=None, wait_seconds=0)
             with pytest.raises(BadRequestError):
                 await source.fork(wait_seconds=None)  # type: ignore[arg-type]
-    assert json.loads(api.requests[1].body) == {}
-    assert len(api.requests) == 2
+    assert json.loads(api.requests[0].body) == {}
+    assert len(api.requests) == 1
+
+
+# The fields of nested option objects: the TypeScript twin table pins the same rows.
+_NESTED: list[tuple[str, str, dict[str, object], dict[str, object]]] = [
+    (
+        "create",
+        "resources.cpu_max",
+        {"resources": Resources(cpu=2, cpu_max=None)},
+        {"resources": Resources(cpu=2)},
+    ),
+    (
+        "create",
+        "resources.memory",
+        {"resources": Resources(memory=None, disk=10)},
+        {"resources": Resources(disk=10)},
+    ),
+    ("create", "resources (all None)", {"resources": Resources()}, {}),
+    (
+        "create",
+        "volumes[].subpath and read_only",
+        {"volumes": [VolumeMount(volume_id="v", mount_path="/m", subpath=None, read_only=None)]},
+        {"volumes": [VolumeMount(volume_id="v", mount_path="/m")]},
+    ),
+    (
+        "create_macos",
+        "resources.cpu",
+        {"resources": MacosResources(cpu=None, memory=8)},
+        {"resources": MacosResources(memory=8)},
+    ),
+    ("create", "lifecycle_policy.timeout_seconds", {"lifecycle_policy": {"timeout_seconds": None}}, {}),
+    (
+        "create",
+        "network_policy.block_all",
+        {"network_policy": {"block_all": None, "allow_domains": ["a.example"]}},
+        {"network_policy": {"allow_domains": ["a.example"]}},
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("route", "field", "with_none", "without"), _NESTED, ids=[case[1] for case in _NESTED]
+)
+async def test_a_nested_none_is_omitted(
+    route: str, field: str, with_none: dict[str, object], without: dict[str, object]
+) -> None:
+    del field
+    assert await _body(route, with_none) == await _body(route, without)
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"ports": [PortMapping(port=None)]},  # type: ignore[arg-type]
+        {"ports": [PortMapping(port=3000, proto=None)]},  # type: ignore[arg-type]
+        {"volumes": [VolumeMount(volume_id=None, mount_path="/m")]},  # type: ignore[arg-type]
+        {"network_policy": {"allow_cidrs": None}},
+    ],
+    ids=["ports[].port", "ports[].proto", "volumes[].volume_id", "network_policy.allow_cidrs"],
+)
+async def test_a_nested_none_python_refuses_is_refused(options: dict[str, object]) -> None:
+    with FakeApi([]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError):
+                await _ROUTES["create"](root.v2, options)
+    assert api.requests == []

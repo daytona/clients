@@ -7,7 +7,7 @@ import { createServer } from 'node:http'
 import { once } from 'node:events'
 import type { Server } from 'node:http'
 import { ImageBuilder, RequestTimeoutError } from '../src/v2/index'
-import { imageWire } from './artifactFixtures'
+import { imageWire, snapshotWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 
 // Each hold's read is capped at the wait's deadline, not at the hold plus its
@@ -21,7 +21,7 @@ async function stallingArtifacts(): Promise<{ readonly url: string; readonly ser
     }
     if (request.method === 'POST') return reply({ id: 'img', status: 'pending' })
     if (request.url?.includes('wait=')) return // held: never answered
-    reply(imageWire({ id: 'img', status: 'building' }))
+    reply(request.url?.startsWith('/snapshots') ? snapshotWire({ id: 'img', status: 'building' }) : imageWire({ id: 'img', status: 'building' }))
   })
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')

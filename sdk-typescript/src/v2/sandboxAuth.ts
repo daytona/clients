@@ -90,8 +90,10 @@ export class SandboxAuth {
   public async createAccessToken(options: CreateAccessTokenOptions = {}): Promise<SandboxAccessToken> {
     assertKnownOptions('CreateAccessTokenOptions', options, ACCESS_TOKEN_KEYS)
     if (!this.init.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
-    for (const port of options.ports ?? []) {
-      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    const ports: unknown = options.ports
+    if (ports !== undefined && !Array.isArray(ports)) throw badRequest('ports must be an array of port numbers')
+    for (const port of (ports ?? []) as unknown[]) {
+      if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
         throw badRequest(`port must be an integer in 1..65535, got ${port}`)
       }
     }

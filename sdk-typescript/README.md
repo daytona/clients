@@ -492,10 +492,13 @@ volumes, secrets or network policy options.
 
 `images.get(id, { wait: 'ready', timeoutSeconds: 60 })` and
 `snapshots.get(id, { wait: 'ready', timeoutSeconds: 60 })` perform a bounded
-readiness wait in seconds, repeating holds of at most 60 seconds until ready,
-failed, or out of budget, then returning the last observed artifact. An early
+readiness wait in seconds, repeating holds of at most 60 seconds until the
+artifact is `ready`, `failed` or `error`, and return it for you to check its
+status. A budget that runs out first throws `RequestTimeoutError`; a budget
+above the timer maximum (about 24.8 days) waits without a deadline. An early
 non-terminal response pauses up to one second before retrying. Omitted or zero
-`timeoutSeconds` sends one hold using the server's default.
+`timeoutSeconds` sends one hold of the server's default length and returns what
+the server reports.
 `sandbox.captureImage({ name, idleExpirySeconds })` captures an
 image from a sandbox.
 

@@ -568,3 +568,20 @@ async def test_an_explicit_empty_network_policy_is_sent_and_an_omitted_one_is_no
     await client.create("img_1", network_policy={}, wait_seconds=0)
     await client.create("img_1", wait_seconds=0)
     assert [spec.json_body.get("network_policy", "absent") for spec in api.specs] == [{}, "absent"]  # type: ignore[union-attr]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("known", [None, "macos"])
+async def test_fork_with_wait_seconds_zero_is_one_request_whatever_the_handle_knows(
+    known: str | None,
+) -> None:
+    # The route is the same for every class: an unknown class is not read
+    # first, and the fork carries the source's class only when it is known.
+    sandbox = lazy_sandbox(_client(), "src")
+    if known is not None:
+        sandbox._update(sandbox_class=known, raw_sandbox_class=known)
+    api = _Api([_fork_response("f")])
+    sandbox._api = api  # type: ignore[attr-defined]
+    fork = await sandbox.fork(wait_seconds=0)
+    assert [(spec.method, spec.path) for spec in api.specs] == [("POST", "/sandboxes/src/fork")]
+    assert fork.sandbox_class == known

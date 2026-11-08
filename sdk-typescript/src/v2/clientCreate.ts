@@ -13,7 +13,7 @@ import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
 import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions } from './options.js'
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS, withoutNullOptions } from './clientOptionKeys.js'
-import { createRegion, createWaitSeconds, rejectV0Target } from './clientCreateOptions.js'
+import { createRegion, createWaitSeconds, MAX_WIRE_WAIT_SECONDS, rejectV0Target } from './clientCreateOptions.js'
 import { linuxCreateRequest } from './clientCreateRequests.js'
 import { createIdempotencyKey } from './clientCreateNames.js'
 import type { PreparedSandboxCreate } from './clientCreateRequests.js'
@@ -24,7 +24,7 @@ import { WAIT_READ_SLACK_MS } from './ProcessWire.js'
 /** @internal */
 export async function createSandbox(context: SandboxClientContext, request: PreparedSandboxCreate): Promise<Sandbox> {
   const { path, body, metadata } = request
-  const wait = createWaitSeconds(body.wait_seconds ?? undefined)
+  const wait = metadata.waitSeconds
   const region = typeof body.region_id === 'string' ? body.region_id : undefined
   // Only name-derived keys await hashing; explicit/random keys post immediately.
   const key = createIdempotencyKey(body)
@@ -37,7 +37,10 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   // slack is never cut by a shorter request timeout. No limit (0) stays no
   // limit; a create with waitSeconds 0 is an ordinary request.
   const rootMs = context.api.defaults.timeout
-  const holdTimeout = wait > 0 && typeof rootMs === 'number' && rootMs > 0 ? Math.max(rootMs, wait * 1000 + WAIT_READ_SLACK_MS) : undefined
+  // A wait above the timer maximum is no limit: no client deadline on the POST either.
+  const unbounded = wait > MAX_WIRE_WAIT_SECONDS
+  const holdTimeout = wait <= 0 || typeof rootMs !== 'number' || rootMs <= 0 ? undefined
+    : unbounded ? 0 : Math.max(rootMs, wait * 1000 + WAIT_READ_SLACK_MS)
   const created = await context.api.post<CreateSandboxResponse>(path, body, {
     ...(holdTimeout === undefined ? {} : { timeout: holdTimeout }),
     headers: { 'Idempotency-Key': idempotencyKey, ...(region ? { 'x-daytona-region': region } : {}) },
@@ -82,8 +85,9 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   sandbox.learnEventDestination(createdEventDestination)
   const waitCap = typeof created.wait_cap_seconds === 'number' && Number.isFinite(created.wait_cap_seconds) ? Math.max(0, created.wait_cap_seconds) : 0
   if (wait === 0 || sandbox.state === 'started') return sandbox
-  const remainingWait = Math.max(0, wait - waitCap)
-  if (remainingWait <= 0) return sandbox
+  // No limit stays no limit (0) after the server's hold.
+  const remainingWait = unbounded ? 0 : Math.max(0, wait - waitCap)
+  if (remainingWait <= 0 && !unbounded) return sandbox
   try {
     return await sandbox.wait({ until: 'started', timeoutSeconds: remainingWait })
   } catch (error) {

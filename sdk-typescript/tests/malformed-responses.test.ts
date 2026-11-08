@@ -159,3 +159,43 @@ it('refuses a setLabels answer with a non-string label', async () => {
     await api.close()
   }
 })
+
+it.each([
+  [{ team: 1 }, 'sandbox response has a labels.team that is not a string'],
+  ['team', 'sandbox response has a labels that is not an object'],
+] as const)('refuses a sandbox object whose labels are %j, as Python does', async (labels, message) => {
+  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], labels } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.get('sbx')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each(['next_cursor', 'nextCursor'])('refuses a list %s of the wrong type, as Python does', async (key) => {
+  const api = await startFakeApi([{ status: 200, body: { sandboxes: [], [key]: 5 } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.list()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`${key} that is not a string`) })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([
+  ['a source whose class is unknown', 'src' as const, undefined],
+  ['a source whose class is known', { id: 'src', class: 'macos', status: 'stopped' }, 'macos'],
+] as const)('fork({ waitSeconds: 0 }) of %s is one request', async (_name, sourceData, sandboxClass) => {
+  const api = await startFakeApi([{ status: 200, body: { id: 'f', status: 'pending', forked_from: 'src', toolbox_proxy_url: 'https://p.example' } }])
+  try {
+    const fork = await createSandbox(sourceData, createHttpClient(api.url, 'key')).fork({ waitSeconds: 0 })
+    // No class read first: the route is the same for every class.
+    expect(api.requests.map((request) => [request.method, request.path])).toEqual([['POST', '/sandboxes/src/fork']])
+    expect(fork.sandboxClass).toBe(sandboxClass)
+  } finally {
+    await api.close()
+  }
+})

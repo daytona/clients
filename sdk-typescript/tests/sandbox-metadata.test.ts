@@ -105,8 +105,8 @@ describe('sandbox observed metadata', () => {
     const api = await startFakeApi([])
     const sandbox = createSandbox({ id: 'sbx', class: 'future', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
-      // When a fork requires a known class.
-      const result = sandbox.fork({ waitSeconds: 0 })
+      // When a waiting fork requires a known class (its wait targets depend on it).
+      const result = sandbox.fork({ waitSeconds: 5 })
       // Then it fails locally with the SDK classification error.
       await expect(result).rejects.toMatchObject({ code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
       expect(api.requests).toEqual([])

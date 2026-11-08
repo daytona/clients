@@ -77,3 +77,35 @@ it('reads fork name and memory: null as omitted and refuses waitSeconds: null', 
     await api.close()
   }
 })
+
+// The fields of nested option objects follow their Python dataclass fields.
+describe('nested option fields', () => {
+  it.each([
+    ['create', 'resources.cpu', { resources: { cpu: 2, cpuMax: null } }, { resources: { cpu: 2 } }],
+    ['create', 'resources.memory', { resources: { memory: null, disk: 10 } }, { resources: { disk: 10 } }],
+    ['create', 'resources (all null)', { resources: { cpu: null, cpuMax: null, memory: null, memoryMax: null, disk: null, diskMax: null } }, {}],
+    ['create', 'volumes[].subpath and readOnly', { volumes: [{ volumeId: 'v', mountPath: '/m', subpath: null, readOnly: null }] }, { volumes: [{ volumeId: 'v', mountPath: '/m' }] }],
+    ['createMacos', 'resources.cpu', { resources: { cpu: null, memory: 8 } }, { resources: { memory: 8 } }],
+    ['create', 'lifecyclePolicy.timeoutSeconds', { lifecyclePolicy: { timeoutSeconds: null } }, {}],
+    ['create', 'networkPolicy.blockAll', { networkPolicy: { blockAll: null, allowDomains: ['a.example'] } }, { networkPolicy: { allowDomains: ['a.example'] } }],
+  ] as const)('%s reads %s: null as omitted, as Python reads None', async (route, _field, withNull, without) => {
+    expect(await body(route, withNull)).toEqual(await body(route, without))
+  })
+
+  it.each([
+    ['ports[].port', { ports: [{ port: null }] }],
+    ['ports[].proto', { ports: [{ port: 3000, proto: null }] }],
+    ['volumes[].volumeId', { volumes: [{ volumeId: null, mountPath: '/m' }] }],
+    ['networkPolicy.allowCidrs', { networkPolicy: { allowCidrs: null } }],
+  ] as const)('refuses %s: null, as Python refuses None', async (_field, options) => {
+    const api = await startFakeApi([])
+    const client = clientAt(api.url)
+    try {
+      await expect(call(client, 'create', options)).rejects.toBeInstanceOf(BadRequestError)
+      expect(api.requests).toEqual([])
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+})

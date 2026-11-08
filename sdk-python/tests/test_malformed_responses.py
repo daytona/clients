@@ -20,7 +20,7 @@ from network_policy_test_server import FakeApi, PlannedResponse
 from daytona import AsyncDaytona, DaytonaConfig
 from daytona.v2 import BadRequestError, ImageBuilder
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
-from daytona.v2.types import JsonObject
+from daytona.v2.types import JsonObject, JsonValue
 
 pytestmark = pytest.mark.anyio
 
@@ -59,7 +59,8 @@ _CALLS: list[tuple[str, Call, str, int]] = [
     ("list_audit_actions", lambda d: d.list_audit_actions(), "targets", 0),
     ("get_limits", lambda d: d.get_limits(organization_id="org"), "sandboxes", 0),
     # The sandbox operations first read the source's class.
-    ("fork", lambda d: lazy_sandbox(d, "src").fork(wait_seconds=0), "id", 1),
+    # wait_seconds=0 is one request: no class read first.
+    ("fork", lambda d: lazy_sandbox(d, "src").fork(wait_seconds=0), "id", 0),
     ("capture_image", lambda d: lazy_sandbox(d, "src").capture_image(), "id", 0),
     ("create_snapshot", lambda d: lazy_sandbox(d, "src").create_snapshot("snap"), "id", 0),
     ("create_access_token", lambda d: lazy_sandbox(d, "src").create_access_token(), "access_token", 0),
@@ -270,3 +271,38 @@ async def test_a_port_beyond_int32_is_a_contract_error(port: int) -> None:
             sandbox = lazy_sandbox(root.v2, "src", toolbox_url=api.url, access_token="tok")
             with pytest.raises(BadRequestError, match=r"ports\[1\] that is not a 32-bit integer"):
                 await sandbox.ports.list()
+
+
+async def test_a_network_policy_body_nested_too_deeply_names_the_response() -> None:
+    body = ("[" * 100_000 + "]" * 100_000).encode()
+    with FakeApi([PlannedResponse(200, body, {"ETag": '"e"'})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(
+                BadRequestError, match="^expected network policy response: the JSON is nested too deeply$"
+            ):
+                await lazy_sandbox(root.v2, "src").get_network_policy()
+
+
+@pytest.mark.parametrize(
+    ("labels", "field"),
+    [({"team": 1}, r"labels\.team"), ("team", r"labels that is not an object")],
+    ids=["value", "map"],
+)
+async def test_a_sandbox_object_with_malformed_labels_is_a_contract_error(
+    labels: JsonValue, field: str
+) -> None:
+    # Every path that builds a handle from a sandbox object, as in TypeScript.
+    from daytona.v2.sandbox import AsyncSandbox
+
+    with pytest.raises(BadRequestError, match=field):
+        AsyncSandbox._from_api({**_DETAIL, "labels": labels}, None, None)
+
+
+@pytest.mark.parametrize("key", ["next_cursor", "nextCursor"])
+async def test_a_list_cursor_of_the_wrong_type_is_a_contract_error(key: str) -> None:
+    with FakeApi([PlannedResponse(200, {"sandboxes": [], key: 5})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match=f"has a {key} that is not a string"):
+                await root.v2.list()

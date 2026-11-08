@@ -751,17 +751,21 @@ export class Sandbox {
       body.memory = options.memory
     }
     if (options.autoDelete !== undefined && typeof options.autoDelete !== 'boolean') throw badRequest('autoDelete must be a boolean')
-    const classWasKnown = this.sandboxClass !== undefined
-    const initialClass = await this.requireSandboxClass()
-    // Loading an unknown class already fetched the source state; waiting on a
-    // known Linux source needs exactly one fresh observation before the POST.
-    if (waitSeconds > 0 && initialClass === 'linux' && classWasKnown) {
-      await this.refreshData()
+    // waitSeconds 0 is one request, as for create: the route is the same for
+    // every class, so an unknown class is not read first; the fork then carries
+    // the source's class only when this handle knows it.
+    if (waitSeconds > 0) {
+      const classWasKnown = this.sandboxClass !== undefined
+      const initialClass = await this.requireSandboxClass()
+      // Loading an unknown class already fetched the source state; waiting on a
+      // known Linux source needs exactly one fresh observation before the POST.
+      if (initialClass === 'linux' && classWasKnown) await this.refreshData()
+      if (this.sandboxClass === undefined || this.sandboxClass === 'unknown') {
+        throw unsupportedOperationError(`unsupported sandbox class ${this.rawSandboxClass ?? '(none)'}`)
+      }
     }
     const sandboxClass = this.sandboxClass
-    if (sandboxClass === undefined || sandboxClass === 'unknown') {
-      throw unsupportedOperationError(`unsupported sandbox class ${this.rawSandboxClass ?? '(none)'}`)
-    }
+    const rawSandboxClass = this.rawSandboxClass
     const sourceState = this.state
     const response = await this.api.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body)
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
@@ -777,7 +781,7 @@ export class Sandbox {
         state: sandboxState(forked.status),
         // A fork has its source's class; it names its source.
         sandboxClass,
-        rawSandboxClass: sandboxClass,
+        rawSandboxClass,
         forkedFrom: forked.forked_from,
         toolboxProxyUrl: scopedProxyToolboxUrl(forked.toolbox_proxy_url, forked.id),
       },

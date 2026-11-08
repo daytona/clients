@@ -251,7 +251,7 @@ class ProcessService:
 
         Example::
 
-            result = await sandbox.process.run("pip install httpx")
+            result = sandbox.process.run("pip install httpx")
             if result.exit_code != 0:
                 raise RuntimeError(result.stderr)
         """
@@ -315,7 +315,7 @@ class ProcessService:
 
         Example — start an HTTP server and wait for it to be ready::
 
-            handle = await sandbox.process.start("python3 -m http.server 8000")
+            handle = sandbox.process.start("python3 -m http.server 8000")
             # poll or stream logs; the process keeps running in the background
         """
         return ProcessHandle(

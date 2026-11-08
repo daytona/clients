@@ -72,17 +72,37 @@ export function createWaitSeconds(waitSeconds: number | undefined): number {
   return resolved
 }
 
+/**
+ * The longest wait a request body carries, in whole seconds: the timer
+ * maximum. A wait above it means no limit; both SDKs send this value then.
+ * @internal
+ */
+export const MAX_WIRE_WAIT_SECONDS = 2_147_483
+
+/** @internal */
+export function wireWaitSeconds(waitSeconds: number): number {
+  return Math.min(waitSeconds, MAX_WIRE_WAIT_SECONDS)
+}
+
 /** @internal */
 export function createTimeoutSeconds(createTimeoutSeconds: number | undefined): number | undefined {
   // `null` is Python's `None`: the server's default.
   if (createTimeoutSeconds === undefined || createTimeoutSeconds === null) return undefined
-  if (!Number.isInteger(createTimeoutSeconds) || createTimeoutSeconds < -1) {
-    throw badRequest('createTimeoutSeconds must be an integer number of seconds >= -1')
+  // The server's own budget (an int64 on the wire) that both SDKs carry exactly.
+  if (!Number.isSafeInteger(createTimeoutSeconds) || createTimeoutSeconds < -1) {
+    throw badRequest('createTimeoutSeconds must be an integer from -1 (the server maximum) to 9007199254740991')
   }
   return createTimeoutSeconds
 }
 
 const MAX_INT32 = 2147483647
+
+/** A Linux size in GiB as the contract's int32 MiB. @internal */
+export function linuxMib(gib: number, field: string): number {
+  const mib = gibToMib(gib, field)
+  if (mib > MAX_INT32) throw badRequest(`${field} must convert to at most 2147483647 MiB`)
+  return mib
+}
 
 // Omitted macOS sizes use the API defaults. Supplied sizes must fit the
 // supported range; GiB converts to MiB exactly, never rounded.

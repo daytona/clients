@@ -24,6 +24,7 @@ from ._api_core import (
     expect_create_snapshot_resp,
     expect_fork_resp,
     expect_image,
+    expect_snapshot,
     sandbox_detail_wire,
 )
 from ._auth import ProjectTokenAuth
@@ -1176,7 +1177,14 @@ class AsyncSandbox:
         if memory is not None and not isinstance(memory, bool):
             raise create_error("fork memory must be a boolean", 400, "BAD_REQUEST", "SDK")
         class_known = self.sandbox_class is not None
-        sandbox_class = await self._require_sandbox_class()
+        # wait_seconds=0 is one request, as for create: the route is the same
+        # for every class, so an unknown class is not read first; the fork then
+        # carries the source's class only when this handle knows it.
+        sandbox_class: Optional[str] = (
+            await self._require_sandbox_class()
+            if wait_seconds > 0
+            else (self.raw_sandbox_class or self.sandbox_class)
+        )
         targets: list[SandboxWaitState] = ["started", "stopped"]
         if sandbox_class == "linux" and wait_seconds > 0:
             # Only a fork of a RUNNING source comes up by itself; the others rest.
@@ -1239,7 +1247,7 @@ class AsyncSandbox:
                 "id": fork_id,
                 "status": accepted.get("status"),
                 "forked_from": accepted.get("forked_from") or self.id,
-                "class": sandbox_class,
+                **({"class": sandbox_class} if sandbox_class is not None else {}),
             },
             self._api,
             None,
@@ -1470,8 +1478,11 @@ class AsyncSandbox:
                 )
             )
         )
+        # The detail is checked against the contract before it is mapped, as images are.
         return parse_snapshot(
-            await self._require_api().send(RequestSpec("GET", f"/snapshots/{quote(created.id, safe='')}"))
+            expect_snapshot(
+                await self._require_api().send(RequestSpec("GET", f"/snapshots/{quote(created.id, safe='')}"))
+            )
         )
 
     async def build_logs(self) -> str:
@@ -1578,6 +1589,8 @@ class AsyncSandbox:
                 raise create_error("operations must be a list of strings", 400, "BAD_REQUEST", "SDK")
             body["operations"] = list(operations)
         if ports is not None:
+            if isinstance(ports, (str, bytes)) or not isinstance(ports, Sequence):
+                raise create_error("ports must be a list of port numbers", 400, "BAD_REQUEST", "SDK")
             for port in ports:
                 _assert_port(port)
             body["ports"] = list(ports)
@@ -1848,7 +1861,7 @@ def _sandbox_info_from_wire(data: Mapping[str, JsonValue]) -> _SandboxInfo:
         snapshot=_snapshot_ref(data.get("snapshot")),
         image_build_id=_wire_text(data.get("image_build_id")),
         region=region,
-        labels=_string_map_or_empty(data.get("labels")),
+        labels=_sandbox_labels(data.get("labels")),
         cpu=_optional_number(data.get("cpu")),
         cpu_max=_optional_number(data.get("cores_max")),
         memory=mib_to_gib(data.get("memory_mib")),
@@ -1933,10 +1946,19 @@ def _optional_number(value: object) -> Optional[float]:
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
-def _string_map_or_empty(value: object) -> Dict[str, str]:
-    if not isinstance(value, dict):
+def _sandbox_labels(value: object) -> Dict[str, str]:
+    """A sandbox object's labels: absent or null is none; anything but a map of
+    strings is a malformed response naming the label, as in TypeScript."""
+    if value is None:
         return {}
-    return {key: item for key, item in value.items() if isinstance(key, str) and isinstance(item, str)}
+    if not isinstance(value, dict):
+        raise create_error("sandbox response has a labels that is not an object", 400, "BAD_REQUEST", "SDK")
+    for key, label in value.items():
+        if not isinstance(label, str):
+            raise create_error(
+                f"sandbox response has a labels.{key} that is not a string", 400, "BAD_REQUEST", "SDK"
+            )
+    return dict(value)
 
 
 def _response_labels(value: object) -> Dict[str, str]:

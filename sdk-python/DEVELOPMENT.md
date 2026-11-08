@@ -193,7 +193,10 @@ deadline, so no read runs past it. That holds for sandbox waits
 (`_refresh_data_within(deadline=...)`, as TypeScript's `refreshDataWithin`),
 image pulls and artifact gets alike; a read the deadline cut is the wait
 running out (`RequestTimeoutError`, source `SDK`). Artifact gets repeat holds
-until the artifact settles or the budget is spent (`services._get_artifact`). `ListResult` / `SearchResult` copy
+until the artifact settles, and raise that error when the budget runs out
+first, never returning an unsettled observation; a budget above the timer
+maximum repeats them without a deadline (`services._get_artifact`).
+`ListResult` / `SearchResult` copy
 `items` into a tuple in their constructors. A sandbox-token mint answered
 with 405/501 disables minting for the handle; a 404 falls back to the API
 credential for that request only.

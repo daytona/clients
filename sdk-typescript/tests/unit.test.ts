@@ -3486,17 +3486,13 @@ describe('creation shape', () => {
       throw new Error(`unexpected post ${path}`)
     })
     jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ class: 'linux', id: 'img_wait', status: 'pending', anonymous: true, name: null, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] }) })
-    const now = jest.spyOn(Date, 'now')
-    try {
-      now.mockReturnValueOnce(0)
-      now.mockReturnValueOnce(0)
-      now.mockReturnValueOnce(6_000)
-      const failure = client.createFromBuild(ImageBuilder.fromDockerfile('FROM python:3.12'), { waitSeconds: 60, buildTimeoutSeconds: 5 })
-      await expect(failure).rejects.toBeInstanceOf(RequestTimeoutError)
-      await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
-    } finally {
-      now.mockRestore()
-    }
+    // The build wait polls the pending image until its budget is spent (fake timers).
+    const failure = client.createFromBuild(ImageBuilder.fromDockerfile('FROM python:3.12'), { waitSeconds: 60, buildTimeoutSeconds: 5 })
+    const settled = failure.then(() => undefined, () => undefined)
+    await jest.advanceTimersByTimeAsync(6_000)
+    await settled
+    await expect(failure).rejects.toBeInstanceOf(RequestTimeoutError)
+    await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', message: 'image build did not finish before timeout' })
 
     expect(post.mock.calls.filter(([path]) => path === '/sandboxes')).toHaveLength(0)
   })

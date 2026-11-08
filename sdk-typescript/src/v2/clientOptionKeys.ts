@@ -66,14 +66,40 @@ export const NULL_MEANS_OMITTED: ReadonlySet<string> = new Set([
 export function withoutNullOptions<T extends object>(options: T): T {
   if (typeof options !== 'object' || options === null) return options
   let copy: Record<string, unknown> | undefined
-  for (const key of NULL_MEANS_OMITTED) {
-    if (Reflect.get(options, key) !== null) continue
+  const edit = (): Record<string, unknown> => {
     // SAFETY: an options object is a string-keyed record.
     copy ??= Object.fromEntries(enumerableEntries(options as Readonly<Record<string, unknown>>))
-    copy[key] = undefined
+    return copy
+  }
+  for (const key of NULL_MEANS_OMITTED) {
+    if (Reflect.get(options, key) === null) edit()[key] = undefined
+  }
+  // The fields of nested option objects follow the same rule as their Python
+  // dataclass fields: every `Resources` / `MacosResources` field and a volume
+  // mount's `subpath` / `readOnly` default to `None`. A port entry's `port`
+  // and `proto`, and a mount's `volumeId` / `mountPath`, are refused as
+  // `None` is; the lifecycle and network policy validators already read null
+  // as Python does.
+  const resources: unknown = Reflect.get(options, 'resources')
+  if (isRecord(resources) && Object.values(resources).some((value) => value === null)) {
+    edit().resources = withoutNulls(resources, Object.keys(resources))
+  }
+  const volumes: unknown = Reflect.get(options, 'volumes')
+  if (Array.isArray(volumes) && volumes.some((volume) => isRecord(volume) && (volume.subpath === null || volume.readOnly === null))) {
+    edit().volumes = volumes.map((volume: unknown) => isRecord(volume) ? withoutNulls(volume, ['subpath', 'readOnly']) : volume)
   }
   // SAFETY: the same keys and values, with Python's omitted `None`s left out.
   return (copy ?? options) as T
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function withoutNulls(value: Readonly<Record<string, unknown>>, keys: readonly string[]): Record<string, unknown> {
+  const copy = Object.fromEntries(enumerableEntries(value))
+  for (const key of keys) if (copy[key] === null) copy[key] = undefined
+  return copy
 }
 
 function enumerableEntries(options: Readonly<Record<string, unknown>>): [string, unknown][] {

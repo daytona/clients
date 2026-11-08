@@ -214,6 +214,9 @@ export class PortsService {
    * mint (a project key, no caller-supplied token) gets a short-lived sandbox
    * access token scoped to exactly this port for private endpoints. Otherwise,
    * or if minting fails, the route token is passed through unchanged.
+   *
+   * A port that is not exposed yet is exposed first (privately, as
+   * {@link expose} does): this call registers a preview endpoint.
    */
   public async previewLink(port: number): Promise<PreviewLink> {
     assertPort(port)

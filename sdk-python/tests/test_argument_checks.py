@@ -82,6 +82,26 @@ _REFUSED: list[tuple[str, Call]] = [
         "reservations.create_bulk min_count 0",
         lambda d, _url: d.reservations.create_bulk(region="r", count=2, min_count=0),
     ),
+    ("reservations.create_bulk count 0", lambda d, _url: d.reservations.create_bulk(region="r", count=0)),
+    ("reservations.create_bulk count 101", lambda d, _url: d.reservations.create_bulk(region="r", count=101)),
+    (
+        "reservations.create_bulk min_count above count",
+        lambda d, _url: d.reservations.create_bulk(region="r", count=2, min_count=3),
+    ),
+    (
+        "create_access_token ports a number",
+        lambda d, _url: lazy_sandbox(d, "sbx").create_access_token(ports=3000),  # type: ignore[arg-type]
+    ),
+    (
+        "create_access_token ports with a string",
+        lambda d, _url: lazy_sandbox(d, "sbx").create_access_token(ports=["3000"]),  # type: ignore[list-item]
+    ),
+    ("create create_timeout_seconds above 2**53-1", lambda d, _url: d.create(create_timeout_seconds=2**53)),
+    ("create create_timeout_seconds 10**400", lambda d, _url: d.create(create_timeout_seconds=10**400)),
+    ("create memory above int32 MiB", lambda d, _url: d.create(resources=Resources(memory=2_097_152))),
+    ("create disk_max above int32 MiB", lambda d, _url: d.create(resources=Resources(disk_max=2_097_152))),
+    ("create cpu 10**400", lambda d, _url: d.create(resources=Resources(cpu=10**400))),
+    ("create memory 10**400", lambda d, _url: d.create(resources=Resources(memory=10**400))),
     ("docker timeout 10**309 is no limit, not an overflow", lambda d, url: _docker_refused_type(d, url)),
     (
         "reservations.update auto_renew as a string",
@@ -252,3 +272,92 @@ async def test_a_ready_wait_whose_first_hold_outlives_the_deadline_is_a_wait_tim
         "REQUEST_TIMEOUT",
         "SDK",
     )
+
+
+_RESERVATION: JsonObject = {
+    "id": "res",
+    "org_id": "o",
+    "project_id": "p",
+    "region_id": "r",
+    "status": "active",
+    "origin": "explicit",
+    "auto_renew": True,
+    "sandboxes_per_mac": 2,
+    "slots_used": 0,
+    "period_n": 1,
+    "period_seconds": 86400,
+    "renewal_pending": False,
+    "created_at": "2026-01-01T00:00:00Z",
+    "resources_used": {"cores": 0, "memory_mib": 0, "disk_mib": 0},
+}
+
+_ALLOWED: list[tuple[str, Callable[[AsyncDaytonaV2], Awaitable[object]], JsonObject, JsonObject]] = [
+    (
+        "blank region and model",
+        lambda d: d.reservations.create(region="", model=""),
+        _RESERVATION,
+        {"region_id": "", "model": ""},
+    ),
+    (
+        "count 100, min_count = count",
+        lambda d: d.reservations.create_bulk(region="r", count=100, min_count=100),
+        {"requested": 100, "reserved": 0, "reservations": []},
+        {"count": 100, "min_count": 100},
+    ),
+    (
+        "count 1",
+        lambda d: d.reservations.create_bulk(region=" ", count=1),
+        {"requested": 1, "reserved": 0, "reservations": []},
+        {"region_id": " ", "count": 1},
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "call", "response", "expected"), _ALLOWED, ids=[case[0] for case in _ALLOWED]
+)
+async def test_a_reservation_the_contract_allows_is_sent(
+    name: str, call: Callable[[AsyncDaytonaV2], Awaitable[object]], response: JsonObject, expected: JsonObject
+) -> None:
+    del name
+    with FakeApi([PlannedResponse(200, response)]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            await call(root.v2)
+    sent = json.loads(fake.requests[0].body)
+    assert {key: sent[key] for key in expected} == expected
+
+
+@pytest.mark.parametrize("route", ["create", "create_from_snapshot", "create_macos"])
+@pytest.mark.parametrize("wait_seconds", [10**400, 2_147_484, 3_000_000])
+async def test_a_create_wait_above_the_timer_maximum_is_sent_capped(route: str, wait_seconds: int) -> None:
+    # No limit: the body carries the timer maximum, the same value TypeScript sends.
+    with FakeApi([PlannedResponse(200, {"id": "sbx", "status": "running"})]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key", request_timeout=1)) as root:
+            source = {"create": "img_1", "create_from_snapshot": "snap_1", "create_macos": "sonoma"}[route]
+            await getattr(root.v2, route)(source, wait_seconds=wait_seconds)
+    assert json.loads(fake.requests[0].body)["wait_seconds"] == 2_147_483
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda d: d.create_from_build(ImageBuilder.from_registry("python:3"), build_timeout=10**400),
+        lambda d: d.create_from_build(ImageBuilder.from_registry("python:3"), wait_seconds=10**400),
+        lambda d: d.images.follow_build_logs("img", on_logs=lambda _chunk: None, timeout=10**400),
+    ],
+    ids=["create_from_build build_timeout", "create_from_build wait_seconds", "follow_build_logs timeout"],
+)
+async def test_an_integer_too_large_for_a_float_is_no_limit_not_an_overflow(
+    call: Callable[[AsyncDaytonaV2], Awaitable[object]],
+) -> None:
+    # The value passes as "no limit"; the request is sent, and whatever the
+    # fake answers ends the call, never an OverflowError or a refusal.
+    with FakeApi([PlannedResponse(500, {"message": "stop here"})]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(Exception) as raised:
+                await call(root.v2)
+    assert not isinstance(raised.value, (OverflowError, BadRequestError))
+    assert fake.requests != []

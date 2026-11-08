@@ -25,6 +25,7 @@ from daytona.v2 import (
     ImageBuilder,
     ImageBuildFailedError,
     ListResult,
+    RequestTimeoutError,
     Resources,
     SearchResult,
 )
@@ -106,11 +107,12 @@ async def test_images_get_repeats_the_long_poll_until_settled_within_its_budget(
             return await super().send(spec)
 
     api = _Holding([_image("img", "building"), _image("img", "building"), _image("img", "building")])
-    image = await AsyncImagesService(api).get("img", wait="ready", timeout=150)  # type: ignore[arg-type]
+    with pytest.raises(RequestTimeoutError, match="artifact did not become ready before timeout"):
+        await AsyncImagesService(api).get("img", wait="ready", timeout=150)  # type: ignore[arg-type]
 
     assert holds == [60_000, 60_000, 30_000]
-    # The budget is spent: the image comes back as last observed, no error.
-    assert image.status == "building"
+    # The budget is spent before the image settles: RequestTimeoutError, never
+    # the unsettled observation.
 
     # A shorter request timeout does not shorten a hold: the wait budget governs,
     # and each hold is whole milliseconds.
@@ -256,7 +258,7 @@ async def test_platform_inputs_are_validated_before_any_request() -> None:
         with pytest.raises(BadRequestError, match="size_gib must be a positive integer"):
             await volumes.create(name="v", size_gib=size)  # type: ignore[arg-type]
     client = _client(api)
-    with pytest.raises(BadRequestError, match="create_timeout_seconds must be an integer of at least -1"):
+    with pytest.raises(BadRequestError, match="create_timeout_seconds must be an integer from -1"):
         await client.create("img", create_timeout_seconds=-2)
     with pytest.raises(BadRequestError, match="labels must be a mapping of string to string"):
         await client.create("img", labels={"team": 1})  # type: ignore[dict-item]

@@ -41,12 +41,16 @@ from ._api_core import (
 )
 from ._auth import ProjectTokenAuth
 from ._core import (
+    INT32_MAX,
+    MAX_SAFE_INTEGER,
+    MAX_WIRE_WAIT_SECONDS,
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     _optional_int,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
     expect_object,
+    finite_number,
     gib_to_mib,
     image_options_body,
     lifecycle_body,
@@ -54,6 +58,7 @@ from ._core import (
     parse_timestamp,
     sandbox_state,
     search_params,
+    wait_budget_seconds,
 )
 from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
 from ._gen.api import Sandbox as SandboxDto
@@ -626,15 +631,9 @@ class AsyncDaytona:
         )
         _resolve_idempotency_key(idempotency_key, name)
         image_options_body(idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch)
-        if build_timeout is not None and (
-            isinstance(build_timeout, bool)
-            or not isinstance(build_timeout, (int, float))
-            or not math.isfinite(build_timeout)
-            or build_timeout < 0
-        ):
-            raise create_error(
-                "build_timeout must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
-            )
+        # 0, None or above the timer maximum (a huge integer included) is no limit.
+        if build_timeout is not None:
+            build_timeout = wait_budget_seconds(build_timeout, name="build_timeout") or None
         target = region if region is not None else self._target
         build_region = target if target and target.strip().lower() != "local" else None
 
@@ -720,7 +719,7 @@ class AsyncDaytona:
         path = _create_path(config)
         create_key = _resolve_idempotency_key(idempotency_key, config.get("name"))
         target = str(body["region_id"]) if isinstance(body.get("region_id"), str) else None
-        wait_budget = _create_wait_budget(body)
+        wait_budget = _create_wait_budget(config)
         # The create response first associates the sandbox id with its
         # regional API endpoint for the events hub.
         created_endpoints: list[str] = []
@@ -734,11 +733,16 @@ class AsyncDaytona:
         # read slack is never cut by a shorter request timeout. No limit stays
         # no limit; a create with wait_seconds=0 is an ordinary request.
         root_timeout = getattr(self._api, "request_timeout_seconds", 0) or 0
-        hold_timeout = (
-            max(root_timeout, wait_budget + WAIT_READ_SLACK_SECONDS)
-            if wait_budget > 0 and root_timeout > 0
-            else None
-        )
+        # A budget above the timer maximum is no limit (compared as an integer,
+        # before any float arithmetic): no client deadline on the POST either.
+        unbounded = wait_budget > MAX_WIRE_WAIT_SECONDS
+        hold_timeout: Optional[float]
+        if wait_budget <= 0 or root_timeout <= 0:
+            hold_timeout = None
+        elif unbounded:
+            hold_timeout = 0.0
+        else:
+            hold_timeout = max(root_timeout, wait_budget + WAIT_READ_SLACK_SECONDS)
         try:
             data = expect_object(
                 await self._api.send(
@@ -806,8 +810,9 @@ class AsyncDaytona:
         if sandbox.state == "started" or wait_budget == 0:
             return sandbox
         wait_cap = _optional_int(data.get("wait_cap_seconds")) or 0
-        remaining = max(0, wait_budget - wait_cap)
-        if remaining == 0:
+        # No limit stays no limit (0) after the server's hold.
+        remaining = 0 if unbounded else max(0, wait_budget - wait_cap)
+        if remaining == 0 and not unbounded:
             return sandbox
         # Wait through successive long-poll responses until the remaining
         # budget is spent. A spent budget or a terminal state hands back the
@@ -975,14 +980,18 @@ class AsyncDaytona:
             raise create_error(
                 "sandbox list response is missing the sandboxes array", 400, "BAD_REQUEST", "SDK"
             )
+        # Both spellings get the same check: a mistyped cursor would end
+        # pagination silently.
+        for key in ("next_cursor", "nextCursor"):
+            value = payload.get(key)
+            if value is not None and not isinstance(value, str):
+                raise create_error(
+                    f"sandbox list response has a {key} that is not a string", 400, "BAD_REQUEST", "SDK"
+                )
         raw_cursor = payload.get("next_cursor")
-        if raw_cursor is not None and not isinstance(raw_cursor, str):
-            raise create_error(
-                "sandbox list response has a next_cursor that is not a string", 400, "BAD_REQUEST", "SDK"
-            )
         candidate = payload.get("nextCursor")
         next_cursor = (
-            raw_cursor if raw_cursor is not None else candidate if isinstance(candidate, str) else None
+            raw_cursor if isinstance(raw_cursor, str) else candidate if isinstance(candidate, str) else None
         )
         # Wire objects, strings (timestamps) verbatim.
         items = [sandbox_detail_wire(item) for item in raw_items]
@@ -1674,12 +1683,8 @@ def _create_body(config: CreateConfig) -> CreateBody:
         ):
             if cores is None:
                 continue
-            if (
-                isinstance(cores, bool)
-                or not isinstance(cores, (int, float))
-                or not math.isfinite(cores)
-                or cores <= 0
-            ):
+            # A double on the wire: any finite positive number a double carries.
+            if not finite_number(cores) or cores <= 0:  # type: ignore[operator]
                 raise create_error(
                     f"resources.{label} must be a positive number of cores", 400, "BAD_REQUEST", "SDK"
                 )
@@ -1691,7 +1696,13 @@ def _create_body(config: CreateConfig) -> CreateBody:
             (resources.disk_max, "disk_max_mib", "resources.disk_max"),
         ):
             if gib is not None:
-                body[wire] = gib_to_mib(gib, label=label)
+                mib = gib_to_mib(gib, label=label)
+                # The contract types these sizes as int32 MiB.
+                if mib > INT32_MAX:
+                    raise create_error(
+                        f"{label} must convert to at most 2147483647 MiB", 400, "BAD_REQUEST", "SDK"
+                    )
+                body[wire] = mib
     user = config.get("user")
     if isinstance(user, str) and route == "linux" and source_kind == "image":
         body["user"] = user
@@ -1730,16 +1741,20 @@ def _create_body(config: CreateConfig) -> CreateBody:
         # caller bug, not "use the default" (parity with the TS SDK's createWaitSeconds).
         wait_seconds = config["wait_seconds"]
         _validate_wait(wait_seconds)
-        body["wait_seconds"] = wait_seconds
+        assert isinstance(wait_seconds, int)  # _validate_wait proved it
+        # Above the timer maximum is no limit: the body carries the maximum, in
+        # whole seconds, the same value in both SDKs (never a 400-digit integer).
+        body["wait_seconds"] = min(wait_seconds, MAX_WIRE_WAIT_SECONDS)
     create_timeout_seconds = config.get("create_timeout_seconds")
     if create_timeout_seconds is not None:
+        # The server's own budget (an int64 on the wire) that both SDKs carry exactly.
         if (
             isinstance(create_timeout_seconds, bool)
             or not isinstance(create_timeout_seconds, int)
-            or create_timeout_seconds < -1
+            or not -1 <= create_timeout_seconds <= MAX_SAFE_INTEGER
         ):
             raise create_error(
-                "create_timeout_seconds must be an integer of at least -1 (-1 = the server maximum)",
+                "create_timeout_seconds must be an integer from -1 (the server maximum) to 9007199254740991",
                 400,
                 "BAD_REQUEST",
                 "SDK",
@@ -1793,8 +1808,9 @@ def _create_response_state(
     return sandbox_state(str(payload.get("status") or ""))
 
 
-def _create_wait_budget(body: CreateBody) -> int:
-    wait_seconds = body.get("wait_seconds")
+def _create_wait_budget(config: CreateConfig) -> int:
+    """The caller's create wait, uncapped (the body carries it capped)."""
+    wait_seconds = config.get("wait_seconds")
     return wait_seconds if isinstance(wait_seconds, int) and not isinstance(wait_seconds, bool) else 60
 
 

@@ -39,14 +39,16 @@ describe.each(['image', 'snapshot'] as const)('%s readiness budgets', (kind) => 
     ])
   })
 
-  it('pauses after an early non-terminal response and returns the last observation at expiry', async () => {
+  it('pauses after an early non-terminal response and raises RequestTimeoutError at expiry', async () => {
     // Given a peer that repeatedly returns pending immediately.
     const { service, requests } = fixture(['pending'], 0)
     // When a fractional budget expires in the pause between reads.
     const pending = service.get('artifact', { wait: 'ready', timeoutSeconds: 1.5 })
+    const settled = pending.then(() => undefined, (error: unknown) => error)
     await jest.advanceTimersByTimeAsync(1500)
-    // Then there is no busy loop and no timeout error replaces the artifact.
-    expect((await pending).status).toBe('pending')
+    // Then there is no busy loop, and a spent budget is the wait's own timeout,
+    // never the unsettled observation.
+    expect(await settled).toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     expect(requests).toEqual([{ at: 0, hold: 1500, timeout: 1500 }, { at: 1000, hold: 500, timeout: 500 }])
   })
 

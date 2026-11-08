@@ -88,6 +88,9 @@ class PortsService:
         access token scoped to exactly this
         port. Otherwise the preview-url token is passed through unchanged.
         Token contents are not used to infer access permissions.
+
+        A port that is not exposed yet is exposed first (privately, as
+        :meth:`expose` does): this call registers a preview endpoint.
         """
         return self._bridge.call(lambda: self._impl.preview_link(port))
 
@@ -112,7 +115,7 @@ class PortsService:
 
         Example::
 
-            link = await sandbox.ports.signed_preview_link(8080, expires_in_seconds=300)
+            link = sandbox.ports.signed_preview_link(8080, expires_in_seconds=300)
             # Hand link.url to a browser or another tool — no headers needed.
         """
         return self._bridge.call(

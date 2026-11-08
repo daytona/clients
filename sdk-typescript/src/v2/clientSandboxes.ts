@@ -78,7 +78,10 @@ export async function listSandboxes(context: SandboxClientContext, options: List
     params: { cursor: options.cursor, limit: options.limit },
   }).then((response) => response.data)
   const page = listPage<api.Sandbox>(listResponse, 'sandboxes', 'sandbox list')
-  const nextCursor = page.nextCursor ?? ('nextCursor' in listResponse && typeof listResponse.nextCursor === 'string' ? listResponse.nextCursor : undefined)
+  // Both spellings get the same check, as in Python: a mistyped cursor would end pagination silently.
+  const camel: unknown = Reflect.get(listResponse, 'nextCursor')
+  if (camel !== undefined && camel !== null && typeof camel !== 'string') throw badRequest('sandbox list response has a nextCursor that is not a string')
+  const nextCursor = page.nextCursor ?? (typeof camel === 'string' ? camel : undefined)
   page.items.forEach(assertSandboxResponse)
   return frozenPage({ items: await sandboxesFromDtos(context, page.items), nextCursor })
 }

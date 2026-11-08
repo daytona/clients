@@ -135,6 +135,10 @@ def _sync_doc(doc: str) -> str:
     """The full docstring for a sync twin: cross-references to wrapped async
     classes (``:class:`AsyncDockerService` ``) name the sync twin."""
     text = inspect.cleandoc(doc)
+    # Example code in the async docstrings becomes sync code for the twin.
+    text = re.sub(r"\basync with\b", "with", text)
+    text = re.sub(r"\basync for\b", "for", text)
+    text = re.sub(r"\bawait ", "", text)
     return re.sub(
         r"(?<![\w.])Async(" + "|".join(sorted(n.removeprefix("Async") for n in WRAPPED)) + r")(?![\w])",
         r"\1",

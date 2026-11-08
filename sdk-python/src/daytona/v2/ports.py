@@ -195,6 +195,9 @@ class AsyncPortsService:
         access token scoped to exactly this
         port. Otherwise the preview-url token is passed through unchanged.
         Token contents are not used to infer access permissions.
+
+        A port that is not exposed yet is exposed first (privately, as
+        :meth:`expose` does): this call registers a preview endpoint.
         """
         _assert_port(port)
         try:

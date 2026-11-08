@@ -226,8 +226,11 @@ class AsyncImagesService:
 
         With a positive ``timeout`` (seconds) the wait repeats the server's
         long poll (each at most 60 s) until the image is ``ready``, ``failed``
-        or ``error``, or the budget is spent, then returns the image as last
-        observed. Without one, a single long poll uses the server's default.
+        or ``error`` and returns it (check its status); a budget above the
+        timer maximum waits without a deadline. A budget that runs out first
+        raises :class:`RequestTimeoutError`. Without one (omitted or ``0``), a
+        single long poll of the server's default length returns what the
+        server reports.
         """
         return await _get_artifact(
             self._transport,
@@ -328,38 +331,48 @@ async def _get_artifact(
     parse: Callable[[TransportPayload], _Artifact],
     status_of: Callable[[_Artifact], str],
 ) -> _Artifact:
+    """Read an artifact, as one hold or as repeated holds within a wait budget.
+
+    Without a budget (``timeout`` omitted or ``0``) ``wait="ready"`` makes one
+    hold of the server's default length and returns what the server reports. A
+    positive budget repeats holds of at most 60 s until the artifact settles
+    (``ready``, ``failed`` or ``error``), which is returned for the caller to
+    check; a budget above the timer maximum repeats them without a deadline.
+    Every read is capped at the wait's deadline, as the sandbox waits are, and
+    a budget that runs out before the artifact settles raises
+    :class:`RequestTimeoutError` (408, ``REQUEST_TIMEOUT``, ``SDK``), as
+    ``images.pull()`` and ``sandbox.wait()`` do: never an unsettled observation.
+    """
     if wait is not None and wait != "ready":
         raise create_error(f'wait must be "ready" or omitted, got {wait!r}', 400, "BAD_REQUEST", "SDK")
-    # 0 or None reads one hold of the server's length; a budget above the timer
-    # maximum (an integer too large for a float included) does too.
-    budget_ms = (
-        math.ceil(wait_budget_seconds(timeout) * 1000) if wait is not None and timeout is not None else None
-    )
     if wait is None:
         return parse(await transport.send(RequestSpec("GET", path)))
-    if not budget_ms:
+    if timeout is None or (not isinstance(timeout, bool) and timeout == 0):
         return parse(
             await transport.send(RequestSpec("GET", path, params={"wait": wait}, unbounded_read=True))
         )
-    deadline = _clock.monotonic() + budget_ms / 1000
-    last: Optional[_Artifact] = None
+    # Above the timer maximum (an integer too large for a float included) the
+    # budget maps to 0.0: holds repeat without a deadline.
+    budget = wait_budget_seconds(timeout)
+    deadline = None if budget == 0 else _clock.monotonic() + budget
 
     def timed_out() -> DaytonaError:
         return create_error("artifact did not become ready before timeout", 408, "REQUEST_TIMEOUT", "SDK")
 
     while True:
-        remaining = deadline - _clock.monotonic()
-        if remaining <= 0:
-            if last is not None:
-                return last
+        remaining = None if deadline is None else deadline - _clock.monotonic()
+        if remaining is not None and remaining <= 0:
             raise timed_out()
         # A long poll is governed by the wait budget, not the request timeout:
         # each hold is the smaller of the remaining budget and the server's
         # 60 s cap, in whole milliseconds, and the read adds network slack —
         # never past the wait's deadline, as the sandbox waits do.
-        hold_ms = max(1, min(_ARTIFACT_LONGPOLL_MAX_MS, math.ceil(remaining * 1000)))
+        hold_ms = (
+            _ARTIFACT_LONGPOLL_MAX_MS
+            if remaining is None
+            else max(1, min(_ARTIFACT_LONGPOLL_MAX_MS, math.ceil(remaining * 1000)))
+        )
         slack_read = hold_ms / 1000 + _ARTIFACT_HOLD_READ_SLACK_S
-        deadline_owns_timeout = remaining <= slack_read
         started = _clock.monotonic()
         try:
             artifact = parse(
@@ -368,28 +381,25 @@ async def _get_artifact(
                         "GET",
                         path,
                         params={"wait": wait, "timeout_ms": hold_ms},
-                        timeout=min(slack_read, remaining),
+                        timeout=slack_read if remaining is None else min(slack_read, remaining),
                     )
                 )
             )
         except ClientTimeoutError as error:
-            # Only expiry of this wait's own cap is the wait running out: its
-            # last observation, or the wait's own timeout.
-            if deadline_owns_timeout or _clock.monotonic() >= deadline:
-                if last is not None:
-                    return last
+            # Only expiry of this wait's own cap is the wait running out.
+            if remaining is not None and (remaining <= slack_read or _clock.monotonic() >= deadline):  # type: ignore[operator]
                 raise timed_out() from error
             raise
-        last = artifact
-        if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES or _clock.monotonic() >= deadline:
+        if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES:
             return artifact
+        if deadline is not None and _clock.monotonic() >= deadline:
+            raise timed_out()
         elapsed = _clock.monotonic() - started
         if elapsed < _ARTIFACT_MIN_POLL_INTERVAL_S:
-            await anyio.sleep(
-                min(_ARTIFACT_MIN_POLL_INTERVAL_S - elapsed, max(0.0, deadline - _clock.monotonic()))
-            )
-        if _clock.monotonic() >= deadline:
-            return artifact
+            pause = _ARTIFACT_MIN_POLL_INTERVAL_S - elapsed
+            if deadline is not None:
+                pause = min(pause, max(0.0, deadline - _clock.monotonic()))
+            await anyio.sleep(pause)
 
 
 class AsyncSnapshotsService:
@@ -712,17 +722,21 @@ def _check_reservation_options(
     def refuse(message: str) -> DaytonaError:
         return create_error(message, 400, "BAD_REQUEST", "SDK")
 
-    if not isinstance(region, str) or not region.strip():
-        raise refuse("region must be a non-empty string")
+    # A blank region names no region and a blank model is the region's default
+    # model (the contract), so only a non-string is refused.
+    if not isinstance(region, str):
+        raise refuse("region must be a string")
     if model is not None and not isinstance(model, str):
         raise refuse("model must be a string")
     if auto_renew is not None and not isinstance(auto_renew, bool):
         raise refuse("auto_renew must be a boolean")
-    for name, value in (("count", count), ("min_count", min_count)):
-        if value is None and name == "min_count":
-            continue
-        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-            raise refuse(f"{name} must be a positive integer")
+    # Billed: the counts the contract allows only (count 1 to 100, min_count 1 to count).
+    if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 100:
+        raise refuse("count must be an integer from 1 to 100")
+    if min_count is not None and (
+        isinstance(min_count, bool) or not isinstance(min_count, int) or not 1 <= min_count <= count
+    ):
+        raise refuse("min_count must be an integer from 1 to count")
 
 
 def _mac_reservation(response: TransportPayload | MacReservationWire) -> MacReservation:

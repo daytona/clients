@@ -819,3 +819,23 @@ def test_async_and_sync_surfaces_are_the_same_implementation() -> None:
     assert sync_module.Daytona._async_type is AsyncDaytona
     assert sync_module.ProcessService._async_type is AsyncProcessService
     assert isinstance(Daytona(_config_at("http://x.invalid", api_key="k"))._bridge, SyncBridge)
+
+
+def test_generated_sync_docstrings_carry_sync_examples() -> None:
+    # The sync twins copy the async docstrings in full; their example code is
+    # rewritten for the sync client, so none shows `await` or `async`.
+    import ast
+    from pathlib import Path
+
+    import daytona.v2._sync as sync_package
+
+    offenders: list[str] = []
+    for path in sorted(Path(sync_package.__file__).parent.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef, ast.Module)):
+                doc = ast.get_docstring(node) or ""
+                for needle in ("await ", "async with", "async for"):
+                    if needle in doc:
+                        offenders.append(f"{path.name}:{getattr(node, 'name', '<module>')}: {needle!r}")
+    assert offenders == []

@@ -60,6 +60,15 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   ['reservations.create autoRenew as a string', (client) => client.v2.reservations.create({ region: 'r', autoRenew: 'yes' as never })],
   ['reservations.createBulk count as a string', (client) => client.v2.reservations.createBulk({ region: 'r', count: '2' as never })],
   ['reservations.createBulk minCount 0', (client) => client.v2.reservations.createBulk({ region: 'r', count: 2, minCount: 0 })],
+  ['reservations.createBulk count 0', (client) => client.v2.reservations.createBulk({ region: 'r', count: 0 })],
+  ['reservations.createBulk count 101', (client) => client.v2.reservations.createBulk({ region: 'r', count: 101 })],
+  ['reservations.createBulk minCount above count', (client) => client.v2.reservations.createBulk({ region: 'r', count: 2, minCount: 3 })],
+  ['createAccessToken ports null', (_client, api) => handle(api).createAccessToken({ ports: null as never })],
+  ['createAccessToken ports a number', (_client, api) => handle(api).createAccessToken({ ports: 3000 as never })],
+  ['createAccessToken ports with a string', (_client, api) => handle(api).createAccessToken({ ports: ['3000'] as never })],
+  ['create waitSeconds 1e300 is fine, createTimeoutSeconds above 2^53-1 is not', (client) => client.v2.create({ createTimeoutSeconds: 2 ** 53 })],
+  ['create memory above int32 MiB', (client) => client.v2.create({ resources: { memory: 2_097_152 } })],
+  ['create diskMax above int32 MiB', (client) => client.v2.create({ resources: { diskMax: 2_097_152 } })],
   ['reservations.update without autoRenew', (client) => client.v2.reservations.update('res', {} as never)],
   ['reservations.update autoRenew as a string', (client) => client.v2.reservations.update('res', { autoRenew: 'yes' as never })],
   ['volumes.delete(a Volume object)', (client) => client.v2.volumes.delete({ id: 'vol' } as never)],
@@ -207,3 +216,37 @@ it('ends a ready wait whose first hold outlives the deadline with RequestTimeout
     server.close()
   }
 }, 15_000)
+
+const RESERVATION = {
+  id: 'res', org_id: 'o', project_id: 'p', region_id: 'r', status: 'active', origin: 'explicit', auto_renew: true,
+  sandboxes_per_mac: 2, slots_used: 0, period_n: 1, period_seconds: 86400, renewal_pending: false, created_at: '2026-01-01T00:00:00Z',
+  resources_used: { cores: 0, memory_mib: 0, disk_mib: 0 },
+}
+
+it.each([
+  ['a blank region and model', (client: Daytona) => client.v2.reservations.create({ region: '', model: '' }), RESERVATION, { region_id: '', model: '' }],
+  ['count 100 and minCount equal to count', (client: Daytona) => client.v2.reservations.createBulk({ region: 'r', count: 100, minCount: 100 }), { requested: 100, reserved: 0, reservations: [] }, { count: 100, min_count: 100 }],
+  ['count 1', (client: Daytona) => client.v2.reservations.createBulk({ region: ' ', count: 1 }), { requested: 1, reserved: 0, reservations: [] }, { region_id: ' ', count: 1 }],
+] as const)('sends a reservation with %s, as the contract allows', async (_name, call, response, expected) => {
+  const api = await startFakeApi([{ status: 200, body: response }])
+  const client = clientAt(api.url)
+  try {
+    await call(client)
+    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject(expected)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('sends a create wait above the timer maximum as the maximum, with no client deadline on the POST', async () => {
+  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status: 'running' } }])
+  const client = clientAt(api.url, { requestTimeoutSeconds: 1 })
+  try {
+    await client.v2.create('img_1', { waitSeconds: 1e300 })
+    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ wait_seconds: 2_147_483 })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

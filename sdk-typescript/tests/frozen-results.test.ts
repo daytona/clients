@@ -81,11 +81,21 @@ it('freezes preview endpoints and links', async () => {
   const api = await startFakeApi([
     { status: 200, body: { port: 8080, public: true, url: 'https://p', created_at: TIME } },
     { status: 200, body: { ports: [{ port: 8080, public: true, url: 'https://p', created_at: TIME }], next_cursor: null } },
+    // previewLink: the endpoint, then its preview URL.
+    { status: 200, body: { port: 8081, public: false, url: 'https://p2', created_at: TIME } },
+    { status: 200, body: { url: 'https://p2', token: 'preview-token' } },
+    { status: 200, body: { url: 'https://signed', token: 'signed-token', expires_at: '2099-01-01T00:00:00Z' } },
   ])
   try {
-    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(api.url, 'key'))
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(api.url, 'key'), undefined, undefined, undefined, { accessToken: 'caller-token' })
     expect(Object.isFrozen(await sandbox.ports.expose(8080, { public: true }))).toBe(true)
     expect(deeplyFrozen(await sandbox.ports.listEndpoints())).toBe(true)
+    const link = await sandbox.ports.previewLink(8081)
+    expect(link).toMatchObject({ url: 'https://p2', token: 'preview-token' })
+    expect(deeplyFrozen(link)).toBe(true)
+    const signed = await sandbox.ports.signedPreviewLink(8081)
+    expect(signed).toMatchObject({ url: 'https://signed', token: 'signed-token' })
+    expect(deeplyFrozen(signed)).toBe(true)
   } finally {
     await api.close()
   }
@@ -109,14 +119,35 @@ describe('deepFrozen', () => {
   })
 
   it('ends on a cycle', async () => {
-    const deepFrozen = await load()
-    const cyclic: Record<string, unknown> = { list: [] }
-    cyclic.self = cyclic
-    ;(cyclic.list as unknown[]).push(cyclic)
-    // A regression would loop forever; the test timeout bounds it.
-    expect(deepFrozen(cyclic)).toBe(cyclic)
-    expect(Object.isFrozen(cyclic) && Object.isFrozen(cyclic.list)).toBe(true)
-  }, 5_000)
+    // A synchronous loop cannot be interrupted by a Jest timeout, so the cyclic
+    // freeze runs in a worker the test terminates: a regression fails in seconds.
+    const { Worker } = await import('node:worker_threads')
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const ts = (await import('typescript')).default
+    const source = readFileSync(join(__dirname, '..', 'src', 'v2', 'frozen.ts'), 'utf8')
+    const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
+    const script = `
+      const module = { exports: {} }
+      ;(function (exports, module) { ${compiled} })(module.exports, module)
+      const cyclic = { list: [] }
+      cyclic.self = cyclic
+      cyclic.list.push(cyclic)
+      module.exports.deepFrozen(cyclic)
+      require('node:worker_threads').parentPort.postMessage(Object.isFrozen(cyclic) && Object.isFrozen(cyclic.list))
+    `
+    const worker = new Worker(script, { eval: true })
+    try {
+      const outcome = await new Promise<unknown>((resolve, reject) => {
+        const timer = setTimeout(() => resolve('timed out'), 4_000)
+        worker.once('message', (value: unknown) => { clearTimeout(timer); resolve(value) })
+        worker.once('error', (error: unknown) => { clearTimeout(timer); reject(error) })
+      })
+      expect(outcome).toBe(true)
+    } finally {
+      await worker.terminate()
+    }
+  }, 10_000)
 
   it('freezes a volume whose options are nested 10,000 levels deep', async () => {
     // Sent as text: the fake server's JSON.stringify would itself recurse.

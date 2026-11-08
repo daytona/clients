@@ -91,8 +91,11 @@ class ImagesService:
 
         With a positive ``timeout`` (seconds) the wait repeats the server's
         long poll (each at most 60 s) until the image is ``ready``, ``failed``
-        or ``error``, or the budget is spent, then returns the image as last
-        observed. Without one, a single long poll uses the server's default.
+        or ``error`` and returns it (check its status); a budget above the
+        timer maximum waits without a deadline. A budget that runs out first
+        raises :class:`RequestTimeoutError`. Without one (omitted or ``0``), a
+        single long poll of the server's default length returns what the
+        server reports.
         """
         return self._bridge.call(lambda: self._impl.get(image_id, wait=wait, timeout=timeout))
 

@@ -557,9 +557,12 @@ secrets or network policy.
 `images.get(id, wait="ready", timeout=120)` and
 `snapshots.get(id, wait="ready", timeout=120)` wait for the artifact to
 settle (`ready`, `failed` or `error`): they repeat the server's long poll,
-each hold at most 60 s (the wait budget governs it, not `request_timeout`), until it settles or the
-budget is spent, then return the artifact as last observed. Without a
-timeout, one long poll uses the server's default hold. `sandbox.capture_image(name=..., idle_expiry_seconds=...)` captures an
+each hold at most 60 s (the wait budget governs it, not `request_timeout`),
+until it settles, and return it for you to check its status. A budget that
+runs out first raises `RequestTimeoutError`; a budget above the timer maximum
+(about 24.8 days) waits without a deadline. Without a timeout (omitted or
+`0`), one long poll of the server's default length returns what the server
+reports. `sandbox.capture_image(name=..., idle_expiry_seconds=...)` captures an
 image from a sandbox.
 
 ### macOS sandboxes

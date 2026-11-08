@@ -11,7 +11,6 @@ import binascii
 import codecs
 import inspect
 import json
-import math
 import random
 import re
 import time
@@ -27,7 +26,7 @@ from pydantic import BaseModel
 from typing_extensions import Unpack
 
 from . import _clock
-from ._core import RequestSpec, parse_error_payload
+from ._core import RequestSpec, parse_error_payload, wait_budget_seconds
 from ._gen.api import (
     BuildLogChunk,
     BuildLogDone,
@@ -722,15 +721,9 @@ async def follow_build_logs(
     cursor: str | None = None,
     timeout: float | None = None,
 ) -> BuildLogFollowResult:
-    if timeout is not None and (
-        isinstance(timeout, bool)
-        or not isinstance(timeout, (int, float))
-        or not math.isfinite(timeout)
-        or timeout < 0
-    ):
-        raise create_error(
-            "timeout must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
-        )
+    # 0, None or above the timer maximum (a huge integer included) is no deadline.
+    if timeout is not None:
+        timeout = wait_budget_seconds(timeout) or None
     if not callable(on_logs):
         raise TypeError("on_logs is required")
     caller_deadline = _clock.monotonic() + timeout if timeout else None

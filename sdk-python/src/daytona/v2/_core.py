@@ -222,8 +222,11 @@ def image_options_body(
 def parse_json_response(content: bytes, *, what: str) -> JsonValue:
     """A JSON response body; one that is not JSON (or not UTF-8) breaks the
     contract: the SDK's :class:`BadRequestError` naming the response."""
+    if not content:
+        return {}
     try:
-        return parse_json_bytes(content)
+        # A body nested too deeply names the response too.
+        return loads_json(content.decode("utf-8"), what)
     except ValueError as error:
         raise create_error(f"{what} is not JSON", 400, "BAD_REQUEST", "SDK") from error
 
@@ -926,6 +929,23 @@ def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
 #: The longest delay a timer can arm, as the transport's bound: a wait budget
 #: above it means no deadline.
 MAX_WAIT_BUDGET_SECONDS: float = 2_147_483.647
+#: The same bound in whole seconds: the largest wait a request body carries
+#: (both SDKs send this for a wait with no deadline).
+MAX_WIRE_WAIT_SECONDS: int = 2_147_483
+#: The contract's int32 ceiling (MiB sizes, ports).
+INT32_MAX: int = 2_147_483_647
+#: The largest integer both SDKs represent exactly (an int64 the API accepts).
+MAX_SAFE_INTEGER: int = 2**53 - 1
+
+
+def finite_number(value: object) -> bool:
+    """A real number a double can carry: not a bool, finite, and an integer
+    not too large for a float (checked without an ``OverflowError``)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    if isinstance(value, int):
+        return -(2**1023) < value < 2**1024
+    return math.isfinite(value)
 
 
 def wait_budget_seconds(value: object, *, name: str = "timeout") -> float:

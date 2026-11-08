@@ -8,7 +8,7 @@ import type { CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, Creat
 import { assertLifecycleClassSupport, lifecycleBody } from './http.js'
 import { assertKnownOptions, badRequest } from './options.js'
 import { assertCreateNestedOptions, withoutNullOptions, CREATE_KEYS, SNAPSHOT_CREATE_KEYS, MACOS_CREATE_KEYS, RESOURCES_KEYS, MACOS_RESOURCES_KEYS } from './clientOptionKeys.js'
-import { createRegion, rejectV0Target, createWaitSeconds, createTimeoutSeconds, gibToMib, imageSourceString, linuxCreateArguments, macosCores, macosMib, resolveIdempotencyKey, snapshotSourceString } from './clientCreateOptions.js'
+import { createRegion, rejectV0Target, createWaitSeconds, wireWaitSeconds, createTimeoutSeconds, linuxMib, imageSourceString, linuxCreateArguments, macosCores, macosMib, resolveIdempotencyKey, snapshotSourceString } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
 
@@ -30,6 +30,8 @@ export interface PreparedSandboxCreate {
   }
   readonly metadata: {
     readonly autoDelete: boolean
+    /** The caller's wait, uncapped (the body carries it capped). */
+    readonly waitSeconds: number
     readonly image?: string
     readonly snapshot?: string
     readonly sandboxClass?: 'macos'
@@ -60,10 +62,10 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
     region_id: createRegion(options),
     cpu: options.resources?.cpu,
     cores_max: options.resources?.cpuMax,
-    memory_mib: options.resources?.memory !== undefined ? gibToMib(options.resources.memory, 'memory') : undefined,
-    memory_max_mib: options.resources?.memoryMax !== undefined ? gibToMib(options.resources.memoryMax, 'memoryMax') : undefined,
-    disk_mib: options.resources?.disk !== undefined ? gibToMib(options.resources.disk, 'disk') : undefined,
-    disk_max_mib: options.resources?.diskMax !== undefined ? gibToMib(options.resources.diskMax, 'diskMax') : undefined,
+    memory_mib: options.resources?.memory !== undefined ? linuxMib(options.resources.memory, 'memory') : undefined,
+    memory_max_mib: options.resources?.memoryMax !== undefined ? linuxMib(options.resources.memoryMax, 'memoryMax') : undefined,
+    disk_mib: options.resources?.disk !== undefined ? linuxMib(options.resources.disk, 'disk') : undefined,
+    disk_max_mib: options.resources?.diskMax !== undefined ? linuxMib(options.resources.diskMax, 'diskMax') : undefined,
     ports: options.ports?.map((port) => ({ port: port.port, proto: port.proto ?? 'tcp' })),
     volumes: options.volumes?.map((volume) => ({ volume: volume.volumeId, mount_path: volume.mountPath, subpath: volume.subpath, read_only: volume.readOnly === true ? true : undefined })),
     secrets: options.secrets === undefined ? undefined : [...options.secrets],
@@ -74,11 +76,11 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
     cpu_arch: options.cpuArch,
     cpu_type: options.cpuType,
     user: options.user,
-    wait_seconds: createWaitSeconds(options.waitSeconds),
+    wait_seconds: wireWaitSeconds(createWaitSeconds(options.waitSeconds)),
     create_timeout_seconds: createTimeoutSeconds(options.createTimeoutSeconds),
     idempotency_key: resolveIdempotencyKey(options.idempotencyKey),
   }
-  return { path: '/sandboxes', body, metadata: { autoDelete: options.autoDelete ?? false, image: source } }
+  return { path: '/sandboxes', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), image: source } }
 }
 
 /** @internal */
@@ -97,11 +99,11 @@ export function snapshotCreateRequest(snapshot: string, options: CreateSandboxFr
     lifecycle_policy: lifecyclePolicy,
     ports: options.ports?.map((port) => ({ port: port.port, proto: port.proto ?? 'tcp' })),
     region_id: createRegion(options),
-    wait_seconds: createWaitSeconds(options.waitSeconds),
+    wait_seconds: wireWaitSeconds(createWaitSeconds(options.waitSeconds)),
     create_timeout_seconds: createTimeoutSeconds(options.createTimeoutSeconds),
     idempotency_key: resolveIdempotencyKey(options.idempotencyKey),
   }
-  return { path: '/sandboxes/from-snapshot', body, metadata: { autoDelete: options.autoDelete ?? false, snapshot: source } }
+  return { path: '/sandboxes/from-snapshot', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), snapshot: source } }
 }
 
 /** @internal */
@@ -137,11 +139,11 @@ export function macosCreateRequest(image: string, options: CreateMacosSandboxOpt
     reservation: options.reservation,
     auto_renew: options.autoRenew,
     lifecycle_policy: lifecyclePolicy,
-    wait_seconds: createWaitSeconds(options.waitSeconds),
+    wait_seconds: wireWaitSeconds(createWaitSeconds(options.waitSeconds)),
     create_timeout_seconds: createTimeoutSeconds(options.createTimeoutSeconds),
     idempotency_key: resolveIdempotencyKey(options.idempotencyKey),
     // The helper checks property presence and validates before serializing.
     network_policy: createNetworkPolicyCreateField(options),
   }
-  return { path: '/sandboxes/macos', body, metadata: { autoDelete: options.autoDelete ?? false, image: source, sandboxClass: 'macos' } }
+  return { path: '/sandboxes/macos', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), image: source, sandboxClass: 'macos' } }
 }
