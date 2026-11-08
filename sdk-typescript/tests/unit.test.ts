@@ -7315,7 +7315,7 @@ describe('toolbox service request shaping', () => {
     const auths: string[] = []
     clientInstance(client).defaults.adapter = async (config) => {
       auths.push(responseHeaders(config).get('authorization') ?? '')
-      return { data: { items: [] }, status: 200, statusText: 'OK', headers: {}, config }
+      return { data: { targets: [] }, status: 200, statusText: 'OK', headers: {}, config }
     }
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`{"access_token": "platform", "expires_in": ${raw}}`, { headers: { 'content-type': 'application/json' } }))
     await client.listAuditActions()
