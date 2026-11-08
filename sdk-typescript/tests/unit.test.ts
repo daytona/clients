@@ -8689,7 +8689,7 @@ describe('toolbox service request shaping', () => {
 
 describe('typed error mapping', () => {
   it('preserves rawState on SandboxTerminalStateError', () => {
-    const error = new SandboxTerminalStateError('sbx', 'destroyed', 'deleted')
+    const error = new SandboxTerminalStateError('sbx', 'destroyed', { rawState: 'deleted' })
     expect(error.rawState).toBe('deleted')
   })
 

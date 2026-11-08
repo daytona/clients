@@ -20,10 +20,13 @@ idempotency key, as Python does, and a server 408 on it stays a
 `RequestTimeoutError`. `ImageBuildFailedError.buildError` /
 `build_error` is the image's recorded build error, when it has one, separate
 from `message` (TypeScript used to copy the message into it). TypeScript
-`BuildLogInterruptedError` takes `(message, { cursor, code, … })`. A TypeScript
+`BuildLogInterruptedError` takes `(message, { cursor, code, … })`, and
+`SandboxTerminalStateError` takes `(sandboxId, state, { rawState })` (Python
+`raw_state=` is keyword-only; `rawState` was positional). A TypeScript
 error constructor given a second argument that is not an options object
 (`new NotFoundError('x', 404)` from plain JavaScript) throws `BadRequestError`
-instead of dropping it. Errors the TypeScript SDK raises itself now carry the
+instead of dropping it, and reads every enumerable field of the options,
+inherited ones included, as the client configuration does. Errors the TypeScript SDK raises itself now carry the
 catalog's class, as in Python: an invalid argument (a negative timeout, a
 blank name or create source, an invalid image step, ...) is a `BadRequestError` (it was the base
 `DaytonaError` with status 400), so `instanceof BadRequestError` and the root

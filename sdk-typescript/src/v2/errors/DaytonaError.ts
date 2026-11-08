@@ -114,9 +114,12 @@ export function nonOptionsDescription(value: unknown): string | undefined {
 }
 
 /**
- * `options` as given, refused with `BadRequestError` when it is not an options
- * object: `new NotFoundError('x', 404)` (a positional status from plain
- * JavaScript) would otherwise lose the status silently. Internal: every error
+ * A plain copy of `options`, refused with `BadRequestError` when it is not an
+ * options object: `new NotFoundError('x', 404)` (a positional status from
+ * plain JavaScript) would otherwise lose the status silently. The copy holds
+ * every enumerable key, own or inherited (`for...in`), as the client
+ * configuration reads them, so a prototype-based options object keeps its
+ * fields through the spreads the constructors do. Internal: every error
  * constructor that reads options runs it first.
  */
 export function errorOptions<T extends object>(options: T | undefined): T | undefined {
@@ -125,7 +128,9 @@ export function errorOptions<T extends object>(options: T | undefined): T | unde
   if (given !== undefined) {
     throw new BadRequestError(`error options must be an options object, got ${given}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
-  return options
+  const copy: Record<string, unknown> = {}
+  for (const key in options) copy[key] = (options as Record<string, unknown>)[key]
+  return copy as T
 }
 
 /**
@@ -268,6 +273,12 @@ export class DockerWaitTimeoutError extends RequestTimeoutError {
   }
 }
 
+/** Options of `SandboxTerminalStateError` beyond its sandbox id and state. */
+export interface SandboxTerminalStateErrorOptions {
+  /** The state string the server sent, when it differs from the public `state`. */
+  readonly rawState?: string
+}
+
 /**
  * `waitForState()` saw the sandbox reach a terminal state before any target.
  * `state` is the observed public sandbox state (e.g. `'destroyed'`).
@@ -276,7 +287,8 @@ export class SandboxTerminalStateError extends ConflictError {
   public readonly state: SandboxState
   public readonly rawState?: string
 
-  constructor(sandboxId: string, state: SandboxState, rawState?: string) {
+  constructor(sandboxId: string, state: SandboxState, options?: SandboxTerminalStateErrorOptions) {
+    const { rawState } = errorOptions(options) ?? {}
     super(`sandbox ${sandboxId} reached terminal state ${state}`, { statusCode: 409, code: 'CONFLICT', source: 'SDK' })
     this.state = state
     this.rawState = rawState
