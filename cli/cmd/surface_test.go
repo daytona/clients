@@ -169,15 +169,35 @@ var flagGroupKinds = map[string]string{
 	"cobra_annotation_required_if_others_set": "required-together",
 }
 
-// flagGroups lists the command's flag groups, one line each:
-// `<path>: flag-group <kind> <flag> <flag>...`.
+// flagGroups lists the flag groups cobra enforces on the command, one line
+// each: `<path>: flag-group <kind> <flag> <flag>...`. Cobra stores a group on
+// its flags and enforces it on every command that has all of them, local or
+// inherited, so a group of persistent flags is listed under each command
+// that inherits them.
 func flagGroups(c *cobra.Command) []string {
 	seen := map[string]bool{}
 	var lines []string
-	c.LocalFlags().VisitAll(func(f *pflag.Flag) {
+	visible := map[string]bool{}
+	var all []*pflag.Flag
+	for _, set := range []*pflag.FlagSet{c.LocalFlags(), c.InheritedFlags()} {
+		set.VisitAll(func(f *pflag.Flag) {
+			if !visible[f.Name] {
+				visible[f.Name] = true
+				all = append(all, f)
+			}
+		})
+	}
+	for _, f := range all {
 		for annotation, kind := range flagGroupKinds {
 			for _, group := range f.Annotations[annotation] {
 				names := strings.Fields(group)
+				enforced := true
+				for _, name := range names {
+					enforced = enforced && visible[name]
+				}
+				if !enforced {
+					continue
+				}
 				sort.Strings(names)
 				line := c.CommandPath() + ": flag-group " + kind + " " + strings.Join(names, " ")
 				if !seen[line] {
@@ -186,7 +206,7 @@ func flagGroups(c *cobra.Command) []string {
 				}
 			}
 		}
-	})
+	}
 	return lines
 }
 
@@ -573,8 +593,17 @@ func TestCommandSurfaceRecordsArgumentBoundsAndFlagGroups(t *testing.T) {
 	grouped.Flags().Bool("yaml", false, "")
 	grouped.MarkFlagsMutuallyExclusive("yaml", "json")
 	root.AddCommand(arbitrary, six, grouped)
+	// A group of the root's persistent flags, defined from a child: cobra
+	// enforces it on every command that has both flags.
+	root.PersistentFlags().Bool("quiet", false, "")
+	root.PersistentFlags().Bool("debug", false, "")
+	six.MarkFlagsMutuallyExclusive("quiet", "debug")
 	lines := strings.Join(commandSurface(root), "\n")
-	for _, want := range []string{"x any: args 0+", "x six: args 0-6", "x grouped: flag-group mutually-exclusive json yaml"} {
+	for _, want := range []string{
+		"x any: args 0+", "x six: args 0-6", "x grouped: flag-group mutually-exclusive json yaml",
+		"x six: flag-group mutually-exclusive debug quiet", "x any: flag-group mutually-exclusive debug quiet",
+		"x: flag-group mutually-exclusive debug quiet",
+	} {
 		if !strings.Contains(lines, want) {
 			t.Errorf("missing %q in:\n%s", want, lines)
 		}

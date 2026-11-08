@@ -298,8 +298,10 @@ go test ./cmd -run TestPublicSurface -update   # regenerate api-surface/daytona.
 
 `api-surface/daytona.api.txt` lists the CLI's public surface: every command
 path with its aliases, positional arguments, the argument counts it accepts
-and its flag groups (mutually exclusive, one required, required together), every flag with its type,
-shorthand and default, and the environment variables the CLI reads. `go test` fails when it is stale;
+and the flag groups cobra enforces on it (mutually exclusive, one required,
+required together); every flag with its type, shorthand and default and its
+hidden, persistent, deprecated and required state; and the environment
+variables the CLI reads. `go test` fails when it is stale;
 regenerate it after changing any of them and commit the result.
 
 Wire types are generated from the public `contract/` OpenAPI artifacts and
