@@ -282,12 +282,13 @@ export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
     throw malformedResponse(`${description}: the data is not JSON`)
   }
   const payload = record(parsed, description)
-  // The payload's cursor, else (only when the payload has none) the SSE id.
-  const payloadCursor = payload.cursor === undefined || payload.cursor === null ? undefined : payload.cursor
-  if (payloadCursor !== undefined && (typeof payloadCursor !== 'string' || payloadCursor === '')) {
+  // The payload's cursor, else (only when the key is missing) the SSE id; a
+  // JSON null is a present, invalid cursor.
+  const hasCursor = Object.prototype.hasOwnProperty.call(payload, 'cursor')
+  if (hasCursor && (typeof payload.cursor !== 'string' || payload.cursor === '')) {
     throw malformedResponse(`${description}: cursor must be a non-empty string`)
   }
-  const cursor = payloadCursor ?? message.id
+  const cursor = hasCursor ? payload.cursor as string : message.id
   if (cursor === undefined || cursor === '') throw malformedResponse(`${description}: cursor is required`)
   switch (message.event) {
     case 'log': return { type: 'log', cursor, frame: frameFromWire({ ...payload, cursor } as LogFrameWire) }

@@ -12601,17 +12601,18 @@ describe('toolbox surface', () => {
     await expect(process.list()).rejects.toThrow('expected process list response: items is required')
   })
 
-  it('uses the SSE id only when the event payload has no cursor', async () => {
+  it('uses the SSE id only when the cursor key is missing; a null cursor is refused', async () => {
     const transport = transportStub()
     transport.fetch
-      .mockResolvedValueOnce(sseResponse(['id: c1\nevent: eof\ndata: {"cursor":null}\n\n']))
+      .mockResolvedValueOnce(sseResponse(['id: c1\nevent: eof\ndata: {}\n\n']))
       .mockResolvedValueOnce(sseResponse(['id: c1\nevent: eof\ndata: {"cursor":""}\n\n']))
       .mockResolvedValueOnce(sseResponse(['id: c1\nevent: eof\ndata: {"cursor":5}\n\n']))
+      .mockResolvedValueOnce(sseResponse(['id: c1\nevent: eof\ndata: {"cursor":null}\n\n']))
     const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc')
     const events: StreamLogEvent[] = []
     for await (const event of handle.streamLogs()) events.push(event)
     expect(events).toEqual([{ type: 'eof', cursor: 'c1' }])
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 3; i++) {
       await expect((async () => {
         for await (const _event of handle.streamLogs()) { /* drain */ }
       })()).rejects.toThrow('expected process log eof event: cursor must be a non-empty string')

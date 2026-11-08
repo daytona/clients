@@ -150,9 +150,10 @@ def _stream_log_event(event: str, data: str, message_id: Optional[str]) -> Optio
     if event not in ("log", "state", "warning", "eof", "error"):
         return None
     payload = sse_json(event, data, f"process log {event} event")
-    # The payload's cursor, else (only when the payload has none) the SSE id.
+    # The payload's cursor, else (only when the key is missing) the SSE id; a
+    # JSON null is a present, invalid cursor.
     cursor_value = payload.get("cursor")
-    if cursor_value is None:
+    if "cursor" not in payload:
         cursor = message_id
     elif isinstance(cursor_value, str) and cursor_value:
         cursor = cursor_value

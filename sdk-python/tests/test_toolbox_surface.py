@@ -1142,13 +1142,10 @@ async def test_huge_durations_mean_no_limit_and_never_overflow() -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("cursor", ['""', "5", "null"])
-async def test_stream_logs_uses_the_sse_id_only_when_the_payload_has_no_cursor(cursor: str) -> None:
+async def test_stream_logs_refuses_a_present_invalid_cursor_including_null(cursor: str) -> None:
     lines = ["id: c1", "event: eof", f'data: {{"cursor":{cursor}}}', ""]
     handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
 
-    if cursor == "null":
-        assert [event async for event in handle.stream_logs()] == [StreamLogEofEvent(cursor="c1")]
-        return
     with pytest.raises(BadRequestError, match="eof event: cursor must be a non-empty string"):
         async for _event in handle.stream_logs():
             pass
@@ -1304,3 +1301,11 @@ async def test_stream_logs_sends_the_same_headers_as_the_typescript_sdk() -> Non
         "Accept": "text/event-stream"
     }
     assert logs_spec("p", cursor="c1", limit=None, encoding="text", follow=False).headers == {}
+
+
+@pytest.mark.anyio
+async def test_stream_logs_uses_the_sse_id_only_when_the_cursor_key_is_missing() -> None:
+    lines = ["id: c1", "event: eof", "data: {}", ""]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    assert [event async for event in handle.stream_logs()] == [StreamLogEofEvent(cursor="c1")]
