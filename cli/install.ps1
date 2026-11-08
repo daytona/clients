@@ -60,7 +60,7 @@ if (-not $Version) {
   $Version = @($ranked | Where-Object { $_.Stage -ge $min }) | Select-Object -Last 1 -ExpandProperty Tag
   if (-not $Version -and -not $Channel) {
     $Version = @($ranked) | Select-Object -Last 1 -ExpandProperty Tag
-    if ($Version) { Write-Host "note: no stable 2.x release yet, so installing the newest pre-release, $Version; from 2.0.0 on the default is the highest stable release (DAYTONA_CHANNEL=alpha keeps pre-releases)" }
+    if ($Version) { Write-Host "note: no stable 2.x release yet, so installing the newest pre-release, $Version; from 2.0.0 on the default is the highest stable release (DAYTONA_CHANNEL=alpha or rc opts into pre-releases)" }
   }
   if (-not $Version) {
     $wanted = if ($Channel) { $Channel } else { "stable" }

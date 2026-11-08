@@ -24,7 +24,7 @@ irm https://raw.githubusercontent.com/daytona/clients/main/cli/install.ps1 | iex
 The installer installs the highest stable 2.x release. Until `2.0.0` is
 out there is none, so it installs the newest pre-release and names it; from
 `2.0.0` on the default is the highest stable release, and `--channel alpha`
-keeps you on pre-releases. Pick a channel or an exact version explicitly:
+or `rc` opts into pre-releases. Pick a channel or an exact version explicitly:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --channel alpha

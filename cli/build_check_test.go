@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,6 +54,18 @@ func TestCheckBinaries_readsTheBuildInformation(t *testing.T) {
 	good := buildTiny(t, dir, "daytona-linux-arm64", []string{"-trimpath"}, static...)
 	untrimmed := buildTiny(t, dir, "daytona-linux-amd64", nil, "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64")
 	misnamed := buildTiny(t, dir, "daytona-darwin-arm64", []string{"-trimpath"}, static...)
+	// The floors below the build are fixed (go.mod requires 1.26.10); the ones
+	// above it follow the toolchain that ran this test.
+	goVersion, err := exec.Command("go", "env", "GOVERSION").Output()
+	require.NoError(t, err)
+	m := regexp.MustCompile(`^go(\d+)\.(\d+)(?:\.(\d+))?`).FindStringSubmatch(strings.TrimSpace(string(goVersion)))
+	require.NotNil(t, m, "unexpected GOVERSION %q", goVersion)
+	major, _ := strconv.Atoi(m[1])
+	minor, _ := strconv.Atoi(m[2])
+	patch, _ := strconv.Atoi(m[3])
+	built := fmt.Sprintf("%d.%d.%d", major, minor, patch)
+	nextPatch := fmt.Sprintf("%d.%d.%d", major, minor, patch+1)
+	nextMinor := fmt.Sprintf("%d.%d.0", major, minor+1)
 	notGo := filepath.Join(dir, "daytona-windows-amd64.exe")
 	require.NoError(t, os.WriteFile(notGo, []byte("MZ"), 0o755))
 
@@ -60,10 +73,11 @@ func TestCheckBinaries_readsTheBuildInformation(t *testing.T) {
 		name, min, bin, message string
 	}{
 		{name: "patched static build", min: "1.26.10", bin: good},
+		{name: "the toolchain's own version", min: built, bin: good},
 		{name: "numeric, not lexical, comparison", min: "1.26.9", bin: good},
 		{name: "a floor without a patch number", min: "1.26", bin: good},
-		{name: "toolchain below the floor", min: "1.26.11", bin: good, message: "below the required go1.26.11"},
-		{name: "floor on a higher minor", min: "1.27.0", bin: good, message: "below the required go1.27.0"},
+		{name: "toolchain below the floor", min: nextPatch, bin: good, message: "below the required go" + nextPatch},
+		{name: "floor on a higher minor", min: nextMinor, bin: good, message: "below the required go" + nextMinor},
 		{name: "without -trimpath", min: "1.26.10", bin: untrimmed, message: "lacks 'build -trimpath=true'"},
 		{name: "another OS than its name", min: "1.26.10", bin: misnamed, message: "lacks 'build GOOS=darwin'"},
 		{name: "not a Go binary", min: "1.26.10", bin: notGo, message: "not a Go binary"},

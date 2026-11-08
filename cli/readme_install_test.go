@@ -39,7 +39,9 @@ func TestReadmeInstall_bootstrapsFromMainNotFromARelease(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotContains(t, string(readme), "/releases/download/v", "a pinned release URL needs an edit for every release")
-	require.Equal(t, []string{"curl -fsSL " + readmeInstallSh + " | sh"}, readmeCommands(t, "curl ", readmeInstallSh)[:1])
+	shell := readmeCommands(t, "curl ", readmeInstallSh)
+	require.NotEmpty(t, shell, "README has no install.sh command")
+	require.Equal(t, "curl -fsSL "+readmeInstallSh+" | sh", shell[0])
 	require.Equal(t, []string{"irm " + readmeInstallPs1 + " | iex"}, readmeCommands(t, "irm ", readmeInstallPs1))
 }
 
@@ -68,7 +70,9 @@ func TestReadmeInstall_shellCommandsInstallTheExpectedRelease(t *testing.T) {
 }
 
 func TestReadmeInstall_powershellCommandInstallsTheExpectedRelease(t *testing.T) {
-	command := readmeCommands(t, "irm ", readmeInstallPs1)[0]
+	commands := readmeCommands(t, "irm ", readmeInstallPs1)
+	require.Len(t, commands, 1, "README needs exactly one install.ps1 command")
+	command := commands[0]
 	for _, tc := range []struct {
 		name  string
 		index releaseIndex
