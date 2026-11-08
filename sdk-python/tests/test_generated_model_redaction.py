@@ -12,6 +12,7 @@ import pkgutil
 from pathlib import Path
 
 import pytest
+from _repo import _repo_file
 from mark_sensitive import SENSITIVE_NAMES, mark
 from pydantic import BaseModel
 
@@ -104,7 +105,7 @@ def _contract_marked_fields() -> dict[str, frozenset[str]]:
     committed contracts with the generator's own marking pass."""
     expected: dict[str, set[str]] = {}
     for name in ("api-openapi.json", "toolbox-openapi.json"):
-        spec = json.loads((ROOT.parent / "contract" / name).read_text())
+        spec = json.loads(_repo_file(f"contract/{name}").read_text())
         properties, models = mark(spec)
         for model in models:
             expected.setdefault(model, set())
@@ -206,5 +207,5 @@ def test_marking_follows_contract_markers_names_and_nesting() -> None:
 
 def test_marking_does_not_touch_the_committed_contract() -> None:
     for name in ("api-openapi.json", "toolbox-openapi.json"):
-        text = (ROOT.parent / "contract" / name).read_text()
+        text = _repo_file(f"contract/{name}").read_text()
         assert "x-daytona-redact" not in text

@@ -204,6 +204,14 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
 uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q
 ```
 
+The suite also runs from the sdist, which carries only `sdk-python/` (plus
+the two `gen/` scripts the tests import). A test that reads a file outside
+`sdk-python/` (a contract under `contract/`, the TypeScript SDK, `scripts/`,
+`upgrade/`) gets its path from `_repo_file("contract/…")` or
+`_repo_scripts()` in `tests/_repo.py`: in a checkout they return the path (a
+missing file still fails), outside one they skip that test, naming the file.
+Never build such a path from `Path(__file__).parents[…]` directly.
+
 ## Streaming response ownership
 
 Build-log discovery, follow and one-shot reads go through

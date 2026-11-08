@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from pathlib import Path
 from typing import Literal, Optional
 
 import pytest
 from _handles import lazy_sandbox
+from _repo import _repo_file
 from network_policy_test_server import FakeApi, JsonValue, PlannedResponse, json_body
 from test_core import _config_at
 from typing_extensions import assert_never
@@ -115,7 +115,7 @@ async def test_get_decodes_absent_optional_fields_as_none() -> None:
 
 
 async def test_every_contract_response_property_is_decoded() -> None:
-    contract = Path(__file__).resolve().parents[2] / "contract" / "api-openapi.json"
+    contract = _repo_file("contract/api-openapi.json")
     schema = json.loads(contract.read_text())["components"]["schemas"]["SandboxSecrets"]
     full_body = _secrets_body(
         applied_revision=2,

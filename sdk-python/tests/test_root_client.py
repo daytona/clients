@@ -22,6 +22,7 @@ import warnings
 from pathlib import Path
 
 import pytest
+from _repo import _repo_file, _repo_scripts
 
 import daytona
 from daytona import (
@@ -43,17 +44,6 @@ from daytona.v2 import daytona as daytona_v2_async
 from daytona.v2 import types as daytona_v2_types
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _repo_scripts() -> Path:
-    """The repository's ``scripts/``, which the release-script tests drive.
-
-    An sdist has only the SDK, so those tests skip there.
-    """
-    scripts = ROOT.parent / "scripts"
-    if not scripts.is_dir():
-        pytest.skip("the repository's scripts/ is not in this tree (an sdist)")
-    return scripts
 
 
 def test_root_exports_only_clients_config_constants_and_errors() -> None:
@@ -97,11 +87,18 @@ def test_removed_root_error_synonyms_name_the_surviving_category_and_daytona_v0(
     assert f"use the root `{category}`" in message, message
     assert f"from daytona.v0 import {name}" in message, message
     assert category in daytona.__all__
-    # The pairing matches the migration tool's table, when this checkout has it
-    # (the sdist does not).
-    if _UPGRADE_MAPPING.is_file():
-        mapping = json.loads(_UPGRADE_MAPPING.read_text(encoding="utf-8"))
-        assert mapping["rootAliasCategories"][name] == category
+
+
+@pytest.mark.parametrize(
+    ("name", "category"),
+    [
+        ("DaytonaValidationError", "DaytonaBadRequestError"),
+        ("DaytonaAuthorizationError", "DaytonaForbiddenError"),
+    ],
+)
+def test_the_root_alias_guidance_matches_the_migration_tool(name: str, category: str) -> None:
+    mapping = json.loads(_repo_file("upgrade/mapping/mapping.json").read_text(encoding="utf-8"))
+    assert mapping["rootAliasCategories"][name] == category
 
 
 @pytest.mark.parametrize(
@@ -327,9 +324,6 @@ def test_root_clients_have_no_resource_methods() -> None:
         assert not hasattr(Daytona(DaytonaConfig(api_key="k")), name)
 
 
-_UPGRADE_MAPPING = Path(__file__).resolve().parents[2] / "upgrade" / "mapping" / "mapping.json"
-
-
 @pytest.mark.parametrize("cls", [Daytona, AsyncDaytona])
 def test_moved_client_members_name_the_v0_form(cls: type) -> None:
     client = cls(DaytonaConfig(api_key="k"))
@@ -403,15 +397,10 @@ def test_other_missing_root_attributes_keep_the_plain_message() -> None:
     assert "SDK 2.x moved" not in str(caught.value)
 
 
-@pytest.mark.skipif(
-    not _UPGRADE_MAPPING.is_file(), reason="the upgrade tool's mapping is not in this checkout"
-)
 def test_moved_client_members_match_the_upgrade_tools_mapping() -> None:
-    import json
-
     from daytona._client import _MOVED_TO_V0
 
-    mapping = json.loads(_UPGRADE_MAPPING.read_text(encoding="utf-8"))
+    mapping = json.loads(_repo_file("upgrade/mapping/mapping.json").read_text(encoding="utf-8"))
     assert set(mapping["movedClientMembers"]["py"]) == set(_MOVED_TO_V0)
 
 
