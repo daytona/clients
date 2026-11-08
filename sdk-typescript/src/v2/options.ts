@@ -71,7 +71,9 @@ export function badRequest(message: string): BadRequestError {
  * altered would not be the caller's value. Python applies the same rule
  * (`header_text`), so both SDKs refuse the same values: neither sends header
  * bytes the other would not, and neither fails with a transport error (Python's
- * HTTP client refuses padded header values) for one.
+ * HTTP client refuses padded header values) for one. `region` goes through
+ * `createRegion`, which first takes a blank value or `local` as the default
+ * region (not sent).
  * @internal
  */
 export function headerText(value: string, name: string): string {

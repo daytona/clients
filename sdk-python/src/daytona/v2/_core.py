@@ -1431,7 +1431,9 @@ def header_text(value: str, name: str) -> str:
     an ETag the SDK altered would not be the caller's value. TypeScript applies
     the same rule (``headerText``), so both SDKs refuse the same values:
     neither sends header bytes the other would not, and neither fails with a
-    transport error (the HTTP client refuses padded header values) for one."""
+    transport error (the HTTP client refuses padded header values) for one.
+    ``region`` is checked through :func:`region_selector`, which first takes a
+    blank value or ``local`` as the default region (not sent)."""
     if not value:
         raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
     if not all(" " <= char <= "~" for char in value) or value[0] == " " or value[-1] == " ":
@@ -1445,10 +1447,12 @@ def header_text(value: str, name: str) -> str:
 
 
 def region_selector(region: object) -> Optional[str]:
-    """The region a create (or a lookup) selects: ``None``, a blank string or
-    ``"local"`` select the default region (no header, no body field); any other
-    value must be a header value (it is sent as ``x-daytona-region``). As
-    TypeScript's ``createRegion``."""
+    """The region a create (or a lookup) selects: ``None``, a blank or
+    whitespace-only string, or ``local`` in any letter case and with any
+    surrounding whitespace select the default region and are not sent (no
+    ``x-daytona-region`` header, no ``region_id`` field); any other value is
+    sent as given and must follow :func:`header_text`'s rule (printable ASCII,
+    no leading or trailing whitespace). As TypeScript's ``createRegion``."""
     if region is None:
         return None
     if not isinstance(region, str):
