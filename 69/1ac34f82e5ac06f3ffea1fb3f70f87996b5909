@@ -1,0 +1,62 @@
+cli/cmd/secret.go
+  s_0df31975f3464b::t_67ebb45ede530b 17,38,91-92,95,151,243-247
+  s_0df31975f3464b::t_0e36c7181feb9f 248
+cli/internal/input/request_fields_test.go
+  s_0df31975f3464b::t_2a5b67cfa46edd 291-302
+  s_0df31975f3464b::t_c4f5ea997b68cd 13,46-49,55-65,84-176,227-239,256
+cli/cmd/catalog.go
+  s_0df31975f3464b::t_4dcb567321e9f0 132,177,204,233,425-432
+  s_0df31975f3464b::t_f507cf01b25ea1 433
+cli/cmd/sandbox_actions_more_test.go
+  s_0df31975f3464b::t_a04583cde9da69 323-324
+cli/internal/input/request_fields_gen.go
+  s_0df31975f3464b::t_c4f5ea997b68cd 17-26
+cli/internal/input/fields.go
+  s_0df31975f3464b::t_c4f5ea997b68cd 23-31,66-67,98-109,113-131
+  s_0df31975f3464b::t_d7d75721791045 110-112
+  s_0df31975f3464b::t_9f7d8ff6e75180 132-133
+cli/cmd/sandbox_create_macos.go
+  s_0df31975f3464b::t_0d1f152df5d69d 29
+cli/cmd/reservation_test.go
+  s_0df31975f3464b::t_16fc65e9300e2c 121
+cli/cmd/sandbox_create.go
+  s_0df31975f3464b::t_0d1f152df5d69d 71-73,82,92,146
+  s_0df31975f3464b::t_5f700b9c4dd37f 147-148
+cli/cmd/registry.go
+  s_0df31975f3464b::t_67ebb45ede530b 14,32,75-76,79,136,192-197
+  s_0df31975f3464b::t_05f4e48b2504b3 198
+cli/internal/input/input.go
+  s_0df31975f3464b::t_0d1f152df5d69d 119-129,140
+cli/cmd/cli_contract_test.go
+  s_0df31975f3464b::t_2a5b67cfa46edd 9,497-499,514,869-897
+  s_0df31975f3464b::t_a2543b1b6164bb 504-505
+  s_0df31975f3464b::t_8c366027113acf 898-915
+cli/cmd/command_flags.go
+  s_0df31975f3464b::t_8c366027113acf 15,185-189,210-240
+  s_0df31975f3464b::t_8b24f53e15f2e9 241-242
+cli/cmd/key_test.go
+  s_0df31975f3464b::t_c8e25adb035c3e 158,160-166
+  s_0df31975f3464b::t_85fbbff7268219 159
+cli/cmd/sandbox_logs_more_test.go
+  s_0df31975f3464b::t_9bcca672cb4a98 127-130,166-169,205-208
+cli/cmd/auth_login_command.go
+  s_0df31975f3464b::t_a4c514eaeab501 61
+cli/internal/dockerignore/buildkit_cases_test.go
+  s_0df31975f3464b::t_ba96881cf00f81 8-9,62-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "691ac34f82e5ac06f3ffea1fb3f70f87996b5909",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
