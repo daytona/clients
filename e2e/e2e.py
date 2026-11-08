@@ -30,7 +30,7 @@ import uuid
 
 from daytona import Daytona as RootDaytona
 from daytona import DaytonaConfig, DaytonaV2Client
-from daytona.v2 import DaytonaError, ImageBuilder
+from daytona.v2 import DaytonaError, ImageBuilder, RequestTimeoutError
 
 IMAGE = os.environ.get("SMOKE_IMAGE", "python:3.12-slim")
 RUN = uuid.uuid4().hex[:8]
@@ -67,15 +67,15 @@ def check(label: str, cond: bool, detail: str = "") -> bool:
     return cond
 
 
-def wait_ready(daytona: DaytonaV2Client, image_id: str, deadline_s: float = 900) -> str:
-    """`images.get(wait="ready")` long-polls at most 60 s per call: repeat it
-    until the image settles or the overall deadline passes."""
-    deadline = time.monotonic() + deadline_s
-    while True:
-        status = daytona.images.get(image_id, wait="ready", timeout=60).status
-        if status in ("ready", "failed") or time.monotonic() >= deadline:
-            return status
-        time.sleep(1)
+def wait_ready(daytona: DaytonaV2Client, image_id: str, timeout_s: float = 900) -> str:
+    """One `images.get(wait="ready")` with the whole budget: it repeats the
+    server's long poll and returns the image once it settles (`ready`,
+    `failed` or `error`), or raises `RequestTimeoutError` when the budget runs
+    out, reported here as a failed check."""
+    try:
+        return daytona.images.get(image_id, wait="ready", timeout=timeout_s).status
+    except RequestTimeoutError:
+        return f"not settled within {timeout_s:g} s"
 
 
 def skip(label: str, reason: str) -> None:

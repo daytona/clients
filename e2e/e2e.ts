@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { Daytona } from '../sdk-typescript/src/index'
-import { DaytonaError, ImageBuilder, type Image, type Sandbox } from '../sdk-typescript/src/v2/index'
+import { DaytonaError, ImageBuilder, RequestTimeoutError, type Image, type Sandbox } from '../sdk-typescript/src/v2/index'
 
 const run = randomUUID().replace(/-/g, '').slice(0, 8)
 const image = process.env.SMOKE_IMAGE ?? 'python:3.12-slim'
@@ -46,14 +46,16 @@ function check(label: string, condition: boolean, detail = ''): void {
   }
 }
 
-// `images.get({ wait: 'ready' })` long-polls at most 60 s per call: repeat it
-// until the image settles or the overall deadline passes.
-async function waitReady(imageId: string, deadlineMs = 900_000): Promise<string> {
-  const deadline = Date.now() + deadlineMs
-  for (;;) {
-    const { status } = await daytona.images.get(imageId, { wait: 'ready', timeoutSeconds: 60 })
-    if (status === 'ready' || status === 'failed' || Date.now() >= deadline) return status
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+// One `images.get({ wait: 'ready' })` with the whole budget: it repeats the
+// server's long poll and returns the image once it settles (`ready`, `failed`
+// or `error`), or throws `RequestTimeoutError` when the budget runs out,
+// reported here as a failed check.
+async function waitReady(imageId: string, timeoutSeconds = 900): Promise<string> {
+  try {
+    return (await daytona.images.get(imageId, { wait: 'ready', timeoutSeconds })).status
+  } catch (error) {
+    if (error instanceof RequestTimeoutError) return `not settled within ${timeoutSeconds} s`
+    throw error
   }
 }
 
