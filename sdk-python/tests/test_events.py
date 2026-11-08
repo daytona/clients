@@ -610,7 +610,9 @@ class TestHubTimeout:
     async def test_snapshot_before_probe_fires_skips_the_early_probe(self) -> None:
         fc = FakeConnector()
         hub = make_hub(fc)
-        hub._early_probe_s = 0.05
+        # Real time, with margins a loaded runner keeps: the snapshot arrives
+        # 0.3 s before the 0.5 s probe would fire.
+        hub._early_probe_s = 0.5
         polls = 0
 
         async def poll() -> WaitOutcome:
@@ -622,17 +624,17 @@ class TestHubTimeout:
             ticket_mock("region-a")
             ws = fc.prepare()
             task = asyncio.create_task(
-                hub.wait("abc-region-a", _started_predicate(), timeout=0.2, sandbox_poll_fn=poll)
+                hub.wait("abc-region-a", _started_predicate(), timeout=2.0, sandbox_poll_fn=poll)
             )
             await drain()
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(0.2)
             ws.inject(
                 {"type": "snapshot", "id": "abc-region-a", "status": "pending", "version": 1, "error": None}
             )
-            await asyncio.sleep(0.025)
+            await asyncio.sleep(0.25)
             await drain()
             assert not task.done()
-            result = await asyncio.wait_for(task, timeout=1)
+            result = await asyncio.wait_for(task, timeout=5)
 
         assert result.state == "started"
         assert polls == 1
@@ -700,7 +702,9 @@ class TestHubTimeout:
         hub = make_hub(fc)
         ws = fc.prepare()
         monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
-        hub._early_probe_s = 0.02
+        # Real time, with margins a loaded runner keeps (the earlier 20 ms
+        # probe, 15 ms and 10 ms sleeps, scaled by ten).
+        hub._early_probe_s = 0.2
         poll_calls = 0
 
         async def poll() -> WaitOutcome:
@@ -711,19 +715,19 @@ class TestHubTimeout:
         with respx.mock:
             ticket_mock("region-a")
             first = asyncio.create_task(
-                hub.wait("abc-region-a", _started_predicate(), timeout=0.2, sandbox_poll_fn=poll)
+                hub.wait("abc-region-a", _started_predicate(), timeout=2.0, sandbox_poll_fn=poll)
             )
             await drain()
             ws.inject(
                 {"type": "snapshot", "id": "abc-region-a", "status": "pending", "version": 1, "error": None}
             )
             await drain()
-            await asyncio.sleep(0.015)
+            await asyncio.sleep(0.15)
             second = asyncio.create_task(
-                hub.wait("abc-region-a", _started_predicate(), timeout=0.2, sandbox_poll_fn=poll)
+                hub.wait("abc-region-a", _started_predicate(), timeout=2.0, sandbox_poll_fn=poll)
             )
             await drain()
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)
             await drain()
             assert poll_calls == 1
             ws.inject(
@@ -1490,12 +1494,13 @@ class TestFallback:
         fc = FakeConnector()
         hub = make_hub(fc)
         ws = fc.prepare()
-        monkeypatch.setattr(events_module, "_NO_FRAME_TIMEOUT_S", 1.0)
-        hub._client_ping_after_s = 0.02
+        monkeypatch.setattr(events_module, "_NO_FRAME_TIMEOUT_S", 10.0)
+        # Real time, with margins a loaded runner keeps (scaled by ten).
+        hub._client_ping_after_s = 0.2
 
         with respx.mock:
             ticket_mock("region-a")
-            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=1.0))
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=10.0))
             await drain()
             await asyncio.wait_for(
                 _wait_for(
@@ -1504,19 +1509,19 @@ class TestFallback:
                         == [{"type": "ping"}]
                     )
                 ),
-                timeout=1.0,
+                timeout=5.0,
             )
-            await asyncio.sleep(0.03)
+            await asyncio.sleep(0.3)
             assert [frame for frame in ws.sent_frames() if frame.get("type") == "ping"] == [{"type": "ping"}]
 
             ws.inject({"type": "pong"})
             await drain()
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)
             assert [frame for frame in ws.sent_frames() if frame.get("type") == "ping"] == [{"type": "ping"}]
             # The pong re-armed the ping: after another quiet window, a second one.
             await asyncio.wait_for(
                 _wait_for(lambda: len([f for f in ws.sent_frames() if f.get("type") == "ping"]) == 2),
-                timeout=1.0,
+                timeout=5.0,
             )
 
             ws.inject(
@@ -1561,8 +1566,12 @@ class TestFallback:
         hub = make_hub(fc)
         ws = fc.prepare()
         monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
-        monkeypatch.setattr(events_module, "_EARLY_PROBE_S", 0.02)
-        hub._early_probe_s = 0.02
+        # Real time, with margins a loaded runner keeps: the probe would fire at
+        # 0.4 s; a frame at 0.3 s postpones it by the remaining quiet time to
+        # about 0.7 s, so at 0.52 s it has not run (120 ms after the original
+        # probe, 180 ms before the postponed one).
+        monkeypatch.setattr(events_module, "_EARLY_PROBE_S", 0.4)
+        hub._early_probe_s = 0.4
         poll_calls = 0
 
         async def poll() -> WaitOutcome:
@@ -1576,23 +1585,23 @@ class TestFallback:
                 hub.wait(
                     "abc-region-a",
                     _started_predicate(),
-                    timeout=0.2,
+                    timeout=4.0,
                     sandbox_poll_fn=poll,
                 )
             )
             await drain()
 
-            await asyncio.sleep(0.015)
+            await asyncio.sleep(0.3)
             ws.inject(
                 {"type": "snapshot", "id": "other-region-a", "status": "pending", "version": 1, "error": None}
             )
             await drain()
-            await asyncio.sleep(0.011)
+            await asyncio.sleep(0.22)
             await drain()
             assert poll_calls == 0
             assert not task.done()
 
-            result = await asyncio.wait_for(task, timeout=0.05)
+            result = await asyncio.wait_for(task, timeout=2.0)
 
         assert result.state == "started"
         assert poll_calls == 1
@@ -2910,6 +2919,29 @@ async def test_a_frame_nested_too_deeply_is_skipped_and_the_hub_keeps_reading() 
         await drain()
         ws._rx.put_nowait("[" * 100_000 + "]" * 100_000)
         await drain()
+        ws.inject(
+            {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
+        )
+        result = await task
+    assert result.state == "started"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+async def test_a_frame_with_a_non_json_constant_is_skipped_and_the_hub_keeps_reading(constant: str) -> None:
+    # Not JSON: skipped like any undecodable frame.
+    fc = FakeConnector()
+    hub = make_hub(fc)
+    with respx.mock:
+        ticket_mock("region-a")
+        ws = fc.prepare()
+        task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+        await drain()
+        ws._rx.put_nowait(
+            f'{{"type": "snapshot", "id": "abc-region-a", "status": "running", "version": {constant}, "error": null}}'
+        )
+        await drain()
+        assert not task.done()
         ws.inject(
             {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
         )
