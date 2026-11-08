@@ -39,12 +39,17 @@ jobs:
         run: echo "OASDIFF=$(bash scripts/breaking/install-oasdiff.sh "$RUNNER_TEMP/oasdiff")" >> "$GITHUB_ENV"
       - name: Unit tests
         run: python3 -m unittest discover -s scripts/breaking -v
+      # --github-repo: a vX.Y.Z tag whose release is flagged pre-release is
+      # not a stable baseline (the installers skip it too); listing releases
+      # needs only contents: read.
       - name: Compare with the last stable release
         env:
           EVENT: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           if [ "$EVENT" = pull_request ]; then
-            python3 scripts/breaking/breaking_changes.py --fetch origin --base HEAD^1
+            python3 scripts/breaking/breaking_changes.py --fetch origin --github-repo "$REPO" --base HEAD^1
           else
-            python3 scripts/breaking/breaking_changes.py --fetch origin
+            python3 scripts/breaking/breaking_changes.py --fetch origin --github-repo "$REPO"
           fi

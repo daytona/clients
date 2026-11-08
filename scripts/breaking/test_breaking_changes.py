@@ -175,6 +175,13 @@ class ContractFiles(unittest.TestCase):
         found = bc.catalog_findings("c.json", json.dumps(old), json.dumps(broken))
         self.assertEqual(len(found), 3, found)
 
+    def test_catalog_source(self) -> None:
+        old = {"source": "DAYTONA_PROXY", "codes": [], "generic": []}
+        found = bc.catalog_findings("c.json", json.dumps(old), json.dumps({**old, "source": "DAYTONA_EDGE"}))
+        self.assertEqual([dict(f.fields)["rule"] for f in found], ["source-changed"])
+
+    EVENTS = "contract/sandbox-events-protocol.json"
+
     def test_json(self) -> None:
         old = {
             "$comment": "x",
@@ -183,14 +190,29 @@ class ContractFiles(unittest.TestCase):
             "codes": ["X", "Y"],
         }
         grown = {**old, "frames": [{"name": "a", "semantics": "other prose"}, {"name": "b"}], "codes": ["X", "Y", "Z"]}
-        self.assertEqual(bc.json_findings("e.json", json.dumps(old), json.dumps(grown)), set())
+        self.assertEqual(bc.json_findings(self.EVENTS, json.dumps(old), json.dumps(grown)), set())
         reordered = {**old, "pairs": [{"b": 2}, {"a": 1}]}
         self.assertEqual(
             bc.json_findings("e.json", json.dumps({**old, "pairs": [{"a": 1}, {"b": 2}]}), json.dumps(reordered)), set()
         )
         broken = {"subprotocol": "p.v2", "frames": [], "codes": ["X"]}
-        found = bc.json_findings("e.json", json.dumps(old), json.dumps(broken))
+        found = bc.json_findings(self.EVENTS, json.dumps(old), json.dumps(broken))
         self.assertEqual(len(found), 3, found)
+
+    def test_json_strings_outside_documentation_are_identifiers(self) -> None:
+        old = {"ticket": {"upgrade": {"headers": {"Sec-WebSocket-Protocol": "p.v1, p.ticket"}, "region": "the region"}}}
+        reworded = {"ticket": {"upgrade": {"headers": {"Sec-WebSocket-Protocol": "p.v1, p.ticket"}, "region": "a region"}}}
+        self.assertEqual(bc.json_findings(self.EVENTS, json.dumps(old), json.dumps(reworded)), set())
+        renamed = {"ticket": {"upgrade": {"headers": {"Sec-WebSocket-Protocol": "p.v2, p.ticket"}, "region": "the region"}}}
+        found = bc.json_findings(self.EVENTS, json.dumps(old), json.dumps(renamed))
+        self.assertEqual([dict(f.fields)["at"] for f in found], ["/ticket/upgrade/headers/Sec-WebSocket-Protocol"])
+        # Another contract file has no documentation fields: prose there is compared too.
+        self.assertEqual(len(bc.json_findings("contract/other.json", json.dumps(old), json.dumps(reworded))), 1)
+
+    def test_json_removed_empty_container(self) -> None:
+        old = {"limits": {}, "codes": [], "kept": 1}
+        found = bc.json_findings(self.EVENTS, json.dumps(old), json.dumps({"kept": 1}))
+        self.assertEqual(sorted(dict(f.fields)["at"] for f in found), ["/codes", "/limits"])
 
     def test_open_enums_become_extensible(self) -> None:
         spec = {"a": {"enum": ["x"], "x-daytona-open-enum": True}, "b": {"enum": ["y"], "x-daytona-exact-enum": "p"}}
@@ -289,6 +311,37 @@ class Repository(RepoCase):
         for tag in ("v0.230.0", "v2.0.0", "v2.1.0-rc.1", "v2.0.10", "v2.0.9"):
             self.git("tag", tag)
         self.assertEqual(bc.latest_stable_tag(self.root), "v2.0.10")
+        # A vX.Y.Z tag whose GitHub release is flagged pre-release is not stable.
+        self.assertEqual(bc.latest_stable_tag(self.root, skip={"v2.0.10"}), "v2.0.9")
+
+    def test_prerelease_tags_read_release_flags(self) -> None:
+        pages = [
+            [{"tag_name": f"v2.0.{i}", "prerelease": False, "draft": False} for i in range(99)]
+            + [{"tag_name": "v2.1.0", "prerelease": True, "draft": False}],
+            [{"tag_name": "v2.2.0", "prerelease": False, "draft": True}, {"tag_name": "v2.3.0"}],
+        ]
+        seen: list[str] = []
+
+        class Response(io.BytesIO):
+            def __enter__(self) -> "Response":
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                return None
+
+        def fake_urlopen(request: object, timeout: float) -> Response:
+            seen.append(request.full_url)  # type: ignore[attr-defined]
+            self.assertEqual(request.get_header("Authorization"), "Bearer t")  # type: ignore[attr-defined]
+            return Response(json.dumps(pages[len(seen) - 1]).encode())
+
+        original = bc.urllib.request.urlopen
+        bc.urllib.request.urlopen = fake_urlopen  # type: ignore[assignment]
+        try:
+            self.assertEqual(bc.prerelease_tags("o/r", "t"), {"v2.1.0", "v2.2.0"})
+        finally:
+            bc.urllib.request.urlopen = original
+        self.assertEqual(len(seen), 2)
+        self.assertIn("page=2", seen[1])
 
     def test_breaking_change_needs_a_fragment(self) -> None:
         self.git("tag", "v2.0.0")

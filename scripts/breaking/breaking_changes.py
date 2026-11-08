@@ -4,18 +4,21 @@
 """Fail on a breaking change against the last stable release.
 
 Compares the working tree with the most recent stable release tag (the
-highest ``vX.Y.Z`` with ``X >= 2`` and no pre-release suffix):
+highest ``vX.Y.Z`` with ``X >= 2`` and no pre-release suffix; with
+``--github-repo``, also not a release GitHub flags as pre-release):
 
 - the committed public-surface snapshots (``sdk-typescript/api-surface/``,
-  ``sdk-python/api-surface/``, ``cli/api-surface/``): a removed declaration,
-  command, flag or environment variable, or a changed signature that is not a
+  ``sdk-python/api-surface/``, ``cli/api-surface/``, ``upgrade/api-surface/``):
+  a removed declaration, command, flag, environment variable, report field or
+  value, or a changed signature or type that is not a
   known-compatible change (an added optional parameter, a widened union, an
   added base class);
 - ``contract/*.json``: the OpenAPI contracts with oasdiff (``ERR`` and
   ``WARN`` levels, such as a removed request parameter; enums the contract
   tags ``x-daytona-open-enum`` may gain values), the error
-  catalogs (a removed code, a changed status) and the other contract files (a
-  removed field or a changed identifier).
+  catalogs (a changed source, a removed code, a changed status) and the other
+  contract files (a removed field, or a changed value outside the fields
+  listed as documentation).
 
 A breaking change passes only when a ``changelog.d/*.breaking.md`` fragment
 announces it; the maintainer then decides the major bump. A change the check
@@ -45,6 +48,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
+from fnmatch import fnmatchcase
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable, Sequence, TextIO
@@ -105,8 +110,32 @@ def git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProce
     return subprocess.run(["git", *args], cwd=root, check=check, capture_output=True, text=True)
 
 
-def latest_stable_tag(root: Path, remote: str | None = None) -> str | None:
-    """The highest ``vX.Y.Z`` (X >= 2) among the local tags, or a remote's."""
+def prerelease_tags(repo: str, token: str | None) -> set[str]:
+    """Tags whose GitHub release is flagged pre-release or draft: not a
+    stable release even with a ``vX.Y.Z`` name (the installers skip them too).
+    A token with read access sees no drafts; a draft's tag normally does not
+    exist until the release is published."""
+    flagged: set[str] = set()
+    page = 1
+    while True:
+        request = urllib.request.Request(
+            f"https://api.github.com/repos/{repo}/releases?per_page=100&page={page}",
+            headers={"Accept": "application/vnd.github+json", **({"Authorization": f"Bearer {token}"} if token else {})},
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            releases = json.loads(response.read())
+        for release in releases:
+            if release.get("prerelease") or release.get("draft"):
+                flagged.add(str(release.get("tag_name")))
+        if len(releases) < 100:
+            return flagged
+        page += 1
+
+
+def latest_stable_tag(root: Path, remote: str | None = None, skip: Iterable[str] = ()) -> str | None:
+    """The highest ``vX.Y.Z`` (X >= 2) among the local tags, or a remote's,
+    leaving out the tags in ``skip``."""
+    skipped = set(skip)
     if remote is None:
         tags = git(root, "tag", "--list", "v*").stdout.split()
     else:
@@ -115,7 +144,7 @@ def latest_stable_tag(root: Path, remote: str | None = None) -> str | None:
     best: tuple[tuple[int, int, int], str] | None = None
     for tag in tags:
         match = STABLE_TAG.match(tag)
-        if not match:
+        if not match or tag in skipped:
             continue
         version = (int(match[1]), int(match[2]), int(match[3]))
         if version[0] >= 2 and (best is None or version > best[0]):
@@ -374,8 +403,12 @@ def catalog_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
                 out[f"{group}:{entry['code']}"] = entry
         return out
 
-    old, new = index(json.loads(old_text)), index(json.loads(new_text))
+    old_doc, new_doc = json.loads(old_text), json.loads(new_text)
+    old, new = index(old_doc), index(new_doc)
     found: set[Finding] = set()
+    if old_doc.get("source") != new_doc.get("source"):
+        change = f"{json.dumps(old_doc.get('source'))} -> {json.dumps(new_doc.get('source'))}"
+        found.add(contract_finding(path, "source-changed", "source", change))
     for key, entry in old.items():
         if key not in new:
             found.add(contract_finding(path, "code-removed", key))
@@ -390,6 +423,9 @@ def catalog_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
 
 def flatten(node: object, prefix: str = "") -> dict[str, object]:
     out: dict[str, object] = {}
+    if prefix and isinstance(node, (dict, list)):
+        # The container itself, so removing an empty one is seen too.
+        out[prefix] = "{}" if isinstance(node, dict) else "[]"
     if isinstance(node, dict):
         for key, value in node.items():
             if not str(key).startswith("$"):
@@ -397,7 +433,6 @@ def flatten(node: object, prefix: str = "") -> dict[str, object]:
     elif isinstance(node, list):
         if node and all(isinstance(v, dict) and "name" in v for v in node):
             for value in node:
-                out[f"{prefix}[{value['name']}]"] = "{...}"
                 out.update(flatten(value, f"{prefix}[{value['name']}]"))
         else:
             # Order carries no meaning: each element is one entry, compared whole.
@@ -408,8 +443,28 @@ def flatten(node: object, prefix: str = "") -> dict[str, object]:
     return out
 
 
+# Documentation fields of a contract file: their wording may change. Every
+# other value, any string included, is compared exactly.
+DOCUMENTATION = {
+    "contract/sandbox-events-protocol.json": (
+        "*/semantics",
+        "*/rule",
+        "/version_rule",
+        "/ticket/*/auth",
+        "/ticket/upgrade/region",
+        "/ticket/*/errors/*",
+        "/close_codes/*",
+        "/client_rules/*",
+    ),
+}
+
+
+def is_documentation(path: str, key: str, value: object) -> bool:
+    return isinstance(value, str) and any(fnmatchcase(key, p) for p in DOCUMENTATION.get(path, ()))
+
+
 def json_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
-    """A removed field, or a changed value that is not prose."""
+    """A removed field, or a changed value outside the documentation fields."""
     old, new = flatten(json.loads(old_text)), flatten(json.loads(new_text))
     found: set[Finding] = set()
     removed: list[str] = []
@@ -418,7 +473,7 @@ def json_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
             if not any(key.startswith(parent + sep) for parent in removed for sep in "/["):
                 found.add(contract_finding(path, "removed", key))
             removed.append(key)
-        elif new[key] != value and not (isinstance(value, str) and " " in value):
+        elif new[key] != value and not is_documentation(path, key, value):
             found.add(contract_finding(path, "changed", key, f"{json.dumps(value)} -> {json.dumps(new[key])}"))
     return found
 
@@ -539,13 +594,19 @@ def main(argv: Sequence[str] | None = None, out: TextIO = sys.stdout) -> int:
         metavar="REMOTE",
         help="find the release tag on REMOTE and fetch only its commit (for shallow CI clones)",
     )
+    parser.add_argument(
+        "--github-repo",
+        metavar="OWNER/NAME",
+        help="skip vX.Y.Z tags whose GitHub release is flagged pre-release or draft (token: GH_TOKEN)",
+    )
     parser.add_argument("--root", default=".", help="repository root (default: the current directory)")
     args = parser.parse_args(argv)
     root = Path(git(Path(args.root), "rev-parse", "--show-toplevel").stdout.strip())
 
     # Validated on every run, so a malformed entry fails before a release exists.
     acks = load_acknowledgments(root / ACKNOWLEDGMENTS)
-    baseline = args.baseline or latest_stable_tag(root, args.fetch)
+    skip = prerelease_tags(args.github_repo, os.environ.get("GH_TOKEN")) if args.github_repo else set()
+    baseline = args.baseline or latest_stable_tag(root, args.fetch, skip)
     if baseline is not None and args.fetch:
         git(root, "fetch", "--quiet", "--no-tags", "--depth=1", args.fetch, f"+refs/tags/{baseline}:refs/tags/{baseline}")
     if baseline is None:
