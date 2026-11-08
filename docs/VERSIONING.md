@@ -200,9 +200,11 @@ current by its CI) and `contract/*.json` (oasdiff for the OpenAPI contracts;
 values may be added to enums the contract marks open). A removed or
 incompatibly changed export, signature, command, flag, environment variable,
 report field or value, endpoint or error code fails the check, and so does a
-new required member of a type callers pass in. Widening a union or adding an
-enum value counts as compatible, on output types too, because clients must
-handle values they do not know. A real break
+new required member of a type callers pass in. In the SDK and CLI surfaces,
+widening a union or adding an enum value counts as compatible, on output
+types too, because clients must handle values they do not know; in
+`contract/*.json`, an enum the contract does not mark open is still compared
+by oasdiff's rules, where a new response value is a break. A real break
 needs a `changelog.d/<id>.breaking.md` fragment in the pull request; the
 maintainer publishing the next release then decides the MAJOR bump. A change
 the check misreads as breaking is acknowledged in
