@@ -13,7 +13,7 @@
 # version, not by publication date. Pre-releases only come with a channel:
 # `rc` is the highest release candidate or stable release, `alpha` the
 # highest alpha, release candidate or stable release. Until the first stable
-# 2.x release exists, the default installs the newest pre-release and says
+# 2.x release exists, the default installs the highest pre-release and says
 # so; `--channel stable` never does.
 #
 # Downloads the release binary for this OS/arch from GitHub Releases,
@@ -140,7 +140,7 @@ if [ -z "$VERSION" ]; then
   VERSION="$(printf '%s\n' "$ranked" | awk -v min="$min" 'NF == 6 && $4 >= min { tag = $6 } END { print tag }')"
   if [ -z "$VERSION" ] && [ -z "$CHANNEL" ]; then
     VERSION="$(printf '%s\n' "$ranked" | awk 'NF == 6 { tag = $6 } END { print tag }')"
-    [ -z "$VERSION" ] || echo "note: no stable 2.x release yet, so installing the newest pre-release, ${VERSION}; from 2.0.0 on the default is the highest stable release (--channel alpha or rc opts into pre-releases)" >&2
+    [ -z "$VERSION" ] || echo "note: no stable 2.x release yet, so installing the highest pre-release, ${VERSION}; from 2.0.0 on the default is the highest stable release (--channel alpha or rc opts into pre-releases)" >&2
   fi
   [ -n "$VERSION" ] || { echo "found no ${CHANNEL:-stable} 2.x CLI release of ${REPO}; pass --channel alpha or --version X.Y.Z" >&2; exit 1; }
 fi

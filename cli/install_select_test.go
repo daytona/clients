@@ -137,7 +137,7 @@ type selectCase struct {
 }
 
 var selectCases = []selectCase{
-	{name: "pre-GA default installs the newest pre-release with a note", index: preGAIndex, want: "2.0.0-alpha.8", note: true},
+	{name: "pre-GA default installs the highest pre-release with a note", index: preGAIndex, want: "2.0.0-alpha.8", note: true},
 	{name: "pre-GA stable channel finds nothing", index: preGAIndex, channel: "stable"},
 	{name: "pre-GA rc channel finds nothing", index: preGAIndex, channel: "rc"},
 	{name: "pre-GA alpha channel", index: preGAIndex, channel: "alpha", want: "2.0.0-alpha.8"},
@@ -272,7 +272,7 @@ func TestInstallSh_selectsTheReleaseOfItsChannel(t *testing.T) {
 			require.NoError(t, err, out)
 			require.Equal(t, tc.note, strings.Contains(out, "no stable 2.x release yet"), out)
 			if tc.note {
-				require.Contains(t, out, "installing the newest pre-release, v"+tc.want+";")
+				require.Contains(t, out, "installing the highest pre-release, v"+tc.want+";")
 				require.Contains(t, out, "from 2.0.0 on the default is the highest stable release (--channel alpha or rc opts into pre-releases)")
 			}
 		})
@@ -483,7 +483,7 @@ func TestInstallPs1_selectsTheReleaseOfItsChannel(t *testing.T) {
 			require.NotContains(t, out, "INSTALL_FAILED", out)
 			require.Equal(t, tc.note, strings.Contains(out, "no stable 2.x release yet"), out)
 			if tc.note {
-				require.Contains(t, out, "installing the newest pre-release, v"+tc.want+";")
+				require.Contains(t, out, "installing the highest pre-release, v"+tc.want+";")
 				require.Contains(t, out, "from 2.0.0 on the default is the highest stable release (DAYTONA_CHANNEL=alpha or rc opts into pre-releases)")
 			}
 		})

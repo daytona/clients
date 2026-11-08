@@ -186,15 +186,16 @@ derives").
   follows betas). Pre-releases never become npm `latest` or GitHub's
   **Latest**. The CLI installers take them only with an explicit channel or
   version, with one exception before `2.0.0`: while no stable 2.x release
-  exists, the default installs the newest pre-release and says so.
+  exists, the default installs the highest pre-release and says so.
 - The 0.x line publishes from `release/v0` under `daytona@0` (Homebrew) and,
   once a stable 2.x release exists, the npm line tag `v0-latest`.
 - 2.x publishes no stable backports: the gate refuses a stable version below
   the highest stable 2.x release, so a fix ships in a release above it.
-- npm `next` and the `daytona-rc` formula point at the last release candidate
-  published, which after a stable release can be below it; the installers'
-  `rc` channel instead installs the highest release candidate or stable
-  release.
+- npm `next` points at the last release candidate published, and the
+  `daytona-rc` formula at the highest one (a formula only moves forward, so an
+  older release candidate published later leaves it alone); after a stable
+  release, both can be below it. The installers' `rc` channel instead installs
+  the highest release candidate or stable release.
 
 **The published `2.0.0-rc.1` / `2.0.0rc1` outrank every alpha.** Both
 registries already carry a release-candidate from before this policy: npm

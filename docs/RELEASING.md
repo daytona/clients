@@ -106,7 +106,8 @@ The migration tool takes the SDKs' dist-tag. The 0.x line keeps its own
 `daytona@0` formula and publishes from `release/v0`.
 
 **2.x has no stable backports.** The gate refuses a stable version below the
-highest stable 2.x GitHub Release before anything is built, in every mode
+highest stable 2.x release (a GitHub Release, or the `v2.Y.Z` tag an SDK-only
+run records) before anything is built, in every mode
 (`force_republish` included); the same version is a resume. A fix for an
 older minor ships in a release above the highest one. npm `latest`, GitHub's
 Latest and the `daytona` formula therefore only move forward; the checks
@@ -120,7 +121,8 @@ The formulae live in the tap
 ([`cli/hack/homebrew/README.md`](../cli/hack/homebrew/README.md)). The gate
 checks that the tap has the channel's formula and a workflow that takes its
 event and names its run after the version; after the tap run, the publish job
-reads the formula back and fails unless it names the published version.
+reads the formula back and fails unless it names the published version and
+downloads every asset from this repository's release of it.
 
 A formula never moves to a lower version. Before dispatching, the publish job
 reads the channel's formula: if it names a higher version (alpha < rc <
@@ -128,7 +130,8 @@ stable for the same `X.Y.Z`), the formula is left alone and the job succeeds.
 For a stable release the gate has already refused that case; for the rc and
 alpha formulae it happens when an older pre-release publishes after a newer
 one (pre-releases may publish any commit). If the formula names the same
-version (a resumed run), the job only reads it back. The tap's
+version (a resumed run), the job only reads it back. With the tap's 2.x
+routing change merged (see [below](#the-first-stable-release-200)), the tap's
 `scripts/update_sha.sh` refuses a lower version too. At the end of a stable
 run, GitHub's Latest is pinned on the highest stable release again (a 0.x
 `release.yaml` run re-pins Latest as well; the Homebrew step waits for
@@ -345,10 +348,16 @@ all three over in one go, so the gate refuses a first stable run without
 
 Procedure:
 
-1. **Tap.** The tap's `brew_publish.yaml` and `brew_publish_rc.yaml` name
-   their run after the version (`run-name`), like `brew_publish_alpha.yaml`.
-   The gate checks this and fails the run before anything is built
-   otherwise.
+1. **Tap.** The tap's 2.x routing change is merged, as a whole, before the
+   first 2.x release candidate or stable release publishes. It gives
+   `brew_publish.yaml` and `brew_publish_rc.yaml` a `run-name` ending in the
+   version (like `brew_publish_alpha.yaml`); makes `scripts/update_sha.sh`
+   rewrite every formula URL to `daytona/clients` (the `daytona-rc` formula
+   still downloads from another repository) and refuse a lower version than
+   the formula names; and pins the tap workflows' actions by commit. The gate
+   checks the `run-name` and fails the run before anything is built without
+   it; the read-back after the tap run fails if the formula's URLs do not
+   point at this repository's release.
 2. **READMEs.** Open a pull request that switches the published READMEs
    from alpha to stable wording, merge it right before step 3, and publish
    no alpha after it: the READMEs ship with the packages, and before 2.0.0

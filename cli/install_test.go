@@ -200,6 +200,25 @@ func TestInstallPs1_replacesInstalledBinaryAfterTheCheck(t *testing.T) {
 	requireNoStagedBinary(t, installDir)
 }
 
+// Windows PowerShell 5.1 parses web responses with the Internet Explorer
+// engine unless -UseBasicParsing is passed, and fails where that engine is
+// absent. pwsh ignores the switch, so the pwsh tests cannot catch a missing one.
+func TestInstallPs1_passesUseBasicParsingToEveryWebCall(t *testing.T) {
+	body, err := os.ReadFile("install.ps1")
+	require.NoError(t, err)
+	calls := 0
+	for line := range strings.Lines(string(body)) {
+		code := strings.TrimSpace(line)
+		if strings.HasPrefix(code, "#") || !(strings.Contains(code, "Invoke-RestMethod ") || strings.Contains(code, "Invoke-WebRequest ")) {
+			continue
+		}
+		calls++
+		require.Contains(t, code, "-UseBasicParsing", "web call without -UseBasicParsing: %s", code)
+	}
+	require.Equal(t, 3, calls, "the release list and the two downloads")
+	require.NotContains(t, string(body), "/releases/latest", "the installer ranks releases itself")
+}
+
 func TestGenScript_prefersGOBINWithGOPATHFallback(t *testing.T) {
 	body, err := os.ReadFile("hack/gen.sh")
 	require.NoError(t, err)

@@ -183,7 +183,7 @@ Python↔TS parity contract. Its wire types (`cli/gen/`) are generated from
 targets + `SHA256SUMS`, each binary checked with `go version -m` against
 `cli/go.mod`'s `go` line), consumed by `install.sh` / `install.ps1` (highest
 stable 2.x by default; pre-releases only with a channel or version, except
-the newest pre-release while no stable 2.x release exists) and the
+the highest pre-release while no stable 2.x release exists) and the
 Homebrew formulae of the `daytonaio/homebrew-cli` tap
 (`cli/hack/homebrew/README.md`). A release's channel (npm dist-tag, GitHub
 Release kind, formula) comes from its version through

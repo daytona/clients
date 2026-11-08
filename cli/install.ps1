@@ -11,7 +11,7 @@
 # by version, not by publication date. Pre-releases only come with a channel
 # (DAYTONA_CHANNEL): `rc` is the highest release candidate or stable release,
 # `alpha` the highest alpha, release candidate or stable release. Until the
-# first stable 2.x release exists, the default installs the newest
+# first stable 2.x release exists, the default installs the highest
 # pre-release and says so; DAYTONA_CHANNEL=stable never does.
 #
 # Downloads the release binary for this architecture from GitHub Releases,
@@ -65,7 +65,7 @@ if (-not $Version) {
   $Version = @($ranked | Where-Object { $_.Stage -ge $min }) | Select-Object -Last 1 -ExpandProperty Tag
   if (-not $Version -and -not $Channel) {
     $Version = @($ranked) | Select-Object -Last 1 -ExpandProperty Tag
-    if ($Version) { Write-Host "note: no stable 2.x release yet, so installing the newest pre-release, $Version; from 2.0.0 on the default is the highest stable release (DAYTONA_CHANNEL=alpha or rc opts into pre-releases)" }
+    if ($Version) { Write-Host "note: no stable 2.x release yet, so installing the highest pre-release, $Version; from 2.0.0 on the default is the highest stable release (DAYTONA_CHANNEL=alpha or rc opts into pre-releases)" }
   }
   if (-not $Version) {
     $wanted = if ($Channel) { $Channel } else { "stable" }

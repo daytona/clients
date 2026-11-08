@@ -26,9 +26,12 @@ Before dispatching, the publish job reads `<formula>.rb`: a formula never moves
 to a lower version, so a release below the version it names (an older rc or
 alpha; the gate already refuses a stable version below the highest stable
 2.x release) leaves it alone, and the same version (a resumed run) is
-only read back. The tap's `scripts/update_sha.sh` refuses a lower version too.
+only read back. The tap's `scripts/update_sha.sh` refuses a lower version too,
+once the tap's 2.x routing change is merged (before the first 2.x rc or stable
+release; RELEASING.md, "The first stable release").
 After the run, the publish job reads `<formula>.rb` back and fails unless its
-`version` is the published one. If the job's token cannot list the tap's
+`version` is the published one and every `url` downloads from this
+repository's release of it (`https://github.com/daytona/clients/releases/download/v#{version}/…`). If the job's token cannot list the tap's
 runs, it skips waiting for the run and instead reads the formula back for up
 to 15 minutes, failing unless it names the published version; the formula
 update is verified either way. The tap's `scripts/update_sha.sh` accepts only
