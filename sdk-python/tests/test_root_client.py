@@ -1657,17 +1657,30 @@ def test_a_url_field_smuggled_into_the_config_dict_stops_the_client_build(cls: t
         cls(config)
 
 
-@pytest.mark.parametrize("cls", [Daytona, AsyncDaytona])
-def test_the_client_snapshots_the_config_when_it_is_built(cls: type) -> None:
-    config = DaytonaConfig(api_key="first", project_id="p-1", request_timeout=5)
-    root = cls(config)
+def _mutate_after_build(config: DaytonaConfig) -> None:
     config.api_key = "second"
     config.project_id = "p-2"
     config.request_timeout = 9
     vars(config)["api_url"] = "https://self.example/api"  # too late to matter
-    impl = root.v2 if cls is AsyncDaytona else root.v2._impl
-    assert (impl._api_key, impl._request_timeout) == ("first", 5)
-    assert root._config is not config
+
+
+def test_the_sync_client_snapshots_the_config_when_it_is_built() -> None:
+    config = DaytonaConfig(api_key="first", project_id="p-1", request_timeout=5)
+    with Daytona(config) as root:
+        _mutate_after_build(config)
+        impl = root.v2._impl
+        assert (impl._api_key, impl._request_timeout) == ("first", 5)
+        assert root._config is not config
+
+
+@pytest.mark.anyio
+async def test_the_async_client_snapshots_the_config_when_it_is_built() -> None:
+    config = DaytonaConfig(api_key="first", project_id="p-1", request_timeout=5)
+    async with AsyncDaytona(config) as root:
+        _mutate_after_build(config)
+        impl = root.v2
+        assert (impl._api_key, impl._request_timeout) == ("first", 5)
+        assert root._config is not config
 
 
 def test_server_url_in_the_constructor_names_the_field() -> None:

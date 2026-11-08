@@ -4,6 +4,5 @@
 from __future__ import annotations
 
 from ._core import gib_to_mib, mib_to_gib, sandbox_state, snapshot_state
-from ._transport import SyncTransport as HttpClient
 
-__all__ = ["HttpClient", "gib_to_mib", "mib_to_gib", "sandbox_state", "snapshot_state"]
+__all__ = ["gib_to_mib", "mib_to_gib", "sandbox_state", "snapshot_state"]

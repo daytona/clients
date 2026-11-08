@@ -31,6 +31,8 @@ from daytona import v2
 _GENERATED = "daytona.v2._gen"
 # The bundled 0.x SDK (present only in a bundled build) is not this surface.
 _V0 = "daytona.v0"
+# The root's v0 client types, unresolvable without the bundle.
+_V0_CLIENT_NAMES = frozenset({"_DaytonaV0", "_AsyncDaytonaV0", "DaytonaV0Client", "AsyncDaytonaV0Client"})
 
 
 def _is_v2_sdk(module: str) -> bool:
@@ -124,8 +126,9 @@ def _hints(target: Callable[..., object] | type, module_name: str) -> dict[str, 
     try:
         return typing.get_type_hints(target, globalns=namespace, localns=namespace)
     except NameError as error:
-        # Only the v0 client types may be unresolvable (no bundle here).
-        if "V0" in str(error):
+        # Only the bundled v0 client types may be unresolvable (no bundle in a
+        # source checkout); anything else is a real failure.
+        if error.name in _V0_CLIENT_NAMES:
             return {}
         raise
 
@@ -144,19 +147,29 @@ def _classes(annotation: object) -> Iterator[type]:
             yield from _classes(item)
 
 
-def _members(cls: type) -> Iterator[tuple[str, Callable[..., object]]]:
-    for name, value in vars(cls).items():
-        if name.startswith("_") and name != "__init__":
+def _members(cls: type) -> Iterator[tuple[str, Callable[..., object], str]]:
+    """Public methods and properties of ``cls``, inherited ones included.
+
+    Yields ``(name, function, module the function's class is defined in)``;
+    the nearest definition along the MRO wins, as attribute lookup does.
+    """
+    seen: set[str] = set()
+    for owner in cls.__mro__:
+        if owner is object:
             continue
-        function: Optional[Callable[..., object]] = None
-        if isinstance(value, property):
-            function = value.fget
-        elif isinstance(value, (staticmethod, classmethod)):
-            function = value.__func__
-        elif inspect.isfunction(value):
-            function = value
-        if function is not None:
-            yield name, function
+        for name, value in vars(owner).items():
+            if (name.startswith("_") and name != "__init__") or name in seen:
+                continue
+            seen.add(name)
+            function: Optional[Callable[..., object]] = None
+            if isinstance(value, property):
+                function = value.fget
+            elif isinstance(value, (staticmethod, classmethod)):
+                function = value.__func__
+            elif inspect.isfunction(value):
+                function = value
+            if function is not None:
+                yield name, function, owner.__module__
 
 
 def _generated_on_the_public_surface() -> set[str]:
@@ -195,8 +208,8 @@ def _generated_on_the_public_surface() -> set[str]:
             for field in dataclasses.fields(cls):
                 if not field.name.startswith("_") and field.name in field_hints:
                     visit(cls.__name__, field.name, field_hints[field.name])
-        for member, function in _members(cls):
-            for parameter, annotation in _hints(function, cls.__module__).items():
+        for member, function, module in _members(cls):
+            for parameter, annotation in _hints(function, module).items():
                 visit(cls.__name__, member if parameter == "return" else f"{member}({parameter})", annotation)
     return found
 

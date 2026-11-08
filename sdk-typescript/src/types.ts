@@ -16,7 +16,7 @@ import type { SandboxEventsConfig } from './v2/types.js'
  * `new Daytona(config)` copies the fields: changing the object afterwards has
  * no effect on the client. An unknown field is a `BadRequestError`, and a
  * renamed one names its replacement (`requestTimeout` → `requestTimeoutSeconds`).
- * There is no API URL field: `DAYTONA_V2_API_URL` (test environments only)
+ * There is no API URL field: `DAYTONA_V2_API_URL` (a regional endpoint or a test environment)
  * selects the v2 endpoint; `DAYTONA_API_URL` belongs to the 0.x SDK and SDK 2.x
  * never reads it.
  */

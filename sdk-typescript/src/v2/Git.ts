@@ -4,7 +4,7 @@
  */
 
 import { HttpTransport } from './http.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import type { GitCommitResponse, GitConfigScope, GitRemote, GitStatus, ListResult } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
 
@@ -132,7 +132,7 @@ export class GitService {
   public async commit(path: string, message: string, options: CommitOptions): Promise<GitCommitResponse> {
     const author = options?.author?.trim() ?? ''
     const email = options?.email?.trim() ?? ''
-    if (!author || !email) throw new DaytonaError('git.commit requires author and email', { statusCode: 400, code: 'BAD_REQUEST' })
+    if (!author || !email) throw createDaytonaError('git.commit requires author and email', 400, 'BAD_REQUEST', 'SDK')
     const body: toolbox.CommitRequest = {
       path,
       message,

@@ -4,6 +4,7 @@
  */
 
 import { DaytonaError } from './errors/DaytonaError.js'
+import { badRequest } from './options.js'
 import { gibToMib } from './resources.js'
 export { gibToMib } from './resources.js'
 import { Image, isImageBuilder } from './Image.js'
@@ -105,12 +106,20 @@ export function resolveIdempotencyKey(idempotencyKey: string | undefined): strin
   return idempotencyKey
 }
 
+/**
+ * Plain-JS callers must not silently drop v0's `target` and select a default
+ * region: checked before the option keys, so the error names the replacement.
+ * @internal
+ */
+export function rejectV0Target(options: { readonly region?: string } | undefined): void {
+  if (options !== undefined && options !== null && typeof options === 'object' && 'target' in options) {
+    throw badRequest("v2 does not take 'target'; pass 'region' instead")
+  }
+}
+
 /** @internal */
 export function createRegion(options: { readonly region?: string }): string | undefined {
-  // Plain-JS callers must not silently drop v0's target and select a default.
-  if ('target' in options) {
-    throw new TypeError("v2 does not take 'target'; pass 'region' instead")
-  }
+  rejectV0Target(options)
   const resolved = options.region
   return resolved && resolved.trim().toLowerCase() !== 'local' ? resolved : undefined
 }

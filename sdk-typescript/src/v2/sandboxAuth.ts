@@ -5,7 +5,7 @@
 
 import type { AxiosInstance } from 'axios'
 import { credentialSafeInspection } from '../diagnostics.js'
-import { DaytonaError } from './errors/DaytonaError.js'
+import { DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import type { HttpClientOptions, TransportAuth } from './http.js'
 import { assertKnownOptions, optionKeys } from './options.js'
@@ -38,7 +38,7 @@ function tokenFromPayload(payload: TokenPayload | null | undefined): SandboxAcce
   const accessToken = payload?.access_token
   const expiresAt = payload?.expires_at
   if (typeof accessToken !== 'string' || accessToken.length === 0 || typeof expiresAt !== 'string') {
-    throw new DaytonaError('API returned an invalid access token payload', { statusCode: 500 })
+    throw createDaytonaError('API returned an invalid access token payload', 500, undefined, 'SDK')
   }
   return credentialSafeInspection({
     accessToken,
@@ -84,7 +84,7 @@ export class SandboxAuth {
 
   public async createAccessToken(options: CreateAccessTokenOptions = {}): Promise<SandboxAccessToken> {
     assertKnownOptions('CreateAccessTokenOptions', options, ACCESS_TOKEN_KEYS)
-    if (!this.init.api) throw new DaytonaError('API is not available for this sandbox', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+    if (!this.init.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     for (const port of options.ports ?? []) {
       if (!Number.isInteger(port) || port < 1 || port > 65535) {
         throw new DaytonaError(`port must be an integer in 1..65535, got ${port}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })

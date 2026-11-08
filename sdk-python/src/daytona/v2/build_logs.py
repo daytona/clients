@@ -24,6 +24,7 @@ from urllib.parse import unquote, urlsplit
 
 import anyio
 from pydantic import BaseModel
+from typing_extensions import Unpack
 
 from . import _clock
 from ._core import RequestSpec, parse_error_payload
@@ -44,7 +45,14 @@ from ._gen.api import (
     BuildLogGapReason as BuildLogGapReasonEnum,
 )
 from ._transport import AsyncResponseStream, AsyncTransport
-from .errors import ClientTimeoutError, ConnectionError, DaytonaError, _attach_interrupt_error, create_error
+from .errors import (
+    ClientTimeoutError,
+    ConnectionError,
+    DaytonaError,
+    _attach_interrupt_error,
+    _ErrorFields,
+    create_error,
+)
 from .types import JsonValue
 
 BuildLogDoneReason = Literal["terminal", "deadline", "not_applicable", "resource_deleted", "unknown"]
@@ -174,10 +182,12 @@ class BuildLogInterruptedError(DaytonaError):
         message: str,
         *,
         cursor: str | None = None,
-        code: str = "BUILD_LOG_INTERRUPTED",
         status_code: int | None = None,
+        code: str | None = "BUILD_LOG_INTERRUPTED",
+        source: str | None = "SDK",
+        **fields: Unpack[_ErrorFields],
     ) -> None:
-        super().__init__(message, code=code, status_code=status_code, source="SDK")
+        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
         self.cursor = cursor
 
 
@@ -688,7 +698,7 @@ async def read_build_logs(api: AsyncTransport, discovery_path: str) -> str:
         finally:
             await stream.close()
     except _ProtocolError as exc:
-        raise DaytonaError(str(exc), code="BUILD_LOG_PROTOCOL_ERROR") from exc
+        raise DaytonaError(str(exc), code="BUILD_LOG_PROTOCOL_ERROR", source="SDK") from exc
 
 
 async def _sleep(seconds: float) -> None:

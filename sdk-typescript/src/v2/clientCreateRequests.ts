@@ -8,7 +8,7 @@ import type { CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, Creat
 import { assertLifecycleClassSupport, lifecycleBody } from './http.js'
 import { assertKnownOptions } from './options.js'
 import { assertCreateNestedOptions, CREATE_KEYS, SNAPSHOT_CREATE_KEYS, MACOS_CREATE_KEYS, RESOURCES_KEYS, MACOS_RESOURCES_KEYS } from './clientOptionKeys.js'
-import { createRegion, createWaitSeconds, createTimeoutSeconds, gibToMib, imageSourceString, linuxCreateArguments, macosCores, macosMib, resolveIdempotencyKey, snapshotSourceString } from './clientCreateOptions.js'
+import { createRegion, rejectV0Target, createWaitSeconds, createTimeoutSeconds, gibToMib, imageSourceString, linuxCreateArguments, macosCores, macosMib, resolveIdempotencyKey, snapshotSourceString } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
 import { DaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
@@ -40,6 +40,7 @@ export interface PreparedSandboxCreate {
 /** @internal */
 export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions | undefined, maybeOptions: CreateSandboxOptions | undefined): PreparedSandboxCreate {
   const { source, options } = linuxCreateArguments(imageOrOptions, maybeOptions)
+  rejectV0Target(options)
   assertKnownOptions('CreateSandboxOptions', options, CREATE_KEYS)
   assertKnownOptions('Resources', options.resources, RESOURCES_KEYS)
   assertCreateNestedOptions(options)
@@ -76,6 +77,7 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
 
 /** @internal */
 export function snapshotCreateRequest(snapshot: string, options: CreateSandboxFromSnapshotOptions): PreparedSandboxCreate {
+  rejectV0Target(options)
   assertKnownOptions('CreateSandboxFromSnapshotOptions', options, SNAPSHOT_CREATE_KEYS)
   assertCreateNestedOptions(options)
   const source = snapshotSourceString(snapshot)
@@ -97,6 +99,7 @@ export function snapshotCreateRequest(snapshot: string, options: CreateSandboxFr
 
 /** @internal */
 export function macosCreateRequest(image: string, options: CreateMacosSandboxOptions): PreparedSandboxCreate {
+  rejectV0Target(options)
   assertKnownOptions('CreateMacosSandboxOptions', options, MACOS_CREATE_KEYS)
   assertKnownOptions('MacosResources', options.resources, MACOS_RESOURCES_KEYS)
   assertCreateNestedOptions(options)

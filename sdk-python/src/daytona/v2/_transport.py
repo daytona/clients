@@ -136,7 +136,7 @@ class SyncResponseStream:
         try:
             yield from self._response.iter_lines()
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
 
@@ -183,7 +183,7 @@ def _bind_auth_client(auth: ProjectTokenAuth | None, client: httpx.AsyncClient) 
 
 
 class SyncTransport:
-    """A minimal blocking transport (``daytona.v2.http.HttpClient``).
+    """A minimal blocking transport for tests and internal tooling (not public API).
 
     The SDK clients do not use it: the synchronous surface bridges onto
     :class:`AsyncTransport`, which enforces the request timeout as a total-time
@@ -263,7 +263,7 @@ class SyncTransport:
                 **kwargs,
             )
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if spec.on_headers is not None and response.status_code < 400:
@@ -286,7 +286,11 @@ class SyncTransport:
     def open_stream(self, spec: RequestSpec) -> SyncResponseStream:
         try:
             kwargs = _request_kwargs(spec, self._request_timeout_seconds)
-            kwargs["timeout"] = _timeout_with_unbounded_read(self._request_timeout_seconds)
+            kwargs["timeout"] = (
+                httpx.Timeout(None)
+                if spec.transfer
+                else _timeout_with_unbounded_read(self._request_timeout_seconds)
+            )
             kwargs["headers"] = _request_headers(self._source, self.token, spec.headers)
             stream = self._client.stream(
                 spec.method,
@@ -295,14 +299,14 @@ class SyncTransport:
             )
             response = stream.__enter__()
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 400:
             try:
                 body = response.read()
             except httpx.TimeoutException as exc:
-                raise ClientTimeoutError("operation timed out") from exc
+                raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
                 raise ConnectionError(str(exc)) from exc
             finally:
@@ -324,7 +328,7 @@ class SyncTransport:
             kwargs["headers"] = _request_headers(self._source, self.token, kwargs.get("headers"))
             response = self._client.request(method, _request_url(self.base_url, path), **kwargs)
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 400:
@@ -381,7 +385,7 @@ class AsyncResponseStream:
                 yield chunk
             self._finish_span_ok()
         except httpx.TimeoutException as exc:
-            error = ClientTimeoutError("operation timed out")
+            error = ClientTimeoutError()
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
@@ -406,7 +410,7 @@ class AsyncResponseStream:
                 yield line
             self._finish_span_ok()
         except httpx.TimeoutException as exc:
-            error = ClientTimeoutError("operation timed out")
+            error = ClientTimeoutError()
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
@@ -630,14 +634,17 @@ class AsyncTransport:
         return self._request_timeout_seconds
 
     async def send(self, spec: RequestSpec) -> Union[JsonValue, bytes]:
-        token = await self._request_token()
-        try:
-            return await self._send_once(spec, token)
-        except Exception as exc:
-            retry_token = await self._retry_token_after_401(exc, token)
-            if retry_token is None:
-                raise
-            return await self._send_once(spec, retry_token)
+        # One total deadline for the whole call: resolving the bearer (a token
+        # exchange), the request, a 401 refresh and its retry share it.
+        with _request_deadline(self._request_timeout_seconds if _bounded_by_request_timeout(spec) else 0):
+            token = await self._request_token()
+            try:
+                return await self._send_once(spec, token)
+            except Exception as exc:
+                retry_token = await self._retry_token_after_401(exc, token)
+                if retry_token is None:
+                    raise
+                return await self._send_once(spec, retry_token)
 
     async def _send_once(self, spec: RequestSpec, token: Optional[str]) -> Union[JsonValue, bytes]:
         try:
@@ -651,10 +658,7 @@ class AsyncTransport:
                 else None
             )
             try:
-                with _request_deadline(
-                    self._request_timeout_seconds if _bounded_by_request_timeout(spec) else 0
-                ):
-                    response = await self._client.request(spec.method, url, **kwargs)
+                response = await self._client.request(spec.method, url, **kwargs)
             except BaseException as error:
                 if span is not None:
                     span.finish(error=error)
@@ -662,7 +666,7 @@ class AsyncTransport:
             if span is not None:
                 span.finish(status_code=response.status_code)
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         # Every public client runs on THIS transport (the sync surface bridges
@@ -721,14 +725,18 @@ class AsyncTransport:
             await stream.close()
 
     async def open_stream(self, spec: RequestSpec) -> AsyncResponseStream:
-        token = await self._request_token()
-        try:
-            return await self._open_stream_once(spec, token)
-        except Exception as exc:
-            retry_token = await self._retry_token_after_401(exc, token)
-            if retry_token is None:
-                raise
-            return await self._open_stream_once(spec, retry_token)
+        # The request timeout bounds opening the stream (the bearer, the
+        # request, a 401 refresh and its retry, until the response headers
+        # arrive), never the stream itself; a transfer is not bounded.
+        with _request_deadline(0 if spec.transfer else self._request_timeout_seconds):
+            token = await self._request_token()
+            try:
+                return await self._open_stream_once(spec, token)
+            except Exception as exc:
+                retry_token = await self._retry_token_after_401(exc, token)
+                if retry_token is None:
+                    raise
+                return await self._open_stream_once(spec, retry_token)
 
     async def _open_stream_once(self, spec: RequestSpec, token: Optional[str]) -> AsyncResponseStream:
         url = _request_url(self.base_url, spec.path)
@@ -748,14 +756,11 @@ class AsyncTransport:
             )
             kwargs["headers"] = built_headers
             stream = self._client.stream(spec.method, url, **kwargs)
-            # The request timeout bounds opening the stream (until the response
-            # headers arrive), never the stream itself; a transfer is not bounded.
-            with _request_deadline(0 if spec.transfer else self._request_timeout_seconds):
-                response = await self._stream_enter(stream, span)
+            response = await self._stream_enter(stream, span)
         except httpx.TimeoutException as exc:
             if span is not None:
                 span.finish(error=exc)
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             if span is not None:
                 span.finish(error=exc)
@@ -770,10 +775,8 @@ class AsyncTransport:
                 body = await response.aread()
             except httpx.TimeoutException as exc:
                 if span is not None:
-                    span.finish(
-                        status_code=response.status_code, error=ClientTimeoutError("operation timed out")
-                    )
-                raise ClientTimeoutError("operation timed out") from exc
+                    span.finish(status_code=response.status_code, error=ClientTimeoutError())
+                raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
                 if span is not None:
                     span.finish(status_code=response.status_code, error=ConnectionError(str(exc)))
@@ -853,7 +856,7 @@ class AsyncTransport:
                 with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
                     await owned_client.aclose()
             if isinstance(exc, httpx.TimeoutException):
-                raise ClientTimeoutError("operation timed out") from exc
+                raise ClientTimeoutError() from exc
             if isinstance(exc, httpx.HTTPError):
                 raise ConnectionError(str(exc)) from exc
             raise
@@ -905,18 +908,20 @@ class AsyncTransport:
         one_shot_body = content_factory is None and _is_one_shot_content(kwargs.get("content"))
         if content_factory is not None:
             kwargs["content"] = content_factory(0)
-        token = await self._request_token()
-        try:
-            return await self._request_once(method, path, token, caller_headers, kwargs, total)
-        except Exception as exc:
-            if one_shot_body:
-                raise
-            retry_token = await self._retry_token_after_401(exc, token)
-            if retry_token is None:
-                raise
-            if content_factory is not None:
-                kwargs["content"] = content_factory(1)
-            return await self._request_once(method, path, retry_token, caller_headers, kwargs, total)
+        # One total deadline for the bearer, the request, a 401 refresh and its retry.
+        with _request_deadline(total):
+            token = await self._request_token()
+            try:
+                return await self._request_once(method, path, token, caller_headers, kwargs)
+            except Exception as exc:
+                if one_shot_body:
+                    raise
+                retry_token = await self._retry_token_after_401(exc, token)
+                if retry_token is None:
+                    raise
+                if content_factory is not None:
+                    kwargs["content"] = content_factory(1)
+                return await self._request_once(method, path, retry_token, caller_headers, kwargs)
 
     async def _request_once(
         self,
@@ -925,7 +930,6 @@ class AsyncTransport:
         token: Optional[str],
         caller_headers: Optional[Mapping[str, str]],
         kwargs: _RequestKwargs,
-        total: float,
     ) -> httpx.Response:
         url = _request_url(self.base_url, path)
         built_headers = _request_headers(self._source, token, caller_headers)
@@ -937,12 +941,11 @@ class AsyncTransport:
             else None
         )
         try:
-            with _request_deadline(total):
-                response = await self._client.request(method, url, **request_kwargs)
+            response = await self._client.request(method, url, **request_kwargs)
         except httpx.TimeoutException as exc:
             if span is not None:
                 span.finish(error=exc)
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             if span is not None:
                 span.finish(error=exc)
@@ -1047,7 +1050,7 @@ def _request_deadline(seconds: float) -> Iterator[None]:
         with anyio.fail_after(seconds):
             yield
     except TimeoutError as exc:
-        raise ClientTimeoutError("operation timed out") from exc
+        raise ClientTimeoutError() from exc
 
 
 def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _RequestKwargs:

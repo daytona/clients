@@ -7,7 +7,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import type { SseMessage } from './http.js'
 import type { LogFrame, ProcessCommand, ProcessDto, ProcessKind, ProcessSignal, ProcessStartOptions, StreamLogEvent, WaitResult } from './types.js'
 import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROCESS_STDIN_MODES } from './types.js'
-import { DaytonaError, UnsupportedOperationError } from './errors/DaytonaError.js'
+import { DaytonaError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
 
 export type LogFrameWire = toolbox.LogFrameDto
@@ -117,7 +117,7 @@ export function bodyFor(commandOrOptions: string | InternalProcessStartOptions, 
   const hasCode = typeof merged.code === 'string'
   const sourceCount = [hasShell, hasArgv, hasCode].filter(Boolean).length
   if (!(merged.kind === 'pty' && sourceCount === 0) && sourceCount !== 1) {
-    throw new DaytonaError('exactly one of cmd, argv, or code is required', { statusCode: 400, code: 'BAD_REQUEST' })
+    throw createDaytonaError('exactly one of cmd, argv, or code is required', 400, 'BAD_REQUEST', 'SDK')
   }
   if (hasCode && merged.user !== undefined) {
     throw new UnsupportedOperationError(
@@ -180,7 +180,7 @@ export function streamEvent(message: SseMessage): StreamLogEvent {
 export function base64Encode(data: Uint8Array): string {
   const maybeBuffer = (globalThis as { Buffer?: { from(input: Uint8Array): { toString(encoding: 'base64'): string } } }).Buffer
   if (maybeBuffer) return maybeBuffer.from(data).toString('base64')
-  if (typeof btoa !== 'function') throw new DaytonaError('base64 encoding is unavailable in this runtime', { statusCode: 400, code: 'UNSUPPORTED_OPERATION' })
+  if (typeof btoa !== 'function') throw createDaytonaError('base64 encoding is unavailable in this runtime', 400, 'UNSUPPORTED_OPERATION', 'SDK')
   let binary = ''
   for (const byte of data) binary += String.fromCharCode(byte)
   return btoa(binary)

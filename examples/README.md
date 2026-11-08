@@ -78,7 +78,7 @@ Not covered here: LSP servers and network settings.
 
 | Var | Default | Notes |
 |---|---|---|
-| `DAYTONA_V2_API_URL` | `https://api.daytona.com` | Daytona API (test environments only) |
+| `DAYTONA_V2_API_URL` | `https://api.daytona.com` | Daytona API (a regional endpoint or a test environment) |
 | `DAYTONA_API_KEY` | — (required) | `dtn_...` API key |
 | `DAYTONA_IMAGE` | `python:3.12-slim` | default sandbox image |
 

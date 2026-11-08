@@ -79,8 +79,10 @@ The root client reads `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 `DAYTONA_PROJECT_ID` (scopes a JWT for the v2 namespace), and
 `DAYTONA_OTEL_ENABLED` from the environment when a field is omitted.
 Environment values are trimmed, and a blank one counts as unset; values you
-pass in the config are used as given (an empty `projectId` is rejected).
-`DAYTONA_V2_API_URL` (test environments only) selects another v2 API endpoint;
+pass in the config are used as given, and an empty one (`apiKey: ''`, …)
+throws `BadRequestError` instead of falling back to the environment.
+`DAYTONA_V2_API_URL` selects another v2 API endpoint (a regional endpoint from
+`GET /regions`, or a test environment);
 when it is unset the SDK uses its built-in default API URL. `daytona.v0`
 always targets Daytona's v0 API URL. SDK 2.x never reads `DAYTONA_API_URL`, the
 0.x SDK's variable.
@@ -94,7 +96,8 @@ effect on the client. A key the config does not define throws
 `BadRequestError`, and a renamed key names its replacement (`requestTimeout`
 → `requestTimeoutSeconds`; `events.reconcileIntervalMs` /
 `events.idleCloseMs` → `reconcileIntervalSeconds` / `idleCloseSeconds`).
-`requestTimeoutSeconds` (default 60, `0` = no limit) is the total time one
+`requestTimeoutSeconds` (default 60; `0`, or a value above about 24.8 days,
+means no limit) is the total time one
 ordinary request may take before it throws `ClientTimeoutError`; waits and long
 polls use their own budget, streams are bounded only until their response
 arrives, and file transfers are not bounded.
@@ -173,8 +176,7 @@ const daytona = new Daytona({ otelEnabled: true, otelApi: otel })
 
 ### Regions and safe create retries
 
-Set `DAYTONA_V2_API_URL` only in a test environment that needs a non-default
-v2 API endpoint. `region` on each `create*()` chooses an ID returned by `GET /regions`.
+Set `DAYTONA_V2_API_URL` only when you need a non-default v2 API endpoint. `region` on each `create*()` chooses an ID returned by `GET /regions`.
 The response identifies the default region and lists region names,
 availability, and published API URLs. Omit `region` to use the default.
 Commands and files target the selected sandbox. When you select a regional
@@ -792,9 +794,8 @@ vocabularies: a code this release does not know is kept as sent and the error
 is the class for its HTTP status; the `codes` namespace lists the known codes
 per source (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`,
 `codes.isKnownErrorCode`, …). Constructors take the message plus an
-`ErrorOptions` object (`new NotFoundError('missing', { statusCode: 404, code:
-'NOT_FOUND', source: 'SDK' })`), so tests can build the errors your code
-handles.
+`ErrorOptions` object (`statusCode`, `code`, `source`, `traceId`, `cause`, …),
+so tests can build the errors your code handles.
 
 ```ts
 import { DaytonaError } from '@daytona/sdk'

@@ -69,7 +69,7 @@ export class Daytona {
     this.reservations = ReservationsService._create(this.api)
     this.macModels = MacModelsService._create(this.api)
     this.hubShared = config.sharedHub ?? true
-    this.hubEventsConfig = eventsHubConfig(config.events)
+    this.hubEventsConfig = eventsHubConfig(connection.events)
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
   }
 

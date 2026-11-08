@@ -340,8 +340,8 @@ class SandboxEventsConfig:
 class DaytonaConfig:
     """Configuration for the v2 Daytona client.
 
-    There is no API URL here: the client reads ``DAYTONA_V2_API_URL`` (test
-    environments only), else uses ``DEFAULT_V2_API_URL``; ``DAYTONA_API_URL``
+    There is no API URL here: the client reads ``DAYTONA_V2_API_URL`` (a
+    regional endpoint or a test environment), else uses ``DEFAULT_V2_API_URL``; ``DAYTONA_API_URL``
     belongs to the 0.x SDK and is never read. There is no region either: pass
     ``region=`` to a create.
 

@@ -7098,18 +7098,23 @@ describe('toolbox service request shaping', () => {
     }
   })
 
-  it('treats explicit empty jwtToken and projectId as invalid instead of falling back to env', () => {
+  it('treats explicit empty credentials and projectId as invalid instead of falling back to env', () => {
     const previousJwt = process.env.DAYTONA_JWT_TOKEN
     const previousProject = process.env.DAYTONA_PROJECT_ID
+    const previousKey = process.env.DAYTONA_API_KEY
     try {
       process.env.DAYTONA_JWT_TOKEN = 'env-jwt'
       process.env.DAYTONA_PROJECT_ID = 'env-project'
-      expect(() => new Daytona({ apiKey: 'key', jwtToken: '' })).not.toThrow()
+      process.env.DAYTONA_API_KEY = 'env-key'
+      expect(() => new Daytona({ apiKey: 'key', jwtToken: '' })).toThrow('jwtToken must be a non-empty string when provided')
       expect(() => new Daytona({ jwtToken: '' })).toThrow('jwtToken must be a non-empty string when provided')
+      expect(() => new Daytona({ apiKey: '' })).toThrow('apiKey must be a non-empty string when provided')
       expect(() => new Daytona({ jwtToken: 'jwt-token', projectId: '' })).toThrow('projectId must be a non-empty string when provided')
     } finally {
       if (previousJwt === undefined) delete process.env.DAYTONA_JWT_TOKEN
       else process.env.DAYTONA_JWT_TOKEN = previousJwt
+      if (previousKey === undefined) delete process.env.DAYTONA_API_KEY
+      else process.env.DAYTONA_API_KEY = previousKey
       if (previousProject === undefined) delete process.env.DAYTONA_PROJECT_ID
       else process.env.DAYTONA_PROJECT_ID = previousProject
     }
@@ -7282,7 +7287,7 @@ describe('toolbox service request shaping', () => {
     expect(auths).toEqual(['Bearer platform-1', 'Bearer platform-2'])
   })
 
-  it('maps a request deadline that fires during the token exchange to TimeoutError', async () => {
+  it('maps a request deadline that fires during the token exchange to ClientTimeoutError', async () => {
     jest.useRealTimers()
     const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input: string | URL | Request) => {
       if (String(input).endsWith('/auth/token')) return new Promise<Response>(() => undefined) // hangs
@@ -8391,7 +8396,7 @@ describe('toolbox service request shaping', () => {
     const client = withApiUrl('http://api.invalid', () => new Daytona({ apiKey: 'key' }))
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
-      .mockRejectedValueOnce(new ClientTimeoutError('lost response', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }))
+      .mockRejectedValueOnce(new ClientTimeoutError())
       .mockRejectedValueOnce(new ConnectionError('socket closed'))
       .mockResolvedValueOnce({ data: { id: 'sbx-region' } })
     const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx-region', status: 'running' } })
@@ -8537,23 +8542,18 @@ describe('toolbox service request shaping', () => {
     expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Idempotency-Key': '  k'.repeat(100) } })
   })
 
-  it('surfaces the idempotency key when the create POST itself times out or loses the connection', async () => {
+  // The create POST timing out is driven through a real server in
+  // tests/client-config.test.ts.
+  it('surfaces the idempotency key when the create POST loses the connection', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const post = jest.spyOn(api, 'post').mockRejectedValueOnce(new ClientTimeoutError('timeout of 50ms exceeded', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }))
+    const post = jest.spyOn(api, 'post').mockRejectedValueOnce(new ConnectionError('socket hang up'))
     const get = jest.spyOn(api, 'get')
 
-    const timedOut = await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 'run-42' }).catch((error: unknown) => error)
-    expect(timedOut).toBeInstanceOf(SandboxCreateRequestTimeoutError)
-    expect(timedOut).toBeInstanceOf(ClientTimeoutError)
-    expect(timedOut).toMatchObject({ idempotencyKey: 'run-42', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
-    expect((timedOut as Error).message).toContain('run-42')
-
-    post.mockRejectedValueOnce(new ConnectionError('socket hang up'))
     const dropped = await createFixture(client, { image: Image.base('python:3.12') }).catch((error: unknown) => error)
     expect(dropped).toBeInstanceOf(SandboxCreateConnectionError)
     expect(dropped).toBeInstanceOf(ConnectionError)
-    const mintedKey = (post.mock.calls[1]?.[2] as { headers: Record<string, string> }).headers['Idempotency-Key']
+    const mintedKey = (post.mock.calls[0]?.[2] as { headers: Record<string, string> }).headers['Idempotency-Key']
     expect((dropped as SandboxCreateConnectionError).idempotencyKey).toBe(mintedKey)
     expect((dropped as Error).message).toContain('socket hang up')
 
@@ -8567,7 +8567,7 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
-      .mockRejectedValueOnce(new ClientTimeoutError('timeout of 50ms exceeded', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }))
+      .mockRejectedValueOnce(new ClientTimeoutError())
       .mockResolvedValueOnce({ data: { id: 'sbx-first', access_token: null } })
     jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx-first', status: 'running' } })
 
@@ -11728,7 +11728,7 @@ describe('sandbox.docker', () => {
     const transport = transportStub()
     transport.get
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
-      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 750); throw new publicSdk.ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }) })
+      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 750); throw new publicSdk.ClientTimeoutError() })
     const failure = DockerService._create(transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
@@ -11736,7 +11736,7 @@ describe('sandbox.docker', () => {
 
   it('waitUntilReady() rethrows a transport timeout that happens before the deadline', async () => {
     const transport = transportStub()
-    const stalled = new publicSdk.ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    const stalled = new publicSdk.ClientTimeoutError()
     transport.get.mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
     await expect(DockerService._create(transport.object).waitUntilReady({ timeoutSeconds: 60 })).rejects.toBe(stalled)
   })

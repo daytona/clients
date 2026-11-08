@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ConnectionError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
+import { ClientTimeoutError, ConnectionError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
 import { sandboxState } from './http.js'
 import { eventDestinationFromHeaders } from './events.js'
 import { scopedProxyToolboxUrl } from './Sandbox.js'
@@ -13,7 +13,7 @@ import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
 import { assertKnownOptions, optionalSeconds } from './options.js'
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS } from './clientOptionKeys.js'
-import { createRegion, createWaitSeconds } from './clientCreateOptions.js'
+import { createRegion, createWaitSeconds, rejectV0Target } from './clientCreateOptions.js'
 import { createIdempotencyKey } from './clientCreateNames.js'
 import type { PreparedSandboxCreate } from './clientCreateRequests.js'
 import type { SandboxClientContext } from './clientSandboxes.js'
@@ -38,7 +38,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     return response.data
   }).catch((error: unknown) => {
     if (error instanceof ConnectionError) throw new SandboxCreateConnectionError(idempotencyKey, error.message)
-    if (error instanceof DaytonaError && error.code === 'REQUEST_TIMEOUT') throw new SandboxCreateRequestTimeoutError(idempotencyKey)
+    if (error instanceof ClientTimeoutError) throw new SandboxCreateRequestTimeoutError(idempotencyKey)
     throw error
   })
   // A create token is refreshable, unlike a caller-supplied one.
@@ -82,6 +82,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
 /** @internal */
 export async function buildSandboxImage(images: ImagesService, builder: ImageBuilder, options: CreateFromBuildOptions): Promise<{ readonly image: Image; readonly createOptions: CreateSandboxOptions }> {
   if (!isImageBuilder(builder)) throw new TypeError('createFromBuild expects an ImageBuilder')
+  rejectV0Target(options)
   assertKnownOptions('CreateFromBuildOptions', options, BUILD_CREATE_KEYS, { timeout: 'buildTimeoutSeconds' })
   assertKnownOptions('Resources', options.resources, RESOURCES_KEYS)
   assertCreateNestedOptions(options)

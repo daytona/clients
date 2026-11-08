@@ -12,7 +12,7 @@ import { strictUriEncode } from './http.js'
 import { DaytonaError } from './errors/DaytonaError.js'
 import { assertKnownOptions } from './options.js'
 import { CONNECT_KEYS, FIND_KEYS, LIST_KEYS, SEARCH_KEYS } from './clientOptionKeys.js'
-import { createRegion, hasText } from './clientCreateOptions.js'
+import { createRegion, hasText, rejectV0Target } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
 import { SEARCH_PATH, searchPageSandboxes, searchQueryParams } from './clientSearch.js'
 import type { SearchPageDto } from './clientSearch.js'
@@ -84,6 +84,7 @@ export async function searchSandboxes(context: SandboxClientContext, options: Se
 
 /** @internal */
 export async function findSandboxesByName(context: SandboxClientContext, name: string, options: FindByNameOptions): Promise<Sandbox[]> {
+  rejectV0Target(options)
   assertKnownOptions('FindByNameOptions', options, FIND_KEYS)
   if (typeof name !== 'string' || name.trim() === '') throw new DaytonaError('name must be a non-blank string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   const region = createRegion(options)

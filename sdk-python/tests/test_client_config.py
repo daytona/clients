@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 import httpx
 import pytest
 import respx
 
 from daytona import AsyncDaytona, Daytona, DaytonaConfig
-from daytona.v2 import AuthenticationError, BadRequestError, ClientTimeoutError
+from daytona.v2 import AuthenticationError, BadRequestError, ClientTimeoutError, ConnectionError
 from daytona.v2._core import RequestSpec, file_download_spec
 from daytona.v2._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 
@@ -208,3 +208,123 @@ def test_the_synchronous_client_enforces_the_same_total_deadline(monkeypatch: py
             with pytest.raises(ClientTimeoutError):
                 client.v2.list()
             assert time.monotonic() - started < 0.35
+
+
+_TIMEOUT_SHAPE = ("operation timed out", 408, "REQUEST_TIMEOUT", "SDK")
+
+
+def _shape(error: ClientTimeoutError) -> tuple[object, ...]:
+    return (error.message, error.status_code, error.code, error.source)
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_the_client_timeout_has_one_shape_on_every_path() -> None:
+    respx.get(f"{BASE}/slow").mock(side_effect=lambda _request: _late(0.4))
+    respx.get(f"{BASE}/slow-body").mock(side_effect=lambda _request: _trickle(chunks=8, every=0.05))
+    respx.get(f"{BASE}/stalled").mock(side_effect=lambda _request: _late(0.4))
+    transport = AsyncTransport(BASE, "k", request_timeout=0.1)
+    with pytest.raises(ClientTimeoutError) as ordinary:
+        await transport.send(RequestSpec("GET", "/slow"))
+    with pytest.raises(ClientTimeoutError) as body:
+        await transport.send(RequestSpec("GET", "/slow-body"))
+    with pytest.raises(ClientTimeoutError) as stream:
+        await transport.open_stream(RequestSpec("GET", "/stalled"))
+    with pytest.raises(ClientTimeoutError) as raw:
+        await transport.get("/slow")
+    for caught in (ordinary, body, stream, raw):
+        assert _shape(caught.value) == _TIMEOUT_SHAPE
+    assert _shape(ClientTimeoutError()) == _TIMEOUT_SHAPE
+    refused = ConnectionError("refused")
+    assert (refused.source, refused.status_code, refused.code) == ("SDK", None, None)
+    await transport.close()
+
+
+@pytest.mark.parametrize("huge", [2_147_484, 30 * 24 * 3600, 10**400, 1e300])
+def test_a_request_timeout_above_the_timer_maximum_means_no_limit(huge: float) -> None:
+    v2 = _v2(DaytonaConfig(api_key="k", request_timeout=huge))
+    assert v2._api.request_timeout_seconds == 0  # type: ignore[attr-defined]
+    assert (
+        _v2(DaytonaConfig(api_key="k", request_timeout=2_147_483))._api.request_timeout_seconds == 2_147_483
+    )  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("field", ["reconcile_interval", "idle_close"])
+@pytest.mark.parametrize("bad", [-1, float("inf"), float("nan"), "5", True])
+def test_invalid_events_durations_are_rejected(field: str, bad: object) -> None:
+    from daytona.v2 import SandboxEventsConfig
+
+    events = SandboxEventsConfig(**{field: bad})  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match=f"events.{field} must be a non-negative number") as excinfo:
+        _v2(DaytonaConfig(api_key="k", events=events))
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
+
+
+def test_missing_credentials_carry_the_catalog_status_and_code(clean_env: pytest.MonkeyPatch) -> None:
+    with pytest.raises(AuthenticationError) as excinfo:
+        _v2(DaytonaConfig())
+    assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
+        401,
+        "UNAUTHORIZED",
+        "SDK",
+    )
+
+
+class _SlowRefreshingAuth:
+    """A bearer source whose resolution and 401 refresh each take ``delay`` seconds."""
+
+    def __init__(self, delay: float) -> None:
+        self.delay = delay
+
+    async def bearer(self) -> Optional[str]:
+        await asyncio.sleep(self.delay)
+        return "stale"
+
+    async def on_unauthorized(self, failed_token: Optional[str]) -> Optional[str]:
+        await asyncio.sleep(self.delay)
+        return "fresh"
+
+
+async def _unauthorized_then_ok(request: httpx.Request) -> httpx.Response:
+    await asyncio.sleep(0.05)
+    if request.headers.get("authorization") == "Bearer stale":
+        return httpx.Response(401, json={"code": "UNAUTHORIZED", "message": "expired"})
+    return httpx.Response(200, json={"ok": True})
+
+
+@pytest.mark.anyio
+@respx.mock
+@pytest.mark.parametrize("path", ["send", "request", "open_stream"])
+async def test_the_bearer_a_401_refresh_and_the_retry_share_one_deadline(path: str) -> None:
+    # Each step fits the 0.15 s timeout on its own; together (about 0.26 s)
+    # they do not, so a fresh window per step would let the call succeed.
+    respx.get(f"{BASE}/thing").mock(side_effect=_unauthorized_then_ok)
+    transport = AsyncTransport(BASE, None, request_timeout=0.15)
+    transport.auth_provider = _SlowRefreshingAuth(0.08)
+    started = time.monotonic()
+    with pytest.raises(ClientTimeoutError):
+        if path == "send":
+            await transport.send(RequestSpec("GET", "/thing"))
+        elif path == "request":
+            await transport.get("/thing")
+        else:
+            await transport.open_stream(RequestSpec("GET", "/thing"))
+    assert time.monotonic() - started < 0.25
+    transport.auth_provider = _SlowRefreshingAuth(0.01)
+    assert await transport.send(RequestSpec("GET", "/thing")) == {"ok": True}
+    await transport.close()
+
+
+@pytest.mark.anyio
+async def test_the_hub_auth_keeps_the_client_request_timeout() -> None:
+    client = AsyncDaytona(DaytonaConfig(jwt_token="jwt", project_id="p", request_timeout=7)).v2
+    try:
+        hub = client._acquire_hub()  # type: ignore[attr-defined]
+        assert hub is not None
+        assert hub._api._auth._request_timeout == 7
+    finally:
+        await client.close()

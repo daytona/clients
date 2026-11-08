@@ -24,6 +24,7 @@ import {
   ServiceUnavailableError,
 } from './errors/DaytonaError.js'
 import type { SandboxEventsConfig, SandboxState } from './types.js'
+import { MAX_TIMER_DELAY_MS, optionalSeconds } from './options.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 
 // ---------------------------------------------------------------------------
@@ -64,11 +65,16 @@ export interface EventsHubConfig {
 
 /** The hub settings for a public {@link SandboxEventsConfig} (seconds → ms). */
 export function eventsHubConfig(config: SandboxEventsConfig | undefined): EventsHubConfig {
-  const ms = (seconds: number | undefined): number | undefined => seconds === undefined ? undefined : seconds * 1000
+  // Validated (finite, non-negative) here, at construction; large values clamp
+  // to the timer maximum where the hub arms them.
+  const ms = (name: string, seconds: number | undefined): number | undefined => {
+    const valid = optionalSeconds(name, seconds)
+    return valid === undefined ? undefined : valid * 1000
+  }
   return {
     enabled: config?.enabled,
-    reconcileIntervalMs: ms(config?.reconcileIntervalSeconds),
-    idleCloseMs: ms(config?.idleCloseSeconds),
+    reconcileIntervalMs: ms('events.reconcileIntervalSeconds', config?.reconcileIntervalSeconds),
+    idleCloseMs: ms('events.idleCloseSeconds', config?.idleCloseSeconds),
   }
 }
 
@@ -101,7 +107,6 @@ const DEFAULT_CLOSE_GRACE_MS = 1_000
 const DEFAULT_EARLY_PROBE_MS = 10_000
 const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
-const MAX_TIMER_DELAY_MS = 2_147_483_647
 const WAITER_PIN_INTERVAL_MS = 2_147_483_647
 const WS_OPEN = 1
 const WS_CLOSING = 2

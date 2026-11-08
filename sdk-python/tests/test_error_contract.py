@@ -117,8 +117,7 @@ def test_codes_namespace_has_the_typescript_member_names() -> None:
         "ROUTER_ERROR_CODES",
         "is_known_error_code",
     ]
-    public = {name for name in vars(codes) if not name.startswith("_")}
-    assert public - {"annotations", "Mapping", "MappingProxyType", "Optional", "Tuple"} == set(codes.__all__)
+    assert {name for name in dir(codes) if not name.startswith("_")} == set(codes.__all__)
 
 
 def test_codes_catalogs_are_read_only() -> None:
@@ -144,3 +143,14 @@ def test_codes_catalogs_are_read_only() -> None:
     assert codes.CODE_STATUS["NOT_FOUND"] == 404
     assert codes.is_known_error_code("PROCESS_NOT_FOUND")
     assert not codes.is_known_error_code(None)
+
+
+def test_build_log_interrupted_error_takes_the_shared_options() -> None:
+    error = v2.BuildLogInterruptedError("lost", cursor="c-1", trace_id="t-1", status_code=503)
+    assert (error.cursor, error.code, error.source, error.trace_id, error.status_code) == (
+        "c-1",
+        "BUILD_LOG_INTERRUPTED",
+        "SDK",
+        "t-1",
+        503,
+    )

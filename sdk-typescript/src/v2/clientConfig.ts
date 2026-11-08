@@ -6,13 +6,13 @@
 import { AuthenticationError, BadRequestError } from './errors/DaytonaError.js'
 import { createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS } from './http.js'
 import type { HttpClientOptions } from './http.js'
-import { assertKnownOptions, optionalSeconds } from './options.js'
+import { assertKnownOptions, badRequest, boundedTimerDelay, optionalSeconds, snapshotOptions } from './options.js'
 import { SANDBOX_EVENTS_CONFIG_KEYS, V2_CONFIG_KEYS } from './types.js'
-import type { DaytonaConfig } from './types.js'
+import type { DaytonaConfig, SandboxEventsConfig } from './types.js'
 
 /**
- * The default Daytona Cloud v2 API, used unless `DAYTONA_V2_API_URL` (test
- * environments only) selects another endpoint. `DAYTONA_API_URL` belongs to
+ * The default Daytona Cloud v2 API, used unless `DAYTONA_V2_API_URL` (a
+ * regional endpoint or a test environment) selects another one. `DAYTONA_API_URL` belongs to
  * the 0.x SDK; SDK 2.x never reads it.
  */
 export const DEFAULT_V2_API_URL = 'https://api.daytona.com'
@@ -38,8 +38,8 @@ function envFlag(name: string): boolean | undefined {
   return normalized === 'true' || normalized === '1'
 }
 
-function assertPresentStringOption(name: 'jwtToken' | 'projectId', value: string | undefined): void {
-  if (value !== undefined && value.length === 0) {
+function assertPresentStringOption(name: 'apiKey' | 'jwtToken' | 'projectId', value: string | undefined): void {
+  if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
     throw new BadRequestError(`${name} must be a non-empty string when provided`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
@@ -75,6 +75,7 @@ interface ClientConnectionConfig {
   readonly requestTimeoutMs: number
   readonly httpOptions: HttpClientOptions
   readonly hubIdentityKey: string
+  readonly events?: SandboxEventsConfig
 }
 
 /** @internal */
@@ -83,7 +84,7 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   // get a compile error), as Python's v2 config rejects them.
   for (const unsupported of ['apiUrl', 'target', 'toolboxUrl']) {
     if (unsupported in config) {
-      throw new TypeError(
+      throw badRequest(
         unsupported === 'apiUrl'
           ? "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL to select an API endpoint"
           : unsupported === 'target'
@@ -93,32 +94,30 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
     }
   }
   assertKnownOptions('DaytonaConfig', config, V2_CONFIG_KEYS)
-  assertKnownOptions('SandboxEventsConfig', config.events, SANDBOX_EVENTS_CONFIG_KEYS)
+  const events = snapshotOptions('SandboxEventsConfig', config.events, SANDBOX_EVENTS_CONFIG_KEYS)
   // Only DAYTONA_V2_API_URL selects the endpoint (DAYTONA_API_URL belongs to
   // the 0.x SDK); read through the computed-key env lookup (bundler-safe).
   // Ambient values are trimmed and a blank one is unset; a slash-only URL
   // is unset too.
   const apiUrl = optionalNonBlankEnv('DAYTONA_V2_API_URL')?.replace(/\/+$/, '') || DEFAULT_V2_API_URL
-  // Explicit values are used as given. An explicit credential wins over the
-  // ambient environment: config.jwtToken suppresses DAYTONA_API_KEY and
-  // config.apiKey suppresses DAYTONA_JWT_TOKEN, so an exported key never
-  // collides with the credential the caller chose.
-  const apiKey = config.apiKey || (config.jwtToken ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
-  const ignoreBlankJwtToken = config.jwtToken === '' && typeof apiKey === 'string' && apiKey.length > 0
-  if (!ignoreBlankJwtToken) {
-    assertPresentStringOption('jwtToken', config.jwtToken)
-  }
+  // Explicit values are used as given; an explicitly empty one is an error,
+  // never "unset". An explicit credential wins over the ambient environment:
+  // config.jwtToken suppresses DAYTONA_API_KEY and config.apiKey suppresses
+  // DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
+  // the caller chose.
+  assertPresentStringOption('apiKey', config.apiKey)
+  assertPresentStringOption('jwtToken', config.jwtToken)
   assertPresentStringOption('projectId', config.projectId)
-  const jwtToken = ignoreBlankJwtToken
-    ? undefined
-    : config.jwtToken ?? (config.apiKey ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
+  const apiKey = config.apiKey ?? (config.jwtToken !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
+  const jwtToken = config.jwtToken ?? (config.apiKey !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
   const projectId = config.projectId ?? optionalNonBlankEnv('DAYTONA_PROJECT_ID')
   const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
-  const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : requestTimeoutSeconds * 1000
+  // Above the timer maximum (about 24.8 days) means no bound, like 0.
+  const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : boundedTimerDelay(requestTimeoutSeconds * 1000)
   const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
   const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
   if (!apiKey && !jwtToken) {
-    throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, source: 'SDK' })
+    throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
   }
   if (apiKey && jwtToken) {
     throw new BadRequestError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
@@ -145,5 +144,5 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
     otelEnabled,
     otelApi: config.otelApi,
   }
-  return { apiUrl: base, apiKey: apiKey ?? undefined, requestTimeoutMs, httpOptions, hubIdentityKey }
+  return { apiUrl: base, apiKey: apiKey ?? undefined, requestTimeoutMs, httpOptions, hubIdentityKey, events }
 }

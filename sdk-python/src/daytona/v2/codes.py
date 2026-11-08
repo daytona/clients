@@ -12,10 +12,12 @@ The same members, with the same names, are exported by the TypeScript SDK as
 ``codes`` from ``@daytona/sdk/v2``.
 """
 
-from __future__ import annotations
+from __future__ import annotations as _annotations
 
-from types import MappingProxyType
-from typing import Mapping, Optional, Tuple
+from types import MappingProxyType as _MappingProxyType
+from typing import Mapping as _Mapping
+from typing import Optional as _Optional
+from typing import Tuple as _Tuple
 
 from . import _codes
 
@@ -45,14 +47,14 @@ ROUTER_ERROR_CODES: frozenset[str] = _codes.ROUTER_ERROR_CODES
 GENERIC_ERROR_CODES: frozenset[str] = _codes.GENERIC_ERROR_CODES
 
 #: The HTTP status each known code is sent with.
-CODE_STATUS: Mapping[str, int] = MappingProxyType(_codes.CODE_STATUS)
+CODE_STATUS: _Mapping[str, int] = _MappingProxyType(_codes.CODE_STATUS)
 
 #: The optional envelope fields a code may carry beyond ``{code, message,
 #: source, trace_id}``, per source; an unlisted code carries none.
-API_CODE_EXTRAS: Mapping[str, Tuple[str, ...]] = MappingProxyType(_codes.API_CODE_EXTRAS)
-DAEMON_CODE_EXTRAS: Mapping[str, Tuple[str, ...]] = MappingProxyType(_codes.DAEMON_CODE_EXTRAS)
-PROXY_CODE_EXTRAS: Mapping[str, Tuple[str, ...]] = MappingProxyType(_codes.PROXY_CODE_EXTRAS)
-ROUTER_CODE_EXTRAS: Mapping[str, Tuple[str, ...]] = MappingProxyType(_codes.ROUTER_CODE_EXTRAS)
+API_CODE_EXTRAS: _Mapping[str, _Tuple[str, ...]] = _MappingProxyType(_codes.API_CODE_EXTRAS)
+DAEMON_CODE_EXTRAS: _Mapping[str, _Tuple[str, ...]] = _MappingProxyType(_codes.DAEMON_CODE_EXTRAS)
+PROXY_CODE_EXTRAS: _Mapping[str, _Tuple[str, ...]] = _MappingProxyType(_codes.PROXY_CODE_EXTRAS)
+ROUTER_CODE_EXTRAS: _Mapping[str, _Tuple[str, ...]] = _MappingProxyType(_codes.ROUTER_CODE_EXTRAS)
 
 _KNOWN: frozenset[str] = frozenset(
     _codes.API_ERROR_CODES
@@ -63,6 +65,6 @@ _KNOWN: frozenset[str] = frozenset(
 )
 
 
-def is_known_error_code(code: Optional[str]) -> bool:
+def is_known_error_code(code: _Optional[str]) -> bool:
     """Whether ``code`` is in one of the catalogs above."""
     return isinstance(code, str) and code in _KNOWN
