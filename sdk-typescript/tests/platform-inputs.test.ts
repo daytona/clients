@@ -12,6 +12,7 @@ import { createHttpClient } from '../src/v2/http'
 describe('platform input boundaries', () => {
   it.each(([
     { name: 'secret domains', values: [undefined, 'example.com', [3], null, {}] },
+    { name: 'secret options', values: [undefined, null, true] },
     { name: 'volume size', values: [true, NaN, Infinity, -1, 0, 1.5, '4'] },
     { name: 'create timeout', values: [-2, NaN, Infinity, true, 1.5] },
     { name: 'create labels', values: ['team', ['team'], null, { team: undefined }, { team: 1 }, new Map([['team', 'a']]), Object.create({ team: 'a' }), new (class Labels { team = 'a' })()] },
@@ -28,6 +29,7 @@ describe('platform input boundaries', () => {
       const calls = {
         // SAFETY: Deliberately invalid JavaScript inputs must reach the runtime guards.
         'secret domains': () => client.v2.secrets.set('KEY', 'value', { allowedDomains: value as never }),
+        'secret options': () => client.v2.secrets.set('KEY', 'value', value as never),
         'volume size': () => client.v2.volumes.create({ name: 'data', sizeGib: value as never }),
         'create timeout': () => client.v2.create({ createTimeoutSeconds: value as never }),
         'create labels': () => client.v2.create({ labels: value as never }),

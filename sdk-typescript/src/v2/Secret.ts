@@ -21,7 +21,7 @@ import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { ListResult } from './types.js'
 import { strictUriEncode } from './http.js'
-import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys } from './options.js'
 
 /** Secret metadata (never the value). */
 export interface Secret {
@@ -96,8 +96,10 @@ export class SecretsService {
 
   /** Creates or updates a secret's value + metadata. */
   public async set(name: string, value: string, options: SetSecretOptions): Promise<Secret> {
+    // The options are required: an omitted value is refused like any non-object.
+    assertOptionsObject('SetSecretOptions', options)
     assertKnownOptions('SetSecretOptions', options, SET_SECRET_KEYS)
-    if (!Array.isArray(options?.allowedDomains) || options.allowedDomains.some((domain) => typeof domain !== 'string')) {
+    if (!Array.isArray(options.allowedDomains) || options.allowedDomains.some((domain) => typeof domain !== 'string')) {
       throw badRequest('allowedDomains must be an array of strings')
     }
     const body: api.PutSecretRequest = { value, allowed_domains: [...options.allowedDomains] }
