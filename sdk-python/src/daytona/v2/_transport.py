@@ -899,18 +899,21 @@ class AsyncTransport:
 
         Contract: any status >= 400 raises the typed SDK error; callers that
         need undecoded bodies (e.g. multipart bulk reads) rely on this.
-        ``transfer=True`` marks a file transfer, which the request timeout
-        never bounds; an explicit ``timeout`` replaces the request timeout.
+        ``transfer=True`` marks a file transfer, which no timeout bounds; an
+        explicit ``timeout`` in seconds replaces the request timeout as a total
+        bound (``0`` or above the timer maximum: none).
         """
-        if transfer and "timeout" not in kwargs:
-            kwargs["timeout"] = httpx.Timeout(None)
         explicit = kwargs.get("timeout")
-        if isinstance(explicit, (int, float)) and not isinstance(explicit, bool):
+        if transfer:
+            # A file transfer is never bounded, whatever timeout it carries.
+            kwargs["timeout"] = httpx.Timeout(None)
+            total = 0.0
+        elif isinstance(explicit, (int, float)) and not isinstance(explicit, bool):
             # A per-call timeout in seconds: a total bound, like the request timeout.
-            total = 0.0 if transfer else _per_call_seconds(explicit)
+            total = _per_call_seconds(explicit)
             kwargs["timeout"] = explicit if total else httpx.Timeout(None)
         else:
-            total = 0 if transfer or "timeout" in kwargs else self._request_timeout_seconds
+            total = 0 if "timeout" in kwargs else self._request_timeout_seconds
         caller_headers = kwargs.get("headers")
         # A one-shot iterator body (no factory) is exhausted by the first send:
         # replaying it on the 401 retry would silently send an empty body, so
@@ -1078,11 +1081,11 @@ def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _Reque
         "data": spec.data,
         "files": spec.files,
     }
-    if spec.timeout is not None:
+    if spec.transfer:
+        kwargs["timeout"] = httpx.Timeout(None)
+    elif spec.timeout is not None:
         # httpx's per-phase bound; ``_total_seconds`` holds the whole request to it.
         kwargs["timeout"] = spec.timeout if _per_call_seconds(spec.timeout) else httpx.Timeout(None)
-    elif spec.transfer:
-        kwargs["timeout"] = httpx.Timeout(None)
     elif spec.unbounded_read or spec.path.endswith("/wait"):
         kwargs["timeout"] = _timeout_with_unbounded_read(request_timeout_seconds)
     return kwargs

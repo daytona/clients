@@ -227,6 +227,17 @@ async def test_image_submissions_are_bounded_by_the_request_timeout(monkeypatch:
 
 @pytest.mark.anyio
 @respx.mock
+async def test_a_transfer_ignores_a_per_call_timeout_too() -> None:
+    respx.get(f"{BASE}/files/download").mock(side_effect=lambda _request: _trickle(chunks=6, every=0.05))
+    transport = AsyncTransport(BASE, "k", request_timeout=0.1)
+    assert await transport.raw(file_download_spec("/a", timeout=0.1)) == b"xxxxxx"
+    response = await transport.request("GET", "/files/download", transfer=True, timeout=0.1)
+    assert response.content == b"xxxxxx"
+    await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
 async def test_file_transfers_are_not_cut_by_the_request_timeout() -> None:
     respx.get(f"{BASE}/files/download").mock(side_effect=lambda _request: _trickle(chunks=6, every=0.05))
     respx.post(f"{BASE}/files/upload").mock(side_effect=lambda _request: _late(0.3))
