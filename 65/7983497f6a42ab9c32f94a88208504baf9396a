@@ -1,0 +1,298 @@
+cli/cmd/reservation.go
+  s_0df31975f3464b::t_88cdd0b7585d73 80,82,84,88-91,99-101
+cli/cmd/catalog.go
+  s_0df31975f3464b::t_351a14cb2db179 155,209,213,266-269,282-290,292,294-298,393-395
+  s_0df31975f3464b::t_745d138e82c9d4 33-35,37-38,43-64
+  s_0df31975f3464b::t_dc8573e69eb402 65
+cli/internal/mgmt/client_service_accounts.go
+  s_0df31975f3464b::t_73e9f95f915368 25-27,60-62
+  s_0df31975f3464b::t_d9aca5f547ab90 23-24,28-30,33-34,58-59,63,65,68-69
+  s_0df31975f3464b::t_94444f830c0f92 64
+cli/README.md
+  s_0df31975f3464b::t_37e6222631f7be 67,76,81,112,121-130,156,178-181,185-220,223-235,237-242,250-251,253-254,256,258,270,276-277,280-375,382-385,387,392,406-408,411-436
+cli/cmd/toolbox_output.go
+  s_0df31975f3464b::t_8ab1888dc0a9e7 1-38
+cli/cmd/sandbox_docker_test.go
+  s_0df31975f3464b::t_d61a0a31cfc143 49-50
+cli/cmd/snapshot.go
+  s_0df31975f3464b::t_d35df38692eb58 79-80
+cli/internal/auth/session_test.go
+  s_0df31975f3464b::t_dc016ddfad385d 61
+cli/internal/mgmt/client_invites.go
+  s_0df31975f3464b::t_d9aca5f547ab90 23-28,31-32
+cli/cmd/image_create.go
+  s_0df31975f3464b::t_d35df38692eb58 22-25,59-60,97-98
+  s_0df31975f3464b::t_dee4ca5b9a007e 70-74,93
+  s_0df31975f3464b::t_b712c1336d1159 75
+cli/cmd/sandbox_port_test.go
+  s_0df31975f3464b::t_d61a0a31cfc143 99-101,106,109
+cli/cmd/sandbox_port.go
+  s_0df31975f3464b::t_8885399448968b 99-101,103,105
+  s_0df31975f3464b::t_8bac5e4e5e9030 27-28
+  s_0df31975f3464b::t_c93ef1501d6205 8,108-109,111-119
+cli/cmd/invite_test.go
+  s_0df31975f3464b::t_c9bb895d22ca1d 184
+  s_0df31975f3464b::t_495cb264c9c67b 155
+cli/cmd/auth_test.go
+  s_0df31975f3464b::t_0795de76dbe79b 10
+  s_0df31975f3464b::t_95d5de81d764f8 905-912,914-915,917-928,930-938,940-942,948-950,952-955,957-959
+  s_0df31975f3464b::t_156ae287392f78 663,672-673,676
+  s_0df31975f3464b::t_48e86673943962 897-904
+cli/cmd/key_scaffold.go
+  s_0df31975f3464b::t_7da5614e69c62a 33,92,104-106,110,118
+  s_0df31975f3464b::t_bd17fd6e5072d3 83
+cli/cmd/key_helpers.go
+  s_0df31975f3464b::t_bd17fd6e5072d3 15,93-118
+cli/cmd/sandbox_docker.go
+  s_0df31975f3464b::t_21346fc972bd8b 47
+  s_0df31975f3464b::t_8ab1888dc0a9e7 74
+  s_0df31975f3464b::t_79362ea8e77f96 78
+cli/cmd/list_collect.go
+  s_0df31975f3464b::t_7da5614e69c62a 10,17,55-69
+  s_0df31975f3464b::t_2ee878a49c9e60 70
+cli/internal/mgmt/client_members.go
+  s_0df31975f3464b::t_d9aca5f547ab90 16-17,21-23,26-27,60-65,68-69
+  s_0df31975f3464b::t_73e9f95f915368 18-20
+cli/cmd/sandbox_exec.go
+  s_0df31975f3464b::t_8885399448968b 112
+  s_0df31975f3464b::t_21346fc972bd8b 145
+cli/cmd/volume_more_test.go
+  s_0df31975f3464b::t_8ae9c838bb58af 41,61
+  s_0df31975f3464b::t_2e24f08b97da9a 20
+cli/cmd/reservation_create_test.go
+  s_0df31975f3464b::t_b989128e4fc6d5 195
+cli/cmd/sandbox_logs.go
+  s_0df31975f3464b::t_8bac5e4e5e9030 112,114-116,134,149,156,158
+  s_0df31975f3464b::t_ce9d4f767b1eb0 33-35
+AGENTS.md
+  s_0df31975f3464b::t_86b38576557373 284
+cli/cmd/image.go
+  s_0df31975f3464b::t_ce9d4f767b1eb0 167-170,173-175,189,226,241-249
+  s_0df31975f3464b::t_d35df38692eb58 134,204
+  s_0df31975f3464b::t_7e36934f6b366d 30
+cli/cmd/volume_test.go
+  s_0df31975f3464b::t_8ae9c838bb58af 29
+cli/cmd/sandbox_search.go
+  s_0df31975f3464b::t_fc50aaaee76ee0 68
+cli/cmd/image_test.go
+  s_0df31975f3464b::t_60e00ebb8b6373 27,35
+cli/cmd/key.go
+  s_0df31975f3464b::t_2df6eedc827dd0 29
+  s_0df31975f3464b::t_7da5614e69c62a 47
+cli/cmd/service_account_project.go
+  s_0df31975f3464b::t_7e035339986207 7
+  s_0df31975f3464b::t_7da5614e69c62a 21-22,33-35,39,41-42
+cli/cmd/volume_helpers.go
+  s_0df31975f3464b::t_7e36934f6b366d 61
+cli/cmd/member.go
+  s_0df31975f3464b::t_bd17fd6e5072d3 103
+  s_0df31975f3464b::t_ef1a5198829857 109,113,118,135,151
+  s_0df31975f3464b::t_7e035339986207 45-46
+  s_0df31975f3464b::t_7da5614e69c62a 27-28,44,50,53-54
+cli/cmd/project.go
+  s_0df31975f3464b::t_7e035339986207 7
+  s_0df31975f3464b::t_7da5614e69c62a 41-42,55-57,61,63-65
+cli/internal/cerr/cerr.go
+  s_0df31975f3464b::t_dcb60e9ed91730 30-37,44-46,69-115
+  s_0df31975f3464b::t_172320f255d509 116
+cli/internal/output/snake.go
+  s_0df31975f3464b::t_a62c2cb9c8d078 1-69
+docs/adr/0003-cli.md
+  s_0df31975f3464b::t_86b38576557373 88-90
+cli/cmd/billing_settings_test.go
+  s_0df31975f3464b::t_c72789d9dd3365 27,30
+cli/cmd/service_account.go
+  s_0df31975f3464b::t_7da5614e69c62a 56,68-70,74,76
+  s_0df31975f3464b::t_bd17fd6e5072d3 51,136
+  s_0df31975f3464b::t_7e035339986207 7
+cli/cmd/reservation_create.go
+  s_0df31975f3464b::t_fc50aaaee76ee0 190
+  s_0df31975f3464b::t_21346fc972bd8b 127
+cli/cmd/sandbox_create_macos_test.go
+  s_0df31975f3464b::t_9ff2e5ae4096e1 29,75-78
+changelog.d/cli-machine-output.breaking.md
+  s_0df31975f3464b::t_1797a30bc0a748 1-9
+cli/cmd/sandbox_process.go
+  s_0df31975f3464b::t_21346fc972bd8b 106,137-138
+  s_0df31975f3464b::t_8ab1888dc0a9e7 64,100,131,180,202,231-245
+cli/cmd/reservation_test.go
+  s_0df31975f3464b::t_b989128e4fc6d5 191-195,212,225-226
+  s_0df31975f3464b::t_7f87b68c594da4 8,95-106
+  s_0df31975f3464b::t_2c2107c934f65e 140,142-144,146,148-149,151-158
+cli/internal/output/output.go
+  s_0df31975f3464b::t_99d5a2729cfa92 498-547
+  s_0df31975f3464b::t_a9ff7e714ae931 58-59,108-110
+cli/cmd/billing_test.go
+  s_0df31975f3464b::t_c72789d9dd3365 113,125
+cli/cmd/billing_settings.go
+  s_0df31975f3464b::t_82396b2e45bcf5 20,56,89-94,99-101
+cli/internal/auth/key_cleanup_test.go
+  s_0df31975f3464b::t_05818f7e82b45f 20-44,46-47,49-54
+cli/cmd/sandbox_create.go
+  s_0df31975f3464b::t_028a1954786bac 27-28,44-46,48-49,76,113,137,141-144,157-158,160,162,164-165,167-170,172,181-182,208-209
+cli/cmd/sandbox_actions.go
+  s_0df31975f3464b::t_f471c67e7021e6 87-92,95-101,103,107-110,113,117,120,127,134,138-149,168-178,276,309,336-338,348-351,353-359
+  s_0df31975f3464b::t_8fb8cc3a85ca38 183,247-248
+  s_0df31975f3464b::t_430083a6a946f6 346-347,352
+cli/internal/output/snake_test.go
+  s_0df31975f3464b::t_a62c2cb9c8d078 1-7,9-42,59-60
+  s_0df31975f3464b::t_13033c64c14470 8,43-58
+cli/cmd/volume.go
+  s_0df31975f3464b::t_7e36934f6b366d 27
+  s_0df31975f3464b::t_21346fc972bd8b 35,39,46,55,63,90,94,99
+changelog.d/cli-consent.breaking.md
+  s_0df31975f3464b::t_1797a30bc0a748 1-8
+cli/cmd/sandbox_process_logs.go
+  s_0df31975f3464b::t_79362ea8e77f96 58
+  s_0df31975f3464b::t_8ab1888dc0a9e7 88,90-94,133
+cli/cmd/catalog_test.go
+  s_0df31975f3464b::t_7f87b68c594da4 257,260-266
+cli/cmd/sandbox_lifecycle.go
+  s_0df31975f3464b::t_b7c7e752fb415b 48-50
+  s_0df31975f3464b::t_b0256c546e8ec3 1-47,51-107
+cli/cmd/project_member.go
+  s_0df31975f3464b::t_7e035339986207 7
+  s_0df31975f3464b::t_7da5614e69c62a 41-42,53-55,59,61-62
+cli/internal/mgmt/client.go
+  s_0df31975f3464b::t_bd90263706b0d2 10,87-113,115
+  s_0df31975f3464b::t_d9aca5f547ab90 29-30,34-36,39-40,53-58,61-62
+  s_0df31975f3464b::t_73e9f95f915368 31-33
+cli/cmd/sandbox_create_macos.go
+  s_0df31975f3464b::t_028a1954786bac 46-48
+cli/cmd/config.go
+  s_0df31975f3464b::t_b8101ee8c177c4 35-39
+changelog.d/cli-renames.breaking.md
+  s_0df31975f3464b::t_1797a30bc0a748 1-6
+cli/internal/auth/workload_mint.go
+  s_0df31975f3464b::t_f44a4658689110 25-28,32,40,43,81,85,121-123,129-130
+cli/cmd/auth_logout.go
+  s_0df31975f3464b::t_7106478126b149 19-21
+cli/cmd/sandbox_process_test.go
+  s_0df31975f3464b::t_21961bb2b79972 263-267
+  s_0df31975f3464b::t_70c8bdeb0252b5 28-35
+  s_0df31975f3464b::t_d61a0a31cfc143 69
+changelog.d/cli-flags-scoped.breaking.md
+  s_0df31975f3464b::t_1797a30bc0a748 1-6
+cli/cmd/command_more_test.go
+  s_0df31975f3464b::t_c72789d9dd3365 39,47,209
+cli/cmd/sandbox_create_more_test.go
+  s_0df31975f3464b::t_9ff2e5ae4096e1 114,125-169,202-203,215-217,219-221,239,260
+cli/cmd/version_test.go
+  s_0df31975f3464b::t_8ae9c838bb58af 26,62,78,117,137,171,243
+cli/internal/toolbox/client.go
+  s_0df31975f3464b::t_dcb60e9ed91730 170-175,181,183-186,191-194
+  s_0df31975f3464b::t_7923a0298a91d6 195
+cli/cmd/key_test.go
+  s_0df31975f3464b::t_495cb264c9c67b 51
+cli/cmd/cli_contract_test.go
+  s_0df31975f3464b::t_577b9a7f049233 120,123,125,130,133,136
+  s_0df31975f3464b::t_70c8bdeb0252b5 15,65,254-272
+  s_0df31975f3464b::t_e350b4aae54301 1-14,16-64,66-119,121-122,124,126-129,131-132,134-135,137-253
+cli/cmd/mac_purchase_confirmation_test.go
+  s_0df31975f3464b::t_3cf78b2bd4a4ee 43,53-69,71,78,116,147
+cli/internal/ui/mode_test.go
+  s_0df31975f3464b::t_67a56cbca1c054 28-30
+cli/cmd/mgmt_ctx_test.go
+  s_0df31975f3464b::t_a238986b8bd6ba 358,375,379-385,387
+  s_0df31975f3464b::t_72015671f730d9 341,345-357
+  s_0df31975f3464b::t_2c2107c934f65e 83,214,315
+cli/cmd/sandbox_test.go
+  s_0df31975f3464b::t_ceab1c5b4c7de6 32,86
+  s_0df31975f3464b::t_bc4ebb2b31e591 106,124
+cli/cmd/secret_registry_more_test.go
+  s_0df31975f3464b::t_be10bc9389811c 241,248,255,271
+cli/cmd/sandbox_ssh.go
+  s_0df31975f3464b::t_9363956988c3cc 61
+cli/cmd/version.go
+  s_0df31975f3464b::t_0f95185b517db1 89,91
+cli/cmd/durations.go
+  s_0df31975f3464b::t_ac3444eac38b44 85
+  s_0df31975f3464b::t_29e3f6fbaf1ba8 1-84,86
+cli/cmd/sandbox_actions_more_test.go
+  s_0df31975f3464b::t_3e6bfac7bd2289 178,180,195,210,218-239,241-297,332,343
+  s_0df31975f3464b::t_d61a0a31cfc143 48
+  s_0df31975f3464b::t_75f2a029433b4b 12,240
+cli/cmd/mac_purchase_confirmation_linux_test.go
+  s_0df31975f3464b::t_fa99828706f19e 64
+cli/cmd/org.go
+  s_0df31975f3464b::t_7da5614e69c62a 136-137,145-147,151,153-155
+cli/internal/ui/mode.go
+  s_0df31975f3464b::t_67a56cbca1c054 30-33,44-45,73
+cli/internal/app/app.go
+  s_0df31975f3464b::t_237c1b2744cfe0 23,30-31,39-41,43-58,129-130,132,135-138,155,158-162,166-168,173-177,179-180,182-183,278-282,291,557-581
+  s_0df31975f3464b::t_d348fa5bae7e1a 582
+cli/cmd/invite.go
+  s_0df31975f3464b::t_bd17fd6e5072d3 155
+  s_0df31975f3464b::t_7e035339986207 7
+  s_0df31975f3464b::t_ef1a5198829857 31,209-210
+  s_0df31975f3464b::t_7da5614e69c62a 160-161,172-174,178,180-181
+  s_0df31975f3464b::t_70f8c569bb90c2 28
+cli/internal/api/client.go
+  s_0df31975f3464b::t_6e2f539b4235c9 215-219,221,238
+  s_0df31975f3464b::t_dcb60e9ed91730 96-101
+cli/internal/auth/key_cleanup.go
+  s_0df31975f3464b::t_7106478126b149 67-69
+changelog.d/cli-credentials-env.breaking.md
+  s_0df31975f3464b::t_1797a30bc0a748 1-8
+cli/cmd/member_test.go
+  s_0df31975f3464b::t_2c2107c934f65e 39
+cli/cmd/orgkey.go
+  s_0df31975f3464b::t_2df6eedc827dd0 24
+  s_0df31975f3464b::t_7da5614e69c62a 33
+cli/internal/auth/session_lifecycle_test.go
+  s_0df31975f3464b::t_9d56182b13ed52 84-109,114-122,124-135,137
+cli/cmd/root.go
+  s_0df31975f3464b::t_67e73698da82f7 133-137
+  s_0df31975f3464b::t_33289cee862b35 101
+  s_0df31975f3464b::t_f408cc6854a920 11,17,43-66,69,72,88-100,102-132,138-165,191-193,205,232,234,237-239,255-257,280,284-311
+  s_0df31975f3464b::t_e3ca3c84052ffa 24,67-68,70-71,73-87
+  s_0df31975f3464b::t_6458e68acfdf44 312
+cli/cmd/auth.go
+  s_0df31975f3464b::t_2d935a489e2c96 72-77,83,88,90-91,93-100,122-123,130,142-148,150-183,186-187,190-203,205,207
+  s_0df31975f3464b::t_e9845f849438c3 131,134,136,149
+cli/cmd/auth_login_command.go
+  s_0df31975f3464b::t_fc50aaaee76ee0 23,48
+cli/cmd/api_url_test.go
+  s_0df31975f3464b::t_5cd2ae7023dca9 26-29,39-43,63-64
+cli/cmd/secret.go
+  s_0df31975f3464b::t_4a3062edfee5a6 50-52,212-213
+  s_0df31975f3464b::t_be10bc9389811c 57,214-215
+cli/internal/mgmt/client_keys.go
+  s_0df31975f3464b::t_73e9f95f915368 25-27,52-54
+  s_0df31975f3464b::t_d9aca5f547ab90 23-24,28-30,33-34,50-51,55,57,60-61
+  s_0df31975f3464b::t_d24c6c24367122 56
+cli/cmd/sandbox_logs_follow_test.go
+  s_0df31975f3464b::t_d61a0a31cfc143 71
+  s_0df31975f3464b::t_bc4ebb2b31e591 76
+changelog.d/cli-durations.breaking.md
+  s_0df31975f3464b::t_1797a30bc0a748 1-8
+cli/cmd/sandbox_create_helpers.go
+  s_0df31975f3464b::t_028a1954786bac 40-41,48-49,76-77,79-80,83
+cli/cmd/image_more_test.go
+  s_0df31975f3464b::t_2c2107c934f65e 683
+  s_0df31975f3464b::t_26177caa1facdc 10,211-267
+  s_0df31975f3464b::t_c72789d9dd3365 136,144,204
+  s_0df31975f3464b::t_df70badd28b3ca 268-269
+cli/cmd/sandbox.go
+  s_0df31975f3464b::t_d35df38692eb58 110
+cli/internal/auth/session_race_test.go
+  s_0df31975f3464b::t_6c6bd57bd2d723 20-43,45-67,70-71,76-81,83-85
+cli/cmd/registry.go
+  s_0df31975f3464b::t_be10bc9389811c 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "657983497f6a42ab9c32f94a88208504baf9396a",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
