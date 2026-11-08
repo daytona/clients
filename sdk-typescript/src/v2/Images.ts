@@ -8,11 +8,11 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { Image, ImageBuilder, Snapshot, buildImageRequest } from './Image.js'
-import { HttpTransport, boundedRequestTimeout, strictUriEncode, transportFromAxiosInstance } from './http.js'
+import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, strictUriEncode, transportFromAxiosInstance } from './http.js'
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
-import { BadRequestError, ImageBuildFailedError, RequestTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
+import { BadRequestError, ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
 
 const IMAGE_LONGPOLL_MAX_MS = 60_000
 
@@ -137,7 +137,11 @@ export class ImagesService {
       }
       return image
     } catch (error) {
-      if (controller.signal.aborted || (error instanceof ClientTimeoutError && (
+      // The pull's deadline caused this: its own signal fired, or the request
+      // whose budget was the deadline's remainder ran out of it (axios' timer
+      // can fire before the clock reads the deadline). A timeout an auth
+      // provider raised on its own keeps its error.
+      if (controller.signal.aborted || (isRequestBudgetTimeout(error) && (
         activeRequestUsesDeadline
         || (deadline !== undefined && Date.now() >= deadline)
       ))) throw timeoutError()

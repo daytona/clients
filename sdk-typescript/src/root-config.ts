@@ -4,7 +4,7 @@
  */
 
 import type { DaytonaConfig } from './types.js'
-import { assertKnownKeys, badRequest, enumerableKeys, optionKeys, snapshotOptions } from './v2/options.js'
+import { assertKnownKeys, assertOptionsObject, badRequest, enumerableKeys, optionKeys, snapshotOptions } from './v2/options.js'
 import { SANDBOX_EVENTS_CONFIG_KEYS } from './v2/types.js'
 import type { SandboxEventsConfig } from './v2/types.js'
 
@@ -112,7 +112,7 @@ function refuseUrlFields(config: DaytonaConfig, fields: Record<string, unknown> 
  * objects never reach the client. Invalid configuration is a `BadRequestError`.
  */
 export function snapshotConfig(config: DaytonaConfig): DaytonaConfig {
-  if (config === null || typeof config !== 'object') throw badRequest('DaytonaConfig must be an object')
+  assertOptionsObject('DaytonaConfig', config)
   refuseUrlFields(config)
   const keys = enumerableKeys(config)
   const fields: Record<string, unknown> = {}
