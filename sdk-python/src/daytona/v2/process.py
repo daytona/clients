@@ -150,6 +150,20 @@ def _stream_log_event(event: str, data: str, message_id: Optional[str]) -> Optio
     if event not in ("log", "state", "warning", "eof", "error"):
         return None
     payload = sse_json(event, data, f"process log {event} event")
+    if event == "error":
+        # The stream's own error is raised as its typed error; its cursor is
+        # neither read nor returned, so a missing one does not mask it.
+        message = payload.get("message")
+        if not isinstance(message, str):
+            raise _malformed_event(event, "message")
+        code = payload.get("code")
+        source = payload.get("source")
+        raise create_error(
+            message,
+            None,
+            code if isinstance(code, str) else None,
+            source if isinstance(source, str) else "DAYTONA_DAEMON",
+        )
     # The payload's cursor, else (only when the key is missing) the SSE id; a
     # JSON null is a present, invalid cursor.
     cursor_value = payload.get("cursor")
@@ -176,19 +190,10 @@ def _stream_log_event(event: str, data: str, message_id: Optional[str]) -> Optio
     message = payload.get("message")
     if not isinstance(message, str):
         raise _malformed_event(event, "message")
-    if event == "warning":
-        first_available = payload.get("firstAvailableCursor")
-        if not isinstance(first_available, str):
-            raise _malformed_event(event, "firstAvailableCursor")
-        return StreamLogWarningEvent(message=message, cursor=cursor, first_available_cursor=first_available)
-    code = payload.get("code")
-    source = payload.get("source")
-    raise create_error(
-        message,
-        None,
-        code if isinstance(code, str) else None,
-        source if isinstance(source, str) else "DAYTONA_DAEMON",
-    )
+    first_available = payload.get("firstAvailableCursor")
+    if not isinstance(first_available, str):
+        raise _malformed_event(event, "firstAvailableCursor")
+    return StreamLogWarningEvent(message=message, cursor=cursor, first_available_cursor=first_available)
 
 
 def _required_id(value: object, field: str) -> str:

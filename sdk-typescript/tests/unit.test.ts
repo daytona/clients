@@ -12680,6 +12680,14 @@ describe('toolbox surface', () => {
     expect(types).toEqual(['log'])
   })
 
+  it('throws a stream error event as its typed error even without a cursor, like the Python SDK', async () => {
+    const transport = transportStub()
+    transport.fetch.mockResolvedValueOnce(sseResponse(['event: error\ndata: {"message":"gone","code":"PROCESS_NOT_FOUND","source":"DAYTONA_DAEMON"}\n\n']))
+    await expect((async () => {
+      for await (const _event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) { /* drain */ }
+    })()).rejects.toBeInstanceOf(ProcessNotFoundError)
+  })
+
   it('rejects filesystem list envelopes without items', async () => {
     const transport = transportStub()
     const fs = new FileSystemService(INTERNAL, transport.object)

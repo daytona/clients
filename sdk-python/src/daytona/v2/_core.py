@@ -1171,21 +1171,18 @@ def _bulk_read_error(body: bytes) -> BulkReadError:
 
 
 def list_shape(
-    payload: TransportPayload, *keys: str, description: str = "list response"
+    payload: TransportPayload, *, description: str = "list response"
 ) -> Tuple[List[JsonObject], Optional[str]]:
     """The items of a list response: a bare array or an envelope whose
-    ``items`` (or one of ``keys``) is an array; anything else is malformed."""
+    ``items`` is an array; anything else is malformed."""
     if isinstance(payload, list):
         return [expect_object(item) for item in payload], None
     obj = expect_object(payload)
-    for key in ("items", *keys):
-        candidate = obj.get(key)
-        if isinstance(candidate, list):
-            cursor = obj.get("nextCursor") or obj.get("next_cursor")
-            return [expect_object(item) for item in candidate], str(cursor) if isinstance(
-                cursor, str
-            ) else None
-    raise create_error(f"expected {description}: items is required", 400, "BAD_REQUEST", "SDK")
+    items = obj.get("items")
+    if not isinstance(items, list):
+        raise create_error(f"expected {description}: items is required", 400, "BAD_REQUEST", "SDK")
+    cursor = obj.get("nextCursor") or obj.get("next_cursor")
+    return [expect_object(item) for item in items], str(cursor) if isinstance(cursor, str) else None
 
 
 _SEARCH_LIST_FIELDS = ("status", "sandbox_class", "region")

@@ -1309,3 +1309,17 @@ async def test_stream_logs_uses_the_sse_id_only_when_the_cursor_key_is_missing()
     handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
 
     assert [event async for event in handle.stream_logs()] == [StreamLogEofEvent(cursor="c1")]
+
+
+@pytest.mark.anyio
+async def test_a_stream_error_event_raises_its_typed_error_even_without_a_cursor() -> None:
+    lines = [
+        "event: error",
+        'data: {"message":"gone","code":"PROCESS_NOT_FOUND","source":"DAYTONA_DAEMON"}',
+        "",
+    ]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    with pytest.raises(ProcessNotFoundError):
+        async for _event in handle.stream_logs():
+            pass

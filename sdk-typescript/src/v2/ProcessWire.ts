@@ -282,6 +282,16 @@ export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
     throw malformedResponse(`${description}: the data is not JSON`)
   }
   const payload = record(parsed, description)
+  if (message.event === 'error') {
+    // The stream's own error is thrown as its typed error; its cursor is
+    // neither read nor returned, so a missing one does not mask it.
+    throw createDaytonaError(
+      str(payload, 'message', description),
+      undefined,
+      typeof payload.code === 'string' ? payload.code : undefined,
+      typeof payload.source === 'string' ? payload.source : 'DAYTONA_DAEMON',
+    )
+  }
   // The payload's cursor, else (only when the key is missing) the SSE id; a
   // JSON null is a present, invalid cursor.
   const hasCursor = Object.prototype.hasOwnProperty.call(payload, 'cursor')
@@ -294,17 +304,11 @@ export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
     case 'log': return { type: 'log', cursor, frame: frameFromWire({ ...payload, cursor } as LogFrameWire) }
     case 'state': return { type: 'state', cursor, result: waitResult(payload as toolbox.ExitResult) }
     case 'eof': return { type: 'eof', cursor }
-    case 'warning': return {
+    default: return {
       type: 'warning', cursor,
       message: str(payload, 'message', description),
       firstAvailableCursor: str(payload, 'firstAvailableCursor', description),
     }
-    default: throw createDaytonaError(
-      str(payload, 'message', description),
-      undefined,
-      typeof payload.code === 'string' ? payload.code : undefined,
-      typeof payload.source === 'string' ? payload.source : 'DAYTONA_DAEMON',
-    )
   }
 }
 
