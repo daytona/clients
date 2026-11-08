@@ -17,7 +17,10 @@ highest ``vX.Y.Z`` with ``X >= 2`` and no pre-release suffix):
   removed field or a changed identifier).
 
 A breaking change passes only when a ``changelog.d/*.breaking.md`` fragment
-announces it; the maintainer then decides the major bump. With ``--base REV``
+announces it; the maintainer then decides the major bump. A change the check
+reports but that is in fact compatible goes into
+``scripts/breaking/compatible-changes.txt`` instead, copied exactly as the
+check prints it, with a one-line reason; it then passes in every mode. With ``--base REV``
 (a pull request's base), only the breaking changes that are new since REV
 count, and the fragment must be added since REV; without it, every breaking
 change since the release counts and any unreleased breaking fragment
@@ -45,22 +48,53 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable, Sequence, TextIO
 
-SURFACE_DIRS = ("sdk-typescript/api-surface", "sdk-python/api-surface", "cli/api-surface")
+SURFACE_DIRS = (
+    "sdk-typescript/api-surface",
+    "sdk-python/api-surface",
+    "cli/api-surface",
+    "upgrade/api-surface",
+)
 OPENAPI = ("contract/api-openapi.json", "contract/toolbox-openapi.json")
 CATALOGS = ("contract/proxy-errors.json", "contract/router-errors.json")
 STABLE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 # Lines whose kind lists one member of a set: losing one is a removal.
-SET_KINDS = ("union-member", "tuple-element", "element", "item", "alias", "enum-member")
+SET_KINDS = ("union-member", "tuple-element", "element", "item", "alias", "enum-member", "value")
 # Not public API (docs/VERSIONING.md): reported, never failing.
 INFORMATIONAL_KINDS = ("internal-constructor",)
+REMOVED = "(removed)"
+ACKNOWLEDGMENTS = "scripts/breaking/compatible-changes.txt"
 OPENS = "([{<"
 CLOSES = ")]}>"
 
 
+@dataclass(frozen=True, order=True)
+class Finding:
+    """One breaking change, identified exactly: the snapshot or contract file
+    (``area``) and the fields that pin the change down (``old`` / ``new``
+    snapshot lines, or ``rule`` / ``at`` / ``text`` for a contract)."""
+
+    area: str
+    fields: tuple[tuple[str, str], ...]
+
+    def render(self, indent: str = "    ") -> str:
+        lines = [f"- area: {self.area}", *(f"  {key}: {value}" for key, value in self.fields)]
+        return "\n".join(indent + line for line in lines)
+
+
 @dataclass
 class Report:
-    breaking: list[str] = field(default_factory=list)
+    breaking: list[Finding] = field(default_factory=list)
     notices: list[str] = field(default_factory=list)
+
+
+def snapshot_finding(area: str, old: str, new: Iterable[str] = ()) -> Finding:
+    news = sorted(new) or [REMOVED]
+    return Finding(area, (("old", old), *(("new", line) for line in news)))
+
+
+def contract_finding(area: str, rule: str, at: str, text: str = "") -> Finding:
+    fields = (("rule", rule), ("at", at), *((("text", text),) if text else ()))
+    return Finding(area, fields)
 
 
 # --- git ----------------------------------------------------------------------
@@ -261,7 +295,7 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
     old = parse_surface(old_text)
     new = parse_surface(new_text or "")
     if new_text is None:
-        report.breaking.append(f"{name}: snapshot removed (every declaration it listed)")
+        report.breaking.append(snapshot_finding(name, "(the whole snapshot)"))
         return
     removed_keys: list[str] = []
     for key in sorted(old):
@@ -273,7 +307,7 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             if all(informational(r) for r in old[key]):
                 report.notices.append(f"{name}: removed {key}: {old[key][0]}")
             else:
-                report.breaking.append(f"{name}: removed {key}: {old[key][0]}")
+                report.breaking.append(snapshot_finding(name, f"{key}: {old[key][0]}"))
             continue
         for rest in old[key]:
             if rest in news:
@@ -282,12 +316,12 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
             if informational(rest):
                 report.notices.append(f"{name}: changed (not public API) {line}")
             elif rest.split(" ", 1)[0] in SET_KINDS:
-                report.breaking.append(f"{name}: removed {line}")
+                report.breaking.append(snapshot_finding(name, line))
             elif any(compatible_change(rest, candidate) for candidate in news):
                 report.notices.append(f"{name}: compatible change of {line}")
             else:
-                now = " | ".join(f"{key}: {r}" for r in news if r not in old[key]) or "(see snapshot)"
-                report.breaking.append(f"{name}: changed {line}  ->  {now}")
+                added = [f"{key}: {r}" for r in news if r not in old[key]]
+                report.breaking.append(snapshot_finding(name, line, added))
 
 
 # --- contracts ----------------------------------------------------------------
@@ -306,7 +340,7 @@ def open_enums_extensible(node: object) -> object:
     return node
 
 
-def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> tuple[set[str], set[str]]:
+def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> tuple[set[Finding], set[str]]:
     with tempfile.TemporaryDirectory() as tmp:
         base, rev = Path(tmp, "base.json"), Path(tmp, "revision.json")
         base.write_text(json.dumps(open_enums_extensible(json.loads(old_text))))
@@ -318,15 +352,18 @@ def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> t
         )
     if result.returncode != 0:
         raise SystemExit(f"oasdiff failed on {path}: {result.stderr.strip()}")
-    errors, warnings = set(), set()
+    errors: set[Finding] = set()
+    warnings: set[str] = set()
     for item in json.loads(result.stdout or "[]"):
-        where = " ".join(p for p in (item.get("operation"), item.get("path")) if p)
-        text = f"{path}: [{item.get('id')}] {where}: {item.get('text')}"
-        (errors if item.get("level", 0) >= 3 else warnings).add(text)
+        where = " ".join(p for p in (item.get("operation"), item.get("path")) if p) or "-"
+        if item.get("level", 0) >= 3:
+            errors.add(contract_finding(path, str(item.get("id")), where, " ".join(str(item.get("text")).split())))
+        else:
+            warnings.add(f"{path}: [{item.get('id')}] {where}: {item.get('text')}")
     return errors, warnings
 
 
-def catalog_findings(path: str, old_text: str, new_text: str) -> set[str]:
+def catalog_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
     def index(doc: dict[str, object]) -> dict[str, dict[str, object]]:
         out: dict[str, dict[str, object]] = {}
         for group in ("codes", "generic"):
@@ -335,15 +372,16 @@ def catalog_findings(path: str, old_text: str, new_text: str) -> set[str]:
         return out
 
     old, new = index(json.loads(old_text)), index(json.loads(new_text))
-    found = set()
+    found: set[Finding] = set()
     for key, entry in old.items():
         if key not in new:
-            found.add(f"{path}: error code {key} removed")
+            found.add(contract_finding(path, "code-removed", key))
             continue
         if entry.get("status") != new[key].get("status"):
-            found.add(f"{path}: error code {key} status {entry.get('status')} -> {new[key].get('status')}")
+            change = f"{entry.get('status')} -> {new[key].get('status')}"
+            found.add(contract_finding(path, "status-changed", key, change))
         for extra in set(map(str, entry.get("extras") or [])) - set(map(str, new[key].get("extras") or [])):
-            found.add(f"{path}: error code {key} lost extra {extra}")
+            found.add(contract_finding(path, "extra-removed", key, extra))
     return found
 
 
@@ -367,25 +405,25 @@ def flatten(node: object, prefix: str = "") -> dict[str, object]:
     return out
 
 
-def json_findings(path: str, old_text: str, new_text: str) -> set[str]:
+def json_findings(path: str, old_text: str, new_text: str) -> set[Finding]:
     """A removed field, or a changed value that is not prose."""
     old, new = flatten(json.loads(old_text)), flatten(json.loads(new_text))
-    found = set()
+    found: set[Finding] = set()
     removed: list[str] = []
     for key, value in sorted(old.items()):
         if key not in new:
             if not any(key.startswith(parent + sep) for parent in removed for sep in "/["):
-                found.add(f"{path}: {key} removed")
+                found.add(contract_finding(path, "removed", key))
             removed.append(key)
         elif new[key] != value and not (isinstance(value, str) and " " in value):
-            found.add(f"{path}: {key} changed {json.dumps(value)} -> {json.dumps(new[key])}")
+            found.add(contract_finding(path, "changed", key, f"{json.dumps(value)} -> {json.dumps(new[key])}"))
     return found
 
 
 # --- the check ----------------------------------------------------------------
 
 
-def findings(root: Path, baseline: str, side: str | None, oasdiff: Callable[[], str], report: Report) -> set[str]:
+def findings(root: Path, baseline: str, side: str | None, oasdiff: Callable[[], str], report: Report) -> set[Finding]:
     """Breaking findings from ``baseline`` to ``side`` (a revision, or None
     for the working tree). Notices go to ``report`` only for the head side."""
     read_old = reader_at(root, baseline)
@@ -402,7 +440,7 @@ def findings(root: Path, baseline: str, side: str | None, oasdiff: Callable[[], 
         if old_text is None:
             continue
         if new_text is None:
-            found.add(f"{path}: removed")
+            found.add(contract_finding(path, "file-removed", path))
         elif old_text == new_text:
             continue
         elif path in OPENAPI:
@@ -422,6 +460,61 @@ def breaking_fragments(root: Path, since: str) -> list[str]:
     present = sorted(p.relative_to(root).as_posix() for p in (root / "changelog.d").glob("*.breaking.md"))
     before = files_at(root, since, "changelog.d", ".breaking.md")
     return [p for p in present if p not in before]
+
+
+SNAPSHOT_KEYS = ("old", "new")
+CONTRACT_KEYS = ("rule", "at", "text")
+
+
+def load_acknowledgments(path: Path) -> dict[Finding, str]:
+    """Parse the acknowledgment file: findings that are not breaking, each
+    with its reason. A malformed entry is an error (exit 1)."""
+    if not path.is_file():
+        return {}
+    where = path.name
+    entries: list[tuple[int, list[tuple[str, str]]]] = []
+    for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("- "):
+            entries.append((number, []))
+            line = line[2:]
+        elif not entries:
+            raise SystemExit(f"{where}:{number}: an entry starts with '- area: '")
+        key, sep, value = line.partition(": ")
+        if not sep or not value.strip():
+            raise SystemExit(f"{where}:{number}: expected '<key>: <value>', got {raw.strip()!r}")
+        entries[-1][1].append((key, value.rstrip()))
+
+    acknowledged: dict[Finding, str] = {}
+    for number, pairs in entries:
+        keys = [k for k, _ in pairs]
+        if keys[0] != "area":
+            raise SystemExit(f"{where}:{number}: an entry starts with 'area'")
+        unknown = set(keys) - {"area", "reason", *SNAPSHOT_KEYS, *CONTRACT_KEYS}
+        if unknown:
+            raise SystemExit(f"{where}:{number}: unknown key(s) {', '.join(sorted(unknown))}")
+        for once in ("area", "reason", "old", "rule", "at", "text"):
+            if keys.count(once) > 1:
+                raise SystemExit(f"{where}:{number}: '{once}' appears more than once")
+        if "reason" not in keys:
+            raise SystemExit(f"{where}:{number}: every entry needs a one-line 'reason'")
+        values = dict(pairs)
+        if "old" in keys:
+            if "new" not in keys or set(keys) & set(CONTRACT_KEYS):
+                raise SystemExit(f"{where}:{number}: a snapshot entry has 'old' and one or more 'new', nothing else")
+            finding = snapshot_finding(values["area"], values["old"], [v for k, v in pairs if k == "new" and v != REMOVED])
+        elif "rule" in keys and "at" in keys:
+            if set(keys) & set(SNAPSHOT_KEYS):
+                raise SystemExit(f"{where}:{number}: a contract entry has 'rule', 'at' and optionally 'text'")
+            finding = contract_finding(values["area"], values["rule"], values["at"], values.get("text", ""))
+        else:
+            raise SystemExit(f"{where}:{number}: an entry has 'old' and 'new' (snapshot) or 'rule' and 'at' (contract)")
+        if finding in acknowledged:
+            raise SystemExit(f"{where}:{number}: duplicate entry")
+        acknowledged[finding] = values["reason"]
+    return acknowledged
 
 
 def find_oasdiff() -> str:
@@ -447,6 +540,8 @@ def main(argv: Sequence[str] | None = None, out: TextIO = sys.stdout) -> int:
     args = parser.parse_args(argv)
     root = Path(git(Path(args.root), "rev-parse", "--show-toplevel").stdout.strip())
 
+    # Validated on every run, so a malformed entry fails before a release exists.
+    acks = load_acknowledgments(root / ACKNOWLEDGMENTS)
     baseline = args.baseline or latest_stable_tag(root, args.fetch)
     if baseline is not None and args.fetch:
         git(root, "fetch", "--quiet", "--no-tags", "--depth=1", args.fetch, f"+refs/tags/{baseline}:refs/tags/{baseline}")
@@ -461,6 +556,9 @@ def main(argv: Sequence[str] | None = None, out: TextIO = sys.stdout) -> int:
 
     report = Report()
     head = findings(root, baseline, None, find_oasdiff, report)
+    acknowledged = {f: reason for f, reason in acks.items() if f in head}
+    stale = [f for f in acks if f not in head]
+    head -= set(acknowledged)
     if args.base:
         earlier = findings(root, baseline, args.base, find_oasdiff, Report())
         new = sorted(head - earlier)
@@ -475,24 +573,32 @@ def main(argv: Sequence[str] | None = None, out: TextIO = sys.stdout) -> int:
     print(f"Breaking-change check against {baseline}", file=out)
     for line in report.notices:
         print(f"  note: {line}", file=out)
+    for finding in stale:
+        print(f"  note: {ACKNOWLEDGMENTS} entry matches no finding (stale; it may be removed):", file=out)
+        print(finding.render(), file=out)
+    if acknowledged:
+        print(f"{len(acknowledged)} change(s) acknowledged as compatible in {ACKNOWLEDGMENTS}:", file=out)
+        for finding, reason in sorted(acknowledged.items()):
+            print(f"{finding.render()}\n      reason: {reason}", file=out)
     if accepted:
         print(f"{len(accepted)} breaking change(s) since {baseline} were already on the base branch:", file=out)
-        for line in accepted:
-            print(f"  = {line}", file=out)
+        for finding in accepted:
+            print(finding.render(), file=out)
     if not new:
         print(f"No breaking change {scope}.", file=out)
         return 0
     print(f"{len(new)} breaking change(s) {scope}:", file=out)
-    for line in new:
-        print(f"  ! {line}", file=out)
+    for finding in new:
+        print(finding.render(), file=out)
     if fragments:
         print(f"Announced by {', '.join(fragments)}: the next release is a major one (the maintainer decides).", file=out)
         return 0
     print(
         f"\nThese break code written against {baseline}. Restore compatibility, or announce the break "
         "with a changelog.d/<slug>.breaking.md fragment (changelog.d/README.md); the maintainer then "
-        "decides the major version bump. A compatible change flagged here (the check is conservative "
-        "about changed signatures) also needs the maintainer's call.",
+        "decides the major version bump. If a change listed here is in fact compatible (the check is "
+        f"conservative about changed signatures), copy its entry into {ACKNOWLEDGMENTS} and add a "
+        "one-line 'reason:'.",
         file=out,
     )
     return 1

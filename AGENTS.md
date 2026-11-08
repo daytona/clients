@@ -429,6 +429,10 @@ skipping exist only in the TypeScript tool).
   both tools (`upgrade/mapping/v0-version-messages.json` holds shared
   expectations both suites assert). A pin bump is a manual PR
   (docs/RELEASING.md, "The v0 pin").
+- **Public surface:** a change to the flags or the report schema regenerates
+  `upgrade/api-surface/daytona-upgrade.api.txt`
+  (`(cd upgrade/python && uv run python ../scripts/api_surface.py)`); the
+  `Breaking changes` workflow holds it to the last stable release.
 - **Verify:** `scripts/test-upgrade.sh`, and for the pinned 0.x examples end to
   end `bash upgrade/scripts/check-examples.sh --src <0.x checkout> --py-wheel
   <built 2.x wheel> --ts-tarball <packed 2.x tarball>`
@@ -533,21 +537,28 @@ scripts/gen-contract-types.sh --check     # only after touching contract/ or a g
 declaration per line (`<name>: <kind>[ <signature>]`): exported names with
 their kinds and signatures and the members of classes and options types
 (`sdk-typescript/api-surface/`, `sdk-python/api-surface/`), the CLI's
-commands, flags and environment variables (`cli/api-surface/`). CI fails when
-a snapshot is stale; regenerate after any change to the public surface and
-commit the diff, which is how the change shows up in review:
+commands, flags and environment variables (`cli/api-surface/`), the migration
+tool's `--json` report fields and values and both tools' flags
+(`upgrade/api-surface/`). CI fails when a snapshot is stale; regenerate after
+any change to the public surface and commit the diff, which is how the change
+shows up in review:
 
 ```bash
 (cd sdk-typescript && npm run api-surface)                     # check: npm run api-surface:check
 (cd sdk-python && .venv/bin/python gen/api_surface.py)         # check: --check
 (cd cli && go test ./cmd -run TestPublicSurface -update)       # check: go test ./cmd
+(cd upgrade/python && uv run python ../scripts/api_surface.py) # check: --check
 ```
 
 The `Breaking changes` workflow compares these snapshots and `contract/*.json`
 (oasdiff for the OpenAPI files) with the last stable release tag
 (`python3 scripts/breaking/breaking_changes.py`, oasdiff from
-`scripts/breaking/install-oasdiff.sh`); a removal or incompatible change fails
-unless the PR adds a `changelog.d/*.breaking.md` fragment.
+`scripts/breaking/install-oasdiff.sh`). A real break (a removal or an
+incompatible change) needs a `changelog.d/*.breaking.md` fragment in the PR.
+A change the check misreads as breaking goes into
+`scripts/breaking/compatible-changes.txt` instead: the entry exactly as the
+check prints it, plus a one-line `reason:`; never a breaking fragment, which
+would put a false BREAKING entry in the changelog.
 
 TypeScript runtime compatibility (the packed package in Node, Bun, Deno,
 bundlers, Next.js, Nuxt, Remix, workerd, Lambda, Azure Functions and a

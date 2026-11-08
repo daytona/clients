@@ -1,14 +1,16 @@
 name: Breaking changes
 
 # Compares the committed public-surface snapshots (sdk-typescript/api-surface,
-# sdk-python/api-surface, cli/api-surface) and contract/*.json with the last
-# stable release tag (the highest vX.Y.Z, X >= 2, without a pre-release
-# suffix). A breaking change fails unless a changelog.d/*.breaking.md
+# sdk-python/api-surface, cli/api-surface, upgrade/api-surface) and
+# contract/*.json with the last stable release tag (the highest vX.Y.Z,
+# X >= 2, without a pre-release suffix). A breaking change fails unless a changelog.d/*.breaking.md
 # fragment announces it; on a pull request only the breaks the pull request
-# adds count, and the fragment must come with it. Passes with "no stable
-# release yet" until the first stable tag exists.
+# adds count, and the fragment must come with it. A reported change that is
+# in fact compatible is acknowledged, with a reason, in
+# scripts/breaking/compatible-changes.txt. Passes with "no stable release
+# yet" until the first stable tag exists.
 # Logic: scripts/breaking/breaking_changes.py. That the snapshots match the
-# code is checked where the code is built (SDK CI, CLI CI).
+# code is checked where the code is built (SDK CI, CLI CI, Upgrade tool CI).
 on:
   push:
     branches: [main]

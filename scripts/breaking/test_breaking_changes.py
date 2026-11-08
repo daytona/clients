@@ -97,6 +97,9 @@ class CompareSurface(unittest.TestCase):
             "daytona sandbox: alias sb",
             "daytona sandbox create --name: flag string default=\"\"",
             "$DAYTONA_API_KEY: env",
+            'report.mode: field string required',
+            'report.mode: value "remove-suggestions"',
+            'report.mode: value "upgrade"',
         ]
     )
 
@@ -117,7 +120,7 @@ class CompareSurface(unittest.TestCase):
     def test_removed_class_is_one_finding(self) -> None:
         new = "\n".join(line for line in self.OLD.splitlines() if not line.startswith("Gone"))
         report = self.compare(new)
-        self.assertEqual(report.breaking, ["s.api.txt: removed Gone: class"])
+        self.assertEqual(report.breaking, [bc.snapshot_finding("s.api.txt", "Gone: class")])
 
     def test_removed_members_flag_alias_env(self) -> None:
         for line in (
@@ -125,24 +128,29 @@ class CompareSurface(unittest.TestCase):
             "daytona sandbox: alias sb",
             "daytona sandbox create --name: flag string default=\"\"",
             "$DAYTONA_API_KEY: env",
+            'report.mode: value "remove-suggestions"',
         ):
             with self.subTest(line=line):
                 report = self.compare(self.OLD.replace(line + "\n", "").replace("\n" + line, ""))
-                self.assertEqual(len(report.breaking), 1, report.breaking)
-                self.assertIn(line.split(": ")[0], report.breaking[0])
+                self.assertEqual(report.breaking, [bc.snapshot_finding("s.api.txt", line)])
 
     def test_renamed_flag_breaks(self) -> None:
         report = self.compare(self.OLD.replace("create --name:", "create --title:"))
-        self.assertEqual(len(report.breaking), 1)
-        self.assertIn("removed daytona sandbox create --name", report.breaking[0])
+        self.assertEqual(report.breaking, [bc.snapshot_finding("s.api.txt", 'daytona sandbox create --name: flag string default=""')])
 
     def test_changed_signature_breaks_and_compatible_one_does_not(self) -> None:
         report = self.compare(self.OLD.replace("run: method (a: string)", "run: method (a: number)"))
-        self.assertEqual(len(report.breaking), 1)
-        self.assertIn("changed Client.run", report.breaking[0])
+        self.assertEqual(
+            report.breaking,
+            [bc.snapshot_finding("s.api.txt", "Client.run: method (a: string): void", ["Client.run: method (a: number): void"])],
+        )
         report = self.compare(self.OLD.replace("run: method (a: string)", "run: method (a: string, b?: number)"))
         self.assertEqual(report.breaking, [])
         self.assertEqual(len(report.notices), 1)
+
+    def test_changed_field_type_breaks(self) -> None:
+        report = self.compare(self.OLD.replace("report.mode: field string required", "report.mode: field string optional"))
+        self.assertEqual(len(report.breaking), 1)
 
     def test_internal_constructor_is_a_notice(self) -> None:
         report = self.compare(self.OLD.replace("internal-constructor (a: string)", "internal-constructor (a: number)"))
@@ -217,11 +225,11 @@ class OpenAPI(unittest.TestCase):
     def test_removed_path_is_an_error(self) -> None:
         errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"]), spec(["a"], paths=("/a",)))
         self.assertEqual(len(errors), 1)
-        self.assertIn("GET /b", next(iter(errors)))
+        self.assertEqual(dict(next(iter(errors)).fields)["at"], "GET /b")
 
 
-class Repository(unittest.TestCase):
-    """End to end in a temporary repository with release tags."""
+class RepoCase(unittest.TestCase):
+    """A temporary repository with a CLI snapshot, a catalog and changelog.d."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory()
@@ -255,6 +263,11 @@ class Repository(unittest.TestCase):
         code = bc.main(["--root", str(self.root), *args], out=out)
         return code, out.getvalue()
 
+
+
+class Repository(RepoCase):
+    """End to end in a temporary repository with release tags."""
+
     def test_no_stable_release(self) -> None:
         self.git("tag", "v2.0.0-rc.2")
         code, out = self.run_check()
@@ -271,7 +284,7 @@ class Repository(unittest.TestCase):
         self.write("cli/api-surface/daytona.api.txt", "daytona: command\ndaytona --assume-yes: flag bool default=\"false\"\n")
         code, out = self.run_check()
         self.assertEqual(code, 1, out)
-        self.assertIn("removed daytona --yes", out)
+        self.assertIn('old: daytona --yes: flag bool default="false"', out)
         self.write("changelog.d/flag-rename.breaking.md", "**Renamed** `--yes`.\n")
         code, out = self.run_check()
         self.assertEqual(code, 0, out)
@@ -288,7 +301,7 @@ class Repository(unittest.TestCase):
         self.write("contract/proxy-errors.json", json.dumps({"codes": [], "generic": []}))
         code, out = self.run_check()
         self.assertEqual(code, 1, out)
-        self.assertIn("codes:A removed", out)
+        self.assertIn("rule: code-removed", out)
 
     def test_fetch_finds_the_tag_on_a_remote(self) -> None:
         self.git("tag", "v2.0.0")
@@ -300,7 +313,7 @@ class Repository(unittest.TestCase):
         out = io.StringIO()
         code = bc.main(["--root", str(clone), "--fetch", "origin"], out=out)
         self.assertEqual(code, 1, out.getvalue())
-        self.assertIn("removed daytona --yes", out.getvalue())
+        self.assertIn('old: daytona --yes: flag bool default="false"', out.getvalue())
 
     def test_base_counts_only_new_breaks(self) -> None:
         self.git("tag", "v2.0.0")
@@ -319,6 +332,92 @@ class Repository(unittest.TestCase):
         self.write("changelog.d/new.breaking.md", "**Removed** code A.\n")
         code, out = self.run_check("--base", base)
         self.assertEqual(code, 0, out)
+
+
+class Acknowledgments(RepoCase):
+    RENAME = """
+- area: cli/api-surface/daytona.api.txt
+  old: daytona --yes: flag bool default="false"
+  new: daytona --yes: flag bool -y default="false"
+  reason: only a shorthand was added
+"""
+
+    def acknowledge(self, text: str) -> None:
+        self.write(bc.ACKNOWLEDGMENTS, "# header\n" + text)
+
+    def shorthand(self, short: str = "-y") -> None:
+        self.write("cli/api-surface/daytona.api.txt", f'daytona: command\ndaytona --yes: flag bool {short} default="false"\n')
+
+    def test_acknowledged_finding_passes_in_push_and_pr_mode(self) -> None:
+        self.git("tag", "v2.0.0")
+        base = self.git("rev-parse", "HEAD").strip()
+        self.shorthand()
+        code, out = self.run_check()
+        self.assertEqual(code, 1, out)
+        self.acknowledge(self.RENAME)
+        for args in ((), ("--base", base)):
+            with self.subTest(args=args):
+                code, out = self.run_check(*args)
+                self.assertEqual(code, 0, out)
+                self.assertIn("acknowledged as compatible", out)
+                self.assertIn("reason: only a shorthand was added", out)
+                self.assertIn("No breaking change", out)
+        # Push mode on the merged result: the base now carries it.
+        self.commit("merged")
+        code, out = self.run_check()
+        self.assertEqual(code, 0, out)
+
+    def test_a_different_change_to_the_same_declaration_still_fails(self) -> None:
+        self.git("tag", "v2.0.0")
+        self.acknowledge(self.RENAME)
+        self.shorthand("-Y")
+        code, out = self.run_check()
+        self.assertEqual(code, 1, out)
+        self.assertIn("new: daytona --yes: flag bool -Y", out)
+        self.assertIn("matches no finding (stale", out)
+
+    def test_contract_finding_is_acknowledged_by_rule_and_location(self) -> None:
+        self.git("tag", "v2.0.0")
+        self.write("contract/proxy-errors.json", json.dumps({"codes": [{"code": "A", "status": 410}], "generic": []}))
+        self.acknowledge(
+            "- area: contract/proxy-errors.json\n  rule: status-changed\n  at: codes:A\n  text: 409 -> 410\n"
+            "  reason: the server never returned 409 for A\n"
+        )
+        code, out = self.run_check()
+        self.assertEqual(code, 0, out)
+        self.write("contract/proxy-errors.json", json.dumps({"codes": [{"code": "A", "status": 400}], "generic": []}))
+        code, out = self.run_check()
+        self.assertEqual(code, 1, out)
+
+    def test_stale_entry_is_only_a_notice(self) -> None:
+        self.git("tag", "v2.0.0")
+        self.acknowledge(self.RENAME)
+        code, out = self.run_check()
+        self.assertEqual(code, 0, out)
+        self.assertIn("matches no finding (stale", out)
+
+    def test_malformed_entries_fail(self) -> None:
+        cases = {
+            "no reason": self.RENAME.replace("  reason: only a shorthand was added\n", ""),
+            "empty reason": self.RENAME.replace("only a shorthand was added", " "),
+            "unknown key": self.RENAME.replace("  reason:", "  why: x\n  reason:"),
+            "no area first": self.RENAME.replace("- area: cli/api-surface/daytona.api.txt\n  old:", "- old:"),
+            "snapshot without new": self.RENAME.replace('  new: daytona --yes: flag bool -y default="false"\n', ""),
+            "mixed kinds": self.RENAME.replace("  reason:", "  rule: x\n  reason:"),
+            "duplicate": self.RENAME + self.RENAME,
+            "stray line": "area: x\n",
+        }
+        for name, text in cases.items():
+            with self.subTest(name=name):
+                self.acknowledge(text)
+                with self.assertRaises(SystemExit) as raised:
+                    self.run_check()
+                self.assertIn("compatible-changes.txt:", str(raised.exception))
+
+    def test_malformed_file_fails_before_a_release_exists(self) -> None:
+        self.acknowledge("- area: x\n  old: y\n")
+        with self.assertRaises(SystemExit):
+            self.run_check()
 
 
 if __name__ == "__main__":
