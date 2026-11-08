@@ -53,6 +53,17 @@ describe('watch stream drops', () => {
         setTimeout(() => response.socket?.destroy(), 20)
         return
       }
+      if (request.url?.startsWith('/burst') === true || request.url?.startsWith('/early') === true) {
+        // start and ten events in ONE write (early: two events before start);
+        // the stream stays open until the client closes it.
+        const events = Array.from({ length: 10 }, (_, index) =>
+          `event: fs\ndata: ${JSON.stringify({ type: 'create', name: `e${index}`, isDir: false, timestamp: 1 })}\n\n`)
+        const start = 'event: start\ndata: {}\n\n'
+        const frames = request.url.startsWith('/burst') ? [start, ...events] : [...events.slice(0, 2), start, ...events.slice(2)]
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write(frames.join(''))
+        return
+      }
       const truncated = request.url?.startsWith('/truncated') === true
       response.writeHead(200, truncated
         ? { 'Content-Type': 'text/event-stream', 'Content-Length': '100000' }
@@ -87,6 +98,23 @@ describe('watch stream drops', () => {
     expect(error).toBeInstanceOf(ConnectionError)
     expect(error).toMatchObject({ source: 'SDK' })
     if (message !== undefined) expect(error?.message).toBe(message)
+  })
+
+  it.each(['burst', 'early'] as const)('runs no callback before watchDir() returns, so a callback can stop its own watch (%s)', async (path) => {
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/${path}`, 'k', 5_000))
+    for (let run = 0; run < 20; run++) {
+      const seen: string[] = []
+      const early: string[] = []
+      let returned = false
+      const handle: Awaited<ReturnType<typeof fs.watchDir>> = await fs.watchDir('/', async (event) => {
+        if (!returned) early.push(event.name)
+        seen.push(event.name)
+        await handle.stop()
+      })
+      returned = true
+      await expect(handle.waitForExit()).resolves.toBeUndefined()
+      expect({ early, seen }).toEqual({ early: [], seen: ['e0'] })
+    }
   })
 
   it.each(['refused', 'w404', 'nostart'] as const)('throws a watch that fails before start (%s) from watchDir() without calling onExit', async (kind) => {

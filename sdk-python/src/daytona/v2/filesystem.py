@@ -29,7 +29,7 @@ from typing import (
 )
 from urllib.parse import quote
 
-from ._bridge import BridgeError
+from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
     RequestSpec,
     TransportPayload,
@@ -137,11 +137,19 @@ class AsyncWatchHandle:
     overflow callback ends the watch: that error becomes :attr:`exit_error`
     and is passed to ``on_exit``. Never constructed directly.
 
+    No callback runs before ``watch_dir()`` has returned the handle, so with
+    the async client a callback can stop its own watch through it.
+
     With the synchronous client, callbacks run on the SDK's event-loop thread:
     there a callback may call its own watch's ``stop()`` (which then returns
     without waiting), ``wait_for_exit()`` and ``exit_error`` (which return the
     current exit error), but no other synchronous SDK call (another watch's
-    included): that raises ``BridgeError``.
+    included): that raises ``BridgeError``. Deliveries start once the
+    synchronous ``watch_dir()`` has built its handle, but the first events can
+    still reach a callback before the caller has stored the returned handle:
+    to end a synchronous watch from an event without that race, signal the
+    caller's thread (a ``threading.Event``, for example) and call ``stop()``
+    there.
     """
 
     # Called on the bridge loop thread (from a callback the SDK runs), the
@@ -163,6 +171,14 @@ class AsyncWatchHandle:
         self._exit_done = asyncio.Event()
         self._exit_error: Exception | None = None
         self._exit_notified = False
+        # Set once watch_dir() has handed the handle to its caller (or the
+        # watch is stopped): no callback, on_exit included, runs before.
+        self._published = asyncio.Event()
+
+    def _publish(self) -> None:
+        """Let callbacks run: watch_dir() has returned this handle (the
+        synchronous twin calls it once it has built its own handle)."""
+        self._published.set()
 
     @property
     def exit_error(self) -> Exception | None:
@@ -177,6 +193,7 @@ class AsyncWatchHandle:
         self._exited.set()
         try:
             if notify and self._on_exit is not None:
+                await self._published.wait()
                 on_exit = self._on_exit
                 # An on_exit failure is contained: the watch has already ended.
                 with contextlib.suppress(Exception):
@@ -218,6 +235,8 @@ class AsyncWatchHandle:
         """
         own = self._own_call()
         self._stopped = True
+        # A reader holding an event for an unpublished handle drops it now.
+        self._published.set()
         if not self._closing:
             self._closing = True
             # A stream that fails to close must not stop us from waiting for
@@ -253,6 +272,7 @@ class AsyncWatchHandle:
         the stream closes in the background (see ``_SYNC_LOOP_VARIANTS``)."""
         self._refuse_other_watch("stop")
         self._stopped = True
+        self._published.set()
         if self._stop_task is None:
             self._stop_task = asyncio.ensure_future(self.stop())
 
@@ -275,6 +295,10 @@ FileUrlSigner = Callable[[str, str, int], Awaitable[TransportPayload]]
 class AsyncFileSystemService:
     """Sandbox filesystem namespace."""
 
+    # The synchronous watch_dir() publishes the watch once it has built its
+    # own handle (see AsyncWatchHandle._publish).
+    _SYNC_AFTER_WRAP: Mapping[str, str] = {"watch_dir": "_publish"}
+
     def __init__(
         self,
         _transport: AsyncTransport,
@@ -287,9 +311,9 @@ class AsyncFileSystemService:
     async def read_bytes(self, path: str) -> bytes:
         """Read a file as bytes, holding the whole file in memory.
 
-        The whole response is held in memory. For large files, or content from a
-        sandbox you do not trust, use :meth:`download_file`, which streams to disk
-        with progress and cancellation.
+        For large files, or content from a sandbox you do not trust, use
+        :meth:`download_file`, which streams to disk with progress and
+        cancellation.
         """
         value = await self._transport.raw(file_download_spec(path, timeout=None))
         return value
@@ -571,8 +595,10 @@ class AsyncFileSystemService:
     ) -> AsyncWatchHandle:
         """Watch ``path`` for changes, calling ``on_event`` for each one.
 
-        Returns once the watch is established. Callbacks (plain or coroutine
-        functions) run one at a time, in order. A failing ``on_event`` or
+        Returns once the watch is established; no callback runs before it has
+        returned (see :class:`AsyncWatchHandle` for the synchronous client).
+        Callbacks (plain or coroutine functions) run one at a time, in order.
+        A failing ``on_event`` or
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
         when the watch ends, and its own failure is ignored. A failure before
         the watch starts is raised from this call and does not call ``on_exit``.
@@ -583,12 +609,25 @@ class AsyncFileSystemService:
         reader_error: list[Exception] = []
         callback_error: list[Exception] = []
 
-        async def deliver(callback: Callable[[], None | Awaitable[None]]) -> None:
-            try:
-                await handle._deliver(callback)
-            except Exception as exc:
-                callback_error.append(exc)
-                raise
+        # Events read before start, delivered after it (none, from a
+        # well-behaved toolbox): the reader must keep reading until start.
+        held: list[Callable[[], None | Awaitable[None]]] = []
+
+        async def deliver(callback: Callable[[], None | Awaitable[None]] | None) -> None:
+            # No callback runs before watch_dir() has handed out the handle
+            # (events arriving with start wait here); a watch stopped
+            # meanwhile delivers nothing more.
+            await handle._published.wait()
+            pending = [*held, *([] if callback is None else [callback])]
+            held.clear()
+            for next_callback in pending:
+                if handle._stopped:
+                    return
+                try:
+                    await handle._deliver(next_callback)
+                except Exception as exc:
+                    callback_error.append(exc)
+                    raise
 
         async def read_events() -> None:
             started = False
@@ -597,17 +636,25 @@ class AsyncFileSystemService:
                 async for event_name, data, _id in parse_sse_messages_async(stream.iter_lines()):
                     if handle._stopped:
                         break
+                    callback: Callable[[], None | Awaitable[None]] | None = None
                     if event_name == "start":
-                        started = True
-                        ready.set()
+                        if not started:
+                            started = True
+                            ready.set()
+                            if held:
+                                await deliver(None)
                         continue
                     if event_name == "fs":
                         event = _parse_filesystem_event(sse_json("fs", data, "filesystem watch event"))
-                        await deliver(functools.partial(on_event, event))
+                        callback = functools.partial(on_event, event)
+                    elif event_name == "overflow" and on_overflow is not None:
+                        callback = on_overflow
+                    if callback is None:
                         continue
-                    if event_name == "overflow" and on_overflow is not None:
-                        await deliver(on_overflow)
-                        continue
+                    if started:
+                        await deliver(callback)
+                    else:
+                        held.append(callback)
                 # A stream that ends on its own is a dropped connection, as a
                 # truncated body is (the transport raises ConnectionError).
                 if started:
@@ -658,6 +705,11 @@ class AsyncFileSystemService:
             raise
         if reader_error:
             raise reader_error[0]
+        # Release the deliveries as the last step: asyncio runs nothing else
+        # until the caller's next await, so it has stored the handle by then.
+        # The synchronous twin publishes once it has built its own handle.
+        if not on_a_bridge_loop():
+            handle._publish()
         return handle
 
     async def _presigned_url(self, method: str, route: str, path: str, expires_in_seconds: int) -> str:

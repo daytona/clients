@@ -246,11 +246,11 @@ export class FileSystemService {
   }
 
   /**
-   * Read a file as bytes, holding the whole file in memory.
-   * The whole response is held in memory. For large files, or content from a
-   * sandbox you do not trust, use `downloadFile()`, which streams to disk with
-   * progress and cancellation; it is Node.js-only, so in a browser the
-   * in-memory reads are the only option.
+   * Read a file as bytes, holding the whole file in memory. For large files,
+   * or content from a sandbox you do not trust, use `downloadFile()`, which
+   * streams to disk with progress and cancellation; it is Node.js-only, so in
+   * a browser the in-memory reads and `presignedDownloadUrl()` are the
+   * options.
    */
   public async readBytes(path: string, options: ReadFileOptions = {}): Promise<Uint8Array> {
     assertKnownOptions('ReadFileOptions', options, READ_FILE_OPTION_KEYS)
@@ -344,7 +344,7 @@ export class FileSystemService {
    * The whole response is held in memory. For large files, or content from a
    * sandbox you do not trust, use `downloadFile()`, which streams to disk with
    * progress and cancellation; it is Node.js-only, so in a browser the
-   * in-memory reads are the only option.
+   * in-memory reads and `presignedDownloadUrl()` are the options.
    */
   public async readMany(paths: readonly string[], options: ReadManyOptions = {}): Promise<BulkReadResult> {
     assertKnownOptions('ReadManyOptions', options, READ_MANY_OPTION_KEYS)
@@ -402,7 +402,8 @@ export class FileSystemService {
    * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
    * error. `onExit` runs once when the watch ends; its own failure is ignored.
    * A failure before the watch starts rejects this call and does not call
-   * `onExit`.
+   * `onExit`. No callback runs before the caller of `await watchDir()` has
+   * the handle, so a callback can stop its own watch through it.
    */
   public async watchDir(
     path: string,
@@ -429,6 +430,15 @@ export class FileSystemService {
       resolveStarted = resolve
       rejectStarted = reject
     })
+    // Released once watchDir() has returned the handle (or the watch is
+    // stopped): no callback, onExit included, runs before the caller holds it.
+    let releaseDeliveries!: () => void
+    const published = new Promise<void>((resolve) => {
+      releaseDeliveries = resolve
+    })
+    // Events read before `start` (none from a well-behaved toolbox), delivered
+    // after it: the stream must keep being read until `start` arrives.
+    const held: (() => void | Promise<void>)[] = []
     let resolveExit!: (error: Error | undefined) => void
     const exitPromise = new Promise<Error | undefined>((resolve) => {
       resolveExit = resolve
@@ -445,6 +455,7 @@ export class FileSystemService {
       // before start is thrown from watchDir() instead (as in Python).
       const onExit = started ? options.onExit : undefined
       if (onExit === undefined) return
+      await published
       // onExit runs as a delivery, so its own stop() / waitForExit() calls do
       // not wait for it; its failure is contained: the watch has already ended.
       try {
@@ -469,6 +480,16 @@ export class FileSystemService {
         activeDelivery = undefined
       }
     }
+    // Runs the held events and then `callback` once the handle is published;
+    // a watch stopped meanwhile delivers nothing more.
+    const deliverEvents = async (callback?: () => void | Promise<void>): Promise<void> => {
+      await published
+      const pending = callback === undefined ? held.splice(0) : [...held.splice(0), callback]
+      for (const next of pending) {
+        if (stopRequested) return
+        await deliver(next)
+      }
+    }
     const streamTask = (async () => {
       try {
         const response = await this.transport.fetch(`/files/watch${encodeQuery({ path, recursive: options.recursive })}`, {
@@ -477,21 +498,26 @@ export class FileSystemService {
         })
         for await (const message of sseMessages(response)) {
           if (stopRequested) break
-          if (message.event === 'start') {
-            if (!started) {
-              started = true
-              resolveStarted()
-            }
-            continue
-          }
           try {
+            if (message.event === 'start') {
+              if (!started) {
+                started = true
+                resolveStarted()
+                if (held.length > 0) await deliverEvents()
+              }
+              continue
+            }
+            let callback: (() => void | Promise<void>) | undefined
             if (message.event === 'fs') {
               const event = parseFilesystemEvent(message.data)
-              await deliver(() => onEvent(event))
+              callback = () => onEvent(event)
             } else if (message.event === 'overflow' && options.onOverflow !== undefined) {
               const onOverflow = options.onOverflow
-              await deliver(() => onOverflow())
+              callback = () => onOverflow()
             }
+            if (callback === undefined) continue
+            if (started) await deliverEvents(callback)
+            else held.push(callback)
           } catch (error) {
             // A failing callback (or a malformed event) ends the watch with
             // its error, even when stop() was called while it ran.
@@ -536,6 +562,7 @@ export class FileSystemService {
       stop: async () => {
         const ownCallback = calledFromOwnCallback()
         stopRequested = true
+        releaseDeliveries()
         controller.abort()
         // The watch's own callback (or onExit) must not wait for itself. Where
         // no AsyncLocalStorage can tell, a stop() after the exit was notified
@@ -547,6 +574,11 @@ export class FileSystemService {
       waitForExit: async () => (calledFromOwnCallback() ? exitError : exitPromise),
     }
     await startedPromise
+    // Released one promise job from now: returning queues the caller's
+    // `await watchDir()` continuation first, so the caller has stored the
+    // handle before any callback runs. A promise job, not a timer, so fake
+    // timers in the caller's tests cannot hold the watch back.
+    void Promise.resolve().then(releaseDeliveries)
     return handle
   }
 

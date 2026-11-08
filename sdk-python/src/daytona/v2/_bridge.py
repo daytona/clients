@@ -208,6 +208,24 @@ class SyncBridge:
 
         return self.call(on_loop)
 
+    def post(self, operation: Callable[[], object]) -> None:
+        """Schedule a plain callable on the bridge loop and return at once.
+
+        The caller's thread keeps running (and normally keeps the GIL) while
+        the loop picks it up: a watch's synchronous twin posts the release of
+        its callbacks this way, so the caller has usually stored the returned
+        handle before the first callback runs. Runs it at once when called on
+        the loop itself.
+        """
+        if self._on_own_loop():
+            operation()
+            return
+        with self._lock:
+            self._portal_locked()
+            loop = self._loop
+        assert loop is not None  # set when the portal started
+        loop.call_soon_threadsafe(operation)
+
     def on_loop_thread(self) -> bool:
         """Whether the caller runs on this bridge's own event-loop thread, as
         the callbacks the SDK invokes (a watch's ``on_event``) do."""
@@ -385,6 +403,19 @@ async def _bounded(finalizer: Callable[[], Awaitable[None]]) -> None:
 
 
 _LIVE_BRIDGES: weakref.WeakSet[SyncBridge] = weakref.WeakSet()
+
+
+def on_a_bridge_loop() -> bool:
+    """Whether the running coroutine runs on a synchronous client's bridge
+    loop, where only a synchronous twin can have called it (a synchronous call
+    made on that loop raises ``BridgeError``)."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return any(bridge._loop is loop for bridge in list(_LIVE_BRIDGES))
+
+
 _ORPHANED_BY_FORK: list[object] = []
 
 

@@ -142,7 +142,7 @@ class FileSystemService:
         on_exit: Optional[WatchExitCallback] = None,
     ) -> WatchHandle:
         """Watch ``path`` for changes, calling ``on_event`` for each one."""
-        return WatchHandle(
+        result = WatchHandle(
             self._bridge.call(
                 lambda: self._impl.watch_dir(
                     path, on_event, recursive=recursive, on_overflow=on_overflow, on_exit=on_exit
@@ -150,6 +150,8 @@ class FileSystemService:
             ),
             self._bridge,
         )
+        self._bridge.post(result._impl._publish)
+        return result
 
     def write_bytes(self, path: str, content: bytes, *, atomic: bool = False) -> None:
         """Write bytes to a file, optionally via temp-file + rename."""

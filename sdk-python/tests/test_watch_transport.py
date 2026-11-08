@@ -8,8 +8,10 @@ short of its Content-Length."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import threading
+import time
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Optional
@@ -35,6 +37,20 @@ class _Handler(BaseHTTPRequestHandler):
         if case == "truncated":
             self.send_header("Content-Length", "100000")
         self.end_headers()
+        if case in ("burst", "early"):
+            # start and ten events in ONE write (early: two events before
+            # start), then the stream stays open until the client closes it.
+            events = [
+                f"event: fs\ndata: {json.dumps({'type': 'create', 'name': f'e{index}', 'isDir': False, 'timestamp': 1})}\n\n"
+                for index in range(10)
+            ]
+            start = "event: start\ndata: {}\n\n"
+            frames = [start, *events] if case == "burst" else [*events[:2], start, *events[2:]]
+            self.wfile.write("".join(frames).encode())
+            self.wfile.flush()
+            with contextlib.suppress(OSError):
+                self.rfile.read(1)
+            return
         self.wfile.write(f"event: start\ndata: {{}}\n\nevent: fs\ndata: {_EVENT}\n\n".encode())
         self.wfile.flush()
         self.close_connection = True
@@ -220,3 +236,105 @@ async def test_cancelling_watch_dir_before_it_returns_calls_no_exit_callback(aft
         await task
     await asyncio.sleep(0.05)
     assert exits == []
+
+
+async def _stop_from_the_first_callback(url: str) -> tuple[list[str], Optional[Exception], list[str]]:
+    transport = AsyncTransport(url)
+    seen: list[str] = []
+    early: list[str] = []
+    returned = False
+
+    async def on_event(event: object) -> None:
+        name = event.name
+        if not returned:
+            early.append(name)
+        seen.append(name)
+        await handle.stop()
+
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir("/", on_event)
+        returned = True
+        error = await asyncio.wait_for(handle.wait_for_exit(), timeout=5)
+    finally:
+        await transport.close()
+    return early, error, seen
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["burst", "early"])
+async def test_no_callback_runs_before_watch_dir_returns_so_a_callback_can_stop_its_own_watch(
+    base: str, case: str
+) -> None:
+    """start and the first events arrive in one write (early: two events even
+    precede start); the documented pattern, a callback awaiting its own
+    handle's stop(), ends every run cleanly after the first event."""
+    for _ in range(20):
+        assert await _stop_from_the_first_callback(f"{base}/{case}") == ([], None, ["e0"])
+
+
+def _sync_events_before_the_handle(bridge: object, transport: AsyncTransport) -> list[str]:
+    from daytona.v2._sync import filesystem as sync_fs
+
+    built: list[object] = []
+    before_handle: list[str] = []
+    delivered = threading.Event()
+    original_init = sync_fs.WatchHandle.__init__
+
+    def recording_init(self: sync_fs.WatchHandle, *args: object) -> None:
+        original_init(self, *args)  # type: ignore[arg-type]
+        built.append(self)
+
+    def on_event(event: object) -> None:
+        if not built:
+            before_handle.append(event.name)
+        delivered.set()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(sync_fs.WatchHandle, "__init__", recording_init)
+        handle = sync_fs.FileSystemService(AsyncFileSystemService(transport), bridge).watch_dir("/", on_event)  # type: ignore[arg-type]
+    assert delivered.wait(5)
+    handle.stop()
+    return before_handle
+
+
+def test_a_sync_watch_delivers_nothing_before_its_handle_is_built(base: str) -> None:
+    """The synchronous watch_dir() releases the callbacks only once it has
+    built its WatchHandle (the caller may still be storing it: see the docs)."""
+    from daytona.v2._bridge import SyncBridge
+
+    bridge = SyncBridge()
+    try:
+        transport = bridge.call(lambda: _transport(f"{base}/burst"))
+        for _ in range(20):
+            assert _sync_events_before_the_handle(bridge, transport) == []
+        bridge.call(transport.close)
+    finally:
+        bridge.close()
+
+
+async def _transport(url: str) -> AsyncTransport:
+    return AsyncTransport(url)
+
+
+def test_a_sync_callback_can_stop_its_own_watch_through_a_caller_thread_event(base: str) -> None:
+    """The race-free way the docs give to end a synchronous watch from an event."""
+    from daytona.v2._bridge import SyncBridge
+    from daytona.v2._sync.filesystem import FileSystemService
+
+    bridge = SyncBridge()
+    try:
+        transport = bridge.call(lambda: _transport(f"{base}/burst"))
+        stop_requested = threading.Event()
+        exits: list[Optional[Exception]] = []
+        handle = FileSystemService(AsyncFileSystemService(transport), bridge).watch_dir(
+            "/", lambda _event: stop_requested.set(), on_exit=exits.append
+        )
+        assert stop_requested.wait(5)
+        handle.stop()
+        deadline = time.monotonic() + 5
+        while not exits and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert exits == [None]
+        bridge.call(transport.close)
+    finally:
+        bridge.close()
