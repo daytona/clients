@@ -1,0 +1,31 @@
+sdk-python/src/daytona/v2/_core.py
+  s_9a337fd66d5341::t_e4c801fab3ea14 1174,1177,1181-1185
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_e4c801fab3ea14 1316-1320
+  s_9a337fd66d5341::t_ec010a34cd0d7b 1312-1315,1321-1325
+sdk-typescript/src/v2/ProcessWire.ts
+  s_9a337fd66d5341::t_c73f8f7e17308f 285-294
+  s_9a337fd66d5341::t_ec010a34cd0d7b 307
+sdk-python/src/daytona/v2/process.py
+  s_9a337fd66d5341::t_c73f8f7e17308f 153-166,193-196
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_ec010a34cd0d7b 12683-12690
+changelog.d/538-process-streams.breaking.md
+  s_9a337fd66d5341::t_0e0fe7a77c77bb 8-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1fca289b1f5eaca83d36ccf624f9393257dce0b0",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
