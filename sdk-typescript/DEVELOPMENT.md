@@ -155,7 +155,10 @@ npm install && npm run typecheck && npm test && npm run build
 (`@daytona/sdk/v2`) list the declaration surface of the entry points, one
 declaration per line: every export with its kind and full type signature, the
 members of exported classes, interfaces and object types, enum members, and
-long unions one member per line. A declaration of this package that a listed
+long unions one member per line. Lines are sorted, except that the overloads
+of one name keep their declaration order (calls resolve against the first
+overload that matches, and the breaking-change check compares them in that
+order). A declaration of this package that a listed
 signature uses but no entry point exports (the v2 client behind the root's
 `.v2`, an options type that is not exported) is listed as `~Name`
 (`~Name@path` when the name is taken), in the file of the first entry point

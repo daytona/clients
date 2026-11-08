@@ -186,7 +186,10 @@ uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q
 name in `daytona.__all__` / `daytona.v2.__all__` with its kind and signature
 (classes with their constructor, methods marked `def` / `async def`,
 properties, attributes, dataclass fields, enum members and TypedDict keys),
-one declaration per line. A `daytona` class or type alias that a listed
+one declaration per line, sorted, except that the overloads of one name keep
+their declaration order (calls resolve against the first overload that
+matches, and the breaking-change check compares them in that order). A
+`daytona` class or type alias that a listed
 signature uses but neither namespace exports (the v2 clients behind the
 root's `.v2`, a `Literal` alias, a generated model) is listed as `~Name`
 (`~Name@module` when the name is taken), in the file of the first namespace

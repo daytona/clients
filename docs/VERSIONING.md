@@ -214,7 +214,10 @@ alias), may only gain enum values or union members. In any of them, an
 object type written inline may gain optional members. A function or method
 that callers implement (a callback, the methods of a type they pass in) may
 not gain an overload or call signature: every implementation would have to
-accept it. In `contract/*.json`, oasdiff compares the
+accept it. A function the SDK implements may gain an overload only after its
+existing ones, which keep their order, because a call resolves against the
+first overload it matches; changing an overload breaks even next to a wider
+one, and dropping a narrower overload while a wider one stays is compatible. In `contract/*.json`, oasdiff compares the
 contracts as they are; the only finding the `x-daytona-open-enum` tag drops is
 a value added on the response side to an enum tagged open both at the release
 and now. Removing a value callers
