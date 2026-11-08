@@ -395,6 +395,7 @@ class Surface:
         # TypedDicts and protocols, where listed: the members a caller
         # supplies when passing one in (see `passed-in` lines).
         self.supplied_at: dict[int, tuple[str, list[str]]] = {}
+        self.returned: set[int] = set()
 
     def run(self) -> dict[str, list[str]]:
         # The v2 namespace first, so a declaration both reach is listed with v2.
@@ -419,7 +420,8 @@ class Surface:
         # A new required member of a type callers pass in breaks them.
         for ident in sorted(inputs & set(self.supplied_at)):
             name, lines = self.supplied_at[ident]
-            lines.append(f"{name}: passed-in")
+            # `also-returned`: users read it too, so its keys stay required for them.
+            lines.append(f"{name}: passed-in{' also-returned' if ident in self.returned else ''}")
         return self.lines
 
     def built_by_callers(self) -> set[int]:
@@ -433,6 +435,8 @@ class Surface:
             return found
 
         callable_by_users = closure(self.roots, self.out_refs)
+        # Read by users: named in an output position of something they reach.
+        self.returned = set().union(*(self.out_refs.get(o, set()) for o in callable_by_users))
         passed_in = set(self.public_init)
         for owner in callable_by_users:
             passed_in |= self.param_refs.get(owner, set())

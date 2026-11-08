@@ -63,9 +63,12 @@ describe('public surface snapshot', () => {
   it('marks the object types callers pass in, and only those', () => {
     const lines = snapshot('v2.api.txt')
     // Base interfaces of passed-in options too: their members are listed under the base.
-    for (const name of ['PortMapping', 'CreateSandboxOptions', 'CreateRequestBaseOptions', 'SandboxSearchFilters', 'ComputerUsePoint', 'VolumeMount', '~LifecycleWaitOptions', '~ErrorEnvelope', 'OtelApiLike']) {
+    for (const name of ['PortMapping', 'CreateSandboxOptions', 'CreateRequestBaseOptions', 'SandboxSearchFilters', 'VolumeMount', '~LifecycleWaitOptions', '~ErrorEnvelope', 'OtelApiLike']) {
       expect(lines).toContain(`${name}: passed-in`)
     }
+    // A base the SDK also returns (mouse calls return a point): marked, but
+    // its members must stay required for readers.
+    expect(lines).toContain('ComputerUsePoint: passed-in also-returned')
     // Returned to the caller, never passed in: may gain required members.
     expect(lines).not.toContain('OrganizationLimits: passed-in')
   })

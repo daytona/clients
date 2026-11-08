@@ -188,7 +188,11 @@ function surfaces(checker, program) {
     const at = listedAt.get(sym)
     // Only object types have members a caller supplies.
     const head = new RegExp(`^${at?.name.replace(/[.*+?^${}()|[\]\\/@~]/g, '\\$&')}: (interface|type (<.*> )?= \\{\\.\\.\\.\\})`)
-    if (at && at.lines.some((line) => head.test(line))) at.lines.push(`${at.name}: passed-in`)
+    // `also-returned`: a base the SDK also returns; its members stay required
+    // for readers, so the check never relaxes them.
+    if (at && at.lines.some((line) => head.test(line))) {
+      at.lines.push(`${at.name}: passed-in${outputs.has(sym) ? ' also-returned' : ''}`)
+    }
   }
   return perEntry.map(({ entry, lines }) => ({ entry, lines }))
 

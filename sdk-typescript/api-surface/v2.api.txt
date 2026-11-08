@@ -432,7 +432,7 @@ ComputerUseNotStartedStatus.desktop: property 'not_started'
 ComputerUseNotStartedStatus.extraFields: optional property Record<string, unknown>
 ComputerUseNotStartedStatus.status: property 'inactive'
 ComputerUsePoint: interface
-ComputerUsePoint: passed-in
+ComputerUsePoint: passed-in also-returned
 ComputerUsePoint.x: property number
 ComputerUsePoint.y: property number
 ComputerUseProcessErrorsResponse: interface
