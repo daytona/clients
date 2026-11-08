@@ -7,7 +7,9 @@ iterative and ends on a cycle."""
 
 from __future__ import annotations
 
+import gc
 import threading
+from collections.abc import Iterator
 
 import pytest
 
@@ -19,6 +21,14 @@ from daytona.v2.services import _volume
 from daytona.v2.types import JsonValue
 
 _DEEP = 100_000
+
+
+@pytest.fixture(autouse=True)
+def _collect() -> Iterator[None]:
+    # The deep and cyclic values built here are released now, not by a later
+    # garbage-collection pause inside another (timing-sensitive) test.
+    yield
+    gc.collect()
 
 
 def _bounded(check: object, seconds: float = 10) -> object:
@@ -60,6 +70,8 @@ def test_is_json_value_refuses_a_cyclic_list_and_dict() -> None:
     cyclic_dict["self"] = cyclic_dict
     assert _bounded(lambda: is_json_value(cyclic_list)) is False
     assert _bounded(lambda: is_json_value(cyclic_dict)) is False
+    cyclic_list.clear()
+    cyclic_dict.clear()
 
 
 def test_is_json_value_accepts_a_shared_acyclic_value_and_deep_nesting() -> None:
