@@ -18,7 +18,7 @@ from __future__ import annotations
 import sys
 import time
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
+from _common import IMAGE, RUN, client, failed, info, passed, require_started, section
 
 from daytona.v2 import ImageBuilder
 
@@ -45,6 +45,8 @@ def main() -> int:
         first_secs = time.monotonic() - started
         info(f"first create took {first_secs:.1f}s")
 
+        if not require_started(first):
+            return 1
         marker = first.process.run("cat /marker")
         info(f"marker: {marker.output.strip()}")
         if marker.exit_code == 0 and RUN in marker.output:
@@ -75,8 +77,8 @@ def main() -> int:
         second_secs = time.monotonic() - started
         info(f"second create took {second_secs:.1f}s")
 
-        marker2 = second.process.run("cat /marker")
-        if marker2.exit_code == 0 and RUN in marker2.output:
+        marker2 = second.process.run("cat /marker") if require_started(second) else None
+        if marker2 is not None and marker2.exit_code == 0 and RUN in marker2.output:
             passed("the second sandbox contains the expected marker")
         else:
             failed("the second sandbox does not contain the expected marker")
@@ -97,7 +99,7 @@ def main() -> int:
             wait_seconds=400,
         )
         sandboxes.append(other)
-        other_marker = other.process.run("cat /marker").output.strip()
+        other_marker = other.process.run("cat /marker").output.strip() if require_started(other) else ""
         info(f"marker: {other_marker}")
         if other_marker.startswith("other-"):
             passed("the changed Dockerfile produced the expected file content")

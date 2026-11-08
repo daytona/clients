@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto'
 import { Daytona, DaytonaError } from '@daytona/sdk'
 import { ImageBuilder } from '@daytona/sdk/v2'
 import type { Sandbox } from '@daytona/sdk/v2'
+import { assertStarted } from './typescript/_common'
 
 const IMAGE = process.env.DAYTONA_IMAGE ?? 'python:3.12-slim'
 const SYNC_WAIT_SECONDS = Number(process.env.EXAMPLE_SYNC_WAIT_SECONDS ?? '20')
@@ -44,6 +45,7 @@ async function main(): Promise<number> {
       buildTimeoutSeconds: 240, waitSeconds: 240,
     })
     boxes.push(box)
+    assertStarted(box)
     return box
   }
 
@@ -83,7 +85,7 @@ async function main(): Promise<number> {
       ok = false
     }
   } finally {
-    if (!KEEP) {
+    if (!KEEP || boxes.some((box) => box.state !== 'started')) {
       for (const box of boxes) {
         try {
           await box.delete()

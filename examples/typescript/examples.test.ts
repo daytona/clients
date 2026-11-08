@@ -58,6 +58,43 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
 const example = (name: string) => `typescript/${name}/index.ts`
 const SECRET_NAME = /^EXAMPLE_API_KEY_[0-9A-F]{8}$/
 
+for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dynamic-build', 'dockerfile-sandbox', 'volumes']) {
+  test(`${name} skips work and cleans up when create returns a non-started sandbox`, () => {
+    // Given an accepted create whose readiness wait did not finish.
+    const scenario = { sandboxStates: ['creating'] }
+    // When the real example runs through its public entrypoint.
+    const { code, record } = runExample(example(name), scenario)
+    // Then no commands run on that sandbox and acquisition is still cleaned up.
+    assert.equal(code, 1)
+    assert.deepEqual(record.commands, [])
+    assertCleanedUp(record)
+  })
+}
+
+for (const name of ['dynamic-build', 'dockerfile-sandbox']) test(`${name} skips a non-started second sandbox`, () => {
+  // Given a first sandbox that starts and a second one still provisioning.
+  const scenario = { sandboxStates: ['started', 'creating'] }
+  // When running the multi-sandbox example.
+  const { code, record } = runExample(example(name), scenario)
+  // Then the second sandbox never receives a command, and both are deleted.
+  assert.equal(code, 1)
+  assert.equal(record.sandboxes.length, 2)
+  assert.equal(record.commands.some((entry) => entry.sandboxId === record.sandboxes[1]), false)
+  assertCleanedUp(record)
+})
+
+test('volume sharing skips a non-started sandbox and still deletes its resources', () => {
+  // Given a volume-backed create that returns before readiness.
+  const scenario = { sandboxStates: ['creating'] }
+  // When running the persistence example.
+  const { code, record } = runExample('volumes_share.ts', scenario)
+  // Then no sandbox work runs and both sandbox and volume are cleaned up.
+  assert.equal(code, 1)
+  assert.deepEqual(record.commands, [])
+  assertCleanedUp(record)
+  assert.deepEqual(record.deletedVolumes, record.createdVolumes)
+})
+
 function assertCleanedUp(record: Record): void {
   assert.deepEqual([...record.deletedSandboxes].sort(), [...record.sandboxes].sort())
 }

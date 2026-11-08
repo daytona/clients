@@ -27,7 +27,7 @@
  */
 
 import type { Sandbox } from '@daytona/sdk/v2'
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
 async function main(): Promise<boolean> {
   const daytona = client()
@@ -81,6 +81,7 @@ async function main(): Promise<boolean> {
       secrets: [secretName],
     })
     info(`created sandbox id=${sandbox.id} state=${sandbox.state}`)
+    assertStarted(sandbox)
 
     section('env vars ARE readable inside the sandbox (real values)')
     for (const [name, expected] of [

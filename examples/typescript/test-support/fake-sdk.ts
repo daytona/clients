@@ -26,6 +26,7 @@ import type {
 import { RUN } from '../_common'
 
 export interface Scenario {
+  readonly sandboxStates?: readonly string[]
   /** [regex, exitCode, output]: the first pattern matching a command answers it. */
   overrides?: [string, number, string][]
   interpreterExitCode?: number
@@ -47,6 +48,7 @@ export interface Scenario {
 }
 
 export interface Record {
+  readonly commands: { readonly sandboxId: string; readonly command: string }[]
   sandboxes: string[]
   deletedSandboxes: string[]
   secretSets: { name: string; ifNotExists: boolean }[]
@@ -58,6 +60,7 @@ export interface Record {
 
 const scenario: Scenario = JSON.parse(process.env.EXAMPLE_FAKE_SCENARIO ?? '{}')
 const record: Record = {
+  commands: [],
   sandboxes: [],
   deletedSandboxes: [],
   secretSets: [],
@@ -106,10 +109,13 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
   const box = {
     id,
     name,
-    state: 'started',
+    state: scenario.sandboxStates?.[record.sandboxes.length - 1] ?? 'started',
     cpu: 1,
     memory: 1,
-    process: { run: async (command: string) => run(command, env, dockerfile) },
+    process: { run: async (command: string) => {
+      record.commands.push({ sandboxId: id, command })
+      return run(command, env, dockerfile)
+    } },
     interpreter: {
       run: async () => ({
         process: { exitCode: scenario.interpreterExitCode ?? 0 },
@@ -125,6 +131,7 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
       writeBytes: async (path: string, data: Uint8Array) => void files.set(path, data),
       writeText: async (path: string, text: string) => void files.set(path, new TextEncoder().encode(text)),
       readBytes: async (path: string) => files.get(path) ?? new Uint8Array(),
+      readText: async (path: string) => new TextDecoder().decode(files.get(path) ?? new Uint8Array()),
       replace: async (paths: string[], pattern: string, value: string) => {
         for (const path of paths) {
           const text = new TextDecoder().decode(files.get(path))
@@ -173,7 +180,12 @@ const fake = {
         statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: 'img_failed',
       })
     }
-    const box = sandbox(options.name ?? 'built', {}, dockerfile)
+    const env = { ...options.env }
+    for (const name of options.secrets ?? []) {
+      if (!secrets.has(name)) throw new Error(`secret ${name} not found`)
+      env[name] = scenario.leakSecrets ? (secrets.get(name) ?? '') : 'DAYTONA_SECRET_PLACEHOLDER'
+    }
+    const box = sandbox(options.name ?? 'built', env, dockerfile)
     boxes.push(box)
     return box
   },

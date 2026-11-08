@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, info, section
+from _common import IMAGE, RUN, client, info, require_started, section
 from daytona import DaytonaError
 from daytona.v2 import ImageBuilder, Sandbox, VolumeMount
 
@@ -33,6 +33,8 @@ def main() -> int:
         mount1 = "/mnt/vol"
         s1 = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"vol1-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path=mount1)], build_timeout=240, wait_seconds=240)
         boxes.append(s1)
+        if not require_started(s1):
+            return 1
         s1.fs.mkdir(f"{mount1}/new-dir", mode="755")
         s1.fs.write_bytes(f"{mount1}/new-file.txt", b"Hello, World!")
         info(f"s1 wrote {mount1}/new-file.txt")
@@ -41,6 +43,8 @@ def main() -> int:
         mount2 = "/mnt/other"
         s2 = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"vol2-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path=mount2)], build_timeout=240, wait_seconds=240)
         boxes.append(s2)
+        if not require_started(s2):
+            return 1
         files = s2.fs.list(mount2).items
         names = ", ".join(f.name for f in files) or "(not yet synchronized)"
         info(f"s2 sees at {mount2}: {names}")
@@ -49,6 +53,8 @@ def main() -> int:
         mount3 = "/mnt/alice"
         s3 = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"vol3-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path=mount3, subpath="users/alice")], build_timeout=240, wait_seconds=240)
         boxes.append(s3)
+        if not require_started(s3):
+            return 1
         s3.fs.write_bytes(f"{mount3}/alice-file.txt", b"Hello from Alice's subpath!")
         info(f"s3 wrote {mount3}/alice-file.txt (volume-root/users/alice/alice-file.txt)")
     finally:

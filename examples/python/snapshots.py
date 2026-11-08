@@ -20,7 +20,7 @@ from __future__ import annotations
 import sys
 import time
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
+from _common import IMAGE, RUN, client, failed, info, passed, require_started, section
 
 from daytona import DaytonaV2Client
 from daytona.v2 import ImageBuilder
@@ -71,6 +71,8 @@ def main() -> int:
         section("create a sandbox FROM the registered image")
         sandbox = daytona.create(image_name, name=f"from-img-{RUN}", wait_seconds=200)
         try:
+            if not require_started(sandbox):
+                return 1
             py = sandbox.process.run("python --version")
             info(f"sandbox python: {py.output.strip()}")
             if py.exit_code == 0:

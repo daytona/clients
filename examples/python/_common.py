@@ -16,6 +16,7 @@ import sys
 import uuid
 
 from daytona import AsyncDaytona, AsyncDaytonaV2Client, Daytona, DaytonaConfig, DaytonaV2Client
+from daytona.v2 import Sandbox
 
 IMAGE = os.environ.get("DAYTONA_IMAGE", "python:3.12-slim")
 RUN = uuid.uuid4().hex[:8]
@@ -37,6 +38,15 @@ def passed(msg: str) -> None:
 
 def failed(msg: str) -> None:
     print(f"   {_RED}FAIL{_RESET} {msg}", flush=True)
+
+
+def require_started(sandbox: Sandbox) -> bool:
+    """Whether ``sandbox`` came up; a create returns its handle however its wait ended."""
+    if sandbox.state == "started":
+        return True
+    reason = f": {sandbox.error}" if sandbox.error else ""
+    failed(f"sandbox {sandbox.id} is {sandbox.state}{reason}, not started")
+    return False
 
 
 def _config() -> DaytonaConfig:

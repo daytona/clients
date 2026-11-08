@@ -133,7 +133,7 @@ def main() -> int:
             check("dockerfile image name echoed", df_image.name == DFSNAP)
 
         log("images: list + wait ready")
-        check("list returns images", isinstance(daytona.images.list().items, list))
+        check("list returns images", isinstance(daytona.images.list().items, tuple))
         for built in [image] + ([df_image] if df_image else []):
             status = wait_ready(daytona, built.id)
             check(f"image {built.name} ready", status == "ready", status)
@@ -153,7 +153,7 @@ def main() -> int:
         check("get(id)", daytona.get(box.id).id == box.id)
         check("list includes ours", any(s.id == box.id for s in daytona.list().items))
 
-        if not SKIP_TOOLBOX:
+        if not SKIP_TOOLBOX and box.state == "started":
             log("toolbox: exec round-trip")
             r = box.process.run("echo daytona-$((6*7))")
             check(
@@ -172,7 +172,7 @@ def main() -> int:
                 df_box.state == "started",
                 f"{time.time() - t0:.1f}s id={df_box.id}",
             )
-            if not SKIP_TOOLBOX:
+            if not SKIP_TOOLBOX and df_box.state == "started":
                 rm = df_box.process.run("cat /etc/daytona-marker")
                 check(
                     "dockerfile RUN layer present",

@@ -26,7 +26,7 @@ from __future__ import annotations
 import os
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
+from _common import IMAGE, RUN, client, failed, info, passed, require_started, section
 
 from daytona.v2 import ImageBuilder
 
@@ -61,11 +61,9 @@ def main() -> int:
         )
         info(f"sandbox {sandbox.id}")
         info(f"state   {sandbox.state}")
-        if sandbox.state == "started":
-            passed("the sandbox is running")
-        else:
-            failed(f"expected a running sandbox, got {sandbox.state}")
-            ok = False
+        if not require_started(sandbox):
+            return 1
+        passed("the sandbox is running")
 
         section("run the script the Dockerfile baked in")
         greet = sandbox.process.run("/app/greet.sh")
@@ -115,8 +113,8 @@ def main() -> int:
         )
         try:
             info(f"sandbox {twin.id} is {twin.state}")
-            twin_greet = twin.process.run("/app/greet.sh")
-            if twin_greet.exit_code == 0 and RUN in twin_greet.output:
+            twin_greet = twin.process.run("/app/greet.sh") if require_started(twin) else None
+            if twin_greet is not None and twin_greet.exit_code == 0 and RUN in twin_greet.output:
                 passed("the second sandbox runs the expected script")
             else:
                 failed("the second sandbox is not running the expected script")

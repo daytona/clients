@@ -49,6 +49,9 @@ def main() -> int:
     def new_box(name: str) -> Sandbox:
         box = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"{name}-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path="/data")], build_timeout=240, wait_seconds=240)
         boxes.append(box)
+        # A create returns its handle however its wait ended: check before using it.
+        if box.state != "started":
+            raise RuntimeError(f"sandbox {box.id} is {box.state}, not started")
         return box
 
     try:

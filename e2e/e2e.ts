@@ -94,7 +94,8 @@ async function main(): Promise<number> {
     if (built) {
       const dockerBox = await daytona.create(dockerName)
       boxes.push(dockerBox)
-      if (!skipToolbox) {
+      check('dockerfile sandbox started', dockerBox.state === 'started', dockerBox.id)
+      if (!skipToolbox && dockerBox.state === 'started') {
         const marker = await dockerBox.process.run('cat /etc/daytona-marker')
         check('dockerfile image marker', marker.exitCode === 0 && marker.output.includes(`daytona-built-${run}`), marker.output.trim())
       }
@@ -102,7 +103,7 @@ async function main(): Promise<number> {
     check('get(id)', (await daytona.get(box.id)).id === box.id)
     check('list includes sandbox', (await daytona.list()).items.some((item) => item.id === box.id))
 
-    if (!skipToolbox) {
+    if (!skipToolbox && box.state === 'started') {
       const result = await box.process.run('echo daytona-$((6*7))')
       check('process.run', result.exitCode === 0 && result.output.includes('daytona-42'), result.output.trim())
     }

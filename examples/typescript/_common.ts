@@ -13,6 +13,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { Daytona, type DaytonaV2Client } from '@daytona/sdk'
+import type { Sandbox } from '@daytona/sdk/v2'
 
 export const IMAGE = process.env.DAYTONA_IMAGE ?? 'python:3.12-slim'
 // A CSPRNG, not Math.random(): the secrets example derives a demo secret
@@ -29,6 +30,10 @@ export const info = (msg: string): void => console.log(`   .. ${msg}`)
 export const pass = (msg: string): void => console.log(`   ${GREEN}PASS${RESET} ${msg}`)
 export const fail = (msg: string): void => console.log(`   ${RED}FAIL${RESET} ${msg}`)
 export const sleep = (s: number): Promise<void> => new Promise((r) => setTimeout(r, s * 1000))
+
+export function assertStarted(sandbox: Sandbox): void {
+  if (sandbox.state !== 'started') throw new Error(`sandbox ${sandbox.id} did not start (state=${sandbox.state})`)
+}
 
 /** Build the v2 client (the root's `.v2`) from the shared env vars, or exit with a hint. */
 export function client(): DaytonaV2Client {

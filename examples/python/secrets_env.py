@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
+from _common import IMAGE, RUN, client, failed, info, passed, require_started, section
 
 from daytona.v2 import Sandbox
 
@@ -77,6 +77,8 @@ def main() -> int:
             wait_seconds=200,
         )
         info(f"created sandbox id={sandbox.id} state={sandbox.state}")
+        if not require_started(sandbox):
+            return 1
 
         section("env vars ARE readable inside the sandbox (real values)")
         for name, expected in (

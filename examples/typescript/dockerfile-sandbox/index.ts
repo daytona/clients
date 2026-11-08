@@ -18,7 +18,7 @@
  */
 
 import { ImageBuilder } from '@daytona/sdk/v2'
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
 // Everything here is baked at BUILD time. If the sandbox can see it at RUN
 // time, the image it booted is the one we just built.
@@ -49,11 +49,8 @@ async function main() {
     })
     info(`sandbox ${sandbox.id}`)
     info(`state   ${sandbox.state}`)
-    if (sandbox.state === 'started') pass('the sandbox is running')
-    else {
-      fail(`expected a running sandbox, got ${sandbox.state}`)
-      ok = false
-    }
+    assertStarted(sandbox)
+    pass('the sandbox is running')
 
     section('run the script the Dockerfile baked in')
     const greet = await sandbox.process.run('/app/greet.sh')
@@ -102,6 +99,7 @@ async function main() {
     })
     try {
       info(`sandbox ${twin.id} is ${twin.state}`)
+      assertStarted(twin)
       const twinGreet = await twin.process.run('/app/greet.sh')
       if (twinGreet.exitCode === 0 && twinGreet.output.includes(RUN)) {
         pass('the second sandbox runs the expected script')
@@ -115,7 +113,7 @@ async function main() {
     }
   } finally {
     section('cleanup')
-    if (sandbox && !keep) {
+    if (sandbox && (!keep || sandbox.state !== 'started')) {
       try {
         await daytona.delete(sandbox)
         info(`deleted ${sandbox.id}`)

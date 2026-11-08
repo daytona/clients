@@ -13,7 +13,7 @@
 import { DaytonaError } from '@daytona/sdk'
 import { ImageBuilder } from '@daytona/sdk/v2'
 import type { Sandbox } from '@daytona/sdk/v2'
-import { client, section, info, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, IMAGE, RUN } from '../_common'
 
 async function main(): Promise<void> {
   const daytona = client()
@@ -28,6 +28,7 @@ async function main(): Promise<void> {
     const mount1 = '/mnt/vol'
     const s1 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol1-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount1 }], buildTimeoutSeconds: 240, waitSeconds: 240 })
     boxes.push(s1)
+    assertStarted(s1)
     await s1.fs.mkdir(`${mount1}/new-dir`, { mode: '755' })
     await s1.fs.writeText(`${mount1}/new-file.txt`, 'Hello, World!')
     info(`s1 wrote ${mount1}/new-file.txt`)
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
     const mount2 = '/mnt/other'
     const s2 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol2-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount2 }], buildTimeoutSeconds: 240, waitSeconds: 240 })
     boxes.push(s2)
+    assertStarted(s2)
     const files = (await s2.fs.list(mount2)).items
     info(`s2 sees at ${mount2}: ${files.map((f) => f.name).join(', ') || '(not yet synchronized)'}`)
 
@@ -48,6 +50,7 @@ async function main(): Promise<void> {
       waitSeconds: 240,
     })
     boxes.push(s3)
+    assertStarted(s3)
     await s3.fs.writeText(`${mount3}/alice-file.txt`, "Hello from Alice's subpath!")
     info(`s3 wrote ${mount3}/alice-file.txt (volume-root/users/alice/alice-file.txt)`)
   } finally {

@@ -110,6 +110,9 @@ class FakeWorld:
     def _create(self, image: Optional[str] = None, /, **kwargs: object) -> MagicMock:
         if image is not None and not isinstance(image, str):
             raise TypeError("create() accepts an image name or img_… id string")
+        return self._sandbox(str(kwargs.get("name")), self._sandbox_env(kwargs), dockerfile="")
+
+    def _sandbox_env(self, kwargs: Mapping[str, object]) -> dict[str, str]:
         env = kwargs.get("env") or {}
         assert isinstance(env, Mapping)
         secrets = kwargs.get("secrets") or []
@@ -118,8 +121,7 @@ class FakeWorld:
             # The API rejects a create that attaches a secret the project lacks.
             if name not in self.secrets:
                 raise LookupError(f"secret {name} not found")
-        sandbox_env = {**env, **{name: "DAYTONA_SECRET_PLACEHOLDER" for name in secrets}}
-        return self._sandbox(str(kwargs.get("name")), sandbox_env, dockerfile="")
+        return {**env, **{name: "DAYTONA_SECRET_PLACEHOLDER" for name in secrets}}
 
     def _create_from_build(self, builder: ImageBuilder, /, **kwargs: object) -> MagicMock:
         # Hold the keywords to create_from_build()'s own signature, as Python does.
@@ -131,7 +133,8 @@ class FakeWorld:
             raise ImageBuildFailedError(
                 "image build failed", status_code=409, code="IMAGE_BUILD_FAILED", image_id="img_failed"
             )
-        return self._sandbox(str(kwargs.get("name")), {}, dockerfile=dockerfile)
+        # Like create(): the env reaches the sandbox, attached secrets as placeholders.
+        return self._sandbox(str(kwargs.get("name")), self._sandbox_env(kwargs), dockerfile=dockerfile)
 
     def _delete(self, sandbox: MagicMock) -> None:
         self.deleted_sandboxes.append(sandbox.id)
@@ -283,6 +286,16 @@ def test_build_logs_fails_when_a_deliberately_broken_build_unexpectedly_succeeds
     assert code == 1
     assert re.search(r"FAIL.* the deliberately broken build unexpectedly created", capsys.readouterr().out)
     assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+def test_the_fake_create_from_build_carries_env_and_secrets_like_create() -> None:
+    world = FakeWorld()
+    world.secrets["TOKEN"] = "real"
+    box = world._create_from_build(ImageBuilder.from_registry("python:3.12"), name="b", env={"A": "1"}, secrets=["TOKEN"])
+    assert box.process.run('printf %s "$A"').output == "1"
+    assert box.process.run('printf %s "$TOKEN"').output == "DAYTONA_SECRET_PLACEHOLDER"
+    with pytest.raises(LookupError):
+        world._create_from_build(ImageBuilder.from_registry("python:3.12"), name="c", secrets=["MISSING"])
 
 
 # -- a failed check exits non-zero ------------------------------------------

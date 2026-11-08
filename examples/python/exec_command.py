@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, section
+from _common import IMAGE, RUN, client, failed, info, require_started, section
 
 from daytona.v2 import Sandbox
 
@@ -44,7 +44,7 @@ def main() -> int:
     info(f"created sandbox id={sandbox.id} state={sandbox.state}")
 
     try:
-        ok = basic_exec(sandbox)
+        ok = require_started(sandbox) and basic_exec(sandbox)
     finally:
         section("cleanup")
         daytona.delete(sandbox)

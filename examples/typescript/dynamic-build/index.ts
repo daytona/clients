@@ -10,7 +10,7 @@
  */
 
 import { ImageBuilder } from '@daytona/sdk/v2'
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
 async function main() {
   const daytona = client()
@@ -29,6 +29,7 @@ async function main() {
       waitSeconds: 400,
     })
     sandboxes.push(first)
+    assertStarted(first)
     const firstSecs = (Date.now() - started) / 1000
     info(`first create took ${firstSecs.toFixed(1)}s`)
 
@@ -57,6 +58,7 @@ async function main() {
       waitSeconds: 400,
     })
     sandboxes.push(second)
+    assertStarted(second)
     const secondSecs = (Date.now() - started) / 1000
     info(`second create took ${secondSecs.toFixed(1)}s`)
 
@@ -82,6 +84,7 @@ async function main() {
       waitSeconds: 400,
     })
     sandboxes.push(other)
+    assertStarted(other)
     const otherMarker = (await other.process.run('cat /marker')).output.trim()
     info(`marker: ${otherMarker}`)
     if (otherMarker.startsWith('other-')) pass('the changed Dockerfile produced the expected file content')
