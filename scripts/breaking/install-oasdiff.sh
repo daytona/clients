@@ -44,7 +44,9 @@ sha256_of() {
 
 dir=${1:-"$(git rev-parse --show-toplevel)/.oasdiff"}
 bin="$dir/oasdiff-$OASDIFF_VERSION"
-if [ -x "$bin" ]; then
+# A binary installed earlier is reused only while it still matches the hash
+# recorded when it was extracted from the verified archive.
+if [ -x "$bin" ] && [ -f "$bin.sha256" ] && [ "$(sha256_of "$bin")" = "$(cat "$bin.sha256")" ]; then
   echo "$bin"
   exit 0
 fi
@@ -60,5 +62,7 @@ got=$(sha256_of "$tmp/$archive")
 tar -xzf "$tmp/$archive" -C "$tmp" oasdiff
 mkdir -p "$dir"
 chmod 0755 "$tmp/oasdiff"
+sha256_of "$tmp/oasdiff" > "$tmp/oasdiff.sha256"
 mv -f "$tmp/oasdiff" "$bin"
+mv -f "$tmp/oasdiff.sha256" "$bin.sha256"
 echo "$bin"

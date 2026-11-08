@@ -358,12 +358,10 @@ def flatten(node: object, prefix: str = "") -> dict[str, object]:
             for value in node:
                 out[f"{prefix}[{value['name']}]"] = "{...}"
                 out.update(flatten(value, f"{prefix}[{value['name']}]"))
-        elif all(not isinstance(v, (dict, list)) for v in node):
-            for value in node:
-                out[f"{prefix}[]={json.dumps(value)}"] = True
         else:
-            for i, value in enumerate(node):
-                out.update(flatten(value, f"{prefix}[{i}]"))
+            # Order carries no meaning: each element is one entry, compared whole.
+            for value in node:
+                out[f"{prefix}[]={json.dumps(value, sort_keys=True)}"] = True
     else:
         out[prefix] = node
     return out

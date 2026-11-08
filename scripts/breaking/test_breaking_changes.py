@@ -176,6 +176,10 @@ class ContractFiles(unittest.TestCase):
         }
         grown = {**old, "frames": [{"name": "a", "semantics": "other prose"}, {"name": "b"}], "codes": ["X", "Y", "Z"]}
         self.assertEqual(bc.json_findings("e.json", json.dumps(old), json.dumps(grown)), set())
+        reordered = {**old, "pairs": [{"b": 2}, {"a": 1}]}
+        self.assertEqual(
+            bc.json_findings("e.json", json.dumps({**old, "pairs": [{"a": 1}, {"b": 2}]}), json.dumps(reordered)), set()
+        )
         broken = {"subprotocol": "p.v2", "frames": [], "codes": ["X"]}
         found = bc.json_findings("e.json", json.dumps(old), json.dumps(broken))
         self.assertEqual(len(found), 3, found)
