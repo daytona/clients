@@ -7245,13 +7245,31 @@ describe('toolbox service request shaping', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
+  // The Python SDK's test_core.py asserts the same messages for the same bodies.
+  it.each([
+    ['not json', 'token exchange response is not a JSON object'],
+    ['[]', 'token exchange response is not a JSON object'],
+    ['', 'token exchange response is not a JSON object'],
+    ['{"expires_in": 300}', 'token exchange response access_token must be a non-empty string'],
+    ['{"access_token": "", "expires_in": 300}', 'token exchange response access_token must be a non-empty string'],
+    ['{"access_token": "t"}', 'token exchange response expires_in must be a positive integer'],
+    ['{"access_token": "t", "expires_in": 0}', 'token exchange response expires_in must be a positive integer'],
+    ['{"access_token": "t", "expires_in": -1}', 'token exchange response expires_in must be a positive integer'],
+    ['{"access_token": "t", "expires_in": "soon"}', 'token exchange response expires_in must be a positive integer'],
+  ])('names what is wrong with the token exchange body %p', async (body, message) => {
+    const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
+    clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { headers: { 'content-type': 'application/json' } }))
+    await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, message, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
   it.each([0, -1])('rejects a token exchange whose expires_in is %p', async (expiresIn) => {
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
     clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
     jest.spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(JSON.stringify({ access_token: 'platform', expires_in: expiresIn, token_type: 'Bearer', issued_token_type: 'urn:ietf:params:oauth:token-type:access_token' }), { headers: { 'content-type': 'application/json' } }))
     // A broken exchange response is the SDK's BadRequestError, as in Python.
-    await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, message: 'token exchange response expires_in must be a positive integer', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   it('re-exchanges once after a 401 and retries with the new token', async () => {
