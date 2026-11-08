@@ -128,7 +128,8 @@ character classes; patterns are evaluated in order and the last one that
 matches a path decides; a pattern that matches a parent directory applies to
 everything inside it; `!` re-includes. An excluded directory is still walked
 when a `!` pattern could re-include something inside it, as BuildKit does.
-The Dockerfile and the ignore file are always uploaded, even when a pattern
+BuildKit's own per-path decisions can still differ when a `!` pattern is
+followed by patterns that match a parent directory. The Dockerfile and the ignore file are always uploaded, even when a pattern
 matches them. The 64 MiB context limit counts what is uploaded. A `--context` tar file is
 uploaded as is, and `sandbox cp` never filters.
 
@@ -233,7 +234,8 @@ never prompts:
 - The default output is a table at a terminal and JSON otherwise;
   `--output` always wins. Payload goes to stdout, diagnostics to stderr.
 - Destructive and billable commands (`delete`, `remove`, `revoke`, `leave`,
-  billing setting deletes, Mac purchases, `reservation renew`) prompt at a
+  billing setting deletes, `billing plan set`, `billing automatic-top-up
+  set`, Mac purchases, `reservation renew`) prompt at a
   terminal; off a terminal they refuse unless `--yes` or `DAYTONA_YES=1` is
   given, before anything reaches the server. `daytona config set confirm false`
   turns the terminal prompts off; it never consents off a terminal.
@@ -328,7 +330,7 @@ request.
   `truncated_head`) and signal names without `SIG`.
 - A list prints `{"items": [...], "incomplete": false}` plus `next_cursor` when
   another page exists and `errors` (`[{"region", "status", "code", "source",
-  "message"}]`, absent fields omitted) when a region failed; `items` is
+  "trace_id", "message"}]`, absent fields omitted) when a region failed; `items` is
   always an array. `sandbox search` adds `total`
   and `total_relation`. `cpu-type list` and `mac-model list` print the same
   envelope with or without `--region` (with `--region`, `mac-model list` items
@@ -345,15 +347,31 @@ request.
   `api_version`, `api_build_sha`, `api_built_at`, `skew_warning` when known);
   `profile list` rows; `config get` / `config path`; `reservation create
   --dry-run`; `region list` items, which are the API's region objects with
-  `price_multiplier` added; and the acknowledgements of commands whose API
-  answer is empty (`{"id", "deleted": true}`, `{"revoked": …}`,
-  `{"name", "updated": true}`, …). They omit what they do not know rather
-  than print empty values.
+  `price_multiplier` added; and acknowledgements (below). They omit what they
+  do not know rather than print empty values.
+- A command with no resource to print acknowledges with the identifier under
+  the field that names it plus a boolean named after the action, e.g.
+  `{"id": "img1", "deleted": true}`:
+  - `id`: `image`, `snapshot`, `org`, `project delete` (`deleted`; `volume
+    delete` prints the API's operation when it returns one), `key` /
+    `org-key` / `invite revoke` (`revoked`), `service-account delete`
+    (`archived`), `project service-account remove` (`removed`), `org leave`
+    (`left`);
+  - `user_id`: `member remove`, `project member remove` (`removed`);
+  - `name`: `secret set` (`updated`), `secret delete` (`deleted`);
+  - `host`: `registry set` (`updated`), `registry delete` (`deleted`);
+  - `project_id`: `project budget remove` (`removed`);
+  - `org_id`: `billing automatic-top-up delete`, `billing
+    balance-notification delete` (`deleted`).
+  `invite decline` prints `{"declined": true}` (the token is not echoed),
+  `sandbox port preview-url expire` `{"sandbox_id", "port", "token",
+  "revoked": true}`, and `sandbox process signal` / `kill` `{"id", "signal"}`.
+  With table output `org delete`, `project delete` and `project budget
+  remove` print a sentence on stderr instead.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,
   `process attach` and `cp`, `--follow` in table mode, `billing invoice pdf`,
   `docs`, `completion`, `help` and `--version`.
-- Some successful mutations (`org use`, `profile use`, `org delete`,
-  `billing … delete`) print nothing.
+- The local selections (`org use`, `profile use`) print nothing.
 - With JSON or YAML output (including the default off a terminal) an error
   is one JSON line on stderr:
   `{"error": {"exit_code": 4, "code": "FORBIDDEN", "message": "…", "source": "DAYTONA_API", "trace_id": "…", "hint": "…"}}`.
@@ -361,7 +379,8 @@ request.
   are omitted otherwise, so a server error is never attributed to the CLI; a
   local error has `source` `CLI`, and a passed-through exit status `PROCESS`
   or `SSH`. A partial list (exit 7) has no `code` or `source` of its own: each
-  failed region's are in the list's `errors`. Both `code` and `source` are
+  failed region's `status`, `code`, `source` and `trace_id` are in the list's
+  `errors`, and the message names each region with its status and code. Both `code` and `source` are
   open vocabularies. With table output errors are an `error:` line and an
   optional `hint:` line.
 
@@ -393,7 +412,10 @@ numbers can also come from the remote side (the JSON error `source` then reads
 ### Request bodies (`--file`)
 
 `--file PATH` (or `--file -` for stdin) takes one JSON object; explicit flags
-override its fields. Unknown keys are rejected (exit 2). The bodies use the
+override its fields. Unknown keys are rejected (exit 2), and so are two keys
+that name one request field and differ only in case (`cores_max` and
+`CORES_MAX`); keys of map values such as `env` and `labels` are names of your
+own and are sent as given. The bodies use the
 API's request fields:
 
 | Command | Body |
