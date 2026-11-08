@@ -724,7 +724,8 @@ synchronous SDK call, including another watch's methods, raises a
 `read_bytes()`, `read_text()`, `read_many()` and the computer-use recording
 `download()` hold the whole response in memory. For large files, or content
 from a sandbox you don't trust, use `download_file()`, which streams to disk
-with progress and cancellation.
+with progress and cancellation (for a recording, pass its `file_path`, not its
+id).
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
@@ -795,7 +796,9 @@ is `None`, a plain string or an `LspMarkupContent`.
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
 `region=ComputerUseRegion(...)`; any of `format=`, `quality=` or `scale=`
-returns a compressed image.
+returns a compressed image. `a11y.tree()` returns at most 256 levels below
+the root (`max_depth`, an integer from 0 to 256, default 256); a deeper UI
+comes back cut at that depth with `truncated` set.
 
 ### Docker
 

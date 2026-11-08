@@ -6,7 +6,8 @@ URL on a handle without a signer) now throw `BadRequestError` (400,
 also refuse, with that error and before any request: an `argv` that is not a
 non-empty sequence of strings (TypeScript: an array), a git config `scope`
 other than `'global'` / `'local'`, and a `delete_context()` /
-`deleteContext()` id that is not a non-empty string; TypeScript a
-`git.clone()` `insecureSkipTls` that is not a boolean and a `pty.start()` /
-`attach()` command that is not a string (omitted still starts the default
-shell); Python a `pty.start()` `terminal` that is not a `TerminalSize`.
+`deleteContext()` id that is not a non-empty string (a serialized context
+included). TypeScript also refuses a `git.clone()` `insecureSkipTls` that is
+not a boolean and a `pty.start()` / `attach()` command that is not a string
+(omitted still starts the default shell); Python refuses a `pty.start()`
+`terminal` that is not a `TerminalSize`.

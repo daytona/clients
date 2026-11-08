@@ -497,8 +497,9 @@ skipping exist only in the TypeScript tool).
   deadline; for large files, or content from a sandbox you don't trust, use
   `download_file` / `downloadFile`, which stream to disk with progress and
   cancellation. TypeScript's `downloadFile` is Node.js-only (a browser build
-  throws `NotSupportedError`), so in a browser the in-memory reads are the
-  only option.
+  throws `NotSupportedError`); in a browser, the in-memory reads and a
+  pre-signed download URL (`presignedDownloadUrl`), which the browser fetches
+  directly, are the options.
   A per-call timeout (a wait's budget plus its slack, a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
