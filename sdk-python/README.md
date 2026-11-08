@@ -627,18 +627,19 @@ or `"until_cleanup"`, not `"none"`.
 `process.start()` returns a detached `ProcessHandle` with `logs()`,
 `stream_logs()`, `wait()`, `write_stdin()`, `close_stdin()`, signal-aware `kill()`,
 `delete()` and `resize()`. `write_stdin()` / `close_stdin()` are for exec and
-PTY handles only. `stream_logs()` yields one event per server event:
-`StreamLogFrameEvent` (`type="log"`, a `LogFrame`), `StreamLogStateEvent`
-(the process ended), `StreamLogWarningEvent` (older frames were evicted) and
-`StreamLogEofEvent`; a stream error raises its typed error. `timeout=` is the
+PTY handles only. `stream_logs()` yields one `StreamLogEvent` per server
+event, each carrying its resume `cursor`: `StreamLogFrameEvent` (a
+`LogFrame` on `.frame`), `StreamLogStateEvent` (the process ended),
+`StreamLogWarningEvent` (older frames were evicted) and `StreamLogEofEvent`;
+a stream error raises its typed error. `timeout=` is the
 caller wait budget **(seconds)**, and `timeout=0` means wait unbounded.
 `execution_timeout=` is the process deadline **(seconds)** for server-managed
 runs that support one; `kill(escalate_after=)` is in seconds too. Signals are
 bare names (`"TERM"`), in `kill()` and in what `wait()` and `get()` report.
 
 Handles come from the SDK, never from a constructor: `handle.to_json()` returns
-a `ProcessHandleJSON` (`{"sandboxId", "processId", "kind"}`, the same shape the
-TypeScript SDK writes), and `sandbox.process.connect(value)` reconnects it, or a
+a `ProcessHandleJSON` (the sandbox and process ids, plus the process `kind`
+when it is known; the same JSON the TypeScript SDK writes), and `sandbox.process.connect(value)` reconnects it, or a
 bare process id, on any worker without a request. Reconnected `kind='code'`
 handles remain replay/control handles (`logs()` / `wait()` / `kill()`), not a
 way to recover a parsed `InterpreterResult` on another worker.
@@ -693,7 +694,8 @@ and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
 new URLs use the new key, which is never
 returned to the client. `list()`, `grep()`, `glob()` and `replace()` return one
 `{items, next_cursor}` page of typed items (`FileInfo`, `FileMatch`,
-`ReplaceResult`); there is no iterator and no cursor to pass back. `read_text()`
+`ReplaceResult`, iterable over its items); these methods have no
+page-draining iterator and take no cursor argument. `read_text()`
 decodes strictly as UTF-8 and keeps a leading byte-order mark.
 
 `watch_dir(path, on_event, *, recursive=False, on_overflow=None, on_exit=None)`
@@ -703,6 +705,10 @@ a time and are awaited. A failing `on_event` or `on_overflow` ends the watch
 with that error, which `exit_error` / `wait_for_exit()` report and `on_exit`
 receives; a failing `on_exit` is ignored. `stop()` returns once a callback that
 is already running has finished, and a callback may stop its own watch.
+With the synchronous `Daytona` client the callbacks run on the SDK's
+event-loop thread: there a callback may call its own watch's `stop()` (which
+then returns without waiting), `wait_for_exit()` and `exit_error`, but no other
+synchronous SDK method (that raises a `DaytonaError`, which ends the watch).
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
@@ -725,8 +731,8 @@ and that state's `env` is fixed when it is first created. Pass `isolated=True`
 for a throwaway run or use `create_context(language=..., context_id=None,
 cwd=None, env=None)` / `connect_context()` / `list_contexts()` for an
 independent named context. Select a context with `run(..., context=...)`: a
-handle, its `to_json()` identity (`InterpreterContextJSON`,
-`{"sandboxId", "contextId", "language"}`) or a context id with `language=`.
+handle, its `to_json()` identity (an `InterpreterContextJSON`) or a context
+id with `language=`.
 A context's `run(code, *, cwd=None, timeout=None)` takes no `env`: set it when
 the context is created. If an explicit named
 context vanished, `interpreter.run(..., context=...)` / `context.run()` surface
@@ -747,9 +753,10 @@ deadline by default, and each accepts a positive per-call `timeout=` override
 `branch=` and `remote=`; `push()` also accepts `set_upstream=True`.
 `commit(path, message, *, author=..., email=...)` keeps the identity fields
 keyword-only. Pass `allow_empty=True` to create an empty commit when Git would
-otherwise refuse it. `status()`, `history()`, `list_remotes()` and
-`list_branches()` return typed results (`GitStatus`, `GitCommit`, `GitRemote`,
-branch names).
+otherwise refuse it. `status()` returns a `GitStatus`; `history()`,
+`list_remotes()` and `list_branches()` return one `ListResult` page of
+`GitCommit`, `GitRemote` and branch-name items. A clone, pull or push
+`timeout=` bounds the whole request.
 
 ### Ports, LSP, computer use
 

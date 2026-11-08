@@ -145,9 +145,19 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   `sessionId` and share per-language interpreter state, whose `env` is fixed on
   first use. Isolated runs create their throwaway context with the private
   `_create_context(..., request_timeout=)`, which spends the run's budget.
-- Toolbox constructors take `_`-prefixed parameters (`AsyncProcessService(
-  _sandbox_id, _transport, ...)`): construction is internal, and tests build
-  services positionally. Handles reconnect through their namespace
+- The async process, session, PTY, interpreter, filesystem, watch, git, LSP and
+  computer-use classes take `_`-prefixed constructor parameters
+  (`AsyncProcessService(_sandbox_id, _transport, ...)`): construction is
+  internal, and tests build them positionally. (The generated sync wrappers'
+  `(impl, bridge)` parameters come from `gen/gen_sync.py`.)
+- With the sync client, SDK callbacks (a watch's `on_event`, `on_overflow`,
+  `on_exit`) run on the bridge's event-loop thread, where `SyncBridge.call()`
+  refuses to block. A class lists the coroutine methods that must still work
+  there in `_SYNC_LOOP_VARIANTS` (`AsyncWatchHandle`: `stop` →
+  `_stop_nowait`, `wait_for_exit` → `_exit_error_now`); the generator makes
+  their sync twins call the non-blocking variant when
+  `SyncBridge.on_loop_thread()` is true. `call_sync()` (property reads) runs
+  directly on that thread. Handles reconnect through their namespace
   (`process.connect`, `process.connect_session`, `interpreter.connect_context`).
 - Pre-signed file URLs are minted server-side: the SDK POSTs
   `{method, path, expires_at}` to `/sandboxes/{id}/files/sign`

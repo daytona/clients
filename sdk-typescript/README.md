@@ -573,10 +573,11 @@ never from a constructor. Handles offer cursor-replayable `logs()`,
 and pty handles, `delete()` (stopping it first if running; a running interpreter
 execution, or a session command that does not stop within 5 s, is refused:
 delete its context or session), signal-aware `kill()` with escalation,
-`resize()` and a websocket `attach()`. `streamLogs()` yields one event per
-server event (`{ type: 'log', frame }`, `{ type: 'state', result }`,
-`{ type: 'warning', message }`, `{ type: 'eof' }`); a stream error throws its
-typed error. Every duration is in seconds: `timeoutSeconds` is the caller wait
+`resize()` and a websocket `attach()`. `streamLogs()` yields one
+`StreamLogEvent` per server event, each carrying its resume `cursor`
+(`StreamLogFrameEvent`, `StreamLogStateEvent`, `StreamLogWarningEvent`,
+`StreamLogEofEvent`, told apart by `type`); a stream error throws its typed
+error. Every duration is in seconds: `timeoutSeconds` is the caller wait
 budget (omitted or `0` waits unbounded), `executionTimeoutSeconds` the process
 deadline for server-managed runs that support one, and
 `kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
@@ -647,7 +648,10 @@ Callbacks may return promises; they run one at a time and are awaited. A
 failing `onEvent` or `onOverflow` ends the watch with that error, which
 `exitError` / `waitForExit()` report and `onExit` receives; a failing `onExit`
 is ignored. `stop()` resolves once a callback that is already running has
-finished, and a callback may stop its own watch.
+finished, and a callback (or `onExit`) may stop its own watch and await
+`waitForExit()` without waiting for itself. In runtimes without
+`AsyncLocalStorage` (browsers), a callback that stops its own watch after an
+`await` must not await that `stop()`.
 
 `writeBytes()`, `writeText()` and `writeMany()` accept `atomic: true` to write via a
 temporary file + rename when the sandbox supports it. For `writeBytes()` and
@@ -673,9 +677,8 @@ explicit context share one per-language interpreter state inside the sandbox,
 and that state's `env` is fixed when it is first created. Pass `isolated: true`
 for a throwaway run or use `createContext({ language, contextId, cwd, env })` /
 `connectContext()` / `listContexts()` for an independent named context. Select a
-context with `run(code, { context })`: a handle, its `toJSON()` identity
-(`InterpreterContextJSON`, `{ sandboxId, contextId, language }`) or a context
-id together with `language`. A context's `run(code, { cwd, timeoutSeconds })`
+context with `run(code, { context })`: a handle, its `toJSON()` identity (an
+`InterpreterContextJSON`) or a context id together with `language`. A context's `run(code, { cwd, timeoutSeconds })`
 takes no `env`: set it when the context is created. If an explicit named context
 vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
@@ -697,9 +700,9 @@ skipping. `git.pull(path, { username, password, branch, remote })` and
 the additional remote/branch controls to the sandbox.
 
 `git.commit(path, message, { author, email, allowEmpty })` forwards
-`allowEmpty: true` when you need an empty commit. `status()`, `history()`,
-`listRemotes()` and `listBranches()` return typed results (`GitStatus`,
-`GitCommit`, `GitRemote`, branch names).
+`allowEmpty: true` when you need an empty commit. `status()` returns a
+`GitStatus`; `history()`, `listRemotes()` and `listBranches()` return one
+`ListResult` page of `GitCommit`, `GitRemote` and branch-name items.
 
 ### Ports, LSP, computer use
 

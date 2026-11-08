@@ -551,8 +551,9 @@ skipping exist only in the TypeScript tool).
 - **Toolbox identities are one camelCase JSON in both SDKs.**
   `ProcessHandleJSON` `{sandboxId, processId, kind?}`, `SessionJSON`
   `{sandboxId, sessionId}`, `InterpreterContextJSON`
-  `{sandboxId, contextId, language}` (Python also reads the snake_case keys
-  of earlier pre-releases). Handles reconnect through their namespace
+  `{sandboxId, contextId, language}` (Python's `connect_context` also reads
+  the snake_case `InterpreterContextJSON` keys of earlier pre-releases; the
+  other identities are camelCase only). Handles reconnect through their namespace
   (`process.connect`, `process.connect_session` / `connectSession`,
   `interpreter.connect_context` / `connectContext`), never through a
   constructor or a `from_json`.
@@ -565,17 +566,22 @@ skipping exist only in the TypeScript tool).
   `watchDir(path, onEvent, ...)`: callbacks run one at a time and are
   awaited; a failing event or overflow callback ends the watch with that
   error (`exit_error` / `exitError`); a failing exit callback is contained;
-  `stop()` returns after an active delivery finishes, and a callback stopping
-  its own watch does not wait for itself (Python: the reader task; TS: an
-  AsyncLocalStorage where the runtime has one, else the callback's
-  synchronous part, with a bounded wait).
+  `stop()` returns after an active delivery finishes; a callback (or the exit
+  callback) stopping its own watch, or awaiting `wait_for_exit()` /
+  `waitForExit()`, does not wait for itself (Python: the reader task, and on
+  the sync client the generated twins' `_SYNC_LOOP_VARIANTS` on the bridge
+  loop thread; TS: a per-delivery token in an AsyncLocalStorage where the
+  runtime has one, else only the callback's synchronous part counts).
 - **Toolbox results are SDK-owned models.** File info, grep / replace items,
   git status / commits / remotes, system metrics, the LSP types and the
   computer-use results are hand-written (Python frozen keyword-only
   dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
   timestamps as RFC 3339 strings), with every field the contract requires
-  required: a response missing one is a `BadRequestError` from the SDK, never
-  a placeholder value.
+  required: a response that breaks the contract (a missing required field, a
+  wrong type, a malformed timestamp) is the malformed-response
+  `BadRequestError` (400, `BAD_REQUEST`, source `SDK`, naming the field),
+  never a placeholder value; unknown fields are dropped (computer-use keeps
+  them in its named `extraFields` bags).
 - **Output is channel-filtered.** `stdout`/`stderr` come from their frame
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are
