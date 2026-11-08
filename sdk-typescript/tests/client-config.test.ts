@@ -16,6 +16,9 @@ import { DEFAULT_REQUEST_TIMEOUT_MS, HttpTransport, createHttpClient } from '../
 import { RENAMED_OPTIONS, assertKnownOptions, optionKeys } from '../src/v2/options'
 import { eventsHubConfig } from '../src/v2/events'
 import { FileSystemService } from '../src/v2/FileSystem'
+import { INTERNAL } from '../src/v2/internal'
+import { ImagesService } from '../src/v2/Images'
+import { ImageBuilder } from '../src/v2/Image'
 
 const ENV = ['DAYTONA_API_KEY', 'DAYTONA_JWT_TOKEN', 'DAYTONA_PROJECT_ID'] as const
 const saved = Object.fromEntries(ENV.map((name) => [name, process.env[name]]))
@@ -302,9 +305,8 @@ describe('request timeout meaning', () => {
     // never fires: the request timeout is the total time.
     handle = trickle(8, 50)
     const transport = new HttpTransport(base, 'k', 150)
-    const started = performance.now()
+    // The body finishes in 400 ms: only a total bound rejects.
     await expect(transport.get('/slow-body', { responseType: 'text' })).rejects.toBeInstanceOf(ClientTimeoutError)
-    expect(performance.now() - started).toBeLessThan(350)
   })
 
   it('bounds an ordinary request on the plain axios client too', async () => {
@@ -322,6 +324,25 @@ describe('request timeout meaning', () => {
     const transport = new HttpTransport(base, 'k', 100)
     await expect(transport.get('/processes/p/wait', { timeout: 5_000 })).resolves.toEqual({ ok: true })
     await expect(transport.get('/hold', { timeout: 0 })).resolves.toEqual({ ok: true })
+  })
+
+  it('treats a per-call timeout as a total bound that replaces the request timeout', async () => {
+    // Every chunk arrives well inside 150 ms; the body takes 400 ms.
+    handle = trickle(8, 50)
+    const transport = new HttpTransport(base, 'k', 0)
+    await expect(transport.get('/slow-body', { responseType: 'text', timeout: 150 })).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    // 0 and a value above the timer maximum mean no limit, as for the request timeout.
+    await expect(transport.get('/slow-body', { responseType: 'text', timeout: 0 })).resolves.toBe('xxxxxxxx')
+    await expect(transport.get('/slow-body', { responseType: 'text', timeout: 3_000_000_000 })).resolves.toBe('xxxxxxxx')
+  })
+
+  it('bounds image submissions by the request timeout', async () => {
+    // POST /images is an ordinary request (no hold), as in Python.
+    handle = late(400)
+    const images = new ImagesService(INTERNAL, createHttpClient(base, 'k', 100))
+    await expect(images.build(ImageBuilder.fromDockerfile('FROM alpine'))).rejects.toBeInstanceOf(ClientTimeoutError)
+    await expect(images.pull('alpine', { wait: false })).rejects.toBeInstanceOf(ClientTimeoutError)
+    await expect(images.pull('alpine')).rejects.toBeInstanceOf(ClientTimeoutError)
   })
 
   it('does not cut file transfers', async () => {
@@ -403,7 +424,9 @@ describe('request timeout meaning', () => {
 
   describe('one deadline for the bearer, a 401 refresh and the retry', () => {
     // Each step fits the 150 ms timeout on its own; together (about 260 ms)
-    // they do not, so a fresh window per step would let the call succeed.
+    // they do not, so a fresh window per step would let the call succeed. The
+    // rejections prove it; no wall-clock upper bound (a loaded runner could
+    // break one), and the resolving controls get a budget far above their steps.
     const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
     const unauthorizedThenOk = (request: IncomingMessage, response: ServerResponse): void => {
       request.resume()
@@ -433,16 +456,18 @@ describe('request timeout meaning', () => {
         seen.push(request.headers.authorization)
         unauthorizedThenOk(request, response)
       }
+      // The refresh ignores its signal and never settles until released, so the
+      // rejection alone proves the call stopped waiting at its budget.
+      let release: () => void = () => undefined
       const deaf = {
         authorizationHeader: async (options?: { readonly forceRefresh?: boolean }) => {
-          if (options?.forceRefresh) await sleep(300)
+          if (options?.forceRefresh) await new Promise<void>((resolve) => { release = resolve })
           return options?.forceRefresh ? 'Bearer fresh' : 'Bearer stale'
         },
       }
-      const started = performance.now()
       await expect(new HttpTransport(base, undefined, 150, { authProvider: deaf }).get('/thing')).rejects.toBeInstanceOf(ClientTimeoutError)
-      expect(performance.now() - started).toBeLessThan(250)
-      await sleep(250)
+      release()
+      await sleep(100)
       expect(seen).toEqual(['Bearer stale'])
     })
 
@@ -454,8 +479,9 @@ describe('request timeout meaning', () => {
     })
 
     it.each(['get', 'fetch'] as const)('does not give a sandbox-token retry a fresh window (%s)', async (method) => {
-      // bearer 40 ms + 401 after 50 ms + refresh 10 ms + a 100 ms retry is
-      // about 200 ms: past the 150 ms deadline, though the retry alone fits.
+      // bearer 40 ms + 401 after 50 ms + refresh 10 ms + a 950 ms retry is
+      // about 1050 ms: past the 1000 ms deadline, though the retry alone fits,
+      // and the retry is sent with about 900 ms to spare (a slow runner still sends it).
       let calls = 0
       handle = (request, response) => {
         request.resume()
@@ -464,30 +490,29 @@ describe('request timeout meaning', () => {
         setTimeout(() => {
           response.writeHead(stale ? 401 : 200, { 'Content-Type': 'application/json' })
           response.end(JSON.stringify(stale ? { code: 'UNAUTHORIZED', message: 'expired' } : { ok: true }))
-        }, stale ? 50 : 100)
+        }, stale ? 50 : 950)
       }
       const auth = {
         bearer: async () => { await sleep(40); return 'stale' },
         onUnauthorized: async () => { await sleep(10); return 'fresh' },
       }
-      const transport = new HttpTransport(base, undefined, 150, { auth })
+      const transport = new HttpTransport(base, undefined, 1000, { auth })
       const call = method === 'get' ? transport.get('/thing') : transport.fetch('/thing').then((response) => response.json())
       await expect(call).rejects.toBeInstanceOf(ClientTimeoutError)
       expect(calls).toBe(2)
     })
 
     it.each([
-      ['a sandbox token on the axios path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'get'],
-      ['a sandbox token on the fetch path', (delay: number) => new HttpTransport(base, undefined, 150, { auth: slowSandboxAuth(delay) }), 'fetch'],
-      ['a project token on the axios path', (delay: number) => new HttpTransport(base, undefined, 150, { authProvider: slowProvider(delay) }), 'get'],
-      ['a project token on the fetch path', (delay: number) => new HttpTransport(base, undefined, 150, { authProvider: slowProvider(delay) }), 'fetch'],
+      ['a sandbox token on the axios path', (timeout: number) => new HttpTransport(base, undefined, timeout, { auth: slowSandboxAuth(80) }), 'get'],
+      ['a sandbox token on the fetch path', (timeout: number) => new HttpTransport(base, undefined, timeout, { auth: slowSandboxAuth(80) }), 'fetch'],
+      ['a project token on the axios path', (timeout: number) => new HttpTransport(base, undefined, timeout, { authProvider: slowProvider(80) }), 'get'],
+      ['a project token on the fetch path', (timeout: number) => new HttpTransport(base, undefined, timeout, { authProvider: slowProvider(80) }), 'fetch'],
     ] as const)('with %s', async (_label, transport, method) => {
       handle = unauthorizedThenOk
       const call = (t: HttpTransport) => method === 'get' ? t.get('/thing') : t.fetch('/thing').then((response) => response.json())
-      const started = performance.now()
-      await expect(call(transport(80))).rejects.toBeInstanceOf(ClientTimeoutError)
-      expect(performance.now() - started).toBeLessThan(250)
-      await expect(call(transport(10))).resolves.toEqual({ ok: true })
+      await expect(call(transport(150))).rejects.toBeInstanceOf(ClientTimeoutError)
+      // The same steps complete under a budget far above them.
+      await expect(call(transport(10_000))).resolves.toEqual({ ok: true })
     })
   })
 

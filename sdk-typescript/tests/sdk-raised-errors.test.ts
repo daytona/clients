@@ -36,6 +36,15 @@ describe('SDK-raised invalid-argument errors are BadRequestError', () => {
     await badRequest(() => client.findByName(' '))
   })
 
+  it('on a blank create source and a source of the wrong type, as in Python', async () => {
+    await badRequest(() => client.create('  '))
+    await badRequest(() => client.create(''))
+    await badRequest(() => client.createFromSnapshot('  '))
+    await badRequest(() => client.createMacos('  '))
+    await badRequest(() => client.create(123 as never))
+    await badRequest(() => client.createFromSnapshot(123 as never))
+  })
+
   it('on image builders', async () => {
     await badRequest(() => ImageBuilder.fromRegistry('alpine').workdir(' '))
   })

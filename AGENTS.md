@@ -492,6 +492,13 @@ skipping exist only in the TypeScript tool).
   `transport.request(..., transfer=True)`, TS `timeout: 0` on axios or
   `fetch(..., { transfer: true })`), which run until done or cancelled. A new
   call of one of those kinds must opt out the same way in both SDKs.
+  A per-call timeout (a wait's budget plus its slack, a git remote call, the
+  Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
+  / `transport.request(..., timeout=seconds)`, TS `config.timeout`) replaces
+  the request timeout for that request with the same meaning: total time
+  from sending to the last byte, `0` or a value above the timer maximum
+  meaning no limit (Python `_total_seconds`, TS `armRequestDeadline`).
+  Streams and transfers keep their exemptions.
 - **TypeScript rejects unknown option keys at runtime** (the rule; where it
   applies so far is listed below). A covered options object
   declares its known keys once, with

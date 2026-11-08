@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { NotSupportedError, TransferCancelledError, createDaytonaError } from './errors/DaytonaError.js'
+import { ConnectionError, NotSupportedError, TransferCancelledError, createDaytonaError } from './errors/DaytonaError.js'
+import { badRequest } from './options.js'
 import { encodeQuery, HttpTransport, isAbortError, runtimeUniqueId, type FetchRequestInit } from './http.js'
 
 export interface TransferProgressCallback {
@@ -302,7 +303,7 @@ function uploadBody(
               return
             }
             if (bytesSent !== size) {
-              throw createDaytonaError('source file changed size during upload', undefined, undefined, 'SDK')
+              throw badRequest('source file changed size during upload')
             }
             readingFile = false
             reportProgress(options.onProgress, bytesSent, size, lastReported)
@@ -385,7 +386,7 @@ export async function downloadFile(
   try {
     const response = await transport.fetch(`/files/download${encodeQuery({ path: remotePath })}`, { signal: options.signal, transfer: true })
     if (response.body === null) {
-      throw createDaytonaError('downloadFile() expected a response body', undefined, undefined, 'SDK')
+      throw badRequest('downloadFile() expected a response body')
     }
     responseBody = response.body
     const staging = await openExclusiveStagingFile(modules.fsPromises, localPath)
@@ -425,7 +426,8 @@ export async function downloadFile(
     }
     if (total !== undefined) {
       if (bytesWritten !== total) {
-        throw createDaytonaError('downloadFile() ended before the declared Content-Length was received', undefined, undefined, 'SDK')
+        // A truncated transfer, as when the socket drops mid-body.
+        throw new ConnectionError('downloadFile() ended before the declared Content-Length was received')
       }
       reportProgress(options.onProgress, bytesWritten, total, lastReported)
     }

@@ -11326,6 +11326,59 @@ async def test_project_token_exchange_invalid_model_raises_typed_bad_request() -
     assert (exc_info.value.code, exc_info.value.source) == (code_names.BAD_REQUEST, "SDK")
 
 
+# The TypeScript SDK's unit.test.ts asserts the same messages for the same bodies.
+_TOKEN_EXCHANGE_CASES = [
+    (b"not json", "token exchange response is not a JSON object"),
+    (b"[]", "token exchange response is not a JSON object"),
+    (b"", "token exchange response is not a JSON object"),
+    (b'{"expires_in": 300}', "token exchange response access_token must be a non-empty string"),
+    (
+        b'{"access_token": "", "expires_in": 300}',
+        "token exchange response access_token must be a non-empty string",
+    ),
+    (b'{"access_token": "t"}', "token exchange response expires_in must be a positive integer"),
+    (
+        b'{"access_token": "t", "expires_in": 0}',
+        "token exchange response expires_in must be a positive integer",
+    ),
+    (
+        b'{"access_token": "t", "expires_in": -1}',
+        "token exchange response expires_in must be a positive integer",
+    ),
+    (
+        b'{"access_token": "t", "expires_in": "soon"}',
+        "token exchange response expires_in must be a positive integer",
+    ),
+]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("body", "message"), _TOKEN_EXCHANGE_CASES)
+async def test_project_token_exchange_names_what_is_wrong(body: bytes, message: str) -> None:
+    http = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, content=body)),
+        base_url="http://api.invalid",
+    )
+    auth = ProjectTokenAuth(
+        api_url="http://api.invalid",
+        jwt_token="jwt",
+        project_id="project-1",
+        source="sdk-python-async",
+        client=http,
+    )
+    try:
+        with pytest.raises(BadRequestError) as exc_info:
+            await auth._exchange_token()
+    finally:
+        await http.aclose()
+    assert str(exc_info.value) == message
+    assert (exc_info.value.status_code, exc_info.value.code, exc_info.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
+
+
 @pytest.mark.anyio
 async def test_project_token_exchange_records_payload_parse_errors_on_span() -> None:
     class RecordingSpan:

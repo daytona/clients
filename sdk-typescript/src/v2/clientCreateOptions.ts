@@ -21,6 +21,8 @@ export function imageSourceString(image: unknown, method: 'create' | 'createMaco
       ? 'daytona.createMacos() only accepts an image name or img_… id; macOS sandboxes do not build images'
       : 'daytona.create() only accepts an image name or img_… id; use daytona.createFromBuild(builder, options) for ImageBuilder sources')
   }
+  // A blank string has its own message, as in Python; any other non-string is the wrong type.
+  if (typeof image === 'string' && image.trim() === '') throw badRequest('image must be a non-empty string')
   if (!hasText(image)) {
     throw badRequest(`daytona.${method}() only accepts an image name or img_… id`)
   }
@@ -52,7 +54,8 @@ export function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptio
 
 /** @internal */
 export function snapshotSourceString(snapshot: string): string {
-  if (!hasText(snapshot)) throw badRequest('snapshot must be a non-empty snapshot name or snap_… id')
+  if (typeof snapshot === 'string' && snapshot.trim() === '') throw badRequest('snapshot must be a non-empty string')
+  if (!hasText(snapshot)) throw badRequest('daytona.createFromSnapshot() only accepts a snapshot name or snap_… id')
   return snapshot.trim()
 }
 

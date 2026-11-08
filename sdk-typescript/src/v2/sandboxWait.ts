@@ -141,7 +141,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     const pollStarted = Date.now()
     const outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
     if (states.some((target) => target === outcome.state)) return
-    if (effectiveTerminal.includes(outcome.state)) throw new SandboxTerminalStateError(context.id, outcome.state, outcome.rawState)
+    if (effectiveTerminal.includes(outcome.state)) throw new SandboxTerminalStateError(context.id, outcome.state, { rawState: outcome.rawState })
     const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - pollStarted), remaining() ?? Infinity)
     if (pause > 0) await sleep(pause)
   }

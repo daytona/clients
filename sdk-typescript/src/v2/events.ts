@@ -517,7 +517,7 @@ export async function runPollLoop(
     const outcome = await fn()
     const result = evaluate(predicate, outcome.state)
     if (result === 'resolve') return outcome
-    if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, outcome.state, outcome.rawState)
+    if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, outcome.state, { rawState: outcome.rawState })
   }
 }
 
@@ -885,7 +885,7 @@ export class WaitHub {
     if (haveSnapshot) {
       const verdict = evaluate(predicate, held!)
       if (verdict === 'resolve') return { state: held!, rawState: sock.rawStates.get(sandboxId) ?? '' }
-      if (verdict === 'reject') throw new SandboxTerminalStateError(sandboxId, held!, sock.rawStates.get(sandboxId))
+      if (verdict === 'reject') throw new SandboxTerminalStateError(sandboxId, held!, { rawState: sock.rawStates.get(sandboxId) })
     }
 
     const waiter = this.registerWaiter(sandboxId, predicate, deadline, onObserved, sandboxPollFn)
@@ -1077,7 +1077,7 @@ export class WaitHub {
     this.clearWaiterTimers(waiter)
     this.removeWaiter(waiter)
     if (result === 'resolve') waiter.resolve(outcome)
-    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, outcome.rawState))
+    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, { rawState: outcome.rawState }))
     this.maybeUnsubscribeForId(waiter.sandboxId)
   }
 
@@ -1088,7 +1088,7 @@ export class WaitHub {
     this.clearWaiterTimers(waiter)
     this.removeWaiter(waiter)
     if (result === 'resolve') waiter.resolve(outcome)
-    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, outcome.rawState))
+    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, { rawState: outcome.rawState }))
     this.maybeUnsubscribeForId(waiter.sandboxId)
   }
 
@@ -1171,7 +1171,7 @@ export class WaitHub {
 
       const result = evaluate(predicate, state)
       if (result === 'resolve') return { state, rawState: status }
-      if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, state, status)
+      if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, state, { rawState: status })
 
       const elapsed = Date.now() - pollStart
       if (elapsed < FALLBACK_MIN_INTERVAL_MS) {
@@ -1599,7 +1599,7 @@ export class WaitHub {
       if (result === 'resolve') {
         toResolve.push(w)
       } else if (result === 'reject') {
-        toReject.push([w, new SandboxTerminalStateError(sandboxId, state, outcome.rawState)])
+        toReject.push([w, new SandboxTerminalStateError(sandboxId, state, { rawState: outcome.rawState })])
       }
     }
 

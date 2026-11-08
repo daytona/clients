@@ -234,7 +234,10 @@ the explicit exception to the one-page list rule.
 - Request timeout: `request_timeout` (default 60 s, `0` = none) bounds the
   total time of one ordinary request (`_transport._request_deadline`, an
   `anyio.fail_after` around the httpx call, whose own timeouts are per phase).
-  A spec with its own budget sets `timeout` (or `unbounded_read`); file
+  A spec with its own budget sets `timeout`, which replaces the request
+  timeout with the same total-time meaning (`_transport._total_seconds`;
+  `0` or above the timer maximum = none), or `unbounded_read` for a hold
+  with no budget; file
   transfers set `RequestSpec(transfer=True)` or call
   `transport.request(..., transfer=True)` and are not bounded; streams are
   bounded only until their response headers arrive. The TypeScript transport

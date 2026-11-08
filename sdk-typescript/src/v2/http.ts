@@ -803,14 +803,23 @@ async function finishAxiosError(
   throw createDaytonaError(error instanceof Error ? error.message : String(error), undefined, undefined, 'SDK')
 }
 
-/** A token-exchange body as an object, or `undefined` when it is not a JSON object. */
-function parseTokenExchange(body: string): TokenExchangeResponse | undefined {
+/**
+ * The token and its lifetime from a token-exchange body, or the
+ * `BadRequestError` naming what is wrong (the Python SDK's messages for the
+ * same body). A non-positive lifetime is a broken exchange, not a token to cache.
+ */
+function tokenExchange(body: string): { readonly accessToken: string; readonly expiresIn: number } | BadRequestError {
+  let payload: unknown
   try {
-    const parsed: unknown = JSON.parse(body)
-    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as TokenExchangeResponse : undefined
+    payload = JSON.parse(body)
   } catch {
-    return undefined
+    payload = undefined
   }
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return badRequest('token exchange response is not a JSON object')
+  const { access_token: accessToken, expires_in: expiresIn } = payload as TokenExchangeResponse
+  if (typeof accessToken !== 'string' || accessToken === '') return badRequest('token exchange response access_token must be a non-empty string')
+  if (typeof expiresIn !== 'number' || !Number.isSafeInteger(expiresIn) || expiresIn <= 0) return badRequest('token exchange response expires_in must be a positive integer')
+  return { accessToken, expiresIn }
 }
 
 class PlatformTokenProvider implements HttpAuthProvider {
@@ -927,15 +936,12 @@ class PlatformTokenProvider implements HttpAuthProvider {
         finalize(response.status, error)
         throw error
       }
-      const payload = parseTokenExchange(await response.text())
-      const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : undefined
-      // A non-positive lifetime is a broken exchange, not a token to cache.
-      const expiresIn = typeof payload?.expires_in === 'number' && Number.isFinite(payload.expires_in) && payload.expires_in > 0 ? payload.expires_in : undefined
-      if (!accessToken || expiresIn === undefined) {
-        const error = badRequest('auth/token returned an invalid token-exchange payload')
-        finalize(response.status, error)
-        throw error
+      const exchange = tokenExchange(await response.text())
+      if (exchange instanceof BadRequestError) {
+        finalize(response.status, exchange)
+        throw exchange
       }
+      const { accessToken, expiresIn } = exchange
       finalize(response.status)
       return credentialSafeDiagnostics({
         accessToken,
