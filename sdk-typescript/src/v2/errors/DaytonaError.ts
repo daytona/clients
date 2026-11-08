@@ -185,11 +185,17 @@ export class DockerWaitTimeoutError extends RequestTimeoutError {
 export class SandboxTerminalStateError extends ConflictError {
   public readonly state: SandboxState
   public readonly rawState?: string
+  /**
+   * The server's explanation of `state`, when it gave one (for example why a
+   * deletion did not finish); the message ends with it.
+   */
+  public readonly reason?: string
 
-  constructor(sandboxId: string, state: SandboxState, rawState?: string) {
-    super(`sandbox ${sandboxId} reached terminal state ${state}`, 409, 'CONFLICT', 'SDK')
+  constructor(sandboxId: string, state: SandboxState, rawState?: string, reason?: string) {
+    super(`sandbox ${sandboxId} reached terminal state ${state}${reason ? `: ${reason}` : ''}`, 409, 'CONFLICT', 'SDK')
     this.state = state
     this.rawState = rawState
+    this.reason = reason || undefined
   }
 }
 

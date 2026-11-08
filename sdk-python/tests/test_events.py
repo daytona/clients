@@ -22,6 +22,7 @@ import respx
 from _handles import lazy_sandbox
 from test_core import RecordingTransport, _sandbox_detail_payload, bind_api
 
+from daytona.v2._core import RequestSpec
 from daytona.v2._events import (
     _HUB_REGISTRY,
     _KNOWN_IDS_CAP,
@@ -985,6 +986,44 @@ class TestHubReconcile:
         assert result.state == "started"
         assert calls == 2
         assert pauses
+
+    async def test_fallback_wait_for_destroyed_holds_an_exact_long_poll_and_names_the_reason(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        requests: List[RequestSpec] = []
+        answers = [
+            {"id": "abc-region-a", "status": "deleting"},
+            {"id": "abc-region-a", "status": "failed", "error": "sandbox deletion did not finish"},
+        ]
+
+        async def fake_send(request: RequestSpec) -> dict[str, object]:
+            requests.append(request)
+            return answers.pop(0)
+
+        async def fake_sleep(_delay: float) -> None:
+            return None
+
+        monkeypatch.setattr(hub._api, "send", fake_send)
+        monkeypatch.setattr(events_module, "_sleep", fake_sleep)
+        predicate = _TargetPredicate(states=frozenset({"destroyed"}), terminal_states=frozenset({"error"}))
+
+        with pytest.raises(SandboxTerminalStateError) as exc_info:
+            await hub._fallback_wait("abc-region-a", predicate, timeout=5)
+
+        # The loose `wait=deleted` is already met by `deleting`; the exact form
+        # holds the long poll until the deletion ends.
+        assert [r.params.get("wait_exact") for r in requests] == ["deleted", "deleted"]
+        assert all("wait" not in r.params for r in requests)
+        assert exc_info.value.state == "error"
+        assert exc_info.value.raw_state == "failed"
+        assert exc_info.value.reason == "sandbox deletion did not finish"
+        assert str(exc_info.value) == (
+            "sandbox abc-region-a reached terminal state error: sandbox deletion did not finish"
+        )
 
 
 @pytest.mark.anyio

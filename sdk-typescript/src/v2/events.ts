@@ -386,6 +386,17 @@ function predicateFallbackWaitState(predicate: Predicate): string | undefined {
   return undefined
 }
 
+/**
+ * The query parameter that long-polls for `wireState`. `deleted` uses the
+ * exact form: the loose `wait=deleted` is already met by `deleting`, so a
+ * deletion that takes a while to finish would answer every poll at once
+ * instead of holding it. The exact form still answers on `failed` and `lost`,
+ * which can never become `deleted`.
+ */
+export function waitQueryKey(wireState: string): 'wait' | 'wait_exact' {
+  return wireState === 'deleted' ? 'wait_exact' : 'wait'
+}
+
 // ---------------------------------------------------------------------------
 // Waiter
 // ---------------------------------------------------------------------------
@@ -1122,7 +1133,7 @@ export class WaitHub {
 
       const params: Record<string, string | number> = {}
       if (waitWire !== undefined) {
-        params['wait'] = waitWire
+        params[waitQueryKey(waitWire)] = waitWire
         params['timeout_ms'] = sliceMs
       }
 
@@ -1156,7 +1167,10 @@ export class WaitHub {
 
       const result = evaluate(predicate, state)
       if (result === 'resolve') return { state, rawState: status }
-      if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, state, status)
+      if (result === 'reject') {
+        const reason = typeof record['error'] === 'string' ? record['error'] : undefined
+        throw new SandboxTerminalStateError(sandboxId, state, status, reason)
+      }
 
       const elapsed = Date.now() - pollStart
       if (elapsed < FALLBACK_MIN_INTERVAL_MS) {

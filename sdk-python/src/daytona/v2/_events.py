@@ -214,6 +214,16 @@ def _predicate_fallback_wait_state(predicate: _Predicate) -> Optional[str]:
     return None
 
 
+def wait_query_key(wire_state: str) -> str:
+    """The query parameter that long-polls for ``wire_state``.
+
+    ``deleted`` uses the exact form: the loose ``wait=deleted`` is already met
+    by ``deleting``, so a deletion that takes a while to finish would answer
+    every poll at once instead of holding it. The exact form still answers on
+    ``failed`` and ``lost``, which can never become ``deleted``."""
+    return "wait_exact" if wire_state == "deleted" else "wait"
+
+
 # ---------------------------------------------------------------------------
 # Waiter
 # ---------------------------------------------------------------------------
@@ -781,7 +791,7 @@ class WaitHub:
             )
             params: Dict[str, Union[str, int]] = {}
             if wait_wire is not None:
-                params["wait"] = wait_wire
+                params[wait_query_key(wait_wire)] = wait_wire
                 params["timeout_ms"] = slice_ms
             poll_start = _clock.monotonic()
             data = expect_object(
@@ -801,7 +811,10 @@ class WaitHub:
             if result == "resolve":
                 return WaitOutcome(state, raw)
             if result == "reject":
-                raise SandboxTerminalStateError(sandbox_id, state)
+                reason = data.get("error")
+                raise SandboxTerminalStateError(
+                    sandbox_id, state, raw_state=raw, reason=reason if isinstance(reason, str) else None
+                )
             elapsed = _clock.monotonic() - poll_start
             if elapsed < _FALLBACK_MIN_INTERVAL_S:
                 pause = _FALLBACK_MIN_INTERVAL_S - elapsed

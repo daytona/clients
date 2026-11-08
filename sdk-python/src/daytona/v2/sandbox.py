@@ -40,7 +40,7 @@ from ._core import (
     parse_snapshot,
     sandbox_state,
 )
-from ._events import WaitHub, WaitOutcome, _TargetPredicate, endpoint_from_headers, region_of
+from ._events import WaitHub, WaitOutcome, _TargetPredicate, endpoint_from_headers, region_of, wait_query_key
 from ._gen.api import (
     LifecyclePolicy,
     SandboxListItem,
@@ -707,7 +707,8 @@ class AsyncSandbox:
         api = self._require_api()
         params: Dict[str, JsonValue] = {}
         if wait is not None:
-            params["wait"] = _wait_query_state(wait)
+            wire = _wait_query_state(wait)
+            params[wait_query_key(wire)] = wire
         if wait_timeout_ms is not None:
             params["timeout_ms"] = wait_timeout_ms
         # A long-poll read is bounded by its server slice plus a little slack —
@@ -898,6 +899,7 @@ class AsyncSandbox:
                 # spent budget skips it: the terminal state is the outcome
                 # either way, and a failed or timed-out refresh must not
                 # replace it.
+                fresh_read = refreshed_by_poll
                 remaining = None if deadline is None else deadline - _clock.monotonic()
                 if (
                     not refreshed_by_poll
@@ -906,6 +908,14 @@ class AsyncSandbox:
                 ):
                     with contextlib.suppress(DaytonaError):
                         await self.refresh_data(timeout=remaining)
+                        fresh_read = True
+                # The hub reports only the state. When the read that followed
+                # still shows that state, name the server's explanation for it
+                # (why a deletion did not finish, say) in the error.
+                if fresh_read and error.reason is None and self.error_reason and self.state == error.state:
+                    raise SandboxTerminalStateError(
+                        self.id, error.state, raw_state=error.raw_state, reason=self.error_reason
+                    ) from None
                 raise
             _observe_outcome(resolved)
             # A socket frame carries only the state. Callers (create, start,
@@ -931,7 +941,7 @@ class AsyncSandbox:
                 if self.state in target_states:
                     return
                 if self.state in effective_terminal:
-                    raise _sandbox_terminal_state_error(self.id, self.state)
+                    raise _sandbox_terminal_state_error(self.id, self.state, reason=self.error_reason)
             remaining_timeout = None if deadline is None else deadline - _clock.monotonic()
             if remaining_timeout is not None and remaining_timeout <= 0:
                 raise create_error(
@@ -958,7 +968,7 @@ class AsyncSandbox:
             if self.state in target_states:
                 return
             if self.state in effective_terminal:
-                raise _sandbox_terminal_state_error(self.id, self.state)
+                raise _sandbox_terminal_state_error(self.id, self.state, reason=self.error_reason)
             elapsed = _clock.monotonic() - poll_started
             if elapsed < WAIT_FOR_STATE_MIN_INTERVAL_S:
                 pause = WAIT_FOR_STATE_MIN_INTERVAL_S - elapsed
@@ -1894,8 +1904,10 @@ def _wait_query_state(state: SandboxWaitState) -> str:
             raise AssertionError(f"unexpected wait state: {unreachable}")
 
 
-def _sandbox_terminal_state_error(sandbox_id: str, state: SandboxState) -> Exception:
-    return SandboxTerminalStateError(sandbox_id, state)
+def _sandbox_terminal_state_error(
+    sandbox_id: str, state: SandboxState, *, reason: Optional[str] = None
+) -> Exception:
+    return SandboxTerminalStateError(sandbox_id, state, reason=reason)
 
 
 def _known_sandbox_class(value: str) -> Optional[SandboxClass]:
