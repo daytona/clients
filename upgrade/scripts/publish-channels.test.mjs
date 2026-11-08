@@ -100,7 +100,7 @@ for (const [version, expected] of [
   });
 }
 
-for (const version of ['v2.0.0-beta.1', 'v0.232.0', 'v2.0.0-dev.1']) {
+for (const version of ['v2.0.0-beta.1', 'v0.232.0', 'v2.0.0-dev.1', 'v2.0.0-rc.1', '2.0.0-rc.1']) {
   test(`gate refuses ${version}`, (context) => {
     const { root, sha } = gateFixture(context, []);
     const result = run(root, gateScript, { VERSION_INPUT: version, SOURCE_SHA: sha, GITHUB_OUTPUT: join(root, 'output'),
@@ -379,7 +379,7 @@ test('CLI release: an unknown channel fails before anything is published', (cont
 // formulaVersion: the formula's version, or a list of the versions successive
 // reads see (the last one repeats). watchExit: the tap run's result.
 // runsReadable: whether the token can list the tap's runs.
-function homebrewGh(root, { v0Running = ['0'], formulaVersion, watchExit = 0, runsReadable = true }) {
+function homebrewGh(root, { v0Running = ['0'], formulaVersion, watchExit = 0, runsReadable = true, clockStep = 100 }) {
   writeFileSync(join(root, 'v0-running'), v0Running.join('\n'));
   writeFileSync(join(root, 'formula-versions'), [].concat(formulaVersion).join('\n'));
   executable(join(root, 'bin/formula'), [
@@ -387,9 +387,9 @@ function homebrewGh(root, { v0Running = ['0'], formulaVersion, watchExit = 0, ru
     'if [ "$(wc -l < "$ROOT/formula-versions")" -gt 0 ]; then sed -i 1d "$ROOT/formula-versions"; fi',
     'printf \'class Daytona < Formula\\n  desc "Daytona CLI"\\n  version "%s"\\nend\\n\' "$v" | base64 -w0',
   ].join('\n'));
-  // A clock that moves 100 s per read, so deadlines pass without waiting.
+  // A clock that moves clockStep seconds per read, so deadlines pass without waiting.
   writeFileSync(join(root, 'clock'), '0');
-  executable(join(root, 'bin/date'), 'if [ "${1:-}" = +%s ]; then c=$(cat "$ROOT/clock"); echo $(( c + 100 )) > "$ROOT/clock"; echo "$c"; else /bin/date "$@"; fi');
+  executable(join(root, 'bin/date'), `if [ "\${1:-}" = +%s ]; then c=$(cat "$ROOT/clock"); echo $(( c + ${clockStep} )) > "$ROOT/clock"; echo "$c"; else /bin/date "$@"; fi`);
   executable(join(root, 'bin/gh'), [
     'echo "$*" >> "$GH_LOG"',
     'if [[ "$*" == "run list --repo daytona/clients"* ]]; then',
@@ -422,6 +422,7 @@ for (const [title, channel, options, status, waits, message] of [
   ['an alpha does not wait for release/v0', 'alpha', { v0Running: ['1'], formulaVersion: '2.0.0' }, 0, 0],
   ['an rc goes to daytona-rc and does not wait for release/v0', 'rc', { v0Running: ['1'], formulaVersion: '2.0.0' }, 0, 0],
   ['a failed tap run fails the step', 'alpha', { formulaVersion: '2.0.0', watchExit: 1 }, 1, 0],
+  ['a formula read that lags the tap run is retried', 'alpha', { formulaVersion: ['2.0.0-alpha.8', '2.0.0'], clockStep: 15 }, 0, 0],
   ['unreadable tap runs: the formula naming the version passes', 'alpha', { formulaVersion: ['2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0'], runsReadable: false }, 0, 0, /waiting up to 15 minutes/],
   ['unreadable tap runs: a formula that never moves fails', 'alpha', { formulaVersion: '2.0.0-alpha.8', runsReadable: false }, 1, 0, /is at '2\.0\.0-alpha\.8', not 2\.0\.0/],
 ]) {
@@ -459,6 +460,10 @@ for (const [title, answer, version, status] of [
   ['of a package not on npm yet', '404 {}', '2.0.0', 0],
   ['when the registry cannot answer', '503 -', '2.0.0', 1],
   ['when a 200 transfer did not complete', '200!18 {"alpha":"2.0.0-alpha.8"}', '2.0.1', 1],
+  ['when latest is a pre-release of the same version', '200 {"latest":"2.0.0-alpha.8"}', '2.0.0', 0],
+  ['when latest is a pre-release of a higher version', '200 {"latest":"2.1.0-rc.1"}', '2.0.1', 0],
+  ['above a latest that sorts higher as text', '200 {"latest":"2.0.9"}', '2.0.10', 0],
+  ['below a latest that sorts lower as text', '200 {"latest":"2.0.10"}', '2.0.9', 1],
 ]) {
   test(`registry check: a stable version ${title}`, (context) => {
     // Given: npm answers the dist-tags request with a status and a body.

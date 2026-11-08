@@ -292,6 +292,14 @@ jobs:
           case "$version" in
             0.*) echo "::error::${version} is a 0.x version — the 0.x line publishes from release/v0"; exit 1 ;;
           esac
+          # npm @daytona/sdk 2.0.0-rc.1 and PyPI daytona 2.0.0rc1 were
+          # published before this workflow. Refused in every mode: a
+          # force_republish resume would take them as this run's SDKs and
+          # publish the migration tool and the CLI around them.
+          if [ "$version" = 2.0.0-rc.1 ]; then
+            echo "::error::2.0.0-rc.1 is taken by SDK packages published before this release line (npm 2.0.0-rc.1, PyPI 2.0.0rc1); publish v2.0.0-rc.2 or later"
+            exit 1
+          fi
           # Source rule: a stable version only from a commit on main; a
           # pre-release from any commit.
           case "$version" in
@@ -569,7 +577,18 @@ jobs:
               404) return 1 ;;
               *)   echo "::error::could not read the npm dist-tags of $1 (HTTP ${code:-000})"; exit 1 ;;
             esac
-            [ -n "$current" ] && [ "$current" != "$2" ] && [ "$(printf '%s\n%s\n' "$current" "$2" | sort -V | tail -n 1)" = "$current" ]
+            # Only a stable X.Y.Z `latest` can be moved back (a pre-release
+            # `latest`, as npm sets for a package first published as one,
+            # is not compared); stable versions compare numerically per field.
+            [[ "$current" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || return 1
+            local -a have=("${BASH_REMATCH[@]:1}") want
+            IFS=. read -r -a want <<<"$2"
+            local i
+            for i in 0 1 2; do
+              (( have[i] > want[i] )) && return 0
+              (( have[i] < want[i] )) && return 1
+            done
+            return 1
           }
           if [ "${NPM_DIST_TAG:-}" = latest ]; then
             for pkg in "@daytona/sdk:$NPM_VERSION" "@daytona/upgrade:$UPGRADE_NPM"; do
@@ -1444,7 +1463,8 @@ jobs:
           fi
           echo "waiting for ${tap} run $run_id"
           gh run watch "$run_id" --repo "$tap" --exit-status --interval 15
-          formula_names_version 0
+          # A read right after the tap's push can still see the old file.
+          formula_names_version 60
 
   # The version is recorded as a tag on the published commit. The CLI
   # release creates it; an SDK-only run (publish_cli=false) creates it here.
