@@ -108,7 +108,7 @@ func newRegistryListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return listOutRaw(a.Printer(), items, func(rows []gen.Registry) output.Table {
+		return listOutRaw(a.Printer(), listWithoutWriteOnly(items, writeOnlyFields.registry), func(rows []gen.Registry) output.Table {
 			tableRows := make([][]string, 0, len(rows))
 			for _, row := range rows {
 				tableRows = append(tableRows, []string{row.Host, string(row.Kind), row.Username, row.UpdatedAt.Format(time.RFC3339)})
@@ -190,9 +190,10 @@ func btoi(v bool) int {
 	return 0
 }
 
-// printRegistry prints a registry credential's metadata: the API's JSON, or a
-// table.
+// printRegistry prints a registry credential's metadata: the API's JSON
+// without any password field, or a table.
 func printRegistry(a *app.App, raw api.Raw[gen.Registry]) error {
+	raw = withoutWriteOnly(raw, writeOnlyFields.registry)
 	resp := raw.V
 	return a.Printer().Object(raw, [][2]string{{"host", resp.Host}, {"kind", string(resp.Kind)}, {"username", resp.Username}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
 }

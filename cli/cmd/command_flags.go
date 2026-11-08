@@ -233,7 +233,10 @@ var flagCombinationRules = map[string]func(*pflag.FlagSet) error{
 		return nil
 	},
 	"daytona sandbox process signal": func(f *pflag.FlagSet) error {
-		if f.Changed("escalate-to") && !f.Changed("escalate-after") {
+		// The values decide, not the flags given: an empty --escalate-after
+		// sets no delay, so the escalation would be sent and never happen.
+		to, after := flagValue(f, "escalate-to"), flagValue(f, "escalate-after")
+		if strings.TrimSpace(to) != "" && strings.TrimSpace(after) == "" {
 			return cerr.Usage("--escalate-to requires --escalate-after")
 		}
 		return nil
@@ -268,4 +271,12 @@ func validateFlagRules(cmd *cobra.Command) error {
 		return cerr.Usage("--region is empty").WithHint("pass a region id (`daytona region list` shows them), or omit --region")
 	}
 	return nil
+}
+
+// flagValue is a flag's value as given, whatever its placeholder type.
+func flagValue(f *pflag.FlagSet, name string) string {
+	if flag := f.Lookup(name); flag != nil {
+		return flag.Value.String()
+	}
+	return ""
 }

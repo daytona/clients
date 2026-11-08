@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/daytona/clients/cli/internal/api"
@@ -118,4 +119,46 @@ func withField(raw json.RawMessage, key string, value any) (json.RawMessage, err
 	}
 	object[key] = encoded
 	return json.Marshal(object)
+}
+
+// writeOnlyFields are the request fields that carry a credential: the CLI
+// never prints them, whatever a response holds (the one exception to
+// printing the API's JSON as it came). Matched case-insensitively.
+var writeOnlyFields = struct{ secret, registry []string }{
+	secret:   []string{"value"},
+	registry: []string{"password"},
+}
+
+// withoutWriteOnly returns r with the fields named in keys (any case) removed
+// from its top-level JSON object; r is unchanged when none is present.
+func withoutWriteOnly[T any](r api.Raw[T], keys []string) api.Raw[T] {
+	var object map[string]json.RawMessage
+	if json.Unmarshal(r.JSON, &object) != nil || object == nil {
+		return r
+	}
+	dropped := false
+	for k := range object {
+		for _, key := range keys {
+			if strings.EqualFold(k, key) {
+				delete(object, k)
+				dropped = true
+			}
+		}
+	}
+	if !dropped {
+		return r
+	}
+	clean, err := json.Marshal(object)
+	if err != nil {
+		return api.Raw[T]{V: r.V}
+	}
+	return api.Raw[T]{V: r.V, JSON: clean}
+}
+
+// listWithoutWriteOnly applies withoutWriteOnly to every item.
+func listWithoutWriteOnly[T any](l output.List[api.Raw[T]], keys []string) output.List[api.Raw[T]] {
+	for i := range l.Items {
+		l.Items[i] = withoutWriteOnly(l.Items[i], keys)
+	}
+	return l
 }

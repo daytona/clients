@@ -123,7 +123,7 @@ func newSecretListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return listOutRaw(a.Printer(), items, func(rows []gen.Secret) output.Table {
+		return listOutRaw(a.Printer(), listWithoutWriteOnly(items, writeOnlyFields.secret), func(rows []gen.Secret) output.Table {
 			tableRows := make([][]string, 0, len(rows))
 			for _, row := range rows {
 				tableRows = append(tableRows, []string{row.Name, joinComma(row.AllowedDomains), row.UpdatedAt.Format(time.RFC3339)})
@@ -241,8 +241,10 @@ func trimOneTrailingLineEnding(value string) string {
 	return strings.TrimSuffix(value, "\n")
 }
 
-// printSecret prints a secret's metadata: the API's JSON, or a table.
+// printSecret prints a secret's metadata: the API's JSON without any value
+// field, or a table.
 func printSecret(a *app.App, raw api.Raw[gen.Secret]) error {
+	raw = withoutWriteOnly(raw, writeOnlyFields.secret)
 	resp := raw.V
 	return a.Printer().Object(raw, [][2]string{{"name", resp.Name}, {"allowed_domains", joinComma(resp.AllowedDomains)}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
 }

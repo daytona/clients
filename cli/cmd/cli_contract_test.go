@@ -496,7 +496,6 @@ func TestFileKeysAreExactOnEveryCommand(t *testing.T) {
 		{`{"Source":{"type":"registry","ref":"python:3.12"}}`, []string{"image", "create", "img", "--no-wait"}},
 		{`{"source":{"Type":"registry","ref":"python:3.12"}}`, []string{"image", "create", "img", "--no-wait"}},
 		{`{"source":{"type":"registry","ref":"x","extra":1}}`, []string{"image", "create", "img", "--no-wait"}},
-		{`{"source":{"type":"named","ref":"x"}}`, []string{"image", "create", "img", "--no-wait"}},
 		{`{"Labels":{"a":"b"}}`, []string{"sandbox", "update", "s"}},
 		{`{"lifecycle_policy":{"Timeout_Seconds":60}}`, []string{"sandbox", "update", "s"}},
 		{`{"Dockerfile":"Dockerfile","context":"."}`, []string{"image", "build", "img", "--no-wait"}},
@@ -511,7 +510,7 @@ func TestFileKeysAreExactOnEveryCommand(t *testing.T) {
 		args := append([]string{"--api-url", f.srv.URL, "--api-key", "k"}, tc.args...)
 		_, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, append(args, "--file", path)...)
 		require.Equal(t, cerr.ExitUsage, code, "%v %s: %s", tc.args, tc.body, stderr)
-		require.Contains(t, errorObject(t, stderr)["message"], "unknown", tc.body)
+		require.Contains(t, errorObject(t, stderr)["message"], "unknown field", tc.body)
 		for _, r := range f.requests {
 			require.Equal(t, http.MethodGet, r.Method, "%v %s: nothing is sent", tc.args, tc.body)
 		}
@@ -877,6 +876,7 @@ func TestImageCreateSourceMembersAreChecked(t *testing.T) {
 		`{"source":{"Type":"registry","ref":"x"}}`:           `did you mean "type"`,
 		`{"source":{"type":"registry","ref":"x","extra":1}}`: `unknown field "extra"`,
 		`{"source":{"type":"registry","Ref":"x"}}`:           `did you mean "ref"`,
+		`{"source":{"type":"named","ref":"x"}}`:              `unknown field "ref"`,
 	} {
 		path := filepath.Join(dir, "body.json")
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
@@ -903,6 +903,8 @@ func TestIgnoredFlagCombinationsAreRefused(t *testing.T) {
 	for _, args := range [][]string{
 		{"sandbox", "update", "s", "--clear-labels", "--label", "a=b"},
 		{"sandbox", "process", "signal", "s", "p", "TERM", "--escalate-to", "KILL"},
+		{"sandbox", "process", "signal", "s", "p", "TERM", "--escalate-to", "KILL", "--escalate-after", ""},
+		{"sandbox", "process", "signal", "s", "p", "TERM", "--escalate-to", "KILL", "--escalate-after", " "},
 		{"login", "--token", "dtn_x", "--device"},
 	} {
 		f := newFakeAPI(t)
@@ -911,5 +913,40 @@ func TestIgnoredFlagCombinationsAreRefused(t *testing.T) {
 			require.Equal(t, cerr.ExitUsage, code, "%v %v: %s", args, env, stderr)
 		}
 		require.Empty(t, f.requests, args)
+	}
+}
+
+// secret and registry commands never print a write-only credential, even
+// when a response carries one: every other field passes through.
+func TestSecretAndRegistryOutputNeverHoldsTheCredential(t *testing.T) {
+	t.Setenv("DAYTONA_TEST_SKIP_CONTRACT", "1")
+	secret := `{"name":"API_KEY","allowed_domains":["a.example"],"created_at":"2026-11-08T00:00:00Z","updated_at":"2026-11-08T00:00:00Z","value":"s3cr3t-v4lue","Value":"s3cr3t-v4lue","future":1}`
+	registry := `{"host":"ghcr.io","kind":"basic","username":"me","created_at":"2026-11-08T00:00:00Z","updated_at":"2026-11-08T00:00:00Z","password":"s3cr3t-v4lue","future":1}`
+	f := newFakeAPI(t)
+	reply := func(body string) http.HandlerFunc {
+		return func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(body)) }
+	}
+	f.handle(http.MethodGet, "/secrets/API_KEY", reply(secret))
+	f.handle(http.MethodPut, "/secrets/API_KEY", reply(secret))
+	f.handle(http.MethodGet, "/secrets", reply(`{"secrets":[`+secret+`]}`))
+	f.handle(http.MethodGet, "/registries/ghcr.io", reply(registry))
+	f.handle(http.MethodPut, "/registries/ghcr.io", reply(registry))
+	f.handle(http.MethodGet, "/registries", reply(`{"registries":[`+registry+`]}`))
+	for _, args := range [][]string{
+		{"secret", "get", "API_KEY"},
+		{"secret", "set", "API_KEY", "--value", "x"},
+		{"secret", "list"},
+		{"registry", "get", "ghcr.io"},
+		{"registry", "set", "ghcr.io", "--username", "me", "--password", "x"},
+		{"registry", "list"},
+	} {
+		for _, format := range []string{"json", "yaml", "table"} {
+			stdout, stderr, code := runReported(t, cfgDir(t), nil, append([]string{"--api-url", f.srv.URL, "--api-key", "k", "--project", "p", "-o", format}, args...)...)
+			require.Equal(t, 0, code, "%v %s: %s", args, format, stderr)
+			require.NotContains(t, stdout, "s3cr3t", "%v %s", args, format)
+			if format != "table" {
+				require.Contains(t, stdout, "future", "%v %s: other fields pass through", args, format)
+			}
+		}
 	}
 }
