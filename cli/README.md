@@ -130,7 +130,9 @@ that matches decides, and a pattern that matched a directory applies to
 everything inside it. So `!config` after `**/*.pem` uploads `config/` but
 not `config/server.pem`. An excluded directory is walked only when a `!`
 pattern could re-include something inside it; an unreadable excluded
-directory is skipped. The Dockerfile and the ignore file are always uploaded,
+directory is skipped. A pattern Docker cannot match (`foo\q`) fails the
+build (exit 2, naming the ignore file) only when a path reaches it, as with
+`docker build`. The Dockerfile and the ignore file are always uploaded,
 even when a pattern matches them. The 64 MiB context limit counts what is
 uploaded. A `--context` tar file is uploaded as is, and `sandbox cp` never
 filters.
@@ -248,11 +250,12 @@ never prompts:
   to 100, default 20; `billing usage-periods` 1 to 60, default 12),
   `--cursor <token>` and `--all` page through it. `sandbox list` and `image list` query each distinct API
   base URL in the region catalog once for fresh listings and regional cursors,
-  unless `--region` narrows them. With `--region R` they print only the items
-  in R or a region inside it (`region_id` for sandboxes; `region_id` or
-  `region_ids` for images); the list API has no region filter and regions
-  can share an API, so a page can then hold fewer than `--limit` items while
-  the cursor still advances over the API's page. Saved cursors resume
+  unless `--region` narrows them. With `--region R` they ask every API that
+  serves R or a region inside it and print only the items in R or a region
+  inside it (`region_id` for sandboxes; `region_id` or `region_ids` for
+  images); the list API has no region filter and regions can share an API,
+  so a page can then hold fewer than `--limit` items while the cursor still
+  advances over each API's page. Saved cursors resume
   unfinished pages.
   Results merge regional cursors and de-duplicate resources by ID. The
   catalogs (`region`, `cpu-type`, `mac-model`, `role`, `billing plan`) and the
@@ -342,8 +345,9 @@ request.
 - A list prints `{"items": [...], "incomplete": false}` plus `next_cursor` when
   another page exists and `errors` (`[{"region", "status", "code", "source",
   "trace_id", "message"}]`, absent fields omitted) when a region failed; `items` is
-  always an array. `sandbox search` adds `total`
-  and `total_relation`. `cpu-type list` and `mac-model list` print the same
+  always an array. `sandbox search` asks one API and prints
+  `{"items": [...], "total": N, "total_relation": "eq" | "gte"}` plus
+  `next_cursor` when another page exists (no `incomplete`). `cpu-type list` and `mac-model list` print the same
   envelope with or without `--region` (with `--region`, `mac-model list` items
   are the region's catalog entries: `model`, `available`, `price`).
 - `--follow` with `-o json` streams NDJSON, one object per line:
@@ -362,11 +366,11 @@ request.
   do not know rather than print empty values.
 - A command with no resource to print acknowledges with the identifier under
   the field that names it plus a boolean named after the action, e.g.
-  `{"id": "img1", "deleted": true}`:
-  - `id`: `image`, `snapshot`, `org`, `project delete` (`deleted`; `volume
-    delete` prints the API's operation when it returns one; `image`,
-    `snapshot` and `volume delete` take an id or a name and print the
-    resource's id), `key` /
+  `{"ref": "img1", "deleted": true}`:
+  - `ref`: `image`, `snapshot`, `volume delete` (`deleted`): they take an id
+    or a name, send it as given in one request, and repeat it (`volume
+    delete` prints the API's operation when it returns one);
+  - `id`: `org`, `project delete` (`deleted`), `key` /
     `org-key` / `invite revoke` (`revoked`), `service-account delete`
     (`archived`), `project service-account remove` (`removed`), `org leave`
     (`left`);
@@ -426,11 +430,11 @@ numbers can also come from the remote side (the JSON error `source` then reads
 ### Request bodies (`--file`)
 
 `--file PATH` (or `--file -` for stdin) takes one JSON object; explicit flags
-override its fields. Unknown keys are rejected (exit 2), and so are two keys
-that name one request field and differ only in case (`cores_max` and
-`CORES_MAX`); keys of map values such as `env` and `labels` are names of your
-own and are sent as given. The bodies use the
-API's request fields:
+override its fields. Keys name the API's request fields exactly, at any
+depth, as the API does: an unknown key, including one that differs from a
+field only in case (`Name`, `CORES_MAX`), is refused (exit 2). Keys of map
+values such as `env` and `labels` are names of your own and are sent as
+given. The bodies use the API's request fields:
 
 | Command | Body |
 |---|---|
