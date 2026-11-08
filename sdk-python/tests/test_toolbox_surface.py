@@ -1450,3 +1450,11 @@ async def test_list_cursors_and_remotes_name_what_is_wrong(
 
     with pytest.raises(BadRequestError, match=message):
         await calls[operation]()
+
+
+def test_the_wire_duration_limit_is_checked_before_rounding_like_the_typescript_sdk() -> None:
+    from daytona.v2._core import timeout_millis_from_seconds
+
+    assert timeout_millis_from_seconds(9_007_199_254_740.991) is not None
+    with pytest.raises(BadRequestError, match="timeout is too large"):
+        timeout_millis_from_seconds(9_007_199_254_740.992)

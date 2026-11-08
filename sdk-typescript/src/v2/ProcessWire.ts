@@ -55,11 +55,10 @@ export function exactMs(name: string, seconds: number | undefined): number | und
     throw badRequest(`${name} must be a non-negative finite number of seconds`)
   }
   if (seconds === 0) return 0
+  // The largest wire value both SDKs send exactly, checked before rounding (as Python does).
+  if (seconds * 1000 > Number.MAX_SAFE_INTEGER) throw badRequest(`${name} is too large`)
   // Round away float noise (0.1 * 1000 = 100.00000000000001) before rounding up.
-  const ms = Math.max(1, Math.ceil(Math.round(seconds * 1000 * 1e6) / 1e6))
-  // The largest wire value both SDKs send exactly.
-  if (!Number.isSafeInteger(ms)) throw badRequest(`${name} is too large`)
-  return ms
+  return Math.max(1, Math.ceil(Math.round(seconds * 1000 * 1e6) / 1e6))
 }
 
 /**

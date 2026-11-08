@@ -12395,6 +12395,8 @@ describe('toolbox surface', () => {
     expect(exactMs('t', 9_007_199_254_740)).toBe(9_007_199_254_740_000)
     expect(() => exactMs('t', 9_007_199_254_741)).toThrow('t is too large')
     expect(() => exactMs('t', 1e300)).toThrow('t is too large')
+    expect(() => exactMs('t', 9_007_199_254_740.992)).toThrow('t is too large')
+    expect(Number.isSafeInteger(exactMs('t', 9_007_199_254_740.991))).toBe(true)
     expect(secondsToMs('t', Number.MAX_VALUE)).toBe(0)
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
