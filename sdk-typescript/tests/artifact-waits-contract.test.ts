@@ -92,3 +92,9 @@ it('keeps waiting with a budget above the timer maximum', async () => {
     server.close()
   }
 }, 10_000)
+
+it('accepts a valid timeoutSeconds without wait and leaves it unused', async () => {
+  const { url, server } = await serve(['building'], false)
+  const image = await within(url, server, (client) => client.v2.images.get('img', { timeoutSeconds: 5 }))
+  expect(image.status).toBe('building')
+})

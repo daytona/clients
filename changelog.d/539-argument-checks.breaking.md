@@ -6,13 +6,13 @@ non-blank id; `reservations.update()` needs a boolean `auto_renew` /
 `autoRenew`; `volumes.delete()` takes a non-empty name or id (not a `Volume`);
 `ports.expose()` needs a boolean `public`; `reservations.create()` /
 `create_bulk()` (`createBulk()`) check that `region` and `model` are strings
-(blank names no region / the region's default model, as the contract says),
-`auto_renew` / `autoRenew` and the counts (`count` 1 to 100, `min_count` /
-`minCount` 1 to `count`), so none is silently left out of the request;
-`create_access_token()` / `createAccessToken()` operations must be strings and
-its `ports` a list of port numbers; a port's `proto` is `tcp` or `udp`; the
-image options of `images.build()` / `pull()`, `capture_image()` and
-`create_from_build()` (checked before the build) must have their types;
+(a blank region means no region, and a blank model the region's default model,
+as the contract says), `auto_renew` / `autoRenew` and the counts (`count` 1 to
+100, `min_count` / `minCount` 1 to `count`), so none is silently left out of
+the request; `create_access_token()` / `createAccessToken()` operations must
+be strings and its `ports` a list of port numbers; a port's `proto` is `tcp`
+or `udp`; the image options of `images.build()` / `pull()`, `capture_image()`
+and `create_from_build()` (checked before the build) must have their types;
 `region` must be a string; `memory`, `disk` and their maximums must be
 positive; `fork(name=...)` refuses an empty name; `secrets.set()` requires
 `allowed_domains` / `allowedDomains` to be a list of strings; Python

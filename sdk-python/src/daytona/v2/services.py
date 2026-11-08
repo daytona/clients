@@ -345,15 +345,17 @@ async def _get_artifact(
     """
     if wait is not None and wait != "ready":
         raise create_error(f'wait must be "ready" or omitted, got {wait!r}', 400, "BAD_REQUEST", "SDK")
+    # The timeout is checked with or without ``wait``, as in TypeScript; without
+    # ``wait`` a valid one is unused. Above the timer maximum (an integer too
+    # large for a float included) the budget maps to 0.0: holds repeat without
+    # a deadline.
+    budget = None if timeout is None else wait_budget_seconds(timeout)
     if wait is None:
         return parse(await transport.send(RequestSpec("GET", path)))
-    if timeout is None or (not isinstance(timeout, bool) and timeout == 0):
+    if budget is None or (not isinstance(timeout, bool) and timeout == 0):
         return parse(
             await transport.send(RequestSpec("GET", path, params={"wait": wait}, unbounded_read=True))
         )
-    # Above the timer maximum (an integer too large for a float included) the
-    # budget maps to 0.0: holds repeat without a deadline.
-    budget = wait_budget_seconds(timeout)
     deadline = None if budget == 0 else _clock.monotonic() + budget
 
     def timed_out() -> DaytonaError:

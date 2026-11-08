@@ -153,3 +153,10 @@ async def test_a_budget_above_the_timer_maximum_keeps_waiting(serve: object) -> 
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(root.v2.images.get("img", wait="ready", timeout=3_000_000), 2.5)
     assert server.reads >= 3
+
+
+async def test_a_valid_timeout_without_wait_is_accepted_and_unused(serve: object) -> None:
+    serve(["building"], hold=False)  # type: ignore[operator]
+    async with AsyncDaytona(_CONFIG) as root:
+        image = await root.v2.images.get("img", timeout=5)
+    assert image.status == "building"

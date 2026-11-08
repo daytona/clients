@@ -80,6 +80,12 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   ['createFromBuild idleExpirySeconds as a string', (client) => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: '60' as never })],
   ['images.build cpuArch as a number', (client) => client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { cpuArch: 5 as never })],
   ['captureImage idleExpirySeconds 1.5', (_client, api) => handle(api).captureImage({ idleExpirySeconds: 1.5 })],
+  ['images.get timeoutSeconds -1 without wait', (client) => client.v2.images.get('img', { timeoutSeconds: -1 })],
+  ['images.get timeoutSeconds -1 with wait', (client) => client.v2.images.get('img', { wait: 'ready', timeoutSeconds: -1 })],
+  ['images.get timeoutSeconds NaN without wait', (client) => client.v2.images.get('img', { timeoutSeconds: Number.NaN })],
+  ['snapshots.get timeoutSeconds -1 without wait', (client) => client.v2.snapshots.get('snap', { timeoutSeconds: -1 })],
+  ['snapshots.get timeoutSeconds -1 with wait', (client) => client.v2.snapshots.get('snap', { wait: 'ready', timeoutSeconds: -1 })],
+  ['snapshots.get timeoutSeconds as a string without wait', (client) => client.v2.snapshots.get('snap', { timeoutSeconds: '5' as never })],
 ]
 
 it.each(REFUSED)('refuses %s with BadRequestError before any request', async (_name, call) => {
@@ -239,14 +245,41 @@ it.each([
   }
 })
 
-it('sends a create wait above the timer maximum as the maximum, with no client deadline on the POST', async () => {
-  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status: 'running' } }])
-  const client = clientAt(api.url, { requestTimeoutSeconds: 1 })
+const CAPPED_WAITS = [
+  ['create', 1e300], ['create', 2_147_484],
+  ['createFromSnapshot', 1e300], ['createFromSnapshot', 2_147_484],
+  ['createMacos', 1e300], ['createMacos', 2_147_484],
+] as const
+
+it.each(CAPPED_WAITS)('%s sends a wait of %d as the timer maximum, with no client deadline on the POST', async (route, waitSeconds) => {
+  // The POST is answered after 1.5 s: past the 1 s request timeout.
+  const bodies: string[] = []
+  const timers = new Set<ReturnType<typeof setTimeout>>()
+  const server = createServer((request, response) => {
+    let body = ''
+    request.on('data', (chunk: Buffer) => { body += chunk.toString('utf8') })
+    request.on('end', () => {
+      bodies.push(body)
+      timers.add(setTimeout(() => {
+        response.writeHead(200, { 'Content-Type': 'application/json' })
+        response.end(JSON.stringify({ id: 'sbx', status: 'running' }))
+      }, 1_500))
+    })
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new TypeError('expected TCP address')
+  const client = clientAt(`http://127.0.0.1:${address.port}`, { requestTimeoutSeconds: 1 })
   try {
-    await client.v2.create('img_1', { waitSeconds: 1e300 })
-    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ wait_seconds: 2_147_483 })
+    const source = route === 'create' ? 'img_1' : route === 'createFromSnapshot' ? 'snap_1' : 'sonoma'
+    const sandbox = await client.v2[route](source, { waitSeconds })
+    expect(sandbox.id).toBe('sbx')
+    expect(JSON.parse(bodies[0] ?? '{}')).toMatchObject({ wait_seconds: 2_147_483 })
   } finally {
+    for (const timer of timers) clearTimeout(timer)
     await client.close()
-    await api.close()
+    server.closeAllConnections()
+    server.close()
   }
-})
+}, 10_000)

@@ -940,12 +940,13 @@ MAX_SAFE_INTEGER: int = 2**53 - 1
 
 def finite_number(value: object) -> bool:
     """A real number a double can carry: not a bool, finite, and an integer
-    not too large for a float (checked without an ``OverflowError``)."""
+    ``float()`` converts (one it cannot is not finite, never an ``OverflowError``)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return False
-    if isinstance(value, int):
-        return -(2**1023) < value < 2**1024
-    return math.isfinite(value)
+    try:
+        return math.isfinite(float(value))
+    except OverflowError:
+        return False
 
 
 def wait_budget_seconds(value: object, *, name: str = "timeout") -> float:

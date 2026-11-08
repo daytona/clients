@@ -10,12 +10,14 @@ A wrong type or value is a :class:`BadRequestError` (400, ``BAD_REQUEST``,
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import socket
 import threading
 from collections.abc import Awaitable, Callable, Iterator
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import anyio
 import pytest
@@ -23,7 +25,14 @@ from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona import AsyncDaytona, DaytonaConfig
-from daytona.v2 import BadRequestError, ImageBuilder, PortMapping, RequestTimeoutError, Resources
+from daytona.v2 import (
+    BadRequestError,
+    DaytonaError,
+    ImageBuilder,
+    PortMapping,
+    RequestTimeoutError,
+    Resources,
+)
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
 from daytona.v2.errors import create_error
 from daytona.v2.types import Image, JsonObject
@@ -328,16 +337,60 @@ async def test_a_reservation_the_contract_allows_is_sent(
     assert {key: sent[key] for key in expected} == expected
 
 
+class _SlowCreateApi:
+    """Answers every POST after ``delay`` seconds, recording each body."""
+
+    def __init__(self, delay: float) -> None:
+        self.bodies: list[bytes] = []
+        stop = threading.Event()
+        self.stop = stop
+        bodies = self.bodies
+
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def log_message(self, *_args: object) -> None:
+                pass
+
+            def do_POST(self) -> None:
+                bodies.append(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+                stop.wait(delay)
+                data = json.dumps({"id": "sbx", "status": "running"}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                    self.wfile.write(data)
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.daemon_threads = True
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def close(self) -> None:
+        self.stop.set()
+        self.server.shutdown()
+        self.server.server_close()
+
+
 @pytest.mark.parametrize("route", ["create", "create_from_snapshot", "create_macos"])
-@pytest.mark.parametrize("wait_seconds", [10**400, 2_147_484, 3_000_000])
-async def test_a_create_wait_above_the_timer_maximum_is_sent_capped(route: str, wait_seconds: int) -> None:
-    # No limit: the body carries the timer maximum, the same value TypeScript sends.
-    with FakeApi([PlannedResponse(200, {"id": "sbx", "status": "running"})]) as fake:
-        os.environ["DAYTONA_V2_API_URL"] = fake.url
+@pytest.mark.parametrize("wait_seconds", [10**400, 2_147_484])
+async def test_a_create_wait_above_the_timer_maximum_is_sent_capped_with_no_client_deadline(
+    route: str, wait_seconds: int
+) -> None:
+    # No limit: the body carries the timer maximum, the same value TypeScript
+    # sends, and the POST outlives a 1 s request timeout (answered after 1.5 s).
+    api = _SlowCreateApi(1.5)
+    os.environ["DAYTONA_V2_API_URL"] = api.url
+    try:
         async with AsyncDaytona(DaytonaConfig(api_key="key", request_timeout=1)) as root:
             source = {"create": "img_1", "create_from_snapshot": "snap_1", "create_macos": "sonoma"}[route]
-            await getattr(root.v2, route)(source, wait_seconds=wait_seconds)
-    assert json.loads(fake.requests[0].body)["wait_seconds"] == 2_147_483
+            sandbox = await getattr(root.v2, route)(source, wait_seconds=wait_seconds)
+    finally:
+        api.close()
+    assert sandbox.id == "sbx"
+    assert json.loads(api.bodies[0])["wait_seconds"] == 2_147_483
 
 
 @pytest.mark.parametrize(
@@ -352,12 +405,60 @@ async def test_a_create_wait_above_the_timer_maximum_is_sent_capped(route: str, 
 async def test_an_integer_too_large_for_a_float_is_no_limit_not_an_overflow(
     call: Callable[[AsyncDaytonaV2], Awaitable[object]],
 ) -> None:
-    # The value passes as "no limit"; the request is sent, and whatever the
-    # fake answers ends the call, never an OverflowError or a refusal.
-    with FakeApi([PlannedResponse(500, {"message": "stop here"})]) as fake:
+    # The value passes as "no limit": the first request is sent, and the fake's
+    # own 404 ends the call (not an OverflowError, a refusal or any other failure).
+    with FakeApi([PlannedResponse(404, {"code": "NOT_FOUND", "message": "stop here"})]) as fake:
         os.environ["DAYTONA_V2_API_URL"] = fake.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with pytest.raises(Exception) as raised:
+            with pytest.raises(DaytonaError) as raised:
                 await call(root.v2)
-    assert not isinstance(raised.value, (OverflowError, BadRequestError))
-    assert fake.requests != []
+    assert (raised.value.status_code, raised.value.code, str(raised.value)) == (404, "NOT_FOUND", "stop here")
+    assert len(fake.requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("value", "finite"),
+    [
+        (2**1024 - 2**970 - 1, True),
+        (-(2**1024 - 2**970 - 1), True),
+        (-(2**1023) - 1, True),
+        (2**1024 - 2**970, False),
+        (-(2**1024 - 2**970), False),
+        (10**400, False),
+        (1.5, True),
+        (float("inf"), False),
+        (float("nan"), False),
+        (True, False),
+    ],
+    ids=[
+        "max",
+        "-max",
+        "-(2**1023)-1",
+        "first-overflow",
+        "-first-overflow",
+        "10**400",
+        "1.5",
+        "inf",
+        "nan",
+        "bool",
+    ],
+)
+def test_finite_number_is_exactly_what_float_converts(value: object, finite: bool) -> None:
+    from daytona.v2._core import finite_number
+
+    assert finite_number(value) is finite
+
+
+@pytest.mark.parametrize("kind", ["images", "snapshots"])
+@pytest.mark.parametrize("wait", [None, "ready"])
+@pytest.mark.parametrize("timeout", [-1, float("nan"), "5"])
+async def test_an_artifact_get_checks_its_timeout_with_or_without_wait(
+    kind: str, wait: str | None, timeout: object
+) -> None:
+    with FakeApi([]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            service = root.v2.images if kind == "images" else root.v2.snapshots
+            with pytest.raises(BadRequestError, match="timeout must be a non-negative finite number"):
+                await service.get("art", wait=wait, timeout=timeout)  # type: ignore[arg-type]
+    assert fake.requests == []
