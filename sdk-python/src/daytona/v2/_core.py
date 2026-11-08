@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import base64
 import collections.abc
+import functools
 import json
 import math
 import re
+import types
+import typing
 from collections.abc import Callable
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
@@ -29,7 +32,7 @@ from typing import (
 )
 from urllib.parse import quote, unquote
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from ._gen.api import LifecyclePolicy
 from ._gen.toolbox import (
@@ -279,6 +282,7 @@ def _expect_model_from_dict(
         return value
     if not isinstance(value, dict):
         raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    _check_container_fields(value, model_type, description)
     try:
         parsed = from_dict(value)
     except ValidationError as exc:
@@ -291,6 +295,99 @@ def _expect_model_from_dict(
     if parsed is None:
         raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
     return parsed
+
+
+# (wire key, "list" | "dict" | "model", the generated model inside it or None)
+_ContainerField = Tuple[str, str, Optional[type]]
+
+
+@functools.cache
+def _container_fields(model_type: type) -> Tuple[_ContainerField, ...]:
+    """The list, map and nested-model fields of a generated model, read from
+    its field types."""
+    found: List[_ContainerField] = []
+    model_fields = getattr(model_type, "model_fields", {})
+    for name, info in model_fields.items():
+        if name == "additional_properties":
+            continue
+        annotation = info.annotation
+        if typing.get_origin(annotation) in (Union, types.UnionType):
+            present = [arg for arg in typing.get_args(annotation) if arg is not type(None)]
+            if len(present) != 1:
+                continue
+            annotation = present[0]
+        origin = typing.get_origin(annotation)
+        args = typing.get_args(annotation)
+        inner = args[-1] if args else None
+        inner_model = inner if isinstance(inner, type) and issubclass(inner, BaseModel) else None
+        key = info.alias or name
+        if origin is list:
+            found.append((key, "list", inner_model))
+        elif origin is dict:
+            found.append((key, "dict", inner_model))
+        elif isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            found.append((key, "model", annotation))
+    return tuple(found)
+
+
+# A field's path as a parent-linked chain, rendered only for an error, so a
+# deeply nested payload costs no per-level string copies.
+_FieldPath = Optional[Tuple[str, "_FieldPath"]]
+
+
+def _render_path(path: _FieldPath) -> str:
+    """The path, its innermost 16 segments only (``…`` marks a cut)."""
+    parts: List[str] = []
+    while path is not None and len(parts) < 16:
+        parts.append(path[0])
+        path = path[1]
+    return ("…" if path is not None else "") + "".join(reversed(parts))
+
+
+def _check_container_fields(value: JsonObject, model_type: type, description: str) -> None:
+    """Every list or map field of a generated model, nested models included,
+    has its JSON shape before the model decodes it: the generated
+    ``from_dict`` iterates whatever is there (``{}`` or ``""`` would become
+    ``[]``, a number a raw ``TypeError``). Walks the payload with an explicit
+    stack, never recursing."""
+    stack: List[Tuple[Mapping[str, JsonValue], type, _FieldPath]] = [(value, model_type, None)]
+    while stack:
+        raw, model, parent = stack.pop()
+        for key, shape, inner in _container_fields(model):
+            item = raw.get(key)
+            if item is None:
+                continue
+            path: _FieldPath = (key if parent is None else f".{key}", parent)
+            if shape == "list":
+                if not isinstance(item, list):
+                    raise create_error(
+                        f"expected {description}: {_render_path(path)} must be a list",
+                        400,
+                        "BAD_REQUEST",
+                        "SDK",
+                    )
+                if inner is not None:
+                    stack.extend(
+                        (element, inner, (f"[{index}]", path))
+                        for index, element in enumerate(item)
+                        if isinstance(element, dict)
+                    )
+            elif shape == "dict":
+                if not isinstance(item, dict):
+                    raise create_error(
+                        f"expected {description}: {_render_path(path)} must be an object",
+                        400,
+                        "BAD_REQUEST",
+                        "SDK",
+                    )
+                if inner is not None:
+                    stack.extend(
+                        (element, inner, (f".{name}", path))
+                        for name, element in item.items()
+                        if isinstance(element, dict)
+                    )
+            elif isinstance(item, dict) and inner is not None:
+                stack.append((item, inner, path))
 
 
 LIFECYCLE_DURATION_FIELDS: Tuple[str, ...] = ("timeout_seconds", "idle_expiry_seconds")

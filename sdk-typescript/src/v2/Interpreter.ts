@@ -209,7 +209,9 @@ async function waitOrInterrupt(
   const result: WaitResult = callerDeadline !== undefined && timeout !== undefined && timeout <= 0
     ? { reason: 'timed_out' }
     : await waitMs(handle, timeout)
-  if (result.reason !== 'timed_out') return result
+  // A `timed_out` result with an exit code is the code's own deadline (the
+  // process has ended): nothing to interrupt, as in the Python SDK.
+  if (result.reason !== 'timed_out' || result.exitCode !== undefined) return result
   // Past the budget: interrupt the kernel (^C semantics). Whatever terminal
   // result reported by the API is returned as-is, even
   // when it lands after the caller's deadline — same as the Python SDK.

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Dict, Final, List, Mapping, Optional, Tuple
 
@@ -547,9 +548,16 @@ def parse_computer_use_recording(payload: ComputerUseRecording) -> ComputerUseRe
         start_time=parse_timestamp(payload.start_time, "computer-use recording: startTime"),
         status=payload.status,
         end_time=parse_optional_timestamp(payload.end_time, "computer-use recording: endTime"),
-        duration_seconds=payload.duration_seconds,
+        duration_seconds=_finite_or_none(payload.duration_seconds, "computer-use recording: durationSeconds"),
         size_bytes=payload.size_bytes,
     )
+
+
+def _finite_or_none(value: Optional[float], description: str) -> Optional[float]:
+    """A JSON number the decoder read as ``inf`` (``1e309``) is no number."""
+    if value is not None and not math.isfinite(value):
+        raise create_error(f"expected {description} must be a number", 400, "BAD_REQUEST", "SDK")
+    return value
 
 
 def parse_computer_use_recording_list(payload: ComputerUseRecordingsResponse) -> ComputerUseRecordingList:

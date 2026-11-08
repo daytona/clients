@@ -5095,6 +5095,20 @@ describe('toolbox service request shaping', () => {
     }
   })
 
+  it('returns a timed_out interpreter result that already has an exit code without interrupting', async () => {
+    const transport = transportStub()
+    transport.post.mockResolvedValueOnce(createdWire({ id: 'proc' }))
+    transport.get
+      .mockResolvedValueOnce({ reason: 'timed_out', exitCode: 124 })
+      // The long poll's timed_out is re-read: the record says the code's own deadline ended it.
+      .mockResolvedValueOnce(createdWire({ id: 'proc', state: 'terminal', reason: 'timed_out', exitCode: 124 }))
+      .mockResolvedValueOnce({ frames: [], nextCursor: '0', truncatedHead: false, eof: true })
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+
+    await expect(interpreter.run('loop()', { timeoutSeconds: 5 })).resolves.toMatchObject({ process: { reason: 'timed_out', exitCode: 124 } })
+    expect(transport.post).toHaveBeenCalledTimes(1)
+  })
+
   it('omits sessionId on context-free interpreter runs to select the default context', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValueOnce(createdWire({ id: 'one' })).mockResolvedValueOnce(createdWire({ id: 'two' }))
@@ -5661,6 +5675,22 @@ describe('toolbox service request shaping', () => {
     }
   })
 
+  it('returns pty.attach() results as a frozen pair of the live handle and connection', async () => {
+    const transport = transportStub()
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'pty' }))
+    const connection = { kind: 'duplex' } as unknown as Awaited<ReturnType<ProcessHandle['attach']>>
+    const attachSpy = jest.spyOn(ProcessHandle.prototype, 'attach').mockResolvedValueOnce(connection)
+    try {
+      const pty = new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object)
+      const attached = await pty.attach()
+      expect(Object.isFrozen(attached)).toBe(true)
+      expect(attached.connection).toBe(connection)
+      expect(Object.isFrozen(attached.handle)).toBe(false)
+    } finally {
+      attachSpy.mockRestore()
+    }
+  })
+
   it('uses the exchanged platform token in websocket attach URLs under jwt auth', async () => {
     const originalFetch = globalThis.fetch
     const originalWebSocket = Reflect.get(globalThis, 'WebSocket') as unknown
@@ -5725,6 +5755,16 @@ describe('toolbox service request shaping', () => {
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ shellCommand: 'echo hi', keepLogs: 'until_cleanup' })
     expect(result.output).toBe('ok')
     expect(result.logs).toEqual([{ cursor: 'c1', channel: 'stdout', data: 'ok', timestampMs: 1 }])
+  })
+
+  it.each([
+    ...[{}, '', 42].flatMap((frames) => [[frames, false], [frames, true]] as const),
+  ])('refuses inline run logs whose frames are %p (session %p)', async (frames, viaSession) => {
+    const transport = transportStub()
+    transport.post.mockResolvedValue(createdWire({ id: 'p', state: 'terminal', reason: 'exited', exitCode: 0, logs: { frames, nextCursor: '', eof: true, truncatedHead: false } }))
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    const run = viaSession ? process.connectSession('s').run('true') : process.run('true')
+    await expect(run).rejects.toMatchObject({ message: 'expected process log page: frames must be a list', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   it('settles process.run through the inline toolbox wait/log path', async () => {
@@ -11764,6 +11804,31 @@ describe('computer-use namespace', () => {
       truncated: false,
     })
     await expect(computerUse.a11y.find({ scope: 'all' })).resolves.toStrictEqual({ matches: [mappedCut, mappedPlain], truncated: true })
+  })
+
+  it.each([{}, '', 42].flatMap((malformed) => ([
+    ['display.info', 'displays', malformed],
+    ['display.windows', 'windows', malformed],
+    ['recording.list', 'recordings', malformed],
+    ['a11y.find', 'matches', malformed],
+    ['a11y.tree', 'children', malformed],
+  ] as const)))('refuses a computer-use %s response whose %s is %p', async (call, field, malformed) => {
+    const transport = transportStub()
+    const node = { id: 'n', role: 'r', name: 'n', bounds: { x: 0, y: 0, width: 1, height: 1 }, states: [] }
+    const payload = call === 'a11y.tree'
+      ? { root: { ...node, children: malformed }, truncated: false }
+      : call === 'a11y.find' ? { [field]: malformed, truncated: false } : { [field]: malformed }
+    transport.get.mockResolvedValue(payload)
+    transport.post.mockResolvedValue(payload)
+    const cu = new ComputerUseService(INTERNAL, transport.computerUseObject)
+    const calls = {
+      'display.info': () => cu.display.info(),
+      'display.windows': () => cu.display.windows(),
+      'recording.list': () => cu.recording.list(),
+      'a11y.find': () => cu.a11y.find({ scope: 'all' }),
+      'a11y.tree': () => cu.a11y.tree({ scope: 'focused' }),
+    }
+    await expect(calls[call]()).rejects.toMatchObject({ message: expect.stringContaining(`${field} must be a list`), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   describe('accessibility depth cap (256 levels)', () => {

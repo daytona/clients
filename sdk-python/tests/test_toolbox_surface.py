@@ -122,6 +122,27 @@ async def test_wait_never_fabricates_an_exit_code_or_signal_and_always_has_a_rea
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ({"id": ""}, "id is required"),
+        ({"createdAt": "yesterday"}, "createdAt"),
+        ({"createdAt": "2026-01-01T24:00:00Z"}, "createdAt"),
+    ],
+)
+async def test_wait_checks_the_record_it_rereads_after_a_timed_out_long_poll_in_full(
+    override: dict[str, JsonValue], message: str
+) -> None:
+    record = _process(**{"state": "terminal", "reason": "exited", "exitCode": 7, **override})
+    transport = Transport([{"reason": "timed_out"}, record])
+    handle = AsyncProcessService("sbx", transport).connect("proc")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=message) as info:
+        await handle.wait(timeout=30)
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
 async def test_stream_logs_yields_one_tagged_event_per_server_event_and_raises_a_typed_error() -> None:
     transport = Transport(
         lines=[
@@ -1859,3 +1880,112 @@ def test_a_10000_level_tree_body_is_refused_whichever_step_stops_it() -> None:
     with pytest.raises(BadRequestError) as info:
         parse_computer_use_a11y_tree_payload(parse_json_bytes(body), max_depth=256)
     assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+_MALFORMED_LISTS: list[JsonValue] = [{}, "", 42]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("frames", _MALFORMED_LISTS)
+@pytest.mark.parametrize("via_session", [False, True])
+async def test_run_refuses_inline_logs_whose_frames_are_not_a_list(
+    frames: JsonValue, via_session: bool
+) -> None:
+    logs: JsonValue = {"frames": frames, "nextCursor": "", "truncatedHead": False, "eof": True}
+    transport = Transport([_process(state="terminal", reason="exited", exitCode=0, logs=logs)])
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="logs.frames must be a list") as info:
+        if via_session:
+            await process.connect_session("s").run("true")
+        else:
+            await process.run("true")
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("malformed", _MALFORMED_LISTS)
+@pytest.mark.parametrize(
+    ("call", "field"),
+    [
+        ("display.info", "displays"),
+        ("display.windows", "windows"),
+        ("recording.list", "recordings"),
+        ("a11y.find", "matches"),
+        ("a11y.tree", "children"),
+    ],
+)
+async def test_computer_use_lists_that_are_not_lists_are_malformed_responses(
+    malformed: JsonValue, call: str, field: str
+) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    node: dict[str, JsonValue] = {
+        "id": "n",
+        "role": "r",
+        "name": "n",
+        "bounds": {"x": 0, "y": 0, "width": 1, "height": 1},
+        "states": [],
+    }
+    payload: JsonValue = (
+        {"root": {**node, "children": malformed}, "truncated": False}
+        if call == "a11y.tree"
+        else {field: malformed, "truncated": False}
+        if call == "a11y.find"
+        else {field: malformed}
+    )
+    cu = AsyncComputerUseService(Transport([payload]))  # type: ignore[arg-type]
+    calls = {
+        "display.info": lambda: cu.display.info(),
+        "display.windows": lambda: cu.display.windows(),
+        "recording.list": lambda: cu.recording.list(),
+        "a11y.find": lambda: cu.a11y.find(scope="all"),
+        "a11y.tree": lambda: cu.a11y.tree(scope="focused"),
+    }
+
+    with pytest.raises(BadRequestError, match=f"{field} must be a list") as info:
+        await calls[call]()
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+def test_the_generated_model_boundary_checks_nested_lists_and_maps_without_recursion() -> None:
+    from daytona.v2._core import _check_container_fields
+    from daytona.v2._gen.toolbox import ComputerUseLifecycleResponse, ProcessListResponse
+
+    record = _process(logs={"frames": [], "nextCursor": "", "truncatedHead": False, "eof": True})
+    _check_container_fields({"items": [record]}, ProcessListResponse, "process list response")
+    with pytest.raises(BadRequestError, match=r"items\[1\]\.logs\.frames must be a list"):
+        _check_container_fields(
+            {"items": [record, {**record, "logs": {"frames": {}}}]},
+            ProcessListResponse,
+            "process list response",
+        )
+    with pytest.raises(BadRequestError, match="status must be an object"):
+        _check_container_fields({"status": []}, ComputerUseLifecycleResponse, "computer-use start response")
+    # A self-nesting model 10,000 levels deep: walked with a stack, the bad
+    # list at the bottom is found without a RecursionError.
+    from daytona.v2._gen.toolbox import ComputerUseAccessibilityNode
+
+    deep: dict[str, JsonValue] = {"id": "leaf", "children": {}}
+    for _ in range(10_000):
+        deep = {"id": "n", "children": [deep]}
+    with pytest.raises(BadRequestError, match=r"\.children must be a list"):
+        _check_container_fields(deep, ComputerUseAccessibilityNode, "node")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("duration", ["1e309", "-1e309", "NaN"])
+async def test_a_recording_duration_that_is_not_a_finite_number_is_a_malformed_response(
+    duration: str,
+) -> None:
+    from daytona.v2._core import parse_json_bytes
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    body = (
+        '{"recordings":[{"id":"r","fileName":"r.mp4","filePath":"/r.mp4","startTime":"2026-01-01T00:00:00Z",'
+        f'"status":"completed","durationSeconds":{duration}}}]}}'
+    )
+    cu = AsyncComputerUseService(Transport([parse_json_bytes(body.encode())]))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="durationSeconds must be a number"):
+        await cu.recording.list()

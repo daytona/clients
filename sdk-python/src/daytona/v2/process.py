@@ -303,6 +303,9 @@ class AsyncProcessHandle:
                     raise
                 continue
             consecutive_transport_failures = 0
+            # The re-read record is checked in full (id, timestamps), as
+            # every other process record is.
+            parse_process(record)
             if enum_str(record.state) == "terminal":
                 return parse_wait(record)
 

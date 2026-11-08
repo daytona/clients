@@ -218,10 +218,10 @@ export class PtyService {
   }
 
   /** Start a PTY and connect to its terminal; the PTY is deleted again if the connection fails. */
-  public async attach(command?: string, options: PtyStartOptions = {}): Promise<{ handle: ProcessHandle; connection: PtyDuplex }> {
+  public async attach(command?: string, options: PtyStartOptions = {}): Promise<Readonly<{ handle: ProcessHandle; connection: PtyDuplex }>> {
     const handle = await this.start(command, options)
     try {
-      return { handle, connection: await handle.attach() }
+      return Object.freeze({ handle, connection: await handle.attach() })
     } catch (error) {
       await handle.delete().catch(() => undefined)
       throw error

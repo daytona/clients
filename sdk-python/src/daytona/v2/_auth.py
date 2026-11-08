@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from typing import Dict, Final, Optional
 
@@ -11,7 +10,7 @@ import anyio
 import httpx
 
 from . import _clock
-from ._core import error_from_response
+from ._core import error_from_response, loads_json
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, DaytonaError, create_error
 
@@ -181,7 +180,9 @@ def _token_exchange(body: bytes) -> _TokenExchange:
     TypeScript SDK's for the same response.
     """
     try:
-        payload: object = json.loads(body)
+        # A body nested past the decoder's limit is the malformed-response
+        # error (loads_json), like every other response the SDK decodes.
+        payload: object = loads_json(body, "token exchange response")
     except ValueError:
         payload = None
     if not isinstance(payload, dict):

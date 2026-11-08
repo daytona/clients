@@ -261,7 +261,8 @@ function mapComputerUseWindow(window: unknown): ComputerUseWindow {
 
 function arrayField(wire: WireRecord, field: string, d: string): unknown[] {
   const value = wire[field]
-  if (!Array.isArray(value)) throw malformedResponse(`${d}: ${field} is required`)
+  if (value === undefined || value === null) throw malformedResponse(`${d}: ${field} is required`)
+  if (!Array.isArray(value)) throw malformedResponse(`${d}: ${field} must be a list`)
   return value
 }
 

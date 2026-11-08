@@ -11620,6 +11620,32 @@ async def test_project_token_exchange_takes_an_integral_float_like_typescript(ra
 
 
 @pytest.mark.anyio
+async def test_project_token_exchange_nested_past_the_json_decoder_limit_is_the_malformed_response_error() -> (
+    None
+):
+    body = b'{"a":' * 100_000 + b"1" + b"}" * 100_000
+    http = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, content=body)),
+        base_url="http://api.invalid",
+    )
+    auth = ProjectTokenAuth(
+        api_url="http://api.invalid",
+        jwt_token="jwt",
+        project_id="project-1",
+        source="sdk-python-async",
+        client=http,
+    )
+    try:
+        with pytest.raises(
+            BadRequestError, match="token exchange response: the JSON is nested too deeply"
+        ) as info:
+            await auth._exchange_token()
+    finally:
+        await http.aclose()
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(("body", "message"), _TOKEN_EXCHANGE_CASES)
 async def test_project_token_exchange_names_what_is_wrong(body: bytes, message: str) -> None:
     http = httpx.AsyncClient(
