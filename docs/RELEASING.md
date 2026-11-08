@@ -188,11 +188,23 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 - A run cancelled while it created the CLI release can leave a **draft**
   release under the tag (`gh release create` uploads the assets to a draft and
   publishes it at the end). The resume refuses a draft, because it cannot
-  tell who made it. Check that the draft is that run's (title
-  `daytona CLI <version>`, no other edits), delete it
+  tell who made it. Before deleting it, check that it came from the failed
+  run, by its commit and its assets:
+
+  ```bash
+  gh release view v<version> --repo daytona/clients --json isDraft,targetCommitish,assets
+  # targetCommitish: the source commit in that run's Summary
+  gh run download <run id> --repo daytona/clients --name cli-dist --dir /tmp/cli-dist
+  gh release download v<version> --repo daytona/clients --dir /tmp/draft
+  (cd /tmp/draft && sha256sum --check --ignore-missing /tmp/cli-dist/SHA256SUMS)
+  # every asset the draft has matches the run's build (SHA256SUMS too, if uploaded)
+  ```
+
+  If both match, delete the draft
   (`gh release delete v<version> --repo daytona/clients`, keeping the tag if
-  it exists), and re-run the failed publish job: the release is created again
-  from the same build.
+  it exists) and re-run the failed publish job: the release is created again
+  from the same build. If either differs, the draft is not that run's: find
+  out who made it before touching it.
 - The run's **Summary** page lists what was published to which registry, from
   which branch and commit, with install commands and registry links.
 
@@ -285,13 +297,20 @@ at least a MINOR release even without a spec change
    (records the new `v0Version` / `v0Exports`), then
    `node upgrade/scripts/sync-mapping.mjs` and
    `node upgrade/scripts/gen-guide.mjs`, and add a changelog fragment.
-3. **Check the dependencies the bundle merges:** run
+3. **Check the dependencies the bundle merges.** Start with
+   `sdk-typescript/package.json` and `package-lock.json` unmodified (commit
+   any edits to them first: the cleanup below restores both from git). Run
    `bash scripts/bundle-v0.sh --lang typescript`, then
-   `bash scripts/check-no-bundled-v0.sh --check-list`. It names every
-   runtime dependency the new release merges into `sdk-typescript/package.json`
-   that `v0_only` in `scripts/check-no-bundled-v0.sh` does not list yet; add
-   those names there (and update the release named in its comment), in the
-   same pull request. Discard the bundle afterwards
+   `bash scripts/check-no-bundled-v0.sh --check-list`. It names each runtime
+   dependency the new release merges into `sdk-typescript/package.json` that
+   the committed manifest does not declare and that is not exempt. Exempt are
+   the names in `v0_only` in `scripts/check-no-bundled-v0.sh` (the
+   dependencies only v0 uses), v0's API clients (`@daytona/api-client`,
+   `@daytona/toolbox-api-client`, `@daytona/analytics-api-client`, which
+   the bundle always adds and other checks keep out of the committed
+   manifest), and `form-data`, which v2 also resolves. Add each name it
+   reports to `v0_only` (and update the release named in its comment) in the
+   same pull request. Then discard the bundle
    (`bash scripts/bundle-v0.sh --clean`, then `git checkout --
    sdk-typescript/package.json sdk-typescript/package-lock.json`). CI runs the
    same check on a real bundle.
