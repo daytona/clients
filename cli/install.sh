@@ -69,21 +69,47 @@ rank() {
 
 if [ -z "$VERSION" ]; then
   # Every published release of the repository (it also carries the 0.x line):
-  # "TAG DRAFT PRERELEASE" per release. GitHub lists tag_name before draft and
-  # prerelease in each release object; a release whose flags do not follow its
-  # tag is skipped.
+  # "TAG DRAFT PRERELEASE" per release, read from the fields of each release
+  # object in whatever order they come (nested objects and strings skipped).
   tags=""
   page=1
   while :; do
     body="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100&page=${page}")" \
       || { echo "could not list the releases of ${REPO}; pass --version X.Y.Z" >&2; exit 1; }
-    found="$(printf '%s\n' "$body" | tr ',' '\n' | awk '
-      /"tag_name": *"/ { tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); draft = "" }
-      /"draft": *true/ { draft = "true" }
-      /"draft": *false/ { draft = "false" }
-      /"prerelease": *(true|false)/ {
-        if (tag != "" && draft != "") print tag, draft, ($0 ~ /"prerelease": *true/ ? "true" : "false")
-        tag = ""
+    # Split on quotes: lines alternate between text outside strings (scanned
+    # for structure) and string contents (kept only for keys and tag_name).
+    found="$(printf '%s' "$body" | tr -d '\r\n' | tr '"' '\n' | awk '
+      instr {
+        esc = match($0, /\\+$/) ? RLENGTH % 2 : 0
+        if (keep) str = str $0 (esc ? "\"" : "")
+        if (esc) next
+        instr = 0
+        if (depth == 2 && !value) key = str
+        else if (depth == 2 && key == "tag_name") tag = str
+        if (depth == 2) value = 0
+        next
+      }
+      {
+        n = length($0)
+        for (i = 1; i <= n; i++) {
+          c = substr($0, i, 1)
+          if (c == "{" || c == "[") { if (depth == 1) { tag = ""; draft = ""; pre = "" } depth++; continue }
+          if (c == "}" || c == "]") {
+            depth--
+            if (depth == 1 && tag != "" && draft != "" && pre != "") print tag, draft, pre
+            if (depth == 2) value = 0
+            continue
+          }
+          if (depth != 2) continue
+          if (c == ":") { value = 1; continue }
+          if (c == ",") { value = 0; continue }
+          if (value && (c == "t" || c == "f")) {
+            if (key == "draft") draft = (c == "t" ? "true" : "false")
+            if (key == "prerelease") pre = (c == "t" ? "true" : "false")
+            value = 0
+          }
+        }
+        instr = 1; str = ""; keep = depth == 2 && (!value || key == "tag_name")
       }')"
     [ -n "$found" ] || break
     tags="${tags}${found}

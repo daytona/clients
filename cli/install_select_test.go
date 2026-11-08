@@ -27,20 +27,31 @@ type releaseIndex struct {
 	pageSize   int
 	prerelease []string
 	draft      []string
+	reordered  bool // flags before tag_name, as another API version might send them
 }
 
-// githubRelease keeps the field order of GitHub's release objects.
+// githubRelease keeps the field order of GitHub's release objects; the
+// nested author and assets carry decoy fields of the same names.
 type githubRelease struct {
-	URL             string `json:"url"`
-	TagName         string `json:"tag_name"`
-	TargetCommitish string `json:"target_commitish"`
-	Name            string `json:"name"`
-	Draft           bool   `json:"draft"`
-	Immutable       bool   `json:"immutable"`
-	Prerelease      bool   `json:"prerelease"`
-	CreatedAt       string `json:"created_at"`
-	Assets          []any  `json:"assets"`
-	Body            string `json:"body"`
+	URL             string         `json:"url"`
+	Author          map[string]any `json:"author"`
+	TagName         string         `json:"tag_name"`
+	TargetCommitish string         `json:"target_commitish"`
+	Name            string         `json:"name"`
+	Draft           bool           `json:"draft"`
+	Immutable       bool           `json:"immutable"`
+	Prerelease      bool           `json:"prerelease"`
+	CreatedAt       string         `json:"created_at"`
+	Assets          []any          `json:"assets"`
+	Body            string         `json:"body"`
+}
+
+type reorderedRelease struct {
+	Prerelease bool           `json:"prerelease"`
+	Draft      bool           `json:"draft"`
+	Body       string         `json:"body"`
+	Author     map[string]any `json:"author"`
+	TagName    string         `json:"tag_name"`
 }
 
 // write stores the index as page-N.json files in dir.
@@ -52,14 +63,19 @@ func (r releaseIndex) write(t *testing.T, dir string) {
 	}
 	for page := 0; page*size < len(r.tags); page++ {
 		end := min((page+1)*size, len(r.tags))
-		var releases []githubRelease
+		var releases []any
 		for _, tag := range r.tags[page*size : end] {
+			draft, prerelease := slices.Contains(r.draft, tag), strings.Contains(tag, "-") || slices.Contains(r.prerelease, tag)
+			author := map[string]any{"login": "release-bot", "tag_name": "v9.9.9", "draft": false, "prerelease": false}
+			body := `Install: "tag_name": "v9.9.9", "prerelease": false, "draft": false {[\`
+			if r.reordered {
+				releases = append(releases, reorderedRelease{Prerelease: prerelease, Draft: draft, Body: body, Author: author, TagName: tag})
+				continue
+			}
 			releases = append(releases, githubRelease{
-				URL: "https://api.github.com/repos/daytona/clients/releases/1", TagName: tag, TargetCommitish: "main",
-				Name: "daytona CLI " + tag, Draft: slices.Contains(r.draft, tag),
-				Prerelease: strings.Contains(tag, "-") || slices.Contains(r.prerelease, tag),
-				CreatedAt:  "2026-11-01T00:00:00Z", Assets: []any{map[string]any{"name": "daytona-linux-amd64", "label": ""}},
-				Body: `Install: "tag_name": "v9.9.9", "prerelease": false, "draft": false`,
+				URL: "https://api.github.com/repos/daytona/clients/releases/1", Author: author, TagName: tag, TargetCommitish: "main",
+				Name: "daytona CLI " + tag, Draft: draft, Prerelease: prerelease, CreatedAt: "2026-11-01T00:00:00Z",
+				Assets: []any{map[string]any{"name": "daytona-linux-amd64", "label": "", "draft": true}}, Body: body,
 			})
 		}
 		body, err := json.Marshal(releases)
@@ -82,6 +98,8 @@ var (
 	numericIndex = releaseIndex{tags: []string{"v2.9.0", "v2.10.0-rc.1", "v2.10.0-alpha.10", "v2.10.0-alpha.9"}}
 	// GitHub marks v2.3.0 as a pre-release, and v2.4.0 is a draft.
 	flaggedIndex = releaseIndex{tags: []string{"v2.4.0", "v2.3.0", "v2.2.0", "v2.3.0-rc.1"}, prerelease: []string{"v2.3.0"}, draft: []string{"v2.4.0"}}
+	// The same, with the flags before the tag in each release object.
+	reorderedIndex = releaseIndex{tags: flaggedIndex.tags, prerelease: flaggedIndex.prerelease, draft: flaggedIndex.draft, reordered: true}
 	// The 2.x release sits on the second page.
 	pagedIndex = releaseIndex{tags: append(repeatTags("v0.%d.0", 100), "v2.0.0", "v2.0.0-alpha.8"), pageSize: 100}
 )
@@ -117,6 +135,8 @@ var selectCases = []selectCase{
 	{name: "second page", index: pagedIndex, want: "2.0.0"},
 	{name: "a stable tag marked as a pre-release is not stable", index: flaggedIndex, want: "2.2.0"},
 	{name: "drafts never count", index: flaggedIndex, channel: "alpha", want: "2.3.0-rc.1"},
+	{name: "flags in any field order", index: reorderedIndex, want: "2.2.0"},
+	{name: "flags in any field order, alpha", index: reorderedIndex, channel: "alpha", want: "2.3.0-rc.1"},
 }
 
 const fakeBinary = "#!/bin/sh\necho installed\n"
