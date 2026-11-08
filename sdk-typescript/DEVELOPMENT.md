@@ -149,6 +149,25 @@ spellings so resource checks do not reject valid responses.
 npm install && npm run typecheck && npm test && npm run build
 ```
 
+### Public-surface snapshot
+
+`api-surface/index.api.txt` (`@daytona/sdk`) and `api-surface/v2.api.txt`
+(`@daytona/sdk/v2`) list the declaration surface of the entry points, one
+declaration per line: every export with its kind and full type signature, the
+members of exported classes, interfaces and object types, enum members, and
+long unions one member per line. `scripts/api-surface.mjs` reads it with the
+TypeScript compiler API (`@internal` members excluded, as in the published
+declarations). Regenerate after any change to the public surface and commit
+the result; CI runs the check:
+
+```bash
+npm run api-surface          # regenerate
+npm run api-surface:check    # exit 1 when stale
+```
+
+The `Breaking changes` workflow compares the snapshot with the last stable
+release (see `docs/VERSIONING.md`, "Breaking-change check").
+
 The live toolbox test requires `DAYTONA_SDKTS_TOOLBOX_URL` and skips when
 it is unset or the configured endpoint is unavailable.
 
