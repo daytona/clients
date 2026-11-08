@@ -1095,3 +1095,53 @@ def test_registering_and_copying_live_bridges_share_one_lock() -> None:
     for worker in workers:
         worker.join(5)
     assert sorted(done) == ["register", "snapshot"]
+
+
+def test_a_post_on_the_loop_thread_after_close_raises_bridge_error() -> None:
+    from daytona.v2._bridge import BridgeError, SyncBridge
+
+    bridge = SyncBridge()
+    ran: list[str] = []
+    outcome: list[str] = []
+
+    async def post_after_close() -> None:
+        bridge.close()  # from a call on the loop, which close() supports
+        try:
+            bridge.post(lambda: ran.append("ran"))
+        except BridgeError as error:
+            outcome.append(str(error))
+
+    bridge.call(post_after_close)
+    assert bridge.closed
+    assert ran == []
+    assert outcome == ["Daytona is closed"]
+
+
+def test_a_post_on_the_loop_thread_runs_the_operation_at_once() -> None:
+    from daytona.v2._bridge import SyncBridge
+
+    bridge = SyncBridge()
+    ran: list[str] = []
+
+    async def post_on_loop() -> None:
+        bridge.post(lambda: ran.append("ran"))
+        assert ran == ["ran"]
+
+    try:
+        bridge.call(post_on_loop)
+    finally:
+        bridge.close()
+    assert ran == ["ran"]
+
+
+def test_a_post_from_another_thread_after_close_raises_bridge_error() -> None:
+    from daytona.v2._bridge import BridgeError, SyncBridge
+
+    async def noop() -> None:
+        return None
+
+    bridge = SyncBridge()
+    bridge.call(noop)
+    bridge.close()
+    with pytest.raises(BridgeError, match="is closed"):
+        bridge.post(lambda: None)

@@ -216,10 +216,17 @@ class SyncBridge:
         the loop picks it up: a watch's synchronous twin posts the release of
         its callbacks this way, so the caller has usually stored the returned
         handle before the first callback runs. Runs it at once when called on
-        the loop itself. A closed bridge raises ``BridgeError``, as every call
-        does.
+        the loop itself. A post after ``close()`` raises ``BridgeError``, as
+        every call does, whichever thread makes it.
         """
         if self._on_own_loop():
+            # The loop thread never takes self._lock (see call()): a caller
+            # holding it may be waiting for this loop. close() sets _closed
+            # under the lock, and reading one bool needs none. A close() that
+            # starts after this check has not stopped the loop yet, so the
+            # operation runs as a post that won the race would.
+            if self._closed:
+                raise BridgeError(f"{self._name} is closed")
             operation()
             return
         # Scheduled under the lock close() takes before it stops the loop
