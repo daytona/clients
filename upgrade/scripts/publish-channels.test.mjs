@@ -29,7 +29,15 @@ function step(name) {
 
 function fixture(context) {
   const root = mkdtempSync(join(tmpdir(), 'publish-channels-'));
-  context.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+  // A tool on the host may still write into a fixture's .git while it is
+  // removed; a leftover temporary directory is not a test failure.
+  context.after(() => {
+    try {
+      rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    } catch (error) {
+      if (error.code !== 'ENOTEMPTY') throw error;
+    }
+  });
   mkdirSync(join(root, 'bin'));
   return root;
 }
@@ -326,7 +334,8 @@ for (const [title, answer, version, status] of [
       NPM_DIST_TAG: 'latest', FORCE: 'true', GH_TOKEN: '' });
     // Then: even force_republish never moves `latest` to a lower version.
     assert.equal(result.status, status, result.stdout + result.stderr);
-    if (status === 1) assert.match(result.stdout, /is below the package's npm latest/);
+    if (status === 1 && code === '200') assert.match(result.stdout, /is below the package's npm latest/);
+    if (code === '503') assert.match(result.stdout, /could not read the npm dist-tags of @daytona\/sdk \(HTTP 503\)/);
   });
 }
 

@@ -15,7 +15,15 @@ const testUpgrade = readFileSync(new URL('../../scripts/test-upgrade.sh', import
 
 function fixture(context) {
   const root = mkdtempSync(join(tmpdir(), 'upgrade-build-'));
-  context.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+  // A tool on the host may still write into a fixture's .git while it is
+  // removed; a leftover temporary directory is not a test failure.
+  context.after(() => {
+    try {
+      rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    } catch (error) {
+      if (error.code !== 'ENOTEMPTY') throw error;
+    }
+  });
   mkdirSync(join(root, 'bin'));
   return root;
 }
