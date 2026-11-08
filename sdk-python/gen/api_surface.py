@@ -155,7 +155,7 @@ def module_body(module_name: str) -> dict[str, list[ast.AST]]:
         return {}
     found: dict[str, list[ast.AST]] = {}
     for stmt in tree.body:
-        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             found.setdefault(stmt.name, []).append(stmt)
         elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
             found.setdefault(stmt.target.id, []).append(stmt)
@@ -220,34 +220,318 @@ def def_kind(node: ast.AST) -> str:
     return "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
 
 
-# --- runtime values -----------------------------------------------------------
+# --- names an annotation refers to ---------------------------------------------
 
 
-class Namespace:
-    def __init__(self, module_name: str, public_constructors: bool) -> None:
-        self.module = importlib.import_module(module_name)
-        self.public_constructors = public_constructors
-        self.names: list[str] = list(self.module.__all__)
-        # Every class any namespace exports, by identity: members a class
-        # inherits from one of them are listed under that class, not again.
-        self.exported: dict[int, str] = {}
-        for name in sorted(self.names):
-            obj = getattr(self.module, name)
-            if not isinstance(obj, SCALARS):
-                self.exported.setdefault(id(obj), name)
-        self.lines: list[str] = []
+@functools.lru_cache(maxsize=None)
+def module_imports(module_name: str) -> dict[str, tuple[str, str | None]]:
+    """Every name a module imports, ``if TYPE_CHECKING:`` blocks included:
+    local name -> (absolute module, attribute or None for a module)."""
+    module = sys.modules[module_name]
+    try:
+        tree = ast.parse(inspect.getsource(module))
+    except (OSError, TypeError):
+        return {}
+    package = module_name if hasattr(module, "__path__") else module_name.rpartition(".")[0]
+    found: dict[str, tuple[str, str | None]] = {}
+    for stmt in ast.walk(tree):
+        if isinstance(stmt, ast.ImportFrom):
+            base = stmt.module or ""
+            if stmt.level:
+                parent = package.split(".")
+                parent = parent[: len(parent) - stmt.level + 1]
+                base = ".".join([*parent, *([base] if base else [])])
+            for alias in stmt.names:
+                found.setdefault(alias.asname or alias.name, (base, alias.name))
+        elif isinstance(stmt, ast.Import):
+            for alias in stmt.names:
+                if alias.asname:
+                    found.setdefault(alias.asname, (alias.name, None))
+                else:
+                    top = alias.name.split(".")[0]
+                    found.setdefault(top, (top, None))
+    return found
+
+
+@dataclasses.dataclass(frozen=True)
+class Resolved:
+    obj: object
+    home: str  # the module that defines it
+    name: str  # its name there
+
+
+def resolve(module_name: str, dotted: list[str]) -> Resolved | None:
+    """What ``a.b.c`` written in ``module_name`` refers to."""
+    head, rest = dotted[0], dotted[1:]
+    found = resolve_name(module_name, head)
+    while found is not None and rest:
+        part, rest = rest[0], rest[1:]
+        if isinstance(found.obj, types.ModuleType):
+            found = resolve_name(found.obj.__name__, part)
+        else:
+            return None
+    return found
+
+
+@functools.lru_cache(maxsize=None)
+def resolve_name(module_name: str, name: str) -> Resolved | None:
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError:
+        return None
+    body = module_body(module_name)
+    if name in body and name in vars(module):
+        return Resolved(vars(module)[name], module_name, name)
+    imported = module_imports(module_name).get(name)
+    if imported is not None:
+        source, attr = imported
+        if attr is None:
+            try:
+                return Resolved(importlib.import_module(source), source, source)
+            except ImportError:
+                return None
+        try:
+            return Resolved(importlib.import_module(f"{source}.{attr}"), f"{source}.{attr}", attr)
+        except ImportError:
+            pass
+        if source.startswith("daytona"):
+            return resolve_name(source, attr)
+        try:
+            return Resolved(getattr(importlib.import_module(source), attr), source, attr)
+        except (ImportError, AttributeError):
+            return None
+    if name in vars(module):
+        return Resolved(vars(module)[name], module_name, name)
+    return None
+
+
+def referenced_names(node: ast.expr | None, *, skip_callables: bool = False) -> list[list[str]]:
+    """The dotted names an annotation uses (string forward references parsed,
+    ``Literal`` values skipped; with ``skip_callables``, the inside of
+    ``Callable[...]`` too, whose argument types flow out, not in)."""
+    found: list[list[str]] = []
+
+    def dotted(expr: ast.expr) -> list[str] | None:
+        if isinstance(expr, ast.Name):
+            return [expr.id]
+        if isinstance(expr, ast.Attribute):
+            head = dotted(expr.value)
+            return None if head is None else [*head, expr.attr]
+        return None
+
+    def walk(expr: ast.AST | None) -> None:
+        if expr is None:
+            return
+        if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+            try:
+                walk(ast.parse(expr.value, mode="eval").body)
+            except SyntaxError:
+                pass
+            return
+        if isinstance(expr, ast.Subscript):
+            head = dotted(expr.value)
+            last = head[-1] if head else ""
+            if last == "Literal" or (skip_callables and last == "Callable"):
+                return
+            walk(expr.value)
+            walk(expr.slice)
+            return
+        name = dotted(expr) if isinstance(expr, (ast.Name, ast.Attribute)) else None
+        if name is not None:
+            found.append(name)
+            return
+        for child in ast.iter_child_nodes(expr):
+            walk(child)
+
+    walk(node)
+    return found
+
+
+# --- the surface ----------------------------------------------------------------
+
+
+class Surface:
+    """Both namespaces. Exported names are listed under their name in their
+    namespace's file. A ``daytona`` class or type alias that a listed
+    signature uses but no namespace exports (an options type, a ``Literal``
+    alias, the v2 client behind the root's ``.v2``) is listed too, under
+    ``~Name``, in the file of the first namespace that reaches it."""
+
+    def __init__(self) -> None:
+        self.modules = {name: importlib.import_module(name) for name, _, _ in NAMESPACES}
+        # Declarations listed under a name of their own, by identity.
+        self.named: dict[int, str] = {}
+        self.used: set[str] = set()
+        self.named_aliases: dict[tuple[str, str], str] = {}
+        for module_name, _, _ in NAMESPACES:
+            module = self.modules[module_name]
+            for name in sorted(module.__all__):
+                self.used.add(name)
+                obj = getattr(module, name)
+                if own_object(obj):
+                    self.named.setdefault(id(obj), name)
+        self.lines: dict[str, list[str]] = {name: [] for name, _, _ in NAMESPACES}
+        self.current: list[str] = []
+        self.public_constructors = False
+        self.queue: list[tuple[str, object]] = []
+        # A dataclass constructor is public when users build the instance
+        # to pass it in: the class types a parameter of a method users call
+        # (one of an exported class, or of a class they get an instance of),
+        # or a field of such a class. Decided once everything is listed.
+        self.owner = MODULE_LEVEL
+        self.roots: set[int] = {MODULE_LEVEL}
+        self.public_init: set[int] = set()
+        # Dataclasses whose fields are all private: built by a factory.
+        self.factory_built: set[int] = set()
+        self.param_refs: dict[int, set[int]] = {}
+        self.out_refs: dict[int, set[int]] = {}
+        self.field_refs: dict[int, set[int]] = {}
+        self._alias_classes: dict[tuple[str, str, bool], set[int]] = {}
+
+    def run(self) -> dict[str, list[str]]:
+        # The v2 namespace first, so a declaration both reach is listed with v2.
+        for module_name, _, public_constructors in reversed(NAMESPACES):
+            self.current = self.lines[module_name]
+            self.public_constructors = public_constructors
+            self.namespace(self.modules[module_name])
+            while self.queue:
+                name, obj = self.queue.pop(0)
+                self.public_constructors = False
+                self.value(name, obj)
+        inputs = self.built_by_callers()
+        for lines in self.lines.values():
+            for i, line in enumerate(lines):
+                if CTOR_MARK in line:
+                    head, _, rest = line.partition(CTOR_MARK)
+                    ident, _, tail = rest.partition(" ")
+                    public = int(ident) in inputs and int(ident) not in self.factory_built
+                    kind = "constructor" if public else "internal-constructor"
+                    lines[i] = f"{head}{kind} {tail}"
+        return self.lines
+
+    def built_by_callers(self) -> set[int]:
+        def closure(start: set[int], edges: dict[int, set[int]]) -> set[int]:
+            found, frontier = set(start), list(start)
+            while frontier:
+                for ref in edges.get(frontier.pop(), ()):
+                    if ref not in found:
+                        found.add(ref)
+                        frontier.append(ref)
+            return found
+
+        callable_by_users = closure(self.roots, self.out_refs)
+        passed_in = set(self.public_init)
+        for owner in callable_by_users:
+            passed_in |= self.param_refs.get(owner, set())
+        return closure(passed_in, self.field_refs)
 
     def emit(self, name: str, kind: str, detail: str = "") -> None:
         detail = " ".join(detail.split())
-        self.lines.append(f"{name}: {kind}{' ' + detail if detail else ''}")
+        self.current.append(f"{name}: {kind}{' ' + detail if detail else ''}")
 
-    # A class from this package prints by its exported name; others by
+    # --- reaching -----------------------------------------------------------
+
+    def want(self, found: Resolved) -> int | None:
+        """List ``found`` under ``~Name`` if it is an unlisted ``daytona``
+        class or type alias; return its identity when it is a class."""
+        obj = found.obj
+        if isinstance(obj, type):
+            if not obj.__module__.startswith("daytona") or obj.__module__.startswith("daytona.v0"):
+                return None
+            if hasattr(obj, "_root_form") and hasattr(obj, "_load"):
+                return None
+            name = obj.__name__
+            home = obj.__module__
+        else:
+            if isinstance(obj, (types.ModuleType, typing.TypeVar, *SCALARS)) or callable(obj) and inspect.isroutine(obj):
+                return None
+            if not found.home.startswith("daytona") or found.home.startswith("daytona.v0"):
+                return None
+            if not any(isinstance(s, (ast.Assign, ast.AnnAssign)) for s in module_body(found.home).get(found.name, [])):
+                return None
+            name, home = found.name, found.home
+            # Type aliases go by where they are defined: typing caches equal
+            # unions, so two aliases can be one object.
+            if any(name in m.__all__ and getattr(m, name) is obj for m in self.modules.values()):
+                return None
+            if (home, name) not in self.named_aliases:
+                self.named_aliases[(home, name)] = self.new_key(name, home)
+                self.queue.append((self.named_aliases[(home, name)], obj))
+            return None
+        if id(obj) not in self.named:
+            self.named[id(obj)] = self.new_key(name, home)
+            self.queue.append((self.named[id(obj)], obj))
+        return id(obj)
+
+    def new_key(self, name: str, home: str) -> str:
+        key = f"~{name}"
+        if name in self.used or key in self.used:
+            key = f"~{name}@{home.replace('.', '/')}"
+        self.used.add(key)
+        return key
+
+    def classes_in(self, node: ast.expr | None, module_name: str, *, skip_callables: bool = False) -> set[int]:
+        """List every unlisted declaration an annotation names; return the
+        classes it names, through the type aliases it uses."""
+        classes: set[int] = set()
+        for dotted in referenced_names(node, skip_callables=skip_callables):
+            found = resolve(module_name, dotted)
+            if found is None:
+                continue
+            self.want(found)
+            if isinstance(found.obj, type):
+                classes.add(id(found.obj))
+            elif not isinstance(found.obj, types.ModuleType) and found.home.startswith("daytona"):
+                classes |= self.alias_classes(found.home, found.name, skip_callables)
+        return classes
+
+    def alias_classes(self, home: str, name: str, skip_callables: bool) -> set[int]:
+        key = (home, name, skip_callables)
+        if key in self._alias_classes:
+            return self._alias_classes[key]
+        self._alias_classes[key] = set()  # a self-referencing alias ends here
+        found: set[int] = set()
+        for stmt in module_body(home).get(name, []):
+            value = stmt.value if isinstance(stmt, (ast.Assign, ast.AnnAssign)) else None
+            if value is not None:
+                found |= self.classes_in(value, home, skip_callables=skip_callables)
+        self._alias_classes[key] = found
+        return found
+
+    def reach(self, node: ast.expr | None, module_name: str, *, role: str) -> None:
+        """Reach what an annotation names. ``role`` says how a caller meets
+        it on the declaration being listed: ``param`` (passed in), ``out``
+        (read or returned) or ``field`` (a dataclass or TypedDict field)."""
+        classes = self.classes_in(node, module_name)
+        owner = self.owner
+        if role == "param":
+            self.param_refs.setdefault(owner, set()).update(self.classes_in(node, module_name, skip_callables=True))
+        elif role == "field":
+            self.field_refs.setdefault(owner, set()).update(classes)
+            self.out_refs.setdefault(owner, set()).update(classes)
+        else:
+            self.out_refs.setdefault(owner, set()).update(classes)
+
+    def annotation(self, node: ast.expr | None, module_name: str, *, role: str = "out") -> str:
+        self.reach(node, module_name, role=role)
+        return annotation(node)
+
+    def signature(self, node: ast.FunctionDef | ast.AsyncFunctionDef, module_name: str, *, drop_first: bool, public: bool = True) -> str:
+        if public:
+            a = node.args
+            for arg in [*a.posonlyargs, *a.args, *a.kwonlyargs, a.vararg, a.kwarg]:
+                if arg is not None and arg.annotation is not None:
+                    self.reach(arg.annotation, module_name, role="param")
+            self.reach(node.returns, module_name, role="out")
+        return signature(node, drop_first=drop_first)
+
+    # A class from this package prints by its listed name; others by
     # ``module.qualname`` (builtins bare).
     def type_name(self, cls: type) -> str:
-        if id(cls) in self.exported:
-            return self.exported[id(cls)]
         if cls.__module__ == "builtins":
             return cls.__qualname__
+        if id(cls) in self.named:
+            return self.named[id(cls)]
         if cls.__module__ in ("typing", "collections.abc", "typing_extensions"):
             return cls.__qualname__
         return f"{cls.__module__}.{cls.__qualname__}"
@@ -276,6 +560,7 @@ class Namespace:
             head = self.type_name(origin) if isinstance(origin, type) else str(origin).replace("typing.", "")
             return f"{head}[{', '.join(self.runtime_type(a) for a in args)}]" if args else head
         if isinstance(obj, type):
+            self.want(Resolved(obj, obj.__module__, obj.__name__))
             return self.type_name(obj)
         if obj is Ellipsis:
             return "..."
@@ -285,25 +570,28 @@ class Namespace:
 
     # --- emitters ---
 
-    def run(self) -> list[str]:
+    def namespace(self, module: types.ModuleType) -> None:
+        names: list[str] = list(module.__all__)
         canonical: dict[int, str] = {}
-        for name in sorted(self.names):
-            obj = getattr(self.module, name)
+        for name in sorted(names):
+            obj = getattr(module, name)
             if isinstance(obj, SCALARS):
                 continue
             own = getattr(obj, "__name__", None) == name
             if id(obj) not in canonical or own:
                 canonical[id(obj)] = name
-        for name in self.names:
-            obj = getattr(self.module, name)
+        for name in names:
+            obj = getattr(module, name)
             if not isinstance(obj, SCALARS) and canonical[id(obj)] != name:
                 self.emit(name, "alias", f"= {canonical[id(obj)]}")
                 continue
-            self.exported[id(obj)] = name
-            self.value(name, obj)
-        return self.lines
+            if own_object(obj):
+                self.named[id(obj)] = name
+                if isinstance(obj, type):
+                    self.roots.add(id(obj))
+            self.value(name, obj, module.__name__)
 
-    def value(self, name: str, obj: object) -> None:
+    def value(self, name: str, obj: object, module_name: str | None = None) -> None:
         if isinstance(obj, type):
             self.cls(name, obj)
         elif isinstance(obj, types.ModuleType):
@@ -311,7 +599,7 @@ class Namespace:
         elif inspect.isfunction(obj):
             body = module_body(obj.__module__)
             for node in function_defs(obj, body):
-                self.emit(name, def_kind(node), signature(node, drop_first=False))
+                self.emit(name, def_kind(node), self.signature(node, obj.__module__, drop_first=False))
         elif isinstance(obj, SCALARS):
             self.emit(name, "const", f"{type(obj).__name__} = {obj!r}")
         elif isinstance(obj, (frozenset, set, tuple, list)):
@@ -370,12 +658,15 @@ class Namespace:
         for member in sorted(public):
             self.value(f"{name}.{member}", getattr(module, member))
 
+    def listed(self, cls: type) -> bool:
+        return id(cls) in self.named or not cls.__module__.startswith("daytona")
+
     def public_bases(self, cls: type) -> list[str]:
         names: list[str] = []
         for base in cls.__bases__:
             if base is object or base in (typing.Generic, typing.Protocol):
                 continue
-            if id(base) in self.exported or not base.__module__.startswith("daytona"):
+            if self.listed(base):
                 names.append(self.type_name(base))
             else:
                 names.extend(self.public_bases(base))
@@ -383,20 +674,21 @@ class Namespace:
 
     def own_classes(self, cls: type) -> list[type]:
         """``cls`` and the private package classes it inherits members from."""
-        owners = []
-        for klass in cls.__mro__:
-            if klass is not cls and (id(klass) in self.exported or not klass.__module__.startswith("daytona")):
-                continue
-            if klass.__module__.startswith("daytona"):
-                owners.append(klass)
-        return owners
+        return [k for k in cls.__mro__ if k.__module__.startswith("daytona") and (k is cls or not self.listed(k))]
 
     def cls(self, name: str, cls: type) -> None:
-        bases = self.public_bases(cls)
-        based = f"({', '.join(bases)})" if bases else ""
+        outer, self.owner = self.owner, id(cls)
+        try:
+            self.cls_body(name, cls)
+        finally:
+            self.owner = outer
+
+    def cls_body(self, name: str, cls: type) -> None:
         if hasattr(cls, "_root_form") and hasattr(cls, "_load"):
             self.emit(name, "annotation-only class", f"= {cls._root_form}")
             return
+        bases = self.public_bases(cls)
+        based = f"({', '.join(bases)})" if bases else ""
         if dataclasses.is_dataclass(cls):
             params = cls.__dataclass_params__  # type: ignore[attr-defined]
             flags = " frozen" if params.frozen else ""
@@ -417,16 +709,19 @@ class Namespace:
             self.constructor(name, cls)
         self.members(name, cls)
 
+    def constructor_kind(self, cls: type) -> str:
+        return "constructor" if self.public_constructors or issubclass(cls, BaseException) else "internal-constructor"
+
     def constructor(self, name: str, cls: type) -> None:
         for klass in cls.__mro__:
             if "__init__" not in vars(klass):
                 continue
-            if klass is not cls and (id(klass) in self.exported or not klass.__module__.startswith("daytona")):
+            if klass is not cls and self.listed(klass):
                 return  # inherited from a class listed on its own (or from a builtin)
-            public = self.public_constructors or issubclass(cls, BaseException)
-            kind = "constructor" if public else "internal-constructor"
+            kind = self.constructor_kind(cls)
             for node in function_defs(vars(klass)["__init__"], class_body(klass)):
-                self.emit(f"{name}.__init__", kind, signature(node, drop_first=True))
+                text = self.signature(node, klass.__module__, drop_first=True, public=kind == "constructor")
+                self.emit(f"{name}.__init__", kind, text)
             return
 
     def fields(self, name: str, cls: type) -> None:
@@ -434,12 +729,16 @@ class Namespace:
         keyword: list[str] = []
         for field in dataclasses.fields(cls):
             node = None
+            owner: type = cls
             for klass in cls.__mro__:
                 stmts = class_body(klass).get(field.name, []) if dataclasses.is_dataclass(klass) else []
                 node = next((s for s in stmts if isinstance(s, ast.AnnAssign)), None)
                 if node is not None:
+                    owner = klass
                     break
-            ann = annotation(node.annotation) if node is not None else ""
+            ann = ""
+            if node is not None:
+                ann = self.annotation(node.annotation, owner.__module__, role="field")
             default = ""
             if node is not None and node.value is not None:
                 value = node.value
@@ -467,20 +766,26 @@ class Namespace:
             return
         # The generated __init__: field order decides positional calls.
         params = positional + (["*", *keyword] if keyword else [])
-        public = self.public_constructors or issubclass(cls, BaseException)
-        kind = "constructor" if public else "internal-constructor"
-        self.emit(f"{name}.__init__", kind, f"({', '.join(params)}) -> None")
+        if params and all(p.startswith("_") for p in params if p != "*"):
+            self.factory_built.add(id(cls))
+        if self.constructor_kind(cls) == "constructor":
+            self.public_init.add(id(cls))
+        self.emit(f"{name}.__init__", f"{CTOR_MARK}{id(cls)}", f"({', '.join(params)}) -> None")
 
     def typeddict(self, name: str, cls: type) -> None:
         required = getattr(cls, "__required_keys__", frozenset())
         for key in cls.__annotations__:
             node = None
+            owner: type = cls
             for klass in cls.__mro__:
                 stmts = class_body(klass).get(key, [])
                 node = next((s for s in stmts if isinstance(s, ast.AnnAssign)), None)
                 if node is not None:
+                    owner = klass
                     break
-            ann = annotation(node.annotation) if node is not None else ""
+            ann = ""
+            if node is not None:
+                ann = self.annotation(node.annotation, owner.__module__, role="field")
             self.emit(f"{name}.{key}", "key" if key in required else "optional key", ann)
 
     def members(self, name: str, cls: type) -> None:
@@ -489,13 +794,14 @@ class Namespace:
         is_enum = issubclass(cls, enum.Enum)
         for klass in self.own_classes(cls):
             body = class_body(klass)
+            module_name = klass.__module__
             for attr, raw in vars(klass).items():
                 if attr in seen or (attr.startswith("_") and attr not in PROTOCOL_DUNDERS):
                     continue
                 seen.add(attr)
                 if attr in dataclass_fields or (is_enum and isinstance(raw, cls)):
                     continue
-                self.member(f"{name}.{attr}", raw, body)
+                self.member(f"{name}.{attr}", raw, body, module_name)
             # Annotated attributes without a class-level value.
             for attr, stmts in body.items():
                 if attr in seen or attr.startswith("_") or attr in dataclass_fields:
@@ -503,8 +809,9 @@ class Namespace:
                 ann = next((s for s in stmts if isinstance(s, ast.AnnAssign)), None)
                 if ann is not None:
                     seen.add(attr)
-                    kind = "classvar" if annotation(ann.annotation).startswith("ClassVar") else "attribute"
-                    self.emit(f"{name}.{attr}", kind, annotation(ann.annotation))
+                    text = self.annotation(ann.annotation, module_name)
+                    kind = "classvar" if text.startswith("ClassVar") else "attribute"
+                    self.emit(f"{name}.{attr}", kind, text)
             # Public instance attributes the constructor sets.
             init = body.get("__init__", [])
             for node in init:
@@ -522,35 +829,52 @@ class Namespace:
                             and t.attr not in seen
                         ):
                             seen.add(t.attr)
-                            ann = annotation(stmt.annotation) if isinstance(stmt, ast.AnnAssign) else ""
+                            ann = self.annotation(stmt.annotation, module_name) if isinstance(stmt, ast.AnnAssign) else ""
                             self.emit(f"{name}.{t.attr}", "attribute", ann)
 
-    def member(self, name: str, raw: object, body: dict[str, list[ast.AST]]) -> None:
+    def member(self, name: str, raw: object, body: dict[str, list[ast.AST]], module_name: str) -> None:
         if isinstance(raw, (staticmethod, classmethod)):
             prefix = "staticmethod" if isinstance(raw, staticmethod) else "classmethod"
             for node in function_defs(raw.__func__, body):
                 kind = f"{prefix} {def_kind(node)}"
-                self.emit(name, kind, signature(node, drop_first=isinstance(raw, classmethod)))
+                self.emit(name, kind, self.signature(node, module_name, drop_first=isinstance(raw, classmethod)))
         elif isinstance(raw, (property, functools.cached_property)):
             getter = raw.fget if isinstance(raw, property) else raw.func
             node = function_defs(getter, body)[-1]
             settable = isinstance(raw, property) and raw.fset is not None
             kind = "property" if settable else "readonly property"
-            self.emit(name, kind, annotation(node.returns))  # type: ignore[union-attr]
+            if settable and raw.fset is not None:
+                for setter in function_defs(raw.fset, body)[-1:]:
+                    self.signature(setter, module_name, drop_first=True)
+            self.emit(name, kind, self.annotation(node.returns, module_name))  # type: ignore[union-attr]
         elif inspect.isfunction(raw):
             for node in function_defs(raw, body):
-                self.emit(name, def_kind(node), signature(node, drop_first=True))
+                self.emit(name, def_kind(node), self.signature(node, module_name, drop_first=True))
         elif isinstance(raw, type):
             self.emit(name, "class", self.type_name(raw))
         elif isinstance(raw, SCALARS):
             stmts = body.get(name.rsplit(".", 1)[1], [])
-            ann = next((annotation(s.annotation) for s in stmts if isinstance(s, ast.AnnAssign)), "")
+            node = next((s.annotation for s in stmts if isinstance(s, ast.AnnAssign)), None)
+            ann = self.annotation(node, module_name) if node is not None else ""
             kind = "classvar" if ann.startswith("ClassVar") else "attribute"
             self.emit(name, kind, f"{ann + ' ' if ann else ''}= {raw!r}")
         else:
             stmts = body.get(name.rsplit(".", 1)[1], [])
-            ann = next((annotation(s.annotation) for s in stmts if isinstance(s, ast.AnnAssign)), "")
+            node = next((s.annotation for s in stmts if isinstance(s, ast.AnnAssign)), None)
+            ann = self.annotation(node, module_name) if node is not None else ""
             self.emit(name, "attribute", ann or type(raw).__name__)
+
+
+CTOR_MARK = "\x00ctor:"
+MODULE_LEVEL = 0  # the owner of module-level functions and aliases
+
+
+def own_object(obj: object) -> bool:
+    """Whether an exported value is this package's own declaration (an
+    export like ``MacBootMode = str`` names a builtin, which keeps its name)."""
+    if isinstance(obj, SCALARS):
+        return False
+    return not (isinstance(obj, type) and not obj.__module__.startswith("daytona"))
 
 
 def render(module_name: str, lines: list[str]) -> str:
@@ -568,8 +892,9 @@ def render(module_name: str, lines: list[str]) -> str:
 def main(argv: list[str]) -> int:
     check = "--check" in argv
     stale = 0
-    for module_name, out, public_constructors in NAMESPACES:
-        text = render(module_name, Namespace(module_name, public_constructors).run())
+    surfaces = Surface().run()
+    for module_name, out, _ in NAMESPACES:
+        text = render(module_name, surfaces[module_name])
         target = ROOT / out
         current = target.read_text() if target.exists() else ""
         if current == text:

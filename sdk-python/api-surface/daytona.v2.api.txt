@@ -15,10 +15,6 @@ AddonProcessesService.restart: def (name: str) -> ComputerUseProcessRestartResul
 AddonProcessesService.status: def () -> dict[str, ComputerUseProcessStatus]
 AddonProcessesService.status: def (name: str) -> ComputerUseProcessRunningStatus
 AddonUnavailableError: class (ServiceUnavailableError)
-AddonUnavailableError.code: attribute str | None
-AddonUnavailableError.message: attribute str
-AddonUnavailableError.source: attribute str | None
-AddonUnavailableError.status_code: attribute int | None
 ArtifactRetention: type = Literal['permanent', 'idle', 'unknown']
 AsyncA11yService: class
 AsyncA11yService.__init__: internal-constructor (transport: AsyncTransport) -> None
@@ -110,7 +106,7 @@ AsyncImageService.pull: async def (image: str, *, name: str | None = None, regio
 AsyncInterpreterContext: dataclass frozen
 AsyncInterpreterContext.__aenter__: async def () -> Self
 AsyncInterpreterContext.__aexit__: async def (exc_type: type[BaseException] | None, exc: BaseException | None, traceback: TracebackType | None) -> None
-AsyncInterpreterContext.__init__: internal-constructor (sandbox_id: str, context_id: str, language: str) -> None
+AsyncInterpreterContext.__init__: constructor (sandbox_id: str, context_id: str, language: str) -> None
 AsyncInterpreterContext.bind: def (runner: Callable[[str, str | None, Mapping[str, str] | None, float | None], Awaitable[InterpreterResult]], closer: Callable[[], Awaitable[None]]) -> Self
 AsyncInterpreterContext.close: async def () -> None
 AsyncInterpreterContext.context_id: field str
@@ -341,10 +337,6 @@ AsyncWatchHandle.record_overflow: def () -> None
 AsyncWatchHandle.stop: async def () -> None
 AsyncWatchHandle.wait_for_exit: async def () -> Exception | None
 AtomicUploadUnsupportedError: class (ConflictError)
-AtomicUploadUnsupportedError.code: attribute str | None
-AtomicUploadUnsupportedError.message: attribute str
-AtomicUploadUnsupportedError.source: attribute str | None
-AtomicUploadUnsupportedError.status_code: attribute int | None
 AuditActionGroup: class (pydantic.main.BaseModel)
 AuditActionGroup.actions: attribute list[StrictStr]
 AuditActionGroup.additional_properties: attribute dict[str, Any]
@@ -365,55 +357,15 @@ AuditActionList.to_dict: def () -> dict[str, Any]
 AuditActionList.to_json: def () -> str
 AuditActionList.to_str: def () -> str
 AutomaticTopUpNotAvailableError: class (ConflictError)
-AutomaticTopUpNotAvailableError.code: attribute str | None
-AutomaticTopUpNotAvailableError.message: attribute str
-AutomaticTopUpNotAvailableError.source: attribute str | None
-AutomaticTopUpNotAvailableError.status_code: attribute int | None
-BadRequestError: class (DaytonaError, Exception)
-BadRequestError.code: attribute str | None
-BadRequestError.message: attribute str
-BadRequestError.source: attribute str | None
-BadRequestError.status_code: attribute int | None
+BadRequestError: class (DaytonaError, DaytonaBadRequestError)
 BillingAccountConflictError: class (ConflictError)
-BillingAccountConflictError.code: attribute str | None
-BillingAccountConflictError.message: attribute str
-BillingAccountConflictError.source: attribute str | None
-BillingAccountConflictError.status_code: attribute int | None
 BillingDisabledError: class (DaytonaNotSupportedError)
-BillingDisabledError.code: attribute str | None
-BillingDisabledError.message: attribute str
-BillingDisabledError.source: attribute str | None
-BillingDisabledError.status_code: attribute int | None
 BillingNotProvisionedError: class (ConflictError)
-BillingNotProvisionedError.code: attribute str | None
-BillingNotProvisionedError.message: attribute str
-BillingNotProvisionedError.source: attribute str | None
-BillingNotProvisionedError.status_code: attribute int | None
 BillingUnavailableError: class (ServiceUnavailableError)
-BillingUnavailableError.code: attribute str | None
-BillingUnavailableError.message: attribute str
-BillingUnavailableError.source: attribute str | None
-BillingUnavailableError.status_code: attribute int | None
 BillingUnreachableError: class (InternalServerError)
-BillingUnreachableError.code: attribute str | None
-BillingUnreachableError.message: attribute str
-BillingUnreachableError.source: attribute str | None
-BillingUnreachableError.status_code: attribute int | None
 BucketCreateFailedError: class (InternalServerError)
-BucketCreateFailedError.code: attribute str | None
-BucketCreateFailedError.message: attribute str
-BucketCreateFailedError.source: attribute str | None
-BucketCreateFailedError.status_code: attribute int | None
 BucketDeleteFailedError: class (InternalServerError)
-BucketDeleteFailedError.code: attribute str | None
-BucketDeleteFailedError.message: attribute str
-BucketDeleteFailedError.source: attribute str | None
-BucketDeleteFailedError.status_code: attribute int | None
 BucketNotEmptyError: class (ConflictError)
-BucketNotEmptyError.code: attribute str | None
-BucketNotEmptyError.message: attribute str
-BucketNotEmptyError.source: attribute str | None
-BucketNotEmptyError.status_code: attribute int | None
 BuildLogChunkEvent: dataclass frozen
 BuildLogChunkEvent.__init__: internal-constructor (data_base64: str, start_offset: str, next_offset: str, cursor: str, type: Literal['log'] = 'log') -> None
 BuildLogChunkEvent.cursor: field str
@@ -460,11 +412,7 @@ BuildLogGapEvent.type: field Literal['gap'] = 'gap'
 BuildLogGapReason: type = Literal['truncated', 'unknown']
 BuildLogInterruptedError: class (DaytonaError)
 BuildLogInterruptedError.__init__: constructor (message: str, *, cursor: str | None = None, code: str = 'BUILD_LOG_INTERRUPTED', status_code: int | None = None) -> None
-BuildLogInterruptedError.code: attribute str | None
 BuildLogInterruptedError.cursor: attribute
-BuildLogInterruptedError.message: attribute str
-BuildLogInterruptedError.source: attribute str | None
-BuildLogInterruptedError.status_code: attribute int | None
 BuildLogSourceChangedEvent: dataclass frozen
 BuildLogSourceChangedEvent.__init__: internal-constructor (reason: str, type: Literal['source_changed'] = 'source_changed') -> None
 BuildLogSourceChangedEvent.reason: field str
@@ -498,20 +446,8 @@ BulkWriteResult.__init__: internal-constructor (files: list[BulkWriteFile], erro
 BulkWriteResult.errors: field list[str] = list()
 BulkWriteResult.files: field list[BulkWriteFile]
 ChargeNotFoundError: class (DaytonaNotFoundError)
-ChargeNotFoundError.code: attribute str | None
-ChargeNotFoundError.message: attribute str
-ChargeNotFoundError.source: attribute str | None
-ChargeNotFoundError.status_code: attribute int | None
 ChargeNotSucceededError: class (ConflictError)
-ChargeNotSucceededError.code: attribute str | None
-ChargeNotSucceededError.message: attribute str
-ChargeNotSucceededError.source: attribute str | None
-ChargeNotSucceededError.status_code: attribute int | None
-ClientTimeoutError: class (DaytonaError, Exception)
-ClientTimeoutError.code: attribute str | None
-ClientTimeoutError.message: attribute str
-ClientTimeoutError.source: attribute str | None
-ClientTimeoutError.status_code: attribute int | None
+ClientTimeoutError: class (DaytonaError, DaytonaTimeoutError)
 ComputerUseA11yFindResponse: dataclass frozen
 ComputerUseA11yFindResponse.__init__: internal-constructor (matches: list[ComputerUseAccessibilityNode], truncated: bool) -> None
 ComputerUseA11yFindResponse.matches: field list[ComputerUseAccessibilityNode]
@@ -641,7 +577,7 @@ ComputerUseRecordingsResponse: dataclass frozen
 ComputerUseRecordingsResponse.__init__: internal-constructor (recordings: list[ComputerUseRecording]) -> None
 ComputerUseRecordingsResponse.recordings: field list[ComputerUseRecording]
 ComputerUseRegion: dataclass frozen
-ComputerUseRegion.__init__: internal-constructor (x: int, y: int, width: int, height: int) -> None
+ComputerUseRegion.__init__: constructor (x: int, y: int, width: int, height: int) -> None
 ComputerUseRegion.height: field int
 ComputerUseRegion.width: field int
 ComputerUseRegion.x: field int
@@ -704,46 +640,14 @@ ComputerUseWindow.title: field str
 ComputerUseWindow.width: field int
 ComputerUseWindow.x: field int
 ComputerUseWindow.y: field int
-ConflictError: class (DaytonaError, Exception)
-ConflictError.code: attribute str | None
-ConflictError.message: attribute str
-ConflictError.source: attribute str | None
-ConflictError.status_code: attribute int | None
-ConnectionError: class (DaytonaError, Exception)
-ConnectionError.code: attribute str | None
-ConnectionError.message: attribute str
-ConnectionError.source: attribute str | None
-ConnectionError.status_code: attribute int | None
+ConflictError: class (DaytonaError, DaytonaConflictError)
+ConnectionError: class (DaytonaError, DaytonaConnectionError)
 CouponAlreadyRedeemedError: class (ConflictError)
-CouponAlreadyRedeemedError.code: attribute str | None
-CouponAlreadyRedeemedError.message: attribute str
-CouponAlreadyRedeemedError.source: attribute str | None
-CouponAlreadyRedeemedError.status_code: attribute int | None
 CouponExpiredError: class (ConflictError)
-CouponExpiredError.code: attribute str | None
-CouponExpiredError.message: attribute str
-CouponExpiredError.source: attribute str | None
-CouponExpiredError.status_code: attribute int | None
 CouponLimitReachedError: class (ConflictError)
-CouponLimitReachedError.code: attribute str | None
-CouponLimitReachedError.message: attribute str
-CouponLimitReachedError.source: attribute str | None
-CouponLimitReachedError.status_code: attribute int | None
 CouponNotFoundError: class (DaytonaNotFoundError)
-CouponNotFoundError.code: attribute str | None
-CouponNotFoundError.message: attribute str
-CouponNotFoundError.source: attribute str | None
-CouponNotFoundError.status_code: attribute int | None
 CreateTtlOutOfRangeError: class (BadRequestError)
-CreateTtlOutOfRangeError.code: attribute str | None
-CreateTtlOutOfRangeError.message: attribute str
-CreateTtlOutOfRangeError.source: attribute str | None
-CreateTtlOutOfRangeError.status_code: attribute int | None
 CursorExpiredError: class (ConflictError)
-CursorExpiredError.code: attribute str | None
-CursorExpiredError.message: attribute str
-CursorExpiredError.source: attribute str | None
-CursorExpiredError.status_code: attribute int | None
 DEFAULT_V2_API_URL: const str = 'https://api.daytona.com'
 DISABLED: const int = -1
 DaytonaAuthenticationError: alias = UnauthorizedError
@@ -754,7 +658,7 @@ DaytonaConflictError: alias = ConflictError
 DaytonaConflictErrorV2: alias = ConflictError
 DaytonaConnectionError: alias = ConnectionError
 DaytonaConnectionErrorV2: alias = ConnectionError
-DaytonaError: class (Exception)
+DaytonaError: class (DaytonaError)
 DaytonaError.__init__: constructor (message: str, *, status_code: int | None = None, code: str | None = None, source: str | None = None, details: ErrorDetails | None = None) -> None
 DaytonaError.actual: attribute
 DaytonaError.bytes: attribute
@@ -788,21 +692,13 @@ DaytonaTimeoutErrorV2: alias = ClientTimeoutError
 DaytonaValidationError: alias = BadRequestError
 DaytonaValidationErrorV2: alias = BadRequestError
 DesktopNotReadyError: class (ConflictError)
-DesktopNotReadyError.code: attribute str | None
-DesktopNotReadyError.message: attribute str
-DesktopNotReadyError.source: attribute str | None
-DesktopNotReadyError.status_code: attribute int | None
 DisplayService: class
 DisplayService.__init__: internal-constructor (impl: _async.AsyncDisplayService, bridge: SyncBridge) -> None
 DisplayService.info: def () -> ComputerUseDisplayInfo
 DisplayService.windows: def () -> ComputerUseDisplayWindows
 DockerNotReadyError: class (ConflictError)
 DockerNotReadyError.__init__: constructor (status: DockerStatus) -> None
-DockerNotReadyError.code: attribute str | None
-DockerNotReadyError.message: attribute str
-DockerNotReadyError.source: attribute str | None
 DockerNotReadyError.status: attribute DockerStatus
-DockerNotReadyError.status_code: attribute int | None
 DockerOwner: type = Literal['daemon', 'entrypoint', 'none', 'unknown']
 DockerService: class
 DockerService.__init__: internal-constructor (impl: _async.AsyncDockerService, bridge: SyncBridge) -> None
@@ -810,7 +706,7 @@ DockerService.status: def () -> DockerStatus
 DockerService.wait_until_ready: def (*, timeout: float = DOCKER_WAIT_DEFAULT_TIMEOUT_SECONDS) -> DockerStatus
 DockerState: type = Literal['ready', 'starting', 'failed', 'not_present', 'disabled', 'unmanaged', 'deferred', 'unsupported', 'unknown']
 DockerStatus: dataclass frozen
-DockerStatus.__init__: internal-constructor (owner: DockerOwner, state: DockerState, process_id: str | None = None, reason: str | None = None, raw_owner: str | None = None, raw_state: str | None = None) -> None
+DockerStatus.__init__: constructor (owner: DockerOwner, state: DockerState, process_id: str | None = None, reason: str | None = None, raw_owner: str | None = None, raw_state: str | None = None) -> None
 DockerStatus.owner: field DockerOwner
 DockerStatus.process_id: field str | None = None
 DockerStatus.raw_owner: field str | None = None
@@ -819,21 +715,9 @@ DockerStatus.reason: field str | None = None
 DockerStatus.state: field DockerState
 DockerWaitTimeoutError: class (RequestTimeoutError)
 DockerWaitTimeoutError.__init__: constructor (status: DockerStatus | None) -> None
-DockerWaitTimeoutError.code: attribute str | None
-DockerWaitTimeoutError.message: attribute str
-DockerWaitTimeoutError.source: attribute str | None
 DockerWaitTimeoutError.status: attribute DockerStatus | None
-DockerWaitTimeoutError.status_code: attribute int | None
 FeatureNotEnabledError: class (DaytonaAuthorizationError)
-FeatureNotEnabledError.code: attribute str | None
-FeatureNotEnabledError.message: attribute str
-FeatureNotEnabledError.source: attribute str | None
-FeatureNotEnabledError.status_code: attribute int | None
 FileAccessDeniedError: class (DaytonaAuthorizationError)
-FileAccessDeniedError.code: attribute str | None
-FileAccessDeniedError.message: attribute str
-FileAccessDeniedError.source: attribute str | None
-FileAccessDeniedError.status_code: attribute int | None
 FileInfo: class (pydantic.main.BaseModel)
 FileInfo.additional_properties: attribute dict[str, Any]
 FileInfo.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
@@ -853,15 +737,7 @@ FileInfo.to_dict: def () -> dict[str, Any]
 FileInfo.to_json: def () -> str
 FileInfo.to_str: def () -> str
 FileNotFoundError: class (DaytonaNotFoundError)
-FileNotFoundError.code: attribute str | None
-FileNotFoundError.message: attribute str
-FileNotFoundError.source: attribute str | None
-FileNotFoundError.status_code: attribute int | None
 FileReadFailedError: class (InternalServerError)
-FileReadFailedError.code: attribute str | None
-FileReadFailedError.message: attribute str
-FileReadFailedError.source: attribute str | None
-FileReadFailedError.status_code: attribute int | None
 FileSystemService: class
 FileSystemService.__init__: internal-constructor (impl: _async.AsyncFileSystemService, bridge: SyncBridge) -> None
 FileSystemService.chmod: def (path: str, *, mode: str | None = None, owner: str | None = None, group: str | None = None) -> None
@@ -890,32 +766,16 @@ FilesystemEvent.is_dir: field bool
 FilesystemEvent.name: field str
 FilesystemEvent.timestamp: field int
 FilesystemEvent.type: field FilesystemEventType
-FilesystemEventType: enum (MacBootMode, enum.Enum)
+FilesystemEventType: enum (str, enum.Enum)
 FilesystemEventType.CHMOD: enum-member = 'chmod'
 FilesystemEventType.CREATE: enum-member = 'create'
 FilesystemEventType.REMOVE: enum-member = 'remove'
 FilesystemEventType.RENAME: enum-member = 'rename'
 FilesystemEventType.WRITE: enum-member = 'write'
-ForbiddenError: class (DaytonaError, Exception)
-ForbiddenError.code: attribute str | None
-ForbiddenError.message: attribute str
-ForbiddenError.source: attribute str | None
-ForbiddenError.status_code: attribute int | None
+ForbiddenError: class (DaytonaError, DaytonaAuthorizationError)
 GitAuthFailedError: class (DaytonaAuthenticationError)
-GitAuthFailedError.code: attribute str | None
-GitAuthFailedError.message: attribute str
-GitAuthFailedError.source: attribute str | None
-GitAuthFailedError.status_code: attribute int | None
 GitBranchExistsError: class (ConflictError)
-GitBranchExistsError.code: attribute str | None
-GitBranchExistsError.message: attribute str
-GitBranchExistsError.source: attribute str | None
-GitBranchExistsError.status_code: attribute int | None
 GitBranchNotFoundError: class (DaytonaNotFoundError)
-GitBranchNotFoundError.code: attribute str | None
-GitBranchNotFoundError.message: attribute str
-GitBranchNotFoundError.source: attribute str | None
-GitBranchNotFoundError.status_code: attribute int | None
 GitCommitResponse: class (pydantic.main.BaseModel)
 GitCommitResponse.additional_properties: attribute dict[str, Any]
 GitCommitResponse.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
@@ -926,10 +786,6 @@ GitCommitResponse.to_dict: def () -> dict[str, Any]
 GitCommitResponse.to_json: def () -> str
 GitCommitResponse.to_str: def () -> str
 GitRepoNotFoundError: class (DaytonaNotFoundError)
-GitRepoNotFoundError.code: attribute str | None
-GitRepoNotFoundError.message: attribute str
-GitRepoNotFoundError.source: attribute str | None
-GitRepoNotFoundError.status_code: attribute int | None
 GitService: class
 GitService.__init__: internal-constructor (impl: _async.AsyncGitService, bridge: SyncBridge) -> None
 GitService.add: def (path: str, files: Sequence[str]) -> None
@@ -963,16 +819,8 @@ GitStatus.model_config: attribute dict
 GitStatus.to_dict: def () -> dict[str, Any]
 GitStatus.to_json: def () -> str
 GitStatus.to_str: def () -> str
-GoneError: class (DaytonaError, Exception)
-GoneError.code: attribute str | None
-GoneError.message: attribute str
-GoneError.source: attribute str | None
-GoneError.status_code: attribute int | None
+GoneError: class (DaytonaError, DaytonaGoneError)
 IdleOutOfRangeError: class (BadRequestError)
-IdleOutOfRangeError.code: attribute str | None
-IdleOutOfRangeError.message: attribute str
-IdleOutOfRangeError.source: attribute str | None
-IdleOutOfRangeError.status_code: attribute int | None
 Image: dataclass frozen
 Image.__init__: internal-constructor (id: str, name: str | None, status: str, region: str, anonymous: bool, retention: ArtifactRetention, var_class: str, available_in: list[str], origin: str, created_at: str | None = None, error: str | None = None, expires_at: str | None = None, source: ImageSource | None = None, bytes: int | None = None, layer_count: int | None = None, cursor: str | None = None, format_version: int | None = None, format_outdated: bool = False, platform: bool = False, default: bool = False, deprecated: bool = False, updated_at: str | None = None, disk_mib: int | None = None, *, raw_retention: str = '') -> None
 Image.anonymous: field bool
@@ -1002,11 +850,7 @@ Image.var_class: field str
 ImageBuildFailedError: class (ConflictError)
 ImageBuildFailedError.__init__: constructor (message: str, *, status_code: int | None = None, code: str | None = None, source: str | None = None, details: ErrorDetails | None = None, image_id: str | None = None, build_error: str | None = None) -> None
 ImageBuildFailedError.build_error: attribute
-ImageBuildFailedError.code: attribute str | None
 ImageBuildFailedError.image_id: attribute
-ImageBuildFailedError.message: attribute str
-ImageBuildFailedError.source: attribute str | None
-ImageBuildFailedError.status_code: attribute int | None
 ImageBuildResponse: class (pydantic.main.BaseModel)
 ImageBuildResponse.additional_properties: attribute dict[str, Any]
 ImageBuildResponse.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
@@ -1032,15 +876,7 @@ ImageBuilder.render_dockerfile: def () -> str
 ImageBuilder.run_commands: def (*commands: str) -> Self
 ImageBuilder.workdir: def (path: str, /) -> Self
 ImageClassMismatchError: class (ConflictError)
-ImageClassMismatchError.code: attribute str | None
-ImageClassMismatchError.message: attribute str
-ImageClassMismatchError.source: attribute str | None
-ImageClassMismatchError.status_code: attribute int | None
 ImageFormatOutdatedError: class (ConflictError)
-ImageFormatOutdatedError.code: attribute str | None
-ImageFormatOutdatedError.message: attribute str
-ImageFormatOutdatedError.source: attribute str | None
-ImageFormatOutdatedError.status_code: attribute int | None
 ImageListItem: class (pydantic.main.BaseModel)
 ImageListItem.additional_properties: attribute dict[str, Any]
 ImageListItem.anonymous: attribute StrictBool
@@ -1074,25 +910,9 @@ ImageListItem.to_str: def () -> str
 ImageListItem.updated_at: attribute datetime
 ImageListItem.var_class: attribute StrictStr
 ImageNameReservedError: class (BadRequestError)
-ImageNameReservedError.code: attribute str | None
-ImageNameReservedError.message: attribute str
-ImageNameReservedError.source: attribute str | None
-ImageNameReservedError.status_code: attribute int | None
 ImageNameTakenError: class (ConflictError)
-ImageNameTakenError.code: attribute str | None
-ImageNameTakenError.message: attribute str
-ImageNameTakenError.source: attribute str | None
-ImageNameTakenError.status_code: attribute int | None
 ImageNotFoundError: class (DaytonaNotFoundError)
-ImageNotFoundError.code: attribute str | None
-ImageNotFoundError.message: attribute str
-ImageNotFoundError.source: attribute str | None
-ImageNotFoundError.status_code: attribute int | None
 ImageNotReadyError: class (ConflictError)
-ImageNotReadyError.code: attribute str | None
-ImageNotReadyError.message: attribute str
-ImageNotReadyError.source: attribute str | None
-ImageNotReadyError.status_code: attribute int | None
 ImageRef: dataclass frozen
 ImageRef.__init__: internal-constructor (id: str, name: str | None = None) -> None
 ImageRef.id: field str
@@ -1107,22 +927,10 @@ ImageService.iter: def (*, anonymous: bool = False, sandbox_id: str | None = Non
 ImageService.list: def (*, anonymous: bool = False, sandbox_id: str | None = None, name: str | None = None, cursor: str | None = None, limit: int | None = None, platform: Literal['true', 'false', 'any'] | None = None) -> ListResult[Image]
 ImageService.promote: def (image_id: str, name: str) -> Image
 ImageService.pull: def (image: str, *, name: str | None = None, region: str | None = None, wait: bool = True, timeout: float | None = None) -> Image
-ImageSource: type = union
-ImageSource: union-member daytona.v2.types.DockerfileImageSource
-ImageSource: union-member daytona.v2.types.ManifestImageSource
-ImageSource: union-member daytona.v2.types.NamedImageSource
-ImageSource: union-member daytona.v2.types.RegistryImageSource
+ImageSource: type = ~RegistryImageSource | ~DockerfileImageSource | ~NamedImageSource | ~ManifestImageSource
 ImageTooLargeError: class (ConflictError)
-ImageTooLargeError.code: attribute str | None
-ImageTooLargeError.message: attribute str
-ImageTooLargeError.source: attribute str | None
-ImageTooLargeError.status_code: attribute int | None
 ImageV2: alias = Image
-InternalServerError: class (DaytonaError, Exception)
-InternalServerError.code: attribute str | None
-InternalServerError.message: attribute str
-InternalServerError.source: attribute str | None
-InternalServerError.status_code: attribute int | None
+InternalServerError: class (DaytonaError, DaytonaInternalServerError)
 InterpreterContext: class
 InterpreterContext.__enter__: def () -> Self
 InterpreterContext.__exit__: def (*exc: object) -> None
@@ -1180,36 +988,12 @@ InterpreterService.get_context: def (context: str | InterpreterContext | Interpr
 InterpreterService.list_contexts: def () -> list[InterpreterContext]
 InterpreterService.run: def (code: str, *, language: str = 'python', context: InterpreterContext | None = None, isolated: bool = False, timeout: float | None = None, cwd: str | None = None, env: Mapping[str, str] | None = None) -> InterpreterResult
 InvalidCursorError: class (BadRequestError)
-InvalidCursorError.code: attribute str | None
-InvalidCursorError.message: attribute str
-InvalidCursorError.source: attribute str | None
-InvalidCursorError.status_code: attribute int | None
 InvalidFilePathError: class (BadRequestError)
-InvalidFilePathError.code: attribute str | None
-InvalidFilePathError.message: attribute str
-InvalidFilePathError.source: attribute str | None
-InvalidFilePathError.status_code: attribute int | None
 InvoiceNotFinalizedError: class (ConflictError)
-InvoiceNotFinalizedError.code: attribute str | None
-InvoiceNotFinalizedError.message: attribute str
-InvoiceNotFinalizedError.source: attribute str | None
-InvoiceNotFinalizedError.status_code: attribute int | None
 InvoiceNotFoundError: class (DaytonaNotFoundError)
-InvoiceNotFoundError.code: attribute str | None
-InvoiceNotFoundError.message: attribute str
-InvoiceNotFoundError.source: attribute str | None
-InvoiceNotFoundError.status_code: attribute int | None
 InvoiceNotPayableError: class (ConflictError)
-InvoiceNotPayableError.code: attribute str | None
-InvoiceNotPayableError.message: attribute str
-InvoiceNotPayableError.source: attribute str | None
-InvoiceNotPayableError.status_code: attribute int | None
 KeepLogs: type = Literal['until_cleanup', 'on_exit_ttl', 'none']
 KernelUnavailableError: class (ServiceUnavailableError)
-KernelUnavailableError.code: attribute str | None
-KernelUnavailableError.message: attribute str
-KernelUnavailableError.source: attribute str | None
-KernelUnavailableError.status_code: attribute int | None
 KeyboardService: class
 KeyboardService.__init__: internal-constructor (impl: _async.AsyncKeyboardService, bridge: SyncBridge) -> None
 KeyboardService.hotkey: def (*, keys: str) -> None
@@ -1222,10 +1006,6 @@ LifecyclePolicyConfig.on_idle_timeout: optional key LifecycleAction
 LifecyclePolicyConfig.on_timeout: optional key LifecycleAction
 LifecyclePolicyConfig.timeout_seconds: optional key int
 LimitExceededError: class (DaytonaRateLimitError)
-LimitExceededError.code: attribute str | None
-LimitExceededError.message: attribute str
-LimitExceededError.source: attribute str | None
-LimitExceededError.status_code: attribute int | None
 ListResult: dataclass frozen
 ListResult.__init__: internal-constructor (items: list[T], next_cursor: str | None = None, total: int | None = None, total_relation: SearchTotalRelation | None = None, raw_total_relation: str | None = None) -> None
 ListResult.__iter__: def () -> Iterator[T]
@@ -1312,10 +1092,6 @@ LspLocation.to_json: def () -> str
 LspLocation.to_str: def () -> str
 LspLocation.uri: attribute StrictStr
 LspNotStartedError: class (ConflictError)
-LspNotStartedError.code: attribute str | None
-LspNotStartedError.message: attribute str
-LspNotStartedError.source: attribute str | None
-LspNotStartedError.status_code: attribute int | None
 LspPosition: class (pydantic.main.BaseModel)
 LspPosition.additional_properties: attribute dict[str, Any]
 LspPosition.character: attribute Annotated[int, Field(strict=True, ge=0)]
@@ -1347,10 +1123,6 @@ LspServer.open_document: def (uri: str) -> None
 LspServer.stop: def () -> None
 LspServer.workspace_symbols: def (query: str) -> list[LspSymbol]
 LspServerUnavailableError: class (ServiceUnavailableError)
-LspServerUnavailableError.code: attribute str | None
-LspServerUnavailableError.message: attribute str
-LspServerUnavailableError.source: attribute str | None
-LspServerUnavailableError.status_code: attribute int | None
 LspService: class
 LspService.__init__: internal-constructor (impl: _async.AsyncLspService, bridge: SyncBridge) -> None
 LspService.start: def (language_id: str, path_to_project: str) -> LspServer
@@ -1433,10 +1205,6 @@ MacReservationEndReason: type = Literal['expired', 'released', 'charge_failed', 
 MacReservationOrigin: type = Literal['explicit', 'auto', 'unknown']
 MacReservationStatus: type = Literal['pending_charge', 'pending_mac', 'active', 'ending', 'released', 'failed', 'unknown']
 MethodNotAllowedError: class (DaytonaError)
-MethodNotAllowedError.code: attribute str | None
-MethodNotAllowedError.message: attribute str
-MethodNotAllowedError.source: attribute str | None
-MethodNotAllowedError.status_code: attribute int | None
 MouseService: class
 MouseService.__init__: internal-constructor (impl: _async.AsyncMouseService, bridge: SyncBridge) -> None
 MouseService.click: def (*, x: int, y: int, button: ComputerUseMouseButton | None = None, double: bool | None = None) -> ComputerUsePoint
@@ -1446,10 +1214,6 @@ MouseService.position: def () -> ComputerUsePoint
 MouseService.scroll: def (*, x: int, y: int, direction: ComputerUseScrollDirection, amount: int | None = None) -> ComputerUseScrollResult
 NAME_LABEL: const str = 'name'
 NameConflictError: class (ConflictError)
-NameConflictError.code: attribute str | None
-NameConflictError.message: attribute str
-NameConflictError.source: attribute str | None
-NameConflictError.status_code: attribute int | None
 NetworkPolicy: dataclass frozen
 NetworkPolicy.__init__: internal-constructor (version: int, block_all: bool = False, allow_cidrs: list[str] = list(), allow_domains: list[str] | None = None) -> None
 NetworkPolicy.allow_cidrs: field list[str] = list()
@@ -1471,26 +1235,10 @@ NetworkPolicyInput: typeddict total=False
 NetworkPolicyInput.allow_cidrs: optional key Sequence[str]
 NetworkPolicyInput.allow_domains: optional key Sequence[str] | None
 NetworkPolicyInput.block_all: optional key bool | None
-NotFoundError: class (DaytonaError, Exception)
-NotFoundError.code: attribute str | None
-NotFoundError.message: attribute str
-NotFoundError.source: attribute str | None
-NotFoundError.status_code: attribute int | None
+NotFoundError: class (DaytonaError, DaytonaNotFoundError)
 NotSupportedError: class (InternalServerError)
-NotSupportedError.code: attribute str | None
-NotSupportedError.message: attribute str
-NotSupportedError.source: attribute str | None
-NotSupportedError.status_code: attribute int | None
 NotSupportedForClassError: class (ConflictError)
-NotSupportedForClassError.code: attribute str | None
-NotSupportedForClassError.message: attribute str
-NotSupportedForClassError.source: attribute str | None
-NotSupportedForClassError.status_code: attribute int | None
 OrgSuspendedError: class (DaytonaError)
-OrgSuspendedError.code: attribute str | None
-OrgSuspendedError.message: attribute str
-OrgSuspendedError.source: attribute str | None
-OrgSuspendedError.status_code: attribute int | None
 OrganizationLimits: class (pydantic.main.BaseModel)
 OrganizationLimits.additional_properties: attribute dict[str, Any]
 OrganizationLimits.api_keys_per_organization: attribute UsageLimit
@@ -1508,49 +1256,17 @@ OrganizationLimits.to_dict: def () -> dict[str, Any]
 OrganizationLimits.to_json: def () -> str
 OrganizationLimits.to_str: def () -> str
 OriginImportOnlyError: class (BadRequestError)
-OriginImportOnlyError.code: attribute str | None
-OriginImportOnlyError.message: attribute str
-OriginImportOnlyError.source: attribute str | None
-OriginImportOnlyError.status_code: attribute int | None
 OverloadedError: class (DaytonaRateLimitError)
-OverloadedError.code: attribute str | None
-OverloadedError.message: attribute str
-OverloadedError.source: attribute str | None
-OverloadedError.status_code: attribute int | None
 PREVIEW_WARNING_SKIP_HEADER: const str = 'X-Daytona-Skip-Preview-Warning'
 PREVIEW_WARNING_SKIP_HEADER_VALUE: const str = 'true'
 PayloadTooLargeError: class (DaytonaError)
-PayloadTooLargeError.code: attribute str | None
-PayloadTooLargeError.message: attribute str
-PayloadTooLargeError.source: attribute str | None
-PayloadTooLargeError.status_code: attribute int | None
 PaymentMethodRequiredError: class (ConflictError)
-PaymentMethodRequiredError.code: attribute str | None
-PaymentMethodRequiredError.message: attribute str
-PaymentMethodRequiredError.source: attribute str | None
-PaymentMethodRequiredError.status_code: attribute int | None
 PlanChangePendingError: class (ConflictError)
-PlanChangePendingError.code: attribute str | None
-PlanChangePendingError.message: attribute str
-PlanChangePendingError.source: attribute str | None
-PlanChangePendingError.status_code: attribute int | None
 PlanManagedByOperatorError: class (ConflictError)
-PlanManagedByOperatorError.code: attribute str | None
-PlanManagedByOperatorError.message: attribute str
-PlanManagedByOperatorError.source: attribute str | None
-PlanManagedByOperatorError.status_code: attribute int | None
 PlanRequiresSalesError: class (BadRequestError)
-PlanRequiresSalesError.code: attribute str | None
-PlanRequiresSalesError.message: attribute str
-PlanRequiresSalesError.source: attribute str | None
-PlanRequiresSalesError.status_code: attribute int | None
 PlanUnchangedError: class (ConflictError)
-PlanUnchangedError.code: attribute str | None
-PlanUnchangedError.message: attribute str
-PlanUnchangedError.source: attribute str | None
-PlanUnchangedError.status_code: attribute int | None
 PortMapping: dataclass frozen
-PortMapping.__init__: internal-constructor (port: int, proto: str = 'tcp') -> None
+PortMapping.__init__: constructor (port: int, proto: str = 'tcp') -> None
 PortMapping.port: field int
 PortMapping.proto: field str = 'tcp'
 PortsService: class
@@ -1566,15 +1282,7 @@ PortsService.set_public: def (port: int, *, public: bool) -> PreviewEndpoint
 PortsService.signed_preview_link: def (port: int, *, expires_in_seconds: int | None = None) -> SignedPreviewLink
 PortsService.unexpose: def (port: int) -> None
 PreconditionFailedError: class (DaytonaError)
-PreconditionFailedError.code: attribute str | None
-PreconditionFailedError.message: attribute str
-PreconditionFailedError.source: attribute str | None
-PreconditionFailedError.status_code: attribute int | None
 PreconditionRequiredError: class (DaytonaError)
-PreconditionRequiredError.code: attribute str | None
-PreconditionRequiredError.message: attribute str
-PreconditionRequiredError.source: attribute str | None
-PreconditionRequiredError.status_code: attribute int | None
 PreviewEndpoint: dataclass frozen
 PreviewEndpoint.__init__: internal-constructor (port: int, public: bool, url: str, created_at: str | None = None) -> None
 PreviewEndpoint.created_at: field str | None = None
@@ -1587,10 +1295,6 @@ PreviewLink.expires_at: field str | None = None
 PreviewLink.token: field str
 PreviewLink.url: field str
 ProcessExecutionTimeoutError: class (RequestTimeoutError)
-ProcessExecutionTimeoutError.code: attribute str | None
-ProcessExecutionTimeoutError.message: attribute str
-ProcessExecutionTimeoutError.source: attribute str | None
-ProcessExecutionTimeoutError.status_code: attribute int | None
 ProcessHandle: class
 ProcessHandle.__init__: internal-constructor (impl: _async.AsyncProcessHandle, bridge: SyncBridge) -> None
 ProcessHandle.close_stdin: def () -> None
@@ -1654,10 +1358,6 @@ ProcessInfoKind: type = Literal['exec', 'pty', 'code', 'session', 'unknown']
 ProcessKeepLogs: type = Literal['until_cleanup', 'on_exit_ttl', 'none', 'unknown']
 ProcessKind: type = Literal['exec', 'pty', 'code', 'session']
 ProcessNotFoundError: class (NotFoundError)
-ProcessNotFoundError.code: attribute str | None
-ProcessNotFoundError.message: attribute str
-ProcessNotFoundError.source: attribute str | None
-ProcessNotFoundError.status_code: attribute int | None
 ProcessResult: dataclass frozen
 ProcessResult.__init__: internal-constructor (process_id: str, exit_code: int | None, signal: str | None, reason: WaitReason | None, stdout: str = '', stderr: str = '', output: str = '', raw_reason: str | None = None) -> None
 ProcessResult.exit_code: field int | None
@@ -1678,18 +1378,10 @@ ProcessService.list: def (*, state: ProcessStateFilter | None = None, kind: Proc
 ProcessService.run: def (command: str | None = None, *, argv: Sequence[str] | None = None, cwd: str | None = None, env: Mapping[str, str] | None = None, user: str | None = None, shell: str | None = None, login: bool | None = None, stdin: StdinMode = 'closed', timeout: float | None = None, execution_timeout: float | None = None, name: str | None = None, terminal: TerminalSize | None = None, keep_logs: KeepLogs | None = None) -> ProcessResult
 ProcessService.start: def (command: str | None = None, *, argv: Sequence[str] | None = None, name: str | None = None, cwd: str | None = None, env: Mapping[str, str] | None = None, user: str | None = None, shell: str | None = None, login: bool | None = None, stdin: StdinMode = 'closed', execution_timeout: float | None = None, terminal: TerminalSize | None = None, keep_logs: KeepLogs | None = None) -> ProcessHandle
 ProcessStartFailedError: class (BadRequestError)
-ProcessStartFailedError.code: attribute str | None
-ProcessStartFailedError.message: attribute str
-ProcessStartFailedError.source: attribute str | None
-ProcessStartFailedError.status_code: attribute int | None
 ProcessState: type = Literal['starting', 'provisioning', 'running', 'terminal', 'unknown']
 ProcessStateFilter: type = Literal['running', 'terminal', 'all']
 ProcessStdinMode: type = Literal['closed', 'open', 'unknown']
 ProcessTerminalError: class (ConflictError)
-ProcessTerminalError.code: attribute str | None
-ProcessTerminalError.message: attribute str
-ProcessTerminalError.source: attribute str | None
-ProcessTerminalError.status_code: attribute int | None
 ProjectApiKeyWithContext: class (pydantic.main.BaseModel)
 ProjectApiKeyWithContext.additional_properties: attribute dict[str, Any]
 ProjectApiKeyWithContext.context: attribute ProjectApiKeyContext
@@ -1732,15 +1424,7 @@ ProjectBudget.to_json: def () -> str
 ProjectBudget.to_str: def () -> str
 ProjectBudget.updated_at: attribute datetime | None
 ProjectBudgetExceededError: class (DaytonaError)
-ProjectBudgetExceededError.code: attribute str | None
-ProjectBudgetExceededError.message: attribute str
-ProjectBudgetExceededError.source: attribute str | None
-ProjectBudgetExceededError.status_code: attribute int | None
 ProtectedProcessError: class (ForbiddenError)
-ProtectedProcessError.code: attribute str | None
-ProtectedProcessError.message: attribute str
-ProtectedProcessError.source: attribute str | None
-ProtectedProcessError.status_code: attribute int | None
 PtyService: class
 PtyService.__init__: internal-constructor (impl: _async.AsyncPtyService, bridge: SyncBridge) -> None
 PtyService.connect: def (process_id: str) -> ProcessHandle
@@ -1754,21 +1438,9 @@ PullVolumeResult.raw_status: field str | None = None
 PullVolumeResult.request_id: field str
 PullVolumeResult.status: field PullVolumeStatus
 PullVolumeStatus: type = Literal['pulled', 'unchanged', 'pending', 'unknown']
-RateLimitError: class (DaytonaError, Exception)
-RateLimitError.code: attribute str | None
-RateLimitError.message: attribute str
-RateLimitError.source: attribute str | None
-RateLimitError.status_code: attribute int | None
+RateLimitError: class (DaytonaError, DaytonaRateLimitError)
 RateLimitedError: class (DaytonaRateLimitError)
-RateLimitedError.code: attribute str | None
-RateLimitedError.message: attribute str
-RateLimitedError.source: attribute str | None
-RateLimitedError.status_code: attribute int | None
 ReadOnlyUnsupportedError: class (BadRequestError)
-ReadOnlyUnsupportedError.code: attribute str | None
-ReadOnlyUnsupportedError.message: attribute str
-ReadOnlyUnsupportedError.source: attribute str | None
-ReadOnlyUnsupportedError.status_code: attribute int | None
 RecordingService: class
 RecordingService.__init__: internal-constructor (impl: _async.AsyncRecordingService, bridge: SyncBridge) -> None
 RecordingService.delete: def (id: str) -> None
@@ -1777,11 +1449,7 @@ RecordingService.get: def (id: str) -> ComputerUseRecording
 RecordingService.list: def () -> ComputerUseRecordingList
 RecordingService.start: def (*, label: str | None = None) -> ComputerUseRecording
 RecordingService.stop: def (*, id: str) -> ComputerUseRecording
-RequestTimeoutError: class (DaytonaError, Exception)
-RequestTimeoutError.code: attribute str | None
-RequestTimeoutError.message: attribute str
-RequestTimeoutError.source: attribute str | None
-RequestTimeoutError.status_code: attribute int | None
+RequestTimeoutError: class (DaytonaError, DaytonaTimeoutError)
 ReservationService: class
 ReservationService.__init__: internal-constructor (impl: _async.AsyncReservationService, bridge: SyncBridge) -> None
 ReservationService.create: def (*, region: str, model: str | None = None, idempotency_key: str | None = None, auto_renew: bool | None = None) -> MacReservation
@@ -1792,7 +1460,7 @@ ReservationService.list: def (*, cursor: str | None = None, limit: int | None = 
 ReservationService.renew: def (reservation_id: str, *, idempotency_key: str | None = None) -> MacReservation
 ReservationService.update: def (reservation_id: str, *, auto_renew: bool) -> MacReservation
 Resources: dataclass frozen
-Resources.__init__: internal-constructor (cpu: float | None = None, cpu_max: float | None = None, memory: int | None = None, memory_max: float | None = None, disk: int | None = None, disk_max: float | None = None) -> None
+Resources.__init__: constructor (cpu: float | None = None, cpu_max: float | None = None, memory: int | None = None, memory_max: float | None = None, disk: int | None = None, disk_max: float | None = None) -> None
 Resources.cpu: field float | None = None
 Resources.cpu_max: field float | None = None
 Resources.disk: field int | None = None
@@ -1883,27 +1551,15 @@ SandboxClass: type = Literal['linux', 'macos']
 SandboxClassV2: alias = SandboxClass
 SandboxCreateConnectionError: class (ConnectionError)
 SandboxCreateConnectionError.__init__: constructor (idempotency_key: str, detail: str) -> None
-SandboxCreateConnectionError.code: attribute str | None
 SandboxCreateConnectionError.idempotency_key: attribute
-SandboxCreateConnectionError.message: attribute str
-SandboxCreateConnectionError.source: attribute str | None
-SandboxCreateConnectionError.status_code: attribute int | None
 SandboxCreateRequestTimeoutError: class (ClientTimeoutError)
 SandboxCreateRequestTimeoutError.__init__: constructor (idempotency_key: str) -> None
-SandboxCreateRequestTimeoutError.code: attribute str | None
 SandboxCreateRequestTimeoutError.idempotency_key: attribute
-SandboxCreateRequestTimeoutError.message: attribute str
-SandboxCreateRequestTimeoutError.source: attribute str | None
-SandboxCreateRequestTimeoutError.status_code: attribute int | None
 SandboxCreateTimeoutError: class (RequestTimeoutError)
 SandboxCreateTimeoutError.__init__: constructor (sandbox_id: str) -> None
-SandboxCreateTimeoutError.code: attribute str | None
-SandboxCreateTimeoutError.message: attribute str
 SandboxCreateTimeoutError.sandbox_id: attribute
-SandboxCreateTimeoutError.source: attribute str | None
-SandboxCreateTimeoutError.status_code: attribute int | None
 SandboxEventsConfig: dataclass frozen
-SandboxEventsConfig.__init__: internal-constructor (enabled: bool = True, reconcile_interval: float | None = 60.0, idle_close: float | None = None) -> None
+SandboxEventsConfig.__init__: constructor (enabled: bool = True, reconcile_interval: float | None = 60.0, idle_close: float | None = None) -> None
 SandboxEventsConfig.enabled: field bool = True
 SandboxEventsConfig.idle_close: field float | None = None
 SandboxEventsConfig.reconcile_interval: field float | None = 60.0
@@ -1946,10 +1602,6 @@ SandboxLifecycle.on_timeout: field str | None = None
 SandboxLifecycle.timeout_at: field str | None = None
 SandboxLifecycle.timeout_seconds: field int | None = None
 SandboxNotRunningError: class (ConflictError)
-SandboxNotRunningError.code: attribute str | None
-SandboxNotRunningError.message: attribute str
-SandboxNotRunningError.source: attribute str | None
-SandboxNotRunningError.status_code: attribute int | None
 SandboxSearchFilters: dataclass frozen
 SandboxSearchFilters.__init__: internal-constructor (*, q: str | None = None, status: Sequence[str] | None = None, sandbox_class: SandboxClass | Sequence[SandboxClass] | None = None, region: Sequence[str] | None = None, image_ref: str | None = None, image_ref_prefix: str | None = None, labels: Mapping[str, str] | None = None, spot: bool | None = None, forked_from: str | None = None, min_cores: float | None = None, max_cores: float | None = None, min_memory_mib: int | None = None, max_memory_mib: int | None = None, min_disk_mib: int | None = None, max_disk_mib: int | None = None, created_start_at: SearchTimestamp | None = None, created_end_at: SearchTimestamp | None = None, updated_start_at: SearchTimestamp | None = None, updated_end_at: SearchTimestamp | None = None, last_activity_start_at: SearchTimestamp | None = None, last_activity_end_at: SearchTimestamp | None = None, sort: SearchSort | None = None, order: SearchOrder | None = None) -> None
 SandboxSearchFilters.created_end_at: field kw_only SearchTimestamp | None = None
@@ -2010,12 +1662,8 @@ SandboxStateSnapshot.updated_at: attribute datetime
 SandboxStateSnapshot.var_class: attribute SnapshotClass
 SandboxTerminalStateError: class (ConflictError)
 SandboxTerminalStateError.__init__: constructor (sandbox_id: str, state: SandboxState, *, raw_state: str | None = None) -> None
-SandboxTerminalStateError.code: attribute str | None
-SandboxTerminalStateError.message: attribute str
 SandboxTerminalStateError.raw_state: attribute str | None
-SandboxTerminalStateError.source: attribute str | None
 SandboxTerminalStateError.state: attribute SandboxState
-SandboxTerminalStateError.status_code: attribute int | None
 SandboxV2: alias = Sandbox
 SandboxVolumesService: class
 SandboxVolumesService.__init__: internal-constructor (impl: _async.AsyncSandboxVolumesService, bridge: SyncBridge) -> None
@@ -2025,10 +1673,6 @@ ScreenService: class
 ScreenService.__init__: internal-constructor (impl: _async.AsyncScreenService, bridge: SyncBridge) -> None
 ScreenService.screenshot: def (*, region: ComputerUseRegion | None = None, format: ComputerUseScreenshotFormat | None = None, quality: int | None = None, scale: float | None = None, show_cursor: bool | None = None) -> ComputerUseScreenshot
 SearchNotConfiguredError: class (DaytonaNotSupportedError)
-SearchNotConfiguredError.code: attribute str | None
-SearchNotConfiguredError.message: attribute str
-SearchNotConfiguredError.source: attribute str | None
-SearchNotConfiguredError.status_code: attribute int | None
 SearchOrder: type = Literal['asc', 'desc']
 SearchResult: dataclass frozen
 SearchResult.__init__: internal-constructor (items: list[T], next_cursor: str | None = None, total: int = 0, total_relation: SearchTotalRelation = 'eq', raw_total_relation: str = 'eq') -> None
@@ -2068,13 +1712,9 @@ SearchSandboxesQuery.status: field kw_only Sequence[str] | None = None
 SearchSandboxesQuery.updated_end_at: field kw_only SearchTimestamp | None = None
 SearchSandboxesQuery.updated_start_at: field kw_only SearchTimestamp | None = None
 SearchSort: type = Literal['created_at', 'updated_at', 'last_activity_at', 'name', 'cores', 'memory_mib', 'disk_mib']
-SearchTimestamp: type = MacBootMode | datetime.datetime
+SearchTimestamp: type = str | datetime.datetime
 SearchTotalRelation: type = Literal['eq', 'gte', 'unknown']
 SearchUnavailableError: class (ServiceUnavailableError)
-SearchUnavailableError.code: attribute str | None
-SearchUnavailableError.message: attribute str
-SearchUnavailableError.source: attribute str | None
-SearchUnavailableError.status_code: attribute int | None
 Secret: class (pydantic.main.BaseModel)
 Secret.additional_properties: attribute dict[str, Any]
 Secret.allowed_domains: attribute list[StrictStr]
@@ -2089,10 +1729,6 @@ Secret.to_json: def () -> str
 Secret.to_str: def () -> str
 Secret.updated_at: attribute datetime
 SecretAlreadyExistsError: class (PreconditionFailedError)
-SecretAlreadyExistsError.code: attribute str | None
-SecretAlreadyExistsError.message: attribute str
-SecretAlreadyExistsError.source: attribute str | None
-SecretAlreadyExistsError.status_code: attribute int | None
 SecretService: class
 SecretService.__init__: internal-constructor (impl: _async.AsyncSecretService, bridge: SyncBridge) -> None
 SecretService.delete: def (name: str) -> None
@@ -2101,11 +1737,7 @@ SecretService.iter: def (*, cursor: str | None = None, limit: int | None = None)
 SecretService.list: def (*, cursor: str | None = None, limit: int | None = None) -> ListResult[Secret]
 SecretService.set: def (name: str, value: str, *, allowed_domains: Sequence[str], description: str | None = None, if_not_exists: bool = False) -> Secret
 SecretV2: alias = Secret
-ServiceUnavailableError: class (DaytonaError, Exception)
-ServiceUnavailableError.code: attribute str | None
-ServiceUnavailableError.message: attribute str
-ServiceUnavailableError.source: attribute str | None
-ServiceUnavailableError.status_code: attribute int | None
+ServiceUnavailableError: class (DaytonaError, DaytonaServiceUnavailableError)
 Session: class
 Session.__enter__: def () -> Self
 Session.__exit__: def (*exc: object) -> None
@@ -2119,15 +1751,7 @@ Session.sandbox_id: readonly property str
 Session.start: def (command: str, *, stdin: StdinMode = 'closed', execution_timeout: float | None = None, name: str | None = None, keep_logs: KeepLogs | None = None) -> ProcessHandle
 Session.to_json: def () -> _SessionIdentity
 SessionEndedError: class (GoneError)
-SessionEndedError.code: attribute str | None
-SessionEndedError.message: attribute str
-SessionEndedError.source: attribute str | None
-SessionEndedError.status_code: attribute int | None
 SessionNotFoundError: class (NotFoundError)
-SessionNotFoundError.code: attribute str | None
-SessionNotFoundError.message: attribute str
-SessionNotFoundError.source: attribute str | None
-SessionNotFoundError.status_code: attribute int | None
 SignedPreviewLink: dataclass frozen
 SignedPreviewLink.__init__: internal-constructor (url: str, token: str, expires_at: str | None = None) -> None
 SignedPreviewLink.expires_at: field str | None = None
@@ -2151,10 +1775,6 @@ Snapshot.status: field str
 Snapshot.updated_at: field str | None = None
 Snapshot.var_class: field str
 SnapshotClassMismatchError: class (ConflictError)
-SnapshotClassMismatchError.code: attribute str | None
-SnapshotClassMismatchError.message: attribute str
-SnapshotClassMismatchError.source: attribute str | None
-SnapshotClassMismatchError.status_code: attribute int | None
 SnapshotDetail: class (pydantic.main.BaseModel)
 SnapshotDetail.additional_properties: attribute dict[str, Any]
 SnapshotDetail.bytes: attribute StrictInt | None
@@ -2178,15 +1798,7 @@ SnapshotDetail.updated_at: attribute datetime
 SnapshotDetail.var_class: attribute SnapshotClass
 SnapshotKind: type = Literal['full', 'unknown']
 SnapshotNotFoundError: class (NotFoundError)
-SnapshotNotFoundError.code: attribute str | None
-SnapshotNotFoundError.message: attribute str
-SnapshotNotFoundError.source: attribute str | None
-SnapshotNotFoundError.status_code: attribute int | None
 SnapshotNotReadyError: class (ConflictError)
-SnapshotNotReadyError.code: attribute str | None
-SnapshotNotReadyError.message: attribute str
-SnapshotNotReadyError.source: attribute str | None
-SnapshotNotReadyError.status_code: attribute int | None
 SnapshotRef: dataclass frozen
 SnapshotRef.__init__: internal-constructor (id: str, name: str | None = None) -> None
 SnapshotRef.id: field str
@@ -2198,21 +1810,9 @@ SnapshotService.get: def (snapshot_id: str, *, wait: Literal['ready'] | None = N
 SnapshotService.iter: def (*, name: str | None = None, sandbox_id: str | None = None, cursor: str | None = None, limit: int | None = None) -> Iterator[Snapshot]
 SnapshotService.list: def (*, name: str | None = None, sandbox_id: str | None = None, cursor: str | None = None, limit: int | None = None) -> ListResult[Snapshot]
 SnapshotTooLargeError: class (ConflictError)
-SnapshotTooLargeError.code: attribute str | None
-SnapshotTooLargeError.message: attribute str
-SnapshotTooLargeError.source: attribute str | None
-SnapshotTooLargeError.status_code: attribute int | None
 StdinClosedError: class (ConflictError)
-StdinClosedError.code: attribute str | None
-StdinClosedError.message: attribute str
-StdinClosedError.source: attribute str | None
-StdinClosedError.status_code: attribute int | None
 StdinMode: type = Literal['closed', 'open']
 StdinUnavailableError: class (ConflictError)
-StdinUnavailableError.code: attribute str | None
-StdinUnavailableError.message: attribute str
-StdinUnavailableError.source: attribute str | None
-StdinUnavailableError.status_code: attribute int | None
 SystemMetrics: class (pydantic.main.BaseModel)
 SystemMetrics.additional_properties: attribute dict[str, Any]
 SystemMetrics.cpu_count: attribute Annotated[int, Field(strict=True, ge=0)]
@@ -2229,47 +1829,19 @@ SystemMetrics.to_dict: def () -> dict[str, Any]
 SystemMetrics.to_json: def () -> str
 SystemMetrics.to_str: def () -> str
 TerminalSize: dataclass frozen
-TerminalSize.__init__: internal-constructor (cols: int, rows: int) -> None
+TerminalSize.__init__: constructor (cols: int, rows: int) -> None
 TerminalSize.cols: field int
 TerminalSize.rows: field int
 TransferCancelSignal: protocol
 TransferCancelSignal.is_set: def () -> bool
 TransferCancelledError: class (DaytonaError)
-TransferCancelledError.code: attribute str | None
-TransferCancelledError.message: attribute str
-TransferCancelledError.source: attribute str | None
-TransferCancelledError.status_code: attribute int | None
 TransferProgressCallback: type = Callable[[int, int | None], None]
-UnauthorizedError: class (DaytonaError, Exception)
-UnauthorizedError.code: attribute str | None
-UnauthorizedError.message: attribute str
-UnauthorizedError.source: attribute str | None
-UnauthorizedError.status_code: attribute int | None
+UnauthorizedError: class (DaytonaError, DaytonaAuthenticationError)
 UnknownPlanError: class (BadRequestError)
-UnknownPlanError.code: attribute str | None
-UnknownPlanError.message: attribute str
-UnknownPlanError.source: attribute str | None
-UnknownPlanError.status_code: attribute int | None
-UnprocessableEntityError: class (DaytonaError, Exception)
-UnprocessableEntityError.code: attribute str | None
-UnprocessableEntityError.message: attribute str
-UnprocessableEntityError.source: attribute str | None
-UnprocessableEntityError.status_code: attribute int | None
+UnprocessableEntityError: class (DaytonaError, DaytonaUnprocessableEntityError)
 UnsupportedMediaTypeError: class (DaytonaError)
-UnsupportedMediaTypeError.code: attribute str | None
-UnsupportedMediaTypeError.message: attribute str
-UnsupportedMediaTypeError.source: attribute str | None
-UnsupportedMediaTypeError.status_code: attribute int | None
 UnsupportedOperationError: class (BadRequestError)
-UnsupportedOperationError.code: attribute str | None
-UnsupportedOperationError.message: attribute str
-UnsupportedOperationError.source: attribute str | None
-UnsupportedOperationError.status_code: attribute int | None
 UnsupportedVolumeTypeError: class (BadRequestError)
-UnsupportedVolumeTypeError.code: attribute str | None
-UnsupportedVolumeTypeError.message: attribute str
-UnsupportedVolumeTypeError.source: attribute str | None
-UnsupportedVolumeTypeError.status_code: attribute int | None
 Volume: dataclass frozen
 Volume.__init__: internal-constructor (id: str, name: str, type: VolumeType, raw_type: str, status: VolumeState, raw_status: str, created_at: datetime, updated_at: datetime, size_gib: int | None = None, error: str | None = None, last_used_at: datetime | None = None, options: JsonObject | None = None, used_bytes: int | None = None, used_bytes_at: datetime | None = None) -> None
 Volume.created_at: field datetime
@@ -2287,7 +1859,7 @@ Volume.updated_at: field datetime
 Volume.used_bytes: field int | None = None
 Volume.used_bytes_at: field datetime | None = None
 VolumeMount: dataclass frozen
-VolumeMount.__init__: internal-constructor (volume_id: str, mount_path: str, subpath: str | None = None, read_only: bool | None = None) -> None
+VolumeMount.__init__: constructor (volume_id: str, mount_path: str, subpath: str | None = None, read_only: bool | None = None) -> None
 VolumeMount.mount_path: field str
 VolumeMount.read_only: field bool | None = None
 VolumeMount.subpath: field str | None = None
@@ -2779,3 +2351,526 @@ codes.V0_SANDBOX_NOT_FOUND: const str = 'V0_SANDBOX_NOT_FOUND'
 codes.V0_SANDBOX_NOT_IMPORTABLE: const str = 'V0_SANDBOX_NOT_IMPORTABLE'
 codes.WORKLOAD_PLANE_ELSEWHERE: const str = 'WORKLOAD_PLANE_ELSEWHERE'
 idempotency_key_for_name: def (name: str) -> str
+~AsyncResponseStream: class
+~AsyncResponseStream.__init__: internal-constructor (stream: _AsyncResponseStreamContext, response: httpx.Response, *, owned_client: httpx.AsyncClient | None = None, on_close: Callable[[AsyncResponseStream], None] | None = None, span: _SpanFinisher | None = None) -> None
+~AsyncResponseStream.close: async def () -> None
+~AsyncResponseStream.headers: readonly property Mapping[str, str]
+~AsyncResponseStream.iter_bytes: async def () -> AsyncGenerator[bytes, None]
+~AsyncResponseStream.iter_lines: async def () -> AsyncIterator[str]
+~AsyncResponseStream.status_code: readonly property int
+~AsyncTransport: class
+~AsyncTransport.__init__: internal-constructor (base_url: str | None, token: str | None = None, *, source: str = 'sdk-python-async', request_timeout: float | None = None, connection_pool_maxsize: int | None = None, client: httpx.AsyncClient | None = None, stream_client_factory: Callable[[], httpx.AsyncClient] | None = None, auth: ProjectTokenAuth | None = None, otel: OpenTelemetrySupport | None = None, _stream_owners: _StreamOwners | None = None) -> None
+~AsyncTransport.auth_provider: attribute SandboxTokenAuth | None
+~AsyncTransport.base_url: attribute
+~AsyncTransport.close: async def () -> None
+~AsyncTransport.delete: async def (path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response
+~AsyncTransport.get: async def (path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response
+~AsyncTransport.open_exclusive_stream: async def (spec: RequestSpec) -> AsyncResponseStream
+~AsyncTransport.open_stream: async def (spec: RequestSpec) -> AsyncResponseStream
+~AsyncTransport.patch: async def (path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response
+~AsyncTransport.post: async def (path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response
+~AsyncTransport.put: async def (path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response
+~AsyncTransport.raw: async def (spec: RequestSpec) -> bytes
+~AsyncTransport.request: async def (method: str, path: str, *, content_factory: _ReplayableContentFactory | None = None, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response
+~AsyncTransport.request_timeout_seconds: readonly property float
+~AsyncTransport.scoped: def (base_url: str, token: str | None = None) -> AsyncTransport
+~AsyncTransport.send: async def (spec: RequestSpec) -> JsonValue | bytes
+~AsyncTransport.shared: classmethod def (*, source: str = 'sdk-python-async', request_timeout: float | None = None, connection_pool_maxsize: int | None = None, auth: ProjectTokenAuth | None = None, otel: OpenTelemetrySupport | None = None) -> AsyncTransport
+~AsyncTransport.stream_lines: async def (spec: RequestSpec) -> AsyncIterator[str]
+~AsyncTransport.token: attribute
+~CompletionDocumentation: class (pydantic.main.BaseModel)
+~CompletionDocumentation.__init__: internal-constructor (*args, **kwargs) -> None
+~CompletionDocumentation.actual_instance: attribute MarkupContent | str | None
+~CompletionDocumentation.actual_instance_must_validate_oneof: classmethod def (v)
+~CompletionDocumentation.from_dict: classmethod def (obj: str | dict[str, Any]) -> Self
+~CompletionDocumentation.from_json: classmethod def (json_str: str) -> Self
+~CompletionDocumentation.model_config: attribute dict
+~CompletionDocumentation.one_of_schemas: attribute set[str]
+~CompletionDocumentation.oneof_schema_1_validator: attribute StrictStr | None
+~CompletionDocumentation.oneof_schema_2_validator: attribute MarkupContent | None
+~CompletionDocumentation.to_dict: def () -> dict[str, Any] | MarkupContent | str | None
+~CompletionDocumentation.to_json: def () -> str
+~CompletionDocumentation.to_str: def () -> str
+~DockerfileImageSource: typeddict total
+~DockerfileImageSource.context_object: key str
+~DockerfileImageSource.dockerfile: key str
+~DockerfileImageSource.type: key Literal['dockerfile']
+~ErrorDetails: dataclass frozen
+~ErrorDetails.__init__: constructor (trace_id: str | None = None, retry_after_seconds: int | None = None, feature: str | None = None, entitlement: str | None = None, replacement: str | None = None, first_available_cursor: str | None = None, limit: str | None = None, current: int | None = None, max: int | None = None, max_bytes: int | None = None, bytes: int | None = None, stated: str | None = None, actual: str | None = None, region: str | None = None) -> None
+~ErrorDetails.actual: field str | None = None
+~ErrorDetails.bytes: field int | None = None
+~ErrorDetails.current: field int | None = None
+~ErrorDetails.entitlement: field str | None = None
+~ErrorDetails.feature: field str | None = None
+~ErrorDetails.first_available_cursor: field str | None = None
+~ErrorDetails.limit: field str | None = None
+~ErrorDetails.max: field int | None = None
+~ErrorDetails.max_bytes: field int | None = None
+~ErrorDetails.region: field str | None = None
+~ErrorDetails.replacement: field str | None = None
+~ErrorDetails.retry_after_seconds: field int | None = None
+~ErrorDetails.stated: field str | None = None
+~ErrorDetails.trace_id: field str | None = None
+~FileStatus: class (pydantic.main.BaseModel)
+~FileStatus.additional_properties: attribute dict[str, Any]
+~FileStatus.extra: attribute StrictStr
+~FileStatus.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~FileStatus.from_json: classmethod def (json_str: str) -> Self | None
+~FileStatus.model_config: attribute dict
+~FileStatus.name: attribute StrictStr
+~FileStatus.staging: attribute StrictStr
+~FileStatus.to_dict: def () -> dict[str, Any]
+~FileStatus.to_json: def () -> str
+~FileStatus.to_str: def () -> str
+~FileStatus.worktree: attribute StrictStr
+~ImageBuildLimits: class (pydantic.main.BaseModel)
+~ImageBuildLimits.additional_properties: attribute dict[str, Any]
+~ImageBuildLimits.concurrent: attribute UsageLimit
+~ImageBuildLimits.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~ImageBuildLimits.from_json: classmethod def (json_str: str) -> Self | None
+~ImageBuildLimits.model_config: attribute dict
+~ImageBuildLimits.to_dict: def () -> dict[str, Any]
+~ImageBuildLimits.to_json: def () -> str
+~ImageBuildLimits.to_str: def () -> str
+~ImageReference: class (pydantic.main.BaseModel)
+~ImageReference.additional_properties: attribute dict[str, Any]
+~ImageReference.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~ImageReference.from_json: classmethod def (json_str: str) -> Self | None
+~ImageReference.id: attribute StrictStr
+~ImageReference.model_config: attribute dict
+~ImageReference.name: attribute StrictStr | None
+~ImageReference.to_dict: def () -> dict[str, Any]
+~ImageReference.to_json: def () -> str
+~ImageReference.to_str: def () -> str
+~ImageRetention: enum (str, enum.Enum)
+~ImageRetention.IDLE: enum-member = 'idle'
+~ImageRetention.PERMANENT: enum-member = 'permanent'
+~ImageRetention.UNKNOWN_DEFAULT_OPEN_API: enum-member = 'unknown_default_open_api'
+~ImageRetention.from_json: classmethod def (json_str: str) -> Self
+~ImageSourceValue: class (pydantic.main.BaseModel)
+~ImageSourceValue.__init__: internal-constructor (*args, **kwargs) -> None
+~ImageSourceValue.actual_instance: attribute ImageSourceValueOneOf | ImageSourceValueOneOf1 | ImageSourceValueOneOf2 | ImageSourceValueOneOf3 | None
+~ImageSourceValue.actual_instance_must_validate_oneof: classmethod def (v)
+~ImageSourceValue.from_dict: classmethod def (obj: str | dict[str, Any]) -> Self
+~ImageSourceValue.from_json: classmethod def (json_str: str) -> Self
+~ImageSourceValue.model_config: attribute dict
+~ImageSourceValue.one_of_schemas: attribute set[str]
+~ImageSourceValue.oneof_schema_1_validator: attribute ImageSourceValueOneOf | None
+~ImageSourceValue.oneof_schema_2_validator: attribute ImageSourceValueOneOf1 | None
+~ImageSourceValue.oneof_schema_3_validator: attribute ImageSourceValueOneOf2 | None
+~ImageSourceValue.oneof_schema_4_validator: attribute ImageSourceValueOneOf3 | None
+~ImageSourceValue.to_dict: def () -> dict[str, Any] | ImageSourceValueOneOf | ImageSourceValueOneOf1 | ImageSourceValueOneOf2 | ImageSourceValueOneOf3 | None
+~ImageSourceValue.to_json: def () -> str
+~ImageSourceValue.to_str: def () -> str
+~ImageSourceValueOneOf: class (pydantic.main.BaseModel)
+~ImageSourceValueOneOf.additional_properties: attribute dict[str, Any]
+~ImageSourceValueOneOf.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~ImageSourceValueOneOf.from_json: classmethod def (json_str: str) -> Self | None
+~ImageSourceValueOneOf.model_config: attribute dict
+~ImageSourceValueOneOf.ref: attribute StrictStr
+~ImageSourceValueOneOf.to_dict: def () -> dict[str, Any]
+~ImageSourceValueOneOf.to_json: def () -> str
+~ImageSourceValueOneOf.to_str: def () -> str
+~ImageSourceValueOneOf.type: attribute StrictStr
+~ImageSourceValueOneOf.type_validate_enum: classmethod def (value)
+~ImageSourceValueOneOf1: class (pydantic.main.BaseModel)
+~ImageSourceValueOneOf1.additional_properties: attribute dict[str, Any]
+~ImageSourceValueOneOf1.context_object: attribute StrictStr
+~ImageSourceValueOneOf1.dockerfile: attribute StrictStr
+~ImageSourceValueOneOf1.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~ImageSourceValueOneOf1.from_json: classmethod def (json_str: str) -> Self | None
+~ImageSourceValueOneOf1.model_config: attribute dict
+~ImageSourceValueOneOf1.to_dict: def () -> dict[str, Any]
+~ImageSourceValueOneOf1.to_json: def () -> str
+~ImageSourceValueOneOf1.to_str: def () -> str
+~ImageSourceValueOneOf1.type: attribute StrictStr
+~ImageSourceValueOneOf1.type_validate_enum: classmethod def (value)
+~ImageSourceValueOneOf2: class (pydantic.main.BaseModel)
+~ImageSourceValueOneOf2.additional_properties: attribute dict[str, Any]
+~ImageSourceValueOneOf2.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~ImageSourceValueOneOf2.from_json: classmethod def (json_str: str) -> Self | None
+~ImageSourceValueOneOf2.model_config: attribute dict
+~ImageSourceValueOneOf2.name: attribute StrictStr
+~ImageSourceValueOneOf2.to_dict: def () -> dict[str, Any]
+~ImageSourceValueOneOf2.to_json: def () -> str
+~ImageSourceValueOneOf2.to_str: def () -> str
+~ImageSourceValueOneOf2.type: attribute StrictStr
+~ImageSourceValueOneOf2.type_validate_enum: classmethod def (value)
+~ImageSourceValueOneOf3: class (pydantic.main.BaseModel)
+~ImageSourceValueOneOf3.additional_properties: attribute dict[str, Any]
+~ImageSourceValueOneOf3.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~ImageSourceValueOneOf3.from_json: classmethod def (json_str: str) -> Self | None
+~ImageSourceValueOneOf3.model_config: attribute dict
+~ImageSourceValueOneOf3.name: attribute StrictStr
+~ImageSourceValueOneOf3.to_dict: def () -> dict[str, Any]
+~ImageSourceValueOneOf3.to_json: def () -> str
+~ImageSourceValueOneOf3.to_str: def () -> str
+~ImageSourceValueOneOf3.type: attribute StrictStr
+~ImageSourceValueOneOf3.type_validate_enum: classmethod def (value)
+~ImportedFrom: class (pydantic.main.BaseModel)
+~ImportedFrom.additional_properties: attribute dict[str, Any]
+~ImportedFrom.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~ImportedFrom.from_json: classmethod def (json_str: str) -> Self | None
+~ImportedFrom.id: attribute StrictStr
+~ImportedFrom.model_config: attribute dict
+~ImportedFrom.platform: attribute StrictStr
+~ImportedFrom.to_dict: def () -> dict[str, Any]
+~ImportedFrom.to_json: def () -> str
+~ImportedFrom.to_str: def () -> str
+~JsonObject: type = dict[str, str | int | float | bool | None | Sequence[JsonValue] | Mapping[str, JsonValue]]
+~JsonScalar: type = str | int | float | bool | None
+~JsonValue: type = str | int | float | bool | None | Sequence[JsonValue] | Mapping[str, JsonValue]
+~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action: enum (str, enum.Enum)
+~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action.DELETE: enum-member = 'delete'
+~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action.PAUSE: enum-member = 'pause'
+~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action.STOP: enum-member = 'stop'
+~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action.UNKNOWN_DEFAULT_OPEN_API: enum-member = 'unknown_default_open_api'
+~LifecycleAction@daytona/v2/_gen/api/models/lifecycle_action.from_json: classmethod def (json_str: str) -> Self
+~LifecyclePolicy: class (pydantic.main.BaseModel)
+~LifecyclePolicy.additional_properties: attribute dict[str, Any]
+~LifecyclePolicy.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~LifecyclePolicy.from_json: classmethod def (json_str: str) -> Self | None
+~LifecyclePolicy.idle_expiry_seconds: attribute StrictInt | None
+~LifecyclePolicy.idle_timeout_at: attribute datetime | None
+~LifecyclePolicy.last_activity_at: attribute datetime | None
+~LifecyclePolicy.last_activity_source: attribute StrictStr | None
+~LifecyclePolicy.model_config: attribute dict
+~LifecyclePolicy.on_idle_timeout: attribute LifecycleAction | None
+~LifecyclePolicy.on_timeout: attribute LifecycleAction | None
+~LifecyclePolicy.timeout_at: attribute datetime | None
+~LifecyclePolicy.timeout_seconds: attribute StrictInt | None
+~LifecyclePolicy.to_dict: def () -> dict[str, Any]
+~LifecyclePolicy.to_json: def () -> str
+~LifecyclePolicy.to_str: def () -> str
+~LogEncoding: type = Literal['text', 'base64']
+~MacCatalogModel: class (pydantic.main.BaseModel)
+~MacCatalogModel.additional_properties: attribute dict[str, Any]
+~MacCatalogModel.available: attribute StrictInt
+~MacCatalogModel.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~MacCatalogModel.from_json: classmethod def (json_str: str) -> Self | None
+~MacCatalogModel.model: attribute MacModel
+~MacCatalogModel.model_config: attribute dict
+~MacCatalogModel.price: attribute MacPrice | None
+~MacCatalogModel.to_dict: def () -> dict[str, Any]
+~MacCatalogModel.to_json: def () -> str
+~MacCatalogModel.to_str: def () -> str
+~MacCatalogRegion: class (pydantic.main.BaseModel)
+~MacCatalogRegion.additional_properties: attribute dict[str, Any]
+~MacCatalogRegion.default_model: attribute StrictStr
+~MacCatalogRegion.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~MacCatalogRegion.from_json: classmethod def (json_str: str) -> Self | None
+~MacCatalogRegion.id: attribute StrictStr
+~MacCatalogRegion.model_config: attribute dict
+~MacCatalogRegion.models: attribute list[MacCatalogModel]
+~MacCatalogRegion.to_dict: def () -> dict[str, Any]
+~MacCatalogRegion.to_json: def () -> str
+~MacCatalogRegion.to_str: def () -> str
+~MacPrice: class (pydantic.main.BaseModel)
+~MacPrice.additional_properties: attribute dict[str, Any]
+~MacPrice.cents_per_hour: attribute StrictFloat | StrictInt
+~MacPrice.currency: attribute StrictStr
+~MacPrice.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~MacPrice.from_json: classmethod def (json_str: str) -> Self | None
+~MacPrice.model_config: attribute dict
+~MacPrice.period_cents: attribute StrictInt
+~MacPrice.period_seconds: attribute StrictInt
+~MacPrice.to_dict: def () -> dict[str, Any]
+~MacPrice.to_json: def () -> str
+~MacPrice.to_str: def () -> str
+~MacResources: class (pydantic.main.BaseModel)
+~MacResources.additional_properties: attribute dict[str, Any]
+~MacResources.cores: attribute StrictInt
+~MacResources.disk_mib: attribute StrictInt
+~MacResources.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~MacResources.from_json: classmethod def (json_str: str) -> Self | None
+~MacResources.memory_mib: attribute StrictInt
+~MacResources.model_config: attribute dict
+~MacResources.to_dict: def () -> dict[str, Any]
+~MacResources.to_json: def () -> str
+~MacResources.to_str: def () -> str
+~ManifestImageSource: typeddict total
+~ManifestImageSource.name: key str
+~ManifestImageSource.type: key Literal['manifest']
+~MarkupContent: class (pydantic.main.BaseModel)
+~MarkupContent.additional_properties: attribute dict[str, Any]
+~MarkupContent.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~MarkupContent.from_json: classmethod def (json_str: str) -> Self | None
+~MarkupContent.kind: attribute StrictStr
+~MarkupContent.model_config: attribute dict
+~MarkupContent.to_dict: def () -> dict[str, Any]
+~MarkupContent.to_json: def () -> str
+~MarkupContent.to_str: def () -> str
+~MarkupContent.value: attribute StrictStr
+~MemberLimits: class (pydantic.main.BaseModel)
+~MemberLimits.additional_properties: attribute dict[str, Any]
+~MemberLimits.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~MemberLimits.from_json: classmethod def (json_str: str) -> Self | None
+~MemberLimits.limit: attribute StrictInt | None
+~MemberLimits.model_config: attribute dict
+~MemberLimits.pending_invitations: attribute StrictInt
+~MemberLimits.to_dict: def () -> dict[str, Any]
+~MemberLimits.to_json: def () -> str
+~MemberLimits.to_str: def () -> str
+~MemberLimits.usage: attribute StrictInt
+~MultipartPart: type = tuple[str | None, str | bytes]
+~NamedImageSource: typeddict total
+~NamedImageSource.name: key str
+~NamedImageSource.type: key Literal['named']
+~OpenTelemetrySupport: class
+~OpenTelemetrySupport.__init__: internal-constructor (otel_module: _TraceApi) -> None
+~OpenTelemetrySupport.start_request_span: def (*, method: str, url: str, headers: dict[str, str]) -> _ActiveRequestSpan
+~PortAssignment: class (pydantic.main.BaseModel)
+~PortAssignment.additional_properties: attribute dict[str, Any]
+~PortAssignment.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~PortAssignment.from_json: classmethod def (json_str: str) -> Self | None
+~PortAssignment.host_port: attribute Annotated[int, Field(le=65535, strict=True, ge=1)]
+~PortAssignment.model_config: attribute dict
+~PortAssignment.proto: attribute PortProtocol
+~PortAssignment.to_dict: def () -> dict[str, Any]
+~PortAssignment.to_json: def () -> str
+~PortAssignment.to_str: def () -> str
+~PortAssignment.vm_port: attribute Annotated[int, Field(le=65535, strict=True, ge=1)]
+~PortProtocol: enum (str, enum.Enum)
+~PortProtocol.TCP: enum-member = 'tcp'
+~PortProtocol.UDP: enum-member = 'udp'
+~PortProtocol.UNKNOWN_DEFAULT_OPEN_API: enum-member = 'unknown_default_open_api'
+~PortProtocol.from_json: classmethod def (json_str: str) -> Self
+~ProjectApiKeyContext: class (pydantic.main.BaseModel)
+~ProjectApiKeyContext.additional_properties: attribute dict[str, Any]
+~ProjectApiKeyContext.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~ProjectApiKeyContext.from_json: classmethod def (json_str: str) -> Self | None
+~ProjectApiKeyContext.model_config: attribute dict
+~ProjectApiKeyContext.org_id: attribute StrictStr
+~ProjectApiKeyContext.org_name: attribute StrictStr
+~ProjectApiKeyContext.project_name: attribute StrictStr
+~ProjectApiKeyContext.to_dict: def () -> dict[str, Any]
+~ProjectApiKeyContext.to_json: def () -> str
+~ProjectApiKeyContext.to_str: def () -> str
+~ProjectTokenAuth: class
+~ProjectTokenAuth.__init__: internal-constructor (*, api_url: str, jwt_token: str, project_id: str, source: str, client: httpx.AsyncClient | None = None, otel: OpenTelemetrySupport | None = None) -> None
+~ProjectTokenAuth.bearer: async def () -> str | None
+~ProjectTokenAuth.bind_client: def (client: httpx.AsyncClient) -> None
+~ProjectTokenAuth.get_token: async def (*, force_refresh: bool = False, current_token: str | None = None) -> str
+~ProjectTokenAuth.on_unauthorized: async def (failed_token: str | None) -> str | None
+~QueryParamScalar: type = str | int | float | bool | None
+~QueryParamValue: type = str | int | float | bool | None | list[str | int | float | bool | None]
+~RegistryImageSource: typeddict total
+~RegistryImageSource.ref: key str
+~RegistryImageSource.type: key Literal['registry']
+~RequestSpec: dataclass frozen
+~RequestSpec.__init__: internal-constructor (method: str, path: str, params: dict[str, JsonValue] = dict(), json_body: JsonValue | None = None, data: str | bytes | dict[str, str] | None = None, files: dict[str, MultipartPart] | None = None, timeout: float | None = None, unbounded_read: bool = False, headers: dict[str, str] = dict(), on_headers: Callable[[Mapping[str, str]], None] | None = None) -> None
+~RequestSpec.data: field str | bytes | dict[str, str] | None = None
+~RequestSpec.files: field dict[str, MultipartPart] | None = None
+~RequestSpec.headers: field dict[str, str] = dict()
+~RequestSpec.json_body: field JsonValue | None = None
+~RequestSpec.method: field str
+~RequestSpec.on_headers: field Callable[[Mapping[str, str]], None] | None = None
+~RequestSpec.params: field dict[str, JsonValue] = dict()
+~RequestSpec.path: field str
+~RequestSpec.timeout: field float | None = None
+~RequestSpec.unbounded_read: field bool = False
+~Sandbox@daytona/v2/_gen/api/models/sandbox: class (pydantic.main.BaseModel)
+~Sandbox@daytona/v2/_gen/api/models/sandbox.additional_properties: attribute dict[str, Any]
+~Sandbox@daytona/v2/_gen/api/models/sandbox.cores_max: attribute StrictFloat | StrictInt
+~Sandbox@daytona/v2/_gen/api/models/sandbox.cpu: attribute StrictFloat | StrictInt
+~Sandbox@daytona/v2/_gen/api/models/sandbox.create_timeout_at: attribute datetime | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.created_at: attribute datetime | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.disk_max_mib: attribute StrictInt | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.disk_mib: attribute StrictInt
+~Sandbox@daytona/v2/_gen/api/models/sandbox.error: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.forked_from: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.from_json: classmethod def (json_str: str) -> Self | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.id: attribute StrictStr
+~Sandbox@daytona/v2/_gen/api/models/sandbox.image: attribute ImageReference | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.image_build_id: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.image_ref: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.imported_from: attribute ImportedFrom | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.labels: attribute dict[str, StrictStr] | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.last_activity_at: attribute datetime | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.lifecycle_policy: attribute LifecyclePolicy | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.mac_boot_mode: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.memory_max_mib: attribute StrictInt | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.memory_mib: attribute StrictInt
+~Sandbox@daytona/v2/_gen/api/models/sandbox.model_config: attribute dict
+~Sandbox@daytona/v2/_gen/api/models/sandbox.name: attribute StrictStr
+~Sandbox@daytona/v2/_gen/api/models/sandbox.persistent: attribute StrictBool | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.port_map: attribute list[PortAssignment]
+~Sandbox@daytona/v2/_gen/api/models/sandbox.region_id: attribute StrictStr
+~Sandbox@daytona/v2/_gen/api/models/sandbox.reservation_id: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.snapshot: attribute SnapshotReference | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.spot: attribute StrictBool | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.spot_evicted_at: attribute datetime | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.ssh_gateway_host: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.ssh_gateway_port: attribute Annotated[int, Field(strict=True, ge=0)] | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.started_at: attribute datetime | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.status: attribute StrictStr
+~Sandbox@daytona/v2/_gen/api/models/sandbox.stopped_at: attribute datetime | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.to_dict: def () -> dict[str, Any]
+~Sandbox@daytona/v2/_gen/api/models/sandbox.to_json: def () -> str
+~Sandbox@daytona/v2/_gen/api/models/sandbox.to_str: def () -> str
+~Sandbox@daytona/v2/_gen/api/models/sandbox.toolbox_proxy_url: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.updated_at: attribute datetime | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.user: attribute StrictStr | None
+~Sandbox@daytona/v2/_gen/api/models/sandbox.var_class: attribute SandboxClass
+~SandboxClass@daytona/v2/_gen/api/models/sandbox_class: enum (str, enum.Enum)
+~SandboxClass@daytona/v2/_gen/api/models/sandbox_class.LINUX: enum-member = 'linux'
+~SandboxClass@daytona/v2/_gen/api/models/sandbox_class.MACOS: enum-member = 'macos'
+~SandboxClass@daytona/v2/_gen/api/models/sandbox_class.UNKNOWN_DEFAULT_OPEN_API: enum-member = 'unknown_default_open_api'
+~SandboxClass@daytona/v2/_gen/api/models/sandbox_class.from_json: classmethod def (json_str: str) -> Self
+~SandboxLimits: class (pydantic.main.BaseModel)
+~SandboxLimits.additional_properties: attribute dict[str, Any]
+~SandboxLimits.concurrent: attribute UsageLimit
+~SandboxLimits.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~SandboxLimits.from_json: classmethod def (json_str: str) -> Self | None
+~SandboxLimits.model_config: attribute dict
+~SandboxLimits.to_dict: def () -> dict[str, Any]
+~SandboxLimits.to_json: def () -> str
+~SandboxLimits.to_str: def () -> str
+~SandboxLimits.total: attribute UsageLimit
+~SandboxListItem: class (pydantic.main.BaseModel)
+~SandboxListItem.additional_properties: attribute dict[str, Any]
+~SandboxListItem.cores_max: attribute StrictFloat | StrictInt
+~SandboxListItem.cpu: attribute StrictFloat | StrictInt
+~SandboxListItem.create_timeout_at: attribute datetime | None
+~SandboxListItem.created_at: attribute datetime | None
+~SandboxListItem.cursor: attribute StrictStr
+~SandboxListItem.disk_max_mib: attribute StrictInt | None
+~SandboxListItem.disk_mib: attribute StrictInt
+~SandboxListItem.error: attribute StrictStr | None
+~SandboxListItem.forked_from: attribute StrictStr | None
+~SandboxListItem.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~SandboxListItem.from_json: classmethod def (json_str: str) -> Self | None
+~SandboxListItem.id: attribute StrictStr
+~SandboxListItem.image: attribute ImageReference | None
+~SandboxListItem.image_build_id: attribute StrictStr | None
+~SandboxListItem.image_ref: attribute StrictStr | None
+~SandboxListItem.imported_from: attribute ImportedFrom | None
+~SandboxListItem.labels: attribute dict[str, StrictStr] | None
+~SandboxListItem.last_activity_at: attribute datetime | None
+~SandboxListItem.lifecycle_policy: attribute LifecyclePolicy | None
+~SandboxListItem.mac_boot_mode: attribute StrictStr | None
+~SandboxListItem.memory_max_mib: attribute StrictInt | None
+~SandboxListItem.memory_mib: attribute StrictInt
+~SandboxListItem.model_config: attribute dict
+~SandboxListItem.name: attribute StrictStr
+~SandboxListItem.persistent: attribute StrictBool | None
+~SandboxListItem.port_map: attribute list[PortAssignment]
+~SandboxListItem.region_id: attribute StrictStr
+~SandboxListItem.reservation_id: attribute StrictStr | None
+~SandboxListItem.snapshot: attribute SnapshotReference | None
+~SandboxListItem.spot: attribute StrictBool | None
+~SandboxListItem.spot_evicted_at: attribute datetime | None
+~SandboxListItem.ssh_gateway_host: attribute StrictStr | None
+~SandboxListItem.ssh_gateway_port: attribute Annotated[int, Field(strict=True, ge=0)] | None
+~SandboxListItem.started_at: attribute datetime | None
+~SandboxListItem.status: attribute StrictStr
+~SandboxListItem.stopped_at: attribute datetime | None
+~SandboxListItem.to_dict: def () -> dict[str, Any]
+~SandboxListItem.to_json: def () -> str
+~SandboxListItem.to_str: def () -> str
+~SandboxListItem.toolbox_proxy_url: attribute StrictStr | None
+~SandboxListItem.updated_at: attribute datetime | None
+~SandboxListItem.user: attribute StrictStr | None
+~SandboxListItem.var_class: attribute SandboxClass
+~SandboxResourceLimits: class (pydantic.main.BaseModel)
+~SandboxResourceLimits.additional_properties: attribute dict[str, Any]
+~SandboxResourceLimits.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~SandboxResourceLimits.from_json: classmethod def (json_str: str) -> Self | None
+~SandboxResourceLimits.max_cores: attribute StrictFloat | StrictInt
+~SandboxResourceLimits.max_memory_mib: attribute StrictInt
+~SandboxResourceLimits.model_config: attribute dict
+~SandboxResourceLimits.to_dict: def () -> dict[str, Any]
+~SandboxResourceLimits.to_json: def () -> str
+~SandboxResourceLimits.to_str: def () -> str
+~SandboxState: type = Literal
+~SandboxState: union-member 'creating'
+~SandboxState: union-member 'destroyed'
+~SandboxState: union-member 'destroying'
+~SandboxState: union-member 'error'
+~SandboxState: union-member 'paused'
+~SandboxState: union-member 'pausing'
+~SandboxState: union-member 'queued'
+~SandboxState: union-member 'started'
+~SandboxState: union-member 'starting'
+~SandboxState: union-member 'stopped'
+~SandboxState: union-member 'stopping'
+~SandboxState: union-member 'unknown'
+~SandboxTokenAuth: protocol
+~SandboxTokenAuth.bearer: async def () -> str | None
+~SandboxTokenAuth.on_unauthorized: async def (failed_token: str | None) -> str | None
+~SignalName: type = Literal['TERM', 'KILL', 'INT', 'HUP', 'QUIT', 'USR1', 'USR2']
+~SnapshotClass: enum (str, enum.Enum)
+~SnapshotClass.LINUX: enum-member = 'linux'
+~SnapshotClass.UNKNOWN_DEFAULT_OPEN_API: enum-member = 'unknown_default_open_api'
+~SnapshotClass.from_json: classmethod def (json_str: str) -> Self
+~SnapshotKind@daytona/v2/_gen/api/models/snapshot_kind: enum (str, enum.Enum)
+~SnapshotKind@daytona/v2/_gen/api/models/snapshot_kind.FULL: enum-member = 'full'
+~SnapshotKind@daytona/v2/_gen/api/models/snapshot_kind.UNKNOWN_DEFAULT_OPEN_API: enum-member = 'unknown_default_open_api'
+~SnapshotKind@daytona/v2/_gen/api/models/snapshot_kind.from_json: classmethod def (json_str: str) -> Self
+~SnapshotReference: class (pydantic.main.BaseModel)
+~SnapshotReference.additional_properties: attribute dict[str, Any]
+~SnapshotReference.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~SnapshotReference.from_json: classmethod def (json_str: str) -> Self | None
+~SnapshotReference.id: attribute StrictStr
+~SnapshotReference.model_config: attribute dict
+~SnapshotReference.name: attribute StrictStr | None
+~SnapshotReference.to_dict: def () -> dict[str, Any]
+~SnapshotReference.to_json: def () -> str
+~SnapshotReference.to_str: def () -> str
+~StorageLimits: class (pydantic.main.BaseModel)
+~StorageLimits.additional_properties: attribute dict[str, Any]
+~StorageLimits.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~StorageLimits.from_json: classmethod def (json_str: str) -> Self | None
+~StorageLimits.images: attribute UsageLimit
+~StorageLimits.model_config: attribute dict
+~StorageLimits.snapshots: attribute UsageLimit
+~StorageLimits.to_dict: def () -> dict[str, Any]
+~StorageLimits.to_json: def () -> str
+~StorageLimits.to_str: def () -> str
+~StorageLimits.volumes: attribute UsageLimit
+~UsageLimit: class (pydantic.main.BaseModel)
+~UsageLimit.additional_properties: attribute dict[str, Any]
+~UsageLimit.from_dict: classmethod def (obj: dict[str, Any] | None) -> Self | None
+~UsageLimit.from_json: classmethod def (json_str: str) -> Self | None
+~UsageLimit.limit: attribute StrictInt | None
+~UsageLimit.model_config: attribute dict
+~UsageLimit.to_dict: def () -> dict[str, Any]
+~UsageLimit.to_json: def () -> str
+~UsageLimit.to_str: def () -> str
+~UsageLimit.usage: attribute StrictInt
+~WaitHub: class
+~WaitHub.__init__: internal-constructor (api_url: str, api_key: str, *, source: str = 'sdk-python-async', config: SandboxEventsConfig | None = None, connector: Callable[[str, list[str]], Awaitable[_WsConn]] | None = None, loop: asyncio.AbstractEventLoop | None = None, auth: ProjectTokenAuth | None = None) -> None
+~WaitHub.enabled: readonly property bool
+~WaitHub.learn: def (sandbox_id: str, endpoint: str) -> None
+~WaitHub.wait: async def (sandbox_id: str, predicate: _Predicate, *, timeout: float | None = None, region_hint: str | None = None, sandbox_poll_fn: Callable[[], Awaitable[WaitOutcome]] | None = None, on_observed: Callable[[WaitOutcome], None] | None = None) -> WaitOutcome
+~WaitOutcome: dataclass frozen
+~WaitOutcome.__init__: internal-constructor (state: SandboxState, raw_state: str) -> None
+~WaitOutcome.raw_state: field str
+~WaitOutcome.state: field SandboxState
+~_ActiveRequestSpan: class
+~_ActiveRequestSpan.__init__: internal-constructor (*, context_manager: AbstractContextManager[_SpanLike], span: _SpanLike, status_factory: Callable[[object], object], ok_status: object, error_status: object) -> None
+~_ActiveRequestSpan.finish: def (*, status_code: int | None = None, error: BaseException | None = None) -> None
+~_EventCallback: type = Callable[[BuildLogStateEvent | BuildLogChunkEvent | BuildLogGapEvent | BuildLogUnavailableEvent | BuildLogSourceChangedEvent | BuildLogDoneEvent | BuildLogErrorEvent], None | Awaitable[None]]
+~_ExitCallback: type = Callable[[Exception | None], None | Awaitable[None]]
+~_LogsCallback: type = Callable[[str], None | Awaitable[None]]
+~_OverflowCallback: type = Callable[[], None | Awaitable[None]]
+~_ReplayableContent: type = str | bytes | Iterable[bytes] | AsyncIterable[bytes]
+~_ReplayableContentFactory: type = Callable[[int], str | bytes | Iterable[bytes] | AsyncIterable[bytes]]
+~_RequestKwargs: class (dict)
+~_RequestKwargs.content: attribute str | bytes | Iterable[bytes] | AsyncIterable[bytes] | None
+~_RequestKwargs.data: attribute str | bytes | Mapping[str, str] | None
+~_RequestKwargs.files: attribute Mapping[str, MultipartPart] | None
+~_RequestKwargs.headers: attribute Mapping[str, str] | None
+~_RequestKwargs.json: attribute JsonValue | None
+~_RequestKwargs.params: attribute Mapping[str, QueryParamValue] | None
+~_RequestKwargs.timeout: attribute float | httpx.Timeout
+~_SessionIdentity: typeddict total
+~_SessionIdentity.sandboxId: key str
+~_SessionIdentity.sessionId: key str
+~_TargetPredicate: dataclass frozen
+~_TargetPredicate.__init__: internal-constructor (states: frozenset[SandboxState], terminal_states: frozenset[SandboxState], kind: Literal['target'] = 'target') -> None
+~_TargetPredicate.kind: field Literal['target'] = 'target'
+~_TargetPredicate.states: field frozenset[SandboxState]
+~_TargetPredicate.terminal_states: field frozenset[SandboxState]
+~_WatchCallback: type = Callable[[FilesystemEvent], None | Awaitable[None]]

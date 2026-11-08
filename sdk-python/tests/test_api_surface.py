@@ -1,0 +1,69 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+"""The committed surface snapshots (gen/api_surface.py) cover what users reach
+without importing it by name: the v2 client behind the root's ``.v2``, the
+types public signatures use without exporting them, and the constructors of
+the option dataclasses users build."""
+
+from __future__ import annotations
+
+import typing
+from pathlib import Path
+
+import pytest
+
+from daytona import AsyncDaytona, Daytona, DaytonaConfig
+from daytona.v2 import types as v2_types
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def snapshot(name: str) -> list[str]:
+    return (ROOT / "api-surface" / name).read_text().splitlines()
+
+
+def key_of(cls: type) -> str:
+    return f"~{cls.__name__}@{cls.__module__.replace('.', '/')}"
+
+
+@pytest.mark.parametrize("root", [Daytona, AsyncDaytona])
+def test_every_public_member_of_the_v2_client_is_listed(root: type[Daytona | AsyncDaytona]) -> None:
+    client = root(DaytonaConfig(api_key="surface-test")).v2
+    lines = snapshot("daytona.api.txt")
+    key = key_of(type(client))
+    # Instance attributes (the services) included.
+    names = sorted(n for n in dir(client) if not n.startswith("_"))
+    assert {"create", "get", "list", "find_by_name", "get_limits", "images", "snapshots"} <= set(names)
+    missing = [n for n in names if not any(line.startswith(f"{key}.{n}: ") for line in lines)]
+    assert missing == []
+    assert any(line.startswith(f"{key}.__init__: internal-constructor ") for line in lines)
+
+
+def test_a_literal_alias_used_without_being_exported_is_expanded() -> None:
+    lines = snapshot("daytona.v2.api.txt")
+    assert "SignalName" not in __import__("daytona.v2", fromlist=["__all__"]).__all__
+    values = ", ".join(repr(v) for v in typing.get_args(v2_types.SignalName))
+    assert f"~SignalName: type = Literal[{values}]" in lines
+    assert any("signal: SignalName" in line for line in lines if line.startswith("AsyncProcessHandle.kill: "))
+
+
+@pytest.mark.parametrize(
+    "name", ["Resources", "VolumeMount", "TerminalSize", "ComputerUseRegion", "SandboxEventsConfig"]
+)
+def test_option_dataclasses_users_build_have_public_constructors(name: str) -> None:
+    lines = snapshot("daytona.v2.api.txt")
+    init = [line for line in lines if line.startswith(f"{name}.__init__: ")]
+    assert len(init) == 1
+    assert init[0].startswith(f"{name}.__init__: constructor (")
+
+
+def test_terminal_size_constructor_records_field_order() -> None:
+    lines = snapshot("daytona.v2.api.txt")
+    assert "TerminalSize.__init__: constructor (cols: int, rows: int) -> None" in lines
+
+
+def test_handles_users_receive_keep_internal_constructors() -> None:
+    lines = snapshot("daytona.v2.api.txt")
+    assert any(line.startswith("AsyncSandbox.__init__: internal-constructor ") for line in lines)
+    assert any(line.startswith("ImageBuilder.__init__: internal-constructor ") for line in lines)

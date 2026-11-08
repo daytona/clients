@@ -186,8 +186,16 @@ uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q
 name in `daytona.__all__` / `daytona.v2.__all__` with its kind and signature
 (classes with their constructor, methods marked `def` / `async def`,
 properties, attributes, dataclass fields, enum members and TypedDict keys),
-one declaration per line. Annotations and defaults come from the source, so
-the text is the same on every supported Python. Regenerate after any change
+one declaration per line. A `daytona` class or type alias that a listed
+signature uses but neither namespace exports (the v2 clients behind the
+root's `.v2`, a `Literal` alias, a generated model) is listed as `~Name`
+(`~Name@module` when the name is taken), in the file of the first namespace
+that reaches it. Constructors are `internal-constructor` except the root
+client's and its config's, the error classes', and those of dataclasses users
+build to pass in (a dataclass that types a parameter of a method users call,
+or a field of one; a dataclass whose fields are all private is built by a
+factory). Annotations and defaults come from the source, so the text is the
+same on every supported Python. Regenerate after any change
 to the public surface and commit the result; CI runs the check:
 
 ```bash
