@@ -134,7 +134,10 @@ async function waitForBuiltImage(images: ImagesService, initial: Image, deadline
       if (pause > 0) await sleep(pause)
     } catch (error) {
       // Only the client's own deadline is the build timeout; a server 408 keeps its source, as in Python.
-      if (error instanceof DaytonaError && error.source === 'SDK' && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && Date.now() >= deadline) {
+      // The artifact wait's own timeout (not a client read timer) is always this
+      // deadline running out: the wait shares it.
+      const waitRanOut = !(error instanceof ClientTimeoutError) || (deadline !== undefined && Date.now() >= deadline)
+      if (error instanceof DaytonaError && error.source === 'SDK' && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && waitRanOut) {
         throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       }
       throw error

@@ -7,27 +7,34 @@ import { badRequest } from './options.js'
 
 type Scalar = 'string' | 'number' | 'integer' | 'boolean' | 'object'
 
-interface ArraySpec { readonly array: FieldSpec; readonly optional: boolean }
-interface NestedSpec { readonly fields: ResponseFields; readonly optional: boolean }
+/**
+ * `true`: the field may be absent or null. `'nullable'`: the contract requires
+ * the key but allows `null` (an absent key is malformed). `false`: required.
+ */
+type Presence = boolean | 'nullable'
+
+interface ArraySpec { readonly array: FieldSpec; readonly optional: Presence }
+interface NestedSpec { readonly fields: ResponseFields; readonly optional: Presence }
 
 /**
- * One field of a response shape: a scalar kind (`'object'` is any JSON object,
- * such as a label map), optionally suffixed `?` when the contract lets the
- * field be absent or null, an array of a field, or a nested shape.
+ * One field of a response: a scalar kind (`'object'` is any JSON object, such
+ * as a label map), suffixed `?` when the contract lets the field be absent or
+ * null, or `|null` when it requires the key but allows `null`; an array of a
+ * field; or a nested set of fields.
  * @internal
  */
-export type FieldSpec = Scalar | `${Scalar}?` | ArraySpec | NestedSpec
+export type FieldSpec = Scalar | `${Scalar}?` | `${Scalar}|null` | ArraySpec | NestedSpec
 
 /** @internal */
 export type ResponseFields = Readonly<Record<string, FieldSpec>>
 
 /** @internal */
-export function arrayOf(item: FieldSpec, optional = false): ArraySpec {
+export function arrayOf(item: FieldSpec, optional: Presence = false): ArraySpec {
   return { array: item, optional }
 }
 
 /** @internal */
-export function nested(fields: ResponseFields, optional = false): NestedSpec {
+export function nested(fields: ResponseFields, optional: Presence = false): NestedSpec {
   return { fields, optional }
 }
 
@@ -40,9 +47,13 @@ function article(kind: string): string {
 }
 
 function checkField(value: unknown, spec: FieldSpec, path: string, what: string): void {
-  const optional = typeof spec === 'string' ? spec.endsWith('?') : spec.optional
-  if (value === undefined || value === null) {
-    if (optional) return
+  const presence: Presence = typeof spec === 'string' ? (spec.endsWith('?') ? true : spec.endsWith('|null') ? 'nullable' : false) : spec.optional
+  if (value === undefined) {
+    if (presence === true) return
+    throw badRequest(`${what} response is missing its ${path}`)
+  }
+  if (value === null) {
+    if (presence !== false) return
     throw badRequest(`${what} response is missing its ${path}`)
   }
   if (typeof spec !== 'string') {
@@ -55,7 +66,7 @@ function checkField(value: unknown, spec: FieldSpec, path: string, what: string)
     checkFields(value, spec.fields, `${path}.`, what)
     return
   }
-  const kind = spec.replace('?', '')
+  const kind = spec.replace('?', '').replace('|null', '')
   const ok = kind === 'string' ? typeof value === 'string'
     : kind === 'number' ? typeof value === 'number' && Number.isFinite(value)
       : kind === 'integer' ? Number.isSafeInteger(value)
@@ -93,7 +104,7 @@ export const MAC_RESOURCES: ResponseFields = { cores: 'integer', memory_mib: 'in
 /** @internal */
 export const MAC_MODEL: ResponseFields = {
   id: 'string', name: 'string', cores: 'integer', memory_mib: 'integer', disk_mib: 'integer',
-  sandbox_disk_mib: 'integer', max_sandboxes: 'integer', default_size: nested(MAC_RESOURCES, true),
+  sandbox_disk_mib: 'integer', max_sandboxes: 'integer', default_size: nested(MAC_RESOURCES, 'nullable'),
 }
 
 /** @internal */

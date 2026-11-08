@@ -661,7 +661,10 @@ class AsyncDaytona:
                 # Only the client's own deadline is the build timeout; a server
                 # 408 keeps its source, as in TypeScript.
                 own_timeout = error.source == "SDK" and error.code == "REQUEST_TIMEOUT"
-                if own_timeout and deadline is not None and _clock.monotonic() >= deadline:
+                # The artifact wait's own timeout (not a client read timer) is
+                # always this deadline running out: the wait shares it.
+                wait_ran_out = not isinstance(error, ClientTimeoutError) or _clock.monotonic() >= (deadline or 0)
+                if own_timeout and deadline is not None and wait_ran_out:
                     raise build_timed_out(error) from error
                 raise
             if image.status not in ("ready", "failed", "error"):

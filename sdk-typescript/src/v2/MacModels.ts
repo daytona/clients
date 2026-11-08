@@ -21,7 +21,7 @@ const MAC_PRICE: ResponseFields = { cents_per_hour: 'number', period_cents: 'int
 const MAC_CATALOG: ResponseFields = {
   regions: arrayOf(nested({
     id: 'string', default_model: 'string',
-    models: arrayOf(nested({ model: nested(MAC_MODEL), available: 'integer', price: nested(MAC_PRICE, true) })),
+    models: arrayOf(nested({ model: nested(MAC_MODEL), available: 'integer', price: nested(MAC_PRICE, 'nullable') })),
   })),
 }
 

@@ -19,10 +19,10 @@ const API_KEY: ResponseFields = {
   context: nested({ org_id: 'string', org_name: 'string', project_name: 'string' }),
 }
 const PROJECT_BUDGET: ResponseFields = {
-  monthly_limit_cents: 'integer?', period_start_date: 'string?', spent_cents: 'integer?', created_at: 'string?',
-  updated_at: 'string?', evaluated_at: 'string?', exceeded_at: 'string?', stop_at: 'string?',
+  monthly_limit_cents: 'integer|null', period_start_date: 'string|null', spent_cents: 'integer?', created_at: 'string|null',
+  updated_at: 'string|null', evaluated_at: 'string?', exceeded_at: 'string?', stop_at: 'string?',
 }
-const USAGE: ResponseFields = { limit: 'integer?', usage: 'integer' }
+const USAGE: ResponseFields = { limit: 'integer|null', usage: 'integer' }
 const ORGANIZATION_LIMITS: ResponseFields = {
   sandboxes: nested({ concurrent: nested(USAGE), total: nested(USAGE) }),
   image_builds: nested({ concurrent: nested(USAGE) }),

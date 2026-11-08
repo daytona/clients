@@ -137,3 +137,97 @@ async def test_a_detail_that_breaks_the_contract_leaves_the_list_item() -> None:
             page = await root.v2.list()
     assert [(sandbox.id, sandbox.state) for sandbox in page.items] == [("sbx", "started")]
     assert [request.path for request in api.requests] == ["/sandboxes", "/sandboxes/sbx"]
+
+
+_BUDGET_NULLS: JsonObject = {
+    "monthly_limit_cents": None,
+    "period_start_date": None,
+    "created_at": None,
+    "updated_at": None,
+}
+_USAGE: JsonObject = {"limit": None, "usage": 1}
+_LIMITS: JsonObject = {
+    "sandboxes": {"concurrent": _USAGE, "total": _USAGE},
+    "image_builds": {"concurrent": _USAGE},
+    "storage": {"volumes": _USAGE, "images": _USAGE, "snapshots": _USAGE},
+    "secrets_per_project": _USAGE,
+    "api_keys_per_project": _USAGE,
+    "api_keys_per_organization": _USAGE,
+}
+_MODEL: JsonObject = {
+    "id": "m4",
+    "name": "Apple M4",
+    "cores": 10,
+    "memory_mib": 16384,
+    "disk_mib": 244198,
+    "sandbox_disk_mib": 235520,
+    "max_sandboxes": 2,
+    "default_size": None,
+}
+_NO_DEFAULT_SIZE: JsonObject = {k: v for k, v in _MODEL.items() if k != "default_size"}
+_CATALOG_NO_PRICE: JsonObject = {
+    "regions": [{"id": "r", "default_model": "m4", "models": [{"model": _MODEL, "available": 1}]}]
+}
+
+_NULLABLE: list[tuple[str, Call, JsonObject, str]] = [
+    ("budget {}", lambda d: d.get_project_budget(), {}, "created_at"),
+    (
+        "budget without updated_at",
+        lambda d: d.get_project_budget(),
+        {k: v for k, v in _BUDGET_NULLS.items() if k != "updated_at"},
+        "updated_at",
+    ),
+    (
+        "usage limit",
+        lambda d: d.get_limits(organization_id="org"),
+        {**_LIMITS, "secrets_per_project": {"usage": 1}},
+        r"secrets_per_project\.limit",
+    ),
+    ("Mac model", lambda d: d.mac_models.list(), {"mac_models": [_NO_DEFAULT_SIZE]}, r"default_size"),
+    ("Mac price", lambda d: d.mac_models.catalog(), _CATALOG_NO_PRICE, r"price"),
+]
+
+
+@pytest.mark.parametrize(("name", "call", "body", "field"), _NULLABLE, ids=[case[0] for case in _NULLABLE])
+async def test_a_required_nullable_key_must_be_present(
+    name: str, call: Call, body: JsonObject, field: str
+) -> None:
+    # The contract allows an explicit null, not a missing key (as in TypeScript).
+    del name
+    with FakeApi([PlannedResponse(200, body)]) as api:  # type: ignore[arg-type]
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError, match=field) as raised:
+                await call(root.v2)
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+_EXPLICIT_NULLS: list[tuple[str, Call, JsonObject]] = [
+    ("budget", lambda d: d.get_project_budget(), _BUDGET_NULLS),
+    ("limits", lambda d: d.get_limits(organization_id="org"), _LIMITS),
+    ("Mac models", lambda d: d.mac_models.list(), {"mac_models": [_MODEL]}),
+    (
+        "Mac catalog",
+        lambda d: d.mac_models.catalog(),
+        {
+            "regions": [
+                {
+                    "id": "r",
+                    "default_model": "m4",
+                    "models": [{"model": _MODEL, "available": 1, "price": None}],
+                }
+            ]
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(("name", "call", "body"), _EXPLICIT_NULLS, ids=[case[0] for case in _EXPLICIT_NULLS])
+async def test_an_explicit_null_is_valid_where_the_contract_allows_it(
+    name: str, call: Call, body: JsonObject
+) -> None:
+    del name
+    with FakeApi([PlannedResponse(200, body)]) as api:  # type: ignore[arg-type]
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            assert await call(root.v2) is not None

@@ -91,3 +91,48 @@ it('falls back to the list item when the detail read that fills a missing toolbo
     await api.close()
   }
 })
+
+// A field the contract requires but allows to be null must be present: an
+// absent key is malformed, an explicit null is valid. Python's twin is
+// tests/test_malformed_responses.py.
+const BUDGET_NULLS = { monthly_limit_cents: null, period_start_date: null, created_at: null, updated_at: null }
+const USAGE = { limit: null, usage: 1 }
+const LIMITS = {
+  sandboxes: { concurrent: USAGE, total: USAGE }, image_builds: { concurrent: USAGE },
+  storage: { volumes: USAGE, images: USAGE, snapshots: USAGE },
+  secrets_per_project: USAGE, api_keys_per_project: USAGE, api_keys_per_organization: USAGE,
+}
+const MODEL = { id: 'm4', name: 'Apple M4', cores: 10, memory_mib: 16384, disk_mib: 244198, sandbox_disk_mib: 235520, max_sandboxes: 2, default_size: null }
+
+it.each([
+  ['project budget', (client: Daytona) => client.v2.getProjectBudget(), {}, 'project budget response is missing its monthly_limit_cents'],
+  ['project budget', (client: Daytona) => client.v2.getProjectBudget(), { ...BUDGET_NULLS, updated_at: undefined }, 'project budget response is missing its updated_at'],
+  ['usage limit', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...LIMITS, secrets_per_project: { usage: 1 } }, 'organization limits response is missing its secrets_per_project.limit'],
+  ['Mac model', (client: Daytona) => client.v2.macModels.list(), { mac_models: [{ ...MODEL, default_size: undefined }] }, 'Mac model response is missing its default_size'],
+  ['Mac price', (client: Daytona) => client.v2.macModels.catalog(), { regions: [{ id: 'r', default_model: 'm4', models: [{ model: MODEL, available: 1 }] }] }, 'Mac catalog response is missing its regions[0].models[0].price'],
+] as const)('refuses a %s response without a required nullable key', async (_name, call, body, message) => {
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([
+  ['project budget', (client: Daytona) => client.v2.getProjectBudget(), BUDGET_NULLS],
+  ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), LIMITS],
+  ['Mac models', (client: Daytona) => client.v2.macModels.list(), { mac_models: [MODEL] }],
+  ['Mac catalog', (client: Daytona) => client.v2.macModels.catalog(), { regions: [{ id: 'r', default_model: 'm4', models: [{ model: MODEL, available: 1, price: null }] }] }],
+] as const)('reads a %s response whose nullable keys are explicit nulls', async (_name, call, body) => {
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client)).resolves.toBeDefined()
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

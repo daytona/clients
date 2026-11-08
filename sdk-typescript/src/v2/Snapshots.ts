@@ -61,8 +61,9 @@ export class SnapshotsService {
   }
 
   public async get(snapshotId: string, options: GetArtifactOptions = {}): Promise<Snapshot> {
-    const data = await getArtifact<api.Snapshot>(this.http, `/snapshots/${strictUriEncode(snapshotId)}`, options)
-    return new Snapshot(INTERNAL, data)
+    return getArtifact(this.http, `/snapshots/${strictUriEncode(snapshotId)}`, options, 
+      // SAFETY: the Snapshot constructor checks the response against the contract.
+      (data) => new Snapshot(INTERNAL, data as api.Snapshot))
   }
 
   public async delete(snapshotId: string): Promise<void> {

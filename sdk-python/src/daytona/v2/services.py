@@ -55,7 +55,7 @@ from ._gen.api import Volume as VolumeWire
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
-from .errors import ClientTimeoutError, NotFoundError, create_error
+from .errors import ClientTimeoutError, DaytonaError, NotFoundError, create_error
 from .image import ImageBuilder
 from .types import (
     CpuArch,
@@ -346,11 +346,23 @@ async def _get_artifact(
         )
     deadline = _clock.monotonic() + budget_ms / 1000
     last: Optional[_Artifact] = None
+
+    def timed_out() -> DaytonaError:
+        return create_error("artifact did not become ready before timeout", 408, "REQUEST_TIMEOUT", "SDK")
+
     while True:
+        remaining = deadline - _clock.monotonic()
+        if remaining <= 0:
+            if last is not None:
+                return last
+            raise timed_out()
         # A long poll is governed by the wait budget, not the request timeout:
         # each hold is the smaller of the remaining budget and the server's
-        # 60 s cap, in whole milliseconds, and the read adds network slack.
-        hold_ms = max(1, min(_ARTIFACT_LONGPOLL_MAX_MS, math.ceil((deadline - _clock.monotonic()) * 1000)))
+        # 60 s cap, in whole milliseconds, and the read adds network slack —
+        # never past the wait's deadline, as the sandbox waits do.
+        hold_ms = max(1, min(_ARTIFACT_LONGPOLL_MAX_MS, math.ceil(remaining * 1000)))
+        slack_read = hold_ms / 1000 + _ARTIFACT_HOLD_READ_SLACK_S
+        deadline_owns_timeout = remaining <= slack_read
         started = _clock.monotonic()
         try:
             artifact = parse(
@@ -359,18 +371,17 @@ async def _get_artifact(
                         "GET",
                         path,
                         params={"wait": wait, "timeout_ms": hold_ms},
-                        timeout=hold_ms / 1000 + _ARTIFACT_HOLD_READ_SLACK_S,
+                        timeout=min(slack_read, remaining),
                     )
                 )
             )
         except ClientTimeoutError as error:
-            if _clock.monotonic() >= deadline:
-                # The wait ran out: its last observation, or the wait's own timeout.
+            # Only expiry of this wait's own cap is the wait running out: its
+            # last observation, or the wait's own timeout.
+            if deadline_owns_timeout or _clock.monotonic() >= deadline:
                 if last is not None:
                     return last
-                raise create_error(
-                    "artifact did not become ready before timeout", 408, "REQUEST_TIMEOUT", "SDK"
-                ) from error
+                raise timed_out() from error
             raise
         last = artifact
         if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES or _clock.monotonic() >= deadline:

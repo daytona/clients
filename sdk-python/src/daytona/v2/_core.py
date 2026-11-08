@@ -25,6 +25,7 @@ from typing import (
     TypeGuard,
     TypeVar,
     Union,
+    get_args,
 )
 from urllib.parse import quote, unquote
 
@@ -224,6 +225,48 @@ def _first_validation_error_line(error: ValidationError) -> str:
     return f"{path}: {message}" if path else message
 
 
+def _missing_required_key(value: JsonValue, model_type: object, path: str) -> Optional[str]:
+    """The first contract-required key absent from ``value`` (nested models and
+    list items included), or ``None``.
+
+    The generated ``from_dict`` reads a required key with ``obj.get``, so an
+    absent required-but-nullable field would pass as ``null``: the contract
+    allows an explicit ``null``, not a missing key.
+    """
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            missing = _missing_required_key(item, model_type, f"{path}[{index}]")
+            if missing is not None:
+                return missing
+        return None
+    model_fields = getattr(model_type, "model_fields", None)
+    if not isinstance(value, dict) or not isinstance(model_fields, dict):
+        return None
+    for name, info in model_fields.items():
+        key = info.alias or name
+        if info.is_required() and key not in value:
+            return f"{path}{key}"
+        child = value.get(key)
+        if child is None:
+            continue
+        for candidate in _model_types(info.annotation):
+            missing = _missing_required_key(child, candidate, f"{path}{key}.")
+            if missing is not None:
+                return missing
+    return None
+
+
+def _model_types(annotation: object) -> List[object]:
+    """The generated API models an annotation names (through Optional / List)."""
+    module = getattr(annotation, "__module__", "")
+    if isinstance(annotation, type) and module.startswith("daytona.v2._gen.api"):
+        return [annotation]
+    found: List[object] = []
+    for argument in get_args(annotation):
+        found.extend(_model_types(argument))
+    return found
+
+
 def _expect_model_from_dict(
     value: TransportPayload | ModelT,
     model_type: type[ModelT],
@@ -234,6 +277,11 @@ def _expect_model_from_dict(
         return value
     if not isinstance(value, dict):
         raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    if model_type.__module__.startswith("daytona.v2._gen.api"):
+        missing = _missing_required_key(value, model_type, "")
+        if missing is not None:
+            # A list item's path keeps its index; a nested key reads `a.b`.
+            raise create_error(f"expected {description}: {missing}: Field required", 400, "BAD_REQUEST", "SDK")
     try:
         parsed = from_dict(value)
     except ValidationError as exc:

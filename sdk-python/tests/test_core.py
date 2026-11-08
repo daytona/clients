@@ -5132,6 +5132,8 @@ _PROJECT_BUDGET_PAYLOAD = {
     "exceeded_at": None,
     "stop_at": None,
     "future_field": "tolerated",
+    "created_at": None,
+    "updated_at": None,
 }
 
 
@@ -5182,6 +5184,8 @@ async def test_get_project_budget_returns_the_unset_state() -> None:
                 "evaluated_at": None,
                 "exceeded_at": None,
                 "stop_at": None,
+                "created_at": None,
+                "updated_at": None,
             }
         ]
     )
@@ -5206,7 +5210,15 @@ async def test_get_project_budget_propagates_other_errors() -> None:
 @pytest.mark.anyio
 async def test_get_project_budget_malformed_payload_raises_typed_error() -> None:
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
-    for payload in (["not", "a", "dict"], {"monthly_limit_cents": "not-an-integer"}):
+    for payload in (
+        ["not", "a", "dict"],
+        {
+            "monthly_limit_cents": "not-an-integer",
+            "period_start_date": None,
+            "created_at": None,
+            "updated_at": None,
+        },
+    ):
         client._api = RecordingTransport([payload])  # type: ignore[attr-defined]
         with pytest.raises(BadRequestError, match="project budget response"):
             await client.get_project_budget()
@@ -7004,10 +7016,11 @@ async def test_snapshot_service_get_and_delete_address_one_snapshot() -> None:
     assert transport.specs[0].params == {}
     assert transport.specs[0].timeout is None
 
-    # wait="ready" long-polls; the HTTP timeout outlives the server hold.
+    # wait="ready" long-polls; the read allows the hold plus slack, never past
+    # the wait's own deadline (here the whole 30 s budget).
     await snapshots.get("snap/1", wait="ready", timeout=30)
     assert transport.specs[1].params == {"wait": "ready", "timeout_ms": 30000}
-    assert transport.specs[1].timeout == 35
+    assert 29 < (transport.specs[1].timeout or 0) <= 30
     assert transport.specs[1].unbounded_read is False
     # A budget beyond the server's 60 s hold ceiling is capped on the wire,
     # however short the request timeout (30 s here): the wait budget governs.

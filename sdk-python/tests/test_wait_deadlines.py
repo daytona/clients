@@ -176,3 +176,101 @@ async def test_a_create_without_a_hold_stays_an_ordinary_request(api: _StallingA
     async with AsyncDaytona(_SHORT) as root:
         with pytest.raises(SandboxCreateRequestTimeoutError):
             await root.v2.create("img_1", wait_seconds=0)
+
+
+_PENDING_IMAGE = {
+    "id": "img",
+    "class": "linux",
+    "status": "building",
+    "region_id": "region-a",
+    "region_ids": ["region-a"],
+    "anonymous": True,
+    "retention": "idle",
+    "origin": "registry",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "format_version": 2,
+    "format_outdated": False,
+}
+
+
+class _StallingArtifacts:
+    """Answers a build submission and a plain read at once and holds every `wait=` read for 30 s."""
+
+    def __init__(self) -> None:
+        stop = threading.Event()
+        self.stop = stop
+
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def log_message(self, *_args: object) -> None:
+                pass
+
+            def do_GET(self) -> None:
+                if "wait=" in self.path:
+                    stop.wait(30)
+                    return
+                self._reply(_PENDING_IMAGE)
+
+            def do_POST(self) -> None:
+                length = int(self.headers.get("Content-Length") or 0)
+                if length:
+                    self.rfile.read(length)
+                self._reply({"id": "img", "status": "pending"})
+
+            def _reply(self, body: object) -> None:
+                data = json.dumps(body).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                    self.wfile.write(data)
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.daemon_threads = True
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def close(self) -> None:
+        self.stop.set()
+        self.server.shutdown()
+        self.server.server_close()
+
+
+@pytest.fixture
+def artifacts(monkeypatch: pytest.MonkeyPatch) -> Iterator[_StallingArtifacts]:
+    server = _StallingArtifacts()
+    monkeypatch.setenv("DAYTONA_V2_API_URL", server.url)
+    try:
+        yield server
+    finally:
+        server.close()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("kind", ["images", "snapshots"])
+async def test_a_stalled_artifact_wait_ends_at_its_budget(artifacts: _StallingArtifacts, kind: str) -> None:
+    # Each hold's read is capped at the wait's deadline, not at the hold plus its slack.
+    async with AsyncDaytona(_CONFIG) as root:
+        service = root.v2.images if kind == "images" else root.v2.snapshots
+        started = time.monotonic()
+        with pytest.raises(RequestTimeoutError) as raised:
+            await service.get("art", wait="ready", timeout=1)
+        elapsed = time.monotonic() - started
+    assert (raised.value.code, raised.value.source) == ("REQUEST_TIMEOUT", "SDK")
+    assert 0.9 <= elapsed < 3
+
+
+@pytest.mark.anyio
+async def test_a_stalled_build_wait_ends_at_the_build_timeout(artifacts: _StallingArtifacts) -> None:
+    from daytona.v2 import ImageBuilder
+
+    async with AsyncDaytona(_CONFIG) as root:
+        started = time.monotonic()
+        with pytest.raises(RequestTimeoutError, match="image build did not finish before timeout") as raised:
+            await root.v2.create_from_build(ImageBuilder.from_registry("alpine"), build_timeout=1)
+        elapsed = time.monotonic() - started
+    assert raised.value.source == "SDK"
+    assert 0.9 <= elapsed < 3

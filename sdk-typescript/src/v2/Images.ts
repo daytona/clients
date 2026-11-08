@@ -115,8 +115,9 @@ export class ImagesService {
   }
 
   public async get(imageId: string, options: GetArtifactOptions = {}): Promise<Image> {
-    const data = await getArtifact<api.ImageListItem>(this.http, `/images/${strictUriEncode(imageId)}`, options)
-    return new Image(INTERNAL, data)
+    return getArtifact(this.http, `/images/${strictUriEncode(imageId)}`, options, 
+      // SAFETY: the Image constructor checks the response against the contract.
+      (data) => new Image(INTERNAL, data as api.ImageListItem))
   }
 
   /** Import a registry image and wait until ready by default. Omitted or zero timeoutSeconds is unbounded. */
