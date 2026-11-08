@@ -236,12 +236,10 @@ def _docker_owner_or_unknown(value: str) -> DockerOwner:
     return "unknown"
 
 
-class FilesystemEventType(str, Enum):
-    CREATE = "create"
-    WRITE = "write"
-    REMOVE = "remove"
-    RENAME = "rename"
-    CHMOD = "chmod"
+FilesystemEventType = Union[Literal["create", "write", "remove", "rename", "chmod"], str]
+"""What changed in a watched directory: ``"create"``, ``"write"``, ``"remove"``,
+``"rename"`` or ``"chmod"`` today. An open vocabulary: a kind a later sandbox
+reports is passed through as its string."""
 
 
 LifecycleAction = Literal["stop", "pause", "delete"]
@@ -1049,9 +1047,14 @@ class LogPage:
     """A cursor-addressed process log page."""
 
     items: List[LogFrame]
-    next_cursor: Optional[str] = None
-    truncated_head: bool = False
+    next_cursor: str
+    """The cursor to pass to the next ``logs()`` call to continue after this page."""
+    truncated_head: bool
+    """Whether retention removed frames older than this page."""
+    eof: bool
+    """Whether the process has ended and no frame follows this page."""
     first_available_cursor: Optional[str] = None
+    """The cursor of the oldest frame still kept, when older ones were removed."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1063,7 +1066,9 @@ class BulkWriteFile:
 @dataclass(frozen=True, kw_only=True)
 class BulkWriteResult:
     files: List[BulkWriteFile]
-    errors: List[str] = field(default_factory=list)
+    """The files written."""
+    errors: List[str]
+    """One message per file that was not written."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1188,7 +1193,9 @@ class ProcessResult(WaitResult):
 
 @dataclass(frozen=True, kw_only=True)
 class InterpreterProcess(WaitResult):
-    process_id: str
+    process_id: Optional[str] = None
+    """The code execution's process; ``None`` when the run timed out while
+    queued behind earlier runs of its context and was never submitted."""
 
 
 @dataclass(frozen=True, kw_only=True)

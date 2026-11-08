@@ -14,8 +14,8 @@ from .errors import create_error
 # ``fromisoformat`` on Python 3.10 accepts neither ``Z`` nor a fraction of
 # other than 3 or 6 digits, both of which RFC 3339 allows (Go emits up to 9).
 _RFC3339 = re.compile(
-    r"^(?P<date>\d{4}-\d{2}-\d{2})[Tt ](?P<time>\d{2}:\d{2}:\d{2})"
-    r"(?:\.(?P<fraction>\d+))?(?P<offset>[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"
+    r"(?P<date>\d{4}-\d{2}-\d{2})[Tt ](?P<time>\d{2}:\d{2}:\d{2})"
+    r"(?:\.(?P<fraction>\d+))?(?P<offset>[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)"
 )
 
 
@@ -25,7 +25,7 @@ def parse_timestamp(value: str, field: str) -> datetime:
     Anything else is a malformed response: ``BadRequestError`` naming ``field``
     (the same error the generated-model boundary raises).
     """
-    match = _RFC3339.match(value) if isinstance(value, str) else None
+    match = _RFC3339.fullmatch(value) if isinstance(value, str) else None
     if match is None:
         raise create_error(f"expected {field}: not an RFC 3339 timestamp", 400, "BAD_REQUEST", "SDK")
     fraction = (match.group("fraction") or "")[:6].ljust(6, "0")

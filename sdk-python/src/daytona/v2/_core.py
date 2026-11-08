@@ -33,6 +33,7 @@ from pydantic import ValidationError
 from ._gen.api import LifecyclePolicy
 from ._gen.toolbox import (
     BranchList,
+    BulkUploadResponse,
     ExitResult,
     IsPortInUseResponse,
     LogFrameDto,
@@ -54,7 +55,13 @@ from ._gen.toolbox import (
     FileInfo as FileInfoModel,
 )
 from ._gen.toolbox import (
+    Match as MatchModel,
+)
+from ._gen.toolbox import (
     Metrics as MetricsModel,
+)
+from ._gen.toolbox import (
+    ReplaceResult as ReplaceResultModel,
 )
 from ._gen.toolbox import (
     StatusResponse as StatusResponseModel,
@@ -73,6 +80,7 @@ from .types import (
     BulkWriteResult,
     DockerStatus,
     FileInfo,
+    FileMatch,
     GitCommitResponse,
     GitFileStatus,
     GitStatus,
@@ -88,6 +96,7 @@ from .types import (
     ProcessInfo,
     ProcessKind,
     ProcessStateFilter,
+    ReplaceResult,
     SandboxLifecycle,
     SandboxSearchFilters,
     SandboxState,
@@ -112,7 +121,7 @@ from .types import (
 
 TransportPayload = Union[JsonValue, bytes]
 ProcessPagePayload = Union[TransportPayload, List[ProcessDto], ProcessListResponse]
-ProcessLogPayload = Union[TransportPayload, List[LogFrameDto], ProcessLogsResponse]
+ProcessLogPayload = Union[TransportPayload, ProcessLogsResponse]
 WaitPayload = ExitResult | ProcessDto
 MultipartPart = Tuple[Optional[str], Union[str, bytes]]
 DAYTONA_FILE_BOUNDARY = "DAYTONA-FILE-BOUNDARY"
@@ -887,45 +896,31 @@ def logs_spec(
     return RequestSpec("GET", f"/processes/{quote(process_id, safe='')}/logs", params=params, timeout=None)
 
 
+def _require_list_field(payload: object, field: str, description: str) -> None:
+    """A present list field that is not a list, named before the generated
+    model iterates it (its own error would not name the field)."""
+    if isinstance(payload, dict) and field in payload and not isinstance(payload[field], list):
+        raise create_error(f"expected {description}: {field} must be a list", 400, "BAD_REQUEST", "SDK")
+
+
 def parse_log_page(payload: ProcessLogPayload) -> LogPage:
-    if isinstance(payload, ProcessLogsResponse):
-        frames = [_parse_log_frame(item) for item in payload.frames]
-        return LogPage(
-            items=frames,
-            next_cursor=payload.next_cursor or (frames[-1].cursor if frames else None),
-            truncated_head=payload.truncated_head,
-            first_available_cursor=payload.first_available_cursor,
-        )
-    if isinstance(payload, list):
-        if all(isinstance(item, LogFrameDto) for item in payload):
-            frames = [_parse_log_frame(item) for item in payload]
-        else:
-            frames = [_parse_log_frame(expect_log_frame_dto(item)) for item in payload]
-        return LogPage(items=frames, next_cursor=frames[-1].cursor if frames else None)
-    if isinstance(payload, dict) and "frames" in payload:
-        try:
-            return parse_log_page(expect_process_log_page(payload))
-        except DaytonaError:
-            pass
-    if isinstance(payload, dict):
-        obj = payload
-    else:
-        obj = expect_object(payload)
-    raw_items = obj.get("items") or obj.get("frames") or obj.get("logs") or []
-    frames = (
-        [_parse_log_frame(expect_log_frame_dto(item)) for item in raw_items]
-        if isinstance(raw_items, list)
-        else []
-    )
-    cursor_value = obj.get("nextCursor") or obj.get("next_cursor")
-    next_cursor = cursor_value if isinstance(cursor_value, str) else None
-    first_available_cursor = obj.get("firstAvailableCursor")
+    """A ``ProcessLogsResponse`` page, checked strictly: ``frames``,
+    ``nextCursor``, ``truncatedHead`` and ``eof`` are required, with their
+    types; anything else is the malformed-response error."""
+    _require_list_field(payload, "frames", "process log page")
+    page = payload if isinstance(payload, ProcessLogsResponse) else expect_process_log_page(payload)
     return LogPage(
-        items=frames,
-        next_cursor=next_cursor or (frames[-1].cursor if frames else None),
-        truncated_head=bool(obj.get("truncatedHead", False)),
-        first_available_cursor=first_available_cursor if isinstance(first_available_cursor, str) else None,
+        items=[_parse_log_frame(item) for item in page.frames],
+        next_cursor=page.next_cursor,
+        truncated_head=page.truncated_head,
+        eof=page.eof,
+        first_available_cursor=page.first_available_cursor,
     )
+
+
+def parse_log_frame(payload: TransportPayload) -> LogFrame:
+    """One ``LogFrameDto``, checked strictly."""
+    return _parse_log_frame(expect_log_frame_dto(payload))
 
 
 class SseParser:
@@ -941,17 +936,19 @@ class SseParser:
 
     def feed(self, raw: str) -> Optional[Tuple[str, JsonObject]]:
         message = self.feed_message(raw)
-        return None if message is None else (message[0], message[1])
+        return None if message is None else (message[0], expect_object(json.loads(message[1])))
 
-    def feed_message(self, raw: str) -> Optional[Tuple[str, JsonObject, Optional[str]]]:
-        """Like :meth:`feed`, with the message's ``id:`` line (``None`` without one)."""
+    def feed_message(self, raw: str) -> Optional[Tuple[str, str, Optional[str]]]:
+        """A complete message as ``(event, data, id)``: the raw ``data:`` text,
+        unparsed, so a consumer parses only the events it knows, and the
+        message's ``id:`` line (``None`` without one)."""
         line = raw.rstrip("\r\n")
         if not line:
             if not self._data_parts:
                 self._event = "message"
                 self._id = None
                 return None
-            message = (self._event, expect_object(json.loads("\n".join(self._data_parts))), self._id)
+            message = (self._event, "\n".join(self._data_parts), self._id)
             self._event = "message"
             self._id = None
             self._data_parts = []
@@ -977,10 +974,28 @@ def parse_sse_lines(lines: Iterable[str]) -> Iterator[Tuple[str, JsonObject]]:
             yield event
 
 
+def sse_json(event: str, data: str, description: str) -> JsonObject:
+    """The JSON object a known SSE event carries (empty data reads as ``{}``);
+    anything else is the malformed-response error naming the event."""
+    if not data:
+        return {}
+    try:
+        payload = json.loads(data)
+    except ValueError:
+        raise create_error(
+            f"expected {description}: the data is not JSON", 400, "BAD_REQUEST", "SDK"
+        ) from None
+    if not isinstance(payload, dict):
+        raise create_error(
+            f"expected {description}: the data is not a JSON object", 400, "BAD_REQUEST", "SDK"
+        )
+    return payload
+
+
 async def parse_sse_messages_async(
     lines: AsyncIterable[str],
-) -> AsyncIterator[Tuple[str, JsonObject, Optional[str]]]:
-    """SSE messages as ``(event, payload, id)``; ``id`` is the message's ``id:`` line."""
+) -> AsyncIterator[Tuple[str, str, Optional[str]]]:
+    """SSE messages as ``(event, data, id)``, the data unparsed (see :func:`sse_json`)."""
     parser = SseParser()
     async for raw in lines:
         message = parser.feed_message(raw)
@@ -1076,24 +1091,28 @@ def bulk_download_spec(paths: Sequence[str], *, timeout: Optional[float]) -> Req
 
 
 def parse_bulk_write_result(payload: JsonValue) -> BulkWriteResult:
-    obj = expect_object(payload)
-    raw_files = obj.get("files")
-    files = (
-        [
-            BulkWriteFile(
-                path=str(expect_object(item).get("path", "")),
-                bytes=_optional_int(expect_object(item).get("bytes")) or 0,
-            )
-            for item in raw_files
-        ]
-        if isinstance(raw_files, list)
-        else []
+    """A ``BulkUploadResponse``: ``files`` (each with ``path`` and ``bytes``)
+    and ``errors`` are required; anything else is the malformed-response error."""
+    _require_list_field(payload, "files", "bulk upload response")
+    model = _expect_model_from_dict(
+        payload, BulkUploadResponse, "bulk upload response", BulkUploadResponse.from_dict
     )
-    raw_errors = obj.get("errors")
-    errors = (
-        [str(item) for item in raw_errors if isinstance(item, str)] if isinstance(raw_errors, list) else []
+    return BulkWriteResult(
+        files=[BulkWriteFile(path=item.path, bytes=item.bytes) for item in model.files],
+        errors=list(model.errors),
     )
-    return BulkWriteResult(files=files, errors=errors)
+
+
+def parse_file_match(payload: JsonValue) -> FileMatch:
+    model = _expect_model_from_dict(payload, MatchModel, "grep match", MatchModel.from_dict)
+    return FileMatch(file=model.file, line=model.line, content=model.content)
+
+
+def parse_replace_result(payload: JsonValue) -> ReplaceResult:
+    model = _expect_model_from_dict(
+        payload, ReplaceResultModel, "replace result", ReplaceResultModel.from_dict
+    )
+    return ReplaceResult(file=model.file, success=model.success, error=model.error)
 
 
 def parse_bulk_read_result(content: bytes, *, content_type: Optional[str] = None) -> BulkReadResult:

@@ -22,7 +22,7 @@ import { SandboxVolumesService } from './SandboxVolumes.js'
 import { parseSandboxSecretsResponse, serializeSandboxSecretsInput } from './SandboxSecrets.js'
 import { ProcessService, PtyService, WAIT_READ_SLACK_MS } from './Process.js'
 import { INTERNAL } from './internal.js'
-import { systemMetricsFromWire } from './toolboxModels.js'
+import { isRfc3339, systemMetricsFromWire } from './toolboxModels.js'
 import type * as api from './gen/api-types.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import {
@@ -1566,7 +1566,7 @@ function readSignedFileUrl(payload: api.SignedFileUrlResponse | unknown): Signed
   // surface a raw TypeError instead of the malformed-response error.
   if (payload !== null && typeof payload === 'object' && 'signature' in payload && 'expires_at' in payload) {
     const { signature, expires_at: expiresAt } = payload
-    if (typeof signature === 'string' && signature.length > 0 && typeof expiresAt === 'string' && rfc3339EpochMs(expiresAt) !== undefined) {
+    if (typeof signature === 'string' && signature.length > 0 && typeof expiresAt === 'string' && isRfc3339(expiresAt)) {
       return { signature, expiresAt }
     }
   }

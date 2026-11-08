@@ -55,6 +55,7 @@ class FileSystemService:
         on_progress: TransferProgressCallback | None = None,
         cancel: TransferCancelSignal | None = None,
     ) -> None:
+        """Stream ``remote_path`` to ``local_path`` without holding it in memory."""
         return self._bridge.call(
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
         )
@@ -182,7 +183,7 @@ class WatchHandle:
         return hash(self._impl)
 
     def stop(self) -> None:
-        """Stop the watch. Returns once a callback already running has finished."""
+        """Stop the watch. Returns once a callback already running, and"""
         if self._bridge.on_loop_thread():
             return self._impl._stop_nowait()
         return self._bridge.call(lambda: self._impl.stop())

@@ -17,7 +17,7 @@ import {
 } from './ProcessWire.js'
 import type { LogFrameWire, LogsWire } from './ProcessWire.js'
 import { assertInternal } from './internal.js'
-import { listItems, optional, record, str } from './toolboxModels.js'
+import { logPageFromWire } from './toolboxModels.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 
@@ -82,16 +82,8 @@ export class ProcessHandle {
   public async logs(options: LogsOptions = {}): Promise<LogPage> {
     assertKnownOptions('LogsOptions', options, LOGS_OPTION_KEYS)
     const query = encodeQuery({ cursor: options.cursor, limit: options.limit, encoding: options.encoding })
-    const data = await this.transport.get<LogsWire | LogFrameWire[]>(`/processes/${strictUriEncode(this.id)}/logs${query}`)
-    if (Array.isArray(data)) return { items: data.map(frameFromWire), truncatedHead: false }
-    const envelope = record(data, 'process log page')
-    const page = listItems(envelope, Array.isArray(envelope.frames) ? 'frames' : 'items', 'process log page', frameFromWire)
-    const firstAvailableCursor = optional(envelope, 'firstAvailableCursor', str, 'process log page')
-    return {
-      ...page,
-      truncatedHead: envelope.truncatedHead === true,
-      ...(firstAvailableCursor === undefined ? {} : { firstAvailableCursor }),
-    }
+    const data = await this.transport.get<LogsWire>(`/processes/${strictUriEncode(this.id)}/logs${query}`)
+    return logPageFromWire(data)
   }
 
   /**
@@ -213,11 +205,11 @@ export class ProcessHandle {
       socket.addEventListener('error', () => {
         if (opened) return
         socket.close()
-        reject(new DaytonaError('WebSocket attach failed', { source: 'SDK' }))
+        reject(new ConnectionError('WebSocket attach failed'))
       })
       // A socket that closes before it opens must not leave attach() pending.
       socket.addEventListener('close', () => {
-        if (!opened) reject(new DaytonaError('WebSocket closed before the attach completed', { source: 'SDK' }))
+        if (!opened) reject(new ConnectionError('WebSocket closed before the attach completed'))
       })
     })
     const queue: Uint8Array[] = []

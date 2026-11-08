@@ -16,7 +16,8 @@ export type { OtelApiLike } from './http.js'
 export { Sandbox } from './Sandbox.js'
 export { Sandbox as SandboxV2 } from './Sandbox.js'
 export { FileSystemService } from './FileSystem.js'
-export { FilesystemEventType, SIGNED_FILE_MAX_TTL_SECONDS } from './FileSystem.js'
+export { SIGNED_FILE_MAX_TTL_SECONDS } from './FileSystem.js'
+export type { FilesystemEventType } from './FileSystem.js'
 export type {
   DownloadFileOptions,
   FilesystemEvent,

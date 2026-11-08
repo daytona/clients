@@ -17,7 +17,7 @@ const terminal = {
     { channel: 'stdout', data: 'hello', cursor: '1', timestamp: 1 },
     { channel: 'stderr', data: 'warning', cursor: '2', timestamp: 2 },
     { channel: 'setup', data: 'hidden', cursor: '3', timestamp: 3 },
-  ] },
+  ], nextCursor: '0', truncatedHead: false },
 } as const
 
 describe('shell sessions', () => {
@@ -114,9 +114,9 @@ describe('shell sessions', () => {
     // When
     await session.run('true', keepLogs === undefined ? {} : { keepLogs })
     // Then
-    expect(post).toHaveBeenCalledWith('/processes?waitMs=0&logs=text', {
+    expect(post).toHaveBeenCalledWith('/processes?waitMs=60000&logs=text', {
       kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', keepLogs: 'on_exit_ttl',
-    }, { timeout: 0 })
+    }, { timeout: 65_000 })
   })
 
   it('refuses keepLogs none for run before any request, since the output is read back from the log', async () => {
@@ -151,7 +151,7 @@ describe('shell sessions', () => {
     jest.spyOn(transport, 'post').mockResolvedValue({ id: 'command-1', kind: 'exec', state: 'running' })
     const get = jest.spyOn(transport, 'get')
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 7 })
-      .mockResolvedValueOnce({ frames: [{ channel: 'stdout', data: 'later', cursor: '1', timestamp: 1 }] })
+      .mockResolvedValueOnce({ frames: [{ channel: 'stdout', data: 'later', cursor: '1', timestamp: 1 }], nextCursor: '0', truncatedHead: false, eof: true })
     const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
     // When
     const result = await session.run('echo later; exit 7')
@@ -214,14 +214,23 @@ describe('shell sessions', () => {
     expect(remove).toHaveBeenCalledWith('/processes/shell%2F%21')
   })
 
-  it('scope exit tolerates a session already deleted in the scope', async () => {
+  it.each([
+    new ProcessNotFoundError('gone', { statusCode: 404, code: 'PROCESS_NOT_FOUND', source: 'DAYTONA_DAEMON' }),
+    new SessionNotFoundError('gone', { statusCode: 404, code: 'SESSION_NOT_FOUND', source: 'DAYTONA_DAEMON' }),
+  ])('scope exit tolerates a session already deleted in the scope (%s)', async (error) => {
     const transport = new HttpTransport('http://toolbox.invalid')
-    jest.spyOn(transport, 'delete')
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new ProcessNotFoundError('gone', { statusCode: 404, code: 'PROCESS_NOT_FOUND', source: 'DAYTONA_DAEMON' }))
+    jest.spyOn(transport, 'delete').mockResolvedValueOnce(undefined).mockRejectedValueOnce(error)
     const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell/!')
     await session.delete()
     await expect(session[Symbol.asyncDispose]()).resolves.toBeUndefined()
+  })
+
+  it('scope exit surfaces any other delete failure', async () => {
+    const transport = new HttpTransport('http://toolbox.invalid')
+    const error = new SessionEndedError('ended', { statusCode: 410, code: 'SESSION_ENDED', source: 'DAYTONA_DAEMON' })
+    jest.spyOn(transport, 'delete').mockRejectedValueOnce(error)
+    const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
+    await expect(session[Symbol.asyncDispose]()).rejects.toBe(error)
   })
 
   it.each([

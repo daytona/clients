@@ -69,7 +69,7 @@ def _json_identity(value: object) -> Optional[tuple[str, str, str]]:
 
 def _timed_out_result() -> InterpreterResult:
     return InterpreterResult(
-        process=InterpreterProcess(process_id="", reason="timed_out"),
+        process=InterpreterProcess(reason="timed_out"),
         results=[],
         logs=InterpreterLogs(),
         error=None,

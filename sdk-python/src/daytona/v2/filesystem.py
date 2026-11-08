@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import contextvars
 import functools
 import inspect
 import os
 import secrets
 import stat
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import (
     AsyncIterator,
@@ -25,11 +25,11 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
-    TypeGuard,
     TypeVar,
 )
 from urllib.parse import quote
 
+from ._bridge import BridgeError
 from ._core import (
     RequestSpec,
     TransportPayload,
@@ -42,8 +42,12 @@ from ._core import (
     list_shape,
     parse_bulk_read_result,
     parse_bulk_write_result,
-    parse_sse_lines_async,
+    parse_file_match,
+    parse_replace_result,
+    parse_sse_messages_async,
+    sse_json,
 )
+from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
 from .errors import TransferCancelledError, create_error
 from .types import (
@@ -52,7 +56,6 @@ from .types import (
     FileInfo,
     FileMatch,
     FilesystemEvent,
-    FilesystemEventType,
     JsonObject,
     JsonValue,
     ListResult,
@@ -102,15 +105,11 @@ def _watch_spec(path: str, *, recursive: bool) -> RequestSpec:
 
 
 def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
-    try:
-        event_type = FilesystemEventType(str(payload.get("type")))
-    except ValueError as exc:
+    event_type = payload.get("type")
+    if not isinstance(event_type, str):
         raise create_error(
-            f"expected filesystem watch event: invalid type {payload.get('type')!r}",
-            400,
-            "BAD_REQUEST",
-            "SDK",
-        ) from exc
+            "expected filesystem watch event: type must be a string", 400, "BAD_REQUEST", "SDK"
+        )
     name = payload.get("name")
     is_dir = payload.get("isDir")
     timestamp = payload.get("timestamp")
@@ -129,6 +128,15 @@ def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
     return FilesystemEvent(type=event_type, name=name, is_dir=is_dir, timestamp_ms=timestamp)
 
 
+# The delivery a watch callback (or ``on_exit``) runs in: set for exactly
+# that call and inherited by the tasks it starts, so a ``stop()`` /
+# ``wait_for_exit()`` the callback makes, directly or from a child task, is
+# told apart from an external one.
+_WATCH_DELIVERY: contextvars.ContextVar[object | None] = contextvars.ContextVar(
+    "_WATCH_DELIVERY", default=None
+)
+
+
 class AsyncWatchHandle:
     """A running directory watch, returned by ``fs.watch_dir()``.
 
@@ -139,7 +147,8 @@ class AsyncWatchHandle:
     With the synchronous client, callbacks run on the SDK's event-loop thread:
     there a callback may call its own watch's ``stop()`` (which then returns
     without waiting), ``wait_for_exit()`` and ``exit_error`` (which return the
-    current exit error), but no other synchronous SDK call.
+    current exit error), but no other synchronous SDK call (another watch's
+    included): that raises ``BridgeError``.
     """
 
     # Called on the bridge loop thread (from a callback the SDK runs), the
@@ -154,9 +163,12 @@ class AsyncWatchHandle:
         self._stopped = False
         self._closing = False
         self._stop_task: asyncio.Task[None] | None = None
-        self._delivering = False
+        # The token of the callback (or on_exit) call in progress; None between calls.
+        self._active_delivery: object | None = None
         self._close_error: Exception | None = None
         self._exited = asyncio.Event()
+        # Set once on_exit has returned: an external stop() returns after it.
+        self._exit_done = asyncio.Event()
         self._exit_error: Exception | None = None
         self._exit_notified = False
 
@@ -173,26 +185,49 @@ class AsyncWatchHandle:
         # earlier reader error still wins, matching the reader's own policy.
         self._exit_error = error or self._close_error
         self._exited.set()
-        if self._on_exit is None:
-            return
-        # An on_exit failure is contained: the watch has already ended.
-        with contextlib.suppress(Exception):
-            await _invoke(self._on_exit(self._exit_error))
+        try:
+            if self._on_exit is not None:
+                on_exit = self._on_exit
+                # An on_exit failure is contained: the watch has already ended.
+                with contextlib.suppress(Exception):
+                    await self._deliver(lambda: on_exit(self._exit_error))
+        finally:
+            self._exit_done.set()
+
+    async def _deliver(self, callback: Callable[[], None | Awaitable[None]]) -> None:
+        """Run one callback as a delivery of this watch (see ``_WATCH_DELIVERY``)."""
+        token = object()
+        self._active_delivery = token
+        reset = _WATCH_DELIVERY.set(token)
+        try:
+            await _invoke(callback())
+        finally:
+            _WATCH_DELIVERY.reset(reset)
+            self._active_delivery = None
+
+    def _own_call(self) -> bool:
+        """Whether the caller is this watch's running callback (or a task it started)."""
+        return self._active_delivery is not None and _WATCH_DELIVERY.get() is self._active_delivery
 
     async def wait_for_exit(self) -> Exception | None:
-        """Wait until the watch ends; returns :attr:`exit_error`."""
-        reader = self._reader
-        if reader is not None and reader is asyncio.current_task():
+        """Wait until the watch ends; returns :attr:`exit_error`.
+
+        Called by the watch's own callback, it returns the current exit error
+        without waiting for itself.
+        """
+        if self._own_call():
             return self.exit_error
         await self._exited.wait()
         return self.exit_error
 
     async def stop(self) -> None:
-        """Stop the watch. Returns once a callback already running has finished.
+        """Stop the watch. Returns once a callback already running, and
+        ``on_exit``, have finished.
 
-        A callback may call ``stop()`` on its own watch; that call returns
-        without waiting for itself.
+        A callback (or ``on_exit``) may call ``stop()`` on its own watch, also
+        from a task it started; that call returns without waiting for itself.
         """
+        own = self._own_call()
         self._stopped = True
         if not self._closing:
             self._closing = True
@@ -206,26 +241,36 @@ class AsyncWatchHandle:
         if reader is None:
             await self._record_exit(None)
             return
-        if reader is asyncio.current_task():
+        if own or reader is asyncio.current_task():
             return
         # Closing the stream ends the reader's iteration. Wait on the exit
-        # EVENT, not the task, so a reader failure is reported through
+        # EVENTS, not the task, so a reader failure is reported through
         # exit_error rather than raised here; the bound guards against a
-        # reader stuck in stream I/O. A callback still running is waited for
-        # in full, so no delivery is in flight when stop() returns.
+        # reader stuck in stream I/O. A callback still running, and on_exit,
+        # are waited for in full, so neither is in flight when stop() returns.
         with contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(self._exited.wait(), timeout=WATCH_STOP_JOIN_TIMEOUT_SECONDS)
-        if self._delivering and not reader.done():
-            await asyncio.wait({reader})
+        if self._exited.is_set() or self._active_delivery is not None:
+            await self._exit_done.wait()
+
+    def _refuse_other_watch(self, method: str) -> None:
+        if not self._own_call():
+            raise BridgeError(
+                f"a synchronous watch callback runs on the SDK's event-loop thread, where only its own "
+                f"watch's stop() / wait_for_exit() work; {method}() on another watch cannot block there. "
+                "Use the async client (AsyncDaytona) to coordinate several watches."
+            )
 
     def _stop_nowait(self) -> None:
         """Stop without waiting: no event is delivered after this returns, and
         the stream closes in the background (see ``_SYNC_LOOP_VARIANTS``)."""
+        self._refuse_other_watch("stop")
         self._stopped = True
         if self._stop_task is None:
             self._stop_task = asyncio.ensure_future(self.stop())
 
     def _exit_error_now(self) -> Exception | None:
+        self._refuse_other_watch("wait_for_exit")
         return self._exit_error
 
 
@@ -350,6 +395,15 @@ class AsyncFileSystemService:
         on_progress: TransferProgressCallback | None = None,
         cancel: TransferCancelSignal | None = None,
     ) -> None:
+        """Stream ``remote_path`` to ``local_path`` without holding it in memory.
+
+        Writes to a unique temporary file in the destination directory and
+        renames it over ``local_path`` on success; on an error or a
+        cancellation that temporary file is removed. ``on_progress(bytes,
+        total)`` reports progress (``total`` from ``Content-Length`` when the
+        sandbox sends it); ``cancel`` is any object with ``is_set()``, checked
+        between chunks, and raises ``TransferCancelledError``.
+        """
         destination_path = Path(local_path)
         bytes_written = 0
         progress_calls = 0
@@ -459,7 +513,7 @@ class AsyncFileSystemService:
             ),
             description="grep response",
         )
-        return ListResult(items=[_file_match(item) for item in items], next_cursor=next_cursor)
+        return ListResult(items=[parse_file_match(item) for item in items], next_cursor=next_cursor)
 
     async def glob(self, path: str, pattern: str) -> ListResult[str]:
         """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
@@ -495,7 +549,7 @@ class AsyncFileSystemService:
             ),
             description="replace response",
         )
-        return ListResult(items=[_replace_result(item) for item in items], next_cursor=next_cursor)
+        return ListResult(items=[parse_replace_result(item) for item in items], next_cursor=next_cursor)
 
     async def chmod(
         self,
@@ -538,20 +592,17 @@ class AsyncFileSystemService:
         callback_error: list[Exception] = []
 
         async def deliver(callback: Callable[[], None | Awaitable[None]]) -> None:
-            handle._delivering = True
             try:
-                await _invoke(callback())
+                await handle._deliver(callback)
             except Exception as exc:
                 callback_error.append(exc)
                 raise
-            finally:
-                handle._delivering = False
 
         async def read_events() -> None:
             started = False
             exit_error: Exception | None = None
             try:
-                async for event_name, payload in parse_sse_lines_async(stream.iter_lines()):
+                async for event_name, data, _id in parse_sse_messages_async(stream.iter_lines()):
                     if handle._stopped:
                         break
                     if event_name == "start":
@@ -559,7 +610,7 @@ class AsyncFileSystemService:
                         ready.set()
                         continue
                     if event_name == "fs":
-                        event = _parse_filesystem_event(payload)
+                        event = _parse_filesystem_event(sse_json("fs", data, "filesystem watch event"))
                         await deliver(functools.partial(on_event, event))
                         continue
                     if event_name == "overflow" and on_overflow is not None:
@@ -629,32 +680,6 @@ class AsyncFileSystemService:
         return self._file_url_signer
 
 
-def _file_match(item: JsonObject) -> FileMatch:
-    file, line, content = item.get("file"), item.get("line"), item.get("content")
-    if not isinstance(file, str) or not isinstance(content, str) or not _is_int(line):
-        raise create_error(
-            "expected grep match: file, line and content are required", 400, "BAD_REQUEST", "SDK"
-        )
-    return FileMatch(file=file, line=line, content=content)
-
-
-def _replace_result(item: JsonObject) -> ReplaceResult:
-    file, success, error = item.get("file"), item.get("success"), item.get("error")
-    if (
-        not isinstance(file, str)
-        or not isinstance(success, bool)
-        or not (error is None or isinstance(error, str))
-    ):
-        raise create_error(
-            "expected replace result: file and success are required", 400, "BAD_REQUEST", "SDK"
-        )
-    return ReplaceResult(file=file, success=success, error=error)
-
-
-def _is_int(value: object) -> TypeGuard[int]:
-    return isinstance(value, int) and not isinstance(value, bool)
-
-
 def _expires_unix_seconds(expires_in_seconds: int) -> int:
     _assert_expires_in_seconds(expires_in_seconds)
     return int(time.time()) + expires_in_seconds
@@ -693,12 +718,8 @@ def _signed_file_url_from_payload(payload: TransportPayload) -> _SignedFileUrl:
     signature = payload.get("signature")
     expires_at = payload.get("expires_at")
     if isinstance(signature, str) and signature and isinstance(expires_at, str):
-        try:
-            parsed_expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-        except ValueError:
-            parsed_expiry = None
-        if parsed_expiry is not None and parsed_expiry.tzinfo is not None:
-            return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
+        parsed_expiry = parse_timestamp(expires_at, "signed file URL response: expires_at")
+        return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
     raise create_error(
         "expected signed file URL response: signature and expires_at are required", 400, "BAD_REQUEST", "SDK"
     )

@@ -10,7 +10,7 @@
 
 import type * as toolbox from './gen/toolbox-types.js'
 import type {
-  FileInfo, FileMatch, GitCommit, GitCommitResponse, GitFileStatus, GitRemote, GitStatus, ReplaceResult, SystemMetrics,
+  BulkWriteFile, BulkWriteResult, FileInfo, FileMatch, LogFrame, LogPage, GitCommit, GitCommitResponse, GitFileStatus, GitRemote, GitStatus, ReplaceResult, SystemMetrics,
 } from './types.js'
 import { BadRequestError } from './errors/DaytonaError.js'
 
@@ -21,8 +21,9 @@ export function malformedResponse(message: string): BadRequestError {
   return new BadRequestError(`expected ${message}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
 }
 
-function malformed(description: string, field: string): BadRequestError {
-  return malformedResponse(`${description}: ${field} is required`)
+/** A missing field "is required"; a present one of the wrong type "must be" `expected`. */
+function malformed(description: string, field: string, value: unknown, expected: string): BadRequestError {
+  return malformedResponse(value === undefined || value === null ? `${description}: ${field} is required` : `${description}: ${field} must be ${expected}`)
 }
 
 export function record(value: unknown, description: string): WireRecord {
@@ -32,34 +33,48 @@ export function record(value: unknown, description: string): WireRecord {
 
 export function str(input: WireRecord, field: string, description: string): string {
   const value = input[field]
-  if (typeof value !== 'string') throw malformed(description, field)
+  if (typeof value !== 'string') throw malformed(description, field, value, 'a string')
   return value
 }
 
 /** A finite number (a fraction such as a utilization). */
 export function num(input: WireRecord, field: string, description: string): number {
   const value = input[field]
-  if (typeof value !== 'number' || !Number.isFinite(value)) throw malformed(description, field)
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw malformed(description, field, value, 'a number')
   return value
 }
 
 /** An integer, as the contract's integer fields are. */
 export function int(input: WireRecord, field: string, description: string): number {
   const value = input[field]
-  if (typeof value !== 'number' || !Number.isInteger(value)) throw malformed(description, field)
+  if (typeof value !== 'number' || !Number.isInteger(value)) throw malformed(description, field, value, 'an integer')
+  return value
+}
+
+/** A non-negative integer, for the contract's integer fields with `minimum: 0`. */
+export function nonNegativeInt(input: WireRecord, field: string, description: string): number {
+  const value = input[field]
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) throw malformed(description, field, value, 'a non-negative integer')
+  return value
+}
+
+/** A positive integer, for the contract's integer fields with `minimum: 1`. */
+export function positiveInt(input: WireRecord, field: string, description: string): number {
+  const value = input[field]
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) throw malformed(description, field, value, 'a positive integer')
   return value
 }
 
 export function bool(input: WireRecord, field: string, description: string): boolean {
   const value = input[field]
-  if (typeof value !== 'boolean') throw malformed(description, field)
+  if (typeof value !== 'boolean') throw malformed(description, field, value, 'a boolean')
   return value
 }
 
 /** A list of strings. */
 export function strList(input: WireRecord, field: string, description: string): string[] {
   const value = input[field]
-  if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) throw malformed(description, field)
+  if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) throw malformed(description, field, value, 'a list of strings')
   return [...value]
 }
 
@@ -79,7 +94,9 @@ export function isRfc3339(value: string): boolean {
   const match = RFC3339.exec(value)
   if (match === null) return false
   const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number) as [number, number, number, number, number, number]
-  const date = new Date(Date.UTC(year, month - 1, day))
+  // setUTCFullYear, not Date.UTC: Date.UTC maps years 0-99 to 1900-1999.
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
     && hour <= 23 && minute <= 59 && second <= 59
 }
@@ -91,12 +108,20 @@ export function timestamp(input: WireRecord, field: string, description: string)
   return value
 }
 
+/** The list in the `key` field of a response envelope (only that shape), each mapped by `map`. */
+export function envelopeList<T>(data: unknown, key: string, description: string, map: (item: never) => T): T[] {
+  const envelope = record(data, description)
+  const items = envelope[key]
+  if (!Array.isArray(items)) throw malformed(description, key, items, 'a list')
+  return items.map((item) => map(item as never))
+}
+
 /** The `items` of a list response (a bare array or an `{ items }` envelope), each mapped by `map`. */
 export function listItems<T>(data: unknown, key: string, description: string, map: (item: never) => T): { items: T[]; nextCursor?: string } {
   if (Array.isArray(data)) return { items: data.map((item) => map(item as never)) }
   const envelope = record(data, description)
   const items = envelope[key]
-  if (!Array.isArray(items)) throw malformed(description, key)
+  if (!Array.isArray(items)) throw malformed(description, key, items, 'a list')
   const nextCursor = envelope.nextCursor
   return {
     items: items.map((item) => map(item as never)),
@@ -104,17 +129,71 @@ export function listItems<T>(data: unknown, key: string, description: string, ma
   }
 }
 
+/**
+ * A `ProcessLogsResponse` page, checked strictly: `frames`, `nextCursor`,
+ * `truncatedHead` and `eof` are required, with their types.
+ */
+export function logPageFromWire(value: unknown): LogPage {
+  const d = 'process log page'
+  const input = record(value, d)
+  const firstAvailableCursor = optional(input, 'firstAvailableCursor', str, d)
+  return {
+    items: envelopeList(input, 'frames', d, logFrameFromWire),
+    nextCursor: str(input, 'nextCursor', d),
+    truncatedHead: bool(input, 'truncatedHead', d),
+    eof: bool(input, 'eof', d),
+    ...(firstAvailableCursor === undefined ? {} : { firstAvailableCursor }),
+  }
+}
+
+/** One `LogFrameDto`. */
+export function logFrameFromWire(value: unknown): LogFrame {
+  const d = 'log frame'
+  const input = record(value, d)
+  return {
+    cursor: str(input, 'cursor', d),
+    channel: str(input, 'channel', d),
+    data: str(input, 'data', d),
+    timestampMs: int(input, 'timestamp', d),
+  }
+}
+
+/** A `BulkUploadResponse`: `files` (each with `path` and `bytes`) and `errors` are required. */
+export function bulkWriteResultFromWire(value: unknown): BulkWriteResult {
+  const d = 'bulk upload response'
+  const input = record(value, d)
+  const files = envelopeList(input, 'files', d, (item: unknown): BulkWriteFile => {
+    const file = record(item, `${d}: files`)
+    return { path: str(file, 'path', `${d}: files`), bytes: nonNegativeInt(file, 'bytes', `${d}: files`) }
+  })
+  return { files, errors: strList(input, 'errors', d) }
+}
+
+/** The `id` and `kernel` of a `SessionDto`, with every field the contract requires checked (as the Python SDK does). */
+export function interpreterSessionFromWire(value: unknown): { readonly id: string; readonly kernel: string } {
+  const d = 'session response'
+  const input = record(value, d)
+  const id = str(input, 'id', d)
+  const kernel = str(input, 'kernel', d)
+  str(input, 'kernelProcessId', d)
+  str(input, 'cwd', d)
+  timestamp(input, 'createdAt', d)
+  bool(input, 'active', d)
+  strList(input, 'processIds', d)
+  return { id, kernel }
+}
+
 export function systemMetricsFromWire(value: toolbox.Metrics): SystemMetrics {
   const input = record(value, 'system metrics')
   const d = 'system metrics'
   return {
     timestamp: timestamp(input, 'timestamp', d),
-    cpuCount: int(input, 'cpuCount', d),
+    cpuCount: nonNegativeInt(input, 'cpuCount', d),
     cpuUtilization: num(input, 'cpuUtilization', d),
-    memoryUsageBytes: int(input, 'memoryUsageBytes', d),
-    memoryTotalBytes: int(input, 'memoryTotalBytes', d),
-    diskUsageBytes: int(input, 'diskUsageBytes', d),
-    diskTotalBytes: int(input, 'diskTotalBytes', d),
+    memoryUsageBytes: nonNegativeInt(input, 'memoryUsageBytes', d),
+    memoryTotalBytes: nonNegativeInt(input, 'memoryTotalBytes', d),
+    diskUsageBytes: nonNegativeInt(input, 'diskUsageBytes', d),
+    diskTotalBytes: nonNegativeInt(input, 'diskTotalBytes', d),
   }
 }
 
@@ -124,7 +203,7 @@ export function fileInfoFromWire(value: toolbox.FileInfo): FileInfo {
   return {
     name: str(input, 'name', d),
     path: str(input, 'path', d),
-    size: int(input, 'size', d),
+    size: nonNegativeInt(input, 'size', d),
     isDir: bool(input, 'isDir', d),
     mode: str(input, 'mode', d),
     permissions: str(input, 'permissions', d),
@@ -138,18 +217,17 @@ export function fileInfoFromWire(value: toolbox.FileInfo): FileInfo {
 export function fileMatchFromWire(value: toolbox.Match): FileMatch {
   const d = 'grep match'
   const input = record(value, d)
-  return { file: str(input, 'file', d), line: int(input, 'line', d), content: str(input, 'content', d) }
+  return { file: str(input, 'file', d), line: nonNegativeInt(input, 'line', d), content: str(input, 'content', d) }
 }
 
 export function replaceResultFromWire(value: toolbox.ReplaceResult): ReplaceResult {
   const d = 'replace result'
   const input = record(value, d)
-  const error = input.error
-  if (error !== undefined && error !== null && typeof error !== 'string') throw malformed(d, 'error')
+  const error = optional(input, 'error', str, d)
   return {
     file: str(input, 'file', d),
     success: bool(input, 'success', d),
-    ...(typeof error === 'string' ? { error } : {}),
+    ...(error === undefined ? {} : { error }),
   }
 }
 
@@ -168,7 +246,7 @@ export function gitStatusFromWire(value: toolbox.GitStatus): GitStatus {
   const d = 'git status response'
   const input = record(value, d)
   const fileStatus = input.fileStatus
-  if (!Array.isArray(fileStatus)) throw malformed(d, 'fileStatus')
+  if (!Array.isArray(fileStatus)) throw malformed(d, 'fileStatus', fileStatus, 'a list')
   return {
     currentBranch: str(input, 'currentBranch', d),
     ahead: int(input, 'ahead', d),

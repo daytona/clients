@@ -2186,10 +2186,8 @@ async def test_filesystem_watch_dir_waits_for_start_and_drains_events():
     stream.push("")
     await asyncio.wait_for(callback_done.wait(), timeout=1)
 
-    assert seen == [(FilesystemEventType.CREATE, "a.txt")]
-    assert events == [
-        FilesystemEvent(type=FilesystemEventType.CREATE, name="a.txt", is_dir=False, timestamp_ms=1)
-    ]
+    assert seen == [("create", "a.txt")]
+    assert events == [FilesystemEvent(type="create", name="a.txt", is_dir=False, timestamp_ms=1)]
 
     await handle.stop()
     await handle.stop()
@@ -3339,8 +3337,10 @@ def test_parsers_tolerate_unknown_fields():
     assert process.id == "p"
     page = parse_log_page(
         {
-            "items": [{"cursor": "c1", "channel": "stdout", "data": "hi", "timestamp": 42, "extra": True}],
+            "frames": [{"cursor": "c1", "channel": "stdout", "data": "hi", "timestamp": 42, "extra": True}],
             "nextCursor": "c2",
+            "truncatedHead": False,
+            "eof": True,
             "new": 1,
         }
     )
@@ -5583,8 +5583,19 @@ def test_filesystem_items_require_the_contract_metadata() -> None:
         mod_time="Mon Aug 24 00:00:00 2026",
     )
     # Contract-required metadata is never filled with a placeholder.
-    for missing in ("path", "modifiedAt", "owner", "group", "permissions"):
-        with pytest.raises(DaytonaError, match="expected file info response"):
+    for missing in (
+        "name",
+        "path",
+        "size",
+        "isDir",
+        "mode",
+        "modTime",
+        "modifiedAt",
+        "owner",
+        "group",
+        "permissions",
+    ):
+        with pytest.raises(BadRequestError, match=f"expected file info response: {missing}"):
             expect_file_info({key: value for key, value in full_payload.items() if key != missing})
     with pytest.raises(DaytonaError, match="RFC 3339"):
         expect_file_info({**full_payload, "modifiedAt": "later"})
@@ -5721,14 +5732,18 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
             {},
             _process_payload("proc", "exec", "running"),
             {"reason": "signaled", "signal": "SIGTERM"},
-            {"items": [_log_frame_payload("c1", "out")], "nextCursor": "c1"},
-            {"items": [], "nextCursor": "c1"},
+            {
+                "frames": [_log_frame_payload("c1", "out")],
+                "nextCursor": "c1",
+                "truncatedHead": False,
+                "eof": False,
+            },
+            {"frames": [], "nextCursor": "c1", "truncatedHead": False, "eof": True},
             [_process_payload("proc", "exec", "running")],
             _session_payload("ctx", kernel="javascript"),
             _process_payload("code", "code", "running", language="javascript"),
             {"reason": "timed_out"},
             _process_payload("code", "code", "running", language="javascript"),
-            {},
             {"reason": "exited", "exitCode": 130},
             {
                 "frames": [
@@ -8288,7 +8303,7 @@ async def test_interpreter_rebinds_explicit_contexts_to_the_current_service_tran
         [
             _process_payload("proc", "code", "running", language="python"),
             {"reason": "exited", "exitCode": 0},
-            {"frames": [], "nextCursor": None},
+            {"frames": [], "nextCursor": "c0", "truncatedHead": False, "eof": True},
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -8321,7 +8336,7 @@ async def test_interpreter_timeout_does_not_turn_an_expired_budget_into_an_unbou
             _process_payload("proc", "code", "running", language="python"),
             {},
             {"reason": "exited", "exitCode": 130},
-            {"frames": [], "nextCursor": None},
+            {"frames": [], "nextCursor": "c0", "truncatedHead": False, "eof": True},
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -8393,8 +8408,10 @@ async def test_interpreter_recomputes_wait_budget_after_process_creation():
             {
                 "frames": [{"cursor": "1", "channel": "stdout", "data": "ok", "timestamp": 1}],
                 "nextCursor": "1",
+                "truncatedHead": False,
+                "eof": False,
             },
-            {"frames": [], "nextCursor": "1"},
+            {"frames": [], "nextCursor": "1", "truncatedHead": False, "eof": True},
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -8595,7 +8612,7 @@ async def test_interpreter_context_run_returns_timed_out_without_submitting_when
     timed_out = await context.run("second", timeout=0.01)
 
     assert timed_out.process.reason == "timed_out"
-    assert timed_out.process.process_id == ""
+    assert timed_out.process.process_id is None
     assert submitted == [("first", None)]
     assert second_submitted.is_set() is False
 
@@ -9421,7 +9438,7 @@ async def test_interpreter_run_keeps_unknown_wait_reason_and_raw_reason() -> Non
         [
             _process_payload("proc", "code", "running", language="python"),
             {"exitCode": 0, "reason": "vanished"},
-            _log_page_payload([], next_cursor=None),
+            _log_page_payload([], next_cursor="0", eof=True),
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -9462,7 +9479,7 @@ def test_sync_interpreter_run_keeps_unknown_wait_reason_and_raw_reason() -> None
         [
             _process_payload("proc", "code", "running", language="python"),
             {"exitCode": 0, "reason": "vanished"},
-            _log_page_payload([], next_cursor=None),
+            _log_page_payload([], next_cursor="0", eof=True),
         ]
     )
     bridge = SyncBridge(name="InterpreterService")

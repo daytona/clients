@@ -129,7 +129,7 @@ export class ProcessService {
 
   /** Reconnect a shell session by id or by `session.toJSON()`, without a request. */
   public connectSession(session: string | SessionJSON): Session {
-    if (typeof session === 'string') return new Session(INTERNAL, this.binding(), session)
+    if (typeof session === 'string') return new Session(INTERNAL, this.binding(), requireSessionId(session, 'sessionId'))
     const sandboxId = requireSessionId(session?.sandboxId, 'sandboxId')
     const sessionId = requireSessionId(session?.sessionId, 'sessionId')
     if (sandboxId !== this.sandboxId) {

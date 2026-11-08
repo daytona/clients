@@ -3,7 +3,7 @@
 
 """The toolbox namespaces' public shapes: SDK-owned models, process results and
 streams, PTY options, interpreter identities and computer-use results. The
-TypeScript SDK's tests/toolbox-surface.test.ts holds the same expectations."""
+TypeScript SDK's `toolbox surface` block in tests/unit.test.ts holds the same expectations."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ import pytest
 
 from daytona.v2 import (
     AsyncWatchHandle,
+    BulkWriteFile,
+    BulkWriteResult,
     FileInfo,
     FilesystemEvent,
     GitCommit,
@@ -43,7 +45,7 @@ from daytona.v2.git import AsyncGitService
 from daytona.v2.interpreter import AsyncInterpreterService
 from daytona.v2.lsp import AsyncLspServer
 from daytona.v2.process import AsyncProcessService, AsyncPtyService
-from daytona.v2.types import JsonValue, LogFrame
+from daytona.v2.types import JsonValue, LogFrame, LogPage
 
 CREATED_AT = "2026-01-01T00:00:00Z"
 
@@ -704,3 +706,372 @@ async def test_mkdir_defaults_to_mode_0755_like_the_typescript_sdk() -> None:
     transport = Transport([None])
     await AsyncFileSystemService(transport).mkdir("/w")  # type: ignore[arg-type]
     assert transport.specs[0].params == {"path": "/w", "mode": "0755"}
+
+
+@pytest.mark.anyio
+async def test_stream_logs_skips_an_unknown_event_with_non_json_data() -> None:
+    lines = [
+        "event: ping",
+        "data: not json",
+        "",
+        "event: log",
+        'data: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}',
+        "",
+        "event: eof",
+        'data: {"cursor":"c2"}',
+        "",
+    ]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    assert [event.type async for event in handle.stream_logs()] == ["log", "eof"]
+
+
+@pytest.mark.anyio
+async def test_stream_logs_raises_the_malformed_response_error_for_a_known_event_with_non_json_data() -> None:
+    lines = ["event: state", "data: not json", ""]
+    handle = AsyncProcessService("sbx", Transport(lines=lines)).connect("proc")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="process log state event: the data is not JSON") as info:
+        async for _event in handle.stream_logs():
+            pass
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_a_watch_skips_unknown_events_with_non_json_data_and_rejects_a_bad_fs_event() -> None:
+    stream = _WatchStream(["event: start", "data: {}", ""])
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    seen: list[str] = []
+    handle = await fs.watch_dir("/w", lambda event: seen.append(event.name))
+    stream.push("event: ping", "data: not json", "", "event: overflow", "data: nope", "", *_FS_A)
+    stream.push("event: fs", "data: not json", "")
+
+    error = await asyncio.wait_for(handle.wait_for_exit(), timeout=2)
+    assert seen == ["a.txt"]
+    assert isinstance(error, BadRequestError)
+    assert "filesystem watch event: the data is not JSON" in str(error)
+
+
+@pytest.mark.anyio
+async def test_a_watch_delivers_an_unknown_event_kind_as_its_string() -> None:
+    stream = _WatchStream(["event: start", "data: {}", ""])
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    seen: list[FilesystemEvent] = []
+    done = asyncio.Event()
+
+    def on_event(event: FilesystemEvent) -> None:
+        seen.append(event)
+        done.set()
+
+    handle = await fs.watch_dir("/w", on_event)
+    stream.push("event: fs", 'data: {"type":"attrib","name":"a","isDir":false,"timestamp":1}', "")
+    await asyncio.wait_for(done.wait(), timeout=2)
+
+    assert seen == [FilesystemEvent(type="attrib", name="a", is_dir=False, timestamp_ms=1)]
+    assert handle.exit_error is None
+    await handle.stop()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("how", ["create_task", "gather", "wait_for"])
+async def test_a_callback_stopping_its_watch_from_a_child_task_does_not_deadlock(how: str) -> None:
+    stream = _WatchStream(["event: start", "data: {}", ""])
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    holder: list[AsyncWatchHandle] = []
+
+    async def on_event(_event: FilesystemEvent) -> None:
+        handle = holder[0]
+        if how == "create_task":
+            await asyncio.create_task(handle.stop())
+        elif how == "gather":
+            await asyncio.gather(handle.stop(), handle.wait_for_exit())
+        else:
+            await asyncio.wait_for(handle.stop(), timeout=5)
+
+    holder.append(await fs.watch_dir("/w", on_event))
+    stream.push(*_FS_A)
+
+    assert await asyncio.wait_for(holder[0].wait_for_exit(), timeout=2) is None
+
+
+@pytest.mark.anyio
+async def test_an_external_stop_returns_after_on_exit_has_finished() -> None:
+    stream = _WatchStream(["event: start", "data: {}", ""])
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    order: list[str] = []
+
+    async def on_exit(_error: Optional[Exception]) -> None:
+        await asyncio.sleep(0.05)
+        order.append("on_exit finished")
+
+    handle = await fs.watch_dir("/w", lambda _event: None, on_exit=on_exit)
+    await asyncio.wait_for(handle.stop(), timeout=2)
+    order.append("stop returned")
+
+    assert order == ["on_exit finished", "stop returned"]
+
+
+@pytest.mark.anyio
+async def test_a_stop_a_callback_defers_past_its_delivery_waits_like_an_external_one() -> None:
+    stream = _WatchStream(["event: start", "data: {}", ""])
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    holder: list[AsyncWatchHandle] = []
+    deferred: list[asyncio.Task[None]] = []
+    release_b = asyncio.Event()
+    b_finished = asyncio.Event()
+
+    async def on_event(event: FilesystemEvent) -> None:
+        if event.name == "a.txt":
+
+            async def later() -> None:
+                await asyncio.sleep(0.01)
+                await holder[0].stop()
+
+            deferred.append(asyncio.create_task(later()))
+            return
+        await release_b.wait()
+        b_finished.set()
+
+    holder.append(await fs.watch_dir("/w", on_event))
+    stream.push(*_FS_A, "event: fs", 'data: {"type":"create","name":"b.txt","isDir":false,"timestamp":2}', "")
+    await asyncio.sleep(0.1)
+
+    # The task outlived a.txt's delivery: its stop() waits for b.txt's callback.
+    assert deferred and not deferred[0].done()
+    release_b.set()
+    await asyncio.wait_for(deferred[0], timeout=2)
+    assert b_finished.is_set()
+
+
+_LOG_PAGE = {"frames": [], "nextCursor": "c0", "truncatedHead": False, "eof": True}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("payload", "field"),
+    [
+        ({}, "eof"),
+        ({**_LOG_PAGE, "frames": "x"}, "frames must be a list"),
+        ({**_LOG_PAGE, "truncatedHead": "yes"}, "truncatedHead"),
+        ({key: value for key, value in _LOG_PAGE.items() if key != "nextCursor"}, "nextCursor"),
+        ({key: value for key, value in _LOG_PAGE.items() if key != "eof"}, "eof"),
+        ({**_LOG_PAGE, "firstAvailableCursor": 5}, "firstAvailableCursor"),
+        ([], "process log page"),
+    ],
+)
+async def test_logs_rejects_a_page_that_breaks_the_contract(payload: JsonValue, field: str) -> None:
+    handle = AsyncProcessService("sbx", Transport([payload])).connect("proc")  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=field) as info:
+        await handle.logs()
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_logs_returns_the_contract_page() -> None:
+    frame = {"cursor": "c1", "channel": "stdout", "data": "x", "timestamp": 1}
+    payload = {
+        "frames": [frame],
+        "nextCursor": "c1",
+        "truncatedHead": True,
+        "eof": False,
+        "firstAvailableCursor": "c0",
+    }
+    handle = AsyncProcessService("sbx", Transport([payload])).connect("proc")  # type: ignore[arg-type]
+
+    page = await handle.logs()
+
+    assert page == LogPage(
+        items=[LogFrame(cursor="c1", channel="stdout", data="x", timestamp_ms=1)],
+        next_cursor="c1",
+        truncated_head=True,
+        eof=False,
+        first_available_cursor="c0",
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("payload", "field"),
+    [
+        ({}, "errors"),
+        ({"files": [], "errors": None}, "errors"),
+        ({"files": "x", "errors": []}, "files must be a list"),
+        ({"files": [{}], "errors": []}, "bytes"),
+        ({"files": [{"path": "/a", "bytes": "x"}], "errors": []}, "bytes"),
+        ({"files": [{"path": "/a", "bytes": -1}], "errors": []}, "bytes"),
+    ],
+)
+async def test_write_many_rejects_a_bulk_upload_response_that_breaks_the_contract(
+    payload: JsonValue, field: str
+) -> None:
+    fs = AsyncFileSystemService(Transport([payload]))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=f"bulk upload response: {field}") as info:
+        await fs.write_many({"/a": b"x"})
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_write_many_returns_sdk_models() -> None:
+    fs = AsyncFileSystemService(
+        Transport([{"files": [{"path": "/a", "bytes": 1, "extra": 1}], "errors": ["b"]}])
+    )  # type: ignore[arg-type]
+
+    assert await fs.write_many({"/a": b"x"}) == BulkWriteResult(
+        files=[BulkWriteFile(path="/a", bytes=1)], errors=["b"]
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("operation", "payload", "message"),
+    [
+        ("grep", {"items": [{"file": "/a", "line": -1, "content": "x"}]}, "grep match: line"),
+        ("grep", {"items": [{"file": "/a", "line": "3", "content": "x"}]}, "grep match: line"),
+        ("replace", {"items": [{"file": "/a", "success": "yes"}]}, "replace result: success"),
+        ("list", {"items": [{"name": "a"}]}, "file info response"),
+    ],
+)
+async def test_malformed_filesystem_results_name_the_field(
+    operation: str, payload: JsonValue, message: str
+) -> None:
+    fs = AsyncFileSystemService(Transport([payload]))  # type: ignore[arg-type]
+    calls = {
+        "grep": lambda: fs.grep("/", "x"),
+        "replace": lambda: fs.replace(["/a"], "x", "y"),
+        "list": lambda: fs.list("/"),
+    }
+
+    with pytest.raises(BadRequestError, match=message):
+        await calls[operation]()
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "2026-01-01T00:00:00Z\n",
+        " 2026-01-01T00:00:00Z",
+        "2026-01-01T00:00:00+24:00",
+        "2026-01-01T00:00:00+05:60",
+        "2026-12-31T23:59:60Z",
+        "2026-13-01T00:00:00Z",
+        "2026-02-30T00:00:00Z",
+        "2026-01-01T00:00:00",
+        "Jan 1 2026",
+    ],
+)
+def test_timestamps_reject_what_is_not_rfc_3339_like_the_typescript_sdk(value: str) -> None:
+    from daytona.v2._timestamps import parse_timestamp
+
+    with pytest.raises(BadRequestError, match="field: not an RFC 3339 timestamp"):
+        parse_timestamp(value, "field")
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2026-01-01T00:00:00.123456789Z", datetime(2026, 1, 1, 0, 0, 0, 123456, tzinfo=timezone.utc)),
+        ("0001-01-01t00:00:00z", datetime(1, 1, 1, tzinfo=timezone.utc)),
+        ("0099-06-01 12:00:00+00:00", datetime(99, 6, 1, 12, tzinfo=timezone.utc)),
+    ],
+)
+def test_timestamps_accept_rfc_3339_variants_like_the_typescript_sdk(value: str, expected: datetime) -> None:
+    from daytona.v2._timestamps import parse_timestamp
+
+    assert parse_timestamp(value, "field") == expected
+
+
+@pytest.mark.anyio
+async def test_run_without_a_timeout_holds_one_60_second_window_like_the_typescript_sdk() -> None:
+    terminal = _process(state="terminal", reason="exited", exitCode=0)
+    terminal["logs"] = {"frames": [], "nextCursor": "0", "truncatedHead": False, "eof": True}
+    transport = Transport([terminal, terminal])
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+
+    await process.run("true")
+    await process.run("true", timeout=0)
+
+    assert transport.specs[0].params == {"waitMs": 60000, "logs": "text"}
+    assert transport.specs[0].timeout == 65.0
+    assert transport.specs[1].params == {"waitMs": 0, "logs": "text"}
+    assert transport.specs[1].unbounded_read
+
+
+def _toolbox_classes() -> list[type]:
+    from daytona.v2 import (
+        computer_use,
+        computer_use_services,
+        filesystem,
+        git,
+        interpreter,
+        lsp,
+        process,
+        session,
+    )
+    from daytona.v2 import types as types_module
+
+    return [
+        process.AsyncProcessService,
+        process.AsyncProcessHandle,
+        process.AsyncPtyService,
+        session.AsyncSession,
+        interpreter.AsyncInterpreterService,
+        types_module.AsyncInterpreterContext,
+        filesystem.AsyncFileSystemService,
+        filesystem.AsyncWatchHandle,
+        git.AsyncGitService,
+        lsp.AsyncLspService,
+        lsp.AsyncLspServer,
+        computer_use.AsyncComputerUseService,
+        computer_use_services.AsyncAddonProcessesService,
+        computer_use_services.AsyncMouseService,
+        computer_use_services.AsyncKeyboardService,
+        computer_use_services.AsyncScreenService,
+        computer_use_services.AsyncDisplayService,
+        computer_use_services.AsyncA11yService,
+        computer_use_services.AsyncRecordingService,
+    ]
+
+
+@pytest.mark.parametrize("cls", _toolbox_classes(), ids=lambda cls: cls.__name__)
+def test_toolbox_constructors_take_only_private_parameters(cls: type) -> None:
+    import inspect
+
+    parameters = [name for name in inspect.signature(cls.__init__).parameters if name != "self"]
+    assert parameters and all(name.startswith("_") for name in parameters), parameters
+    public = parameters[0].lstrip("_")
+    with pytest.raises(TypeError, match=f"unexpected keyword argument '{public}'"):
+        cls(**{public: None})
+
+
+@pytest.mark.anyio
+async def test_read_text_keeps_a_byte_order_mark_and_decodes_strictly_like_the_typescript_sdk() -> None:
+    class BytesTransport:
+        def __init__(self) -> None:
+            self.bodies = [b"\xef\xbb\xbfhi", b"\xff"]
+
+        async def raw(self, spec: RequestSpec) -> bytes:
+            return self.bodies.pop(0)
+
+    fs = AsyncFileSystemService(BytesTransport())  # type: ignore[arg-type]
+
+    assert await fs.read_text("/a") == "\ufeffhi"
+    with pytest.raises(UnicodeDecodeError):
+        await fs.read_text("/b")
+
+
+@pytest.mark.anyio
+async def test_kill_sends_escalate_after_in_milliseconds() -> None:
+    transport = Transport([None, None, None])
+    handle = AsyncProcessService("sbx", transport).connect("proc")  # type: ignore[arg-type]
+
+    await handle.kill(signal="TERM", escalate_after=1.5)
+    await handle.kill(signal="TERM", escalate_after=0.0001)
+    await handle.kill()
+
+    assert [spec.json_body for spec in transport.specs] == [
+        {"signal": "SIGTERM", "escalateAfterMs": 1500, "escalateTo": "SIGKILL"},
+        {"signal": "SIGTERM", "escalateAfterMs": 1, "escalateTo": "SIGKILL"},
+        {"signal": "SIGTERM"},
+    ]

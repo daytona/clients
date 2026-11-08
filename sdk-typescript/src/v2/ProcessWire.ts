@@ -13,7 +13,7 @@ import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROC
 import { BadRequestError, DaytonaError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
-import { bool, int, malformedResponse, optional, record, str, strList, timestamp } from './toolboxModels.js'
+import { bool, int, logFrameFromWire, malformedResponse, nonNegativeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 
@@ -114,13 +114,7 @@ export function waitResult(input: toolbox.ExitResult): WaitResult {
 }
 
 export function frameFromWire(input: LogFrameWire): LogFrame {
-  const raw = record(input, 'log frame')
-  return {
-    cursor: str(raw, 'cursor', 'log frame'),
-    channel: str(raw, 'channel', 'log frame'),
-    data: str(raw, 'data', 'log frame'),
-    timestampMs: int(raw, 'timestamp', 'log frame'),
-  }
+  return logFrameFromWire(input)
 }
 
 export function knownProcessKind(kind: unknown): ProcessKind | undefined {
@@ -221,7 +215,7 @@ function terminalFromWire(input: WireRecord): TerminalSize | undefined {
   const value = input.terminal
   if (value === undefined || value === null) return undefined
   const terminal = record(value, `${PROCESS}: terminal`)
-  return { cols: int(terminal, 'cols', `${PROCESS}: terminal`), rows: int(terminal, 'rows', `${PROCESS}: terminal`) }
+  return { cols: positiveInt(terminal, 'cols', `${PROCESS}: terminal`), rows: positiveInt(terminal, 'rows', `${PROCESS}: terminal`) }
 }
 
 export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
@@ -231,7 +225,7 @@ export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
   const rawStdin = str(raw, 'stdin', PROCESS)
   const rawKeepLogs = str(raw, 'keepLogs', PROCESS)
   const rawReason = optional(raw, 'reason', str, PROCESS)
-  const timeoutMs = optional(raw, 'timeoutMs', int, PROCESS)
+  const timeoutMs = optional(raw, 'timeoutMs', nonNegativeInt, PROCESS)
   const argv = optional(raw, 'argv', strList, PROCESS)
   const info: ProcessInfo = {
     id: str(raw, 'id', PROCESS),

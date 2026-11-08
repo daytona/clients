@@ -98,6 +98,7 @@ export type ListRemotesResponse = OptionalizeNullable<Schema<"ListRemotesRespons
 export type MarkupContent = OptionalizeNullable<Schema<"MarkupContent">>
 export type Match = OptionalizeNullable<Schema<"Match">>
 export type Metrics = OptionalizeNullable<Schema<"Metrics">>
+export type BulkUploadResponse = OptionalizeNullable<Schema<"BulkUploadResponse">>
 export type PortInUseResponse = OptionalizeNullable<Schema<"IsPortInUseResponse">>
 export type PortList = OptionalizeNullable<Schema<"PortList">>
 type ProcessRecord = Simplify<

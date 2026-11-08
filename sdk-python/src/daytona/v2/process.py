@@ -7,8 +7,6 @@ from collections.abc import Mapping
 from typing import AsyncIterator, List, Optional, Sequence, Union
 from urllib.parse import quote
 
-from typing_extensions import assert_never
-
 from . import _clock
 from . import _codes as codes
 from ._core import (
@@ -17,9 +15,9 @@ from ._core import (
     delete_process_spec,
     enum_str,
     expect_exit_result,
-    expect_log_frame_dto,
     expect_process_dto,
     logs_spec,
+    parse_log_frame,
     parse_log_page,
     parse_process,
     parse_process_page,
@@ -29,6 +27,7 @@ from ._core import (
     process_list_spec,
     resize_spec,
     signal_spec,
+    sse_json,
     stdin_spec,
     timeout_millis_from_seconds,
     wait_budget,
@@ -37,8 +36,8 @@ from ._core import (
 from ._transport import AsyncTransport
 from .errors import ClientTimeoutError, ConnectionError, DaytonaError, UnsupportedOperationError, create_error
 from .session import AsyncSession
+from .session import _require_id as _require_session_id
 from .types import (
-    JsonObject,
     JsonValue,
     KeepLogs,
     ListResult,
@@ -133,7 +132,7 @@ async def _all_logs(handle: AsyncProcessHandle, *, max_pages: Optional[int] = No
         page = await handle.logs(cursor=cursor)
         pages += 1
         frames.extend(page.items)
-        if not page.next_cursor or page.next_cursor == cursor or not page.items:
+        if page.eof or not page.next_cursor or page.next_cursor == cursor or not page.items:
             return frames
         cursor = page.next_cursor
 
@@ -142,7 +141,7 @@ def _malformed_event(event: str, field: str) -> DaytonaError:
     return create_error(f"expected process log {event} event: {field} is required", 400, "BAD_REQUEST", "SDK")
 
 
-def _stream_log_event(event: str, payload: JsonObject, message_id: Optional[str]) -> Optional[StreamLogEvent]:
+def _stream_log_event(event: str, data: str, message_id: Optional[str]) -> Optional[StreamLogEvent]:
     """One SSE event of a followed process log; ``None`` for an event this release ignores.
 
     An event's cursor is its payload's, else the SSE ``id:`` line's; an event
@@ -150,12 +149,13 @@ def _stream_log_event(event: str, payload: JsonObject, message_id: Optional[str]
     """
     if event not in ("log", "state", "warning", "eof", "error"):
         return None
+    payload = sse_json(event, data, f"process log {event} event")
     cursor_value = payload.get("cursor")
     cursor = cursor_value if isinstance(cursor_value, str) and cursor_value else message_id
     if not cursor:
         raise _malformed_event(event, "cursor")
     if event == "log":
-        frame = parse_log_page([expect_log_frame_dto({**payload, "cursor": cursor})]).items[0]
+        frame = parse_log_frame({**payload, "cursor": cursor})
         return StreamLogFrameEvent(frame=frame, cursor=cursor)
     if event == "state":
         return StreamLogStateEvent(result=parse_wait(expect_exit_result(payload)), cursor=cursor)
@@ -308,12 +308,12 @@ class AsyncProcessHandle:
         raises the typed error for its code.
         """
         transport = self._require_transport()
-        async for event, payload, message_id in parse_sse_messages_async(
+        async for event, data, message_id in parse_sse_messages_async(
             transport.stream_lines(
                 logs_spec(self.id, cursor=cursor, limit=limit, encoding=encoding, follow=True)
             )
         ):
-            parsed = _stream_log_event(event, payload, message_id)
+            parsed = _stream_log_event(event, data, message_id)
             if parsed is not None:
                 yield parsed
 
@@ -466,16 +466,12 @@ class AsyncProcessService:
 
     def connect_session(self, session: str | SessionJSON) -> AsyncSession:
         """Reconnect a shell session by id or by ``session.to_json()``, without a request."""
-        match session:
-            case str():
-                return AsyncSession(self._sandbox_id, session, self._transport)
-            case Mapping():
-                identity = AsyncSession._from_json(session)
-                if identity.sandbox_id != self._sandbox_id:
-                    raise create_error("session belongs to a different sandbox", 400, "BAD_REQUEST", "SDK")
-                return AsyncSession(self._sandbox_id, identity.id, self._transport)
-            case unreachable:
-                assert_never(unreachable)
+        if isinstance(session, Mapping):
+            identity = AsyncSession._from_json(session)
+            if identity.sandbox_id != self._sandbox_id:
+                raise create_error("session belongs to a different sandbox", 400, "BAD_REQUEST", "SDK")
+            return AsyncSession(self._sandbox_id, identity.id, self._transport)
+        return AsyncSession(self._sandbox_id, _require_session_id(session, "sessionId"), self._transport)
 
     async def start(
         self,

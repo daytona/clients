@@ -127,3 +127,22 @@ def test_other_sync_calls_from_a_callback_end_the_watch_with_a_bridge_error(brid
     error = handle.wait_for_exit()
     assert isinstance(error, BridgeError)
     assert "cannot be called from a running event loop" in str(error)
+
+
+def test_a_sync_callback_cannot_wait_for_or_stop_another_watch(bridge: SyncBridge) -> None:
+    other_fs, _other_stream = _fs(bridge)
+    other = other_fs.watch_dir("/other", lambda _event: None)
+    for method in ("wait_for_exit", "stop"):
+        fs, stream = _fs(bridge, "a.txt")
+
+        def on_event(_event: FilesystemEvent, method: str = method) -> None:
+            getattr(other, method)()
+
+        handle = fs.watch_dir("/w", on_event)
+        stream.release.set()
+
+        error = handle.wait_for_exit()
+        assert isinstance(error, BridgeError)
+        assert f"{method}() on another watch" in str(error)
+    assert other.exit_error is None
+    other.stop()

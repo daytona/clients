@@ -22,18 +22,16 @@ import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
-import { bool, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str } from './toolboxModels.js'
+import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str } from './toolboxModels.js'
 
 export type { BulkReadError, BulkReadResult, BulkWriteFile, BulkWriteResult }
 export type { DownloadFileOptions, TransferProgressCallback, UploadFileOptions }
 
-export enum FilesystemEventType {
-  CREATE = 'create',
-  WRITE = 'write',
-  REMOVE = 'remove',
-  RENAME = 'rename',
-  CHMOD = 'chmod',
-}
+/**
+ * What changed in a watched directory. An open vocabulary: a kind a later
+ * sandbox reports is passed through as its string.
+ */
+export type FilesystemEventType = 'create' | 'write' | 'remove' | 'rename' | 'chmod' | (string & {})
 
 export interface FilesystemEvent {
   readonly type: FilesystemEventType
@@ -50,8 +48,9 @@ export interface FilesystemEvent {
  */
 export interface WatchHandle {
   /**
-   * Stop the watch. Resolves once a callback already running has finished;
-   * a callback may call `stop()` on its own watch without waiting for itself.
+   * Stop the watch. Resolves once a callback already running, and `onExit`,
+   * have finished; a callback (or `onExit`) may call `stop()` on its own
+   * watch without waiting for itself.
    */
   stop(): Promise<void>
   /** Wait until the watch ends; resolves with `exitError`. */
@@ -161,19 +160,6 @@ function contentTypeHeader(headers: unknown): string | undefined {
 
 const WATCH_EVENT = 'filesystem watch event'
 
-function filesystemEventType(value: unknown): FilesystemEventType {
-  switch (value) {
-    case FilesystemEventType.CREATE:
-    case FilesystemEventType.WRITE:
-    case FilesystemEventType.REMOVE:
-    case FilesystemEventType.RENAME:
-    case FilesystemEventType.CHMOD:
-      return value
-    default:
-      throw malformedResponse(`${WATCH_EVENT}: invalid type ${JSON.stringify(value) ?? String(value)}`)
-  }
-}
-
 function parseFilesystemEvent(data: string): FilesystemEvent {
   let parsed: unknown
   try {
@@ -183,7 +169,7 @@ function parseFilesystemEvent(data: string): FilesystemEvent {
   }
   const raw = record(parsed, WATCH_EVENT)
   return {
-    type: filesystemEventType(raw.type),
+    type: str(raw, 'type', WATCH_EVENT),
     name: str(raw, 'name', WATCH_EVENT),
     isDir: bool(raw, 'isDir', WATCH_EVENT),
     timestampMs: int(raw, 'timestamp', WATCH_EVENT),
@@ -335,11 +321,8 @@ export class FileSystemService {
       form.append(`files[${index}].file`, new Blob([copyArrayBuffer(data)]), path.split('/').pop() || 'file')
     })
     const atomicParams = uploadManyQuery(options.atomic)
-    const data = await this.transport.post<BulkWriteResult>('/files/bulk-upload', form, atomicParams !== undefined ? { params: atomicParams, timeout: 0 } : { timeout: 0 })
-    return {
-      files: Array.isArray(data.files) ? data.files : [],
-      errors: Array.isArray(data.errors) ? data.errors.filter((item): item is string => typeof item === 'string') : [],
-    }
+    const data = await this.transport.post<toolbox.BulkUploadResponse>('/files/bulk-upload', form, atomicParams !== undefined ? { params: atomicParams, timeout: 0 } : { timeout: 0 })
+    return bulkWriteResultFromWire(data)
   }
 
   /** Read several files in one request; a missing file is an entry in `errors`, not a failure. */
@@ -399,12 +382,6 @@ export class FileSystemService {
    * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
    * error. `onExit` runs once when the watch ends; its own failure is ignored.
    */
-  /**
-   * Watch `path` for changes, calling `onEvent` for each one. Resolves once
-   * the watch is established. Callbacks run one at a time, in order, and are
-   * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
-   * error. `onExit` runs once when the watch ends; its own failure is ignored.
-   */
   public async watchDir(
     path: string,
     onEvent: (event: FilesystemEvent) => void | Promise<void>,
@@ -442,9 +419,12 @@ export class FileSystemService {
       exitError = error
       // Resolved before onExit runs, so onExit can await waitForExit().
       resolveExit(error)
-      // An onExit failure is contained: the watch has already ended.
+      const onExit = options.onExit
+      if (onExit === undefined) return
+      // onExit runs as a delivery, so its own stop() / waitForExit() calls do
+      // not wait for it; its failure is contained: the watch has already ended.
       try {
-        await options.onExit?.(error)
+        await deliver(() => onExit(error))
       } catch {
         // ignored
       }
@@ -524,9 +504,11 @@ export class FileSystemService {
         const ownCallback = calledFromOwnCallback()
         stopRequested = true
         controller.abort()
-        // The watch's own callback must not wait for itself, and once the
-        // watch has ended (onExit may be the caller) there is nothing to wait for.
-        if (ownCallback || exitNotified) return
+        // The watch's own callback (or onExit) must not wait for itself. Where
+        // no AsyncLocalStorage can tell, a stop() after the exit was notified
+        // may be onExit's own and returns at once; elsewhere an external
+        // stop() waits for the stream task, onExit included.
+        if (ownCallback || (exitNotified && scope === undefined)) return
         await streamTask
       },
       waitForExit: async () => (calledFromOwnCallback() ? exitError : exitPromise),

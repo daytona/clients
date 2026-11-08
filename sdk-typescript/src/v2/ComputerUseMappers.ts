@@ -30,7 +30,7 @@ import type {
 } from './ComputerUseTypes.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { knownOrUnknown } from './knownValue.js'
-import { bool, int, malformedResponse, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
+import { bool, int, malformedResponse, nonNegativeInt, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 
 // Every computer-use result is checked against the contract at this boundary:
@@ -183,8 +183,8 @@ export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessSt
     autoRestart: bool(wire, 'AutoRestart', d),
     ...(pid === undefined ? {} : { pid }),
     failed: bool(wire, 'Failed', d),
-    restartAttempts: int(wire, 'RestartAttempts', d),
-    restartBackoffMs: int(wire, 'RestartBackoffMs', d),
+    restartAttempts: nonNegativeInt(wire, 'RestartAttempts', d),
+    restartBackoffMs: nonNegativeInt(wire, 'RestartBackoffMs', d),
     status: str(wire, 'Status', d),
   }
   // Unknown wire fields go in the named bag only, as in the Python SDK.
@@ -245,8 +245,8 @@ function mapComputerUseDisplay(display: unknown): ComputerUseDisplay {
   const d = 'computer-use display'
   const wire = record(display, d)
   return {
-    id: int(wire, 'id', d), x: int(wire, 'x', d), y: int(wire, 'y', d),
-    width: int(wire, 'width', d), height: int(wire, 'height', d), isActive: bool(wire, 'isActive', d),
+    id: nonNegativeInt(wire, 'id', d), x: int(wire, 'x', d), y: int(wire, 'y', d),
+    width: nonNegativeInt(wire, 'width', d), height: nonNegativeInt(wire, 'height', d), isActive: bool(wire, 'isActive', d),
   }
 }
 
@@ -254,8 +254,8 @@ function mapComputerUseWindow(window: unknown): ComputerUseWindow {
   const d = 'computer-use window'
   const wire = record(window, d)
   return {
-    id: int(wire, 'id', d), title: str(wire, 'title', d), x: int(wire, 'x', d), y: int(wire, 'y', d),
-    width: int(wire, 'width', d), height: int(wire, 'height', d), isActive: bool(wire, 'isActive', d),
+    id: nonNegativeInt(wire, 'id', d), title: str(wire, 'title', d), x: int(wire, 'x', d), y: int(wire, 'y', d),
+    width: nonNegativeInt(wire, 'width', d), height: nonNegativeInt(wire, 'height', d), isActive: bool(wire, 'isActive', d),
   }
 }
 
@@ -320,7 +320,7 @@ export function mapComputerUseScreenshot(response: unknown): ComputerUseScreensh
   const cursor = wire.cursorPosition
   return {
     screenshot: str(wire, 'screenshot', d),
-    sizeBytes: int(wire, 'sizeBytes', d),
+    sizeBytes: nonNegativeInt(wire, 'sizeBytes', d),
     ...(cursor === undefined || cursor === null ? {} : { cursorPosition: mapComputerUsePoint(cursor, `${d}: cursorPosition`) }),
   }
 }

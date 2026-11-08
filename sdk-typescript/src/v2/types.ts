@@ -1013,8 +1013,13 @@ export interface LogFrame {
 }
 
 export interface LogPage extends ListResult<LogFrame> {
-  /** Whether retention removed the oldest frames. */
+  /** The cursor to pass to the next `logs()` call to continue after this page. */
+  readonly nextCursor: string
+  /** Whether retention removed frames older than this page. */
   readonly truncatedHead: boolean
+  /** Whether the process has ended and no frame follows this page. */
+  readonly eof: boolean
+  /** The cursor of the oldest frame still kept, when older ones were removed. */
   readonly firstAvailableCursor?: string
 }
 
@@ -1225,7 +1230,11 @@ export interface InterpreterContextOptions {
 }
 
 export interface InterpreterProcess extends WaitResult {
-  readonly processId: string
+  /**
+   * The code execution's process; absent when the run timed out while queued
+   * behind earlier runs of its context and was never submitted.
+   */
+  readonly processId?: string
 }
 
 export interface InterpreterLogs {

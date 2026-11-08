@@ -181,7 +181,7 @@ export interface ComputerUseDisplay {
 }
 
 export interface ComputerUseDisplayInfoResponse {
-  readonly displays: ComputerUseDisplay[]
+  readonly displays: readonly ComputerUseDisplay[]
 }
 
 export interface ComputerUseWindow {
@@ -195,7 +195,7 @@ export interface ComputerUseWindow {
 }
 
 export interface ComputerUseDisplayWindowsResponse {
-  readonly windows: ComputerUseWindow[]
+  readonly windows: readonly ComputerUseWindow[]
 }
 
 export interface ComputerUseAccessibilityBounds {
@@ -215,9 +215,9 @@ export interface ComputerUseAccessibilityNode {
   /** `value` was cut at the platform's cap. `false` when uncut or not reported; the SDK always fills it. */
   readonly valueTruncated: boolean
   readonly bounds: ComputerUseAccessibilityBounds
-  readonly states: string[]
-  readonly actions?: string[]
-  readonly children?: ComputerUseAccessibilityNode[]
+  readonly states: readonly string[]
+  readonly actions?: readonly string[]
+  readonly children?: readonly ComputerUseAccessibilityNode[]
 }
 
 export interface ComputerUseA11yTreeOptions {
@@ -242,7 +242,7 @@ export interface ComputerUseA11yFindRequest {
 }
 
 export interface ComputerUseA11yFindResponse {
-  readonly matches: ComputerUseAccessibilityNode[]
+  readonly matches: readonly ComputerUseAccessibilityNode[]
   readonly truncated: boolean
 }
 
@@ -280,7 +280,7 @@ export interface ComputerUseRecordingStopRequest {
 }
 
 export interface ComputerUseRecordingsResponse {
-  readonly recordings: ComputerUseRecording[]
+  readonly recordings: readonly ComputerUseRecording[]
 }
 
 export interface ComputerUseRegion {

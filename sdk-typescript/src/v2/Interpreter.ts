@@ -21,6 +21,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import { secondsToMs } from './ProcessWire.js'
+import { envelopeList, interpreterSessionFromWire } from './toolboxModels.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
@@ -262,7 +263,7 @@ async function collectResult(
 
 function timedOutInterpreterResult(): InterpreterResult {
   return {
-    process: { processId: '', reason: 'timed_out' },
+    process: { reason: 'timed_out' },
     results: [],
     logs: { stdout: '', stderr: '' },
   }
@@ -485,7 +486,7 @@ export class InterpreterService {
       cwd: options.cwd,
       env: options.env,
     })
-    return this.bindContext(session.id, options.language)
+    return this.bindContext(interpreterSessionFromWire(session).id, options.language)
   }
 
   /** Reconnect a context by id (with `language`), handle or `toJSON()` identity, without a request. */
@@ -499,9 +500,8 @@ export class InterpreterService {
   }
 
   public async listContexts(): Promise<InterpreterContext[]> {
-    const data = await this.transport.get<toolbox.SessionListResponse | toolbox.SessionDto[]>('/sessions')
-    const sessions = Array.isArray(data) ? data : data.items
-    return sessions
+    const data = await this.transport.get<toolbox.SessionListResponse>('/sessions')
+    return envelopeList(data, 'items', 'session list response', interpreterSessionFromWire)
       .filter((session) => session.kernel !== SHELL_SESSION_KERNEL)
       .map((session) => this.bindContext(session.id, session.kernel))
   }

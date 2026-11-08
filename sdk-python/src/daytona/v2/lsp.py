@@ -129,7 +129,13 @@ def _expect_completion_list(value: TransportPayload) -> LspCompletionList:
             value, CompletionList, "LSP completion list", CompletionList.from_dict
         )
     except (KeyError, TypeError, ValueError) as exc:
-        raise create_error("expected LSP completion list", 400, "BAD_REQUEST", "SDK") from exc
+        # Only the documentation union raises these (its generated oneOf parser).
+        raise create_error(
+            "expected LSP completion list: documentation must be a string or a markup content with kind and value",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        ) from exc
     return LspCompletionList(
         is_incomplete=model.is_incomplete, items=[_completion_item(item) for item in model.items]
     )
@@ -152,6 +158,17 @@ def _expect_symbol_list(value: TransportPayload) -> list[LspSymbol]:
 
 
 def _position_payload(position: LspPosition | Mapping[str, int]) -> JsonObject:
+    if not isinstance(position, LspPosition):
+        if not isinstance(position, Mapping):
+            raise create_error("expected LSP position", 400, "BAD_REQUEST", "SDK")
+        unknown = sorted(str(key) for key in position if key not in ("line", "character"))
+        if unknown:
+            raise create_error(
+                f"LSP position: unknown key {unknown[0]!r} (expected line and character)",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
     raw: JsonObject = (
         {"line": position.line, "character": position.character}
         if isinstance(position, LspPosition)

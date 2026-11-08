@@ -303,6 +303,19 @@ describe('request timeout meaning', () => {
     await expect(transport.get('/hold', { timeout: 0 })).resolves.toEqual({ ok: true })
   })
 
+  it('bounds a git clone / pull / push by its own total deadline, whatever the request timeout', async () => {
+    // The body trickles in well inside a per-read timeout; only a total
+    // deadline ends it. timeoutSeconds replaces the 1 s request timeout.
+    const { GitService } = await import('../src/v2/Git')
+    const git = new GitService(INTERNAL, new HttpTransport(base, 'k', 1_000))
+    handle = trickle(20, 50)
+    const started = performance.now()
+    await expect(git.pull('/repo', { timeoutSeconds: 0.2 })).rejects.toBeInstanceOf(ClientTimeoutError)
+    expect(performance.now() - started).toBeLessThan(600)
+    handle = late(1_300)
+    await expect(git.push('/repo', { timeoutSeconds: 3 })).resolves.toBeUndefined()
+  })
+
   it('does not cut file transfers', async () => {
     const transport = new HttpTransport(base, 'k', 100)
     const fs = new FileSystemService(INTERNAL, transport)

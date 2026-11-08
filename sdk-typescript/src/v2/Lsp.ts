@@ -9,7 +9,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
-import { bool, int, malformedResponse, optional, record, str } from './toolboxModels.js'
+import { bool, int, malformedResponse, nonNegativeInt, optional, record, str } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 
 /** A zero-based line / UTF-16 character position in a document. */
@@ -77,12 +77,6 @@ const POSITION_KEYS = optionKeys<LspPosition>()({ line: true, character: true })
 
 function badInput(message: string): BadRequestError {
   return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-}
-
-function nonNegativeInt(input: WireRecord, field: string, description: string): number {
-  const value = int(input, field, description)
-  if (value < 0) throw malformedResponse(`${description}: ${field} must be a non-negative integer`)
-  return value
 }
 
 function positionFromWire(value: unknown, description: string): LspPosition {

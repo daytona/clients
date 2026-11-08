@@ -13,7 +13,7 @@ import {
 } from './ProcessWire.js'
 import type { ProcessSpec } from './ProcessWire.js'
 import { INTERNAL } from './internal.js'
-import { record, str } from './toolboxModels.js'
+import { logPageFromWire, record, str } from './toolboxModels.js'
 
 /** Bound toolbox identity shared by ordinary commands and shell-session commands. */
 export interface ProcessBinding {
@@ -31,7 +31,7 @@ export async function collectAllLogs(handle: ProcessHandle, options: { maxPages?
     if (options.maxPages !== undefined && pages >= options.maxPages) return logs
     const page = await handle.logs(cursor === undefined ? {} : { cursor })
     logs.push(...page.items)
-    if (!page.nextCursor || page.nextCursor === cursor || page.items.length === 0) return logs
+    if (page.eof || !page.nextCursor || page.nextCursor === cursor || page.items.length === 0) return logs
     cursor = page.nextCursor
   }
 }
@@ -48,6 +48,9 @@ export async function startProcess(
   return new ProcessHandle(INTERNAL, transport, sandboxId, str(record(data, 'process response'), 'id', 'process response'), startedProcessKind(data, body))
 }
 
+/** How long `run()` without a `timeoutSeconds` holds its first request, as the Python SDK does. */
+const RUN_WAIT_MS = 60_000
+
 /** `process.run()` / `session.run()`: start, wait within `timeoutSeconds`, collect the output. */
 export async function runProcess(
   binding: ProcessBinding,
@@ -57,11 +60,15 @@ export async function runProcess(
   const body = bodyFor({ ...spec, keepLogs: runKeepLogs(options.keepLogs) })
   // Reject invalid caller budgets locally before issuing any request.
   const requestedTimeout = secondsToMs('timeoutSeconds', options.timeoutSeconds)
-  const query = encodeQuery({ waitMs: requestedTimeout ?? 0, logs: 'text' })
+  // Without a budget the first request still holds for one wait window (as
+  // the Python SDK does), so a short command is one round trip; the rest of
+  // an unbounded wait continues with wait().
+  const holdMs = requestedTimeout ?? RUN_WAIT_MS
+  const query = encodeQuery({ waitMs: holdMs, logs: 'text' })
   const startedAt = Date.now()
   // The HTTP timeout must exceed the requested wait to allow its response.
   const started = await binding.transport.post<toolbox.ProcessDto>(`/processes${query}`, body, {
-    timeout: requestedTimeout === undefined || requestedTimeout === 0 ? 0 : requestedTimeout + WAIT_READ_SLACK_MS,
+    timeout: holdMs === 0 ? 0 : holdMs + WAIT_READ_SLACK_MS,
   })
   const handle = new ProcessHandle(
     INTERNAL, binding.transport, binding.sandboxId, str(record(started, 'process response'), 'id', 'process response'), startedProcessKind(started, body),
@@ -75,8 +82,9 @@ export async function runProcess(
     : remainingTimeout !== undefined && remainingTimeout <= 0
     ? { reason: 'timed_out' }
     : await handle.wait(remainingTimeout === undefined ? {} : { timeoutSeconds: remainingTimeout / 1000 })
-  const logs = settled && started.logs?.eof
-    ? started.logs.frames.map(frameFromWire)
+  const inline = started.logs === undefined || started.logs === null ? undefined : logPageFromWire(started.logs)
+  const logs = settled && inline?.eof
+    ? inline.items
     : await collectAllLogs(handle, result.reason === 'timed_out' ? { maxPages: TIMED_OUT_LOG_PAGE_LIMIT } : {})
   const stdout = logs.filter((frame) => frame.channel === 'stdout' || frame.channel === 'pty').map((frame) => frame.data).join('')
   const stderr = logs.filter((frame) => frame.channel === 'stderr').map((frame) => frame.data).join('')
