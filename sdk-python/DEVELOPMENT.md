@@ -246,7 +246,14 @@ the explicit exception to the one-page list rule.
   bounded only until their response headers arrive, by the spec's own
   `timeout` when it has one, else the request timeout
   (`_transport._stream_open_seconds`; `0` or above the timer maximum =
-  none). The deadline starts before the bearer is resolved; the project-token
+  none). The transport bounds no stream's body as a total, but
+  `open_exclusive_stream` keeps an explicit finite per-call `timeout` as
+  httpx's idle-read bound on the body unless the spec sets `unbounded_read`;
+  with no per-call `timeout` it clears the read bound, so the request timeout
+  bounds no gap after the headers (a real-socket test in
+  `test_client_config.py` pins each case). `build_logs._discover` and
+  `read_build_logs` bound their body read themselves (`anyio.move_on_after`
+  with a deadline from their timeout). The deadline starts before the bearer is resolved; the project-token
   exchange request is also bounded by the client's request timeout. The TypeScript transport
   implements the same rule.
 - Build logs use URL-only discovery (`{"url": "https://…/build-logs/…"}`).
@@ -268,6 +275,16 @@ the explicit exception to the one-page list rule.
 ```bash
 uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q
 ```
+
+The suite also runs from the sdist, which unpacks as `daytona-<version>/`
+with this project's `src/`, `tests/`, `pyproject.toml` and the two `gen/`
+scripts the tests import at its root, and no `sdk-python/` directory or
+anything else from the repository. A test that reads a file outside
+`sdk-python/` (a contract under `contract/`, the TypeScript SDK, `scripts/`,
+`upgrade/`) gets its path from `_repo_file("contract/…")` or
+`_repo_scripts()` in `tests/_repo.py`: in a checkout they return the path (a
+missing file still fails), outside one they skip that test, naming the file.
+Never build such a path from `Path(__file__).parents[…]` directly.
 
 ## Streaming response ownership
 
