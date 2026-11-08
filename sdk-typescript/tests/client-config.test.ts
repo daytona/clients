@@ -11,7 +11,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { once } from 'node:events'
 import { Daytona } from '../src/index'
 import { Daytona as DaytonaV2 } from '../src/v2/Daytona'
-import { BadRequestError, AuthenticationError, ClientTimeoutError } from '../src/v2/index'
+import { BadRequestError, AuthenticationError, ClientTimeoutError, ConnectionError, RequestTimeoutError, SandboxCreateRequestTimeoutError } from '../src/v2/index'
 import { DEFAULT_REQUEST_TIMEOUT_MS, HttpTransport, createHttpClient } from '../src/v2/http'
 import { RENAMED_OPTIONS, assertKnownOptions, optionKeys } from '../src/v2/options'
 import { eventsHubConfig } from '../src/v2/events'
@@ -255,6 +255,60 @@ describe('request timeout meaning', () => {
     expect(await response.text()).toBe('xxxxxx')
     handle = late(300)
     await expect(transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: 'data', transfer: true })).resolves.toMatchObject({ status: 200 })
+  })
+
+  it('gives the client timeout one shape on the axios and the fetch paths', async () => {
+    const shape = { message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }
+    const transport = new HttpTransport(base, 'k', 100)
+    handle = late(400)
+    await expect(transport.get('/slow')).rejects.toMatchObject(shape)
+    await expect(transport.fetch('/stalled')).rejects.toMatchObject(shape)
+    handle = trickle(8, 50)
+    await expect(transport.get('/slow-body', { responseType: 'text' })).rejects.toMatchObject(shape)
+    expect(new ClientTimeoutError()).toMatchObject(shape)
+    expect(new ConnectionError('refused')).toMatchObject({ source: 'SDK', statusCode: undefined, code: undefined })
+  })
+
+  it('turns a create POST that hits the request timeout into SandboxCreateRequestTimeoutError', async () => {
+    const keys: (string | undefined)[] = []
+    handle = (request, response) => {
+      keys.push(request.headers['idempotency-key'] as string | undefined)
+      late(400)(request, response)
+    }
+    const previous = process.env.DAYTONA_V2_API_URL
+    process.env.DAYTONA_V2_API_URL = base
+    try {
+      const daytona = new Daytona({ apiKey: 'k', requestTimeoutSeconds: 0.1 })
+      const error = await daytona.v2.create('python:3.12', { idempotencyKey: 'run-42' }).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(SandboxCreateRequestTimeoutError)
+      expect(error).toBeInstanceOf(ClientTimeoutError)
+      expect(error).toMatchObject({ idempotencyKey: 'run-42', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      expect(keys).toEqual(['run-42'])
+      await daytona.close()
+    } finally {
+      if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+      else process.env.DAYTONA_V2_API_URL = previous
+    }
+  })
+
+  it('keeps a server 408 on the create POST a RequestTimeoutError', async () => {
+    handle = (request, response) => {
+      request.resume()
+      response.writeHead(408, { 'Content-Type': 'application/json' })
+      response.end(JSON.stringify({ code: 'REQUEST_TIMEOUT', source: 'DAYTONA_API', message: 'slow' }))
+    }
+    const previous = process.env.DAYTONA_V2_API_URL
+    process.env.DAYTONA_V2_API_URL = base
+    try {
+      const daytona = new Daytona({ apiKey: 'k' })
+      const error = await daytona.v2.create('python:3.12').catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(RequestTimeoutError)
+      expect(error).not.toBeInstanceOf(SandboxCreateRequestTimeoutError)
+      await daytona.close()
+    } finally {
+      if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+      else process.env.DAYTONA_V2_API_URL = previous
+    }
   })
 
   it('bounds a stream only until its headers arrive', async () => {

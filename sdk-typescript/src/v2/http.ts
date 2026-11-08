@@ -277,7 +277,7 @@ function errorName(error: unknown): string | undefined {
 function timeoutErrorFromAbortSignal(signal: AbortSignalLike | undefined, error: unknown): ClientTimeoutError | undefined {
   const reason = errorName(error) === 'TimeoutError' ? error : signal?.reason
   if (errorName(reason) === 'TimeoutError') {
-    return new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    return new ClientTimeoutError()
   }
   return undefined
 }
@@ -472,7 +472,7 @@ async function authorizationHeaderForAxiosRequest(
     return await provider.authorizationHeader({ ...options, signal: timeout.signal })
   } catch (error) {
     if (isAbortError(error) && timeout.timedOut()) {
-      throw new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      throw new ClientTimeoutError()
     }
     const timeoutError = timeoutErrorFromAbortSignal(timeout.signal, error)
     if (timeoutError) throw timeoutError
@@ -772,7 +772,7 @@ async function finishAxiosError(
   // The request's own deadline expired: the same error axios' own timeout
   // gives (and the Python SDK's transport timeout), with no status or code.
   const reason: unknown = signal?.aborted ? (signal as AbortSignalLike).reason : undefined
-  if (typeof reason === 'object' && reason !== null && deadlineReasons.has(reason)) throw new ClientTimeoutError('Operation timed out')
+  if (typeof reason === 'object' && reason !== null && deadlineReasons.has(reason)) throw new ClientTimeoutError()
   const timeoutError = timeoutErrorFromAbortSignal(signal, error)
   if (timeoutError) throw timeoutError
   const abortError = abortErrorFromSignal(signal)
@@ -919,7 +919,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
         throw error
       }
       if (isAbortError(error) && timeout.timedOut()) {
-        const timeoutError = new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        const timeoutError = new ClientTimeoutError()
         finalize(timeoutError.statusCode, timeoutError)
         throw timeoutError
       }
@@ -1325,7 +1325,7 @@ export class HttpTransport {
           // The request deadline can fire while the token exchange is still
           // pending; that is the same timeout `send` maps below, not a raw abort.
           if (isAbortError(error) && timeout.timedOut()) {
-            throw new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+            throw new ClientTimeoutError()
           }
           throw error
         }
@@ -1413,7 +1413,7 @@ export class HttpTransport {
           throw error
         }
         if (isAbortError(error) && timeout.timedOut()) {
-          const timeoutError = new ClientTimeoutError('Operation timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+          const timeoutError = new ClientTimeoutError()
           finalize(timeoutError.statusCode, timeoutError)
           throw timeoutError
         }

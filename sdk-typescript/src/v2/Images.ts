@@ -138,7 +138,7 @@ export class ImagesService {
       return image
     } catch (error) {
       if (controller.signal.aborted || (error instanceof ClientTimeoutError && (
-        (activeRequestUsesDeadline && error.statusCode === undefined)
+        activeRequestUsesDeadline
         || (deadline !== undefined && Date.now() >= deadline)
       ))) throw timeoutError()
       throw error

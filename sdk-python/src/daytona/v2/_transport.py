@@ -136,7 +136,7 @@ class SyncResponseStream:
         try:
             yield from self._response.iter_lines()
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
 
@@ -263,7 +263,7 @@ class SyncTransport:
                 **kwargs,
             )
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if spec.on_headers is not None and response.status_code < 400:
@@ -295,14 +295,14 @@ class SyncTransport:
             )
             response = stream.__enter__()
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 400:
             try:
                 body = response.read()
             except httpx.TimeoutException as exc:
-                raise ClientTimeoutError("operation timed out") from exc
+                raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
                 raise ConnectionError(str(exc)) from exc
             finally:
@@ -324,7 +324,7 @@ class SyncTransport:
             kwargs["headers"] = _request_headers(self._source, self.token, kwargs.get("headers"))
             response = self._client.request(method, _request_url(self.base_url, path), **kwargs)
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 400:
@@ -381,7 +381,7 @@ class AsyncResponseStream:
                 yield chunk
             self._finish_span_ok()
         except httpx.TimeoutException as exc:
-            error = ClientTimeoutError("operation timed out")
+            error = ClientTimeoutError()
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
@@ -406,7 +406,7 @@ class AsyncResponseStream:
                 yield line
             self._finish_span_ok()
         except httpx.TimeoutException as exc:
-            error = ClientTimeoutError("operation timed out")
+            error = ClientTimeoutError()
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
@@ -662,7 +662,7 @@ class AsyncTransport:
             if span is not None:
                 span.finish(status_code=response.status_code)
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         # Every public client runs on THIS transport (the sync surface bridges
@@ -755,7 +755,7 @@ class AsyncTransport:
         except httpx.TimeoutException as exc:
             if span is not None:
                 span.finish(error=exc)
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             if span is not None:
                 span.finish(error=exc)
@@ -771,9 +771,9 @@ class AsyncTransport:
             except httpx.TimeoutException as exc:
                 if span is not None:
                     span.finish(
-                        status_code=response.status_code, error=ClientTimeoutError("operation timed out")
+                        status_code=response.status_code, error=ClientTimeoutError()
                     )
-                raise ClientTimeoutError("operation timed out") from exc
+                raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
                 if span is not None:
                     span.finish(status_code=response.status_code, error=ConnectionError(str(exc)))
@@ -853,7 +853,7 @@ class AsyncTransport:
                 with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
                     await owned_client.aclose()
             if isinstance(exc, httpx.TimeoutException):
-                raise ClientTimeoutError("operation timed out") from exc
+                raise ClientTimeoutError() from exc
             if isinstance(exc, httpx.HTTPError):
                 raise ConnectionError(str(exc)) from exc
             raise
@@ -942,7 +942,7 @@ class AsyncTransport:
         except httpx.TimeoutException as exc:
             if span is not None:
                 span.finish(error=exc)
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             if span is not None:
                 span.finish(error=exc)
@@ -1047,7 +1047,7 @@ def _request_deadline(seconds: float) -> Iterator[None]:
         with anyio.fail_after(seconds):
             yield
     except TimeoutError as exc:
-        raise ClientTimeoutError("operation timed out") from exc
+        raise ClientTimeoutError() from exc
 
 
 def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _RequestKwargs:

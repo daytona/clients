@@ -8,7 +8,14 @@ cause, … })` with the exported `ErrorOptions` type, Python
 Python `ErrorDetails` holder is gone; its fields are keywords). Defaults agree:
 `TransferCancelledError()` is "file transfer cancelled" with status 499, code
 `REQUEST_CANCELLED` and source `SDK` in both SDKs, and `LimitExceededError`
-defaults its code to `LIMIT_EXCEEDED`. `ImageBuildFailedError.buildError` /
+defaults its code to `LIMIT_EXCEEDED`. The client's own timeout,
+`ClientTimeoutError`, has one shape on every request path in both SDKs:
+"operation timed out", status 408, code `REQUEST_TIMEOUT`, source `SDK` (it
+used to carry no fields in Python and on TypeScript's axios path), and
+`ConnectionError` carries source `SDK`. A TypeScript create POST that hits the
+request timeout now raises `SandboxCreateRequestTimeoutError` with its
+idempotency key, as Python does, and a server 408 on it stays a
+`RequestTimeoutError`. `ImageBuildFailedError.buildError` /
 `build_error` is the image's recorded build error, when it has one, separate
 from `message` (TypeScript used to copy the message into it). TypeScript
 `BuildLogInterruptedError` takes `(message, { cursor, code, … })`.

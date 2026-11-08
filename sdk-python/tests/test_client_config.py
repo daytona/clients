@@ -17,7 +17,7 @@ import pytest
 import respx
 
 from daytona import AsyncDaytona, Daytona, DaytonaConfig
-from daytona.v2 import AuthenticationError, BadRequestError, ClientTimeoutError
+from daytona.v2 import AuthenticationError, BadRequestError, ClientTimeoutError, ConnectionError
 from daytona.v2._core import RequestSpec, file_download_spec
 from daytona.v2._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 
@@ -208,3 +208,33 @@ def test_the_synchronous_client_enforces_the_same_total_deadline(monkeypatch: py
             with pytest.raises(ClientTimeoutError):
                 client.v2.list()
             assert time.monotonic() - started < 0.35
+
+
+_TIMEOUT_SHAPE = ("operation timed out", 408, "REQUEST_TIMEOUT", "SDK")
+
+
+def _shape(error: ClientTimeoutError) -> tuple[object, ...]:
+    return (error.message, error.status_code, error.code, error.source)
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_the_client_timeout_has_one_shape_on_every_path() -> None:
+    respx.get(f"{BASE}/slow").mock(side_effect=lambda _request: _late(0.4))
+    respx.get(f"{BASE}/slow-body").mock(side_effect=lambda _request: _trickle(chunks=8, every=0.05))
+    respx.get(f"{BASE}/stalled").mock(side_effect=lambda _request: _late(0.4))
+    transport = AsyncTransport(BASE, "k", request_timeout=0.1)
+    with pytest.raises(ClientTimeoutError) as ordinary:
+        await transport.send(RequestSpec("GET", "/slow"))
+    with pytest.raises(ClientTimeoutError) as body:
+        await transport.send(RequestSpec("GET", "/slow-body"))
+    with pytest.raises(ClientTimeoutError) as stream:
+        await transport.open_stream(RequestSpec("GET", "/stalled"))
+    with pytest.raises(ClientTimeoutError) as raw:
+        await transport.get("/slow")
+    for caught in (ordinary, body, stream, raw):
+        assert _shape(caught.value) == _TIMEOUT_SHAPE
+    assert _shape(ClientTimeoutError()) == _TIMEOUT_SHAPE
+    refused = ConnectionError("refused")
+    assert (refused.source, refused.status_code, refused.code) == ("SDK", None, None)
+    await transport.close()

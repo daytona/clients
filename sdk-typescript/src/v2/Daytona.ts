@@ -7,7 +7,7 @@ import type { AxiosInstance } from 'axios'
 import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
 import { assertKnownOptions, optionalSeconds } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
-import { ConnectionError, DaytonaError, AuthenticationError, BadRequestError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
+import { ClientTimeoutError, ConnectionError, DaytonaError, AuthenticationError, BadRequestError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
 import { Image, ImageBuilder, isImageBuilder } from './Image.js'
 import { Sandbox, scopedProxyToolboxUrl } from './Sandbox.js'
@@ -839,7 +839,7 @@ export class Daytona {
       return response.data
     }).catch((error: unknown) => {
       if (error instanceof ConnectionError) throw new SandboxCreateConnectionError(idempotencyKey, error.message)
-      if (error instanceof DaytonaError && error.code === 'REQUEST_TIMEOUT') throw new SandboxCreateRequestTimeoutError(idempotencyKey)
+      if (error instanceof ClientTimeoutError) throw new SandboxCreateRequestTimeoutError(idempotencyKey)
       throw error
     })
     // The create response's token is refreshable (unlike a caller-supplied

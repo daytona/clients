@@ -275,11 +275,42 @@ class NotSupportedError(InternalServerError):
 
 
 class ConnectionError(DaytonaError, _shared.DaytonaConnectionError):
-    """Network connection failure."""
+    """The API or the sandbox could not be reached (no HTTP response).
+
+    ``source`` defaults to ``"SDK"``; there is no status or code.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = "SDK",
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
 
 
 class ClientTimeoutError(DaytonaError, _shared.DaytonaTimeoutError):
-    """Client-side transport timeout."""
+    """The client gave up waiting for a response.
+
+    Its request timeout or a call's own deadline expired; not the server's
+    HTTP 408 (:class:`RequestTimeoutError`). Defaults: message
+    ``"operation timed out"``, ``status_code=408``, ``code="REQUEST_TIMEOUT"``,
+    ``source="SDK"`` (the same in the TypeScript SDK).
+    """
+
+    def __init__(
+        self,
+        message: str = "operation timed out",
+        *,
+        status_code: Optional[int] = 408,
+        code: Optional[str] = "REQUEST_TIMEOUT",
+        source: Optional[str] = "SDK",
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
 
 
 class TransferCancelledError(DaytonaError):
