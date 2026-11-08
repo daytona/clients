@@ -20,9 +20,12 @@ handle authenticates with. Python `get()` gains `access_token=`, a caller
 token the handle never replaces, as TypeScript's `accessToken` option. A
 sandbox or snapshot class the SDK does not know reads as `"unknown"`, with
 the API's value in `raw_sandbox_class` / `rawSandboxClass`; a sandbox response
-without a class is Linux. `to_json()` / `toJSON()` return the same camelCase
-`SandboxHandleJSON` in both SDKs, with no URL or credential; reconnect with
-`get(json["sandboxId"])`. The handle and service classes are built by the SDK
+without its required `class` is a `BadRequestError`. A lifecycle policy's
+actions are plain strings in Python. `to_json()` / `toJSON()` return the same
+camelCase `SandboxHandleJSON` in both SDKs, byte for byte, with no URL or
+credential: timestamps are the server's strings, verbatim, and integral sizes
+are integers. Reconnect with `get(json["sandboxId"])`. The TypeScript handle's
+`id` and its `image` / `snapshot` references are read-only at run time too. The handle and service classes are built by the SDK
 only: TypeScript's constructors refuse callers (get them from the client or
 the sandbox), and Python's take `_`-prefixed parameters; Python's model
 dataclasses stay constructible, keyword-only (`ImageBuilder`, `ImageRef` and

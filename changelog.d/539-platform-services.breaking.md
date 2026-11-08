@@ -13,7 +13,10 @@ submission is an ordinary request, bounded by the request timeout.
 `images.get()` / `snapshots.get()` with `wait="ready"` and a timeout repeat
 the server's long poll until the artifact settles or the whole budget is
 spent; the wait budget, not the request timeout, governs each hold (at most
-60 s), and `images.pull()` polls the same way. `secrets.set()` requires
+60 s), and `images.pull()` polls the same way. Their `wait` must be `"ready"`
+or omitted. `fork(name=...)` refuses an empty name, and Python
+`follow_build_logs()` refuses an invalid `timeout` with `BadRequestError` (it
+was a built-in `ValueError`). `secrets.set()` requires
 `allowed_domains` / `allowedDomains` to be a list of strings.
 `sandbox.snapshot_filesystem()` / `snapshotFilesystem()` is renamed
 `capture_image()` / `captureImage()`. `ports.set_public()` / `setPublic()` is
