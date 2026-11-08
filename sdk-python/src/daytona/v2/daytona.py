@@ -1400,17 +1400,21 @@ def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[Sa
     """
     if config is None:
         return config
-    clamped: dict[str, float] = {}
-    for name, ceiling in (
-        ("reconcile_interval", _MAX_RECONCILE_INTERVAL_SECONDS),
-        ("idle_close", _MAX_EVENT_TIMER_SECONDS),
-    ):
-        value = getattr(config, name)
-        if value is not None:
-            seconds = _non_negative_seconds(f"events.{name}", value)
-            if seconds > ceiling:
-                clamped[name] = ceiling
-    return dataclasses.replace(config, **clamped) if clamped else config
+    reconcile = _clamped_seconds(
+        "events.reconcile_interval", config.reconcile_interval, _MAX_RECONCILE_INTERVAL_SECONDS
+    )
+    idle = _clamped_seconds("events.idle_close", config.idle_close, _MAX_EVENT_TIMER_SECONDS)
+    if reconcile == config.reconcile_interval and idle == config.idle_close:
+        return config
+    return dataclasses.replace(config, reconcile_interval=reconcile, idle_close=idle)
+
+
+def _clamped_seconds(name: str, value: Optional[float], ceiling: float) -> Optional[float]:
+    """A validated duration, clamped to ``ceiling``; ``None`` stays ``None``."""
+    if value is None:
+        return None
+    seconds = _non_negative_seconds(name, value)
+    return ceiling if seconds > ceiling else value
 
 
 def _env_truthy(env_var: str) -> bool:
