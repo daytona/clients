@@ -1,0 +1,23 @@
+.github/workflows/sdk-ci.yaml
+  s_4d9fba4bce0dac::t_c088250c9d3a56 350
+sdk-python/pyproject.toml
+  s_4d9fba4bce0dac::t_c088250c9d3a56 26
+changelog.d/python-3-14.added.md
+  s_4d9fba4bce0dac::t_a52b069b8fd455 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "753ecc5de0a51bfde7f1fd2043a77a961644ab5d",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
