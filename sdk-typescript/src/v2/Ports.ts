@@ -108,6 +108,16 @@ function previewTokenExpiry(token: string): string | undefined {
 
 /** Sandbox port namespace — what is listening inside the sandbox. */
 export class PortsService {
+  /** @internal */
+  constructor(
+    token: Internal,
+    transport: HttpTransport | undefined,
+    api?: AxiosInstance,
+    sandboxId?: string,
+    mintPreviewToken?: (port: number) => Promise<SandboxAccessToken | undefined>,
+  )
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(
     token: Internal,
     private readonly transport: HttpTransport | undefined,

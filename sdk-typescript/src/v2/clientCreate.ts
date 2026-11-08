@@ -49,8 +49,13 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     accessTokenExpiresAt: created.access_token_expires_at ?? undefined,
     autoDelete: metadata.autoDelete,
   }
-  // A handle info carries only known fields; a partial DTO would mark absent
-  // fields known and persist their defaults in toJSON().
+  if (typeof created?.id !== 'string' || created.id === '') {
+    // The contract requires the new sandbox's id; nothing can follow without it.
+    throw badRequest('sandbox create response is missing the sandbox id')
+  }
+  // The handle holds only what the response carries, plus an `img_` / `snap_`
+  // id the caller passed (a name is never an id), and the class only when the
+  // call fixes it (createMacos). A partial DTO would mark absent fields known.
   const booted = created.image
   const sandbox = context.buildSandbox({
     sandboxId: created.id,
@@ -59,7 +64,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     rawState: created.status ?? undefined,
     state: sandboxState(created.status),
     region,
-    image: typeof booted?.id === 'string' && booted.id.startsWith('img_')
+    image: typeof booted?.id === 'string' && booted.id !== ''
       ? { id: booted.id, name: booted.name ?? null }
       : metadata.image?.startsWith('img_') ? { id: metadata.image, name: null } : undefined,
     snapshot: metadata.snapshot?.startsWith('snap_') ? { id: metadata.snapshot, name: null } : undefined,

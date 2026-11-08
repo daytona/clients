@@ -42,6 +42,8 @@ export function parseLabels(value: unknown): Readonly<Record<string, string>> {
  */
 export function assertSandboxResponse(sandbox: unknown): asserts sandbox is SandboxDto {
   if (typeof sandbox !== 'object' || sandbox === null || Array.isArray(sandbox)) throw badRequest('expected a sandbox object')
+  const wireId: unknown = Reflect.get(sandbox, 'id')
+  if (typeof wireId !== 'string' || wireId === '') throw badRequest('sandbox response is missing its id')
   const wireClass: unknown = Reflect.get(sandbox, 'class')
   if (typeof wireClass !== 'string' || wireClass === '') throw badRequest('sandbox response is missing its class')
 }

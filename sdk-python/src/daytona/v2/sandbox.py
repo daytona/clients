@@ -65,6 +65,7 @@ from .build_logs import (
 from .computer_use import AsyncComputerUseService
 from .docker import AsyncDockerService
 from .errors import (
+    ClientTimeoutError,
     DaytonaError,
     NotFoundError,
     SandboxTerminalStateError,
@@ -790,7 +791,15 @@ class AsyncSandbox:
         timeout: Optional[float] = None,
         wait: SandboxWaitState | None = None,
         wait_timeout_ms: int | None = None,
+        deadline: Optional[float] = None,
     ) -> None:
+        """Read the sandbox's metadata; with ``wait``, as one long-poll slice.
+
+        ``deadline`` (a ``_clock.monotonic()`` instant) is the caller's wait
+        deadline: the read never outlives it, and a read the deadline cut is the
+        wait running out (:class:`RequestTimeoutError`, source ``SDK``), as in
+        TypeScript's ``refreshDataWithin``.
+        """
         api = self._require_api()
         params: Dict[str, JsonValue] = {}
         if wait is not None:
@@ -806,17 +815,33 @@ class AsyncSandbox:
             # `refreshDataWithin`).
             params["timeout_ms"] = wait_timeout_ms
             request_timeout = wait_timeout_ms / 1000 + WAIT_READ_SLACK_SECONDS
-        fresh = AsyncSandbox._from_api(
-            sandbox_detail_wire(
-                await api.send(
-                    RequestSpec(
-                        "GET",
-                        f"/sandboxes/{quote(self.id, safe='')}",
-                        timeout=request_timeout,
-                        params=params,
-                    )
+        deadline_owns_timeout = False
+        if deadline is not None:
+            cap = deadline - _clock.monotonic()
+            if cap <= 0:
+                raise _wait_timed_out()
+            # Read slack belongs to the long-poll slice, never beyond the
+            # caller's deadline; the wire timeout_ms is unchanged.
+            if request_timeout is None or request_timeout == 0 or cap <= request_timeout:
+                request_timeout = cap
+                deadline_owns_timeout = True
+        try:
+            payload = await api.send(
+                RequestSpec(
+                    "GET",
+                    f"/sandboxes/{quote(self.id, safe='')}",
+                    timeout=request_timeout,
+                    params=params,
                 )
-            ),
+            )
+        except ClientTimeoutError as error:
+            # An earlier slice or transport timer, and a server 408, stay request
+            # failures; only expiry of this wait's own cap is the wait timing out.
+            if deadline_owns_timeout and deadline is not None and _clock.monotonic() >= deadline - 0.001:
+                raise _wait_timed_out() from error
+            raise
+        fresh = AsyncSandbox._from_api(
+            sandbox_detail_wire(payload),
             api,
             None,
             toolbox_owner=self._toolbox_owner,
@@ -916,6 +941,7 @@ class AsyncSandbox:
                     timeout=None if remaining is None else ms / 1000,
                     wait=wait_target,
                     wait_timeout_ms=ms if wait_target is not None else None,
+                    deadline=deadline,
                 )
                 last_poll_end = _clock.monotonic()
                 refreshed_by_poll = True
@@ -955,7 +981,7 @@ class AsyncSandbox:
                     and (remaining is None or remaining > 0)
                 ):
                     with contextlib.suppress(DaytonaError):
-                        await self._refresh_data_within(timeout=remaining)
+                        await self._refresh_data_within(timeout=remaining, deadline=deadline)
                 raise
             _observe_outcome(resolved)
             # A socket frame carries only the state. Callers (create, start,
@@ -969,7 +995,7 @@ class AsyncSandbox:
                 remaining = None if deadline is None else deadline - _clock.monotonic()
                 if remaining is None or remaining > 0:
                     with contextlib.suppress(DaytonaError):
-                        await self._refresh_data_within(timeout=remaining)
+                        await self._refresh_data_within(timeout=remaining, deadline=deadline)
             return
 
         fresh = False
@@ -1000,6 +1026,7 @@ class AsyncSandbox:
                 timeout=None if remaining_timeout is None else wait_timeout_ms / 1000,
                 wait=wait_target,
                 wait_timeout_ms=wait_timeout_ms if wait_target is not None else None,
+                deadline=deadline,
             )
             fresh = True
             if self.state in target_states:
@@ -2119,6 +2146,12 @@ def _sandbox_access_token_from_payload(payload: JsonObject) -> SandboxAccessToke
 
 def _rfc3339_epoch(value: Optional[datetime]) -> Optional[float]:
     return value.timestamp() if value is not None else None
+
+
+def _wait_timed_out() -> DaytonaError:
+    return create_error(
+        "sandbox failed to reach the requested state before timeout", 408, "REQUEST_TIMEOUT", "SDK"
+    )
 
 
 def _require_if_match(if_match: object) -> None:

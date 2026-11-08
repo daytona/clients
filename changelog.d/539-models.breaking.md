@@ -24,12 +24,20 @@ without its required `class` is a `BadRequestError`. A lifecycle policy's
 actions are plain strings in Python. `to_json()` / `toJSON()` return the same
 camelCase `SandboxHandleJSON` in both SDKs, byte for byte, with no URL or
 credential: timestamps are the server's strings, verbatim, and integral sizes
-are integers. Reconnect with `get(json["sandboxId"])`. The TypeScript handle's
+are integers. A handle built from a create response holds only what the
+response carries, plus an `img_…` / `snap_…` id the caller passed (a name is
+never recorded as an id), and its class only when the call fixes it
+(`create_macos` / `createMacos`); Python used to record `linux` and a name as
+an image or snapshot id. A create or sandbox response without its `id` is a
+`BadRequestError`. Reconnect with `get(json["sandboxId"])`. The TypeScript handle's
 `id` and its `image` / `snapshot` references are read-only at run time too. The handle and service classes are built by the SDK
 only: TypeScript's constructors refuse callers (get them from the client or
-the sandbox), and Python's take `_`-prefixed parameters; Python's model
+the sandbox, and their published declarations carry no wire, axios or
+transport types), and Python's take `_`-prefixed parameters; Python's model
 dataclasses stay constructible, keyword-only (`ImageBuilder`, `ImageRef` and
 `SnapshotRef` included). `NAME_LABEL` and `idempotency_key_for_name` /
 `idempotencyKeyForName` are no longer exported (named creates are still
-get-or-create), and Python `ImageBuilder.render_dockerfile()` is renamed
+get-or-create), `images.build()` refuses anything but an `ImageBuilder` with
+`BadRequestError` (Python raised `TypeError`), and Python
+`ImageBuilder.render_dockerfile()` is renamed
 `to_dockerfile()`.

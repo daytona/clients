@@ -541,3 +541,18 @@ async def test_a_successful_refresh_after_an_observed_target_keeps_what_it_read(
 
     # The handle reports what the server said last, not the event-time state.
     assert (sandbox.state, sandbox.raw_state) == ("stopping", "stopping")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("response", [{"status": "pending"}, {"id": "", "status": "pending"}, {"id": 5}])
+async def test_a_create_response_without_the_sandbox_id_is_a_contract_error(
+    response: dict[str, object],
+) -> None:
+    client = _client()
+    api = _Api([response])
+    client._api = api  # type: ignore[assignment]
+    with pytest.raises(BadRequestError, match="sandbox create response is missing the sandbox id") as raised:
+        await client.create("img_1", wait_seconds=5)
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    # Nothing follows: no read of a sandbox called "None".
+    assert [spec.method for spec in api.specs] == ["POST"]

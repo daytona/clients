@@ -62,6 +62,10 @@ function mapSecret(secret: api.Secret): Secret {
 
 /** Service for managing project-scoped secrets. */
 export class SecretsService {
+  /** @internal */
+  constructor(token: Internal, api: AxiosInstance)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, private readonly api: AxiosInstance) {
     assertInternal(token, 'SecretsService')
     credentialSafeDiagnostics(this, () => ({ type: 'SecretsService' }))

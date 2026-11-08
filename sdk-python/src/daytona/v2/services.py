@@ -162,9 +162,12 @@ class AsyncImagesService:
         returns without waiting for the build (``get(image.id, wait="ready")``).
         """
         if not isinstance(builder, ImageBuilder):
-            raise TypeError(
-                "build() takes an ImageBuilder (ImageBuilder.from_dockerfile(...), "
-                ".from_registry(...)); it does not accept a raw dockerfile string"
+            raise create_error(
+                "images.build() takes an ImageBuilder (ImageBuilder.from_dockerfile(...), "
+                ".from_registry(...)); it does not accept a raw dockerfile string",
+                400,
+                "BAD_REQUEST",
+                "SDK",
             )
         resolved_builder = builder
         body: JsonObject = {}

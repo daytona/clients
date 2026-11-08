@@ -45,6 +45,21 @@ describe('create option values', () => {
     }
   })
 
+  it.each(['FROM python:3.12', { dockerfile: 'FROM x' }, null])('refuses images.build(%j) that is not an ImageBuilder', async (builder) => {
+    const api = await startFakeApi([])
+    const client = clientAt(api.url)
+    try {
+      // SAFETY: deliberately not an ImageBuilder.
+      await expect(client.v2.images.build(builder as never)).rejects.toMatchObject({
+        statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('images.build() takes an ImageBuilder'),
+      })
+      expect(api.requests).toEqual([])
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+
   it('refuses a mistyped createMacos env before any request', async () => {
     const api = await startFakeApi([])
     const client = clientAt(api.url)

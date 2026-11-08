@@ -72,6 +72,10 @@ function isTerminalDockerStatus(status: DockerStatus): boolean {
  * throw `NotFoundError` (404).
  */
 export class DockerService {
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, private readonly transport: HttpTransport) {
     assertInternal(token, 'DockerService')
   }

@@ -32,7 +32,11 @@ settles at `started` or `stopped`. `create_from_build()` / `createFromBuild()`
 bounds the image build wait by its own `build_timeout` /
 `buildTimeoutSeconds` (unbounded by default), starting once the build
 submission (an ordinary request, bounded by the request timeout) is accepted.
-The create then gets the full `wait_seconds` / `waitSeconds`. An image that
+The create then gets the full `wait_seconds` / `waitSeconds`. No read of a
+wait outlives its deadline: a long-poll read the deadline cuts is the wait
+running out (`RequestTimeoutError` for the lifecycle methods, the returned
+handle for `create*()` / `fork()`), never a `ClientTimeoutError` after the
+budget (Python used to overrun it by the read slack). An image that
 ends in `failed` or `error` raises `ImageBuildFailedError`. The lifecycle
 methods no longer refuse calls by sandbox class or persistence before sending
 them: the API decides.

@@ -4683,12 +4683,9 @@ def test_create_body_sends_every_limit():
 
 
 def test_public_optional_params_are_keyword_only():
-    import daytona.v2.http as http_module
+    import importlib.util
+
     from daytona.v2.daytona import AsyncDaytona
-    from daytona.v2.http import gib_to_mib as http_gib_to_mib
-    from daytona.v2.http import mib_to_gib as http_mib_to_gib
-    from daytona.v2.http import sandbox_state as http_sandbox_state
-    from daytona.v2.http import snapshot_state as http_snapshot_state
 
     sig = inspect.signature(AsyncDaytona.create)
     assert sig.parameters["image"].kind is inspect.Parameter.POSITIONAL_ONLY
@@ -4702,12 +4699,8 @@ def test_public_optional_params_are_keyword_only():
         inspect.signature(AsyncDaytona.create_from_build).parameters["builder"].kind
         is inspect.Parameter.POSITIONAL_ONLY
     )
-    # The blocking transport is internal: the module exports only helpers.
-    assert not hasattr(http_module, "HttpClient")
-    assert http_gib_to_mib(1.5, label="memory") == 1536
-    assert http_mib_to_gib(1536) == 1.5
-    assert http_sandbox_state("running") == "started"
-    assert http_snapshot_state("ready") == "active"
+    # The former helper module `daytona.v2.http` is gone; its helpers are internal.
+    assert importlib.util.find_spec("daytona.v2.http") is None
     from daytona.v2 import GoneError
 
     assert GoneError.__name__ == "GoneError"
@@ -6264,11 +6257,17 @@ async def test_daytona_create_wait_remainder_long_polls_and_returns_a_queued_san
         ]
     )
     bind_api(client, api)
-    # Clock reads per wait iteration: deadline(1), remaining(1), poll start(1),
-    # elapsed(1), pause clamp(1). Each slice "takes" its full 30 s; after two
-    # slices the 57 s remainder is spent.
-    ticks = iter([0.0, 0.0, 0.0, 30.0, 30.0, 30.0, 30.0, 57.0, 57.0, 57.0])
-    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: next(ticks, 57.0))
+    # Each held read "takes" its full hold; after two slices the 57 s remainder is spent.
+    now = [0.0]
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: now[0])
+    send = api.send
+
+    async def holding_send(spec: RequestSpec) -> object:
+        result = await send(spec)
+        now[0] += int(spec.params.get("timeout_ms", 0)) / 1000  # type: ignore[call-overload]
+        return result
+
+    api.send = holding_send  # type: ignore[method-assign]
 
     sandbox = await client.create(Image.base("python:3.12"), wait_seconds=60)
 
@@ -7123,7 +7122,7 @@ async def test_images_build_takes_only_an_image_builder() -> None:
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     api = RecordingTransport([])
     bind_api(client, api)
-    with pytest.raises(TypeError, match="ImageBuilder"):
+    with pytest.raises(BadRequestError, match="ImageBuilder"):
         await client.images.build("FROM python:3.12", name="raw")  # type: ignore[arg-type]
     with pytest.raises(TypeError):
         await client.images.build(name="kw-only", dockerfile="FROM python:3.12")  # type: ignore[call-arg]
@@ -12505,10 +12504,12 @@ async def test_daytona_create_prefers_the_response_image_on_every_create() -> No
     assert ref(by_id) == ("img_py", "python:3.12")
     assert ref(bare) == ("img_default", "daytona-base")
     assert ref(macos) == ("img_mac", "base-macos")
-    # No echo: fall back to the input-derived ref.
-    assert ref(fallback_named) == ("python:3.12", "python:3.12")
+    # No echo: only an img_ id the caller passed becomes a reference; a name never is one.
+    assert ref(fallback_named) is None
     assert ref(fallback_id) == ("img_py", None)
     assert ref(fallback_bare) is None
+    # The class is known only when the call fixes it.
+    assert (named.sandbox_class, macos.sandbox_class) == (None, "macos")
 
 
 @pytest.mark.anyio

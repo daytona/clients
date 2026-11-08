@@ -27,6 +27,10 @@ export interface ListSnapshotsOptions {
 const LIST_SNAPSHOTS_OPTION_KEYS = optionKeys<ListSnapshotsOptions>()({ cursor: true, limit: true, name: true, sandboxId: true })
 
 export class SnapshotsService {
+  /** @internal */
+  constructor(token: Internal, http: AxiosInstance)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, private readonly http: AxiosInstance) {
     assertInternal(token, 'SnapshotsService')
     credentialSafeDiagnostics(this, () => ({ type: 'SnapshotsService' }))

@@ -187,7 +187,10 @@ reconnect with `get(json["sandboxId"])`.
 Long polls (sandbox waits, image pulls, `images.get` / `snapshots.get` with
 a budget) are governed by the wait budget, not `request_timeout`: each server
 hold is the smaller of its slice (60 s for artifacts) and the remaining
-budget, in whole milliseconds, and the read adds a few seconds of slack. Artifact gets repeat holds until the artifact settles or the budget
+budget, in whole milliseconds, and the read adds a few seconds of slack —
+never past the wait's deadline: `_refresh_data_within(deadline=...)` caps the
+read there, and a read the deadline cut is the wait running out
+(`RequestTimeoutError`, source `SDK`), as TypeScript's `refreshDataWithin`. Artifact gets repeat holds until the artifact settles or the budget
 is spent (`services._get_artifact`). `ListResult` / `SearchResult` copy
 `items` into a tuple in their constructors. A sandbox-token mint answered
 with 405/501 disables minting for the handle; a 404 falls back to the API

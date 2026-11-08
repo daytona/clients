@@ -7,13 +7,13 @@ import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
-import { Image, ImageBuilder, Snapshot, buildImageRequest } from './Image.js'
+import { Image, ImageBuilder, Snapshot, buildImageRequest, isImageBuilder } from './Image.js'
 import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, strictUriEncode, transportFromAxiosInstance } from './http.js'
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
 import { ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
-import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys, optionalSeconds } from './options.js'
 import { getArtifact } from './artifactOptions.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
 import { INTERNAL, assertInternal } from './internal.js'
@@ -46,6 +46,14 @@ const IMAGE_HOLD_READ_SLACK_MS = 5_000
 export class ImagesService {
   private resolvedApiTransport?: HttpTransport
 
+  /** @internal */
+  constructor(
+    token: Internal,
+    http: AxiosInstance,
+    apiTransport?: HttpTransport | HttpTransportConfig,
+  )
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(
     token: Internal,
     private readonly http: AxiosInstance,
@@ -66,6 +74,7 @@ export class ImagesService {
   }
 
   public async build(builder: ImageBuilder, options: BuildImageOptions = {}): Promise<Image> {
+    if (!isImageBuilder(builder)) throw badRequest('images.build() takes an ImageBuilder (ImageBuilder.fromDockerfile(...), .fromRegistry(...))')
     assertKnownOptions('BuildImageOptions', options, BUILD_IMAGE_OPTION_KEYS)
     const { data } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(builder, options))
     return this.get(data.id)

@@ -51,6 +51,10 @@ function assertId(value: string, name: string): void {
 
 /** Pull attached volumes in this sandbox; distinct from the platform volume service. */
 export class SandboxVolumesService {
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, private readonly transport: HttpTransport) {
     assertInternal(token, 'SandboxVolumesService')
   }

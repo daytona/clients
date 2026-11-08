@@ -20,6 +20,10 @@ const MAC_CATALOG_KEYS = optionKeys<MacCatalogOptions>()({ region: true })
  * sandbox disk room in MiB, maximum sandbox count, and default sandbox size. `catalog()` adds free Macs and prices.
  */
 export class MacModelsService {
+  /** @internal */
+  constructor(token: Internal, http: AxiosInstance)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, private readonly http: AxiosInstance) {
     assertInternal(token, 'MacModelsService')
     credentialSafeDiagnostics(this, () => ({ type: 'MacModelsService' }))

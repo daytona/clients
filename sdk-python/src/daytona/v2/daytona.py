@@ -735,7 +735,11 @@ class AsyncDaytona:
             raise SandboxCreateRequestTimeoutError(create_key) from error
         except ConnectionError as error:
             raise SandboxCreateConnectionError(create_key, error.message) from error
-        sandbox_id = str(data.get("id"))
+        raw_id = data.get("id")
+        if not isinstance(raw_id, str) or not raw_id:
+            # The contract requires the new sandbox's id; nothing can follow without it.
+            raise create_error("sandbox create response is missing the sandbox id", 400, "BAD_REQUEST", "SDK")
+        sandbox_id = raw_id
         access_token = str(data.get("access_token")) if isinstance(data.get("access_token"), str) else None
         # Tokens with no reported expiry are used as-is until a 401.
         access_token_expires_at = parse_timestamp(data.get("access_token_expires_at"))
@@ -743,9 +747,10 @@ class AsyncDaytona:
             str(data.get("toolbox_proxy_url")) if isinstance(data.get("toolbox_proxy_url"), str) else None
         )
         raw_status = str(data.get("status") or "")
-        # The response's `image` ({id, name}) is canonical for every create —
-        # a named create resolves to its `img_` id, an imageless create learns
-        # the default it booted. When omitted, use the input-derived ref.
+        # The handle holds only what the response carries, plus an `img_` /
+        # `snap_` id the caller passed (a name is never an id), and the class
+        # only when the call fixes it (create_macos); the rest is unknown until
+        # a detail read. The response's `image` is canonical when present.
         booted = artifact_ref_from_wire(data.get("image"))
         info = _SandboxInfo(
             id=sandbox_id,
@@ -755,8 +760,8 @@ class AsyncDaytona:
             image=ImageRef(id=booted.id, name=booted.name) if booted is not None else image_ref,
             snapshot=snapshot_ref,
             region=target,
-            sandbox_class=sandbox_class,
-            raw_sandbox_class=sandbox_class,
+            sandbox_class="macos" if sandbox_class == "macos" else None,
+            raw_sandbox_class="macos" if sandbox_class == "macos" else None,
             # Read before the early return: a create a Mac claims within its hold
             # answers running with the reservation.
             reservation_id=str(data.get("reservation_id"))
@@ -1783,16 +1788,14 @@ def _require_snapshot_source(snapshot: str) -> str:
     return cleaned
 
 
-def _source_image_ref(source: str) -> ImageRef:
-    return ImageRef(id=source, name=None) if source.startswith("img_") else ImageRef(id=source, name=source)
+def _source_image_ref(source: str) -> Optional[ImageRef]:
+    """The caller's image as a reference when it is an ``img_`` id; a name is never an id."""
+    return ImageRef(id=source, name=None) if source.startswith("img_") else None
 
 
-def _source_snapshot_ref(source: str) -> SnapshotRef:
-    return (
-        SnapshotRef(id=source, name=None)
-        if source.startswith("snap_")
-        else SnapshotRef(id=source, name=source)
-    )
+def _source_snapshot_ref(source: str) -> Optional[SnapshotRef]:
+    """The caller's snapshot as a reference when it is a ``snap_`` id; a name is never an id."""
+    return SnapshotRef(id=source, name=None) if source.startswith("snap_") else None
 
 
 def _volume_mount(mount: VolumeMount) -> JsonObject:

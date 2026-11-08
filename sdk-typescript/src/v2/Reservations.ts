@@ -64,6 +64,10 @@ function reservation(value: api.MacReservation): MacReservation {
  * `FeatureNotEnabledError`); listing, reading and turning auto-renew off do not.
  */
 export class ReservationsService {
+  /** @internal */
+  constructor(token: Internal, http: AxiosInstance)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, private readonly http: AxiosInstance) {
     assertInternal(token, 'ReservationsService')
     credentialSafeDiagnostics(this, () => ({ type: 'ReservationsService' }))

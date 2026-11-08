@@ -82,6 +82,10 @@ function mapVolume(volume: api.Volume): Volume {
 
 /** Manage named volumes and attach them with `create({ volumes })`. */
 export class VolumesService {
+  /** @internal */
+  constructor(token: Internal, api: AxiosInstance)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, private readonly api: AxiosInstance) {
     assertInternal(token, 'VolumesService')
     credentialSafeDiagnostics(this, () => ({ type: 'VolumesService' }))

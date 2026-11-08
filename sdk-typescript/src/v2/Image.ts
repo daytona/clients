@@ -170,6 +170,10 @@ export class Image implements ImageModel {
   public readonly deprecated: boolean
   public readonly diskMib: number | null
 
+  /** @internal */
+  constructor(token: Internal, image: api.ImageListItem)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, image: api.ImageListItem) {
     assertInternal(token, 'Image')
     this.id = image.id
@@ -215,6 +219,10 @@ export class Snapshot {
   public readonly memoryBytes?: number
   public readonly sandboxId?: string
 
+  /** @internal */
+  constructor(token: Internal, snapshot: api.Snapshot)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
   constructor(token: Internal, snapshot: api.Snapshot) {
     assertInternal(token, 'Snapshot')
     this.id = snapshot.id
@@ -247,11 +255,13 @@ function imageSource(source: NonNullable<api.ImageListItem['source']>): ImageSou
   }
 }
 
+/** @internal */
 export function artifactRefOf(ref: api.ImageReference | api.SnapshotReference | null | undefined): { readonly id: string; readonly name: string | null } | null {
   if (!ref) return null
   return Object.freeze({ id: ref.id, name: ref.name ?? null })
 }
 
+/** @internal */
 export function buildImageRequest(builder: ImageBuilder, options: {
   readonly name?: string
   readonly idleExpirySeconds?: number

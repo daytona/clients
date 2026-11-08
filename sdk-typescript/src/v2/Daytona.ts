@@ -32,8 +32,6 @@ import type { EventsHubConfig, WaitHub } from './events.js'
 import type { AuditActionList, ProjectApiKey, CreateFromBuildOptions, FindByNameOptions, LifecycleWaitOptions, CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions, DaytonaConfig, GetLimitsOptions, ListResult, ListSandboxesOptions, OrganizationLimits, ProjectBudget, SandboxConnectOptions, SandboxInfo, SearchResult, SearchSandboxesOptions, SandboxDto } from './types.js'
 
 export { DEFAULT_V2_API_URL } from './clientConfig.js'
-export { SEARCH_PATH, searchQueryParams, searchTimestamp } from './clientSearch.js'
-export type { SearchQueryParams } from './clientSearch.js'
 
 export class Daytona {
   public readonly images: ImagesService

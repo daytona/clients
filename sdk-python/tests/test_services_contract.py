@@ -394,3 +394,12 @@ def test_volume_mount_and_port_mapping_are_keyword_only() -> None:
         VolumeMount("vol", "/mnt")  # type: ignore[misc]
     with pytest.raises(TypeError):
         PortMapping(8080)  # type: ignore[misc]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("builder", ["FROM python:3.12", None, {"dockerfile": "FROM x"}])
+async def test_images_build_refuses_anything_but_an_image_builder(builder: object) -> None:
+    api = _Api([])
+    with pytest.raises(BadRequestError, match=r"images\.build\(\) takes an ImageBuilder"):
+        await AsyncImagesService(api).build(builder)  # type: ignore[arg-type]
+    assert api.specs == []
