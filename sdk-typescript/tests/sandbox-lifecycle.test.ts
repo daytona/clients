@@ -30,13 +30,13 @@ describe('sandbox lifecycle completion', () => {
   })
 
   it.each([
-    { result: { status: 200, body: { id: 'sbx', status: 'deleted' } } },
+    { result: { status: 200, body: { id: 'sbx', class: 'linux', status: 'deleted' } } },
     { result: { status: 404, body: { code: 'NOT_FOUND', message: 'gone' } } },
   ])('waits through destroying until deletion completes: $result.status', async ({ result }) => {
     // Given asynchronous deletion that either reports deleted or disappears.
     const api = await startFakeApi([
       { status: 202, body: {} },
-      { status: 200, body: { id: 'sbx', status: 'deleting' } },
+      { status: 200, body: { id: 'sbx', class: 'linux', status: 'deleting' } },
       result,
     ])
     const sandbox = createSandbox('sbx', createHttpClient(api.url))
@@ -54,7 +54,7 @@ describe('sandbox lifecycle completion', () => {
 
   it.each(['stop', 'delete'] as const)('surfaces terminal errors from %s', async (operation) => {
     // Given an accepted lifecycle request followed by an error state.
-    const api = await startFakeApi([{ status: 202, body: {} }, { status: 200, body: { id: 'sbx', status: 'failed', error: 'failed-operation' } }])
+    const api = await startFakeApi([{ status: 202, body: {} }, { status: 200, body: { id: 'sbx', class: 'linux', status: 'failed', error: 'failed-operation' } }])
     const sandbox = createSandbox('sbx', createHttpClient(api.url))
     try {
       // When completion is awaited.

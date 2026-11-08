@@ -159,6 +159,8 @@ export function searchPageSandboxes(data: unknown): SandboxDto[] {
   }
   for (const item of sandboxes) {
     if (!isJsonObject(item)) throw createDaytonaError('expected JSON object', 400, 'BAD_REQUEST', 'SDK')
+    // The contract requires `class` on every sandbox object.
+    if (typeof item.class !== 'string' || item.class === '') throw createDaytonaError('search response has a sandbox without its class', 400, 'BAD_REQUEST', 'SDK')
   }
   return sandboxes as SandboxDto[]
 }

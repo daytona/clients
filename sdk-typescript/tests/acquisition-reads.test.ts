@@ -18,7 +18,7 @@ it.each([new ClientTimeoutError(), new ConnectionError('unreachable')])('returns
   // Given a successful create POST and a failed wait request.
   const client = clientAt('http://api.invalid')
   const api = client.v2['api']
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', status: 'pending' } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending' } })
   jest.spyOn(api, 'get').mockRejectedValue(error)
   try {
     // When waiting after successful submission.
@@ -34,7 +34,7 @@ it.each([new TypeError('bug'), new TransferCancelledError()])('propagates a non-
   // Given a successful POST followed by a bug or caller cancellation.
   const client = clientAt('http://api.invalid')
   const api = client.v2['api']
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', status: 'pending' } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending' } })
   jest.spyOn(api, 'get').mockRejectedValue(error)
   try {
     // When the post-create wait is interrupted.
@@ -49,7 +49,7 @@ it.each([new TypeError('bug'), new TransferCancelledError()])('propagates a non-
 it.each([404, 408, 500])('returns the POST-derived fork when the detail read fails with %s', async (status) => {
   // Given a successful fork POST but no readable detail metadata.
   const api = await startFakeApi([
-    { status: 202, body: { id: 'fork', status: 'pending', toolbox_proxy_url: 'https://fork-toolbox.invalid' } },
+    { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', toolbox_proxy_url: 'https://fork-toolbox.invalid' } },
     { status, body: { message: 'detail unavailable' } },
   ])
   const source = createSandbox({ id: 'source', class: 'macos' }, createHttpClient(api.url))
@@ -69,7 +69,7 @@ it('charges the fork detail read to the wait budget', async () => {
   // Given a detail read that uses the full fractional wait budget.
   jest.useFakeTimers({ now: 0 })
   const api = createHttpClient('http://api.invalid', undefined, 100)
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', status: 'pending' } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending' } })
   const get = jest.spyOn(api, 'get').mockImplementation(async () => {
     jest.setSystemTime(250)
     return { data: { id: 'fork', status: 'pending', class: 'macos' } }
@@ -85,7 +85,7 @@ it('charges the fork detail read to the wait budget', async () => {
 
 it('builds a toolbox-less detail handle without fetching the same resource again', async () => {
   // Given a complete API detail response without a toolbox URL or class.
-  const api = await startFakeApi([{ status: 200, body: { id: 'sandbox', status: 'stopped' } }])
+  const api = await startFakeApi([{ status: 200, body: { id: 'sandbox', class: 'linux', status: 'stopped' } }])
   const client = clientAt(api.url)
   try {
     // When connecting to the sandbox.

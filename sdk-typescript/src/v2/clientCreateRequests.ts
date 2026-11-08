@@ -43,6 +43,12 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
   assertKnownOptions('CreateSandboxOptions', options, CREATE_KEYS)
   assertKnownOptions('Resources', options.resources, RESOURCES_KEYS)
   assertCreateNestedOptions(options)
+  for (const axis of ['cpu', 'cpuMax'] as const) {
+    const cores: unknown = options.resources?.[axis]
+    if (cores !== undefined && (typeof cores !== 'number' || !Number.isFinite(cores) || cores <= 0)) {
+      throw badRequest(`resources.${axis} must be a positive number of cores`)
+    }
+  }
   const route = 'linux'
   const lifecyclePolicy = lifecycleBody(options.lifecyclePolicy, { creating: true }) as api.CreateSandboxRequest['lifecycle_policy']
   assertLifecycleClassSupport(options.lifecyclePolicy ?? undefined, { sandboxClass: route, persistent: false })

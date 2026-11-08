@@ -359,7 +359,9 @@ make asynchronous callback work cancellation-aware when needed.
   (explicit resource management: Node 24+, or TypeScript 5.2+ downlevelling;
   on Node 22 call `[Symbol.asyncDispose]()` yourself).
   `sandbox.toJSON()` returns a `SandboxHandleJSON` snapshot without credentials
-  or URLs. Reconnect using `await daytona.v2.get(info.sandboxId)`.
+  or URLs, exactly what the Python SDK's `to_json()` writes for the same
+  sandbox (timestamps kept as the server's strings). Reconnect using
+  `await daytona.v2.get(info.sandboxId)`.
   The read-only `sandbox.accessToken` getter is the sandbox-scoped bearer the
   handle currently authenticates with: from create, a caller override, or a
   minted token. It is `undefined` until known and is never serialized.

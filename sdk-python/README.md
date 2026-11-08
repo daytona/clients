@@ -418,8 +418,9 @@ with (from the create response, a token you pass as
 minted); it is `None` until one is known and never serialized.
 
 `sandbox.to_json()` returns a `SandboxHandleJSON`: the handle's metadata as
-camelCase JSON (`sandboxId`, `state`, `sandboxClass`, …, the same shape the
-TypeScript SDK's `toJSON()` writes), without credentials or URLs. It is a
+camelCase JSON (`sandboxId`, `state`, `sandboxClass`, …, exactly what the
+TypeScript SDK's `toJSON()` writes for the same sandbox, timestamps kept as
+the server's strings), without credentials or URLs. It is a
 snapshot, not a way back: reconnect with `d.v2.get(json["sandboxId"])`.
 
 Resource models are frozen, keyword-only dataclasses: for example, images
@@ -456,7 +457,7 @@ from daytona.v2 import VolumeMount
 volume = d.v2.volumes.get("data", create=True)
 sandbox = d.v2.create(
     "py312",
-    volumes=[VolumeMount(volume.id, "/mnt/data", subpath="project")],
+    volumes=[VolumeMount(volume_id=volume.id, mount_path="/mnt/data", subpath="project")],
 )
 ```
 

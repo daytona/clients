@@ -16,7 +16,7 @@ describe('options parameters refuse non-object values', () => {
   type Call = (value: never) => Promise<unknown> | AsyncIterable<unknown>
   const calls = (client: ReturnType<typeof clientAt>, url: string): Record<string, Call> => {
     const v2 = client.v2
-    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(url))
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(url), undefined, 'key', undefined, { toolboxUrl: `${url}/toolbox` })
     return {
       'create': (value) => v2.create('img', value),
       'createFromSnapshot': (value) => v2.createFromSnapshot('snap', value),
@@ -52,7 +52,31 @@ describe('options parameters refuse non-object values', () => {
       'secrets.set': (value) => v2.secrets.set('S', 'v', value),
       'secrets.list': (value) => v2.secrets.list(value),
       'reservations.list': (value) => v2.reservations.list(value),
+      'reservations.renew': (value) => v2.reservations.renew('res', value),
+      'reservations.update': (value) => v2.reservations.update('res', value),
       'macModels.catalog': (value) => v2.macModels.catalog(value),
+      'getLimits': (value) => v2.getLimits(value),
+      'images.iter': (value) => v2.images.iter(value),
+      'snapshots.iter': (value) => v2.snapshots.iter(value),
+      'volumes.iter': (value) => v2.volumes.iter(value),
+      'secrets.iter': (value) => v2.secrets.iter(value),
+      'reservations.iter': (value) => v2.reservations.iter(value),
+      'sandbox.start': (value) => sandbox.start(value),
+      'sandbox.stop': (value) => sandbox.stop(value),
+      'sandbox.pause': (value) => sandbox.pause(value),
+      'sandbox.resume': (value) => sandbox.resume(value),
+      'sandbox.delete': (value) => sandbox.delete(value),
+      'sandbox.updateLifecyclePolicy': (value) => sandbox.updateLifecyclePolicy(value),
+      'sandbox.ports.expose': (value) => sandbox.ports.expose(3000, value),
+      'sandbox.ports.signedPreviewLink': (value) => sandbox.ports.signedPreviewLink(3000, value),
+      'sandbox.ports.listEndpoints': (value) => sandbox.ports.listEndpoints(value),
+      'sandbox.docker.waitUntilReady': (value) => sandbox.docker.waitUntilReady(value),
+      'sandbox.volumes.pull': (value) => sandbox.volumes.pull('vol', value),
+      'create resources': (value) => v2.create('img', { resources: value }),
+      'create ports entry': (value) => v2.create('img', { ports: [value] }),
+      'create volumes entry': (value) => v2.create('img', { volumes: [value] }),
+      'createMacos resources': (value) => v2.createMacos('base-macos', { resources: value }),
+      'createFromBuild resources': (value) => v2.createFromBuild(ImageBuilder.fromRegistry('python:3.12'), { resources: value }),
     }
   }
 
@@ -61,7 +85,12 @@ describe('options parameters refuse non-object values', () => {
     'sandbox.updateNetworkPolicy', 'sandbox.resetNetworkPolicy', 'sandbox.replaceSecrets', 'sandbox.createAccessToken',
     'images.build', 'images.pull', 'images.get', 'images.list', 'snapshots.get', 'snapshots.list',
     'volumes.get', 'volumes.create', 'volumes.delete', 'volumes.list', 'secrets.set', 'secrets.list',
-    'reservations.list', 'macModels.catalog'])('%s', async (name) => {
+    'reservations.list', 'reservations.renew', 'reservations.update', 'macModels.catalog', 'getLimits',
+    'images.iter', 'snapshots.iter', 'volumes.iter', 'secrets.iter', 'reservations.iter',
+    'sandbox.start', 'sandbox.stop', 'sandbox.pause', 'sandbox.resume', 'sandbox.delete', 'sandbox.updateLifecyclePolicy',
+    'sandbox.ports.expose', 'sandbox.ports.signedPreviewLink', 'sandbox.ports.listEndpoints', 'sandbox.docker.waitUntilReady',
+    'sandbox.volumes.pull', 'create resources', 'create ports entry', 'create volumes entry', 'createMacos resources',
+    'createFromBuild resources'])('%s', async (name) => {
     const api = await startFakeApi([])
     const client = clientAt(api.url)
     try {

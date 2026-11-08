@@ -14,6 +14,7 @@ import type { ImagesService } from './Images.js'
 import { assertKnownOptions, badRequest, optionalSeconds } from './options.js'
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS } from './clientOptionKeys.js'
 import { createRegion, createWaitSeconds, rejectV0Target } from './clientCreateOptions.js'
+import { linuxCreateRequest } from './clientCreateRequests.js'
 import { createIdempotencyKey } from './clientCreateNames.js'
 import type { PreparedSandboxCreate } from './clientCreateRequests.js'
 import type { SandboxClientContext } from './clientSandboxes.js'
@@ -90,6 +91,9 @@ export async function buildSandboxImage(images: ImagesService, builder: ImageBui
   createWaitSeconds(options.waitSeconds)
   const { buildTimeoutSeconds, idleExpirySeconds, ...createOptions } = options
   const budget = optionalSeconds('buildTimeoutSeconds', buildTimeoutSeconds)
+  // Every create option is validated before the (billed) build: a caller
+  // error must not cost a build first. The image id is not known yet.
+  linuxCreateRequest('img_pending', createOptions)
   const image = await images.build(builder, { region, idleExpirySeconds, cpuArch: options.cpuArch })
   const deadline = budget === undefined || budget === 0 ? undefined : Date.now() + Math.max(0, Math.ceil(budget * 1000))
   const readyImage = await waitForBuiltImage(images, image, deadline)

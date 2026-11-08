@@ -40,7 +40,7 @@ import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
 import { assertIfMatchOptions, assertKnownOptions, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS } from './options.js'
 import type { IfMatchOptions } from './options.js'
-import { isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
+import { assertSandboxResponse, isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
 import type { SandboxMetadata } from './sandboxMetadata.js'
 import { SandboxAuth, rfc3339EpochMs } from './sandboxAuth.js'
 import { DEFAULT_SANDBOX_TERMINAL_STATES, PAUSE_TERMINAL_STATES, RESUME_TERMINAL_STATES, WAIT_FOR_STATE_SLICE_MS, waitForSandboxState, waitQueryState } from './sandboxWait.js'
@@ -271,7 +271,9 @@ function subMsMicros(value: string | undefined): number {
 // allow: SIZE_OK — Public handle facade preserves the toolbox namespaces; metadata,
 // token ownership and wait engines are isolated in their own internal modules.
 export class Sandbox {
-  public readonly id: string
+  private readonly sandboxId: string
+  /** The sandbox id, fixed for the handle's lifetime (read-only at run time too). */
+  public get id(): string { return this.sandboxId }
   private observed: SandboxMetadata
   private toolboxProxyUrlValue?: string
   private readonly auth: SandboxAuth
@@ -355,7 +357,7 @@ export class Sandbox {
     const { sandbox: sandboxOrId, api, apiKey, options = {}, hub } = init
     const sandbox = typeof sandboxOrId === 'string' || isSandboxInfo(sandboxOrId) ? undefined : sandboxOrId
     const info = typeof sandboxOrId === 'string' || !isSandboxInfo(sandboxOrId) ? undefined : sandboxOrId
-    this.id = typeof sandboxOrId === 'string' ? sandboxOrId : isSandboxInfo(sandboxOrId) ? sandboxOrId.sandboxId : sandboxOrId.id
+    this.sandboxId = typeof sandboxOrId === 'string' ? sandboxOrId : isSandboxInfo(sandboxOrId) ? sandboxOrId.sandboxId : sandboxOrId.id
     this.observed = sandbox ? metadataFromSandbox(sandbox) : metadataFromInfo(info ?? { sandboxId: this.id })
     this.api = api
     this.apiKey = apiKey
@@ -532,6 +534,7 @@ export class Sandbox {
     const requestConfig = deadlineOwnsTimeout ? { ...config, timeout: cap } : config
     try {
       const sandbox = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(this.id)}`, requestConfig).then((response) => response.data)
+      assertSandboxResponse(sandbox)
       this.observed = metadataFromSandbox(sandbox)
       this.refreshToolbox(sandbox)
     } catch (error) {
@@ -733,8 +736,14 @@ export class Sandbox {
     const classWasKnown = this.sandboxClass !== undefined
     const initialClass = await this.requireSandboxClass()
     const body: api.ForkRequest = {}
-    if (options.name) body.name = options.name
-    if (options.memory !== undefined) body.memory = options.memory
+    if (options.name !== undefined) {
+      if (typeof options.name !== 'string' || options.name.trim() === '') throw badRequest('fork name must be a non-empty string when given')
+      body.name = options.name
+    }
+    if (options.memory !== undefined) {
+      if (typeof options.memory !== 'boolean') throw badRequest('fork memory must be a boolean')
+      body.memory = options.memory
+    }
     // Loading an unknown class already fetched the source state; waiting on a
     // known Linux source needs exactly one fresh observation before the POST.
     if (waitSeconds > 0 && initialClass === 'linux' && classWasKnown) {
@@ -773,6 +782,7 @@ export class Sandbox {
       const timeout = deadline === undefined ? undefined : boundedRequestTimeout(deadline, this.api.defaults.timeout)
       if (deadline !== undefined && timeout === undefined) return fork
       const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(response.data.id)}`, timeout === undefined ? undefined : { timeout }).then((r) => r.data)
+      assertSandboxResponse(detail)
       fork.observed = metadataFromSandbox(detail)
       fork.refreshToolbox({ ...detail, toolbox_proxy_url: response.data.toolbox_proxy_url || detail.toolbox_proxy_url })
     } catch (error) {

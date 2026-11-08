@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import _gen
-from ._core import TransportPayload, _expect_model_from_dict, parse_timestamp
+from ._core import TransportPayload, _expect_model_from_dict, expect_object, parse_timestamp
 from ._events import region_of
 from ._gen.api import (
     AsyncOperation,
@@ -29,6 +29,7 @@ from .types import (
     AuditActionGroup,
     AuditActionList,
     ImageBuildLimits,
+    JsonObject,
     MacCatalog,
     MacCatalogModel,
     MacCatalogRegion,
@@ -304,10 +305,21 @@ def expect_signed_preview_url_resp(value: TransportPayload) -> SignedPreviewUrl:
 
 
 def expect_sandbox_detail(value: TransportPayload) -> Sandbox:
+    return _expect_model_from_dict(_with_region(value), Sandbox, "sandbox detail response", Sandbox.from_dict)
+
+
+def sandbox_detail_wire(value: TransportPayload) -> JsonObject:
+    """A validated sandbox detail as its wire object, its strings (timestamps) verbatim."""
+    value = _with_region(value)
+    expect_sandbox_detail(value)
+    return expect_object(value)
+
+
+def _with_region(value: TransportPayload) -> TransportPayload:
     # Derive a missing region_id from the sandbox ID; empty means unknown.
     if isinstance(value, dict) and value.get("region_id") in (None, ""):
         sandbox_id = value.get("id")
         if isinstance(sandbox_id, str):
             region = region_of(sandbox_id)
             value = {**value, "region_id": "" if region == "_" else region}
-    return _expect_model_from_dict(value, Sandbox, "sandbox detail response", Sandbox.from_dict)
+    return value

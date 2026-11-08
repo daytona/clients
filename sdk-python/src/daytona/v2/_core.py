@@ -474,6 +474,9 @@ def _optional_int(value: JsonValue) -> Optional[int]:
 
 
 def _optional_str(value: JsonValue) -> Optional[str]:
+    # A generated str-enum member (from a model's to_dict()) is its plain value.
+    if isinstance(value, Enum):
+        value = value.value
     return value if isinstance(value, str) else None
 
 
@@ -1212,6 +1215,10 @@ def parse_search_page(
     if not isinstance(raw_sandboxes, list):
         raise create_error("search response is missing the sandboxes array", 400, "BAD_REQUEST", "SDK")
     items = [expect_object(item) for item in raw_sandboxes]
+    for item in items:
+        # The contract requires `class` on every sandbox object.
+        if not isinstance(item.get("class"), str) or not item.get("class"):
+            raise create_error("search response has a sandbox without its class", 400, "BAD_REQUEST", "SDK")
     cursor = obj.get("next_cursor")
     next_cursor = cursor if isinstance(cursor, str) else None
     total_raw = obj.get("total")

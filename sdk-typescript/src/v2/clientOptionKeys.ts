@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, assertLabels, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys } from './options.js'
 import type {
   CreateRequestBaseOptions, CreateSandboxOptions, CreateSandboxFromSnapshotOptions,
   CreateMacosSandboxOptions, CreateFromBuildOptions, FindByNameOptions, GetLimitsOptions,
@@ -45,11 +45,63 @@ const PORT_KEYS = optionKeys<PortMapping>()({ port: true, proto: true })
 const VOLUME_KEYS = optionKeys<VolumeMount>()({ volumeId: true, mountPath: true, subpath: true, readOnly: true })
 export const LIFECYCLE_POLICY_KEYS = optionKeys<LifecyclePolicyOptions>()({ timeoutSeconds: true, onTimeout: true, idleExpirySeconds: true, onIdleTimeout: true })
 
-export function assertCreateNestedOptions(options: CreateRequestBaseOptions & { readonly volumes?: readonly VolumeMount[] }): void {
+/** The create options whose values are checked before any request (shared by every create route). */
+interface CreateValueOptions extends CreateRequestBaseOptions {
+  readonly volumes?: readonly VolumeMount[]
+  readonly env?: Readonly<Record<string, string>>
+  readonly secrets?: readonly string[]
+  readonly spot?: boolean
+  readonly user?: string
+  readonly cpuArch?: string
+  readonly cpuType?: string
+  readonly persistent?: boolean
+  readonly reservation?: string
+  readonly autoRenew?: boolean
+}
+
+function optionalTyped(options: CreateValueOptions, key: keyof CreateValueOptions, kind: 'string' | 'boolean'): void {
+  const value: unknown = Reflect.get(options, key)
+  if (value !== undefined && typeof value !== kind) throw badRequest(`${key} must be a ${kind}`)
+}
+
+function arrayOf(value: unknown, message: string): readonly unknown[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) throw badRequest(message)
+  return value
+}
+
+/**
+ * Every create route's option values, checked before any request (and, for
+ * createFromBuild, before the build): a mistyped value is refused, never
+ * forwarded. Nested entries must be options objects with known keys.
+ */
+export function assertCreateNestedOptions(options: CreateValueOptions): void {
   // `null` means no policy, and a non-object value gets the lifecycle
   // validator's own message; only an options object has keys to check.
   const policy = options.lifecyclePolicy
   if (policy !== null && typeof policy === 'object' && !Array.isArray(policy)) assertKnownOptions('LifecyclePolicyOptions', policy, LIFECYCLE_POLICY_KEYS)
-  for (const port of options.ports ?? []) assertKnownOptions('PortMapping', port, PORT_KEYS)
-  for (const volume of options.volumes ?? []) assertKnownOptions('VolumeMount', volume, VOLUME_KEYS)
+  for (const port of arrayOf(options.ports, 'ports must be an array of { port } objects') ?? []) {
+    assertOptionsObject('PortMapping', port)
+    assertKnownOptions('PortMapping', port, PORT_KEYS)
+    const { port: number, proto } = port as PortMapping
+    if (typeof number !== 'number' || !Number.isInteger(number) || number < 1 || number > 65535) throw badRequest('ports[].port must be an integer in 1..65535')
+    if (proto !== undefined && typeof proto !== 'string') throw badRequest('ports[].proto must be a string')
+  }
+  for (const volume of arrayOf(options.volumes, 'volumes must be an array of { volumeId, mountPath } objects') ?? []) {
+    assertOptionsObject('VolumeMount', volume)
+    assertKnownOptions('VolumeMount', volume, VOLUME_KEYS)
+    const { volumeId, mountPath, subpath, readOnly } = volume as VolumeMount
+    if (typeof volumeId !== 'string' || volumeId.trim() === '') throw badRequest('volumes[].volumeId must be a non-empty string')
+    if (typeof mountPath !== 'string' || mountPath.trim() === '') throw badRequest('volumes[].mountPath must be a non-empty string')
+    if (subpath !== undefined && typeof subpath !== 'string') throw badRequest('volumes[].subpath must be a string')
+    if (readOnly !== undefined && typeof readOnly !== 'boolean') throw badRequest('volumes[].readOnly must be a boolean')
+  }
+  for (const secret of arrayOf(options.secrets, 'secrets must be an array of secret names') ?? []) {
+    if (typeof secret !== 'string' || secret === '') throw badRequest('secrets must be an array of secret names')
+  }
+  if (options.env !== undefined && !isPlainStringRecord(options.env)) throw badRequest('env must be a plain object of string to string')
+  if (options.labels !== undefined) assertLabels(options.labels)
+  if (options.name !== undefined && typeof options.name !== 'string') throw badRequest('name must be a string')
+  for (const key of ['user', 'cpuArch', 'cpuType', 'reservation'] as const) optionalTyped(options, key, 'string')
+  for (const key of ['spot', 'persistent', 'autoRenew'] as const) optionalTyped(options, key, 'boolean')
 }

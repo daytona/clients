@@ -64,12 +64,13 @@ describe('sandbox observed metadata', () => {
     const sandbox = createSandbox(response)
     // When serialized.
     const json = sandbox.toJSON()
-    // Then the object itself (before JSON.stringify) follows the presence rules.
-    expect(json).toEqual({ ...expected, sandboxClass: 'linux', rawSandboxClass: 'linux' })
+    // Then the object itself (before JSON.stringify) follows the presence rules;
+    // partial data without a class leaves it out.
+    expect(json).toEqual(expected)
     expect(Object.values(json)).not.toContain(undefined)
   })
 
-  it('serializes safe metadata and UTC timestamps without connection details', () => {
+  it('serializes safe metadata and the server\'s timestamp strings without connection details', () => {
     // Given observed artifacts, timestamps, and a usable toolbox credential.
     const sandbox = createSandbox({
       id: 'sbx', class: 'linux', status: 'running', image: { id: 'img', name: null },
@@ -79,12 +80,24 @@ describe('sandbox observed metadata', () => {
     }, undefined, undefined, undefined, undefined, { toolboxUrl: 'https://toolbox.invalid', accessToken: 'fixture-token' })
     // When serialized for persistence.
     const json = sandbox.toJSON()
-    // Then only the documented metadata is present, with UTC timestamps.
+    // Then only the documented metadata is present, timestamps verbatim (as Python writes them).
     expect(json).toEqual({
       sandboxId: 'sbx', sandboxClass: 'linux', rawSandboxClass: 'linux', state: 'started', rawState: 'running',
       image: { id: 'img', name: null }, snapshot: { id: 'snap', name: 'backup' }, labels: { owner: 'team' },
-      spotEvictedAt: '2026-05-01T12:00:00.123456Z', lifecyclePolicy: { timeoutSeconds: 30, lastActivityAt: '2026-05-01T12:00:00Z' },
+      spotEvictedAt: '2026-05-01T13:30:00.123456+01:30', lifecyclePolicy: { timeoutSeconds: 30, lastActivityAt: '2026-05-01T13:30:00+01:30' },
     })
+  })
+
+  it('refuses a sandbox response without its class as a contract error', async () => {
+    // Given a detail read that omits the required class.
+    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status: 'running' } }])
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux' }, createHttpClient(api.url))
+    try {
+      // Then refreshing raises the SDK's BadRequestError instead of guessing Linux.
+      await expect(sandbox.refreshData()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox response is missing its class' })
+    } finally {
+      await api.close()
+    }
   })
 
   it('refuses class-gated operations on a future class without guessing Linux', async () => {

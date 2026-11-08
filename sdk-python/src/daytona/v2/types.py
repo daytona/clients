@@ -440,13 +440,13 @@ class MacosResources:
     disk: Optional[float] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PortMapping:
     port: int
     proto: str = "tcp"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class VolumeMount:
     """Attach a volume to a sandbox."""
 
@@ -527,6 +527,11 @@ class _SandboxInfo:
     reservation_id: Optional[str] = None
     user: Optional[str] = None
     error: Optional[str] = None
+    #: The server's timestamp strings, verbatim, keyed by their
+    #: ``SandboxHandleJSON`` name (``spotEvictedAt``, ``timeoutAt``,
+    #: ``idleTimeoutAt``, ``lastActivityAt``): ``to_json()`` writes them back
+    #: unchanged, so both SDKs serialize the same instant to the same string.
+    wire_timestamps: Mapping[str, str] = field(default_factory=dict)
 
 
 class ArtifactRefJSON(TypedDict):

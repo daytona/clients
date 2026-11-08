@@ -6178,8 +6178,8 @@ async def test_daytona_create_list_fork_and_delete_are_offline_transport_calls()
     sandbox = await client.create(
         Image.base("python:3.12"),
         resources=Resources(cpu=1.5, memory=2, disk=3),
-        ports=[PortMapping(8080)],
-        volumes=[VolumeMount("vol", "/mnt", "sub")],
+        ports=[PortMapping(port=8080)],
+        volumes=[VolumeMount(volume_id="vol", mount_path="/mnt", subpath="sub")],
         secrets=["TOKEN"],
         region="us",
     )
@@ -7048,7 +7048,7 @@ async def test_daytona_create_posts_an_inline_dockerfile_source_on_linux():
     assert (
         await client.create_from_build(
             Image.from_dockerfile("FROM python:3.12\nRUN pip install numpy"),
-            volumes=[VolumeMount("vol", "/mnt/data")],
+            volumes=[VolumeMount(volume_id="vol", mount_path="/mnt/data")],
         )
     ).id == "sbx"
     assert linux_api.specs[0].path == "/images"
@@ -9710,6 +9710,7 @@ async def test_search_parses_summary_and_tolerates_unknown_fields():
                 "sandboxes": [
                     {
                         "id": "sbx-1",
+                        "class": "linux",
                         "name": "ci-1",
                         "status": "running",
                         "region_id": "region-b",
@@ -9756,6 +9757,7 @@ async def test_search_defaults_missing_summary_fields():
                 "sandboxes": [
                     {
                         "id": "sbx",
+                        "class": "linux",
                         "status": "running",
                         "toolbox_proxy_url": "https://proxy.search.example/sandboxes",
                     }
@@ -9792,8 +9794,10 @@ async def test_search_rejects_response_without_sandboxes_array_matches_typescrip
             parse_search_page(body)
     with pytest.raises(BadRequestError, match="expected JSON object"):
         parse_search_page({"sandboxes": [{"id": "sbx"}, "sbx-2"]})
-    assert parse_search_page({"sandboxes": [{"id": "sbx", "future_field": 1}], "future_top_level": True}) == (
-        [{"id": "sbx", "future_field": 1}],
+    assert parse_search_page(
+        {"sandboxes": [{"id": "sbx", "class": "linux", "future_field": 1}], "future_top_level": True}
+    ) == (
+        [{"id": "sbx", "class": "linux", "future_field": 1}],
         None,
         0,
         "eq",
@@ -9826,6 +9830,7 @@ async def test_search_rejects_response_without_sandboxes_array_matches_typescrip
                     "sandboxes": [
                         {
                             "id": "sbx",
+                            "class": "linux",
                             "status": "running",
                             "toolbox_proxy_url": "https://proxy.search.example/sandboxes",
                         }
@@ -11562,7 +11567,8 @@ def _mac_reservation_payload(**overrides: object) -> dict[str, object]:
 
 @pytest.mark.anyio
 async def test_sandbox_reads_the_wire_class_first():
-    # `class` alone decides the class; a response without it reads as linux.
+    # `class` alone decides the class. The contract requires it: a search item
+    # without it is a malformed response, and partial internal data leaves it unknown.
     mac_payload = {**_sandbox_detail_payload("mac", "stopped"), "class": "macos"}
     running = {**mac_payload, "status": "running"}
     api = RecordingTransport(
@@ -11591,7 +11597,9 @@ async def test_sandbox_reads_the_wire_class_first():
         ("GET", "/sandboxes/mac"),
     ]
     payload = {k: v for k, v in _sandbox_detail_payload("lin", "running").items() if k != "class"}
-    assert AsyncSandbox._from_api(payload, None, None).sandbox_class == "linux"
+    assert AsyncSandbox._from_api(payload, None, None).sandbox_class is None
+    with pytest.raises(BadRequestError, match="search response has a sandbox without its class"):
+        parse_search_page({"sandboxes": [payload]})
 
 
 @pytest.mark.anyio
@@ -12127,7 +12135,7 @@ async def test_create_macos_posts_the_create_macos_sandbox_request_body():
         persistent=True,
         reservation="new",
         auto_renew=False,
-        ports=[PortMapping(8080)],
+        ports=[PortMapping(port=8080)],
         env={"A": "B"},
         labels={"team": "sdk"},
         secrets=["API_KEY"],
@@ -12613,9 +12621,9 @@ def test_create_body_sends_read_only_volume_mounts():
             "source_kind": "image",
             "source": "python:3.12",
             "volumes": [
-                VolumeMount("bucket-vol", "/mnt/models", "v1/", read_only=True),
-                VolumeMount("disk-vol", "/data"),
-                VolumeMount("rw-bucket", "/mnt/rw", read_only=False),
+                VolumeMount(volume_id="bucket-vol", mount_path="/mnt/models", subpath="v1/", read_only=True),
+                VolumeMount(volume_id="disk-vol", mount_path="/data"),
+                VolumeMount(volume_id="rw-bucket", mount_path="/mnt/rw", read_only=False),
             ],
         }
     ) == {

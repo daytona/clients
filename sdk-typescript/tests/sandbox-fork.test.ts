@@ -51,7 +51,7 @@ describe('sandbox fork completion', () => {
     // Given a stale source and a fork that passes through another resting state.
     const api = await startFakeApi([
       { status: 200, body: { id: 'source', class: 'linux', status: source } },
-      { status: 202, body: { id: 'fork', status: 'pending', forked_from: 'source' } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source' } },
       { status: 200, body: { id: 'fork', class: 'linux', status: interim } },
       { status: 200, body: { id: 'fork', class: 'linux', status: result } },
     ])
@@ -73,7 +73,7 @@ describe('sandbox fork completion', () => {
   it.each(['running', 'stopped'])('accepts macOS fork completion at %s without reading source state', async (status) => {
     // Given a known macOS class and a fork that settles independently of cached source state.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', status: 'pending', forked_from: 'source' } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source' } },
       { status: 200, body: { id: 'fork', class: 'macos', status } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'macos', status: 'paused' }, createHttpClient(api.url))
@@ -93,7 +93,7 @@ describe('sandbox fork completion', () => {
   it('returns at acceptance with waitSeconds=0 and keeps source overrides out of the fork', async () => {
     // Given a source using a per-sandbox URL/token and a separate fork toolbox URL.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid' } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid' } },
       { status: 200, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source' } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'linux' }, createHttpClient(api.url), undefined, undefined, undefined, {
@@ -118,7 +118,7 @@ describe('sandbox fork completion', () => {
   it('opts a fork into deletion independently of its source', async () => {
     // Given a persistent source and an explicitly auto-deleting fork.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', status: 'pending' } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending' } },
       { status: 200, body: { id: 'fork', class: 'linux', status: 'pending' } },
       { status: 202, body: {} },
       { status: 404, body: { code: 'NOT_FOUND' } },
@@ -139,9 +139,9 @@ describe('sandbox fork completion', () => {
   it('returns the observed handle when the fork reaches a terminal state', async () => {
     // Given an accepted macOS fork that fails during provisioning.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', status: 'pending' } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending' } },
       { status: 200, body: { id: 'fork', class: 'macos', status: 'pending' } },
-      { status: 200, body: { id: 'fork', status: 'failed', error: 'provisioning failed' } },
+      { status: 200, body: { id: 'fork', class: 'linux', status: 'failed', error: 'provisioning failed' } },
     ])
     const sandbox = createSandbox({ id: 'source', class: 'macos' }, createHttpClient(api.url))
     try {
@@ -158,7 +158,7 @@ describe('sandbox fork completion', () => {
     // Given an accepted fork that stays queued.
     jest.useFakeTimers()
     const api = createHttpClient('http://api.invalid')
-    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', status: 'pending' } })
+    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending' } })
     jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'fork', class: 'macos', status: 'queued' } })
     const sandbox = createSandbox({ id: 'source', class: 'macos' }, api)
     // When the wait budget expires.
@@ -172,7 +172,7 @@ describe('sandbox fork completion', () => {
   it.each([403, 408])('returns the fork when a wait read fails with HTTP %s', async (status) => {
     // Given an accepted fork with pending detail metadata.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'fork', status: 'pending' } },
+      { status: 202, body: { id: 'fork', class: 'linux', status: 'pending' } },
       { status: 200, body: { id: 'fork', class: 'macos', status: 'pending' } },
       { status, body: { code: status === 408 ? 'REQUEST_TIMEOUT' : 'FORBIDDEN', source: 'DAYTONA_API', message: 'request failed' } },
     ])

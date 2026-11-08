@@ -332,6 +332,8 @@ async def _get_artifact(
     parse: Callable[[TransportPayload], _Artifact],
     status_of: Callable[[_Artifact], str],
 ) -> _Artifact:
+    if wait is not None and wait != "ready":
+        raise create_error(f'wait must be "ready" or omitted, got {wait!r}', 400, "BAD_REQUEST", "SDK")
     budget_ms = timeout_millis_from_seconds(timeout) if wait is not None else None
     if wait is None:
         return parse(await transport.send(RequestSpec("GET", path)))

@@ -14,6 +14,7 @@ import { CONNECT_KEYS, FIND_KEYS, LIST_KEYS, SEARCH_KEYS } from './clientOptionK
 import { createRegion, hasText, rejectV0Target } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
 import { SEARCH_PATH, searchPageSandboxes, searchQueryParams } from './clientSearch.js'
+import { assertSandboxResponse } from './sandboxMetadata.js'
 import type { SearchPageDto } from './clientSearch.js'
 import type { FindByNameOptions, ListResult, ListSandboxesOptions, SandboxConnectOptions, SandboxDto, SandboxInfo, SearchResult, SearchSandboxesOptions } from './types.js'
 
@@ -52,6 +53,7 @@ async function sandboxesFromDtos(context: SandboxClientContext, items: readonly 
 export async function getSandbox(context: SandboxClientContext, id: string, options: SandboxConnectOptions): Promise<Sandbox> {
   assertKnownOptions('SandboxConnectOptions', options, CONNECT_KEYS)
   const sandbox = await context.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(id)}`, undefined).then((response) => response.data)
+  assertSandboxResponse(sandbox)
   return context.buildSandbox(sandbox, options)
 }
 
@@ -62,6 +64,7 @@ export async function listSandboxes(context: SandboxClientContext, options: List
     params: { cursor: options.cursor, limit: options.limit },
   }).then((response) => response.data)
   const nextCursor = listResponse.next_cursor ?? ('nextCursor' in listResponse && typeof listResponse.nextCursor === 'string' ? listResponse.nextCursor : undefined)
+  listResponse.sandboxes.forEach(assertSandboxResponse)
   return { items: await sandboxesFromDtos(context, listResponse.sandboxes), nextCursor }
 }
 

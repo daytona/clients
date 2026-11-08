@@ -24,7 +24,7 @@ from ._api_core import (
     expect_create_image_resp,
     expect_create_snapshot_resp,
     expect_fork_resp,
-    expect_sandbox_detail,
+    sandbox_detail_wire,
 )
 from ._auth import ProjectTokenAuth
 from ._core import (
@@ -283,7 +283,17 @@ class AsyncSandbox:
 
     def _update(self, **changes: object) -> None:
         """Replace observed metadata fields (internal: the SDK's own reads)."""
+        if "lifecycle_policy" in changes and "wire_timestamps" not in changes:
+            # A policy read without its wire strings must not keep the old ones.
+            changes["wire_timestamps"] = {
+                key: value for key, value in self._info.wire_timestamps.items() if key == "spotEvictedAt"
+            }
         self._info = dataclasses.replace(self._info, **changes)  # type: ignore[arg-type]
+
+    def _update_lifecycle(self, policy: SandboxLifecycle, data: Mapping[str, JsonValue]) -> None:
+        """Replace the lifecycle policy with one read from ``data``, keeping its wire timestamps."""
+        evicted = {key: value for key, value in self._info.wire_timestamps.items() if key == "spotEvictedAt"}
+        self._update(lifecycle_policy=policy, wire_timestamps={**evicted, **_lifecycle_wire_timestamps(data)})
 
     @property
     def id(self) -> str:
@@ -698,7 +708,8 @@ class AsyncSandbox:
             ("diskMax", info.disk_max),
         ):
             if number is not None:
-                payload[key] = number  # type: ignore[literal-required]
+                # An integral size is written as an integer, as JavaScript's JSON does.
+                payload[key] = int(number) if float(number).is_integer() else number  # type: ignore[literal-required]
         if info.sandbox_class is not None:
             payload["sandboxClass"] = info.sandbox_class
         if info.raw_sandbox_class is not None:
@@ -708,9 +719,13 @@ class AsyncSandbox:
         if info.spot is not None:
             payload["spot"] = info.spot
         if info.spot_evicted_at is not None:
-            payload["spotEvictedAt"] = rfc3339(info.spot_evicted_at)
+            payload["spotEvictedAt"] = info.wire_timestamps.get("spotEvictedAt") or rfc3339(
+                info.spot_evicted_at
+            )
         if info.lifecycle_policy is not None:
-            payload["lifecyclePolicy"] = _sandbox_lifecycle_handle_json(info.lifecycle_policy)
+            payload["lifecyclePolicy"] = _sandbox_lifecycle_handle_json(
+                info.lifecycle_policy, info.wire_timestamps
+            )
         if info.forked_from is not None:
             payload["forkedFrom"] = info.forked_from
         if info.reservation_id is not None:
@@ -792,7 +807,7 @@ class AsyncSandbox:
             params["timeout_ms"] = wait_timeout_ms
             request_timeout = wait_timeout_ms / 1000 + WAIT_READ_SLACK_SECONDS
         fresh = AsyncSandbox._from_api(
-            expect_sandbox_detail(
+            sandbox_detail_wire(
                 await api.send(
                     RequestSpec(
                         "GET",
@@ -1126,6 +1141,10 @@ class AsyncSandbox:
         check ``fork.state``.
         """
         _validate_wait_seconds(wait_seconds)
+        if name is not None and (not isinstance(name, str) or not name.strip()):
+            raise create_error("fork name must be a non-empty string when given", 400, "BAD_REQUEST", "SDK")
+        if memory is not None and not isinstance(memory, bool):
+            raise create_error("fork memory must be a boolean", 400, "BAD_REQUEST", "SDK")
         class_known = self.sandbox_class is not None
         sandbox_class = await self._require_sandbox_class()
         targets: list[SandboxWaitState] = ["started", "stopped"]
@@ -1171,11 +1190,11 @@ class AsyncSandbox:
             with anyio.move_on_after(
                 math.inf if deadline is None else max(0.0, deadline - _clock.monotonic())
             ):
-                detail = expect_sandbox_detail(
+                detail = sandbox_detail_wire(
                     await self._require_api().send(
                         RequestSpec("GET", f"/sandboxes/{quote(fork_id, safe='')}")
                     )
-                ).to_dict()
+                )
         except DaytonaError:
             # The fork exists; a failed read never costs the caller its handle.
             detail = None
@@ -1282,7 +1301,7 @@ class AsyncSandbox:
             )
         )
         policy = parse_lifecycle(data)
-        self._update(lifecycle_policy=policy)
+        self._update_lifecycle(policy, data)
         return policy
 
     async def reset_idle_timer(self) -> SandboxLifecycle:
@@ -1320,7 +1339,7 @@ class AsyncSandbox:
         )
         echoed_at = _parse_activity_clock(fresh.last_activity_at)
         if cached_at is None or (echoed_at is not None and echoed_at >= cached_at):
-            self._update(lifecycle_policy=fresh)
+            self._update_lifecycle(fresh, data)
         return fresh
 
     async def get_network_policy(self) -> NetworkPolicyInfo:
@@ -1802,9 +1821,10 @@ def _sandbox_info_from_wire(data: Mapping[str, JsonValue]) -> _SandboxInfo:
         memory_max=mib_to_gib(data.get("memory_max_mib")),
         disk=mib_to_gib(data.get("disk_mib")),
         disk_max=mib_to_gib(data.get("disk_max_mib")),
-        # An absent class is a Linux sandbox (the API's default class).
-        sandbox_class=_reported_class(raw_class or "linux"),
-        raw_sandbox_class=raw_class or "linux",
+        # Every API sandbox object carries `class` (validated at the boundary);
+        # partial internal data leaves it unknown until it is read.
+        sandbox_class=_reported_class(raw_class) if raw_class is not None else None,
+        raw_sandbox_class=raw_class,
         mac_boot_mode=_wire_text(data.get("mac_boot_mode")),
         persistent=persistent if isinstance(persistent, bool) else None,
         spot=spot if isinstance(spot, bool) else None,
@@ -1814,7 +1834,25 @@ def _sandbox_info_from_wire(data: Mapping[str, JsonValue]) -> _SandboxInfo:
         reservation_id=_wire_text(data.get("reservation_id")),
         user=_wire_text(data.get("user")),
         error=_wire_text(data.get("error")),
+        wire_timestamps={
+            **({"spotEvictedAt": evicted} if isinstance(evicted := data.get("spot_evicted_at"), str) else {}),
+            **(_lifecycle_wire_timestamps(lifecycle) if isinstance(lifecycle, dict) else {}),
+        },
     )
+
+
+_LIFECYCLE_TIMESTAMPS = (
+    ("timeoutAt", "timeout_at"),
+    ("idleTimeoutAt", "idle_timeout_at"),
+    ("lastActivityAt", "last_activity_at"),
+)
+
+
+def _lifecycle_wire_timestamps(data: Mapping[str, JsonValue]) -> Dict[str, str]:
+    """The lifecycle policy's timestamp strings as the server sent them."""
+    nested = data.get("lifecycle_policy")
+    policy = nested if isinstance(nested, dict) else data
+    return {key: value for key, wire in _LIFECYCLE_TIMESTAMPS if isinstance(value := policy.get(wire), str)}
 
 
 def _wire_text(value: object) -> Optional[str]:
@@ -1917,22 +1955,22 @@ def _validate_env_key(key: str) -> None:
         raise create_error(_INVALID_ENV_KEY_REASON, 400, "BAD_REQUEST", "SDK")
 
 
-def _sandbox_lifecycle_handle_json(value: SandboxLifecycle) -> SandboxLifecycleJSON:
+def _sandbox_lifecycle_handle_json(value: SandboxLifecycle, wire: Mapping[str, str]) -> SandboxLifecycleJSON:
     payload: SandboxLifecycleJSON = {}
     if value.timeout_seconds is not None:
         payload["timeoutSeconds"] = value.timeout_seconds
     if value.on_timeout is not None:
         payload["onTimeout"] = value.on_timeout
     if value.timeout_at is not None:
-        payload["timeoutAt"] = rfc3339(value.timeout_at)
+        payload["timeoutAt"] = wire.get("timeoutAt") or rfc3339(value.timeout_at)
     if value.idle_expiry_seconds is not None:
         payload["idleExpirySeconds"] = value.idle_expiry_seconds
     if value.on_idle_timeout is not None:
         payload["onIdleTimeout"] = value.on_idle_timeout
     if value.idle_timeout_at is not None:
-        payload["idleTimeoutAt"] = rfc3339(value.idle_timeout_at)
+        payload["idleTimeoutAt"] = wire.get("idleTimeoutAt") or rfc3339(value.idle_timeout_at)
     if value.last_activity_at is not None:
-        payload["lastActivityAt"] = rfc3339(value.last_activity_at)
+        payload["lastActivityAt"] = wire.get("lastActivityAt") or rfc3339(value.last_activity_at)
     if value.last_activity_source is not None:
         payload["lastActivitySource"] = value.last_activity_source
     return payload

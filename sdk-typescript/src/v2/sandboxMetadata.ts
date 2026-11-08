@@ -8,6 +8,7 @@ import { regionOf } from './events.js'
 import { SandboxClass as SANDBOX_CLASSES } from './gen/api-enums.js'
 import { parseSandboxLifecycle, sandboxState } from './http.js'
 import { mibToGib } from './resources.js'
+import { badRequest } from './options.js'
 import type { ImageRef, MacBootMode, SandboxClass, SandboxDto, SandboxHandleJSON, SandboxInfo, SandboxLifecycle } from './types.js'
 
 /** The handle's current observation; only the handle updates this storage. */
@@ -34,6 +35,17 @@ export function parseLabels(value: unknown): Readonly<Record<string, string>> {
   return Object.freeze(Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string')))
 }
 
+/**
+ * Refuse a sandbox object from the API that breaks the contract: every one
+ * carries its `class`. A `BadRequestError` (400, `BAD_REQUEST`, source `SDK`).
+ * @internal
+ */
+export function assertSandboxResponse(sandbox: unknown): asserts sandbox is SandboxDto {
+  if (typeof sandbox !== 'object' || sandbox === null || Array.isArray(sandbox)) throw badRequest('expected a sandbox object')
+  const wireClass: unknown = Reflect.get(sandbox, 'class')
+  if (typeof wireClass !== 'string' || wireClass === '') throw badRequest('sandbox response is missing its class')
+}
+
 export function metadataFromSandbox(sandbox: SandboxDto): SandboxMetadata {
   return {
     name: sandbox.name,
@@ -51,8 +63,10 @@ export function metadataFromSandbox(sandbox: SandboxDto): SandboxMetadata {
     error: sandbox.error ?? undefined,
     macBootMode: sandbox.mac_boot_mode ?? null,
     imageBuildId: sandbox.image_build_id ?? undefined,
-    sandboxClass: sandboxClass(sandbox.class ?? 'linux'),
-    rawSandboxClass: sandbox.class ?? 'linux',
+    // Every API sandbox object carries `class` (checked at the boundary with
+    // assertSandboxResponse); partial internal data leaves it unknown.
+    sandboxClass: sandboxClass(sandbox.class ?? undefined),
+    rawSandboxClass: sandbox.class ?? undefined,
     region: region(sandbox.id, sandbox.region_id),
     persistent: sandbox.persistent ?? undefined,
     user: sandbox.user ?? undefined,
@@ -109,25 +123,17 @@ function knownFields<T extends object>(value: T): T {
   return output
 }
 
-/** Preserve sub-millisecond precision while normalizing an offset to UTC. */
-function utc(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const fraction = value.match(/\.([0-9]+)(?:Z|[+-][0-9]{2}:[0-9]{2})$/i)?.[1]
-  return date.toISOString().replace(/\.[0-9]{3}Z$/, `${fraction === undefined ? '' : `.${fraction}`}Z`)
-}
-
 function lifecycleJSON(policy: SandboxLifecycle | undefined): SandboxLifecycle | undefined {
   if (policy === undefined) return undefined
   return knownFields({
     timeoutSeconds: policy.timeoutSeconds,
     onTimeout: policy.onTimeout,
-    timeoutAt: utc(policy.timeoutAt),
+    // Timestamps are the server's strings, verbatim, as Python writes them.
+    timeoutAt: policy.timeoutAt,
     idleExpirySeconds: policy.idleExpirySeconds,
     onIdleTimeout: policy.onIdleTimeout,
-    idleTimeoutAt: utc(policy.idleTimeoutAt),
-    lastActivityAt: utc(policy.lastActivityAt),
+    idleTimeoutAt: policy.idleTimeoutAt,
+    lastActivityAt: policy.lastActivityAt,
     lastActivitySource: policy.lastActivitySource,
   })
 }
@@ -152,7 +158,7 @@ export function sandboxHandleJSON(id: string, data: SandboxMetadata): SandboxHan
     rawSandboxClass: data.rawSandboxClass,
     persistent: data.persistent,
     spot: data.spot,
-    spotEvictedAt: utc(data.spotEvictedAt),
+    spotEvictedAt: data.spotEvictedAt,
     lifecyclePolicy: lifecycleJSON(data.lifecyclePolicy),
     forkedFrom: data.forkedFrom,
     reservationId: data.reservationId,

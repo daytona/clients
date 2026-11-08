@@ -1,0 +1,63 @@
+{
+  "_comment": "Shared by sdk-python/tests/test_handle_json_fixture.py and sdk-typescript/tests/handle-json-fixture.test.ts: both SDKs must serialize this sandbox detail to exactly this SandboxHandleJSON (timestamp strings verbatim).",
+  "detail": {
+    "id": "sbx-ts",
+    "class": "linux",
+    "status": "running",
+    "name": "ts",
+    "cpu": 1,
+    "cores_max": 2,
+    "memory_mib": 1536,
+    "disk_mib": 2048,
+    "port_map": [],
+    "region_id": "region-a",
+    "labels": {
+      "team": "a"
+    },
+    "spot": true,
+    "spot_evicted_at": "2026-01-02T03:04:05.5Z",
+    "forked_from": "src",
+    "user": "daytona",
+    "lifecycle_policy": {
+      "timeout_seconds": 3600,
+      "on_timeout": "delete",
+      "timeout_at": "2026-01-02T03:04:05.000Z",
+      "idle_expiry_seconds": 600,
+      "on_idle_timeout": "stop",
+      "idle_timeout_at": "2026-01-02T03:04:05.123456Z",
+      "last_activity_at": "2026-01-02T03:04:05Z",
+      "last_activity_source": "api"
+    },
+    "toolbox_proxy_url": "https://proxy.example/sandboxes"
+  },
+  "handleJson": {
+    "sandboxId": "sbx-ts",
+    "name": "ts",
+    "state": "started",
+    "rawState": "running",
+    "region": "region-a",
+    "labels": {
+      "team": "a"
+    },
+    "cpu": 1,
+    "cpuMax": 2,
+    "memory": 1.5,
+    "disk": 2,
+    "sandboxClass": "linux",
+    "rawSandboxClass": "linux",
+    "spot": true,
+    "spotEvictedAt": "2026-01-02T03:04:05.5Z",
+    "lifecyclePolicy": {
+      "timeoutSeconds": 3600,
+      "onTimeout": "delete",
+      "timeoutAt": "2026-01-02T03:04:05.000Z",
+      "idleExpirySeconds": 600,
+      "onIdleTimeout": "stop",
+      "idleTimeoutAt": "2026-01-02T03:04:05.123456Z",
+      "lastActivityAt": "2026-01-02T03:04:05Z",
+      "lastActivitySource": "api"
+    },
+    "forkedFrom": "src",
+    "user": "daytona"
+  }
+}

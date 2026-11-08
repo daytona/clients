@@ -11,7 +11,7 @@ describe('create wait error ownership', () => {
   it.each(['create', 'createFromSnapshot', 'createMacos'] as const)('returns the handle when %s encounters a server 408 while waiting', async (route) => {
     // Given an accepted create followed by a failed API read.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'sbx', status: 'pending', wait_cap_seconds: 0 } },
+      { status: 202, body: { id: 'sbx', class: 'linux', status: 'pending', wait_cap_seconds: 0 } },
       { status: 408, body: { code: 'REQUEST_TIMEOUT', source: 'DAYTONA_API', message: 'request timed out' } },
     ])
     const client = clientAt(api.url)
@@ -59,8 +59,8 @@ describe('create wait error ownership', () => {
   it.each(['create', 'createFromSnapshot', 'createMacos'] as const)('returns the handle when %s observes a terminal sandbox state', async (route) => {
     // Given an accepted create whose sandbox fails during provisioning.
     const api = await startFakeApi([
-      { status: 202, body: { id: 'sbx', status: 'pending', wait_cap_seconds: 0 } },
-      { status: 200, body: { id: 'sbx', status: 'failed', error: 'provisioning failed' } },
+      { status: 202, body: { id: 'sbx', class: 'linux', status: 'pending', wait_cap_seconds: 0 } },
+      { status: 200, body: { id: 'sbx', class: 'linux', status: 'failed', error: 'provisioning failed' } },
     ])
     const client = clientAt(api.url)
     try {

@@ -722,8 +722,15 @@ async def follow_build_logs(
     cursor: str | None = None,
     timeout: float | None = None,
 ) -> BuildLogFollowResult:
-    if timeout is not None and (not math.isfinite(timeout) or timeout < 0):
-        raise ValueError("timeout must be finite and nonnegative")
+    if timeout is not None and (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or not math.isfinite(timeout)
+        or timeout < 0
+    ):
+        raise create_error(
+            "timeout must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
+        )
     if not callable(on_logs):
         raise TypeError("on_logs is required")
     caller_deadline = _clock.monotonic() + timeout if timeout else None

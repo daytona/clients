@@ -249,7 +249,7 @@ function imageSource(source: NonNullable<api.ImageListItem['source']>): ImageSou
 
 export function artifactRefOf(ref: api.ImageReference | api.SnapshotReference | null | undefined): { readonly id: string; readonly name: string | null } | null {
   if (!ref) return null
-  return { id: ref.id, name: ref.name ?? null }
+  return Object.freeze({ id: ref.id, name: ref.name ?? null })
 }
 
 export function buildImageRequest(builder: ImageBuilder, options: {

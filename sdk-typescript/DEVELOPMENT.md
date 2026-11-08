@@ -191,8 +191,16 @@ must preserve `manifestId: null` rather than optionalizing it.
 
 Public options objects reject unknown keys at runtime, because a JavaScript
 caller's typo or an option renamed in 2.x would otherwise be ignored silently.
-Today the client configuration does (`DaytonaConfig`, `SandboxEventsConfig`);
-per-call options adopt it area by area. `src/v2/options.ts` provides the
+Today the client configuration does (`DaytonaConfig`, `SandboxEventsConfig`),
+and so does every client, sandbox-lifecycle and platform-service options
+object, nested entries (`resources`, ports, volume mounts) and
+`IfMatchOptions` included; the toolbox namespaces' per-call options adopt it
+area by area. Every one of those options parameters also refuses a value that
+is not an options object (`assertOptionsObject`: `null`, a primitive, an
+array, a function, a built-in) before any request; only an omitted argument
+takes the defaults. Create option values (`env`, `labels`, `secrets`, port and
+volume entries, `spot`, `user`, `cpuArch`, ...) are checked by
+`assertCreateNestedOptions`, before the build in `createFromBuild()`. `src/v2/options.ts` provides the
 pieces; applying them to a new options type takes two lines:
 
 ```ts

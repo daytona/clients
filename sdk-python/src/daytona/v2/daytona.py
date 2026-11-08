@@ -37,7 +37,7 @@ from ._api_core import (
     expect_list_sandboxes_resp,
     expect_organization_limits,
     expect_project_budget,
-    expect_sandbox_detail,
+    sandbox_detail_wire,
 )
 from ._auth import ProjectTokenAuth
 from ._core import (
@@ -320,10 +320,58 @@ class AsyncDaytona:
         :class:`FeatureNotEnabledError`).
         """
         resolved_image = _require_image_source(image) if image is not None else None
+        config = self._linux_create_config(
+            resolved_image,
+            name=name,
+            env=env,
+            labels=labels,
+            resources=resources,
+            ports=ports,
+            volumes=volumes,
+            secrets=secrets,
+            spot=spot,
+            user=user,
+            lifecycle_policy=lifecycle_policy,
+            network_policy=network_policy,
+            cpu_arch=cpu_arch,
+            cpu_type=cpu_type,
+            region=region,
+            wait_seconds=wait_seconds,
+            create_timeout_seconds=create_timeout_seconds,
+        )
+        return await self._create_with_wait(
+            config,
+            idempotency_key=idempotency_key,
+            sandbox_class="linux",
+            image_ref=_source_image_ref(resolved_image) if resolved_image is not None else None,
+            snapshot_ref=None,
+        )
+
+    def _linux_create_config(
+        self,
+        image: Optional[str],
+        *,
+        name: Optional[str],
+        env: Optional[Mapping[str, str]],
+        labels: Optional[Mapping[str, str]],
+        resources: Optional[Resources],
+        ports: Optional[Sequence[PortMapping]],
+        volumes: Optional[Sequence[VolumeMount]],
+        secrets: Optional[Sequence[str]],
+        spot: Optional[bool],
+        user: Optional[str],
+        lifecycle_policy: Optional[LifecyclePolicyOptions],
+        network_policy: Optional[NetworkPolicyInput],
+        cpu_arch: Optional[str],
+        cpu_type: Optional[str],
+        region: Optional[str],
+        wait_seconds: int,
+        create_timeout_seconds: Optional[int],
+    ) -> CreateConfig:
         config = _merge_create_params(
             route="linux",
             source_kind="image",
-            source=resolved_image,
+            source=image,
             name=name,
             env=_dict_or_none(env, "env"),
             labels=_dict_or_none(labels, "labels"),
@@ -342,13 +390,7 @@ class AsyncDaytona:
         )
         if network_policy is not _UNSET_NETWORK_POLICY:
             config["network_policy"] = network_policy
-        return await self._create_with_wait(
-            config,
-            idempotency_key=idempotency_key,
-            sandbox_class="linux",
-            image_ref=_source_image_ref(resolved_image) if resolved_image is not None else None,
-            snapshot_ref=None,
-        )
+        return config
 
     async def create_from_snapshot(
         self,
@@ -554,6 +596,30 @@ class AsyncDaytona:
         if not isinstance(builder, ImageBuilder):
             raise create_error("create_from_build() takes an ImageBuilder", 400, "BAD_REQUEST", "SDK")
         _validate_wait(wait_seconds)
+        # Every create option is validated before the (billed) build: a caller
+        # error must not cost a build first. The image id is not known yet.
+        _create_body(
+            self._linux_create_config(
+                "img_pending",
+                name=name,
+                env=env,
+                labels=labels,
+                resources=resources,
+                ports=ports,
+                volumes=volumes,
+                secrets=secrets,
+                spot=spot,
+                user=user,
+                lifecycle_policy=lifecycle_policy,
+                network_policy=network_policy,
+                cpu_arch=cpu_arch,
+                cpu_type=cpu_type,
+                region=region,
+                wait_seconds=wait_seconds,
+                create_timeout_seconds=create_timeout_seconds,
+            )
+        )
+        _resolve_idempotency_key(idempotency_key, name)
         if build_timeout is not None and (
             isinstance(build_timeout, bool)
             or not isinstance(build_timeout, (int, float))
@@ -583,12 +649,20 @@ class AsyncDaytona:
             remaining = None if deadline is None else deadline - _clock.monotonic()
             if remaining is not None and remaining <= 0:
                 raise build_timed_out()
+            poll_started = _clock.monotonic()
             try:
                 image = await self.images.get(image.id, wait="ready", timeout=remaining)
             except ClientTimeoutError as error:
                 if deadline is not None and _clock.monotonic() >= deadline:
                     raise build_timed_out(error) from error
                 raise
+            if image.status not in ("ready", "failed", "error"):
+                # A server that answers the long poll early is not polled in a loop.
+                pause = _BUILD_POLL_INTERVAL_S - (_clock.monotonic() - poll_started)
+                if deadline is not None:
+                    pause = min(pause, deadline - _clock.monotonic())
+                if pause > 0:
+                    await asyncio.sleep(pause)
         if image.status in ("failed", "error"):
             raise ImageBuildFailedError(
                 image.error or f"image build {image.id} failed",
@@ -737,7 +811,7 @@ class AsyncDaytona:
         services instead of minting its own; the handle never replaces it.
         """
         return self._sandbox_from_sandbox(
-            expect_sandbox_detail(
+            sandbox_detail_wire(
                 await self._api.send(RequestSpec("GET", f"/sandboxes/{quote(sandbox_id, safe='')}"))
             ),
             toolbox_url=toolbox_url,
@@ -858,14 +932,16 @@ class AsyncDaytona:
             params["cursor"] = cursor
         if limit is not None:
             params["limit"] = limit
-        page = expect_list_sandboxes_resp(
-            await self._api.send(RequestSpec("GET", "/sandboxes", params=params))
-        )
+        payload = await self._api.send(RequestSpec("GET", "/sandboxes", params=params))
+        page = expect_list_sandboxes_resp(payload)
         next_cursor = page.next_cursor
         if next_cursor is None:
             candidate = page.additional_properties.get("nextCursor")
             next_cursor = candidate if isinstance(candidate, str) else None
-        sandboxes = await self._sandboxes_from_sandboxes(page.sandboxes)
+        # The validated page's items as their wire objects: strings (timestamps) verbatim.
+        raw_items = expect_object(payload).get("sandboxes")
+        items = [expect_object(item) for item in raw_items] if isinstance(raw_items, list) else []
+        sandboxes = await self._sandboxes_from_sandboxes(items)
         return ListResult(sandboxes, next_cursor)
 
     async def search(
@@ -1372,6 +1448,8 @@ def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
 
 
 _MAX_MACOS_RESOURCE_VALUE: Final = 2147483647
+#: The least time between two build polls when the server answers early.
+_BUILD_POLL_INTERVAL_S: Final = 1.0
 
 
 # Omitted macOS sizes use the server defaults. Supplied sizes must be within
@@ -1498,6 +1576,18 @@ def _create_body(config: CreateConfig) -> CreateBody:
         sandbox_class=route,
         persistent=route == "macos" and config.get("persistent") is True,
     )
+    # A mistyped value is refused, never silently dropped.
+    for key, kind, description in (
+        ("name", str, "a string"),
+        ("spot", bool, "a boolean"),
+        ("persistent", bool, "a boolean"),
+        ("user", str, "a string"),
+        ("cpu_arch", str, "a string"),
+        ("cpu_type", str, "a string"),
+        ("reservation", str, "a string"),
+        ("auto_renew", bool, "a boolean"),
+    ):
+        _optional_typed(config, key, kind, description)
     body: CreateBody = {}
     if not source_omitted:
         body[source_kind] = source
@@ -1527,10 +1617,22 @@ def _create_body(config: CreateConfig) -> CreateBody:
     if resources is not None and route == "linux" and source_kind == "image":
         if not isinstance(resources, Resources):
             raise create_error("resources must be Resources(...)", 400, "BAD_REQUEST", "SDK")
-        if resources.cpu is not None:
-            body["cpu"] = resources.cpu
-        if resources.cpu_max is not None:
-            body["cores_max"] = resources.cpu_max
+        for cores, wire, label in (
+            (resources.cpu, "cpu", "cpu"),
+            (resources.cpu_max, "cores_max", "cpu_max"),
+        ):
+            if cores is None:
+                continue
+            if (
+                isinstance(cores, bool)
+                or not isinstance(cores, (int, float))
+                or not math.isfinite(cores)
+                or cores <= 0
+            ):
+                raise create_error(
+                    f"resources.{label} must be a positive number of cores", 400, "BAD_REQUEST", "SDK"
+                )
+            body[wire] = cores
         for gib, wire, label in (
             (resources.memory, "memory_mib", "resources.memory"),
             (resources.memory_max, "memory_max_mib", "resources.memory_max"),
@@ -1701,34 +1803,75 @@ def _volume_mount(mount: VolumeMount) -> JsonObject:
     return body
 
 
-def _volume_mounts(value: CreateConfigValue | None) -> Sequence[VolumeMount] | None:
+def _bad_create_value(message: str) -> DaytonaError:
+    return create_error(message, 400, "BAD_REQUEST", "SDK")
+
+
+def _list_items(
+    value: CreateConfigValue | None, ok: Callable[[object], bool], message: str
+) -> Optional[list[object]]:
+    """A list/tuple create argument whose every entry passes ``ok``; ``None`` when absent.
+
+    Anything else (a bare string, a mapping, a mistyped entry) is refused, never dropped.
+    """
+    if value is None:
+        return None
     if (
-        isinstance(value, Sequence)
-        and not isinstance(value, (str, bytes))
-        and all(isinstance(item, VolumeMount) for item in value)
+        isinstance(value, (str, bytes))
+        or not isinstance(value, Sequence)
+        or not all(ok(item) for item in value)
     ):
-        return [item for item in value if isinstance(item, VolumeMount)]
-    return None
+        raise _bad_create_value(message)
+    return list(value)
+
+
+def _is_volume_mount(item: object) -> bool:
+    return (
+        isinstance(item, VolumeMount)
+        and isinstance(item.volume_id, str)
+        and bool(item.volume_id.strip())
+        and isinstance(item.mount_path, str)
+        and bool(item.mount_path.strip())
+        and (item.subpath is None or isinstance(item.subpath, str))
+        and (item.read_only is None or isinstance(item.read_only, bool))
+    )
+
+
+def _is_port_mapping(item: object) -> bool:
+    return (
+        isinstance(item, PortMapping)
+        and isinstance(item.port, int)
+        and not isinstance(item.port, bool)
+        and 1 <= item.port <= 65535
+        and isinstance(item.proto, str)
+    )
+
+
+def _volume_mounts(value: CreateConfigValue | None) -> Sequence[VolumeMount] | None:
+    items = _list_items(
+        value, _is_volume_mount, "volumes must be a list of VolumeMount(volume_id=..., mount_path=...)"
+    )
+    return None if items is None else [item for item in items if isinstance(item, VolumeMount)]
 
 
 def _port_requests(value: CreateConfigValue | None) -> Sequence[PortMapping] | None:
-    if (
-        isinstance(value, Sequence)
-        and not isinstance(value, (str, bytes))
-        and all(isinstance(item, PortMapping) for item in value)
-    ):
-        return [item for item in value if isinstance(item, PortMapping)]
-    return None
+    items = _list_items(
+        value, _is_port_mapping, "ports must be a list of PortMapping(port=...) with a port in 1..65535"
+    )
+    return None if items is None else [item for item in items if isinstance(item, PortMapping)]
 
 
 def _secret_names(value: CreateConfigValue | None) -> Sequence[str] | None:
-    if (
-        isinstance(value, Sequence)
-        and not isinstance(value, (str, bytes))
-        and all(isinstance(item, str) for item in value)
-    ):
-        return [item for item in value if isinstance(item, str)]
-    return None
+    items = _list_items(
+        value, lambda item: isinstance(item, str) and bool(item), "secrets must be a list of secret names"
+    )
+    return None if items is None else [item for item in items if isinstance(item, str)]
+
+
+def _optional_typed(config: CreateConfig, key: str, kind: type, description: str) -> None:
+    value = config.get(key)
+    if value is not None and (not isinstance(value, kind) or (kind is not bool and isinstance(value, bool))):
+        raise _bad_create_value(f"{key} must be {description}")
 
 
 def _string_map(value: CreateConfigValue | None) -> dict[str, str] | None:

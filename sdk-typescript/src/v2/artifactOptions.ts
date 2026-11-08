@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys, optionalSeconds } from './options.js'
 import type { AxiosInstance } from 'axios'
 import { sleep } from './http.js'
 import { ClientTimeoutError } from './errors/DaytonaError.js'
@@ -24,6 +24,7 @@ const GET_ARTIFACT_OPTION_KEYS = optionKeys<GetArtifactOptions>()({ wait: true, 
 /** @internal */
 export async function getArtifact<T extends { readonly status: string }>(http: AxiosInstance, path: string, options: GetArtifactOptions): Promise<T> {
   assertKnownOptions('GetArtifactOptions', options, GET_ARTIFACT_OPTION_KEYS)
+  if (options.wait !== undefined && options.wait !== 'ready') throw badRequest(`wait must be "ready" or omitted, got ${JSON.stringify(options.wait)}`)
   const seconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
   const deadline = options.wait === undefined || seconds === undefined || seconds === 0 ? undefined : Date.now() + seconds * 1000
   let last: T | undefined

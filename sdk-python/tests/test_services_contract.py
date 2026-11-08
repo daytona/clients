@@ -25,6 +25,7 @@ from daytona.v2 import (
     ImageBuilder,
     ImageBuildFailedError,
     ListResult,
+    Resources,
     SearchResult,
 )
 from daytona.v2._core import RequestSpec
@@ -34,6 +35,7 @@ from daytona.v2.services import (
     AsyncImagesService,
     AsyncMacModelsService,
     AsyncSecretsService,
+    AsyncSnapshotsService,
     AsyncVolumesService,
 )
 from daytona.v2.types import DaytonaConfig, ImageRef, SnapshotRef
@@ -335,3 +337,60 @@ def test_sdk_built_classes_take_only_private_constructor_parameters() -> None:
     for cls in classes:
         names = [name for name in inspect.signature(cls.__init__).parameters if name != "self"]
         assert names and all(name.startswith("_") for name in names), (cls.__name__, names)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("option", "value", "message"),
+    [
+        ("secrets", "s1", "secrets must be a list of secret names"),
+        ("secrets", ["s1", 2], "secrets must be a list of secret names"),
+        ("ports", [{"port": 80}], "ports must be a list of PortMapping"),
+        ("ports", "80", "ports must be a list of PortMapping"),
+        ("volumes", [{"volume_id": "v", "mount_path": "/m"}], "volumes must be a list of VolumeMount"),
+        ("spot", "yes", "spot must be a boolean"),
+        ("user", 5, "user must be a string"),
+        ("cpu_arch", 5, "cpu_arch must be a string"),
+        ("env", {"A": 1}, "env must be a mapping of string to string"),
+        ("labels", {"a": 1}, "labels must be a mapping of string to string"),
+        ("resources", Resources(cpu="2"), "resources.cpu must be a positive number of cores"),  # type: ignore[arg-type]
+    ],
+)
+async def test_mistyped_create_options_are_refused_before_any_request(
+    option: str, value: object, message: str
+) -> None:
+    # A mistyped value is refused, never silently dropped (no sandbox without its secret or ports),
+    # and create_from_build refuses it before the build, so a caller error costs no build.
+    api = _Api([])
+    client = _client(api)
+    with pytest.raises(BadRequestError, match=message):
+        await client.create("img", **{option: value})  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match=message):
+        await client.create_from_build(ImageBuilder.from_registry("python:3.12"), **{option: value})  # type: ignore[arg-type]
+    assert api.specs == []
+
+
+@pytest.mark.anyio
+async def test_fork_refuses_an_empty_name_and_artifact_gets_refuse_unknown_waits() -> None:
+    api = _Api([])
+    sandbox = lazy_sandbox(_client(api), "sbx")
+    sandbox._api = api  # type: ignore[attr-defined]
+    for name in ("", "  "):
+        with pytest.raises(BadRequestError, match="fork name must be a non-empty string"):
+            await sandbox.fork(name=name)
+    images = AsyncImagesService(api)  # type: ignore[arg-type]
+    snapshots = AsyncSnapshotsService(api)  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match='wait must be "ready"'):
+        await images.get("img", wait="started")  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match='wait must be "ready"'):
+        await snapshots.get("snap", wait="started")  # type: ignore[arg-type]
+    assert api.specs == []
+
+
+def test_volume_mount_and_port_mapping_are_keyword_only() -> None:
+    from daytona.v2 import PortMapping, VolumeMount
+
+    with pytest.raises(TypeError):
+        VolumeMount("vol", "/mnt")  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        PortMapping(8080)  # type: ignore[misc]
