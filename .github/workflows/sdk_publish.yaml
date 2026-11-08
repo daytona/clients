@@ -554,11 +554,16 @@ jobs:
           # so a stable version below the package's current `latest` (a
           # backport after a newer stable release) is refused, before anything
           # is built; a 0.x `latest` (before the first stable 2.x) is below.
+          # A package not on npm yet (404), or without a `latest` tag, has
+          # nothing to move back; any other answer fails closed.
           below_latest() { # package version
-            local current
-            if ! current=$(curl -sS --max-time 60 --fail "https://registry.npmjs.org/-/package/${1/\//%2f}/dist-tags" | sed -n 's/.*"latest":"\([^"]*\)".*/\1/p'); then
-              echo "::error::could not read the npm dist-tags of $1"; exit 1
-            fi
+            local code current
+            code=$(curl -sS --max-time 60 -o /tmp/dist-tags.json -w '%{http_code}' "https://registry.npmjs.org/-/package/${1/\//%2f}/dist-tags") || true
+            case "$code" in
+              200) current=$(sed -n 's/.*"latest" *: *"\([^"]*\)".*/\1/p' /tmp/dist-tags.json) ;;
+              404) return 1 ;;
+              *)   echo "::error::could not read the npm dist-tags of $1 (HTTP ${code:-000})"; exit 1 ;;
+            esac
             [ -n "$current" ] && [ "$current" != "$2" ] && [ "$(printf '%s\n%s\n' "$current" "$2" | sort -V | tail -n 1)" = "$current" ]
           }
           if [ "${NPM_DIST_TAG:-}" = latest ]; then

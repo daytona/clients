@@ -301,18 +301,24 @@ for (const [title, channel, v0Running, formulaVersion, status, waits] of [
 
 // ── registry-check: a stable version never moves npm `latest` back ───────────
 
-for (const [title, latest, version, status] of [
-  ['above a 0.x latest', '0.231.0', '2.0.0', 0],
-  ['above a lower 2.x latest', '2.0.0', '2.0.1', 0],
-  ['below the current latest', '2.1.0', '2.0.1', 1],
-  ['equal to the current latest (a resume)', '2.0.0', '2.0.0', 0],
+for (const [title, answer, version, status] of [
+  ['above a 0.x latest', '200 {"latest":"0.231.0","alpha":"2.2.0-alpha.1"}', '2.0.0', 0],
+  ['above a lower 2.x latest', '200 {"latest":"2.0.0"}', '2.0.1', 0],
+  ['below the current latest', '200 {"latest":"2.1.0","alpha":"2.2.0-alpha.1"}', '2.0.1', 1],
+  ['below the current latest, spaced JSON', '200 {"latest": "2.1.0"}', '2.0.1', 1],
+  ['equal to the current latest (a resume)', '200 {"latest":"2.0.0"}', '2.0.0', 0],
+  ['of a package without a latest tag', '200 {"alpha":"2.0.0-alpha.8"}', '2.0.0', 0],
+  ['of a package not on npm yet', '404 {}', '2.0.0', 0],
+  ['when the registry cannot answer', '503 -', '2.0.0', 1],
 ]) {
   test(`registry check: a stable version ${title}`, (context) => {
-    // Given: npm dist-tags whose latest is `latest`, and nothing published yet.
+    // Given: npm answers the dist-tags request with a status and a body.
     const root = fixture(context);
+    const [code, body] = [answer.slice(0, 3), answer.slice(4)];
     executable(join(root, 'bin/curl'), [
-      'url="${*: -1}"',
-      `case "$url" in *dist-tags) printf '{"latest":"${latest}","alpha":"2.2.0-alpha.1"}' ;; *) printf 404 ;; esac`,
+      'out=""; url="${*: -1}"',
+      'while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done',
+      `case "$url" in *dist-tags) printf '%s' '${body}' > "$out"; printf ${code} ;; *) printf 404 ;; esac`,
     ].join('\n'));
     // When
     const result = run(root, step('Refuse a version the registry already has (unless force_republish)'), {
