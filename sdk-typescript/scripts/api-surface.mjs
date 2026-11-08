@@ -49,8 +49,12 @@ function createProgram() {
 const oneLine = (text) => text.replace(/\s+/g, ' ').trim()
 
 function isInternal(decl) {
-  return ts.getJSDocTags(decl).some((tag) => tag.tagName.text === 'internal')
+  return Boolean(decl) && ts.getJSDocTags(decl).some((tag) => tag.tagName.text === 'internal')
 }
+
+// stripInternal drops an `@internal` overload from the published
+// declarations; so does the snapshot.
+const isPublicSignature = (sig) => !isInternal(sig.declaration)
 
 function isOwnSource(decl) {
   const file = decl.getSourceFile().fileName
@@ -114,7 +118,7 @@ function surfaceOf(checker, sourceFile, entry) {
       const mods = [statics ? 'static' : '', flags & ts.ModifierFlags.Abstract ? 'abstract' : ''].filter(Boolean)
       const isMethod = member.flags & ts.SymbolFlags.Method
       if (isMethod) {
-        for (const sig of checker.getSignaturesOfType(memberType, ts.SignatureKind.Call)) {
+        for (const sig of checker.getSignaturesOfType(memberType, ts.SignatureKind.Call).filter(isPublicSignature)) {
           emit(name, [...mods, 'method'].join(' '), signatureText(sig, decl))
         }
         continue
@@ -133,7 +137,7 @@ function surfaceOf(checker, sourceFile, entry) {
     for (const kind of [ts.SignatureKind.Call, ts.SignatureKind.Construct]) {
       if (statics) continue
       for (const sig of checker.getSignaturesOfType(type, kind)) {
-        if (!sig.declaration || !isOwnSource(sig.declaration)) continue
+        if (!sig.declaration || !isOwnSource(sig.declaration) || isInternal(sig.declaration)) continue
         emit(`${prefix}()`, kind === ts.SignatureKind.Call ? 'call' : 'new', signatureText(sig, sig.declaration))
       }
     }
@@ -163,7 +167,7 @@ function surfaceOf(checker, sourceFile, entry) {
     else if (ctorFlags & ts.ModifierFlags.Protected) emit(`${name}.constructor`, `protected ${ctorKind}`)
     else if (!ctor || !isInternal(ctor)) {
       const staticType = checker.getTypeOfSymbolAtLocation(sym, decl)
-      for (const sig of checker.getSignaturesOfType(staticType, ts.SignatureKind.Construct)) {
+      for (const sig of checker.getSignaturesOfType(staticType, ts.SignatureKind.Construct).filter(isPublicSignature)) {
         emit(`${name}.constructor`, ctorKind, signatureText(sig, decl).replace(/: [^:]*$/, ''))
       }
     }
@@ -183,7 +187,7 @@ function surfaceOf(checker, sourceFile, entry) {
   // one is a one-line change.
   const LONG = 120
 
-  function isObjectShape(type) {
+  function expandsToMembers(type) {
     return (
       type.flags & ts.TypeFlags.Object &&
       !(type.flags & ts.TypeFlags.Union) &&
@@ -198,7 +202,7 @@ function surfaceOf(checker, sourceFile, entry) {
   function emitTypeAlias(name, sym) {
     const decl = sym.declarations.find(ts.isTypeAliasDeclaration)
     const type = checker.getTypeAtLocation(decl.type)
-    if (ts.isTypeLiteralNode(decl.type) || (!decl.typeParameters && isObjectShape(type))) {
+    if (ts.isTypeLiteralNode(decl.type) || (!decl.typeParameters && expandsToMembers(type))) {
       emit(name, 'type', `${typeParams(decl)} = {...}`)
       emitMembers(name, type, sym, decl)
       return
@@ -237,7 +241,8 @@ function surfaceOf(checker, sourceFile, entry) {
     else if (flags & ts.SymbolFlags.Enum) emitEnum(name, sym)
     else if (flags & ts.SymbolFlags.Function) {
       const decl = sym.declarations[0]
-      for (const sig of checker.getSignaturesOfType(checker.getTypeOfSymbolAtLocation(sym, decl), ts.SignatureKind.Call)) {
+      const signatures = checker.getSignaturesOfType(checker.getTypeOfSymbolAtLocation(sym, decl), ts.SignatureKind.Call)
+      for (const sig of signatures.filter(isPublicSignature)) {
         emit(name, 'function', signatureText(sig, decl))
       }
     } else if (flags & ts.SymbolFlags.Variable) {
@@ -257,6 +262,8 @@ function surfaceOf(checker, sourceFile, entry) {
   }
 
   for (const { name, target } of exported) {
+    // An `@internal` declaration is not in the published declarations.
+    if (target.declarations?.length && target.declarations.every(isInternal)) continue
     const names = exportsByTarget.get(target)
     // One name per declaration carries the members; the others point at it.
     const canonical = names.includes(target.name) ? target.name : [...names].sort()[0]

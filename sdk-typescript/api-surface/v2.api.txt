@@ -1676,7 +1676,6 @@ Sandbox.accessToken: optional property string
 Sandbox.accessTokenExpiresAt: optional property string
 Sandbox.buildLogs: method (): Promise<string>
 Sandbox.computerUse: readonly property ComputerUseService
-Sandbox.constructor: internal-constructor (sandboxOrId: SandboxDto | SandboxInfo | string, api: AxiosInstance | undefined, toolboxBaseUrl: string | undefined, apiKey: string | undefined, target: string | undefined, options: SandboxConnectOptions | undefined, requestTimeout: number | undefined, httpOptions: HttpClientOptions | undefined, hub: WaitHub | undefined)
 Sandbox.constructor: internal-constructor (sandboxOrId: SandboxDto | SandboxInfo | string, api: AxiosInstance | undefined, toolboxBaseUrl: string | undefined, apiKey: string | undefined, target?: string, options?: SandboxConnectOptions, requestTimeout?: number, httpOptions?: HttpClientOptions)
 Sandbox.cpu: optional property number
 Sandbox.cpuMax: optional property number
