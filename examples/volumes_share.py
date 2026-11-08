@@ -63,7 +63,6 @@ def main() -> int:
         time.sleep(SYNC_WAIT_SECONDS)
         a.delete()
         boxes.remove(a)
-        time.sleep(3)
 
         print("2. sandbox B reads A's file and appends a line")
         b = new_box("vol-b")
@@ -79,7 +78,6 @@ def main() -> int:
         time.sleep(SYNC_WAIT_SECONDS)
         b.delete()
         boxes.remove(b)
-        time.sleep(3)
 
         print("3. sandbox C reads both writers' data")
         c = new_box("vol-c")
@@ -96,14 +94,13 @@ def main() -> int:
                     box.delete()
                 except DaytonaError as error:
                     print(f"delete sandbox failed: {error}")
-            # Allow sandbox deletion to finish before deleting the volume.
-            time.sleep(3)
+            # delete() waits until each sandbox is destroyed.
             try:
-                daytona.volumes.delete(volume.id)
+                daytona.volumes.delete(volume.id, id_only=True)
             except DaytonaError as error:
                 print(f"delete volume failed (retrying once): {error}")
                 time.sleep(5)
-                daytona.volumes.delete(volume.id)
+                daytona.volumes.delete(volume.id, id_only=True)
     print("SUCCESS" if ok else "FAILURE")
     return 0 if ok else 1
 
