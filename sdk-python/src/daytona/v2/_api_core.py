@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import _gen
-from ._core import TransportPayload, _expect_model_from_dict, expect_object, parse_timestamp
+from ._core import TransportPayload, _expect_model_from_dict, expect_object, parse_image, parse_timestamp
 from ._events import region_of
 from ._gen.api import (
     AsyncOperation,
@@ -28,6 +28,7 @@ from .errors import create_error
 from .types import (
     AuditActionGroup,
     AuditActionList,
+    Image,
     ImageBuildLimits,
     JsonObject,
     MacCatalog,
@@ -255,6 +256,14 @@ def expect_images_page(value: TransportPayload) -> ImagePage:
             ],
         }
     return _expect_model_from_dict(value, ImagePage, "image list response", ImagePage.from_dict)
+
+
+def expect_image(value: TransportPayload) -> Image:
+    """An image detail checked against the contract (as the list items are) before it is mapped."""
+    if isinstance(value, dict):
+        value = {**{flag: False for flag in _IMAGE_PLATFORM_FLAGS}, **value}
+    wire = _expect_model_from_dict(value, _gen.api.Image, "image detail response", _gen.api.Image.from_dict)
+    return parse_image(wire)
 
 
 def expect_list_secrets_resp(value: TransportPayload) -> SecretPage:

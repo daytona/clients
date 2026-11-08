@@ -9,12 +9,13 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { Image, ImageBuilder, Snapshot, buildImageRequest, isImageBuilder } from './Image.js'
-import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, strictUriEncode, transportFromAxiosInstance } from './http.js'
+import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
+import { ASYNC_OPERATION, checkResponse } from './responseFields.js'
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
 import { ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
-import { assertKnownOptions, badRequest, optionKeys, optionalSeconds } from './options.js'
+import { assertKnownOptions, badRequest, optionalSeconds, optionKeys, snapshotOptions } from './options.js'
 import { getArtifact } from './artifactOptions.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
 import { INTERNAL, assertInternal } from './internal.js'
@@ -42,6 +43,7 @@ const IMAGE_PULL_OPTION_KEYS = optionKeys<ImagePullOptions>()({ ...BUILD_IMAGE_O
 const LIST_IMAGES_OPTION_KEYS = optionKeys<ListImagesOptions>()({ cursor: true, limit: true, name: true, anonymous: true, sandboxId: true, platform: true })
 
 const IMAGE_LONGPOLL_MAX_MS = 60_000
+const IMAGE_POLL_MIN_INTERVAL_MS = 1_000
 const IMAGE_HOLD_READ_SLACK_MS = 5_000
 
 export class ImagesService {
@@ -78,11 +80,12 @@ export class ImagesService {
     if (!isImageBuilder(builder)) throw badRequest('images.build() takes an ImageBuilder (ImageBuilder.fromDockerfile(...), .fromRegistry(...))')
     assertKnownOptions('BuildImageOptions', options, BUILD_IMAGE_OPTION_KEYS)
     const { data } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(builder, options))
-    return this.get(data.id)
+    // Checked before the read: no request ever goes to /images/undefined.
+    return this.get(checkResponse<api.CreateImageResponse>(data, ASYNC_OPERATION, 'image create').id)
   }
 
   public async list(options: ListImagesOptions = {}): Promise<ListResult<Image>> {
-    assertKnownOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS)
+    options = snapshotOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS) ?? {}
     const { data } = await this.http.get<api.ImagePage>('/images', {
       params: {
         cursor: options.cursor,
@@ -98,7 +101,7 @@ export class ImagesService {
   }
 
   public async *iter(options: ListImagesOptions = {}): AsyncIterable<Image> {
-    assertKnownOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS)
+    options = snapshotOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS) ?? {}
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -144,13 +147,22 @@ export class ImagesService {
     }
     armDeadline()
     try {
-      const { data: submitted } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(ImageBuilder.fromRegistry(ref), options), requestOptions())
+      const { data: response } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(ImageBuilder.fromRegistry(ref), options), requestOptions())
+      const submitted = checkResponse<api.CreateImageResponse>(response, ASYNC_OPERATION, 'image create')
       const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(submitted.id)}`, requestOptions())
       checkDeadline()
       let image = new Image(INTERNAL, initial)
       if (options.wait === false) return image
+      let lastPollStarted: number | undefined
       while (image.status !== 'ready' && image.status !== 'failed' && image.status !== 'error') {
+        // An early non-terminal answer pauses up to a second before the next
+        // hold, as `get(id, { wait: 'ready' })` does: no hot loop on a fast server.
+        if (lastPollStarted !== undefined) {
+          const pause = Math.min(IMAGE_POLL_MIN_INTERVAL_MS - (Date.now() - lastPollStarted), deadline === undefined ? Infinity : deadline - Date.now())
+          if (pause > 0) await sleep(pause)
+        }
         checkDeadline()
+        lastPollStarted = Date.now()
         // A long poll is governed by the pull budget, not the request timeout:
         // the hold is the smaller of the remaining budget and the server's cap,
         // in whole milliseconds, and the read allows the hold plus slack.

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { imageWire } from './artifactFixtures'
 import { createServer } from 'node:http'
 import type { Server, ServerResponse } from 'node:http'
 import { once } from 'node:events'
@@ -23,7 +24,7 @@ function reply(phase: Phase, response: ServerResponse): void {
   response.setHeader('Content-Type', 'application/json')
   response.end(JSON.stringify(phase === 'post'
     ? { id: 'img-pull', status: 'pending' }
-    : { id: 'img-pull', status: phase === 'initial' ? 'pending' : 'ready', region_ids: [] }))
+    : imageWire({ id: 'img-pull', status: phase === 'initial' ? 'pending' : 'ready' })))
 }
 
 beforeEach(async () => {

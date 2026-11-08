@@ -6,7 +6,7 @@
 import type { AxiosInstance } from 'axios'
 import { createHttpClient, HttpTransport, strictUriEncode } from './http.js'
 import type { HttpClientOptions } from './http.js'
-import { assertKnownOptions } from './options.js'
+import { assertKnownOptions, badRequest, snapshotOptions } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL } from './internal.js'
 import { BadRequestError } from './errors/DaytonaError.js'
@@ -30,6 +30,7 @@ import type * as api from './gen/api-types.js'
 import { attachHub, detachHub, eventsHubConfig } from './events.js'
 import type { EventsHubConfig, WaitHub } from './events.js'
 import type { AuditActionList, ProjectApiKey, CreateFromBuildOptions, FindByNameOptions, LifecycleWaitOptions, CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions, DaytonaConfig, GetLimitsOptions, ListResult, ListSandboxesOptions, OrganizationLimits, ProjectBudget, SandboxConnectOptions, SandboxInfo, SearchResult, SearchSandboxesOptions, SandboxDto } from './types.js'
+import { isBlank } from './pyText.js'
 
 export { DEFAULT_V2_API_URL } from './clientConfig.js'
 
@@ -292,7 +293,7 @@ export class Daytona {
   }
 
   public async *iter(options: ListSandboxesOptions = {}): AsyncIterable<Sandbox> {
-    assertKnownOptions('ListSandboxesOptions', options, LIST_KEYS)
+    options = snapshotOptions('ListSandboxesOptions', options, LIST_KEYS) ?? {}
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -358,7 +359,9 @@ export class Daytona {
   private resolveWithHub(sandbox: Sandbox | string): Sandbox {
     // A bare id is a metadata-less handle for the by-id API operations
     // (no toolbox URL, no fetch); a sandbox object comes from create/get/list.
-    if (typeof sandbox === 'string') return this.buildSandbox(sandbox)
+    if (typeof sandbox === 'string' && !isBlank(sandbox)) return this.buildSandbox(sandbox)
+    // A wrong type or a blank id is refused before any request, as in Python.
+    if (!(sandbox instanceof Sandbox)) throw badRequest('sandbox must be a Sandbox or a non-empty sandbox id')
     const hub = this.acquireHub()
     if (hub !== undefined) sandbox.attachHub(hub)
     return sandbox

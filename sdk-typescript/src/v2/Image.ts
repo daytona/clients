@@ -11,6 +11,22 @@ import type { ArtifactRetention, CpuArch, ImageOrigin, ImageSource, ImageStatus,
 import type { ImageModel } from './imageModel.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
+import { arrayOf, checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
+
+// The contract fields an Image / Snapshot maps (`platform` / `default` /
+// `deprecated` read as false when absent, as in Python).
+const IMAGE: ResponseFields = {
+  id: 'string', anonymous: 'boolean', class: 'string', created_at: 'string', updated_at: 'string', origin: 'string',
+  region_id: 'string', retention: 'string', status: 'string', format_version: 'integer', format_outdated: 'boolean',
+  region_ids: arrayOf('string'), platform: 'boolean?', default: 'boolean?', deprecated: 'boolean?', name: 'string?',
+  bytes: 'integer?', disk_mib: 'integer?', error: 'string?', expires_at: 'string?', layer_count: 'integer?', source: 'object?',
+}
+const SNAPSHOT: ResponseFields = {
+  id: 'string', name: 'string', class: 'string', kind: 'string', status: 'string', region_id: 'string',
+  region_ids: arrayOf('string'), created_at: 'string', updated_at: 'string', bytes: 'integer?', memory_bytes: 'integer?',
+  error: 'string?', sandbox_id: 'string?',
+}
 
 type BuilderSource =
   | { readonly type: 'registry'; readonly ref: string }
@@ -176,10 +192,11 @@ export class Image implements ImageModel {
   constructor(token: Internal, init: never)
   constructor(token: Internal, image: api.ImageListItem) {
     assertInternal(token, 'Image')
+    checkResponse<api.ImageListItem>(image, IMAGE, 'image')
     this.id = image.id
     this.name = image.name ?? null
     this.anonymous = image.anonymous
-    this.availableIn = [...image.region_ids]
+    this.availableIn = Object.freeze([...image.region_ids])
     this.bytes = image.bytes ?? undefined
     this.sandboxClass = image.class
     this.createdAt = image.created_at
@@ -193,8 +210,8 @@ export class Image implements ImageModel {
     this.retention = knownOrUnknown(image.retention, IMAGE_RETENTIONS)
     this.source = image.source === undefined || image.source === null ? undefined : imageSource(image.source)
     this.status = image.status
-    this.formatVersion = image.format_version ?? undefined
-    this.formatOutdated = image.format_outdated ?? false
+    this.formatVersion = image.format_version
+    this.formatOutdated = image.format_outdated
     this.platform = image.platform === true
     this.default = image.default === true
     this.deprecated = image.deprecated === true
@@ -225,13 +242,14 @@ export class Snapshot {
   constructor(token: Internal, init: never)
   constructor(token: Internal, snapshot: api.Snapshot) {
     assertInternal(token, 'Snapshot')
+    checkResponse<api.Snapshot>(snapshot, SNAPSHOT, 'snapshot')
     this.id = snapshot.id
     this.name = snapshot.name
     this.rawSandboxClass = snapshot.class
     this.sandboxClass = knownOrUnknown(snapshot.class, SNAPSHOT_CLASSES)
     this.rawKind = snapshot.kind
     this.kind = knownOrUnknown(snapshot.kind, SNAPSHOT_KINDS)
-    this.availableIn = [...snapshot.region_ids]
+    this.availableIn = Object.freeze([...snapshot.region_ids])
     this.region = snapshot.region_id
     this.status = snapshot.status
     this.error = snapshot.error ?? undefined
@@ -243,7 +261,19 @@ export class Snapshot {
   }
 }
 
+// The source is an exact-discriminator union: each variant's fields are required.
+const SOURCE_FIELDS: Readonly<Record<string, ResponseFields>> = {
+  registry: { ref: 'string' },
+  dockerfile: { context_object: 'string', dockerfile: 'string' },
+  named: { name: 'string' },
+  manifest: { name: 'string' },
+}
+
 function imageSource(source: NonNullable<api.ImageListItem['source']>): ImageSource {
+  const type: unknown = Reflect.get(source, 'type')
+  const fields = typeof type === 'string' && Object.prototype.hasOwnProperty.call(SOURCE_FIELDS, type) ? SOURCE_FIELDS[type] : undefined
+  if (fields === undefined) throw badRequest('image response has a source.type that is not a known source type')
+  checkResponse(source, fields, 'image source')
   switch (source.type) {
     case 'registry':
       return { type: source.type, ref: source.ref }
@@ -270,7 +300,7 @@ export function buildImageRequest(builder: ImageBuilder, options: {
 } = {}): api.CreateImageRequest {
   return {
     ...(options.name === undefined ? {} : { name: options.name }),
-    ...(options.idleExpirySeconds === undefined ? {} : { idle_expiry_seconds: options.idleExpirySeconds }),
+    ...(options.idleExpirySeconds === undefined || options.idleExpirySeconds === null ? {} : { idle_expiry_seconds: options.idleExpirySeconds }),
     ...(options.region === undefined ? {} : { region_id: options.region }),
     ...(options.cpuArch === undefined ? {} : { cpu_arch: options.cpuArch }),
     ...builder.toRequestSource(),

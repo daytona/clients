@@ -75,6 +75,8 @@ def _image(image_id: str, status: str, **overrides: object) -> dict[str, object]
         "updated_at": _TIME,
         "format_version": 2,
         "format_outdated": False,
+        "class": "linux",
+        "region_ids": ["region-a"],
         **overrides,
     }
 

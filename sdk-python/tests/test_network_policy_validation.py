@@ -97,11 +97,20 @@ async def test_network_policy_errors_preserve_trace_id_without_auto_retry(
     assert exc_info.value.trace_id == body["trace_id"]
 
 
-async def test_a_non_object_network_policy_response_is_a_contract_error() -> None:
-    with FakeApi([PlannedResponse(200, [])]) as api:
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        ([], "network policy response must be an object"),
+        ({"desired_revision": 1, "applied": []}, "applied must be an object"),
+        ({"desired_revision": 1, "desired": "x"}, "desired must be an object"),
+    ],
+)
+async def test_a_non_object_network_policy_response_is_a_contract_error(body: object, message: str) -> None:
+    # The message names the field, as TypeScript's does.
+    with FakeApi([PlannedResponse(200, body, {"ETag": '"np-1"'})]) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            with pytest.raises(BadRequestError, match="^expected a JSON object response$") as raised:
+            with pytest.raises(BadRequestError, match=f"^{message}$") as raised:
                 await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()

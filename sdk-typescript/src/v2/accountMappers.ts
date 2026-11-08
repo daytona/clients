@@ -5,36 +5,40 @@
 
 import type * as api from './gen/api-types.js'
 import type { AuditActionList, OrganizationLimits, ProjectApiKey, ProjectBudget, UsageLimit } from './accountTypes.js'
-import { badRequest } from './options.js'
+import { arrayOf, checkResponse, nested } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 
-// The malformed-response rule: a response missing a structure the mapper
-// reads is the SDK's BadRequestError naming the field, never a raw TypeError.
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+// The contract fields each account mapper reads, leaves and array items
+// included: a response that breaks them is the SDK's BadRequestError naming
+// the field, never a raw TypeError.
+const AUDIT_ACTIONS: ResponseFields = { targets: arrayOf(nested({ target_type: 'string', actions: arrayOf('string') })) }
+const API_KEY: ResponseFields = {
+  id: 'string', name: 'string', project_id: 'string', project_permissions: arrayOf('string'), created_at: 'string',
+  created_by: 'string?', expires_at: 'string?', last_used_at: 'string?', revoked_at: 'string?', key_prefix: 'string?',
+  key_suffix: 'string?', service_account_id: 'string?', service_account_name: 'string?',
+  context: nested({ org_id: 'string', org_name: 'string', project_name: 'string' }),
+}
+const PROJECT_BUDGET: ResponseFields = {
+  monthly_limit_cents: 'integer?', period_start_date: 'string?', spent_cents: 'integer?', created_at: 'string?',
+  updated_at: 'string?', evaluated_at: 'string?', exceeded_at: 'string?', stop_at: 'string?',
+}
+const USAGE: ResponseFields = { limit: 'integer?', usage: 'integer' }
+const ORGANIZATION_LIMITS: ResponseFields = {
+  sandboxes: nested({ concurrent: nested(USAGE), total: nested(USAGE) }),
+  image_builds: nested({ concurrent: nested(USAGE) }),
+  storage: nested({ volumes: nested(USAGE), images: nested(USAGE), snapshots: nested(USAGE) }),
+  secrets_per_project: nested(USAGE), api_keys_per_project: nested(USAGE), api_keys_per_organization: nested(USAGE),
+  sandbox_resources: nested({ max_cores: 'number', max_memory_mib: 'integer' }, true),
+  members: nested({ ...USAGE, pending_invitations: 'integer' }, true),
 }
 
-function objectAt(value: unknown, path: readonly string[], what: string): Record<string, unknown> {
-  let current: unknown = value
-  for (const key of path) current = typeof current === 'object' && current !== null ? Reflect.get(current, key) : undefined
-  if (!isObject(current)) throw badRequest(path.length === 0 ? `${what} response is not a JSON object` : `${what} response is missing the ${path.join('.')} object`)
-  return current
-}
-
-function arrayAt(value: unknown, path: readonly string[], what: string): unknown[] {
-  const parent = objectAt(value, path.slice(0, -1), what)
-  const array = parent[path[path.length - 1]]
-  if (!Array.isArray(array)) throw badRequest(`${what} response is missing the ${path.join('.')} array`)
-  return array
-}
-
-export function auditActionList(data: api.AuditActionList): AuditActionList {
-  arrayAt(data, ['targets'], 'audit actions').forEach((_group, index) => arrayAt(data, ['targets', String(index), 'actions'], 'audit actions'))
+export function auditActionList(value: api.AuditActionList): AuditActionList {
+  const data = checkResponse<api.AuditActionList>(value, AUDIT_ACTIONS, 'audit actions')
   return { targets: data.targets.map((group) => ({ targetType: group.target_type, actions: [...group.actions] })) }
 }
 
-export function projectApiKey(data: api.ProjectApiKeyWithContext): ProjectApiKey {
-  arrayAt(data, ['project_permissions'], 'API key')
-  objectAt(data, ['context'], 'API key')
+export function projectApiKey(value: api.ProjectApiKeyWithContext): ProjectApiKey {
+  const data = checkResponse<api.ProjectApiKeyWithContext>(value, API_KEY, 'API key')
   return {
     id: data.id,
     name: data.name,
@@ -53,8 +57,8 @@ export function projectApiKey(data: api.ProjectApiKeyWithContext): ProjectApiKey
   }
 }
 
-export function projectBudget(data: api.ProjectBudget): ProjectBudget {
-  objectAt(data, [], 'project budget')
+export function projectBudget(value: api.ProjectBudget): ProjectBudget {
+  const data = checkResponse<api.ProjectBudget>(value, PROJECT_BUDGET, 'project budget')
   return {
     monthlyLimitCents: data.monthly_limit_cents ?? undefined,
     periodStartDate: data.period_start_date ?? undefined,
@@ -71,18 +75,8 @@ function usageLimit(data: { readonly limit: number | null; readonly usage: numbe
   return { limit: data.limit ?? undefined, usage: data.usage }
 }
 
-const REQUIRED_LIMITS: readonly (readonly string[])[] = [
-  ['sandboxes', 'concurrent'], ['sandboxes', 'total'], ['image_builds', 'concurrent'],
-  ['storage', 'volumes'], ['storage', 'images'], ['storage', 'snapshots'],
-  ['secrets_per_project'], ['api_keys_per_project'], ['api_keys_per_organization'],
-]
-
-export function organizationLimits(data: api.OrganizationLimits): OrganizationLimits {
-  for (const path of REQUIRED_LIMITS) objectAt(data, path, 'organization limits')
-  for (const optional of ['sandbox_resources', 'members']) {
-    const value: unknown = Reflect.get(data, optional)
-    if (value !== undefined && !isObject(value)) throw badRequest(`organization limits response has a ${optional} that is not an object`)
-  }
+export function organizationLimits(value: api.OrganizationLimits): OrganizationLimits {
+  const data = checkResponse<api.OrganizationLimits>(value, ORGANIZATION_LIMITS, 'organization limits')
   return {
     sandboxes: { concurrent: usageLimit(data.sandboxes.concurrent), total: usageLimit(data.sandboxes.total) },
     imageBuilds: { concurrent: usageLimit(data.image_builds.concurrent) },

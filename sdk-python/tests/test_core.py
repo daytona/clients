@@ -1080,7 +1080,9 @@ async def test_listed_handles_reach_each_sandboxs_regional_toolbox_without_a_ref
         _sandbox_page_payload("sbx-b", "running", region="region-b", toolbox_proxy_url=endpoint_b),
     ]
     page_route = respx.get(f"{base_url}{path}").mock(
-        return_value=httpx.Response(200, json={"sandboxes": sandboxes, "next_cursor": None, "total": 2})
+        return_value=httpx.Response(
+            200, json={"sandboxes": sandboxes, "next_cursor": None, "total": 2, "total_relation": "eq"}
+        )
     )
     detail_route = respx.get(url__regex=rf"^{base_url}/sandboxes/sbx-[ab]$").mock(
         return_value=httpx.Response(500)
@@ -1088,7 +1090,12 @@ async def test_listed_handles_reach_each_sandboxs_regional_toolbox_without_a_ref
     respx.post(url__regex=rf"^{base_url}/sandboxes/sbx-[ab]/access-token$").mock(
         return_value=httpx.Response(
             200,
-            json={"access_token": "jwt", "token_type": "Bearer", "expires_at": "2099-01-01T00:00:00Z"},
+            json={
+                "access_token": "jwt",
+                "token_type": "Bearer",
+                "expires_at": "2099-01-01T00:00:00Z",
+                "operations": [],
+            },
         )
     )
     metrics = {
@@ -1179,7 +1186,12 @@ async def test_fork_handle_takes_metadata_from_the_detail_and_toolbox_from_the_f
     token_route = respx.post(f"{base_url}/sandboxes/forked/access-token").mock(
         return_value=httpx.Response(
             200,
-            json={"access_token": "jwt", "token_type": "Bearer", "expires_at": "2099-01-01T00:00:00Z"},
+            json={
+                "access_token": "jwt",
+                "token_type": "Bearer",
+                "expires_at": "2099-01-01T00:00:00Z",
+                "operations": [],
+            },
         )
     )
     metrics_route = respx.get(f"{fork_base}/forked/system/metrics").mock(
@@ -1214,6 +1226,8 @@ async def test_sandboxes_without_toolbox_proxy_url_resolve_their_details_concurr
             json={
                 "sandboxes": [_sandbox_page_payload(i, "running", toolbox_proxy_url=None) for i in ids],
                 "next_cursor": None,
+                "total": 0,
+                "total_relation": "eq",
             },
         )
     )
@@ -1256,6 +1270,8 @@ async def test_list_without_toolbox_proxy_url_fetches_detail_once_before_buildin
             json={
                 "sandboxes": [_sandbox_page_payload("sbx", "running", toolbox_proxy_url=None)],
                 "next_cursor": None,
+                "total": 0,
+                "total_relation": "eq",
             },
         )
     )
@@ -1267,7 +1283,12 @@ async def test_list_without_toolbox_proxy_url_fetches_detail_once_before_buildin
     token_route = respx.post(f"{base_url}/sandboxes/sbx/access-token").mock(
         return_value=httpx.Response(
             200,
-            json={"access_token": "jwt", "token_type": "Bearer", "expires_at": "2099-01-01T00:00:00Z"},
+            json={
+                "access_token": "jwt",
+                "token_type": "Bearer",
+                "expires_at": "2099-01-01T00:00:00Z",
+                "operations": [],
+            },
         )
     )
     metrics_route = respx.get(f"{detail_base}/sbx/system/metrics").mock(
@@ -1304,7 +1325,12 @@ async def test_get_ignores_daytona_toolbox_url_env_and_lazy_handles_still_raise(
     token_route = respx.post(f"{base_url}/sandboxes/sbx/access-token").mock(
         return_value=httpx.Response(
             200,
-            json={"access_token": "jwt", "token_type": "Bearer", "expires_at": "2099-01-01T00:00:00Z"},
+            json={
+                "access_token": "jwt",
+                "token_type": "Bearer",
+                "expires_at": "2099-01-01T00:00:00Z",
+                "operations": [],
+            },
         )
     )
     metrics_route = respx.get(f"{detail_base}/sbx/system/metrics").mock(
@@ -1390,11 +1416,19 @@ async def test_daytona_list_with_cursor_preserves_the_server_cursor_without_cata
     )
     base_list = respx.get(f"{base_url}/sandboxes").mock(
         return_value=httpx.Response(
-            200, json={"sandboxes": [_sandbox_page_payload("sbx", "running")], "next_cursor": "next"}
+            200,
+            json={
+                "sandboxes": [_sandbox_page_payload("sbx", "running")],
+                "next_cursor": "next",
+                "total": 0,
+                "total_relation": "eq",
+            },
         )
     )
     region_c_list = respx.get(f"{region_c_url}/sandboxes").mock(
-        return_value=httpx.Response(200, json={"sandboxes": [], "next_cursor": "remote-next"})
+        return_value=httpx.Response(
+            200, json={"sandboxes": [], "next_cursor": "remote-next", "total": 0, "total_relation": "eq"}
+        )
     )
     client = AsyncDaytona(_config_at(base_url, api_key="key"))
 
@@ -6140,6 +6174,8 @@ async def test_daytona_create_list_fork_and_delete_are_offline_transport_calls()
                     _sandbox_page_payload("other", "stopped", name="skip"),
                 ],
                 "next_cursor": "next",
+                "total": 0,
+                "total_relation": "eq",
             },
             {
                 "forked_from": "sbx",
@@ -6430,12 +6466,18 @@ async def test_find_by_name_uses_the_named_creates_region() -> None:
             {
                 "sandboxes": [_sandbox_page_payload("sbx", "running", name="example-user", region="eu")],
                 "total": 1,
+                "total_relation": "eq",
             },
             {
                 "sandboxes": [_sandbox_page_payload("sbx", "running", name="example-user", region="us")],
                 "total": 1,
+                "total_relation": "eq",
             },
-            {"sandboxes": [_sandbox_page_payload("sbx", "running", name="example-user")], "total": 1},
+            {
+                "sandboxes": [_sandbox_page_payload("sbx", "running", name="example-user")],
+                "total": 1,
+                "total_relation": "eq",
+            },
         ]
     )
     bind_api(client, api)
@@ -6457,7 +6499,7 @@ async def test_find_by_name_returns_every_live_match_across_pages_and_empty_when
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     api = RecordingTransport(
         [
-            {"sandboxes": [], "total": 0},
+            {"sandboxes": [], "total": 0, "total_relation": "eq"},
             {
                 "sandboxes": [
                     _sandbox_page_payload("a", "running"),
@@ -6465,8 +6507,9 @@ async def test_find_by_name_returns_every_live_match_across_pages_and_empty_when
                 ],
                 "next_cursor": "c1",
                 "total": 3,
+                "total_relation": "eq",
             },
-            {"sandboxes": [_sandbox_page_payload("b", "running")], "total": 3},
+            {"sandboxes": [_sandbox_page_payload("b", "running")], "total": 3, "total_relation": "eq"},
         ]
     )
     bind_api(client, api)
@@ -7372,9 +7415,24 @@ async def test_daytona_list_returns_one_page_and_iter_follows_cursors_explicitly
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     api = RecordingTransport(
         [
-            {"sandboxes": [_sandbox_page_payload("sbx-1", "running")], "next_cursor": "cursor-1"},
-            {"sandboxes": [_sandbox_page_payload("sbx-2", "running")], "next_cursor": "cursor-2"},
-            {"sandboxes": [_sandbox_page_payload("sbx-3", "running")], "next_cursor": "cursor-2"},
+            {
+                "sandboxes": [_sandbox_page_payload("sbx-1", "running")],
+                "next_cursor": "cursor-1",
+                "total": 0,
+                "total_relation": "eq",
+            },
+            {
+                "sandboxes": [_sandbox_page_payload("sbx-2", "running")],
+                "next_cursor": "cursor-2",
+                "total": 0,
+                "total_relation": "eq",
+            },
+            {
+                "sandboxes": [_sandbox_page_payload("sbx-3", "running")],
+                "next_cursor": "cursor-2",
+                "total": 0,
+                "total_relation": "eq",
+            },
         ]
     )
     bind_api(client, api)
@@ -7388,9 +7446,24 @@ async def test_daytona_list_returns_one_page_and_iter_follows_cursors_explicitly
         iterator_client,
         RecordingTransport(
             [
-                {"sandboxes": [_sandbox_page_payload("sbx-1", "running")], "next_cursor": "cursor-1"},
-                {"sandboxes": [_sandbox_page_payload("sbx-2", "running")], "next_cursor": "cursor-2"},
-                {"sandboxes": [_sandbox_page_payload("sbx-3", "running")], "next_cursor": "cursor-2"},
+                {
+                    "sandboxes": [_sandbox_page_payload("sbx-1", "running")],
+                    "next_cursor": "cursor-1",
+                    "total": 0,
+                    "total_relation": "eq",
+                },
+                {
+                    "sandboxes": [_sandbox_page_payload("sbx-2", "running")],
+                    "next_cursor": "cursor-2",
+                    "total": 0,
+                    "total_relation": "eq",
+                },
+                {
+                    "sandboxes": [_sandbox_page_payload("sbx-3", "running")],
+                    "next_cursor": "cursor-2",
+                    "total": 0,
+                    "total_relation": "eq",
+                },
             ]
         ),
     )
@@ -9708,11 +9781,7 @@ async def test_search_parses_summary_and_tolerates_unknown_fields():
             json={
                 "sandboxes": [
                     {
-                        "id": "sbx-1",
-                        "class": "linux",
-                        "name": "ci-1",
-                        "status": "running",
-                        "region_id": "region-b",
+                        **_sandbox_detail_payload("sbx-1", "running", name="ci-1"),
                         "updated_at": "2026-01-01T00:00:00Z",
                         "last_activity_at": None,
                         "started_at": "2026-01-01T00:00:00Z",
@@ -9743,35 +9812,41 @@ async def test_search_parses_summary_and_tolerates_unknown_fields():
     assert page.next_cursor == "page-2"
     assert page.total == 10000
     assert page.total_relation == "gte"
-    assert tuple(page) == page.items
 
 
-@respx.mock
 @pytest.mark.anyio
-async def test_search_defaults_missing_summary_fields():
-    respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "sandboxes": [
-                    {
-                        "id": "sbx",
-                        "class": "linux",
-                        "status": "running",
-                        "toolbox_proxy_url": "https://proxy.search.example/sandboxes",
-                    }
-                ]
-            },
-        )
-    )
-    client = _search_client()
-    try:
-        page = await client.search()
-    finally:
-        await client.close()
-    assert page.next_cursor is None
-    assert page.total == 0
-    assert page.total_relation == "eq"
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        ({"sandboxes": [], "total_relation": "eq"}, "search response is missing its total"),
+        (
+            {"sandboxes": [], "total": 1.5, "total_relation": "eq"},
+            "search response has a total that is not an integer",
+        ),
+        (
+            {"sandboxes": [], "total": 0},
+            "search response is missing its total_relation",
+        ),
+        (
+            {"sandboxes": [], "total": 0, "total_relation": "eq", "next_cursor": 7},
+            "search response has a next_cursor that is not a string",
+        ),
+    ],
+)
+async def test_search_refuses_a_page_without_its_summary_fields(
+    body: dict[str, object], message: str
+) -> None:
+    # The contract requires total and total_relation; a mistyped cursor would end
+    # search() / find_by_name() early. As in TypeScript, each is a contract error.
+    with respx.mock:
+        respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(return_value=httpx.Response(200, json=body))
+        client = _search_client()
+        try:
+            with pytest.raises(BadRequestError, match=f"^{message}$") as raised:
+                await client.search()
+        finally:
+            await client.close()
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 # Search responses require a sandboxes array of objects. Invalid shapes raise
@@ -9781,34 +9856,43 @@ async def test_search_defaults_missing_summary_fields():
 async def test_search_rejects_response_without_sandboxes_array_matches_typescript():
     for body in (
         {"items": [{"id": "sbx", "status": "running"}]},
-        {"sandboxes": "sbx"},
-        {"sandboxes": None},
+        {"sandboxes": "sbx", "total": 0, "total_relation": "eq"},
+        {"sandboxes": None, "total": 0, "total_relation": "eq"},
         {},
         {"sandboxes": {"id": "sbx"}},
     ):
         with pytest.raises(BadRequestError, match="search response is missing the sandboxes array"):
-            parse_search_page(body)
+            parse_search_page(body, expect_sandbox_detail)
     for body in ([{"id": "sbx"}], "sandboxes", None):
-        with pytest.raises(BadRequestError, match="expected JSON object"):
-            parse_search_page(body)
-    with pytest.raises(BadRequestError, match="expected JSON object"):
-        parse_search_page({"sandboxes": [{"id": "sbx"}, "sbx-2"]})
-    assert parse_search_page(
-        {"sandboxes": [{"id": "sbx", "class": "linux", "future_field": 1}], "future_top_level": True}
-    ) == (
-        [{"id": "sbx", "class": "linux", "future_field": 1}],
+        with pytest.raises(BadRequestError, match="search response is not a JSON object"):
+            parse_search_page(body, expect_sandbox_detail)
+    item = {**_sandbox_detail_payload("sbx", "running"), "future_field": 1}
+    with pytest.raises(BadRequestError, match="expected sandbox detail response"):
+        parse_search_page(
+            {"sandboxes": [item, "sbx-2"], "total": 2, "total_relation": "eq"}, expect_sandbox_detail
+        )
+    # Each item is a sandbox, checked as a detail is: no id is a contract error.
+    without_id = {k: v for k, v in item.items() if k != "id"}
+    with pytest.raises(BadRequestError, match="id"):
+        parse_search_page(
+            {"sandboxes": [without_id], "total": 1, "total_relation": "eq"}, expect_sandbox_detail
+        )
+    summary = {"total": 1, "total_relation": "eq", "future_top_level": True}
+    assert parse_search_page({"sandboxes": [item], **summary}, expect_sandbox_detail) == (
+        [item],
         None,
-        0,
+        1,
         "eq",
         "eq",
     )
-    assert parse_search_page({"sandboxes": [], "total_relation": "future"})[3:] == (
+    assert parse_search_page(
+        {"sandboxes": [], "total": 0, "total_relation": "future"}, expect_sandbox_detail
+    )[3:] == (
         "unknown",
         "future",
     )
-    # The cursor is the contract's snake_case ``next_cursor``; a non-string is no cursor.
-    assert parse_search_page({"sandboxes": [], "next_cursor": "page-2"})[1] == "page-2"
-    assert parse_search_page({"sandboxes": [], "next_cursor": 7})[1] is None
+    page = {"sandboxes": [], "total": 0, "total_relation": "eq", "next_cursor": "page-2"}
+    assert parse_search_page(page, expect_sandbox_detail)[1] == "page-2"
 
     route = respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
         return_value=httpx.Response(200, json={"items": [{"id": "sbx", "status": "running"}]})
@@ -9827,13 +9911,12 @@ async def test_search_rejects_response_without_sandboxes_array_matches_typescrip
                 200,
                 json={
                     "sandboxes": [
-                        {
-                            "id": "sbx",
-                            "class": "linux",
-                            "status": "running",
-                            "toolbox_proxy_url": "https://proxy.search.example/sandboxes",
-                        }
+                        _sandbox_detail_payload(
+                            "sbx", "running", toolbox_proxy_url="https://proxy.search.example/sandboxes"
+                        )
                     ],
+                    "total": 1,
+                    "total_relation": "eq",
                     "future_field": {"nested": True},
                 },
             )
@@ -9854,7 +9937,7 @@ async def test_search_rejects_response_without_sandboxes_array_matches_typescrip
 @pytest.mark.anyio
 async def test_search_timestamp_rejects_non_timestamp_values_matches_typescript():
     route = respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
-        return_value=httpx.Response(200, json={"sandboxes": []})
+        return_value=httpx.Response(200, json={"sandboxes": [], "total": 0, "total_relation": "eq"})
     )
     client = _search_client()
     try:
@@ -9964,7 +10047,7 @@ async def test_list_takes_no_filters():
 @pytest.mark.anyio
 async def test_search_forwards_cursor_sort_and_order():
     search_route = respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
-        return_value=httpx.Response(200, json={"sandboxes": [], "total": 0})
+        return_value=httpx.Response(200, json={"sandboxes": [], "total": 0, "total_relation": "eq"})
     )
     client = _search_client()
     try:
@@ -10002,6 +10085,8 @@ async def test_list_is_one_plain_page_and_prefixes_are_search_filters():
                         _sandbox_page_payload("other", "running", name="x"),
                     ],
                     "next_cursor": "p2",
+                    "total": 0,
+                    "total_relation": "eq",
                 },
             ),
             httpx.Response(
@@ -10009,6 +10094,8 @@ async def test_list_is_one_plain_page_and_prefixes_are_search_filters():
                 json={
                     "sandboxes": [_sandbox_page_payload("sbx-2", "running", name="ci-2")],
                     "next_cursor": None,
+                    "total": 0,
+                    "total_relation": "eq",
                 },
             ),
         ]
@@ -10696,7 +10783,9 @@ async def test_jwt_auth_exchanges_once_for_concurrent_requests(monkeypatch) -> N
                 self.list_calls += 1
                 assert request.headers["authorization"] == "Bearer platform-1"
                 return httpx.Response(
-                    200, headers={"content-type": "application/json"}, json={"sandboxes": []}
+                    200,
+                    headers={"content-type": "application/json"},
+                    json={"sandboxes": [], "total": 0, "total_relation": "eq"},
                 )
             raise AssertionError(request.url.path)
 
@@ -10742,7 +10831,11 @@ async def test_jwt_auth_refreshes_near_expiry_with_monotonic_clock(monkeypatch) 
             )
         if request.url.path == "/sandboxes":
             seen_tokens.append(request.headers["authorization"])
-            return httpx.Response(200, headers={"content-type": "application/json"}, json={"sandboxes": []})
+            return httpx.Response(
+                200,
+                headers={"content-type": "application/json"},
+                json={"sandboxes": [], "total": 0, "total_relation": "eq"},
+            )
         raise AssertionError(request.url.path)
 
     client = AsyncDaytona(_config_at("http://api.invalid", jwt_token="jwt", project_id="project-1"))
@@ -10787,7 +10880,7 @@ async def test_jwt_auth_short_ttl_still_reuses_the_token_between_requests(monkey
                     "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
                 },
             )
-        return httpx.Response(200, json={"sandboxes": []})
+        return httpx.Response(200, json={"sandboxes": [], "total": 0, "total_relation": "eq"})
 
     client = AsyncDaytona(_config_at("http://api.invalid", jwt_token="jwt", project_id="project-1"))
     http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://api.invalid")
@@ -10902,7 +10995,11 @@ async def test_jwt_auth_retries_once_after_a_401(monkeypatch) -> None:
                     headers={"content-type": "application/json"},
                     json={"message": "expired", "code": "UNAUTHORIZED", "source": "DAYTONA_API"},
                 )
-            return httpx.Response(200, headers={"content-type": "application/json"}, json={"sandboxes": []})
+            return httpx.Response(
+                200,
+                headers={"content-type": "application/json"},
+                json={"sandboxes": [], "total": 0, "total_relation": "eq"},
+            )
         raise AssertionError(request.url.path)
 
     client = AsyncDaytona(_config_at("http://api.invalid", jwt_token="jwt", project_id="project-1"))
@@ -11623,6 +11720,8 @@ async def test_one_unreadable_fallback_detail_keeps_the_page_and_caps_concurrenc
             json={
                 "sandboxes": [_sandbox_page_payload(i, "running", toolbox_proxy_url=None) for i in ids],
                 "next_cursor": None,
+                "total": 0,
+                "total_relation": "eq",
             },
         )
     )
@@ -11720,8 +11819,8 @@ async def test_sandbox_reads_the_wire_class_first():
     ]
     payload = {k: v for k, v in _sandbox_detail_payload("lin", "running").items() if k != "class"}
     assert AsyncSandbox._from_api(payload, None, None).sandbox_class is None
-    with pytest.raises(BadRequestError, match="search response has a sandbox without its class"):
-        parse_search_page({"sandboxes": [payload]})
+    with pytest.raises(BadRequestError, match="class"):
+        parse_search_page({"sandboxes": [payload], "total": 1, "total_relation": "eq"}, expect_sandbox_detail)
 
 
 @pytest.mark.anyio

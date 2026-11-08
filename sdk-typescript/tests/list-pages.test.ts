@@ -84,12 +84,12 @@ describe('account responses', () => {
     secrets_per_project: { limit: 1, usage: 0 }, api_keys_per_project: { limit: 1, usage: 0 }, api_keys_per_organization: { limit: 1, usage: 0 },
   }
   it.each([
-    ['audit actions', (client: Daytona) => client.v2.listAuditActions(), { items: [] }, 'missing the targets array'],
-    ['audit actions', (client: Daytona) => client.v2.listAuditActions(), { targets: [{ target_type: 'sandbox' }] }, 'missing the targets.0.actions array'],
-    ['API key', (client: Daytona) => client.v2.currentApiKey(), { id: 'k', project_permissions: [] }, 'missing the context object'],
+    ['audit actions', (client: Daytona) => client.v2.listAuditActions(), { items: [] }, 'missing its targets'],
+    ['audit actions', (client: Daytona) => client.v2.listAuditActions(), { targets: [{ target_type: 'sandbox' }] }, 'missing its targets[0].actions'],
+    ['API key', (client: Daytona) => client.v2.currentApiKey(), { id: 'k', name: 'n', project_id: 'p', created_at: 't', project_permissions: [] }, 'missing its context'],
     ['project budget', (client: Daytona) => client.v2.getProjectBudget(), [], 'not a JSON object'],
-    ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...limits, storage: { volumes: { limit: 1, usage: 0 } } }, 'missing the storage.images object'],
-    ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...limits, members: 3 }, 'members that is not an object'],
+    ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...limits, storage: { volumes: { limit: 1, usage: 0 } } }, 'missing its storage.images'],
+    ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...limits, members: 3 }, 'has a members that is not an object'],
   ] as const)('refuses a malformed %s response with BadRequestError', async (_name, call, body, message) => {
     const error = await refusal(body, (client) => call(client))
     expect(error).toBeInstanceOf(BadRequestError)

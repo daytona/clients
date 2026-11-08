@@ -12,7 +12,7 @@ import { WAIT_READ_SLACK_MS } from './Process.js'
 import { PULL_VOLUME_STATUSES } from './types.js'
 import type { PullVolumeStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
-import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
+import { assertKnownOptions, assertOptionsObject, optionKeys, optionalSeconds } from './options.js'
 
 export interface PullVolumeOptions {
   /** Caller-owned identity. Retain it when checking pending work or retrying. */
@@ -61,6 +61,7 @@ export class SandboxVolumesService {
 
   /** One submission/check only. Pending and errors never trigger automatic retries. */
   public async pull(volumeId: string, options: PullVolumeOptions): Promise<PullVolumeResult> {
+    assertOptionsObject('PullVolumeOptions', options)
     assertKnownOptions('PullVolumeOptions', options, PULL_VOLUME_KEYS)
     assertId(volumeId, 'volumeId')
     assertId(options.requestId, 'requestId')

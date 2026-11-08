@@ -41,6 +41,11 @@ def test_readme_quickstart_waits_for_import_and_deletion(
                     "origin": "registry",
                     "region_ids": [],
                     "created_at": "2026-01-01T00:00:00Z",
+                    "updated_at": "2026-01-01T00:00:00Z",
+                    "class": "linux",
+                    "retention": "permanent",
+                    "format_version": 1,
+                    "format_outdated": False,
                 },
             )
             for status in ("pending", "building", "ready")
@@ -65,6 +70,7 @@ def test_readme_quickstart_waits_for_import_and_deletion(
                 "access_token": "toolbox-jwt",
                 "token_type": "Bearer",
                 "expires_at": "2099-01-01T00:00:00Z",
+                "operations": [],
             },
         )
         command = wire.post("http://toolbox.invalid/sbx-quickstart/processes").respond(

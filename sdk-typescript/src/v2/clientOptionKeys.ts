@@ -103,5 +103,5 @@ export function assertCreateNestedOptions(options: CreateValueOptions): void {
   if (options.labels !== undefined) assertLabels(options.labels)
   if (options.name !== undefined && typeof options.name !== 'string') throw badRequest('name must be a string')
   for (const key of ['user', 'cpuArch', 'cpuType', 'reservation'] as const) optionalTyped(options, key, 'string')
-  for (const key of ['spot', 'persistent', 'autoRenew'] as const) optionalTyped(options, key, 'boolean')
+  for (const key of ['spot', 'persistent', 'autoRenew', 'autoDelete'] as const) optionalTyped(options, key, 'boolean')
 }

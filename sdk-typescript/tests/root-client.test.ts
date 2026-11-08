@@ -561,7 +561,7 @@ describe('per-namespace API URL env vars (dev / non-prod)', () => {
     const server = createServer((req, res) => {
       seen.push(req.url ?? '')
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ sandboxes: [], next_cursor: null }))
+      res.end(JSON.stringify({ sandboxes: [], next_cursor: null, total: 0, total_relation: 'eq' }))
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const address = server.address()

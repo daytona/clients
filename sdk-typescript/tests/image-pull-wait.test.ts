@@ -6,6 +6,7 @@
 import axios, { AxiosHeaders } from 'axios'
 import { ImagesService } from '../src/v2/Images.js'
 import { INTERNAL } from '../src/v2/internal'
+import { imageWire } from './artifactFixtures'
 import { BadRequestError, ImageBuildFailedError, RequestTimeoutError } from '../src/v2/errors/DaytonaError.js'
 
 function importApi(statuses: string[]) {
@@ -14,7 +15,7 @@ function importApi(statuses: string[]) {
     waits.push(config.params?.wait)
     const data = config.method === 'post'
       ? { id: 'img-pull', status: 'pending' }
-      : { id: 'img-pull', status: statuses.shift(), region_ids: [], error: 'registry denied', created_at: '2026-01-01T00:00:00Z' }
+      : imageWire({ id: 'img-pull', status: statuses.shift() ?? 'ready', error: 'registry denied' })
     return { data, status: 200, statusText: 'OK', headers: new AxiosHeaders(), config }
   } })
   return { http, waits }
@@ -89,7 +90,7 @@ it.each(['initial', 'poll'].flatMap(phase => ['ready', 'failed', 'error'].map(st
   jest.spyOn(Date, 'now').mockImplementation(() => now)
   const http = axios.create({ adapter: async (config) => {
     const terminal = config.method === 'get' && (phase === 'initial' || config.params?.wait === 'ready')
-    const data = config.method === 'post' ? { id: 'img-pull' } : { id: 'img-pull', status: terminal ? status : 'pending', region_ids: [] }
+    const data = config.method === 'post' ? { id: 'img-pull', status: 'pending' } : imageWire({ id: 'img-pull', status: terminal ? status : 'pending' })
     if (terminal) now = 101
     return { data, status: 200, statusText: 'OK', headers: new AxiosHeaders(), config }
   } })

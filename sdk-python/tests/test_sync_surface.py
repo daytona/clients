@@ -357,7 +357,7 @@ def _sandbox(
 
 
 def _sandboxes(*sandboxes: dict[str, object], next_cursor: str | None = None) -> dict[str, object]:
-    return {"sandboxes": list(sandboxes), "next_cursor": next_cursor}
+    return {"sandboxes": list(sandboxes), "next_cursor": next_cursor, "total": 0, "total_relation": "eq"}
 
 
 def _process(process_id: str, state: str = "running") -> dict[str, object]:
@@ -537,6 +537,7 @@ def test_sync_fork_takes_its_toolbox_from_the_fork_response(server: _Server, syn
         "access_token": "jwt",
         "token_type": "Bearer",
         "expires_at": "2099-01-01T00:00:00Z",
+        "operations": [],
     }
     server.routes[("GET", "/sandboxes/forked/system/metrics")] = {
         "timestamp": "2026-10-08T00:00:00Z",
@@ -570,6 +571,7 @@ def test_sync_list_without_toolbox_proxy_url_fetches_detail_once_before_building
         "access_token": "jwt",
         "token_type": "Bearer",
         "expires_at": "2099-01-01T00:00:00Z",
+        "operations": [],
     }
     server.routes[("GET", "/sandboxes/sb-1/system/metrics")] = {
         "timestamp": "2026-10-08T00:00:00Z",
@@ -613,6 +615,7 @@ def test_sync_daytona_toolbox_url_env_has_no_effect(monkeypatch: pytest.MonkeyPa
         "access_token": "jwt",
         "token_type": "Bearer",
         "expires_at": "2099-01-01T00:00:00Z",
+        "operations": [],
     }
     server.routes[("GET", "/sandboxes/sb-1/system/metrics")] = {
         "timestamp": "2026-10-08T00:00:00Z",

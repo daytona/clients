@@ -22,7 +22,9 @@ import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { ListResult } from './types.js'
 import { strictUriEncode } from './http.js'
-import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
+import { arrayOf, checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 
 /** Secret metadata (never the value). */
 export interface Secret {
@@ -51,7 +53,10 @@ export interface ListSecretsOptions {
 const SET_SECRET_KEYS = optionKeys<SetSecretOptions>()({ allowedDomains: true, description: true, ifNotExists: true })
 const LIST_SECRETS_KEYS = optionKeys<ListSecretsOptions>()({ cursor: true, limit: true })
 
-function mapSecret(secret: api.Secret): Secret {
+const SECRET: ResponseFields = { name: 'string', allowed_domains: arrayOf('string'), created_at: 'string', updated_at: 'string', description: 'string?' }
+
+function mapSecret(value: api.Secret): Secret {
+  const secret = checkResponse<api.Secret>(value, SECRET, 'secret')
   return {
     name: secret.name,
     allowedDomains: [...secret.allowed_domains],
@@ -74,14 +79,14 @@ export class SecretsService {
 
   /** Lists secret metadata for the project (never values). */
   public async list(options: ListSecretsOptions = {}): Promise<ListResult<Secret>> {
-    assertKnownOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS)
+    options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
     const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: options })
     const page = listPage<api.Secret>(data, 'secrets', 'secret list')
     return { items: page.items.map(mapSecret), nextCursor: page.nextCursor }
   }
 
   public async *iter(options: ListSecretsOptions = {}): AsyncIterable<Secret> {
-    assertKnownOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS)
+    options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)

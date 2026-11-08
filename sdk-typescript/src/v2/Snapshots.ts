@@ -10,7 +10,7 @@ import { Snapshot } from './Image.js'
 import type * as api from './gen/api-types.js'
 import { strictUriEncode } from './http.js'
 import type { ListResult } from './types.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, optionKeys, snapshotOptions } from './options.js'
 import { getArtifact } from './artifactOptions.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
 import { INTERNAL, assertInternal } from './internal.js'
@@ -38,7 +38,7 @@ export class SnapshotsService {
   }
 
   public async list(options: ListSnapshotsOptions = {}): Promise<ListResult<Snapshot>> {
-    assertKnownOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS)
+    options = snapshotOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS) ?? {}
     const { data } = await this.http.get<api.ListSnapshotsResponse>('/snapshots', {
       params: { cursor: options.cursor, limit: options.limit, name: options.name, sandbox_id: options.sandboxId },
     })
@@ -47,7 +47,7 @@ export class SnapshotsService {
   }
 
   public async *iter(options: ListSnapshotsOptions = {}): AsyncIterable<Snapshot> {
-    assertKnownOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS)
+    options = snapshotOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS) ?? {}
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)

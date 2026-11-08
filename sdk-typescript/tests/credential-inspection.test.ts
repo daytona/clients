@@ -132,12 +132,12 @@ describe('credential-safe diagnostics', () => {
     api.defaults.adapter = async (config) => ({
       config, status: 200, statusText: 'OK', headers: {},
       data: config.url?.endsWith('/access-token')
-        ? { access_token: ACCESS_TOKEN, expires_at: '2099-01-01T00:00:00Z' }
+        ? { access_token: ACCESS_TOKEN, expires_at: '2099-01-01T00:00:00Z', token_type: 'Bearer', operations: [] }
         : config.url?.endsWith('/signed-preview-urls')
-          ? { url: `https://${ACCESS_TOKEN}.preview.invalid`, token: ACCESS_TOKEN }
+          ? { url: `https://${ACCESS_TOKEN}.preview.invalid`, token: ACCESS_TOKEN, expires_at: '2099-01-01T00:00:00Z' }
           : config.url?.endsWith('/preview-url')
             ? { url: 'https://preview.invalid', token: ACCESS_TOKEN }
-            : { port: 8080, public: false, url: 'https://preview.invalid' },
+            : { port: 8080, public: false, url: 'https://preview.invalid', created_at: '2026-01-01T00:00:00Z' },
     })
     const sandbox = createSandbox('sandbox', api, undefined, API_KEY)
     // When

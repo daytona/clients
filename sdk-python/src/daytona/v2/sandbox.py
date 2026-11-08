@@ -13,7 +13,7 @@ from collections.abc import Sequence as SequenceABC
 from datetime import datetime, timezone
 from enum import Enum
 from types import MappingProxyType
-from typing import Callable, ClassVar, Dict, Final, Literal, Mapping, Optional, Sequence
+from typing import Callable, ClassVar, Dict, Final, Literal, Mapping, Optional, Sequence, get_args
 from urllib.parse import quote, urlsplit
 
 import anyio
@@ -24,6 +24,7 @@ from ._api_core import (
     expect_create_image_resp,
     expect_create_snapshot_resp,
     expect_fork_resp,
+    expect_image,
     sandbox_detail_wire,
 )
 from ._auth import ProjectTokenAuth
@@ -38,7 +39,6 @@ from ._core import (
     expect_object,
     lifecycle_body,
     mib_to_gib,
-    parse_image,
     parse_lifecycle,
     parse_snapshot,
     parse_timestamp,
@@ -762,7 +762,7 @@ class AsyncSandbox:
         )
         if isinstance(payload, bytes):
             return payload.decode("utf-8", errors="replace")
-        raise create_error("expected entrypoint logs text response", 500, None, "SDK")
+        raise create_error("entrypoint logs response is not text", 400, "BAD_REQUEST", "SDK")
 
     async def update_env(self, env: Optional[Mapping[str, str]] = None, *, unset: Sequence[str] = ()) -> None:
         """Update SDK-managed environment entries for new processes, PTYs, and sessions.
@@ -1076,8 +1076,7 @@ class AsyncSandbox:
         :class:`SandboxTerminalStateError`.
         """
         _validate_timeout(timeout)
-        states: Sequence[SandboxWaitState] = [until] if isinstance(until, str) else list(until)
-        await self._wait_for_state(states, timeout=timeout)
+        await self._wait_for_state(_wait_states(until), timeout=timeout)
         return self
 
     async def start(self, *, timeout: float = 60) -> None:
@@ -1457,7 +1456,7 @@ class AsyncSandbox:
                 RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/images", json_body=body)
             )
         )
-        return parse_image(
+        return expect_image(
             await self._require_api().send(RequestSpec("GET", f"/images/{quote(operation.id, safe='')}"))
         )
 
@@ -2076,6 +2075,27 @@ def _validate_timeout(timeout: float) -> None:
         )
 
 
+_WAIT_STATES: Final[Mapping[str, SandboxWaitState]] = {state: state for state in get_args(SandboxWaitState)}
+
+
+def _wait_states(until: object) -> list[SandboxWaitState]:
+    """``until`` as a checked list: every member a wait state, at least one (as in TypeScript)."""
+    if isinstance(until, str):
+        members: list[object] = [until]
+    elif isinstance(until, (list, tuple)):
+        members = list(until)
+    else:
+        raise create_error("until must be a sandbox wait state or a list of them", 400, "BAD_REQUEST", "SDK")
+    if not members:
+        raise create_error("wait requires at least one target state", 400, "BAD_REQUEST", "SDK")
+    states: list[SandboxWaitState] = []
+    for member in members:
+        if not isinstance(member, str) or member not in _WAIT_STATES:
+            raise create_error(f"invalid sandbox wait state: {member}", 400, "BAD_REQUEST", "SDK")
+        states.append(_WAIT_STATES[member])
+    return states
+
+
 def _validate_wait_seconds(wait_seconds: float) -> None:
     if (
         isinstance(wait_seconds, bool)
@@ -2118,29 +2138,48 @@ def _sandbox_terminal_state_error(sandbox_id: str, state: SandboxState) -> Excep
 
 
 def _sandbox_access_token_from_payload(payload: JsonObject) -> SandboxAccessToken:
-    access_token = payload.get("access_token")
-    expires_at = parse_timestamp(payload.get("expires_at"))
-    if not isinstance(access_token, str) or not access_token or expires_at is None:
-        raise create_error("API returned an invalid access token payload", 500, None, "SDK")
-    token_type = payload.get("token_type")
+    """The contract's access token, every field checked; a violation names the field."""
+
+    def malformed(detail: str) -> DaytonaError:
+        return create_error(f"sandbox access token response {detail}", 400, "BAD_REQUEST", "SDK")
+
+    def required_str(field: str) -> str:
+        value = payload.get(field)
+        if value is None:
+            raise malformed(f"is missing its {field}")
+        if not isinstance(value, str):
+            raise malformed(f"has a {field} that is not a string")
+        return value
+
+    access_token = required_str("access_token")
+    if not access_token:
+        raise malformed("has an empty access_token")
+    token_type = required_str("token_type")
+    # An expiry that does not parse would read as never expiring and skip the proactive refresh.
+    raw_expires_at = required_str("expires_at")
+    expires_at = parse_timestamp(raw_expires_at)
+    if expires_at is None:
+        raise malformed("has an expires_at that is not a timestamp")
     raw_operations = payload.get("operations")
-    operations = (
-        tuple(operation for operation in raw_operations if isinstance(operation, str))
-        if isinstance(raw_operations, list)
-        else ()
-    )
+    if raw_operations is None:
+        raise malformed("is missing its operations")
+    if not isinstance(raw_operations, list):
+        raise malformed("has a operations that is not an array")
+    for index, operation in enumerate(raw_operations):
+        if not isinstance(operation, str):
+            raise malformed(f"has a operations[{index}] that is not a string")
     raw_ports = payload.get("ports")
-    granted_ports = (
-        tuple(port for port in raw_ports if isinstance(port, int) and not isinstance(port, bool))
-        if isinstance(raw_ports, list)
-        else None
-    )
+    if raw_ports is not None and not isinstance(raw_ports, list):
+        raise malformed("has a ports that is not an array")
+    for index, port in enumerate(raw_ports or ()):
+        if isinstance(port, bool) or not isinstance(port, int):
+            raise malformed(f"has a ports[{index}] that is not an integer")
     return SandboxAccessToken(
         access_token=access_token,
-        token_type=token_type if isinstance(token_type, str) else "Bearer",
+        token_type=token_type,
         expires_at=expires_at,
-        operations=operations,
-        ports=granted_ports,
+        operations=tuple(raw_operations),
+        ports=tuple(raw_ports) if raw_ports is not None else None,
     )
 
 

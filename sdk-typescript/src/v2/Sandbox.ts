@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { ASYNC_OPERATION, checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
+import { isBlank } from './pyText.js'
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL, assertInternal } from './internal.js'
@@ -38,7 +41,7 @@ import {
 import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
-import { assertIfMatchOptions, assertKnownOptions, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS } from './options.js'
+import { assertIfMatchOptions, assertKnownOptions, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS } from './options.js'
 import type { IfMatchOptions } from './options.js'
 import { assertSandboxResponse, isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
 import type { SandboxMetadata } from './sandboxMetadata.js'
@@ -106,6 +109,7 @@ export interface UpdateEnvOptions {
 const LIFECYCLE_WAIT_KEYS = optionKeys<LifecycleWaitOptions>()({ timeoutSeconds: true })
 const WAIT_KEYS = optionKeys<WaitOptions>()({ until: true, timeoutSeconds: true })
 const FORK_KEYS = optionKeys<ForkOptions>()({ name: true, memory: true, waitSeconds: true, autoDelete: true })
+const FORK_RESPONSE: ResponseFields = { id: 'string', status: 'string', forked_from: 'string', toolbox_proxy_url: 'string' }
 const CAPTURE_KEYS = optionKeys<CaptureImageOptions>()({ name: true, idleExpirySeconds: true })
 const UPDATE_ENV_KEYS = optionKeys<UpdateEnvOptions>()({ unset: true })
 const LIFECYCLE_POLICY_KEYS = optionKeys<LifecyclePolicyOptions>()({ timeoutSeconds: true, onTimeout: true, idleExpirySeconds: true, onIdleTimeout: true })
@@ -733,17 +737,19 @@ export class Sandbox {
     assertKnownOptions('ForkOptions', options, FORK_KEYS, { ...RENAMED_OPTIONS, timeout: 'waitSeconds' })
     const waitSeconds = optionalSeconds('waitSeconds', options.waitSeconds) ?? 60
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
-    const classWasKnown = this.sandboxClass !== undefined
-    const initialClass = await this.requireSandboxClass()
+    // Every argument is checked before any request (the class read included), as in Python.
     const body: api.ForkRequest = {}
     if (options.name !== undefined) {
-      if (typeof options.name !== 'string' || options.name.trim() === '') throw badRequest('fork name must be a non-empty string when given')
+      if (typeof options.name !== 'string' || isBlank(options.name)) throw badRequest('fork name must be a non-empty string when given')
       body.name = options.name
     }
     if (options.memory !== undefined) {
       if (typeof options.memory !== 'boolean') throw badRequest('fork memory must be a boolean')
       body.memory = options.memory
     }
+    if (options.autoDelete !== undefined && typeof options.autoDelete !== 'boolean') throw badRequest('autoDelete must be a boolean')
+    const classWasKnown = this.sandboxClass !== undefined
+    const initialClass = await this.requireSandboxClass()
     // Loading an unknown class already fetched the source state; waiting on a
     // known Linux source needs exactly one fresh observation before the POST.
     if (waitSeconds > 0 && initialClass === 'linux' && classWasKnown) {
@@ -756,19 +762,21 @@ export class Sandbox {
     const sourceState = this.state
     const response = await this.api.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body)
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
+    // Checked before the fork handle or any further request, as for a create.
+    const forked = checkResponse<api.ForkResponse>(response.data, FORK_RESPONSE, 'sandbox fork')
     // The fork's metadata comes from its detail; its toolbox from the fork
     // response, never the source's per-sandbox override.
     const deadline = waitSeconds > 0 ? Date.now() + waitSeconds * 1000 : undefined
     const fork = new Sandbox(INTERNAL, {
       sandbox: {
-        sandboxId: response.data.id,
-        rawState: response.data.status,
-        state: sandboxState(response.data.status),
+        sandboxId: forked.id,
+        rawState: forked.status,
+        state: sandboxState(forked.status),
         // A fork has its source's class; it names its source.
         sandboxClass,
         rawSandboxClass: sandboxClass,
-        forkedFrom: response.data.forked_from ?? this.id,
-        toolboxProxyUrl: scopedProxyToolboxUrl(response.data.toolbox_proxy_url, response.data.id),
+        forkedFrom: forked.forked_from,
+        toolboxProxyUrl: scopedProxyToolboxUrl(forked.toolbox_proxy_url, forked.id),
       },
       api: this.api,
       apiKey: this.apiKey,
@@ -781,10 +789,10 @@ export class Sandbox {
     try {
       const timeout = deadline === undefined ? undefined : boundedRequestTimeout(deadline, this.api.defaults.timeout)
       if (deadline !== undefined && timeout === undefined) return fork
-      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(response.data.id)}`, timeout === undefined ? undefined : { timeout }).then((r) => r.data)
+      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, timeout === undefined ? undefined : { timeout }).then((r) => r.data)
       assertSandboxResponse(detail)
       fork.observed = metadataFromSandbox(detail)
-      fork.refreshToolbox({ ...detail, toolbox_proxy_url: response.data.toolbox_proxy_url || detail.toolbox_proxy_url })
+      fork.refreshToolbox({ ...detail, toolbox_proxy_url: forked.toolbox_proxy_url || detail.toolbox_proxy_url })
     } catch (error) {
       if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
       throw error
@@ -893,6 +901,7 @@ export class Sandbox {
    * `delete:sandboxes` in addition to `write:sandboxes`.
    */
   public async updateLifecyclePolicy(options: LifecyclePolicyOptions): Promise<SandboxLifecycle> {
+    assertOptionsObject('LifecyclePolicyOptions', options)
     assertKnownOptions('LifecyclePolicyOptions', options, LIFECYCLE_POLICY_KEYS)
     const body = lifecycleBody(options)
     if (!body) throw createDaytonaError('updateLifecyclePolicy requires at least one lifecycle field', 400, 'BAD_REQUEST', 'SDK')
@@ -967,8 +976,10 @@ export class Sandbox {
    */
   public async wait(options: WaitOptions = {}): Promise<this> {
     assertKnownOptions('WaitOptions', options, WAIT_KEYS)
-    const until = options.until ?? 'started'
-    const states = typeof until === 'string' ? [until] : until
+    const until: unknown = options.until ?? 'started'
+    if (typeof until !== 'string' && !Array.isArray(until)) throw badRequest('until must be a sandbox wait state or an array of them')
+    // SAFETY: each member is checked against the wait states by waitForState before any request.
+    const states = (typeof until === 'string' ? [until] : until) as readonly SandboxWaitState[]
     await this.waitForState(states, { timeoutSeconds: options.timeoutSeconds })
     return this
   }
@@ -986,7 +997,8 @@ export class Sandbox {
       name: options.name,
       idle_expiry_seconds: options.idleExpirySeconds,
     } satisfies api.CreateImageCaptureRequest)
-    const image = await this.api.get<api.ImageListItem>(`/images/${strictUriEncode(data.id)}`).then((response) => response.data)
+    const operation = checkResponse<api.AsyncOperation>(data, ASYNC_OPERATION, 'image capture')
+    const image = await this.api.get<api.ImageListItem>(`/images/${strictUriEncode(operation.id)}`).then((response) => response.data)
     return new Image(INTERNAL, image)
   }
 
@@ -996,7 +1008,8 @@ export class Sandbox {
     const http = this.api
     const encodedId = strictUriEncode(this.id)
     const response = await http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name })
-    const snapshot = await http.get<api.Snapshot>(`/snapshots/${strictUriEncode(response.data.id)}`).then((result) => result.data)
+    const operation = checkResponse<api.AsyncOperation>(response.data, ASYNC_OPERATION, 'snapshot create')
+    const snapshot = await http.get<api.Snapshot>(`/snapshots/${strictUriEncode(operation.id)}`).then((result) => result.data)
     return new Snapshot(INTERNAL, snapshot)
   }
 
@@ -1021,7 +1034,9 @@ export class Sandbox {
       responseType: 'text',
       daytona: { routeTemplate: '/sandboxes/{id}/logs', sandboxId: this.id },
     } as AxiosRequestConfig
-    return this.api.get<string>(`/sandboxes/${strictUriEncode(this.id)}/logs`, requestConfig).then((response) => response.data)
+    const logs: unknown = await this.api.get<string>(`/sandboxes/${strictUriEncode(this.id)}/logs`, requestConfig).then((response) => response.data)
+    if (typeof logs !== 'string') throw badRequest('entrypoint logs response is not text')
+    return logs
   }
 
   /** Update the extra environment layer used by processes created after this call. */

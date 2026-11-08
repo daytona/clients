@@ -65,7 +65,9 @@ def serialize_network_policy_input(value: NetworkPolicyInput) -> JsonObject:
 
 
 def parse_network_policy_response(response: httpx.Response) -> NetworkPolicyInfo:
-    payload = _expect_response_object(parse_json_bytes(response.content))
+    payload = _expect_response_object(
+        parse_json_bytes(response.content), field_name="network policy response"
+    )
     etag = response.headers.get("etag")
     if not isinstance(etag, str) or not etag:
         raise create_error("network_policy response is missing the ETag header", 400, "BAD_REQUEST", "SDK")
@@ -86,7 +88,7 @@ def parse_network_policy_response(response: httpx.Response) -> NetworkPolicyInfo
 def _optional_policy(value: JsonValue, *, field_name: str) -> NetworkPolicy | None:
     if value is None:
         return None
-    payload = _expect_response_object(value)
+    payload = _expect_response_object(value, field_name=field_name)
     return NetworkPolicy(
         version=_required_int(payload.get("version"), field_name=f"{field_name}.version"),
         block_all=_required_bool(payload.get("block_all"), field_name=f"{field_name}.block_all"),
@@ -109,10 +111,10 @@ def _tuple_or_none(values: list[str] | None) -> tuple[str, ...] | None:
     return None if values is None else tuple(values)
 
 
-def _expect_response_object(value: JsonValue) -> JsonObject:
+def _expect_response_object(value: JsonValue, *, field_name: str) -> JsonObject:
     if isinstance(value, dict):
         return value
-    raise create_error("expected a JSON object response", 400, "BAD_REQUEST", "SDK")
+    raise create_error(f"{field_name} must be an object", 400, "BAD_REQUEST", "SDK")
 
 
 def _request_string_list(value: JsonValue, *, field_name: str) -> list[str]:

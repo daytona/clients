@@ -11,7 +11,7 @@ import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import { isImageBuilder } from './Image.js'
 import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
-import { assertKnownOptions, badRequest, optionalSeconds } from './options.js'
+import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions } from './options.js'
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS } from './clientOptionKeys.js'
 import { createRegion, createWaitSeconds, rejectV0Target } from './clientCreateOptions.js'
 import { linuxCreateRequest } from './clientCreateRequests.js'
@@ -97,15 +97,20 @@ export async function buildSandboxImage(images: ImagesService, builder: ImageBui
   if (!isImageBuilder(builder)) throw badRequest('createFromBuild expects an ImageBuilder')
   rejectV0Target(options)
   assertKnownOptions('CreateFromBuildOptions', options, BUILD_CREATE_KEYS, { timeout: 'buildTimeoutSeconds' })
+  // An own-key copy read through prototypes: the rest spread below keeps inherited options.
+  options = snapshotOptions('CreateFromBuildOptions', options, BUILD_CREATE_KEYS) ?? options
   assertKnownOptions('Resources', options.resources, RESOURCES_KEYS)
   assertCreateNestedOptions(options)
   const region = createRegion(options)
   createWaitSeconds(options.waitSeconds)
   const { buildTimeoutSeconds, idleExpirySeconds, ...createOptions } = options
-  const budget = optionalSeconds('buildTimeoutSeconds', buildTimeoutSeconds)
+  // `null` is Python's `None`: no build bound.
+  const budget = optionalSeconds('buildTimeoutSeconds', buildTimeoutSeconds === null ? undefined : buildTimeoutSeconds)
   // Every create option is validated before the (billed) build: a caller
   // error must not cost a build first. The image id is not known yet.
   linuxCreateRequest('img_pending', createOptions)
+  // The name-derived key too (it can need Web Crypto), as Python resolves it before the build.
+  await createIdempotencyKey({ name: createOptions.name, idempotency_key: createOptions.idempotencyKey })
   const image = await images.build(builder, { region, idleExpirySeconds, cpuArch: options.cpuArch })
   const deadline = budget === undefined || budget === 0 ? undefined : Date.now() + Math.max(0, Math.ceil(budget * 1000))
   const readyImage = await waitForBuiltImage(images, image, deadline)
@@ -128,7 +133,8 @@ async function waitForBuiltImage(images: ImagesService, initial: Image, deadline
       const pause = Math.min(1000 - (Date.now() - started), deadline === undefined ? Infinity : deadline - Date.now())
       if (pause > 0) await sleep(pause)
     } catch (error) {
-      if (error instanceof DaytonaError && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && Date.now() >= deadline) {
+      // Only the client's own deadline is the build timeout; a server 408 keeps its source, as in Python.
+      if (error instanceof DaytonaError && error.source === 'SDK' && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && Date.now() >= deadline) {
         throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       }
       throw error

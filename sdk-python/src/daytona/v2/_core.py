@@ -1201,34 +1201,47 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
 
 def parse_search_page(
     payload: JsonValue,
+    check_sandbox: Callable[[JsonValue], object],
 ) -> Tuple[List[JsonObject], Optional[str], int, SearchTotalRelation, str]:
     """Split a ``GET /sandboxes/search`` body into items, cursor, total, and relation.
 
-    The search contract is an object with a
-    ``sandboxes`` array: a body that is not an object, or whose ``sandboxes`` is missing or
-    not an array, is the SDK's own :class:`BadRequestError` rather than an
-    empty page — an ``items`` array is NOT accepted as a stand-in. Unknown
-    extra fields (top-level and per item) are tolerated as everywhere else.
+    The search contract is an object with a ``sandboxes`` array of sandbox
+    objects (each checked by ``check_sandbox``, as a detail is), an integer
+    ``total``, a string ``total_relation`` and a string or null
+    ``next_cursor``. Anything else is the SDK's own :class:`BadRequestError`
+    naming the field, never an empty or truncated page — an ``items`` array is
+    NOT accepted as a stand-in. Unknown extra fields are tolerated.
     """
-    obj = expect_object(payload)
-    raw_sandboxes = obj.get("sandboxes")
+
+    def malformed(detail: str) -> Exception:
+        return create_error(f"search response {detail}", 400, "BAD_REQUEST", "SDK")
+
+    if not isinstance(payload, dict):
+        raise malformed("is not a JSON object")
+    raw_sandboxes = payload.get("sandboxes")
     if not isinstance(raw_sandboxes, list):
-        raise create_error("search response is missing the sandboxes array", 400, "BAD_REQUEST", "SDK")
+        raise malformed("is missing the sandboxes array")
+    for item in raw_sandboxes:
+        check_sandbox(item)
     items = [expect_object(item) for item in raw_sandboxes]
-    for item in items:
-        # The contract requires `class` on every sandbox object.
-        if not isinstance(item.get("class"), str) or not item.get("class"):
-            raise create_error("search response has a sandbox without its class", 400, "BAD_REQUEST", "SDK")
-    cursor = obj.get("next_cursor")
-    next_cursor = cursor if isinstance(cursor, str) else None
-    total_raw = obj.get("total")
-    total = int(total_raw) if isinstance(total_raw, (int, float)) and not isinstance(total_raw, bool) else 0
-    relation_raw = obj.get("total_relation")
-    raw_total_relation = relation_raw if isinstance(relation_raw, str) else "eq"
+    total = payload.get("total")
+    if total is None:
+        raise malformed("is missing its total")
+    if isinstance(total, bool) or not isinstance(total, int):
+        raise malformed("has a total that is not an integer")
+    raw_total_relation = payload.get("total_relation")
+    if raw_total_relation is None:
+        raise malformed("is missing its total_relation")
+    if not isinstance(raw_total_relation, str):
+        raise malformed("has a total_relation that is not a string")
+    # A cursor of the wrong type would silently end search() / find_by_name() early.
+    cursor = payload.get("next_cursor")
+    if cursor is not None and not isinstance(cursor, str):
+        raise malformed("has a next_cursor that is not a string")
     total_relation: SearchTotalRelation = (
         raw_total_relation if raw_total_relation == "eq" or raw_total_relation == "gte" else "unknown"
     )
-    return items, next_cursor, total, total_relation, raw_total_relation
+    return items, cursor, total, total_relation, raw_total_relation
 
 
 def sandbox_state(status: str) -> SandboxState:
@@ -1378,6 +1391,9 @@ def gib_to_mib(gib: object, *, label: str) -> int:
         raise create_error(
             f"{label} must be a GiB value that converts to a whole number of MiB", 400, "BAD_REQUEST", "SDK"
         )
+    # A size is positive, as the cpu values are.
+    if mib <= 0:
+        raise create_error(f"{label} must be a positive number of GiB", 400, "BAD_REQUEST", "SDK")
     return int(mib)
 
 

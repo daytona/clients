@@ -6,7 +6,7 @@
 import { assertKnownOptions, badRequest, optionKeys, optionalSeconds } from './options.js'
 import type { AxiosInstance } from 'axios'
 import { sleep } from './http.js'
-import { ClientTimeoutError } from './errors/DaytonaError.js'
+import { ClientTimeoutError, RequestTimeoutError } from './errors/DaytonaError.js'
 
 export interface GetArtifactOptions {
   readonly wait?: 'ready'
@@ -45,7 +45,11 @@ export async function getArtifact<T extends { readonly status: string }>(http: A
       })
       last = data
     } catch (error) {
-      if (error instanceof ClientTimeoutError && deadline !== undefined && last !== undefined && Date.now() >= deadline) return last
+      if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) {
+        // The wait ran out: its last observation, or the wait's own timeout.
+        if (last !== undefined) return last
+        throw new RequestTimeoutError('artifact did not become ready before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      }
       throw error
     }
     if (deadline === undefined || last.status === 'ready' || last.status === 'failed' || last.status === 'error') return last

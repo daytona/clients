@@ -5,7 +5,8 @@
 
 import { BadRequestError, createDaytonaError } from './errors/DaytonaError.js'
 import type { SandboxDto, SandboxState, SearchSandboxesOptions, SearchTimestamp } from './types.js'
-import { assertLabels } from './options.js'
+import { assertLabels, badRequest } from './options.js'
+import { assertSandboxResponse } from './sandboxMetadata.js'
 
 export const SEARCH_PATH = '/sandboxes/search'
 
@@ -142,25 +143,23 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * The `GET /sandboxes/search` contract is an object
- * with a `sandboxes` array: a non-object body, or a missing / non-array `sandboxes`, is the
- * SDK's own {@link BadRequestError} rather than an empty page — an `items`
- * array is NOT accepted as a stand-in. Unknown extra fields are tolerated.
- * Mirrors Python's `_core.parse_search_page`.
+ * The `GET /sandboxes/search` contract: an object with a `sandboxes` array of
+ * sandbox objects (each checked as a detail is), an integer `total`, a string
+ * `total_relation` and a string or null `next_cursor`. Anything else is the
+ * SDK's own {@link BadRequestError} naming the field, never an empty or
+ * truncated page — an `items` array is NOT accepted as a stand-in. Unknown
+ * extra fields are tolerated. Mirrors Python's `_core.parse_search_page`.
  * @internal
  */
 export function searchPageSandboxes(data: unknown): SandboxDto[] {
-  if (!isJsonObject(data)) {
-    throw createDaytonaError('expected JSON object', 400, 'BAD_REQUEST', 'SDK')
-  }
-  const sandboxes = (data as SearchPageDto).sandboxes
-  if (!Array.isArray(sandboxes)) {
-    throw createDaytonaError('search response is missing the sandboxes array', 400, 'BAD_REQUEST', 'SDK')
-  }
-  for (const item of sandboxes) {
-    if (!isJsonObject(item)) throw createDaytonaError('expected JSON object', 400, 'BAD_REQUEST', 'SDK')
-    // The contract requires `class` on every sandbox object.
-    if (typeof item.class !== 'string' || item.class === '') throw createDaytonaError('search response has a sandbox without its class', 400, 'BAD_REQUEST', 'SDK')
-  }
+  if (!isJsonObject(data)) throw badRequest('search response is not a JSON object')
+  const sandboxes: unknown = data.sandboxes
+  if (!Array.isArray(sandboxes)) throw badRequest('search response is missing the sandboxes array')
+  sandboxes.forEach(assertSandboxResponse)
+  if (!Number.isSafeInteger(data.total)) throw badRequest(data.total == null ? 'search response is missing its total' : 'search response has a total that is not an integer')
+  if (typeof data.total_relation !== 'string') throw badRequest(data.total_relation == null ? 'search response is missing its total_relation' : 'search response has a total_relation that is not a string')
+  // A cursor of the wrong type would silently end search() / findByName() early.
+  if (data.next_cursor != null && typeof data.next_cursor !== 'string') throw badRequest('search response has a next_cursor that is not a string')
+  // SAFETY: every item was checked by assertSandboxResponse above.
   return sandboxes as SandboxDto[]
 }

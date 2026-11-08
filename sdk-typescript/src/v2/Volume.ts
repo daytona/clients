@@ -14,7 +14,9 @@ import { VolumeStatus as VOLUME_STATUSES, VolumeType as VOLUME_TYPES } from './g
 import { knownOrUnknown } from './knownValue.js'
 import { NotFoundError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
-import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
+import { checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 
 /** A volume that preserves files between sandboxes. */
 export interface Volume {
@@ -62,7 +64,13 @@ function refConfig(options?: DeleteVolumeOptions): { readonly params: { readonly
   return options?.idOnly ? { params: { id_only: true } } : undefined
 }
 
-function mapVolume(volume: api.Volume): Volume {
+const VOLUME: ResponseFields = {
+  id: 'string', name: 'string', type: 'string', status: 'string', created_at: 'string', updated_at: 'string',
+  size_gib: 'integer?', error: 'string?', last_used_at: 'string?', options: 'object?', used_bytes: 'integer?', used_bytes_at: 'string?',
+}
+
+function mapVolume(value: api.Volume): Volume {
+  const volume = checkResponse<api.Volume>(value, VOLUME, 'volume')
   return {
     id: volume.id,
     name: volume.name,
@@ -75,7 +83,7 @@ function mapVolume(volume: api.Volume): Volume {
     sizeGib: volume.size_gib ?? undefined,
     error: volume.error ?? undefined,
     lastUsedAt: volume.last_used_at ?? undefined,
-    options: volume.options ?? undefined,
+    options: volume.options == null ? undefined : Object.freeze({ ...volume.options }),
     usedBytes: volume.used_bytes ?? undefined,
     usedBytesAt: volume.used_bytes_at ?? undefined,
   }
@@ -103,12 +111,12 @@ export class VolumesService {
   }
 
   public async list(options: ListVolumesOptions = {}): Promise<ListResult<Volume>> {
-    assertKnownOptions('ListVolumesOptions', options, LIST_VOLUMES_KEYS)
+    options = snapshotOptions('ListVolumesOptions', options, LIST_VOLUMES_KEYS) ?? {}
     return this.listPage(options)
   }
 
   public async *iter(options: ListVolumesOptions = {}): AsyncIterable<Volume> {
-    assertKnownOptions('ListVolumesOptions', options, LIST_VOLUMES_KEYS)
+    options = snapshotOptions('ListVolumesOptions', options, LIST_VOLUMES_KEYS) ?? {}
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)

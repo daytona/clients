@@ -26,7 +26,7 @@ describe('sandbox region', () => {
       // Given responses covering explicit regions, region tags and untagged ids.
       const api = await startFakeApi([{
         status: 200,
-        body: { id: fixture.id, class: 'linux', ...(operation === 'get' ? { region_id: fixture.region } : {}), name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', wait_cap_seconds: 0 },
+        body: { id: fixture.id, class: 'linux', ...(operation === 'get' ? { region_id: fixture.region } : {}), name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', wait_cap_seconds: 0, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] },
       }])
       process.env.DAYTONA_V2_API_URL = api.url
       const client = new Daytona({ apiKey: 'key' })
@@ -48,7 +48,7 @@ describe('sandbox region', () => {
   it('keeps the region tag when the refreshed region is empty', async () => {
     // Given a fetched sandbox whose next response has an empty region.
     const id = '57VSdKNrJGxnSAabjcHD4M-region-a'
-    const response = { id, class: 'linux', name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid' }
+    const response = { id, class: 'linux', name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] }
     const api = await startFakeApi([
       { status: 200, body: { ...response, region_id: 'region-a' } },
       { status: 200, body: { ...response, region_id: '' } },

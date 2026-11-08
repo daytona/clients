@@ -37,6 +37,7 @@ from ._api_core import (
     expect_list_sandboxes_resp,
     expect_organization_limits,
     expect_project_budget,
+    expect_sandbox_detail,
     sandbox_detail_wire,
 )
 from ._auth import ProjectTokenAuth
@@ -369,6 +370,7 @@ class AsyncDaytona:
         wait_seconds: int,
         create_timeout_seconds: Optional[int],
     ) -> CreateConfig:
+        _validate_wait(wait_seconds)  # None is refused, not the default
         config = _merge_create_params(
             route="linux",
             source_kind="image",
@@ -421,6 +423,7 @@ class AsyncDaytona:
         :class:`FeatureNotEnabledError`).
         """
         resolved_snapshot = _require_snapshot_source(snapshot)
+        _validate_wait(wait_seconds)  # None is refused, not the default
         config = _merge_create_params(
             route="linux",
             source_kind="snapshot",
@@ -517,6 +520,7 @@ class AsyncDaytona:
             )
         if resources is not None and not isinstance(resources, MacosResources):
             raise create_error("create_macos takes resources=MacosResources(...)", 400, "BAD_REQUEST", "SDK")
+        _validate_wait(wait_seconds)  # None is refused, not the default
         config = _merge_create_params(
             route="macos",
             source_kind="image",
@@ -653,8 +657,11 @@ class AsyncDaytona:
             poll_started = _clock.monotonic()
             try:
                 image = await self.images.get(image.id, wait="ready", timeout=remaining)
-            except ClientTimeoutError as error:
-                if deadline is not None and _clock.monotonic() >= deadline:
+            except DaytonaError as error:
+                # Only the client's own deadline is the build timeout; a server
+                # 408 keeps its source, as in TypeScript.
+                own_timeout = error.source == "SDK" and error.code == "REQUEST_TIMEOUT"
+                if own_timeout and deadline is not None and _clock.monotonic() >= deadline:
                     raise build_timed_out(error) from error
                 raise
             if image.status not in ("ready", "failed", "error"):
@@ -856,6 +863,7 @@ class AsyncDaytona:
         """
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-blank string", 400, "BAD_REQUEST", "SDK")
+        _check_region(region)
         resolved_target = region if region is not None else self._target
         selector = (
             resolved_target
@@ -870,7 +878,7 @@ class AsyncDaytona:
             payload = await self._api.send(
                 RequestSpec("GET", "/sandboxes/search", params=dict(params), headers=headers)
             )
-            items, next_cursor, _, _, _ = parse_search_page(payload)
+            items, next_cursor, _, _, _ = parse_search_page(payload, expect_sandbox_detail)
             live = [item for item in items if item.get("status") not in ("deleted", "deleting")]
             found.extend(await self._sandboxes_from_sandboxes(live))
             if not next_cursor or next_cursor in seen_cursors:
@@ -1059,7 +1067,9 @@ class AsyncDaytona:
             cursor=cursor,
         )
         payload = await self._api.send(RequestSpec("GET", "/sandboxes/search", params=search_params(query)))
-        items, next_cursor, total, total_relation, raw_total_relation = parse_search_page(payload)
+        items, next_cursor, total, total_relation, raw_total_relation = parse_search_page(
+            payload, expect_sandbox_detail
+        )
         return SearchResult(
             await self._sandboxes_from_sandboxes(items),
             next_cursor,
@@ -1150,7 +1160,14 @@ class AsyncDaytona:
         await self._resolve_with_hub(sandbox).delete(timeout=timeout)
 
     def _resolve(self, sandbox: Union[AsyncSandbox, str]) -> AsyncSandbox:
-        return self._sandbox_by_id(sandbox) if isinstance(sandbox, str) else sandbox
+        if isinstance(sandbox, AsyncSandbox):
+            return sandbox
+        # A wrong type or a blank id is refused before any request, as in TypeScript.
+        if not isinstance(sandbox, str) or not sandbox.strip():
+            raise create_error(
+                "sandbox must be a Sandbox or a non-empty sandbox id", 400, "BAD_REQUEST", "SDK"
+            )
+        return self._sandbox_by_id(sandbox)
 
     def _acquire_hub(self) -> Optional[WaitHub]:
         # Only ever called on the event loop (see `_sandbox_by_id()`), whose single
@@ -1277,7 +1294,8 @@ class AsyncDaytona:
         if toolbox_url is not None or sandbox._toolbox_proxy_url is not None:
             return sandbox
         try:
-            detail = expect_object(
+            # A detail that breaks the contract is unreadable too: the list item stands.
+            detail = sandbox_detail_wire(
                 await self._api.send(RequestSpec("GET", f"/sandboxes/{quote(sandbox.id, safe='')}"))
             )
         except DaytonaError:
@@ -1623,6 +1641,7 @@ def _create_body(config: CreateConfig) -> CreateBody:
     if env and source_kind == "image":
         body["env"] = env
     target = config.get("target")
+    _check_region(target)
     if isinstance(target, str) and target and target.strip().lower() != "local":
         body["region_id"] = target
     if resources is not None and route == "linux" and source_kind == "image":
@@ -1685,10 +1704,10 @@ def _create_body(config: CreateConfig) -> CreateBody:
                 body[axis] = amount
     if lifecycle:
         body["lifecycle_policy"] = lifecycle
-    wait_seconds = config.get("wait_seconds")
-    if wait_seconds is not None:
-        # Validate whatever the caller passed — a float or a bool is a caller
-        # bug, not "use the default" (parity with the TS SDK's createWaitSeconds).
+    if "wait_seconds" in config:
+        # Validate whatever the caller passed — None, a float or a bool is a
+        # caller bug, not "use the default" (parity with the TS SDK's createWaitSeconds).
+        wait_seconds = config["wait_seconds"]
         _validate_wait(wait_seconds)
         body["wait_seconds"] = wait_seconds
     create_timeout_seconds = config.get("create_timeout_seconds")
@@ -1756,6 +1775,11 @@ def _create_response_state(
 def _create_wait_budget(body: CreateBody) -> int:
     wait_seconds = body.get("wait_seconds")
     return wait_seconds if isinstance(wait_seconds, int) and not isinstance(wait_seconds, bool) else 60
+
+
+def _check_region(region: object) -> None:
+    if region is not None and not isinstance(region, str):
+        raise create_error("region must be a string", 400, "BAD_REQUEST", "SDK")
 
 
 def _validate_wait(wait_seconds: object) -> None:

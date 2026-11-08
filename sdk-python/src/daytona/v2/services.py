@@ -26,6 +26,7 @@ import anyio
 from . import _clock
 from ._api_core import (
     expect_create_image_resp,
+    expect_image,
     expect_images_page,
     expect_list_secrets_resp,
     expect_list_snapshots_resp,
@@ -241,7 +242,7 @@ class AsyncImagesService:
             f"/images/{_path(image_id)}",
             wait,
             timeout,
-            parse_image,
+            expect_image,
             lambda image: image.status,
         )
 
@@ -363,9 +364,14 @@ async def _get_artifact(
                     )
                 )
             )
-        except ClientTimeoutError:
-            if last is not None and _clock.monotonic() >= deadline:
-                return last
+        except ClientTimeoutError as error:
+            if _clock.monotonic() >= deadline:
+                # The wait ran out: its last observation, or the wait's own timeout.
+                if last is not None:
+                    return last
+                raise create_error(
+                    "artifact did not become ready before timeout", 408, "REQUEST_TIMEOUT", "SDK"
+                ) from error
             raise
         last = artifact
         if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES or _clock.monotonic() >= deadline:

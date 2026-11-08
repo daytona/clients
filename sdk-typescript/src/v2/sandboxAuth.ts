@@ -9,6 +9,8 @@ import { DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import type { HttpClientOptions, TransportAuth } from './http.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { arrayOf, checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 import type { CreateAccessTokenOptions, SandboxAccessToken } from './types.js'
 
 const ACCESS_TOKEN_KEYS = optionKeys<CreateAccessTokenOptions>()({ operations: true, ports: true, ttlSeconds: true })
@@ -34,18 +36,20 @@ interface TokenPayload {
   readonly ports?: readonly number[] | null
 }
 
+const ACCESS_TOKEN: ResponseFields = { access_token: 'string', token_type: 'string', expires_at: 'string', operations: arrayOf('string'), ports: arrayOf('integer', true) }
+
 function tokenFromPayload(payload: TokenPayload | null | undefined): SandboxAccessToken {
-  const accessToken = payload?.access_token
-  const expiresAt = payload?.expires_at
-  if (typeof accessToken !== 'string' || accessToken.length === 0 || typeof expiresAt !== 'string') {
-    throw createDaytonaError('API returned an invalid access token payload', 500, undefined, 'SDK')
-  }
+  const token = checkResponse<Required<Omit<TokenPayload, 'ports'>> & TokenPayload>(payload, ACCESS_TOKEN, 'sandbox access token')
+  if (token.access_token === '') throw badRequest('sandbox access token response has an empty access_token')
+  // An expiry that does not parse would read as never expiring and skip the proactive refresh.
+  if (rfc3339EpochMs(token.expires_at) === undefined) throw badRequest('sandbox access token response has an expires_at that is not a timestamp')
+  const expiresAt = token.expires_at
   return credentialSafeInspection({
-    accessToken,
-    tokenType: typeof payload?.token_type === 'string' ? payload.token_type : 'Bearer',
+    accessToken: token.access_token,
+    tokenType: token.token_type,
     expiresAt,
-    operations: Array.isArray(payload?.operations) ? payload.operations.filter((operation): operation is string => typeof operation === 'string') : [],
-    ports: Array.isArray(payload?.ports) ? payload.ports.filter((port): port is number => Number.isInteger(port)) : undefined,
+    operations: [...token.operations],
+    ports: token.ports == null ? undefined : [...token.ports],
   }, () => ({ type: 'SandboxAccessToken', expiresAt }))
 }
 

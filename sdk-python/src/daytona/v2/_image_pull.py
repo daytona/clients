@@ -11,11 +11,13 @@ from urllib.parse import quote
 import anyio
 
 from . import _clock
-from ._api_core import expect_create_image_resp
-from ._core import RequestSpec, TransportPayload, parse_image, timeout_millis_from_seconds
+from ._api_core import expect_create_image_resp, expect_image
+from ._core import RequestSpec, TransportPayload, timeout_millis_from_seconds
 from ._transport import AsyncTransport
 from .errors import ClientTimeoutError, ImageBuildFailedError, RequestTimeoutError, create_error
 from .types import Image, JsonObject
+
+_POLL_MIN_INTERVAL_S = 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,8 +33,18 @@ class ImagePull:
             try:
                 created = expect_create_image_resp(await self._send(submission, deadline))
                 path = f"/images/{quote(created.id, safe='')}"
-                image = parse_image(await self._send(RequestSpec("GET", path), deadline))
+                image = expect_image(await self._send(RequestSpec("GET", path), deadline))
+                last_poll_started: float | None = None
                 while wait and image.status not in ("ready", "failed", "error"):
+                    # An early non-terminal answer pauses up to a second before
+                    # the next hold, as get(wait="ready") does: no hot loop.
+                    if last_poll_started is not None:
+                        pause = _POLL_MIN_INTERVAL_S - (_clock.monotonic() - last_poll_started)
+                        if deadline is not None:
+                            pause = min(pause, max(0.0, deadline - _clock.monotonic()))
+                        if pause > 0:
+                            await anyio.sleep(pause)
+                    last_poll_started = _clock.monotonic()
                     remaining = self._remaining(deadline)
                     millis = timeout_millis_from_seconds(remaining)
                     params: JsonObject = {"wait": "ready"}
@@ -42,7 +54,7 @@ class ImagePull:
                         poll_millis = max(1, min(millis or 0, 60_000))
                         params["timeout_ms"] = poll_millis
                         poll_timeout = poll_millis / 1000 + 5
-                    image = parse_image(
+                    image = expect_image(
                         await self._send(
                             RequestSpec(
                                 "GET",

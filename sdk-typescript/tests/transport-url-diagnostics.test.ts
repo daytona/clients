@@ -56,8 +56,8 @@ it('omits credential-bearing URLs from issued-value inspection but preserves exp
   client.defaults.adapter = async (config) => ({
     config, status: 200, statusText: 'OK', headers: {},
     data: config.url?.endsWith('/access-token')
-      ? { access_token: 'issued-token', expires_at: '2099-01-01T00:00:00Z' }
-      : { url, token: 'issued-token', port: 8080, public: false },
+      ? { access_token: 'issued-token', expires_at: '2099-01-01T00:00:00Z', token_type: 'Bearer', operations: [] }
+      : { url, token: 'issued-token', port: 8080, public: false, created_at: '2026-01-01T00:00:00Z', expires_at: '2099-01-01T00:00:00Z' },
   })
   const sandbox = createSandbox('sandbox', client, undefined, 'key')
   // When obtaining the credential-return DTOs.

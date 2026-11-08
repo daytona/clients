@@ -49,6 +49,9 @@ class FakeApi:
             def do_PUT(self) -> None:
                 self._handle()
 
+            def do_PATCH(self) -> None:
+                self._handle()
+
             def log_message(self, format: str, *args: object) -> None:
                 return
 

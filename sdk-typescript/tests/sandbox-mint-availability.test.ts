@@ -12,7 +12,7 @@ it.each([404, 405, 501])('retries minting only for transient HTTP %s', async (st
   const api = await startFakeApi([
     { status, body: { message: 'mint unavailable' } },
     { status: 200, body: { files: [] } },
-    ...(status === 404 ? [{ status: 200, body: { access_token: 'minted-bearer', expires_at: '2040-01-01T00:00:00Z' } }] : []),
+    ...(status === 404 ? [{ status: 200, body: { access_token: 'minted-bearer', expires_at: '2040-01-01T00:00:00Z', token_type: 'Bearer', operations: [] } }] : []),
     { status: 200, body: { files: [] } },
   ])
   const sandbox = createSandbox('sandbox', createHttpClient(api.url, 'key'), undefined, 'key', undefined, { toolboxUrl: `${api.url}/toolbox` })

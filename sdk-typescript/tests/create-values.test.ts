@@ -81,7 +81,7 @@ describe('create option values', () => {
         client.v2.images.get('img', { wait: 'started' as never }),
         client.v2.snapshots.get('snap', { wait: 'started' as never }),
       ]) await expect(pending).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'wait must be "ready" or omitted, got "started"' })
-      const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(api.url))
+      const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
       for (const name of ['', '  ']) {
         await expect(sandbox.fork({ name })).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'fork name must be a non-empty string when given' })
       }

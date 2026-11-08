@@ -8,10 +8,11 @@ import { gibToMib } from './resources.js'
 export { gibToMib } from './resources.js'
 import { Image, isImageBuilder } from './Image.js'
 import type { CreateSandboxOptions } from './types.js'
+import { isBlank, strip } from './pyText.js'
 
 /** @internal */
 export function hasText(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0
+  return typeof value === 'string' && !isBlank(value)
 }
 
 /** @internal */
@@ -22,11 +23,11 @@ export function imageSourceString(image: unknown, method: 'create' | 'createMaco
       : 'daytona.create() only accepts an image name or img_… id; use daytona.createFromBuild(builder, options) for ImageBuilder sources')
   }
   // A blank string has its own message, as in Python; any other non-string is the wrong type.
-  if (typeof image === 'string' && image.trim() === '') throw badRequest('image must be a non-empty string')
+  if (typeof image === 'string' && isBlank(image)) throw badRequest('image must be a non-empty string')
   if (!hasText(image)) {
     throw badRequest(`daytona.${method}() only accepts an image name or img_… id`)
   }
-  return image.trim()
+  return strip(image)
 }
 
 interface LinuxCreateArguments {
@@ -56,15 +57,16 @@ export function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptio
 
 /** @internal */
 export function snapshotSourceString(snapshot: string): string {
-  if (typeof snapshot === 'string' && snapshot.trim() === '') throw badRequest('snapshot must be a non-empty string')
+  if (typeof snapshot === 'string' && isBlank(snapshot)) throw badRequest('snapshot must be a non-empty string')
   if (!hasText(snapshot)) throw badRequest('daytona.createFromSnapshot() only accepts a snapshot name or snap_… id')
-  return snapshot.trim()
+  return strip(snapshot)
 }
 
 /** @internal */
 export function createWaitSeconds(waitSeconds: number | undefined): number {
-  const resolved = waitSeconds ?? 60
-  if (!Number.isFinite(resolved) || resolved < 0 || !Number.isInteger(resolved)) {
+  // Only an omitted value takes the default; `null` is refused, as Python refuses `None`.
+  const resolved: unknown = waitSeconds === undefined ? 60 : waitSeconds
+  if (typeof resolved !== 'number' || !Number.isFinite(resolved) || resolved < 0 || !Number.isInteger(resolved)) {
     throw badRequest('waitSeconds must be a non-negative integer number of seconds')
   }
   return resolved
@@ -72,7 +74,8 @@ export function createWaitSeconds(waitSeconds: number | undefined): number {
 
 /** @internal */
 export function createTimeoutSeconds(createTimeoutSeconds: number | undefined): number | undefined {
-  if (createTimeoutSeconds === undefined) return undefined
+  // `null` is Python's `None`: the server's default.
+  if (createTimeoutSeconds === undefined || createTimeoutSeconds === null) return undefined
   if (!Number.isInteger(createTimeoutSeconds) || createTimeoutSeconds < -1) {
     throw badRequest('createTimeoutSeconds must be an integer number of seconds >= -1')
   }
@@ -95,8 +98,9 @@ export function macosCores(cpu: number | undefined): number | undefined {
 /** @internal */
 export function macosMib(gib: number | undefined, axis: 'memory' | 'disk', floorMib: number): number | undefined {
   if (gib === undefined) return undefined
-  const mib = gibToMib(gib, axis)
-  if (mib < floorMib || mib > MAX_INT32) {
+  // One message for every bad value (not whole, below the floor, too large), as in Python.
+  const mib = typeof gib === 'number' ? gib * 1024 : NaN
+  if (!Number.isInteger(mib) || mib < floorMib || mib > MAX_INT32) {
     throw badRequest(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`)
   }
   return mib
@@ -127,6 +131,8 @@ export function rejectV0Target(options: { readonly region?: string } | undefined
 /** @internal */
 export function createRegion(options: { readonly region?: string }): string | undefined {
   rejectV0Target(options)
-  const resolved = options.region
-  return resolved && resolved.trim().toLowerCase() !== 'local' ? resolved : undefined
+  const resolved: unknown = options.region
+  // `null` is Python's `None`: no region.
+  if (resolved !== undefined && resolved !== null && typeof resolved !== 'string') throw badRequest('region must be a string')
+  return typeof resolved === 'string' && resolved !== '' && strip(resolved).toLowerCase() !== 'local' ? resolved : undefined
 }

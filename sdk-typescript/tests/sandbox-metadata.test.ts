@@ -42,8 +42,8 @@ describe('sandbox observed metadata', () => {
 
   it('replaces read-only observations when refreshed', async () => {
     // Given a handle with stale metadata and a real HTTP response.
-    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', name: 'fresh', class: 'future', status: 'future-state', memory_mib: 513 } }])
-    const sandbox = createSandbox({ id: 'sbx', name: 'stale', class: 'linux' }, createHttpClient(api.url))
+    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', name: 'fresh', class: 'future', status: 'future-state', memory_mib: 513, cpu: 1, cores_max: 1, disk_mib: 1024, port_map: [] } }])
+    const sandbox = createSandbox({ id: 'sbx', name: 'stale', class: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
       // When metadata is fetched again.
       await sandbox.refreshData()
@@ -91,7 +91,7 @@ describe('sandbox observed metadata', () => {
   it('refuses a sandbox response without its class as a contract error', async () => {
     // Given a detail read that omits the required class.
     const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status: 'running' } }])
-    const sandbox = createSandbox({ id: 'sbx', class: 'linux' }, createHttpClient(api.url))
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
       // Then refreshing raises the SDK's BadRequestError instead of guessing Linux.
       await expect(sandbox.refreshData()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox response is missing its class' })
@@ -103,7 +103,7 @@ describe('sandbox observed metadata', () => {
   it('refuses class-gated operations on a future class without guessing Linux', async () => {
     // Given an unknown API class and a transport with no planned requests.
     const api = await startFakeApi([])
-    const sandbox = createSandbox({ id: 'sbx', class: 'future' }, createHttpClient(api.url))
+    const sandbox = createSandbox({ id: 'sbx', class: 'future', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
     try {
       // When a fork requires a known class.
       const result = sandbox.fork({ waitSeconds: 0 })
@@ -118,7 +118,7 @@ describe('sandbox observed metadata', () => {
   it('updates read-only token observations after lazy toolbox authentication', async () => {
     // Given a key-backed handle whose first toolbox request must mint a token.
     const api = await startFakeApi([
-      { status: 200, body: { access_token: 'minted-fixture', expires_at: '2030-01-01T00:00:00Z', operations: ['toolbox'] } },
+      { status: 200, body: { access_token: 'minted-fixture', expires_at: '2030-01-01T00:00:00Z', operations: ['toolbox'], token_type: 'Bearer' } },
       { status: 200, body: {} },
     ])
     const sandbox = createSandbox('sbx', createHttpClient(api.url), undefined, 'project-fixture', undefined, { toolboxUrl: api.url })

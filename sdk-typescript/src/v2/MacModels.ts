@@ -12,8 +12,18 @@ import type * as api from './gen/api-types.js'
 import type { MacCatalog, MacCatalogOptions, MacModel } from './macTypes.js'
 import { mapMacModel } from './macMappers.js'
 import { assertKnownOptions, optionKeys } from './options.js'
+import { arrayOf, checkResponse, MAC_MODEL, nested } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 
 const MAC_CATALOG_KEYS = optionKeys<MacCatalogOptions>()({ region: true })
+
+const MAC_PRICE: ResponseFields = { cents_per_hour: 'number', period_cents: 'integer', currency: 'string', period_seconds: 'integer' }
+const MAC_CATALOG: ResponseFields = {
+  regions: arrayOf(nested({
+    id: 'string', default_model: 'string',
+    models: arrayOf(nested({ model: nested(MAC_MODEL), available: 'integer', price: nested(MAC_PRICE, true) })),
+  })),
+}
 
 /**
  * The Mac model registry (`GET /mac-models`): the models `reservations.create({ model })`
@@ -40,7 +50,8 @@ export class MacModelsService {
   /** Free Macs and prices per model. Availability is advisory; price is absent when unavailable. */
   public async catalog(options: MacCatalogOptions = {}): Promise<MacCatalog> {
     assertKnownOptions('MacCatalogOptions', options, MAC_CATALOG_KEYS)
-    const { data } = await this.http.get<api.MacCatalog>('/mac-catalog', options.region === undefined ? undefined : { params: { region_ids: options.region } })
+    const response = await this.http.get<api.MacCatalog>('/mac-catalog', options.region === undefined ? undefined : { params: { region_ids: options.region } })
+    const data = checkResponse<api.MacCatalog>(response.data, MAC_CATALOG, 'Mac catalog')
     return {
       regions: data.regions.map((region) => ({
         id: region.id,

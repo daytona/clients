@@ -10,14 +10,16 @@ import type * as api from './gen/api-types.js'
 import { SearchTotalRelation as SEARCH_TOTAL_RELATIONS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { strictUriEncode } from './http.js'
-import { assertKnownOptions, badRequest } from './options.js'
+import { assertKnownOptions, badRequest, snapshotOptions } from './options.js'
 import { CONNECT_KEYS, FIND_KEYS, LIST_KEYS, SEARCH_KEYS } from './clientOptionKeys.js'
 import { createRegion, hasText, rejectV0Target } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
 import { SEARCH_PATH, searchPageSandboxes, searchQueryParams } from './clientSearch.js'
+import { DaytonaError } from './errors/DaytonaError.js'
 import { assertSandboxResponse } from './sandboxMetadata.js'
 import type { SearchPageDto } from './clientSearch.js'
 import type { FindByNameOptions, ListResult, ListSandboxesOptions, SandboxConnectOptions, SandboxDto, SandboxInfo, SearchResult, SearchSandboxesOptions } from './types.js'
+import { isBlank } from './pyText.js'
 
 /** @internal */
 export interface SandboxClientContext {
@@ -31,7 +33,14 @@ async function resolveSandboxToolboxSource<T extends SandboxDto>(context: Sandbo
   if (hasText(sandbox.toolbox_proxy_url) || hasText(sandbox.toolboxProxyUrl)) return sandbox
   // One unreadable item must not fail the page: the handle keeps no toolbox
   // and says so with the explicit error on first toolbox use.
-  return context.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(sandbox.id)}`, undefined).then((response) => response.data, () => sandbox)
+  // A detail that breaks the contract is unreadable too: the list item stands, as in Python.
+  return context.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(sandbox.id)}`, undefined).then((response) => {
+    assertSandboxResponse(response.data)
+    return response.data
+  }).catch((error: unknown) => {
+    if (error instanceof DaytonaError) return sandbox
+    throw error
+  })
 }
 
 async function sandboxFromDto(context: SandboxClientContext, sandbox: SandboxDto, options: SandboxConnectOptions = {}): Promise<Sandbox> {
@@ -52,7 +61,8 @@ async function sandboxesFromDtos(context: SandboxClientContext, items: readonly 
 
 /** @internal */
 export async function getSandbox(context: SandboxClientContext, id: string, options: SandboxConnectOptions): Promise<Sandbox> {
-  assertKnownOptions('SandboxConnectOptions', options, CONNECT_KEYS)
+  options = snapshotOptions('SandboxConnectOptions', options, CONNECT_KEYS) ?? {}
+  if (options.autoDelete !== undefined && typeof options.autoDelete !== 'boolean') throw badRequest('autoDelete must be a boolean')
   const sandbox = await context.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(id)}`, undefined).then((response) => response.data)
   assertSandboxResponse(sandbox)
   return context.buildSandbox(sandbox, options)
@@ -60,7 +70,7 @@ export async function getSandbox(context: SandboxClientContext, id: string, opti
 
 /** @internal */
 export async function listSandboxes(context: SandboxClientContext, options: ListSandboxesOptions): Promise<ListResult<Sandbox>> {
-  assertKnownOptions('ListSandboxesOptions', options, LIST_KEYS)
+  options = snapshotOptions('ListSandboxesOptions', options, LIST_KEYS) ?? {}
   const listResponse = await context.api.get<api.ListSandboxesResponse>('/sandboxes', {
     params: { cursor: options.cursor, limit: options.limit },
   }).then((response) => response.data)
@@ -72,7 +82,7 @@ export async function listSandboxes(context: SandboxClientContext, options: List
 
 /** @internal */
 export async function searchSandboxes(context: SandboxClientContext, options: SearchSandboxesOptions): Promise<SearchResult<Sandbox>> {
-  assertKnownOptions('SearchSandboxesOptions', options, SEARCH_KEYS)
+  options = snapshotOptions('SearchSandboxesOptions', options, SEARCH_KEYS) ?? {}
   const data = await context.api.get<SearchPageDto>(SEARCH_PATH, { params: searchQueryParams(options) }).then((response) => response.data)
   const items = searchPageSandboxes(data)
   const sandboxes = await sandboxesFromDtos(context, items)
@@ -89,8 +99,8 @@ export async function searchSandboxes(context: SandboxClientContext, options: Se
 /** @internal */
 export async function findSandboxesByName(context: SandboxClientContext, name: string, options: FindByNameOptions): Promise<Sandbox[]> {
   rejectV0Target(options)
-  assertKnownOptions('FindByNameOptions', options, FIND_KEYS)
-  if (typeof name !== 'string' || name.trim() === '') throw badRequest('name must be a non-blank string')
+  options = snapshotOptions('FindByNameOptions', options, FIND_KEYS) ?? {}
+  if (typeof name !== 'string' || isBlank(name)) throw badRequest('name must be a non-blank string')
   const region = createRegion(options)
   const found: Sandbox[] = []
   const seen = new Set<string>()

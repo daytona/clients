@@ -13,6 +13,8 @@ export function gibToMib(gib: number, field: string): number {
   if (!Number.isFinite(mib) || !Number.isInteger(mib)) {
     throw new BadRequestError(`${field} must be a GiB value that converts to a whole number of MiB`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
+  // A size is positive, as the cpu values are.
+  if (mib <= 0) throw new BadRequestError(`${field} must be a positive number of GiB`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   return mib
 }
 

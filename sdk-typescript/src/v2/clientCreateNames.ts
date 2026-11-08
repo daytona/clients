@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { createDaytonaError } from './errors/DaytonaError.js'
 import { runtimeUniqueId } from './http.js'
 import { assertLabels, badRequest } from './options.js'
+import { isBlank, strip } from './pyText.js'
 
 /** The label every named create stamps and findByName reads back. */
 const NAME_LABEL = 'name'
@@ -25,35 +27,44 @@ async function idempotencyKeyForName(name: string): Promise<string> {
   if (typeof name !== 'string') throw badRequest('name must be a string')
   const literal = NAME_KEY_PREFIX + name
   // The API's printable-ASCII rule; UTF-16 length equals bytes for these names.
-  if (name === name.trim() && literal.length <= IDEMPOTENCY_KEY_MAX_LENGTH && /^[\x20-\x7e]*$/.test(name)) return literal
+  if (name === strip(name) && literal.length <= IDEMPOTENCY_KEY_MAX_LENGTH && /^[\x20-\x7e]*$/.test(name)) return literal
   const digest = await sha256Hex(new TextEncoder().encode(name))
   return NAME_KEY_HASH_PREFIX + digest
 }
 
 // Web Crypto in both the browser and Node, without a static node:crypto import.
-// Their full SubtleCrypto types are mutually incompatible (see FileSystem.ts).
+// Their full SubtleCrypto types are mutually incompatible, so only digest is typed.
 interface DigestSubtle {
   digest(algorithm: 'SHA-256', data: Uint8Array): Promise<ArrayBuffer>
 }
 
+function isNode(): boolean {
+  const versions: unknown = Reflect.get(Reflect.get(globalThis, 'process') ?? {}, 'versions')
+  return typeof versions === 'object' && versions !== null && typeof Reflect.get(versions, 'node') === 'string'
+}
+
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  // globalThis.crypto first (browsers, Node >= 19). A runtime specifier keeps
-  // browser bundlers from trying to resolve the Node-only fallback.
-  const cryptoSpecifier = 'node:crypto'
-  const subtle: DigestSubtle = globalThis.crypto?.subtle !== undefined
-    ? (globalThis.crypto.subtle as unknown as DigestSubtle)
-    : (
-        (await (import(/* @vite-ignore */ /* webpackIgnore: true */ cryptoSpecifier) as Promise<{
-          readonly webcrypto: { readonly subtle: unknown }
-        }>)).webcrypto.subtle as DigestSubtle
-      )
+  // globalThis.crypto first (browsers in a secure context, Node >= 19). A
+  // runtime specifier keeps browser bundlers from resolving the Node-only fallback.
+  let subtle: DigestSubtle
+  if (globalThis.crypto?.subtle !== undefined) {
+    subtle = globalThis.crypto.subtle as unknown as DigestSubtle
+  } else if (isNode()) {
+    const cryptoSpecifier = 'node:crypto'
+    subtle = (await (import(/* @vite-ignore */ /* webpackIgnore: true */ cryptoSpecifier) as Promise<{
+      readonly webcrypto: { readonly subtle: unknown }
+    }>)).webcrypto.subtle as DigestSubtle
+  } else {
+    // A browser page served over plain HTTP has no Web Crypto: refuse before any request.
+    throw createDaytonaError('a name that is not a short printable-ASCII string needs Web Crypto (a secure context) or Node.js to derive its idempotency key; pass idempotencyKey instead', 400, 'UNSUPPORTED_OPERATION', 'SDK')
+  }
   const digest = await subtle.digest('SHA-256', bytes)
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 /** A blank name is not stamped and derives no key, matching API naming. */
 function namedCreate(name: string | undefined): string | undefined {
-  return typeof name === 'string' && name.trim() !== '' ? name : undefined
+  return typeof name === 'string' && !isBlank(name) ? name : undefined
 }
 
 /** @internal */

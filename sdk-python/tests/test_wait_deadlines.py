@@ -11,6 +11,7 @@ the wait running out, ``RequestTimeoutError`` (408, ``REQUEST_TIMEOUT``,
 
 from __future__ import annotations
 
+import contextlib
 import json
 import threading
 import time
@@ -55,7 +56,9 @@ class _StallingApi:
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
-                self.wfile.write(data)
+                # The client may already have given up on a held request.
+                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                    self.wfile.write(data)
 
             def _handle(self) -> None:
                 length = int(self.headers.get("Content-Length") or 0)

@@ -5,14 +5,17 @@
 
 import type * as api from './gen/api-types.js'
 import type { MacModel, MacResources } from './macTypes.js'
+import { checkResponse, MAC_MODEL, MAC_RESOURCES } from './responseFields.js'
 
 /** @internal */
-export function mapMacResources(resources: NonNullable<api.MacModel['default_size']>): MacResources {
+export function mapMacResources(value: NonNullable<api.MacModel['default_size']>): MacResources {
+  const resources = checkResponse<NonNullable<api.MacModel['default_size']>>(value, MAC_RESOURCES, 'Mac resources')
   return { cores: resources.cores, memoryMib: resources.memory_mib, diskMib: resources.disk_mib }
 }
 
 /** @internal */
-export function mapMacModel(model: api.MacModel): MacModel {
+export function mapMacModel(value: api.MacModel): MacModel {
+  const model = checkResponse<api.MacModel>(value, MAC_MODEL, 'Mac model')
   return {
     id: model.id,
     name: model.name,

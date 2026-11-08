@@ -14,7 +14,7 @@ import { sameBuildLogResource } from './buildLogIdentity.js'
 import { BUILD_LOG_DONE_REASONS, BUILD_LOG_GAP_REASONS } from './types.js'
 import type { BuildLogDoneReason, BuildLogGapReason } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
-import { assertKnownOptions, optionKeys, optionalSeconds } from './options.js'
+import { assertKnownOptions, assertOptionsObject, optionKeys, optionalSeconds } from './options.js'
 
 export type { BuildLogDoneReason } from './types.js'
 
@@ -487,6 +487,7 @@ export async function readBuildLogs(api: HttpTransport, path: string): Promise<s
 }
 
 export async function followBuildLogs(api: HttpTransport, path: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
+  assertOptionsObject('BuildLogFollowOptions', options)
   assertKnownOptions('BuildLogFollowOptions', options, BUILD_LOG_FOLLOW_OPTION_KEYS)
   const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
   if (typeof options.onLogs !== 'function') throw new TypeError('onLogs is required')

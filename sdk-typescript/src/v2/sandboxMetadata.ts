@@ -9,6 +9,8 @@ import { SandboxClass as SANDBOX_CLASSES } from './gen/api-enums.js'
 import { parseSandboxLifecycle, sandboxState } from './http.js'
 import { mibToGib } from './resources.js'
 import { badRequest } from './options.js'
+import { arrayOf, checkResponse, nested } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 import type { ImageRef, MacBootMode, SandboxClass, SandboxDto, SandboxHandleJSON, SandboxInfo, SandboxLifecycle } from './types.js'
 
 /** The handle's current observation; only the handle updates this storage. */
@@ -40,12 +42,28 @@ export function parseLabels(value: unknown): Readonly<Record<string, string>> {
  * carries its `class`. A `BadRequestError` (400, `BAD_REQUEST`, source `SDK`).
  * @internal
  */
+const ARTIFACT_REF: ResponseFields = { id: 'string', name: 'string?' }
+
+// The contract fields the handle reads, required ones without `?` (Python
+// validates the same body against the generated model). A missing
+// `region_id` is derived from the id, as in Python.
+const SANDBOX: ResponseFields = {
+  id: 'string', class: 'string', name: 'string', status: 'string', cpu: 'number', cores_max: 'number',
+  memory_mib: 'integer', disk_mib: 'integer',
+  port_map: arrayOf(nested({ host_port: 'integer', vm_port: 'integer', proto: 'string' })),
+  region_id: 'string?', memory_max_mib: 'integer?', disk_max_mib: 'integer?', labels: 'object?',
+  image: nested(ARTIFACT_REF, true), snapshot: nested(ARTIFACT_REF, true), error: 'string?', mac_boot_mode: 'string?',
+  image_build_id: 'string?', persistent: 'boolean?', user: 'string?', spot: 'boolean?', spot_evicted_at: 'string?',
+  lifecycle_policy: 'object?', forked_from: 'string?', reservation_id: 'string?', toolbox_proxy_url: 'string?',
+  created_at: 'string?', updated_at: 'string?', started_at: 'string?', stopped_at: 'string?',
+  last_activity_at: 'string?', create_timeout_at: 'string?',
+}
+
 export function assertSandboxResponse(sandbox: unknown): asserts sandbox is SandboxDto {
-  if (typeof sandbox !== 'object' || sandbox === null || Array.isArray(sandbox)) throw badRequest('expected a sandbox object')
-  const wireId: unknown = Reflect.get(sandbox, 'id')
-  if (typeof wireId !== 'string' || wireId === '') throw badRequest('sandbox response is missing its id')
-  const wireClass: unknown = Reflect.get(sandbox, 'class')
-  if (typeof wireClass !== 'string' || wireClass === '') throw badRequest('sandbox response is missing its class')
+  const checked = checkResponse<SandboxDto>(sandbox, SANDBOX, 'sandbox')
+  // An empty id or class is as unusable as a missing one.
+  if (checked.id === '') throw badRequest('sandbox response is missing its id')
+  if (checked.class === '') throw badRequest('sandbox response is missing its class')
 }
 
 export function metadataFromSandbox(sandbox: SandboxDto): SandboxMetadata {

@@ -16,7 +16,7 @@ describe('options parameters refuse non-object values', () => {
   type Call = (value: never) => Promise<unknown> | AsyncIterable<unknown>
   const calls = (client: ReturnType<typeof clientAt>, url: string): Record<string, Call> => {
     const v2 = client.v2
-    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running' }, createHttpClient(url), undefined, 'key', undefined, { toolboxUrl: `${url}/toolbox` })
+    const sandbox = createSandbox({ id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(url), undefined, 'key', undefined, { toolboxUrl: `${url}/toolbox` })
     return {
       'create': (value) => v2.create('img', value),
       'createFromSnapshot': (value) => v2.createFromSnapshot('snap', value),

@@ -18,7 +18,7 @@ it.each([new ClientTimeoutError(), new ConnectionError('unreachable')])('returns
   // Given a successful create POST and a failed wait request.
   const client = clientAt('http://api.invalid')
   const api = client.v2['api']
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending' } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending', name: 'created', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
   jest.spyOn(api, 'get').mockRejectedValue(error)
   try {
     // When waiting after successful submission.
@@ -34,7 +34,7 @@ it.each([new TypeError('bug'), new TransferCancelledError()])('propagates a non-
   // Given a successful POST followed by a bug or caller cancellation.
   const client = clientAt('http://api.invalid')
   const api = client.v2['api']
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending' } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending', name: 'created', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
   jest.spyOn(api, 'get').mockRejectedValue(error)
   try {
     // When the post-create wait is interrupted.
@@ -49,10 +49,10 @@ it.each([new TypeError('bug'), new TransferCancelledError()])('propagates a non-
 it.each([404, 408, 500])('returns the POST-derived fork when the detail read fails with %s', async (status) => {
   // Given a successful fork POST but no readable detail metadata.
   const api = await startFakeApi([
-    { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', toolbox_proxy_url: 'https://fork-toolbox.invalid' } },
+    { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
     { status, body: { message: 'detail unavailable' } },
   ])
-  const source = createSandbox({ id: 'source', class: 'macos' }, createHttpClient(api.url))
+  const source = createSandbox({ id: 'source', class: 'macos', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, createHttpClient(api.url))
   try {
     // When the initial detail lookup fails.
     const fork = await source.fork()
@@ -69,12 +69,12 @@ it('charges the fork detail read to the wait budget', async () => {
   // Given a detail read that uses the full fractional wait budget.
   jest.useFakeTimers({ now: 0 })
   const api = createHttpClient('http://api.invalid', undefined, 100)
-  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending' } })
+  jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } })
   const get = jest.spyOn(api, 'get').mockImplementation(async () => {
     jest.setSystemTime(250)
-    return { data: { id: 'fork', status: 'pending', class: 'macos' } }
+    return { data: { id: 'fork', status: 'pending', class: 'macos', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } }
   })
-  const source = createSandbox({ id: 'source', class: 'macos' }, api)
+  const source = createSandbox({ id: 'source', class: 'macos', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api)
   // When acquiring the fork with a quarter-second wait budget.
   const fork = await source.fork({ waitSeconds: 0.25 })
   // Then the detail uses the smaller request bound and no wait starts after expiry.
@@ -85,7 +85,7 @@ it('charges the fork detail read to the wait budget', async () => {
 
 it('builds a toolbox-less detail handle without fetching the same resource again', async () => {
   // Given a complete API detail response without a toolbox URL or class.
-  const api = await startFakeApi([{ status: 200, body: { id: 'sandbox', class: 'linux', status: 'stopped' } }])
+  const api = await startFakeApi([{ status: 200, body: { id: 'sandbox', class: 'linux', status: 'stopped', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } }])
   const client = clientAt(api.url)
   try {
     // When connecting to the sandbox.
@@ -125,7 +125,7 @@ it.each(['build', 'createFromBuild'] as const)('bounds a stalled %s submission b
 it.each(['pending', 'error'])('reports an error-status image as a failed build when the initial status is %s', async (status) => {
   // Given an accepted build whose readiness observation reports error.
   const api = await startFakeApi([
-    { status: 202, body: { id: 'img_failed' } },
+    { status: 202, body: { id: 'img_failed', status: 'pending' } },
     { status: 200, body: imageWire({ id: 'img_failed', status, error: status === 'error' ? 'bad Dockerfile' : undefined }) },
     { status: 200, body: imageWire({ id: 'img_failed', status: 'error', error: 'bad Dockerfile' }) },
   ])

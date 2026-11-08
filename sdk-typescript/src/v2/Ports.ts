@@ -14,7 +14,9 @@ import { BadRequestError, DaytonaError, createDaytonaError } from './errors/Dayt
 import { strictUriEncode } from './http.js'
 import { HttpTransport } from './http.js'
 import type { ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, SignedPreviewLink } from './types.js'
-import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys, snapshotOptions } from './options.js'
+import { checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 
 /**
  * Request header (and its value) that skips the preview warning page. Send it
@@ -61,7 +63,10 @@ function assertSignedPreviewTtl(expiresInSeconds: number): void {
   }
 }
 
-function mapPreviewEndpoint(endpoint: api.PreviewEndpoint): PreviewEndpoint {
+const PREVIEW_ENDPOINT: ResponseFields = { port: 'integer', public: 'boolean', url: 'string', created_at: 'string' }
+
+function mapPreviewEndpoint(value: api.PreviewEndpoint): PreviewEndpoint {
+  const endpoint = checkResponse<api.PreviewEndpoint>(value, PREVIEW_ENDPOINT, 'preview endpoint')
   return credentialSafeInspection({
     port: endpoint.port,
     public: endpoint.public,
@@ -154,7 +159,7 @@ export class PortsService {
   }
 
   public async listEndpoints(options: ListEndpointsOptions = {}): Promise<ListResult<PreviewEndpoint>> {
-    assertKnownOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS)
+    options = snapshotOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS) ?? {}
     const page = await this.requireApi()
       .get<api.EndpointListResponse>(this.portsPath(), { params: options })
       .then((response) => response.data)
@@ -163,7 +168,7 @@ export class PortsService {
   }
 
   public async *iterEndpoints(options: ListEndpointsOptions = {}): AsyncIterable<PreviewEndpoint> {
-    assertKnownOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS)
+    options = snapshotOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS) ?? {}
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -219,10 +224,8 @@ export class PortsService {
     if (endpoint.public) {
       return previewLinkValue(endpoint.url, '', undefined)
     }
-    const response = await this.requireApi().post<api.DaytonaPreviewUrl>(`${this.portPath(port)}/preview-url`).then((result) => result.data)
-    if (typeof response?.token !== 'string') {
-      throw new BadRequestError('preview-url response is missing a string token', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
+    const response = await this.requireApi().post<api.DaytonaPreviewUrl>(`${this.portPath(port)}/preview-url`)
+      .then((result) => checkResponse<api.DaytonaPreviewUrl>(result.data, { url: 'string', token: 'string' }, 'preview url'))
     let token = response.token
     let expiresAt = previewTokenExpiry(token)
     // Only a token minted through this callback has known port-scoped provenance.
@@ -271,8 +274,9 @@ export class PortsService {
     if (options.expiresInSeconds !== undefined) assertSignedPreviewTtl(options.expiresInSeconds)
     const path = `/sandboxes/${strictUriEncode(this.requireSandboxId())}/ports/${port}/signed-preview-urls`
     const body = options.expiresInSeconds === undefined ? {} : { expires_in_seconds: options.expiresInSeconds }
-    const response = await this.requireApi().post<api.SignedPreviewUrlResponse>(path, body).then((result) => result.data)
-    return credentialSafeInspection({ url: response.url ?? '', token: response.token ?? '', expiresAt: response.expires_at },
+    const response = await this.requireApi().post<api.SignedPreviewUrlResponse>(path, body)
+      .then((result) => checkResponse<api.SignedPreviewUrlResponse>(result.data, { url: 'string', token: 'string', expires_at: 'string' }, 'signed preview url'))
+    return credentialSafeInspection({ url: response.url, token: response.token, expiresAt: response.expires_at },
       () => ({ type: 'SignedPreviewLink', expiresAt: response.expires_at }))
   }
 

@@ -15,7 +15,8 @@ import { runtimeUniqueId, strictUriEncode } from './http.js'
 import { MacReservationEndReason as END_REASONS, MacReservationOrigin as ORIGINS, MacReservationStatus as STATUSES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { mapMacResources } from './macMappers.js'
-import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
+import { arrayOf, checkResponse, MAC_RESERVATION, nested } from './responseFields.js'
 
 const CREATE_RESERVATION_KEYS = optionKeys<CreateReservationOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true })
 const CREATE_RESERVATIONS_BULK_KEYS = optionKeys<CreateReservationsBulkOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true, count: true, minCount: true })
@@ -23,7 +24,8 @@ const LIST_RESERVATIONS_KEYS = optionKeys<ListReservationsOptions>()({ cursor: t
 const RENEW_RESERVATION_KEYS = optionKeys<RenewReservationOptions>()({ idempotencyKey: true })
 const UPDATE_RESERVATION_KEYS = optionKeys<UpdateReservationOptions>()({ autoRenew: true })
 
-function reservation(value: api.MacReservation): MacReservation {
+function reservation(wire: api.MacReservation): MacReservation {
+  const value = checkResponse<api.MacReservation>(wire, MAC_RESERVATION, 'reservation')
   return {
     id: value.id,
     region: value.region_id,
@@ -84,6 +86,7 @@ export class ReservationsService {
    * that model is free in the region.
    */
   public async create(options: CreateReservationOptions): Promise<MacReservation> {
+    assertOptionsObject('CreateReservationOptions', options)
     assertKnownOptions('CreateReservationOptions', options, CREATE_RESERVATION_KEYS)
     const body: api.CreateReservationRequest = { region_id: options.region }
     if (options.model !== undefined) body.model = options.model
@@ -96,25 +99,27 @@ export class ReservationsService {
    * Reserve count Macs of one model in region in one request. minCount (default count) is the fewest to accept: with fewer Macs free, the request reserves as many as are free, or none, failing with ConflictError code === 'NO_MAC_AVAILABLE' when fewer than minCount are free. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
    */
   public async createBulk(options: CreateReservationsBulkOptions): Promise<MacReservationBatch> {
+    assertOptionsObject('CreateReservationsBulkOptions', options)
     assertKnownOptions('CreateReservationsBulkOptions', options, CREATE_RESERVATIONS_BULK_KEYS)
     const body: api.CreateReservationsBulkRequest = { region_id: options.region, count: options.count }
     if (options.minCount !== undefined) body.min_count = options.minCount
     if (options.model !== undefined) body.model = options.model
     if (options.autoRenew !== undefined) body.auto_renew = options.autoRenew
     const { data } = await this.http.post<api.MacReservationBatch>('/reservations/bulk', body, idempotencyHeaders(options.idempotencyKey))
-    return { requested: data.requested, reserved: data.reserved, reservations: data.reservations.map(reservation) }
+    const batch = checkResponse<api.MacReservationBatch>(data, { requested: 'integer', reserved: 'integer', reservations: arrayOf(nested(MAC_RESERVATION)) }, 'reservation batch')
+    return { requested: batch.requested, reserved: batch.reserved, reservations: batch.reservations.map(reservation) }
   }
 
   /** One page of the organization's reservations. */
   public async list(options: ListReservationsOptions = {}): Promise<ListResult<MacReservation>> {
-    assertKnownOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS)
+    options = snapshotOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS) ?? {}
     const { data } = await this.http.get<api.ListReservationsResponse>('/reservations', { params: options })
     const page = listPage<api.MacReservation>(data, 'reservations', 'reservation list')
     return { items: page.items.map(reservation), nextCursor: page.nextCursor }
   }
 
   public async *iter(options: ListReservationsOptions = {}): AsyncIterable<MacReservation> {
-    assertKnownOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS)
+    options = snapshotOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS) ?? {}
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -148,6 +153,7 @@ export class ReservationsService {
    * `ConflictError` when the reservation is no longer live.
    */
   public async update(id: string, options: UpdateReservationOptions): Promise<MacReservation> {
+    assertOptionsObject('UpdateReservationOptions', options)
     assertKnownOptions('UpdateReservationOptions', options, UPDATE_RESERVATION_KEYS)
     const body: api.UpdateReservationRequest = { auto_renew: options.autoRenew }
     const { data } = await this.http.patch<api.MacReservation>(`/reservations/${strictUriEncode(id)}`, body)

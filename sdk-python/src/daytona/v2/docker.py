@@ -70,7 +70,12 @@ class AsyncDockerService:
         when a status request is still unanswered at the deadline. No request
         runs more than a fraction of a second past the deadline.
         """
-        if isinstance(timeout, bool) or not math.isfinite(timeout) or timeout < 0:
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, (int, float))
+            or not math.isfinite(timeout)
+            or timeout < 0
+        ):
             raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
         deadline = None if timeout == 0 else _clock.monotonic() + timeout
         last: Optional[DockerStatus] = None

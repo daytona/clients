@@ -49,7 +49,7 @@ describe('client options boundaries', () => {
 
   it('preserves exact MiB values when creating with fractional GiB', async () => {
     // Given
-    const api = await startFakeApi([{ status: 202, body: { id: 'sbx', class: 'linux', status: 'queued' } }])
+    const api = await startFakeApi([{ status: 202, body: { id: 'sbx', class: 'linux', status: 'queued', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } }])
     const client = clientAt(api.url)
     try {
       // When
@@ -64,7 +64,7 @@ describe('client options boundaries', () => {
 
   it.each(['create', 'createFromSnapshot', 'createMacos', 'get'] as const)('keeps a sandbox when %s did not opt into disposal', async (route) => {
     // Given
-    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid' } }])
+    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } }])
     const client = clientAt(api.url)
     try {
       const acquire = {
@@ -87,7 +87,7 @@ describe('client options boundaries', () => {
   it.each(['create', 'createFromSnapshot', 'createMacos', 'get'] as const)('deletes a sandbox when %s opts into disposal', async (route) => {
     // Given
     const api = await startFakeApi([
-      { status: 200, body: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid' } },
+      { status: 200, body: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] } },
       { status: 202, body: {} },
       { status: 404, body: { code: 'NOT_FOUND', source: 'DAYTONA_API', message: 'not found' } },
     ])

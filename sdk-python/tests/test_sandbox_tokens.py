@@ -470,7 +470,12 @@ async def test_a_mint_404_falls_back_once_and_keeps_minting():
     api = _RecordingApi(
         [
             create_error("not found", 404, "NOT_FOUND", "DAYTONA_API"),
-            {"access_token": "minted", "expires_at": "2999-01-01T00:00:00Z", "token_type": "Bearer"},
+            {
+                "access_token": "minted",
+                "expires_at": "2999-01-01T00:00:00Z",
+                "token_type": "Bearer",
+                "operations": [],
+            },
         ]
     )
     sandbox._api = api  # type: ignore[assignment]
