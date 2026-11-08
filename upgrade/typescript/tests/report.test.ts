@@ -45,11 +45,24 @@ function report(output: string): Report {
   return value;
 }
 const laterReport = {
-  tool: 'daytona-upgrade', version: '2.1.0', language: 'ts', mode: 'upgrade', root: '/project', dryRun: false,
-  changedFiles: [], dependencies: [], nextSteps: [], laterField: true,
-  items: [{ file: 'app.ts', line: 1, column: 1, kind: 'later-kind', message: 'Review this call.', laterItemField: 'x' }],
-  refused: { reason: 'later-reason', message: 'Refused.' },
+  tool: 'daytona-upgrade', version: '2.1.0', language: 'later-language', mode: 'later-mode', root: '/project', dryRun: false,
+  changedFiles: [], nextSteps: [], laterField: true,
+  dependencies: [{ file: 'package.json', from: '^0.230.0', to: '^2.1.0', laterDependencyField: 'x' }],
+  items: [{
+    file: 'app.ts', line: 1, column: 1, kind: 'later-kind', message: 'Review this call.', laterItemField: 'x',
+    suggestion: {
+      id: 'sandbox.process.executeCommand', receiver: 'sandbox.process', v0: 'sandbox.process.executeCommand',
+      v2: 'sandbox.process.run', category: 'later-category', notes: [], docs: 'https://www.daytona.io/docs', laterSuggestionField: 'x',
+    },
+  }],
+  refused: { reason: 'later-reason', message: 'Refused.', laterRefusedField: 'x' },
+  warnings: [{ file: 'app.ts', message: 'Review this.', laterWarningField: 'x' }],
 };
+function schemaNodes(node: unknown): Readonly<Record<string, unknown>>[] {
+  if (Array.isArray(node)) return node.flatMap(schemaNodes);
+  if (!isRecord(node)) return [];
+  return [node, ...Object.entries(node).filter(([key]) => key !== 'examples').flatMap(([, value]) => schemaNodes(value))];
+}
 it.skipIf(!existsSync(schemaPath))('validates upgrade JSON when manual items remain', async () => {
   // Given
   const root = fixture('config-fields');
@@ -129,6 +142,18 @@ it.skipIf(!existsSync(schemaPath))('accepts fields and values a later 2.x releas
   expect(validator.errors ?? []).toEqual([]);
   expect(valid).toBe(true);
 });
+it.skipIf(!existsSync(schemaPath))('publishes no closed object or vocabulary', () => {
+  // Given
+  const nodes = schemaNodes(publishedSchema());
+  // When
+  const closed = nodes.filter(node => node['additionalProperties'] === false);
+  const enums = nodes.filter(node => 'enum' in node);
+  const untyped = nodes.filter(node => 'examples' in node && node['type'] !== 'string');
+  // Then
+  expect(closed).toEqual([]);
+  expect(enums).toEqual([]);
+  expect(untyped).toEqual([]);
+});
 it.skipIf(!existsSync(schemaPath))('holds the tool output to the listed fields and values', () => {
   // Given
   const validator = new Ajv2020({ allErrors: true }).compile(strictSchema());
@@ -138,9 +163,16 @@ it.skipIf(!existsSync(schemaPath))('holds the tool output to the listed fields a
   expect(valid).toBe(false);
   expect((validator.errors ?? []).map(error => `${error.instancePath} ${error.keyword}`).sort()).toEqual([
     ' additionalProperties',
+    '/dependencies/0 additionalProperties',
     '/items/0 additionalProperties',
     '/items/0/kind enum',
+    '/items/0/suggestion additionalProperties',
+    '/items/0/suggestion/category enum',
+    '/language enum',
+    '/mode enum',
+    '/refused additionalProperties',
     '/refused/reason enum',
+    '/warnings/0 additionalProperties',
   ]);
 });
 it('keeps the bundled mapping byte-identical when the source mapping is available', context => {
