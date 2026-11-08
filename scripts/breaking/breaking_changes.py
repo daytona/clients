@@ -931,6 +931,11 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
         news = new.get(key)
         # New lines that stand in for an old line accepted as compatible.
         consumed: set[str] = set()
+        # The key only lost lines (an overload dropped, none changed): an
+        # unchanged sibling may then stand in for a dropped one. When it also
+        # gained a line, an old overload was changed, and a call that matched
+        # it now resolves to the changed one.
+        dropped_only = news is not None and all(c in old[key] for c in news)
         if news is None:
             if is_child(key, removed_keys):
                 continue
@@ -981,7 +986,7 @@ def compare_surface(name: str, old_text: str, new_text: str | None, report: Repo
                         # dropped one of a function the SDK implements:
                         # callers only call it. Callers implementing it
                         # must accept every overload.
-                        if (c not in old[key] or here["implementer"] == "sdk")
+                        if (c not in old[key] or (here["implementer"] == "sdk" and dropped_only))
                         and compatible_change(rest, c, typescript=typescript, **here)
                     ),
                     None,
@@ -1106,17 +1111,34 @@ def new_required_flags(name: str, old: dict[str, list[str]], new: dict[str, list
 # --- contracts ----------------------------------------------------------------
 
 
-def open_enums_extensible(node: object) -> object:
-    """Enums tagged x-daytona-open-enum in the x-extensible-enum form, which
-    oasdiff lets gain values. Used only to learn which response-side value
-    additions the open tag permits (see ``oasdiff_findings``)."""
+def open_enum_paths(node: object, at: tuple[object, ...] = ()) -> set[tuple[object, ...]]:
+    """Where in a contract document an enum is tagged x-daytona-open-enum."""
+    found: set[tuple[object, ...]] = set()
     if isinstance(node, dict):
-        out = {k: open_enums_extensible(v) for k, v in node.items()}
-        if "enum" in out and out.get("x-daytona-open-enum"):
+        if "enum" in node and node.get("x-daytona-open-enum"):
+            found.add(at)
+        for k, v in node.items():
+            found |= open_enum_paths(v, (*at, k))
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            found |= open_enum_paths(v, (*at, i))
+    return found
+
+
+def open_enums_extensible(
+    node: object, only: set[tuple[object, ...]] | None = None, at: tuple[object, ...] = ()
+) -> object:
+    """Enums tagged x-daytona-open-enum in the x-extensible-enum form, which
+    oasdiff lets gain values; with ``only``, just the enums at those paths.
+    Used only to learn which response-side value additions the open tag
+    permits (see ``oasdiff_findings``)."""
+    if isinstance(node, dict):
+        out = {k: open_enums_extensible(v, only, (*at, k)) for k, v in node.items()}
+        if "enum" in out and out.get("x-daytona-open-enum") and (only is None or at in only):
             out["x-extensible-enum"] = out.pop("enum")
         return out
     if isinstance(node, list):
-        return [open_enums_extensible(v) for v in node]
+        return [open_enums_extensible(v, only, (*at, i)) for i, v in enumerate(node)]
     return node
 
 
@@ -1148,15 +1170,21 @@ def is_response_value_added(item: dict[str, object]) -> bool:
 def oasdiff_findings(oasdiff: str, path: str, old_text: str, new_text: str) -> tuple[set[Finding], set[str]]:
     """oasdiff on the contracts as they are (failing closed), minus the one
     change the open-enum tag permits: a value added to an enum tagged
-    x-daytona-open-enum on the response side. Which response additions those
-    are is learnt from a second run with open enums in the x-extensible-enum
-    form; every request-side removal stays, also where oasdiff's
+    x-daytona-open-enum, at the same place, in both revisions, on the
+    response side. Which response additions those are is learnt from a
+    second run with those enums in the x-extensible-enum form; every request-side removal stays, also where oasdiff's
     x-extensible-enum checks do not reach (array-valued query parameters)."""
     old_doc, new_doc = json.loads(old_text), json.loads(new_text)
     raw = run_oasdiff(oasdiff, path, old_doc, new_doc)
     permitted: set[tuple[str, str, str, str]] = set()
     if any(is_response_value_added(item) for item in raw):
-        still = {oasdiff_key(i) for i in run_oasdiff(oasdiff, path, open_enums_extensible(old_doc), open_enums_extensible(new_doc))}
+        # Only an enum open at the release and now (at the same place) may
+        # grow: adding or dropping the tag in the same change fails closed.
+        both = open_enum_paths(old_doc) & open_enum_paths(new_doc)
+        still = {
+            oasdiff_key(i)
+            for i in run_oasdiff(oasdiff, path, open_enums_extensible(old_doc, both), open_enums_extensible(new_doc, both))
+        }
         permitted = {oasdiff_key(i) for i in raw if is_response_value_added(i) and oasdiff_key(i) not in still}
     errors: set[Finding] = set()
     warnings: set[str] = set()

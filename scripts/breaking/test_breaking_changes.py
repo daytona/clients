@@ -346,6 +346,16 @@ class Directions(unittest.TestCase):
         # The key still exists: its lines are printed, not "(removed)".
         self.assertEqual(dict(report.breaking[0].fields)["new"], "O.m: method (a: number | string): void")
 
+    def test_changing_an_overload_next_to_a_wider_one(self) -> None:
+        # Calls resolve against overloads in order: a call that matched the
+        # changed overload now gets its new types, whatever the wider one says.
+        old = "C: class\nC.m: method (a: string): string\nC.m: method (a: number | string): string"
+        new = "C: class\nC.m: method (a: string): number\nC.m: method (a: number | string): string"
+        self.assertEqual(self.breaks(self.TS, old, new), 1)
+        py_old = "S: class\nS.lookup: def (key: str) -> str\nS.lookup: def (key: str | int) -> str"
+        py_new = "S: class\nS.lookup: def (key: str) -> int\nS.lookup: def (key: str | int) -> str"
+        self.assertEqual(self.breaks(self.PY, py_old, py_new), 1)
+
     def test_new_index_signature_on_a_passed_in_type(self) -> None:
         passed = "O: interface\nO: passed-in\nO.a: property string"
         self.assertEqual(self.breaks(self.TS, passed, passed + "\nO[]: index [key: string]: string"), 1)
@@ -851,6 +861,17 @@ class OpenAPI(unittest.TestCase):
         errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"]), spec(["a", "b"]))
         self.assertEqual(errors, set())
         errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"], open_enum=False), spec(["a", "b"], open_enum=False))
+        self.assertTrue(errors)
+
+    def test_open_tag_must_be_on_both_sides(self) -> None:
+        # Open at the release and now: a response value may be added.
+        errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"]), spec(["a", "b"]))
+        self.assertEqual(errors, set())
+        # The tag added in the same change: the enum was closed at the release.
+        errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"], open_enum=False), spec(["a", "b"]))
+        self.assertTrue(errors)
+        # The tag removed in the same change: closed now.
+        errors, _ = bc.oasdiff_findings(str(OASDIFF), "x.json", spec(["a"]), spec(["a", "b"], open_enum=False))
         self.assertTrue(errors)
 
     def test_open_enum_in_an_array_query_parameter(self) -> None:
