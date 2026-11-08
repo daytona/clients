@@ -70,7 +70,8 @@ export function optional<T>(input: WireRecord, field: string, read: (input: Wire
 }
 
 // RFC 3339 with the offset's hours 00-23 and minutes 00-59, as the Python SDK
-// parses it; the date and time fields are range-checked below.
+// parses it; the date and time fields are range-checked below (no leap
+// second, which Python's datetime cannot represent).
 const RFC3339 = /^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
 
 /** Whether `value` is an RFC 3339 timestamp (with a valid date and time). */
@@ -80,7 +81,7 @@ export function isRfc3339(value: string): boolean {
   const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number) as [number, number, number, number, number, number]
   const date = new Date(Date.UTC(year, month - 1, day))
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-    && hour <= 23 && minute <= 59 && second <= 60
+    && hour <= 23 && minute <= 59 && second <= 59
 }
 
 /** A required RFC 3339 timestamp string. */

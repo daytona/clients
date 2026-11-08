@@ -12222,7 +12222,9 @@ describe('toolbox surface', () => {
     ['listRemotes without remotes', 'listRemotes', {}],
     ['listBranches without branches', 'listBranches', {}],
     ['history without items', 'history', {}],
-    ['history with a fractional-free but non-RFC 3339 timestamp', 'history', [{ hash: 'h', message: 'm', author: 'a', email: 'e', timestamp: 'yesterday' }]],
+    ['history with a non-RFC 3339 timestamp', 'history', [{ hash: 'h', message: 'm', author: 'a', email: 'e', timestamp: 'yesterday' }]],
+    ['history with an offset minute above 59', 'history', [{ hash: 'h', message: 'm', author: 'a', email: 'e', timestamp: '2026-01-01T00:00:00+05:60' }]],
+    ['history with a leap second, as Python rejects it', 'history', [{ hash: 'h', message: 'm', author: 'a', email: 'e', timestamp: '2026-12-31T23:59:60Z' }]],
   ] as const)('rejects git %s as a malformed response', async (_label, method, payload) => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce(payload)
