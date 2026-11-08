@@ -23,8 +23,9 @@ is built:
   publish job finds and waits for its run.
 
 Before dispatching, the publish job reads `<formula>.rb`: a formula never moves
-to a lower version, so a release below the version it names (a backport, an
-older rc or alpha) leaves it alone, and the same version (a resumed run) is
+to a lower version, so a release below the version it names (an older rc or
+alpha; the gate already refuses a stable version below the highest stable
+2.x release) leaves it alone, and the same version (a resumed run) is
 only read back. The tap's `scripts/update_sha.sh` refuses a lower version too.
 After the run, the publish job reads `<formula>.rb` back and fails unless its
 `version` is the published one. If the job's token cannot list the tap's

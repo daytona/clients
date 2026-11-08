@@ -6,4 +6,5 @@
 once 2.x is stable, npm `v0-latest`). The first
 stable 2.x release moves `brew install daytonaio/cli/daytona` and npm
 `latest` from the 0.x line to 2.x; the 0.x CLI stays available as
-`daytona@0` (`daytona-v0`).
+`daytona@0` (`daytona-v0`). 2.x publishes no stable backports: fixes ship in
+a release above the highest stable one.

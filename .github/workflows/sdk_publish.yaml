@@ -575,9 +575,11 @@ jobs:
             exit 1
           fi
           # `npm publish --tag latest` moves the tag even to a LOWER version,
-          # so a stable version below the package's current `latest` (a
-          # backport after a newer stable release) is refused, before anything
-          # is built; a 0.x `latest` (before the first stable 2.x) is below.
+          # so a stable version below the package's current `latest` is
+          # refused, before anything is built (the gate already refuses a
+          # stable version below the highest stable 2.x release; this holds it
+          # on npm independently); a 0.x `latest` (before the first stable
+          # 2.x) is below.
           # A package not on npm yet (a completed 404), or without a `latest`
           # tag, has nothing to move back; any other answer, and any transfer
           # that did not complete, fails closed.
@@ -1309,9 +1311,11 @@ jobs:
       # different content the run fails loudly — a version is published once.
       # The channel decides the release's kind: alpha and rc are pre-releases
       # and never GitHub's "Latest"; a stable release is a normal release and
-      # becomes "Latest" when no higher stable release exists (a backport such
-      # as 2.0.1 after 2.1.0 does not). release/v0 reads that "Latest" too and
-      # keeps it on the highest stable release.
+      # becomes "Latest" when no higher stable release exists (the gate
+      # refuses a stable version below the highest stable 2.x release, so
+      # only a higher 0.x release could, in principle, outrank it).
+      # release/v0 reads that "Latest" too and keeps it on the highest stable
+      # release.
       - name: Create (or confirm) the daytona CLI ${{ needs.gate.outputs.cli }} release
         id: cli_release
         if: needs.gate.outputs.cli != ''
@@ -1406,8 +1410,9 @@ jobs:
       # waits for running release/v0 publishes, and every channel then reads
       # the formula back from the tap.
       # A formula only moves forward: a release below the version the formula
-      # names (a backport such as 2.0.1 after 2.1.0, or an older rc or alpha)
-      # leaves it alone, and the same version (a resume) is only read back.
+      # names (an older rc or alpha published after a newer one; the gate
+      # refuses a stable version below the highest stable 2.x release) leaves
+      # it alone, and the same version (a resume) is only read back.
       - name: Point the ${{ needs.gate.outputs.homebrew_formula }} Homebrew formula at the release
         id: homebrew
         if: needs.gate.outputs.cli != ''

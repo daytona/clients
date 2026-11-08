@@ -89,16 +89,17 @@ internal modules not re-exported from the entry point, the `X-Daytona-Source` /
 
 ## Pre-releases
 
-**Before `2.0.0` (pre-stable).** The policy was alpha only: releases were
-`2.0.0-alpha.N` pre-releases, the SDK surface was considered unstable, and
-**breaking changes could land in any alpha.** The spec diff was not
-classified into major/minor/patch then: a spec change drafted the next alpha
-counter. The one exception is the `2.0.0-rc.1` (PyPI `2.0.0rc1`) published
-before that policy ([Release channels](#release-channels)).
+**Before `2.0.0` (pre-stable).** 2.x releases are pre-releases of `2.0.0`:
+`2.0.0-alpha.N`, plus the `2.0.0-rc.1` (PyPI `2.0.0rc1`) published before the
+current publishing policy ([Release channels](#release-channels)); release
+candidates from `2.0.0-rc.2` on may also precede `2.0.0`. The SDK surface is
+unstable, and **breaking changes may land in any of them.** The spec diff is
+not classified into major/minor/patch: a spec change drafts the next
+pre-release counter.
 
 **From `2.0.0` on.** Pre-releases (`-alpha.N`, `-rc.N`, see
-[Release channels](#release-channels)) keep those rules for the release they
-lead up to: **breaking changes may land between the pre-releases of the next
+[Release channels](#release-channels)) keep the same rules for the release
+they lead up to: **breaking changes may land between the pre-releases of the next
 MAJOR, never in a stable MINOR or PATCH.** A pre-release of a MINOR may change
 what that MINOR adds until its stable release, but not what a stable release
 already shipped.
@@ -188,6 +189,12 @@ derives").
   exists, the default installs the newest pre-release and says so.
 - The 0.x line publishes from `release/v0` under `daytona@0` (Homebrew) and,
   once a stable 2.x release exists, the npm line tag `v0-latest`.
+- 2.x publishes no stable backports: the gate refuses a stable version below
+  the highest stable 2.x release, so a fix ships in a release above it.
+- npm `next` and the `daytona-rc` formula point at the last release candidate
+  published, which after a stable release can be below it; the installers'
+  `rc` channel instead installs the highest release candidate or stable
+  release.
 
 **The published `2.0.0-rc.1` / `2.0.0rc1` outrank every alpha.** Both
 registries already carry a release-candidate from before this policy: npm

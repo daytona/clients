@@ -446,7 +446,7 @@ for (const [title, channel, options, status, waits, message, version = '2.0.0', 
   ['unreadable tap runs: the formula naming the version passes', 'alpha', { formulaVersion: ['2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0'], runsReadable: false }, 0, 0, /waiting up to 15 minutes/],
   ['unreadable tap runs: a formula that never moves fails', 'alpha', { formulaVersion: '2.0.0-alpha.8', runsReadable: false }, 1, 0, /is at '2\.0\.0-alpha\.8', not 2\.0\.0/],
   // A formula only moves forward.
-  ['a stable backport leaves a higher formula alone', 'stable', { before: '2.1.0' }, 0, 0, /daytona\.rb is at 2\.1\.0, above 2\.0\.1/, '2.0.1', false],
+  ['a stable release below the formula leaves it alone (the gate refuses one first)', 'stable', { before: '2.1.0' }, 0, 0, /daytona\.rb is at 2\.1\.0, above 2\.0\.1/, '2.0.1', false],
   ['a stable release above the formula moves it', 'stable', { before: '2.0.1', formulaVersion: '2.1.0' }, 0, 0, undefined, '2.1.0'],
   ['an older rc leaves a higher rc formula alone', 'rc', { before: '2.1.0-rc.1' }, 0, 0, /above 2\.0\.1-rc\.3/, '2.0.1-rc.3', false],
   ['an rc leaves a formula that names a stable release of that version alone', 'rc', { before: '2.1.0' }, 0, 0, /above 2\.1\.0-rc\.1/, '2.1.0-rc.1', false],

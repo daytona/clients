@@ -103,9 +103,17 @@ and rejects anything that is not a release version:
 | `vX.Y.Z` | stable | `latest` | release; **Latest** when it is the repository's highest stable release | `daytona` (`brew_publish.yaml`) |
 
 The migration tool takes the SDKs' dist-tag. The 0.x line keeps its own
-`daytona@0` formula and publishes from `release/v0`. A stable version below a
-package's current npm `latest` is refused before anything is built
-(`npm publish --tag latest` would move the tag back).
+`daytona@0` formula and publishes from `release/v0`.
+
+**2.x has no stable backports.** The gate refuses a stable version below the
+highest stable 2.x GitHub Release before anything is built, in every mode
+(`force_republish` included); the same version is a resume. A fix for an
+older minor ships in a release above the highest one. npm `latest`, GitHub's
+Latest and the `daytona` formula therefore only move forward; the checks
+below hold that independently too. (Allowing backports later, for example
+under an npm line tag like the 0.x line's `v0-latest`, would be an addition.)
+Every stable run also shares one concurrency group, so two stable versions
+never publish at once.
 
 The formulae live in the tap
 [`daytonaio/homebrew-cli`](https://github.com/daytonaio/homebrew-cli)
@@ -116,11 +124,15 @@ reads the formula back and fails unless it names the published version.
 
 A formula never moves to a lower version. Before dispatching, the publish job
 reads the channel's formula: if it names a higher version (alpha < rc <
-stable for the same `X.Y.Z`), the formula is left alone and the job succeeds,
-so a backport release (`v2.0.1` after `v2.1.0`, or an older rc or alpha) gets
-its GitHub Release and packages but leaves Homebrew on the higher version. If
-it names the same version (a resumed run), the job only reads it back. The
-tap's `scripts/update_sha.sh` refuses a lower version too.
+stable for the same `X.Y.Z`), the formula is left alone and the job succeeds.
+For a stable release the gate has already refused that case; for the rc and
+alpha formulae it happens when an older pre-release publishes after a newer
+one (pre-releases may publish any commit). If the formula names the same
+version (a resumed run), the job only reads it back. The tap's
+`scripts/update_sha.sh` refuses a lower version too. At the end of a stable
+run, GitHub's Latest is pinned on the highest stable release again (a 0.x
+`release.yaml` run re-pins Latest as well; the Homebrew step waits for
+running ones).
 
 ## Automated release (recommended)
 
