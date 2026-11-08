@@ -8,7 +8,6 @@ import (
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/mgmt"
-	"github.com/daytona/clients/cli/internal/output"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
@@ -47,7 +46,7 @@ func newMemberListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), items, memberTable)
+			return listOutRaw(a.Printer(), items, memberTable)
 		},
 	}
 	addPageFlags(cmd, &flags)
@@ -91,13 +90,13 @@ func newMemberUpdateCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return a.Printer().Object(preview, [][2]string{{"user_id", member.UserId.String()}, {"revoked_api_keys", toString(preview.RevokedApiKeys)}, {"revoked_preview_grants", toString(preview.RevokedPreviewGrants)}})
+				return a.Printer().Object(preview, [][2]string{{"user_id", member.UserId.String()}, {"revoked_api_keys", toString(preview.V.RevokedApiKeys)}, {"revoked_preview_grants", toString(preview.V.RevokedPreviewGrants)}})
 			}
 			updated, err := mgmt.UpdateMember(ctx, mc, orgID, member.UserId.String(), req)
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(updated, [][2]string{{"user_id", member.UserId.String()}, {"roles", joinComma(updated.Roles)}})
+			return a.Printer().Object(updated, [][2]string{{"user_id", member.UserId.String()}, {"roles", joinComma(updated.V.Roles)}})
 		},
 	}
 	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (repeatable or comma-separated); replaces the member's roles")
@@ -137,7 +136,7 @@ func newMemberRemoveCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return a.Printer().Object(resp, [][2]string{{"user_id", memberID}, {"revoked_api_keys", toString(resp.RevokedApiKeys)}, {"revoked_preview_grants", toString(resp.RevokedPreviewGrants)}})
+				return a.Printer().Object(resp, [][2]string{{"user_id", memberID}, {"revoked_api_keys", toString(resp.V.RevokedApiKeys)}, {"revoked_preview_grants", toString(resp.V.RevokedPreviewGrants)}})
 			}
 			if err := a.Confirm("remove", "member "+args[0]); err != nil {
 				return err
@@ -158,7 +157,7 @@ func resolveMemberRemovalTarget(ctx context.Context, mc *mgmtClient, orgID, ref 
 		if err != nil {
 			return "", err
 		}
-		return me.Id.String(), nil
+		return me.V.Id.String(), nil
 	}
 	if _, err := uuid.Parse(ref); err == nil {
 		return ref, nil

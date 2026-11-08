@@ -94,8 +94,11 @@ func TestVersion_degradesWhenConnectedAPIIsUnavailable(t *testing.T) {
 	if got["api_url"] != "http://127.0.0.1:1" {
 		t.Fatalf("unexpected api_url: %#v", got)
 	}
-	if got["api_version"] != "" || got["api_build_sha"] != "" || got["api_built_at"] != "" || got["skew_warning"] != "" {
-		t.Fatalf("unexpected json: %#v", got)
+	// What could not be read is omitted, not printed empty.
+	for _, k := range []string{"api_version", "api_build_sha", "api_built_at", "skew_warning"} {
+		if _, ok := got[k]; ok {
+			t.Fatalf("unexpected %s: %#v", k, got)
+		}
 	}
 	if !has(jsonStderr, "Connected API unavailable at http://127.0.0.1:1") {
 		t.Fatalf("json stderr=%q", jsonStderr)

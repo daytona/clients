@@ -5,10 +5,10 @@ package cmd
 
 import (
 	"context"
+
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/mgmt"
-	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +56,7 @@ func newProjectMemberListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), items, projectMemberTable)
+		return listOutRaw(a.Printer(), items, projectMemberTable)
 	}}
 	addPageFlags(cmd, &flags)
 	return cmd
@@ -103,7 +103,7 @@ func newProjectMemberAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.AddedUserIds))}})
+			return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.V.AddedUserIds))}})
 		}
 		if len(args) != 1 {
 			return cobra.ExactArgs(1)(cmd, args)
@@ -116,7 +116,7 @@ func newProjectMemberAddCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.AddedUserIds))}})
+		return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.V.AddedUserIds))}})
 	}}
 	cmd.Flags().StringVar(&bulk, "bulk", "", "comma-separated user ids/emails/names to add in one request")
 	return cmd

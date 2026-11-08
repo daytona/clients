@@ -20,16 +20,18 @@ import (
 	"github.com/daytona/clients/cli/internal/output"
 )
 
+// versionOutput is the CLI-owned `version -o json` shape: the API fields are
+// omitted when the API could not be read (or did not say).
 type versionOutput struct {
 	Version     string `json:"version"`
 	Go          string `json:"go"`
 	OS          string `json:"os"`
 	Arch        string `json:"arch"`
-	APIVersion  string `json:"api_version"`
-	APIBuildSHA string `json:"api_build_sha"`
-	APIBuiltAt  string `json:"api_built_at"`
-	APIURL      string `json:"api_url"`
-	SkewWarning string `json:"skew_warning"`
+	APIVersion  string `json:"api_version,omitempty"`
+	APIBuildSHA string `json:"api_build_sha,omitempty"`
+	APIBuiltAt  string `json:"api_built_at,omitempty"`
+	APIURL      string `json:"api_url,omitempty"`
+	SkewWarning string `json:"skew_warning,omitempty"`
 }
 
 type apiVersionInfo struct {

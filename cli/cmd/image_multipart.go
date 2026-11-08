@@ -34,10 +34,10 @@ type imageContextUpload struct {
 	open func() (io.ReadCloser, error)
 }
 
-func postImageMultipart(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath, contextPath string) (gen.AsyncOperation, error) {
+func postImageMultipart(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath, contextPath string) (api.Raw[gen.AsyncOperation], error) {
 	contextUpload, err := imageContextUploadForPath(contextPath, dockerfilePath)
 	if err != nil {
-		return gen.AsyncOperation{}, err
+		return api.Raw[gen.AsyncOperation]{}, err
 	}
 	if contextUpload.size <= imageContextReplayLimit {
 		return postBufferedImageMultipart(ctx, client, meta, dockerfilePath, contextUpload)
@@ -113,21 +113,21 @@ func unsupportedImageContextEntryError(contextPath, entryPath string) error {
 	return cerr.Usage("build context %q contains unsupported entry %q (only regular files, directories, and symlinks are allowed)", contextPath, entryPath)
 }
 
-func postBufferedImageMultipart(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath string, contextUpload imageContextUpload) (gen.AsyncOperation, error) {
+func postBufferedImageMultipart(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath string, contextUpload imageContextUpload) (api.Raw[gen.AsyncOperation], error) {
 	reader, err := contextUpload.open()
 	if err != nil {
-		return gen.AsyncOperation{}, err
+		return api.Raw[gen.AsyncOperation]{}, err
 	}
 	defer reader.Close()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	if err := writeImageMultipart(writer, meta, dockerfilePath, contextUpload.name, reader); err != nil {
-		return gen.AsyncOperation{}, err
+		return api.Raw[gen.AsyncOperation]{}, err
 	}
 	return decodeImageMultipartResponse(ctx, client, bytes.NewReader(body.Bytes()), writer.FormDataContentType())
 }
 
-func postStreamedImageMultipart(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath string, contextUpload imageContextUpload) (gen.AsyncOperation, error) {
+func postStreamedImageMultipart(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath string, contextUpload imageContextUpload) (api.Raw[gen.AsyncOperation], error) {
 	pipeReader, pipeWriter := io.Pipe()
 	writer := multipart.NewWriter(pipeWriter)
 	// Large context uploads stream directly into the multipart writer through an
@@ -150,7 +150,7 @@ func postStreamedImageMultipart(ctx context.Context, client *api.Client, meta ma
 	created, err := decodeImageMultipartResponse(ctx, client, pipeReader, writer.FormDataContentType())
 	if err != nil {
 		_ = pipeReader.CloseWithError(err)
-		return gen.AsyncOperation{}, err
+		return api.Raw[gen.AsyncOperation]{}, err
 	}
 	return created, nil
 }
@@ -179,8 +179,8 @@ func writeImageMultipart(writer *multipart.Writer, meta map[string]string, docke
 	return writer.Close()
 }
 
-func decodeImageMultipartResponse(ctx context.Context, client *api.Client, body io.Reader, contentType string) (gen.AsyncOperation, error) {
-	var created gen.AsyncOperation
+func decodeImageMultipartResponse(ctx context.Context, client *api.Client, body io.Reader, contentType string) (api.Raw[gen.AsyncOperation], error) {
+	var created api.Raw[gen.AsyncOperation]
 	resp, err := client.Stream(ctx, http.MethodPost, "/images", nil, body, contentType)
 	if err != nil {
 		return created, err

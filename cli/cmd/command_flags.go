@@ -5,7 +5,10 @@ package cmd
 
 import (
 	"fmt"
+
 	"strings"
+
+	"github.com/daytona/clients/cli/internal/cerr"
 
 	"github.com/spf13/cobra"
 
@@ -111,7 +114,7 @@ func addRegionFlag(cmd *cobra.Command, help string) {
 }
 
 // renamedFlags maps a flag spelling the 2.x CLI no longer accepts to its
-// replacement, per command path ("" = any command).
+// replacement, per command path.
 var renamedFlags = map[string]map[string]string{
 	"daytona volume create": {
 		"region":  "--bucket-region (the S3 region of a customer bucket)",
@@ -139,8 +142,52 @@ func renamedFlagHint(cmd *cobra.Command, err error) string {
 	if next, ok := renamedFlags[cmd.CommandPath()][name]; ok {
 		return "use " + next
 	}
+	if name == "no-wait" && !cmd.HasParent() {
+		// A value-less flag unknown to the root hides the command name that
+		// follows it, so cobra cannot find the command.
+		return "put --no-wait after the command name (daytona sandbox stop ID --no-wait)"
+	}
 	if name == "region" {
 		return "--region applies only to commands that place or list by region (sandbox create*, sandbox list and search, image list, create and build, reservation create, cpu-type and mac-model list)"
 	}
 	return ""
+}
+
+// checkFlagCombinations refuses a --timeout that would be accepted and
+// ignored: with --no-wait, without --follow on a log command, and without
+// --wait on `sandbox docker status`.
+func checkFlagCombinations(cmd *cobra.Command) error {
+	flags := cmd.Flags()
+	if !flags.Changed("timeout") {
+		return nil
+	}
+	if flags.Changed("no-wait") {
+		if noWait, _ := flags.GetBool("no-wait"); noWait {
+			return cerr.Usage("--timeout has no effect with --no-wait").WithHint("drop one of them")
+		}
+	}
+	for _, gate := range []string{"follow", "wait"} {
+		f := flags.Lookup(gate)
+		if f == nil || f.Value.Type() != "bool" {
+			continue
+		}
+		if f.Value.String() != "true" {
+			return cerr.Usage("--timeout requires --%s", gate)
+		}
+	}
+	return nil
+}
+
+// runsWithoutConfig reports whether cmd still runs when the config cannot be
+// loaded: annotated diagnostics (version, command groups) and the commands
+// that never use it (help, docs, completion).
+func runsWithoutConfig(cmd *cobra.Command) bool {
+	if cmd.Annotations[annotationRunsWithoutConfig] != "" {
+		return true
+	}
+	switch cmd.Name() {
+	case "help", "docs", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
+		return cmd.Parent() == cmd.Root()
+	}
+	return cmd.Parent() != nil && cmd.Parent().Name() == "completion" && cmd.Parent().Parent() == cmd.Root()
 }

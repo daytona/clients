@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/daytona/clients/cli/internal/api"
+
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/input"
@@ -52,7 +54,7 @@ func newSandboxForkCommand() *cobra.Command {
 		if cmd.Flags().Changed("name") {
 			body = &gen.ForkSandboxRequest{Name: &name}
 		}
-		var resp gen.ForkSandboxOperation
+		var resp api.Raw[gen.ForkSandboxOperation]
 		if err := resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/fork", url.PathEscape(resolved.Detail.Id)), nil, body, &resp); err != nil {
 			return nil, "", "", err
 		}
@@ -63,7 +65,7 @@ func newSandboxForkCommand() *cobra.Command {
 		if macos || resolved.Detail.Status == "running" {
 			waitFor = "running"
 		}
-		return resp, resp.Id, waitFor, nil
+		return resp, resp.V.Id, waitFor, nil
 	})
 	cmd.Flags().StringVar(&name, "name", "", "fork name")
 	return cmd
@@ -236,13 +238,13 @@ func newSandboxActionCommand(verb string, run func(cmd *cobra.Command, resolved 
 				if waitErr != nil {
 					return waitErr
 				}
-				return a.Printer().Object(detail, sandboxDetailKV(detail))
+				return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 			}
 			final, err := workload.WaitForSandbox(cmd.Context(), resolved.Client, waitOptions)
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(final, sandboxDetailKV(final))
+			return a.Printer().Object(final, sandboxDetailKV(final.V))
 		},
 	}
 	addWaitFlags(cmd)
@@ -258,7 +260,7 @@ func sandboxJobAction[T any](cmd *cobra.Command, resolved workload.ResolvedSandb
 		path = fmt.Sprintf("/sandboxes/%s", url.PathEscape(resolved.Detail.Id))
 		waitFor = "deleted"
 	}
-	var resp T
+	var resp api.Raw[T]
 	if err := resolved.Client.Do(cmd.Context(), method, path, nil, nil, &resp); err != nil {
 		return nil, "", "", err
 	}

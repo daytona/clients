@@ -66,7 +66,7 @@ func newSnapshotCreateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var created gen.AsyncOperation
+			var created api.Raw[gen.AsyncOperation]
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/snapshots", url.PathEscape(resolved.Detail.Id)), nil, req, &created); err != nil {
 				return err
 			}
@@ -94,18 +94,10 @@ func newSnapshotListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fetch := func(ctx context.Context, cursor string) (output.List[gen.SnapshotListItem], error) {
-				var page gen.SnapshotPage
-				if err := client.Do(ctx, http.MethodGet, "/snapshots", listQuery(flags, cursor), nil, &page); err != nil {
-					return output.List[gen.SnapshotListItem]{}, err
-				}
-				next := ""
-				if page.NextCursor != nil {
-					next = *page.NextCursor
-				}
-				return output.List[gen.SnapshotListItem]{Items: page.Snapshots, NextCursor: next}, nil
+			fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.SnapshotListItem]], error) {
+				return getRawList[gen.SnapshotListItem](ctx, client, "/snapshots", listQuery(flags, cursor), "snapshots")
 			}
-			var list output.List[gen.SnapshotListItem]
+			var list output.List[api.Raw[gen.SnapshotListItem]]
 			if flags.all {
 				list, err = collectPaged(cmd.Context(), flags.cursor, fetch)
 			} else {
@@ -114,7 +106,7 @@ func newSnapshotListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), list, func(items []gen.SnapshotListItem) output.Table {
+			return listOutRaw(a.Printer(), list, func(items []gen.SnapshotListItem) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					rows = append(rows, []string{item.Id, item.Name, string(item.Kind), item.Status, item.RegionId, item.CreatedAt.Format(time.RFC3339)})
@@ -139,11 +131,11 @@ func newSnapshotGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var snapshot gen.Snapshot
+			var snapshot api.Raw[gen.Snapshot]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/snapshots/"+url.PathEscape(args[0]), nil, nil, &snapshot); err != nil {
 				return err
 			}
-			return a.Printer().Object(snapshot, snapshotKV(snapshot))
+			return a.Printer().Object(snapshot, snapshotKV(snapshot.V))
 		},
 	}
 }
@@ -171,9 +163,10 @@ func newSnapshotDeleteCommand() *cobra.Command {
 	}
 }
 
-func printCreatedSnapshot(ctx context.Context, a *app.App, client *api.Client, created gen.AsyncOperation) error {
+func printCreatedSnapshot(ctx context.Context, a *app.App, client *api.Client, raw api.Raw[gen.AsyncOperation]) error {
+	created := raw.V
 	if a.Globals.NoWait {
-		return a.Printer().Object(created, [][2]string{{"id", created.Id}, {"status", created.Status}})
+		return a.Printer().Object(raw, [][2]string{{"id", created.Id}, {"status", created.Status}})
 	}
 	timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 	if err != nil {
@@ -183,7 +176,7 @@ func printCreatedSnapshot(ctx context.Context, a *app.App, client *api.Client, c
 	if err != nil {
 		return err
 	}
-	return a.Printer().Object(snapshot, snapshotKV(snapshot))
+	return a.Printer().Object(snapshot, snapshotKV(snapshot.V))
 }
 
 func snapshotKV(snapshot gen.Snapshot) [][2]string {

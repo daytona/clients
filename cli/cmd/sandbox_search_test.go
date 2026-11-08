@@ -131,7 +131,7 @@ func TestSandboxSearch_includesTotalsInStructuredOutput(t *testing.T) {
 	require.Contains(t, yamlStdout, "total_relation: gte")
 }
 
-func TestSandboxSearch_usesGlobalRegionFlag(t *testing.T) {
+func TestSandboxSearch_regionFlagBeforeTheCommandName(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"--region", "region-b", "sandbox", "search", "python"}, []expectedRequest{{
 		method:   http.MethodGet,
 		path:     "/sandboxes/search",

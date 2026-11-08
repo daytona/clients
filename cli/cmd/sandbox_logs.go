@@ -84,23 +84,18 @@ func newSandboxUsageCommand() *cobra.Command {
 			if history {
 				path += "/history"
 			}
-			var resp any
 			if history {
-				resp = &map[string]any{}
-			} else {
-				resp = &gen.SandboxUsage{}
-			}
-			if err := resolved.Client.Do(cmd.Context(), http.MethodGet, path, nil, nil, resp); err != nil {
-				return err
-			}
-			if history {
+				var resp json.RawMessage
+				if err := resolved.Client.Do(cmd.Context(), http.MethodGet, path, nil, nil, &resp); err != nil {
+					return err
+				}
 				return a.Printer().Object(resp, [][2]string{{"id", resolved.Detail.Id}, {"history", fmt.Sprintf("%t", history)}})
 			}
-			usageResp, ok := resp.(*gen.SandboxUsage)
-			if !ok {
-				return cerr.New(cerr.ExitFailure, "unexpected sandbox usage response type")
+			var usageResp api.Raw[gen.SandboxUsage]
+			if err := resolved.Client.Do(cmd.Context(), http.MethodGet, path, nil, nil, &usageResp); err != nil {
+				return err
 			}
-			return a.Printer().Object(usageResp, sandboxUsageKV(usageResp))
+			return a.Printer().Object(usageResp, sandboxUsageKV(&usageResp.V))
 		},
 	}
 	cmd.Flags().BoolVar(&history, "history", false, "read usage history")
@@ -132,17 +127,17 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 			if signed {
 				path = fmt.Sprintf("/sandboxes/%s/ports/%s/signed-preview-urls", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
 				body := gen.CreateSandboxSignedPreviewUrlRequest{ExpiresInSeconds: &ttl.seconds}
-				var resp gen.SignedPreviewUrl
+				var resp api.Raw[gen.SignedPreviewUrl]
 				if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, body, &resp); err != nil {
 					return err
 				}
-				return a.Printer().Object(resp, [][2]string{{"url", resp.Url}, {"token", resp.Token}, {"expires_at", resp.ExpiresAt.Format(time.RFC3339)}})
+				return a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}, {"expires_at", resp.V.ExpiresAt.Format(time.RFC3339)}})
 			}
-			var resp gen.PreviewUrl
+			var resp api.Raw[gen.PreviewUrl]
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, nil, &resp); err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, [][2]string{{"url", resp.Url}, {"token", resp.Token}})
+			return a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}})
 		},
 	}
 	cmd.Flags().BoolVar(&signed, "signed", false, "mint a short-lived signed preview URL")

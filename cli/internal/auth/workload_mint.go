@@ -75,10 +75,10 @@ func (m keyMint) mint(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if resp.ExpiresAt != nil {
-		exp = *resp.ExpiresAt
+	if resp.V.ExpiresAt != nil {
+		exp = *resp.V.ExpiresAt
 	}
-	minted := config.WorkloadKey{ProjectID: m.project, KeyID: resp.Id.String(), Key: resp.Token, Name: resp.Name, ExpiresAt: exp, Ceiling: ceiling, APIURL: m.client.BaseURL}
+	minted := config.WorkloadKey{ProjectID: m.project, KeyID: resp.V.Id.String(), Key: resp.V.Token, Name: resp.V.Name, ExpiresAt: exp, Ceiling: ceiling, APIURL: m.client.BaseURL}
 	var superseded []config.WorkloadKey
 	err = a.Store.Update(func(_ *config.Config, cr *config.Credentials) (bool, bool, error) {
 		pc, ok := cr.Profiles[a.Profile.Name]

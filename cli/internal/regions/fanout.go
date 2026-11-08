@@ -18,9 +18,12 @@ import (
 // ForListCursor preserves independent alias streams. The first region
 // for a URL names that endpoint's cursor and errors. The `only` argument
 // restricts the selection to one region.
-// Failed API endpoints produce incomplete results, which PartialError maps to
-// exit 7. A cancelled or expired ctx is the caller's, not an endpoint's: it is
-// returned as the error (exit 130 or 8) instead of a partial list.
+// An unknown `only` region is a usage error before any list request. When
+// some endpoints fail, the result is incomplete (PartialError maps it to exit
+// 7); when every endpoint fails, the first failure is returned as the error,
+// with its own exit code and server metadata. A cancelled or expired ctx is
+// the caller's, not an endpoint's: it is returned as the error (exit 130 or
+// 8) instead of a partial list.
 func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only string,
 	fetch func(ctx context.Context, c *api.Client, region string) (Page[T], error),
 	less func(a, b T) bool) (output.List[T], error) {
@@ -42,7 +45,7 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 					targets = append(targets, *r)
 				}
 			} else {
-				return output.List[T]{Incomplete: true, Errors: []output.RegionError{{Region: only, Message: "unknown region (see `daytona region list`)"}}}, nil
+				return output.List[T]{}, cerr.Usage("unknown region %q", only).WithHint("`daytona region list` shows the regions")
 			}
 		} else {
 			seen := map[string]bool{}
@@ -63,11 +66,10 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 		if callerErr := cerr.FromContext(ctx); callerErr != nil {
 			return output.List[T]{}, callerErr
 		}
-		l := output.List[T]{Items: p.Items, NextCursor: p.NextCursor}
 		if err != nil {
-			l.Incomplete = true
-			l.Errors = append(l.Errors, toRegionError(only, err))
+			return output.List[T]{}, err
 		}
+		l := output.List[T]{Items: p.Items, NextCursor: p.NextCursor}
 		if l.Items == nil {
 			l.Items = []T{}
 		}
@@ -95,6 +97,20 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 		return output.List[T]{}, callerErr
 	}
 
+	var firstErr error
+	failed := 0
+	for _, r := range results {
+		if r.err != nil {
+			failed++
+			if firstErr == nil {
+				firstErr = r.err
+			}
+		}
+	}
+	if failed == len(results) {
+		// Nothing answered: the failure is the command's, not a partial list.
+		return output.List[T]{}, firstErr
+	}
 	l := output.List[T]{Items: []T{}}
 	for _, r := range results {
 		if r.err != nil {

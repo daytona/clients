@@ -447,7 +447,7 @@ func TestPostImageMultipart_retriesUnauthorizedWhenBodyIsSeekable(t *testing.T) 
 	client.OnUnauthorized = func(context.Context) (string, error) { return "new", nil }
 	resp, err := postImageMultipart(context.Background(), client, map[string]string{"name": "img"}, "Dockerfile", contextPath)
 	require.NoError(t, err)
-	require.Equal(t, "11111111-1111-1111-1111-111111111111", resp.Id)
+	require.Equal(t, "11111111-1111-1111-1111-111111111111", resp.V.Id)
 	require.Equal(t, int32(2), calls.Load())
 }
 

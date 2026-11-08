@@ -14,6 +14,7 @@ import (
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/spf13/cobra"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/auth"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -148,7 +149,7 @@ func newOrgCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), orgs, func(os []gen.OrganizationListItem) output.Table { return orgTable(os, a.Profile.OrgID) })
+			return listOutRaw(a.Printer(), orgs, func(os []gen.OrganizationListItem) output.Table { return orgTable(os, a.Profile.OrgID) })
 		},
 	}
 	addPageFlags(list, &listFlags)
@@ -176,7 +177,7 @@ func newOrgCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(o, [][2]string{{"ID", o.Id.String()}, {"Name", o.Name}, {"Personal", strconv.FormatBool(o.Personal)}, {"Suspended", strconv.FormatBool(o.Suspended)}, {"Created", o.CreatedAt.Format("2006-01-02 15:04")}, {"Updated", o.UpdatedAt.Format("2006-01-02 15:04")}})
+			return a.Printer().Object(o, [][2]string{{"ID", o.V.Id.String()}, {"Name", o.V.Name}, {"Personal", strconv.FormatBool(o.V.Personal)}, {"Suspended", strconv.FormatBool(o.V.Suspended)}, {"Created", o.V.CreatedAt.Format("2006-01-02 15:04")}, {"Updated", o.V.UpdatedAt.Format("2006-01-02 15:04")}})
 		},
 	})
 	c.AddCommand(&cobra.Command{
@@ -283,11 +284,11 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			var out gen.Organization
+			var out api.Raw[gen.Organization]
 			if err := mc.Do(cmd.Context(), http.MethodPost, "/orgs", nil, gen.CreateOrganizationRequest{Name: args[0]}, &out); err != nil {
 				return err
 			}
-			return a.Printer().Object(out, [][2]string{{"id", out.Id.String()}, {"name", out.Name}})
+			return a.Printer().Object(out, [][2]string{{"id", out.V.Id.String()}, {"name", out.V.Name}})
 		},
 	})
 	upd := &cobra.Command{
@@ -306,11 +307,11 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			var out gen.Organization
+			var out api.Raw[gen.Organization]
 			if err := mc.Do(cmd.Context(), http.MethodPatch, "/orgs/"+url.PathEscape(id), nil, gen.UpdateOrganizationRequest{Name: mgmt.Ref(name)}, &out); err != nil {
 				return err
 			}
-			return a.Printer().Object(out, [][2]string{{"id", out.Id.String()}, {"name", out.Name}})
+			return a.Printer().Object(out, [][2]string{{"id", out.V.Id.String()}, {"name", out.V.Name}})
 		},
 	}
 	upd.Flags().String("name", "", "new name")
@@ -389,7 +390,7 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			if err := mc.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(id)+"/members/"+url.PathEscape(me.Id.String()), nil, nil, nil); err != nil {
+			if err := mc.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(id)+"/members/"+url.PathEscape(me.V.Id.String()), nil, nil, nil); err != nil {
 				return err
 			}
 			if err := finalizeOrgLocalState(a, id, drop, "left"); err != nil {

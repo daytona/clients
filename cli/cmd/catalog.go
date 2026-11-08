@@ -144,22 +144,29 @@ func newCPUTypeListCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				var resp gen.CpuCatalog
+				var body json.RawMessage
 				query := url.Values{"region_ids": {slug}}
-				if err := client.Do(cmd.Context(), http.MethodGet, "/cpu-catalog", query, nil, &resp); err != nil {
+				if err := client.Do(cmd.Context(), http.MethodGet, "/cpu-catalog", query, nil, &body); err != nil {
+					return err
+				}
+				resp, err := decodeRaw[gen.CpuCatalog]("GET /cpu-catalog", body)
+				if err != nil {
 					return err
 				}
 				if err := requireCatalogRegion("/cpu-catalog", cpuCatalogRegionIDs(resp), slug); err != nil {
 					return err
 				}
-				return output.ListOut(a.Printer(), wholeList(resp.CpuTypes), func(items []gen.CpuType) output.Table { return cpuCatalogTable(items, slug) })
+				page, err := api.DecodePage[gen.CpuType](body, "cpu_types")
+				if err != nil {
+					return err
+				}
+				return listOutRaw(a.Printer(), output.List[api.Raw[gen.CpuType]]{Items: page.Items}, func(items []gen.CpuType) output.Table { return cpuCatalogTable(items, slug) })
 			}
-			var catalog gen.CpuCatalog
-			if err := home.Do(cmd.Context(), http.MethodGet, "/cpu-catalog", nil, nil, &catalog); err != nil {
+			list, err := getRawWhole[gen.CpuType](cmd.Context(), home, "/cpu-catalog", nil, "cpu_types")
+			if err != nil {
 				return err
 			}
-			list := wholeList(catalog.CpuTypes)
-			return output.ListOut(a.Printer(), list, func(items []gen.CpuType) output.Table {
+			return listOutRaw(a.Printer(), list, func(items []gen.CpuType) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					rows = append(rows, []string{item.Id, item.Name, string(item.CpuArch), strconv.Itoa(int(item.Tier))})
@@ -212,11 +219,11 @@ func newMacModelListCommand() *cobra.Command {
 				}
 				return output.ListOut(a.Printer(), wholeList(entries), func([]json.RawMessage) output.Table { return macCatalogTable(regionCatalog) })
 			}
-			var page gen.MacModelList
-			if err := client.Do(cmd.Context(), http.MethodGet, "/mac-models", nil, nil, &page); err != nil {
+			list, err := getRawWhole[gen.MacModel](cmd.Context(), client, "/mac-models", nil, "mac_models")
+			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), wholeList(page.MacModels), func(items []gen.MacModel) output.Table {
+			return listOutRaw(a.Printer(), list, func(items []gen.MacModel) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					rows = append(rows, macModelRow(item))

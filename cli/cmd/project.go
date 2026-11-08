@@ -58,7 +58,7 @@ func newProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), ps, func(ps []gen.Project) output.Table { return projectTable(ps, a.Profile.ProjectID()) })
+			return listOutRaw(a.Printer(), ps, func(ps []gen.Project) output.Table { return projectTable(ps, a.Profile.ProjectID()) })
 		},
 	}
 	addPageFlags(list, &listFlags)
@@ -88,11 +88,11 @@ func newProjectCmd() *cobra.Command {
 					return err
 				}
 			}
-			var p gen.Project
+			var p api.Raw[gen.Project]
 			if err := mc.Do(ctx, http.MethodGet, "/projects/"+url.PathEscape(id), nil, nil, &p); err != nil {
 				return err
 			}
-			return a.Printer().Object(p, [][2]string{{"ID", p.Id.String()}, {"Name", p.Name}, {"Organization", p.OrgId.String()}, {"Created", p.CreatedAt.Format("2006-01-02 15:04")}})
+			return a.Printer().Object(p, [][2]string{{"ID", p.V.Id.String()}, {"Name", p.V.Name}, {"Organization", p.V.OrgId.String()}, {"Created", p.V.CreatedAt.Format("2006-01-02 15:04")}})
 		},
 	})
 	c.AddCommand(&cobra.Command{
@@ -162,11 +162,11 @@ func newProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var p gen.Project
+			var p api.Raw[gen.Project]
 			if err := mc.Do(ctx, http.MethodPost, "/orgs/"+url.PathEscape(org)+"/projects", nil, gen.CreateProjectRequest{Name: args[0]}, &p); err != nil {
 				return err
 			}
-			return a.Printer().Object(p, [][2]string{{"ID", p.Id.String()}, {"Name", p.Name}})
+			return a.Printer().Object(p, [][2]string{{"ID", p.V.Id.String()}, {"Name", p.V.Name}})
 		},
 	})
 	upd := &cobra.Command{
@@ -182,11 +182,11 @@ func newProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var p gen.Project
+			var p api.Raw[gen.Project]
 			if err := mc.Do(ctx, http.MethodPatch, "/projects/"+url.PathEscape(project.Id.String()), nil, gen.UpdateProjectRequest{Name: name}, &p); err != nil {
 				return err
 			}
-			return a.Printer().Object(p, [][2]string{{"ID", p.Id.String()}, {"Name", p.Name}})
+			return a.Printer().Object(p, [][2]string{{"ID", p.V.Id.String()}, {"Name", p.V.Name}})
 		},
 	}
 	upd.Flags().String("name", "", "new name")

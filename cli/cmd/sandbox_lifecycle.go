@@ -58,10 +58,10 @@ func validateLifecycleActions(class string, persistent bool, policy gen.UpdateSa
 		}
 		return e
 	}
-	if err := check("--on-lifecycle-timeout", policy.OnTimeout); err != nil {
+	if err := check("--on-lifecycle-timeout (on_timeout)", policy.OnTimeout); err != nil {
 		return err
 	}
-	return check("--on-idle-timeout", policy.OnIdleTimeout)
+	return check("--on-idle-timeout (on_idle_timeout)", policy.OnIdleTimeout)
 }
 
 // validateLifecycleBody checks the merged create body's lifecycle policy

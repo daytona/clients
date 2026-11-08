@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/mgmt"
 	"github.com/daytona/clients/cli/internal/output"
@@ -55,13 +56,13 @@ func collectPaged[T any](ctx context.Context, start string, fetch func(context.C
 
 // mgmtListPage reads what the page flags ask for: one page (--limit,
 // --cursor), or every page from --cursor on with --all.
-func mgmtListPage[T any](ctx context.Context, flags pageFlags, fetch func(ctx context.Context, cursor string, limit int64) (mgmt.Page[T], error)) (output.List[T], error) {
-	one := func(ctx context.Context, cursor string) (output.List[T], error) {
+func mgmtListPage[T any](ctx context.Context, flags pageFlags, fetch func(ctx context.Context, cursor string, limit int64) (mgmt.Page[T], error)) (output.List[api.Raw[T]], error) {
+	one := func(ctx context.Context, cursor string) (output.List[api.Raw[T]], error) {
 		page, err := fetch(ctx, cursor, flags.limit)
 		if err != nil {
-			return output.List[T]{}, err
+			return output.List[api.Raw[T]]{}, err
 		}
-		return output.List[T]{Items: page.Items, NextCursor: page.NextCursor}, nil
+		return output.List[api.Raw[T]]{Items: page.Items, NextCursor: page.NextCursor}, nil
 	}
 	if flags.all {
 		return collectPaged(ctx, flags.cursor, one)

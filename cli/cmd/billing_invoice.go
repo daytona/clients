@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
 	"github.com/spf13/cobra"
 )
@@ -47,11 +48,11 @@ func newBillingInvoicePaymentSessionCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.BillingSession
+		var payload api.Raw[gen.BillingSession]
 		if err := mc.Do(cmd.Context(), http.MethodPost, billingBasePath(orgID)+"/invoices/"+url.PathEscape(args[0])+"/payment-sessions", nil, nil, &payload); err != nil {
 			return err
 		}
-		return renderBillingSession(a, payload)
+		return renderDynamicValue(a, payload, "")
 	}}
 	return cmd
 }

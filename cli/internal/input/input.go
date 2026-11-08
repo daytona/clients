@@ -54,7 +54,39 @@ func Load(path string, stdin io.Reader, stdinIsPayload bool) (Body, error) {
 	if err := dec.Decode(new(struct{})); err != io.EOF {
 		return nil, cerr.Usage("--file %s: trailing data after the JSON object", path)
 	}
+	if err := rejectCaseVariants(b, ""); err != nil {
+		return nil, cerr.Usage("--file %s: %v", path, err)
+	}
 	return b, nil
+}
+
+// rejectCaseVariants refuses an object with two spellings of one key that
+// differ only in case ("cpu_max" and "CPU_MAX"): decoding matches keys
+// case-insensitively, so which one wins would depend on map order.
+func rejectCaseVariants(v any, where string) error {
+	switch node := v.(type) {
+	case Body:
+		return rejectCaseVariants(map[string]any(node), where)
+	case map[string]any:
+		seen := make(map[string]string, len(node))
+		for key, child := range node {
+			folded := strings.ToLower(key)
+			if other, ok := seen[folded]; ok {
+				return fmt.Errorf("%q and %q%s name the same field; keep one", other, key, where)
+			}
+			seen[folded] = key
+			if err := rejectCaseVariants(child, fmt.Sprintf(" (in %q)", key)); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for _, child := range node {
+			if err := rejectCaseVariants(child, where); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Set writes a field unconditionally. Decode matches keys

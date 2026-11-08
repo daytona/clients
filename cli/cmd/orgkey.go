@@ -8,6 +8,7 @@ import (
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/mgmt"
 	"github.com/spf13/cobra"
@@ -27,7 +28,7 @@ func newOrgKeyCmd() *cobra.Command {
 		requireScope: func(a *app.App, ctx context.Context) (string, error) {
 			return a.RequireOrg(ctx, pickOrg(a))
 		},
-		buildMint: func(ctx context.Context, _ *app.App, mc *mgmtClient, orgID, name string, permissions []string, expiresAt *time.Time, _ string) (*gen.OrganizationApiKeyWithToken, error) {
+		buildMint: func(ctx context.Context, _ *app.App, mc *mgmtClient, orgID, name string, permissions []string, expiresAt *time.Time, _ string) (*api.Raw[gen.OrganizationApiKeyWithToken], error) {
 			return mgmt.CreateOrgKey(ctx, mc, orgID, gen.CreateOrganizationApiKeyRequest{Name: name, OrgPermissions: permissions, ExpiresAt: expiresAt})
 		},
 		list:   mgmt.OrgKeysPage,

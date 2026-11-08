@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/mgmt"
@@ -29,7 +30,7 @@ type keyCommandSpec[CreatedResp any, ListItem any] struct {
 	listHeaders       []string
 	allowServiceAcct  bool
 	requireScope      func(*app.App, context.Context) (string, error)
-	buildMint         func(context.Context, *app.App, *mgmtClient, string, string, []string, *time.Time, string) (*CreatedResp, error)
+	buildMint         func(context.Context, *app.App, *mgmtClient, string, string, []string, *time.Time, string) (*api.Raw[CreatedResp], error)
 	list              func(context.Context, *mgmtClient, string, string, int64) (mgmt.Page[ListItem], error)
 	revoke            func(context.Context, *mgmtClient, string, string) error
 	token             func(*CreatedResp) string
@@ -72,10 +73,10 @@ func newKeyMintCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Create
 			return err
 		}
 		if a.Format == output.FormatTable {
-			if _, err := fmt.Fprintln(a.Stdout, formatTokenOnce(spec.token(resp))); err != nil {
+			if _, err := fmt.Fprintln(a.Stdout, formatTokenOnce(spec.token(&resp.V))); err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, spec.createdKV(resp))
+			return a.Printer().Object(resp, spec.createdKV(&resp.V))
 		}
 		return a.Printer().Object(resp, nil)
 	}}
@@ -107,7 +108,7 @@ func newKeyListCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Create
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), items, func(rows []ListItem) output.Table {
+		return listOutRaw(a.Printer(), items, func(rows []ListItem) output.Table {
 			tableRows := make([][]string, 0, len(rows))
 			for _, row := range rows {
 				tableRows = append(tableRows, spec.listRow(row))

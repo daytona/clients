@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/spf13/pflag"
 )
 
@@ -120,5 +121,21 @@ func TestKV(t *testing.T) {
 	}
 	if _, err := KV([]string{"novalue"}, "--env"); err == nil {
 		t.Fatal()
+	}
+}
+
+func TestLoad_rejectsKeysThatDifferOnlyInCase(t *testing.T) {
+	for _, body := range []string{
+		`{"cores_max":0.5,"CORES_MAX":0.75}`,
+		`{"lifecycle_policy":{"on_timeout":"delete","On_Timeout":"stop"}}`,
+		`{"volumes":[{"volume":"a","Volume":"b"}]}`,
+	} {
+		path := filepath.Join(t.TempDir(), "body.json")
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(path, nil, false); cerr.ExitCode(err) != cerr.ExitUsage {
+			t.Fatalf("%s: %v", body, err)
+		}
 	}
 }

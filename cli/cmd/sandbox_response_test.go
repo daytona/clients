@@ -37,6 +37,12 @@ func TestSandboxGet_toleratesUnknownResponseValues(t *testing.T) {
 			require.Equal(t, id, output["id"])
 			require.Equal(t, class, output["class"])
 			require.Equal(t, "future-status", output["status"])
+			// The API's representation: a field it adds passes through, and
+			// fields it left out stay absent instead of becoming zero values.
+			require.Equal(t, float64(2), output["future_field"])
+			for _, absent := range []string{"cpu", "memory_mib", "name", "port_map", "created_at"} {
+				require.NotContains(t, output, absent)
+			}
 		})
 	}
 }

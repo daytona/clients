@@ -102,7 +102,7 @@ func postCreate(cmd *cobra.Command, a *app.App, req any, headers http.Header) er
 	if err != nil {
 		return err
 	}
-	var created gen.SandboxCreateOperation
+	var created api.Raw[gen.SandboxCreateOperation]
 	if err := home.DoWithHeaders(cmd.Context(), http.MethodPost, path, nil, headers, req, &created); err != nil {
 		return err
 	}
@@ -212,9 +212,10 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	return cmd
 }
 
-func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache *workload.CatalogCache, created gen.SandboxCreateOperation) error {
+func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache *workload.CatalogCache, raw api.Raw[gen.SandboxCreateOperation]) error {
+	created := raw.V
 	if a.Globals.NoWait {
-		return a.Printer().Object(created, [][2]string{{"id", created.Id}, {"name", created.Name}, {"status", created.Status}})
+		return a.Printer().Object(raw, [][2]string{{"id", created.Id}, {"name", created.Name}, {"status", created.Status}})
 	}
 	timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 	if err != nil {
@@ -233,5 +234,5 @@ func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache
 	if err != nil {
 		return err
 	}
-	return a.Printer().Object(detail, sandboxDetailKV(detail))
+	return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 }

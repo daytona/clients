@@ -218,7 +218,6 @@ func TestSandboxCreate_allResourceFlags(t *testing.T) {
 		"--on-idle-timeout", "delete",
 		"--wait", "9s",
 		"--create-ttl", "10m",
-		"--timeout", "30s",
 		"--no-wait",
 	}, []expectedRequest{{
 		method: http.MethodPost,

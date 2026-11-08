@@ -11,6 +11,7 @@ import (
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/input"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/daytona/clients/cli/internal/workload"
@@ -80,11 +81,11 @@ func newVolumeCreateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var resp gen.Volume
+			var resp api.Raw[gen.Volume]
 			if err := client.Do(cmd.Context(), http.MethodPost, "/volumes", nil, req, &resp); err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, volumeKV(resp))
+			return a.Printer().Object(resp, volumeKV(resp.V))
 		},
 	}
 	cmd.Flags().Int32Var(&sizeGiB, "size-gib", sizeGiB, "volume size in GiB (disk volumes only)")
@@ -111,19 +112,10 @@ func newVolumeListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fetch := func(ctx context.Context, cursor string) (output.List[gen.Volume], error) {
-				query := listQuery(flags, cursor)
-				var page gen.VolumePage
-				if err := client.Do(ctx, http.MethodGet, "/volumes", query, nil, &page); err != nil {
-					return output.List[gen.Volume]{}, err
-				}
-				next := ""
-				if page.NextCursor != nil {
-					next = *page.NextCursor
-				}
-				return output.List[gen.Volume]{Items: page.Volumes, NextCursor: next}, nil
+			fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.Volume]], error) {
+				return getRawList[gen.Volume](ctx, client, "/volumes", listQuery(flags, cursor), "volumes")
 			}
-			var list output.List[gen.Volume]
+			var list output.List[api.Raw[gen.Volume]]
 			if flags.all {
 				list, err = collectPaged(cmd.Context(), flags.cursor, fetch)
 			} else {
@@ -132,7 +124,7 @@ func newVolumeListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), list, func(items []gen.Volume) output.Table {
+			return listOutRaw(a.Printer(), list, func(items []gen.Volume) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					bucket := volumeBucketOptions(item)
@@ -160,11 +152,11 @@ func newVolumeGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var volume gen.Volume
+			var volume api.Raw[gen.Volume]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/volumes/"+url.PathEscape(args[0]), nil, nil, &volume); err != nil {
 				return err
 			}
-			return a.Printer().Object(volume, volumeKV(volume))
+			return a.Printer().Object(volume, volumeKV(volume.V))
 		},
 	}
 }
@@ -181,14 +173,14 @@ func newVolumeDeleteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var resp gen.AsyncOperation
+			var resp api.Raw[gen.AsyncOperation]
 			if err := client.Do(cmd.Context(), http.MethodDelete, "/volumes/"+url.PathEscape(args[0]), nil, nil, &resp); err != nil {
 				return err
 			}
-			if resp.Id == "" {
+			if resp.V.Id == "" {
 				return a.Printer().Object(map[string]any{"id": args[0], "deleted": true}, [][2]string{{"id", args[0]}, {"deleted", "true"}})
 			}
-			return a.Printer().Object(resp, [][2]string{{"id", resp.Id}, {"status", string(resp.Status)}})
+			return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id}, {"status", string(resp.V.Status)}})
 		},
 	}
 }

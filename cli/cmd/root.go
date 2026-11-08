@@ -78,9 +78,12 @@ Get started:
 		SilenceErrors: true,
 		Version:       app.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := checkFlagCombinations(cmd); err != nil {
+				return err
+			}
 			a, err := app.Load(commandGlobals(cmd, *globals), stdout, stderr, nil)
 			if err != nil {
-				if cmd.Annotations[annotationRunsWithoutConfig] != "" {
+				if runsWithoutConfig(cmd) {
 					cmd.SetContext(context.WithValue(cmd.Context(), loadErrKey{}, err))
 					return nil
 				}

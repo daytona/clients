@@ -85,8 +85,8 @@ func TestGetProcess_success(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proc.Id != "p1" {
-		t.Fatalf("id=%s", proc.Id)
+	if proc.V.Id != "p1" {
+		t.Fatalf("id=%s", proc.V.Id)
 	}
 }
 
@@ -107,7 +107,7 @@ func TestListProcesses_success(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 2 || items[0].Id != "a" || items[1].Id != "b" {
+	if len(items) != 2 || items[0].V.Id != "a" || items[1].V.Id != "b" {
 		t.Fatalf("items=%+v", items)
 	}
 }
@@ -126,11 +126,11 @@ func TestWaitProcess_immediateResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Reason == nil || *result.Reason != tbgen.ReasonExited {
-		t.Fatalf("reason=%v", result.Reason)
+	if result.V.Reason == nil || *result.V.Reason != tbgen.ReasonExited {
+		t.Fatalf("reason=%v", result.V.Reason)
 	}
-	if result.ExitCode == nil || *result.ExitCode != 0 {
-		t.Fatalf("exitCode=%v", result.ExitCode)
+	if result.V.ExitCode == nil || *result.V.ExitCode != 0 {
+		t.Fatalf("exitCode=%v", result.V.ExitCode)
 	}
 }
 
@@ -175,8 +175,8 @@ func TestWaitProcess_noTimeoutLoopsUntilDone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.ExitCode == nil || *result.ExitCode != 7 {
-		t.Fatalf("exitCode=%v", result.ExitCode)
+	if result.V.ExitCode == nil || *result.V.ExitCode != 7 {
+		t.Fatalf("exitCode=%v", result.V.ExitCode)
 	}
 	if calls < 3 {
 		t.Fatalf("calls=%d want >=3", calls)
@@ -374,7 +374,7 @@ func TestReadProcessLogs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Frames) != 1 || page.NextCursor != "c2" || page.Eof {
+	if len(page.V.Frames) != 1 || page.V.NextCursor != "c2" || page.V.Eof {
 		t.Fatalf("page=%+v", page)
 	}
 }

@@ -206,3 +206,17 @@ func TestSaveCredentials_dropsLegacyStaticExchangeKeys(t *testing.T) {
 		t.Fatal("the legacy key is still on disk")
 	}
 }
+
+func TestSaveCredentials_leavesTheCallersValueUnchanged(t *testing.T) {
+	st, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cr := &Credentials{Profiles: map[string]ProfileCredentials{"a": {WorkloadKeys: []WorkloadKey{{KeyID: "legacy", Source: "x"}}}}}
+	if err := st.SaveCredentials(cr); err != nil {
+		t.Fatal(err)
+	}
+	if len(cr.Profiles["a"].WorkloadKeys) != 1 {
+		t.Fatal("SaveCredentials changed the value it was given")
+	}
+}

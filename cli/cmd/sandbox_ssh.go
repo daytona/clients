@@ -250,7 +250,7 @@ func interactiveAttachAndWait(ctx context.Context, toolClient *toolboxclient.Cli
 		}
 		return err
 	}
-	return exitError(result)
+	return exitError(result.V)
 }
 
 func kindPtr(v tbgen.Kind) *tbgen.Kind             { return &v }

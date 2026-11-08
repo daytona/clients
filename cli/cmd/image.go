@@ -55,11 +55,11 @@ func newImageGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var image gen.Image
+			var image api.Raw[gen.Image]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/images/"+url.PathEscape(args[0]), nil, nil, &image); err != nil {
 				return err
 			}
-			return a.Printer().Object(image, imageKV(image))
+			return a.Printer().Object(image, imageKV(image.V))
 		},
 	}
 }
@@ -112,22 +112,22 @@ func newImageCaptureCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var image gen.AsyncOperation
-			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/images", nil, req, &image); err != nil {
+			var created api.Raw[gen.AsyncOperation]
+			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/images", nil, req, &created); err != nil {
 				return err
 			}
 			if a.Globals.NoWait {
-				return a.Printer().Object(image, [][2]string{{"id", image.Id}, {"status", image.Status}})
+				return a.Printer().Object(created, [][2]string{{"id", created.V.Id}, {"status", created.V.Status}})
 			}
 			timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 			if err != nil {
 				return err
 			}
-			final, err := workload.WaitForImage(cmd.Context(), resolved.Client, image.Id, timeout)
+			final, err := workload.WaitForImage(cmd.Context(), resolved.Client, created.V.Id, timeout)
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(final, imageKV(final))
+			return a.Printer().Object(final, imageKV(final.V))
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "image name")
@@ -149,11 +149,11 @@ func newImagePromoteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var image gen.Image
+			var image api.Raw[gen.Image]
 			if err := client.Do(cmd.Context(), http.MethodPatch, "/images/"+url.PathEscape(args[0]), nil, gen.UpdateImageRequest{Name: args[1]}, &image); err != nil {
 				return err
 			}
-			return a.Printer().Object(image, imageKV(image))
+			return a.Printer().Object(image, imageKV(image.V))
 		},
 	}
 	return cmd
@@ -256,9 +256,10 @@ func streamDiscoveredBuildLogs(ctx context.Context, client *api.Client, discover
 	return stream.Flush()
 }
 
-func printCreatedImage(ctx context.Context, a *app.App, client *api.Client, created gen.AsyncOperation) error {
+func printCreatedImage(ctx context.Context, a *app.App, client *api.Client, raw api.Raw[gen.AsyncOperation]) error {
+	created := raw.V
 	if a.Globals.NoWait {
-		return a.Printer().Object(created, [][2]string{{"id", created.Id}, {"status", created.Status}})
+		return a.Printer().Object(raw, [][2]string{{"id", created.Id}, {"status", created.Status}})
 	}
 	timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 	if err != nil {
@@ -268,5 +269,5 @@ func printCreatedImage(ctx context.Context, a *app.App, client *api.Client, crea
 	if err != nil {
 		return err
 	}
-	return a.Printer().Object(image, imageKV(image))
+	return a.Printer().Object(image, imageKV(image.V))
 }

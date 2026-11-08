@@ -15,29 +15,27 @@ import (
 
 // MembersPage reads one page of GET /orgs/{org_id}/members.
 func MembersPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.OrganizationMember], error) {
-	return getPage(ctx, c, "/orgs/"+url.PathEscape(orgID)+"/members", cursor, limit, func(resp gen.OrganizationMemberPage) ([]gen.OrganizationMember, *string) {
-		return resp.Members, resp.NextCursor
-	})
+	return getPage[gen.OrganizationMember](ctx, c, "/orgs/"+url.PathEscape(orgID)+"/members", "members", cursor, limit)
 }
 
 // ListMembers collects every page (name resolvers and pickers; the list commands read one page).
 func ListMembers(ctx context.Context, c *api.Client, orgID string) ([]gen.OrganizationMember, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationMember, *string, error) {
 		page, err := MembersPage(ctx, c, orgID, cursor, 0)
-		return page.Items, &page.NextCursor, err
+		return api.Values(page.Items), &page.NextCursor, err
 	})
 }
 
-func UpdateMember(ctx context.Context, c *api.Client, orgID, userID string, req gen.UpdateMemberRequest) (*gen.OrganizationMember, error) {
-	var resp gen.OrganizationMember
+func UpdateMember(ctx context.Context, c *api.Client, orgID, userID string, req gen.UpdateMemberRequest) (*api.Raw[gen.OrganizationMember], error) {
+	var resp api.Raw[gen.OrganizationMember]
 	if err := c.Do(ctx, http.MethodPatch, "/orgs/"+url.PathEscape(orgID)+"/members/"+url.PathEscape(userID), nil, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func PreviewMemberUpdate(ctx context.Context, c *api.Client, orgID, userID string, req gen.PreviewMemberUpdateRequest) (*gen.ChangeImpact, error) {
-	var resp gen.ChangeImpact
+func PreviewMemberUpdate(ctx context.Context, c *api.Client, orgID, userID string, req gen.PreviewMemberUpdateRequest) (*api.Raw[gen.ChangeImpact], error) {
+	var resp api.Raw[gen.ChangeImpact]
 	path := "/orgs/" + url.PathEscape(orgID) + "/members/" + url.PathEscape(userID) + "/update-preview"
 	if err := c.Do(ctx, http.MethodPost, path, nil, req, &resp); err != nil {
 		return nil, err
@@ -45,8 +43,8 @@ func PreviewMemberUpdate(ctx context.Context, c *api.Client, orgID, userID strin
 	return &resp, nil
 }
 
-func PreviewMemberRemoval(ctx context.Context, c *api.Client, orgID, userID string) (*gen.MemberRemovalPreview, error) {
-	var resp gen.MemberRemovalPreview
+func PreviewMemberRemoval(ctx context.Context, c *api.Client, orgID, userID string) (*api.Raw[gen.MemberRemovalPreview], error) {
+	var resp api.Raw[gen.MemberRemovalPreview]
 	if err := c.Do(ctx, http.MethodGet, "/orgs/"+url.PathEscape(orgID)+"/members/"+url.PathEscape(userID)+"/removal-preview", nil, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -59,23 +57,23 @@ func RemoveMember(ctx context.Context, c *api.Client, orgID, userID string) erro
 
 // ProjectMembersPage reads one page of GET /projects/{project_id}/members.
 func ProjectMembersPage(ctx context.Context, c *api.Client, projectID string, cursor string, limit int64) (Page[gen.ProjectMember], error) {
-	return getPage(ctx, c, "/projects/"+url.PathEscape(projectID)+"/members", cursor, limit, func(resp gen.ProjectMemberPage) ([]gen.ProjectMember, *string) { return resp.Members, resp.NextCursor })
+	return getPage[gen.ProjectMember](ctx, c, "/projects/"+url.PathEscape(projectID)+"/members", "members", cursor, limit)
 }
 
-func AddProjectMember(ctx context.Context, c *api.Client, projectID string, userID gen.OrganizationMember) (*gen.ProjectMemberList, error) {
-	var resp gen.ProjectMemberList
+func AddProjectMember(ctx context.Context, c *api.Client, projectID string, userID gen.OrganizationMember) (*api.Raw[gen.ProjectMemberList], error) {
+	var resp api.Raw[gen.ProjectMemberList]
 	if err := c.Do(ctx, http.MethodPost, "/projects/"+url.PathEscape(projectID)+"/members", nil, gen.AddProjectMembersRequest{UserIds: []openapi_types.UUID{userID.UserId}}, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func AddProjectMembersBulk(ctx context.Context, c *api.Client, projectID string, members []gen.OrganizationMember) (*gen.ProjectMemberList, error) {
+func AddProjectMembersBulk(ctx context.Context, c *api.Client, projectID string, members []gen.OrganizationMember) (*api.Raw[gen.ProjectMemberList], error) {
 	ids := make([]openapi_types.UUID, 0, len(members))
 	for _, member := range members {
 		ids = append(ids, member.UserId)
 	}
-	var resp gen.ProjectMemberList
+	var resp api.Raw[gen.ProjectMemberList]
 	if err := c.Do(ctx, http.MethodPost, "/projects/"+url.PathEscape(projectID)+"/members", nil, gen.AddProjectMembersRequest{UserIds: ids}, &resp); err != nil {
 		return nil, err
 	}

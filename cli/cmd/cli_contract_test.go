@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -478,4 +479,134 @@ func TestSandboxUpdateRefusesANonObjectLifecyclePolicyEvenWithFlags(t *testing.T
 	_, _, err := runCLI(t, []string{"sandbox", "update", "s", "--file", body, "--idle-timeout", "1m", "--on-idle-timeout", "delete"}, nil)
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "must be an object")
+}
+
+// JSON output is the API's representation for lists and toolbox output too.
+func TestJSONOutputIsTheAPIsRepresentation(t *testing.T) {
+	t.Run("list items", func(t *testing.T) {
+		f := newFakeAPI(t)
+		f.handle(http.MethodGet, "/orgs", func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"11111111-1111-1111-1111-111111111111","name":"a","personal":true,"brand_new_field":"x"}]}`))
+		})
+		stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", "k", "org", "list")
+		require.Equal(t, 0, code, stderr)
+		item := mustJSON(t, stdout)["items"].([]any)[0].(map[string]any)
+		require.Equal(t, "x", item["brand_new_field"])
+		for _, absent := range []string{"created_at", "updated_at", "membership"} {
+			require.NotContains(t, item, absent)
+		}
+	})
+	t.Run("object", func(t *testing.T) {
+		f := newFakeAPI(t)
+		f.handle(http.MethodGet, "/orgs/11111111-1111-1111-1111-111111111111", func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"id":"11111111-1111-1111-1111-111111111111","name":"a","brand_new_field":{"n":12345678901234567890}}`))
+		})
+		stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", "k", "org", "get", "11111111-1111-1111-1111-111111111111")
+		require.Equal(t, 0, code, stderr)
+		require.Contains(t, stdout, "12345678901234567890", "numbers keep their precision")
+		out := mustJSON(t, stdout)
+		require.NotContains(t, out, "created_at")
+		require.NotContains(t, out, "personal")
+	})
+	t.Run("toolbox", func(t *testing.T) {
+		stdout, _, err := runToolboxCLI(t, []string{"sandbox", "process", "get", "sbx", "p1"}, []toolboxExpectedRequest{
+			{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
+			{method: http.MethodGet, path: "/test-tools/sbx/processes/p1", status: 200, auth: true, response: `{"id":"p1","kind":"exec","state":"terminal","stdin":"closed","cwd":"/","keepLogs":"on_exit_ttl","truncatedHead":false,"createdAt":"2026-09-13T00:00:00Z","signal":"SIGTERM","futureField":1}`},
+		})
+		require.NoError(t, err)
+		out := requireJSONStdout(t, stdout)
+		require.Equal(t, float64(1), out["future_field"], "unknown fields pass through, in snake_case")
+		require.Equal(t, "TERM", out["signal"], "signal names are bare")
+		for _, absent := range []string{"pid", "exit_code", "name"} {
+			require.NotContains(t, out, absent)
+		}
+	})
+}
+
+// Region fan-out lists: a failure no region survived is that failure; some
+// regions failing is a partial result (exit 7) that names each failure.
+func TestFanOutListFailures(t *testing.T) {
+	t.Run("the only target refuses the credential", func(t *testing.T) {
+		f := newFakeAPI(t)
+		f.on(http.MethodGet, "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})
+		f.on(http.MethodGet, "/sandboxes", 401, `{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`)
+		stdout, stderr, code := runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list")
+		require.Equal(t, cerr.ExitAuth, code, stderr)
+		require.Empty(t, stdout)
+		obj := errorObject(t, stderr)
+		require.Equal(t, "UNAUTHORIZED", obj["code"])
+		require.Equal(t, "DAYTONA_API", obj["source"])
+	})
+	t.Run("an unknown region", func(t *testing.T) {
+		f := newFakeAPI(t)
+		f.on(http.MethodGet, "/regions", 200, regionsFixture())
+		stdout, stderr, code := runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list", "--region", "nope")
+		require.Equal(t, cerr.ExitUsage, code, stderr)
+		require.Empty(t, stdout)
+		for _, r := range f.requests {
+			require.NotEqual(t, "/sandboxes", r.Path)
+		}
+	})
+	t.Run("some regions fail", func(t *testing.T) {
+		bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"code":"FORBIDDEN","message":"no access","source":"DAYTONA_API"}`))
+		}))
+		defer bad.Close()
+		f := newFakeAPI(t)
+		f.on(http.MethodGet, "/regions", 200, `{"regions":[{"id":"region-a","name":"A","available":true,"parent_region_ids":[]},`+regionalAPIRow("region-b", bad.URL)+`],"default_region_id":null}`)
+		f.on(http.MethodGet, "/sandboxes", 200, map[string]any{"sandboxes": []any{}})
+		stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", "k", "sandbox", "list")
+		require.Equal(t, cerr.ExitPartial, code, stderr)
+		out := mustJSON(t, stdout)
+		require.Equal(t, true, out["incomplete"])
+		failure := out["errors"].([]any)[0].(map[string]any)
+		require.Equal(t, "region-b", failure["region"])
+		require.Equal(t, float64(403), failure["status"])
+		require.Equal(t, "FORBIDDEN", failure["code"])
+		obj := errorObject(t, stderr)
+		require.Equal(t, float64(cerr.ExitPartial), obj["exit_code"])
+		require.NotContains(t, obj, "source", "a partial list is not the CLI's own failure")
+	})
+}
+
+// A --timeout that nothing would wait for is refused.
+func TestTimeoutWithoutAWaitIsRefused(t *testing.T) {
+	for _, args := range [][]string{
+		{"sandbox", "create", "--no-wait", "--timeout", "5s"},
+		{"sandbox", "stop", "s", "--no-wait", "--timeout", "5s"},
+		{"image", "logs", "img", "--timeout", "5s"},
+		{"sandbox", "process", "logs", "s", "p", "--timeout", "5s"},
+		{"sandbox", "docker", "status", "s", "--timeout", "5s"},
+	} {
+		f := newFakeAPI(t)
+		_, stderr, code := runReported(t, cfgDir(t), nil, append([]string{"--api-url", f.srv.URL, "--api-key", "k"}, args...)...)
+		require.Equal(t, cerr.ExitUsage, code, "%v: %s", args, stderr)
+		require.Empty(t, f.requests, args)
+	}
+}
+
+// help, docs and completion need no config: they work with a malformed one.
+func TestHelpDocsAndCompletionRunWithAMalformedConfig(t *testing.T) {
+	d := cfgDir(t)
+	require.NoError(t, os.WriteFile(filepath.Join(d, "config.yaml"), []byte("profiles: [\n"), 0o600))
+	for _, args := range [][]string{{"help"}, {"help", "sandbox"}, {"docs"}, {"completion", "bash"}, {"__complete", "sand"}} {
+		_, stderr, code := runReported(t, d, nil, args...)
+		require.Equal(t, 0, code, "%v: %s", args, stderr)
+	}
+	_, _, code := runReported(t, d, nil, "whoami")
+	require.NotEqual(t, 0, code, "a command that needs the config still fails")
+}
+
+// Per-command flags with a value also work before the command name; --no-wait
+// there is refused with a hint, never ignored.
+func TestPerCommandFlagsBeforeTheCommandName(t *testing.T) {
+	f := newFakeAPI(t)
+	_, stderr, code := runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "--no-wait", "sandbox", "stop", "s")
+	require.Equal(t, cerr.ExitUsage, code, stderr)
+	require.Contains(t, errorObject(t, stderr)["hint"], "after the command name")
+	_, stderr, code = runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "--region", "region-a", "org", "list")
+	require.Equal(t, cerr.ExitUsage, code, stderr)
+	require.Empty(t, f.requests)
 }

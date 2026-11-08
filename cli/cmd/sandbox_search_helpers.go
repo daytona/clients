@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,12 +18,12 @@ import (
 )
 
 type sandboxSearchResult struct {
-	Items         []gen.SandboxListItem `json:"items"`
-	NextCursor    string                `json:"next_cursor,omitempty"`
-	Total         int64                 `json:"total"`
-	TotalRelation string                `json:"total_relation"`
-	Incomplete    bool                  `json:"incomplete"`
-	Errors        []output.RegionError  `json:"errors,omitempty"`
+	Items         []api.Raw[gen.SandboxListItem] `json:"items"`
+	NextCursor    string                         `json:"next_cursor,omitempty"`
+	Total         int64                          `json:"total"`
+	TotalRelation string                         `json:"total_relation"`
+	Incomplete    bool                           `json:"incomplete"`
+	Errors        []output.RegionError           `json:"errors,omitempty"`
 }
 
 func fetchSandboxSearchPage(ctx context.Context, client *api.Client, queryText string, flags sandboxSearchFlags, cursor string) (sandboxSearchResult, error) {
@@ -70,23 +71,22 @@ func fetchSandboxSearchPage(ctx context.Context, client *api.Client, queryText s
 	}
 	setSearchParam(&params.Cursor, cursor)
 	query := searchQueryValues(params)
-	var page gen.SandboxSearchPage
-	if err := client.Do(ctx, http.MethodGet, "/sandboxes/search", query, nil, &page); err != nil {
+	var body json.RawMessage
+	if err := client.Do(ctx, http.MethodGet, "/sandboxes/search", query, nil, &body); err != nil {
 		return sandboxSearchResult{}, err
 	}
-	return sandboxSearchList(page), nil
-}
-
-func sandboxSearchList(page gen.SandboxSearchPage) sandboxSearchResult {
-	list := sandboxSearchResult{
-		Items:         page.Sandboxes,
-		Total:         page.Total,
-		TotalRelation: string(page.TotalRelation),
+	page, err := api.DecodePage[gen.SandboxListItem](body, "sandboxes")
+	if err != nil {
+		return sandboxSearchResult{}, fmt.Errorf("decode GET /sandboxes/search response: %w", err)
 	}
-	if page.NextCursor != nil {
-		list.NextCursor = *page.NextCursor
+	var totals struct {
+		Total         int64  `json:"total"`
+		TotalRelation string `json:"total_relation"`
 	}
-	return list
+	if err := json.Unmarshal(body, &totals); err != nil {
+		return sandboxSearchResult{}, fmt.Errorf("decode GET /sandboxes/search response: %w", err)
+	}
+	return sandboxSearchResult{Items: page.Items, NextCursor: page.NextCursor, Total: totals.Total, TotalRelation: totals.TotalRelation}, nil
 }
 
 func collectSandboxSearchPages(ctx context.Context, cursor string, fetch func(context.Context, string) (sandboxSearchResult, error)) (sandboxSearchResult, error) {
@@ -134,7 +134,7 @@ func writeSandboxSearchResult(p output.Printer, list sandboxSearchResult) error 
 	if p.Format == output.FormatJSON || p.Format == output.FormatYAML {
 		return p.Object(list, nil)
 	}
-	if err := output.ListOut(p, output.List[gen.SandboxListItem]{Items: list.Items, NextCursor: list.NextCursor, Incomplete: list.Incomplete, Errors: list.Errors}, sandboxSearchTable); err != nil {
+	if err := listOutRaw(p, output.List[api.Raw[gen.SandboxListItem]]{Items: list.Items, NextCursor: list.NextCursor, Incomplete: list.Incomplete, Errors: list.Errors}, sandboxSearchTable); err != nil {
 		return err
 	}
 	relation := "exact"

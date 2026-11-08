@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/auth"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -111,21 +112,26 @@ name could not be resolved to an ID.`,
 				}
 				out["user"] = me
 				name := ""
-				if me.Name != nil {
-					name = *me.Name
+				if me.V.Name != nil {
+					name = *me.V.Name
 				}
-				kv = append(kv, [2]string{"User", strings.TrimSpace(me.Email + " " + name)})
-				orgs, err := mgmt.ListOrgs(ctx, mc)
+				kv = append(kv, [2]string{"User", strings.TrimSpace(me.V.Email + " " + name)})
+				orgs, err := mgmt.ListOrgsRaw(ctx, mc)
 				if err != nil {
 					return err // an outage or a 403 here is news, not something to hide
 				}
 				if scope.orgID != "" {
-					o, err := mgmt.ResolveOrg(orgs, scope.orgID)
+					o, err := mgmt.ResolveOrg(api.Values(orgs), scope.orgID)
 					if err != nil {
 						return err // the selected org is gone or no longer visible
 					}
 					out["org_id"] = o.Id.String()
-					out["org"] = o
+					for _, raw := range orgs {
+						if raw.V.Id == o.Id {
+							out["org"] = raw // the API's representation
+							break
+						}
+					}
 					kv = append(kv, [2]string{"Organization", fmt.Sprintf("%s (%s) roles=%s", o.Name, o.Id.String(), strings.Join(o.Membership.Roles, ","))})
 				} else {
 					kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})

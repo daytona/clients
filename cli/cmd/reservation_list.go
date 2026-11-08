@@ -5,9 +5,9 @@ package cmd
 
 import (
 	"context"
-	"net/http"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -25,14 +25,10 @@ func newReservationListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fetch := func(ctx context.Context, cursor string) (output.List[gen.MacReservation], error) {
-				var page gen.ReservationPage
-				if err := client.Do(ctx, http.MethodGet, "/reservations", listQuery(flags, cursor), nil, &page); err != nil {
-					return output.List[gen.MacReservation]{}, err
-				}
-				return output.List[gen.MacReservation]{Items: page.Reservations, NextCursor: formatPtr(page.NextCursor)}, nil
+			fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.MacReservation]], error) {
+				return getRawList[gen.MacReservation](ctx, client, "/reservations", listQuery(flags, cursor), "reservations")
 			}
-			var list output.List[gen.MacReservation]
+			var list output.List[api.Raw[gen.MacReservation]]
 			if flags.all {
 				list, err = collectPaged(cmd.Context(), flags.cursor, fetch)
 			} else {
@@ -41,7 +37,7 @@ func newReservationListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), list, reservationTable)
+			return listOutRaw(a.Printer(), list, reservationTable)
 		},
 	}
 	addPageFlags(cmd, &flags)

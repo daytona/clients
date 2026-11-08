@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
@@ -61,7 +62,7 @@ func newSandboxProcessListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printToolboxList(a, output.List[tbgen.ProcessDto]{Items: items}, func(items []tbgen.ProcessDto) output.Table {
+			return printToolboxList(a, output.List[api.Raw[tbgen.ProcessDto]]{Items: items}, func(items []tbgen.ProcessDto) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					pidValue := ""
@@ -97,7 +98,7 @@ func newSandboxProcessGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printToolboxObject(a, proc, processKV(proc))
+			return printToolboxObject(a, proc, processKV(proc.V))
 		},
 	}
 }
@@ -128,10 +129,10 @@ func newSandboxProcessWaitCommand() *cobra.Command {
 				}
 				return err
 			}
-			if err := printToolboxObject(a, result, exitResultKV(args[1], result)); err != nil {
+			if err := printToolboxObject(a, result, exitResultKV(args[1], result.V)); err != nil {
 				return err
 			}
-			return exitError(result)
+			return exitError(result.V)
 		},
 	}
 	addTimeoutFlag(cmd, defaultWaitTimeout, "how long to wait for the process to exit (Go duration)")

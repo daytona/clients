@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +37,7 @@ func newBillingAutomaticTopUpSetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.AutomaticTopUp
+		var payload api.Raw[gen.AutomaticTopUp]
 		err = mc.Do(cmd.Context(), http.MethodPut, billingBasePath(orgID)+"/automatic-top-up", nil, gen.SetAutomaticTopUpRequest{ThresholdCents: thresholdCents, TargetCents: targetCents}, &payload)
 		if err != nil {
 			return err
@@ -68,7 +69,7 @@ func newBillingBalanceNotificationSetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.BalanceNotification
+		var payload api.Raw[gen.BalanceNotification]
 		err = mc.Do(cmd.Context(), http.MethodPut, billingBasePath(orgID)+"/balance-notification", nil, gen.SetBalanceNotificationRequest{ThresholdCents: thresholdCents}, &payload)
 		if err != nil {
 			return err
@@ -110,7 +111,7 @@ func newBillingCouponCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.CouponRedemption
+		var payload api.Raw[gen.CouponRedemption]
 		err = mc.Do(cmd.Context(), http.MethodPost, billingBasePath(orgID)+"/coupons/redeem", nil, gen.RedeemCouponRequest{Code: args[0]}, &payload)
 		if err != nil {
 			return err
@@ -134,7 +135,7 @@ func newBillingPlanCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var payload gen.BillingPlan
+			var payload api.Raw[gen.BillingPlan]
 			err = mc.Do(cmd.Context(), http.MethodPut, billingBasePath(orgID)+"/plan", nil, gen.SetPlanRequest{Plan: gen.PlanName(plan)}, &payload)
 			if err != nil {
 				return err
@@ -169,7 +170,7 @@ func newBillingContactSetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.BillingContact
+		var payload api.Raw[gen.BillingContact]
 		err = mc.Do(cmd.Context(), http.MethodPut, billingBasePath(orgID)+"/contact", nil, billingContactRequest{Email: value}, &payload)
 		if err != nil {
 			return err

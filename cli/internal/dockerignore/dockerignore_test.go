@@ -104,8 +104,8 @@ func TestExcluded_escapedMetacharacters(t *testing.T) {
 	require.False(t, m.Excluded("v1x0"))
 }
 
-// The cases below pin where Docker's pattern matcher (the classic builder's)
-// behaves unexpectedly; the CLI follows it rather than BuildKit's walker.
+// The cases below pin Docker's pattern rules where they are surprising.
+// Which directories are walked (MayReinclude) follows BuildKit.
 func TestExcluded_followsDockersPatternMatcher(t *testing.T) {
 	// A leading `**` without `/` is a suffix match.
 	m := matcher(t, "**foo\n")

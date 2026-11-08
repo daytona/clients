@@ -106,11 +106,11 @@ func newReservationCreateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			if err := client.DoWithHeaders(cmd.Context(), http.MethodPost, "/reservations", nil, headers, req, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 	f := cmd.Flags()

@@ -170,8 +170,7 @@ func (s *Store) LoadCredentials() (*Credentials, error) {
 // SaveCredentials writes credentials.yaml atomically, without the keys
 // earlier releases exchanged from static credentials.
 func (s *Store) SaveCredentials(c *Credentials) error {
-	c.dropLegacyKeys()
-	return writeYAML(s.credsPath(), c)
+	return writeYAML(s.credsPath(), c.withoutLegacyKeys())
 }
 
 // Update runs fn under the lock with fresh copies of both files and persists

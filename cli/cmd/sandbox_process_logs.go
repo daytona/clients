@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
@@ -86,7 +87,7 @@ func followSandboxProcessLogs(cmd *cobra.Command, a *app.App, toolClient *toolbo
 func followSandboxProcessLogsNDJSON(ctx context.Context, a *app.App, toolClient *toolboxclient.Client, processID, cursor, encoding string, limit int, timeout time.Duration) error {
 	encoder := json.NewEncoder(a.Stdout)
 	encoder.SetEscapeHTML(false)
-	result, _, eof, err := toolClient.FollowProcessLogFrames(ctx, processID, cursor, logEncodingOrDefault(encoding), limit, func(frame tbgen.LogFrameDto) error {
+	result, _, eof, err := toolClient.FollowProcessLogFrames(ctx, processID, cursor, logEncodingOrDefault(encoding), limit, func(frame api.Raw[tbgen.LogFrameDto]) error {
 		converted, err := output.SnakeCase(frame)
 		if err != nil {
 			return err
@@ -115,17 +116,17 @@ func readSandboxProcessLogs(cmd *cobra.Command, a *app.App, toolClient *toolboxc
 		return err
 	}
 	if a.Format == output.FormatTable {
-		if page.TruncatedHead {
+		if page.V.TruncatedHead {
 			// Retention evicted frames before this page: say so, or an
 			// expired cursor reads like a complete log.
 			first := ""
-			if page.FirstAvailableCursor != nil {
-				first = " (first surviving cursor " + output.SanitizeLine(*page.FirstAvailableCursor) + ")"
+			if page.V.FirstAvailableCursor != nil {
+				first = " (first surviving cursor " + output.SanitizeLine(*page.V.FirstAvailableCursor) + ")"
 			}
 			a.Info("warning: older log frames were evicted by retention; this page is not the beginning of the log%s", first)
 		}
 		stdoutWriter, stderrWriter, flushLogs := processLogWriters(a)
-		if err := toolboxclient.WriteLogFrames(page.Frames, logEncodingOrDefault(encoding), stdoutWriter, stderrWriter); err != nil {
+		if err := toolboxclient.WriteLogFrames(page.V.Frames, logEncodingOrDefault(encoding), stdoutWriter, stderrWriter); err != nil {
 			return err
 		}
 		return flushLogs()

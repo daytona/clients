@@ -28,6 +28,8 @@ const (
 type ResolvedSandbox struct {
 	Client *api.Client
 	Detail gen.Sandbox
+	// Raw is the API's JSON for Detail, which is what `-o json` prints.
+	Raw api.Raw[gen.Sandbox]
 }
 
 func ResolveSandbox(ctx context.Context, home *api.Client, cache *CatalogCache, id string) (ResolvedSandbox, error) {
@@ -136,11 +138,11 @@ func LinuxOnlyError(action, id, class string) error {
 }
 
 func fetchSandbox(ctx context.Context, client *api.Client, id string) (ResolvedSandbox, error) {
-	var detail gen.Sandbox
+	var detail api.Raw[gen.Sandbox]
 	if err := client.Do(ctx, http.MethodGet, fmt.Sprintf("/sandboxes/%s", url.PathEscape(id)), nil, nil, &detail); err != nil {
 		return ResolvedSandbox{}, err
 	}
-	return ResolvedSandbox{Client: client, Detail: detail}, nil
+	return ResolvedSandbox{Client: client, Detail: detail.V, Raw: detail}, nil
 }
 
 func isNotFound(err error) bool {

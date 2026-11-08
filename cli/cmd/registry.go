@@ -10,6 +10,7 @@ import (
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
@@ -93,14 +94,10 @@ func newRegistryListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		fetch := func(ctx context.Context, cursor string) (output.List[gen.Registry], error) {
-			var page gen.RegistryPage
-			if err := client.Do(ctx, http.MethodGet, "/registries", listQuery(flags, cursor), nil, &page); err != nil {
-				return output.List[gen.Registry]{}, err
-			}
-			return output.List[gen.Registry]{Items: page.Registries, NextCursor: formatPtr(page.NextCursor)}, nil
+		fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.Registry]], error) {
+			return getRawList[gen.Registry](ctx, client, "/registries", listQuery(flags, cursor), "registries")
 		}
-		var items output.List[gen.Registry]
+		var items output.List[api.Raw[gen.Registry]]
 		if flags.all {
 			items, err = collectPaged(ctx, flags.cursor, fetch)
 		} else {
@@ -109,7 +106,7 @@ func newRegistryListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), items, func(rows []gen.Registry) output.Table {
+		return listOutRaw(a.Printer(), items, func(rows []gen.Registry) output.Table {
 			tableRows := make([][]string, 0, len(rows))
 			for _, row := range rows {
 				tableRows = append(tableRows, []string{row.Host, string(row.Kind), row.Username, row.UpdatedAt.Format(time.RFC3339)})
@@ -129,12 +126,13 @@ func newRegistryGetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var resp gen.Registry
-		if err := client.Do(ctx, http.MethodGet, "/registries/"+url.PathEscape(args[0]), nil, nil, &resp); err != nil {
+		var raw api.Raw[gen.Registry]
+		if err := client.Do(ctx, http.MethodGet, "/registries/"+url.PathEscape(args[0]), nil, nil, &raw); err != nil {
 			return err
 		}
+		resp := raw.V
 		a.Info("Registry passwords are write-only and are never returned by the API.")
-		return a.Printer().Object(resp, [][2]string{{"host", resp.Host}, {"kind", string(resp.Kind)}, {"username", resp.Username}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
+		return a.Printer().Object(raw, [][2]string{{"host", resp.Host}, {"kind", string(resp.Kind)}, {"username", resp.Username}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
 	}}
 }
 

@@ -198,7 +198,7 @@ func checkCPUMax(body input.Body) error {
 		return nil // the typed decode reports a wrong type
 	}
 	if v <= 0 || math.Mod(v*2, 1) != 0 {
-		return cerr.Usage("--cpu-max must be a positive multiple of 0.5 cores, got %v", v)
+		return cerr.Usage("--cpu-max (cores_max) must be a positive multiple of 0.5 cores, got %v", v)
 	}
 	return nil
 }

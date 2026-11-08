@@ -137,7 +137,7 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 	if !ok {
 		return cerr.New(cerr.ExitAuth, "profile %q disappeared during login", name).WithHint("run `daytona login` again")
 	}
-	meID := me.Id.String()
+	meID := me.V.Id.String()
 	keep := prof.Identity == meID && prof.OrgID != ""
 	if keep {
 		if _, err := mgmt.ResolveOrg(orgs, prof.OrgID); err != nil {
@@ -210,7 +210,7 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 	if err != nil {
 		return err
 	}
-	who := me.Email
+	who := me.V.Email
 	if who == "" {
 		who = meID
 	}

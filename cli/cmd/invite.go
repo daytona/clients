@@ -134,23 +134,23 @@ func newInviteCreateCmd() *cobra.Command {
 		}
 		// When the response includes accept_url, print the invitation link
 		// on its own line. JSON/YAML keep the complete response.
-		if resp.AcceptUrl != nil && a.Format == output.FormatTable {
+		if resp.V.AcceptUrl != nil && a.Format == output.FormatTable {
 			// A relative accept_url cannot be opened directly: print its token
 			// for `daytona invite accept <token>`. If it cannot be parsed,
 			// preserve the link rather than dropping the invitation.
 			token, tokenErr := "", error(nil)
-			if strings.HasPrefix(*resp.AcceptUrl, "/") {
-				token, tokenErr = invitationTokenArg(*resp.AcceptUrl)
+			if strings.HasPrefix(*resp.V.AcceptUrl, "/") {
+				token, tokenErr = invitationTokenArg(*resp.V.AcceptUrl)
 			}
 			if token != "" && tokenErr == nil {
 				if _, err := fmt.Fprintf(a.Stdout, "Invitation token: %s\nNo invitation email is sent by this deployment; give the invitee this token for daytona invite accept <token>.\n", output.SanitizeLine(token)); err != nil {
 					return err
 				}
-			} else if _, err := fmt.Fprintf(a.Stdout, "Invitation link: %s\nNo invitation email is sent by this deployment; share the link with the invitee.\n", output.SanitizeLine(*resp.AcceptUrl)); err != nil {
+			} else if _, err := fmt.Fprintf(a.Stdout, "Invitation link: %s\nNo invitation email is sent by this deployment; share the link with the invitee.\n", output.SanitizeLine(*resp.V.AcceptUrl)); err != nil {
 				return err
 			}
 		}
-		return a.Printer().Object(resp, [][2]string{{"id", resp.Id.String()}, {"email", resp.Email}, {"roles", joinComma(resp.Roles)}, {"expires_at", resp.ExpiresAt.Format(time.RFC3339)}})
+		return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id.String()}, {"email", resp.V.Email}, {"roles", joinComma(resp.V.Roles)}, {"expires_at", resp.V.ExpiresAt.Format(time.RFC3339)}})
 	}}
 	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (repeatable or comma-separated)")
 	return cmd
@@ -175,7 +175,7 @@ func newInviteListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), items, inviteTable)
+		return listOutRaw(a.Printer(), items, inviteTable)
 	}}
 	addPageFlags(cmd, &flags)
 	return cmd
@@ -222,10 +222,10 @@ func newInviteGetCmd() *cobra.Command {
 			return err
 		}
 		invitedBy := ""
-		if resp.InvitedBy != nil {
-			invitedBy = *resp.InvitedBy
+		if resp.V.InvitedBy != nil {
+			invitedBy = *resp.V.InvitedBy
 		}
-		return a.Printer().Object(resp, [][2]string{{"org", resp.OrgName}, {"org_id", resp.OrgId.String()}, {"roles", joinComma(resp.Roles)}, {"invited_by", invitedBy}, {"email", resp.Email}, {"expires_at", resp.ExpiresAt.Format(time.RFC3339)}})
+		return a.Printer().Object(resp, [][2]string{{"org", resp.V.OrgName}, {"org_id", resp.V.OrgId.String()}, {"roles", joinComma(resp.V.Roles)}, {"invited_by", invitedBy}, {"email", resp.V.Email}, {"expires_at", resp.V.ExpiresAt.Format(time.RFC3339)}})
 	}}
 }
 
@@ -244,7 +244,7 @@ func newInviteAcceptCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"user_id", resp.UserId.String()}, {"roles", joinComma(resp.Roles)}})
+		return a.Printer().Object(resp, [][2]string{{"user_id", resp.V.UserId.String()}, {"roles", joinComma(resp.V.Roles)}})
 	}}
 }
 

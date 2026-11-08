@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,6 +22,8 @@ type regionalListSource struct {
 	home    *api.Client
 	catalog *workload.CatalogCache
 	region  string
+	// raws keeps each item's API JSON for the output.
+	raws *rawIndex
 }
 
 func newSandboxListCommand() *cobra.Command {
@@ -36,7 +39,7 @@ func newSandboxListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			source := regionalListSource{home: home, catalog: workload.NewCatalogCache(), region: a.Globals.Region}
+			source := regionalListSource{home: home, catalog: workload.NewCatalogCache(), region: a.Globals.Region, raws: newRawIndex()}
 			fetch := func(ctx context.Context, cursor string) (output.List[gen.SandboxListItem], error) {
 				return source.fetchSandboxPage(ctx, listPageRequest{limit: flags.limit, cursor: cursor})
 			}
@@ -50,7 +53,7 @@ func newSandboxListCommand() *cobra.Command {
 				return err
 			}
 			list.Items = regions.Unique(list.Items, func(item gen.SandboxListItem) string { return item.Id })
-			if err := output.ListOut(a.Printer(), list, sandboxListTable); err != nil {
+			if err := listOutRaw(a.Printer(), rawList(source.raws, list, func(item gen.SandboxListItem) string { return item.Id }), sandboxListTable); err != nil {
 				return err
 			}
 			return regions.PartialError(list)
@@ -104,7 +107,7 @@ func newSandboxWaitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(detail, sandboxDetailKV(detail))
+			return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 		},
 	}
 	cmd.Flags().StringVar(&status, "for", status, "status to wait for")
@@ -126,20 +129,26 @@ func (source regionalListSource) fetchSandboxPage(ctx context.Context, page list
 				return regions.Page[gen.SandboxListItem]{Items: []gen.SandboxListItem{}}, nil
 			}
 			query := listQuery(pageFlags{limit: page.limit}, state.cursor)
-			var resp gen.SandboxPage
-			err := client.Do(ctx, http.MethodGet, "/sandboxes", query, nil, &resp)
-			next := ""
-			if resp.NextCursor != nil {
-				next = *resp.NextCursor
+			var body json.RawMessage
+			if err := client.Do(ctx, http.MethodGet, "/sandboxes", query, nil, &body); err != nil {
+				return regions.Page[gen.SandboxListItem]{}, err
 			}
-			if err == nil && scope.streams != nil {
-				rows := make(map[string]string, len(resp.Sandboxes))
-				for _, item := range resp.Sandboxes {
+			resp, err := api.DecodePage[gen.SandboxListItem](body, "sandboxes")
+			if err != nil {
+				return regions.Page[gen.SandboxListItem]{}, err
+			}
+			items := api.Values(resp.Items)
+			for _, item := range resp.Items {
+				source.raws.add(item.V.Id, item.JSON)
+			}
+			if scope.streams != nil {
+				rows := make(map[string]string, len(items))
+				for _, item := range items {
 					rows[item.Id] = item.Cursor
 				}
-				scope.recordStream(currentRegion, rows, next != "")
+				scope.recordStream(currentRegion, rows, resp.NextCursor != "")
 			}
-			return regions.Page[gen.SandboxListItem]{Items: resp.Sandboxes, NextCursor: next}, err
+			return regions.Page[gen.SandboxListItem]{Items: items, NextCursor: resp.NextCursor}, nil
 		},
 		func(a, b gen.SandboxListItem) bool {
 			if a.CreatedAt == nil || b.CreatedAt == nil {
@@ -247,5 +256,5 @@ func printSandboxDetail(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	return a.Printer().Object(resolved.Detail, sandboxDetailKV(resolved.Detail))
+	return a.Printer().Object(resolved.Raw, sandboxDetailKV(resolved.Detail))
 }

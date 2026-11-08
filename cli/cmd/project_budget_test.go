@@ -81,9 +81,10 @@ func TestProjectBudgetCommands(t *testing.T) {
 	if got["monthly_limit_cents"].(float64) != 50000 || got["spent_cents"].(float64) != 41237 {
 		t.Fatalf("get json: %s", out)
 	}
+	// The API's representation: its nulls stay null.
 	for _, k := range []string{"exceeded_at", "stop_at"} {
-		if _, ok := got[k]; ok {
-			t.Fatalf("get json: null %s must be omitted: %s", k, out)
+		if v, ok := got[k]; !ok || v != nil {
+			t.Fatalf("get json: %s must stay null as the API sent it: %s", k, out)
 		}
 	}
 

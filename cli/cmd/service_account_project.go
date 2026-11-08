@@ -5,9 +5,9 @@ package cmd
 
 import (
 	"context"
+
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/mgmt"
-	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ func newProjectServiceAccountListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), items, projectServiceAccountTable)
+		return listOutRaw(a.Printer(), items, projectServiceAccountTable)
 	}}
 	addPageFlags(cmd, &flags)
 	return cmd
@@ -72,7 +72,7 @@ func newProjectServiceAccountAddCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"added_service_account_ids", joinComma(uuidStrings(resp.AddedServiceAccountIds))}})
+		return a.Printer().Object(resp, [][2]string{{"added_service_account_ids", joinComma(uuidStrings(resp.V.AddedServiceAccountIds))}})
 	}}
 }
 

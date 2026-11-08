@@ -48,11 +48,16 @@ type Printer struct {
 	Color  bool
 }
 
-// RegionError is one failed region in a fan-out list.
+// RegionError is one failed region in a fan-out list: the HTTP status and
+// the server's error code and source when the region's API answered.
 type RegionError struct {
 	Region  string `json:"region"`
 	Status  int    `json:"status,omitempty"`
+	Code    string `json:"code,omitempty"`
+	Source  string `json:"source,omitempty"`
 	Message string `json:"message"`
+	// Err is the failure itself (not printed).
+	Err error `json:"-"`
 }
 
 // List is the envelope every list command emits. ListOut prints Items as an

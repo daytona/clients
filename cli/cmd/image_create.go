@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/input"
@@ -51,7 +52,7 @@ func newImageImportCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var created gen.AsyncOperation
+			var created api.Raw[gen.AsyncOperation]
 			if err := client.Do(cmd.Context(), http.MethodPost, "/images", nil, req, &created); err != nil {
 				return err
 			}
@@ -137,7 +138,7 @@ func buildImageMultipartMeta(cmd *cobra.Command, a *app.App, name, dockerfilePat
 		if strings.TrimSpace(dockerfilePath) == "" {
 			return nil, "", "", cerr.Usage("--dockerfile is empty; omit it to use Dockerfile")
 		}
-	} else if value, ok := body["dockerfile"].(string); ok && value != "" {
+	} else if value, ok := body["dockerfile"].(string); ok && strings.TrimSpace(value) != "" {
 		dockerfilePath = value
 	}
 	if !cmd.Flags().Changed("context") {

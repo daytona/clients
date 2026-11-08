@@ -48,8 +48,9 @@ type Globals struct {
 	APIKeySet bool
 	Profile   string
 	// ProfileMayBeNew lets a profile named by the --profile flag that does
-	// not exist yet through (`login --profile NAME` creates it); everywhere
-	// else an explicit unknown profile is "not found".
+	// not exist yet through (`login --profile NAME` creates it). Otherwise an
+	// explicit unknown profile is "not found", except on the commands
+	// ProfileOptional marks.
 	ProfileMayBeNew bool
 	// ProfileOptional marks a command that does not act on the selected
 	// profile (help, completion, docs, `profile *`, `config *`): an unknown

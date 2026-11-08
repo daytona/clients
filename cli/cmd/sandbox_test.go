@@ -274,8 +274,9 @@ func TestSandboxList_regionFlagStillRefusesAnUnlistedRegion(t *testing.T) {
 	root.SetArgs([]string{"--api-url", homeURL, "--api-key", "k", "-o", "json", "sandbox", "list", "--region", "unlisted-region"})
 	err := root.ExecuteContext(context.Background())
 	require.Error(t, err)
-	require.Equal(t, cerr.ExitPartial, cerr.ExitCode(err))
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "unknown region")
+	require.Empty(t, stdout.String(), "no list and no cursor for a region that does not exist")
 }
 
 func TestTrimSandboxPage_preservesDeferredRegionWithoutLocalNextCursor(t *testing.T) {

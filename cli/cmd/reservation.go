@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/google/uuid"
@@ -64,11 +65,11 @@ func newReservationGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/reservations/"+url.PathEscape(args[0]), nil, nil, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 }
@@ -97,12 +98,12 @@ func newReservationRenewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			headers := http.Header{"Idempotency-Key": {idempotencyKey}}
 			if err := client.DoWithHeaders(cmd.Context(), http.MethodPost, "/reservations/"+url.PathEscape(args[0])+"/renew", nil, headers, nil, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 	cmd.Flags().StringVar(&idempotencyKey, "idempotency-key", "", "a retry with the same key returns the reservation without charging another period (default: a fresh key per invocation)")
@@ -129,12 +130,12 @@ func newReservationUpdateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			req := gen.UpdateReservationRequest{AutoRenew: autoRenew}
 			if err := client.Do(cmd.Context(), http.MethodPatch, "/reservations/"+url.PathEscape(args[0]), nil, req, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 	cmd.Flags().BoolVar(&autoRenew, "auto-renew", false, "renew near period_end while a sandbox is in use on the reservation; false lets it end at period_end")

@@ -5,6 +5,8 @@ package mgmt
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,8 +19,8 @@ import (
 )
 
 // GetMe calls GET /me.
-func GetMe(ctx context.Context, c *api.Client) (*gen.User, error) {
-	var me gen.User
+func GetMe(ctx context.Context, c *api.Client) (*api.Raw[gen.User], error) {
+	var me api.Raw[gen.User]
 	if err := c.Do(ctx, http.MethodGet, "/me", nil, nil, &me); err != nil {
 		return nil, err
 	}
@@ -27,21 +29,30 @@ func GetMe(ctx context.Context, c *api.Client) (*gen.User, error) {
 
 // OrgsPage reads one page of GET /orgs.
 func OrgsPage(ctx context.Context, c *api.Client, cursor string, limit int64) (Page[gen.OrganizationListItem], error) {
-	return getPage(ctx, c, "/orgs", cursor, limit, func(resp gen.OrganizationPage) ([]gen.OrganizationListItem, *string) {
-		return resp.Organizations, resp.NextCursor
+	return getPage[gen.OrganizationListItem](ctx, c, "/orgs", "organizations", cursor, limit)
+}
+
+// ListOrgsRaw collects every page of GET /orgs, keeping the API's JSON.
+func ListOrgsRaw(ctx context.Context, c *api.Client) ([]api.Raw[gen.OrganizationListItem], error) {
+	var out []api.Raw[gen.OrganizationListItem]
+	_, err := collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationListItem, *string, error) {
+		page, err := OrgsPage(ctx, c, cursor, 0)
+		out = append(out, page.Items...)
+		return api.Values(page.Items), &page.NextCursor, err
 	})
+	return out, err
 }
 
 // ListOrgs collects every page (name resolvers and pickers; the list commands read one page).
 func ListOrgs(ctx context.Context, c *api.Client) ([]gen.OrganizationListItem, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationListItem, *string, error) {
 		page, err := OrgsPage(ctx, c, cursor, 0)
-		return page.Items, &page.NextCursor, err
+		return api.Values(page.Items), &page.NextCursor, err
 	})
 }
 
-func GetOrg(ctx context.Context, c *api.Client, orgID string) (*gen.Organization, error) {
-	var org gen.Organization
+func GetOrg(ctx context.Context, c *api.Client, orgID string) (*api.Raw[gen.Organization], error) {
+	var org api.Raw[gen.Organization]
 	if err := c.Do(ctx, http.MethodGet, "/orgs/"+url.PathEscape(orgID), nil, nil, &org); err != nil {
 		return nil, err
 	}
@@ -50,14 +61,14 @@ func GetOrg(ctx context.Context, c *api.Client, orgID string) (*gen.Organization
 
 // ProjectsPage reads one page of GET /orgs/{org_id}/projects.
 func ProjectsPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.Project], error) {
-	return getPage(ctx, c, "/orgs/"+url.PathEscape(orgID)+"/projects", cursor, limit, func(resp gen.ProjectPage) ([]gen.Project, *string) { return resp.Projects, resp.NextCursor })
+	return getPage[gen.Project](ctx, c, "/orgs/"+url.PathEscape(orgID)+"/projects", "projects", cursor, limit)
 }
 
 // ListProjects collects every page (name resolvers and pickers; the list commands read one page).
 func ListProjects(ctx context.Context, c *api.Client, orgID string) ([]gen.Project, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.Project, *string, error) {
 		page, err := ProjectsPage(ctx, c, orgID, cursor, 0)
-		return page.Items, &page.NextCursor, err
+		return api.Values(page.Items), &page.NextCursor, err
 	})
 }
 
@@ -82,15 +93,13 @@ func collectAll[T any](ctx context.Context, fetch func(context.Context, string) 
 	}
 }
 
-// Page is one server page of a management list; NextCursor is empty on the
-// last page.
-type Page[T any] struct {
-	Items      []T
-	NextCursor string
-}
+// Page is one server page of a management list: the items as the API sent
+// them; NextCursor is empty on the last page.
+type Page[T any] = api.Page[T]
 
-// getPage reads one page: `limit` 0 lets the server choose the page size.
-func getPage[T, P any](ctx context.Context, c *api.Client, path, cursor string, limit int64, extract func(P) ([]T, *string)) (Page[T], error) {
+// getPage reads one page of the items under field: `limit` 0 lets the
+// server choose the page size.
+func getPage[T any](ctx context.Context, c *api.Client, path, field, cursor string, limit int64) (Page[T], error) {
 	query := url.Values{}
 	if cursor != "" {
 		query.Set("cursor", cursor)
@@ -98,23 +107,19 @@ func getPage[T, P any](ctx context.Context, c *api.Client, path, cursor string, 
 	if limit > 0 {
 		query.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp P
-	if err := c.Do(ctx, http.MethodGet, path, query, nil, &resp); err != nil {
+	var body json.RawMessage
+	if err := c.Do(ctx, http.MethodGet, path, query, nil, &body); err != nil {
 		return Page[T]{}, err
 	}
-	items, next := extract(resp)
-	page := Page[T]{Items: items, NextCursor: ""}
-	if page.Items == nil {
-		page.Items = []T{}
-	}
-	if next != nil {
-		page.NextCursor = *next
+	page, err := api.DecodePage[T](body, field)
+	if err != nil {
+		return Page[T]{}, fmt.Errorf("decode GET %s response: %w", path, err)
 	}
 	return page, nil
 }
 
 // CreateKey calls POST /projects/{project_id}/api-keys.
-func CreateKey(ctx context.Context, c *api.Client, projectID string, req gen.CreateProjectApiKeyRequest) (*gen.ProjectApiKeyWithToken, error) {
+func CreateKey(ctx context.Context, c *api.Client, projectID string, req gen.CreateProjectApiKeyRequest) (*api.Raw[gen.ProjectApiKeyWithToken], error) {
 	return CreateProjectKey(ctx, c, projectID, req)
 }
 

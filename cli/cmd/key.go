@@ -9,6 +9,7 @@ import (
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/mgmt"
 	"github.com/spf13/cobra"
@@ -33,7 +34,7 @@ func newKeyCmd() *cobra.Command {
 		requireScope: func(a *app.App, ctx context.Context) (string, error) {
 			return a.RequireProject(ctx, pickProject(a))
 		},
-		buildMint: func(ctx context.Context, a *app.App, mc *mgmtClient, projectID, name string, permissions []string, expiresAt *time.Time, serviceAccount string) (*gen.ProjectApiKeyWithToken, error) {
+		buildMint: func(ctx context.Context, a *app.App, mc *mgmtClient, projectID, name string, permissions []string, expiresAt *time.Time, serviceAccount string) (*api.Raw[gen.ProjectApiKeyWithToken], error) {
 			serviceAccountID, err := resolveKeyServiceAccountID(ctx, a, mc, serviceAccount)
 			if err != nil {
 				return nil, err
