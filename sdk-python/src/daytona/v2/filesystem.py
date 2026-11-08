@@ -878,12 +878,8 @@ def _open_download_staging_file(destination: Path) -> tuple[Path, BinaryIO]:
 
 def _raise_if_length_mismatch(bytes_written: int, total_bytes: int | None) -> None:
     if total_bytes is not None and bytes_written != total_bytes:
-        raise create_error(
-            "download_file() ended before the declared Content-Length was received",
-            500,
-            None,
-            "SDK",
-        )
+        # A truncated transfer, as when the socket drops mid-body.
+        raise ConnectionError("download_file() ended before the declared Content-Length was received")
 
 
 def _preserve_replaced_file_mode(staging_fd: int, destination: Path) -> None:

@@ -239,9 +239,11 @@ function imageSourceString(image: unknown): string {
   if (isImageBuilder(image)) {
     throw new TypeError('daytona.create() only accepts an image name or img_… id; use daytona.createFromBuild(builder, options) for ImageBuilder sources')
   }
-  if (!hasText(image)) {
+  if (typeof image !== 'string') {
     throw new TypeError('daytona.create() only accepts an image name or img_… id')
   }
+  // A blank string is the right type with an invalid value, as in Python.
+  if (!hasText(image)) throw badRequest('image must be a non-empty string')
   return image.trim()
 }
 
@@ -253,8 +255,8 @@ interface LinuxCreateArguments {
 /**
  * Split `create`'s overloaded arguments: `()`, `(image, options?)` (an
  * `undefined` image is the platform default) or `(options)`; an options object
- * carrying `image` or `snapshot` is the v0 shape and a `TypeError`. A string goes through `imageSourceString`, so a blank one keeps
- * its error; an `ImageBuilder`, an `Image` handle or any other non-string
+ * carrying `image` or `snapshot` is the v0 shape and a `TypeError`. A string goes through `imageSourceString`, so a blank one is
+ * a `BadRequestError`; an `ImageBuilder`, an `Image` handle or any other non-string
  * source is still a `TypeError`.
  */
 function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptions | null | undefined, options: CreateSandboxOptions | undefined): LinuxCreateArguments {
@@ -272,7 +274,8 @@ function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptions | nu
 }
 
 function snapshotSourceString(snapshot: string): string {
-  if (!hasText(snapshot)) throw new TypeError('snapshot must be a non-empty snapshot name or snap_… id')
+  if (typeof snapshot !== 'string') throw new TypeError('snapshot must be a non-empty snapshot name or snap_… id')
+  if (!hasText(snapshot)) throw badRequest('snapshot must be a non-empty string')
   return snapshot.trim()
 }
 

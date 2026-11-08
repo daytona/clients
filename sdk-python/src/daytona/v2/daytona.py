@@ -46,7 +46,7 @@ from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
 from ._gen.api import AuditActionList, ProjectApiKeyWithContext, SandboxListItem
 from ._gen.api import Sandbox as SandboxDto
 from ._otel import load_opentelemetry_support
-from ._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
+from ._transport import _MAX_BOUNDED_TIMEOUT_SECONDS, DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 from .errors import (
     AuthenticationError,
     ClientTimeoutError,
@@ -1351,12 +1351,6 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
 def _ambient(env_var: str) -> Optional[str]:
     """An environment value, trimmed; blank or whitespace-only is unset."""
     return (os.environ.get(env_var) or "").strip() or None
-
-
-# The largest request timeout that is still a bound, in seconds (about 24.8
-# days): the TypeScript SDK's timers cannot arm a longer one, so both SDKs read
-# a larger value as no limit, like 0.
-_MAX_BOUNDED_TIMEOUT_SECONDS: Final = 2_147_483.647
 
 
 def _resolve_request_timeout(value: Optional[float]) -> float:

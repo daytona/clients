@@ -1167,7 +1167,7 @@ export class Sandbox {
       if (fresh) {
         if (this.state !== undefined && includesWaitState(states, this.state)) return
         if (this.state !== undefined && effectiveTerminal.includes(this.state)) {
-          throw new SandboxTerminalStateError(this.id, this.state, this.rawState)
+          throw new SandboxTerminalStateError(this.id, this.state, { rawState: this.rawState })
         }
       }
       const refreshTimeout = remainingRequestBudget(deadline)
@@ -1180,7 +1180,7 @@ export class Sandbox {
       fresh = true
       if (this.state !== undefined && includesWaitState(states, this.state)) return
       if (this.state !== undefined && effectiveTerminal.includes(this.state)) {
-        throw new SandboxTerminalStateError(this.id, this.state, this.rawState)
+        throw new SandboxTerminalStateError(this.id, this.state, { rawState: this.rawState })
       }
       const elapsed = Date.now() - pollStarted
       if (elapsed < WAIT_FOR_STATE_MIN_INTERVAL_MS) {

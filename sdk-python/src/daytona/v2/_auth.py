@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
@@ -10,10 +11,10 @@ import anyio
 import httpx
 
 from . import _clock
-from ._core import _expect_model_from_dict, error_from_response, expect_object, parse_json_bytes
+from ._core import _expect_model_from_dict, error_from_response, expect_object
 from ._gen.api import TokenExchange
 from ._otel import OpenTelemetrySupport
-from .errors import ClientTimeoutError, ConnectionError, create_error
+from .errors import ClientTimeoutError, ConnectionError, DaytonaError, create_error
 
 _TOKEN_REFRESH_SKEW_SECONDS = 30.0
 
@@ -151,17 +152,7 @@ class ProjectTokenAuth:
                 span.finish(status_code=response.status_code)
             raise error_from_response(response.status_code, response.content)
         try:
-            payload = expect_object(parse_json_bytes(response.content))
-            exchange = _expect_model_from_dict(
-                payload,
-                TokenExchange,
-                "token exchange response",
-                TokenExchange.from_dict,
-            )
-            if exchange.expires_in <= 0:
-                raise create_error(
-                    "token exchange response has a non-positive expires_in", 400, "BAD_REQUEST", "SDK"
-                )
+            exchange = _token_exchange(response.content)
         except BaseException as error:
             if span is not None:
                 span.finish(status_code=response.status_code, error=error)
@@ -169,3 +160,32 @@ class ProjectTokenAuth:
         if span is not None:
             span.finish(status_code=response.status_code)
         return exchange
+
+
+def _token_exchange(body: bytes) -> TokenExchange:
+    """The token-exchange response, or ``BadRequestError`` naming what is wrong.
+
+    The messages match the TypeScript SDK's for the same response.
+    """
+    try:
+        payload: object = json.loads(body)
+    except ValueError:
+        payload = None
+    if not isinstance(payload, dict):
+        raise _bad_exchange("is not a JSON object")
+    access_token = payload.get("access_token")
+    if not isinstance(access_token, str) or access_token == "":
+        raise _bad_exchange("access_token must be a non-empty string")
+    expires_in = payload.get("expires_in")
+    if isinstance(expires_in, bool) or not isinstance(expires_in, int) or expires_in <= 0:
+        raise _bad_exchange("expires_in must be a positive integer")
+    return _expect_model_from_dict(
+        expect_object(payload),
+        TokenExchange,
+        "token exchange response",
+        TokenExchange.from_dict,
+    )
+
+
+def _bad_exchange(problem: str) -> DaytonaError:
+    return create_error(f"token exchange response {problem}", 400, "BAD_REQUEST", "SDK")

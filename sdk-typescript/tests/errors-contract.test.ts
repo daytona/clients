@@ -174,3 +174,23 @@ describe('error constructors refuse a value that is not an options object', () =
     expect(new ErrorClass('x', { statusCode: 418 } as never)).toMatchObject({ statusCode: 418 })
   })
 })
+
+describe('error constructor options', () => {
+  it('keep the fields a prototype-based options object inherits', () => {
+    const inherited = Object.create({ statusCode: 418, code: 'TEAPOT', source: 'SDK' }) as v2.ErrorOptions
+    expect(new v2.DaytonaError('x', inherited)).toMatchObject({ statusCode: 418, code: 'TEAPOT', source: 'SDK' })
+    expect(new v2.ImageBuildFailedError('x', Object.create({ statusCode: 418, imageId: 'img' }) as never)).toMatchObject({ statusCode: 418, imageId: 'img' })
+    expect(new v2.ClientTimeoutError('x', Object.create({ statusCode: 504 }) as never)).toMatchObject({ statusCode: 504, code: 'REQUEST_TIMEOUT' })
+    expect(new v2.BuildLogInterruptedError('x', Object.create({ cursor: 'c-1' }) as never)).toMatchObject({ cursor: 'c-1', code: 'BUILD_LOG_INTERRUPTED' })
+  })
+
+  it('SandboxTerminalStateError takes rawState as an option, like Python raw_state=', () => {
+    const error = new v2.SandboxTerminalStateError('sbx', 'destroyed', { rawState: 'deleted' })
+    expect(error).toMatchObject({ state: 'destroyed', rawState: 'deleted', statusCode: 409, code: 'CONFLICT', source: 'SDK' })
+    expect(new v2.SandboxTerminalStateError('sbx', 'destroyed').rawState).toBeUndefined()
+    // The former positional form is refused rather than dropped.
+    expect(() => new v2.SandboxTerminalStateError('sbx', 'destroyed', 'deleted' as never)).toThrow(
+      expect.objectContaining({ constructor: v2.BadRequestError, message: 'error options must be an options object, got a string' }),
+    )
+  })
+})

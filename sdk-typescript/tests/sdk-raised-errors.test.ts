@@ -36,6 +36,15 @@ describe('SDK-raised invalid-argument errors are BadRequestError', () => {
     await badRequest(() => client.findByName(' '))
   })
 
+  it('on a blank create source; a source of the wrong type stays a TypeError, as in Python', async () => {
+    await badRequest(() => client.create('  '))
+    await badRequest(() => client.create(''))
+    await badRequest(() => client.createFromSnapshot('  '))
+    await badRequest(() => client.createMacos('  '))
+    await expect(client.create(123 as never)).rejects.toBeInstanceOf(TypeError)
+    await expect(client.createFromSnapshot(123 as never)).rejects.toBeInstanceOf(TypeError)
+  })
+
   it('on image builders', async () => {
     await badRequest(() => ImageBuilder.fromRegistry('alpine').workdir(' '))
   })
@@ -67,7 +76,9 @@ describe('error construction guard', () => {
 
   it('throws no plain JavaScript errors beyond the deliberate ones', () => {
     expect(counts(/new (?:Error|TypeError|RangeError)\(/g)).toEqual({
-      // A wrong argument type for create / createFromBuild: TypeError, as Python raises.
+      // A wrong argument type for create / createFromBuild (a non-string or
+      // ImageBuilder source, a v0-shaped options object, a `target`): TypeError,
+      // as Python raises. A blank source is a BadRequestError.
       'Daytona.ts': 8,
       // A missing onLogs callback: TypeError, as Python raises.
       'BuildLogs.ts': 1,
