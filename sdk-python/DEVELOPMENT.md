@@ -168,7 +168,7 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   class's `_SYNC_AFTER_WRAP` (`AsyncFileSystemService`: `watch_dir` →
   `_publish`), posts the release to the loop with `SyncBridge.post()` once it
   has built its `WatchHandle`. Events read before `start` are held until
-  `start` arrives. The caller holds the handle first only after a direct
+  `start` arrives, at most `WATCH_MAX_EVENTS_BEFORE_START` (4096). The caller holds the handle first only after a direct
   `await watch_dir(...)`: wrapped in another task (`gather`, `create_task`,
   `wait_for` on 3.10–3.11), or on the sync client, the first events can win,
   which is why the docs lead with signalling the handle's holder.

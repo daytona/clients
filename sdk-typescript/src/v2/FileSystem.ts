@@ -99,6 +99,11 @@ export interface WatchDirOptions {
   readonly onOverflow?: () => void | Promise<void>
 }
 
+/**
+ * The most fs / overflow events a watch holds before its stream's `start`
+ * (delivered after it); one more is a malformed stream. Raising it is additive.
+ */
+const WATCH_MAX_EVENTS_BEFORE_START = 4096
 const WRITE_FILE_OPTION_KEYS = optionKeys<WriteFileOptions>()({ atomic: true })
 const READ_FILE_OPTION_KEYS = optionKeys<ReadFileOptions>()({})
 const WRITE_MANY_OPTION_KEYS = optionKeys<WriteManyOptions>()({ atomic: true })
@@ -405,7 +410,9 @@ export class FileSystemService {
    * `onExit`. Callbacks are held until this call has returned its handle, so
    * after a direct `await watchDir(...)` a callback can call `stop()` on it;
    * when the promise is not awaited directly (inside `Promise.all`, or awaited
-   * later), signal the code that holds the handle and call `stop()` there.
+   * later), signal the code that holds the handle and call `stop()` there. A
+   * stream that sends more than 4096 events before `start` rejects this call
+   * with `BadRequestError`.
    */
   public async watchDir(
     path: string,
@@ -439,7 +446,8 @@ export class FileSystemService {
       releaseDeliveries = resolve
     })
     // Events read before `start` (none from a well-behaved toolbox), delivered
-    // after it: the stream must keep being read until `start` arrives.
+    // after it: the stream must keep being read until `start` arrives, but at
+    // most WATCH_MAX_EVENTS_BEFORE_START of them are held.
     const held: (() => void | Promise<void>)[] = []
     let resolveExit!: (error: Error | undefined) => void
     const exitPromise = new Promise<Error | undefined>((resolve) => {
@@ -519,7 +527,9 @@ export class FileSystemService {
             }
             if (callback === undefined) continue
             if (started) await deliverEvents(callback)
-            else held.push(callback)
+            else if (held.length >= WATCH_MAX_EVENTS_BEFORE_START) {
+              throw malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_EVENTS_BEFORE_START} events before start`)
+            } else held.push(callback)
           } catch (error) {
             // A failing callback (or a malformed event) ends the watch with
             // its error, even when stop() was called while it ran.

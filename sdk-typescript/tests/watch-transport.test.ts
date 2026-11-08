@@ -11,7 +11,7 @@ import { createServer } from 'node:http'
 import type { Server } from 'node:http'
 import { once } from 'node:events'
 import { FileSystemService } from '../src/v2/FileSystem'
-import { ConnectionError, DaytonaError } from '../src/v2/errors/DaytonaError'
+import { BadRequestError, ConnectionError, DaytonaError } from '../src/v2/errors/DaytonaError'
 import { ProcessService } from '../src/v2/Process'
 import { HttpTransport } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
@@ -32,8 +32,12 @@ async function refusedUrl(): Promise<string> {
 describe('watch stream drops', () => {
   let server: Server
   let base: string
+  let clientClosed: { promise: Promise<void>; resolve: () => void }
 
   beforeEach(async () => {
+    let resolve!: () => void
+    const promise = new Promise<void>((done) => { resolve = done })
+    clientClosed = { promise, resolve }
     server = createServer((request, response) => {
       request.resume()
       if (request.url?.startsWith('/w404') === true) {
@@ -51,6 +55,17 @@ describe('watch stream drops', () => {
         response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Content-Length': '100000' })
         response.write('event: log\ndata: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}\n\n')
         setTimeout(() => response.socket?.destroy(), 20)
+        return
+      }
+      const flood = /^\/flood-(\d+)/.exec(request.url ?? '')
+      if (flood !== null) {
+        // N events before start, then start; the stream stays open until the
+        // client closes it, which the test is told about.
+        const events = Array.from({ length: Number(flood[1]) }, (_, index) =>
+          `event: fs\ndata: ${JSON.stringify({ type: 'create', name: `e${index}`, isDir: false, timestamp: 1 })}\n\n`)
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write(`${events.join('')}event: start\ndata: {}\n\n`)
+        response.on('close', () => clientClosed.resolve())
         return
       }
       if (request.url?.startsWith('/burst') === true || request.url?.startsWith('/early') === true) {
@@ -115,6 +130,36 @@ describe('watch stream drops', () => {
       await expect(handle.waitForExit()).resolves.toBeUndefined()
       expect({ early, seen }).toEqual({ early: [], seen: ['e0'] })
     }
+  })
+
+  it('holds 4096 events before start and delivers them in order after it', async () => {
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/flood-4096`, 'k', 5_000))
+    const seen: string[] = []
+    let allSeen!: () => void
+    const done = new Promise<void>((resolve) => { allSeen = resolve })
+    const handle = await fs.watchDir('/', (event) => {
+      seen.push(event.name)
+      if (seen.length === 4096) allSeen()
+    })
+    await done
+    await handle.stop()
+    expect(seen).toEqual(Array.from({ length: 4096 }, (_, index) => `e${index}`))
+  })
+
+  it('refuses a stream with 4097 events before start without calling onExit, and closes it', async () => {
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/flood-4097`, 'k', 5_000))
+    const exits: unknown[] = []
+    const seen: unknown[] = []
+    const error = await fs.watchDir('/', (event) => { seen.push(event) }, { onExit: (exit) => { exits.push(exit) } })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({
+      message: 'expected filesystem watch stream: it sent more than 4096 events before start',
+      statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+    })
+    await clientClosed.promise
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect({ exits, seen }).toEqual({ exits: [], seen: [] })
   })
 
   it.each(['refused', 'w404', 'nostart'] as const)('throws a watch that fails before start (%s) from watchDir() without calling onExit', async (kind) => {

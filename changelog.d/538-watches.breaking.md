@@ -29,10 +29,12 @@ fail with a `NameError`). When the call runs inside another task (Python
 `asyncio.gather`, `asyncio.create_task`, or `asyncio.wait_for` on Python
 3.10–3.11; TypeScript `Promise.all` or a later await), or with the synchronous
 Python client, the first events can reach the callback before the caller holds
-the handle. Events carry `timestampMs` / `timestamp_ms`, and a malformed event
-ends the watch with `BadRequestError`. A watch whose stream ends on its own,
-or is cut short, ends with `ConnectionError` (source `SDK`) in both SDKs
-(Python raised a 500 `InternalServerError`, TypeScript a plain `DaytonaError`
-or the runtime's own error), and a stream that fails to close after the
-caller's own `stop()` no longer becomes the exit error (Python could report a
-`RuntimeError` when `stop()` raced the reader's close).
+the handle. Events that arrive before `start` are delivered after it, at most
+4096 of them: a stream that sends more is refused with `BadRequestError` from
+`watch_dir()` / `watchDir()`. Events carry `timestampMs` / `timestamp_ms`, and
+a malformed event ends the watch with `BadRequestError`. A watch whose stream
+ends on its own, or is cut short, ends with `ConnectionError` (source `SDK`)
+in both SDKs (Python raised a 500 `InternalServerError`, TypeScript a plain
+`DaytonaError` or the runtime's own error), and a stream that fails to close
+after the caller's own `stop()` no longer becomes the exit error (Python could
+report a `RuntimeError` when `stop()` raced the reader's close).

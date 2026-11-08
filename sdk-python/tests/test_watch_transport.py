@@ -22,8 +22,12 @@ from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.errors import ConnectionError
 from daytona.v2.filesystem import AsyncFileSystemService
+from daytona.v2.types import FilesystemEvent
 
 _EVENT = json.dumps({"type": "create", "name": "a", "isDir": False, "timestamp": 1})
+
+
+_CLOSED_BY_CLIENT = threading.Event()
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -37,6 +41,20 @@ class _Handler(BaseHTTPRequestHandler):
         if case == "truncated":
             self.send_header("Content-Length", "100000")
         self.end_headers()
+        if case.startswith("flood-"):
+            # N events before start, then start; the stream stays open until
+            # the client closes it, which the test is told about.
+            count = int(case.removeprefix("flood-"))
+            events = "".join(
+                f"event: fs\ndata: {json.dumps({'type': 'create', 'name': f'e{index}', 'isDir': False, 'timestamp': 1})}\n\n"
+                for index in range(count)
+            )
+            with contextlib.suppress(OSError):
+                self.wfile.write((events + "event: start\ndata: {}\n\n").encode())
+                self.wfile.flush()
+                self.rfile.read(1)
+            _CLOSED_BY_CLIENT.set()
+            return
         if case in ("burst", "early"):
             # start and ten events in ONE write (early: two events before
             # start), then the stream stays open until the client closes it.
@@ -244,7 +262,7 @@ async def _stop_from_the_first_callback(url: str) -> tuple[list[str], Optional[E
     early: list[str] = []
     returned = False
 
-    async def on_event(event: object) -> None:
+    async def on_event(event: FilesystemEvent) -> None:
         name = event.name
         if not returned:
             early.append(name)
@@ -284,7 +302,7 @@ def _sync_events_before_the_handle(bridge: object, transport: AsyncTransport) ->
         original_init(self, *args)  # type: ignore[arg-type]
         built.append(self)
 
-    def on_event(event: object) -> None:
+    def on_event(event: FilesystemEvent) -> None:
         if not built:
             before_handle.append(event.name)
         delivered.set()
@@ -373,3 +391,45 @@ async def _stop_through_a_signal(
 async def test_a_signalled_stop_ends_a_task_wrapped_watch_cleanly(base: str, wrap: str, case: str) -> None:
     for _ in range(20):
         assert await _stop_through_a_signal(f"{base}/{case}", wrap) == (None, [None])
+
+
+@pytest.mark.anyio
+async def test_a_watch_holds_4096_events_before_start_and_delivers_them_in_order(base: str) -> None:
+    transport = AsyncTransport(f"{base}/flood-4096")
+    seen: list[str] = []
+    all_seen = asyncio.Event()
+
+    def on_event(event: FilesystemEvent) -> None:
+        seen.append(event.name)
+        if len(seen) == 4096:
+            all_seen.set()
+
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir("/", on_event)
+        await asyncio.wait_for(all_seen.wait(), timeout=30)
+        await handle.stop()
+    finally:
+        await transport.close()
+    assert seen == [f"e{index}" for index in range(4096)]
+
+
+@pytest.mark.anyio
+async def test_a_watch_stream_with_4097_events_before_start_is_refused_without_an_exit_callback(
+    base: str,
+) -> None:
+    from daytona.v2.errors import BadRequestError
+
+    _CLOSED_BY_CLIENT.clear()
+    transport = AsyncTransport(f"{base}/flood-4097")
+    exits: list[Optional[Exception]] = []
+    seen: list[object] = []
+    try:
+        with pytest.raises(BadRequestError, match="more than 4096 events before start") as info:
+            await AsyncFileSystemService(transport).watch_dir("/", seen.append, on_exit=exits.append)
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+        # The client closed the connection (the server's read ends).
+        assert await asyncio.to_thread(_CLOSED_BY_CLIENT.wait, 10)
+    finally:
+        await transport.close()
+    await asyncio.sleep(0.05)
+    assert (exits, seen) == ([], [])
