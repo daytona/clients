@@ -109,6 +109,11 @@ Exit codes: **0** completed (manual items may remain), **1** internal/input
 processing error or strict-mode manual items, **2** refused (dirty tree, custom
 API URL, a newer 0.x minor than `.v0` without `--allow-newer-v0`, a project-owned SDK module, invalid arguments, or no Daytona dependency/code).
 
+Within a major version the flags, these exit codes and the fields of the
+`--json` report ([`report.schema.json`](https://github.com/daytona/clients/blob/main/upgrade/mapping/report.schema.json))
+stay compatible. A minor release can add report fields and new `kind` or
+`refused.reason` values, so ignore the ones you don't know.
+
 ## Scope and safety
 
 Synchronous `Daytona` spec/autospec mocks route proven members through `.v0`, including proven pytest fixture returns and yields.

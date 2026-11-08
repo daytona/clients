@@ -8,8 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import jsonschema
 import pytest
+from report_schema import validate_report
 
 from daytona_upgrade.cli import main
 
@@ -53,10 +53,7 @@ def test_preserves_record_when_manual_dependency_required(
     )
     assert expected in report["items"][0]["message"]
     assert "hash" in report["items"][0]["message"]
-    schema = json.loads(
-        (Path(__file__).parents[2] / "mapping/report.schema.json").read_text()
-    )
-    jsonschema.validate(report, schema)
+    validate_report(report)
     if with_code:
         assert "d.v0.create()" in (tmp_path / "app.py").read_text()
 
