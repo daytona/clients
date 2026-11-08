@@ -1,0 +1,8 @@
+**Checked process records and lists** — the record `start()`, `run()`,
+`exec()` and `create_session()` / `createSession()` get back from the sandbox
+is checked in full in both SDKs (TypeScript checked only its `id`, so a
+record without `state` read as running), and `process.list()` accepts only
+the API's `{ items }` response: a missing or non-list `items` raises
+`BadRequestError` (400, `BAD_REQUEST`, source `SDK`) instead of an empty page,
+and the page carries no `next_cursor` / `nextCursor`, which the API does not
+send.

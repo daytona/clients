@@ -573,7 +573,7 @@ v2 has no persistent key-down or key-up methods
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computer_use.keyboard.type(...)` | `{sandbox}.computer_use.keyboard.type(text=text, delay=delay / 1000)` | differs; Arguments become keyword-only and request_timeout is removed; delay is in seconds (v0 took milliseconds) |
+| `sandbox.computer_use.keyboard.type(...)` | `{sandbox}.computer_use.keyboard.type(text=text, delay=None if delay is None else delay / 1000)` | differs; Arguments become keyword-only and request_timeout is removed; delay is in seconds (v0 took milliseconds) |
 | `sandbox.computer_use.keyboard.press(...)` | `{sandbox}.computer_use.keyboard.key(key=key, modifiers=modifiers)` | differs; Renamed to key with keyword-only arguments and no request_timeout; Modifier types are restricted to ctrl, alt, shift and cmd |
 | `sandbox.computer_use.keyboard.hotkey(...)` | `{sandbox}.computer_use.keyboard.hotkey(keys=keys)` | differs; keys becomes keyword-only and request_timeout is removed |
 | `sandbox.computer_use.keyboard.down(...)` | None | none; v2 has no method for holding a key down across operations |
@@ -583,7 +583,7 @@ v2 has no persistent key-down or key-up methods
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computerUse.keyboard.type(...)` | `{sandbox}.computerUse.keyboard.type({ text, delaySeconds: delay / 1000 })` | differs; Text and delay move into a request object; delay becomes delaySeconds, in seconds (v0 took milliseconds) |
+| `sandbox.computerUse.keyboard.type(...)` | `{sandbox}.computerUse.keyboard.type({ text, delaySeconds: delay === undefined ? undefined : delay / 1000 })` | differs; Text and delay move into a request object; delay becomes delaySeconds, in seconds (v0 took milliseconds) |
 | `sandbox.computerUse.keyboard.press(...)` | `{sandbox}.computerUse.keyboard.key({ key, modifiers })` | differs; Renamed to key with a request object; Modifier types are restricted to ctrl, alt, shift and cmd |
 | `sandbox.computerUse.keyboard.hotkey(...)` | `{sandbox}.computerUse.keyboard.hotkey({ keys })` | differs; The chord string moves into a request object's keys field |
 | `sandbox.computerUse.keyboard.down(...)` | None | none; v2 has no method for holding a key down across operations |
