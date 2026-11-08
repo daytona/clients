@@ -490,7 +490,9 @@ skipping exist only in the TypeScript tool).
   the recording download) buffer the whole response, with no size cap and no
   deadline; for large files, or content from a sandbox you don't trust, use
   `download_file` / `downloadFile`, which stream to disk with progress and
-  cancellation.
+  cancellation. TypeScript's `downloadFile` is Node.js-only (a browser build
+  throws `NotSupportedError`), so in a browser the in-memory reads are the
+  only option.
   A per-call timeout (a wait's budget plus its slack, a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
