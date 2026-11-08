@@ -1,0 +1,19 @@
+docs/RELEASING.md
+  s_4d9fba4bce0dac::t_3e1aaaa2002dd5 191-203,205-207,300-302,304-313
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "49de331f21412a0bd21d606335d780add43f3dcb",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
