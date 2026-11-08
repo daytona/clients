@@ -6,6 +6,7 @@
 import { createDaytonaError, DaytonaError } from './errors/DaytonaError.js'
 import type { BulkReadError, BulkReadResult } from './types.js'
 import { malformedResponse, optional, record, str } from './toolboxModels.js'
+import { deepFrozen } from './frozen.js'
 
 const DAYTONA_FILE_BOUNDARY = 'DAYTONA-FILE-BOUNDARY'
 const MULTIPART_BOUNDARY_RE = /\bboundary\s*=\s*(?:"([^"]+)"|([^;]+))/i
@@ -36,7 +37,7 @@ export function parseBulkReadResult(body: Uint8Array, contentType?: string): Bul
         break
     }
   }
-  return { files, errors }
+  return deepFrozen({ files, errors })
 }
 
 function multipartBoundary(contentType?: string): string {

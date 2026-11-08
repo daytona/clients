@@ -21,6 +21,7 @@ import type { CreateSessionOptions, SessionJSON } from './Session.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 // Preserve internal import paths used by the interpreter and other namespaces.
 export { ProcessHandle } from './ProcessHandle.js'
@@ -182,7 +183,7 @@ export class ProcessService {
     assertKnownOptions('ProcessListOptions', options, LIST_OPTION_KEYS)
     const query = encodeQuery({ state: options.state, kind: options.kind, sessionId: options.sessionId, name: options.name, pid: options.pid })
     const data = await this.transport.get<toolbox.ProcessListResponse>(`/processes${query}`)
-    return { items: envelopeList(data, 'items', 'process list response', processFromWire) }
+    return deepFrozen({ items: envelopeList(data, 'items', 'process list response', processFromWire) })
   }
 }
 

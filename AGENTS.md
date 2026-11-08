@@ -655,7 +655,10 @@ skipping exist only in the TypeScript tool).
   git status / commits / remotes, system metrics, the LSP types and the
   computer-use results are hand-written (Python frozen keyword-only
   dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
-  timestamps as RFC 3339 strings), as are log pages and bulk-write results,
+  frozen at run time at every depth with `deepFrozen` from `frozen.ts`
+  (live handles, bytes and streams are not), timestamps as RFC 3339
+  strings), as are log pages and bulk-write results; a value a callback
+  receives (a watch event) is frozen too,
   with every field the contract requires
   required: a response that breaks the contract in a field the SDK reads or
   returns (a missing required field, a wrong type, a value outside the

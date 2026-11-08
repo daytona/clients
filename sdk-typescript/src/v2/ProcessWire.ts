@@ -16,6 +16,7 @@ import { MAX_TIMER_DELAY_MS } from './options.js'
 import { bool, int, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 export type LogFrameWire = toolbox.LogFrameDto
 export type LogsWire = { items?: LogFrameWire[] } | toolbox.ProcessLogsResponse
@@ -107,12 +108,12 @@ export function waitResult(input: toolbox.ExitResult): WaitResult {
   const rawReason = optional(raw, 'reason', str, 'wait result')
   const exitCode = optional(raw, 'exitCode', int, 'wait result')
   const signal = bareSignal(optional(raw, 'signal', str, 'wait result'))
-  return {
+  return deepFrozen({
     reason: rawReason === undefined ? 'unknown' : knownOrUnknown(rawReason, PROCESS_REASONS),
     ...(rawReason === undefined ? {} : { rawReason }),
     ...(exitCode === undefined ? {} : { exitCode }),
     ...(signal === undefined ? {} : { signal }),
-  }
+  })
 }
 
 export function frameFromWire(input: LogFrameWire): LogFrame {
@@ -266,7 +267,7 @@ export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
     firstAvailableCursor: optional(raw, 'firstAvailableCursor', str, PROCESS),
     lastCursor: optional(raw, 'lastCursor', str, PROCESS),
   }
-  return Object.fromEntries(Object.entries(info).filter(([, value]) => value !== undefined)) as unknown as ProcessInfo
+  return deepFrozen(Object.fromEntries(Object.entries(info).filter(([, value]) => value !== undefined)) as unknown as ProcessInfo)
 }
 
 /**
@@ -304,19 +305,19 @@ export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
   const cursor = hasCursor ? payload.cursor as string : message.id
   if (cursor === undefined || cursor === '') throw malformedResponse(`${description}: cursor is required`)
   switch (message.event) {
-    case 'log': return { type: 'log', cursor, frame: frameFromWire({ ...payload, cursor } as LogFrameWire) }
+    case 'log': return deepFrozen({ type: 'log', cursor, frame: frameFromWire({ ...payload, cursor } as LogFrameWire) })
     // ProcessStateEventDto is the whole process record plus the cursor:
     // every field the record requires is checked, timestamps included.
     case 'state': {
       processFromWire(payload as toolbox.ProcessDto)
-      return { type: 'state', cursor, result: waitResult(payload as toolbox.ExitResult) }
+      return deepFrozen({ type: 'state', cursor, result: waitResult(payload as toolbox.ExitResult) })
     }
-    case 'eof': return { type: 'eof', cursor }
-    default: return {
+    case 'eof': return deepFrozen({ type: 'eof', cursor })
+    default: return deepFrozen({
       type: 'warning', cursor,
       message: str(payload, 'message', description),
       firstAvailableCursor: str(payload, 'firstAvailableCursor', description),
-    }
+    })
   }
 }
 

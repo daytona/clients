@@ -12,6 +12,7 @@ import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 import { gitCommitFromWire, gitCommitResponseFromWire, gitRemoteFromWire, gitStatusFromWire, envelopeList, listItems, malformedResponse, record, strList } from './toolboxModels.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 export interface CloneOptions {
   /** Where to clone to, inside the sandbox. */
@@ -160,7 +161,7 @@ export class GitService {
   /** List the configured remotes; URLs come back with any credentials removed. */
   public async listRemotes(path: string): Promise<ListResult<GitRemote>> {
     const data = await this.transport.get<toolbox.ListRemotesResponse>('/git/remotes', { params: { path } })
-    return { items: envelopeList(data, 'remotes', 'git remotes response', gitRemoteFromWire) }
+    return deepFrozen({ items: envelopeList(data, 'remotes', 'git remotes response', gitRemoteFromWire) })
   }
 
   public async addRemote(path: string, name: string, url: string): Promise<void> {
@@ -234,7 +235,7 @@ export class GitService {
   /** List branch names: one page of `{ items }`. */
   public async listBranches(path: string): Promise<ListResult<string>> {
     const data = await this.transport.get<toolbox.BranchList>('/git/branches', { params: { path } })
-    return { items: strList(record(data, 'git branches response'), 'branches', 'git branches response') }
+    return deepFrozen({ items: strList(record(data, 'git branches response'), 'branches', 'git branches response') })
   }
 
   public async createBranch(path: string, name: string): Promise<void> {

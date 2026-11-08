@@ -23,6 +23,7 @@ import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str, strList } from './toolboxModels.js'
+import { deepFrozen } from './frozen.js'
 
 export type { BulkReadError, BulkReadResult, BulkWriteFile, BulkWriteResult }
 export type { DownloadFileOptions, TransferProgressCallback, UploadFileOptions }
@@ -178,12 +179,12 @@ function parseFilesystemEvent(data: string): FilesystemEvent {
     throw malformedResponse(`${WATCH_EVENT}: the data is not JSON`)
   }
   const raw = record(parsed, WATCH_EVENT)
-  return {
+  return deepFrozen({
     type: str(raw, 'type', WATCH_EVENT),
     name: str(raw, 'name', WATCH_EVENT),
     isDir: bool(raw, 'isDir', WATCH_EVENT),
     timestampMs: int(raw, 'timestamp', WATCH_EVENT),
-  }
+  })
 }
 
 export interface PresignedUrlOptions {
@@ -607,7 +608,7 @@ export class FileSystemService {
   public async glob(path: string, pattern: string): Promise<ListResult<string>> {
     // The contract's SearchResponse: { files } only.
     const data = await this.transport.get<toolbox.SearchResponse>('/files/search', { params: { path, pattern } })
-    return { items: strList(record(data, 'glob response'), 'files', 'glob response') }
+    return deepFrozen({ items: strList(record(data, 'glob response'), 'files', 'glob response') })
   }
 
   /** Replace the literal substring `pattern` with `newValue` in `files`. */

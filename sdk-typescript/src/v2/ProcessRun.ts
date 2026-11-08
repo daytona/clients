@@ -14,6 +14,7 @@ import {
 import type { ProcessSpec } from './ProcessWire.js'
 import { INTERNAL } from './internal.js'
 import { logPageFromWire } from './toolboxModels.js'
+import { deepFrozen } from './frozen.js'
 
 /** Bound toolbox identity shared by ordinary commands and shell-session commands. */
 export interface ProcessBinding {
@@ -93,5 +94,5 @@ export async function runProcess(
   const output = logs
     .filter((frame) => frame.channel === 'stdout' || frame.channel === 'stderr' || frame.channel === 'pty')
     .map((frame) => frame.data).join('')
-  return { ...result, processId: handle.id, logs, stdout, stderr, output }
+  return deepFrozen({ ...result, processId: handle.id, logs, stdout, stderr, output })
 }

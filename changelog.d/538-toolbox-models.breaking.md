@@ -15,7 +15,10 @@ keyword-only dataclasses (they lose the generated pydantic models' methods:
 whose timestamps are timezone-aware `datetime`s (`ProcessInfo`,
 `FileInfo.modified_at`, `GitCommit.timestamp`, `SystemMetrics.timestamp`,
 computer-use recordings); TypeScript models are readonly interfaces with RFC
-3339 timestamp strings. A response that breaks the contract (a missing
+3339 timestamp strings, frozen at run time at every depth, as are the values a
+callback receives (a watch event): a write to a returned result, which the
+types already refused, now throws in strict mode (live handles, byte buffers
+and streams are not frozen). A response that breaks the contract (a missing
 required field or list, a wrong type, a fractional integer, a malformed
 timestamp or watch event) raises `BadRequestError` (400, `BAD_REQUEST`, source
 `SDK`) naming the field (a present field of the wrong type "must be" the

@@ -13,6 +13,7 @@ import type {
   BulkWriteFile, BulkWriteResult, FileInfo, FileMatch, LogFrame, LogPage, GitCommit, GitCommitResponse, GitFileStatus, GitRemote, GitStatus, ReplaceResult, SystemMetrics,
 } from './types.js'
 import { BadRequestError } from './errors/DaytonaError.js'
+import { deepFrozen } from './frozen.js'
 
 export type WireRecord = Readonly<Record<string, unknown>>
 
@@ -135,21 +136,21 @@ export function envelopeList<T>(data: unknown, key: string, description: string,
   const envelope = record(data, description)
   const items = envelope[key]
   if (!Array.isArray(items)) throw malformed(description, key, items, 'a list')
-  return items.map((item) => map(item as never))
+  return deepFrozen(items.map((item) => map(item as never)))
 }
 
 /** The `items` of a list response (a bare array or an `{ items }` envelope), each mapped by `map`. */
 export function listItems<T>(data: unknown, key: string, description: string, map: (item: never) => T): { items: T[]; nextCursor?: string } {
-  if (Array.isArray(data)) return { items: data.map((item) => map(item as never)) }
+  if (Array.isArray(data)) return deepFrozen({ items: data.map((item) => map(item as never)) })
   const envelope = record(data, description)
   const items = envelope[key]
   if (!Array.isArray(items)) throw malformed(description, key, items, 'a list')
   // A present cursor of the wrong type would silently end pagination.
   const nextCursor = optional(envelope, 'nextCursor', str, description)
-  return {
+  return deepFrozen({
     items: items.map((item) => map(item as never)),
     ...(nextCursor === undefined || nextCursor === '' ? {} : { nextCursor }),
-  }
+  })
 }
 
 /**
@@ -160,25 +161,25 @@ export function logPageFromWire(value: unknown): LogPage {
   const d = 'process log page'
   const input = record(value, d)
   const firstAvailableCursor = optional(input, 'firstAvailableCursor', str, d)
-  return {
+  return deepFrozen({
     items: envelopeList(input, 'frames', d, logFrameFromWire),
     nextCursor: str(input, 'nextCursor', d),
     truncatedHead: bool(input, 'truncatedHead', d),
     eof: bool(input, 'eof', d),
     ...(firstAvailableCursor === undefined ? {} : { firstAvailableCursor }),
-  }
+  })
 }
 
 /** One `LogFrameDto`. */
 export function logFrameFromWire(value: unknown): LogFrame {
   const d = 'log frame'
   const input = record(value, d)
-  return {
+  return deepFrozen({
     cursor: str(input, 'cursor', d),
     channel: str(input, 'channel', d),
     data: str(input, 'data', d),
     timestampMs: int(input, 'timestamp', d),
-  }
+  })
 }
 
 /** A `BulkUploadResponse`: `files` (each with `path` and `bytes`) and `errors` are required. */
@@ -187,9 +188,9 @@ export function bulkWriteResultFromWire(value: unknown): BulkWriteResult {
   const input = record(value, d)
   const files = envelopeList(input, 'files', d, (item: unknown): BulkWriteFile => {
     const file = record(item, `${d}: files`)
-    return { path: str(file, 'path', `${d}: files`), bytes: nonNegativeInt(file, 'bytes', `${d}: files`) }
+    return deepFrozen({ path: str(file, 'path', `${d}: files`), bytes: nonNegativeInt(file, 'bytes', `${d}: files`) })
   })
-  return { files, errors: strList(input, 'errors', d) }
+  return deepFrozen({ files, errors: strList(input, 'errors', d) })
 }
 
 /**
@@ -213,7 +214,7 @@ export function interpreterSessionFromWire(value: unknown, requestedId?: string)
 export function systemMetricsFromWire(value: toolbox.Metrics): SystemMetrics {
   const input = record(value, 'system metrics')
   const d = 'system metrics'
-  return {
+  return deepFrozen({
     timestamp: timestamp(input, 'timestamp', d),
     cpuCount: nonNegativeInt(input, 'cpuCount', d),
     cpuUtilization: fraction(input, 'cpuUtilization', d),
@@ -221,13 +222,13 @@ export function systemMetricsFromWire(value: toolbox.Metrics): SystemMetrics {
     memoryTotalBytes: nonNegativeInt(input, 'memoryTotalBytes', d),
     diskUsageBytes: nonNegativeInt(input, 'diskUsageBytes', d),
     diskTotalBytes: nonNegativeInt(input, 'diskTotalBytes', d),
-  }
+  })
 }
 
 export function fileInfoFromWire(value: toolbox.FileInfo): FileInfo {
   const d = 'file info response'
   const input = record(value, d)
-  return {
+  return deepFrozen({
     name: str(input, 'name', d),
     path: str(input, 'path', d),
     size: nonNegativeInt(input, 'size', d),
@@ -238,24 +239,24 @@ export function fileInfoFromWire(value: toolbox.FileInfo): FileInfo {
     group: str(input, 'group', d),
     modifiedAt: timestamp(input, 'modifiedAt', d),
     modTime: str(input, 'modTime', d),
-  }
+  })
 }
 
 export function fileMatchFromWire(value: toolbox.Match): FileMatch {
   const d = 'grep match'
   const input = record(value, d)
-  return { file: str(input, 'file', d), line: nonNegativeInt(input, 'line', d), content: str(input, 'content', d) }
+  return deepFrozen({ file: str(input, 'file', d), line: nonNegativeInt(input, 'line', d), content: str(input, 'content', d) })
 }
 
 export function replaceResultFromWire(value: toolbox.ReplaceResult): ReplaceResult {
   const d = 'replace result'
   const input = record(value, d)
   const error = optional(input, 'error', str, d)
-  return {
+  return deepFrozen({
     file: str(input, 'file', d),
     success: bool(input, 'success', d),
     ...(error === undefined ? {} : { error }),
-  }
+  })
 }
 
 function gitFileStatusFromWire(value: unknown): GitFileStatus {
@@ -274,33 +275,33 @@ export function gitStatusFromWire(value: toolbox.GitStatus): GitStatus {
   const input = record(value, d)
   const fileStatus = input.fileStatus
   if (!Array.isArray(fileStatus)) throw malformed(d, 'fileStatus', fileStatus, 'a list')
-  return {
+  return deepFrozen({
     currentBranch: str(input, 'currentBranch', d),
     ahead: int(input, 'ahead', d),
     behind: int(input, 'behind', d),
     branchPublished: bool(input, 'branchPublished', d),
     fileStatus: fileStatus.map(gitFileStatusFromWire),
-  }
+  })
 }
 
 export function gitCommitResponseFromWire(value: toolbox.CommitResponse): GitCommitResponse {
-  return { hash: str(record(value, 'commit response'), 'hash', 'commit response') }
+  return deepFrozen({ hash: str(record(value, 'commit response'), 'hash', 'commit response') })
 }
 
 export function gitCommitFromWire(value: toolbox.CommitInfo): GitCommit {
   const d = 'commit history entry'
   const input = record(value, d)
-  return {
+  return deepFrozen({
     hash: str(input, 'hash', d),
     message: str(input, 'message', d),
     author: str(input, 'author', d),
     email: str(input, 'email', d),
     timestamp: timestamp(input, 'timestamp', d),
-  }
+  })
 }
 
 export function gitRemoteFromWire(value: toolbox.GitRemote): GitRemote {
   const d = 'git remote'
   const input = record(value, d)
-  return { name: str(input, 'name', d), url: str(input, 'url', d) }
+  return deepFrozen({ name: str(input, 'name', d), url: str(input, 'url', d) })
 }

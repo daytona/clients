@@ -32,6 +32,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { knownOrUnknown } from './knownValue.js'
 import { bool, int, malformedResponse, nonNegativeInt, nonNegativeSafeInt, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
+import { deepFrozen } from './frozen.js'
 
 // Every computer-use result is checked against the contract at this boundary:
 // a missing or mistyped required field is the malformed-response
@@ -81,7 +82,7 @@ function mapComputerUseDesktopFailure(
   if (Object.keys(extraFields).length > 0) {
     mapped.extraFields = extraFields
   }
-  return mapped
+  return deepFrozen(mapped)
 }
 
 // An attached cause is a failure object regardless of the accompanying state.
@@ -118,26 +119,26 @@ export function mapComputerUseStatusResponse(
   // Outside the failed state the contract allows `cause` to be omitted or null.
   if (status === 'inactive' && (desktop === 'not_started' || desktop === 'starting')) {
     if (mappedCause === undefined) {
-      return { status, desktop, ...extras }
+      return deepFrozen({ status, desktop, ...extras })
     }
   } else if (status === 'active' && desktop === 'ready') {
     if (mappedCause === undefined) {
-      return { status, desktop, ...extras }
+      return deepFrozen({ status, desktop, ...extras })
     }
   } else if (status === 'inactive' && desktop === 'failed') {
     if (mappedCause !== undefined) {
-      return { status, desktop, cause: mappedCause, ...extras }
+      return deepFrozen({ status, desktop, cause: mappedCause, ...extras })
     }
   } else {
     // Preserve unrecognized pairs as raw values so callers can inspect them.
-    return {
+    return deepFrozen({
       status: 'unknown',
       desktop: 'unknown',
       rawStatus: status,
       rawDesktop: desktop,
       ...(mappedCause !== undefined ? { cause: mappedCause } : {}),
       ...extras,
-    }
+    })
   }
 
   throw invalid(INVALID_STATUS_RESPONSE)
@@ -160,7 +161,7 @@ export function mapComputerUseRestartResponse(
   if (Object.keys(extraFields).length > 0) {
     mapped.extraFields = extraFields
   }
-  return mapped
+  return deepFrozen(mapped)
 }
 
 function wireKeyToSdkKey(key: string): string {
@@ -191,54 +192,54 @@ export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessSt
   if (Object.keys(extraFields).length > 0) {
     mapped.extraFields = extraFields
   }
-  return mapped
+  return deepFrozen(mapped)
 }
 
 export function mapComputerUseProcessStatusMap(statusMap: unknown): Record<string, ComputerUseProcessStatus> {
   const map = record(statusMap, 'computer-use process status map')
-  return Object.fromEntries(
+  return deepFrozen(Object.fromEntries(
     Object.entries(map).map(([name, status]) => [name, mapComputerUseProcessStatus(status as toolbox.ComputerUseProcessStatus)]),
-  )
+  ))
 }
 
 export function mapComputerUseLifecycleResponse(response: unknown): ComputerUseLifecycleResponse {
   const d = 'computer-use lifecycle response'
   const wire = record(response, d)
   if (wire.status === undefined || wire.status === null) throw malformedResponse(`${d}: status is required`)
-  return { message: str(wire, 'message', d), status: mapComputerUseProcessStatusMap(wire.status) }
+  return deepFrozen({ message: str(wire, 'message', d), status: mapComputerUseProcessStatusMap(wire.status) })
 }
 
 export function mapComputerUseProcessRunningStatus(response: unknown): ComputerUseProcessRunningStatus {
   const d = 'computer-use process running status'
   const wire = record(response, d)
-  return { processName: str(wire, 'processName', d), running: bool(wire, 'running', d) }
+  return deepFrozen({ processName: str(wire, 'processName', d), running: bool(wire, 'running', d) })
 }
 
 export function mapComputerUseProcessRestartResponse(response: unknown): ComputerUseProcessRestartResponse {
   const d = 'computer-use process restart response'
   const wire = record(response, d)
-  return { message: str(wire, 'message', d), processName: str(wire, 'processName', d) }
+  return deepFrozen({ message: str(wire, 'message', d), processName: str(wire, 'processName', d) })
 }
 
 export function mapComputerUseProcessLogsResponse(response: unknown): ComputerUseProcessLogsResponse {
   const d = 'computer-use process logs response'
   const wire = record(response, d)
-  return { processName: str(wire, 'processName', d), logs: str(wire, 'logs', d) }
+  return deepFrozen({ processName: str(wire, 'processName', d), logs: str(wire, 'logs', d) })
 }
 
 export function mapComputerUseProcessErrorsResponse(response: unknown): ComputerUseProcessErrorsResponse {
   const d = 'computer-use process errors response'
   const wire = record(response, d)
-  return { processName: str(wire, 'processName', d), errors: str(wire, 'errors', d) }
+  return deepFrozen({ processName: str(wire, 'processName', d), errors: str(wire, 'errors', d) })
 }
 
 export function mapComputerUsePoint(response: unknown, d = 'computer-use point'): ComputerUsePoint {
   const wire = record(response, d)
-  return { x: int(wire, 'x', d), y: int(wire, 'y', d) }
+  return deepFrozen({ x: int(wire, 'x', d), y: int(wire, 'y', d) })
 }
 
 export function mapComputerUseScrollResponse(response: unknown): ComputerUseScrollResponse {
-  return { success: bool(record(response, 'computer-use scroll response'), 'success', 'computer-use scroll response') }
+  return deepFrozen({ success: bool(record(response, 'computer-use scroll response'), 'success', 'computer-use scroll response') })
 }
 
 function mapComputerUseDisplay(display: unknown): ComputerUseDisplay {
@@ -268,12 +269,12 @@ function arrayField(wire: WireRecord, field: string, d: string): unknown[] {
 
 export function mapComputerUseDisplayInfo(response: unknown): ComputerUseDisplayInfoResponse {
   const d = 'computer-use display info response'
-  return { displays: arrayField(record(response, d), 'displays', d).map(mapComputerUseDisplay) }
+  return deepFrozen({ displays: arrayField(record(response, d), 'displays', d).map(mapComputerUseDisplay) })
 }
 
 export function mapComputerUseDisplayWindows(response: unknown): ComputerUseDisplayWindowsResponse {
   const d = 'computer-use display windows response'
-  return { windows: arrayField(record(response, d), 'windows', d).map(mapComputerUseWindow) }
+  return deepFrozen({ windows: arrayField(record(response, d), 'windows', d).map(mapComputerUseWindow) })
 }
 
 /**
@@ -339,7 +340,7 @@ export function mapComputerUseA11yTree(response: unknown, maxDepth: number = A11
   const wire = record(response, d)
   if (wire.root === undefined || wire.root === null) throw malformedResponse(`${d}: root is required`)
   const truncated = bool(wire, 'truncated', d)
-  return { root: mapA11yNodes([wire.root], maxDepth, d)[0]!, truncated }
+  return deepFrozen({ root: mapA11yNodes([wire.root], maxDepth, d)[0]!, truncated })
 }
 
 export function mapComputerUseA11yFind(response: unknown): ComputerUseA11yFindResponse {
@@ -347,18 +348,18 @@ export function mapComputerUseA11yFind(response: unknown): ComputerUseA11yFindRe
   const wire = record(response, d)
   const matches = arrayField(wire, 'matches', d)
   const truncated = bool(wire, 'truncated', d)
-  return { matches: mapA11yNodes(matches, A11Y_MAX_DEPTH, d), truncated }
+  return deepFrozen({ matches: mapA11yNodes(matches, A11Y_MAX_DEPTH, d), truncated })
 }
 
 export function mapComputerUseScreenshot(response: unknown): ComputerUseScreenshotResponse {
   const d = 'computer-use screenshot response'
   const wire = record(response, d)
   const cursor = wire.cursorPosition
-  return {
+  return deepFrozen({
     screenshot: str(wire, 'screenshot', d),
     sizeBytes: nonNegativeInt(wire, 'sizeBytes', d),
     ...(cursor === undefined || cursor === null ? {} : { cursorPosition: mapComputerUsePoint(cursor, `${d}: cursorPosition`) }),
-  }
+  })
 }
 
 export function mapComputerUseRecording(recording: unknown): ComputerUseRecording {
@@ -367,7 +368,7 @@ export function mapComputerUseRecording(recording: unknown): ComputerUseRecordin
   const endTime = optional(wire, 'endTime', timestamp, d)
   const durationSeconds = optional(wire, 'durationSeconds', num, d)
   const sizeBytes = optional(wire, 'sizeBytes', int, d)
-  return {
+  return deepFrozen({
     id: str(wire, 'id', d),
     fileName: str(wire, 'fileName', d),
     filePath: str(wire, 'filePath', d),
@@ -376,10 +377,10 @@ export function mapComputerUseRecording(recording: unknown): ComputerUseRecordin
     ...(endTime === undefined ? {} : { endTime }),
     ...(durationSeconds === undefined ? {} : { durationSeconds }),
     ...(sizeBytes === undefined ? {} : { sizeBytes }),
-  }
+  })
 }
 
 export function mapComputerUseRecordings(response: unknown): ComputerUseRecordingsResponse {
   const d = 'computer-use recordings response'
-  return { recordings: arrayField(record(response, d), 'recordings', d).map(mapComputerUseRecording) }
+  return deepFrozen({ recordings: arrayField(record(response, d), 'recordings', d).map(mapComputerUseRecording) })
 }

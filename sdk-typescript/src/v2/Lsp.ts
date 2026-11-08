@@ -11,6 +11,7 @@ import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 import { bool, int, malformedResponse, nonNegativeInt, optional, record, str } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
+import { deepFrozen } from './frozen.js'
 
 /** A zero-based line / UTF-16 character position in a document. */
 export interface LspPosition {
@@ -89,19 +90,19 @@ function symbolFromWire(value: unknown): LspSymbol {
   const wire = record(value, d)
   const location = record(wire.location, `${d}: location`)
   const range = record(location.range, `${d}: location.range`)
-  return {
+  return deepFrozen({
     name: str(wire, 'name', d),
     kind: int(wire, 'kind', d),
     location: {
       uri: str(location, 'uri', `${d}: location`),
       range: { start: positionFromWire(range.start, `${d}: range.start`), end: positionFromWire(range.end, `${d}: range.end`) },
     },
-  }
+  })
 }
 
 function symbolsFromWire(value: unknown): LspSymbol[] {
   if (!Array.isArray(value)) throw malformedResponse('LSP symbol list')
-  return value.map(symbolFromWire)
+  return deepFrozen(value.map(symbolFromWire))
 }
 
 function documentationFromWire(wire: WireRecord, d: string): string | LspMarkupContent | undefined {
@@ -127,7 +128,7 @@ function completionItemFromWire(value: unknown): LspCompletionItem {
     filterText: optional(wire, 'filterText', str, d),
     insertText: optional(wire, 'insertText', str, d),
   }
-  return Object.fromEntries(Object.entries(item).filter(([, entry]) => entry !== undefined)) as unknown as LspCompletionItem
+  return deepFrozen(Object.fromEntries(Object.entries(item).filter(([, entry]) => entry !== undefined)) as unknown as LspCompletionItem)
 }
 
 function completionListFromWire(value: toolbox.CompletionList): LspCompletionList {
@@ -135,7 +136,7 @@ function completionListFromWire(value: toolbox.CompletionList): LspCompletionLis
   const wire = record(value, d)
   const items = wire.items
   if (!Array.isArray(items)) throw malformedResponse(`${d}: items is required`)
-  return { isIncomplete: bool(wire, 'isIncomplete', d), items: items.map(completionItemFromWire) }
+  return deepFrozen({ isIncomplete: bool(wire, 'isIncomplete', d), items: items.map(completionItemFromWire) })
 }
 
 function contextPayload(context: LspCompletionContext): toolbox.CompletionContext {

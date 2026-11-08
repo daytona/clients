@@ -20,6 +20,7 @@ import { assertInternal } from './internal.js'
 import { logPageFromWire } from './toolboxModels.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 const LOGS_OPTION_KEYS = optionKeys<LogsOptions>()({ cursor: true, limit: true, encoding: true })
 const STREAM_LOGS_OPTION_KEYS = optionKeys<StreamLogsOptions>()({ cursor: true, limit: true, encoding: true, signal: true })
@@ -145,7 +146,7 @@ export class ProcessHandle {
     let consecutiveTransportFailures = 0
     for (;;) {
       const requestTimeout = deadline === undefined ? 0 : remainingWaitBudgetMs(deadline)
-      if (deadline !== undefined && requestTimeout <= 0) return { reason: 'timed_out' }
+      if (deadline !== undefined && requestTimeout <= 0) return deepFrozen({ reason: 'timed_out' })
       try {
         const data = await this.transport.get<toolbox.ExitResult>(
           `/processes/${strictUriEncode(this.id)}/wait${encodeQuery({ timeoutMs: requestTimeout })}`,
@@ -155,7 +156,7 @@ export class ProcessHandle {
         // read; the failure streak resets only when both succeed.
         const result = waitResult(data)
         if (result.reason !== 'timed_out') return result
-        if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return { reason: 'timed_out' }
+        if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return deepFrozen({ reason: 'timed_out' })
         // Budget left: `timed_out` is either an expired long-poll or a command
         // its own deadline stopped, and the record says which.
         const record = await this.transport.get<toolbox.ProcessDto>(
@@ -169,7 +170,7 @@ export class ProcessHandle {
       } catch (error) {
         if (!(error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw error
         consecutiveTransportFailures += 1
-        if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return { reason: 'timed_out' }
+        if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return deepFrozen({ reason: 'timed_out' })
         if (consecutiveTransportFailures > WAIT_TRANSPORT_RETRY_LIMIT) throw error
       }
     }

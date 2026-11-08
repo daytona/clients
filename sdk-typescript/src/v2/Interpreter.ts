@@ -25,6 +25,7 @@ import { envelopeList, interpreterSessionFromWire } from './toolboxModels.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 const RUN_OPTION_KEYS = optionKeys<InterpreterRunOptions>()({
   language: true, context: true, isolated: true, cwd: true, env: true, timeoutSeconds: true,
@@ -251,20 +252,20 @@ async function collectResult(
     .filter((frame) => frame.channel === 'error')
     .map((frame) => parseInterpreterError(frame))
     .filter((frame): frame is InterpreterError => frame !== undefined)
-  return {
+  return deepFrozen({
     process: { ...result, processId: handle.id },
     results: outputs,
     logs: { stdout, stderr },
     ...(errors.length === 0 ? {} : { error: errors[errors.length - 1] }),
-  }
+  })
 }
 
 function timedOutInterpreterResult(): InterpreterResult {
-  return {
+  return deepFrozen({
     process: { reason: 'timed_out' },
     results: [],
     logs: { stdout: '', stderr: '' },
-  }
+  })
 }
 
 function parseInterpreterOutput(frame: LogFrame): InterpreterOutput | undefined {
@@ -272,7 +273,7 @@ function parseInterpreterOutput(frame: LogFrame): InterpreterOutput | undefined 
   if (parsed === undefined) return undefined
   const data = mimeBundle(parsed)
   if (data === undefined) return undefined
-  return {
+  return deepFrozen({
     data,
     isMainResult: frame.channel === 'execute_result',
     text: stringMime(data, 'text/plain'),
@@ -280,18 +281,18 @@ function parseInterpreterOutput(frame: LogFrame): InterpreterOutput | undefined 
     png: stringMime(data, 'image/png'),
     svg: stringMime(data, 'image/svg+xml'),
     json: data['application/json'],
-  }
+  })
 }
 
 function parseInterpreterError(frame: LogFrame): InterpreterError | undefined {
   const parsed = parseJsonRecord(frame.data)
   if (parsed === undefined) return undefined
   const traceback = Array.isArray(parsed.traceback) ? parsed.traceback.map((line) => String(line)) : []
-  return {
+  return deepFrozen({
     name: String(parsed.ename ?? ''),
     value: String(parsed.evalue ?? ''),
     traceback,
-  }
+  })
 }
 
 function parseJsonRecord(payload: string): Record<string, unknown> | undefined {
