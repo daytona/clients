@@ -96,7 +96,7 @@ Warnings are advice, not manual items: `--strict` ignores them.
 | `[path]` | Project root (default: current directory), or a single file |
 | `--dry` | Print a unified diff; write nothing and skip Git safety |
 | `--print` | Print changed files; write nothing and skip Git safety |
-| `--json` | Print the shared report schema; with `--suggest-v2`, write nothing and skip Git safety |
+| `--json` | Print the structured report (the fields of `report.schema.json`, linked below); with `--suggest-v2`, write nothing and skip Git safety |
 | `--force` | Skip the Git check entirely, allowing uncommitted changes |
 | `-y`, `--yes` | Skip confirmation (also automatic for non-interactive stdin) |
 | `--drop-api-url` | Accept API URLs the tool cannot verify or that come from the environment, asserting they point at Daytona Cloud |

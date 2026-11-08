@@ -91,7 +91,12 @@ def test_publishes_no_closed_object_or_vocabulary() -> None:
     # Given
     nodes = list(_nodes(published_schema()))
     # When
-    closed = [node for node in nodes if node.get("additionalProperties") is False]
+    closed = [
+        node
+        for node in nodes
+        if node.get("additionalProperties") is False
+        or node.get("unevaluatedProperties") is False
+    ]
     enums = [node for node in nodes if "enum" in node]
     untyped = [
         node for node in nodes if "examples" in node and node.get("type") != "string"

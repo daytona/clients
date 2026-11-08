@@ -146,7 +146,7 @@ it.skipIf(!existsSync(schemaPath))('publishes no closed object or vocabulary', (
   // Given
   const nodes = schemaNodes(publishedSchema());
   // When
-  const closed = nodes.filter(node => node['additionalProperties'] === false);
+  const closed = nodes.filter(node => node['additionalProperties'] === false || node['unevaluatedProperties'] === false);
   const enums = nodes.filter(node => 'enum' in node);
   const untyped = nodes.filter(node => 'examples' in node && node['type'] !== 'string');
   // Then
