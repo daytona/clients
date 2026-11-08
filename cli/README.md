@@ -321,12 +321,13 @@ request.
   `docs`, `completion`, `help` and `--version`.
 - Some successful mutations (`org use`, `profile use`, `org delete`,
   `billing … delete`) print nothing.
-- In JSON mode an error is one line on stderr:
+- With JSON or YAML output (including the default off a terminal) an error
+  is one JSON line on stderr:
   `{"error": {"exit_code": 4, "code": "FORBIDDEN", "message": "…", "source": "DAYTONA_API", "trace_id": "…", "hint": "…"}}`.
   `code`, `source` and `trace_id` come from the server when it sent them and
   are omitted otherwise; a local error has `source` `CLI`. Both `code` and
-  `source` are open vocabularies. Otherwise errors are an `error:` line and an
-  optional `hint:` line.
+  `source` are open vocabularies. With table output errors are an `error:`
+  line and an optional `hint:` line.
 
 ### Exit codes
 

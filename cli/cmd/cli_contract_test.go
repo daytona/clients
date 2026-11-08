@@ -137,6 +137,16 @@ func TestErrorsInJSONModeAreOneStderrObject(t *testing.T) {
 	require.Equal(t, cerr.ExitNotFound, code)
 	require.True(t, strings.HasPrefix(stderr, "error: "), stderr)
 
+	// YAML output is machine-readable too.
+	_, stderr, code = runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "snapshot", "get", "snap_1", "-o", "yaml")
+	require.Equal(t, cerr.ExitNotFound, code)
+	require.Equal(t, "SNAPSHOT_NOT_FOUND", errorObject(t, stderr)["code"])
+
+	// An unknown --output value is reported in the default for this stdout.
+	_, stderr, code = runReported(t, cfgDir(t), nil, "config", "path", "-o", "bogus")
+	require.Equal(t, cerr.ExitUsage, code)
+	require.Equal(t, float64(cerr.ExitUsage), errorObject(t, stderr)["exit_code"])
+
 	// A local error has source CLI and no server fields.
 	_, stderr, code = runReported(t, cfgDir(t), nil, "whoami", "--profile", "ghost")
 	require.Equal(t, cerr.ExitNotFound, code)
