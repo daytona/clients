@@ -86,7 +86,12 @@ exceptions that only shrinks.
 
 **SDK-owned models, one lifecycle contract.** Public models are written by
 hand and immutable in both SDKs: frozen, keyword-only dataclasses in Python,
-readonly interfaces in TypeScript, with the same fields. Lifecycle methods
+readonly interfaces in TypeScript, with the same fields. Two Python
+configuration classes are the exceptions to keyword-only: `DaytonaConfig`
+takes `api_key` positionally and `SandboxEventsConfig` takes its fields
+positionally, and the public surface snapshot pins their field order. The
+`ListResult` / `SearchResult` page envelopes are keyword-only dataclasses too
+and aren't iterable: `.items` is the one way to the entries. Lifecycle methods
 wait for the state they ask for (`stop()` for `stopped`, `delete()` for
 `destroyed`) with a 60-second default budget, `0` meaning no deadline;
 `create*()` and `fork()` return their handle however their wait ends and

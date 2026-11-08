@@ -32,7 +32,9 @@ export const fail = (msg: string): void => console.log(`   ${RED}FAIL${RESET} ${
 export const sleep = (s: number): Promise<void> => new Promise((r) => setTimeout(r, s * 1000))
 
 export function assertStarted(sandbox: Sandbox): void {
-  if (sandbox.state !== 'started') throw new Error(`sandbox ${sandbox.id} did not start (state=${sandbox.state})`)
+  if (sandbox.state === 'started') return
+  const raw = sandbox.state === 'unknown' ? `, rawState=${sandbox.rawState ?? ''}` : ''
+  throw new Error(`sandbox ${sandbox.id} did not start (state=${sandbox.state}${raw})`)
 }
 
 /** Build the v2 client (the root's `.v2`) from the shared env vars, or exit with a hint. */

@@ -51,7 +51,8 @@ def main() -> int:
         boxes.append(box)
         # A create returns its handle however its wait ended: check before using it.
         if box.state != "started":
-            raise RuntimeError(f"sandbox {box.id} is {box.state}, not started")
+            raw = f" (raw state {box.raw_state!r})" if box.state == "unknown" else ""
+            raise RuntimeError(f"sandbox {box.id} is {box.state}{raw}, not started")
         return box
 
     try:

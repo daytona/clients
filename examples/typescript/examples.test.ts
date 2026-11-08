@@ -66,6 +66,7 @@ for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dy
     const { code, record } = runExample(example(name), scenario)
     // Then no commands run on that sandbox and acquisition is still cleaned up.
     assert.equal(code, 1)
+    assert.equal(record.sandboxes.length, 1)
     assert.deepEqual(record.commands, [])
     assertCleanedUp(record)
   })
@@ -90,6 +91,8 @@ test('volume sharing skips a non-started sandbox and still deletes its resources
   const { code, record } = runExample('volumes_share.ts', scenario)
   // Then no sandbox work runs and both sandbox and volume are cleaned up.
   assert.equal(code, 1)
+  assert.equal(record.sandboxes.length, 1)
+  assert.equal(record.createdVolumes.length, 1)
   assert.deepEqual(record.commands, [])
   assertCleanedUp(record)
   assert.deepEqual(record.deletedVolumes, record.createdVolumes)

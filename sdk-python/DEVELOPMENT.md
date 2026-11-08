@@ -202,6 +202,8 @@ at the boundary. Named creates permanently support get-or-create; the
 name-key helpers are internal. `find_by_name()` returns all matches and is
 the explicit exception to the one-page list rule.
 
+### Other implementation notes
+
 - Interpreter runs code through
   `POST /processes {kind:"code", code, language, sessionId?}`.
   `timeout_ms` is client-side only. Context-free runs omit `sessionId` and

@@ -113,12 +113,15 @@ def main() -> int:
         )
         try:
             info(f"sandbox {twin.id} is {twin.state}")
-            twin_greet = twin.process.run("/app/greet.sh") if require_started(twin) else None
-            if twin_greet is not None and twin_greet.exit_code == 0 and RUN in twin_greet.output:
-                passed("the second sandbox runs the expected script")
-            else:
-                failed("the second sandbox is not running the expected script")
+            if not require_started(twin):
                 ok = False
+            else:
+                twin_greet = twin.process.run("/app/greet.sh")
+                if twin_greet.exit_code == 0 and RUN in twin_greet.output:
+                    passed("the second sandbox runs the expected script")
+                else:
+                    failed("the second sandbox is not running the expected script")
+                    ok = False
         finally:
             # Guarded like the outer cleanup: a delete failure here must not
             # replace the assertion failure above with a teardown error.

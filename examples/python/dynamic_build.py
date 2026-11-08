@@ -99,13 +99,16 @@ def main() -> int:
             wait_seconds=400,
         )
         sandboxes.append(other)
-        other_marker = other.process.run("cat /marker").output.strip() if require_started(other) else ""
-        info(f"marker: {other_marker}")
-        if other_marker.startswith("other-"):
-            passed("the changed Dockerfile produced the expected file content")
-        else:
-            failed("the changed Dockerfile's output is missing")
+        if not require_started(other):
             ok = False
+        else:
+            other_marker = other.process.run("cat /marker").output.strip()
+            info(f"marker: {other_marker}")
+            if other_marker.startswith("other-"):
+                passed("the changed Dockerfile produced the expected file content")
+            else:
+                failed("the changed Dockerfile's output is missing")
+                ok = False
     finally:
         section("cleanup")
         for sandbox in sandboxes:

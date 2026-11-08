@@ -45,7 +45,8 @@ def require_started(sandbox: Sandbox) -> bool:
     if sandbox.state == "started":
         return True
     reason = f": {sandbox.error}" if sandbox.error else ""
-    failed(f"sandbox {sandbox.id} is {sandbox.state}{reason}, not started")
+    raw = f" (raw state {sandbox.raw_state!r})" if sandbox.state == "unknown" else ""
+    failed(f"sandbox {sandbox.id} is {sandbox.state}{raw}{reason}, not started")
     return False
 
 

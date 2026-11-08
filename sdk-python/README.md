@@ -41,6 +41,9 @@ from daytona import Daytona, DaytonaConfig
 with Daytona(DaytonaConfig(api_key="dtn_...")) as d:
     d.v2.images.pull("python:3.12", name="py312")  # waits until ready
     sandbox = d.v2.create("py312", wait_seconds=60)
+    # create() returns the handle even if its wait ended before the sandbox started
+    if sandbox.state != "started":
+        sandbox.wait()
     result = sandbox.exec("python -V")
     print(result.exit_code, result.output)
     d.v2.delete(sandbox)

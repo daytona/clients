@@ -46,6 +46,8 @@ const daytona = new Daytona({
 
 await daytona.v2.images.pull('python:3.12', { name: 'py312' }) // waits until ready
 const sandbox = await daytona.v2.create('py312', { waitSeconds: 60 })
+// create() returns the handle even if its wait ended before the sandbox started
+if (sandbox.state !== 'started') await sandbox.wait()
 const result = await sandbox.exec('python -V')
 console.log(result.exitCode, result.output)
 await daytona.v2.delete(sandbox)
@@ -425,7 +427,9 @@ const result = await sandbox.volumes.pull(volume.id, {
 read-write disk volumes only, without `persistent: true`.
 
 Create a disk volume with `daytona.v2.volumes.create({ name: 'data', sizeGib: 10 })`;
-delete one by name or ID with `daytona.v2.volumes.delete(volume.id, { idOnly: true })`.
+delete one by name with `await daytona.v2.volumes.delete('data')`, or by ID with
+`await daytona.v2.volumes.delete(volume.id, { idOnly: true })`. `{ idOnly: true }`
+accepts an ID only and turns off the name lookup.
 
 Pulling an attachment is separate from the `daytona.v2.volumes` management
 service. IDs contain 1–128 ASCII letters, digits, underscores or hyphens.
