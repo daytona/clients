@@ -7,6 +7,8 @@ import type { AxiosError } from 'axios'
 import { CODE_STATUS } from '../codes.js'
 import { BodyBuffer, declaredLength } from '../bodyBuffer.js'
 import { JSON_MAX_DEPTH, nestedDeeperThan } from '../jsonDepth.js'
+import { enumerableSymbolKey } from '../symbolKeys.js'
+import type { KeyedObject } from '../symbolKeys.js'
 import type { ApiErrorCode, DaemonErrorCode, ErrorCode, GenericErrorCode, ProxyErrorCode, RouterErrorCode } from '../codes.js'
 import type { DockerStatus, SandboxState } from '../types.js'
 import {
@@ -132,13 +134,16 @@ export function errorOptions<T extends object>(options: T | undefined): T | unde
     throw new BadRequestError(`error options must be an options object, got ${given}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   // No error options type declares a symbol key: an enumerable one, own or
-  // inherited, is refused, as the options guard (`enumerableKeys`) does.
-  for (let level: object | null = options; level !== null && level !== Object.prototype; level = Object.getPrototypeOf(level) as object | null) {
-    for (const symbol of Object.getOwnPropertySymbols(level)) {
-      if (Object.prototype.propertyIsEnumerable.call(level, symbol)) {
-        throw new BadRequestError(`ErrorOptions has no option \`${String(symbol)}\``, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-      }
-    }
+  // inherited, is refused, as the options guard (`enumerableKeys`) does. The
+  // walk stops before Object.prototype: every options literal the SDK builds
+  // itself inherits from it (this function's own BadRequestError included),
+  // so a key there would turn every error into this one, and a string key
+  // there is not refused either (it is copied, as `for...in` reads it).
+  // SAFETY: nonOptionsDescription has established an options object (an
+  // object literal, a class instance or a prototype-based object).
+  const symbol = enumerableSymbolKey(options as unknown as KeyedObject, Object.prototype as KeyedObject)
+  if (symbol !== undefined) {
+    throw new BadRequestError(`ErrorOptions has no option \`${String(symbol)}\``, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const copy: Record<string, unknown> = {}
   for (const key in options) copy[key] = (options as Record<string, unknown>)[key]

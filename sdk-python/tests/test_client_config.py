@@ -616,6 +616,7 @@ async def test_a_transfer_bounds_a_stalled_credential_by_its_idle_bound(path: st
     respx.get(f"{BASE}/thing").mock(side_effect=_unauthorized_for_stale)
     transport = AsyncTransport(BASE, None, request_timeout=0.2)
     transport.auth_provider = _StalledAuth(step)
+    started = time.monotonic()
     try:
         with pytest.raises(ClientTimeoutError):
             with anyio.fail_after(10):  # a hang fails the test, it does not stall the suite
@@ -627,6 +628,9 @@ async def test_a_transfer_bounds_a_stalled_credential_by_its_idle_bound(path: st
                     await transport.open_stream(RequestSpec("GET", "/thing", transfer=True))
     finally:
         await transport.close()
+    # Ended by the 0.2 s idle bound, not the 10 s guard: under 2 s leaves a
+    # loaded runner ten times the bound.
+    assert time.monotonic() - started < 2
 
 
 @pytest.mark.anyio
@@ -667,12 +671,15 @@ def test_a_sync_transfer_bounds_a_stalled_credential_by_its_idle_bound() -> None
     try:
         fs = FileSystemService(AsyncFileSystemService(transport), bridge)
         outcome: list[BaseException] = []
+        elapsed: list[float] = []
 
         def read() -> None:
+            started = time.monotonic()
             try:
                 fs.read_bytes("/a")
             except BaseException as error:
                 outcome.append(error)
+            elapsed.append(time.monotonic() - started)
 
         # On a worker thread, so a hang fails the test instead of stalling the suite.
         worker = threading.Thread(target=read, daemon=True)
@@ -680,6 +687,8 @@ def test_a_sync_transfer_bounds_a_stalled_credential_by_its_idle_bound() -> None
         worker.join(10)
         assert not worker.is_alive(), "the transfer hung on its stalled credential"
         assert len(outcome) == 1 and isinstance(outcome[0], ClientTimeoutError)
+        # Ended by the 0.2 s idle bound, not the 10 s guard.
+        assert elapsed[0] < 2
     finally:
         # A hung transfer would keep the bridge busy: leave it to the daemon thread.
         if worker is None or not worker.is_alive():

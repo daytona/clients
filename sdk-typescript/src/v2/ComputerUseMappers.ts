@@ -33,6 +33,8 @@ import { knownOrUnknown } from './knownValue.js'
 import { bool, int, malformedResponse, nonNegativeInt, nonNegativeSafeInt, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
+import { enumerableSymbolKey } from './symbolKeys.js'
+import type { KeyedObject } from './symbolKeys.js'
 
 // Every computer-use result is checked against the contract at this boundary:
 // a missing or mistyped required field is the malformed-response
@@ -201,9 +203,10 @@ export function mapComputerUseProcessStatusMap(statusMap: unknown): Readonly<Rec
   const d = 'computer-use process status map'
   const map = record(statusMap, d)
   // A map keyed by process name: a symbol key is no name (JSON has none).
-  for (const symbol of Object.getOwnPropertySymbols(map)) {
-    if (Object.prototype.propertyIsEnumerable.call(map, symbol)) throw malformedResponse(`${d}: unexpected key ${String(symbol)}`)
-  }
+  // Own keys only, as Object.entries reads the names: an inherited key is not
+  // part of the response (JSON.parse makes own keys only).
+  const symbol = enumerableSymbolKey(map, Object.getPrototypeOf(map) as KeyedObject | null)
+  if (symbol !== undefined) throw malformedResponse(`${d}: unexpected key ${String(symbol)}`)
   return deepFrozen(Object.fromEntries(
     Object.entries(map).map(([name, status]) => [name, mapComputerUseProcessStatus(status as toolbox.ComputerUseProcessStatus)]),
   ))

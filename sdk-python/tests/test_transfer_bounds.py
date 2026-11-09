@@ -1065,7 +1065,20 @@ async def test_a_transfers_own_timeout_replaces_its_idle_bound() -> None:
                     await stream.close()
 
             assert await _timed(stream_all) < STALL
-            # Moving bytes: 1.2 s in all, more than twice the timeout, never cut.
+            # Moving bytes: 6 bytes 0.2 s apart, 1.2 s in all, more than twice
+            # the timeout; every path completes, never cut.
+            moving = RequestSpec("GET", "/files/download", transfer=True, timeout=IDLE)
+            started = time.monotonic()
             assert await transport.raw(file_download_spec("/a", timeout=IDLE)) == b"x" * 6
+            assert await transport.send(moving) == b"x" * 6
+            response = await transport.request("GET", "/files/download", transfer=True, timeout=IDLE)
+            assert response.content == b"x" * 6
+            stream = await transport.open_stream(moving)
+            try:
+                assert b"".join([chunk async for chunk in stream.iter_bytes()]) == b"x" * 6
+            finally:
+                await stream.close()
+            # Four transfers of at least 1.2 s each: well past any total bound of IDLE.
+            assert time.monotonic() - started > 4 * IDLE
         finally:
             await transport.close()
