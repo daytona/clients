@@ -10,7 +10,7 @@
 
 import { readFileSync } from 'node:fs'
 
-const CHECKS = ['listOk', 'notFoundOk', 'toolboxListOk', 'toolboxWatchOk']
+const CHECKS = ['listOk', 'notFoundOk', 'toolboxListOk', 'toolboxWatchOk', 'capOk']
 const expectV0 = process.env.RUNTIME_TEST_EXPECT_V0
 
 const raw = readFileSync(0, 'utf8').trim()

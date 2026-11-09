@@ -10,8 +10,8 @@ import type { SandboxEventsConfig } from './v2/types.js'
  * Configuration shared by both namespaces. Routing per field (also
  * `ROOT_CONFIG_ROUTING`): `apiKey`, `jwtToken`, `otelEnabled` reach v0 and v2;
  * `organizationId` and the deprecated `target` are v0-only; `projectId`,
- * `requestTimeoutSeconds`, `otelApi`, `connectionPoolMaxsize`, `sharedHub` and
- * `events` are v2-only.
+ * `requestTimeoutSeconds`, `maxResponseBytes`, `otelApi`,
+ * `connectionPoolMaxsize`, `sharedHub` and `events` are v2-only.
  *
  * `new Daytona(config)` copies the fields: changing the object afterwards has
  * no effect on the client. An unknown field is a `BadRequestError`, and a
@@ -38,9 +38,15 @@ export type DaytonaConfig = {
    * v2 only: the total time one ordinary request may take, in seconds
    * (default 60; `0` = no limit). Waits and long polls use their own budget,
    * streams are bounded only until their response headers arrive, and file
-   * transfers are not bounded.
+   * transfers have no total bound but fail once no bytes move for this long.
    */
   readonly requestTimeoutSeconds?: number
+  /**
+   * v2 only: the cap on a response body the SDK holds in memory whole, in
+   * bytes (an integer, `0` = no limit; default 1 GiB). See the v2
+   * `DaytonaConfig.maxResponseBytes`.
+   */
+  readonly maxResponseBytes?: number | null
   /** Both namespaces. */
   readonly otelEnabled?: boolean
   /** v2 only. */

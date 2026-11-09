@@ -10,7 +10,8 @@
 // (CJS, ESM, browser, worker, ...), never this file's.
 //
 // Both SDK transports are exercised: the API calls and `fs.list` go through
-// axios (Node's http adapter in Node, fetch or XHR elsewhere); `fs.watchDir`
+// axios (Node's http adapter where the runtime has one, the SDK's fetch
+// adapter elsewhere); `fs.watchDir`
 // goes through the native fetch transport (ReadableStream reader and
 // AbortController, the APIs that differ most across runtimes).
 
@@ -32,8 +33,21 @@ async function checkV0(daytona) {
   }
 }
 
+function isTooLarge(error) {
+  return error instanceof Error && error.statusCode === 413 && error.code === 'PAYLOAD_TOO_LARGE'
+}
+
+/** `promise`, or a rejection after `ms` (a runtime that buffers the body first never settles it). */
+function within(promise, ms, what) {
+  let timer
+  return Promise.race([
+    promise.finally(() => clearTimeout(timer)),
+    new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error(`${what} did not settle within ${ms} ms`)), ms) }),
+  ])
+}
+
 export async function runChecks(sdk, options) {
-  const result = { listOk: false, notFoundOk: false, toolboxListOk: false, toolboxWatchOk: false, v0: 'unchecked' }
+  const result = { listOk: false, notFoundOk: false, toolboxListOk: false, toolboxWatchOk: false, capOk: false, v0: 'unchecked' }
   const daytona = new sdk.Daytona({ apiKey: options.apiKey })
   try {
     const client = daytona.v2
@@ -77,6 +91,21 @@ export async function runChecks(sdk, options) {
       } catch (error) {
         result.toolboxWatchError = describe(error)
       }
+    }
+
+    // The buffered-body cap, in this runtime's transport: an API JSON body
+    // over a small client cap, and a toolbox download that declares more
+    // than the per-call cap, refused before its body is read.
+    const capped = new sdk.Daytona({ apiKey: options.apiKey, maxResponseBytes: 64 })
+    try {
+      const listError = await within(capped.v2.list(), 5_000, 'list()').then(() => undefined, (error) => error)
+      const downloadError = box
+        ? await within(box.fs.readBytes('/big.bin', { maxResponseBytes: 1024 }), 5_000, 'readBytes()').then(() => undefined, (error) => error)
+        : new Error('no sandbox to read from')
+      result.capOk = isTooLarge(listError) && isTooLarge(downloadError)
+      if (!result.capOk) result.capError = JSON.stringify({ list: listError && describe(listError), download: downloadError && describe(downloadError) })
+    } finally {
+      await capped.close()
     }
 
     result.v0 = await checkV0(daytona)

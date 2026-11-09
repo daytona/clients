@@ -4,10 +4,11 @@
  */
 
 import axios, { AxiosError } from 'axios'
-import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
-import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError } from './errors/DaytonaError.js'
+import type { AxiosAdapter, AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
+import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, PAYLOAD_TOO_LARGE_AXIOS_CODE, readFetchText, responseTooLargeError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
 import { boundedTimerDelay, badRequest } from './options.js'
+import { BodyTooLarge, DEFAULT_MAX_RESPONSE_BYTES, IdleWatchdog, bytesAs, declaresMoreThan, discardBody, readCappedBody, tooLargeErrorStatusMessage, tooLargeMessage } from './bodyLimit.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
@@ -22,7 +23,8 @@ const RELATIVE_PATH_ERROR = 'absolute request URLs are not allowed; pass a relat
  * from sending it to reading the last byte of the response. Requests governed
  * by another budget are not cut by it: waits and long polls pass their own
  * `timeout` (`0` = none), streams read through `fetch` are bounded only until
- * their response headers arrive, and file transfers are not bounded at all.
+ * their response headers arrive, and file transfers have no total bound: it
+ * bounds each of their idle gaps instead (no bytes moving for that long).
  * The Python SDK gives `request_timeout` the same meaning.
  */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 60_000
@@ -158,6 +160,10 @@ type DaytonaRequestMeta = {
   readonly retriedAfterUnauthorized?: boolean
   readonly signal?: AbortSignalLike
   readonly span?: Span
+  /** A file transfer: no total deadline, an idle bound instead. */
+  readonly transfer?: boolean
+  /** A transfer's idle bound, in ms (the instance's request timeout; `0` = none). */
+  readonly idleTimeoutMs?: number
 }
 
 type DaytonaAxiosRequestConfig = InternalAxiosRequestConfig & {
@@ -213,6 +219,11 @@ export interface HttpClientOptions {
   readonly sandboxId?: string
   /** Per-sandbox authentication hook (mints / refreshes short-lived JWT). */
   readonly auth?: TransportAuth
+  /**
+   * The cap on a response body the transport buffers whole, in bytes (`0` =
+   * no limit; default 1 GiB). Streamed bodies are never capped.
+   */
+  readonly maxResponseBytes?: number
 }
 
 export interface HttpTransportConfig {
@@ -223,7 +234,11 @@ export interface HttpTransportConfig {
 
 export interface FetchRequestInit extends RequestInit {
   readonly bodyFactory?: () => BodyInit | Promise<BodyInit>
-  /** A file transfer: the request timeout does not apply (only the caller's `signal` ends it). */
+  /**
+   * A file transfer: no total deadline (only the caller's `signal` ends it),
+   * but it fails with `ClientTimeoutError` once no bytes move for the request
+   * timeout (`0` = no idle bound).
+   */
   readonly transfer?: boolean
   /**
    * Replaces the request timeout (milliseconds) for this call, with the same
@@ -244,6 +259,8 @@ interface PlatformTokenProviderOptions {
   readonly requestTimeout?: number
   readonly otelEnabled?: boolean
   readonly otelApi?: OtelApiLike
+  /** The cap on the exchange's response body (`0` = no limit; default 1 GiB). */
+  readonly maxResponseBytes?: number
 }
 
 export function inBrowser(): boolean {
@@ -559,10 +576,32 @@ function isReadableStreamBody(body: BodyInit | null | undefined): body is Readab
   return typeof ReadableStream !== 'undefined' && body instanceof ReadableStream
 }
 
+/**
+ * A streamed request body that calls `progress` each time the runtime pulls
+ * a chunk from it (the transfer idle bound), and once when first wrapped.
+ */
+function watchedBody(body: BodyInit | null | undefined, progress: (() => void) | undefined): BodyInit | null | undefined {
+  if (progress === undefined || !isReadableStreamBody(body)) return body
+  progress()
+  const reader = body.getReader()
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { done, value } = await reader.read()
+      progress()
+      if (done) controller.close()
+      else controller.enqueue(value)
+    },
+    async cancel(reason) {
+      await reader.cancel(reason)
+    },
+  })
+}
+
 async function fetchRequestForAttempt(
   init: FetchRequestInit | undefined,
   headers: Record<string, string>,
   signal: AbortSignal,
+  watchBody?: () => void,
 ): Promise<{
   readonly requestInit: RequestInit
   readonly canRetryUnauthorized: boolean
@@ -574,7 +613,7 @@ async function fetchRequestForAttempt(
   return {
     requestInit: {
       ...requestInitWithoutFactory,
-      body,
+      body: watchedBody(body, watchBody),
       headers,
       signal,
     },
@@ -586,6 +625,7 @@ function fetchRequestWithoutFactory(
   init: FetchRequestInit | undefined,
   headers: Record<string, string>,
   signal: AbortSignal,
+  watchBody?: () => void,
 ): {
   readonly requestInit: RequestInit
   readonly canRetryUnauthorized: boolean
@@ -594,6 +634,7 @@ function fetchRequestWithoutFactory(
   return {
     requestInit: {
       ...requestInitWithoutFactory,
+      body: watchedBody(requestInitWithoutFactory.body, watchBody),
       headers,
       signal,
     },
@@ -837,8 +878,10 @@ class PlatformTokenProvider implements HttpAuthProvider {
   private readonly requestTimeout?: number
   private readonly otelEnabled?: boolean
   private readonly otelApi?: OtelApiLike
+  private readonly maxResponseBytes: number
 
   constructor(options: PlatformTokenProviderOptions) {
+    this.maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES
     this.baseURL = options.baseURL
     this.jwtToken = options.jwtToken
     this.projectId = options.projectId
@@ -938,11 +981,17 @@ class PlatformTokenProvider implements HttpAuthProvider {
         signal: timeout.signal,
       })
       if (!response.ok) {
-        const error = await errorFromFetchResponse(response)
+        const error = await errorFromFetchResponse(response, this.maxResponseBytes)
         finalize(response.status, error)
         throw error
       }
-      const exchange = tokenExchange(await response.text())
+      const text = await readFetchText(response, this.maxResponseBytes)
+      if (text === undefined) {
+        const error = responseTooLargeError(tooLargeMessage(this.maxResponseBytes))
+        finalize(response.status, error)
+        throw error
+      }
+      const exchange = tokenExchange(text)
       if (exchange instanceof BadRequestError) {
         finalize(response.status, exchange)
         throw exchange
@@ -1098,11 +1147,16 @@ export function resetFetchCacheModeProbeForTests(): void {
 }
 
 function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions): AxiosInstance {
+  const maxResponseBytes = options?.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES
   const instance = axios.create({
     baseURL: baseURL.replace(/\/$/, ''),
     timeout: boundedTimerDelay(requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS),
     headers: authHeaders(apiKey),
     fetchOptions: fetchCacheModeOptions(),
+    // The SDK's buffered-body cap (axios' own field; -1 = none), enforced by
+    // boundedAdapter before buffering in every runtime.
+    maxContentLength: maxResponseBytes > 0 ? maxResponseBytes : -1,
+    adapter: boundedAdapter,
   })
   credentialSafeDiagnostics(instance, () => ({ type: 'HttpClient' }))
   credentialSafeDiagnostics(instance.defaults, () => ({ timeout: instance.defaults.timeout }))
@@ -1149,6 +1203,280 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
   return instance
 }
 
+/**
+ * Mark an axios request as a file transfer: no total deadline, but it fails
+ * with `ClientTimeoutError` once no bytes move for the instance's request
+ * timeout (connecting, the request body, the response headers and every gap
+ * in the response body). `0` request timeout = no idle bound.
+ */
+export function transferRequest<T extends AxiosRequestConfig>(config: T): T {
+  const marked = { ...config, timeout: 0 } as T & { daytona?: DaytonaRequestMeta }
+  marked.daytona = { ...marked.daytona, transfer: true }
+  return marked
+}
+
+/**
+ * The axios `maxContentLength` for a per-call `maxResponseBytes` (already
+ * validated): `{}` keeps the client's cap, `0` lifts it.
+ */
+export function maxContentLengthFor(maxResponseBytes: number | undefined): { readonly maxContentLength?: number } {
+  if (maxResponseBytes === undefined) return {}
+  return { maxContentLength: maxResponseBytes > 0 ? maxResponseBytes : -1 }
+}
+
+/** An axios adapter by name, when this runtime has it. */
+function adapterNamed(name: 'http' | 'fetch'): AxiosAdapter | undefined {
+  try {
+    return axios.getAdapter(name)
+  } catch {
+    return undefined
+  }
+}
+
+let httpAdapter: AxiosAdapter | null | undefined
+
+/**
+ * axios' Node http adapter where the runtime has one (Node, Bun, Deno), else
+ * `null`: those runtimes go through {@link fetchAdapter}. Never axios' xhr
+ * adapter (it reads a body whole before any size check) nor its fetch adapter
+ * (some runtimes, workerd among them, fail its response-stream probe, and it
+ * then buffers the body before checking its size).
+ */
+function nodeHttpAdapter(): AxiosAdapter | null {
+  if (httpAdapter === undefined) httpAdapter = adapterNamed('http') ?? null
+  return httpAdapter
+}
+
+/** Test seam: route requests through {@link fetchAdapter}, as in a runtime without Node's http module. */
+export function forceFetchAdapterForTests(force: boolean): void {
+  httpAdapter = force ? null : undefined
+}
+
+/**
+ * The SDK's own fetch-based adapter, for runtimes without Node's http module:
+ * the request axios has already serialized (URL with params, headers, body),
+ * answered with the response body still unread (`data` is the web stream),
+ * for {@link boundedAdapter} to read under its cap. `timeout` aborts like
+ * axios' own (`ECONNABORTED`).
+ */
+async function fetchAdapter(config: InternalAxiosRequestConfig): Promise<AxiosResponse> {
+  const url = axios.getUri(config)
+  const headers = new Headers()
+  const raw = (config.headers?.toJSON?.() ?? {}) as Record<string, unknown>
+  for (const [name, value] of Object.entries(raw)) {
+    if (value === undefined || value === null || value === false) continue
+    headers.set(name, Array.isArray(value) ? value.join(', ') : String(value))
+  }
+  const method = (config.method ?? 'get').toUpperCase()
+  const body = method === 'GET' || method === 'HEAD' ? undefined : config.data as BodyInit | undefined
+  // fetch writes a FormData body's multipart boundary into Content-Type itself.
+  if (typeof FormData !== 'undefined' && body instanceof FormData) headers.delete('content-type')
+  const controller = new AbortController()
+  const caller = config.signal as AbortSignal | undefined
+  const relay = (): void => controller.abort(caller?.reason)
+  if (caller?.aborted) relay()
+  else caller?.addEventListener?.('abort', relay, { once: true })
+  const timeoutMs = typeof config.timeout === 'number' ? boundedTimerDelay(config.timeout) : 0
+  let timedOut = false
+  const timer = timeoutMs > 0
+    ? setTimeout(() => {
+      timedOut = true
+      controller.abort(new DOMException('timeout', 'AbortError'))
+    }, timeoutMs)
+    : undefined
+  if (timer !== undefined) unrefTimer(timer)
+  const done = (): void => {
+    if (timer !== undefined) clearTimeout(timer)
+    caller?.removeEventListener?.('abort', relay)
+  }
+  let response: Response
+  try {
+    response = await fetch(url, {
+      ...(config.fetchOptions as RequestInit | undefined),
+      method,
+      headers,
+      body,
+      signal: controller.signal,
+      credentials: config.withCredentials === true ? 'include' : 'omit',
+      redirect: 'follow',
+    })
+  } catch (error) {
+    done()
+    if (timedOut) throw new AxiosError(`timeout of ${timeoutMs}ms exceeded`, AxiosError.ECONNABORTED, config)
+    if (controller.signal.aborted) throw new AxiosError('canceled', AxiosError.ERR_CANCELED, config)
+    throw new AxiosError(error instanceof Error ? error.message : String(error), AxiosError.ERR_NETWORK, config)
+  }
+  const responseHeaders: Record<string, string> = {}
+  response.headers.forEach((value, name) => { responseHeaders[name] = value })
+  const source = response.body?.getReader()
+  // The body stays readable; the timer and the caller relay end with it.
+  const data = source === undefined
+    ? null
+    : new ReadableStream<Uint8Array>({
+      async pull(stream) {
+        try {
+          const next = await source.read()
+          if (next.done) {
+            done()
+            stream.close()
+          } else {
+            stream.enqueue(next.value)
+          }
+        } catch (error) {
+          done()
+          stream.error(timedOut ? new AxiosError(`timeout of ${timeoutMs}ms exceeded`, AxiosError.ECONNABORTED, config) : error)
+        }
+      },
+      async cancel(reason) {
+        done()
+        await source.cancel(reason).catch(() => undefined)
+      },
+    })
+  if (data === null) done()
+  return {
+    data,
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
+    config,
+    request: undefined,
+  }
+}
+
+/**
+ * A request body small enough that the runtime hands it to the socket at
+ * once (64 KiB), so a wait after sending it is a wait for the response, not
+ * an upload still in progress. Bodies of unknown size are not.
+ */
+const SMALL_REQUEST_BODY_BYTES = 64 * 1024
+
+function smallRequestBody(config: InternalAxiosRequestConfig): boolean {
+  const data: unknown = config.data
+  if (data === undefined || data === null || ['get', 'head'].includes((config.method ?? 'get').toLowerCase())) return true
+  const size = (value: unknown): number | undefined => {
+    if (typeof value === 'string') return value.length * 3
+    if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value.byteLength
+    if (typeof Blob !== 'undefined' && value instanceof Blob) return value.size
+    if (typeof URLSearchParams !== 'undefined' && value instanceof URLSearchParams) return value.toString().length
+    return undefined
+  }
+  if (typeof FormData !== 'undefined' && data instanceof FormData) {
+    let total: number | undefined = 0
+    data.forEach((value) => {
+      const entry = size(value)
+      total = total === undefined || entry === undefined ? undefined : total + entry
+    })
+    return total !== undefined && total <= SMALL_REQUEST_BODY_BYTES
+  }
+  const bytes = size(data)
+  return bytes !== undefined && bytes <= SMALL_REQUEST_BODY_BYTES
+}
+
+function settleError(config: InternalAxiosRequestConfig, response: AxiosResponse): AxiosError {
+  return new AxiosError(
+    `Request failed with status code ${response.status}`,
+    response.status >= 500 ? AxiosError.ERR_BAD_RESPONSE : AxiosError.ERR_BAD_REQUEST,
+    config,
+    response.request,
+    response,
+  )
+}
+
+/**
+ * Every SDK axios request: the response is opened as a stream, so the body
+ * cap (`maxContentLength`, the SDK's `maxResponseBytes`) is checked against a
+ * declared `Content-Length` before the body is read and against the bytes as
+ * they arrive, and a refused body is cancelled (its connection closed) rather
+ * than buffered. A file transfer also gets its idle bound here: an abort once
+ * no bytes move for its `idleTimeoutMs` (request body progress where the
+ * runtime reports it, the response headers, every body chunk). Then the body
+ * is handed on in the shape axios would have produced, and the caller's
+ * `validateStatus` is applied as axios' own `settle` does.
+ */
+async function boundedAdapter(config: InternalAxiosRequestConfig): Promise<AxiosResponse> {
+  const httpBase = nodeHttpAdapter()
+  const http = httpBase !== null
+  const base: AxiosAdapter = httpBase ?? fetchAdapter
+  const responseType = config.responseType
+  if (responseType === 'stream') {
+    if (http) return base(config)
+    const streamed = await fetchAdapter(config)
+    const accepts = config.validateStatus
+    if (accepts === null || accepts === undefined || accepts(streamed.status)) return streamed
+    throw settleError(config, streamed)
+  }
+  const limit = typeof config.maxContentLength === 'number' && config.maxContentLength > 0 ? config.maxContentLength : 0
+  const meta = (config as DaytonaAxiosRequestConfig).daytona
+  const idleMs = meta?.transfer === true ? meta.idleTimeoutMs ?? 0 : 0
+  const watchdog = idleMs > 0
+    ? new IdleWatchdog(idleMs, config.signal as AbortSignal | undefined, () => new DOMException('no bytes moved', 'AbortError'))
+    : undefined
+  const request: InternalAxiosRequestConfig = {
+    ...config,
+    responseType: 'stream',
+    maxContentLength: -1,
+    validateStatus: () => true,
+    signal: watchdog?.signal ?? config.signal,
+  }
+  if (watchdog !== undefined) {
+    // Node's http adapter reports request body progress. fetch does not (a
+    // streamed upload needs request streams, which some browsers refuse over
+    // HTTP/1.1), so there a request with a larger body is bounded from its
+    // response headers on; one with no body or a small one from the start.
+    if (http) {
+      const caller = config.onUploadProgress
+      request.onUploadProgress = (event) => {
+        watchdog.kick()
+        caller?.(event)
+      }
+    }
+    if (http || smallRequestBody(config)) watchdog.kick()
+  }
+  const idleTimeout = (): AxiosError => new AxiosError(`timeout of ${idleMs}ms exceeded with no bytes moving`, AxiosError.ECONNABORTED, config)
+  const failed = (error: unknown): unknown => {
+    if (watchdog?.fired()) return idleTimeout()
+    if (config.signal?.aborted) return new AxiosError('canceled', AxiosError.ERR_CANCELED, config)
+    if (error instanceof AxiosError) {
+      // Keep the caller's config: a 401 retry re-sends it.
+      error.config = config
+      return error
+    }
+    return new AxiosError(error instanceof Error ? error.message : String(error), AxiosError.ERR_NETWORK, config)
+  }
+  try {
+    let response: AxiosResponse
+    try {
+      response = await base(request)
+    } catch (error) {
+      throw failed(error)
+    }
+    const release = (): void => {
+      const destroy = (response.request as { destroy?: () => void } | undefined)?.destroy
+      if (typeof destroy === 'function') destroy.call(response.request)
+    }
+    const tooLarge = (): AxiosError => response.status >= 400
+      ? new AxiosError(tooLargeErrorStatusMessage(response.status, limit), response.status >= 500 ? AxiosError.ERR_BAD_RESPONSE : AxiosError.ERR_BAD_REQUEST, config, response.request, { ...response, config, data: undefined })
+      : new AxiosError(tooLargeMessage(limit), PAYLOAD_TOO_LARGE_AXIOS_CODE, config, response.request)
+    let bytes: Uint8Array
+    if (declaresMoreThan(response.headers['content-length'], limit)) {
+      await discardBody(response.data, release)
+      throw tooLarge()
+    }
+    try {
+      bytes = await readCappedBody(response.data, limit, watchdog === undefined ? {} : { waiting: () => watchdog.kick(), received: () => watchdog.pause() }, release)
+    } catch (error) {
+      if (error instanceof BodyTooLarge) throw tooLarge()
+      throw failed(error)
+    }
+    const settled: AxiosResponse = { ...response, config, data: bytesAs(bytes, responseType) }
+    const validateStatus = config.validateStatus
+    if (validateStatus === null || validateStatus === undefined || validateStatus(settled.status)) return settled
+    throw settleError(config, settled)
+  } finally {
+    watchdog?.dispose()
+  }
+}
+
 /** Pending deadline timers, by request config. */
 const requestDeadlines = new WeakMap<AxiosRequestConfig, () => void>()
 /**
@@ -1183,6 +1511,12 @@ const callerSignals = new WeakMap<AbortSignal, AbortSignalLike | undefined>()
  */
 function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, instance: AxiosInstance): T {
   disarmRequestDeadline(config)
+  if (config.daytona?.transfer === true) {
+    // A file transfer: no total deadline; the instance's request timeout is
+    // its idle bound, which boundedAdapter enforces.
+    config.timeout = 0
+    config.daytona = { ...config.daytona, idleTimeoutMs: boundedTimerDelay(timeoutFromAxiosInstance(instance) ?? DEFAULT_REQUEST_TIMEOUT_MS) }
+  }
   // axios hands its timeout to a platform timer too: one above the timer
   // maximum would fire at once, so it means no bound there as well.
   if (typeof config.timeout === 'number') config.timeout = boundedTimerDelay(config.timeout)
@@ -1322,8 +1656,10 @@ export class HttpTransport {
   private readonly apiKey?: string
   private readonly requestTimeout?: number
   private readonly options?: HttpClientOptions
+  private readonly maxResponseBytes: number
 
   constructor(baseUrl: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions) {
+    this.maxResponseBytes = options?.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES
     this.baseUrl = baseUrl.replace(/\/$/, '')
     this.apiKey = apiKey
     this.requestTimeout = requestTimeout
@@ -1395,9 +1731,13 @@ export class HttpTransport {
     })
   }
 
-  /** A byte download (a file transfer): not bounded by the request timeout. */
-  public async getBytes(path: string): Promise<ArrayBuffer> {
-    return this.withAuth({ responseType: 'arraybuffer', timeout: 0 }, async (requestConfig) => {
+  /**
+   * A byte download held in memory (a file transfer): no total deadline, an
+   * idle bound of the request timeout; `maxResponseBytes` replaces the
+   * client's body cap for this call (`0` = no limit).
+   */
+  public async getBytes(path: string, options: { readonly maxResponseBytes?: number } = {}): Promise<ArrayBuffer> {
+    return this.withAuth(transferRequest({ responseType: 'arraybuffer', ...maxContentLengthFor(options.maxResponseBytes) }), async (requestConfig) => {
       const { data } = await this.http.get<ArrayBuffer>(assertRelativeRequestPath(path), requestConfig)
       return data
     })
@@ -1444,9 +1784,15 @@ export class HttpTransport {
     const relativePath = assertRelativeRequestPath(path)
     const meta = requestMeta({ url: relativePath }, this.options ?? {})
     // Until the response headers arrive (a stream's body is not bounded), by
-    // the call's own timeout or else the request timeout; never for a file
-    // transfer, whose upload body is sent before them.
-    const timeout = timeoutSignal(init?.transfer === true ? 0 : perCallTimeoutMs(init?.timeout) ?? this.defaultTimeout, init?.signal)
+    // the call's own timeout or else the request timeout. A file transfer has
+    // no total bound but an idle one instead: the request timeout with no
+    // bytes moving (a streamed request body, the headers, each body chunk).
+    const idle = init?.transfer === true
+      ? new IdleWatchdog(boundedTimerDelay(this.defaultTimeout), init.signal ?? undefined, () => new DOMException('no bytes moved', 'AbortError'))
+      : undefined
+    const timeout = idle !== undefined
+      ? { signal: idle.signal, clearTimer: () => idle.pause(), timedOut: () => idle.fired(), detach: () => idle.dispose() }
+      : timeoutSignal(perCallTimeoutMs(init?.timeout) ?? this.defaultTimeout, init?.signal)
     // A successful response with a streaming body keeps its span open until
     // the body is fully read (or errors/cancels): a read failure after the
     // headers is still a failed request from the caller's point of view.
@@ -1513,9 +1859,14 @@ export class HttpTransport {
         spanFinalized = true
       }
       try {
+        // A transfer with no body (or a streamed one, whose reads it watches)
+        // is idle-bounded from the start; one whose body the runtime sends
+        // without progress only from its response headers.
+        const watchBody = idle === undefined ? undefined : () => idle.kick()
+        if (idle !== undefined && (init?.body === undefined || init.body === null) && init?.bodyFactory === undefined) idle.kick()
         const request = init?.bodyFactory
-          ? await fetchRequestForAttempt(init, headers, timeout.signal)
-          : fetchRequestWithoutFactory(init, headers, timeout.signal)
+          ? await fetchRequestForAttempt(init, headers, timeout.signal, watchBody)
+          : fetchRequestWithoutFactory(init, headers, timeout.signal, watchBody)
         const response = await fetch(`${this.baseUrl}${relativePath}`, request.requestInit)
         if (response.status === 401 && this.options?.auth && retryToken === undefined && !retriedUnauthorized && request.canRetryUnauthorized) {
           let freshToken: string | undefined
@@ -1542,8 +1893,9 @@ export class HttpTransport {
           }
           await this.options.authProvider.authorizationHeader({ forceRefresh: true, rejectedAuthorization, signal: timeout.signal })
         }
+        idle?.kick()
         if (checkStatus && !response.ok) {
-          const error = await errorFromFetchResponse(response)
+          const error = await errorFromFetchResponse(response, this.maxResponseBytes)
           finalize(response.status, error)
           throw error
         }
@@ -1598,7 +1950,9 @@ export class HttpTransport {
     const detachingBody = new ReadableStream<Uint8Array>({
       async pull(controller) {
         try {
-          const { done, value } = await source.read()
+          // A transfer's idle bound runs only while a chunk is awaited.
+          idle?.kick()
+          const { done, value } = await source.read().finally(() => idle?.pause())
           if (done) {
             timeout.detach()
             settle()
@@ -1607,9 +1961,10 @@ export class HttpTransport {
           }
           controller.enqueue(value)
         } catch (error) {
+          const failure = idle?.fired() === true ? new ClientTimeoutError() : error
           timeout.detach()
-          settle(error)
-          controller.error(error)
+          settle(failure)
+          controller.error(failure)
         }
       },
       async cancel(reason) {
