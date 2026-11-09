@@ -1,0 +1,53 @@
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_504d3a0b76e609 1358
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_504d3a0b76e609 114-117,804-807,822-823,843
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_2b72e106996254 63-64,78
+  s_ca009e77d17705::t_a1e96a91a6030c 61-62,65-67,70,72,79,82-83,87-88,93
+changelog.d/539-create-fork-return.breaking.md
+  s_ca009e77d17705::t_b558439564342b 10-21
+examples/typescript/_common.ts
+  s_ca009e77d17705::t_e67d1d552e9067 16,29-30,92-101
+sdk-typescript/src/v2/responseFields.ts
+  s_ca009e77d17705::t_504d3a0b76e609 102-107
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_504d3a0b76e609 220-229,231-233,238,247-249,251-254
+examples/typescript/examples.test.ts
+  s_ca009e77d17705::t_e67d1d552e9067 139,148-149
+  s_ca009e77d17705::t_3d0d2505c6070a 21
+examples/python/_common.py
+  s_ca009e77d17705::t_4217b0f0997820 107,109
+  s_ca009e77d17705::t_e67d1d552e9067 22,36-37,102-106,108
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_c364cbf0881668 7028-7030,7037-7040
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_546638ad4a1f9e 812-873,875
+  s_ca009e77d17705::t_7c87dd7c0da07c 876-904
+  s_ca009e77d17705::t_b0414040c29a46 26,874
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_7c87dd7c0da07c 528-547
+  s_ca009e77d17705::t_4339dbcd282dad 479-527
+examples/python/test_examples.py
+  s_ca009e77d17705::t_4217b0f0997820 144,152,349,366
+  s_ca009e77d17705::t_4078dd2a85d0a8 46
+  s_ca009e77d17705::t_e67d1d552e9067 34,82,145-147,149,151,365
+examples/typescript/test-support/fake-sdk.ts
+  s_ca009e77d17705::t_e67d1d552e9067 15,67,82,219-222,224-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6883b87772e62eab359ed566c9c480f4db333fee",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
