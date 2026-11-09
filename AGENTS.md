@@ -535,10 +535,10 @@ skipping exist only in the TypeScript tool).
   before the body is read, otherwise reading stops once it passes, and the
   connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
   `readFetchText`). A compressed body is capped on its decoded bytes:
-  Python reads the wire bytes and decodes gzip / deflate itself in steps of
-  at most 64 KiB (`DECODE_STEP`), so at most one step past the cap is ever
-  produced, asks only for those (`Accept-Encoding: gzip, deflate`), refuses
-  any other encoding undecoded, and refuses compressed data that stops before
+  Python reads the wire bytes and decodes gzip (also sent as `x-gzip`) /
+  deflate itself in steps of at most 64 KiB (`DECODE_STEP`), so at most one
+  step past the cap is ever produced, asks only for those
+  (`Accept-Encoding: gzip, deflate`), refuses any other encoding undecoded, and refuses compressed data that stops before
   its end as a `ConnectionError`, like a body cut short on the wire; in
   TypeScript the runtime decodes the body, and every decoded chunk is checked
   against the cap before it is kept (on Node both adapters decode in chunks
