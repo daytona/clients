@@ -487,6 +487,27 @@ async def test_the_events_hub_is_capped_by_the_client_limit(
             await root.close()
 
 
+@pytest.mark.parametrize(
+    ("declared", "too_large"),
+    [
+        ("9" * 5000, True),  # past int()'s digit limit: over any cap, not a ValueError
+        ("1001", True),
+        ("01001", True),
+        ("1000", False),
+        ("0999", False),
+        ("", False),
+        ("12x", False),
+        ("1\u00b2", False),  # a non-ASCII digit (isdigit() accepts it) is not a declared length
+    ],
+)
+def test_a_declared_length_is_compared_without_converting_it(declared: str, too_large: bool) -> None:
+    from daytona.v2._body_limit import _declared_too_large
+
+    response = httpx.Response(200, headers={"content-length": declared.encode("latin-1")} if declared else {})
+    assert _declared_too_large(response, 1000) is too_large
+    assert _declared_too_large(response, 0) is False
+
+
 def test_a_single_chunk_past_the_cap_is_never_buffered() -> None:
     from daytona.v2._body_limit import read_body, read_body_sync
 

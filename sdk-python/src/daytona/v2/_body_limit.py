@@ -60,8 +60,12 @@ def too_large_error(status_code: int, limit: int) -> DaytonaError:
 
 
 def _declared_too_large(response: httpx.Response, limit: int) -> bool:
-    declared = response.headers.get("content-length", "")
-    return bool(limit) and declared.isdigit() and int(declared) > limit
+    declared = response.headers.get("content-length", "").strip().lstrip("0") or "0"
+    if not limit or not declared.isascii() or not declared.isdigit():
+        return False
+    # Compared by digit count first: a length too long for int() is over any cap.
+    bound = str(limit)
+    return len(declared) > len(bound) or (len(declared) == len(bound) and declared > bound)
 
 
 async def read_body(response: httpx.Response, limit: int) -> bytes:
