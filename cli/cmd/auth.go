@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/auth"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -69,26 +70,37 @@ func init() {
 
 func newWhoamiCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "whoami",
-		Short:   "Show who you are, which credential is in use, and the selected org/project",
+		Use:   "whoami",
+		Short: "Show who you are, which credential is in use, and the selected org/project",
+		Long: `Show who you are, which credential is in use, and the selected organization
+and project. org_id and project_id hold resolved IDs only; a selection given by
+name is reported in org_ref / project_ref, and context_resolved is false when a
+name could not be resolved to an ID.`,
 		GroupID: GroupAuth,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
-			orgID, orgRef, projectID, projectRef := whoamiScopeRefs(ctx, a)
+			scope := whoamiScopeRefs(ctx, a)
 			out := map[string]any{
-				"profile":           a.Profile.Name,
-				"api_url":           a.Profile.APIURL,
-				"credential_source": a.CredentialSource,
-				"org_id":            orgID,
-				"project_id":        projectID,
+				"profile":          a.Profile.Name,
+				"api_url":          a.Profile.APIURL,
+				"context_resolved": scope.resolved,
 			}
-			if orgRef != "" {
-				out["org_ref"] = orgRef
+			if a.CredentialSource != "" { // omitted with no credential
+				out["credential_source"] = a.CredentialSource
 			}
-			if projectRef != "" {
-				out["project_ref"] = projectRef
+			if scope.orgID != "" {
+				out["org_id"] = scope.orgID
+			}
+			if scope.projectID != "" {
+				out["project_id"] = scope.projectID
+			}
+			if scope.orgRef != "" {
+				out["org_ref"] = scope.orgRef
+			}
+			if scope.projectRef != "" {
+				out["project_ref"] = scope.projectRef
 			}
 			kv := [][2]string{{"Profile", a.Profile.Name}, {"API", a.Profile.APIURL}, {"Credential", credentialLabel(a)}}
 			if a.CredentialSource == "profile-oidc" {
@@ -102,63 +114,107 @@ func newWhoamiCmd() *cobra.Command {
 				}
 				out["user"] = me
 				name := ""
-				if me.Name != nil {
-					name = *me.Name
+				if me.V.Name != nil {
+					name = *me.V.Name
 				}
-				kv = append(kv, [2]string{"User", strings.TrimSpace(me.Email + " " + name)})
-				orgs, err := mgmt.ListOrgs(ctx, mc)
+				kv = append(kv, [2]string{"User", strings.TrimSpace(me.V.Email + " " + name)})
+				orgs, err := mgmt.ListOrgsRaw(ctx, mc)
 				if err != nil {
 					return err // an outage or a 403 here is news, not something to hide
 				}
-				if orgID != "" {
-					o, err := mgmt.ResolveOrg(orgs, orgID)
+				if scope.orgID != "" {
+					o, err := mgmt.ResolveOrg(api.Values(orgs), scope.orgID)
 					if err != nil {
 						return err // the selected org is gone or no longer visible
 					}
 					out["org_id"] = o.Id.String()
-					out["org"] = o
+					for _, raw := range orgs {
+						if raw.V.Id == o.Id {
+							out["org"] = raw // the API's representation
+							break
+						}
+					}
 					kv = append(kv, [2]string{"Organization", fmt.Sprintf("%s (%s) roles=%s", o.Name, o.Id.String(), strings.Join(o.Membership.Roles, ","))})
+				} else {
+					kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})
 				}
 			} else {
-				kv = append(kv, [2]string{"Organization", orgID})
+				kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})
 			}
-			kv = append(kv, [2]string{"Project", projectID})
+			kv = append(kv, [2]string{"Project", scopeLabel(scope.projectID, scope.projectRef)})
 			return a.Printer().Object(out, kv)
 		},
 	}
 }
 
-func whoamiScopeRefs(ctx context.Context, a *app.App) (string, string, string, string) {
-	orgID := strings.TrimSpace(a.Profile.OrgID)
-	orgRef := ""
-	if orgID != "" && !looksLikeUUIDRef(orgID) && a.OrgResolver != nil {
-		resolvedOrgID, err := a.OrgResolver(ctx, orgID)
-		orgRef = orgID
-		if err == nil {
-			// Re-key the remembered project under the id BEFORE reading it,
-			// or `--org <name>` without `--project` reports no project while
-			// `project use` had remembered one for exactly this org.
-			if a.Profile.ProjectByOrg != nil {
-				if project, ok := a.Profile.ProjectByOrg[orgID]; ok {
-					delete(a.Profile.ProjectByOrg, orgID)
-					a.Profile.ProjectByOrg[resolvedOrgID] = project
-				}
-			}
-			a.Profile.OrgID = resolvedOrgID
-			orgID = resolvedOrgID
+// whoamiScope is the selected organization and project: IDs only when
+// resolved, the name as given in the *Ref fields.
+type whoamiScope struct {
+	orgID, orgRef, projectID, projectRef string
+	resolved                             bool
+}
+
+func scopeLabel(id, ref string) string {
+	switch {
+	case id != "":
+		return id
+	case ref != "":
+		return ref + " (unresolved)"
+	}
+	return ""
+}
+
+func whoamiScopeRefs(ctx context.Context, a *app.App) whoamiScope {
+	scope := whoamiScope{resolved: true}
+	rawOrg := strings.TrimSpace(a.Profile.OrgID)
+	switch {
+	case rawOrg == "":
+	case looksLikeUUIDRef(rawOrg):
+		scope.orgID = rawOrg
+	default:
+		scope.orgRef = rawOrg
+		if a.OrgResolver == nil {
+			scope.resolved = false
+			break
 		}
+		// A resolver passes a name it cannot resolve through unchanged; only
+		// an ID it returns counts as resolved.
+		resolvedOrgID, err := a.OrgResolver(ctx, rawOrg)
+		if err != nil || !looksLikeUUIDRef(resolvedOrgID) {
+			scope.resolved = false
+			break
+		}
+		// Re-key the remembered project under the id BEFORE reading it,
+		// or `--org <name>` without `--project` reports no project while
+		// `project use` had remembered one for exactly this org.
+		if a.Profile.ProjectByOrg != nil {
+			if project, ok := a.Profile.ProjectByOrg[rawOrg]; ok {
+				delete(a.Profile.ProjectByOrg, rawOrg)
+				a.Profile.ProjectByOrg[resolvedOrgID] = project
+			}
+		}
+		a.Profile.OrgID = resolvedOrgID
+		scope.orgID = resolvedOrgID
 	}
 	rawProject := strings.TrimSpace(a.Profile.ProjectID())
-	projectID := rawProject
-	projectRef := ""
-	if rawProject != "" && !looksLikeUUIDRef(rawProject) && a.ProjectResolver != nil && orgID != "" {
-		resolvedProjectID, err := a.ProjectResolver(ctx, orgID, rawProject)
-		projectRef = rawProject
-		if err == nil {
-			projectID = resolvedProjectID
+	switch {
+	case rawProject == "":
+	case looksLikeUUIDRef(rawProject):
+		scope.projectID = rawProject
+	default:
+		scope.projectRef = rawProject
+		if a.ProjectResolver == nil || scope.orgID == "" {
+			scope.resolved = false
+			break
 		}
+		resolvedProjectID, err := a.ProjectResolver(ctx, scope.orgID, rawProject)
+		if err != nil || !looksLikeUUIDRef(resolvedProjectID) {
+			scope.resolved = false
+			break
+		}
+		scope.projectID = resolvedProjectID
 	}
-	return orgID, orgRef, projectID, projectRef
+	return scope
 }
 
 func looksLikeUUIDRef(value string) bool {

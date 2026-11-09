@@ -222,8 +222,8 @@ export class RecordingService {
   /**
    * Download a recording into memory. A file transfer: no total deadline, but
    * it fails with `ClientTimeoutError` once no bytes move for the request
-   * timeout. `maxResponseBytes` replaces the client's cap on the body for this
-   * call (an integer, `0` = no limit; `undefined` / `null` keep the client's);
+   * timeout (a request timeout of `0` leaves it unbounded). `maxResponseBytes` replaces the client's cap on the body for this
+   * call (`undefined` or `null` keep the client's cap, `0` means no limit, and any other value (negative, fractional, boolean, string, above `Number.MAX_SAFE_INTEGER`) is a `BadRequestError`);
    * a larger recording is refused with `PayloadTooLargeError`.
    */
   public async download(id: string, options?: RecordingDownloadOptions): Promise<Uint8Array> {

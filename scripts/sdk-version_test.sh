@@ -75,21 +75,28 @@ rc=0; ./sdk-version.sh 2.0.0 2.0.1 >/dev/null 2>&1 || rc=$?
 rc=0; ./sdk-version.sh --bogus 2.0.0 >/dev/null 2>&1 || rc=$?
 [ "$rc" -eq 2 ] || fail "unknown flag: exit $rc (want 2)"
 
-# ── The alpha-only gate's regexes accept exactly the alpha derivations ────────
-# sdk_publish.yaml validates the DERIVED strings with these two patterns;
-# pin here that an alpha tag yields strings they accept and that rc/beta/stable
-# tags yield strings they reject, so the alpha-only guard holds.
+# ── The gate's regexes accept exactly the alpha, rc and stable derivations ────
+# sdk_publish.yaml validates the DERIVED strings with these two patterns (the
+# same text as in its "Derive registry versions" step); pin here that alpha, rc
+# and stable tags yield strings they accept and that a beta yields strings they
+# reject, since no Homebrew formula follows betas.
 num='(0|[1-9][0-9]*)'
-pypi_re="^${num}\.${num}\.${num}a${num}$"
-npm_re="^${num}\.${num}\.${num}-alpha\.${num}$"
-eval "$(./sdk-version.sh v2.0.0-alpha.3)"
-[[ "$pypi" =~ $pypi_re ]] || fail "alpha pypi '$pypi' must pass the alpha guard"
-[[ "$npm" =~ $npm_re ]] || fail "alpha npm '$npm' must pass the alpha guard"
-[[ "$cli" =~ $npm_re ]] || fail "alpha cli '$cli' must pass the alpha guard"
-for t in v2.0.0-rc.1 v2.0.0-beta.1 v2.0.0; do
+pypi_re="^${num}\.${num}\.${num}((a|rc)${num})?$"
+npm_re="^${num}\.${num}\.${num}(-(alpha|rc)\.${num})?$"
+grep -qF -- "\"\$pypi\" =~ ^\${num}\.\${num}\.\${num}((a|rc)\${num})?\$" ../.github/workflows/sdk_publish.yaml \
+  || fail "sdk_publish.yaml's PyPI gate regex differs from this test's"
+grep -qF -- "\"\$npm\" =~ ^\${num}\.\${num}\.\${num}(-(alpha|rc)\.\${num})?\$" ../.github/workflows/sdk_publish.yaml \
+  || fail "sdk_publish.yaml's npm gate regex differs from this test's"
+grep -qF -- "\"\$cli\" =~ ^\${num}\.\${num}\.\${num}(-(alpha|rc)\.\${num})?\$" ../.github/workflows/sdk_publish.yaml \
+  || fail "sdk_publish.yaml's CLI gate regex differs from this test's"
+for t in v2.0.0-alpha.3 v2.0.0-rc.2 v2.0.0 v2.1.10; do
   eval "$(./sdk-version.sh "$t")"
-  ! [[ "$pypi" =~ $pypi_re ]] || fail "$t: pypi '$pypi' must NOT pass the alpha guard"
-  ! [[ "$npm" =~ $npm_re ]] || fail "$t: npm '$npm' must NOT pass the alpha guard"
+  [[ "$pypi" =~ $pypi_re ]] || fail "$t: pypi '$pypi' must pass the gate"
+  [[ "$npm" =~ $npm_re ]] || fail "$t: npm '$npm' must pass the gate"
+  [[ "$cli" =~ $npm_re ]] || fail "$t: cli '$cli' must pass the gate"
 done
+eval "$(./sdk-version.sh v2.0.0-beta.1)"
+! [[ "$pypi" =~ $pypi_re ]] || fail "beta pypi '$pypi' must NOT pass the gate"
+! [[ "$npm" =~ $npm_re ]] || fail "beta npm '$npm' must NOT pass the gate"
 
 echo "sdk-version.sh: all table tests passed"

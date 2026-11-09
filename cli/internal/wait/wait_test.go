@@ -5,6 +5,7 @@ package wait
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +30,11 @@ func TestTimeout(t *testing.T) {
 	_, err := Until(context.Background(), 5*time.Millisecond, time.Millisecond, func(context.Context, time.Duration) (string, error) { return "pending", nil }, func(string) (bool, error) { return false, nil }, nil)
 	if cerr.ExitCode(err) != cerr.ExitTimeout {
 		t.Fatal(err)
+	}
+	// Commands such as `sandbox wait` have no --no-wait: the hint must apply
+	// to every command that waits.
+	if hint := cerr.DetailsOf(err).Hint; strings.Contains(hint, "--no-wait") || !strings.Contains(hint, "--timeout") {
+		t.Fatalf("hint %q", hint)
 	}
 }
 

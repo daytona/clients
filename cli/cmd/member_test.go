@@ -36,7 +36,7 @@ func TestMemberCommands_JSONAndYesGuard(t *testing.T) {
 	if f.requests[2].Method != http.MethodPost || f.requests[2].Path != "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/update-preview" || f.requests[2].Body["roles"] == nil {
 		t.Fatalf("preview request: %+v", f.requests[2])
 	}
-	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "member", "remove", testUserID, "--preview")
+	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "member", "remove", testUserID, "--dry-run")
 	if code != 0 || mustJSON(t, out)["revoked_api_keys"].(float64) != 3 {
 		t.Fatalf("preview: %d %s", code, out)
 	}
@@ -46,7 +46,7 @@ func TestMemberCommands_JSONAndYesGuard(t *testing.T) {
 	}
 	deleteCount := countRequests(f.requests, http.MethodDelete, "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID)
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "member", "remove", testUserID, "--yes")
-	if code != 0 || mustJSON(t, out)["removed"] != testUserID {
+	if code != 0 || !isAck(t, out, "user_id", testUserID, "removed") {
 		t.Fatalf("remove: %d %s", code, out)
 	}
 	if countRequests(f.requests, http.MethodDelete, "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID) != deleteCount+1 {
@@ -129,7 +129,7 @@ func TestProjectMemberCommands_JSON(t *testing.T) {
 		t.Fatalf("guard: %d %s", code, errb)
 	}
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "project", "member", "remove", testUserID, "--yes")
-	if code != 0 || mustJSON(t, out)["removed"] != testUserID {
+	if code != 0 || !isAck(t, out, "user_id", testUserID, "removed") {
 		t.Fatalf("remove: %d %s", code, out)
 	}
 }

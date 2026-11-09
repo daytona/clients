@@ -10,7 +10,7 @@ import { DISABLED } from './types.js'
 import { boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
 export { forceFetchAdapterForTests, maxContentLengthFor, transferRequest } from './boundedAdapter.js'
-import { DEFAULT_MAX_RESPONSE_BYTES, IdleWatchdog, tooLargeMessage } from './bodyLimit.js'
+import { DEFAULT_MAX_RESPONSE_BYTES, IdleWatchdog, isSmallRequestBody, tooLargeMessage } from './bodyLimit.js'
 import { boundedAdapter } from './boundedAdapter.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
@@ -580,11 +580,18 @@ function isReadableStreamBody(body: BodyInit | null | undefined): body is Readab
 }
 
 /**
- * A streamed request body that calls `progress` each time the runtime pulls
- * a chunk from it (the transfer idle bound), and once when first wrapped.
+ * A transfer's request body under its idle bound (`progress` restarts it). A
+ * stream calls `progress` once when wrapped and each time the runtime pulls a
+ * chunk. Any other body is sent without progress events: one up to 64 KiB
+ * (or none) starts the bound at once; a larger one leaves it to start at the
+ * response headers, so a long upload that is still moving is never cut.
  */
-function watchedBody(body: BodyInit | null | undefined, progress: (() => void) | undefined): BodyInit | null | undefined {
-  if (progress === undefined || !isReadableStreamBody(body)) return body
+function watchedBody(method: string | undefined, body: BodyInit | null | undefined, progress: (() => void) | undefined): BodyInit | null | undefined {
+  if (progress === undefined) return body
+  if (!isReadableStreamBody(body)) {
+    if (isSmallRequestBody(method, body)) progress()
+    return body
+  }
   progress()
   const reader = body.getReader()
   return new ReadableStream<Uint8Array>({
@@ -616,7 +623,7 @@ async function fetchRequestForAttempt(
   return {
     requestInit: {
       ...requestInitWithoutFactory,
-      body: watchedBody(body, watchBody),
+      body: watchedBody(requestInitWithoutFactory.method, body, watchBody),
       headers,
       signal,
     },
@@ -637,7 +644,7 @@ function fetchRequestWithoutFactory(
   return {
     requestInit: {
       ...requestInitWithoutFactory,
-      body: watchedBody(requestInitWithoutFactory.body, watchBody),
+      body: watchedBody(requestInitWithoutFactory.method, requestInitWithoutFactory.body, watchBody),
       headers,
       signal,
     },
@@ -1285,6 +1292,8 @@ function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, inst
  * zero once it has passed), else its configured timeout (`0` = unbounded).
  */
 function remainingBudgetMs(config: DaytonaAxiosRequestConfig, instance: AxiosInstance): number {
+  // A transfer: its idle bound (no bytes move while a credential resolves).
+  if (config.daytona?.transfer === true) return config.daytona.idleTimeoutMs ?? boundedTimerDelay(timeoutFromAxiosInstance(instance) ?? DEFAULT_REQUEST_TIMEOUT_MS)
   const deadlineAt = config.daytona?.deadlineAt
   if (deadlineAt === undefined) return boundedTimerDelay(timeoutFromAxiosRequest(config, instance))
   const remaining = Math.ceil(deadlineAt - nowMs())
@@ -1437,17 +1446,22 @@ export class HttpTransport {
     // a 401 refresh and its retry. The request interceptor keeps `deadlineAt`.
     const budget = boundedTimerDelay(typeof config?.timeout === 'number' ? config.timeout : this.defaultTimeout)
     const deadlineAt = budget === 0 ? undefined : nowMs() + budget
+    // A transfer has no total deadline, but minting its bearer is bounded by
+    // its idle bound (no bytes move while it waits).
+    const transfer = (config as DaytonaAxiosRequestConfig | undefined)?.daytona?.transfer === true
+    const idleMs = boundedTimerDelay(this.defaultTimeout)
+    const credentialDeadline = (): number | undefined => (transfer ? (idleMs === 0 ? undefined : nowMs() + idleMs) : deadlineAt)
     const bounded = (requestConfig: AxiosRequestConfig | undefined): AxiosRequestConfig | undefined =>
       deadlineAt === undefined
         ? requestConfig
         // Keep the caller's request meta (route template, sandbox id, retry flag).
         : { ...requestConfig, daytona: { ...(requestConfig as DaytonaAxiosRequestConfig | undefined)?.daytona, deadlineAt } } as DaytonaAxiosRequestConfig
-    const token = await withinDeadline(auth.bearer(), deadlineAt)
+    const token = await withinDeadline(auth.bearer(), credentialDeadline())
     try {
       return await run(bounded(withBearer(config, token)))
     } catch (error) {
       if (!(error instanceof DaytonaError) || error.statusCode !== 401) throw error
-      const fresh = await withinDeadline(auth.onUnauthorized(token), deadlineAt)
+      const fresh = await withinDeadline(auth.onUnauthorized(token), credentialDeadline())
       if (fresh === undefined || fresh === token) throw error
       return run(bounded(withBearer(config, fresh)))
     }
@@ -1462,7 +1476,7 @@ export class HttpTransport {
 
   /**
    * A byte download held in memory (a file transfer): no total deadline, an
-   * idle bound of the request timeout; `maxResponseBytes` replaces the
+   * idle bound of the request timeout (`0`: none); `maxResponseBytes` replaces the
    * client's body cap for this call (`0` = no limit).
    */
   public async getBytes(path: string, options: { readonly maxResponseBytes?: number } = {}): Promise<ArrayBuffer> {
@@ -1538,6 +1552,10 @@ export class HttpTransport {
       // Auth precedence: retryToken (from auth.onUnauthorized) > auth.bearer > authProvider > apiKey
       let currentAuthToken: string | undefined
       let sdkAuthorization: string | undefined
+      // Credential resolution is inside the call's deadline (a transfer's idle
+      // bound runs while it waits), raced against it so a provider that
+      // ignores the signal cannot outlive it.
+      idle?.kick()
       if (retryToken !== undefined) {
         currentAuthToken = retryToken
         sdkAuthorization = `Bearer ${retryToken}`
@@ -1545,17 +1563,13 @@ export class HttpTransport {
         currentAuthToken = await timeoutOnAbort(abortableWait(this.options.auth.bearer(), timeout.signal), timeout)
         if (currentAuthToken !== undefined) sdkAuthorization = `Bearer ${currentAuthToken}`
       } else if (this.options?.authProvider) {
-        try {
-          sdkAuthorization = await this.options.authProvider.authorizationHeader({ forceRefresh, rejectedAuthorization, signal: timeout.signal })
-        } catch (error) {
-          // The request deadline can fire while the token exchange is still
-          // pending; that is the same timeout `send` maps below, not a raw abort.
-          if (isAbortError(error) && timeout.timedOut()) {
-            throw new ClientTimeoutError()
-          }
-          throw error
-        }
+        const provider = this.options.authProvider
+        sdkAuthorization = await timeoutOnAbort(
+          abortableWait(provider.authorizationHeader({ forceRefresh, rejectedAuthorization, signal: timeout.signal }), timeout.signal),
+          timeout,
+        )
       }
+      idle?.pause()
       // Exactly one credential goes on the wire: when the SDK has one, a
       // caller-supplied `authorization` (any casing) is dropped so fetch's
       // Headers normalisation cannot comma-join the two; when it has none,
@@ -1588,11 +1602,8 @@ export class HttpTransport {
         spanFinalized = true
       }
       try {
-        // A transfer with no body (or a streamed one, whose reads it watches)
-        // is idle-bounded from the start; one whose body the runtime sends
-        // without progress only from its response headers.
+        // The idle bound over the request body: see watchedBody.
         const watchBody = idle === undefined ? undefined : () => idle.kick()
-        if (idle !== undefined && (init?.body === undefined || init.body === null) && init?.bodyFactory === undefined) idle.kick()
         const request = init?.bodyFactory
           ? await fetchRequestForAttempt(init, headers, timeout.signal, watchBody)
           : fetchRequestWithoutFactory(init, headers, timeout.signal, watchBody)
@@ -1620,7 +1631,12 @@ export class HttpTransport {
             retriedUnauthorized = true
             return send(true, rejectedAuthorization)
           }
-          await this.options.authProvider.authorizationHeader({ forceRefresh: true, rejectedAuthorization, signal: timeout.signal })
+          const provider = this.options.authProvider
+          idle?.kick()
+          await timeoutOnAbort(
+            abortableWait(provider.authorizationHeader({ forceRefresh: true, rejectedAuthorization, signal: timeout.signal }), timeout.signal),
+            timeout,
+          )
         }
         idle?.kick()
         if (checkStatus && !response.ok) {

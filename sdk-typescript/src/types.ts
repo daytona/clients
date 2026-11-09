@@ -38,12 +38,13 @@ export type DaytonaConfig = {
    * v2 only: the total time one ordinary request may take, in seconds
    * (default 60; `0` = no limit). Waits and long polls use their own budget,
    * streams are bounded only until their response headers arrive, and file
-   * transfers have no total bound but fail once no bytes move for this long.
+   * transfers have no total bound but fail once no bytes move for this long
+   * (with `0`, transfers are not bounded at all).
    */
   readonly requestTimeoutSeconds?: number
   /**
    * v2 only: the cap on a response body the SDK holds in memory whole, in
-   * bytes (an integer, `0` = no limit; default 1 GiB). See the v2
+   * bytes (an integer up to `Number.MAX_SAFE_INTEGER`; `undefined` or `null` keep the 1 GiB default, `0` means no limit, and any other value (negative, fractional, boolean, string, too large) is a `BadRequestError`). See the v2
    * `DaytonaConfig.maxResponseBytes`.
    */
   readonly maxResponseBytes?: number | null

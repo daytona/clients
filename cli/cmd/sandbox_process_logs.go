@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
@@ -55,6 +56,7 @@ func newSandboxProcessLogsCommand() *cobra.Command {
 	cmd.Flags().StringVar(&encoding, "encoding", "text", "log encoding: text|base64")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max frames to return")
 	cmd.Flags().BoolVar(&follow, "follow", false, "follow the log stream with SSE")
+	addTimeoutFlag(cmd, defaultWaitTimeout, "with --follow, how long to follow the log (Go duration)")
 	return cmd
 }
 
@@ -84,8 +86,13 @@ func followSandboxProcessLogs(cmd *cobra.Command, a *app.App, toolClient *toolbo
 
 func followSandboxProcessLogsNDJSON(ctx context.Context, a *app.App, toolClient *toolboxclient.Client, processID, cursor, encoding string, limit int, timeout time.Duration) error {
 	encoder := json.NewEncoder(a.Stdout)
-	result, _, eof, err := toolClient.FollowProcessLogFrames(ctx, processID, cursor, logEncodingOrDefault(encoding), limit, func(frame tbgen.LogFrameDto) error {
-		return encoder.Encode(frame)
+	encoder.SetEscapeHTML(false)
+	result, _, eof, err := toolClient.FollowProcessLogFrames(ctx, processID, cursor, logEncodingOrDefault(encoding), limit, func(frame api.Raw[tbgen.LogFrameDto]) error {
+		converted, err := output.SnakeCase(frame)
+		if err != nil {
+			return err
+		}
+		return encoder.Encode(converted)
 	})
 	if err := mapFollowProcessError(ctx, timeout, eof, err); err != nil {
 		return err
@@ -109,22 +116,22 @@ func readSandboxProcessLogs(cmd *cobra.Command, a *app.App, toolClient *toolboxc
 		return err
 	}
 	if a.Format == output.FormatTable {
-		if page.TruncatedHead {
+		if page.V.TruncatedHead {
 			// Retention evicted frames before this page: say so, or an
 			// expired cursor reads like a complete log.
 			first := ""
-			if page.FirstAvailableCursor != nil {
-				first = " (first surviving cursor " + output.SanitizeLine(*page.FirstAvailableCursor) + ")"
+			if page.V.FirstAvailableCursor != nil {
+				first = " (first surviving cursor " + output.SanitizeLine(*page.V.FirstAvailableCursor) + ")"
 			}
 			a.Info("warning: older log frames were evicted by retention; this page is not the beginning of the log%s", first)
 		}
 		stdoutWriter, stderrWriter, flushLogs := processLogWriters(a)
-		if err := toolboxclient.WriteLogFrames(page.Frames, logEncodingOrDefault(encoding), stdoutWriter, stderrWriter); err != nil {
+		if err := toolboxclient.WriteLogFrames(page.V.Frames, logEncodingOrDefault(encoding), stdoutWriter, stderrWriter); err != nil {
 			return err
 		}
 		return flushLogs()
 	}
-	return a.Printer().Object(page, nil)
+	return printToolboxObject(a, page, nil)
 }
 
 func processLogWriters(a *app.App) (io.Writer, io.Writer, func() error) {

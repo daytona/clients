@@ -6,12 +6,14 @@ package toolbox
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 	"time"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 )
 
@@ -23,35 +25,42 @@ func (c *Client) CreateProcess(ctx context.Context, body tbgen.CreateProcessRequ
 	return normalizeProcess(out), nil
 }
 
-func (c *Client) GetProcess(ctx context.Context, id string) (tbgen.ProcessDto, error) {
-	var out tbgen.ProcessDto
+// GetProcess reads one process; the result keeps the toolbox's JSON.
+func (c *Client) GetProcess(ctx context.Context, id string) (api.Raw[tbgen.ProcessDto], error) {
+	var out api.Raw[tbgen.ProcessDto]
 	if err := c.GetJSON(ctx, "/processes/"+url.PathEscape(id), nil, &out); err != nil {
-		return tbgen.ProcessDto{}, err
+		return api.Raw[tbgen.ProcessDto]{}, err
 	}
-	return normalizeProcess(out), nil
+	out.V = normalizeProcess(out.V)
+	return out, nil
 }
 
-func (c *Client) ListProcesses(ctx context.Context, query url.Values) ([]tbgen.ProcessDto, error) {
-	var out tbgen.ProcessListResponse
-	if err := c.GetJSON(ctx, "/processes", query, &out); err != nil {
+// ListProcesses lists processes; each item keeps the toolbox's JSON.
+func (c *Client) ListProcesses(ctx context.Context, query url.Values) ([]api.Raw[tbgen.ProcessDto], error) {
+	var body json.RawMessage
+	if err := c.GetJSON(ctx, "/processes", query, &body); err != nil {
 		return nil, err
 	}
-	items := make([]tbgen.ProcessDto, 0, len(out.Items))
-	for _, item := range out.Items {
-		items = append(items, normalizeProcess(item))
+	page, err := api.DecodePage[tbgen.ProcessDto](body, "items")
+	if err != nil {
+		return nil, fmt.Errorf("decode JSON response: %w", err)
 	}
-	return items, nil
+	for i := range page.Items {
+		page.Items[i].V = normalizeProcess(page.Items[i].V)
+	}
+	return page.Items, nil
 }
 
-func (c *Client) WaitProcess(ctx context.Context, id string, timeout time.Duration) (tbgen.ExitResult, error) {
+// WaitProcess waits for a process to end; the result keeps the toolbox's JSON.
+func (c *Client) WaitProcess(ctx context.Context, id string, timeout time.Duration) (api.Raw[tbgen.ExitResult], error) {
 	if timeout <= 0 {
 		for {
 			result, err := c.waitOnce(ctx, id, 50*time.Second)
 			if err != nil {
-				return tbgen.ExitResult{}, err
+				return api.Raw[tbgen.ExitResult]{}, err
 			}
-			if result.Reason == nil || *result.Reason != tbgen.ReasonTimedOut {
-				return normalizeExit(result), nil
+			if result.V.Reason == nil || *result.V.Reason != tbgen.ReasonTimedOut {
+				return result, nil
 			}
 		}
 	}
@@ -59,7 +68,7 @@ func (c *Client) WaitProcess(ctx context.Context, id string, timeout time.Durati
 	for {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
-			return tbgen.ExitResult{}, cerr.New(cerr.ExitTimeout, "timed out after %s waiting for process %s", timeout, id)
+			return api.Raw[tbgen.ExitResult]{}, cerr.New(cerr.ExitTimeout, "timed out after %s waiting for process %s", timeout, id)
 		}
 		step := remaining
 		if step > 50*time.Second {
@@ -67,10 +76,10 @@ func (c *Client) WaitProcess(ctx context.Context, id string, timeout time.Durati
 		}
 		result, err := c.waitOnce(ctx, id, step)
 		if err != nil {
-			return tbgen.ExitResult{}, err
+			return api.Raw[tbgen.ExitResult]{}, err
 		}
-		if result.Reason == nil || *result.Reason != tbgen.ReasonTimedOut {
-			return normalizeExit(result), nil
+		if result.V.Reason == nil || *result.V.Reason != tbgen.ReasonTimedOut {
+			return result, nil
 		}
 	}
 }
@@ -87,10 +96,12 @@ func (c *Client) SignalProcess(ctx context.Context, id, signal string, escalateA
 	return c.PostJSON(ctx, "/processes/"+url.PathEscape(id)+"/signals", nil, body, nil)
 }
 
-func (c *Client) ReadProcessLogs(ctx context.Context, id string, query url.Values) (tbgen.ProcessLogsResponse, error) {
-	var out tbgen.ProcessLogsResponse
+// ReadProcessLogs reads one page of a process's logs; it keeps the
+// toolbox's JSON.
+func (c *Client) ReadProcessLogs(ctx context.Context, id string, query url.Values) (api.Raw[tbgen.ProcessLogsResponse], error) {
+	var out api.Raw[tbgen.ProcessLogsResponse]
 	if err := c.GetJSON(ctx, "/processes/"+url.PathEscape(id)+"/logs", query, &out); err != nil {
-		return tbgen.ProcessLogsResponse{}, err
+		return api.Raw[tbgen.ProcessLogsResponse]{}, err
 	}
 	return out, nil
 }
@@ -129,14 +140,15 @@ func (c *Client) ListPorts(ctx context.Context) ([]int32, error) {
 	return out.Ports, nil
 }
 
-func (c *Client) waitOnce(ctx context.Context, id string, step time.Duration) (tbgen.ExitResult, error) {
+func (c *Client) waitOnce(ctx context.Context, id string, step time.Duration) (api.Raw[tbgen.ExitResult], error) {
 	query := url.Values{}
 	query.Set("timeoutMs", fmt.Sprintf("%d", step.Milliseconds()))
-	var out tbgen.ExitResult
+	var out api.Raw[tbgen.ExitResult]
 	if err := c.GetJSON(ctx, "/processes/"+url.PathEscape(id)+"/wait", query, &out); err != nil {
-		return tbgen.ExitResult{}, err
+		return api.Raw[tbgen.ExitResult]{}, err
 	}
-	return normalizeExit(out), nil
+	out.V = normalizeExit(out.V)
+	return out, nil
 }
 
 func normalizeProcess(p tbgen.ProcessDto) tbgen.ProcessDto {

@@ -192,7 +192,7 @@ func TestReservationCreate_help(t *testing.T) {
 		"daytona reservation create --region '<region>' --count 3",
 		"daytona reservation renew RESERVATION_ID",
 		"daytona reservation update RESERVATION_ID --auto-renew=false",
-		"Renew a Mac reservation for another period",
+		"Charge and renew a Mac reservation for another period",
 		"Turn a Mac reservation's auto-renew on or off",
 	} {
 		require.Contains(t, parent, line)

@@ -19,7 +19,7 @@ export type RuntimeCheckResult = {
  * the ES module and the CommonJS declarations satisfy it.
  */
 export type SdkModule = {
-  readonly Daytona: new (config: { readonly apiKey?: string; readonly maxResponseBytes?: number }) => {
+  readonly Daytona: new (config: { readonly apiKey?: string; readonly maxResponseBytes?: number; readonly requestTimeoutSeconds?: number }) => {
     readonly v2: { list(): Promise<{ readonly items: readonly object[] }>; get(id: string): Promise<object> }
     readonly v0: object
     close(): Promise<void>

@@ -59,7 +59,7 @@ export interface WriteFileOptions {
  * Options of the in-memory file reads (`readBytes`, `readText`).
  *
  * `maxResponseBytes` replaces the client's cap on the response body for this
- * call (an integer, `0` = no limit; `undefined` / `null` keep the client's).
+ * call (`undefined` or `null` keep the client's cap, `0` means no limit, and any other value (negative, fractional, boolean, string, above `Number.MAX_SAFE_INTEGER`) is a `BadRequestError`).
  * A body over it is refused with `PayloadTooLargeError` before it is read in
  * full. For large files, or content from a sandbox you don't trust, use
  * `downloadFile()` (Node.js), which streams to disk.
@@ -220,7 +220,8 @@ export class FileSystemService {
 
   /**
    * Read a file into memory. A file transfer: no total deadline, but it fails
-   * with `ClientTimeoutError` once no bytes move for the request timeout. The
+   * with `ClientTimeoutError` once no bytes move for the request timeout (a
+   * request timeout of `0` leaves it unbounded). The
    * body is capped by the client's `maxResponseBytes` or this call's (see
    * {@link ReadFileOptions}).
    */

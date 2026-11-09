@@ -16,6 +16,10 @@ pip install 'daytona[otel]==X.Y.ZaN'  # adds OpenTelemetry request spans
 pip install 'daytona[v0-sdk]==X.Y.ZaN'    # adds the v0 namespace (Daytona().v0)
 ```
 
+The legacy package name `daytona-sdk` (`daytona_sdk`) is published only from
+the 0.x line: installing or upgrading it never gives you 2.x. Install
+`daytona`.
+
 Python 3.10+.
 
 ## Quickstart
@@ -129,8 +133,8 @@ the object afterwards has no effect on the client. Additional env vars:
 
 - `DAYTONA_ORGANIZATION_ID` — scopes a JWT for the v0 namespace.
 - `DAYTONA_PROJECT_ID` — scopes a JWT for the v2 namespace.
-- `DAYTONA_V2_API_URL` — selects another v2 API endpoint (a regional endpoint
-  from `GET /regions`, or a test environment). When unset, the SDK connects to the Daytona API. `d.v0` always
+- `DAYTONA_V2_API_URL` — selects another v2 API endpoint (a regional endpoint,
+  as `daytona region list` in the CLI shows them, or a test environment). When unset, the SDK connects to the Daytona API. `d.v0` always
   uses its own production URL. SDK 2.x never reads `DAYTONA_API_URL`, the 0.x
   SDK's variable.
 - Credentials: `d.v2` reads `DAYTONA_*` variables from the process
@@ -145,8 +149,10 @@ Set `request_timeout=` **(seconds; default 60; `0`, or a value above 2,147,483.6
 the total time one ordinary request may take before it raises
 `ClientTimeoutError`. Waits and long polls use their own budget, streams are
 bounded only until their response arrives, and file transfers have no total
-limit but fail with `ClientTimeoutError` once no bytes move for that long.
-Set `max_response_bytes=` **(default 1 GiB; `0` means no limit)** to cap every
+limit but fail with `ClientTimeoutError` once no bytes move for that long
+(with `request_timeout=0` they are not bounded at all).
+Set `max_response_bytes=` **(an integer; `None` keeps the 1 GiB default, `0`
+means no limit, and any other value is a `BadRequestError`)** to cap every
 response body the SDK holds in memory whole: a larger body raises
 `PayloadTooLargeError` before it is read in full (an error response keeps its
 status's error).
@@ -753,8 +759,9 @@ watches (`get_new_events()`, a single exit notification via `on_exit=` /
 `presigned_download_url` / `presigned_upload_url` for direct transfers.
 `read_bytes`, `read_text`, `read_many` and the computer-use recording
 `download()` hold the whole response in memory: they take
-`max_response_bytes=` to replace the client's cap for one call (`0` = no
-limit). For large files, or content from a sandbox you don't trust, use
+`max_response_bytes=` to replace the client's cap for one call (`None` keeps
+the client's cap, `0` means no limit, any other non-integer is a
+`BadRequestError`). For large files, or content from a sandbox you don't trust, use
 `download_file()`, which streams to disk. The
 platform mints the link; `expires_in_seconds` (default 3600) must be between 1
 and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.

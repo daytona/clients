@@ -233,8 +233,9 @@ class RecordingService:
         """Download a recording into memory.
 
         No total deadline (it fails only when no bytes move for the client's
-        ``request_timeout``). ``max_response_bytes`` replaces the client's cap
-        on the body for this call (``0`` = no limit); a larger recording raises
+        ``request_timeout``; with a ``request_timeout`` of ``0``, nothing
+        bounds it). ``max_response_bytes`` replaces the client's cap
+        on the body for this call (``None`` keeps the client's cap, ``0`` means no limit, and any other value (negative, fractional, boolean, string, above 2**53 - 1) is a ``BadRequestError``); a larger recording raises
         ``PayloadTooLargeError`` before it is read in full.
         """
         return self._bridge.call(lambda: self._impl.download(id, max_response_bytes=max_response_bytes))

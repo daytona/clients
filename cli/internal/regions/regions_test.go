@@ -160,10 +160,24 @@ func TestFanOutPartial(t *testing.T) {
 	if cerr.ExitCode(err) != cerr.ExitPartial || !strings.Contains(err.Error(), "region-d") {
 		t.Fatal(err)
 	}
-	// Unknown --region
-	l2, _ := FanOut(context.Background(), home, cat, "nope", func(context.Context, *api.Client, string) (Page[item], error) { return Page[item]{}, nil }, nil)
-	if !l2.Incomplete {
-		t.Fatal("unknown region must be incomplete")
+	if d := cerr.DetailsOf(err); d.Source != "" || d.Code != "" {
+		t.Fatalf("a partial list is not the CLI's own failure: %+v", d)
+	}
+	// An unknown --region is a usage error before any list request.
+	called := false
+	_, err = FanOut(context.Background(), home, cat, "nope", func(context.Context, *api.Client, string) (Page[item], error) {
+		called = true
+		return Page[item]{}, nil
+	}, nil)
+	if cerr.ExitCode(err) != cerr.ExitUsage || called {
+		t.Fatalf("unknown region: %v (called=%v)", err, called)
+	}
+	// When no endpoint answers, the failure is the first endpoint's own.
+	_, err = FanOut(context.Background(), home, cat, "region-d", func(ctx context.Context, c *api.Client, region string) (Page[item], error) {
+		return Page[item]{}, c.Do(ctx, "GET", "/sandboxes", nil, nil, nil)
+	}, nil)
+	if cerr.ExitCode(err) != cerr.ExitFailure || !strings.Contains(err.Error(), "502") {
+		t.Fatalf("all failed: %v", err)
 	}
 }
 

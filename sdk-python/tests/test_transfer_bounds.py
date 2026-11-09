@@ -16,9 +16,10 @@ import socket
 import threading
 import time
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import AsyncIterator, Callable, Iterator
 
 import anyio
+import httpx
 import pytest
 from _handles import lazy_sandbox
 
@@ -452,6 +453,138 @@ async def test_an_error_status_with_an_oversized_body_keeps_its_typed_error(
                 assert "too large to read" in str(caught.value)
         finally:
             await root.close()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("credential", ["api_key", "jwt"])
+async def test_the_events_hub_is_capped_by_the_client_limit(
+    credential: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    big = b'{"id":"sbx","status":"started","pad":"' + b"p" * 4000 + b'"}'
+    token = b'{"access_token":"t","expires_in":3600,"pad":"' + b"p" * 4000 + b'"}'
+    routes: dict[str, Handler] = {
+        "/auth/token": lambda r: (_drain(r), _json(r, token)),  # type: ignore[func-returns-value]
+        "/sandboxes": lambda r: (_drain(r), _json(r, big)),  # type: ignore[func-returns-value]
+    }
+    with _server(routes) as base:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", base)
+        config = (
+            DaytonaConfig(api_key="k", max_response_bytes=1000, shared_hub=False)
+            if credential == "api_key"
+            else DaytonaConfig(jwt_token="j", project_id="p", max_response_bytes=1000, shared_hub=False)
+        )
+        root = AsyncDaytona(config)
+        try:
+            hub = root.v2._acquire_hub()  # type: ignore[attr-defined]
+            assert hub is not None
+            # The ticket mint and the long-poll fallback run on the hub's own
+            # transport (and, with a JWT, its own token exchange): both under
+            # the client's cap.
+            with pytest.raises(PayloadTooLargeError) as caught:
+                await hub._api.send(RequestSpec("GET", "/sandboxes/sbx"))
+            _assert_too_large(caught.value, 1000)
+        finally:
+            await root.close()
+
+
+@pytest.mark.anyio
+async def test_clients_with_different_limits_get_their_own_shared_hub(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    big = b'{"id":"sbx","status":"started","pad":"' + b"p" * 4000 + b'"}'
+    token = b'{"access_token":"t","expires_in":3600}'
+    routes: dict[str, Handler] = {
+        "/auth/token": lambda r: (_drain(r), _json(r, token)),  # type: ignore[func-returns-value]
+        "/sandboxes": lambda r: (_drain(r), _json(r, big)),  # type: ignore[func-returns-value]
+    }
+    with _server(routes) as base:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", base)
+        tight = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=1000))
+        roomy = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=100_000))
+        twin = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=1000))
+        jwt_a = AsyncDaytona(DaytonaConfig(jwt_token="j", project_id="p", request_timeout=5))
+        jwt_b = AsyncDaytona(DaytonaConfig(jwt_token="j", project_id="p", request_timeout=9))
+        try:
+            hubs = [client.v2._acquire_hub() for client in (tight, roomy, twin, jwt_a, jwt_b)]  # type: ignore[attr-defined]
+            # Same credentials, same limits: one hub; a different cap or token
+            # exchange timeout: a hub of its own.
+            assert hubs[0] is hubs[2]
+            assert hubs[0] is not hubs[1]
+            assert hubs[3] is not hubs[4]
+            assert hubs[3]._api._auth._request_timeout == 5
+            assert hubs[4]._api._auth._request_timeout == 9
+            with pytest.raises(PayloadTooLargeError):
+                await hubs[0]._api.send(RequestSpec("GET", "/sandboxes/sbx"))
+            assert isinstance(await hubs[1]._api.send(RequestSpec("GET", "/sandboxes/sbx")), dict)
+        finally:
+            for client in (tight, roomy, twin, jwt_a, jwt_b):
+                await client.close()
+
+
+@pytest.mark.parametrize(
+    ("declared", "too_large"),
+    [
+        ("9" * 5000, True),  # past int()'s digit limit: over any cap, not a ValueError
+        ("1001", True),
+        ("01001", True),
+        ("1000", False),
+        ("0999", False),
+        ("", False),
+        ("12x", False),
+        ("1\u00b2", False),  # a non-ASCII digit (isdigit() accepts it) is not a declared length
+    ],
+)
+def test_a_declared_length_is_compared_without_converting_it(declared: str, too_large: bool) -> None:
+    from daytona.v2._body_limit import _declared_too_large
+
+    response = httpx.Response(200, headers={"content-length": declared.encode("latin-1")} if declared else {})
+    assert _declared_too_large(response, 1000) is too_large
+    assert _declared_too_large(response, 0) is False
+
+
+def test_a_single_chunk_past_the_cap_is_never_buffered() -> None:
+    from daytona.v2._body_limit import read_body, read_body_sync
+
+    class Unbufferable:
+        """A chunk larger than the cap that fails if anything copies it."""
+
+        def __len__(self) -> int:
+            return 5000
+
+        def __iter__(self) -> Iterator[int]:
+            raise AssertionError("bytes past the cap were buffered")
+
+    class OneChunk:
+        status_code = 200
+        headers = httpx.Headers()
+
+        def iter_bytes(self) -> Iterator[Unbufferable]:
+            yield Unbufferable()
+
+        async def aiter_bytes(self) -> AsyncIterator[Unbufferable]:
+            yield Unbufferable()
+
+        def close(self) -> None:
+            pass
+
+        async def aclose(self) -> None:
+            pass
+
+    with pytest.raises(PayloadTooLargeError):
+        read_body_sync(OneChunk(), 1000)  # type: ignore[arg-type]
+    with pytest.raises(PayloadTooLargeError):
+        anyio.run(read_body, OneChunk(), 1000)  # type: ignore[arg-type]
+
+
+@pytest.mark.anyio
+async def test_a_single_chunk_past_the_cap_is_refused_on_a_socket() -> None:
+    with _server({"/files/download": _chunked(1, b"q" * 50_000)}) as base:
+        transport = AsyncTransport(base, "t", request_timeout=5, max_response_bytes=1000)
+        try:
+            with pytest.raises(PayloadTooLargeError):
+                await transport.raw(RequestSpec("GET", "/files/download"))
+        finally:
+            await transport.close()
 
 
 @pytest.mark.anyio

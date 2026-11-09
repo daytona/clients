@@ -20,14 +20,15 @@ import (
 	"github.com/daytona/clients/cli/internal/config"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/daytona/clients/cli/internal/ui"
+	"golang.org/x/term"
 )
 
 // Version is stamped at build time (hack/build.sh -ldflags).
 var Version = "0.0.0-dev"
 
 // DefaultAPIURL is the production Daytona API, used when neither --api-url,
-// DAYTONA_V2_API_URL, DAYTONA_API_URL nor the active profile names one. It
-// matches the SDKs' DEFAULT_V2_API_URL.
+// DAYTONA_V2_API_URL nor the active profile names one. It matches the SDKs'
+// DEFAULT_V2_API_URL.
 const DefaultAPIURL = "https://api.daytona.com"
 
 // ForceTTY overrides the isatty probes (nil = probe). A test seam: command
@@ -35,14 +36,31 @@ const DefaultAPIURL = "https://api.daytona.com"
 // (the browser login flow). Never set in production code.
 var ForceTTY *bool
 
-// Globals are the persistent root flags.
+// Globals are the persistent root flags plus the per-command flags every
+// family shares (--file, --no-wait, --timeout are registered only on the
+// commands that use them; unset elsewhere).
 type Globals struct {
-	APIURL  string
-	APIKey  string // explicit static credential (--api-key / DAYTONA_API_KEY)
-	Profile string
-	Org     string
-	Project string
-	Region  string
+	APIURL string
+	APIKey string // explicit static credential (--api-key / DAYTONA_API_KEY)
+	// APIKeySet reports that --api-key was given on the command line, even
+	// as an empty value: an explicitly empty credential is a usage error,
+	// never a fall-through to DAYTONA_API_KEY or the saved login.
+	APIKeySet bool
+	Profile   string
+	// ProfileMayBeNew lets a profile named by the --profile flag that does
+	// not exist yet through (`login --profile NAME` creates it). Otherwise an
+	// explicit unknown profile is "not found", except on the commands
+	// ProfileOptional marks.
+	ProfileMayBeNew bool
+	// ProfileOptional marks a command that does not act on the selected
+	// profile (help, completion, docs, `profile *`, `config *`): an unknown
+	// --profile / DAYTONA_PROFILE does not stop it.
+	ProfileOptional bool
+	Org             string
+	Project         string
+	Region          string
+	// Output is --output as given; "" selects the default: table when stdout
+	// is a terminal, JSON otherwise.
 	Output  string
 	Yes     bool
 	NoWait  bool
@@ -82,18 +100,6 @@ type App struct {
 	orgFromOverride bool
 	orgIDResolved   bool
 
-	// CachedStaticKeyFn returns a still-valid project key an earlier
-	// invocation exchanged from THIS bearer against THIS API origin for
-	// `project` ("" if none). Installed by auth.
-	CachedStaticKeyFn func(apiURL, bearer, project string) string
-
-	// StaticExchangeFn mints a project key for `project` using a static
-	// bearer that was refused on a sandbox route (one attempt; installed by
-	// the auth package). Returns the minted key or an error.
-	// `rejected` is a cached key the server just refused (or ""): it is
-	// dropped from the cache before the ceiling is re-read and a key minted.
-	StaticExchangeFn func(ctx context.Context, apiURL, bearer, project, rejected string) (string, error)
-
 	// PlatformTokenFn returns a valid project-scoped platform access token
 	// for `project`, exchanged from the login's OIDC JWT (RFC 8693 at
 	// POST /auth/token) — the API bearer on a deployment that is a
@@ -125,11 +131,16 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 	}
 	a := &App{Globals: g, Stdout: stdout, Stderr: stderr, Getenv: getenv}
 
-	f, err := output.ParseFormat(g.Output)
+	stdoutTTY := WriterIsTerminal(stdout)
+	f, err := ResolveFormat(g.Output, stdoutTTY)
 	if err != nil {
-		return nil, cerr.Usage("%v", err)
+		return nil, err
 	}
 	a.Format = f
+	if g.APIKeySet && strings.TrimSpace(g.APIKey) == "" {
+		return nil, cerr.Usage("--api-key is empty").
+			WithHint("pass a credential, or omit --api-key to use DAYTONA_API_KEY or the saved login")
+	}
 
 	dir, err := config.Dir(getenv)
 	if err != nil {
@@ -146,27 +157,40 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 	}
 	a.Config = cfg
 
-	a.Mode = ui.Resolve(ui.Options{OutputFormat: string(f), YesFlag: g.Yes, ConfirmOff: !cfg.Settings.ConfirmEnabled(), Getenv: getenv, StdoutTTY: ForceTTY, StdinTTY: ForceTTY})
+	a.Mode = ui.Resolve(ui.Options{OutputFormat: string(f), YesFlag: g.Yes, ConfirmOff: !cfg.Settings.ConfirmEnabled(), Getenv: getenv, StdoutTTY: &stdoutTTY, StdinTTY: ForceTTY})
 
 	// Profile selection: --profile > DAYTONA_PROFILE > active > "default".
-	name := firstNonEmpty(g.Profile, getenv("DAYTONA_PROFILE"), cfg.ActiveProfile, "default")
+	// A profile named explicitly must exist, except for `login --profile`,
+	// which creates it, and for commands that do not use the selected
+	// profile; the active or implicit `default` profile of a fresh install is
+	// synthesized.
+	fromFlag := strings.TrimSpace(g.Profile) != ""
+	explicit := firstNonEmpty(g.Profile, getenv("DAYTONA_PROFILE"))
+	name := firstNonEmpty(explicit, cfg.ActiveProfile, "default")
 	if p, ok := cfg.Profile(name); ok {
 		cp := *p
 		a.Profile = &cp
+	} else if explicit != "" && !g.ProfileOptional && !(g.ProfileMayBeNew && fromFlag) {
+		e := cerr.New(cerr.ExitNotFound, "no profile %q", name)
+		if fromFlag {
+			return nil, e.WithHint("`daytona profile list` shows the saved profiles; `daytona login --profile %s` creates one", name)
+		}
+		return nil, e.WithHint("DAYTONA_PROFILE names a profile that does not exist: unset it, or create the profile with `daytona login --profile %s`; `daytona profile list` shows the saved ones", name)
 	} else {
 		a.Profile = &config.Profile{Name: name}
 	}
 
-	// API URL: --api-url > DAYTONA_V2_API_URL > DAYTONA_API_URL > the
-	// profile's saved URL > DefaultAPIURL. The two variables and their order
-	// match the SDKs; they and the flag exist for test environments.
-	a.Profile.APIURL = resolveAPIURL(g.APIURL, getenv("DAYTONA_V2_API_URL"), getenv("DAYTONA_API_URL"), a.Profile.APIURL)
+	// API URL: --api-url > DAYTONA_V2_API_URL > the profile's saved URL >
+	// DefaultAPIURL. The variable matches the SDKs; it and the flag exist for
+	// test environments. DAYTONA_API_URL belongs to the 0.x CLI and SDKs and
+	// is not read.
+	a.Profile.APIURL = resolveAPIURL(g.APIURL, getenv("DAYTONA_V2_API_URL"), a.Profile.APIURL)
 
-	// Explicit overrides.
-	if k := g.APIKey; k != "" {
+	// Explicit overrides. The credential is sent exactly as given.
+	if g.APIKeySet {
 		a.CredentialSource = "flag"
-		a.credentialFn = staticCred(k)
-	} else if k := getenv("DAYTONA_API_KEY"); k != "" {
+		a.credentialFn = staticCred(g.APIKey)
+	} else if k := getenv("DAYTONA_API_KEY"); strings.TrimSpace(k) != "" {
 		a.CredentialSource = "env"
 		a.credentialFn = staticCred(k)
 	}
@@ -261,13 +285,11 @@ func (a *App) Client(ctx context.Context) (*api.Client, error) {
 func (a *App) WorkloadClient(ctx context.Context, pick func(ctx context.Context) (string, error)) (*api.Client, string, error) {
 	base := a.APIURL()
 	if a.HasExplicitCredential() || a.CredentialSource == "profile-token" {
-		// A static credential is sent as-is. Usually it IS a project key
-		// and is bound server-side to its project, so no project selection is
-		// required. If the route answers 401 and a project is selected, the
-		// CLI makes ONE mint attempt with that same credential —
-		// a credential allowed to mint project keys then works on
-		// sandbox routes too; if the mint is
-		// refused, the original 401 stands. Never a fallback to a saved login.
+		// A static credential is sent as-is on every route, and the server's
+		// answer stands: the CLI never mints, caches or substitutes another
+		// key for it, and never falls back to a saved login. Usually it IS a
+		// project key, bound server-side to its project, so no project
+		// selection is required.
 		cred, err := a.Credential(ctx)
 		if err != nil {
 			return nil, "", err
@@ -276,25 +298,7 @@ func (a *App) WorkloadClient(ctx context.Context, pick func(ctx context.Context)
 		if err != nil {
 			return nil, "", err
 		}
-		c := a.newClient(base, cred)
-		if project != "" && a.StaticExchangeFn != nil {
-			// An earlier invocation may already have exchanged this bearer
-			// for a project key: use it up front and skip the 401 round trip.
-			// If the server then rejects it (401: revoked/expired; 403: the
-			// ceiling widened since it was minted), the exchange drops that
-			// entry and re-evaluates against the server.
-			var cached string
-			if a.CachedStaticKeyFn != nil {
-				if cached = a.CachedStaticKeyFn(base, cred, project); cached != "" {
-					c.Credential = cached
-					c.RetryForbidden = true
-				}
-			}
-			c.OnUnauthorized = func(ctx context.Context) (string, error) {
-				return a.StaticExchangeFn(ctx, base, cred, project, cached)
-			}
-		}
-		return c, project, nil
+		return a.newClient(base, cred), project, nil
 	}
 	// "Not logged in" is the root cause when there is no credential at all;
 	// report it (exit 3) before asking for a project (exit 2), so an agent
@@ -558,6 +562,32 @@ func (a *App) resolveSelectedProject(ctx context.Context) (string, error) {
 	}
 	a.Profile.ProjectByOrg[a.Profile.OrgID] = resolved
 	return resolved, nil
+}
+
+// ResolveFormat parses --output; an empty value selects the default: table
+// when stdout is a terminal, JSON otherwise.
+func ResolveFormat(flag string, stdoutTTY bool) (output.Format, error) {
+	if strings.TrimSpace(flag) == "" {
+		if stdoutTTY {
+			return output.FormatTable, nil
+		}
+		return output.FormatJSON, nil
+	}
+	f, err := output.ParseFormat(flag)
+	if err != nil {
+		return "", cerr.Usage("%v", err)
+	}
+	return f, nil
+}
+
+// WriterIsTerminal reports whether w is a terminal (ForceTTY overrides the
+// probe in tests). Anything that is not an *os.File is not a terminal.
+func WriterIsTerminal(w io.Writer) bool {
+	if ForceTTY != nil {
+		return *ForceTTY
+	}
+	f, ok := w.(*os.File)
+	return ok && term.IsTerminal(int(f.Fd()))
 }
 
 func firstNonEmpty(s ...string) string {

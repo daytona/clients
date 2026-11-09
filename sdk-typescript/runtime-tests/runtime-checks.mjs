@@ -34,10 +34,16 @@ async function checkV0(daytona) {
 }
 
 function isTooLarge(error) {
-  return error instanceof Error && error.statusCode === 413 && error.code === 'PAYLOAD_TOO_LARGE'
+  return error instanceof Error && error.statusCode === 413 && error.code === 'PAYLOAD_TOO_LARGE' && error.source === 'SDK'
 }
 
-/** `promise`, or a rejection after `ms` (a runtime that buffers the body first never settles it). */
+/**
+ * `promise`, or a rejection after `ms`. The calls it wraps carry no signal of
+ * their own (the SDK's list() and readBytes() take none), so the client they
+ * run on bounds them itself (`requestTimeoutSeconds` below, shorter than `ms`):
+ * a runtime that buffers the body first still ends the request, and nothing
+ * keeps the runtime process alive.
+ */
 function within(promise, ms, what) {
   let timer
   return Promise.race([
@@ -96,7 +102,9 @@ export async function runChecks(sdk, options) {
     // The buffered-body cap, in this runtime's transport: an API JSON body
     // over a small client cap, and a toolbox download that declares more
     // than the per-call cap, refused before its body is read.
-    const capped = new sdk.Daytona({ apiKey: options.apiKey, maxResponseBytes: 64 })
+    // requestTimeoutSeconds bounds both calls: list() by its total deadline,
+    // readBytes() (a transfer) by its idle bound, since the mock stops sending.
+    const capped = new sdk.Daytona({ apiKey: options.apiKey, maxResponseBytes: 64, requestTimeoutSeconds: 3 })
     try {
       const listError = await within(capped.v2.list(), 5_000, 'list()').then(() => undefined, (error) => error)
       const downloadError = box

@@ -5,12 +5,14 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
@@ -63,7 +65,7 @@ func newBillingGetCmd[T any](use string, suffix string, listKey string) *cobra.C
 		if err != nil {
 			return err
 		}
-		payload, err := billingGet[T](cmd.Context(), mc, billingBasePath(orgID)+suffix, nil)
+		payload, err := billingGet[api.Raw[T]](cmd.Context(), mc, billingBasePath(orgID)+suffix, nil)
 		if err != nil {
 			return err
 		}
@@ -72,7 +74,7 @@ func newBillingGetCmd[T any](use string, suffix string, listKey string) *cobra.C
 }
 
 func addBillingPageFlags(cmd *cobra.Command, flags *pageFlags, defaultLimit, maxLimit int64) {
-	cmd.Flags().Int64Var(&flags.limit, "limit", defaultLimit, "max items to return")
+	cmd.Flags().Int64Var(&flags.limit, "limit", defaultLimit, fmt.Sprintf("items per page, 1 to %d", maxLimit))
 	cmd.Flags().StringVar(&flags.cursor, "cursor", "", "opaque continuation token")
 	cmd.Flags().BoolVar(&flags.all, "all", false, "follow every page until exhausted")
 	cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {
@@ -97,9 +99,8 @@ func newBillingBalancesCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[gen.Balance], error) {
-			payload, err := billingGet[gen.BalancePage](ctx, mc, billingBasePath(orgID)+"/balances", listQuery(flags, cursor))
-			return billingPage(payload.Balances, payload.NextCursor), err
+		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[api.Raw[gen.Balance]], error) {
+			return getRawList[gen.Balance](ctx, mc, billingBasePath(orgID)+"/balances", listQuery(flags, cursor), "balances")
 		})
 		return renderBillingList(a, page, err)
 	}}
@@ -114,9 +115,8 @@ func newBillingPaymentMethodsCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[gen.PaymentMethod], error) {
-			payload, err := billingGet[gen.PaymentMethodPage](ctx, mc, billingBasePath(orgID)+"/payment-methods", listQuery(flags, cursor))
-			return billingPage(payload.PaymentMethods, payload.NextCursor), err
+		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[api.Raw[gen.PaymentMethod]], error) {
+			return getRawList[gen.PaymentMethod](ctx, mc, billingBasePath(orgID)+"/payment-methods", listQuery(flags, cursor), "payment_methods")
 		})
 		return renderBillingList(a, page, err)
 	}}
@@ -131,9 +131,8 @@ func newBillingChargesCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[gen.Charge], error) {
-			payload, err := billingGet[gen.ChargePage](ctx, mc, billingBasePath(orgID)+"/charges", listQuery(flags, cursor))
-			return billingPage(payload.Charges, payload.NextCursor), err
+		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[api.Raw[gen.Charge]], error) {
+			return getRawList[gen.Charge](ctx, mc, billingBasePath(orgID)+"/charges", listQuery(flags, cursor), "charges")
 		})
 		return renderBillingList(a, page, err)
 	}}
@@ -149,13 +148,12 @@ func newBillingInvoicesCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[gen.Invoice], error) {
+		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[api.Raw[gen.Invoice]], error) {
 			query := listQuery(flags, cursor)
 			if unpaid {
 				query.Set("unpaid", "true")
 			}
-			payload, err := billingGet[gen.InvoicePage](ctx, mc, billingBasePath(orgID)+"/invoices", query)
-			return billingPage(payload.Invoices, payload.NextCursor), err
+			return getRawList[gen.Invoice](ctx, mc, billingBasePath(orgID)+"/invoices", query, "invoices")
 		})
 		return renderBillingList(a, page, err)
 	}}
@@ -170,12 +168,12 @@ func newBillingUsageCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		payload, err := billingGet[billingUsagePeriodPage](cmd.Context(), mc, billingBasePath(orgID)+"/usage-periods", url.Values{"limit": {"1"}})
+		payload, err := getRawList[billingUsagePeriod](cmd.Context(), mc, billingBasePath(orgID)+"/usage-periods", url.Values{"limit": {"1"}}, "usage_periods")
 		if err != nil {
 			return err
 		}
-		for _, period := range payload.UsagePeriods {
-			if strings.EqualFold(period.Status, "open") {
+		for _, period := range payload.Items {
+			if strings.EqualFold(period.V.Status, "open") {
 				return renderDynamicValue(a, period, "")
 			}
 		}
@@ -190,9 +188,8 @@ func newBillingUsagePeriodsCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[billingUsagePeriod], error) {
-			payload, err := billingGet[billingUsagePeriodPage](ctx, mc, billingBasePath(orgID)+"/usage-periods", listQuery(flags, cursor))
-			return billingPage(payload.UsagePeriods, payload.NextCursor), err
+		page, err := runBillingPages(cmd.Context(), flags, func(ctx context.Context, cursor string) (output.List[api.Raw[billingUsagePeriod]], error) {
+			return getRawList[billingUsagePeriod](ctx, mc, billingBasePath(orgID)+"/usage-periods", listQuery(flags, cursor), "usage_periods")
 		})
 		return renderBillingList(a, page, err)
 	}}
@@ -225,12 +222,12 @@ func newBillingTopUpCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.BillingSession
+		var payload api.Raw[gen.BillingSession]
 		err = mc.Do(cmd.Context(), http.MethodPost, billingBasePath(orgID)+"/top-up-sessions", nil, gen.CreateTopUpSessionRequest{AmountCents: amount}, &payload)
 		if err != nil {
 			return err
 		}
-		return renderBillingSession(a, payload)
+		return renderDynamicValue(a, payload, "")
 	}}
 	cmd.Flags().Int64Var(&amount, "amount-cents", 0, "top-up amount in integer cents")
 	return cmd
@@ -243,16 +240,16 @@ func newBillingSessionCmd(use string, suffix string, short string) *cobra.Comman
 		if err != nil {
 			return err
 		}
-		var payload gen.BillingSession
+		var payload api.Raw[gen.BillingSession]
 		if err := mc.Do(cmd.Context(), http.MethodPost, billingBasePath(orgID)+suffix, nil, nil, &payload); err != nil {
 			return err
 		}
 		if open {
-			if err := openHTTPSURL(payload.Url); err != nil {
+			if err := openHTTPSURL(payload.V.Url); err != nil {
 				return err
 			}
 		}
-		return renderBillingSession(a, payload)
+		return renderDynamicValue(a, payload, "")
 	}}
 	cmd.Flags().BoolVar(&open, "open", false, "open the minted URL in your browser")
 	return cmd

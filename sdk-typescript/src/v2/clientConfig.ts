@@ -74,6 +74,8 @@ interface ClientConnectionConfig {
   readonly apiUrl: string
   readonly apiKey?: string
   readonly requestTimeoutMs: number
+  /** The cap on buffered response bodies, also the events hub's. */
+  readonly maxResponseBytes: number
   readonly httpOptions: HttpClientOptions
   readonly hubIdentityKey: string
   readonly events?: SandboxEventsConfig
@@ -148,5 +150,5 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
     otelEnabled,
     otelApi: config.otelApi,
   }
-  return { apiUrl: base, apiKey: apiKey ?? undefined, requestTimeoutMs, httpOptions, hubIdentityKey, events }
+  return { apiUrl: base, apiKey: apiKey ?? undefined, requestTimeoutMs, maxResponseBytes, httpOptions, hubIdentityKey, events }
 }

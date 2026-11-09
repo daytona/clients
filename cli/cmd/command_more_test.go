@@ -36,7 +36,7 @@ func TestKeyMint_withoutServiceAccountDoesNotRequireOrg(t *testing.T) {
 func TestKeyMint_printsTokenToStdoutInTableMode(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true, "sync_to_v1": true})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "--quiet", "key", "mint", "--name", "ci", "--permission", "write:sandboxes")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "--quiet", "-o", "table", "key", "mint", "--name", "ci", "--permission", "write:sandboxes")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "Token (shown once): dtn_token")
 }
@@ -44,7 +44,7 @@ func TestKeyMint_printsTokenToStdoutInTableMode(t *testing.T) {
 func TestOrgKeyMint_printsTokenToStdoutInTableMode(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on(http.MethodPost, "/orgs/0000000a-0000-4000-8000-00000000a001/api-keys", http.StatusCreated, map[string]any{"id": "33333333-3333-3333-3333-333333333333", "name": "audit", "org_id": testOrgP, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtno_abc", "token": "dtno_token", "org_permissions": []string{"read:audit"}})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "--quiet", "org-key", "mint", "--name", "audit", "--permission", "read:audit")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "--quiet", "-o", "table", "org-key", "mint", "--name", "audit", "--permission", "read:audit")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "Token (shown once): dtno_token")
 }
@@ -143,7 +143,7 @@ func TestKeyMint_interactiveProjectPickerCarriesPickedOrgIntoServiceAccountResol
 	t.Cleanup(func() { selectPrompt = prevSelect })
 	t.Setenv("CI", "")
 	t.Setenv("DAYTONA_CONFIG_DIR", cfgDir(t))
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	api := newFakeAPI(t)
@@ -206,7 +206,7 @@ func TestSandboxPreviewURL_escapesSandboxIDPathSegment(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "sandbox", "preview-url", "a?b", "8080")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "sandbox", "port", "preview-url", "a?b", "8080")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "preview.example")
 	require.Equal(t, []string{"/sandboxes/a?b", "/sandboxes/a?b/ports/8080/preview-url"}, paths)

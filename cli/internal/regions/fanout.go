@@ -6,6 +6,7 @@ package regions
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -17,10 +18,16 @@ import (
 // FanOut queries each distinct normalized API base URL once, except when
 // ForListCursor preserves independent alias streams. The first region
 // for a URL names that endpoint's cursor and errors. The `only` argument
-// restricts the selection to one region.
-// Failed API endpoints produce incomplete results, which PartialError maps to
-// exit 7. A cancelled or expired ctx is the caller's, not an endpoint's: it is
-// returned as the error (exit 130 or 8) instead of a partial list.
+// restricts the selection to the endpoints that serve that region or a
+// region inside it (the caller filters their items by region).
+// An unknown `only` region is a usage error before any list request. When
+// some endpoints fail, the result is incomplete (PartialError maps it to exit
+// 7). When every endpoint fails, the command fails: with the endpoint's own
+// error when there was one endpoint, else with an error that keeps the first
+// endpoint's exit code and server metadata and whose message lists every
+// endpoint's failure. A cancelled or expired ctx is the caller's, not an
+// endpoint's: it is returned as the error (exit 130 or 8) instead of a
+// partial list.
 func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only string,
 	fetch func(ctx context.Context, c *api.Client, region string) (Page[T], error),
 	less func(a, b T) bool) (output.List[T], error) {
@@ -31,18 +38,28 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 	if cat != nil {
 		if only != "" {
 			if r := cat.Find(only); r != nil {
+				scope := cat.scopeBases(home.BaseURL, only)
 				if cat.HasListAliases() {
 					for _, alias := range cat.OrderedRegions() {
-						if cat.listAliases[alias.Id] && BaseFor(alias, home.BaseURL) == BaseFor(*r, home.BaseURL) {
+						if _, ok := scope[BaseFor(alias, home.BaseURL)]; ok && cat.listAliases[alias.Id] {
 							targets = append(targets, alias)
 						}
 					}
 				}
 				if len(targets) == 0 {
+					// R's own endpoint first, then the other endpoints that
+					// serve a region inside R, each named by scopeBases.
 					targets = append(targets, *r)
+					ownBase := BaseFor(*r, home.BaseURL)
+					for _, region := range cat.OrderedRegions() {
+						base := BaseFor(region, home.BaseURL)
+						if base != ownBase && scope[base] == region.Id {
+							targets = append(targets, region)
+						}
+					}
 				}
 			} else {
-				return output.List[T]{Incomplete: true, Errors: []output.RegionError{{Region: only, Message: "unknown region (see `daytona region list`)"}}}, nil
+				return output.List[T]{}, cerr.Usage("unknown region %q", only).WithHint("`daytona region list` shows the regions")
 			}
 		} else {
 			seen := map[string]bool{}
@@ -63,11 +80,10 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 		if callerErr := cerr.FromContext(ctx); callerErr != nil {
 			return output.List[T]{}, callerErr
 		}
-		l := output.List[T]{Items: p.Items, NextCursor: p.NextCursor}
 		if err != nil {
-			l.Incomplete = true
-			l.Errors = append(l.Errors, toRegionError(only, err))
+			return output.List[T]{}, err
 		}
+		l := output.List[T]{Items: p.Items, NextCursor: p.NextCursor}
 		if l.Items == nil {
 			l.Items = []T{}
 		}
@@ -95,6 +111,32 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 		return output.List[T]{}, callerErr
 	}
 
+	var firstErr error
+	failed := 0
+	for _, r := range results {
+		if r.err != nil {
+			failed++
+			if firstErr == nil {
+				firstErr = r.err
+			}
+		}
+	}
+	if failed == len(results) {
+		// Nothing answered: the failure is the command's, not a partial list.
+		// Its exit code, code, source and trace id are the first region's;
+		// the message names every region's failure.
+		if len(results) == 1 {
+			return output.List[T]{}, firstErr
+		}
+		parts := make([]string, 0, len(results))
+		for _, r := range results {
+			parts = append(parts, regionFailureText(toRegionError(r.region, r.err)))
+		}
+		first := cerr.DetailsOf(firstErr)
+		e := cerr.Wrap(cerr.ExitCode(firstErr), firstErr, "every region failed — %s", strings.Join(parts, "; "))
+		e.Hint = first.Hint
+		return output.List[T]{}, e
+	}
 	l := output.List[T]{Items: []T{}}
 	for _, r := range results {
 		if r.err != nil {

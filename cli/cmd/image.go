@@ -27,7 +27,7 @@ func newImageCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "image",
 		Short:   "Manage images",
-		Long:    "Manage images.\nExamples:\n  daytona image import my-base --ref python:3.12\n  daytona image list --all",
+		Long:    "Manage images.\nExamples:\n  daytona image create my-base --ref python:3.12\n  daytona image list --all",
 		GroupID: GroupWorkload,
 	}
 	cmd.AddCommand(
@@ -55,20 +55,20 @@ func newImageGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var image gen.Image
+			var image api.Raw[gen.Image]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/images/"+url.PathEscape(args[0]), nil, nil, &image); err != nil {
 				return err
 			}
-			return a.Printer().Object(image, imageKV(image))
+			return a.Printer().Object(image, imageKV(image.V))
 		},
 	}
 }
 
 func newImageDeleteCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
+		Use:   "delete <id-or-name>",
 		Short: "Delete an image",
-		Long:  "Delete an image.\nExample:\n  daytona image delete <id> --yes",
+		Long:  "Delete an image by id or name; the acknowledgement repeats the reference as given.\nExample:\n  daytona image delete <id-or-name> --yes",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -82,7 +82,7 @@ func newImageDeleteCommand() *cobra.Command {
 			if err := client.Do(cmd.Context(), http.MethodDelete, "/images/"+url.PathEscape(args[0]), nil, nil, nil); err != nil {
 				return err
 			}
-			return a.Printer().Object(map[string]any{"id": args[0], "deleted": true}, [][2]string{{"id", args[0]}, {"deleted", "true"}})
+			return printAck(a, "ref", args[0], "deleted", "")
 		},
 	}
 }
@@ -112,25 +112,26 @@ func newImageCaptureCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var image gen.AsyncOperation
-			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/images", nil, req, &image); err != nil {
+			var created api.Raw[gen.AsyncOperation]
+			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/images", nil, req, &created); err != nil {
 				return err
 			}
 			if a.Globals.NoWait {
-				return a.Printer().Object(image, [][2]string{{"id", image.Id}, {"status", image.Status}})
+				return a.Printer().Object(created, [][2]string{{"id", created.V.Id}, {"status", created.V.Status}})
 			}
 			timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 			if err != nil {
 				return err
 			}
-			final, err := workload.WaitForImage(cmd.Context(), resolved.Client, image.Id, timeout)
+			final, err := workload.WaitForImage(cmd.Context(), resolved.Client, created.V.Id, timeout)
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(final, imageKV(final))
+			return a.Printer().Object(final, imageKV(final.V))
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "image name")
+	addWaitFlags(cmd)
 	return cmd
 }
 
@@ -148,11 +149,11 @@ func newImagePromoteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var image gen.Image
+			var image api.Raw[gen.Image]
 			if err := client.Do(cmd.Context(), http.MethodPatch, "/images/"+url.PathEscape(args[0]), nil, gen.UpdateImageRequest{Name: args[1]}, &image); err != nil {
 				return err
 			}
-			return a.Printer().Object(image, imageKV(image))
+			return a.Printer().Object(image, imageKV(image.V))
 		},
 	}
 	return cmd
@@ -163,10 +164,15 @@ func newImageLogsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs <id>",
 		Short: "Read image build logs",
-		Long:  "Read image build logs.\nExample:\n  daytona image logs <id> --follow",
-		Args:  cobra.ExactArgs(1),
+		Long: "Read image build logs. With --follow, table output streams the log text as it arrives;\n" +
+			"-o json streams NDJSON, one {\"data\": \"...\"} object per chunk; -o yaml is not supported.\n" +
+			"Example:\n  daytona image logs <id> --follow",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if follow && a.Format == output.FormatYAML {
+				return cerr.Usage("--output yaml is not supported with --follow")
+			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
@@ -180,7 +186,7 @@ func newImageLogsCommand() *cobra.Command {
 				}
 				ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 				defer cancel()
-				err = streamDiscoveredBuildLogs(ctx, client, "/images/"+url.PathEscape(args[0])+"/build-logs-url", cmd.OutOrStdout())
+				err = streamDiscoveredBuildLogs(ctx, client, "/images/"+url.PathEscape(args[0])+"/build-logs-url", a.Format, cmd.OutOrStdout())
 				if errors.Is(ctx.Err(), context.DeadlineExceeded) && cmd.Context().Err() == nil {
 					return cerr.New(cerr.ExitTimeout, "timed out after %s following the build log", timeout).
 						WithHint("the build keeps running; re-run with a longer --timeout or without --follow")
@@ -195,6 +201,7 @@ func newImageLogsCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&follow, "follow", false, "follow until the build finishes")
+	addTimeoutFlag(cmd, defaultWaitTimeout, "with --follow, how long to follow the log (Go duration); the build keeps running after it")
 	return cmd
 }
 
@@ -216,7 +223,7 @@ func readDiscoveredBuildLogs(ctx context.Context, client *api.Client, discoveryP
 	return readText(ctx, client.WithBaseURL(baseURL), "", query)
 }
 
-func streamDiscoveredBuildLogs(ctx context.Context, client *api.Client, discoveryPath string, out io.Writer) error {
+func streamDiscoveredBuildLogs(ctx context.Context, client *api.Client, discoveryPath string, format output.Format, out io.Writer) error {
 	var payload gen.BuildLogsUrl
 	if err := client.Do(ctx, http.MethodGet, discoveryPath, nil, nil, &payload); err != nil {
 		return err
@@ -231,7 +238,15 @@ func streamDiscoveredBuildLogs(ctx context.Context, client *api.Client, discover
 		return err
 	}
 	defer resp.Body.Close()
-	stream := output.NewStreamSanitizer(out)
+	var stream interface {
+		io.Writer
+		Flush() error
+	}
+	if format == output.FormatJSON {
+		stream = output.NewNDJSONDataWriter(out)
+	} else {
+		stream = output.NewStreamSanitizer(out)
+	}
 	if _, err := io.Copy(stream, resp.Body); err != nil {
 		if ctx.Err() != nil {
 			return cerr.New(cerr.ExitInterrupted, "interrupted")
@@ -241,9 +256,10 @@ func streamDiscoveredBuildLogs(ctx context.Context, client *api.Client, discover
 	return stream.Flush()
 }
 
-func printCreatedImage(ctx context.Context, a *app.App, client *api.Client, created gen.AsyncOperation) error {
+func printCreatedImage(ctx context.Context, a *app.App, client *api.Client, raw api.Raw[gen.AsyncOperation]) error {
+	created := raw.V
 	if a.Globals.NoWait {
-		return a.Printer().Object(created, [][2]string{{"id", created.Id}, {"status", created.Status}})
+		return a.Printer().Object(raw, [][2]string{{"id", created.Id}, {"status", created.Status}})
 	}
 	timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 	if err != nil {
@@ -253,5 +269,5 @@ func printCreatedImage(ctx context.Context, a *app.App, client *api.Client, crea
 	if err != nil {
 		return err
 	}
-	return a.Printer().Object(image, imageKV(image))
+	return a.Printer().Object(image, imageKV(image.V))
 }

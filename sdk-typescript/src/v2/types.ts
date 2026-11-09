@@ -91,13 +91,13 @@ export interface DaytonaConfig {
    * The total time one ordinary request may take, in seconds (default 60;
    * `0` = no limit). Waits and long polls use their own budget, streams are
    * bounded only until their response headers arrive, and file transfers have
-   * no total bound but fail once no bytes move for this long.
+   * no total bound but fail once no bytes move for this long (with `0`,
+   * transfers are not bounded at all).
    */
   readonly requestTimeoutSeconds?: number
   /**
-   * The cap on a response body the SDK holds in memory whole, in bytes: an
-   * integer from 0 (no limit) to `Number.MAX_SAFE_INTEGER`; default 1 GiB
-   * (`undefined` / `null`). A success response over it is refused with
+   * The cap on a response body the SDK holds in memory whole, in bytes:
+   * an integer up to `Number.MAX_SAFE_INTEGER`; `undefined` or `null` keep the 1 GiB default, `0` means no limit, and any other value (negative, fractional, boolean, string, too large) is a `BadRequestError`. A success response over it is refused with
    * `PayloadTooLargeError` before it is read in full; an error response keeps
    * its status's error. The in-memory file reads take it per call too.
    * Streamed bodies (`downloadFile`, log and event streams) are never capped.

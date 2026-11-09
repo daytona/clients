@@ -42,3 +42,6 @@ declared `Content-Length` is a `ConnectionError` (source `SDK`) in both SDKs,
 as a dropped socket is (it was a 500 in Python and a bare error in
 TypeScript); in TypeScript, an upload whose source file changes size and a
 download response without a body are `BadRequestError`s.
+A sandbox access-token mint or a pre-signed file URL whose response breaks
+the contract is a `BadRequestError` (400, `BAD_REQUEST`) naming the field, with
+the same message in both SDKs (it was a 500 with no code).

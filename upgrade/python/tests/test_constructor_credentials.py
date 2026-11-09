@@ -19,6 +19,9 @@ from daytona_upgrade.models import SourceResult
         "",
         "DaytonaError",
         "(ValueError, DaytonaAuthenticationError)",
+        # The two 0.x root aliases 2.0 dropped name shared categories too.
+        "DaytonaValidationError",
+        "(KeyError, DaytonaAuthorizationError)",
         "Exception",
         "BaseException",
     ],
@@ -37,7 +40,7 @@ def test_manual_item_when_constructor_has_a_matching_handler(
     handler: str, imports: str, constructor: str
 ) -> None:
     # Given a proven root constructor protected by an applicable handler.
-    source = f"{imports}\nfrom daytona import DaytonaError, DaytonaAuthenticationError\ntry:\n    integration = {constructor}()\nexcept {handler}:\n    integration = None\n"
+    source = f"{imports}\nfrom daytona import DaytonaError, DaytonaAuthenticationError, DaytonaValidationError, DaytonaAuthorizationError\ntry:\n    integration = {constructor}()\nexcept {handler}:\n    integration = None\n"
     # When upgrading the integration.
     result = migrate(source)
     # Then review guidance is located at the construction, using its assigned name.

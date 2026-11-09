@@ -2117,7 +2117,11 @@ function hubIdentity(
   apiKey: string,
   target: string | undefined,
   config: EventsHubConfig,
+  limits: { readonly requestTimeoutMs: unknown; readonly maxContentLength: unknown } = { requestTimeoutMs: null, maxContentLength: null },
 ): string {
+  // Clients that differ in the request timeout or the body cap of the API
+  // instance the hub uses get their own hub, so each client's limits apply to
+  // its hub's requests.
   return JSON.stringify([
     normalizeHubUrlIdentity(apiUrl),
     apiKey,
@@ -2125,6 +2129,8 @@ function hubIdentity(
     config.enabled ?? true,
     config.reconcileIntervalMs ?? 60_000,
     config.idleCloseMs ?? null,
+    limits.requestTimeoutMs ?? null,
+    limits.maxContentLength ?? null,
   ])
 }
 
@@ -2136,12 +2142,22 @@ export interface AttachHubOptions {
   readonly shared: boolean
   readonly config: EventsHubConfig
   readonly wsFactory?: WebSocketFactory
+  /**
+   * The attaching client's API instance; its buffered-body cap
+   * (`maxResponseBytes`) then bounds the ticket mint and the long-poll
+   * fallback too. Without one the hub builds its own, under `maxResponseBytes`.
+   */
   readonly _api?: AxiosInstance
+  /** The cap on buffered bodies for a hub that builds its own API instance. */
+  readonly maxResponseBytes?: number
 }
 
 /** @internal */
 export function attachHub(options: AttachHubOptions): WaitHub {
-  const { apiUrl, apiKey, target, shared, config, wsFactory, _api } = options
+  const { apiUrl, apiKey, target, shared, config, wsFactory } = options
+  const _api = options._api ?? (options.maxResponseBytes === undefined
+    ? undefined
+    : createHttpClient(apiUrl.replace(/\/$/, ''), apiKey, 30_000, { maxResponseBytes: options.maxResponseBytes }))
 
   if (!shared) {
     const hub = new WaitHub(apiUrl, apiKey, config, wsFactory ?? defaultWsFactory, _api)
@@ -2149,7 +2165,10 @@ export function attachHub(options: AttachHubOptions): WaitHub {
     return hub
   }
 
-  const key = hubIdentity(apiUrl, apiKey, target, config)
+  const key = hubIdentity(apiUrl, apiKey, target, config, {
+    requestTimeoutMs: _api?.defaults.timeout,
+    maxContentLength: _api?.defaults.maxContentLength ?? options.maxResponseBytes,
+  })
   const existing = HUB_REGISTRY.get(key)?.deref()
   if (existing !== undefined && !existing.closed) {
     existing.attach()

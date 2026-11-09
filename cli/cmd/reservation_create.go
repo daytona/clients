@@ -106,11 +106,11 @@ func newReservationCreateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			if err := client.DoWithHeaders(cmd.Context(), http.MethodPost, "/reservations", nil, headers, req, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 	f := cmd.Flags()
@@ -124,6 +124,8 @@ func newReservationCreateCommand() *cobra.Command {
 	flagPlaceholder(f, "count", "N")
 	flagPlaceholder(f, "min-count", "M")
 	flagPlaceholder(f, "idempotency-key", "KEY")
+	addRegionFlag(cmd, "region whose Macs to reserve (required unless region_id is in --file)")
+	addFileFlag(cmd, "")
 	return cmd
 }
 
@@ -186,7 +188,7 @@ func reservationDryRun(cmd *cobra.Command, a *app.App, home *api.Client, body in
 }
 
 // reservationRegion resolves the purchase region: the --region flag, then the
-// --file body, then DAYTONA_REGION. The region is required and has no server
+// --file body. The region is required and has no server
 // default, so a missing one is a usage error before any request.
 func reservationRegion(a *app.App, body input.Body) (string, error) {
 	region := strings.TrimSpace(a.Globals.Region)
@@ -194,9 +196,6 @@ func reservationRegion(a *app.App, body input.Body) (string, error) {
 		if fromFile, ok := body["region_id"].(string); ok {
 			region = strings.TrimSpace(fromFile)
 		}
-	}
-	if region == "" {
-		region = strings.TrimSpace(a.Getenv("DAYTONA_REGION"))
 	}
 	if region == "" {
 		return "", cerr.Usage("reservation create needs --region (the region whose Macs to reserve); example: daytona reservation create --region '<region>'")

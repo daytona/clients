@@ -521,7 +521,7 @@ class AsyncDaytona:
         cannot be enforced, the API answers ``503``. Change it later with
         :meth:`AsyncSandbox.update_network_policy`.
 
-        Find regions and their regional API endpoints with ``GET /regions``;
+        Find regions and their regional API endpoints with ``daytona region list`` (the CLI);
         discover Mac models and prices with ``mac_models.catalog(region="<region>")``.
         To select a regional API endpoint, set ``DAYTONA_V2_API_URL`` before
         creating the client. An API that does not serve the region answers

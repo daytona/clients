@@ -103,7 +103,7 @@ func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected
 	defer server.Close()
 
 	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	stdout := &bytes.Buffer{}
@@ -254,10 +254,16 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 		require.Equal(t, []string{"arm-basic", "ARM", "Basic", "arm64", "2", "-"}, strings.Fields(lines[3]))
 	})
 
-	t.Run("json is the catalog response verbatim", func(t *testing.T) {
+	t.Run("json is the list envelope of the region's CPU types", func(t *testing.T) {
 		stdout, _, err := runCLI(t, []string{"cpu-type", "list", "--region", "region-b"}, []expectedRequest{routing, catalog})
 		require.NoError(t, err)
-		require.JSONEq(t, cpuCatalogFixture(), stdout)
+		var fixture struct {
+			CPUTypes []json.RawMessage `json:"cpu_types"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(cpuCatalogFixture()), &fixture))
+		want, err := json.Marshal(map[string]any{"items": fixture.CPUTypes, "incomplete": false})
+		require.NoError(t, err)
+		require.JSONEq(t, string(want), stdout)
 	})
 
 	t.Run("empty catalog prints no results", func(t *testing.T) {
@@ -285,7 +291,11 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 			_, stderr, err := runCLIWithOutput(t, "table", []string{"cpu-type", "list", "--region", value}, nil)
 			require.Error(t, err, value)
 			require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), value)
-			require.Contains(t, err.Error(), "--region takes one region slug", value)
+			if strings.TrimSpace(value) == "" {
+				require.Contains(t, err.Error(), "--region is empty", value)
+			} else {
+				require.Contains(t, err.Error(), "--region takes one region slug", value)
+			}
 			require.Empty(t, stderr, value)
 		}
 	})
@@ -353,7 +363,7 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 		defer home.Close()
 
 		t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-		for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+		for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 			t.Setenv(key, "")
 		}
 		stdout := &bytes.Buffer{}

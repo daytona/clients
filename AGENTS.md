@@ -180,13 +180,25 @@ service manages them, `volumes` attaches them on create, and `sandbox.volumes`
 provides pull operations. The CLI exposes `volume` and `sandbox create --volume`
 (also on `create-macos`). Keep these surfaces in parity across the SDKs.
 
+The CLI's own API URL order, whatever the endpoint notes under "Version
+namespaces" say about the SDKs: `--api-url`, then `DAYTONA_V2_API_URL`, then
+the profile's saved URL, then `app.DefaultAPIURL` (equal to the SDKs'
+`DEFAULT_V2_API_URL`). The CLI never reads `DAYTONA_API_URL` or
+`DAYTONA_REGION` (regions come from `--region` only).
+
 The `daytona` CLI (Go) shares the SDKs' version line but is not part of the
 Python↔TS parity contract. Its wire types (`cli/gen/`) are generated from
 `contract/*.json` by `cli/hack/gen.sh`; its README is public-facing. Verify:
 `(cd cli && go vet ./... && go test ./...)`, lint with `golangci-lint run`
 (config `cli/.golangci.yml`). Release binaries: `cli/hack/build.sh` (six
-targets + `SHA256SUMS`), consumed by `install.sh` / `install.ps1` and the
-Homebrew formulae (`cli/hack/homebrew/`).
+targets + `SHA256SUMS`, each binary checked with `go version -m` against
+`cli/go.mod`'s `go` line), consumed by `install.sh` / `install.ps1` (highest
+stable 2.x by default; pre-releases only with a channel or version, except
+the highest pre-release while no stable 2.x release exists) and the
+Homebrew formulae of the `daytonaio/homebrew-cli` tap
+(`cli/hack/homebrew/README.md`). A release's channel (npm dist-tag, GitHub
+Release kind, formula) comes from its version through
+`scripts/release-channel.sh`.
 
 ## Version namespaces
 
@@ -423,6 +435,14 @@ skipping exist only in the TypeScript tool).
   a pin bump that adds 0.x surface needs mapping rows.
   `node upgrade/scripts/check-v2-surface.mjs` checks every v2 suggestion's call
   and argument names against the SDK sources in this repository.
+- **The `--json` report is public.** `upgrade/mapping/report.schema.json`
+  stays open so reports from later 2.x releases still validate: no
+  `additionalProperties: false`, and each vocabulary lists its values under
+  `examples`. Both suites validate the tools' output against a strict copy
+  derived from it (`tightened` in `upgrade/typescript/tests/report.test.ts`,
+  `upgrade/python/tests/report_schema.py`), so a new field or value must be
+  added to the schema in the same PR. Renaming or removing a field or value
+  needs a major version ([VERSIONING.md](docs/VERSIONING.md), "The migration tool").
 - **Runtime guard.** The moved client members are also the root clients'
   runtime guard (`_MOVED_TO_V0` in `sdk-python/src/daytona/_client.py`,
   `MOVED_TO_V0` in `sdk-typescript/src/Daytona.ts`); a test in each SDK pins them
@@ -507,10 +527,12 @@ skipping exist only in the TypeScript tool).
   **Every response body the SDK buffers whole is capped**, through both
   transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,
   error bodies): `max_response_bytes` / `maxResponseBytes` on the client
-  config (default 1 GiB, `0` = no limit, an integer up to 2^53 − 1) and per
-  call on the in-memory reads (`read_bytes` / `readBytes`, `read_text` /
+  config (an integer up to 2^53 − 1; Python `None` / TypeScript `undefined`
+  or `null` keep the 1 GiB default, `0` means no limit, any other value is a
+  `BadRequestError`) and per call on the in-memory reads (the same values;
+  unset keeps the client's cap): `read_bytes` / `readBytes`, `read_text` /
   `readText`, `read_many` / `readMany` (the whole multipart body), the
-  recording download). A declared `Content-Length` over the cap is refused
+  recording download. A declared `Content-Length` over the cap is refused
   before the body is read, otherwise reading stops once it passes, and the
   connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
   `readFetchText`). A refused success response is `PayloadTooLargeError`
@@ -557,7 +579,7 @@ skipping exist only in the TypeScript tool).
   list misses a key of `T` or names one `T` lacks), and its entry point calls
   `assertKnownOptions('TypeName', options, KEYS)` (or `snapshotOptions`, which
   also copies it), which throws `BadRequestError` (400, `BAD_REQUEST`, source
-  `SDK`) naming the key; inherited enumerable keys count, and a value that is
+  `SDK`) naming the key; inherited enumerable keys count (symbol keys too), and a value that is
   not an options object (`null`, a boolean, an array: an older positional
   argument; a built-in such as a `Date` or a `Map`) is refused (the root
   constructor alone reads `null` as no configuration, as Python does `None`). A key in
@@ -634,8 +656,9 @@ skipping exist only in the TypeScript tool).
   generated models through `expect_*` — and an id another request follows is
   checked before that request; known exceptions at this point, in the
   toolbox area, which still raise `InternalServerError` 500 with no code: the
-  computer-use status mappers, and the filesystem signed URL and watch
-  events, until their area adopts it). Integers match between the SDKs except
+  computer-use status mappers and the filesystem watch events, until their
+  area adopts it; the sandbox access-token mint and the pre-signed file URL
+  follow the rule). Integers match between the SDKs except
   in one case: a JSON number written with a zero fraction (`3.0`) is not an
   integer in Python, which refuses it, while TypeScript's `JSON.parse` cannot
   tell it from `3`, so only Python can refuse it. An id or name a call puts

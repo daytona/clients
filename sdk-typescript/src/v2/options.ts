@@ -139,10 +139,17 @@ export function assertLabels(labels: unknown): asserts labels is Readonly<Record
 }
 
 /**
- * Every enumerable key of `options`, own or inherited (`for...in`), so an
- * unknown key on a prototype is reported like an own one.
+ * Every enumerable string key of `options`, own or inherited (`for...in`), so
+ * an unknown key on a prototype is reported like an own one. No options type
+ * declares a symbol key: an enumerable symbol key, own or inherited, is a
+ * `BadRequestError` naming `typeName`.
  */
-export function enumerableKeys<T>(options: NonNullable<T>): string[] {
+export function enumerableKeys<T>(typeName: string, options: NonNullable<T>): string[] {
+  for (let level: object | null = options; level !== null && level !== Object.prototype; level = Object.getPrototypeOf(level) as object | null) {
+    for (const symbol of Object.getOwnPropertySymbols(level)) {
+      if (Object.prototype.propertyIsEnumerable.call(level, symbol)) throw badRequest(`${typeName} has no option \`${String(symbol)}\``)
+    }
+  }
   const keys: string[] = []
   for (const key in options) keys.push(key)
   return keys
@@ -171,7 +178,7 @@ export function assertKnownKeys<T>(typeName: string, keys: Iterable<string>, kno
 export function assertKnownOptions<T>(typeName: string, options: T | undefined, known: OptionKeys<T>, renamed: Readonly<Record<string, string>> = RENAMED_OPTIONS): void {
   if (options === undefined) return
   assertOptionsObject(typeName, options)
-  assertKnownKeys(typeName, enumerableKeys(options), known, renamed)
+  assertKnownKeys(typeName, enumerableKeys(typeName, options), known, renamed)
 }
 
 /**
@@ -196,7 +203,7 @@ export function assertOptionsObject(typeName: string, options: unknown): asserts
 export function snapshotOptions<T>(typeName: string, options: T | undefined, known: OptionKeys<T>): T | undefined {
   if (options === undefined) return undefined
   assertOptionsObject(typeName, options)
-  assertKnownKeys(typeName, enumerableKeys(options), known)
+  assertKnownKeys(typeName, enumerableKeys(typeName, options), known)
   const copy: Record<string, unknown> = {}
   for (const key of Object.keys(known)) {
     const value: unknown = Reflect.get(options, key)

@@ -12,38 +12,37 @@ import (
 	"github.com/daytona/clients/cli/internal/api"
 )
 
-func CreateServiceAccount(ctx context.Context, c *api.Client, orgID string, req gen.CreateServiceAccountRequest) (*gen.OrganizationServiceAccount, error) {
-	var resp gen.OrganizationServiceAccount
+func CreateServiceAccount(ctx context.Context, c *api.Client, orgID string, req gen.CreateServiceAccountRequest) (*api.Raw[gen.OrganizationServiceAccount], error) {
+	var resp api.Raw[gen.OrganizationServiceAccount]
 	if err := c.Do(ctx, http.MethodPost, "/orgs/"+url.PathEscape(orgID)+"/service-accounts", nil, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
+// ServiceAccountsPage reads one page of GET /orgs/{org_id}/service-accounts.
+func ServiceAccountsPage(ctx context.Context, c *api.Client, orgID string, cursor string, limit int64) (Page[gen.OrganizationServiceAccount], error) {
+	return getPage[gen.OrganizationServiceAccount](ctx, c, "/orgs/"+url.PathEscape(orgID)+"/service-accounts", "service_accounts", cursor, limit)
+}
+
+// ListServiceAccounts collects every page (name resolvers and pickers; the list commands read one page).
 func ListServiceAccounts(ctx context.Context, c *api.Client, orgID string) ([]gen.OrganizationServiceAccount, error) {
 	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.OrganizationServiceAccount, *string, error) {
-		query := cursorQuery(cursor)
-		if query == nil {
-			query = url.Values{}
-		}
-		var resp gen.OrganizationServiceAccountPage
-		if err := c.Do(ctx, http.MethodGet, "/orgs/"+url.PathEscape(orgID)+"/service-accounts", query, nil, &resp); err != nil {
-			return nil, nil, err
-		}
-		return resp.ServiceAccounts, resp.NextCursor, nil
+		page, err := ServiceAccountsPage(ctx, c, orgID, cursor, 0)
+		return api.Values(page.Items), &page.NextCursor, err
 	})
 }
 
-func GetServiceAccount(ctx context.Context, c *api.Client, orgID, saID string) (*gen.OrganizationServiceAccount, error) {
-	var resp gen.OrganizationServiceAccount
+func GetServiceAccount(ctx context.Context, c *api.Client, orgID, saID string) (*api.Raw[gen.OrganizationServiceAccount], error) {
+	var resp api.Raw[gen.OrganizationServiceAccount]
 	if err := c.Do(ctx, http.MethodGet, "/orgs/"+url.PathEscape(orgID)+"/service-accounts/"+url.PathEscape(saID), nil, nil, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func UpdateServiceAccount(ctx context.Context, c *api.Client, orgID, saID string, req gen.UpdateServiceAccountRequest) (*gen.OrganizationServiceAccount, error) {
-	var resp gen.OrganizationServiceAccount
+func UpdateServiceAccount(ctx context.Context, c *api.Client, orgID, saID string, req gen.UpdateServiceAccountRequest) (*api.Raw[gen.OrganizationServiceAccount], error) {
+	var resp api.Raw[gen.OrganizationServiceAccount]
 	if err := c.Do(ctx, http.MethodPatch, "/orgs/"+url.PathEscape(orgID)+"/service-accounts/"+url.PathEscape(saID), nil, req, &resp); err != nil {
 		return nil, err
 	}
@@ -54,18 +53,13 @@ func DeleteServiceAccount(ctx context.Context, c *api.Client, orgID, saID string
 	return c.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(orgID)+"/service-accounts/"+url.PathEscape(saID), nil, nil, nil)
 }
 
-func ListProjectServiceAccounts(ctx context.Context, c *api.Client, projectID string) ([]gen.ProjectServiceAccount, error) {
-	return collectAll(ctx, func(ctx context.Context, cursor string) ([]gen.ProjectServiceAccount, *string, error) {
-		var resp gen.ProjectServiceAccountPage
-		if err := c.Do(ctx, http.MethodGet, "/projects/"+url.PathEscape(projectID)+"/service-accounts", cursorQuery(cursor), nil, &resp); err != nil {
-			return nil, nil, err
-		}
-		return resp.ServiceAccounts, resp.NextCursor, nil
-	})
+// ProjectServiceAccountsPage reads one page of GET /projects/{project_id}/service-accounts.
+func ProjectServiceAccountsPage(ctx context.Context, c *api.Client, projectID string, cursor string, limit int64) (Page[gen.ProjectServiceAccount], error) {
+	return getPage[gen.ProjectServiceAccount](ctx, c, "/projects/"+url.PathEscape(projectID)+"/service-accounts", "service_accounts", cursor, limit)
 }
 
-func AddProjectServiceAccount(ctx context.Context, c *api.Client, projectID string, saID gen.OrganizationServiceAccount) (*gen.ProjectServiceAccountList, error) {
-	var resp gen.ProjectServiceAccountList
+func AddProjectServiceAccount(ctx context.Context, c *api.Client, projectID string, saID gen.OrganizationServiceAccount) (*api.Raw[gen.ProjectServiceAccountList], error) {
+	var resp api.Raw[gen.ProjectServiceAccountList]
 	if err := c.Do(ctx, http.MethodPost, "/projects/"+url.PathEscape(projectID)+"/service-accounts", nil, gen.AddProjectServiceAccountRequest{ServiceAccountId: saID.Id}, &resp); err != nil {
 		return nil, err
 	}

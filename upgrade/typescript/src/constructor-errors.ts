@@ -22,7 +22,8 @@ function handlesDaytonaError(handler: CatchClause, mapping: Mapping): boolean {
     if (!Node.isBinaryExpression(node) || node.getOperatorToken().getKind() !== SyntaxKind.InstanceOfKeyword) return;
     checksType = true;
     const name = importedName(unwrap(node.getRight()), mapping);
-    if (name !== undefined && isSharedError(name, mapping)) checksDaytona = true;
+    // The former root aliases (rootAliasCategories) name shared categories too.
+    if (name !== undefined && (isSharedError(name, mapping) || Object.hasOwn(mapping.rootAliasCategories, name))) checksDaytona = true;
     const type = unwrap(node.getRight());
     if (Node.isIdentifier(type) && type.getText() === 'Error' &&
       !type.getSymbol()?.getDeclarations()?.some(declaration => declaration.getSourceFile() === type.getSourceFile())) {

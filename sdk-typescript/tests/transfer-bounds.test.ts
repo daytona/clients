@@ -15,7 +15,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Daytona } from '../src/v2/Daytona'
 import { BadRequestError, ClientTimeoutError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
-import { HttpTransport, forceFetchAdapterForTests } from '../src/v2/http'
+import { HttpTransport, forceFetchAdapterForTests, transferRequest } from '../src/v2/http'
+import { attachHub, detachHub, eventsHubConfig } from '../src/v2/events'
+import { BodyBuffer } from '../src/v2/bodyBuffer'
 import { lazySandbox } from './lazySandbox'
 
 jest.setTimeout(30_000)
@@ -199,6 +201,76 @@ describe.each(['http', 'fetch'] as const)('the transfer idle bound (%s adapter)'
     }
   })
 
+  it('bounds a buffered upload to a server that stops reading, small from the start and large from its answer', async () => {
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    const transport = new HttpTransport(base, 't', IDLE_SECONDS * 1000)
+    // Small (1 KiB): the server never reads and never answers.
+    route = stopReading
+    const small = new Uint8Array(1024)
+    try {
+      for (const call of [
+        () => sandbox.fs.writeBytes('/a', small),
+        () => sandbox.fs.writeText('/a', 'x'.repeat(1024)),
+        () => sandbox.fs.writeMany({ '/a': small }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: small, transfer: true }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: new Blob([small]), transfer: true }),
+      ]) {
+        expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+      }
+      // Large (4 MiB): the server stops reading and answers; the answer
+      // stalls mid body. Where the runtime reports no upload progress (the
+      // fetch transports) the bound starts at that answer; with Node's http
+      // adapter it was running all along.
+      route = (request, response) => {
+        response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': '2000', Connection: 'close' })
+        response.write('{')
+        stallThenHangUp(response)
+        request.pause()
+      }
+      const large = new Uint8Array(4 << 20)
+      for (const call of [
+        () => sandbox.fs.writeBytes('/a', large),
+        () => sandbox.fs.writeMany({ '/a': large }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: new Blob([large]), transfer: true }).then((response) => response.text()),
+      ]) {
+        expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+      }
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('ends a call whose credential never resolves at the request timeout, ordinary or transfer', async () => {
+    route = body('{}', { contentType: 'application/json' })
+    // Providers that ignore their signal and never settle.
+    const authProvider = { authorizationHeader: (): Promise<string> => new Promise<string>(() => undefined) }
+    const auth = { bearer: (): Promise<string> => new Promise<string>(() => undefined), onUnauthorized: async (): Promise<undefined> => undefined }
+    for (const options of [{ authProvider }, { auth }]) {
+      const transport = new HttpTransport(base, undefined, IDLE_SECONDS * 1000, options)
+      for (const call of [
+        () => transport.get('/thing'),
+        () => transport.fetch('/thing'),
+        () => transport.getBytes('/files/download?path=a'),
+        () => transport.fetch('/files/download?path=a', { transfer: true }),
+      ]) {
+        const elapsed = await timesOut(call)
+        expect(elapsed).toBeLessThan(STALL_MS - 1000)
+      }
+    }
+  })
+
+  it('bounds a 401 refresh whose provider never resolves by the same deadline', async () => {
+    route = body(JSON.stringify({ code: 'UNAUTHORIZED', message: 'expired' }), { status: 401, contentType: 'application/json' })
+    const authProvider = {
+      authorizationHeader: (options?: { readonly forceRefresh?: boolean }): Promise<string> =>
+        options?.forceRefresh ? new Promise<string>(() => undefined) : Promise.resolve('Bearer stale'),
+    }
+    const transport = new HttpTransport(base, undefined, IDLE_SECONDS * 1000, { authProvider })
+    for (const call of [() => transport.get('/thing'), () => transport.fetch('/thing'), () => transport.fetch('/thing', { method: 'POST', body: new ReadableStream(), duplex: 'half' } as never)]) {
+      expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+    }
+  })
+
   it('keeps a transfer that keeps moving bytes going past the idle bound', async () => {
     // 12 bytes 200 ms apart: 2.4 s in all, five times the idle bound.
     route = trickle(12, 200)
@@ -378,6 +450,45 @@ describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', 
     }
   })
 
+  it('caps the events hub\'s ticket mint and long-poll fallback by the client\'s limit', async () => {
+    route = body(JSON.stringify({ id: 'sbx', status: 'started', pad: 'p'.repeat(4000) }), { contentType: 'application/json' })
+    // The hub a client attaches uses the client's own API instance...
+    const client = new Daytona({ apiKey: 'k', maxResponseBytes: 1000, sharedHub: false })
+    const hub = (client as unknown as { acquireHub(): { api: { get(path: string): Promise<unknown> } } }).acquireHub()
+    try {
+      expectTooLarge(await rejection(() => hub.api.get('/sandboxes/sbx')), 1000)
+    } finally {
+      await client.close()
+    }
+    // ...and one that builds its own takes the cap it is given.
+    const own = attachHub({ apiUrl: base, apiKey: 'k', target: undefined, shared: false, config: eventsHubConfig(undefined), maxResponseBytes: 1000 })
+    try {
+      expectTooLarge(await rejection(() => (own as unknown as { api: { get(path: string): Promise<unknown> } }).api.get('/sandboxes/sbx')), 1000)
+    } finally {
+      await detachHub(own, { apiUrl: base, apiKey: 'k', target: undefined, shared: false })
+    }
+  })
+
+  it('gives clients with different limits their own shared events hub', async () => {
+    route = body(JSON.stringify({ id: 'sbx', status: 'started', pad: 'p'.repeat(4000) }), { contentType: 'application/json' })
+    type HubOf = { acquireHub(): { api: { get(path: string): Promise<unknown> } } }
+    const tight = new Daytona({ apiKey: 'k', maxResponseBytes: 1000 })
+    const roomy = new Daytona({ apiKey: 'k', maxResponseBytes: 100_000 })
+    const twin = new Daytona({ apiKey: 'k', maxResponseBytes: 1000 })
+    const slow = new Daytona({ apiKey: 'k', maxResponseBytes: 1000, requestTimeoutSeconds: 9 })
+    try {
+      const [a, b, c, d] = [tight, roomy, twin, slow].map((client) => (client as unknown as HubOf).acquireHub())
+      // Same credentials, same limits: one hub; a different cap or request timeout: a hub of its own.
+      expect(a).toBe(c)
+      expect(a).not.toBe(b)
+      expect(a).not.toBe(d)
+      expectTooLarge(await rejection(() => a.api.get('/sandboxes/sbx')), 1000)
+      await expect(b.api.get('/sandboxes/sbx')).resolves.toBeDefined()
+    } finally {
+      for (const client of [tight, roomy, twin, slow]) await client.close()
+    }
+  })
+
   it('never caps downloadFile', async () => {
     route = body('d'.repeat(50_000))
     const { client, sandbox } = sandboxFor({ maxResponseBytes: 1000 })
@@ -401,5 +512,55 @@ describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', 
       expect(new TextDecoder().decode(await transport.getBytes('/files/download?path=small'))).toBe('b'.repeat(10))
     }
     expect(calls).toBe(6)
+  })
+})
+
+describe('BodyBuffer', () => {
+  const bytes = (...values: number[]): Uint8Array => new Uint8Array(values)
+
+  it('fills one allocation of the declared length in place', () => {
+    const body = new BodyBuffer(100, 4)
+    expect(body.add(bytes(1, 2))).toBe(true)
+    expect(body.add(bytes(3, 4))).toBe(true)
+    const out = body.bytes()
+    expect([...out]).toEqual([1, 2, 3, 4])
+    // The one allocation, not a copy of it.
+    expect(out.buffer.byteLength).toBe(4)
+    expect(body.bytes()).toBe(out)
+  })
+
+  it('keeps a body that outgrows or falls short of its declared length', () => {
+    const longer = new BodyBuffer(100, 2)
+    longer.add(bytes(1, 2))
+    longer.add(bytes(3))
+    expect([...longer.bytes()]).toEqual([1, 2, 3])
+    const shorter = new BodyBuffer(100, 8)
+    shorter.add(bytes(1))
+    expect([...shorter.bytes()]).toEqual([1])
+  })
+
+  it('refuses a chunk that would pass the limit and keeps none of it', () => {
+    const body = new BodyBuffer(3)
+    expect(body.add(bytes(1, 2))).toBe(true)
+    expect(body.add(bytes(3, 4))).toBe(false)
+    expect([...body.bytes()]).toEqual([1, 2])
+    // A declared length over the limit is not allocated.
+    expect(new BodyBuffer(3, 1 << 30).add(bytes(1, 2, 3, 4))).toBe(false)
+    expect(new BodyBuffer(0).add(new Uint8Array(10))).toBe(true)
+  })
+})
+
+describe('transferRequest', () => {
+  it('refuses a streamed response before anything is sent (no SDK transfer streams through axios)', async () => {
+    expect(() => transferRequest({ responseType: 'stream' })).toThrow(expect.objectContaining({ statusCode: 500, source: 'SDK' }))
+    let hits = 0
+    route = (request, response) => {
+      hits += 1
+      body('x')(request, response)
+    }
+    const transport = new HttpTransport(base, 't', 5_000)
+    // Marked as a transfer some other way, the adapter refuses it too.
+    await expect(transport.http.get('/files/download', { responseType: 'stream', daytona: { transfer: true } } as never)).rejects.toMatchObject({ statusCode: 500, source: 'SDK' })
+    expect(hits).toBe(0)
   })
 })

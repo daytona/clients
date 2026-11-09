@@ -5,12 +5,12 @@ package cmd
 
 import (
 	"context"
-	"net/http"
 	"strconv"
 	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/daytona/clients/cli/internal/regions"
 	"github.com/daytona/clients/cli/internal/workload"
@@ -21,6 +21,8 @@ type regionalListSource struct {
 	home    *api.Client
 	catalog *workload.CatalogCache
 	region  string
+	// raws keeps each item's API JSON for the output.
+	raws *rawIndex
 }
 
 func newSandboxListCommand() *cobra.Command {
@@ -36,7 +38,7 @@ func newSandboxListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			source := regionalListSource{home: home, catalog: workload.NewCatalogCache(), region: a.Globals.Region}
+			source := regionalListSource{home: home, catalog: workload.NewCatalogCache(), region: a.Globals.Region, raws: newRawIndex()}
 			fetch := func(ctx context.Context, cursor string) (output.List[gen.SandboxListItem], error) {
 				return source.fetchSandboxPage(ctx, listPageRequest{limit: flags.limit, cursor: cursor})
 			}
@@ -50,13 +52,19 @@ func newSandboxListCommand() *cobra.Command {
 				return err
 			}
 			list.Items = regions.Unique(list.Items, func(item gen.SandboxListItem) string { return item.Id })
-			if err := output.ListOut(a.Printer(), list, sandboxListTable); err != nil {
+			inRegion, err := source.regionFilter(cmd.Context())
+			if err != nil {
+				return err
+			}
+			list.Items = keepItems(list.Items, func(item gen.SandboxListItem) bool { return inRegion(item.RegionId) })
+			if err := listOutRaw(a.Printer(), rawList(source.raws, list), sandboxListTable); err != nil {
 				return err
 			}
 			return regions.PartialError(list)
 		},
 	}
 	addPageFlags(cmd, &flags)
+	addRegionFlag(cmd, "list only the sandboxes in this region or a region inside it (default: every region); a page can then hold fewer than --limit items")
 	return cmd
 }
 
@@ -103,10 +111,11 @@ func newSandboxWaitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(detail, sandboxDetailKV(detail))
+			return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 		},
 	}
 	cmd.Flags().StringVar(&status, "for", status, "status to wait for")
+	addTimeoutFlag(cmd, defaultWaitTimeout, "how long to wait (Go duration)")
 	return cmd
 }
 
@@ -124,20 +133,22 @@ func (source regionalListSource) fetchSandboxPage(ctx context.Context, page list
 				return regions.Page[gen.SandboxListItem]{Items: []gen.SandboxListItem{}}, nil
 			}
 			query := listQuery(pageFlags{limit: page.limit}, state.cursor)
-			var resp gen.SandboxPage
-			err := client.Do(ctx, http.MethodGet, "/sandboxes", query, nil, &resp)
-			next := ""
-			if resp.NextCursor != nil {
-				next = *resp.NextCursor
+			resp, err := getRawList[gen.SandboxListItem](ctx, client, "/sandboxes", query, "sandboxes")
+			if err != nil {
+				return regions.Page[gen.SandboxListItem]{}, err
 			}
-			if err == nil && scope.streams != nil {
-				rows := make(map[string]string, len(resp.Sandboxes))
-				for _, item := range resp.Sandboxes {
+			items := api.Values(resp.Items)
+			for _, item := range resp.Items {
+				addRaw(source.raws, item)
+			}
+			if scope.streams != nil {
+				rows := make(map[string]string, len(items))
+				for _, item := range items {
 					rows[item.Id] = item.Cursor
 				}
-				scope.recordStream(currentRegion, rows, next != "")
+				scope.recordStream(currentRegion, rows, resp.NextCursor != "")
 			}
-			return regions.Page[gen.SandboxListItem]{Items: resp.Sandboxes, NextCursor: next}, err
+			return regions.Page[gen.SandboxListItem]{Items: items, NextCursor: resp.NextCursor}, nil
 		},
 		func(a, b gen.SandboxListItem) bool {
 			if a.CreatedAt == nil || b.CreatedAt == nil {
@@ -245,5 +256,40 @@ func printSandboxDetail(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	return a.Printer().Object(resolved.Detail, sandboxDetailKV(resolved.Detail))
+	return a.Printer().Object(resolved.Raw, sandboxDetailKV(resolved.Detail))
+}
+
+// regionFilter reports whether a region id is the --region the list was
+// narrowed to or a region inside it; every region matches without --region.
+// The list API has no region filter: the CLI asks every API that serves the
+// region or a region inside it, then drops the other regions' items (regions
+// without their own API base URL share one), while the cursor still advances
+// over each API's whole page.
+func (source regionalListSource) regionFilter(ctx context.Context) (func(string) bool, error) {
+	if source.region == "" {
+		return func(string) bool { return true }, nil
+	}
+	cat, err := source.catalog.Fetch(ctx, source.home)
+	if err != nil {
+		return nil, err
+	}
+	selected := cat.Find(source.region)
+	if selected == nil {
+		return nil, cerr.Usage("unknown region %q", source.region).WithHint("`daytona region list` shows the regions")
+	}
+	return func(id string) bool { return cat.InScope(selected.Id, id) }, nil
+}
+
+// keepItems returns the items keep accepts, in order.
+func keepItems[T any](items []T, keep func(T) bool) []T {
+	out := items[:0:0]
+	for _, item := range items {
+		if keep(item) {
+			out = append(out, item)
+		}
+	}
+	if out == nil {
+		out = []T{}
+	}
+	return out
 }

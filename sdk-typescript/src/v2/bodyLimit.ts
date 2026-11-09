@@ -17,6 +17,7 @@
  */
 
 import { badRequest } from './options.js'
+import { BodyBuffer } from './bodyBuffer.js'
 
 /** The default cap on a buffered response body: 1 GiB. */
 export const DEFAULT_MAX_RESPONSE_BYTES = 1_073_741_824
@@ -76,16 +77,6 @@ function chunkBytes(chunk: unknown): Uint8Array {
   return new Uint8Array(0)
 }
 
-function concat(chunks: readonly Uint8Array[], size: number): Uint8Array {
-  if (chunks.length === 1) return chunks[0]
-  const out = new Uint8Array(size)
-  let offset = 0
-  for (const chunk of chunks) {
-    out.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return out
-}
 
 /** A declared `Content-Length` (header value) above `limit`. */
 export function declaresMoreThan(contentLength: unknown, limit: number): boolean {
@@ -109,13 +100,11 @@ export interface ReadHooks {
  * connection) and throws {@link BodyTooLarge}; on any other failure it
  * cancels it too and rethrows.
  */
-export async function readCappedBody(data: unknown, limit: number, hooks: ReadHooks = {}, release?: () => void): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = []
-  let size = 0
+export async function readCappedBody(data: unknown, limit: number, hooks: ReadHooks = {}, release?: () => void, declaredLength?: number): Promise<Uint8Array> {
+  // Allocated once when the length is declared (see BodyBuffer for the peak).
+  const body = new BodyBuffer(limit, declaredLength)
   const add = (chunk: Uint8Array): void => {
-    size += chunk.byteLength
-    if (limit > 0 && size > limit) throw new BodyTooLarge(limit)
-    chunks.push(chunk)
+    if (!body.add(chunk)) throw new BodyTooLarge(limit)
   }
   if (isNodeReadable(data)) {
     const iterator = data[Symbol.asyncIterator]()
@@ -132,7 +121,7 @@ export async function readCappedBody(data: unknown, limit: number, hooks: ReadHo
       release?.()
       throw error
     }
-    return concat(chunks, size)
+    return body.bytes()
   }
   if (isWebStream(data)) {
     const reader = data.getReader()
@@ -151,11 +140,42 @@ export async function readCappedBody(data: unknown, limit: number, hooks: ReadHo
     } finally {
       reader.releaseLock()
     }
-    return concat(chunks, size)
+    return body.bytes()
   }
   if (data === undefined || data === null || data === '') return new Uint8Array(0)
   add(chunkBytes(data))
-  return concat(chunks, size)
+  return body.bytes()
+}
+
+/**
+ * A request body small enough (64 KiB) that the runtime hands it to the
+ * socket at once, so a wait after sending it is a wait for the response, not
+ * an upload still in progress. A transfer's idle bound starts at once for
+ * one; for a larger body the runtime sends without progress events, it starts
+ * at the response headers, so a long upload that is still moving is never
+ * cut. A body of unknown size (a stream, an unknown object) is not small.
+ */
+export const SMALL_REQUEST_BODY_BYTES = 64 * 1024
+
+export function isSmallRequestBody(method: string | undefined, data: unknown): boolean {
+  if (data === undefined || data === null || ['get', 'head'].includes((method ?? 'get').toLowerCase())) return true
+  const size = (value: unknown): number | undefined => {
+    if (typeof value === 'string') return value.length * 3
+    if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value.byteLength
+    if (typeof Blob !== 'undefined' && value instanceof Blob) return value.size
+    if (typeof URLSearchParams !== 'undefined' && value instanceof URLSearchParams) return value.toString().length
+    return undefined
+  }
+  if (typeof FormData !== 'undefined' && data instanceof FormData) {
+    let total: number | undefined = 0
+    data.forEach((value) => {
+      const entry = size(value)
+      total = total === undefined || entry === undefined ? undefined : total + entry
+    })
+    return total !== undefined && total <= SMALL_REQUEST_BODY_BYTES
+  }
+  const bytes = size(data)
+  return bytes !== undefined && bytes <= SMALL_REQUEST_BODY_BYTES
 }
 
 /** Cancel a body without reading it (closing its connection). */

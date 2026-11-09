@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -24,13 +25,10 @@ func init() {
 func newInviteCmd() *cobra.Command {
 	// Run the parent to show help for bare `daytona invite` and return a
 	// usage error for an unknown subcommand before making any request.
-	cmd := &cobra.Command{Use: "invite", Short: "Organization invitations: create, list, revoke, show, accept, decline", GroupID: GroupManagement, Args: cobra.ArbitraryArgs, RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) > 0 {
-			return cerr.Usage("unknown command %q for %q", args[0], cmd.CommandPath())
-		}
+	cmd := &cobra.Command{Use: "invite", Short: "Organization invitations: create, list, revoke, get, accept, decline", GroupID: GroupManagement, Args: rejectUnknownSubcommand, RunE: func(cmd *cobra.Command, _ []string) error {
 		return cmd.Help()
 	}}
-	cmd.AddCommand(newInviteCreateCmd(), newInviteListCmd(), newInviteRevokeCmd(), newInviteShowCmd(), newInviteAcceptCmd(), newInviteDeclineCmd())
+	cmd.AddCommand(newInviteCreateCmd(), newInviteListCmd(), newInviteRevokeCmd(), newInviteGetCmd(), newInviteAcceptCmd(), newInviteDeclineCmd())
 	return cmd
 }
 
@@ -61,7 +59,7 @@ func inviteStatus(item gen.Invitation) string {
 // error and not a 404 that reads as "ask for a re-invite".
 var invitationTokenRe = regexp.MustCompile(`^dtni_[A-Za-z0-9_-]{43}$`)
 
-// invitationTokenArg turns the positional argument of show/accept/decline
+// invitationTokenArg turns the positional argument of get/accept/decline
 // into the `dtni_` token the invitee routes take: a link carrying
 // `?token=…` — the absolute one from the invitation email, the relative
 // `/dashboard/user/invitations?token=…` that `invite create` prints when the
@@ -136,30 +134,31 @@ func newInviteCreateCmd() *cobra.Command {
 		}
 		// When the response includes accept_url, print the invitation link
 		// on its own line. JSON/YAML keep the complete response.
-		if resp.AcceptUrl != nil && a.Format == output.FormatTable {
+		if resp.V.AcceptUrl != nil && a.Format == output.FormatTable {
 			// A relative accept_url cannot be opened directly: print its token
 			// for `daytona invite accept <token>`. If it cannot be parsed,
 			// preserve the link rather than dropping the invitation.
 			token, tokenErr := "", error(nil)
-			if strings.HasPrefix(*resp.AcceptUrl, "/") {
-				token, tokenErr = invitationTokenArg(*resp.AcceptUrl)
+			if strings.HasPrefix(*resp.V.AcceptUrl, "/") {
+				token, tokenErr = invitationTokenArg(*resp.V.AcceptUrl)
 			}
 			if token != "" && tokenErr == nil {
 				if _, err := fmt.Fprintf(a.Stdout, "Invitation token: %s\nNo invitation email is sent by this deployment; give the invitee this token for daytona invite accept <token>.\n", output.SanitizeLine(token)); err != nil {
 					return err
 				}
-			} else if _, err := fmt.Fprintf(a.Stdout, "Invitation link: %s\nNo invitation email is sent by this deployment; share the link with the invitee.\n", output.SanitizeLine(*resp.AcceptUrl)); err != nil {
+			} else if _, err := fmt.Fprintf(a.Stdout, "Invitation link: %s\nNo invitation email is sent by this deployment; share the link with the invitee.\n", output.SanitizeLine(*resp.V.AcceptUrl)); err != nil {
 				return err
 			}
 		}
-		return a.Printer().Object(resp, [][2]string{{"id", resp.Id.String()}, {"email", resp.Email}, {"roles", joinComma(resp.Roles)}, {"expires_at", resp.ExpiresAt.Format(time.RFC3339)}})
+		return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id.String()}, {"email", resp.V.Email}, {"roles", joinComma(resp.V.Roles)}, {"expires_at", resp.V.ExpiresAt.Format(time.RFC3339)}})
 	}}
-	cmd.Flags().StringVar(&roleCSV, "role", "", "comma-separated role slugs")
+	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (repeatable or comma-separated)")
 	return cmd
 }
 
 func newInviteListCmd() *cobra.Command {
-	return &cobra.Command{Use: "list", Short: "List invitations for the selected organization", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	var flags pageFlags
+	cmd := &cobra.Command{Use: "list", Short: "List invitations for the selected organization", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
 		orgID, err := a.RequireOrg(ctx, pickOrg(a))
@@ -170,12 +169,16 @@ func newInviteListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		items, err := mgmt.ListOrgInvitations(ctx, mc, orgID)
+		items, err := mgmtListPage(ctx, flags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.Invitation], error) {
+			return mgmt.OrgInvitationsPage(ctx, mc, orgID, cursor, limit)
+		})
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), output.List[gen.Invitation]{Items: items}, inviteTable)
+		return listOutRaw(a.Printer(), items, inviteTable)
 	}}
+	addPageFlags(cmd, &flags)
+	return cmd
 }
 
 func newInviteRevokeCmd() *cobra.Command {
@@ -199,12 +202,12 @@ func newInviteRevokeCmd() *cobra.Command {
 		if err := mgmt.RevokeInvitation(ctx, mc, orgID, args[0]); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"revoked": args[0]}, [][2]string{{"revoked", args[0]}})
+		return printAck(a, "id", args[0], "revoked", "")
 	}}
 }
 
-func newInviteShowCmd() *cobra.Command {
-	return &cobra.Command{Use: "show <token|link>", Short: "Show the invitation behind a token or invitation link", Long: "Show who invited you to which organization, with which roles, and until when — before accepting or declining. Takes the dtni_ token or the full link from the invitation email.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+func newInviteGetCmd() *cobra.Command {
+	return &cobra.Command{Use: "get <token|link>", Short: "Show the invitation behind a token or invitation link", Long: "Show who invited you to which organization, with which roles, and until when — before accepting or declining. Takes the dtni_ token or the full link from the invitation email.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		token, err := invitationTokenArg(args[0])
 		if err != nil {
 			return err
@@ -219,10 +222,10 @@ func newInviteShowCmd() *cobra.Command {
 			return err
 		}
 		invitedBy := ""
-		if resp.InvitedBy != nil {
-			invitedBy = *resp.InvitedBy
+		if resp.V.InvitedBy != nil {
+			invitedBy = *resp.V.InvitedBy
 		}
-		return a.Printer().Object(resp, [][2]string{{"org", resp.OrgName}, {"org_id", resp.OrgId.String()}, {"roles", joinComma(resp.Roles)}, {"invited_by", invitedBy}, {"email", resp.Email}, {"expires_at", resp.ExpiresAt.Format(time.RFC3339)}})
+		return a.Printer().Object(resp, [][2]string{{"org", resp.V.OrgName}, {"org_id", resp.V.OrgId.String()}, {"roles", joinComma(resp.V.Roles)}, {"invited_by", invitedBy}, {"email", resp.V.Email}, {"expires_at", resp.V.ExpiresAt.Format(time.RFC3339)}})
 	}}
 }
 
@@ -241,7 +244,7 @@ func newInviteAcceptCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"user_id", resp.UserId.String()}, {"roles", joinComma(resp.Roles)}})
+		return a.Printer().Object(resp, [][2]string{{"user_id", resp.V.UserId.String()}, {"roles", joinComma(resp.V.Roles)}})
 	}}
 }
 

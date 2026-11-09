@@ -49,6 +49,7 @@ export class Daytona {
   private keyOrganization?: Promise<string>
   private readonly apiUrl: string
   private readonly httpOptions: HttpClientOptions
+  private readonly maxResponseBytes: number
   private readonly hubShared: boolean
   private readonly hubEventsConfig: EventsHubConfig
   private readonly hubIdentityKey: string
@@ -61,6 +62,7 @@ export class Daytona {
     this.apiUrl = connection.apiUrl
     this.hubIdentityKey = connection.hubIdentityKey
     this.httpOptions = connection.httpOptions
+    this.maxResponseBytes = connection.maxResponseBytes
     this.apiTransport = new HttpTransport(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
     this.api = createHttpClient(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
     this.images = new ImagesService(INTERNAL, this.api, this.apiTransport)
@@ -85,7 +87,10 @@ export class Daytona {
         target: undefined,
         shared: this.hubShared,
         config: this.hubEventsConfig,
+        // The client's own instance: its maxResponseBytes caps the hub's
+        // ticket mint and long-poll fallback (neither is a file transfer).
         _api: this.api,
+        maxResponseBytes: this.maxResponseBytes,
       })
     }
     return this.hub
@@ -218,7 +223,7 @@ export class Daytona {
    * otherwise the API answers `403` `FEATURE_NOT_ENABLED`
    * (thrown as `FeatureNotEnabledError`).
    *
-   * Find regions and their regional API endpoints with `GET /regions`;
+   * Find regions and their regional API endpoints with `daytona region list` (the CLI);
    * discover Mac models and prices with `macModels.catalog({ region: '<region>' })`.
    * To select a regional API endpoint, set `DAYTONA_V2_API_URL` before creating
    * the client. An API that does not serve the region answers `ConflictError`;

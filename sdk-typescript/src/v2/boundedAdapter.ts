@@ -11,9 +11,18 @@
 
 import axios, { AxiosError } from 'axios'
 import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { BodyTooLarge, IdleWatchdog, bytesAs, declaresMoreThan, discardBody, readCappedBody, tooLargeErrorStatusMessage, tooLargeMessage } from './bodyLimit.js'
-import { PAYLOAD_TOO_LARGE_AXIOS_CODE } from './errors/DaytonaError.js'
+import { BodyTooLarge, IdleWatchdog, bytesAs, declaresMoreThan, discardBody, isSmallRequestBody, readCappedBody, tooLargeErrorStatusMessage, tooLargeMessage } from './bodyLimit.js'
+import { PAYLOAD_TOO_LARGE_AXIOS_CODE, createDaytonaError } from './errors/DaytonaError.js'
+import { declaredLength } from './bodyBuffer.js'
 import { boundedTimerDelay } from './options.js'
+
+/**
+ * An axios transfer is read whole by the adapter, which applies its idle
+ * bound; no SDK call streams one (streamed transfers use `fetch`). Internal.
+ */
+function streamTransferError(): Error {
+  return createDaytonaError('internal: an axios file transfer cannot use responseType "stream"; stream it through HttpTransport.fetch with transfer: true', 500, undefined, 'SDK')
+}
 
 /** The request meta the adapter reads (the transport's `daytona` field). */
 interface TransferMeta {
@@ -35,6 +44,7 @@ function unrefTimer(timer: ReturnType<typeof setTimeout>): void {
  * in the response body). `0` request timeout = no idle bound.
  */
 export function transferRequest<T extends AxiosRequestConfig>(config: T): T {
+  if (config.responseType === 'stream') throw streamTransferError()
   const marked = { ...config, timeout: 0 } as T & { daytona?: TransferMeta }
   marked.daytona = { ...marked.daytona, transfer: true }
   return marked
@@ -168,33 +178,8 @@ async function fetchAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
   }
 }
 
-/**
- * A request body small enough that the runtime hands it to the socket at
- * once (64 KiB), so a wait after sending it is a wait for the response, not
- * an upload still in progress. Bodies of unknown size are not.
- */
-const SMALL_REQUEST_BODY_BYTES = 64 * 1024
-
 function smallRequestBody(config: InternalAxiosRequestConfig): boolean {
-  const data: unknown = config.data
-  if (data === undefined || data === null || ['get', 'head'].includes((config.method ?? 'get').toLowerCase())) return true
-  const size = (value: unknown): number | undefined => {
-    if (typeof value === 'string') return value.length * 3
-    if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value.byteLength
-    if (typeof Blob !== 'undefined' && value instanceof Blob) return value.size
-    if (typeof URLSearchParams !== 'undefined' && value instanceof URLSearchParams) return value.toString().length
-    return undefined
-  }
-  if (typeof FormData !== 'undefined' && data instanceof FormData) {
-    let total: number | undefined = 0
-    data.forEach((value) => {
-      const entry = size(value)
-      total = total === undefined || entry === undefined ? undefined : total + entry
-    })
-    return total !== undefined && total <= SMALL_REQUEST_BODY_BYTES
-  }
-  const bytes = size(data)
-  return bytes !== undefined && bytes <= SMALL_REQUEST_BODY_BYTES
+  return isSmallRequestBody(config.method, config.data)
 }
 
 function settleError(config: InternalAxiosRequestConfig, response: AxiosResponse): AxiosError {
@@ -224,6 +209,9 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
   const base: AxiosAdapter = httpBase ?? fetchAdapter
   const responseType = config.responseType
   if (responseType === 'stream') {
+    // The idle bound is enforced on a body this adapter reads; a streamed
+    // response is read by the caller, so it cannot be a transfer here.
+    if ((config as InternalAxiosRequestConfig & { daytona?: TransferMeta }).daytona?.transfer === true) throw streamTransferError()
     if (http) return base(config)
     const streamed = await fetchAdapter(config)
     const accepts = config.validateStatus
@@ -288,7 +276,7 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
       throw tooLarge()
     }
     try {
-      bytes = await readCappedBody(response.data, limit, watchdog === undefined ? {} : { waiting: () => watchdog.kick(), received: () => watchdog.pause() }, release)
+      bytes = await readCappedBody(response.data, limit, watchdog === undefined ? {} : { waiting: () => watchdog.kick(), received: () => watchdog.pause() }, release, declaredLength(response.headers['content-length']))
     } catch (error) {
       if (error instanceof BodyTooLarge) throw tooLarge()
       throw failed(error)

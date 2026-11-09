@@ -64,8 +64,9 @@ func revokeKeys(ctx context.Context, a *app.App, c *api.Client, keys []config.Wo
 }
 
 // Logout clears only this profile's local session, then attempts revocation of
-// its login-minted keys against the saved API. Static exchanges are deliberately
-// excluded: their source credential is not the login being signed out.
+// its login-minted keys against the saved API. Keys an earlier release
+// exchanged from a static credential are excluded: their source credential is
+// not the login being signed out.
 func Logout(ctx context.Context, a *app.App) error {
 	var snapshot LoginKeyCleanup
 	err := a.Store.Update(func(c *config.Config, cr *config.Credentials) (bool, bool, error) {

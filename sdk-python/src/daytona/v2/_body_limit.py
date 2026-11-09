@@ -60,8 +60,12 @@ def too_large_error(status_code: int, limit: int) -> DaytonaError:
 
 
 def _declared_too_large(response: httpx.Response, limit: int) -> bool:
-    declared = response.headers.get("content-length", "")
-    return bool(limit) and declared.isdigit() and int(declared) > limit
+    declared = response.headers.get("content-length", "").strip().lstrip("0") or "0"
+    if not limit or not declared.isascii() or not declared.isdigit():
+        return False
+    # Compared by digit count first: a length too long for int() is over any cap.
+    bound = str(limit)
+    return len(declared) > len(bound) or (len(declared) == len(bound) and declared > bound)
 
 
 async def read_body(response: httpx.Response, limit: int) -> bytes:
@@ -71,9 +75,10 @@ async def read_body(response: httpx.Response, limit: int) -> bytes:
             raise too_large_error(response.status_code, limit)
         body = bytearray()
         async for chunk in response.aiter_bytes():
-            body.extend(chunk)
-            if limit and len(body) > limit:
+            # Checked before buffering: no byte past the cap is ever held.
+            if limit and len(body) + len(chunk) > limit:
                 raise too_large_error(response.status_code, limit)
+            body.extend(chunk)
         return bytes(body)
     finally:
         await response.aclose()
@@ -86,9 +91,10 @@ def read_body_sync(response: httpx.Response, limit: int) -> bytes:
             raise too_large_error(response.status_code, limit)
         body = bytearray()
         for chunk in response.iter_bytes():
-            body.extend(chunk)
-            if limit and len(body) > limit:
+            # Checked before buffering: no byte past the cap is ever held.
+            if limit and len(body) + len(chunk) > limit:
                 raise too_large_error(response.status_code, limit)
+            body.extend(chunk)
         return bytes(body)
     finally:
         response.close()

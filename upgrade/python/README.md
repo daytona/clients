@@ -96,7 +96,7 @@ Warnings are advice, not manual items: `--strict` ignores them.
 | `[path]` | Project root (default: current directory), or a single file |
 | `--dry` | Print a unified diff; write nothing and skip Git safety |
 | `--print` | Print changed files; write nothing and skip Git safety |
-| `--json` | Print the shared report schema; with `--suggest-v2`, write nothing and skip Git safety |
+| `--json` | Print the structured report (the fields of `report.schema.json`, linked below); with `--suggest-v2`, write nothing and skip Git safety |
 | `--force` | Skip the Git check entirely, allowing uncommitted changes |
 | `-y`, `--yes` | Skip confirmation (also automatic for non-interactive stdin) |
 | `--drop-api-url` | Accept API URLs the tool cannot verify or that come from the environment, asserting they point at Daytona Cloud |
@@ -108,6 +108,13 @@ Warnings are advice, not manual items: `--strict` ignores them.
 Exit codes: **0** completed (manual items may remain), **1** internal/input
 processing error or strict-mode manual items, **2** refused (dirty tree, custom
 API URL, a newer 0.x minor than `.v0` without `--allow-newer-v0`, a project-owned SDK module, invalid arguments, or no Daytona dependency/code).
+
+From `2.0.0` on, within a major version the flags, these exit codes and the
+fields and values of the `--json` report ([`report.schema.json`](https://github.com/daytona/clients/blob/main/upgrade/mapping/report.schema.json))
+stay compatible. A minor release can add flags, report fields and values to
+the `language`, `mode`, `kind`, `refused.reason` and `suggestion.category`
+vocabularies, rewrite more calls, report new manual items and refuse a case it
+newly recognizes as unsafe. Ignore fields and values you don't know.
 
 ## Scope and safety
 

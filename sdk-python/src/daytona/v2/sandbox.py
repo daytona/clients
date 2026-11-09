@@ -1711,10 +1711,8 @@ class AsyncSandbox:
             if not isinstance(ttl_seconds, int) or isinstance(ttl_seconds, bool) or ttl_seconds <= 0:
                 raise create_error("ttl_seconds must be a positive integer", 400, "BAD_REQUEST", "SDK")
             body["ttl_seconds"] = ttl_seconds
-        payload = expect_object(
-            await self._require_api().send(
-                RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/access-token", json_body=body)
-            )
+        payload = await self._require_api().send(
+            RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/access-token", json_body=body)
         )
         return _sandbox_access_token_from_payload(payload)
 
@@ -2318,11 +2316,16 @@ def _sandbox_terminal_state_error(
     return SandboxTerminalStateError(sandbox_id, state, raw_state=raw_state, reason=reason)
 
 
-def _sandbox_access_token_from_payload(payload: JsonObject) -> SandboxAccessToken:
-    """The contract's access token, every field checked; a violation names the field."""
+def _sandbox_access_token_from_payload(raw: object) -> SandboxAccessToken:
+    """The contract's access token, every field checked; a violation names the
+    field (TypeScript's ``checkResponse`` messages for the same body)."""
 
     def malformed(detail: str) -> DaytonaError:
         return create_error(f"sandbox access token response {detail}", 400, "BAD_REQUEST", "SDK")
+
+    if not isinstance(raw, dict):
+        raise malformed("is not a JSON object")
+    payload: JsonObject = raw
 
     def required_str(field: str) -> str:
         value = payload.get(field)

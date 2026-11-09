@@ -42,7 +42,7 @@ func ParseTimeout(raw string) (time.Duration, error) {
 	return timeout, nil
 }
 
-func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWaitOptions) (gen.Sandbox, error) {
+func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWaitOptions) (api.Raw[gen.Sandbox], error) {
 	queryKey := "wait"
 	if options.Target == "stopped" || options.Target == "deleted" {
 		queryKey = "wait_exact"
@@ -56,8 +56,8 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 	// else first.
 	var seenProgress bool
 	return wait.Until(ctx, options.Timeout, 200*time.Millisecond,
-		func(ctx context.Context, remaining time.Duration) (gen.Sandbox, error) {
-			var detail gen.Sandbox
+		func(ctx context.Context, remaining time.Duration) (api.Raw[gen.Sandbox], error) {
+			var detail api.Raw[gen.Sandbox]
 			query := url.Values{
 				queryKey:     {options.Target},
 				"timeout_ms": {strconv.FormatInt(longPollMillis(remaining), 10)},
@@ -65,7 +65,8 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 			err := client.Do(ctx, http.MethodGet, fmt.Sprintf("/sandboxes/%s", url.PathEscape(options.ID)), query, nil, &detail)
 			return detail, err
 		},
-		func(detail gen.Sandbox) (bool, error) {
+		func(raw api.Raw[gen.Sandbox]) (bool, error) {
+			detail := raw.V
 			if detail.Status == options.Target {
 				return true, nil
 			}
@@ -105,10 +106,10 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 	)
 }
 
-func WaitForImage(ctx context.Context, client *api.Client, id string, timeout time.Duration) (gen.Image, error) {
+func WaitForImage(ctx context.Context, client *api.Client, id string, timeout time.Duration) (api.Raw[gen.Image], error) {
 	return wait.Until(ctx, timeout, 200*time.Millisecond,
-		func(ctx context.Context, remaining time.Duration) (gen.Image, error) {
-			var image gen.Image
+		func(ctx context.Context, remaining time.Duration) (api.Raw[gen.Image], error) {
+			var image api.Raw[gen.Image]
 			query := url.Values{
 				"wait":       {"ready"},
 				"timeout_ms": {strconv.FormatInt(longPollMillis(remaining), 10)},
@@ -116,11 +117,11 @@ func WaitForImage(ctx context.Context, client *api.Client, id string, timeout ti
 			err := client.Do(ctx, http.MethodGet, fmt.Sprintf("/images/%s", url.PathEscape(id)), query, nil, &image)
 			return image, err
 		},
-		func(image gen.Image) (bool, error) {
-			if image.Status == "ready" {
+		func(image api.Raw[gen.Image]) (bool, error) {
+			if image.V.Status == "ready" {
 				return true, nil
 			}
-			if image.Status == "failed" {
+			if image.V.Status == "failed" {
 				return false, cerr.New(cerr.ExitFailure, "image %s reached failed, not ready", id)
 			}
 			return false, nil
@@ -129,10 +130,10 @@ func WaitForImage(ctx context.Context, client *api.Client, id string, timeout ti
 	)
 }
 
-func WaitForSnapshot(ctx context.Context, client *api.Client, id string, timeout time.Duration) (gen.Snapshot, error) {
+func WaitForSnapshot(ctx context.Context, client *api.Client, id string, timeout time.Duration) (api.Raw[gen.Snapshot], error) {
 	return wait.Until(ctx, timeout, 200*time.Millisecond,
-		func(ctx context.Context, remaining time.Duration) (gen.Snapshot, error) {
-			var snapshot gen.Snapshot
+		func(ctx context.Context, remaining time.Duration) (api.Raw[gen.Snapshot], error) {
+			var snapshot api.Raw[gen.Snapshot]
 			query := url.Values{
 				"wait":       {"ready"},
 				"timeout_ms": {strconv.FormatInt(longPollMillis(remaining), 10)},
@@ -140,11 +141,11 @@ func WaitForSnapshot(ctx context.Context, client *api.Client, id string, timeout
 			err := client.Do(ctx, http.MethodGet, fmt.Sprintf("/snapshots/%s", url.PathEscape(id)), query, nil, &snapshot)
 			return snapshot, err
 		},
-		func(snapshot gen.Snapshot) (bool, error) {
-			if snapshot.Status == "ready" {
+		func(snapshot api.Raw[gen.Snapshot]) (bool, error) {
+			if snapshot.V.Status == "ready" {
 				return true, nil
 			}
-			if snapshot.Status == "failed" {
+			if snapshot.V.Status == "failed" {
 				return false, cerr.New(cerr.ExitFailure, "snapshot %s reached failed, not ready", id)
 			}
 			return false, nil
