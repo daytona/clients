@@ -207,8 +207,10 @@ it('holds no probe long poll past the hub\'s share', async () => {
   const h = harness(new ServerSandbox('stopped', 'running', undefined), 300)
   const started = Date.now()
   const reads: Array<[number, number]> = []
+  const readTimeouts: Array<[number, number]> = []
   jest.spyOn(h.api, 'get').mockImplementation(async (_url, config) => {
     const begun = Date.now() - started
+    readTimeouts.push([begun, Number(config?.timeout ?? 0)])
     const params = config?.params as Record<string, unknown> | undefined
     const signal = config?.signal as AbortSignal | undefined
     await new Promise<void>((resolve) => {
@@ -222,6 +224,10 @@ it('holds no probe long poll past the hub\'s share', async () => {
   reads.sort((a, b) => a[0] - b[0])
   expect(reads.length).toBeGreaterThanOrEqual(2)
   for (let i = 1; i < reads.length; i++) expect(reads[i]![0]).toBeGreaterThanOrEqual(reads[i - 1]![1] - 50)
+  // The probe's read itself (its slack included) ends with the hub's share.
+  const probes = readTimeouts.filter(([begun]) => begun < 1_450)
+  expect(probes.length).toBeGreaterThan(0)
+  for (const [begun, timeout] of probes) expect(begun + timeout).toBeLessThanOrEqual(1_550)
 })
 
 it('keeps the wait timeout when the read in the reserve gets a server 408', async () => {

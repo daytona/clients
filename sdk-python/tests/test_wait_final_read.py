@@ -250,26 +250,30 @@ async def test_a_refused_credential_in_the_reserve_is_raised(monkeypatch: pytest
 
 async def test_the_hubs_probes_hold_no_long_poll_past_its_share(monkeypatch: pytest.MonkeyPatch) -> None:
     # With the early probe on, a probe asks the server to hold its long poll
-    # no further than the end of the hub's share (1.5 s of a 2 s budget), so
-    # the reserve's read does not start beside a probe still held.
+    # no further than the end of the hub's share (1.5 s of a 2 s budget), and
+    # its read ends there too, so the reserve's read does not start beside a
+    # probe still held.
     monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
     sandbox = _Sandbox("stopped", "running", None)
     async with _client(monkeypatch, sandbox, early_probe=0.3) as (client, api):
         started = events_module._clock.monotonic()
-        asked: list[tuple[float, int]] = []
+        asked: list[tuple[float, int, float]] = []
         original = api.send
 
         async def recording_send(spec: RequestSpec) -> object:
             begun = events_module._clock.monotonic() - started
-            asked.append((begun, int(spec.params.get("timeout_ms", 0))))
+            asked.append((begun, int(spec.params.get("timeout_ms", 0)), spec.timeout or 0.0))
             return await original(spec)
 
         monkeypatch.setattr(api, "send", recording_send)
         with pytest.raises(RequestTimeoutError):
             await _handle(client).wait(until="started", timeout=2)
-    probes = [(begun, held) for begun, held in asked if begun < 1.45]
+    probes = [entry for entry in asked if entry[0] < 1.45]
     assert probes
-    assert all(begun * 1000 + held <= 1_550 for begun, held in probes)
+    # Neither the server's hold nor the read itself (its slack included)
+    # outlasts the hub's share.
+    assert all(begun * 1000 + held <= 1_550 for begun, held, _ in probes)
+    assert all(begun + read_timeout <= 1.55 for begun, _, read_timeout in probes)
 
 
 async def test_a_server_408_in_the_reserve_keeps_the_wait_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
