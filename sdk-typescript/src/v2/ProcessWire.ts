@@ -137,7 +137,7 @@ export function bodyFor(commandOrOptions: string | InternalProcessStartOptions, 
   }
   const body: toolbox.CreateProcessRequest = {
     shellCommand: merged.cmd, argv: merged.argv, code: merged.code, kind: merged.kind,
-    name: merged.name, sessionId: merged.sessionId, cwd: merged.cwd, env: merged.env,
+    name: merged.name, tag: merged.tag, sessionId: merged.sessionId, cwd: merged.cwd, env: merged.env,
     user: merged.user, shell: merged.shell, login: merged.login, stdin: merged.stdin,
     // Code cells have no server-side deadline. Shell-session commands do.
     timeoutMs: hasCode || merged.executionTimeout === undefined ? undefined : Math.ceil(merged.executionTimeout),

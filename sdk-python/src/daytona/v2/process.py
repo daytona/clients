@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Mapping
 from typing import AsyncIterator, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote
@@ -17,6 +18,7 @@ from ._core import (
     delete_process_spec,
     enum_str,
     expect_exit_result,
+    expect_kill_processes_response,
     expect_log_frame_dto,
     expect_process_dto,
     logs_spec,
@@ -26,6 +28,7 @@ from ._core import (
     parse_sse_lines_async,
     parse_wait,
     process_create_spec,
+    process_kill_spec,
     process_list_spec,
     resize_spec,
     signal_spec,
@@ -384,6 +387,7 @@ class AsyncProcessService:
         shell: Optional[str] = None,
         login: Optional[bool] = None,
         name: Optional[str] = None,
+        tag: Optional[str] = None,
     ) -> AsyncSession:
         """Create one persistent shell; cwd and env apply to all its commands.
 
@@ -397,6 +401,7 @@ class AsyncProcessService:
             shell=shell,
             login=login,
             name=name,
+            tag=tag,
         )
         return AsyncSession(self._sandbox_id, handle.id, self._transport)
 
@@ -428,6 +433,7 @@ class AsyncProcessService:
         execution_timeout: Optional[float] = None,
         terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
+        tag: Optional[str] = None,
     ) -> AsyncProcessHandle:
         """Start a detached process and return a handle immediately.
 
@@ -472,6 +478,7 @@ class AsyncProcessService:
             execution_timeout=execution_timeout,
             terminal=terminal,
             keep_logs=keep_logs,
+            tag=tag,
         )
 
     async def _start_process(
@@ -494,6 +501,7 @@ class AsyncProcessService:
         terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
         request_timeout: Optional[float] = None,
+        tag: Optional[str] = None,
     ) -> AsyncProcessHandle:
         requested_kind: ProcessKind
         if kind is not None:
@@ -518,6 +526,7 @@ class AsyncProcessService:
             terminal=terminal,
             keep_logs=keep_logs,
             request_timeout=request_timeout,
+            tag=tag,
         )
         info = parse_process(expect_process_dto(await self._transport.send(spec)))
         return AsyncProcessHandle(
@@ -540,6 +549,7 @@ class AsyncProcessService:
         name: Optional[str] = None,
         terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
+        tag: Optional[str] = None,
     ) -> ProcessResult:
         """Start a process, wait for its shell to exit, and collect its output.
 
@@ -592,6 +602,7 @@ class AsyncProcessService:
             language=None,
             kind="exec",
             name=name,
+            tag=tag,
             session_id=self._session_id,
             cwd=cwd,
             env=env,
@@ -671,12 +682,36 @@ class AsyncProcessService:
         session_id: Optional[str] = None,
         name: Optional[str] = None,
         pid: Optional[int] = None,
+        tag: Optional[str] = None,
     ) -> ListResult[ProcessInfo]:
-        return parse_process_page(
+        page = parse_process_page(
             await self._transport.send(
-                process_list_spec(state=state, kind=kind, session_id=session_id, name=name, pid=pid)
+                process_list_spec(state=state, kind=kind, session_id=session_id, name=name, pid=pid, tag=tag)
             )
         )
+        if tag is not None:
+            # A sandbox whose daemon predates tags ignores the filter and
+            # returns every process: keep only the tagged ones.
+            page = dataclasses.replace(page, items=[item for item in page.items if item.tag == tag])
+        return page
+
+
+    async def kill_all(self, *, tag: str, timeout: Optional[float] = None) -> List[str]:
+        """Kill every process with the tag and everything those processes started.
+
+        Returns their process ids once nothing started under the tag is running,
+        including detached descendants and survivors of exited processes. The tag
+        is reusable after this call. Records and logs are kept. Survivors of
+        deleted or expired records are killed too but not listed.
+
+        ``timeout`` is in seconds (up to 60, fractions allowed, default 10).
+        Raises ``ProcessKillIncompleteError`` on timeout; retrying is safe.
+        Raises ``UnsupportedOperationError`` on macOS and sandboxes without
+        process containment.
+        """
+        return expect_kill_processes_response(
+            await self._transport.send(process_kill_spec(tag=tag, timeout=timeout))
+        ).process_ids
 
 
 class AsyncPtyService:
@@ -694,6 +729,7 @@ class AsyncPtyService:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
         name: Optional[str] = None,
+        tag: Optional[str] = None,
     ) -> AsyncProcessHandle:
         """Start a detached PTY process."""
         return await self._process._start_process(
@@ -702,6 +738,7 @@ class AsyncPtyService:
             cwd=cwd,
             env=env,
             name=name,
+            tag=tag,
             stdin="open",
             terminal=TerminalSize(cols=cols, rows=rows),
             keep_logs="until_cleanup",

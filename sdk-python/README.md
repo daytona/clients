@@ -670,6 +670,44 @@ pause/resume but not a sandbox stop/start. In dash, BusyBox `sh` and mksh, an in
 innermost shell function or sourced file; bash and zsh leave the whole command
 (bash older than 4.4, macOS's `/bin/bash`, only when no DEBUG trap is set).
 
+### Tags
+
+Group independently started processes with an optional `tag`, a safe identifier
+of 1–128 characters using ASCII letters, digits, `.`, `_` and `-` (not `.` or
+`..`):
+
+```python
+await sandbox.process.start("python -m api_server", tag="job-123")
+await sandbox.process.start(argv=["node", "worker.js"], tag="job-123")
+shell = await sandbox.process.create_session(cwd="/app", tag="job-123")
+await shell.run("nohup ./watcher.sh &")  # Commands inherit the session's tag.
+
+await sandbox.process.list(tag="job-123")
+killed = await sandbox.process.kill_all(tag="job-123")
+# Returns once everything the kill covered has stopped. The tag can be reused.
+
+handle = await sandbox.process.start("./start-server.sh")  # Backgrounds a server, exits.
+await handle.wait()
+await handle.kill()  # Linux with process containment: also stops the server.
+```
+
+These examples use `AsyncDaytona`; omit `await` with `Daytona`. Tags also work
+with `process.run()`, `sandbox.exec()` and `pty.start()`. A tag is immutable;
+session commands inherit it, and interpreter code executions cannot be tagged.
+`ProcessInfo.tag` exposes it. `kill_all()` keeps records and logs and returns
+the ids of the tagged processes that were running, or had running descendants,
+when it began; survivors of deleted or expired records are killed too but not
+listed. Its `timeout` is in seconds (1 ms to 60 s, fractions allowed, default 10); `ProcessKillIncompleteError` means the timeout expired before all
+work stopped, and retrying is safe. A start racing the kill either precedes it
+and is killed, or starts afterwards and keeps running.
+
+Linux and Windows support tags, filtering and tag-wide kills. macOS supports
+tags and filtering only: `kill_all()` raises `UnsupportedOperationError`, as it
+does on sandboxes without process containment. On Linux with containment,
+`kill()` also stops detached descendants (`setsid`, `nohup`, double fork) and
+survivors of an exited process; macOS `kill()` is unchanged. Tags can be reused
+immediately after `kill_all()`.
+
 ### Files
 
 `read_text` / `write_text`, `read_bytes` / `write_bytes`, `upload_file()` /

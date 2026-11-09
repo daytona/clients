@@ -699,7 +699,7 @@ export interface paths {
         put?: never;
         /**
          * Update future child-process environment
-         * @description Update environment variables for subsequently created processes, PTYs, sessions, and Git commands. Running processes and existing interpreter contexts are unchanged. `unset` removes only variables previously added by this operation. Reserved or invalid names are rejected. Each `KEY=VALUE` entry is limited to 128 KiB and the `env` payload to 1 MiB; platform-specific environment size limits also apply.
+         * @description Update environment variables for subsequently created processes, PTYs, sessions, and Git commands. Running processes and existing interpreter contexts are unchanged. `unset` removes only pushed variables (set by this operation or supplied by the platform, such as create-time variables); the sandbox's base environment is unchanged. Reserved or invalid names are rejected. Each `KEY=VALUE` entry is limited to 128 KiB and the `env` payload to 1 MiB; platform-specific environment size limits also apply.
          */
         post: operations["set_env"];
         delete?: never;
@@ -1477,7 +1477,7 @@ export interface paths {
         };
         /**
          * List processes
-         * @description List process records, optionally filtered by state, kind, session, name, or pid.
+         * @description List process records, optionally filtered by state, kind, session, name, pid, or tag.
          */
         get: operations["list_processes"];
         put?: never;
@@ -1587,7 +1587,7 @@ export interface paths {
         put?: never;
         /**
          * Signal a process
-         * @description Send a signal, optionally with escalation, or interrupt a running code execution.
+         * @description Send a signal, optionally with escalation, or interrupt a running code execution. On a Linux sandbox with process containment, `SIGTERM` and `SIGKILL` reach every process the target started, also after the target itself exited: such a request answers `PROCESS_TERMINAL` only once nothing it started is running.
          */
         post: operations["process_signals"];
         delete?: never;
@@ -1630,6 +1630,26 @@ export interface paths {
         get: operations["wait_process"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processes:kill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Kill every process with a tag
+         * @description Kill every process created with `tag`, and everything those processes started, including descendants that detached and the survivors of tagged processes that already exited. Returns only when none of them is running. Records and logs are kept. The tag can be used again right after the call.
+         */
+        post: operations["kill_processes"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2400,13 +2420,15 @@ export interface components {
             login?: boolean;
             /** @description Optional live-only alias. Must be a safe identifier. */
             name?: string | null;
-            /** @description The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true` and `user` (the session's settings apply). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in. */
+            /** @description The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true`, `user` and `tag` (the session's settings apply; the command takes the session's tag). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in. */
             sessionId?: string | null;
             /** @description Requested shell path or shell name. For `kind=session` on Linux and macOS it must be a POSIX shell (bash, sh, dash, zsh, ksh): the session answers 400 `PROCESS_START_FAILED` when the shell does not run POSIX commands within 5 s of starting. */
             shell?: string | null;
             /** @description Shell command to execute. */
             shellCommand?: string | null;
             stdin?: null | components["schemas"]["StdinMode"];
+            /** @description Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag. */
+            tag?: string | null;
             terminal?: null | components["schemas"]["TerminalSize"];
             /**
              * Format: int64
@@ -2493,7 +2515,7 @@ export interface components {
             unset?: string[];
         };
         /** @description Branchable domain codes. Fixed HTTP status per code — see x-daytona-error-codes. Once published, a code is contract: it can be added to, never renamed. */
-        ErrorCode: ("PROCESS_NOT_FOUND" | "PROCESS_START_FAILED" | "PROCESS_TERMINAL" | "PROCESS_EXECUTION_TIMEOUT" | "NAME_CONFLICT" | "INVALID_CURSOR" | "CURSOR_EXPIRED" | "STDIN_CLOSED" | "STDIN_UNAVAILABLE" | "PROTECTED_PROCESS" | "UNSUPPORTED_OPERATION" | "SESSION_NOT_FOUND" | "SESSION_ENDED" | "KERNEL_UNAVAILABLE" | "FILE_NOT_FOUND" | "INVALID_FILE_PATH" | "FILE_ACCESS_DENIED" | "FILE_READ_FAILED" | "ATOMIC_UPLOAD_UNSUPPORTED" | "GIT_AUTH_FAILED" | "GIT_REPO_NOT_FOUND" | "GIT_BRANCH_NOT_FOUND" | "GIT_BRANCH_EXISTS" | "LSP_SERVER_UNAVAILABLE" | "LSP_NOT_STARTED" | "ADDON_UNAVAILABLE" | "DESKTOP_NOT_READY") | (string & {});
+        ErrorCode: ("PROCESS_NOT_FOUND" | "PROCESS_START_FAILED" | "PROCESS_TERMINAL" | "PROCESS_EXECUTION_TIMEOUT" | "PROCESS_KILL_INCOMPLETE" | "NAME_CONFLICT" | "INVALID_CURSOR" | "CURSOR_EXPIRED" | "STDIN_CLOSED" | "STDIN_UNAVAILABLE" | "PROTECTED_PROCESS" | "UNSUPPORTED_OPERATION" | "SESSION_NOT_FOUND" | "SESSION_ENDED" | "KERNEL_UNAVAILABLE" | "FILE_NOT_FOUND" | "INVALID_FILE_PATH" | "FILE_ACCESS_DENIED" | "FILE_READ_FAILED" | "ATOMIC_UPLOAD_UNSUPPORTED" | "GIT_AUTH_FAILED" | "GIT_REPO_NOT_FOUND" | "GIT_BRANCH_NOT_FOUND" | "GIT_BRANCH_EXISTS" | "LSP_SERVER_UNAVAILABLE" | "LSP_NOT_STARTED" | "ADDON_UNAVAILABLE" | "DESKTOP_NOT_READY") | (string & {});
         /** @description Error response body for every documented 4xx/5xx response. `code` is always present; `trace_id` may be omitted. */
         ErrorEnvelope: {
             /**
@@ -2597,7 +2619,7 @@ export interface components {
             buildSha?: string | null;
             /** @description Toolbox build time in RFC 3339 UTC, or `unknown` when unavailable. May be omitted. */
             buildTime?: string | null;
-            /** @description Home directory of the configured default user. Omitted when no user or home directory is available. */
+            /** @description Home directory of the configured default user; omitted when that user cannot be resolved. Without a configured default user, the toolbox's own home directory. */
             userHomeDir?: string | null;
             /** @description Platform release version, for example `2.0.0-alpha.1`; `0.0.0-dev` when unavailable. Distinct from the toolbox build identifier returned by `GET /version`. */
             version: string;
@@ -2621,6 +2643,21 @@ export interface components {
         KeepLogs: ("until_cleanup" | "on_exit_ttl" | "none") | (string & {});
         /** @description Interpreter language. `/sessions` creates interpreter contexts; shell sessions are `kind=session` processes on `/processes`. */
         KernelKind: ("shell" | "python" | "typescript" | "javascript") | (string & {});
+        /** @description `POST /processes:kill` request body. */
+        KillProcessesRequest: {
+            /** @description The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`). */
+            tag: string;
+            /**
+             * Format: int64
+             * @description How long to wait for every killed process to exit, in milliseconds. 1-60000; default 10000.
+             */
+            timeoutMs?: number | null;
+        };
+        /** @description `POST /processes:kill` response body. */
+        KillProcessesResponse: {
+            /** @description The tagged processes that were still running when the call started, and exited tagged processes that still had descendants running. Every one of them, and everything it started, has exited. Processes whose records were deleted or expired are killed too but not listed, so an empty list does not mean nothing was stopped. */
+            processIds: string[];
+        };
         /** @description What kind of process the API should run. */
         Kind: ("exec" | "pty" | "code" | "session") | (string & {});
         /** @description `GET /processes` filters. */
@@ -2637,6 +2674,8 @@ export interface components {
             sessionId?: string | null;
             /** @description `running`, `terminal`, or `all` (the default when omitted). */
             state?: string | null;
+            /** @description Filter by tag. */
+            tag?: string | null;
         };
         /** @description Remote list response. */
         ListRemotesResponse: {
@@ -2845,6 +2884,8 @@ export interface components {
             stdin: components["schemas"]["StdinMode"];
             /** @description Whether this is a protected system process. */
             system?: boolean;
+            /** @description The tag the process was created with, omitted when it has none. A command run in a session carries the session's tag. Never changes. */
+            tag?: string | null;
             terminal?: null | components["schemas"]["TerminalSize"];
             /**
              * Format: int64
@@ -7428,6 +7469,8 @@ export interface operations {
                 name?: string;
                 /** @description Filter by OS process id. */
                 pid?: number;
+                /** @description Filter by tag. */
+                tag?: string;
             };
             header?: never;
             path?: never;
@@ -7832,7 +7875,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `PROCESS_TERMINAL` — the process has already exited. */
+            /** @description `PROCESS_TERMINAL` — the process has already exited (and, for `SIGTERM` or `SIGKILL` on a sandbox with process containment, nothing it started is still running). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7965,6 +8008,57 @@ export interface operations {
             };
             /** @description `PROCESS_NOT_FOUND` — no such process or alias. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    kill_processes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KillProcessesRequest"];
+            };
+        };
+        responses: {
+            /** @description Every process created under the tag before the call, and everything it started, has exited. A start admitted after the call may be running. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KillProcessesResponse"];
+                };
+            };
+            /** @description `BAD_REQUEST` — invalid tag or `timeoutMs`; `UNSUPPORTED_OPERATION` — this sandbox cannot contain processes (macOS, or a Linux guest whose kernel or cgroup mount lacks the support). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `PROCESS_KILL_INCOMPLETE` — some killed processes were still running when `timeoutMs` expired, or another start or kill under the tag was still in progress so the kill could not begin; call again to retry. */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UNPROCESSABLE_ENTITY` — the JSON body was well-formed but did not match `KillProcessesRequest`. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

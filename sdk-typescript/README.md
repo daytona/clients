@@ -612,6 +612,47 @@ In dash, BusyBox `sh` and mksh, an interrupt leaves only the
 innermost shell function or sourced file; bash and zsh leave the whole command
 (bash older than 4.4, macOS's `/bin/bash`, only when no DEBUG trap is set).
 
+### Tags
+
+Give related exec processes, PTYs, and shell sessions the same optional `tag`.
+Tags are safe identifiers (`A–Z`, `a–z`, `0–9`, `.`, `_`, `-`, 1–128 characters,
+not `.` or `..`) and cannot change after creation. Session commands inherit their session's
+tag; do not set one on individual session commands. Interpreter executions
+do not support tags.
+
+```ts
+await sandbox.process.start('python -m api_server', { tag: 'job-123' })
+await sandbox.process.start({ argv: ['node', 'worker.js'] }, { tag: 'job-123' })
+const shell = await sandbox.process.createSession({ cwd: '/app', tag: 'job-123' })
+await shell.run('nohup ./watcher.sh &') // inherits job-123
+
+await sandbox.process.list({ tag: 'job-123' })
+const killed = await sandbox.process.killAll({ tag: 'job-123' })
+// Everything the kill covered has stopped; a start racing the kill may run
+// afterwards. The tag can be reused immediately.
+```
+
+`process.run()`, `sandbox.exec()`, and `pty.start()` also accept `{ tag }`.
+`killAll()` keeps logs and records and returns the ids of the tagged processes
+that were running, or had running descendants, when it began; survivors of
+deleted or expired records are killed too but not listed. Its optional
+`timeout` is milliseconds (1–60000, default 10000). If processes remain, it
+throws `ProcessKillIncompleteError`; calling it again is safe.
+
+Linux and Windows support tags, filtering and tag-wide kills. macOS supports
+tags and filtering only: `killAll()` throws `UnsupportedOperationError`.
+
+Without process containment, `killAll()` throws `UnsupportedOperationError`
+before killing anything. On Linux with containment, `handle.kill()` also
+stops detached descendants (`setsid`, `nohup`, double fork), even after the
+original process exited:
+
+```ts
+const handle = await sandbox.process.start('./start-server.sh') // backgrounds a server, exits
+await handle.wait()
+await handle.kill() // Linux with process containment: also stops the server
+```
+
 ### Files
 
 `readBytes` / `readText`, `writeBytes` / `writeText`, bulk `readMany` / `writeMany`,

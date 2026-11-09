@@ -556,6 +556,7 @@ class AsyncSandbox:
         name: Optional[str] = None,
         terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
+        tag: Optional[str] = None,
     ) -> ProcessResult:
         """Run a command, wait for its shell to exit, and collect its output.
 
@@ -604,6 +605,7 @@ class AsyncSandbox:
             name=name,
             terminal=terminal,
             keep_logs=keep_logs,
+            tag=tag,
         )
 
     async def run_code(

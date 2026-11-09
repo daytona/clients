@@ -8,7 +8,7 @@
       "path": "/events/{region}/ticket",
       "auth": "Project API key or platform token; requires read:sandboxes",
       "response": { "ticket": "k7Qm...opaque...", "expires_in_ms": 30000, "subprotocol": "daytona.events.v1" },
-      "errors": { "401": "no/invalid credential", "403": "credential lacks read:sandboxes", "404": "malformed region tag", "429": "mint rate (10/min per credential) or socket cap (16 live sockets per credential) - Retry-After set", "503": "sandbox events temporarily unavailable" }
+      "errors": { "401": "no/invalid credential", "403": "credential lacks read:sandboxes", "404": "malformed region tag", "429": "mint rate (10/min per credential) or socket cap (16 live sockets per credential) - Retry-After set", "501": "this base URL serves no sandboxes (WORKLOAD_PLANE_ELSEWHERE) - not retryable; mint through the base URL that does", "503": "sandbox events temporarily unavailable" }
     },
     "upgrade": {
       "method": "GET",
@@ -16,7 +16,7 @@
       "headers": { "Upgrade": "websocket", "Sec-WebSocket-Protocol": "daytona.events.v1, daytona.ticket.k7Qm...opaque..." },
       "response_headers": { "Sec-WebSocket-Protocol": "daytona.events.v1" },
       "region": "the region tag of the sandbox ids the socket will carry, as it appears after the dash in `<base58>-<region tag>`; `_` when the id carries no tag (bare UUID) and the sandbox's region is unknown. The server accepts subscriptions for any sandbox the caller can see, whatever region tag the socket was opened with.",
-      "errors": { "401": "ticket missing, expired, already consumed, or the referenced credential no longer valid", "404": "malformed region tag", "429": "per-credential live socket cap reached - Retry-After set", "503": "sandbox events temporarily unavailable or the connection limit reached - retry with backoff" }
+      "errors": { "401": "ticket missing, expired, already consumed, or the referenced credential no longer valid", "404": "malformed region tag", "429": "per-credential live socket cap reached - Retry-After set", "501": "this base URL serves no sandboxes (WORKLOAD_PLANE_ELSEWHERE) - not retryable; connect through the base URL that does", "503": "sandbox events temporarily unavailable or the connection limit reached - retry with backoff" }
     }
   },
   "client_frames": [

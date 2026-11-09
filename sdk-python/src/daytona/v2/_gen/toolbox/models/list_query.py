@@ -40,8 +40,9 @@ class ListQuery(BaseModel):
     pid: Optional[StrictInt] = Field(default=None, description="Filter by OS process id.")
     session_id: Optional[StrictStr] = Field(default=None, description="Filter by the session a process ran in (`kind=session` process id or interpreter context id).", alias="sessionId")
     state: Optional[StrictStr] = Field(default=None, description="`running`, `terminal`, or `all` (the default when omitted).")
+    tag: Optional[StrictStr] = Field(default=None, description="Filter by tag.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["kind", "name", "pid", "sessionId", "state"]
+    __properties: ClassVar[List[str]] = ["kind", "name", "pid", "sessionId", "state", "tag"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -116,6 +117,11 @@ class ListQuery(BaseModel):
         if self.state is None and "state" in self.model_fields_set:
             _dict['state'] = None
 
+        # set to None if tag (nullable) is None
+        # and model_fields_set contains the field
+        if self.tag is None and "tag" in self.model_fields_set:
+            _dict['tag'] = None
+
         return _dict
 
     @classmethod
@@ -132,7 +138,8 @@ class ListQuery(BaseModel):
             **({"name": obj["name"]} if "name" in obj else {}),
             **({"pid": obj["pid"]} if "pid" in obj else {}),
             **({"sessionId": obj["sessionId"]} if "sessionId" in obj else {}),
-            **({"state": obj["state"]} if "state" in obj else {})
+            **({"state": obj["state"]} if "state" in obj else {}),
+            **({"tag": obj["tag"]} if "tag" in obj else {})
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
