@@ -1,0 +1,25 @@
+e2e/e2e.py
+  s_717b45cf151505::t_f1a05ec6d570f2 197
+e2e/e2e.ts
+  s_717b45cf151505::t_d8d92d41d70d20 129
+sdk-python/README.md
+  s_717b45cf151505::t_4a7c69e0115888 662-663,677,686
+sdk-typescript/README.md
+  s_717b45cf151505::t_1a2fb5e5fc1ff4 634
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "58afee40fc56fefe87372c9871ea8c60766cad30",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
