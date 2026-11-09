@@ -250,7 +250,8 @@ class AsyncFileSystemService:
         """Read a file as bytes.
 
         The whole file is held in memory, with no total deadline (it fails
-        only when no bytes move for the client's ``request_timeout``).
+        only when no bytes move for the client's ``request_timeout``; with a
+        ``request_timeout`` of ``0``, nothing bounds it).
         ``max_response_bytes`` replaces the client's cap on the body for this
         call (``0`` = no limit); a larger body raises ``PayloadTooLargeError``
         before it is read in full. For large files, or content from a sandbox

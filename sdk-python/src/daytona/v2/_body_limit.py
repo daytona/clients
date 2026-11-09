@@ -71,9 +71,10 @@ async def read_body(response: httpx.Response, limit: int) -> bytes:
             raise too_large_error(response.status_code, limit)
         body = bytearray()
         async for chunk in response.aiter_bytes():
-            body.extend(chunk)
-            if limit and len(body) > limit:
+            # Checked before buffering: no byte past the cap is ever held.
+            if limit and len(body) + len(chunk) > limit:
                 raise too_large_error(response.status_code, limit)
+            body.extend(chunk)
         return bytes(body)
     finally:
         await response.aclose()
@@ -86,9 +87,10 @@ def read_body_sync(response: httpx.Response, limit: int) -> bytes:
             raise too_large_error(response.status_code, limit)
         body = bytearray()
         for chunk in response.iter_bytes():
-            body.extend(chunk)
-            if limit and len(body) > limit:
+            # Checked before buffering: no byte past the cap is ever held.
+            if limit and len(body) + len(chunk) > limit:
                 raise too_large_error(response.status_code, limit)
+            body.extend(chunk)
         return bytes(body)
     finally:
         response.close()

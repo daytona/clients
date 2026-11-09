@@ -192,6 +192,7 @@ class AsyncDaytona:
                 request_timeout=resolved.request_timeout,
                 max_response_bytes=resolved.max_response_bytes,
             )
+        self._max_response_bytes = resolved.max_response_bytes
         self._api = AsyncTransport(
             self._api_url,
             self._api_key,
@@ -1156,6 +1157,7 @@ class AsyncDaytona:
                 config=self._hub_events_config,
                 auth=self._auth,
                 identity=self._hub_identity,
+                max_response_bytes=self._max_response_bytes,
             )
         return self._hub
 
