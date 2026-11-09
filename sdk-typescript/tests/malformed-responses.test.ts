@@ -73,7 +73,7 @@ it.each(CALLS)('%s refuses a {} body with BadRequestError and sends nothing afte
 })
 
 it.each([
-  [{ access_token: 'tok', token_type: 'Bearer', expires_at: 'tomorrow', operations: [] }, 'sandbox access token response has an expires_at that is not a timestamp'],
+  [{ access_token: 'tok', token_type: 'Bearer', expires_at: 'tomorrow', operations: [] }, 'sandbox access token response has an expires_at that is not an RFC 3339 timestamp'],
   [{ access_token: '', token_type: 'Bearer', expires_at: '2099-01-01T00:00:00Z', operations: [] }, 'sandbox access token response has an empty access_token'],
   [{ access_token: 'tok', token_type: 'Bearer', expires_at: '2099-01-01T00:00:00Z', operations: [1] }, 'sandbox access token response has a operations[0] that is not a string'],
 ])('refuses a malformed access token %j', async (body, message) => {
@@ -781,6 +781,24 @@ it.each(['created_at', 'updated_at', 'started_at', 'stopped_at'])('keeps the cre
     expect(api.requests).toHaveLength(3)
   } finally {
     await client.close()
+    await api.close()
+  }
+})
+
+// The same rows as the Python suite (test_malformed_responses.py).
+it.each([
+  ['2030-01-01T00:00:00', true], ['2030-01-01', true], ['2030-01-01 00:00:00Z', true], ['Jan 1 2030', true], ['2030', true],
+  ['2030-01-01T00:00:00Z', false],
+] as const)('reads an access token expiry %j by the RFC 3339 rule (refused: %s)', async (expiresAt, refused) => {
+  const api = await startFakeApi([{ status: 200, body: { access_token: 'tok', token_type: 'Bearer', operations: [], expires_at: expiresAt } }])
+  try {
+    const pending = source(api).createAccessToken()
+    if (refused) {
+      await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox access token response has an expires_at that is not an RFC 3339 timestamp' })
+    } else {
+      await expect(pending).resolves.toMatchObject({ expiresAt })
+    }
+  } finally {
     await api.close()
   }
 })

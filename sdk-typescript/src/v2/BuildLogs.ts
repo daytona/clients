@@ -8,6 +8,7 @@
 import { queryText } from './pageParams.js'
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
+import { isRfc3339 } from './rfc3339.js'
 import { MAX_TIMER_DELAY_MS, boundedTimerDelay, badRequest, waitDeadline } from './options.js'
 import { HttpTransport } from './http.js'
 import type * as api from './gen/api-types.js'
@@ -299,8 +300,8 @@ class Observer {
         const deadlineAt = data.deadline_at ?? undefined, error = data.error ?? undefined
         // Execution deadlines are metadata, not client observation deadlines.
         if (deadlineAt !== undefined) {
-          const expires = Date.parse(deadlineAt)
-          if (!Number.isFinite(expires) || !/(Z|[+-]\d\d:\d\d)$/.test(deadlineAt)) throw new ProtocolError('invalid build deadline')
+          // An RFC 3339 timestamp, by the rule of every response timestamp.
+          if (!isRfc3339(deadlineAt)) throw new ProtocolError('invalid build deadline')
         }
         await this.emit({ type: 'state', status: data.status, deadlineAt, error })
         break

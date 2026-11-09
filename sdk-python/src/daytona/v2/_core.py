@@ -916,14 +916,15 @@ def parse_lifecycle(payload: JsonObject | LifecyclePolicy) -> SandboxLifecycle:
 
 
 def parse_timestamp(value: object) -> Optional[datetime]:
-    """A wire timestamp as a timezone-aware ``datetime``; ``None`` when absent or unparseable.
+    """A wire timestamp as a timezone-aware ``datetime``; ``None`` when absent
+    or not an RFC 3339 timestamp (the one rule: ``rfc3339_timestamp``).
 
     Accepts the RFC 3339 strings of a raw body and the ``datetime`` values of a
-    validated wire model. A value without an offset is taken as UTC.
+    validated wire model (one without an offset is taken as UTC).
     """
     if isinstance(value, datetime):
         parsed = value
-    elif isinstance(value, str) and value:
+    elif isinstance(value, str) and rfc3339_timestamp(value):
         text = value.strip()
         if text.endswith(("Z", "z")):
             text = text[:-1] + "+00:00"

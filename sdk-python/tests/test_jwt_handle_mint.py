@@ -96,3 +96,16 @@ async def test_a_jwt_handle_sends_a_caller_token_unchanged_and_never_mints(
         ("GET", "/sandboxes/sbx", "Bearer project-token"),
         ("GET", "/toolbox/sbx/files", "Bearer caller-token"),
     ]
+
+
+async def test_a_handle_mint_with_a_malformed_expiry_still_sends_the_minted_bearer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The handle's own mint reads an expiry that is not an RFC 3339 timestamp
+    # as absent, as a create response's token expiry: the call that needed the
+    # token still works, and a 401 re-mints (twin in jwt-handle-mint.test.ts).
+    fake = await _list_files(
+        monkeypatch,
+        [PlannedResponse(200, {**_MINTED, "expires_at": "Jan 1 2030"}), PlannedResponse(200, {"items": []})],
+    )
+    assert _sent(fake)[-1] == ("GET", "/toolbox/sbx/files", "Bearer minted-bearer")

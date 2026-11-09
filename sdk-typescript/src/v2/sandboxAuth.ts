@@ -11,6 +11,7 @@ import type { HttpClientOptions, TransportAuth } from './http.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import { deepFrozen } from './frozen.js'
+import { isRfc3339 } from './rfc3339.js'
 import type { ResponseFields } from './responseFields.js'
 import type { CreateAccessTokenOptions, SandboxAccessToken } from './types.js'
 
@@ -39,11 +40,22 @@ interface TokenPayload {
 
 const ACCESS_TOKEN: ResponseFields = { access_token: 'string', token_type: 'string', expires_at: 'string', operations: arrayOf('string'), ports: arrayOf('integer', true) }
 
-function tokenFromPayload(payload: TokenPayload | null | undefined): SandboxAccessToken {
-  const token = checkResponse<Required<Omit<TokenPayload, 'ports'>> & TokenPayload>(payload, ACCESS_TOKEN, 'sandbox access token')
+type CheckedToken = Required<Omit<TokenPayload, 'ports'>> & TokenPayload
+
+function checkedToken(payload: TokenPayload | null | undefined): CheckedToken {
+  const token = checkResponse<CheckedToken>(payload, ACCESS_TOKEN, 'sandbox access token')
   if (token.access_token === '') throw badRequest('sandbox access token response has an empty access_token')
-  // An expiry that does not parse would read as never expiring and skip the proactive refresh.
-  if (rfc3339EpochMs(token.expires_at) === undefined) throw badRequest('sandbox access token response has an expires_at that is not a timestamp')
+  return token
+}
+
+/**
+ * The returned token: its `expires_at` must be an RFC 3339 timestamp (the
+ * rule of `isRfc3339`, as in Python); one that does not parse would read as
+ * never expiring and skip the proactive refresh.
+ */
+function tokenFromPayload(payload: TokenPayload | null | undefined): SandboxAccessToken {
+  const token = checkedToken(payload)
+  if (!isRfc3339(token.expires_at)) throw badRequest('sandbox access token response has an expires_at that is not an RFC 3339 timestamp')
   const expiresAt = token.expires_at
   return deepFrozen(credentialSafeInspection({
     accessToken: token.access_token,
@@ -59,7 +71,7 @@ function mintRouteUnsupported(error: unknown): boolean {
 }
 
 export function rfc3339EpochMs(value: string | undefined): number | undefined {
-  if (!value) return undefined
+  if (!value || !isRfc3339(value)) return undefined
   const parsed = Date.parse(value)
   return Number.isNaN(parsed) ? undefined : parsed
 }
@@ -109,8 +121,13 @@ export class SandboxAuth {
     if (options.operations !== undefined) body.operations = [...options.operations]
     if (options.ports !== undefined) body.ports = [...options.ports]
     if (options.ttlSeconds !== undefined) body.ttl_seconds = options.ttlSeconds
+    return tokenFromPayload(await this.postAccessToken(body))
+  }
+
+  private async postAccessToken(body: { operations?: string[]; ports?: number[]; ttl_seconds?: number }): Promise<TokenPayload> {
+    if (!this.init.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const response = await this.init.api.post<TokenPayload>(`/sandboxes/${strictUriEncode(this.init.id)}/access-token`, body)
-    return tokenFromPayload(response.data)
+    return response.data
   }
 
   private fresh(): boolean {
@@ -192,10 +209,14 @@ export class SandboxAuth {
   }
 
   private async mintNow(): Promise<string> {
-    const minted = await this.createAccessToken()
-    this.token = minted.accessToken
-    this.expiry = minted.expiresAt
-    return minted.accessToken
+    // The handle's own mint: a malformed expiry reads as absent, as a create
+    // response's token expiry does, and the token is used until a 401
+    // re-mints it, so a working call is not failed over metadata it only
+    // uses for a proactive refresh (as in Python).
+    const minted = checkedToken(await this.postAccessToken({}))
+    this.token = minted.access_token
+    this.expiry = isRfc3339(minted.expires_at) ? minted.expires_at : undefined
+    return minted.access_token
   }
 
   public async previewToken(port: number): Promise<SandboxAccessToken | undefined> {

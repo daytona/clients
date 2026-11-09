@@ -62,6 +62,8 @@ from ._gen.api import (
 from ._gen.api import (
     BuildLogGapReason as BuildLogGapReasonEnum,
 )
+from ._timestamps import parse_timestamp as parse_wire_timestamp
+from ._timestamps import rfc3339_timestamp
 from ._transport import AsyncResponseStream, AsyncTransport
 from .errors import (
     ClientTimeoutError,
@@ -450,12 +452,12 @@ class _Observer:
             deadline = _optional_text(data.get("deadline_at"))
             error = _optional_text(data.get("error"))
             # The build deadline is metadata, not the caller's timeout.
-            try:
-                expires = datetime.fromisoformat(deadline.replace("Z", "+00:00")) if deadline else None
-                if expires is not None and expires.tzinfo is None:
-                    raise ValueError("missing timezone")
-            except ValueError as exc:
-                raise _ProtocolError("invalid build deadline") from exc
+            # An RFC 3339 timestamp, by the rule of every response timestamp.
+            if deadline is not None and not rfc3339_timestamp(deadline):
+                raise _ProtocolError("invalid build deadline")
+            expires = (
+                None if deadline is None else parse_wire_timestamp(deadline, "build log state: deadline_at")
+            )
             await self._emit(BuildLogStateEvent(status=status, error=error, deadline_at=expires))
         elif event == "log":
             raw = _bytes(data.get("data_base64"))

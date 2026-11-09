@@ -57,3 +57,11 @@ it('sends a caller token unchanged on a JWT handle and never mints', async () =>
     ['GET', '/toolbox/sbx/files', 'Bearer caller-token'],
   ])
 })
+
+// The handle's own mint reads an expiry that is not an RFC 3339 timestamp as
+// absent, as a create response's token expiry: the call that needed the token
+// still works, and a 401 re-mints (as in Python).
+it('sends the minted bearer when the handle mint has a malformed expiry', async () => {
+  const api = await listFiles([{ status: 200, body: { ...MINTED, expires_at: 'Jan 1 2030' } }, { status: 200, body: { items: [] } }])
+  expect(sent(api).at(-1)).toEqual(['GET', '/toolbox/sbx/files', 'Bearer minted-bearer'])
+})

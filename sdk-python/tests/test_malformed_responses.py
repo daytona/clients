@@ -106,7 +106,7 @@ async def test_an_empty_body_is_a_contract_error_and_nothing_follows(
     [
         (
             {"access_token": "tok", "token_type": "Bearer", "expires_at": "tomorrow", "operations": []},
-            "sandbox access token response has an expires_at that is not a timestamp",
+            "sandbox access token response has an expires_at that is not an RFC 3339 timestamp",
         ),
         (
             {
@@ -1231,3 +1231,32 @@ async def test_a_bad_sandbox_date_time_keeps_the_create_handle(field: str) -> No
             waited = await root.v2.create("img_1", wait_seconds=5)
     assert (created.id, waited.id) == ("s1", "s1")
     assert len(api.requests) == 3
+
+
+_TOKEN: JsonObject = {"access_token": "tok", "token_type": "Bearer", "operations": []}
+
+
+@pytest.mark.parametrize(
+    ("expires_at", "refused"),
+    [
+        ("2030-01-01T00:00:00", True),
+        ("2030-01-01", True),
+        ("2030-01-01 00:00:00Z", True),
+        ("Jan 1 2030", True),
+        ("2030", True),
+        ("2030-01-01T00:00:00Z", False),
+    ],
+)
+async def test_an_access_token_expiry_follows_the_rfc_3339_rule(expires_at: str, refused: bool) -> None:
+    # The same rows as the TypeScript suite (malformed-responses.test.ts).
+    with FakeApi([PlannedResponse(200, {**_TOKEN, "expires_at": expires_at})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            if refused:
+                with _sdk_bad_request(
+                    "^sandbox access token response has an expires_at that is not an RFC 3339 timestamp$"
+                ):
+                    await lazy_sandbox(root.v2, "src").create_access_token()
+            else:
+                token = await lazy_sandbox(root.v2, "src").create_access_token()
+                assert token.expires_at == datetime(2030, 1, 1, tzinfo=timezone.utc)

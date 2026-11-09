@@ -13,7 +13,19 @@ from collections.abc import Mapping as MappingABC
 from collections.abc import Sequence as SequenceABC
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Callable, ClassVar, Dict, Final, Literal, Mapping, Optional, Sequence, Union, get_args
+from typing import (
+    Callable,
+    ClassVar,
+    Dict,
+    Final,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    get_args,
+)
 from urllib.parse import quote, urlsplit
 
 import anyio
@@ -61,6 +73,7 @@ from ._gen.api import (
     SandboxListItem,
     SignSandboxFileUrlRequest,
 )
+from ._timestamps import rfc3339_timestamp
 from ._transport import AsyncTransport
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .build_logs import (
@@ -1721,10 +1734,12 @@ class AsyncSandbox:
             if not isinstance(ttl_seconds, int) or isinstance(ttl_seconds, bool) or ttl_seconds <= 0:
                 raise create_error("ttl_seconds must be a positive integer", 400, "BAD_REQUEST", "SDK")
             body["ttl_seconds"] = ttl_seconds
-        payload = await self._require_api().send(
+        return _sandbox_access_token_from_payload(await self._post_access_token(body))
+
+    async def _post_access_token(self, body: JsonObject) -> TransportPayload:
+        return await self._require_api().send(
             RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/access-token", json_body=body)
         )
-        return _sandbox_access_token_from_payload(payload)
 
     def _sandbox_token_fresh(self) -> bool:
         """Whether the held token can be sent as-is.
@@ -1868,10 +1883,13 @@ class AsyncSandbox:
             self._sandbox_token_mint = None
 
     async def _mint_sandbox_token_now(self) -> str:
-        minted = await self.create_access_token()
-        self._access_token = minted.access_token
-        self._access_token_expires_at = minted.expires_at
-        return minted.access_token
+        # A malformed expiry reads as absent here (see `_access_token_parts`).
+        access_token, _, expires_at, _, _ = _access_token_parts(
+            await self._post_access_token({}), expiry_required=False
+        )
+        self._access_token = access_token
+        self._access_token_expires_at = expires_at
+        return access_token
 
     async def _mint_preview_token(self, port: int) -> Optional[SandboxAccessToken]:
         """A ports-scoped token for one private preview port, or ``None``.
@@ -2327,8 +2345,32 @@ def _sandbox_terminal_state_error(
 
 
 def _sandbox_access_token_from_payload(raw: object) -> SandboxAccessToken:
+    access_token, token_type, expires_at, operations, ports = _access_token_parts(raw, expiry_required=True)
+    if expires_at is None:  # expiry_required refuses it first; kept for the type
+        raise create_error(
+            "sandbox access token response is missing its expires_at", 400, "BAD_REQUEST", "SDK"
+        )
+    return SandboxAccessToken(
+        access_token=access_token,
+        token_type=token_type,
+        expires_at=expires_at,
+        operations=operations,
+        ports=ports,
+    )
+
+
+def _access_token_parts(
+    raw: object, *, expiry_required: bool
+) -> Tuple[str, str, Optional[datetime], Tuple[str, ...], Optional[Tuple[int, ...]]]:
     """The contract's access token, every field checked; a violation names the
-    field (TypeScript's ``checkResponse`` messages for the same body)."""
+    field (TypeScript's ``checkResponse`` messages for the same body).
+
+    ``expires_at`` is an RFC 3339 timestamp (``rfc3339_timestamp``). The
+    handle's own mint passes ``expiry_required=False``: there a malformed
+    expiry reads as absent, as a create response's token expiry does, and the
+    token is used until a 401 re-mints it, so a working call is not failed
+    over metadata it only uses for a proactive refresh.
+    """
 
     def malformed(detail: str) -> DaytonaError:
         return create_error(f"sandbox access token response {detail}", 400, "BAD_REQUEST", "SDK")
@@ -2351,9 +2393,11 @@ def _sandbox_access_token_from_payload(raw: object) -> SandboxAccessToken:
     token_type = required_str("token_type")
     # An expiry that does not parse would read as never expiring and skip the proactive refresh.
     raw_expires_at = required_str("expires_at")
-    expires_at = parse_timestamp(raw_expires_at)
-    if expires_at is None:
-        raise malformed("has an expires_at that is not a timestamp")
+    expires_at: Optional[datetime] = None
+    if rfc3339_timestamp(raw_expires_at):
+        expires_at = parse_timestamp(raw_expires_at)
+    elif expiry_required:
+        raise malformed("has an expires_at that is not an RFC 3339 timestamp")
     raw_operations = payload.get("operations")
     if raw_operations is None:
         raise malformed("is missing its operations")
@@ -2368,12 +2412,12 @@ def _sandbox_access_token_from_payload(raw: object) -> SandboxAccessToken:
     for index, port in enumerate(raw_ports or ()):
         if not isinstance(port, int) or not finite_number(port):
             raise malformed(f"has a ports[{index}] that is not an integer")
-    return SandboxAccessToken(
-        access_token=access_token,
-        token_type=token_type,
-        expires_at=expires_at,
-        operations=tuple(raw_operations),
-        ports=tuple(raw_ports) if raw_ports is not None else None,
+    return (
+        access_token,
+        token_type,
+        expires_at,
+        tuple(raw_operations),
+        tuple(raw_ports) if raw_ports is not None else None,
     )
 
 
