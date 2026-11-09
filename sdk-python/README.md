@@ -212,8 +212,8 @@ default is configured, the create raises `DEFAULT_IMAGE_NOT_CONFIGURED` (400).
 ### Regions and safe create retries
 
 `d.v2.create()` accepts an optional `region=` argument that creates the sandbox
-in a region from `GET /regions`. Each entry includes
-`id`, `name`, `available`, and optionally `api_base_url`.
+in a region listed by `daytona region list` (with `-o json`, each entry
+includes `id`, `name`, `available`, and optionally `api_base_url`).
 Omitting `region` falls back to the project's default, then the
 organization's, then `earth`, which means anywhere and may land in any
 geography. Every `d.v2.create*()` method accepts `region=`, including
@@ -535,7 +535,7 @@ access for your organization: without it the API answers `403`
 and reservations, turning auto-renew off, `pause()` and `resume()` do not require
 this access.
 
-Find available regions and their regional API endpoints with `GET /regions`.
+Find available regions and their regional API endpoints with `daytona region list`.
 Use `d.v2.mac_models.catalog(region="<region>")` or
 `daytona mac-model list --region '<region>'` to discover available Mac models
 and current prices. Replace `<region>` and `<model>` in the examples with

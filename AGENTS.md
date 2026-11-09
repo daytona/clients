@@ -483,10 +483,13 @@ skipping exist only in the TypeScript tool).
   `reconcileIntervalSeconds`, `idleCloseSeconds`, ...). Fractions are allowed
   unless the wire needs whole seconds (then they are validated). The wire
   keeps its own units (`timeoutMs` for toolbox process execs/waits).
-  Timestamps are not durations. Known exceptions at this point: the
-  per-call TypeScript `timeout` / `executionTimeout` / `escalateAfter` options
-  (process, interpreter, docker, build-log, image, snapshot and volume calls)
-  still take milliseconds until their area is renamed.
+  Timestamps are not durations. Known exceptions at this point, all in
+  milliseconds: the per-call TypeScript `timeout` / `executionTimeout` /
+  `escalateAfter` options (process, interpreter, docker, build-log, image,
+  snapshot and volume calls; `escalateAfter` is the process kill escalation
+  delay) until their area is renamed, and the computer-use keyboard `delay`
+  between keystrokes in both SDKs (Python `keyboard.type(delay=...)`, TS
+  `keyboard.type({ delay })`).
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
   `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
@@ -580,7 +583,8 @@ skipping exist only in the TypeScript tool).
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
   `requestTimeout`, the 0.x `requestTimeoutMs`, `reconcileIntervalMs`,
   `idleCloseMs`) whose replacement is
-  a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
+  a known key gets a message naming both, for `timeout`: "`timeout` was
+  renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
   so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`);

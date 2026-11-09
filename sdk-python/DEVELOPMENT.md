@@ -152,8 +152,9 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   override is rejected because pre-signed URLs require the sandbox's public
   endpoint. The raw decoded sign body goes through
   `filesystem._signed_file_url_from_payload` unshaped, so a JSON `null`, a
-  list or a malformed object all raise the same 500 invalid-payload error
-  (parity with TS). `sandbox.rotate_signing_key()` POSTs
+  list or a malformed object all raise a `BadRequestError` (400,
+  `BAD_REQUEST`, source `SDK`) naming the field, with the same message as TS;
+  so does a malformed sandbox access-token mint response. `sandbox.rotate_signing_key()` POSTs
   `/sandboxes/{id}/signing-key/rotate` with no body and returns `None` after
   the API's empty 204 response. The key is never returned; every outstanding
   link for the sandbox becomes invalid. Like minting, it is refused

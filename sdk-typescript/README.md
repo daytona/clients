@@ -67,9 +67,9 @@ types, builders and errors, but not a client (`import { Daytona } from
 `@daytona/sdk`.
 
 `daytona.v2` waits (`create`, `start`, `waitForState`, …) ride one WebSocket
-per regional API endpoint, shared by the v2 clients in the process that have the same API URL,
-API key or JWT identity, and effective events settings (`sharedHub` and
-`events` on the config). Closing is optional: in Node an idle socket stays open
+per regional API endpoint, shared by the v2 clients in the process with matching connection settings
+(API URL, API key or JWT identity, request timeout and response body cap) and
+events settings (`sharedHub` and `events` on the config). Closing is optional: in Node an idle socket stays open
 for the next wait but does not keep the process alive, so a script can simply
 end; a runtime where the socket cannot be released from the event loop closes
 it 10 s after the last wait instead, and `events.idleCloseSeconds` overrides
@@ -184,7 +184,7 @@ const daytona = new Daytona({ otelEnabled: true, otelApi: otel })
 
 ### Regions and safe create retries
 
-Set `DAYTONA_V2_API_URL` only when you need a non-default v2 API endpoint. `region` on each `create*()` chooses an ID returned by `GET /regions`.
+Set `DAYTONA_V2_API_URL` only when you need a non-default v2 API endpoint. `region` on each `create*()` chooses an ID listed by `daytona region list`.
 The response identifies the default region and lists region names,
 availability, and published API URLs. Omit `region` to use the default.
 Commands and files target the selected sandbox. When you select a regional
@@ -477,7 +477,7 @@ to be enabled for your organization: otherwise the API answers `403`
 `FEATURE_NOT_ENABLED` (thrown as `FeatureNotEnabledError`). Reading sandboxes
 and reservations, turning auto-renew off, `pause()` and `resume()` are not gated.
 
-Find available regions and their regional API endpoints with `GET /regions`.
+Find available regions and their regional API endpoints with `daytona region list`.
 Use `daytona.v2.macModels.catalog({ region: '<region>' })` or
 `daytona mac-model list --region '<region>'` to discover available Mac models
 and current prices. Replace `<region>` and `<model>` in the examples with

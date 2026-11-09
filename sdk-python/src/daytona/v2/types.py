@@ -364,7 +364,8 @@ class DaytonaConfig:
     ``region=`` to a create.
 
     ``request_timeout`` is the total time one ordinary request may take, in
-    seconds (default 60; ``0`` = no limit). Waits and long polls use their own
+    seconds (default 60; ``0``, or a value above 2,147,483.647 (about 24.8
+    days), means no limit). Waits and long polls use their own
     budget, streams are bounded only until their response headers arrive, and
     file transfers have no total bound but fail when no bytes move for that
     long (with ``0``, transfers are not bounded at all). ``max_response_bytes`` (an integer up to 2**53 - 1; ``None`` keeps the 1 GiB default, ``0`` means no limit, and any other value (negative, fractional, boolean, string, too large) is a ``BadRequestError``) caps every response body the SDK holds in memory whole: a
