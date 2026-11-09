@@ -194,7 +194,6 @@ func reservationKV(reservation gen.MacReservation) [][2]string {
 		{"memory_mib_total", usage.memTotal},
 		{"disk_mib_used", usage.diskUsed},
 		{"disk_mib_total", usage.diskTotal},
-		{"sandboxes_per_mac", strconv.Itoa(int(reservation.SandboxesPerMac))},
 		{"slots_used", strconv.FormatInt(reservation.SlotsUsed, 10)},
 		{"auto_renew", strconv.FormatBool(reservation.AutoRenew)},
 		{"period_end", formatTimePtr(reservation.PeriodEnd)},

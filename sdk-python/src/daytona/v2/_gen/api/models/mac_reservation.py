@@ -60,11 +60,10 @@ class MacReservation(BaseModel):
     renewal_error: Optional[StrictStr] = Field(default=None, description="Why the renewal of the next period failed (billing refused it, or the balance was too low); the reservation ends at `period_end` unless renewed by hand. Null when no renewal has failed.")
     renewal_pending: StrictBool = Field(description="A renewal charge is still waiting for billing's answer.")
     resources_used: MacResources
-    sandboxes_per_mac: StrictInt = Field(description="Most sandboxes this reservation's Mac runs at once, subject to CPU, memory, and disk fit. Stopped sandboxes do not count. 0 when the reservation takes no new sandbox: its capacity is null, or fits no minimum-sized sandbox.")
     slots_used: StrictInt = Field(description="macOS sandboxes currently occupying this reservation's Mac.")
     status: MacReservationStatus
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["activated_at", "auto_renew", "capacity", "created_at", "end_reason", "ended_at", "id", "model", "org_id", "origin", "pending_mac_started_at", "period_end", "period_n", "period_seconds", "period_started_at", "project_id", "region_id", "reissued_at", "renewal_error", "renewal_pending", "resources_used", "sandboxes_per_mac", "slots_used", "status"]
+    __properties: ClassVar[List[str]] = ["activated_at", "auto_renew", "capacity", "created_at", "end_reason", "ended_at", "id", "model", "org_id", "origin", "pending_mac_started_at", "period_end", "period_n", "period_seconds", "period_started_at", "project_id", "region_id", "reissued_at", "renewal_error", "renewal_pending", "resources_used", "slots_used", "status"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -203,7 +202,6 @@ class MacReservation(BaseModel):
             **({"renewal_error": obj["renewal_error"]} if "renewal_error" in obj else {}),
             "renewal_pending": obj.get("renewal_pending"),
             "resources_used": MacResources.from_dict(obj["resources_used"]) if obj.get("resources_used") is not None else None,
-            "sandboxes_per_mac": obj.get("sandboxes_per_mac"),
             "slots_used": obj.get("slots_used"),
             "status": obj.get("status")
         })

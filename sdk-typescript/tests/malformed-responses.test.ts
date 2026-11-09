@@ -730,7 +730,7 @@ const VOLUME = { id: 'vol', name: 'data', type: 'standard', status: 'ready', cre
 const SECRET = { name: 'KEY', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }
 const API_KEY = {
   id: 'k', name: 'ci', project_id: 'p', project_permissions: [], created_at: '2026-01-01T00:00:00Z',
-  context: { project_name: 'p', org_id: 'o', org_name: 'o' }, sync_to_v0: true, sync_to_v1: true,
+  context: { project_name: 'p', org_id: 'o', org_name: 'o' }, sync_to_v0: true,
 }
 const LISTED = { ...SANDBOX_DETAIL, id: 'sbx', cursor: 'c1', toolbox_proxy_url: 'https://toolbox.example/sbx' }
 type DateTimeCase = readonly [string, (client: Daytona, api: FakeApi) => Promise<unknown>, string, (field: string, value: string) => unknown]

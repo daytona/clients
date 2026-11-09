@@ -141,7 +141,7 @@ func TestCreateKey_delegatesToCreateProjectKey(t *testing.T) {
 }
 
 func TestOrganizationResponse_fixtureRoundTrips(t *testing.T) {
-	raw := []byte(`{"id":"44444444-4444-4444-4444-444444444444","name":"Acme","personal":false,"from_v0":true,"suspended":true,"suspended_reason":"example reason","preview_warning_disabled":false,"v0_membership_sync_enabled":true, "v1_membership_sync_enabled":true,"sso_linked":true,"sso_organization_id":"org_01ACME","budget_stop_grace_seconds":3600,"created_at":"2026-09-01T00:00:00Z","updated_at":"2026-09-01T00:00:00Z"}`)
+	raw := []byte(`{"id":"44444444-4444-4444-4444-444444444444","name":"Acme","personal":false,"from_v0":true,"suspended":true,"suspended_reason":"example reason","preview_warning_disabled":false,"v0_membership_sync_enabled":true,"sso_linked":true,"sso_organization_id":"org_01ACME","budget_stop_grace_seconds":3600,"created_at":"2026-09-01T00:00:00Z","updated_at":"2026-09-01T00:00:00Z"}`)
 	var org gen.Organization
 	if err := json.Unmarshal(raw, &org); err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -154,7 +154,7 @@ func TestOrganizationResponse_fixtureRoundTrips(t *testing.T) {
 	if err := json.Unmarshal(encoded, &decoded); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if decoded["id"] != "44444444-4444-4444-4444-444444444444" || decoded["suspended_reason"] != "example reason" || decoded["from_v0"] != true || decoded["v0_membership_sync_enabled"] != true || decoded["v1_membership_sync_enabled"] != true || decoded["sso_linked"] != true {
+	if decoded["id"] != "44444444-4444-4444-4444-444444444444" || decoded["suspended_reason"] != "example reason" || decoded["from_v0"] != true || decoded["v0_membership_sync_enabled"] != true || decoded["sso_linked"] != true {
 		t.Fatalf("round-trip lost fields: %#v", decoded)
 	}
 }

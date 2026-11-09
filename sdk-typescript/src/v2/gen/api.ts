@@ -3113,7 +3113,7 @@ export interface components {
             auto_renew?: boolean | null;
             /**
              * Format: int32
-             * @description CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of them when it is 1. The first successful claim fixes the size; request and limit are equal.
+             * @description CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of them when it runs one. The first successful claim fixes the size; request and limit are equal.
              */
             cores?: number | null;
             /**
@@ -3123,7 +3123,7 @@ export interface components {
             create_timeout_seconds?: number | null;
             /**
              * Format: int32
-             * @description Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when `sandboxes_per_mac` is 2, or all of it when it is 1. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.
+             * @description Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of it when it runs one. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.
              */
             disk_mib?: number | null;
             /** @description Sandbox-specific environment variables. Names must be valid environment variable names. */
@@ -3148,7 +3148,7 @@ export interface components {
             lifecycle_policy?: null | components["schemas"]["UpdateSandboxLifecyclePolicyRequest"];
             /**
              * Format: int32
-             * @description Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of it when it is 1. The first successful claim fixes the size; request and limit are equal.
+             * @description Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of it when it runs one. The first successful claim fixes the size; request and limit are equal.
              */
             memory_mib?: number | null;
             /** @description Optional sandbox name (defaults to `sandbox-<short-id>`). */
@@ -3233,12 +3233,6 @@ export interface components {
              *     it later by updating the API key.
              */
             sync_to_v0?: boolean | null;
-            /**
-             * @deprecated
-             * @description Deprecated: use `sync_to_v0`. Accepted with the same meaning; a
-             *     request that sets both to different values is refused.
-             */
-            sync_to_v1?: boolean | null;
         };
         CreateProjectRequest: {
             /** @description The project name. */
@@ -4380,12 +4374,6 @@ export interface components {
              */
             resources_used: components["schemas"]["MacResources"];
             /**
-             * Format: int32
-             * @description Most sandboxes this reservation's Mac runs at once, subject to CPU,
-             *     memory, and disk fit. Stopped sandboxes do not count. 0 when the reservation takes no new sandbox: its capacity is null, or fits no minimum-sized sandbox.
-             */
-            sandboxes_per_mac: number;
-            /**
              * Format: int64
              * @description macOS sandboxes currently occupying this reservation's Mac.
              */
@@ -4622,12 +4610,6 @@ export interface components {
              *     Daytona v0 organization.
              */
             v0_membership_sync_enabled: boolean;
-            /**
-             * @deprecated
-             * @description Deprecated: use `v0_membership_sync_enabled`, which carries the same
-             *     value.
-             */
-            v1_membership_sync_enabled: boolean;
         };
         /** @description An organization API key without its secret token. */
         OrganizationApiKey: {
@@ -5118,11 +5100,6 @@ export interface components {
              *     Daytona v0, which has no read permissions.
              */
             sync_to_v0: boolean;
-            /**
-             * @deprecated
-             * @description Deprecated: use `sync_to_v0`, which carries the same value.
-             */
-            sync_to_v1: boolean;
         };
         /** @description The project and organization in which an API key acts. */
         ProjectApiKeyContext: {
@@ -6262,15 +6239,9 @@ export interface components {
              *     every sandbox, snapshot and registry of the organization on Daytona
              *     v0, which has no read permissions. Only a key a person minted in the
              *     organization's `default` project is ever copied; a key imported from
-             *     Daytona v0 always is. Required (or the deprecated `sync_to_v1`).
+             *     Daytona v0 always is. Required.
              */
             sync_to_v0?: boolean;
-            /**
-             * @deprecated
-             * @description Deprecated: use `sync_to_v0`. Accepted with the same meaning; a
-             *     request that sets both to different values is refused.
-             */
-            sync_to_v1?: boolean;
         };
         /**
          * @description A `PATCH` at block granularity: an absent block is kept, `null` clears it,
@@ -6533,11 +6504,6 @@ export interface components {
              */
             from_v0: boolean;
             /**
-             * @deprecated
-             * @description Deprecated: use `from_v0`, which carries the same value.
-             */
-            from_v1: boolean;
-            /**
              * Format: int64
              * @description Named images registered from Daytona v0 snapshots that are at the current
              *     image format.
@@ -6617,11 +6583,6 @@ export interface components {
             status: string;
             /** @description The sandbox ID on Daytona v0. */
             v0_id: string;
-            /**
-             * @deprecated
-             * @description Deprecated: use `v0_id`, which carries the same value.
-             */
-            v1_id: string;
         };
         /** @description The result of importing a Daytona v0 sandbox. */
         V0SandboxImport: {
@@ -6654,11 +6615,6 @@ export interface components {
              *     import itself succeeded, and repeating the call retries the label.
              */
             v0_labeled: boolean;
-            /**
-             * @deprecated
-             * @description Deprecated: use `v0_labeled`, which carries the same value.
-             */
-            v1_labeled: boolean;
             /** @description Settings and values that could not be imported. */
             warnings: string[];
         };

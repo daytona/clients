@@ -47,9 +47,8 @@ class V0Sandbox(BaseModel):
     reason: Optional[StrictStr] = Field(default=None, description="Reason the sandbox cannot be imported when `importable` is false. Open vocabulary: clients must accept unrecognized reasons.")
     status: StrictStr = Field(description="The sandbox status on Daytona v0.")
     v0_id: StrictStr = Field(description="The sandbox ID on Daytona v0.")
-    v1_id: StrictStr = Field(description="Deprecated: use `v0_id`, which carries the same value.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["class", "cpu", "disk_gib", "importable", "imported_sandbox_id", "labels", "last_backup_at", "memory_gib", "name", "reason", "status", "v0_id", "v1_id"]
+    __properties: ClassVar[List[str]] = ["class", "cpu", "disk_gib", "importable", "imported_sandbox_id", "labels", "last_backup_at", "memory_gib", "name", "reason", "status", "v0_id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -137,8 +136,7 @@ class V0Sandbox(BaseModel):
             "name": obj.get("name"),
             **({"reason": obj["reason"]} if "reason" in obj else {}),
             "status": obj.get("status"),
-            "v0_id": obj.get("v0_id"),
-            "v1_id": obj.get("v1_id")
+            "v0_id": obj.get("v0_id")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

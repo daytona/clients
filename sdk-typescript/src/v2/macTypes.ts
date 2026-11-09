@@ -70,7 +70,6 @@ export interface MacReservation {
   readonly projectId: string
   readonly region: string
   readonly autoRenew: boolean
-  readonly sandboxesPerMac: number
   readonly slotsUsed: number
   readonly model?: string
   readonly capacity?: MacResources

@@ -901,7 +901,7 @@ func apiKeyFixture(idSuffix, projectID, token string, perms []string) string {
 	for i, p := range perms {
 		quoted[i] = `"` + p + `"`
 	}
-	return `{"id":"88888888-8888-8888-8888-88888888888` + idSuffix + `","name":"cli-x","project_id":"` + projectID + `","key_prefix":"dtn_","key_suffix":"xyz","token":"` + token + `","project_permissions":[` + strings.Join(quoted, ",") + `],"expires_at":"2030-01-01T00:00:00Z","created_at":"2026-01-01T00:00:00Z","revoked_at":null,"last_used_at":null,"sync_to_v0":true, "sync_to_v1":true,"service_account_id":null,"service_account_name":null}`
+	return `{"id":"88888888-8888-8888-8888-88888888888` + idSuffix + `","name":"cli-x","project_id":"` + projectID + `","key_prefix":"dtn_","key_suffix":"xyz","token":"` + token + `","project_permissions":[` + strings.Join(quoted, ",") + `],"expires_at":"2030-01-01T00:00:00Z","created_at":"2026-01-01T00:00:00Z","revoked_at":null,"last_used_at":null,"sync_to_v0":true, "service_account_id":null,"service_account_name":null}`
 }
 
 // A static credential (--api-key, DAYTONA_API_KEY, `login --token`) is sent

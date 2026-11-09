@@ -89,7 +89,6 @@ def test_flattened_all_of_credentials_are_redacted() -> None:
             "project_permissions": [],
             "created_at": "2026-01-01T00:00:00Z",
             "sync_to_v0": False,
-            "sync_to_v1": False,
             "token": SECRET,
         }
     )

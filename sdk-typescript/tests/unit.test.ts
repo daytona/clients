@@ -166,7 +166,7 @@ const CURRENT_KEY_WIRE: ApiComponents['schemas']['ProjectApiKeyWithContext'] = {
   id: 'current-key', name: 'test-key', project_id: 'project-1', project_permissions: ['read:sandboxes'],
   created_at: '2026-01-01T00:00:00Z', key_prefix: 'key', key_suffix: 'tail',
   context: { org_id: 'org-1', org_name: 'Acme', project_name: 'default' },
-  imported_from: null, sync_to_v0: false, sync_to_v1: false,
+  imported_from: null, sync_to_v0: false,
 }
 const CURRENT_KEY: ProjectApiKey = {
   id: 'current-key', name: 'test-key', projectId: 'project-1', projectPermissions: ['read:sandboxes'],
@@ -8431,7 +8431,7 @@ describe('toolbox service request shaping', () => {
       last_used_at: null,
       service_account_id: null,
       imported_from: null,
-      sync_to_v0: false, sync_to_v1: false,
+      sync_to_v0: false,
     }
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: response })
 
@@ -10550,7 +10550,6 @@ describe('macOS sandboxes and reservations', () => {
       project_id: 'proj',
       region_id: 'mac-region',
       status: 'active',
-      sandboxes_per_mac: 2,
       model: 'm4-10c-16g',
       capacity: { cores: 10, memory_mib: 16384, disk_mib: 235520 },
       resources_used: { cores: 5, memory_mib: 8192, disk_mib: 117760 },
@@ -10576,7 +10575,6 @@ describe('macOS sandboxes and reservations', () => {
     const expectedReservation = {
       id: 'res-1', orgId: reservation.org_id, projectId: reservation.project_id,
       region: reservation.region_id, status: 'active', rawStatus: 'active',
-      sandboxesPerMac: 2,
       model: reservation.model, capacity: { cores: 10, memoryMib: 16384, diskMib: 235520 },
       resourcesUsed: { cores: 5, memoryMib: 8192, diskMib: 117760 }, periodN: 1,
       periodSeconds: 86_400, periodStartedAt: '2026-09-22T00:00:00Z',
@@ -10653,9 +10651,10 @@ describe('macOS sandboxes and reservations', () => {
     ] })
     expect(bought.reserved).toBe(2)
     for (const reserved of bought.reservations) {
-      expect(reserved).toMatchObject({ orgId: 'org', projectId: 'proj', autoRenew: true, sandboxesPerMac: 2, slotsUsed: 0, periodN: 1, periodSeconds: 86_400, renewalPending: false, createdAt: '2026-09-22T00:00:00Z' })
+      expect(reserved).not.toHaveProperty('sandboxesPerMac')
+      expect(reserved).toMatchObject({ orgId: 'org', projectId: 'proj', autoRenew: true, slotsUsed: 0, periodN: 1, periodSeconds: 86_400, renewalPending: false, createdAt: '2026-09-22T00:00:00Z' })
       expect(reserved.resourcesUsed).toEqual({ cores: 0, memoryMib: 0, diskMib: 0 })
-      for (const wire of ['region_id', 'org_id', 'project_id', 'auto_renew', 'sandboxes_per_mac', 'slots_used', 'resources_used', 'period_n', 'period_seconds', 'renewal_pending', 'created_at']) {
+      for (const wire of ['region_id', 'org_id', 'project_id', 'auto_renew', 'slots_used', 'resources_used', 'period_n', 'period_seconds', 'renewal_pending', 'created_at']) {
         expect(reserved).not.toHaveProperty(wire)
       }
     }
@@ -10718,7 +10717,6 @@ describe('macOS sandboxes and reservations', () => {
       status: 'active',
       origin: 'auto',
       auto_renew: true,
-      sandboxes_per_mac: 2,
       slots_used: 0,
       resources_used: { cores: 0, memory_mib: 0, disk_mib: 0 },
       period_n: 1,

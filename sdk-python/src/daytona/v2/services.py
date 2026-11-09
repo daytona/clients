@@ -798,7 +798,6 @@ def _mac_reservation(response: TransportPayload | MacReservationWire) -> MacRese
         region=value.region_id,
         status=_mac_reservation_status(raw_status),
         raw_status=raw_status,
-        sandboxes_per_mac=value.sandboxes_per_mac,
         period_n=value.period_n,
         period_seconds=value.period_seconds,
         created_at=value.created_at,
