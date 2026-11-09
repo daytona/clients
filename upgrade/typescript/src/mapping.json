@@ -3821,7 +3821,7 @@
         "ts": "delete"
       },
       "v2": {
-        "py": "{client}.v2.delete(sandbox[[timeout@1|, timeout=60 if $ is None else $]])",
+        "py": "{client}.v2.delete(sandbox[[timeout@1|, timeout=60 if $ is None else $|, timeout=$]])",
         "ts": "{client}.v2.delete(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -3849,7 +3849,7 @@
       },
       "v2": {
         "py": null,
-        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ [[params@1|...$, ]]memory: false[[timeout@2|, waitSeconds: $ === 0 ? 30 * 86_400 : $]] }))"
+        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ [[params@1|...$, ]]memory: false[[timeout@2|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] }))"
       },
       "category": "differs",
       "notes": {
@@ -3873,7 +3873,7 @@
       },
       "v2": {
         "py": null,
-        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ [[params@1|...$, ]]memory: false[[timeout@2|, waitSeconds: $ === 0 ? 30 * 86_400 : $]] }))"
+        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ [[params@1|...$, ]]memory: false[[timeout@2|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] }))"
       },
       "category": "differs",
       "notes": {
@@ -3950,7 +3950,7 @@
         "ts": "start"
       },
       "v2": {
-        "py": "{client}.v2.start(sandbox[[timeout@1|, timeout=0 if $ is None else $]])",
+        "py": "{client}.v2.start(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$]])",
         "ts": "{client}.v2.start(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -3975,7 +3975,7 @@
         "ts": "stop"
       },
       "v2": {
-        "py": "{client}.v2.stop(sandbox[[timeout@1|, timeout=0 if $ is None else $]])",
+        "py": "{client}.v2.stop(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$]])",
         "ts": "{client}.v2.stop(sandbox)"
       },
       "category": "differs",
@@ -4598,7 +4598,7 @@
         "ts": "delete"
       },
       "v2": {
-        "py": "{sandbox}.delete([[timeout@0|timeout=60 if $ is None else $]])",
+        "py": "{sandbox}.delete([[timeout@0|timeout=60 if $ is None else $|timeout=$]])",
         "ts": "{sandbox}.delete([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -4675,8 +4675,8 @@
         "ts": "fork"
       },
       "v2": {
-        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $]])",
-        "ts": "{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $]] })"
+        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $|, wait_seconds=$|, wait_seconds=30 * 86_400]])",
+        "ts": "{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] })"
       },
       "category": "differs",
       "notes": {
@@ -4702,8 +4702,8 @@
         "ts": "_experimental_fork"
       },
       "v2": {
-        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $]])",
-        "ts": "{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $]] })"
+        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $|, wait_seconds=$|, wait_seconds=30 * 86_400]])",
+        "ts": "{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] })"
       },
       "category": "differs",
       "notes": {
@@ -5243,7 +5243,7 @@
         "ts": "start"
       },
       "v2": {
-        "py": "{sandbox}.start([[timeout@0|timeout=0 if $ is None else $]])",
+        "py": "{sandbox}.start([[timeout@0|timeout=0 if $ is None else $|timeout=$]])",
         "ts": "{sandbox}.start([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -5268,7 +5268,7 @@
         "ts": "stop"
       },
       "v2": {
-        "py": "{sandbox}.stop([[timeout@0|timeout=0 if $ is None else $]])",
+        "py": "{sandbox}.stop([[timeout@0|timeout=0 if $ is None else $|timeout=$]])",
         "ts": "{sandbox}.stop([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -5447,7 +5447,7 @@
         "ts": "waitUntilStarted"
       },
       "v2": {
-        "py": "{sandbox}.wait(until=\"started\"[[timeout@0|, timeout=0 if $ is None else $]])",
+        "py": "{sandbox}.wait(until=\"started\"[[timeout@0|, timeout=0 if $ is None else $|, timeout=$]])",
         "ts": "{sandbox}.wait({ until: 'started'[[timeout@0|, timeoutSeconds: $]] })"
       },
       "category": "differs",
@@ -5472,7 +5472,7 @@
         "ts": "waitUntilStopped"
       },
       "v2": {
-        "py": "{sandbox}.wait(until=\"stopped\"[[timeout@0|, timeout=0 if $ is None else $]])",
+        "py": "{sandbox}.wait(until=\"stopped\"[[timeout@0|, timeout=0 if $ is None else $|, timeout=$]])",
         "ts": "{sandbox}.wait({ until: 'stopped'[[timeout@0|, timeoutSeconds: $]] })"
       },
       "category": "differs",

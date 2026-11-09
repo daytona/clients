@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { hasOptionalArguments, withNamedArguments, withoutOptionalArguments } from './optional-arguments.mjs';
+import { hasLiteralArguments, hasOptionalArguments, withLiteralArguments, withNamedArguments, withoutOptionalArguments } from './optional-arguments.mjs';
 
 const sdkRoot = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -63,9 +63,16 @@ async function main() {
     const optional = ['py', 'ts'].filter((lang) => entry.v2[lang] !== null && hasOptionalArguments(entry.v2[lang]));
     if (optional.length === 0) return [entry];
     const variant = (render) => Object.fromEntries(['py', 'ts'].map((lang) => [lang, entry.v2[lang] === null ? null : render(entry.v2[lang])]));
+    const literals = ['py', 'ts'].some((lang) => entry.v2[lang] !== null && hasLiteralArguments(entry.v2[lang]))
+      ? [
+        { ...entry, id: `${entry.id} (literal)`, v2: variant((form) => withLiteralArguments(form, '5')) },
+        { ...entry, id: `${entry.id} (zero)`, v2: variant((form) => withLiteralArguments(form, '0')) },
+      ]
+      : [];
     return [
       { ...entry, v2: variant(withNamedArguments) },
       { ...entry, id: `${entry.id} (defaults)`, v2: variant(withoutOptionalArguments) },
+      ...literals,
     ];
   });
   const expanded = { ...mapping, suggestions: [...forms, ...notes] };

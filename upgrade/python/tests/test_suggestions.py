@@ -305,18 +305,34 @@ def _lifecycle_form(call: str, entry_id: str) -> str:
         (
             "box.start(120)",
             "sandbox.start",
-            "box.start(timeout=0 if 120 is None else 120)",
+            "box.start(timeout=120)",
         ),
         ("box.pause(timeout=5)", "sandbox.pause", "box.pause(timeout=5)"),
         (
             "box.fork(name='copy', timeout=30)",
             "sandbox.fork",
-            "box.fork(name='copy', memory=False, wait_seconds=30 * 86_400 if 30 in (None, 0) else 30)",
+            "box.fork(name='copy', memory=False, wait_seconds=30)",
+        ),
+        # A numeric literal is computed; a variable keeps the expression.
+        (
+            "box.fork(timeout=0)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400)",
+        ),
+        (
+            "box.fork(timeout=budget)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400 if budget in (None, 0) else budget)",
+        ),
+        (
+            "box.start(budget)",
+            "sandbox.start",
+            "box.start(timeout=0 if budget is None else budget)",
         ),
         (
             "api.v0.delete(box, 30)",
             "client.delete",
-            "api.v2.delete(sandbox, timeout=60 if 30 is None else 30)",
+            "api.v2.delete(sandbox, timeout=30)",
         ),
     ],
 )

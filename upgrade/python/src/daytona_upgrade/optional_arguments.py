@@ -6,7 +6,10 @@
 The ``text`` is rendered, with every ``$`` replaced by the argument's source,
 only when the 0.x call passed that argument (the keyword ``name``, or the
 positional ``index``); otherwise the marker is dropped and v2's default holds,
-so the suggestion never names a variable the call did not have. The
+so the suggestion never names a variable the call did not have. A marker
+may add ``|literal`` and ``|zero`` texts: for a numeric literal argument the
+value is computed instead, ``literal`` with ``$`` as the literal (``zero``
+when it is 0; ``literal`` again when no ``zero`` text is given). The
 TypeScript tool reads the same markers (optional-arguments.ts).
 """
 
@@ -17,6 +20,8 @@ import re
 from collections.abc import Callable
 
 _MARKER = re.compile(r"\[\[(\w+)@(\d+)\|((?:(?!\]\]).)*)\]\]")
+# A decimal numeric literal, written as both languages write one.
+_NUMERIC_LITERAL = re.compile(r"(?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][+-]?\d+)?")
 
 
 def render_optional_arguments(
@@ -24,7 +29,15 @@ def render_optional_arguments(
 ) -> str:
     def replace(match: re.Match[str]) -> str:
         value = argument(match.group(1), int(match.group(2)))
-        return "" if value is None else match.group(3).replace("$", value)
+        if value is None:
+            return ""
+        text, *rest = match.group(3).split("|")
+        chosen = text
+        if rest and _NUMERIC_LITERAL.fullmatch(value):
+            literal = rest[0]
+            zero = rest[1] if len(rest) > 1 else literal
+            chosen = zero if float(value.replace("_", "")) == 0 else literal
+        return chosen.replace("$", value)
 
     return _MARKER.sub(replace, template)
 

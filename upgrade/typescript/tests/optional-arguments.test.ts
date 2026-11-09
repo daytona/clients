@@ -21,11 +21,14 @@ it.each([
   ['d.v0.delete(box)', 'client.delete', 'd.v2.delete(sandbox)'],
   ['box.start(120)', 'sandbox.start', 'box.start({ timeoutSeconds: 120 })'],
   ['box.pause(5)', 'sandbox.pause', 'box.pause({ timeoutSeconds: 5 })'],
-  ["box.fork({ name: 'copy' }, 30)", 'sandbox.fork', "box.fork({ ...{ name: 'copy' }, memory: false, waitSeconds: 30 === 0 ? 30 * 86_400 : 30 })"],
+  ["box.fork({ name: 'copy' }, 30)", 'sandbox.fork', "box.fork({ ...{ name: 'copy' }, memory: false, waitSeconds: 30 })"],
+  // A numeric literal is computed; a variable keeps the expression.
+  ['box.fork(undefined, 0)', 'sandbox.fork', 'box.fork({ memory: false, waitSeconds: 30 * 86_400 })'],
+  ['box.fork(undefined, budget)', 'sandbox.fork', 'box.fork({ memory: false, waitSeconds: budget === 0 ? 30 * 86_400 : budget })'],
   ['d.v0.delete(box, 30)', 'client.delete', 'd.v2.delete(sandbox, { timeoutSeconds: 30 })'],
 ])('suggests %s with only the timeout the call passed', async (call, id, expected) => {
   // Given
-  const root = temporaryProject({ 'index.ts': `import { Daytona } from '@daytona/sdk';\nconst d = new Daytona();\nconst box = await d.v0.create();\nawait ${call};\n` });
+  const root = temporaryProject({ 'index.ts': `import { Daytona } from '@daytona/sdk';\nconst d = new Daytona();\nconst box = await d.v0.create();\nconst budget = Number(process.env.BUDGET);\nawait ${call};\n` });
   // When
   const result = await invoke(root, ['--suggest-v2', '--json'], loadMapping());
   // Then
