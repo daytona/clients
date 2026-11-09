@@ -565,7 +565,7 @@ skipping exist only in the TypeScript tool).
   list misses a key of `T` or names one `T` lacks), and its entry point calls
   `assertKnownOptions('TypeName', options, KEYS)` (or `snapshotOptions`, which
   also copies it), which throws `BadRequestError` (400, `BAD_REQUEST`, source
-  `SDK`) naming the key; inherited enumerable keys count, and a value that is
+  `SDK`) naming the key; inherited enumerable keys count (symbol keys too), and a value that is
   not an options object (`null`, a boolean, an array: an older positional
   argument; a built-in such as a `Date` or a `Map`) is refused (the root
   constructor alone reads `null` as no configuration, as Python does `None`). A key in

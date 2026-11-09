@@ -142,6 +142,18 @@ describe('option keys', () => {
     expectBadRequest(() => new Daytona(value as never), `DaytonaConfig must be an options object, got ${given}`)
   })
 
+  it('refuses an enumerable symbol key, own or inherited, like an unknown key', () => {
+    const keys = optionKeys<{ readonly create?: boolean }>()({ create: true })
+    const own = { create: true, [Symbol('extra')]: 1 }
+    expectBadRequest(() => assertKnownOptions('VolumeGetOptions', own as never, keys), 'VolumeGetOptions has no option `Symbol(extra)`')
+    expectBadRequest(() => assertKnownOptions('VolumeGetOptions', Object.create({ [Symbol('inherited')]: 1 }) as never, keys), 'VolumeGetOptions has no option `Symbol(inherited)`')
+    expectBadRequest(() => new Daytona({ apiKey: 'k', [Symbol('extra')]: 1 } as never), 'DaytonaConfig has no option `Symbol(extra)`')
+    expectBadRequest(() => new Daytona({ apiKey: 'k', events: { [Symbol('extra')]: 1 } } as never), 'SandboxEventsConfig has no option `Symbol(extra)`')
+    // A non-enumerable symbol is not an option.
+    const hidden = Object.defineProperty({ create: true }, Symbol('hidden'), { value: 1, enumerable: false })
+    expect(() => assertKnownOptions('VolumeGetOptions', hidden as never, keys)).not.toThrow()
+  })
+
   it('accepts class instances and prototype-based options objects', () => {
     class Options { public create = true }
     const keys = optionKeys<{ readonly create?: boolean }>()({ create: true })
