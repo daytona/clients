@@ -18,7 +18,8 @@ import { Daytona } from '../src/v2/Daytona'
 import { BadRequestError, ClientTimeoutError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport, forceFetchAdapterForTests, transferRequest } from '../src/v2/http'
 import { attachHub, detachHub, eventsHubConfig } from '../src/v2/events'
-import { BodyBuffer } from '../src/v2/bodyBuffer'
+import { BodyBuffer, MAX_PREALLOCATION } from '../src/v2/bodyBuffer'
+import { readFetchText } from '../src/v2/errors/DaytonaError'
 import { lazySandbox } from './lazySandbox'
 
 jest.setTimeout(30_000)
@@ -235,6 +236,34 @@ describe.each(['http', 'fetch'] as const)('the transfer idle bound (%s adapter)'
         () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: new Blob([large]), transfer: true }).then((response) => response.text()),
       ]) {
         expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+      }
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('keeps a transfer\'s moving error body going past the idle bound', async () => {
+    // A 404 whose body trickles 12 chunks 200 ms apart: 2.4 s, five times the idle bound.
+    const errorBody = JSON.stringify({ code: 'NOT_FOUND', message: 'gone' }).padEnd(48, ' ')
+    route = (request, response) => {
+      request.resume()
+      response.writeHead(404, { 'Content-Type': 'application/json', 'Content-Length': String(errorBody.length) })
+      response.flushHeaders()
+      let sent = 0
+      const timer = setInterval(() => {
+        response.write(errorBody.slice(sent * 4, sent * 4 + 4))
+        if (++sent === 12) {
+          clearInterval(timer)
+          response.end()
+        }
+      }, 200)
+      response.on('close', () => clearInterval(timer))
+    }
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    const transport = new HttpTransport(base, 't', IDLE_SECONDS * 1000)
+    try {
+      for (const call of [() => sandbox.fs.readBytes('/a'), () => transport.fetch('/files/download?path=a', { transfer: true })]) {
+        await expect(call()).rejects.toMatchObject({ constructor: NotFoundError, statusCode: 404, message: 'gone' })
       }
     } finally {
       await client.close()
@@ -588,32 +617,73 @@ describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', 
 describe('BodyBuffer', () => {
   const bytes = (...values: number[]): Uint8Array => new Uint8Array(values)
 
-  it('fills one allocation of the declared length in place', () => {
+  it('fills one allocation of a small declared length in place', () => {
     const body = new BodyBuffer(100, 4)
     expect(body.add(bytes(1, 2))).toBe(true)
     expect(body.add(bytes(3, 4))).toBe(true)
     const out = body.bytes()
-    expect([...out]).toEqual([1, 2, 3, 4])
+    expect([...(out ?? [])]).toEqual([1, 2, 3, 4])
     // The one allocation, not a copy of it.
-    expect(out.buffer.byteLength).toBe(4)
+    expect(out?.buffer.byteLength).toBe(4)
     expect(body.bytes()).toBe(out)
+  })
+
+  it('preallocates at most 8 MiB and grows with the bytes received, not the declared length', () => {
+    // 100 TiB declared, no limit: nothing near it is allocated up front.
+    const huge = new BodyBuffer(0, 100 * 2 ** 40)
+    expect(huge.capacity).toBe(MAX_PREALLOCATION)
+    huge.add(bytes(1, 2, 3))
+    expect([...(huge.bytes() ?? [])]).toEqual([1, 2, 3])
+    // Past the preallocation it grows (doubling, up to the declared length).
+    const large = new BodyBuffer(0, 3 * MAX_PREALLOCATION)
+    large.add(new Uint8Array(MAX_PREALLOCATION))
+    expect(large.capacity).toBe(MAX_PREALLOCATION)
+    large.add(new Uint8Array(10))
+    expect(large.capacity).toBe(2 * MAX_PREALLOCATION)
+    expect(large.bytes()?.byteLength).toBe(MAX_PREALLOCATION + 10)
+  })
+
+  it('falls back to chunks when an allocation fails', () => {
+    const body = new BodyBuffer(0, 20 * 2 ** 20)
+    body.add(new Uint8Array(MAX_PREALLOCATION))
+    const original = globalThis.Uint8Array
+    // The growth allocation fails as an over-large one would (RangeError).
+    const failing = new Proxy(original, { construct: (target, args: [number]) => {
+      if (typeof args[0] === 'number' && args[0] > MAX_PREALLOCATION) throw new RangeError('Array buffer allocation failed')
+      return new target(...args)
+    } })
+    globalThis.Uint8Array = failing as typeof Uint8Array
+    try {
+      expect(body.add(bytes(7))).toBe(true)
+      expect(body.capacity).toBe(0)
+    } finally {
+      globalThis.Uint8Array = original
+    }
+    const out = body.bytes()
+    expect(out?.byteLength).toBe(MAX_PREALLOCATION + 1)
+    expect(out?.[MAX_PREALLOCATION]).toBe(7)
+  })
+
+  it('reads a fetch body under a declared 100 TiB length without allocating it', async () => {
+    const response = new Response('abc', { headers: { 'content-length': String(100 * 2 ** 40) } })
+    expect(await readFetchText(response, 0)).toBe('abc')
   })
 
   it('keeps a body that outgrows or falls short of its declared length', () => {
     const longer = new BodyBuffer(100, 2)
     longer.add(bytes(1, 2))
     longer.add(bytes(3))
-    expect([...longer.bytes()]).toEqual([1, 2, 3])
+    expect([...(longer.bytes() ?? [])]).toEqual([1, 2, 3])
     const shorter = new BodyBuffer(100, 8)
     shorter.add(bytes(1))
-    expect([...shorter.bytes()]).toEqual([1])
+    expect([...(shorter.bytes() ?? [])]).toEqual([1])
   })
 
   it('refuses a chunk that would pass the limit and keeps none of it', () => {
     const body = new BodyBuffer(3)
     expect(body.add(bytes(1, 2))).toBe(true)
     expect(body.add(bytes(3, 4))).toBe(false)
-    expect([...body.bytes()]).toEqual([1, 2])
+    expect([...(body.bytes() ?? [])]).toEqual([1, 2])
     // A declared length over the limit is not allocated.
     expect(new BodyBuffer(3, 1 << 30).add(bytes(1, 2, 3, 4))).toBe(false)
     expect(new BodyBuffer(0).add(new Uint8Array(10))).toBe(true)

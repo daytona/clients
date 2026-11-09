@@ -230,7 +230,8 @@ export class RecordingService {
     assertKnownOptions('RecordingDownloadOptions', options, RECORDING_DOWNLOAD_OPTION_KEYS)
     const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes)
     const path = `/computeruse/recordings/${strictUriEncode(id)}/download`
-    return new Uint8Array(await this.transport.getBytes(path, maxResponseBytes === undefined ? undefined : { maxResponseBytes }))
+    // The one-argument call unless this call overrides the client's cap.
+    return new Uint8Array(await (maxResponseBytes === undefined ? this.transport.getBytes(path) : this.transport.getBytes(path, { maxResponseBytes })))
   }
 
   public async delete(id: string): Promise<void> {

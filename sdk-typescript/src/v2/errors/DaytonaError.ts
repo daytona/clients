@@ -871,8 +871,8 @@ export function errorFromEnvelopeBody(
  * bytes (`0` = no limit; a declared or actual body over it is not read on:
  * the error keeps its status's class and says the body was too large).
  */
-export async function errorFromFetchResponse(response: Response, limit = 0): Promise<DaytonaError> {
-  const text = await readFetchText(response, limit)
+export async function errorFromFetchResponse(response: Response, limit = 0, onChunk?: () => void): Promise<DaytonaError> {
+  const text = await readFetchText(response, limit, onChunk)
   if (text === undefined) {
     return createDaytonaError(
       `HTTP ${response.status}: the response body was too large to read (over the ${limit}-byte maxResponseBytes limit)`,
@@ -886,10 +886,10 @@ export async function errorFromFetchResponse(response: Response, limit = 0): Pro
  * A fetch response's body as text, read under `limit` bytes (`0` = no
  * limit), or `undefined` once it passes it (the body is then cancelled).
  */
-export async function readFetchText(response: Response, limit: number): Promise<string | undefined> {
-  if (limit <= 0) return response.text()
+export async function readFetchText(response: Response, limit: number, onChunk?: () => void): Promise<string | undefined> {
+  if (limit <= 0 && onChunk === undefined) return response.text()
   const declared = response.headers.get('content-length')?.trim() ?? ''
-  if (/^\d+$/.test(declared) && Number(declared) > limit) {
+  if (limit > 0 && /^\d+$/.test(declared) && Number(declared) > limit) {
     await response.body?.cancel().catch(() => undefined)
     return undefined
   }
@@ -900,6 +900,8 @@ export async function readFetchText(response: Response, limit: number): Promise<
   try {
     for (;;) {
       const next = await reader.read()
+      // `onChunk`: progress (a transfer's idle bound restarts on each chunk).
+      onChunk?.()
       if (next.done) break
       if (!body.add(next.value)) {
         await reader.cancel().catch(() => undefined)
@@ -909,7 +911,9 @@ export async function readFetchText(response: Response, limit: number): Promise<
   } finally {
     reader.releaseLock()
   }
-  return new TextDecoder().decode(body.bytes())
+  const bytes = body.bytes()
+  // Too large to hold at all: refused like a body over the cap.
+  return bytes === undefined ? undefined : new TextDecoder().decode(bytes)
 }
 
 export function statusForCode(code: ErrorCode): number {

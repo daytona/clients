@@ -1640,7 +1640,9 @@ export class HttpTransport {
         }
         idle?.kick()
         if (checkStatus && !response.ok) {
-          const error = await errorFromFetchResponse(response, this.maxResponseBytes)
+          // A transfer's error body is idle-bounded like its success body: each
+          // chunk restarts the bound, so a moving body is never cut.
+          const error = await errorFromFetchResponse(response, this.maxResponseBytes, idle === undefined ? undefined : () => idle.kick())
           finalize(response.status, error)
           throw error
         }
