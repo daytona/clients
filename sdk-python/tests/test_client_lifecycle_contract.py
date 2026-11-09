@@ -34,6 +34,7 @@ from daytona.v2 import (
     SandboxCreateRequestTimeoutError,
     Secret,
 )
+from daytona.v2._body_limit import DEFAULT_MAX_RESPONSE_BYTES
 from daytona.v2._core import RequestSpec
 from daytona.v2._events import WaitOutcome
 from daytona.v2._sync import Daytona
@@ -46,6 +47,9 @@ from daytona.v2.types import DaytonaConfig
 
 class _Api:
     request_timeout_seconds = 30.0
+    # A transport's cap on buffered bodies; a handle built from this fake gives
+    # its toolbox transport the same one.
+    max_response_bytes = DEFAULT_MAX_RESPONSE_BYTES
     _source = "sdk-python-async"
 
     def __init__(self, responses: list[object]) -> None:

@@ -40,6 +40,7 @@ from ._api_core import (
     sandbox_detail_wire,
 )
 from ._auth import ProjectTokenAuth
+from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, validated_max_response_bytes
 from ._core import (
     INT32_MAX,
     MAX_SAFE_INTEGER,
@@ -158,6 +159,7 @@ class _ResolvedConfig:
     otel_enabled: bool
     connection_pool_maxsize: Optional[int]
     request_timeout: float
+    max_response_bytes: int
 
 
 # The `network_policy` default of the create methods: its identity means
@@ -212,7 +214,9 @@ class AsyncDaytona:
                 source=_source,
                 otel=otel,
                 request_timeout=resolved.request_timeout,
+                max_response_bytes=resolved.max_response_bytes,
             )
+        self._max_response_bytes = resolved.max_response_bytes
         self._api = AsyncTransport(
             self._api_url,
             self._api_key,
@@ -221,6 +225,7 @@ class AsyncDaytona:
             connection_pool_maxsize=resolved.connection_pool_maxsize,
             auth=auth,
             otel=otel,
+            max_response_bytes=resolved.max_response_bytes,
         )
         self._auth = auth
         self._toolbox = AsyncTransport.shared(
@@ -229,6 +234,7 @@ class AsyncDaytona:
             connection_pool_maxsize=resolved.connection_pool_maxsize,
             auth=auth,
             otel=otel,
+            max_response_bytes=resolved.max_response_bytes,
         )
         #: Images: build, pull, list, promote, delete, follow build logs.
         self.images = AsyncImagesService(self._api)
@@ -1220,6 +1226,7 @@ class AsyncDaytona:
                 config=self._hub_events_config,
                 auth=self._auth,
                 identity=self._hub_identity,
+                max_response_bytes=self._max_response_bytes,
             )
         return self._hub
 
@@ -1405,6 +1412,9 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
         project_id=project_id,
         otel_enabled=otel_enabled,
         connection_pool_maxsize=_resolve_connection_pool_maxsize(config.connection_pool_maxsize),
+        max_response_bytes=DEFAULT_MAX_RESPONSE_BYTES
+        if config.max_response_bytes is None
+        else validated_max_response_bytes("max_response_bytes", config.max_response_bytes),
         request_timeout=_resolve_request_timeout(config.request_timeout),
     )
 

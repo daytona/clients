@@ -11,7 +11,7 @@ sync twins. Regenerate with ``python gen/gen_sync.py``;
 
 from __future__ import annotations
 
-from typing import overload
+from typing import Optional, overload
 
 from .. import computer_use_services as _async
 from .._bridge import SyncBridge
@@ -229,8 +229,15 @@ class RecordingService:
     def delete(self, id: str) -> None:
         return self._bridge.call(lambda: self._impl.delete(id))
 
-    def download(self, id: str) -> bytes:
-        return self._bridge.call(lambda: self._impl.download(id))
+    def download(self, id: str, *, max_response_bytes: Optional[int] = None) -> bytes:
+        """Download a recording into memory.
+
+        No total deadline (it fails only when no bytes move for the client's
+        ``request_timeout``). ``max_response_bytes`` replaces the client's cap
+        on the body for this call (``0`` = no limit); a larger recording raises
+        ``PayloadTooLargeError`` before it is read in full.
+        """
+        return self._bridge.call(lambda: self._impl.download(id, max_response_bytes=max_response_bytes))
 
     def get(self, id: str) -> ComputerUseRecording:
         return self._bridge.call(lambda: self._impl.get(id))

@@ -56,6 +56,7 @@ export {
   RecordingService,
   ScreenService,
 } from './ComputerUseNamespaces.js'
+export type { RecordingDownloadOptions } from './ComputerUseNamespaces.js'
 export { LspServer, LspService } from './Lsp.js'
 export { LspServer as LspServerV2 } from './Lsp.js'
 export { PREVIEW_WARNING_SKIP_HEADER, PREVIEW_WARNING_SKIP_HEADER_VALUE, PortsService } from './Ports.js'

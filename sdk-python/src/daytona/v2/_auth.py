@@ -11,6 +11,7 @@ import anyio
 import httpx
 
 from . import _clock
+from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, send_buffered
 from ._core import error_from_response
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, DaytonaError, create_error
@@ -47,9 +48,11 @@ class ProjectTokenAuth:
         client: httpx.AsyncClient | None = None,
         otel: Optional[OpenTelemetrySupport] = None,
         request_timeout: float = 0,
+        max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     ) -> None:
         self._api_url = api_url.rstrip("/")
         self._request_timeout = request_timeout
+        self._max_response_bytes = max_response_bytes
         self._jwt_token = jwt_token
         self._project_id = project_id
         self._source = source
@@ -123,7 +126,7 @@ class ProjectTokenAuth:
         span = self._otel.start_request_span(method="POST", url=url, headers=headers) if self._otel else None
         try:
             with _request_deadline(self._request_timeout):
-                response = await self._client.request(
+                request = self._client.build_request(
                     "POST",
                     url,
                     headers=headers,
@@ -134,6 +137,7 @@ class ProjectTokenAuth:
                         "project_id": self._project_id,
                     },
                 )
+                response = await send_buffered(self._client, request, self._max_response_bytes)
         except httpx.TimeoutException as error:
             if span is not None:
                 span.finish(error=error)

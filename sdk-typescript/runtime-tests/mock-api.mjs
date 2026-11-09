@@ -102,6 +102,16 @@ function sendWatchStream(req, res) {
   req.on('close', () => clearInterval(keepalive))
 }
 
+// Declares 1 MiB and sends 16 bytes, then nothing: a client that checks the
+// declared length refuses it at once, one that buffers first hangs here
+// (the runtime check has its own deadline).
+function sendOversizedDownload(req, res) {
+  res.writeHead(200, { ...CORS, 'content-type': 'application/octet-stream', 'content-length': String(1 << 20) })
+  res.write('x'.repeat(16))
+  const hangUp = setTimeout(() => res.destroy(), 15_000)
+  req.on('close', () => clearTimeout(hangUp))
+}
+
 const server = createServer((req, res) => {
   const url = new URL(req.url || '/', 'http://mock.invalid')
   const path = url.pathname
@@ -129,6 +139,7 @@ const server = createServer((req, res) => {
     const route = toolbox[2] || '/'
     if (req.method === 'GET' && route === '/files' && url.searchParams.get('path') === '/') return send(res, 200, [FILE_INFO])
     if (req.method === 'GET' && route === '/files/watch' && url.searchParams.get('path') === '/') return sendWatchStream(req, res)
+    if (req.method === 'GET' && route === '/files/download' && url.searchParams.get('path') === '/big.bin') return sendOversizedDownload(req, res)
     sendError(res, 404, 'NOT_FOUND', `the mock does not serve ${req.method} ${route}${url.search}`, 'DAYTONA_DAEMON')
     return
   }

@@ -798,7 +798,19 @@ function isAxiosTimeoutError(error: AxiosError): boolean {
   return error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.message.includes('timeout of')
 }
 
+/**
+ * The axios error code the SDK's adapter gives a success response whose body
+ * passed the `maxResponseBytes` cap (internal); it becomes `PayloadTooLargeError`.
+ */
+export const PAYLOAD_TOO_LARGE_AXIOS_CODE = 'ERR_DAYTONA_RESPONSE_TOO_LARGE'
+
+/** A success response whose body passed the `maxResponseBytes` cap. */
+export function responseTooLargeError(message: string): PayloadTooLargeError {
+  return new PayloadTooLargeError(message, { statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK' })
+}
+
 export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
+  if (error.code === PAYLOAD_TOO_LARGE_AXIOS_CODE) return responseTooLargeError(error.message)
   const envelope = dataObject(error.response?.data)
   const status = error.response?.status
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
@@ -838,9 +850,58 @@ export function errorFromEnvelopeBody(
   return createDaytonaError(message, status, code, source, errorOptionsFromEnvelope(parsed))
 }
 
-export async function errorFromFetchResponse(response: Response): Promise<DaytonaError> {
-  const text = await response.text()
+/**
+ * The typed error of a failed fetch response, its body read under `limit`
+ * bytes (`0` = no limit; a declared or actual body over it is not read on:
+ * the error keeps its status's class and says the body was too large).
+ */
+export async function errorFromFetchResponse(response: Response, limit = 0): Promise<DaytonaError> {
+  const text = await readFetchText(response, limit)
+  if (text === undefined) {
+    return createDaytonaError(
+      `HTTP ${response.status}: the response body was too large to read (over the ${limit}-byte maxResponseBytes limit)`,
+      response.status,
+    )
+  }
   return errorFromEnvelopeBody(text, response.status, text || response.statusText)
+}
+
+/**
+ * A fetch response's body as text, read under `limit` bytes (`0` = no
+ * limit), or `undefined` once it passes it (the body is then cancelled).
+ */
+export async function readFetchText(response: Response, limit: number): Promise<string | undefined> {
+  if (limit <= 0) return response.text()
+  const declared = response.headers.get('content-length')?.trim() ?? ''
+  if (/^\d+$/.test(declared) && Number(declared) > limit) {
+    await response.body?.cancel().catch(() => undefined)
+    return undefined
+  }
+  const reader = response.body?.getReader()
+  if (reader === undefined) return ''
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    for (;;) {
+      const next = await reader.read()
+      if (next.done) break
+      size += next.value.byteLength
+      if (size > limit) {
+        await reader.cancel().catch(() => undefined)
+        return undefined
+      }
+      chunks.push(next.value)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  const bytes = new Uint8Array(size)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new TextDecoder().decode(bytes)
 }
 
 export function statusForCode(code: ErrorCode): number {

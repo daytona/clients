@@ -40,6 +40,7 @@ from weakref import WeakValueDictionary
 
 from . import _clock
 from ._auth import ProjectTokenAuth
+from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES
 from ._core import RequestSpec, expect_object, loads_json, sandbox_state
 from ._transport import AsyncTransport, _request_deadline
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
@@ -388,6 +389,7 @@ class WaitHub:
         connector: Optional[Callable[[str, List[str]], Awaitable[_WsConn]]] = None,
         loop: asyncio.AbstractEventLoop | None = None,
         auth: Optional[ProjectTokenAuth] = None,
+        max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     ) -> None:
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
@@ -417,7 +419,10 @@ class WaitHub:
         # instance because the hub outlives any one ``Daytona``.
         # `auth`: a JWT-configured client's project-token exchange, so the
         # ticket mint is authenticated the same way (there is no API key then).
-        self._api = AsyncTransport(self._api_url, api_key or None, source=source, auth=auth)
+        # `max_response_bytes`: the attaching client's cap on buffered bodies.
+        self._api = AsyncTransport(
+            self._api_url, api_key or None, source=source, auth=auth, max_response_bytes=max_response_bytes
+        )
 
     @property
     def enabled(self) -> bool:
@@ -1665,6 +1670,7 @@ def attach_hub(
     connector: Optional[Callable[[str, List[str]], Awaitable[_WsConn]]] = None,
     auth: Optional[ProjectTokenAuth] = None,
     identity: Optional[str] = None,
+    max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
 ) -> WaitHub:
     key: Optional[Tuple[int, Tuple[object, ...]]] = None
     running_loop: asyncio.AbstractEventLoop | None = None
@@ -1695,12 +1701,20 @@ def attach_hub(
             source=source,
             otel=auth._otel,
             request_timeout=auth._request_timeout,
+            max_response_bytes=max_response_bytes,
         )
         if auth is not None
         else None
     )
     hub = WaitHub(
-        api_url, api_key, source=source, config=config, connector=connector, loop=running_loop, auth=hub_auth
+        api_url,
+        api_key,
+        source=source,
+        config=config,
+        connector=connector,
+        loop=running_loop,
+        auth=hub_auth,
+        max_response_bytes=max_response_bytes,
     )
     hub._attach()
     if key is not None:

@@ -130,6 +130,10 @@ class RequestSpec:
     # cancels it.
     transfer: bool = False
     headers: Dict[str, str] = field(default_factory=dict)
+    # The cap on this response's buffered body, replacing the client's
+    # ``max_response_bytes`` for this request (``0``: no limit); ``None`` keeps
+    # the client's. Streamed bodies are never capped.
+    max_response_bytes: Optional[int] = None
     # Called with the response headers of a successful request (status < 400)
     # before the body is decoded. The events hub learns a sandbox's service
     # endpoint from X-Daytona-Cell on mutation responses this way; a

@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// File transfers are not cut by the request timeout, through each public call.
-// Every call below runs against a toolbox that takes longer than the client's
-// request timeout (100 ms) to answer, so each would fail with
+// File transfers have no total deadline, through each public call. Every call
+// below runs against a toolbox that takes longer than the client's request
+// timeout (100 ms) to answer in full, but keeps bytes moving (a chunk every
+// 50 ms, inside the transfer's idle bound), so each would fail with
 // ClientTimeoutError if its transfer opt-out were dropped. An ordinary call on
 // the same client is cut, which proves the timeout is armed.
+// tests/transfer-bounds.test.ts pins the idle bound itself.
 // sdk-python/tests/test_transfer_timeouts.py holds the Python transfers to the
 // same rule.
 
@@ -22,13 +24,14 @@ import { ClientTimeoutError } from '../src/v2/errors/DaytonaError'
 import { lazySandbox } from './lazySandbox'
 
 const SLOW_MS = 350
+const GAP_MS = 50
 const BOUNDARY = 'transfer-boundary'
 
 let server: Server
 let base: string
 let dir: string
 
-/** Answer after SLOW_MS; the byte downloads trickle their body over that time (the file download after a late start). */
+/** Transfers trickle their response over SLOW_MS, a chunk every GAP_MS; anything else answers after SLOW_MS. */
 function toolbox(request: IncomingMessage, response: ServerResponse): void {
   const url = new URL(request.url ?? '/', 'http://toolbox.invalid')
   request.resume()
@@ -47,25 +50,26 @@ function toolbox(request: IncomingMessage, response: ServerResponse): void {
         return
       }
       response.write(chunks[index++])
-    }, SLOW_MS / chunks.length)
+    }, GAP_MS)
     response.on('close', () => clearInterval(timer))
   }
   const later = (answer: () => void): void => {
     const timer = setTimeout(answer, SLOW_MS)
     response.on('close', () => clearTimeout(timer))
   }
+  // A JSON answer trickled a byte at a time, padded to outlast SLOW_MS.
+  const trickledJson = (payload: unknown): void => trickle([...JSON.stringify(payload).padEnd(SLOW_MS / GAP_MS, ' ')], 'application/json')
   switch (url.pathname) {
     case '/files/upload':
-      return later(() => json({}))
+      return trickledJson({})
     case '/files/bulk-upload':
-      return later(() => json({ files: [{ path: '/a', bytes: 1 }], errors: [] }))
+      return trickledJson({ files: [{ path: '/a', bytes: 1 }], errors: [] })
     case '/files/download':
-      // Headers late too: a fetch-based download is otherwise bounded until
-      // its headers arrive.
-      return later(() => trickle(['x', 'x', 'x', 'x', 'x', 'x', 'x'], 'application/octet-stream'))
+      return trickle(['x', 'x', 'x', 'x', 'x', 'x', 'x'], 'application/octet-stream')
     case '/files/bulk-download': {
       const part = `--${BOUNDARY}\r\nContent-Disposition: form-data; name="file"; filename="/a"\r\nContent-Type: application/octet-stream\r\n\r\nxyz\r\n--${BOUNDARY}--\r\n`
-      return trickle([...part], `multipart/form-data; boundary=${BOUNDARY}`)
+      const size = Math.ceil(part.length / 7)
+      return trickle(Array.from({ length: 7 }, (_, i) => part.slice(i * size, (i + 1) * size)), `multipart/form-data; boundary=${BOUNDARY}`)
     }
     case '/computeruse/recordings/rec-1/download':
       return trickle(['r', 'r', 'r', 'r', 'r', 'r', 'r'], 'video/mp4')

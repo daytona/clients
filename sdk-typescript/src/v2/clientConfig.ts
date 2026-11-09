@@ -9,6 +9,7 @@ import type { HttpClientOptions } from './http.js'
 import { assertKnownOptions, badRequest, boundedTimerDelay, optionalSeconds, snapshotOptions } from './options.js'
 import { SANDBOX_EVENTS_CONFIG_KEYS, V2_CONFIG_KEYS } from './types.js'
 import type { DaytonaConfig, SandboxEventsConfig } from './types.js'
+import { DEFAULT_MAX_RESPONSE_BYTES, maxResponseBytesOption } from './bodyLimit.js'
 
 /**
  * The default Daytona Cloud v2 API, used unless `DAYTONA_V2_API_URL` (a
@@ -116,6 +117,7 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : boundedTimerDelay(requestTimeoutSeconds * 1000)
   const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
   const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
+  const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', config.maxResponseBytes) ?? DEFAULT_MAX_RESPONSE_BYTES
   if (!apiKey && !jwtToken) {
     throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
   }
@@ -139,8 +141,10 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
       requestTimeout: requestTimeoutMs,
       otelEnabled,
       otelApi: config.otelApi,
+      maxResponseBytes,
     }) : undefined,
     connectionPoolMaxsize: poolMaxsize,
+    maxResponseBytes,
     otelEnabled,
     otelApi: config.otelApi,
   }

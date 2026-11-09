@@ -17,7 +17,10 @@ import type {
 } from './types.js'
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
-import { encodeQuery, HttpTransport, isAbortError, sseMessages, strictUriEncode } from './http.js'
+import { encodeQuery, HttpTransport, isAbortError, maxContentLengthFor, sseMessages, strictUriEncode, transferRequest } from './http.js'
+import { maxResponseBytesOption } from './bodyLimit.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+import type { OptionKeys } from './options.js'
 import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 
 export type Match = FileMatch
@@ -52,13 +55,39 @@ export interface WriteFileOptions {
   atomic?: boolean
 }
 
-export interface ReadFileOptions {}
+/**
+ * Options of the in-memory file reads (`readBytes`, `readText`).
+ *
+ * `maxResponseBytes` replaces the client's cap on the response body for this
+ * call (an integer, `0` = no limit; `undefined` / `null` keep the client's).
+ * A body over it is refused with `PayloadTooLargeError` before it is read in
+ * full. For large files, or content from a sandbox you don't trust, use
+ * `downloadFile()` (Node.js), which streams to disk.
+ */
+export interface ReadFileOptions {
+  readonly maxResponseBytes?: number | null
+}
 
 export interface WriteManyOptions {
   atomic?: boolean
 }
 
-export interface ReadManyOptions {}
+/**
+ * Options of `readMany`: `maxResponseBytes` caps the whole multipart body, as
+ * in {@link ReadFileOptions}.
+ */
+export interface ReadManyOptions {
+  readonly maxResponseBytes?: number | null
+}
+
+const READ_FILE_OPTION_KEYS = optionKeys<ReadFileOptions>()({ maxResponseBytes: true })
+const READ_MANY_OPTION_KEYS = optionKeys<ReadManyOptions>()({ maxResponseBytes: true })
+
+/** The validated per-call cap of an in-memory read, as axios config. */
+function readLimit(typeName: string, options: ReadFileOptions | ReadManyOptions | undefined, keys: OptionKeys<ReadFileOptions | ReadManyOptions>): { readonly maxContentLength?: number } {
+  assertKnownOptions(typeName, options, keys)
+  return maxContentLengthFor(maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes))
+}
 
 export interface WatchDirOptions {
   recursive?: boolean
@@ -189,21 +218,28 @@ export class FileSystemService {
     private readonly fileUrlSigner?: FileUrlSigner,
   ) {}
 
-  public async readBytes(path: string, _options: ReadFileOptions = {}): Promise<Uint8Array> {
+  /**
+   * Read a file into memory. A file transfer: no total deadline, but it fails
+   * with `ClientTimeoutError` once no bytes move for the request timeout. The
+   * body is capped by the client's `maxResponseBytes` or this call's (see
+   * {@link ReadFileOptions}).
+   */
+  public async readBytes(path: string, options?: ReadFileOptions): Promise<Uint8Array> {
+    const limit = readLimit('ReadFileOptions', options, READ_FILE_OPTION_KEYS)
     // Through the transport's wrapped method, never the raw axios instance:
     // the wrapper carries the per-sandbox token (minting/refreshing it) and
     // retries once on a 401 — the raw instance only has the static
     // construction-time credential.
-    // A file transfer: not bounded by the request timeout (`timeout: 0`).
-    const data = await this.transport.get<ArrayBuffer>('/files/download', {
+    const data = await this.transport.get<ArrayBuffer>('/files/download', transferRequest({
       params: { path },
       responseType: 'arraybuffer',
-      timeout: 0,
-    })
+      ...limit,
+    }))
     return new Uint8Array(data)
   }
 
-  public async readText(path: string, options: ReadFileOptions = {}): Promise<string> {
+  /** Read a UTF-8 text file into memory; the bounds of {@link readBytes}. */
+  public async readText(path: string, options?: ReadFileOptions): Promise<string> {
     return new TextDecoder().decode(await this.readBytes(path, options))
   }
 
@@ -216,7 +252,7 @@ export class FileSystemService {
     const ab = new ArrayBuffer(data.byteLength)
     new Uint8Array(ab).set(data)
     form.append('file', new Blob([ab]), path.split('/').pop() || 'file')
-    await this.transport.post('/files/upload', form, { params: uploadQuery(path, options.atomic), timeout: 0 })
+    await this.transport.post('/files/upload', form, transferRequest({ params: uploadQuery(path, options.atomic) }))
     if (options.mode) await this.chmod(path, { mode: options.mode })
   }
 
@@ -259,21 +295,26 @@ export class FileSystemService {
       form.append(`files[${index}].file`, new Blob([copyArrayBuffer(data)]), path.split('/').pop() || 'file')
     })
     const atomicParams = uploadManyQuery(options.atomic)
-    const data = await this.transport.post<BulkWriteResult>('/files/bulk-upload', form, atomicParams !== undefined ? { params: atomicParams, timeout: 0 } : { timeout: 0 })
+    const data = await this.transport.post<BulkWriteResult>('/files/bulk-upload', form, transferRequest(atomicParams !== undefined ? { params: atomicParams } : {}))
     return {
       files: Array.isArray(data.files) ? data.files : [],
       errors: Array.isArray(data.errors) ? data.errors.filter((item): item is string => typeof item === 'string') : [],
     }
   }
 
-  public async readMany(paths: readonly string[], _options: ReadManyOptions = {}): Promise<BulkReadResult> {
+  /**
+   * Read several files into memory, in one multipart response. The bounds of
+   * {@link readBytes}; `maxResponseBytes` caps the whole multipart body.
+   */
+  public async readMany(paths: readonly string[], options?: ReadManyOptions): Promise<BulkReadResult> {
+    const limit = readLimit('ReadManyOptions', options, READ_MANY_OPTION_KEYS)
     // postRaw: the body carries per-path errors on non-2xx statuses, which
     // the parser interprets — but a 401 still throws into the transport's
     // one-retry mint path instead of being swallowed as a payload.
-    const response = await this.transport.postRaw<ArrayBuffer | Uint8Array>('/files/bulk-download', { paths }, {
+    const response = await this.transport.postRaw<ArrayBuffer | Uint8Array>('/files/bulk-download', { paths }, transferRequest({
       responseType: 'arraybuffer',
-      timeout: 0,
-    })
+      ...limit,
+    }))
     const body = toUint8Array(response.data)
     if (response.status !== 200) throw bulkReadHttpError(response.status, body)
     return parseBulkReadResult(body, contentTypeHeader(response.headers))

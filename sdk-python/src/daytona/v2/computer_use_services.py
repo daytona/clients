@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
-from typing import Sequence, overload
+from typing import Optional, Sequence, overload
 from urllib.parse import quote
 
+from ._body_limit import validated_max_response_bytes
 from ._core import RequestSpec
 from ._transport import AsyncTransport
 from .computer_use_core import (
@@ -431,9 +432,26 @@ class AsyncRecordingService:
             )
         )
 
-    async def download(self, id: str) -> bytes:
+    async def download(self, id: str, *, max_response_bytes: Optional[int] = None) -> bytes:
+        """Download a recording into memory.
+
+        No total deadline (it fails only when no bytes move for the client's
+        ``request_timeout``). ``max_response_bytes`` replaces the client's cap
+        on the body for this call (``0`` = no limit); a larger recording raises
+        ``PayloadTooLargeError`` before it is read in full.
+        """
+        limit = (
+            None
+            if max_response_bytes is None
+            else validated_max_response_bytes("max_response_bytes", max_response_bytes)
+        )
         return await self._transport.raw(
-            RequestSpec("GET", f"/computeruse/recordings/{_quote_path_segment(id)}/download", transfer=True)
+            RequestSpec(
+                "GET",
+                f"/computeruse/recordings/{_quote_path_segment(id)}/download",
+                transfer=True,
+                max_response_bytes=limit,
+            )
         )
 
     async def delete(self, id: str) -> None:

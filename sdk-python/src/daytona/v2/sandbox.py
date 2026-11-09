@@ -30,6 +30,7 @@ from ._api_core import (
     sandbox_detail_wire,
 )
 from ._auth import ProjectTokenAuth
+from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES
 from ._core import (
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
@@ -540,6 +541,9 @@ class AsyncSandbox:
                         toolbox_token or access_token,
                         source=api._source if api is not None else "sdk-python-async",
                         request_timeout=request_timeout,
+                        max_response_bytes=api.max_response_bytes
+                        if api is not None
+                        else DEFAULT_MAX_RESPONSE_BYTES,
                     )
             toolbox_url = resolved
             toolbox_base_url = base

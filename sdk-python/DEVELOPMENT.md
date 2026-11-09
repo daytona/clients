@@ -246,8 +246,15 @@ the explicit exception to the one-page list rule.
   `0` or above the timer maximum = none), or `unbounded_read` for a hold
   with no budget; file
   transfers set `RequestSpec(transfer=True)` or call
-  `transport.request(..., transfer=True)` and are not bounded, whatever
-  timeout they carry; streams (`open_stream`, `open_exclusive_stream`) are
+  `transport.request(..., transfer=True)`: no total deadline, whatever
+  timeout they carry, but httpx's per-phase timeout of the request timeout
+  (`_client_timeout`) bounds each idle phase, so a stalled transfer fails
+  with `ClientTimeoutError`. Every buffered response body goes through
+  `_body_limit` (`send_buffered` / `read_body`): `max_response_bytes`
+  (client, or `RequestSpec.max_response_bytes` / `request(...,
+  max_response_bytes=)` per call) is checked against the declared
+  `Content-Length` before reading and against the bytes read, and the
+  response is closed when refused; streams (`open_stream`, `open_exclusive_stream`) are
   bounded only until their response headers arrive, by the spec's own
   `timeout` when it has one, else the request timeout
   (`_transport._stream_open_seconds`; `0` or above the timer maximum =

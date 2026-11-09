@@ -387,17 +387,16 @@ describe('request timeout meaning', () => {
     await expect(images.pull('alpine')).rejects.toBeInstanceOf(ClientTimeoutError)
   })
 
-  it('does not cut file transfers', async () => {
+  it('does not cut file transfers that keep moving bytes', async () => {
+    // 300 ms in all, a byte every 50 ms: past the 100 ms request timeout,
+    // inside the transfer idle bound (tests/transfer-bounds.test.ts).
     const transport = new HttpTransport(base, 'k', 100)
     const fs = new FileSystemService(transport)
     handle = trickle(6, 50)
     expect(new TextDecoder().decode(await fs.readBytes('/a'))).toBe('xxxxxx')
-    handle = late(300)
     await expect(fs.writeBytes('/a', new Uint8Array([1, 2, 3]))).resolves.toBeUndefined()
-    handle = trickle(6, 50)
     const response = await transport.fetch('/files/download?path=%2Fa', { transfer: true })
     expect(await response.text()).toBe('xxxxxx')
-    handle = late(300)
     await expect(transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: 'data', transfer: true })).resolves.toMatchObject({ status: 200 })
   })
 

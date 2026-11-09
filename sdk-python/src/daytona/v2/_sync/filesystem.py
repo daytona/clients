@@ -103,21 +103,31 @@ class FileSystemService:
             lambda: self._impl.presigned_upload_url(path, expires_in_seconds=expires_in_seconds)
         )
 
-    def read_bytes(self, path: str) -> bytes:
-        """Read a file as bytes."""
-        return self._bridge.call(lambda: self._impl.read_bytes(path))
+    def read_bytes(self, path: str, *, max_response_bytes: Optional[int] = None) -> bytes:
+        """Read a file as bytes.
 
-    def read_many(self, paths: Sequence[str]) -> BulkReadResult:
+        The whole file is held in memory, with no total deadline (it fails
+        only when no bytes move for the client's ``request_timeout``).
+        ``max_response_bytes`` replaces the client's cap on the body for this
+        call (``0`` = no limit); a larger body raises ``PayloadTooLargeError``
+        before it is read in full. For large files, or content from a sandbox
+        you don't trust, use :meth:`download_file`, which streams to disk.
+        """
+        return self._bridge.call(lambda: self._impl.read_bytes(path, max_response_bytes=max_response_bytes))
+
+    def read_many(self, paths: Sequence[str], *, max_response_bytes: Optional[int] = None) -> BulkReadResult:
         """Read multiple files, buffering each returned file in memory before returning.
 
         Non-200 responses raise the typed SDK error inside the transport;
-        only a 200 multipart body reaches the parser.
+        only a 200 multipart body reaches the parser. The limits are those of
+        :meth:`read_bytes`; ``max_response_bytes`` applies to the whole
+        multipart body.
         """
-        return self._bridge.call(lambda: self._impl.read_many(paths))
+        return self._bridge.call(lambda: self._impl.read_many(paths, max_response_bytes=max_response_bytes))
 
-    def read_text(self, path: str) -> str:
-        """Read a UTF-8 text file."""
-        return self._bridge.call(lambda: self._impl.read_text(path))
+    def read_text(self, path: str, *, max_response_bytes: Optional[int] = None) -> str:
+        """Read a UTF-8 text file (see :meth:`read_bytes` for its bounds)."""
+        return self._bridge.call(lambda: self._impl.read_text(path, max_response_bytes=max_response_bytes))
 
     def remove(self, path: str, *, recursive: bool = False) -> None:
         """Remove a file, or a directory with ``recursive=True``."""

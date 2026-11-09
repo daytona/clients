@@ -102,7 +102,11 @@ effect on the client. A key the config does not define throws
 means no limit) is the total time one
 ordinary request may take before it throws `ClientTimeoutError`; waits and long
 polls use their own budget, streams are bounded only until their response
-arrives, and file transfers are not bounded.
+arrives, and file transfers have no total limit but throw `ClientTimeoutError`
+once no bytes move for that long. `maxResponseBytes` (default 1 GiB; `0` means
+no limit) caps every response body the SDK holds in memory whole: a larger
+body throws `PayloadTooLargeError` before it is read in full (an error response
+keeps its status's error).
 
 The root package exports a shared v0/v2 error hierarchy (`DaytonaError`,
 `DaytonaNotFoundError`, `DaytonaTimeoutError`, …). Catch those from
@@ -667,7 +671,12 @@ innermost shell function or sourced file; bash and zsh leave the whole command
 `readBytes` / `readText`, `writeBytes` / `writeText`, bulk `readMany` / `writeMany`,
 `remove()`, `grep()` (file contents) / `glob()` (file names), `watchDir()` for directory watches (sequential callback delivery, optional
 overflow hook, exactly-once `onExit`, `waitForExit()` / `exitError`), and
-`presignedDownloadUrl` / `presignedUploadUrl` for direct transfers. The
+`presignedDownloadUrl` / `presignedUploadUrl` for direct transfers.
+`readBytes`, `readText`, `readMany` and the computer-use `recording.download()`
+hold the whole response in memory: they take `{ maxResponseBytes }` to replace
+the client's cap for one call (`0` = no limit). For large files, or content
+from a sandbox you don't trust, use `downloadFile()` (Node.js), which streams
+to disk. The
 platform mints the link; `expiresInSeconds` (default 3600) must be between 1
 and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
 `sandbox.rotateSigningKey()` retires every pre-signed URL minted so far (they

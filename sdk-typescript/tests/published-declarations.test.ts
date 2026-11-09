@@ -30,6 +30,8 @@ const ALLOWED: Readonly<Record<string, number>> = {
   // The shared transport module (reached through the exported OtelApiLike) and
   // the error hierarchy's AxiosError import.
   'v2/http.d.ts': 6,
+  // The shared transport's bounded adapter, imported by http.d.ts (its axios types).
+  'v2/boundedAdapter.d.ts': 1,
   'v2/errors/DaytonaError.d.ts': 1,
 }
 // The contract's vocabularies (`gen/*-enums.js`) are value lists, not wire types.
