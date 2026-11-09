@@ -9,28 +9,51 @@ a terminal, strict and scriptable when piped.
 
 ## Install
 
-macOS / Linux (Homebrew, alpha channel):
-
-```sh
-brew install daytonaio/cli/daytona-alpha
-```
-
 macOS / Linux (script — verifies the release checksum):
 
 ```sh
-curl -fsSL https://github.com/daytona/clients/releases/download/v2.0.0-alpha.3/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://github.com/daytona/clients/releases/download/v2.0.0-alpha.3/install.ps1 | iex
+irm https://raw.githubusercontent.com/daytona/clients/main/cli/install.ps1 | iex
 ```
 
-These URLs fetch the installer from a known 2.x release; the installer selects
-the newest 2.x release unless `DAYTONA_VERSION` is set. The repository's
-`releases/latest` URL does not select the 2.x CLI. Use the release
-assets above to install the 2.x CLI.
+The installer installs the highest stable 2.x release. Until `2.0.0` is
+out there is none, so it installs the highest pre-release and names it; from
+`2.0.0` on the default is the highest stable release, and `--channel alpha`
+or `rc` opts into pre-releases. Pick a channel or an exact version explicitly:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --channel alpha
+curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --version 2.0.0
+```
+
+On Windows set `$env:DAYTONA_CHANNEL` (`stable`, `rc` or `alpha`) or
+`$env:DAYTONA_VERSION` before running the installer. The `rc` channel
+installs the highest release candidate or stable release, `alpha` the highest
+alpha, release candidate or stable release. The install directory is
+`--dir` for `install.sh` and `$env:DAYTONA_INSTALL_DIR` for `install.ps1`
+(`DAYTONA_INSTALL_DIR` works for both).
+
+Homebrew (macOS / Linux):
+
+| Formula | Installs |
+|---|---|
+| `daytonaio/cli/daytona` | stable 2.x releases as `daytona` (until `2.0.0` is out, the 0.x CLI) |
+| `daytonaio/cli/daytona-rc` | 2.x release candidates as `daytona`, from the first 2.x rc on |
+| `daytonaio/cli/daytona-alpha` | 2.x alpha releases as `daytona` |
+| `daytonaio/cli/daytona@0` | the 0.x CLI as `daytona-v0`, beside any of the above |
+
+```sh
+brew install daytonaio/cli/daytona-alpha   # before 2.0.0
+brew install daytonaio/cli/daytona         # from 2.0.0
+```
+
+The first three formulae install the same `daytona` binary, so install one of
+them.
 
 Or download the binary from the
 [releases](https://github.com/daytona/clients/releases) and put it on your

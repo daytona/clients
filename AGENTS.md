@@ -180,8 +180,14 @@ Python↔TS parity contract. Its wire types (`cli/gen/`) are generated from
 `contract/*.json` by `cli/hack/gen.sh`; its README is public-facing. Verify:
 `(cd cli && go vet ./... && go test ./...)`, lint with `golangci-lint run`
 (config `cli/.golangci.yml`). Release binaries: `cli/hack/build.sh` (six
-targets + `SHA256SUMS`), consumed by `install.sh` / `install.ps1` and the
-Homebrew formulae (`cli/hack/homebrew/`).
+targets + `SHA256SUMS`, each binary checked with `go version -m` against
+`cli/go.mod`'s `go` line), consumed by `install.sh` / `install.ps1` (highest
+stable 2.x by default; pre-releases only with a channel or version, except
+the highest pre-release while no stable 2.x release exists) and the
+Homebrew formulae of the `daytonaio/homebrew-cli` tap
+(`cli/hack/homebrew/README.md`). A release's channel (npm dist-tag, GitHub
+Release kind, formula) comes from its version through
+`scripts/release-channel.sh`.
 
 ## Version namespaces
 

@@ -16,6 +16,10 @@ pip install 'daytona[otel]==X.Y.ZaN'  # adds OpenTelemetry request spans
 pip install 'daytona[v0-sdk]==X.Y.ZaN'    # adds the v0 namespace (Daytona().v0)
 ```
 
+The legacy package name `daytona-sdk` (`daytona_sdk`) is published only from
+the 0.x line: installing or upgrading it never gives you 2.x. Install
+`daytona`.
+
 Python 3.10+.
 
 ## Quickstart
