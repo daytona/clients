@@ -1,0 +1,39 @@
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_2b92de9c50f501 2244-2248
+  s_9a337fd66d5341::t_5b3403f2630a53 2818-2927
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_9a337fd66d5341::t_48781350a55e3d 33
+  s_9a337fd66d5341::t_971319fb3100c3 182,185,189,246,257-258,266-267,311-312
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_2b92de9c50f501 12150-12152
+  s_9a337fd66d5341::t_5b3403f2630a53 29-31,33,12422-12441,12444-12446,12448,12450,12452,12454-12455,12457-12461
+  s_9a337fd66d5341::t_dd86d063e9077a 12442-12443,12447,12449,12451,12453,12456
+  s_9a337fd66d5341::t_4e4293bad6e9c7 12462-12463
+sdk-typescript/src/v2/toolboxModels.ts
+  s_9a337fd66d5341::t_971319fb3100c3 69-85
+sdk-python/src/daytona/v2/_core.py
+  s_9a337fd66d5341::t_735cd153091496 1262-1264,1272-1275
+  s_9a337fd66d5341::t_23e657379b5cdb 1049,1061,1265-1270,1276-1277,1288
+  s_9a337fd66d5341::t_039ba531469e2f 1271
+sdk-typescript/src/v2/ProcessWire.ts
+  s_9a337fd66d5341::t_971319fb3100c3 16
+sdk-python/src/daytona/v2/computer_use_core.py
+  s_9a337fd66d5341::t_735cd153091496 15,538-544
+  s_9a337fd66d5341::t_23e657379b5cdb 489,492,494,496,536-537,545,550-552,601,604-607,616-619,634-637
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a182c5abd67d52b2604f623ab18bd29c35e63f7b",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
