@@ -1005,3 +1005,47 @@ async def test_a_lifecycle_timestamp_that_is_not_rfc_3339_is_a_contract_error(fi
                 re.escape(f"has a lifecycle_policy.{field} that is not an RFC 3339 timestamp")
             ):
                 await root.v2.get("src")
+
+
+@pytest.mark.parametrize("stamp", ["nope", "2026-01-01", "2026-01-01T00:00:00"])
+async def test_a_spot_eviction_time_that_is_not_rfc_3339_is_refused(stamp: str) -> None:
+    # The TypeScript twin is in malformed-responses.test.ts.
+    with FakeApi([PlannedResponse(200, {**_DETAIL, "spot_evicted_at": stamp})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("has a spot_evicted_at that is not an RFC 3339 timestamp"):
+                await root.v2.get("src")
+
+
+@pytest.mark.parametrize("field", ["id", "class"])
+@pytest.mark.parametrize("value", ["", "  "], ids=["empty", "blank"])
+async def test_a_sandbox_with_a_blank_id_or_class_is_refused(field: str, value: str) -> None:
+    # The TypeScript twin is in malformed-responses.test.ts.
+    with FakeApi([PlannedResponse(200, {**_DETAIL, field: value})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError) as info:
+                await root.v2.get("src")
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.parametrize("call", ["images.pull", "images.build", "capture_image", "create_snapshot"])
+@pytest.mark.parametrize("operation_id", ["", "  "], ids=["empty", "blank"])
+async def test_an_acknowledgement_with_a_blank_id_is_refused_before_the_read(
+    call: str, operation_id: str
+) -> None:
+    # Its id is the path id of the read that follows: refused after the one
+    # request (twin in malformed-responses.test.ts).
+    with FakeApi([PlannedResponse(200, {"id": operation_id, "status": "pending"})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("response is missing its id$"):
+                if call == "images.pull":
+                    await root.v2.images.pull("python:3.12", wait=False)
+                elif call == "images.build":
+                    await root.v2.images.build(ImageBuilder.from_registry("python:3.12"))
+                elif call == "capture_image":
+                    await lazy_sandbox(root.v2, "src").capture_image()
+                else:
+                    await lazy_sandbox(root.v2, "src").create_snapshot("snap")
+    assert len(api.requests) == 1

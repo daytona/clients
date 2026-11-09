@@ -630,3 +630,46 @@ describe.each(['timeout_at', 'idle_timeout_at', 'last_activity_at'])('a lifecycl
     }
   })
 })
+
+// As in Python.
+it.each(['nope', '2026-01-01', '2026-01-01T00:00:00'])('refuses a spot eviction time %j that is not RFC 3339', async (stamp) => {
+  const api = await startFakeApi([{ status: 200, body: { ...SANDBOX_DETAIL, spot_evicted_at: stamp } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.get('src')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('has a spot_evicted_at that is not an RFC 3339 timestamp') })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([['id', ''], ['id', '  '], ['class', ''], ['class', '  ']] as const)('refuses a sandbox whose %s is %j', async (field, value) => {
+  const api = await startFakeApi([{ status: 200, body: { ...SANDBOX_DETAIL, [field]: value } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.get('src')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: `sandbox response is missing its ${field}` })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// Its id is the path id of the read that follows: refused after the one
+// request (as in Python).
+describe.each(['images.pull', 'images.build', 'captureImage', 'createSnapshot'] as const)('an acknowledgement of %s', (call) => {
+  it.each(['', '  '])('with id %j is refused before the read', async (id) => {
+    const api = await startFakeApi([{ status: 200, body: { id, status: 'pending' } }])
+    const client = clientAt(api.url)
+    try {
+      const pending = call === 'images.pull' ? client.v2.images.pull('python:3.12', { wait: false })
+        : call === 'images.build' ? client.v2.images.build(ImageBuilder.fromRegistry('python:3.12'))
+          : call === 'captureImage' ? source(api).captureImage()
+            : source(api).createSnapshot('snap')
+      await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(/response is missing its id$/) })
+      expect(api.requests).toHaveLength(1)
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+})

@@ -4,6 +4,7 @@
  */
 
 import { MAX_INT32, badRequest } from './options.js'
+import { isBlank } from './pyText.js'
 import { isRfc3339 } from './rfc3339.js'
 
 type Scalar = 'string' | 'timestamp' | 'number' | 'integer' | 'int32' | 'boolean' | 'object'
@@ -113,7 +114,18 @@ export function checkResponse<T>(value: unknown, fields: ResponseFields, what: s
  */
 export const ASYNC_OPERATION: ResponseFields = { id: 'string' }
 
-const TIMESTAMP = 'string'
+/**
+ * The id of an accepted asynchronous operation's acknowledgement, the path id
+ * of the read that follows it: an empty or blank one is refused before that
+ * read, as in Python.
+ * @internal
+ */
+export function acknowledgedId(value: unknown, what: string): string {
+  const { id } = checkResponse<{ id: string }>(value, ASYNC_OPERATION, what)
+  if (isBlank(id)) throw badRequest(`${what} response is missing its id`)
+  return id
+}
+
 
 /** @internal */
 export const MAC_RESOURCES: ResponseFields = { cores: 'integer', memory_mib: 'integer', disk_mib: 'integer' }
@@ -128,8 +140,8 @@ export const MAC_MODEL: ResponseFields = {
 export const MAC_RESERVATION: ResponseFields = {
   id: 'string', org_id: 'string', project_id: 'string', region_id: 'string', status: 'string', origin: 'string',
   auto_renew: 'boolean', sandboxes_per_mac: 'integer', slots_used: 'integer', period_n: 'integer',
-  period_seconds: 'integer', renewal_pending: 'boolean', created_at: TIMESTAMP,
+  period_seconds: 'integer', renewal_pending: 'boolean', created_at: 'timestamp',
   resources_used: nested(MAC_RESOURCES), capacity: nested(MAC_RESOURCES, true), model: 'string?',
-  end_reason: 'string?', activated_at: 'string?', pending_mac_started_at: 'string?', period_started_at: 'string?',
-  period_end: 'string?', reissued_at: 'string?', ended_at: 'string?', renewal_error: 'string?',
+  end_reason: 'string?', activated_at: 'timestamp?', pending_mac_started_at: 'timestamp?', period_started_at: 'timestamp?',
+  period_end: 'timestamp?', reissued_at: 'timestamp?', ended_at: 'timestamp?', renewal_error: 'string?',
 }

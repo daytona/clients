@@ -14,7 +14,7 @@ import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { Image, ImageBuilder, Snapshot, buildImageRequest, isImageBuilder } from './Image.js'
 import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
-import { ASYNC_OPERATION, checkResponse } from './responseFields.js'
+import { acknowledgedId } from './responseFields.js'
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
@@ -100,7 +100,7 @@ export class ImagesService {
     assertKnownOptions('BuildImageOptions', options, BUILD_IMAGE_OPTION_KEYS)
     const { data } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(builder, options))
     // Checked before the read: no request ever goes to /images/undefined.
-    return this.get(checkResponse<api.CreateImageResponse>(data, ASYNC_OPERATION, 'image create').id)
+    return this.get(acknowledgedId(data, 'image create'))
   }
 
   public async list(options: ListImagesOptions = {}): Promise<ListResult<Image>> {
@@ -170,8 +170,8 @@ export class ImagesService {
     armDeadline()
     try {
       const { data: response } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(ImageBuilder.fromRegistry(ref), options), requestOptions())
-      const submitted = checkResponse<api.CreateImageResponse>(response, ASYNC_OPERATION, 'image create')
-      const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(submitted.id)}`, requestOptions())
+      const submittedId = acknowledgedId(response, 'image create')
+      const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(submittedId)}`, requestOptions())
       checkDeadline()
       let image = new Image(INTERNAL, initial)
       if (options.wait === false) return image

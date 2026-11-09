@@ -236,16 +236,23 @@ def _id_only(value: TransportPayload, fields: tuple[str, ...]) -> TransportPaylo
     return {**value, **{name: "" for name in fields if not isinstance(value.get(name), str)}}
 
 
-def expect_create_image_resp(value: TransportPayload) -> AsyncOperation:
-    return _expect_model_from_dict(
-        _id_only(value, ("status",)), AsyncOperation, "image create response", AsyncOperation.from_dict
+def _acknowledgement(value: TransportPayload, description: str) -> AsyncOperation:
+    """An accepted operation's acknowledgement; its id is the path id the
+    follow-up read uses, so an empty or blank one is refused before it."""
+    operation = _expect_model_from_dict(
+        _id_only(value, ("status",)), AsyncOperation, description, AsyncOperation.from_dict
     )
+    if not operation.id.strip():
+        raise create_error(f"{description} is missing its id", 400, "BAD_REQUEST", "SDK")
+    return operation
+
+
+def expect_create_image_resp(value: TransportPayload) -> AsyncOperation:
+    return _acknowledgement(value, "image create response")
 
 
 def expect_create_snapshot_resp(value: TransportPayload) -> AsyncOperation:
-    return _expect_model_from_dict(
-        _id_only(value, ("status",)), AsyncOperation, "snapshot create response", AsyncOperation.from_dict
-    )
+    return _acknowledgement(value, "snapshot create response")
 
 
 def expect_endpoint_list_resp(value: TransportPayload) -> SandboxPortPage:
@@ -407,6 +414,12 @@ def expect_signed_preview_url_resp(value: TransportPayload) -> SignedPreviewUrl:
 
 
 def expect_sandbox_detail(value: TransportPayload) -> Sandbox:
+    if isinstance(value, dict):
+        # An empty or blank id or class is as unusable as a missing one.
+        for key in ("id", "class"):
+            field = value.get(key)
+            if isinstance(field, str) and not field.strip():
+                raise create_error(f"sandbox detail response is missing its {key}", 400, "BAD_REQUEST", "SDK")
     if isinstance(value, dict) and isinstance(value.get("lifecycle_policy"), dict):
         violation = _lifecycle_timestamp_violation(value["lifecycle_policy"])
         if violation is not None:

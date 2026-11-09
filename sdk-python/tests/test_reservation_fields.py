@@ -147,3 +147,32 @@ async def test_raw_reservation_enums_when_wire_values_are_unknown() -> None:
     assert (result.status, result.raw_status) == ("unknown", "future_status")
     assert (result.origin, result.raw_origin) == ("unknown", "future_origin")
     assert (result.end_reason, result.raw_end_reason) == ("unknown", "future_reason")
+
+
+_RESERVATION_TIMESTAMPS = (
+    "created_at",
+    "activated_at",
+    "pending_mac_started_at",
+    "period_started_at",
+    "period_end",
+    "reissued_at",
+    "ended_at",
+)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("stamp", ["nope", "2026-10-20", "2026-10-20T00:00:00"])
+@pytest.mark.parametrize("field", _RESERVATION_TIMESTAMPS)
+async def test_a_reservation_timestamp_that_is_not_rfc_3339_is_refused(field: str, stamp: str) -> None:
+    # The contract's date-time fields are RFC 3339 timestamps; a date, or one
+    # without an offset, is refused naming the field (twin in
+    # reservation-fields.test.ts).
+    from daytona.v2 import BadRequestError
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={**WIRE, field: stamp})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        service = AsyncReservationsService(AsyncTransport("https://api.test", client=http))
+        with pytest.raises(BadRequestError, match=f"has a {field} that is not an RFC 3339 timestamp"):
+            await service.get("region-a:reservation-1")

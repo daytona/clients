@@ -461,6 +461,25 @@ def _missing_required_key(value: JsonValue, model_type: object, path: str) -> Op
     return None
 
 
+# The date-time fields of a generated model held to the RFC 3339 rule (the
+# generated model alone would also read a date, or a date-time without an
+# offset); TypeScript declares the same fields `'timestamp'`.
+_MAC_RESERVATION_TIMESTAMPS = (
+    "created_at",
+    "activated_at",
+    "pending_mac_started_at",
+    "period_started_at",
+    "period_end",
+    "reissued_at",
+    "ended_at",
+)
+_RFC3339_FIELDS: Mapping[str, Tuple[str, ...]] = {
+    "Sandbox": ("spot_evicted_at",),
+    "SandboxListItem": ("spot_evicted_at",),
+    "MacReservation": _MAC_RESERVATION_TIMESTAMPS,
+}
+
+
 def field_violation(value: object, model_type: object, path: str = "") -> Optional[str]:
     """What breaks the contract in the first date, date-time or number field
     of a generated model (nested models and list items included) whose value
@@ -474,9 +493,12 @@ def field_violation(value: object, model_type: object, path: str = "") -> Option
     model_fields = getattr(model_type, "model_fields", None)
     if not isinstance(value, dict) or not isinstance(model_fields, dict):
         return None
+    rfc3339_keys = _RFC3339_FIELDS.get(getattr(model_type, "__name__", ""), ())
     for name, info in model_fields.items():
         key = info.alias or name
         child = value.get(key)
+        if isinstance(child, str) and key in rfc3339_keys and not rfc3339_timestamp(child):
+            return f"has a {path}{key} that is not an RFC 3339 timestamp"
         if child is not None:
             found = _field_violation_in(child, info.annotation, f"{path}{key}")
             if found is not None:

@@ -4,7 +4,7 @@
  */
 
 import { withoutNullOptions } from './clientOptionKeys.js'
-import { ASYNC_OPERATION, checkResponse } from './responseFields.js'
+import { acknowledgedId, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 import { isBlank } from './pyText.js'
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
@@ -1052,8 +1052,8 @@ export class Sandbox {
     const body: api.CreateImageCaptureRequest = imageOptionsBody({ name: options.name, idleExpirySeconds: options.idleExpirySeconds })
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const { data } = await this.api.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, body)
-    const operation = checkResponse<api.AsyncOperation>(data, ASYNC_OPERATION, 'image capture')
-    const image = await this.api.get<api.ImageListItem>(`/images/${strictUriEncode(operation.id)}`).then((response) => response.data)
+    const operationId = acknowledgedId(data, 'image capture')
+    const image = await this.api.get<api.ImageListItem>(`/images/${strictUriEncode(operationId)}`).then((response) => response.data)
     return new Image(INTERNAL, image)
   }
 
@@ -1065,8 +1065,8 @@ export class Sandbox {
     const http = this.api
     const encodedId = strictUriEncode(this.id)
     const response = await http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name })
-    const operation = checkResponse<api.AsyncOperation>(response.data, ASYNC_OPERATION, 'snapshot create')
-    const snapshot = await http.get<api.Snapshot>(`/snapshots/${strictUriEncode(operation.id)}`).then((result) => result.data)
+    const operationId = acknowledgedId(response.data, 'snapshot create')
+    const snapshot = await http.get<api.Snapshot>(`/snapshots/${strictUriEncode(operationId)}`).then((result) => result.data)
     return new Snapshot(INTERNAL, snapshot)
   }
 

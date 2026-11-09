@@ -142,3 +142,18 @@ describe('reservation wire-to-public fields', () => {
       periodStartedAt: undefined, reissuedAt: undefined, renewalError: undefined })
   })
 })
+
+// The contract's date-time fields are RFC 3339 timestamps; a date, or one
+// without an offset, is refused naming the field (as in Python).
+describe.each([
+  'created_at', 'activated_at', 'pending_mac_started_at', 'period_started_at', 'period_end', 'reissued_at', 'ended_at',
+])('a reservation %s', (field) => {
+  it.each(['nope', '2026-10-20', '2026-10-20T00:00:00'])('that is %j is refused', async (stamp) => {
+    const http = axios.create({ adapter: async (config) => ({
+      config, status: 200, statusText: 'OK', headers: {}, data: { ...wire, [field]: stamp },
+    }) })
+    await expect(new ReservationsService(INTERNAL, http).get(wire.id)).rejects.toMatchObject({
+      statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`has a ${field} that is not an RFC 3339 timestamp`),
+    })
+  })
+})
