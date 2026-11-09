@@ -55,7 +55,7 @@ jobs:
             echo
             echo "After approval of the \`release\` environment, \`prepare\`:"
             echo
-            echo "1. validates \`v${version}\` for this line (no 0.x, stable only from \`main\` and above the highest stable 2.x tag, tag not taken) — this plan does not check them, a refused version fails here with nothing pushed;"
+            echo "1. validates \`v${version}\` for this line (no 0.x, stable only from \`main\` and above the highest stable 2.x tag, tag not taken). This plan does not check these rules; a refused version fails at this step, before anything is pushed;"
             echo "2. folds every \`changelog.d/\` fragment into \`CHANGELOG.md\` under a new \`## [${version}]\` heading and deletes the fragments;"
             echo "3. pushes branch \`prepare-release-v${version}\` and opens PR **chore: prepare release v${version}** into \`${GITHUB_REF_NAME}\` as daytonaBot."
             echo

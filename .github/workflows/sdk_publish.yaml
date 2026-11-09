@@ -571,8 +571,9 @@ jobs:
             if [ -n "$2" ]; then printf "| %s | \`%s\` | %s |\n" "$1" "$2" "$3"; else printf '| %s | — | skipped |\n' "$1"; fi
           }
           # Git allows ` | < in ref names; they would break out of the code
-          # span or the table cell the approver reads.
-          clean() { printf '%s' "$1" | tr '`|<' "'/("; }
+          # span or the table cell the approver reads. `?` is not allowed in
+          # ref names, so a cleaned name never looks like a real branch.
+          clean() { printf '%s' "$1" | tr '`|<' '???'; }
           source_ref=$(clean "$SOURCE_REF")
           if [ -n "$IN_V0_TAG" ]; then v0_cell="\`$(clean "$IN_V0_TAG")\`"; else v0_cell='— (the pin)'; fi
           requested="**@${TRIGGERING_ACTOR}**"
