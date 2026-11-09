@@ -1,0 +1,24 @@
+examples/README.md
+  h_e7759ddd73fa65 83
+examples/python/_common.py
+  h_e7759ddd73fa65 13,18,21,24-32,34-35,74-77,82-84,86-98,102,104
+examples/python/test_examples.py
+  h_e7759ddd73fa65 20,34,44,72-73,123-127,130-131,136-139,149,310-314,317-319,321,324,330,332,335,342-351
+examples/typescript/_common.ts
+  h_e7759ddd73fa65 12,15,18-25,60-64,68-70,73-86,88-89,92
+examples/typescript/examples.test.ts
+  h_e7759ddd73fa65 21,41,78-82,86-87,93-103
+examples/typescript/test-support/fake-sdk.ts
+  h_e7759ddd73fa65 15,38-41,71-73,158,190,195-199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65e81d41a3f6ea3b0b6c413a5fa361c8180068b5",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
