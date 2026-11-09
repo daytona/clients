@@ -92,9 +92,17 @@ HTTP boundary only: a test in each SDK fails when a public export or a type in
 a public signature comes from them, apart from an explicit list of remaining
 exceptions that only shrinks.
 
-**SDK-owned models, one lifecycle contract.** Public models are written by
-hand and immutable in both SDKs: frozen, keyword-only dataclasses in Python,
-readonly interfaces in TypeScript, with the same fields. Two Python
+**SDK-owned models, one lifecycle contract.** The data values the SDKs
+return to callers (sandbox metadata, images, snapshots, volumes, secrets,
+reservations, links, tokens, list and search pages) are written by hand and
+immutable in both SDKs, with the same fields: frozen, keyword-only
+dataclasses in Python; readonly interfaces and model classes in TypeScript,
+deep-frozen at run time. Other public TypeScript types are not covered by
+this rule: options and configuration types the caller builds, and the
+toolbox area's types (`ProcessDto`, `LogFrame`, `ProcessHandleJSON`, …),
+which keep mutable fields until their area adopts it. The configuration
+types differ only where recorded (TypeScript's `otelApi`, which takes the
+caller's `@opentelemetry/api` module and has no Python counterpart). Two Python
 configuration classes are the exceptions to keyword-only: `DaytonaConfig`
 takes `api_key` positionally and `SandboxEventsConfig` takes its fields
 positionally. Because they can be built positionally, their field order is

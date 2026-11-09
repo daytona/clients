@@ -71,7 +71,8 @@ it('reads fork name and memory: null as omitted and refuses waitSeconds: null', 
     const source = createSandbox({ id: 'src', class: 'linux', status: 'stopped' }, createHttpClient(api.url, 'key'))
     await source.fork({ name: null as never, memory: null as never, waitSeconds: 0 })
     expect(JSON.parse(sentRequest(api, 1).body)).toEqual({})
-    await expect(source.fork({ waitSeconds: null as never })).rejects.toBeInstanceOf(BadRequestError)
+    await expect(source.fork({ waitSeconds: null as never })).rejects.toMatchObject({ name: 'BadRequestError', message: 'waitSeconds must be a non-negative number of seconds' })
+    await expect(source.fork({ name: null as never, memory: null as never, waitSeconds: null as never })).rejects.toMatchObject({ name: 'BadRequestError', message: 'waitSeconds must be a non-negative number of seconds' })
     expect(api.requests).toHaveLength(1)
   } finally {
     await api.close()

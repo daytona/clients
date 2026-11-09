@@ -92,7 +92,9 @@ counterpart, because its handles have no disposal hook. One exception
 recorded in ADR 0001: TypeScript's `ImageBuilder` has `user()`, `cmd()` and
 `entrypoint()`, which it already offered and Python lacks; removing them
 would break TypeScript users, so they stay, and Python gains them in a 2.x
-minor (additive). Both roots copy the config's fields once, when the client is
+minor (additive). TypeScript's config also has `otelApi` (the caller's
+`@opentelemetry/api` module, for bundled browser apps), which Python, whose
+OpenTelemetry package is a plain import, does not need. Both roots copy the config's fields once, when the client is
 built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
 caller's object have no effect, and URL fields are refused before and after
 the copy (a getter or property could otherwise add one while it is read).

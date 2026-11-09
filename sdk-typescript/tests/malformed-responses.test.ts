@@ -545,3 +545,27 @@ it('returns the create handle when its optional fields are mistyped, as Python d
     await api.close()
   }
 })
+
+// The sandbox exists, so the create returns the handle: a token that could not
+// be sent as a header is absent (the handle mints its own), and an expiry that
+// is not a timestamp is absent (the token is used until a 401), as in Python.
+it.each([
+  [5, '2030-01-01T00:00:00Z', false, true],
+  ['', '2030-01-01T00:00:00Z', false, true],
+  [' padded', '2030-01-01T00:00:00Z', false, true],
+  ['tok\n', '2030-01-01T00:00:00Z', false, true],
+  ['tok', 5, true, false],
+  ['tok', 'not a date', true, false],
+  ['tok', '2030-01-01T00:00:00Z', true, true],
+] as const)('reads a create token %j expiring %j only when it can be used', async (token, expiry, keptToken, keptExpiry) => {
+  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status: 'pending', access_token: token, access_token_expires_at: expiry } }])
+  const client = clientAt(api.url)
+  try {
+    const sandbox = await client.v2.create('img_1', { waitSeconds: 0 })
+    expect(sandbox.accessToken).toBe(keptToken ? token : undefined)
+    expect(sandbox.accessTokenExpiresAt).toBe(keptExpiry ? expiry : undefined)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

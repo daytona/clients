@@ -65,6 +65,7 @@ export interface Record {
   pulledImages: { ref: string; name?: string }[]
   deletedImages: string[]
   imageWaits: { wait?: string; timeoutSeconds?: number }[]
+  mounts: { sandboxId: string; mounts: { volumeId: string; mountPath: string }[] }[]
 }
 
 const scenario: Scenario = JSON.parse(process.env.EXAMPLE_FAKE_SCENARIO ?? '{}')
@@ -80,6 +81,7 @@ const record: Record = {
   pulledImages: [],
   deletedImages: [],
   imageWaits: [],
+  mounts: [],
 }
 process.on('exit', () => {
   if (process.env.EXAMPLE_FAKE_RECORD) writeFileSync(process.env.EXAMPLE_FAKE_RECORD, JSON.stringify(record))
@@ -91,21 +93,42 @@ const volumes = new Map<string, FakeVolume>()
 let nextImage = 0
 const newImage = (name: string, status: string, waits: string[] = ['ready'], error?: string) => ({ id: `img-${nextImage++}`, name, status, waits, error })
 const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(name, status, waits))
-const volumeLines: string[] = []
+// Each volume's files (path inside the volume → lines); a sandbox reads and
+// writes a path through the volume mounted over it, else its own disk.
+const volumeFiles = new Map<string, Map<string, string[]>>()
+type Mount = { readonly volumeId: string; readonly mountPath: string }
+
+function mountsOf(requested: CreateSandboxOptions['volumes']): Mount[] {
+  return (requested ?? []).map(({ volumeId, mountPath }) => {
+    // The API rejects a mount of a volume the project lacks.
+    if (!volumes.has(volumeId)) throw new Error(`volume ${volumeId} not found`)
+    return { volumeId, mountPath: mountPath.replace(/\/+$/, '') }
+  })
+}
+
+function fileStore(path: string, mounts: readonly Mount[], disk: Map<string, string[]>): { store: Map<string, string[]>; key: string } {
+  const mount = mounts.find(({ mountPath }) => path === mountPath || path.startsWith(`${mountPath}/`))
+  if (mount === undefined) return { store: disk, key: path }
+  const store = volumeFiles.get(mount.volumeId) ?? new Map<string, string[]>()
+  volumeFiles.set(mount.volumeId, store)
+  return { store, key: path.slice(mount.mountPath.length) }
+}
 
 const result = (exitCode: number, output: string) => ({ exitCode, output, stdout: output, stderr: '' })
 
-function run(command: string, env: { [name: string]: string }, dockerfile: string) {
+function run(command: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[], disk: Map<string, string[]>) {
   for (const [pattern, exitCode, output] of scenario.overrides ?? []) {
     if (new RegExp(pattern).test(command)) return result(exitCode, output)
   }
   if (scenario.volumeData && command.includes('/data/message.txt')) {
-    const write = /echo (\S+) >>? \/data\/message\.txt/.exec(command)
+    const { store, key } = fileStore('/data/message.txt', mounts, disk)
+    const write = /echo (\S+) (>>?) \/data\/message\.txt/.exec(command)
     if (write) {
-      volumeLines.push(write[1])
+      store.set(key, [...(write[2] === '>>' ? store.get(key) ?? [] : []), write[1]])
       return result(0, '')
     }
-    return result(0, volumeLines.join('\n'))
+    const lines = store.get(key)
+    return result(0, lines === undefined ? (command.includes("echo '<missing>'") ? '<missing>' : '') : lines.join('\n'))
   }
   const variable = /^printf %s "\$(\w+)"$/.exec(command)
   if (variable) return result(0, env[variable[1]] ?? '')
@@ -117,10 +140,12 @@ function run(command: string, env: { [name: string]: string }, dockerfile: strin
   return result(0, '')
 }
 
-function sandbox(name: string, env: { [name: string]: string }, dockerfile: string) {
+function sandbox(name: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[] = []) {
   const id = `sbx-${record.sandboxes.length}`
   record.sandboxes.push(id)
+  record.mounts.push({ sandboxId: id, mounts: [...mounts] })
   const files = new Map<string, Uint8Array>()
+  const disk = new Map<string, string[]>()
   const box = {
     id,
     name,
@@ -129,7 +154,7 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     memory: 1,
     process: { run: async (command: string) => {
       record.commands.push({ sandboxId: id, command })
-      return run(command, env, dockerfile)
+      return run(command, env, dockerfile, mounts, disk)
     } },
     interpreter: {
       run: async () => ({
@@ -186,7 +211,7 @@ const fake = {
       if (!secrets.has(name)) throw new Error(`secret ${name} not found`)
       env[name] = scenario.leakSecrets ? (secrets.get(name) ?? '') : 'DAYTONA_SECRET_PLACEHOLDER'
     }
-    const box = sandbox(options.name ?? image, env, '')
+    const box = sandbox(options.name ?? image, env, '', mountsOf(options.volumes))
     boxes.push(box)
     return box
   },
@@ -202,7 +227,7 @@ const fake = {
       if (!secrets.has(name)) throw new Error(`secret ${name} not found`)
       env[name] = scenario.leakSecrets ? (secrets.get(name) ?? '') : 'DAYTONA_SECRET_PLACEHOLDER'
     }
-    const box = sandbox(options.name ?? 'built', env, dockerfile)
+    const box = sandbox(options.name ?? 'built', env, dockerfile, mountsOf(options.volumes))
     boxes.push(box)
     return box
   },

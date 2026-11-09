@@ -902,3 +902,38 @@ async def test_a_create_response_with_mistyped_optional_fields_returns_the_handl
     )
     assert sandbox._toolbox is None
     assert len(api.requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("token", "expiry", "kept_token", "kept_expiry"),
+    [
+        (5, "2030-01-01T00:00:00Z", False, True),
+        ("", "2030-01-01T00:00:00Z", False, True),
+        (" padded", "2030-01-01T00:00:00Z", False, True),
+        ("tok\n", "2030-01-01T00:00:00Z", False, True),
+        ("tok", 5, True, False),
+        ("tok", "not a date", True, False),
+        ("tok", "2030-01-01T00:00:00Z", True, True),
+    ],
+)
+async def test_a_create_token_that_cannot_be_used_is_absent(
+    token: JsonValue, expiry: JsonValue, kept_token: bool, kept_expiry: bool
+) -> None:
+    # The sandbox exists, so the create returns the handle: a token that could
+    # not be sent as a header is absent (the handle mints its own), and an
+    # expiry that is not a timestamp is absent (the token is used until a 401).
+    # The TypeScript twin is in malformed-responses.test.ts.
+    body: JsonObject = {
+        "id": "sbx",
+        "status": "pending",
+        "access_token": token,
+        "access_token_expires_at": expiry,
+    }
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = await root.v2.create("img_1", wait_seconds=0)
+    assert sandbox.access_token == (token if kept_token else None)
+    assert sandbox.access_token_expires_at == (
+        datetime(2030, 1, 1, tzinfo=timezone.utc) if kept_expiry else None
+    )

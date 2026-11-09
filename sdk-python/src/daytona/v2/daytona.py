@@ -23,6 +23,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    TypeGuard,
     Union,
 )
 from urllib.parse import quote
@@ -777,9 +778,14 @@ class AsyncDaytona:
             # The contract requires the new sandbox's id; nothing can follow without it.
             raise create_error("sandbox create response is missing the sandbox id", 400, "BAD_REQUEST", "SDK")
         sandbox_id = raw_id
-        access_token = str(data.get("access_token")) if isinstance(data.get("access_token"), str) else None
-        # Tokens with no reported expiry are used as-is until a 401.
-        access_token_expires_at = parse_timestamp(data.get("access_token_expires_at"))
+        # A token that could not be sent as a header, or an expiry that is not a
+        # timestamp, is absent (the handle mints its own, or uses the token
+        # until a 401), never an error: the sandbox exists. Tokens with no
+        # reported expiry are used as-is until a 401.
+        raw_token = data.get("access_token")
+        access_token = raw_token if _sendable_token(raw_token) else None
+        raw_expiry = data.get("access_token_expires_at")
+        access_token_expires_at = parse_timestamp(raw_expiry) if isinstance(raw_expiry, str) else None
         create_toolbox_base = (
             str(data.get("toolbox_proxy_url")) if isinstance(data.get("toolbox_proxy_url"), str) else None
         )
@@ -1530,6 +1536,19 @@ _BUILD_POLL_INTERVAL_S: Final = 1.0
 
 # Omitted macOS sizes use the server defaults. Supplied sizes must be within
 # the accepted range; GiB converts to MiB exactly, never rounded.
+def _sendable_token(value: object) -> TypeGuard[str]:
+    """Whether a create response's token can be sent as a bearer header:
+    non-empty printable ASCII with no leading or trailing space (the header
+    rule, as TypeScript reads it)."""
+    return (
+        isinstance(value, str)
+        and bool(value)
+        and all(" " <= char <= "~" for char in value)
+        and value[0] != " "
+        and value[-1] != " "
+    )
+
+
 def _macos_cores(cpu: object) -> Optional[int]:
     if cpu is None:
         return None

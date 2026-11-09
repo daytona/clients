@@ -44,6 +44,7 @@ from daytona.v2 import (
     NameConflictError,
     ProcessResult,
     RequestTimeoutError,
+    VolumeMount,
 )
 from daytona.v2._sync.daytona import Daytona as SyncDaytona
 from daytona.v2._sync.filesystem import FileSystemService
@@ -80,6 +81,9 @@ class FakeWorld:
         self.pulled_images: list[tuple[str, Optional[str]]] = []
         self.deleted_images: list[str] = []
         self.image_waits: list[tuple[object, object]] = []
+        # Each sandbox's (volume id, mount path) pairs, and each volume's files.
+        self.mounts: list[tuple[tuple[str, str], ...]] = []
+        self.volume_files: dict[str, dict[str, list[str]]] = {}
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
         self.build_logs_fail_after_output = False
@@ -171,7 +175,22 @@ class FakeWorld:
         # The API creates only from a project image, never a registry reference.
         if not any(image in (i.name, i.id) and i.status == "ready" for i in self.images):
             raise LookupError(f"image not found: {image}")
-        return self._sandbox(str(kwargs.get("name")), self._sandbox_env(kwargs), dockerfile="")
+        return self._sandbox(
+            str(kwargs.get("name")), self._sandbox_env(kwargs), dockerfile="", mounts=self._mounts(kwargs)
+        )
+
+    def _mounts(self, kwargs: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
+        """The (volume id, mount path) pairs a create asks for; the API
+        rejects a mount of a volume the project lacks."""
+        requested = kwargs.get("volumes") or []
+        assert isinstance(requested, list)
+        mounts: list[tuple[str, str]] = []
+        for mount in requested:
+            assert isinstance(mount, VolumeMount)
+            if mount.volume_id not in self.created_volumes:
+                raise LookupError(f"volume {mount.volume_id} not found")
+            mounts.append((mount.volume_id, mount.mount_path.rstrip("/")))
+        return tuple(mounts)
 
     def _sandbox_env(self, kwargs: Mapping[str, object]) -> dict[str, str]:
         env = kwargs.get("env") or {}
@@ -195,7 +214,9 @@ class FakeWorld:
                 "image build failed", status_code=409, code="IMAGE_BUILD_FAILED", image_id="img_failed"
             )
         # Like create(): the env reaches the sandbox, attached secrets as placeholders.
-        return self._sandbox(str(kwargs.get("name")), self._sandbox_env(kwargs), dockerfile=dockerfile)
+        return self._sandbox(
+            str(kwargs.get("name")), self._sandbox_env(kwargs), dockerfile=dockerfile, mounts=self._mounts(kwargs)
+        )
 
     def _delete(self, sandbox: MagicMock) -> None:
         self.deleted_sandboxes.append(sandbox.id)
@@ -217,8 +238,12 @@ class FakeWorld:
             raise ConnectionError("stream interrupted")
 
     # -- sandbox ----------------------------------------------------------
-    def _sandbox(self, name: str, env: Mapping[str, str], *, dockerfile: str) -> MagicMock:
+    def _sandbox(
+        self, name: str, env: Mapping[str, str], *, dockerfile: str, mounts: tuple[tuple[str, str], ...] = ()
+    ) -> MagicMock:
         sandbox: MagicMock = create_autospec(Sandbox, instance=True)
+        self.mounts.append(mounts)
+        disk: dict[str, list[str]] = {}
         sandbox.id = f"sbx-{len(self.sandboxes)}"
         sandbox.name = name
         sandbox.state = self.sandbox_state
@@ -227,7 +252,7 @@ class FakeWorld:
         files: dict[str, bytes] = {}
 
         process = create_autospec(ProcessService, instance=True)
-        process.run.side_effect = lambda command=None, **_: self._run(str(command), env, dockerfile)
+        process.run.side_effect = lambda command=None, **_: self._run(str(command), env, dockerfile, mounts, disk)
         sandbox.process = process
 
         interpreter = create_autospec(InterpreterService, instance=True)
@@ -258,7 +283,14 @@ class FakeWorld:
         self.sandboxes.append(sandbox)
         return sandbox
 
-    def _run(self, command: str, env: Mapping[str, str], dockerfile: str) -> ProcessResult:
+    def _run(
+        self,
+        command: str,
+        env: Mapping[str, str],
+        dockerfile: str,
+        mounts: tuple[tuple[str, str], ...] = (),
+        disk: Optional[dict[str, list[str]]] = None,
+    ) -> ProcessResult:
         for pattern, exit_code, output in self.overrides:
             if re.search(pattern, command):
                 return _result(exit_code, output)
@@ -620,29 +652,45 @@ def _patch_volumes_share(monkeypatch: pytest.MonkeyPatch, world: FakeWorld) -> M
 
 
 def _volume_world(read_fails: bool = False) -> FakeWorld:
-    """A world whose sandboxes share /data/message.txt."""
-    contents: list[str] = []
+    """A world whose sandboxes read and write /data/message.txt through the
+    volume mounted over /data, else on their own disk."""
     world = FakeWorld()
     original = world._run
 
-    def run(command: str, env: Mapping[str, str], dockerfile: str) -> ProcessResult:
-        if match := re.search(r"echo (\S+) >>? /data/message\.txt", command):
-            contents.append(match.group(1))
+    def run(
+        command: str,
+        env: Mapping[str, str],
+        dockerfile: str,
+        mounts: tuple[tuple[str, str], ...] = (),
+        disk: Optional[dict[str, list[str]]] = None,
+    ) -> ProcessResult:
+        path = "/data/message.txt"
+        if path not in command:
+            return original(command, env, dockerfile, mounts, disk)
+        mount = next(((v, p) for v, p in mounts if path == p or path.startswith(p + "/")), None)
+        store = disk if mount is None else world.volume_files.setdefault(mount[0], {})
+        key = path if mount is None else path[len(mount[1]) :]
+        assert store is not None
+        if match := re.search(r"echo (\S+) (>>?) /data/message\.txt", command):
+            store[key] = [*(store.get(key, []) if match.group(2) == ">>" else []), match.group(1)]
             return _result(0, "")
         if read_fails and command.endswith("then cat /data/message.txt; fi"):
             return _result(1, "Input/output error")
-        if "/data/message.txt" in command:
-            return _result(0, "\n".join(contents))
-        return original(command, env, dockerfile)
+        if key not in store:
+            return _result(0, "<missing>" if "echo '<missing>'" in command else "")
+        return _result(0, "\n".join(store[key]))
 
     world._run = run  # type: ignore[method-assign]
     return world
 
 
 def test_volumes_share_round_trip_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The fake keeps /data on a sandbox's own disk unless a volume is mounted
+    # there, so the round trip passes only through the mounted volume.
     world = _volume_world()
     assert _patch_volumes_share(monkeypatch, world).main() == 0
     assert len(world.deleted_volumes) == 1
+    assert world.mounts == [((world.created_volumes[0], "/data"),)] * len(world.sandboxes)
 
 
 def test_volumes_share_reports_a_failed_write_at_its_source(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -291,8 +291,11 @@ test('secrets-env leaves a secret it did not create', () => {
 })
 
 test('volumes_share round-trips through the volume', () => {
+  // The fake keeps /data on a sandbox's own disk unless a volume is mounted
+  // there, so the round trip passes only through the mounted volume.
   const { code, record, output } = runExample('volumes_share.ts', { volumeData: true })
   assert.equal(code, 0, output)
+  assert.deepEqual(record.mounts.map(({ mounts }) => mounts), record.sandboxes.map(() => [{ volumeId: record.createdVolumes[0], mountPath: '/data' }]))
   assert.equal(record.deletedVolumes.length, 1)
   assert.deepEqual(record.deletedVolumes, record.createdVolumes)
   assertCleanedUp(record)

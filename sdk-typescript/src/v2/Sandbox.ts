@@ -764,9 +764,10 @@ export class Sandbox {
    */
   public async fork(options: ForkOptions = {}): Promise<Sandbox> {
     assertKnownOptions('ForkOptions', options, FORK_KEYS, { ...RENAMED_OPTIONS, timeout: 'waitSeconds' })
-    // `null` name / memory are Python's omitted `None`; a null waitSeconds is refused, as there.
+    // A null waitSeconds is refused, as Python refuses None: checked on the
+    // caller's value, before `null` name / memory are read as omitted.
+    const waitSeconds = optionalSeconds('waitSeconds', Reflect.get(options, 'waitSeconds') as number | undefined) ?? 60
     options = withoutNullOptions(options)
-    const waitSeconds = optionalSeconds('waitSeconds', options.waitSeconds) ?? 60
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     // Every argument is checked before any request (the class read included), as in Python.
     const body: api.ForkRequest = {}

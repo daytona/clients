@@ -20,6 +20,7 @@ import type { PreparedSandboxCreate } from './clientCreateRequests.js'
 import type { SandboxClientContext } from './clientSandboxes.js'
 import type { CreateFromBuildOptions, CreateSandboxOptions, CreateSandboxResponse } from './types.js'
 import { WAIT_READ_SLACK_MS } from './ProcessWire.js'
+import { rfc3339EpochMs } from './sandboxAuth.js'
 
 /** @internal */
 export async function createSandbox(context: SandboxClientContext, request: PreparedSandboxCreate): Promise<Sandbox> {
@@ -65,11 +66,16 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     return typeof value === 'string' ? value : undefined
   }
   const status = text(created, 'status')
+  // A token that could not be sent as a header, or an expiry that is not a
+  // timestamp, is absent (the handle mints its own, or uses the token until a
+  // 401), never an error: the sandbox exists. As in Python.
+  const token = text(created, 'access_token')
+  const expiry = text(created, 'access_token_expires_at')
   // A create token is refreshable, unlike a caller-supplied one.
   const connectOptions: SandboxConnectOptionsFromCreate = {
-    accessToken: text(created, 'access_token'),
+    accessToken: token !== undefined && isSendableToken(token) ? token : undefined,
     accessTokenFromCreate: true,
-    accessTokenExpiresAt: text(created, 'access_token_expires_at'),
+    accessTokenExpiresAt: rfc3339EpochMs(expiry) === undefined ? undefined : expiry,
     autoDelete: metadata.autoDelete,
   }
   // The handle holds only what the response carries, plus an `img_` / `snap_`
@@ -104,6 +110,11 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return sandbox
     throw error
   }
+}
+
+/** Whether a token can be sent as a bearer header: non-empty printable ASCII with no leading or trailing space. */
+function isSendableToken(token: string): boolean {
+  return /^[\x21-\x7e](?:[\x20-\x7e]*[\x21-\x7e])?$/.test(token)
 }
 
 /** @internal */

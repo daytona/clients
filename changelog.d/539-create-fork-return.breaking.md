@@ -11,7 +11,8 @@ the create request is the server's `RequestTimeoutError` in both SDKs. Only
 the `id` of the create or fork response is required, in both SDKs: a `status`
 that is missing or not a string gives state `unknown`, a fork's `forked_from`
 falls back to the source sandbox's id, and any other field that is missing or
-not a string (a toolbox URL, a name, a token, a reservation id) is absent, the
+not a string (a toolbox URL, a name, a token that could not be sent as a
+header, an expiry that is not a timestamp, a reservation id) is absent, the
 toolbox URL then coming from the detail read a wait makes or from
 `refresh_data()` / `refreshData()`; only a response without an `id` is an
 error (TypeScript threw a raw `TypeError` for a non-string create toolbox URL,
