@@ -12,6 +12,19 @@ const SUPPORTED_PYTHON_SERIES = ['3.9', '3.10', '3.11', '3.12', '3.13'] as const
 type SupportedPythonSeries = (typeof SUPPORTED_PYTHON_SERIES)[number]
 const LATEST_PYTHON_MICRO_VERSIONS = ['3.9.22', '3.10.17', '3.11.12', '3.12.10', '3.13.3']
 
+function dockerfileJsonArray(args: string[]): string {
+  const legacy = `[${args.map((arg) => `"${arg}"`).join(', ')}]`
+  try {
+    const parsed: unknown = JSON.parse(legacy)
+    if (Array.isArray(parsed) && parsed.length === args.length && parsed.every((item) => typeof item === 'string')) {
+      return legacy
+    }
+  } catch {
+    // The joined line is not valid JSON.
+  }
+  return `[${args.map((arg) => JSON.stringify(arg)).join(', ')}]`
+}
+
 /**
  * Represents a context file to be added to the image.
  *
@@ -278,7 +291,7 @@ export class Image {
   runCommands(...commands: (string | string[])[]): Image {
     for (const command of commands) {
       if (Array.isArray(command)) {
-        this._dockerfile += `RUN ${command.map((c) => `"${c.replace(/"/g, '\\\\\\"').replace(/'/g, "\\'")}"`).join(' ')}\n`
+        this._dockerfile += `RUN ${command.map((c) => `"${c.replace(/"/g, '\\"')}"`).join(' ')}\n`
       } else {
         this._dockerfile += `RUN ${command}\n`
       }
@@ -346,8 +359,7 @@ export class Image {
       throw new DaytonaInvalidArgumentError('entrypoint_commands must be a list of strings')
     }
 
-    const argsStr = entrypointCommands.map((arg) => `"${arg}"`).join(', ')
-    this._dockerfile += `ENTRYPOINT [${argsStr}]\n`
+    this._dockerfile += `ENTRYPOINT ${dockerfileJsonArray(entrypointCommands)}\n`
 
     return this
   }
@@ -368,8 +380,7 @@ export class Image {
       throw new DaytonaInvalidArgumentError('Image CMD must be a list of strings')
     }
 
-    const cmdStr = cmd.map((arg) => `"${arg}"`).join(', ')
-    this._dockerfile += `CMD [${cmdStr}]\n`
+    this._dockerfile += `CMD ${dockerfileJsonArray(cmd)}\n`
 
     return this
   }

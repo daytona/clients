@@ -135,6 +135,21 @@ class TestImageRunCommands:
         assert "RUN" in df
         assert "bash" in df
 
+    def test_list_command_shell_quoting(self):
+        img = Image.base("ubuntu:22.04").run_commands(
+            ["sh", "-c", 'say "hi"'],
+            ["sh", "-c", "say 'hi'"],
+            ["echo", "$HOME"],
+            ["echo", "a\\b"],
+            ["echo", ""],
+        )
+        lines = [line for line in img.dockerfile().splitlines() if line.startswith("RUN ")]
+        assert lines[0] == 'RUN "sh" "-c" "say \\"hi\\""'
+        assert lines[1] == 'RUN "sh" "-c" "say \'hi\'"'
+        assert lines[2] == 'RUN "echo" "$HOME"'
+        assert lines[3] == 'RUN "echo" "a\\b"'
+        assert lines[4] == 'RUN "echo" ""'
+
 
 class TestImageEnv:
     def test_set_env_vars(self):
@@ -163,6 +178,12 @@ class TestImageEntrypoint:
         assert "python" in df
         assert "app.py" in df
 
+    def test_json_encoding(self):
+        img = Image.base("python:3.12").entrypoint(["python", 'print("hi")', "a\\b", ""])
+        payload = img.dockerfile().split("ENTRYPOINT ", 1)[1].strip()
+        assert json.loads(payload) == ["python", 'print("hi")', "a\\b", ""]
+        assert payload == '["python", "print(\\"hi\\")", "a\\\\b", ""]'
+
 
 class TestImageCmd:
     def test_set_cmd(self):
@@ -174,6 +195,18 @@ class TestImageCmd:
         df = img.dockerfile()
         assert "CMD" in df
         assert "python" in df
+
+    def test_json_encoding(self):
+        img = Image.base("python:3.12").cmd(["python", 'print("hi")', "a\\b", ""])
+        payload = img.dockerfile().split("CMD ", 1)[1].strip()
+        assert json.loads(payload) == ["python", 'print("hi")', "a\\b", ""]
+        assert payload == '["python", "print(\\"hi\\")", "a\\\\b", ""]'
+
+    def test_keeps_hand_escaped_quotes(self):
+        img = Image.base("python:3.12").cmd(["python", "-c", 'print(\\"hi\\")', "café", "a && b"])
+        line = next(item for item in img.dockerfile().splitlines() if item.startswith("CMD "))
+        assert line == 'CMD ["python", "-c", "print(\\"hi\\")", "café", "a && b"]'
+        assert json.loads(line.removeprefix("CMD ")) == ["python", "-c", 'print("hi")', "café", "a && b"]
 
 
 class TestImageFromDockerfile:
