@@ -48,3 +48,16 @@ async def test_a_cpu_max_on_the_half_core_step_is_sent(
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             await root.v2.create("img_1", resources=Resources(cpu_max=cpu_max), wait_seconds=0)
     assert json.loads(fake.requests[0].body)["cores_max"] == cpu_max
+
+
+@pytest.mark.parametrize("cpu_max", [0, -0.5, -1])
+async def test_a_cpu_max_that_is_not_positive_is_refused(
+    monkeypatch: pytest.MonkeyPatch, cpu_max: float
+) -> None:
+    with FakeApi([]) as fake:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with pytest.raises(BadRequestError) as raised:
+                await root.v2.create("img_1", resources=Resources(cpu_max=cpu_max), wait_seconds=0)
+    assert str(raised.value) == "resources.cpu_max must be a positive number of cores"
+    assert fake.requests == []

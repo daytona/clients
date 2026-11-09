@@ -212,6 +212,18 @@ describe('resumable build logs', () => {
     expect(Object.isFrozen(result) && events.every(event => Object.isFrozen(event))).toBe(true)
   })
 
+  it.each([[600, true], [601, false]] as const)('treats build-log JSON nested %d deep as within the shared limit: %s', async (depth, accepted) => {
+    // Both SDKs refuse JSON nested deeper than JSON_MAX_DEPTH (600): a done
+    // event (depth 1) carrying an unknown field nested to `depth`. The Python
+    // twin is in tests/test_build_logs.py.
+    const nested = '['.repeat(depth - 1) + ']'.repeat(depth - 1)
+    const frame = `event: done\ndata: {"status": "ready", "reason": "terminal", "output_complete": true, "extra": ${nested}}\n\n`
+    const { client } = setup([frame])
+    const pending = client.images.followBuildLogs('image', { onLogs: () => undefined })
+    if (accepted) await expect(pending).resolves.toMatchObject({ status: 'ready' })
+    else await expect(pending).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
+  })
+
   it('reads the stream media type case-insensitively', async () => {
     const bytes = new TextEncoder().encode(log('tail', 0) + done(4))
     const reply = new Response(bytes, { headers: { 'content-type': 'Text/Event-Stream; charset=utf-8' } })

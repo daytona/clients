@@ -5,7 +5,7 @@
 
 import { BadRequestError, ImageBuilder } from '../src/v2/index'
 import { createHttpClient } from '../src/v2/http'
-import { imageWire } from './artifactFixtures'
+import { imageWire, snapshotWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 import { createSandbox } from './helpers/sandbox'
 import { startFakeApi } from './networkPolicyTestServer'
@@ -370,6 +370,26 @@ it('accepts an unknown lifecycle action', async () => {
   try {
     const sandbox = await client.v2.get('src')
     expect(sandbox.lifecyclePolicy).toMatchObject({ onTimeout: 'hibernate', timeoutSeconds: 60 })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// A timestamp the contract types as a string is refused when it is a number,
+// as Python refuses it (tests/test_malformed_responses.py).
+it.each([
+  ['images.get created_at', (client: Daytona) => client.v2.images.get('img'), { ...imageWire({ id: 'img' }), created_at: 5 }, 'created_at'],
+  ['images.get expires_at', (client: Daytona) => client.v2.images.get('img'), { ...imageWire({ id: 'img' }), expires_at: 5 }, 'expires_at'],
+  ['images.list updated_at', (client: Daytona) => client.v2.images.list(), { images: [{ ...imageWire({ id: 'img' }), updated_at: 1.5 }], next_cursor: null }, 'updated_at'],
+  ['snapshots.get created_at', (client: Daytona) => client.v2.snapshots.get('snap'), { ...snapshotWire(), created_at: 5 }, 'created_at'],
+  ['snapshots.list updated_at', (client: Daytona) => client.v2.snapshots.list(), { snapshots: [{ ...snapshotWire(), updated_at: 5 }], next_cursor: null }, 'updated_at'],
+] as const)('refuses a numeric artifact timestamp: %s', async (_name, call, body, field) => {
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`has a ${field} that is not a string`) })
+    expect(api.requests).toHaveLength(1)
   } finally {
     await client.close()
     await api.close()

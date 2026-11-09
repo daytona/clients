@@ -301,6 +301,118 @@
         ]
       ],
       "error": "ImageBuilder.env name \"A\u0085B\" must not contain '=', whitespace or a control character"
+    },
+    {
+      "name": "registry ref with a newline that would add an instruction",
+      "source": {
+        "registry": "alpine\nRUN x"
+      },
+      "steps": [],
+      "error": "ImageBuilder.from_registry ref \"alpine\\nRUN x\" must not contain a control character",
+      "tsError": "ImageBuilder.fromRegistry ref \"alpine\\nRUN x\" must not contain a control character"
+    },
+    {
+      "name": "run command with a newline",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a\nRUN b"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo a\\nRUN b\" must not contain a control character",
+      "tsError": "ImageBuilder.runCommands command \"echo a\\nRUN b\" must not contain a control character"
+    },
+    {
+      "name": "run command with a carriage return",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a\rb"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo a\\rb\" must not contain a control character",
+      "tsError": "ImageBuilder.runCommands command \"echo a\\rb\" must not contain a control character"
+    },
+    {
+      "name": "pip package with a newline",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "pip",
+          [
+            "numpy\nRUN x"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.pip_install package \"numpy\\nRUN x\" must not contain a control character",
+      "tsError": "ImageBuilder.pipInstall package \"numpy\\nRUN x\" must not contain a control character"
+    },
+    {
+      "name": "workdir with a newline that would add an instruction",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/app\nUSER root"
+        ]
+      ],
+      "error": "ImageBuilder.workdir path \"/app\\nUSER root\" must not contain a control character"
+    },
+    {
+      "name": "workdir with a tab",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/a\tb"
+        ]
+      ],
+      "error": "ImageBuilder.workdir path \"/a\\tb\" must not contain a control character"
+    },
+    {
+      "name": "run command with NUL",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo\u0000"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo\\u0000\" must not contain a control character",
+      "tsError": "ImageBuilder.runCommands command \"echo\\u0000\" must not contain a control character"
+    },
+    {
+      "name": "workdir with DEL",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/a\u007f"
+        ]
+      ],
+      "error": "ImageBuilder.workdir path \"/a\u007f\" must not contain a control character"
     }
   ]
 }

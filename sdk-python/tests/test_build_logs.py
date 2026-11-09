@@ -1410,3 +1410,23 @@ async def test_a_budget_above_the_timer_maximum_is_no_deadline(monkeypatch, budg
         with pytest.raises(BuildLogInterruptedError) as failure:
             await follow_build_logs(api, DISCOVERY, on_logs=on_logs, timeout=budget)
         assert failure.value.code == "REQUEST_TIMEOUT"
+
+
+@pytest.mark.parametrize(("depth", "accepted"), [(600, True), (601, False)])
+async def test_build_log_json_nested_past_the_shared_depth_limit_is_a_protocol_error(depth, accepted):
+    # Both SDKs refuse JSON nested deeper than JSON_MAX_DEPTH (600): a done
+    # event (depth 1) carrying an unknown field nested to `depth`. The
+    # TypeScript twin is in tests/build-logs.test.ts.
+    nested = "[" * (depth - 1) + "]" * (depth - 1)
+    frame = (
+        'event: done\ndata: {"status": "ready", "reason": "terminal", "output_complete": true, '
+        f'"extra": {nested}}}\n\n'
+    ).encode()
+    api, _, _ = setup([frame])
+    if accepted:
+        result = await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+        assert result.status == "ready"
+    else:
+        with pytest.raises(BuildLogInterruptedError) as failure:
+            await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+        assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"

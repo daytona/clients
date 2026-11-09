@@ -18,4 +18,9 @@ value, or a mapping; in TypeScript it takes only a plain object, so a `Map`, a
 env name, by name and value or in a mapping, must contain no `=`, no
 whitespace (Python's set) and no control character (C0 or DEL): it renders as
 `ENV name=value`, so such a name changed the instruction or added one (both
-SDKs rendered it as given).
+SDKs rendered it as given). Every other value rendered raw into one Dockerfile
+line (the registry ref, each command of `run_commands()` / `runCommands()`,
+each package of `pip_install()` / `pipInstall()`, the `workdir()` path, and
+TypeScript's `user()` name) must contain no control character (C0 or DEL): a
+line break ended the instruction and started another, so `workdir("/app\nUSER
+root")` added a `USER root` line (both SDKs rendered it as given).

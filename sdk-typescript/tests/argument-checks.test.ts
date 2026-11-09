@@ -757,3 +757,21 @@ it('words a missing ifMatch as Python does', async () => {
     await api.close()
   }
 })
+
+it.each([
+  ['build', ''], ['build', ' '], ['build', '\t\u2028'], ['pull', ''], ['pull', ' '], ['pull', '\t\u2028'], ['captureImage', ' '],
+] as const)('refuses a blank image name on %s (%j) before any request', async (call, name) => {
+  // As promote() refuses one; the Python twin is in test_argument_checks.py.
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    const pending = call === 'build' ? client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { name })
+      : call === 'pull' ? client.v2.images.pull('alpine', { name, wait: false })
+        : handle(api).captureImage({ name })
+    await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'name must be a non-empty string' })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

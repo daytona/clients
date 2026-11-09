@@ -18,7 +18,15 @@ from ._api_core import (
     expect_preview_endpoint,
     expect_signed_preview_url_resp,
 )
-from ._core import RequestSpec, expect_is_port_in_use_response, expect_port_list, page_params, parse_timestamp
+from ._core import (
+    JSON_MAX_DEPTH,
+    RequestSpec,
+    _nested_deeper_than,
+    expect_is_port_in_use_response,
+    expect_port_list,
+    page_params,
+    parse_timestamp,
+)
 from ._gen.api import SandboxPort as PreviewEndpointDto
 from ._transport import AsyncTransport
 from .errors import create_error
@@ -45,6 +53,9 @@ def _preview_token_expiry(token: str) -> Optional[datetime]:
         raw = base64.b64decode(parts[1] + "=" * (-len(parts[1]) % 4), altchars=b"-_", validate=True)
         payload = json.loads(raw)
     except (binascii.Error, json.JSONDecodeError, RecursionError, UnicodeError, ValueError):
+        return None
+    # Nested deeper than every JSON body may be: not a token to read.
+    if _nested_deeper_than(payload, JSON_MAX_DEPTH):
         return None
     if not isinstance(payload, dict):
         return None

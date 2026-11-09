@@ -42,3 +42,32 @@ it('caps the control plane and the toolbox of a handle the client created', asyn
     await api.close()
   }
 })
+
+it('gives two clients with different caps their own shared hub, each enforcing its cap', async () => {
+  // Same credentials, shared hubs on: the hub is keyed on the client's cap,
+  // so each client's hub requests (here the long-poll fallback) enforce that
+  // client's own cap. The Python twin is in tests/test_client_response_cap.py.
+  const { targetPredicate } = await import('../src/v2/events')
+  const planned: PlannedResponse[] = []
+  const api = await startFakeApi(planned)
+  const padded = detail(api.url, { padding: 'x'.repeat(CAP * 2) })
+  planned.push({ status: 200, body: padded }, { status: 200, body: padded })
+  const small = clientAt(api.url, { maxResponseBytes: CAP })
+  const unlimited = clientAt(api.url, { maxResponseBytes: 0 })
+  type HubOwner = { acquireHub(): { wait(id: string, predicate: unknown, options: { timeout: number }): Promise<{ state: string }> } | undefined }
+  try {
+    const smallHub = (small.v2 as unknown as HubOwner).acquireHub()
+    const unlimitedHub = (unlimited.v2 as unknown as HubOwner).acquireHub()
+    expect(smallHub).toBeDefined()
+    expect(smallHub).not.toBe(unlimitedHub)
+    const predicate = targetPredicate(new Set(['started']), new Set(['destroying', 'destroyed', 'error']))
+    const refused: unknown = await smallHub!.wait('sbx', predicate, { timeout: 5_000 }).catch((error: unknown) => error)
+    expect(refused).toBeInstanceOf(PayloadTooLargeError)
+    await expect(unlimitedHub!.wait('sbx', predicate, { timeout: 5_000 })).resolves.toMatchObject({ state: 'started' })
+    expect(api.requests).toHaveLength(2)
+  } finally {
+    await small.close()
+    await unlimited.close()
+    await api.close()
+  }
+})

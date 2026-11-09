@@ -626,3 +626,56 @@ async def test_an_unknown_lifecycle_action_is_accepted() -> None:
             sandbox = await root.v2.get("src")
     policy = sandbox.lifecycle_policy
     assert policy is not None and policy.on_timeout == "hibernate"
+
+
+_SNAPSHOT: JsonObject = {
+    "id": "snap",
+    "name": "saved",
+    "class": "linux",
+    "kind": "full",
+    "status": "ready",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-02T00:00:00Z",
+    "region_id": "r",
+    "region_ids": ["r"],
+}
+
+
+# A timestamp the contract types as a string is refused when it is a number,
+# as TypeScript refuses it (the generated models read a number as a Unix time).
+@pytest.mark.parametrize(
+    ("call", "body", "field"),
+    [
+        ("images.get", {**_IMAGE, "created_at": 5}, "created_at"),
+        ("images.get", {**_IMAGE, "expires_at": 5}, "expires_at"),
+        ("images.list", {"images": [{**_IMAGE, "updated_at": 1.5}], "next_cursor": None}, "updated_at"),
+        ("snapshots.get", {**_SNAPSHOT, "created_at": 5}, "created_at"),
+        (
+            "snapshots.list",
+            {"snapshots": [{**_SNAPSHOT, "updated_at": 5}], "next_cursor": None},
+            "updated_at",
+        ),
+    ],
+    ids=[
+        "image created_at",
+        "image expires_at",
+        "image list updated_at",
+        "snapshot created_at",
+        "snapshot list",
+    ],
+)
+async def test_a_numeric_artifact_timestamp_is_a_contract_error(
+    call: str, body: JsonObject, field: str
+) -> None:
+    calls: dict[str, Call] = {
+        "images.get": lambda d: d.images.get("img"),
+        "images.list": lambda d: d.images.list(),
+        "snapshots.get": lambda d: d.snapshots.get("snap"),
+        "snapshots.list": lambda d: d.snapshots.list(),
+    }
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request(f"has a {field} that is not a string"):
+                await calls[call](root.v2)
+    assert len(api.requests) == 1

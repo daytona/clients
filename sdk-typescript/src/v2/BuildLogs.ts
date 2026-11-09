@@ -17,6 +17,7 @@ import type { BuildLogDoneReason, BuildLogGapReason } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
 import { assertKnownOptions, assertOptionsObject, optionKeys, optionalSeconds } from './options.js'
 import { deepFrozen } from './frozen.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 
 export type { BuildLogDoneReason } from './types.js'
 
@@ -81,6 +82,8 @@ const MAX_ONE_SHOT_BYTES = 2 * 1024 * 1024
 /** JSON-boundary scratch values never escape the validated DTO constructors. */
 function jsonObject(json: string): Record<string, unknown> {
   const value: unknown = JSON.parse(json)
+  // Nested deeper than every JSON body may be (`JSON_MAX_DEPTH`, as in Python).
+  if (nestedDeeperThan(value)) throw new ProtocolError('JSON nested too deeply')
   if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new ProtocolError('expected JSON object')
   // SAFETY: JSON.parse produced a non-null, non-array object, whose keys are
   // strings. This assertion establishes indexing only: every property remains

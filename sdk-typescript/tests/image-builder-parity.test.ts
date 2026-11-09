@@ -89,3 +89,11 @@ it('strips an images.pull ref as create does, and refuses a non-string before an
     await api.close()
   }
 })
+
+// `user()` is TypeScript-only for now; it renders raw into a USER line, so it
+// follows the same rule as the shared steps.
+it('refuses a user name with a control character', () => {
+  expect(() => ImageBuilder.fromRegistry('alpine').user('root\nRUN x')).toThrow(expect.objectContaining({
+    name: 'BadRequestError', message: 'ImageBuilder.user name "root\\nRUN x" must not contain a control character',
+  }))
+})

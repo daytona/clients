@@ -10,6 +10,7 @@
  * instances via ref-counting; WebSockets are shared by waits for the same destination.
  */
 
+import { nestedDeeperThan } from './jsonDepth.js'
 import type { AxiosHeaderValue, AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { createHttpClient, inBrowser, sandboxState } from './http.js'
@@ -1491,6 +1492,9 @@ export class WaitHub {
         } catch {
           return
         }
+        // A frame nested deeper than every JSON body may be is skipped like
+        // an undecodable one (`JSON_MAX_DEPTH`, as in Python).
+        if (nestedDeeperThan(frame)) return
         if (typeof frame !== 'object' || frame === null || Array.isArray(frame)) return
 
         const ftype = frame['type']

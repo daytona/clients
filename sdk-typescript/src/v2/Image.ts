@@ -90,8 +90,15 @@ function renderStep(step: BuilderStep): string {
   }
 }
 
-function normalizeStepText(value: string, label: string): string {
-  return rawText(value, label)
+/**
+ * Text rendered raw into one Dockerfile line, stripped: a line break would end
+ * the instruction and start another, so no control character (C0 or DEL) is
+ * allowed. Python refuses the same values.
+ */
+function lineText(value: unknown, label: string): string {
+  const text = rawText(value, label)
+  if (/[\x00-\x1f\x7f]/.test(text)) throw badRequest(`${label} ${JSON.stringify(text)} must not contain a control character`)
+  return text
 }
 
 /** `shlex.quote` (Python's rule, byte for byte): safe words pass through, everything else is single-quoted with `'` → `'"'"'`. */
@@ -121,7 +128,7 @@ export class ImageBuilder {
   ) {}
 
   public static fromRegistry(ref: string): ImageBuilder {
-    return new ImageBuilder({ type: 'registry', ref: rawText(ref, 'ImageBuilder.fromRegistry ref') })
+    return new ImageBuilder({ type: 'registry', ref: lineText(ref, 'ImageBuilder.fromRegistry ref') })
   }
 
   public static fromDockerfile(dockerfile: string): ImageBuilder {
@@ -129,11 +136,11 @@ export class ImageBuilder {
   }
 
   public runCommands(...commands: readonly string[]): ImageBuilder {
-    return new ImageBuilder(this.source, [...this.steps, { type: 'run', commands: assertTextList(commands, 'ImageBuilder.runCommands commands').map((command) => normalizeStepText(command, 'ImageBuilder.runCommands command')) }])
+    return new ImageBuilder(this.source, [...this.steps, { type: 'run', commands: assertTextList(commands, 'ImageBuilder.runCommands commands').map((command) => lineText(command, 'ImageBuilder.runCommands command')) }])
   }
 
   public pipInstall(...packages: readonly string[]): ImageBuilder {
-    const resolved = assertTextList(packages, 'ImageBuilder.pipInstall packages').map((pkg) => normalizeStepText(pkg, 'ImageBuilder.pipInstall package'))
+    const resolved = assertTextList(packages, 'ImageBuilder.pipInstall packages').map((pkg) => lineText(pkg, 'ImageBuilder.pipInstall package'))
     // POSIX-quoted like Python's `shlex.quote`: a version specifier such as
     // `numpy>=1.26` is one shell word.
     return this.runCommands(`python -m pip install ${resolved.map(shellQuote).join(' ')}`)
@@ -162,11 +169,11 @@ export class ImageBuilder {
   }
 
   public workdir(path: string): ImageBuilder {
-    return new ImageBuilder(this.source, [...this.steps, { type: 'workdir', path: rawText(path, 'ImageBuilder.workdir path') }])
+    return new ImageBuilder(this.source, [...this.steps, { type: 'workdir', path: lineText(path, 'ImageBuilder.workdir path') }])
   }
 
   public user(name: string): ImageBuilder {
-    return new ImageBuilder(this.source, [...this.steps, { type: 'user', name: rawText(name, 'ImageBuilder.user name') }])
+    return new ImageBuilder(this.source, [...this.steps, { type: 'user', name: lineText(name, 'ImageBuilder.user name') }])
   }
 
   public cmd(...args: readonly string[]): ImageBuilder {
@@ -357,6 +364,8 @@ export function imageOptionsBody(options: { readonly name?: unknown; readonly id
     }
     if (value === undefined || value === null) continue
     if (typeof value !== 'string') throw badRequest(`${key} must be a string`)
+    // A blank name names nothing: refused, as promote() refuses it.
+    if (key === 'name' && isBlank(value)) throw badRequest('name must be a non-empty string')
     // The contract's architectures only: SDK inputs are closed.
     if (key === 'cpuArch' && value !== 'amd64' && value !== 'arm64') throw badRequest('cpuArch must be "amd64" or "arm64"')
     body[wire] = value

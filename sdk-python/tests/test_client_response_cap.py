@@ -69,3 +69,32 @@ async def test_the_cap_reaches_the_control_plane_and_the_handles_toolbox(
         "/sandboxes/sbx",
         "/toolbox/sbx/files/download",
     ]
+
+
+async def test_two_clients_with_different_caps_get_their_own_shared_hub(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Same credentials, same loop, shared hubs on: the hub is keyed on the
+    # client's cap, so each client's hub requests (here the long-poll
+    # fallback) enforce that client's own cap.
+    from daytona.v2._events import _TargetPredicate
+
+    predicate = _TargetPredicate(
+        states=frozenset({"started"}), terminal_states=frozenset({"destroying", "destroyed", "error"})
+    )
+    with FakeApi([]) as fake:
+        padded = _detail(fake.url, padding="x" * (_CAP * 2))
+        fake._responses.extend([PlannedResponse(200, padded), PlannedResponse(200, padded)])
+        monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
+        async with (
+            AsyncDaytona(DaytonaConfig(api_key="key", max_response_bytes=_CAP)) as small,
+            AsyncDaytona(DaytonaConfig(api_key="key", max_response_bytes=0)) as unlimited,
+        ):
+            small_hub = small.v2._acquire_hub()
+            unlimited_hub = unlimited.v2._acquire_hub()
+            assert small_hub is not None and unlimited_hub is not None and small_hub is not unlimited_hub
+            with pytest.raises(PayloadTooLargeError):
+                await small_hub._fallback_wait("sbx", predicate, timeout=5)
+            outcome = await unlimited_hub._fallback_wait("sbx", predicate, timeout=5)
+    assert outcome.state == "started"
+    assert len(fake.requests) == 2

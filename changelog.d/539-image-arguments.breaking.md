@@ -8,4 +8,6 @@ contract states; `capture_image()` / `captureImage()` takes the same `name`
 and `idle_expiry_seconds` / `idleExpirySeconds` rules. `images.pull()` needs a
 boolean `wait`. `create_from_build(build_timeout=...)` / `buildTimeoutSeconds`
 is a non-negative number of seconds, and Python reads an integer too large for
-a float there as no limit.
+a float there as no limit. A blank `name` on `images.build()` / `pull()` and
+`capture_image()` / `captureImage()` is refused, as `promote()` refuses one
+(both SDKs sent it).

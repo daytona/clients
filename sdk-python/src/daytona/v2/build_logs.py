@@ -26,7 +26,14 @@ from pydantic import BaseModel
 from typing_extensions import Unpack
 
 from . import _clock
-from ._core import RequestSpec, parse_error_payload, query_text, wait_budget_seconds
+from ._core import (
+    JSON_MAX_DEPTH,
+    RequestSpec,
+    _nested_deeper_than,
+    parse_error_payload,
+    query_text,
+    wait_budget_seconds,
+)
 from ._gen.api import (
     BuildLogChunk,
     BuildLogDone,
@@ -232,6 +239,16 @@ def _object(value: object) -> dict[str, object]:
     return {key: item for key, item in value.items() if isinstance(key, str)}
 
 
+def _json(text: str | bytes) -> object:
+    """``json.loads`` for build-log JSON: the non-standard constants, and a
+    value nested deeper than ``JSON_MAX_DEPTH`` (the limit both SDKs apply to
+    every JSON body), are invalid JSON (``ValueError``)."""
+    value: JsonValue = json.loads(text, parse_constant=_invalid_json_constant)
+    if _nested_deeper_than(value, JSON_MAX_DEPTH):
+        raise ValueError("build log JSON is nested too deeply")
+    return value
+
+
 def _invalid_json_constant(_value: str) -> object:
     # Python's JSON decoder otherwise accepts NaN/Infinity, unlike JSON and the
     # TypeScript peer. Even unknown fields must remain valid JSON.
@@ -352,9 +369,7 @@ class _SseDecoder:
             if not text:
                 if self._data:
                     try:
-                        payload = _object(
-                            json.loads("\n".join(self._data), parse_constant=_invalid_json_constant)
-                        )
+                        payload = _object(_json("\n".join(self._data)))
                     except (ValueError, RecursionError) as exc:
                         raise _ProtocolError("invalid event JSON") from exc
                     yield self._event, self._ident, payload
@@ -612,7 +627,7 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes]) -> DaytonaError
         # A known 401/403/etc remains terminal even if its diagnostic body fails.
         return create_error(f"build log HTTP {status}", status)
     try:
-        payload = _object(json.loads(body, parse_constant=_invalid_json_constant))
+        payload = _object(_json(body))
     except (ValueError, RecursionError, _ProtocolError):
         return create_error(f"build log HTTP {status}", status)
     # No usable prose (absent, empty or malformed) keeps the build-log status
@@ -677,7 +692,7 @@ async def _discover(
             # Strict UTF-8, as TypeScript decodes it: invalid UTF-8 and a leading
             # BOM are not JSON (json.loads on bytes would strip a BOM and accept
             # UTF-16 / UTF-32).
-            return _object(json.loads(body.decode("utf-8"), parse_constant=_invalid_json_constant))
+            return _object(_json(body.decode("utf-8")))
         except (ValueError, RecursionError) as exc:
             raise _ProtocolError("invalid build log discovery JSON") from exc
     finally:

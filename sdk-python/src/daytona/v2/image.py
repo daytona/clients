@@ -39,7 +39,7 @@ class ImageBuilder:
 
     @classmethod
     def from_registry(cls, ref: str) -> Self:
-        return cls(_registry_ref=cls._require_text(ref, "ImageBuilder.from_registry ref", strip=True))
+        return cls(_registry_ref=cls._line_text(ref, "ImageBuilder.from_registry ref"))
 
     @classmethod
     def from_dockerfile(cls, content: str) -> Self:
@@ -53,10 +53,7 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        cleaned = tuple(
-            self._require_text(package, "ImageBuilder.pip_install package", strip=True)
-            for package in packages
-        )
+        cleaned = tuple(self._line_text(package, "ImageBuilder.pip_install package") for package in packages)
         # `python -m pip` (works where `pip` is not on PATH) and POSIX-quoted
         # packages — byte-identical to TypeScript's `pipInstall`.
         command = "python -m pip install " + " ".join(shlex.quote(package) for package in cleaned)
@@ -70,10 +67,7 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        cleaned = tuple(
-            self._require_text(command, "ImageBuilder.run_commands command", strip=True)
-            for command in commands
-        )
+        cleaned = tuple(self._line_text(command, "ImageBuilder.run_commands command") for command in commands)
         return type(self)(
             _registry_ref=self._registry_ref,
             _dockerfile=self._dockerfile,
@@ -135,8 +129,7 @@ class ImageBuilder:
         return type(self)(
             _registry_ref=self._registry_ref,
             _dockerfile=self._dockerfile,
-            _steps=self._steps
-            + (f"WORKDIR {self._require_text(path, 'ImageBuilder.workdir path', strip=True)}",),
+            _steps=self._steps + (f"WORKDIR {self._line_text(path, 'ImageBuilder.workdir path')}",),
         )
 
     def _request_source(self) -> tuple[dict[str, str] | None, str | None]:
@@ -160,6 +153,21 @@ class ImageBuilder:
             raise AssertionError("image builder has no source")
         layers = [base, *self._steps]
         return "\n".join(layers).rstrip() + "\n"
+
+    @classmethod
+    def _line_text(cls, value: object, label: str) -> str:
+        """Text rendered raw into one Dockerfile line, stripped: a line break
+        would end the instruction and start another, so no control character
+        (C0 or DEL) is allowed. TypeScript refuses the same values."""
+        text = cls._require_text(value, label, strip=True)
+        if any(char < " " or char == "\x7f" for char in text):
+            raise create_error(
+                f"{label} {json.dumps(text, ensure_ascii=False)} must not contain a control character",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return text
 
     @classmethod
     def _env_name(cls, value: object, label: str) -> str:

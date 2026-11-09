@@ -6,6 +6,7 @@
 import { isBlank } from './pyText.js'
 import { pageParams } from './pageParams.js'
 import { deepFrozen, frozenPage } from './frozen.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics, credentialSafeInspection } from '../diagnostics.js'
@@ -95,7 +96,8 @@ function previewTokenExpiry(token: string): string | undefined {
   } catch {
     return undefined
   }
-  if (payload === null || Array.isArray(payload) || typeof payload !== 'object') {
+  // Nested deeper than every JSON body may be: not a token to read.
+  if (payload === null || Array.isArray(payload) || typeof payload !== 'object' || nestedDeeperThan(payload)) {
     return undefined
   }
   const exp = Object.getOwnPropertyDescriptor(payload, 'exp')?.value

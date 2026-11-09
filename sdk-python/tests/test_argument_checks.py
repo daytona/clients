@@ -1157,3 +1157,18 @@ async def test_a_datetime_bound_whose_conversion_or_rendering_fails_is_refused(
     if cause is not None:
         assert isinstance(raised.value.__cause__, cause)
     assert api.requests == []
+
+
+@pytest.mark.parametrize("name", ["", " ", "\t\u2028"])
+@pytest.mark.parametrize("call", ["build", "pull", "capture"])
+async def test_a_blank_image_name_is_refused_before_any_request(api: FakeApi, call: str, name: str) -> None:
+    # As promote() refuses one; the TypeScript twin is in argument-checks.test.ts.
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError, match="^name must be a non-empty string$"):
+            if call == "build":
+                await root.v2.images.build(ImageBuilder.from_registry("alpine"), name=name)
+            elif call == "pull":
+                await root.v2.images.pull("alpine", name=name, wait=False)
+            else:
+                await lazy_sandbox(root.v2, "sbx").capture_image(name=name)
+    assert api.requests == []

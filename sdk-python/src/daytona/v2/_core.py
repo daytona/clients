@@ -16,6 +16,7 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Dict,
+    Final,
     Iterable,
     Iterator,
     List,
@@ -190,15 +191,41 @@ def _refuse_json_constant(name: str) -> JsonValue:
     raise ValueError(f"invalid JSON constant {name}")
 
 
+# The deepest nesting of arrays and objects a JSON response may have, the
+# same in both SDKs: the stdlib decoder's own limit depends on the Python
+# version and, from 3.12, on the thread's stack size, so the SDK sets one.
+# Deep enough for every contract shape (a 256-level accessibility tree is
+# 516 levels of JSON).
+JSON_MAX_DEPTH: Final = 600
+
+
+def _nested_deeper_than(value: JsonValue, limit: int) -> bool:
+    """Whether arrays and objects in ``value`` nest more than ``limit`` deep
+    (a top-level one is depth 1). Iterative, visiting containers only."""
+    pending: List[Tuple[JsonValue, int]] = [(value, 1)]
+    while pending:
+        item, depth = pending.pop()
+        children = item.values() if isinstance(item, dict) else item if isinstance(item, list) else None
+        if children is None:
+            continue
+        if depth > limit:
+            return True
+        pending.extend((child, depth + 1) for child in children if isinstance(child, (list, dict)))
+    return False
+
+
 def loads_json(text: Union[str, bytes], description: str = "JSON response") -> JsonValue:
-    """``json.loads`` for a response body: a body nested deeper than the
-    decoder's recursion limit is the malformed-response error, never a raw
-    ``RecursionError``. Invalid JSON, including the non-standard constants
-    ``NaN``, ``Infinity`` and ``-Infinity``, raises ``ValueError``."""
+    """``json.loads`` for a response body: a body nested deeper than
+    :data:`JSON_MAX_DEPTH`, or than the decoder's recursion limit, is the
+    malformed-response error, never a raw ``RecursionError``. Invalid JSON,
+    including the non-standard constants ``NaN``, ``Infinity`` and
+    ``-Infinity``, raises ``ValueError``."""
     try:
         value: JsonValue = json.loads(text, parse_constant=_refuse_json_constant)
     except RecursionError:
         raise _too_deep(description) from None
+    if _nested_deeper_than(value, JSON_MAX_DEPTH):
+        raise _too_deep(description)
     return value
 
 
@@ -234,6 +261,9 @@ def image_options_body(
             continue
         if not isinstance(value, str):
             raise create_error(f"{key} must be a string", 400, "BAD_REQUEST", "SDK")
+        # A blank name names nothing: refused, as promote() refuses it.
+        if key == "name" and not value.strip():
+            raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         # The contract's architectures only: SDK inputs are closed.
         if key == "cpu_arch" and value not in _CPU_ARCHITECTURES:
             raise create_error('cpu_arch must be "amd64" or "arm64"', 400, "BAD_REQUEST", "SDK")

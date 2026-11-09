@@ -39,3 +39,31 @@ it.each([0.5, 1, 1.5])('sends cpuMax %d on the half-core step', async (cpuMax) =
     await api.close()
   }
 })
+
+it.each([0, -0.5, -1])('refuses cpuMax %d, which is not positive', async (cpuMax) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.create('img_1', { resources: { cpuMax }, waitSeconds: 0 })).rejects.toMatchObject({ name: 'BadRequestError', message: 'resources.cpuMax must be a positive number of cores' })
+    expect(api.requests).toHaveLength(0)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// A Linux size that is not a whole number of MiB names its `resources.` field,
+// as Python's does (test_client_lifecycle_contract.py).
+it.each(['memory', 'memoryMax', 'disk', 'diskMax'] as const)('refuses resources.%s that is not a whole number of MiB', async (field) => {
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.create('img_1', { resources: { [field]: 1.0001 }, waitSeconds: 0 })).rejects.toMatchObject({
+      name: 'BadRequestError', message: `resources.${field} must be a GiB value that converts to a whole number of MiB`,
+    })
+    expect(api.requests).toHaveLength(0)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

@@ -19,7 +19,7 @@ code), and a search page needs its `total`, `total_relation` and a string
 early); `list()` checks `nextCursor` as it checks `next_cursor`. Python
 refuses a sandbox object whose `labels` is not a map of strings, as TypeScript
 does (it dropped them silently). A detail read behind a list item that breaks
-the contract leaves the list item, as an unreadable one does. A response or
+the contract keeps the list item, as an unreadable one does. A response or
 events frame nested deeper than the JSON decoder can follow is a malformed
 response naming the response (Python) or skipped (an events frame), never a
 raw `RecursionError`, and nothing the SDK does with response data recurses
@@ -43,4 +43,8 @@ is checked field by field in TypeScript as Python's model checks it: integer
 kept), string deadlines and activity source (TypeScript read a malformed field
 as absent). Python also refuses a number where the contract has a timestamp
 string, on the sandbox and its lifecycle policy (its model read it as a Unix
-time).
+time). Python refuses a number as an image's or snapshot's `created_at`,
+`updated_at` or `expires_at` too, as TypeScript does. JSON nested deeper than
+600 levels is refused the same way in both SDKs in a build-log event or
+discovery response (the build-log protocol error), and an events-hub frame
+nested that deep is skipped like an undecodable one.
