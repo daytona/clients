@@ -42,6 +42,7 @@ from daytona.v2 import (
     InterpreterResult,
     ListResult,
     NameConflictError,
+    NotFoundError,
     ProcessResult,
     RequestTimeoutError,
     VolumeMount,
@@ -93,6 +94,7 @@ class FakeWorld:
         # Each sandbox's mounts, and each volume's files.
         self.mounts: list[tuple[Mount, ...]] = []
         self.volume_files: dict[str, dict[str, list[str]]] = {}
+        self.volumes: dict[str, SimpleNamespace] = {}
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
         self.build_logs_fail_after_output = False
@@ -123,15 +125,9 @@ class FakeWorld:
         client.secrets = secret
 
         volume = create_autospec(VolumesService, instance=True)
-        def create_volume(*, name: str, size_gib: Optional[int] = None) -> SimpleNamespace:
-            self.created_volumes.append(f"vol-{name}")
-            return SimpleNamespace(id=f"vol-{name}", name=name, status="ready")
-
-        volume.create.side_effect = create_volume
-        volume.get.side_effect = lambda name, *, create=False, **_: (
-            create_volume(name=name) if create else SimpleNamespace(id=f"vol-{name}", name=name, status="ready")
-        )
-        volume.delete.side_effect = lambda name_or_id, **_: self.deleted_volumes.append(name_or_id)
+        volume.create.side_effect = self._volume_create
+        volume.get.side_effect = self._volume_get
+        volume.delete.side_effect = self._volume_delete
         client.volumes = volume
 
         images = create_autospec(ImagesService, instance=True)
@@ -168,6 +164,39 @@ class FakeWorld:
             raise RequestTimeoutError("image did not settle", status_code=408, code="REQUEST_TIMEOUT", source="SDK")
         return image
 
+    # -- volumes: what the project has, as the SDK sees it ----------------------
+    def _volume_create(self, *, name: str, size_gib: Optional[int] = None) -> SimpleNamespace:
+        volume = SimpleNamespace(id=f"vol-{name}", name=name, status="ready")
+        self.volumes[volume.id] = volume
+        self.created_volumes.append(volume.id)
+        return volume
+
+    def _volume_find(self, name_or_id: str, *, id_only: bool = False) -> Optional[SimpleNamespace]:
+        found = self.volumes.get(name_or_id)
+        if found is None and not id_only:
+            found = next((v for v in self.volumes.values() if v.name == name_or_id), None)
+        return found
+
+    def _volume_get(
+        self, name_or_id: str, *, create: bool = False, id_only: bool = False, **_: object
+    ) -> SimpleNamespace:
+        # As the SDK: an absent volume is NotFoundError unless create=True.
+        found = self._volume_find(name_or_id, id_only=id_only)
+        if found is not None:
+            return found
+        if create and not id_only:
+            return self._volume_create(name=name_or_id)
+        raise NotFoundError(f"volume {name_or_id} not found", status_code=404, code="NOT_FOUND", source="API")
+
+    def _volume_delete(self, name_or_id: str, *, id_only: bool = False, **_: object) -> None:
+        # Deleting a volume deletes its files too.
+        found = self._volume_find(name_or_id, id_only=id_only)
+        if found is None:
+            raise NotFoundError(f"volume {name_or_id} not found", status_code=404, code="NOT_FOUND", source="API")
+        del self.volumes[found.id]
+        self.volume_files.pop(found.id, None)
+        self.deleted_volumes.append(found.id)
+
     def _image_pull(self, image: str, *, name: Optional[str] = None, **_: object) -> SimpleNamespace:
         self.pulled_images.append((image, name))
         if self.pull_conflict and len(self.pulled_images) == 1:
@@ -199,7 +228,7 @@ class FakeWorld:
         mounts: list[Mount] = []
         for mount in requested:
             assert isinstance(mount, VolumeMount)
-            if mount.volume_id not in self.created_volumes:
+            if mount.volume_id not in self.volumes:
                 raise LookupError(f"volume {mount.volume_id} not found")
             mounts.append(
                 Mount(mount.volume_id, mount.mount_path.rstrip("/"), mount.subpath, mount.read_only is True)
@@ -727,6 +756,30 @@ def test_volumes_share_round_trip_succeeds(monkeypatch: pytest.MonkeyPatch) -> N
     assert _patch_volumes_share(monkeypatch, world).main() == 0
     assert len(world.deleted_volumes) == 1
     assert world.mounts == [(Mount(world.created_volumes[0], "/data", None, False),)] * len(world.sandboxes)
+
+
+def test_the_fake_volumes_follow_the_sdk() -> None:
+    # As the SDK: get() of an absent volume without create=True is
+    # NotFoundError, and a deleted volume's files go with it, so a volume
+    # created again under the same name starts empty (twin in examples.test.ts).
+    world = _volume_world()
+    with pytest.raises(NotFoundError):
+        world.client.volumes.get("absent")
+    assert world.client.volumes.get("absent", create=True).id == "vol-absent"
+
+    def write_then_read(volume_id: str) -> str:
+        mount = VolumeMount(volume_id=volume_id, mount_path="/data")
+        box = world._create_from_build(ImageBuilder.from_registry("python:3.12"), name="b", volumes=[mount])
+        before = box.process.run("if [ -e /data/message.txt ]; then cat /data/message.txt; else echo '<missing>'; fi")
+        box.process.run("echo written > /data/message.txt")
+        output: str = before.output
+        return output
+
+    assert write_then_read("vol-absent") == "<missing>"
+    world.client.volumes.delete("vol-absent", id_only=True)
+    with pytest.raises(NotFoundError):
+        world.client.volumes.get("absent")
+    assert write_then_read(world.client.volumes.create(name="absent").id) == "<missing>"
 
 
 def test_the_fake_applies_a_mount_subpath_and_read_only() -> None:

@@ -34,7 +34,8 @@ export interface PreparedSandboxCreate {
     readonly waitSeconds: number
     readonly image?: string
     readonly snapshot?: string
-    readonly sandboxClass?: 'macos'
+    /** The class the create route fixes. */
+    readonly sandboxClass: 'linux' | 'macos'
   }
 }
 
@@ -84,7 +85,7 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
     create_timeout_seconds: createTimeoutSeconds(options.createTimeoutSeconds),
     idempotency_key: resolveIdempotencyKey(options.idempotencyKey),
   }
-  return { path: '/sandboxes', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), image: source } }
+  return { path: '/sandboxes', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), image: source, sandboxClass: route } }
 }
 
 /** @internal */
@@ -107,7 +108,7 @@ export function snapshotCreateRequest(snapshot: string, options: CreateSandboxFr
     create_timeout_seconds: createTimeoutSeconds(options.createTimeoutSeconds),
     idempotency_key: resolveIdempotencyKey(options.idempotencyKey),
   }
-  return { path: '/sandboxes/from-snapshot', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), snapshot: source } }
+  return { path: '/sandboxes/from-snapshot', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), snapshot: source, sandboxClass: 'linux' } }
 }
 
 /** @internal */

@@ -796,8 +796,8 @@ class AsyncDaytona:
         raw_status = status if isinstance(status, str) else ""
         # The handle holds only what the response carries, plus an `img_` /
         # `snap_` id the caller passed (a name is never an id), and the class
-        # only when the call fixes it (create_macos); the rest is unknown until
-        # a detail read. The response's `image` is canonical when present.
+        # the create route fixes (linux, or macos for create_macos); the rest
+        # is unknown until a detail read. The response's `image` is canonical when present.
         booted = artifact_ref_from_wire(data.get("image"))
         info = _SandboxInfo(
             id=sandbox_id,
@@ -807,8 +807,9 @@ class AsyncDaytona:
             image=ImageRef(id=booted.id, name=booted.name) if booted is not None else image_ref,
             snapshot=snapshot_ref,
             region=target,
-            sandbox_class="macos" if sandbox_class == "macos" else None,
-            raw_sandbox_class="macos" if sandbox_class == "macos" else None,
+            # The create route fixes the class (linux or macos).
+            sandbox_class=sandbox_class,
+            raw_sandbox_class=sandbox_class,
             # Read before the early return: a create a Mac claims within its hold
             # answers running with the reservation.
             reservation_id=str(data.get("reservation_id"))

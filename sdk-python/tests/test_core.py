@@ -12984,8 +12984,8 @@ async def test_daytona_create_prefers_the_response_image_on_every_create() -> No
     assert ref(fallback_named) is None
     assert ref(fallback_id) == ("img_py", None)
     assert ref(fallback_bare) is None
-    # The class is known only when the call fixes it.
-    assert (named.sandbox_class, macos.sandbox_class) == (None, "macos")
+    # The create route fixes the class: linux or macos.
+    assert (named.sandbox_class, macos.sandbox_class) == ("linux", "macos")
 
 
 @pytest.mark.anyio

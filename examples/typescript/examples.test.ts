@@ -310,6 +310,17 @@ test('volumes_share round-trips through the volume', () => {
   assertCleanedUp(record)
 })
 
+test('the fake volumes follow the SDK', () => {
+  // As the SDK: get() of an absent volume without create is NotFoundError, and
+  // a deleted volume's files go with it, so a volume created again under the
+  // same name starts empty (twin in test_examples.py).
+  const { code, output } = runExample('typescript/test-support/volume-lifecycle.ts', { volumeData: true })
+  assert.equal(code, 0, output)
+  assert.match(output, /^get absent: NotFoundError$/m)
+  assert.match(output, /^first: <missing>$/m)
+  assert.match(output, /^recreated: <missing>$/m)
+})
+
 test('the fake applies a mount\'s subpath and readOnly', () => {
   // The fake resolves a path below the mount's subpath, and refuses a write
   // through a read-only mount, as the sandbox does.

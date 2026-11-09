@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs'
 
 import { Daytona } from '@daytona/sdk'
-import { ImageBuildFailedError, NameConflictError, RequestTimeoutError } from '@daytona/sdk/v2'
+import { ImageBuildFailedError, NameConflictError, NotFoundError, RequestTimeoutError } from '@daytona/sdk/v2'
 import type {
   BuildLogFollowOptions,
   CreateFromBuildOptions,
@@ -316,11 +316,14 @@ const fake = {
         ? [...volumes.values()].find((entry) => entry.name === nameOrId) : undefined)
       if (volume) return volume
       if (options.create && !options.idOnly) return fake.volumes.create({ name: nameOrId })
-      throw new Error(`volume ${nameOrId} not found`)
+      // As the SDK: an absent volume is NotFoundError unless create is set.
+      throw new NotFoundError(`volume ${nameOrId} not found`, { statusCode: 404, code: 'NOT_FOUND', source: 'API' })
     },
     delete: async (nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> => {
       const volume = await fake.volumes.get(nameOrId, options)
       volumes.delete(volume.id)
+      // Deleting a volume deletes its files too.
+      volumeFiles.delete(volume.id)
       record.deletedVolumes.push(volume.id)
     },
   },

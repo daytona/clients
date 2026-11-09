@@ -74,7 +74,9 @@
         "sandboxId": "sbxcreate1",
         "state": "creating",
         "rawState": "pending",
-        "region": "region-a"
+        "region": "region-a",
+        "sandboxClass": "linux",
+        "rawSandboxClass": "linux"
       }
     },
     {
@@ -92,7 +94,9 @@
         "image": {
           "id": "img_abc",
           "name": null
-        }
+        },
+        "sandboxClass": "linux",
+        "rawSandboxClass": "linux"
       }
     },
     {
@@ -106,7 +110,9 @@
       "handleJson": {
         "sandboxId": "sbxcreate3",
         "state": "creating",
-        "rawState": "pending"
+        "rawState": "pending",
+        "sandboxClass": "linux",
+        "rawSandboxClass": "linux"
       }
     },
     {

@@ -79,8 +79,9 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     autoDelete: metadata.autoDelete,
   }
   // The handle holds only what the response carries, plus an `img_` / `snap_`
-  // id the caller passed (a name is never an id), and the class only when the
-  // call fixes it (createMacos). A partial DTO would mark absent fields known.
+  // id the caller passed (a name is never an id), and the class the create
+  // route fixes (linux, or macos for createMacos). A partial DTO would mark
+  // absent fields known.
   const booted: unknown = Reflect.get(created, 'image')
   const bootedId = text(booted, 'id')
   const sandbox = context.buildSandbox({
