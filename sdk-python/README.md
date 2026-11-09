@@ -135,7 +135,8 @@ Set `request_timeout=` **(seconds; default 60; `0`, or a value above 2,147,483.6
 the total time one ordinary request may take before it raises
 `ClientTimeoutError`. Waits and long polls use their own budget, streams are
 bounded only until their response arrives, and file transfers have no total
-limit but fail with `ClientTimeoutError` once no bytes move for that long.
+limit but fail with `ClientTimeoutError` once no bytes move for that long
+(with `request_timeout=0` they are not bounded at all).
 Set `max_response_bytes=` **(default 1 GiB; `0` means no limit)** to cap every
 response body the SDK holds in memory whole: a larger body raises
 `PayloadTooLargeError` before it is read in full (an error response keeps its

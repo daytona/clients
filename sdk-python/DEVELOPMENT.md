@@ -179,7 +179,8 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   `transport.request(..., transfer=True)`: no total deadline, whatever
   timeout they carry, but httpx's per-phase timeout of the request timeout
   (`_client_timeout`) bounds each idle phase, so a stalled transfer fails
-  with `ClientTimeoutError`. Every buffered response body goes through
+  with `ClientTimeoutError`; with `request_timeout=0` it has no bound at all
+  and runs until done or cancelled. Every buffered response body goes through
   `_body_limit` (`send_buffered` / `read_body`): `max_response_bytes`
   (client, or `RequestSpec.max_response_bytes` / `request(...,
   max_response_bytes=)` per call) is checked against the declared
