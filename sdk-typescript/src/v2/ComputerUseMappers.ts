@@ -42,15 +42,15 @@ import type { KeyedObject } from './symbolKeys.js'
 // (except the named `extraFields` bags), and optional fields read `null` as
 // absent. The Python SDK's generated models enforce the same.
 
-const INVALID_STATUS_RESPONSE =
-  'Invalid computer-use status response: expected string status and desktop, where inactive/not_started-or-starting and active/ready carry no cause, inactive/failed carries a cause, and any cause is a plain object containing string code and message'
-const INVALID_RESTART_RESPONSE =
-  'Invalid computer-use restart response: expected a plain object with string message, status="active", and desktop="ready"'
+// Each malformed status or restart response names its field, with the
+// Python SDK's messages for the same body.
+const INVALID_STATUS_RESPONSE = 'Invalid computer-use status response'
+const INVALID_RESTART_RESPONSE = 'Invalid computer-use restart response'
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
 
-function invalid(message: string): BadRequestError {
-  return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+function invalid(prefix: string, detail: string): BadRequestError {
+  return new BadRequestError(`${prefix}: ${detail}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -95,24 +95,23 @@ function mapWireCause(cause: unknown): ComputerUseDesktopFailure | undefined {
   if (cause === undefined || cause === null) {
     return undefined
   }
-  if (!isComputerUseDesktopFailureWire(cause)) {
-    throw invalid(INVALID_STATUS_RESPONSE)
+  if (!isPlainObject(cause)) throw invalid(INVALID_STATUS_RESPONSE, 'cause must be null or an object')
+  for (const field of ['code', 'message'] as const) {
+    if (typeof cause[field] !== 'string') throw invalid(INVALID_STATUS_RESPONSE, `cause.${field} must be a string`)
   }
+  if (!isComputerUseDesktopFailureWire(cause)) throw invalid(INVALID_STATUS_RESPONSE, 'cause must be null or an object')
   return mapComputerUseDesktopFailure(cause)
 }
 
 export function mapComputerUseStatusResponse(
   response: unknown,
 ): ComputerUseStatusResponse {
-  if (!isPlainObject(response)) {
-    throw invalid(INVALID_STATUS_RESPONSE)
-  }
+  if (!isPlainObject(response)) throw invalid(INVALID_STATUS_RESPONSE, 'the body must be an object')
 
   const { status, desktop, cause, ...extraFields } = response
 
-  if (typeof status !== 'string' || typeof desktop !== 'string') {
-    throw invalid(INVALID_STATUS_RESPONSE)
-  }
+  if (typeof status !== 'string') throw invalid(INVALID_STATUS_RESPONSE, 'status must be a string')
+  if (typeof desktop !== 'string') throw invalid(INVALID_STATUS_RESPONSE, 'desktop must be a string')
 
   const mappedCause = mapWireCause(cause)
   const extras: { extraFields?: Record<string, unknown> } =
@@ -131,6 +130,7 @@ export function mapComputerUseStatusResponse(
     if (mappedCause !== undefined) {
       return deepFrozen({ status, desktop, cause: mappedCause, ...extras })
     }
+    throw invalid(INVALID_STATUS_RESPONSE, "cause is required when status is 'inactive' and desktop is 'failed'")
   } else {
     // Preserve unrecognized pairs as raw values so callers can inspect them.
     return deepFrozen({
@@ -143,21 +143,19 @@ export function mapComputerUseStatusResponse(
     })
   }
 
-  throw invalid(INVALID_STATUS_RESPONSE)
+  throw invalid(INVALID_STATUS_RESPONSE, `cause must be absent when status is '${status}' and desktop is '${desktop}'`)
 }
 
 export function mapComputerUseRestartResponse(
   response: unknown,
 ): ComputerUseRestartResponse {
-  if (!isPlainObject(response)) {
-    throw invalid(INVALID_RESTART_RESPONSE)
-  }
+  if (!isPlainObject(response)) throw invalid(INVALID_RESTART_RESPONSE, 'the body must be an object')
 
   const { message, status, desktop, ...extraFields } = response
 
-  if (typeof message !== 'string' || status !== 'active' || desktop !== 'ready') {
-    throw invalid(INVALID_RESTART_RESPONSE)
-  }
+  if (typeof message !== 'string') throw invalid(INVALID_RESTART_RESPONSE, 'message must be a string')
+  if (status !== 'active') throw invalid(INVALID_RESTART_RESPONSE, "status must be 'active'")
+  if (desktop !== 'ready') throw invalid(INVALID_RESTART_RESPONSE, "desktop must be 'ready'")
 
   const mapped: Mutable<ComputerUseRestartResponse> = { message, status, desktop }
   if (Object.keys(extraFields).length > 0) {

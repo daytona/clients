@@ -22,9 +22,12 @@ export function refuseDotSegment(value: string, name: string): void {
  * (`encodeURIComponent` would throw a `URIError`), so it is refused too, as
  * Python's `toolbox_path_id` does. In a JavaScript string that is an unpaired
  * UTF-16 surrogate: a paired one is an astral character, which is kept.
+ * Anything but a string (a number from plain JavaScript) is refused first,
+ * as in Python.
  * @internal
  */
 export function toolboxPathId(value: string, name: string): string {
+  if (typeof value !== 'string') throw badRequest(`${name} must be a string`)
   refuseDotSegment(value, name)
   if (hasLoneSurrogate(value)) throw badRequest(`${name} must not contain a surrogate code point`)
   return strictUriEncode(value)

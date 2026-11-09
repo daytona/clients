@@ -43,6 +43,7 @@ from daytona.v2 import (
     InterpreterProcess,
     InterpreterResult,
     ListResult,
+    LogFrame,
     NameConflictError,
     ProcessResult,
     ReplaceResult,
@@ -110,7 +111,9 @@ class FakeWorld:
         volume.create.side_effect = lambda *, name, size_gib=None: SimpleNamespace(
             id=f"vol-{name}", name=name, status="ready"
         )
-        volume.delete.side_effect = lambda volume_id, **_: self.deleted_volumes.append(volume_id)
+        volume.delete.side_effect = lambda volume_id, **_: self.deleted_volumes.append(
+            volume_id
+        )
         client.volume = volume
 
         images = create_autospec(ImageService, instance=True)
@@ -125,10 +128,18 @@ class FakeWorld:
         return client
 
     def add_image(
-        self, name: str, status: str, waits: tuple[str, ...] = ("ready",), error: Optional[str] = None
+        self,
+        name: str,
+        status: str,
+        waits: tuple[str, ...] = ("ready",),
+        error: Optional[str] = None,
     ) -> SimpleNamespace:
         image = SimpleNamespace(
-            id=f"img-{next(self.image_ids)}", name=name, status=status, waits=list(waits), error=error
+            id=f"img-{next(self.image_ids)}",
+            name=name,
+            status=status,
+            waits=list(waits),
+            error=error,
         )
         self.images.append(image)
         return image
@@ -139,13 +150,19 @@ class FakeWorld:
             image.status = image.waits.pop(0)
         return image
 
-    def _image_pull(self, image: str, *, name: Optional[str] = None, **_: object) -> SimpleNamespace:
+    def _image_pull(
+        self, image: str, *, name: Optional[str] = None, **_: object
+    ) -> SimpleNamespace:
         self.pulled_images.append((image, name))
         if self.pull_conflict and len(self.pulled_images) == 1:
             self.add_image(name or image, "ready")  # Another run registered it first.
-            raise NameConflictError("image name already exists", status_code=409, code="NAME_CONFLICT")
+            raise NameConflictError(
+                "image name already exists", status_code=409, code="NAME_CONFLICT"
+            )
         if self.pull_fails:
-            return self.add_image(name or image, "pending", ("failed",), self.pull_fails)
+            return self.add_image(
+                name or image, "pending", ("failed",), self.pull_fails
+            )
         return self.add_image(name or image, "ready")
 
     def _image_delete(self, image_id: str) -> None:
@@ -156,7 +173,9 @@ class FakeWorld:
         if image is not None and not isinstance(image, str):
             raise TypeError("create() accepts an image name or img_… id string")
         # The API creates only from a project image, never a registry reference.
-        if not any(image in (i.name, i.id) and i.status == "ready" for i in self.images):
+        if not any(
+            image in (i.name, i.id) and i.status == "ready" for i in self.images
+        ):
             raise LookupError(f"image not found: {image}")
         env = kwargs.get("env") or {}
         assert isinstance(env, Mapping)
@@ -166,10 +185,15 @@ class FakeWorld:
             # The API rejects a create that attaches a secret the project lacks.
             if name not in self.secrets:
                 raise LookupError(f"secret {name} not found")
-        sandbox_env = {**env, **{name: "DAYTONA_SECRET_PLACEHOLDER" for name in secrets}}
+        sandbox_env = {
+            **env,
+            **{name: "DAYTONA_SECRET_PLACEHOLDER" for name in secrets},
+        }
         return self._sandbox(str(kwargs.get("name")), sandbox_env, dockerfile="")
 
-    def _create_from_build(self, builder: ImageBuilder, /, **kwargs: object) -> MagicMock:
+    def _create_from_build(
+        self, builder: ImageBuilder, /, **kwargs: object
+    ) -> MagicMock:
         # create_from_build forwards these keywords to create(): hold them to
         # create()'s signature, as the SDK does at run time.
         for key in kwargs:
@@ -178,7 +202,10 @@ class FakeWorld:
         dockerfile = builder.render_dockerfile()
         if self.fail_builds_containing and self.fail_builds_containing in dockerfile:
             raise ImageBuildFailedError(
-                "image build failed", status_code=409, code="IMAGE_BUILD_FAILED", image_id="img_failed"
+                "image build failed",
+                status_code=409,
+                code="IMAGE_BUILD_FAILED",
+                image_id="img_failed",
             )
         return self._sandbox(str(kwargs.get("name")), {}, dockerfile=dockerfile)
 
@@ -195,14 +222,18 @@ class FakeWorld:
         self.secrets.pop(name, None)
         self.deleted_secrets.append(name)
 
-    def _follow_build_logs(self, image_id: str, *, on_logs: Callable[[str], object], **_: object) -> None:
+    def _follow_build_logs(
+        self, image_id: str, *, on_logs: Callable[[str], object], **_: object
+    ) -> None:
         if not self.empty_build_logs:
             on_logs(f"intentional-build-failure-{RUN}\n")
         if self.build_logs_fail_after_output:
             raise ConnectionError("stream interrupted")
 
     # -- sandbox ----------------------------------------------------------
-    def _sandbox(self, name: str, env: Mapping[str, str], *, dockerfile: str) -> MagicMock:
+    def _sandbox(
+        self, name: str, env: Mapping[str, str], *, dockerfile: str
+    ) -> MagicMock:
         sandbox: MagicMock = create_autospec(Sandbox, instance=True)
         sandbox.id = f"sbx-{len(self.sandboxes)}"
         sandbox.name = name
@@ -212,7 +243,9 @@ class FakeWorld:
         files: dict[str, bytes] = {}
 
         process = create_autospec(ProcessService, instance=True)
-        process.run.side_effect = lambda command=None, **_: self._run(str(command), env, dockerfile)
+        process.run.side_effect = lambda command=None, **_: self._run(
+            str(command), env, dockerfile
+        )
         sandbox.process = process
 
         interpreter = create_autospec(InterpreterService, instance=True)
@@ -220,13 +253,19 @@ class FakeWorld:
         sandbox.interpreter = interpreter
 
         fs = create_autospec(FileSystemService, instance=True)
-        fs.write_bytes.side_effect = lambda path, data, **_: files.__setitem__(path, data)
+        fs.write_bytes.side_effect = lambda path, data, **_: files.__setitem__(
+            path, data
+        )
         fs.read_bytes.side_effect = lambda path, **_: files[path]
 
-        def replace(paths: list[str], pattern: str, new_value: str, **_: object) -> ListResult[ReplaceResult]:
+        def replace(
+            paths: list[str], pattern: str, new_value: str, **_: object
+        ) -> ListResult[ReplaceResult]:
             for path in paths:
                 files[path] = files[path].decode().replace(pattern, new_value).encode()
-            return ListResult(items=[ReplaceResult(file=path, success=True) for path in paths])
+            return ListResult(
+                items=[ReplaceResult(file=path, success=True) for path in paths]
+            )
 
         fs.replace.side_effect = replace
         fs.list.return_value = ListResult(items=[])
@@ -236,17 +275,23 @@ class FakeWorld:
         git = create_autospec(GitService, instance=True)
         git.commit.return_value = GitCommitResponse(hash="abc1234")
         git.status.return_value = GitStatus(
-            current_branch="master", ahead=0, behind=0, branch_published=False, file_status=[]
+            current_branch="master",
+            ahead=0,
+            behind=0,
+            branch_published=False,
+            file_status=[],
         )
         git.list_branches.return_value = ListResult(items=["master"])
         sandbox.git = git
 
-        sandbox.build_logs.return_value = 'STEP 2: the marker\n'
+        sandbox.build_logs.return_value = "STEP 2: the marker\n"
         sandbox.delete.side_effect = lambda **_: self._delete(sandbox)
         self.sandboxes.append(sandbox)
         return sandbox
 
-    def _run(self, command: str, env: Mapping[str, str], dockerfile: str) -> ProcessResult:
+    def _run(
+        self, command: str, env: Mapping[str, str], dockerfile: str
+    ) -> ProcessResult:
         for pattern, exit_code, output in self.overrides:
             if re.search(pattern, command):
                 return _result(exit_code, output)
@@ -261,19 +306,38 @@ class FakeWorld:
 
     def _interpret(self, code: str) -> InterpreterResult:
         return InterpreterResult(
-            process=InterpreterProcess(process_id="p", exit_code=self.interpreter_exit_code, reason="exited"),
+            process=InterpreterProcess(
+                process_id="p", exit_code=self.interpreter_exit_code, reason="exited"
+            ),
             logs=InterpreterLogs(stdout="Hello World from code!\n"),
             error=self.interpreter_error,
         )
 
 
 def _result(exit_code: int, output: str) -> ProcessResult:
-    return ProcessResult(process_id="p", exit_code=exit_code, reason="exited", stdout=output, output=output)
+    # Non-empty output is one stdout log frame, as the sandbox reports it.
+    logs = (
+        [LogFrame(cursor="1", channel="stdout", data=output, timestamp_ms=0)]
+        if output
+        else []
+    )
+    return ProcessResult(
+        process_id="p",
+        exit_code=exit_code,
+        reason="exited",
+        stdout=output,
+        output=output,
+        logs=logs,
+    )
 
 
 @pytest.fixture
-def run_example(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[..., tuple[int, FakeWorld]]]:
-    def run(name: str, *overrides: Override, world: Optional[FakeWorld] = None) -> tuple[int, FakeWorld]:
+def run_example(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[Callable[..., tuple[int, FakeWorld]]]:
+    def run(
+        name: str, *overrides: Override, world: Optional[FakeWorld] = None
+    ) -> tuple[int, FakeWorld]:
         world = world or FakeWorld(overrides)
         module: ModuleType = importlib.import_module(name)
         monkeypatch.setattr(module, "client", lambda: world.client)
@@ -304,7 +368,9 @@ DOCKERFILE_SANDBOX_OK: tuple[Override, ...] = (
     ],
 )
 def test_example_succeeds_against_the_sdk_surface(
-    run_example: Callable[..., tuple[int, FakeWorld]], name: str, overrides: tuple[Override, ...]
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    name: str,
+    overrides: tuple[Override, ...],
 ) -> None:
     code, world = run_example(name, *overrides)
     assert code == 0
@@ -336,10 +402,13 @@ def test_fails_rather_than_hangs_on_a_registration_that_never_finishes(
 
 
 @pytest.mark.parametrize(
-    ("status", "waits"), [("ready", ()), ("pending", ("ready",)), ("pending", ("building", "ready"))]
+    ("status", "waits"),
+    [("ready", ()), ("pending", ("ready",)), ("pending", ("building", "ready"))],
 )
 def test_reuses_a_registered_image(
-    run_example: Callable[..., tuple[int, FakeWorld]], status: str, waits: tuple[str, ...]
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    status: str,
+    waits: tuple[str, ...],
 ) -> None:
     world = FakeWorld()
     world.add_image(IMAGE_NAME, status, waits)
@@ -348,9 +417,13 @@ def test_reuses_a_registered_image(
     assert world.pulled_images == []
 
 
-@pytest.mark.parametrize(("status", "waits"), [("failed", ()), ("pending", ("failed",))])
+@pytest.mark.parametrize(
+    ("status", "waits"), [("failed", ()), ("pending", ("failed",))]
+)
 def test_registers_again_over_a_failed_registration(
-    run_example: Callable[..., tuple[int, FakeWorld]], status: str, waits: tuple[str, ...]
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    status: str,
+    waits: tuple[str, ...],
 ) -> None:
     world = FakeWorld()
     world.add_image(IMAGE_NAME, status, waits)
@@ -400,14 +473,26 @@ def test_build_logs_reads_the_failed_build_through_the_error_image_id(
 @pytest.mark.parametrize(
     ("name", "override", "reported"),
     [
-        ("exec_command", (r"Hello World from CMD", 1, ""), r"FAIL.* command failed \(exit=1\)"),
-        ("lifecycle", (r"Hello World from run", 2, ""), r"FAIL.* run failed \(exit=2\)"),
+        (
+            "exec_command",
+            (r"Hello World from CMD", 1, ""),
+            r"FAIL.* command failed \(exit=1\)",
+        ),
+        (
+            "lifecycle",
+            (r"Hello World from run", 2, ""),
+            r"FAIL.* run failed \(exit=2\)",
+        ),
         (
             "file_operations",
             (r"script\.sh$", 127, "not found"),
             r"FAIL.* the uploaded script failed \(exit=127\)",
         ),
-        ("git_ops", (r"command -v git", 100, "apt failed"), r"FAIL.* could not ensure git: apt failed"),
+        (
+            "git_ops",
+            (r"command -v git", 100, "apt failed"),
+            r"FAIL.* could not ensure git: apt failed",
+        ),
     ],
 )
 def test_failed_command_fails_the_example(
@@ -427,7 +512,11 @@ def test_failed_command_fails_the_example(
     ("exit_code", "error", "reported"),
     [
         (1, None, r"FAIL.* code failed \(exit=1, error=None\)"),
-        (0, InterpreterError(name="NameError", value="x"), r"FAIL.* code failed \(exit=0, error=.*NameError"),
+        (
+            0,
+            InterpreterError(name="NameError", value="x"),
+            r"FAIL.* code failed \(exit=0, error=.*NameError",
+        ),
     ],
 )
 def test_failed_interpreter_run_fails_exec_command(
@@ -446,7 +535,8 @@ def test_failed_interpreter_run_fails_exec_command(
 
 
 def test_build_logs_does_not_pass_partial_output_after_a_read_error(
-    run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     world = FakeWorld()
     world.fail_builds_containing = "intentional-build-failure-"
@@ -459,7 +549,8 @@ def test_build_logs_does_not_pass_partial_output_after_a_read_error(
 
 
 def test_build_logs_fails_when_the_failed_build_log_is_empty(
-    run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     world = FakeWorld()
     world.fail_builds_containing = "intentional-build-failure-"
@@ -527,13 +618,17 @@ def test_secrets_env_failed_check_exits_non_zero(
 
 
 def test_secrets_env_fails_when_it_cannot_delete_its_secret(
-    run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     world = FakeWorld()
     world.client.secret.delete.side_effect = RuntimeError("delete failed")
     code, _ = run_example("secrets_env", world=world)
     assert code == 1
-    assert re.search(r"FAIL.* delete secret EXAMPLE_API_KEY_\w+ failed: delete failed", capsys.readouterr().out)
+    assert re.search(
+        r"FAIL.* delete secret EXAMPLE_API_KEY_\w+ failed: delete failed",
+        capsys.readouterr().out,
+    )
 
 
 def test_secrets_env_deletes_its_secret_when_listing_fails(
@@ -547,13 +642,16 @@ def test_secrets_env_deletes_its_secret_when_listing_fails(
 
 
 def test_secrets_env_fails_when_it_cannot_delete_its_sandbox(
-    run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     world = FakeWorld()
     world.client.delete.side_effect = RuntimeError("delete failed")
     code, _ = run_example("secrets_env", world=world)
     assert code == 1
-    assert re.search(r"FAIL.* delete sandbox sbx-0 failed: delete failed", capsys.readouterr().out)
+    assert re.search(
+        r"FAIL.* delete sandbox sbx-0 failed: delete failed", capsys.readouterr().out
+    )
     assert world.deleted_secrets == [f"EXAMPLE_API_KEY_{RUN.upper()}"]
 
 
@@ -570,11 +668,17 @@ def test_secrets_env_leaves_secrets_it_did_not_create(
 # -- volumes_share ----------------------------------------------------------
 
 
-def _patch_volumes_share(monkeypatch: pytest.MonkeyPatch, world: FakeWorld) -> ModuleType:
+def _patch_volumes_share(
+    monkeypatch: pytest.MonkeyPatch, world: FakeWorld
+) -> ModuleType:
     import volumes_share
 
-    monkeypatch.setattr(volumes_share, "Daytona", lambda config: SimpleNamespace(v2=world.client))
-    monkeypatch.setattr(volumes_share, "time", SimpleNamespace(sleep=lambda seconds: None))
+    monkeypatch.setattr(
+        volumes_share, "Daytona", lambda config: SimpleNamespace(v2=world.client)
+    )
+    monkeypatch.setattr(
+        volumes_share, "time", SimpleNamespace(sleep=lambda seconds: None)
+    )
     # DAYTONA_KEEP in the caller's shell would skip the cleanup under test.
     monkeypatch.setattr(volumes_share, "KEEP", False)
     return volumes_share
@@ -606,10 +710,14 @@ def test_volumes_share_round_trip_succeeds(monkeypatch: pytest.MonkeyPatch) -> N
     assert len(world.deleted_volumes) == 1
 
 
-def test_volumes_share_reports_a_failed_write_at_its_source(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_volumes_share_reports_a_failed_write_at_its_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     world = FakeWorld(((r"> /data/message\.txt", 1, "read-only file system"),))
     volumes_share = _patch_volumes_share(monkeypatch, world)
-    with pytest.raises(RuntimeError, match=r"/data/message\.txt.*exit=1.*read-only file system"):
+    with pytest.raises(
+        RuntimeError, match=r"/data/message\.txt.*exit=1.*read-only file system"
+    ):
         volumes_share.main()
     assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
     assert len(world.deleted_volumes) == 1
@@ -623,3 +731,10 @@ def test_volumes_share_reports_a_failed_read_instead_of_a_partial_result(
     with pytest.raises(RuntimeError, match=r"failed \(exit=1\): Input/output error"):
         volumes_share.main()
     assert len(world.deleted_volumes) == 1
+
+
+def test_the_test_double_reports_a_commands_output_as_a_stdout_log_frame() -> None:
+    assert [(frame.channel, frame.data) for frame in _result(0, "out").logs] == [
+        ("stdout", "out")
+    ]
+    assert _result(0, "").logs == []

@@ -272,7 +272,10 @@ def toolbox_path_id(value: str, name: str) -> str:
     :func:`refuse_dot_segment`). A surrogate code point has no UTF-8 form, so
     it is refused too, as TypeScript's ``toolboxPathId`` does. A Python string
     holds code points, so two surrogate code points are no astral character
-    and are refused as well; astral characters are kept."""
+    and are refused as well; astral characters are kept. Anything but a string
+    is refused first, as in TypeScript."""
+    if not isinstance(value, str):
+        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
     refuse_dot_segment(value, name)
     if any("\ud800" <= char <= "\udfff" for char in value):
         raise create_error(f"{name} must not contain a surrogate code point", 400, "BAD_REQUEST", "SDK")

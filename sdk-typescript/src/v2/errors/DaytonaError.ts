@@ -284,7 +284,7 @@ export class ConflictError extends DaytonaError {}
 export class DockerWaitTimeoutError extends RequestTimeoutError {
   public readonly status?: DockerStatus
 
-  constructor(status: DockerStatus | undefined) {
+  constructor(status?: DockerStatus) {
     super(`docker did not become ready within the requested timeout${status ? ` (last state: ${status.rawState || status.state})` : ''}`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     this.status = status
   }

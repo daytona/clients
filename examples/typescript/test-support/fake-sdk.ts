@@ -75,9 +75,11 @@ const newImage = (name: string, status: string, waits: string[] = ['ready'], err
 const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(name, status, waits))
 const volumeLines: string[] = []
 
-// Every field the SDK's ProcessResult requires, so an example reading any of them sees a real shape.
+// Every field the SDK's ProcessResult requires, so an example reading any of them sees a real shape:
+// non-empty output is one stdout log frame, as the sandbox reports it.
 const result = (exitCode: number, output: string) => ({
-  processId: 'p', reason: 'exited' as const, exitCode, output, stdout: output, stderr: '', logs: [],
+  processId: 'p', reason: 'exited' as const, exitCode, output, stdout: output, stderr: '',
+  logs: output === '' ? [] : [{ cursor: '1', channel: 'stdout', data: output, timestampMs: 0 }],
 })
 
 function run(command: string, env: { [name: string]: string }, dockerfile: string) {

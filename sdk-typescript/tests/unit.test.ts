@@ -11498,7 +11498,7 @@ function directSandbox(toolboxUrl: string): Sandbox {
   return lazySandbox(client, 'sdkts', { toolboxUrl })
 }
 
-function expectSdkProtocolError(action: () => unknown, message: string): void {
+function expectSdkProtocolError(action: () => unknown, message: string | RegExp): void {
   let thrown: unknown
   try {
     action()
@@ -11508,7 +11508,7 @@ function expectSdkProtocolError(action: () => unknown, message: string): void {
 
   expect(thrown).toBeInstanceOf(BadRequestError)
   expect(thrown).toMatchObject({
-    message,
+    message: typeof message === 'string' ? message : expect.stringMatching(message),
     statusCode: 400,
     code: 'BAD_REQUEST',
     source: 'SDK',
@@ -11687,9 +11687,48 @@ describe('computer-use namespace', () => {
     })
   })
 
+  // Shared with the Python SDK's test_desktop.py: each malformed status or
+  // restart response names its field, with the same message in both SDKs.
+  it.each([
+    [undefined, 'the body must be an object'],
+    [[], 'the body must be an object'],
+    ['inactive', 'the body must be an object'],
+    [{ desktop: 'ready' }, 'status must be a string'],
+    [{ status: 123, desktop: 'ready' }, 'status must be a string'],
+    [{ status: 'active' }, 'desktop must be a string'],
+    [{ status: 'active', desktop: true }, 'desktop must be a string'],
+    [{ status: 'inactive', desktop: 'rebooting', cause: 'crashed' }, 'cause must be null or an object'],
+    [{ status: 'inactive', desktop: 'failed', cause: [] }, 'cause must be null or an object'],
+    [{ status: 'inactive', desktop: 'failed', cause: { message: 'm' } }, 'cause.code must be a string'],
+    [{ status: 'inactive', desktop: 'rebooting', cause: { code: 123, message: 'x' } }, 'cause.code must be a string'],
+    [{ status: 'inactive', desktop: 'failed', cause: { code: 'addon_crashed' } }, 'cause.message must be a string'],
+    [{ status: 'inactive', desktop: 'failed', cause: { code: 'c', message: 456 } }, 'cause.message must be a string'],
+    [{ status: 'inactive', desktop: 'failed' }, "cause is required when status is 'inactive' and desktop is 'failed'"],
+    [{ status: 'inactive', desktop: 'failed', cause: null }, "cause is required when status is 'inactive' and desktop is 'failed'"],
+    [{ status: 'active', desktop: 'ready', cause: { code: 'desktop_exited', message: 'm' } }, "cause must be absent when status is 'active' and desktop is 'ready'"],
+    [{ status: 'inactive', desktop: 'starting', cause: { code: 'desktop_exited', message: 'm' } }, "cause must be absent when status is 'inactive' and desktop is 'starting'"],
+  ] as const)('names the malformed field of status response %p', (payload, detail) => {
+    expectSdkProtocolError(() => mapComputerUseStatusResponse(payload), `Invalid computer-use status response: ${detail}`)
+  })
+
+  it.each([
+    [undefined, 'the body must be an object'],
+    [[], 'the body must be an object'],
+    [{ status: 'active', desktop: 'ready' }, 'message must be a string'],
+    [{ message: 123, status: 'active', desktop: 'ready' }, 'message must be a string'],
+    [{ message: 'm', desktop: 'ready' }, "status must be 'active'"],
+    [{ message: 'm', status: 'inactive', desktop: 'ready' }, "status must be 'active'"],
+    [{ message: 'm', status: 123, desktop: 'ready' }, "status must be 'active'"],
+    [{ message: 'm', status: 'active' }, "desktop must be 'ready'"],
+    [{ message: 'm', status: 'active', desktop: 'starting' }, "desktop must be 'ready'"],
+    [{ message: 'm', status: 'active', desktop: true }, "desktop must be 'ready'"],
+  ] as const)('names the malformed field of restart response %p', (payload, detail) => {
+    expectSdkProtocolError(() => mapComputerUseRestartResponse(payload), `Invalid computer-use restart response: ${detail}`)
+  })
+
   it('rejects non-object status payloads and non-string required fields', () => {
     const expectedError =
-      'Invalid computer-use status response: expected string status and desktop, where inactive/not_started-or-starting and active/ready carry no cause, inactive/failed carries a cause, and any cause is a plain object containing string code and message'
+      /^Invalid computer-use status response: /
     const invalidPayloads: unknown[] = [
       undefined,
       null,
@@ -11712,7 +11751,7 @@ describe('computer-use namespace', () => {
 
   it('rejects null and malformed failed causes with one stable error', () => {
     const expectedError =
-      'Invalid computer-use status response: expected string status and desktop, where inactive/not_started-or-starting and active/ready carry no cause, inactive/failed carries a cause, and any cause is a plain object containing string code and message'
+      /^Invalid computer-use status response: /
     const invalidCauses: unknown[] = [
       null,
       [],
@@ -11740,7 +11779,7 @@ describe('computer-use namespace', () => {
 
   it('rejects malformed desktop restart payloads with one stable error', () => {
     const expectedError =
-      'Invalid computer-use restart response: expected a plain object with string message, status="active", and desktop="ready"'
+      /^Invalid computer-use restart response: /
     const invalidPayloads: unknown[] = [
       undefined,
       null,
@@ -11762,7 +11801,7 @@ describe('computer-use namespace', () => {
 
   it('rejects a cause that contradicts a recognized desktop lifetime pair', () => {
     const expectedInvariant =
-      'Invalid computer-use status response: expected string status and desktop, where inactive/not_started-or-starting and active/ready carry no cause, inactive/failed carries a cause, and any cause is a plain object containing string code and message'
+      /^Invalid computer-use status response: /
 
     expectSdkProtocolError(
       () =>
@@ -11860,7 +11899,7 @@ describe('computer-use namespace', () => {
 
   it('still rejects a malformed cause on an unrecognized desktop lifetime pair', () => {
     const expectedInvariant =
-      'Invalid computer-use status response: expected string status and desktop, where inactive/not_started-or-starting and active/ready carry no cause, inactive/failed carries a cause, and any cause is a plain object containing string code and message'
+      /^Invalid computer-use status response: /
 
     for (const cause of [[], 42, 'crashed', {}, { code: 42, message: 'x' }]) {
       expectSdkProtocolError(
@@ -12407,6 +12446,14 @@ describe('toolbox surface', () => {
     const transport = transportStub()
     await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get(bad)).rejects.toMatchObject({ message: 'process id must not contain a surrogate code point', code: 'BAD_REQUEST' })
     await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).recording.get(bad)).rejects.toMatchObject({ message: 'recording id must not contain a surrogate code point', code: 'BAD_REQUEST' })
+    expect(transport.get).not.toHaveBeenCalled()
+  })
+
+  // Shared with the Python SDK: an id that is not a string is no path id.
+  it.each([5, null, undefined])('refuses a path id that is not a string (%p) before any request', async (bad) => {
+    const transport = transportStub()
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get(bad as never)).rejects.toMatchObject({ message: 'process id must be a string', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).recording.get(bad as never)).rejects.toMatchObject({ message: 'recording id must be a string', code: 'BAD_REQUEST' })
     expect(transport.get).not.toHaveBeenCalled()
   })
 

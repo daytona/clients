@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from ._core import RequestSpec, TransportPayload, expect_object
+from ._core import RequestSpec, TransportPayload
 from ._transport import AsyncTransport
 from .computer_use_core import (
     expect_computer_use_lifecycle_response,
@@ -39,9 +39,7 @@ class AsyncComputerUseService:
         self.recording = AsyncRecordingService(_transport)
 
     async def status(self) -> ComputerUseStatusResponse:
-        return parse_computer_use_status(
-            expect_object(await self._send(RequestSpec("GET", "/computeruse/status")))
-        )
+        return parse_computer_use_status(await self._send(RequestSpec("GET", "/computeruse/status")))
 
     async def start(self) -> ComputerUseLifecycleResult:
         return parse_computer_use_lifecycle(
@@ -56,9 +54,7 @@ class AsyncComputerUseService:
         )
 
     async def restart(self) -> ComputerUseRestartResponse:
-        return parse_computer_use_restart(
-            expect_object(await self._send(RequestSpec("POST", "/computeruse/restart")))
-        )
+        return parse_computer_use_restart(await self._send(RequestSpec("POST", "/computeruse/restart")))
 
     async def _send(self, spec: RequestSpec) -> TransportPayload:
         return await self._transport.send(spec)

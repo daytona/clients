@@ -209,6 +209,11 @@ describe('error constructor options', () => {
     expect(new v2.BuildLogInterruptedError('x', Object.create({ cursor: 'c-1' }) as never)).toMatchObject({ cursor: 'c-1', code: 'BUILD_LOG_INTERRUPTED' })
   })
 
+  it('documents the optional arguments of the specialised constructors as optional', () => {
+    expect(new v2.DockerWaitTimeoutError()).toMatchObject({ statusCode: 408, message: 'docker did not become ready within the requested timeout' })
+    expect(new v2.SandboxTerminalStateError('sbx', 'destroyed')).toMatchObject({ state: 'destroyed', statusCode: 409 })
+  })
+
   it('SandboxTerminalStateError takes rawState as an option, like Python raw_state=', () => {
     const error = new v2.SandboxTerminalStateError('sbx', 'destroyed', { rawState: 'deleted' })
     expect(error).toMatchObject({ state: 'destroyed', rawState: 'deleted', statusCode: 409, code: 'CONFLICT', source: 'SDK' })

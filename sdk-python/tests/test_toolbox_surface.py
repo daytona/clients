@@ -2650,6 +2650,27 @@ async def test_a_surrogate_code_point_is_refused_as_a_path_id(bad: str) -> None:
     assert transport.specs == []
 
 
+# Shared with the TypeScript SDK's unit.test.ts: an id that is not a string
+# is no path id.
+@pytest.mark.anyio
+@pytest.mark.parametrize("bad", [5, None, b"p"])
+async def test_a_path_id_that_is_not_a_string_is_refused(bad: object) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    transport = Transport()
+    with pytest.raises(BadRequestError) as info:
+        await AsyncProcessService("sbx", transport).get(bad)  # type: ignore[arg-type]
+    assert (str(info.value), info.value.status_code, info.value.code, info.value.source) == (
+        "process id must be a string",
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
+    with pytest.raises(BadRequestError, match="^recording id must be a string$"):
+        await AsyncComputerUseService(transport).recording.get(bad)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
 @pytest.mark.anyio
 async def test_an_astral_character_in_a_path_id_is_percent_encoded() -> None:
     transport = Transport([_process(id="p\U0001f600")])

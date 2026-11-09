@@ -336,24 +336,45 @@ def expect_computer_use_restart_response(value: TransportPayload) -> ComputerUse
     )
 
 
-def _status_model(
-    payload: ComputerUseStatusResponse | Mapping[str, JsonValue],
-) -> ComputerUseStatusResponse:
+_INVALID_STATUS: Final = "Invalid computer-use status response"
+_INVALID_RESTART: Final = "Invalid computer-use restart response"
+
+
+def _invalid(prefix: str, detail: str) -> DaytonaError:
+    """A malformed status or restart response, naming the field (the
+    TypeScript SDK's messages for the same body)."""
+    return create_error(f"{prefix}: {detail}", 400, "BAD_REQUEST", "SDK")
+
+
+def _check_status_fields(payload: object) -> Mapping[str, object]:
+    """The raw fields the status parser reads, each checked by name."""
+    if not isinstance(payload, Mapping):
+        raise _invalid(_INVALID_STATUS, "the body must be an object")
+    for field in ("status", "desktop"):
+        if not isinstance(payload.get(field), str):
+            raise _invalid(_INVALID_STATUS, f"{field} must be a string")
+    cause = payload.get("cause")
+    if cause is not None:
+        if not isinstance(cause, Mapping):
+            raise _invalid(_INVALID_STATUS, "cause must be null or an object")
+        for field in ("code", "message"):
+            if not isinstance(cause.get(field), str):
+                raise _invalid(_INVALID_STATUS, f"cause.{field} must be a string")
+    return payload
+
+
+def _status_model(payload: object) -> ComputerUseStatusResponse:
     if isinstance(payload, ComputerUseStatusResponse):
         return payload
+    fields = _check_status_fields(payload)
     try:
-        return expect_computer_use_status_response(dict(payload))
+        return expect_computer_use_status_response(dict(fields))
     except DaytonaError as exc:
-        raise create_error(
-            f"Invalid computer-use status response: {exc.message}",
-            400,
-            "BAD_REQUEST",
-            "SDK",
-        ) from exc
+        raise _invalid(_INVALID_STATUS, exc.message) from exc
 
 
 def parse_computer_use_status(
-    payload: ComputerUseStatusResponse | Mapping[str, JsonValue],
+    payload: ComputerUseStatusResponse | Mapping[str, JsonValue] | object,
 ) -> ComputerUseStatusResponseInfo:
     model = _status_model(payload)
     status = enum_str(model.status)
@@ -377,6 +398,7 @@ def parse_computer_use_status(
                 cause=_parse_computer_use_desktop_failure(model.cause),
                 extra_fields=extra_fields,
             )
+        raise _invalid(_INVALID_STATUS, "cause is required when status is 'inactive' and desktop is 'failed'")
     else:
         # A pair this SDK release does not list. Reading it as "unknown" keeps the raw values
         # and lets a deployed client survive a vocabulary the server grew.
@@ -386,45 +408,33 @@ def parse_computer_use_status(
             cause=_parse_computer_use_desktop_failure(model.cause) if model.cause is not None else None,
             extra_fields=extra_fields,
         )
-
-    cause_state = "absent" if model.cause is None else "present"
-    raise create_error(
-        "Invalid computer-use status response: "
-        f"received status={status!r}, desktop={desktop!r}, cause={cause_state}; "
-        "expected inactive/not_started or inactive/starting without cause, "
-        "active/ready without cause, or inactive/failed with a well-formed cause",
-        400,
-        "BAD_REQUEST",
-        "SDK",
+    raise _invalid(
+        _INVALID_STATUS, f"cause must be absent when status is '{status}' and desktop is '{desktop}'"
     )
 
 
 def parse_computer_use_restart(
-    payload: ComputerUseRestartResponse | Mapping[str, JsonValue],
+    payload: ComputerUseRestartResponse | Mapping[str, JsonValue] | object,
 ) -> ComputerUseRestartResponseInfo:
     if isinstance(payload, ComputerUseRestartResponse):
         model = payload
     else:
+        if not isinstance(payload, Mapping):
+            raise _invalid(_INVALID_RESTART, "the body must be an object")
+        if not isinstance(payload.get("message"), str):
+            raise _invalid(_INVALID_RESTART, "message must be a string")
+        if payload.get("status") != "active":
+            raise _invalid(_INVALID_RESTART, "status must be 'active'")
+        if payload.get("desktop") != "ready":
+            raise _invalid(_INVALID_RESTART, "desktop must be 'ready'")
         try:
             model = expect_computer_use_restart_response(dict(payload))
         except DaytonaError as exc:
-            raise create_error(
-                f"Invalid computer-use restart response: {exc.message}",
-                400,
-                "BAD_REQUEST",
-                "SDK",
-            ) from exc
-    status = enum_str(model.status)
-    desktop = enum_str(model.desktop)
-    if status != "active" or desktop != "ready":
-        raise create_error(
-            "Invalid computer-use restart response: "
-            f"received message={model.message!r}, status={status!r}, desktop={desktop!r}; "
-            "expected a string message with status='active' and desktop='ready'",
-            400,
-            "BAD_REQUEST",
-            "SDK",
-        )
+            raise _invalid(_INVALID_RESTART, exc.message) from exc
+    if enum_str(model.status) != "active":
+        raise _invalid(_INVALID_RESTART, "status must be 'active'")
+    if enum_str(model.desktop) != "ready":
+        raise _invalid(_INVALID_RESTART, "desktop must be 'ready'")
     return ComputerUseRestartResponseInfo(
         message=model.message,
         extra_fields=_additional_json_fields(model.additional_properties),
