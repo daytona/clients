@@ -101,6 +101,15 @@ expect fail "0.x cannot take latest above 2.1.0" "@daytona/sdk@2.1.0 is already 
 publish @daytona/sdk 0.227.0 0.227.0 2.0.0-alpha.4 2.0.0-rc.1
 expect pass "2.x prereleases alone do not block a 0.x latest" "" check 0.228.0
 
+# A re-run after a partial publish: a package already at the version passes,
+# one with a higher stable version still blocks.
+publish @daytona/sdk 0.227.0 0.226.0 0.227.0
+publish @daytona/api-client 0.228.0 0.227.0 0.228.0
+expect pass "a re-run passes when some packages already have the version" \
+  "@daytona/api-client@0.228.0 is already published and no stable version is above it" check 0.228.0
+publish @daytona/api-client 0.229.0 0.228.0 0.229.0
+expect fail "a published higher version still blocks a re-run" "@daytona/api-client@0.229.0 is already published" check 0.228.0
+
 # Registry failures fail closed.
 rm "${work}/registry/_daytona_sdk.versions"
 expect fail "an unreadable registry fails closed" "Could not read the published versions of @daytona/sdk" check 0.228.0

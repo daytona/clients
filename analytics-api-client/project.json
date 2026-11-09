@@ -45,7 +45,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}/dist/analytics-api-client",
-        "command": "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/",
+        "command": "bash ../../hack/npm-publish.sh",
         "parallel": false
       },
       "dependsOn": ["build"]
