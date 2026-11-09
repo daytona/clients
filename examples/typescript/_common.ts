@@ -20,7 +20,11 @@ export const IMAGE = process.env.DAYTONA_IMAGE ?? 'python:3.12-slim'
  * digest of the full reference keeps distinct references apart (the readable
  * part folds ':', '/' and '.' together).
  */
-export const IMAGE_NAME = `examples-${IMAGE.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)}-${createHash('sha256').update(IMAGE).digest('hex').slice(0, 8)}`
+export function imageName(ref: string): string {
+  const readable = ref.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)
+  return `examples-${readable}-${createHash('sha256').update(ref).digest('hex').slice(0, 8)}`
+}
+export const IMAGE_NAME = imageName(IMAGE)
 /** Server waits for a registering image (each returns after at most about 30 s). */
 const IMAGE_WAITS = 40
 // A CSPRNG, not Math.random(): the secrets example derives a demo secret
@@ -75,7 +79,7 @@ export async function sandboxImage(daytona: DaytonaV2Client): Promise<string> {
     if (image === undefined) {
       info(`registering ${IMAGE} as image ${IMAGE_NAME}`)
       try {
-        image = await daytona.images.pull(IMAGE, { name: IMAGE_NAME })
+        image = await daytona.images.pull(IMAGE, { name: IMAGE_NAME, wait: false })
       } catch (error) {
         if (error instanceof NameConflictError) continue // Another run registered it first: use that one.
         throw error

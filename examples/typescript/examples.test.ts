@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { IMAGE, IMAGE_NAME } from './_common.js'
+import { IMAGE, IMAGE_NAME, imageName } from './_common.js'
 import type { Record, Scenario } from './test-support/fake-sdk.js'
 
 const EXAMPLES = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -80,6 +80,15 @@ test('registers the image once when the project lacks it', () => {
 
 test('names distinct image references apart', () => {
   assert.match(IMAGE_NAME, /^examples-[a-z0-9-]+-[0-9a-f]{8}$/)
+  const names = ['foo:bar', 'foo/bar', 'foo.bar'].map(imageName)
+  assert.equal(new Set(names).size, 3, names.join(' '))
+})
+
+test('fails, rather than hangs, on a registration that never finishes', () => {
+  const { code, record, output } = runExample(example('exec-command'), { images: [[IMAGE_NAME, 'pending', []]] })
+  assert.equal(code, 1, output)
+  assert.match(output, new RegExp(`image ${IMAGE_NAME} is still pending`))
+  assert.deepEqual(record.sandboxes, [])
 })
 
 test('reuses a registered image, and waits for one still registering', () => {

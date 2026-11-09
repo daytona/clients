@@ -24,12 +24,13 @@ IMAGE = os.environ.get("DAYTONA_IMAGE", "python:3.12-slim")
 # The project image IMAGE is registered as, shared by every example run. The
 # digest of the full reference keeps distinct references apart (the readable
 # part folds ':', '/' and '.' together).
-IMAGE_NAME = (
-    "examples-"
-    + re.sub(r"[^a-z0-9]+", "-", IMAGE.lower()).strip("-")[:40]
-    + "-"
-    + hashlib.sha256(IMAGE.encode()).hexdigest()[:8]
-)
+def image_name(ref: str) -> str:
+    """The project image name a registry reference is registered as."""
+    readable = re.sub(r"[^a-z0-9]+", "-", ref.lower()).strip("-")[:40]
+    return f"examples-{readable}-{hashlib.sha256(ref.encode()).hexdigest()[:8]}"
+
+
+IMAGE_NAME = image_name(IMAGE)
 RUN = uuid.uuid4().hex[:8]
 # Server waits for a registering image (each returns after at most about 30 s).
 _IMAGE_WAITS = 40
@@ -88,7 +89,7 @@ def sandbox_image(daytona: DaytonaV2Client) -> str:
         if image is None:
             info(f"registering {IMAGE} as image {IMAGE_NAME}")
             try:
-                image = daytona.images.pull(IMAGE, name=IMAGE_NAME)
+                image = daytona.images.pull(IMAGE, name=IMAGE_NAME, wait=False)
             except NameConflictError:
                 continue  # Another run registered it first: use that one.
         # The server's wait returns after a while even when the image is not done.

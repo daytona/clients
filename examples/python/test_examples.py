@@ -31,7 +31,7 @@ import pytest
 EXAMPLES = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(EXAMPLES / "python"), str(EXAMPLES)]
 
-from _common import IMAGE, IMAGE_NAME, RUN
+from _common import IMAGE, IMAGE_NAME, RUN, image_name
 
 from daytona.v2 import (
     ImageBuilder,
@@ -312,6 +312,18 @@ def test_registers_the_image_once_when_the_project_lacks_it(
 
 def test_names_distinct_image_references_apart() -> None:
     assert re.fullmatch(r"examples-[a-z0-9-]+-[0-9a-f]{8}", IMAGE_NAME)
+    names = [image_name(ref) for ref in ("foo:bar", "foo/bar", "foo.bar")]
+    assert len(set(names)) == 3, names
+
+
+def test_fails_rather_than_hangs_on_a_registration_that_never_finishes(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    world = FakeWorld()
+    world.add_image(IMAGE_NAME, "pending", ())
+    with pytest.raises(RuntimeError, match=f"image {IMAGE_NAME} is still pending"):
+        run_example("exec_command", world=world)
+    assert world.sandboxes == []
 
 
 @pytest.mark.parametrize(
