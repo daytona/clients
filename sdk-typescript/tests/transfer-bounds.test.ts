@@ -10,6 +10,7 @@
 import { createServer } from 'node:http'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { once } from 'node:events'
+import { brotliCompressSync, deflateSync, gzipSync } from 'node:zlib'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -487,6 +488,75 @@ describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', 
     } finally {
       for (const client of [tight, roomy, twin, slow]) await client.close()
     }
+  })
+
+  describe('compressed bodies', () => {
+    const CAP = 64 * 1024
+    const encoders = { gzip: gzipSync, deflate: deflateSync, br: brotliCompressSync } as const
+    // 32 MiB of zeros: a few dozen KiB on the wire.
+    const bombs = Object.fromEntries(Object.entries(encoders).map(([name, encode]) => [name, encode(new Uint8Array(32 << 20))])) as Record<keyof typeof encoders, Buffer>
+    const encoded = (payload: Buffer, encoding: string, status = 200): Handler => (request, response) => {
+      request.resume()
+      response.writeHead(status, { 'Content-Type': 'application/octet-stream', 'Content-Encoding': encoding, 'Content-Length': String(payload.byteLength) })
+      response.end(payload)
+    }
+    const originalAdd = BodyBuffer.prototype.add
+    /** The size of every decoded chunk the capped readers buffer or refuse. */
+    const chunkSizes = (): { readonly sizes: number[]; readonly restore: () => void } => {
+      const sizes: number[] = []
+      const spy = jest.spyOn(BodyBuffer.prototype, 'add').mockImplementation(function (this: BodyBuffer, chunk: Uint8Array) {
+        sizes.push(chunk.byteLength)
+        return originalAdd.call(this, chunk)
+      })
+      return { sizes, restore: () => spy.mockRestore() }
+    }
+
+    it.each(['gzip', 'deflate', 'br'] as const)('refuses a %s body that decodes past the cap without decoding much past it', async (encoding) => {
+      expect(bombs[encoding].byteLength).toBeLessThan(CAP)
+      route = encoded(bombs[encoding], encoding)
+      const { client, sandbox } = sandboxFor({ maxResponseBytes: CAP })
+      const seen = chunkSizes()
+      try {
+        expectTooLarge(await rejection(() => sandbox.fs.readBytes('/a')), CAP)
+        // The runtime decodes in bounded chunks (zlib's 16 KiB in Node), each
+        // checked before it is buffered: nothing near the 32 MiB is held.
+        expect(Math.max(...seen.sizes)).toBeLessThanOrEqual(CAP)
+        expect(seen.sizes.slice(0, -1).reduce((total, size) => total + size, 0)).toBeLessThanOrEqual(CAP)
+      } finally {
+        seen.restore()
+        await client.close()
+      }
+    })
+
+    it('reads a compressed body under the cap', async () => {
+      const payload = Buffer.from('daytona '.repeat(50_000))
+      route = encoded(gzipSync(payload), 'gzip')
+      const { client, sandbox } = sandboxFor({ maxResponseBytes: payload.byteLength })
+      try {
+        expect(Buffer.from(await sandbox.fs.readBytes('/a')).equals(payload)).toBe(true)
+        expect(await rejection(() => sandbox.fs.readBytes('/a', { maxResponseBytes: payload.byteLength - 1 }))).toBeInstanceOf(PayloadTooLargeError)
+      } finally {
+        await client.close()
+      }
+    })
+
+    it('keeps the typed error of an error status whose compressed body decodes past the cap', async () => {
+      route = encoded(bombs.gzip, 'gzip', 404)
+      const { client, sandbox } = sandboxFor({ maxResponseBytes: CAP })
+      const transport = new HttpTransport(base, 't', 5_000, { maxResponseBytes: CAP })
+      const seen = chunkSizes()
+      try {
+        for (const call of [() => sandbox.fs.readBytes('/a'), () => transport.fetch('/files/download?path=a')]) {
+          const error = await rejection(call)
+          expect(error).toBeInstanceOf(NotFoundError)
+          expect((error as Error).message).toContain('too large to read')
+        }
+        expect(Math.max(...seen.sizes)).toBeLessThanOrEqual(CAP)
+      } finally {
+        seen.restore()
+        await client.close()
+      }
+    })
   })
 
   it('never caps downloadFile', async () => {
