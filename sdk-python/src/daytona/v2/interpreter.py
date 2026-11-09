@@ -16,9 +16,9 @@ from ._core import (
     expect_object,
     is_json_value,
     loads_json,
+    path_segment,
     refuse_dot_segment,
     timeout_millis_from_seconds,
-    toolbox_path_id,
     wait_budget,
 )
 from ._transport import AsyncTransport
@@ -294,7 +294,7 @@ class AsyncInterpreterService:
             )
         try:
             await self._transport.send(
-                RequestSpec("DELETE", f"/sessions/{toolbox_path_id(context_id, 'interpreter context id')}")
+                RequestSpec("DELETE", f"/sessions/{path_segment(context_id, 'interpreter context id')}")
             )
         except DaytonaError as error:
             if error.code == codes.SESSION_NOT_FOUND:

@@ -40,7 +40,14 @@ from ._body_limit import (
     send_buffered,
     send_buffered_sync,
 )
-from ._core import MultipartPart, RequestSpec, error_from_response, is_json_media_type, parse_json_bytes
+from ._core import (
+    MAX_BOUNDED_TIMEOUT_SECONDS,
+    MultipartPart,
+    RequestSpec,
+    error_from_response,
+    is_json_media_type,
+    parse_json_bytes,
+)
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
@@ -80,7 +87,6 @@ DEFAULT_REQUEST_TIMEOUT_SECONDS: Final = 60.0
 # The largest request or per-call timeout that is still a bound, in seconds
 # (about 24.8 days): the TypeScript SDK's timers cannot arm a longer one, so
 # both SDKs read a larger value as no limit, like 0.
-_MAX_BOUNDED_TIMEOUT_SECONDS: Final = 2_147_483.647
 _RELATIVE_PATH_ERROR = "absolute request URLs are not allowed; pass a relative SDK path"
 
 
@@ -1182,7 +1188,7 @@ def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
 
 def _per_call_seconds(seconds: float) -> float:
     """A per-call timeout as a total bound: ``0`` or above the timer maximum is none."""
-    return 0.0 if seconds <= 0 or seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+    return 0.0 if seconds <= 0 or seconds > MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
 
 
 def _transfer_idle_seconds(timeout: Optional[float], request_timeout_seconds: float) -> float:

@@ -5,6 +5,7 @@
 
 import { BadRequestError, nonOptionsDescription } from './errors/DaytonaError.js'
 import { enumerableSymbolKey } from './symbolKeys.js'
+import type { KeyedObject } from './symbolKeys.js'
 
 /**
  * Runtime validation of the options objects the SDK defines.
@@ -129,11 +130,9 @@ export function isPlainRecord(value: unknown): value is Readonly<Record<string, 
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const prototype: unknown = Object.getPrototypeOf(value)
   if (prototype !== Object.prototype && prototype !== null) return false
-  // No mapping argument has symbol keys: an enumerable one would be dropped
-  // silently (as `enumerableKeys` refuses one on an options object).
-  for (const symbol of Object.getOwnPropertySymbols(value)) {
-    if (Object.prototype.propertyIsEnumerable.call(value, symbol)) return false
-  }
+  // No mapping argument has symbol keys: an own enumerable one would be
+  // dropped silently (as `enumerableKeys` refuses one on an options object).
+  if (enumerableSymbolKey(value as KeyedObject, prototype as KeyedObject | null) !== undefined) return false
   for (const key in value) {
     if (!Object.prototype.hasOwnProperty.call(value, key)) return false
   }
@@ -229,21 +228,31 @@ export function optionalSeconds(name: string, value: number | undefined): number
   return value
 }
 
+/** The contract's int32 ceiling (MiB sizes, ports, terminal sizes). @internal */
+export const MAX_INT32 = 2 ** 31 - 1
+
 /**
  * The largest delay a JavaScript timer can arm: a larger one fires after
  * about 1 ms instead (Node clamps it, browsers overflow).
  */
-export const MAX_TIMER_DELAY_MS = 2_147_483_647
+export const MAX_TIMER_DELAY_MS = MAX_INT32
 
 /**
- * The deadline of a wait budget in seconds, the same rule as Python's
- * `wait_budget_seconds` for every wait of the client, lifecycle and platform
- * services: `undefined` (no deadline) for an omitted budget, `0`, or one above
- * the timer maximum (about 24.8 days); otherwise `now + seconds`.
+ * The deadline of a wait budget in seconds, the one rule for every wait both
+ * SDKs bound (Python's `wait_budget_seconds` and `wait_budget`): `undefined`
+ * (no deadline) for an omitted budget, `0`, or one above the timer maximum
+ * (about 24.8 days); otherwise `now + seconds`. A value that is not a
+ * non-negative finite number is `BadRequestError` naming `name`.
  * @internal
  */
-export function waitDeadline(seconds: number | undefined, now: number = Date.now()): number | undefined {
-  if (seconds === undefined || seconds === 0 || seconds * 1000 > MAX_TIMER_DELAY_MS) return undefined
+export function waitDeadline(seconds: number | undefined, now: number = Date.now(), name = 'timeoutSeconds'): number | undefined {
+  if (seconds === undefined) return undefined
+  // The toolbox's waits pass the caller's value straight through; the others
+  // have checked it with their own message already.
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
+    throw badRequest(`${name} must be a non-negative finite number of seconds`)
+  }
+  if (seconds === 0 || seconds * 1000 > MAX_TIMER_DELAY_MS) return undefined
   return now + seconds * 1000
 }
 

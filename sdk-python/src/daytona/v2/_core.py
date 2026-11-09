@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import base64
-import calendar
 import collections.abc
 import functools
 import json
@@ -77,7 +76,7 @@ from ._gen.toolbox import (
 from ._gen.toolbox import (
     TerminalSize as ToolboxTerminalSize,
 )
-from ._timestamps import parse_optional_timestamp
+from ._timestamps import parse_optional_timestamp, rfc3339_timestamp
 from ._timestamps import parse_timestamp as parse_wire_timestamp
 from .errors import DaytonaError, UnsupportedOperationError, create_error
 from .types import (
@@ -337,21 +336,6 @@ def refuse_dot_segment(value: str, name: str) -> None:
     resolves them away, so the request would reach another route."""
     if value in (".", ".."):
         raise create_error(f"{name} must not be '.' or '..'", 400, "BAD_REQUEST", "SDK")
-
-
-def toolbox_path_id(value: str, name: str) -> str:
-    """A toolbox id or name as one percent-encoded request-path segment (see
-    :func:`refuse_dot_segment`). A surrogate code point has no UTF-8 form, so
-    it is refused too, as TypeScript's ``toolboxPathId`` does. A Python string
-    holds code points, so two surrogate code points are no astral character
-    and are refused as well; astral characters are kept. Anything but a string
-    is refused first, as in TypeScript."""
-    if not isinstance(value, str):
-        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
-    refuse_dot_segment(value, name)
-    if any("\ud800" <= char <= "\udfff" for char in value):
-        raise create_error(f"{name} must not contain a surrogate code point", 400, "BAD_REQUEST", "SDK")
-    return quote(value, safe="")
 
 
 def parse_json_bytes(content: bytes) -> JsonValue:
@@ -1488,7 +1472,7 @@ def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = Fa
     bounded = None if unbounded or timeout is None or timeout == 0 else timeout + WAIT_READ_SLACK_SECONDS
     return RequestSpec(
         "GET",
-        f"/processes/{toolbox_path_id(process_id, 'process id')}/wait",
+        f"/processes/{path_segment(process_id, 'process id')}/wait",
         params=params,
         timeout=bounded,
         unbounded_read=bounded is None,
@@ -1503,14 +1487,14 @@ def int32_field(
     with TypeScript's messages (``int32`` / ``nonNegativeInt32``)."""
     if value is None:
         return value
-    if non_negative and not 0 <= value <= 2**31 - 1:
+    if non_negative and not 0 <= value <= INT32_MAX:
         raise create_error(
             f"expected {description}: {field} must be a non-negative 32-bit integer",
             400,
             "BAD_REQUEST",
             "SDK",
         )
-    if not -(2**31) <= value <= 2**31 - 1:
+    if not -INT32_MAX - 1 <= value <= INT32_MAX:
         raise create_error(
             f"expected {description}: {field} must be a signed 32-bit integer", 400, "BAD_REQUEST", "SDK"
         )
@@ -1549,7 +1533,7 @@ def logs_spec(
             headers["Last-Event-ID"] = cursor
     return RequestSpec(
         "GET",
-        f"/processes/{toolbox_path_id(process_id, 'process id')}/logs",
+        f"/processes/{path_segment(process_id, 'process id')}/logs",
         params=params,
         timeout=None,
         headers=headers,
@@ -1797,9 +1781,7 @@ def stdin_spec(process_id: str, data: Union[str, bytes], *, eof: bool) -> Reques
         body["encoding"] = "base64"
     else:
         body["data"] = data
-    return RequestSpec(
-        "POST", f"/processes/{toolbox_path_id(process_id, 'process id')}/stdin", json_body=body
-    )
+    return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/stdin", json_body=body)
 
 
 def signal_spec(
@@ -1815,19 +1797,14 @@ def signal_spec(
     if escalate_after_ms is not None:
         body["escalateAfterMs"] = escalate_after_ms
         body["escalateTo"] = f"SIG{escalate_to}"
-    return RequestSpec(
-        "POST", f"/processes/{toolbox_path_id(process_id, 'process id')}/signals", json_body=body
-    )
-
-
-_MAX_INT32: Final = 2**31 - 1
+    return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/signals", json_body=body)
 
 
 def terminal_dimension(value: object, name: str) -> int:
     """A terminal's ``cols`` / ``rows``: an int32 of at least 1, as the
     contract states."""
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= _MAX_INT32:
-        raise create_error(f"{name} must be an integer between 1 and {_MAX_INT32}", 400, "BAD_REQUEST", "SDK")
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= INT32_MAX:
+        raise create_error(f"{name} must be an integer between 1 and {INT32_MAX}", 400, "BAD_REQUEST", "SDK")
     return value
 
 
@@ -1836,13 +1813,13 @@ def resize_spec(process_id: str, *, cols: int, rows: int) -> RequestSpec:
     rows = terminal_dimension(rows, "rows")
     return RequestSpec(
         "POST",
-        f"/processes/{toolbox_path_id(process_id, 'process id')}/resize",
+        f"/processes/{path_segment(process_id, 'process id')}/resize",
         json_body={"cols": cols, "rows": rows},
     )
 
 
 def delete_process_spec(process_id: str) -> RequestSpec:
-    return RequestSpec("DELETE", f"/processes/{toolbox_path_id(process_id, 'process id')}")
+    return RequestSpec("DELETE", f"/processes/{path_segment(process_id, 'process id')}")
 
 
 def file_download_spec(path: str, *, timeout: Optional[float]) -> RequestSpec:
@@ -2034,30 +2011,6 @@ def _wire_statuses(states: object) -> str:
     return ",".join(wire)
 
 
-# ASCII digits only (`[0-9]`), as TypeScript's pattern reads them.
-_RFC3339 = re.compile(
-    r"([0-9]{4})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])[Tt](?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
-    r"(?:\.[0-9]+)?(?:[Zz]|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])",
-)
-
-
-def rfc3339_timestamp(value: object) -> bool:
-    """Whether ``value`` is an RFC 3339 timestamp without a leap second, as
-    TypeScript's ``isRfc3339`` checks it (search bounds, a create response's
-    token expiry): a string with ASCII digits, year 0001-9999,
-    the day within its month (Feb 29 only in a leap year), hour 00-23, minute
-    and second 00-59 (no leap second: neither a ``datetime`` nor a ``Date``
-    can express one), an optional fraction, and ``Z`` or an offset within
-    +-23:59."""
-    if not isinstance(value, str):
-        return False
-    match = _RFC3339.fullmatch(value)
-    if match is None:
-        return False
-    year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
-    return year >= 1 and day <= calendar.monthrange(year, month)[1]
-
-
 def search_timestamp(value: SearchTimestamp) -> str:
     """The wire form of a search bound, as TypeScript's ``searchTimestamp``.
 
@@ -2176,18 +2129,23 @@ def region_selector(region: object) -> Optional[str]:
 
 
 def path_segment(value: object, name: str) -> str:
-    """A caller's id or name as one request-path segment: a string that is not
-    blank (Python's whitespace) and has no surrogate code point (no UTF-8
-    form; ``quote()`` would raise ``UnicodeEncodeError``) and is not ``.`` or
-    ``..`` (dot segments, which the HTTP client resolves away, so the request
-    would reach another route), else :class:`BadRequestError` naming
-    ``name``, before any request, as TypeScript's ``pathSegment``."""
-    if not isinstance(value, str) or not value.strip():
+    """Every id or name a call puts into a request path (client, lifecycle,
+    platform services and toolbox alike) as one percent-encoded segment: a
+    string (else "must be a string") that is not blank by Python's whitespace
+    (else "must be a non-empty string"), is not ``.`` or ``..`` (see
+    :func:`refuse_dot_segment`) and has no surrogate code point (no UTF-8
+    form; ``quote()`` would raise ``UnicodeEncodeError``). A Python string
+    holds code points, so two surrogate code points are no astral character
+    and are refused as well; astral characters are kept. Each is a
+    :class:`BadRequestError` naming ``name``, before any request, with the
+    messages of TypeScript's ``pathSegment``."""
+    if not isinstance(value, str):
+        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
+    if not value.strip():
         raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-    if value in (".", ".."):
-        raise create_error(f"{name} must not be '.' or '..'", 400, "BAD_REQUEST", "SDK")
+    refuse_dot_segment(value, name)
     if has_surrogate(value):
-        raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
+        raise create_error(f"{name} must not contain a surrogate code point", 400, "BAD_REQUEST", "SDK")
     return quote(value, safe="")
 
 
@@ -2509,9 +2467,9 @@ def _parse_terminal(value: ToolboxTerminalSize | None) -> Optional[TerminalSize]
     if value is None:
         return None
     for name, dimension in (("cols", value.cols), ("rows", value.rows)):
-        if not 1 <= dimension <= _MAX_INT32:
+        if not 1 <= dimension <= INT32_MAX:
             raise create_error(
-                f"expected process response: terminal: {name} must be an integer between 1 and {_MAX_INT32}",
+                f"expected process response: terminal: {name} must be an integer between 1 and {INT32_MAX}",
                 400,
                 "BAD_REQUEST",
                 "SDK",

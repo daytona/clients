@@ -15,7 +15,7 @@ import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions, waitD
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS, withoutNullOptions } from './clientOptionKeys.js'
 import { createRegion, createWaitSeconds, MAX_WIRE_WAIT_SECONDS, rejectV0Target } from './clientCreateOptions.js'
 import { linuxCreateRequest } from './clientCreateRequests.js'
-import { isRfc3339 } from './clientSearch.js'
+import { isRfc3339 } from './rfc3339.js'
 import { createIdempotencyKey } from './clientCreateNames.js'
 import type { PreparedSandboxCreate } from './clientCreateRequests.js'
 import type { SandboxClientContext } from './clientSandboxes.js'

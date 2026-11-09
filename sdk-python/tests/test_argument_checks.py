@@ -698,7 +698,7 @@ async def test_a_path_id_or_name_with_a_lone_surrogate_is_refused(
 ) -> None:
     # It has no UTF-8 form: refused as TypeScript refuses it, never a raw UnicodeEncodeError.
     async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-        with pytest.raises(BadRequestError, match=f"^{argument} must not contain a lone surrogate$"):
+        with pytest.raises(BadRequestError, match=f"^{argument} must not contain a surrogate code point$"):
             await call(root.v2)
     assert api.requests == []
 
@@ -873,7 +873,7 @@ async def test_an_id_with_a_lone_surrogate_is_refused_on_the_client_paths(
     api: FakeApi, call: Callable[[AsyncDaytonaV2], Awaitable[object]]
 ) -> None:
     async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-        with pytest.raises(BadRequestError, match="must not contain a lone surrogate"):
+        with pytest.raises(BadRequestError, match="must not contain a surrogate code point"):
             await call(root.v2)
     assert api.requests == []
 

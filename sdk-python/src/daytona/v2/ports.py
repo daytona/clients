@@ -19,6 +19,7 @@ from ._api_core import (
     expect_signed_preview_url_resp,
 )
 from ._core import (
+    INT32_MAX,
     JSON_MAX_DEPTH,
     RequestSpec,
     _nested_deeper_than,
@@ -123,7 +124,7 @@ class AsyncPortsService:
         payload = expect_port_list(await self._require_toolbox().send(RequestSpec("GET", "/port")))
         # The contract types each port as an int32 and declares no range.
         for index, port in enumerate(payload.ports):
-            if not -(2**31) <= port <= 2**31 - 1:
+            if not -INT32_MAX - 1 <= port <= INT32_MAX:
                 raise create_error(
                     f"port list response has a ports[{index}] that is not a 32-bit integer",
                     400,

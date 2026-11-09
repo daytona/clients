@@ -410,7 +410,7 @@ it.each([
   const api = await startFakeApi([])
   const client = clientAt(api.url)
   try {
-    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: `${argument} must not contain a lone surrogate` })
+    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: `${argument} must not contain a surrogate code point` })
     expect(api.requests).toEqual([])
     // A valid surrogate pair is text, and passes the check.
     expect(() => pathSegment('a\ud83d\ude00b', argument)).not.toThrow()
@@ -556,7 +556,7 @@ it.each([
   const api = await startFakeApi([])
   const client = clientAt(api.url)
   try {
-    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining('must not contain a lone surrogate') })
+    await expect(call(client)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', message: expect.stringContaining('must not contain a surrogate code point') })
     expect(api.requests).toEqual([])
   } finally {
     await client.close()

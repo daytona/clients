@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Optional, Sequence, overload
 
 from ._body_limit import validated_max_response_bytes
-from ._core import RequestSpec, timeout_millis_from_seconds, toolbox_path_id
+from ._core import RequestSpec, path_segment, timeout_millis_from_seconds
 from ._transport import AsyncTransport
 from .computer_use_core import (
     a11y_max_depth,
@@ -65,7 +65,7 @@ from .types import JsonValue
 
 
 def _quote_path_segment(value: str, name: str) -> str:
-    return toolbox_path_id(value, name)
+    return path_segment(value, name)
 
 
 class AsyncAddonProcessesService:

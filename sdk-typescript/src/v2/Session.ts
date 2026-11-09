@@ -11,7 +11,7 @@ import { BadRequestError, ProcessNotFoundError, SessionNotFoundError } from './e
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
-import { refuseDotSegment } from './toolboxPath.js'
+import { refuseDotSegment } from './pathSegment.js'
 
 /** A missing id must never degrade a session command into a plain, stateless exec. */
 export function requireSessionId(value: unknown, field: 'sandboxId' | 'sessionId'): string {

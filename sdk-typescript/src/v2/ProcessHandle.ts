@@ -12,16 +12,16 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { ConnectionError, ClientTimeoutError, UnsupportedOperationError } from './errors/DaytonaError.js'
 import {
   base64Encode, frameFromWire, invalidPtyVerbError, invalidStdinVerbError, processFromWire,
-  remainingWaitBudgetMs, exactMs, signalWire, streamEvent, terminalDimension, waitDeadline, waitResult,
+  remainingWaitBudgetMs, exactMs, signalWire, streamEvent, terminalDimension, waitResult,
   WAIT_READ_SLACK_MS, WAIT_TRANSPORT_RETRY_LIMIT,
 } from './ProcessWire.js'
 import type { LogFrameWire, LogsWire } from './ProcessWire.js'
 import { assertInternal } from './internal.js'
 import { logPageFromWire } from './toolboxModels.js'
 import type { Internal } from './internal.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, optionKeys, waitDeadline } from './options.js'
 import { deepFrozen } from './frozen.js'
-import { toolboxPathId } from './toolboxPath.js'
+import { pathSegment } from './pathSegment.js'
 
 const LOGS_OPTION_KEYS = optionKeys<LogsOptions>()({ cursor: true, limit: true, encoding: true })
 const STREAM_LOGS_OPTION_KEYS = optionKeys<StreamLogsOptions>()({ cursor: true, limit: true, encoding: true, signal: true })
@@ -81,14 +81,14 @@ export class ProcessHandle {
 
   /** Fetch current process metadata. */
   public async get(): Promise<ProcessInfo> {
-    return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${toolboxPathId(this.id, 'process id')}`))
+    return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${pathSegment(this.id, 'process id')}`))
   }
 
   /** Read one page of the process log, from `cursor`. */
   public async logs(options: LogsOptions = {}): Promise<LogPage> {
     assertKnownOptions('LogsOptions', options, LOGS_OPTION_KEYS)
     const query = encodeQuery({ cursor: options.cursor, limit: options.limit, encoding: options.encoding })
-    const data = await this.transport.get<LogsWire>(`/processes/${toolboxPathId(this.id, 'process id')}/logs${query}`)
+    const data = await this.transport.get<LogsWire>(`/processes/${pathSegment(this.id, 'process id')}/logs${query}`)
     return logPageFromWire(data)
   }
 
@@ -107,7 +107,7 @@ export class ProcessHandle {
     const query = encodeQuery({ cursor: options.cursor, limit: options.limit, encoding: options.encoding, follow: true })
     const headers: Record<string, string> = { Accept: 'text/event-stream' }
     if (options.cursor) headers['Last-Event-ID'] = options.cursor
-    const response = await this.transport.fetch(`/processes/${toolboxPathId(this.id, 'process id')}/logs${query}`, { headers, signal: options.signal })
+    const response = await this.transport.fetch(`/processes/${pathSegment(this.id, 'process id')}/logs${query}`, { headers, signal: options.signal })
     // Every event is bounded by the client's maxResponseBytes as its bytes
     // arrive, so no single event (a huge or never-terminated one) is unbounded.
     const limit = this.transport.maxResponseBytes
@@ -130,13 +130,13 @@ export class ProcessHandle {
     const body: toolbox.StdinRequest = typeof data === 'string'
       ? { data }
       : { data: base64Encode(data), encoding: 'base64' }
-    await this.transport.post<void>(`/processes/${toolboxPathId(this.id, 'process id')}/stdin`, body)
+    await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/stdin`, body)
   }
 
   /** Close the stdin of an exec or pty process (EOF). */
   public async closeStdin(): Promise<void> {
     if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('closeStdin', this.kind)
-    await this.transport.post<void>(`/processes/${toolboxPathId(this.id, 'process id')}/stdin`, { data: '', eof: true })
+    await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/stdin`, { data: '', eof: true })
   }
 
   /**
@@ -153,7 +153,7 @@ export class ProcessHandle {
       if (deadline !== undefined && requestTimeout <= 0) return deepFrozen({ reason: 'timed_out' })
       try {
         const data = await this.transport.get<toolbox.ExitResult>(
-          `/processes/${toolboxPathId(this.id, 'process id')}/wait${encodeQuery({ timeoutMs: requestTimeout })}`,
+          `/processes/${pathSegment(this.id, 'process id')}/wait${encodeQuery({ timeoutMs: requestTimeout })}`,
           { timeout: deadline === undefined ? 0 : requestTimeout + WAIT_READ_SLACK_MS },
         )
         // One retried unit: the long-poll plus, on `timed_out`, the record
@@ -164,7 +164,7 @@ export class ProcessHandle {
         // Budget left: `timed_out` is either an expired long-poll or a command
         // its own deadline stopped, and the record says which.
         const record = await this.transport.get<toolbox.ProcessDto>(
-          `/processes/${toolboxPathId(this.id, 'process id')}`,
+          `/processes/${pathSegment(this.id, 'process id')}`,
           deadline === undefined ? undefined : { timeout: remainingWaitBudgetMs(deadline) + WAIT_READ_SLACK_MS },
         )
         consecutiveTransportFailures = 0
@@ -188,14 +188,14 @@ export class ProcessHandle {
       signal: signalWire(options.signal ?? 'TERM'),
       ...(escalateAfterMs === undefined ? {} : { escalateAfterMs, escalateTo: signalWire(options.escalateTo ?? 'KILL') }),
     }
-    await this.transport.post<void>(`/processes/${toolboxPathId(this.id, 'process id')}/signals`, body)
+    await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/signals`, body)
   }
 
   /** Resize a PTY. */
   public async resize(cols: number, rows: number): Promise<void> {
     if (this.kind !== undefined && this.kind !== 'pty') throw invalidPtyVerbError('resize', this.kind)
     const body = { cols: terminalDimension(cols, 'cols'), rows: terminalDimension(rows, 'rows') }
-    await this.transport.post<void>(`/processes/${toolboxPathId(this.id, 'process id')}/resize`, body)
+    await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/resize`, body)
   }
 
   /**
@@ -204,7 +204,7 @@ export class ProcessHandle {
    * session command that has not stopped within 5 s: delete its session.
    */
   public async delete(): Promise<void> {
-    await this.transport.delete<void>(`/processes/${toolboxPathId(this.id, 'process id')}`)
+    await this.transport.delete<void>(`/processes/${pathSegment(this.id, 'process id')}`)
   }
 
   /** Connect to a PTY's terminal. */
@@ -212,7 +212,7 @@ export class ProcessHandle {
     if (this.kind !== undefined && this.kind !== 'pty') throw invalidPtyVerbError('attach', this.kind)
     const ctor = (globalThis as { WebSocket?: WebSocketCtor }).WebSocket
     if (!ctor) throw new UnsupportedOperationError('WebSocket is not available in this runtime', { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
-    const url = new URL(`${this.transport.baseUrl}/processes/${toolboxPathId(this.id, 'process id')}/attach`)
+    const url = new URL(`${this.transport.baseUrl}/processes/${pathSegment(this.id, 'process id')}/attach`)
     const token = await this.transport.resolveToken()
     if (token) url.searchParams.set('daytona_token', token)
     const wsUrl = url.toString().replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')

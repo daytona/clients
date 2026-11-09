@@ -7,6 +7,7 @@ import re
 from typing import Dict, Final, List, Mapping, Optional, Tuple
 
 from ._core import (
+    MAX_SAFE_INTEGER,
     JsonValue,
     TransportPayload,
     _expect_model_from_dict,
@@ -466,11 +467,10 @@ def _additional_json_fields(
 
 # The contract's RestartBackoffMs is an int64 (minimum 0); both SDKs read it up
 # to the largest integer JavaScript represents exactly.
-_MAX_EXACT_INTEGER = 2**53 - 1
 
 
 def _restart_backoff_seconds(milliseconds: int) -> float:
-    if not 0 <= milliseconds <= _MAX_EXACT_INTEGER:
+    if not 0 <= milliseconds <= MAX_SAFE_INTEGER:
         raise create_error(
             "expected computer-use process status: RestartBackoffMs must be a non-negative safe integer",
             400,

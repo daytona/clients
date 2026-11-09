@@ -25,7 +25,7 @@ import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
-import { refuseDotSegment, toolboxPathId } from './toolboxPath.js'
+import { pathSegment, refuseDotSegment } from './pathSegment.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 
 const RUN_OPTION_KEYS = optionKeys<InterpreterRunOptions>()({
@@ -468,7 +468,7 @@ export class InterpreterService {
     ignoreMissing: boolean,
   ): Promise<void> {
     try {
-      await this.transport.delete<void>(`/sessions/${toolboxPathId(sessionId, 'interpreter context id')}`)
+      await this.transport.delete<void>(`/sessions/${pathSegment(sessionId, 'interpreter context id')}`)
     } catch (error) {
       if (isSessionNotFoundError(error)) {
         this.evictQueueWhenDrained(sessionId, queue)

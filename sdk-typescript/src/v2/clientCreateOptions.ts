@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { badRequest, headerText } from './options.js'
+import { badRequest, headerText, MAX_INT32 } from './options.js'
 import { selectRegion } from './region.js'
 import { gibToMib } from './resources.js'
 export { gibToMib } from './resources.js'
@@ -96,7 +96,6 @@ export function createTimeoutSeconds(createTimeoutSeconds: number | undefined): 
   return createTimeoutSeconds
 }
 
-const MAX_INT32 = 2147483647
 
 /** A Linux size in GiB as the contract's int32 MiB. @internal */
 export function linuxMib(gib: number, field: string): number {

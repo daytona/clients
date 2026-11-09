@@ -44,6 +44,7 @@ from ._auth import ProjectTokenAuth
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, validated_max_response_bytes
 from ._core import (
     INT32_MAX,
+    MAX_BOUNDED_TIMEOUT_SECONDS,
     MAX_SAFE_INTEGER,
     MAX_WIRE_WAIT_SECONDS,
     WAIT_READ_SLACK_SECONDS,
@@ -70,7 +71,7 @@ from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
 from ._gen.api import Sandbox as SandboxDto
 from ._gen.api import SandboxListItem
 from ._otel import load_opentelemetry_support
-from ._transport import _MAX_BOUNDED_TIMEOUT_SECONDS, DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
+from ._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 from .errors import (
     AuthenticationError,
     ClientTimeoutError,
@@ -1439,7 +1440,7 @@ def _resolve_request_timeout(value: Optional[float]) -> float:
     if value is None:
         return DEFAULT_REQUEST_TIMEOUT_SECONDS
     seconds = _non_negative_seconds("request_timeout", value)
-    return 0.0 if seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+    return 0.0 if seconds > MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
 
 
 def _non_negative_seconds(name: str, value: object) -> float | int:
@@ -1466,7 +1467,6 @@ def _non_negative_seconds(name: str, value: object) -> float | int:
 # the longest JavaScript timer, and for the reconcile interval that ceiling less
 # its ±10 % jitter. Larger durations clamp to them (unlike the request
 # timeout, where a value above the maximum means no limit).
-_MAX_EVENT_TIMER_SECONDS: Final = 2_147_483.647
 _MAX_RECONCILE_INTERVAL_SECONDS: Final = math.floor(2_147_483_647 / 1.1) / 1000
 
 
@@ -1480,7 +1480,7 @@ def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[Sa
     reconcile = _clamped_seconds(
         "events.reconcile_interval", config.reconcile_interval, _MAX_RECONCILE_INTERVAL_SECONDS
     )
-    idle = _clamped_seconds("events.idle_close", config.idle_close, _MAX_EVENT_TIMER_SECONDS)
+    idle = _clamped_seconds("events.idle_close", config.idle_close, MAX_BOUNDED_TIMEOUT_SECONDS)
     if reconcile == config.reconcile_interval and idle == config.idle_close:
         return config
     return dataclasses.replace(config, reconcile_interval=reconcile, idle_close=idle)
@@ -1531,7 +1531,6 @@ def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
     return merged
 
 
-_MAX_MACOS_RESOURCE_VALUE: Final = 2147483647
 #: The least time between two build polls when the server answers early.
 _BUILD_POLL_INTERVAL_S: Final = 1.0
 
@@ -1554,7 +1553,7 @@ def _sendable_token(value: object) -> TypeGuard[str]:
 def _macos_cores(cpu: object) -> Optional[int]:
     if cpu is None:
         return None
-    if isinstance(cpu, bool) or not isinstance(cpu, int) or not 4 <= cpu <= _MAX_MACOS_RESOURCE_VALUE:
+    if isinstance(cpu, bool) or not isinstance(cpu, int) or not 4 <= cpu <= INT32_MAX:
         raise create_error("cpu must be an integer between 4 and 2147483647", 400, "BAD_REQUEST", "SDK")
     return cpu
 
@@ -1565,7 +1564,7 @@ def _macos_mib(gib: object, *, axis: str, floor_mib: int) -> Optional[int]:
     mib = gib * 1024 if isinstance(gib, (int, float)) and not isinstance(gib, bool) else math.nan
     # An int needs no float check: math.isfinite() and int() raise OverflowError past the float range.
     whole = isinstance(mib, int) or (math.isfinite(mib) and mib == int(mib))
-    if not whole or not floor_mib <= mib <= _MAX_MACOS_RESOURCE_VALUE:
+    if not whole or not floor_mib <= mib <= INT32_MAX:
         raise create_error(
             f"{axis} must be a finite GiB value that converts to an integer MiB value between {floor_mib} and 2147483647",
             400,

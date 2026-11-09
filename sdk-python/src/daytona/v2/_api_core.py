@@ -6,7 +6,14 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import _gen
-from ._core import TransportPayload, _expect_model_from_dict, expect_object, parse_image, parse_timestamp
+from ._core import (
+    INT32_MAX,
+    TransportPayload,
+    _expect_model_from_dict,
+    expect_object,
+    parse_image,
+    parse_timestamp,
+)
 from ._events import region_of
 from ._gen.api import (
     AsyncOperation,
@@ -352,7 +359,9 @@ def expect_sandbox_lifecycle_policy(value: TransportPayload) -> JsonObject:
     for key in _LIFECYCLE_INTEGERS:
         number = policy.get(key)
         if number is not None and (
-            isinstance(number, bool) or not isinstance(number, int) or not -(2**31) <= number < 2**31
+            isinstance(number, bool)
+            or not isinstance(number, int)
+            or not -INT32_MAX - 1 <= number <= INT32_MAX
         ):
             raise malformed(f"has a lifecycle_policy.{key} that is not a 32-bit integer")
     for key in _LIFECYCLE_STRINGS:

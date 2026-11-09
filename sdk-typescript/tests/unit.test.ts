@@ -12623,6 +12623,15 @@ describe('toolbox surface', () => {
     expect(transport.get).not.toHaveBeenCalled()
   })
 
+  // One path-id check for every request path in both SDKs (pathSegment): a
+  // blank toolbox id is refused as a blank client id is. Twin in test_toolbox_surface.py.
+  it.each(['', ' ', '\t\u2028'])('refuses a blank toolbox path id (%j) before any request', async (blank) => {
+    const transport = transportStub()
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get(blank)).rejects.toMatchObject({ message: 'process id must be a non-empty string', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).recording.get(blank)).rejects.toMatchObject({ message: 'recording id must be a non-empty string', code: 'BAD_REQUEST' })
+    expect(transport.get).not.toHaveBeenCalled()
+  })
+
   // Shared with the Python SDK: an id that is not a string is no path id.
   it.each([5, null, undefined])('refuses a path id that is not a string (%p) before any request', async (bad) => {
     const transport = transportStub()
@@ -13456,9 +13465,10 @@ describe('toolbox surface', () => {
   })
 
   it('reads RFC 3339 timestamps like the Python SDK', async () => {
-    const { isRfc3339 } = await import('../src/v2/toolboxModels')
-    for (const value of ['2026-01-01T00:00:00.123456789Z', '0001-01-01t00:00:00z', '0099-06-01 12:00:00+00:00']) expect(isRfc3339(value)).toBe(true)
-    for (const value of ['2026-01-01T00:00:00Z\n', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00', 'Jan 1 2026', '0099-02-29T00:00:00Z', '0000-01-01T00:00:00Z']) expect(isRfc3339(value)).toBe(false)
+    const { isRfc3339 } = await import('../src/v2/rfc3339')
+    for (const value of ['2026-01-01T00:00:00.123456789Z', '0001-01-01t00:00:00z', '0099-06-01T12:00:00+00:00']) expect(isRfc3339(value)).toBe(true)
+    // One rule for every timestamp both SDKs read: the date and time are joined by `T` (or `t`), not a space.
+    for (const value of ['2026-01-01T00:00:00Z\n', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00', 'Jan 1 2026', '0099-02-29T00:00:00Z', '0000-01-01T00:00:00Z', '0099-06-01 12:00:00+00:00']) expect(isRfc3339(value)).toBe(false)
   })
 
   it('accepts only the contract shape of the git branch and remote lists, like the Python SDK', async () => {
@@ -13769,7 +13779,7 @@ describe('toolbox surface', () => {
   })
 
   it.each(['2026-01-01T24:00:00Z', '2026-01-01T23:60:00Z', '2026-12-31T23:59:60Z', '2026-13-01T00:00:00Z', '2026-00-01T00:00:00Z', '2026-01-00T00:00:00Z', '2026-01-32T00:00:00Z', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00+24:00', '2026-01-01T00:00:00+05:60', '0000-01-01T00:00:00Z'])('refuses the out-of-range timestamp %s, exactly as the Python SDK does', async (value) => {
-    const { isRfc3339 } = await import('../src/v2/toolboxModels')
+    const { isRfc3339 } = await import('../src/v2/rfc3339')
     expect(isRfc3339(value)).toBe(false)
   })
 

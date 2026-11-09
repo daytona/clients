@@ -837,7 +837,8 @@ skipping exist only in the TypeScript tool).
   nested too deeply), as an oversized one is (Python `error_from_response`,
   TS `createAxiosDaytonaError` / `errorFromFetchResponse`).
   `.` and `..` are no path ids: every toolbox id or name in a request path
-  goes through Python `toolbox_path_id` / TS `toolboxPathId`.
+  goes through Python `path_segment` / TS `pathSegment`, the one path-id
+  check of both SDKs.
 - **Output is channel-filtered.** `stdout`/`stderr` come from their frame
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are
