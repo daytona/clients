@@ -10,7 +10,7 @@ import { DISABLED } from './types.js'
 import { boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
 export { forceFetchAdapterForTests, maxContentLengthFor, transferRequest } from './boundedAdapter.js'
-import { DEFAULT_MAX_RESPONSE_BYTES, IdleWatchdog, tooLargeMessage } from './bodyLimit.js'
+import { DEFAULT_MAX_RESPONSE_BYTES, IdleWatchdog, isSmallRequestBody, tooLargeMessage } from './bodyLimit.js'
 import { boundedAdapter } from './boundedAdapter.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
@@ -580,11 +580,18 @@ function isReadableStreamBody(body: BodyInit | null | undefined): body is Readab
 }
 
 /**
- * A streamed request body that calls `progress` each time the runtime pulls
- * a chunk from it (the transfer idle bound), and once when first wrapped.
+ * A transfer's request body under its idle bound (`progress` restarts it). A
+ * stream calls `progress` once when wrapped and each time the runtime pulls a
+ * chunk. Any other body is sent without progress events: one up to 64 KiB
+ * (or none) starts the bound at once; a larger one leaves it to start at the
+ * response headers, so a long upload that is still moving is never cut.
  */
-function watchedBody(body: BodyInit | null | undefined, progress: (() => void) | undefined): BodyInit | null | undefined {
-  if (progress === undefined || !isReadableStreamBody(body)) return body
+function watchedBody(method: string | undefined, body: BodyInit | null | undefined, progress: (() => void) | undefined): BodyInit | null | undefined {
+  if (progress === undefined) return body
+  if (!isReadableStreamBody(body)) {
+    if (isSmallRequestBody(method, body)) progress()
+    return body
+  }
   progress()
   const reader = body.getReader()
   return new ReadableStream<Uint8Array>({
@@ -616,7 +623,7 @@ async function fetchRequestForAttempt(
   return {
     requestInit: {
       ...requestInitWithoutFactory,
-      body: watchedBody(body, watchBody),
+      body: watchedBody(requestInitWithoutFactory.method, body, watchBody),
       headers,
       signal,
     },
@@ -637,7 +644,7 @@ function fetchRequestWithoutFactory(
   return {
     requestInit: {
       ...requestInitWithoutFactory,
-      body: watchedBody(requestInitWithoutFactory.body, watchBody),
+      body: watchedBody(requestInitWithoutFactory.method, requestInitWithoutFactory.body, watchBody),
       headers,
       signal,
     },
@@ -1462,7 +1469,7 @@ export class HttpTransport {
 
   /**
    * A byte download held in memory (a file transfer): no total deadline, an
-   * idle bound of the request timeout; `maxResponseBytes` replaces the
+   * idle bound of the request timeout (`0`: none); `maxResponseBytes` replaces the
    * client's body cap for this call (`0` = no limit).
    */
   public async getBytes(path: string, options: { readonly maxResponseBytes?: number } = {}): Promise<ArrayBuffer> {
@@ -1588,11 +1595,8 @@ export class HttpTransport {
         spanFinalized = true
       }
       try {
-        // A transfer with no body (or a streamed one, whose reads it watches)
-        // is idle-bounded from the start; one whose body the runtime sends
-        // without progress only from its response headers.
+        // The idle bound over the request body: see watchedBody.
         const watchBody = idle === undefined ? undefined : () => idle.kick()
-        if (idle !== undefined && (init?.body === undefined || init.body === null) && init?.bodyFactory === undefined) idle.kick()
         const request = init?.bodyFactory
           ? await fetchRequestForAttempt(init, headers, timeout.signal, watchBody)
           : fetchRequestWithoutFactory(init, headers, timeout.signal, watchBody)

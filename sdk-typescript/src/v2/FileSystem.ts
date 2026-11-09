@@ -220,7 +220,8 @@ export class FileSystemService {
 
   /**
    * Read a file into memory. A file transfer: no total deadline, but it fails
-   * with `ClientTimeoutError` once no bytes move for the request timeout. The
+   * with `ClientTimeoutError` once no bytes move for the request timeout (a
+   * request timeout of `0` leaves it unbounded). The
    * body is capped by the client's `maxResponseBytes` or this call's (see
    * {@link ReadFileOptions}).
    */

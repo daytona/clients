@@ -222,7 +222,7 @@ export class RecordingService {
   /**
    * Download a recording into memory. A file transfer: no total deadline, but
    * it fails with `ClientTimeoutError` once no bytes move for the request
-   * timeout. `maxResponseBytes` replaces the client's cap on the body for this
+   * timeout (a request timeout of `0` leaves it unbounded). `maxResponseBytes` replaces the client's cap on the body for this
    * call (an integer, `0` = no limit; `undefined` / `null` keep the client's);
    * a larger recording is refused with `PayloadTooLargeError`.
    */

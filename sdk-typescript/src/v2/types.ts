@@ -94,7 +94,8 @@ export interface DaytonaConfig {
    * The total time one ordinary request may take, in seconds (default 60;
    * `0` = no limit). Waits and long polls use their own budget, streams are
    * bounded only until their response headers arrive, and file transfers have
-   * no total bound but fail once no bytes move for this long.
+   * no total bound but fail once no bytes move for this long (with `0`,
+   * transfers are not bounded at all).
    */
   readonly requestTimeoutSeconds?: number
   /**
