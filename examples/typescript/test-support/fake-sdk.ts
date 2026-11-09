@@ -200,7 +200,7 @@ const fake = {
       record.pulledImages.push({ ref, name: options.name })
       if (scenario.pullConflict && record.pulledImages.length === 1) {
         images.push(newImage(options.name ?? ref, 'ready'))
-        throw new NameConflictError('image name already exists', 409, 'NAME_CONFLICT', 'API')
+        throw new NameConflictError('image name already exists', { statusCode: 409, code: 'NAME_CONFLICT', source: 'API' })
       }
       const entry = scenario.pullFails ? newImage(options.name ?? ref, 'pending', ['failed'], scenario.pullFails) : newImage(options.name ?? ref, 'ready')
       images.push(entry)
