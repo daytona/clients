@@ -2,15 +2,18 @@
 transfers (`read_bytes` / `readBytes`, `read_text` / `readText`, `read_many` /
 `readMany`, `write_bytes` / `writeBytes`, `write_text` / `writeText`,
 `write_many` / `writeMany`, `upload_file` / `uploadFile`, `download_file` /
-`downloadFile` and the computer-use recording `download`) used to run with no
-time limit at all, so a stalled connection held the call forever. They still
-have no total deadline, but now fail with `ClientTimeoutError` (408,
+`downloadFile` and the computer-use recording `download`) used to be bounded
+differently in each SDK: Python cut them after 30 s without bytes moving (its
+per-phase I/O timeout), and TypeScript gave the in-memory ones a 24-hour total
+deadline and `uploadFile` / `downloadFile` a deadline only until the response
+headers. They now have no total deadline in either SDK, and fail with `ClientTimeoutError` (408,
 `REQUEST_TIMEOUT`, source `SDK`) once no bytes move for the client's request
 timeout (default 60 s; `0` = no idle bound): while connecting, while waiting
 for the response, and between body chunks. A transfer that keeps moving
 bytes is never cut off. In TypeScript, where the runtime reports no upload
 progress (a browser or worker sending a request body over 64 KiB) the bound
-starts when the response arrives. Every response body the SDKs hold in memory
+starts when the response arrives, so a server that never answers holds the
+upload until the caller aborts it. Every response body the SDKs hold in memory
 whole (API responses, the in-memory file reads, bulk reads, error bodies) was
 read without a size limit; it is now capped by the new client setting
 `max_response_bytes` / `maxResponseBytes`: an integer from `0` (no limit) to
