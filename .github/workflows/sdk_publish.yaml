@@ -531,6 +531,86 @@ jobs:
           path: /tmp/sdk-src.tgz
           if-no-files-found: error
           retention-days: 1
+      # The run page shows this as soon as the gate finishes, minutes before
+      # the `release` approval is requested, so the approver sees what the run
+      # was asked for and what it will publish. Runs when the gate fails too.
+      - name: Show the publish plan
+        if: always()
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          SOURCE_REF: ${{ inputs.source_ref || github.ref_name }}
+          IN_PYPI: ${{ inputs.publish_pypi }}
+          IN_NPM: ${{ inputs.publish_npm }}
+          IN_CLI: ${{ inputs.publish_cli }}
+          IN_UPGRADE: ${{ inputs.publish_upgrade }}
+          IN_V0_TAG: ${{ inputs.v0_tag }}
+          IN_ALLOW_UNPINNED_V0: ${{ inputs.allow_unpinned_v0 }}
+          IN_FORCE: ${{ inputs.force_republish }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          VERSION: ${{ steps.versions.outputs.version }}
+          TAG: ${{ steps.versions.outputs.tag }}
+          PYPI: ${{ steps.versions.outputs.pypi }}
+          NPM: ${{ steps.versions.outputs.npm }}
+          NPM_DIST_TAG: ${{ steps.versions.outputs.npm_dist_tag }}
+          CLI: ${{ steps.versions.outputs.cli }}
+          CHANNEL: ${{ steps.versions.outputs.channel }}
+          HOMEBREW_FORMULA: ${{ steps.versions.outputs.homebrew_formula }}
+          UPGRADE_NPM: ${{ steps.versions.outputs.upgrade_npm }}
+          UPGRADE_PYPI: ${{ steps.versions.outputs.upgrade_pypi }}
+          V0_TAG: ${{ steps.v0.outputs.tag }}
+          V0_SHA: ${{ steps.v0.outputs.sha }}
+          V0_UNVERIFIED: ${{ steps.v0.outputs.unverified }}
+          GATE_STATUS: ${{ job.status }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          target() { # label version install
+            if [ -n "$2" ]; then printf "| %s | \`%s\` | %s |\n" "$1" "$2" "$3"; else printf '| %s | — | skipped |\n' "$1"; fi
+          }
+          {
+            echo "## Publish plan — \`${VERSION:-${VERSION_INPUT}}\`"
+            echo
+            if [ "$GATE_STATUS" = success ]; then
+              echo "Gate **passed**. The registry check and the builds run next; the \`release\` approval is requested only once they are green."
+            else
+              echo "> [!CAUTION]"
+              echo "> Gate **${GATE_STATUS}** — this run will not ask for approval or publish anything; see the gate log."
+            fi
+            echo
+            echo "Requested by **@${ACTOR}**."
+            echo
+            echo "| Input | Value |"
+            echo "|---|---|"
+            echo "| \`version\` | \`${VERSION_INPUT}\` |"
+            echo "| \`source_ref\` | \`${SOURCE_REF}\` |"
+            echo "| \`publish_pypi\` | \`${IN_PYPI}\` |"
+            echo "| \`publish_npm\` | \`${IN_NPM}\` |"
+            echo "| \`publish_cli\` | \`${IN_CLI}\` |"
+            echo "| \`publish_upgrade\` | \`${IN_UPGRADE}\` |"
+            echo "| \`v0_tag\` | ${IN_V0_TAG:+\`${IN_V0_TAG}\`}${IN_V0_TAG:-— (the pin)} |"
+            echo "| \`allow_unpinned_v0\` | \`${IN_ALLOW_UNPINNED_V0}\` |"
+            echo "| \`force_republish\` | \`${IN_FORCE}\` |"
+            echo
+            echo "- **Source to build:** \`${SOURCE_REF}\` → $([ -n "$SOURCE_SHA" ] && echo "[\`${SOURCE_SHA}\`](${SERVER}/${REPO}/commit/${SOURCE_SHA})" || echo unresolved)"
+            echo "- **Workflow logic from:** \`${GITHUB_REF_NAME}\` → [\`${GITHUB_SHA}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})"
+            echo "- **Channel:** \`${CHANNEL:-—}\`"
+            echo "- **v0 namespace:** \`${V0_TAG:-—}\`${V0_SHA:+ → [\`${V0_SHA:0:12}\`](${SERVER}/${REPO}/commit/${V0_SHA})}${V0_UNVERIFIED:+ — **UNVERIFIED** (v0_tag override, not the pinned release)}"
+            echo "- **Tag recorded on success:** \`${TAG:-—}\`"
+            if [ "$GATE_STATUS" = success ]; then
+              echo
+              echo "| Target | Version | Goes to |"
+              echo "|---|---|---|"
+              target "Python \`daytona\` (PyPI)" "$PYPI" "pypi.org/project/daytona"
+              target "TypeScript \`@daytona/sdk\` (npm)" "$NPM" "npm, dist-tag \`${NPM_DIST_TAG:-—}\`"
+              target "Migration tool \`daytona-upgrade\` (PyPI)" "$UPGRADE_PYPI" "pypi.org/project/daytona-upgrade, once \`daytona\` is visible"
+              target "Migration tool \`@daytona/upgrade\` (npm)" "$UPGRADE_NPM" "npm, once \`@daytona/sdk\` is visible"
+              target "CLI \`daytona\`" "$CLI" "GitHub Release \`v${CLI}\`$([ "$CHANNEL" = stable ] || echo ' (pre-release)') + Homebrew \`daytonaio/cli/${HOMEBREW_FORMULA:-—}\`"
+              echo
+              echo "After approval the \`publish\` job runs the targets in the order above (a failed target stops the ones after it)$([ "$IN_FORCE" = true ] && echo ', skipping any already on its registry (force_republish)')."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ── Build jobs: run the dispatched code with NO token, NO environment, NO cache ─
   # The already-published check runs in its own job with NO checkout: it only
