@@ -8,8 +8,9 @@
 #
 # Usage:
 #   npm-latest-guard.sh check <version>  before publishing: fail unless <version>
-#                                        is a stable X.Y.Z above every published
-#                                        stable version
+#                                        is a stable X.Y.Z that no published
+#                                        stable version is above (an equal one
+#                                        passes, so a re-run can resume)
 #   npm-latest-guard.sh verify           after publishing: fail unless `latest`
 #                                        is the highest published stable version
 #
@@ -71,9 +72,12 @@ if (parsed.length === 0) fail(`The npm registry returned no versions for ${pkg}`
 if (mode === 'check') {
   const next = parse(version);
   if (!next || next.pre) fail(`Only stable X.Y.Z versions may take the npm latest tag from a release branch (got ${version})`);
-  const blocker = parsed.filter((x) => !x.p.pre && compare(x.p, next) >= 0).sort((a, b) => compare(b.p, a.p))[0];
+  const blocker = parsed.filter((x) => !x.p.pre && compare(x.p, next) > 0).sort((a, b) => compare(b.p, a.p))[0];
   if (blocker) fail(`${pkg}@${blocker.v} is already published; ${version} with --tag latest would move latest backwards. Use a line tag such as v${next.core[0]}-latest.`);
-  console.log(`${version} is above every published stable version of ${pkg}; latest may move to it.`);
+  // A re-run of a publish that stopped halfway: hack/npm-publish.sh skips
+  // the packages already at this version.
+  if (parsed.some((x) => x.v === version)) console.log(`${pkg}@${version} is already published and no stable version is above it; the publish skips it.`);
+  else console.log(`${version} is above every published stable version of ${pkg}; latest may move to it.`);
 } else if (mode === 'verify') {
   if (!latest) fail(`Could not read the npm latest tag of ${pkg}`);
   const highest = parsed.filter((x) => !x.p.pre).sort((a, b) => compare(b.p, a.p))[0];
