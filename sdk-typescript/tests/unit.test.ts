@@ -12422,23 +12422,25 @@ describe('toolbox surface', () => {
   // Shared with the Python SDK's test_toolbox_surface.py: computer-use geometry
   // and process-status integers are int32 in the contract (widths, heights and
   // RestartAttempts non-negative); a value outside is a malformed response.
-  it.each([
-    ['point', 'x', 2147483647, true, ''],
-    ['point', 'x', 2147483648, false, 'computer-use point: x must be a signed 32-bit integer'],
-    ['point', 'y', -2147483648, true, ''],
-    ['point', 'y', -2147483649, false, 'computer-use point: y must be a signed 32-bit integer'],
-    ['display', 'x', -2147483649, false, 'computer-use display: x must be a signed 32-bit integer'],
-    ['display', 'width', 2147483647, true, ''],
-    ['display', 'width', 2147483648, false, 'computer-use display: width must be a non-negative 32-bit integer'],
-    ['window', 'height', 2147483648, false, 'computer-use window: height must be a non-negative 32-bit integer'],
-    ['window', 'y', 2147483648, false, 'computer-use window: y must be a signed 32-bit integer'],
-    ['bounds', 'width', -2147483648, true, ''],
-    ['bounds', 'width', -2147483649, false, 'computer-use accessibility node: bounds: width must be a signed 32-bit integer'],
-    ['status', 'Pid', 2147483648, false, 'computer-use process status: Pid must be a signed 32-bit integer'],
-    ['status', 'Priority', -2147483649, false, 'computer-use process status: Priority must be a signed 32-bit integer'],
-    ['status', 'RestartAttempts', 2147483647, true, ''],
-    ['status', 'RestartAttempts', 2147483648, false, 'computer-use process status: RestartAttempts must be a non-negative 32-bit integer'],
-  ] as const)('range-checks the int32 %s %s %p', (kind, field, value, ok, message) => {
+  // Every int32 field of every kind, as the contract types it: each gets an
+  // in-range boundary value and an out-of-range one (signed fields alternate
+  // between the top and the bottom of the range, so both edges are covered).
+  const INT32_FIELDS: Record<string, readonly [string, ReadonlyArray<readonly [string, boolean]>]> = {
+    point: ['computer-use point', [['x', false], ['y', false]]],
+    display: ['computer-use display', [['x', false], ['y', false], ['width', true], ['height', true]]],
+    window: ['computer-use window', [['x', false], ['y', false], ['width', true], ['height', true]]],
+    bounds: ['computer-use accessibility node: bounds', [['x', false], ['y', false], ['width', false], ['height', false]]],
+    status: ['computer-use process status', [['Pid', false], ['Priority', false], ['RestartAttempts', true]]],
+  }
+  const int32Cases = Object.entries(INT32_FIELDS).flatMap(([kind, [description, fields]]) => fields.flatMap(([field, nonNegative], index) => {
+    const [ok, bad, expected] = nonNegative
+      ? [2 ** 31 - 1, 2 ** 31, 'a non-negative 32-bit integer']
+      : index % 2 === 0
+        ? [2 ** 31 - 1, 2 ** 31, 'a signed 32-bit integer']
+        : [-(2 ** 31), -(2 ** 31) - 1, 'a signed 32-bit integer']
+    return [[kind, field, ok, true, ''], [kind, field, bad, false, `${description}: ${field} must be ${expected}`]] as const
+  }))
+  it.each(int32Cases)('range-checks the int32 %s %s %p', (kind, field, value, ok, message) => {
     // The field under test over a valid record.
     const at = (base: Record<string, unknown>): Record<string, unknown> => ({ ...base, [String(field)]: value })
     const read = (): unknown => {

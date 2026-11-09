@@ -2820,53 +2820,46 @@ def test_the_sse_splitter_checks_before_copying_a_line_or_buffering_a_remainder(
 # Shared with the TypeScript SDK's unit.test.ts: computer-use geometry and
 # process-status integers are int32 in the contract (widths, heights and
 # RestartAttempts non-negative); a value outside is a malformed response.
-_INT32_CASES = [
-    ("point", "x", 2147483647, True, ""),
-    ("point", "x", 2147483648, False, "computer-use point: x must be a signed 32-bit integer"),
-    ("point", "y", -2147483648, True, ""),
-    ("point", "y", -2147483649, False, "computer-use point: y must be a signed 32-bit integer"),
-    ("display", "x", -2147483649, False, "computer-use display: x must be a signed 32-bit integer"),
-    ("display", "width", 2147483647, True, ""),
-    (
-        "display",
-        "width",
-        2147483648,
-        False,
-        "computer-use display: width must be a non-negative 32-bit integer",
+# Every int32 field of every kind, as the contract types it: each gets an
+# in-range boundary value and an out-of-range one (signed fields alternate
+# between the top and the bottom of the range, so both edges are covered).
+_INT32_FIELDS = {
+    "point": ("computer-use point", [("x", False), ("y", False)]),
+    "display": (
+        "computer-use display",
+        [("x", False), ("y", False), ("width", True), ("height", True)],
     ),
-    (
-        "window",
-        "height",
-        2147483648,
-        False,
-        "computer-use window: height must be a non-negative 32-bit integer",
+    "window": (
+        "computer-use window",
+        [("x", False), ("y", False), ("width", True), ("height", True)],
     ),
-    ("window", "y", 2147483648, False, "computer-use window: y must be a signed 32-bit integer"),
-    ("bounds", "width", -2147483648, True, ""),
-    (
-        "bounds",
-        "width",
-        -2147483649,
-        False,
-        "computer-use accessibility node: bounds: width must be a signed 32-bit integer",
+    "bounds": (
+        "computer-use accessibility node: bounds",
+        [("x", False), ("y", False), ("width", False), ("height", False)],
     ),
-    ("status", "Pid", 2147483648, False, "computer-use process status: Pid must be a signed 32-bit integer"),
-    (
-        "status",
-        "Priority",
-        -2147483649,
-        False,
-        "computer-use process status: Priority must be a signed 32-bit integer",
+    "status": (
+        "computer-use process status",
+        [("Pid", False), ("Priority", False), ("RestartAttempts", True)],
     ),
-    ("status", "RestartAttempts", 2147483647, True, ""),
-    (
-        "status",
-        "RestartAttempts",
-        2147483648,
-        False,
-        "computer-use process status: RestartAttempts must be a non-negative 32-bit integer",
-    ),
-]
+}
+
+
+def _int32_cases() -> list[tuple[str, str, int, bool, str]]:
+    cases: list[tuple[str, str, int, bool, str]] = []
+    for kind, (description, fields) in _INT32_FIELDS.items():
+        for index, (field, non_negative) in enumerate(fields):
+            if non_negative:
+                ok, bad, expected = 2**31 - 1, 2**31, "a non-negative 32-bit integer"
+            elif index % 2 == 0:
+                ok, bad, expected = 2**31 - 1, 2**31, "a signed 32-bit integer"
+            else:
+                ok, bad, expected = -(2**31), -(2**31) - 1, "a signed 32-bit integer"
+            cases.append((kind, field, ok, True, ""))
+            cases.append((kind, field, bad, False, f"{description}: {field} must be {expected}"))
+    return cases
+
+
+_INT32_CASES = _int32_cases()
 
 
 def _computer_use_int32(kind: str, field: str, value: int) -> object:
