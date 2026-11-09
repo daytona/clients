@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createDaytonaError, DaytonaError } from './errors/DaytonaError.js'
+import { createDaytonaError, DaytonaError, isJsonMediaType } from './errors/DaytonaError.js'
 import type { BulkReadError, BulkReadResult } from './types.js'
 
 const DAYTONA_FILE_BOUNDARY = 'DAYTONA-FILE-BOUNDARY'
@@ -180,14 +180,17 @@ function indexOfBytes(haystack: Uint8Array, needle: Uint8Array, start: number): 
   return -1
 }
 
-export function bulkReadHttpError(status: number, body: Uint8Array): DaytonaError {
+export function bulkReadHttpError(status: number, body: Uint8Array, contentType: string | undefined): DaytonaError {
   const text = BODY_DECODER.decode(body)
   let envelope: Record<string, unknown> | undefined
-  try {
-    const parsed: unknown = JSON.parse(text)
-    if (parsed && typeof parsed === 'object') envelope = parsed as Record<string, unknown>
-  } catch {
-    envelope = undefined
+  // Only a body declared as application/json carries a code.
+  if (isJsonMediaType(contentType)) {
+    try {
+      const parsed: unknown = JSON.parse(text)
+      if (parsed && typeof parsed === 'object') envelope = parsed as Record<string, unknown>
+    } catch {
+      envelope = undefined
+    }
   }
   const message = typeof envelope?.message === 'string' ? envelope.message : text || `bulk download failed with status ${status}`
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined

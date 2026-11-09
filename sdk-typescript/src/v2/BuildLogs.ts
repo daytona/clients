@@ -407,7 +407,7 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
 async function httpError(response: Response, deadline: number | undefined): Promise<DaytonaError> {
   try {
     const body = await finiteBody(response, deadline, 'error')
-    return errorFromEnvelopeBody(body, response.status, `build log HTTP ${response.status}`, true)
+    return errorFromEnvelopeBody(body, response.headers.get('content-type'), response.status, `build log HTTP ${response.status}`, true)
   } catch (error) {
     // A denied request stays denied even if its explanatory JSON stalls. Do
     // not turn a known 401/403/etc into an automatically retried timeout.

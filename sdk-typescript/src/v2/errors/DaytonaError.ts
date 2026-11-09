@@ -797,6 +797,37 @@ export function createDaytonaError(message: string, statusCode?: number, code?: 
   return new ErrorClass(message, { ...extra, statusCode, code, source })
 }
 
+/**
+ * Whether a response's media type is exactly `application/json` (type and
+ * subtype compared case-insensitively, parameters ignored), as the Python
+ * SDK's `is_json_media_type`: `application/jsonl` is not JSON. Only an error
+ * body declared this way is read for a code.
+ */
+export function isJsonMediaType(contentType: unknown): boolean {
+  if (typeof contentType !== 'string') return false
+  return (contentType.split(';')[0] ?? '').trim().toLowerCase() === 'application/json'
+}
+
+/** A header of an axios response (`AxiosHeaders` or a plain record), case-insensitively. */
+export function axiosResponseHeader(headers: unknown, name: string): unknown {
+  if (headers === null || typeof headers !== 'object') return undefined
+  const get = (headers as { get?: unknown }).get
+  if (typeof get === 'function') return (get as (this: unknown, header: string) => unknown).call(headers, name)
+  const wanted = name.toLowerCase()
+  for (const [key, value] of Object.entries(headers)) if (key.toLowerCase() === wanted) return value
+  return undefined
+}
+
+/** An error body's text for the message when it is not read as an envelope. */
+function errorBodyText(data: unknown): string | undefined {
+  if (typeof data === 'string') return data
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data)
+  if (ArrayBuffer.isView(data)) return new TextDecoder().decode(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
+  // axios parses a body that looks like JSON whatever its media type.
+  if (data !== null && typeof data === 'object') return JSON.stringify(data)
+  return undefined
+}
+
 function dataObject(data: unknown): ErrorEnvelope | undefined {
   if (data && typeof data === 'object') return data as ErrorEnvelope
   return undefined
@@ -827,13 +858,15 @@ export function responseTooLargeError(message: string): PayloadTooLargeError {
 
 export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   if (error.code === PAYLOAD_TOO_LARGE_AXIOS_CODE) return responseTooLargeError(error.message)
-  const envelope = dataObject(error.response?.data)
+  // Only a body declared as application/json carries a code.
+  const json = isJsonMediaType(axiosResponseHeader(error.response?.headers, 'content-type'))
+  const envelope = json ? dataObject(error.response?.data) : undefined
   const status = error.response?.status
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
   if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
   if (!error.response && (error.request || error.code)) return new ConnectionError(error.message)
-  const fallback = typeof error.response?.data === 'string' ? error.response.data : error.message
+  const fallback = typeof error.response?.data === 'string' ? error.response.data : (json ? undefined : errorBodyText(error.response?.data)) || error.message
   return createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, errorOptionsFromEnvelope(envelope))
 }
 
@@ -845,15 +878,19 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
 // so the build-log readers agree with the Python SDK on a prose-less body.
 export function errorFromEnvelopeBody(
   body: string,
+  contentType: string | null | undefined,
   status: number,
   fallbackMessage: string,
   emptyProseIsAbsent = false,
 ): DaytonaError {
   let parsed: ErrorEnvelope | undefined
-  try {
-    parsed = dataObject(JSON.parse(body) as unknown)
-  } catch {
-    parsed = undefined
+  // Only a body declared as application/json carries a code.
+  if (isJsonMediaType(contentType)) {
+    try {
+      parsed = dataObject(JSON.parse(body) as unknown)
+    } catch {
+      parsed = undefined
+    }
   }
   const code = typeof parsed?.code === 'string' ? parsed.code : undefined
   const source = typeof parsed?.source === 'string' ? parsed.source : undefined
@@ -879,7 +916,7 @@ export async function errorFromFetchResponse(response: Response, limit = 0, onCh
       response.status,
     )
   }
-  return errorFromEnvelopeBody(text, response.status, text || response.statusText)
+  return errorFromEnvelopeBody(text, response.headers.get('content-type'), response.status, text || response.statusText)
 }
 
 /**

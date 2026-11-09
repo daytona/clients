@@ -120,7 +120,7 @@ describe('process tags', () => {
     // Given
     const response = new Response(JSON.stringify({
       code: 'PROCESS_KILL_INCOMPLETE', message: 'still running', source: 'DAYTONA_DAEMON',
-    }), { status: 408 })
+    }), { status: 408, headers: { 'Content-Type': 'application/json' } })
     // When
     const error = await errorFromFetchResponse(response)
     // Then

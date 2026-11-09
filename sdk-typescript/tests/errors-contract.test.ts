@@ -21,8 +21,8 @@ describe('v2 error surface', () => {
     expect(new v2.RequestTimeoutError('x')).toBeInstanceOf(root.DaytonaTimeoutError)
     expect(new v2.ClientTimeoutError('x')).not.toBeInstanceOf(v2.RequestTimeoutError)
     expect(new v2.GitAuthFailedError('x')).toBeInstanceOf(v2.AuthenticationError)
-    expect(errorFromEnvelopeBody('{}', 401, 'x').constructor).toBe(v2.AuthenticationError)
-    expect(errorFromEnvelopeBody('{}', 403, 'x').constructor).toBe(v2.ForbiddenError)
+    expect(errorFromEnvelopeBody('{}', 'application/json', 401, 'x').constructor).toBe(v2.AuthenticationError)
+    expect(errorFromEnvelopeBody('{}', 'application/json', 403, 'x').constructor).toBe(v2.ForbiddenError)
   })
 
   it.each([
@@ -81,13 +81,13 @@ describe('v2 error surface', () => {
     const recorded = new v2.ImageBuildFailedError('image img_1 build failed', { imageId: 'img_1', buildError: 'RUN exited 1' })
     expect(recorded.buildError).toBe('RUN exited 1')
     expect(recorded.message).toBe('image img_1 build failed')
-    const fromWire = errorFromEnvelopeBody(JSON.stringify({ code: 'IMAGE_BUILD_FAILED', source: 'DAYTONA_API', message: 'failed' }), 409, 'x')
+    const fromWire = errorFromEnvelopeBody(JSON.stringify({ code: 'IMAGE_BUILD_FAILED', source: 'DAYTONA_API', message: 'failed' }), 'application/json', 409, 'x')
     expect(fromWire).toBeInstanceOf(v2.ImageBuildFailedError)
     expect((fromWire as v2.ImageBuildFailedError).buildError).toBeUndefined()
   })
 
   it('keeps an unknown code verbatim with the status category', () => {
-    const error = errorFromEnvelopeBody(JSON.stringify({ code: 'SOMETHING_NEW', source: 'DAYTONA_SOMETHING', message: 'x' }), 404, 'x')
+    const error = errorFromEnvelopeBody(JSON.stringify({ code: 'SOMETHING_NEW', source: 'DAYTONA_SOMETHING', message: 'x' }), 'application/json', 404, 'x')
     expect(error.constructor).toBe(v2.NotFoundError)
     expect([error.code, error.source]).toEqual(['SOMETHING_NEW', 'DAYTONA_SOMETHING'])
     expect(v2.codes.isKnownErrorCode('SOMETHING_NEW')).toBe(false)
