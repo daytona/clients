@@ -17,7 +17,7 @@ import importlib
 import os
 import threading
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from types import ModuleType
 from typing import TYPE_CHECKING, Callable, Final, Optional, Union
 
@@ -50,8 +50,8 @@ if TYPE_CHECKING:
     from .v2.types import DaytonaConfig as _DaytonaConfigV2
 
 # v0's own production API. `d.v0` always passes it explicitly, so the bundled
-# v0 client never falls back to `DAYTONA_API_URL`, which addresses v2 test
-# environments.
+# v0 client never falls back to `DAYTONA_API_URL` (the 0.x SDK's variable,
+# which nothing in SDK 2.x reads).
 V0_API_URL: Final[str] = "https://app.daytona.io/api"
 
 
@@ -164,16 +164,26 @@ class DaytonaConfig:
     ``organization_id`` for v0 and ``project_id`` for v2. Fields left unset
     are read from the environment by each namespace.
 
-    There is no region or API URL field here. Pass ``region=`` to a v2 create;
-    ``DAYTONA_V2_API_URL``, else ``DAYTONA_API_URL``, selects the v2 API
-    endpoint and never reaches v0.
+    There is no region or API URL field here. Pass ``region=`` to a v2 create.
+    ``DAYTONA_V2_API_URL`` (a regional endpoint or a test environment) selects the v2 API
+    endpoint and never reaches v0; ``DAYTONA_API_URL`` belongs to the 0.x SDK
+    and SDK 2.x never reads it.
+
+    ``Daytona(config)`` / ``AsyncDaytona(config)`` copy the fields when the
+    client is built: changing the object afterwards has no effect on it.
 
     ``target`` is deprecated and applies to ``.v0`` only (the v0 client's
     default region). Pass ``target`` to each v0 sandbox create
     (``CreateSandboxFromSnapshotParams(target=...)``) or ``region_id`` to each
     v0 snapshot create instead. Setting it still works and emits a
     ``DeprecationWarning``.
-    ``request_timeout`` (seconds), ``connection_pool_maxsize`` and
+    ``request_timeout`` (seconds; default 60; ``0``, or a value above
+    2,147,483.647 (about 24.8 days), means no limit) is the total
+    time one ordinary v2 request may take; waits and streams are not cut by
+    it, and file transfers are bounded by it only while idle (no bytes moving
+    for that long; with ``0``, not at all). ``max_response_bytes`` (an integer up to 2**53 - 1; ``None`` keeps the 1 GiB default, ``0`` means no limit, and any other value (negative, fractional, boolean, string, too large) is a ``BadRequestError``)
+    caps every v2 response body the SDK holds in memory whole; the in-memory
+    file reads take it per call too. ``request_timeout``, ``connection_pool_maxsize`` and
     ``otel_enabled`` tune the v2 client's HTTP transport;
     ``connection_pool_maxsize`` and ``otel_enabled`` reach v0 too.
     ``shared_hub`` and ``events`` (``daytona.v2.SandboxEventsConfig``) configure
@@ -186,6 +196,7 @@ class DaytonaConfig:
     project_id: Optional[str] = field(default=None, kw_only=True)
     target: Optional[str] = field(default=None, kw_only=True)
     request_timeout: Optional[float] = field(default=None, kw_only=True)
+    max_response_bytes: Optional[int] = field(default=None, kw_only=True)
     connection_pool_maxsize: Optional[int] = field(default=None, kw_only=True)
     otel_enabled: Optional[bool] = field(default=None, kw_only=True)
     shared_hub: bool = field(default=True, kw_only=True)
@@ -236,6 +247,22 @@ def _refuse_url_fields(config: DaytonaConfig) -> None:
             raise TypeError(_REMOVED_URL_FIELD.format(name=name))
 
 
+def _snapshot_config(config: DaytonaConfig) -> DaytonaConfig:
+    """A private copy of ``config``'s fields, taken when the client is built.
+
+    Later changes to the caller's object do not reach the client (the
+    TypeScript root copies its config the same way). URL fields are refused
+    before and after the copy: a property may add one while the fields are
+    read.
+    """
+    _refuse_url_fields(config)
+    snapshot = object.__new__(DaytonaConfig)
+    for config_field in fields(DaytonaConfig):
+        object.__setattr__(snapshot, config_field.name, getattr(config, config_field.name))
+    _refuse_url_fields(config)
+    return snapshot
+
+
 def _load_v0(client_name: str) -> tuple[ModuleType, object]:
     """Import the bundled v0 namespace, or explain how to install it.
 
@@ -284,6 +311,7 @@ def _v2_config(config: DaytonaConfig) -> _DaytonaConfigV2:
         jwt_token=config.jwt_token,
         project_id=config.project_id,
         request_timeout=config.request_timeout,
+        max_response_bytes=config.max_response_bytes,
         connection_pool_maxsize=config.connection_pool_maxsize,
         otel_enabled=config.otel_enabled,
         shared_hub=config.shared_hub,
@@ -304,6 +332,7 @@ ROOT_CONFIG_ROUTING: Final[dict[str, str]] = {
     "target": "v0",
     "project_id": "v2",
     "request_timeout": "v2",
+    "max_response_bytes": "v2",
     "connection_pool_maxsize": "both",
     "otel_enabled": "both",
     "shared_hub": "v2",
@@ -373,7 +402,9 @@ class _Root:
     """State shared by the sync and async root clients."""
 
     def __init__(self, config: Optional[DaytonaConfig] = None) -> None:
-        self._config = config if config is not None else DaytonaConfig()
+        # Snapshot now: later edits to the caller's config do not reach the
+        # namespace clients, which are built from it on first access.
+        self._config = _snapshot_config(config) if config is not None else DaytonaConfig()
         self._lock = threading.Lock()
 
     def __repr__(self) -> str:

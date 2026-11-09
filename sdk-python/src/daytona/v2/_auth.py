@@ -3,17 +3,18 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Final, Optional
 
 import anyio
 import httpx
 
 from . import _clock
-from ._core import _expect_model_from_dict, error_from_response, expect_object, parse_json_bytes
-from ._gen.api import TokenExchange
+from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, send_buffered
+from ._core import error_from_response
 from ._otel import OpenTelemetrySupport
-from .errors import ClientTimeoutError, ConnectionError, create_error
+from .errors import ClientTimeoutError, ConnectionError, DaytonaError, create_error
 
 _TOKEN_REFRESH_SKEW_SECONDS = 30.0
 
@@ -46,8 +47,12 @@ class ProjectTokenAuth:
         source: str,
         client: httpx.AsyncClient | None = None,
         otel: Optional[OpenTelemetrySupport] = None,
+        request_timeout: float = 0,
+        max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     ) -> None:
         self._api_url = api_url.rstrip("/")
+        self._request_timeout = request_timeout
+        self._max_response_bytes = max_response_bytes
         self._jwt_token = jwt_token
         self._project_id = project_id
         self._source = source
@@ -105,9 +110,12 @@ class ProjectTokenAuth:
             return True
         return current_token is not None and cached.access_token != current_token
 
-    async def _exchange_token(self) -> TokenExchange:
+    async def _exchange_token(self) -> _TokenExchange:
         url = f"{self._api_url}/auth/token"
-        from ._transport import client_identity_headers  # local: _transport imports this module
+        from ._transport import (
+            _request_deadline,
+            client_identity_headers,
+        )  # local: _transport imports this module
 
         assert self._client is not None
 
@@ -117,21 +125,23 @@ class ProjectTokenAuth:
         }
         span = self._otel.start_request_span(method="POST", url=url, headers=headers) if self._otel else None
         try:
-            response = await self._client.request(
-                "POST",
-                url,
-                headers=headers,
-                json={
-                    "grant_type": _TOKEN_EXCHANGE_GRANT_TYPE,
-                    "subject_token": self._jwt_token,
-                    "subject_token_type": _TOKEN_SUBJECT_TYPE,
-                    "project_id": self._project_id,
-                },
-            )
+            with _request_deadline(self._request_timeout):
+                request = self._client.build_request(
+                    "POST",
+                    url,
+                    headers=headers,
+                    json={
+                        "grant_type": _TOKEN_EXCHANGE_GRANT_TYPE,
+                        "subject_token": self._jwt_token,
+                        "subject_token_type": _TOKEN_SUBJECT_TYPE,
+                        "project_id": self._project_id,
+                    },
+                )
+                response = await send_buffered(self._client, request, self._max_response_bytes)
         except httpx.TimeoutException as error:
             if span is not None:
                 span.finish(error=error)
-            raise ClientTimeoutError("operation timed out") from error
+            raise ClientTimeoutError() from error
         except httpx.HTTPError as error:
             if span is not None:
                 span.finish(error=error)
@@ -143,19 +153,11 @@ class ProjectTokenAuth:
         if response.status_code >= 400:
             if span is not None:
                 span.finish(status_code=response.status_code)
-            raise error_from_response(response.status_code, response.content)
-        try:
-            payload = expect_object(parse_json_bytes(response.content))
-            exchange = _expect_model_from_dict(
-                payload,
-                TokenExchange,
-                "token exchange response",
-                TokenExchange.from_dict,
+            raise error_from_response(
+                response.status_code, response.content, content_type=response.headers.get("content-type")
             )
-            if exchange.expires_in <= 0:
-                raise create_error(
-                    "token exchange response has a non-positive expires_in", 400, "BAD_REQUEST", "SDK"
-                )
+        try:
+            exchange = _token_exchange(response.content)
         except BaseException as error:
             if span is not None:
                 span.finish(status_code=response.status_code, error=error)
@@ -163,3 +165,53 @@ class ProjectTokenAuth:
         if span is not None:
             span.finish(status_code=response.status_code)
         return exchange
+
+
+# The largest integer both SDKs read exactly (JavaScript's Number.MAX_SAFE_INTEGER).
+_MAX_SAFE_INTEGER: Final = 2**53 - 1
+
+
+@dataclass(frozen=True)
+class _TokenExchange:
+    """The two token-exchange fields the SDK reads (the token never in its repr)."""
+
+    access_token: str = field(repr=False)
+    expires_in: int
+
+
+def _token_exchange(body: bytes) -> _TokenExchange:
+    """The token and its lifetime, or ``BadRequestError`` naming what is wrong.
+
+    Only the fields the SDK reads are checked (``token_type`` and
+    ``issued_token_type`` are informational); the messages match the
+    TypeScript SDK's for the same response.
+    """
+    try:
+        payload: object = json.loads(body)
+    except ValueError:
+        payload = None
+    if not isinstance(payload, dict):
+        raise _bad_exchange("is not a JSON object")
+    access_token = payload.get("access_token")
+    if not isinstance(access_token, str) or access_token == "":
+        raise _bad_exchange("access_token must be a non-empty string")
+    expires_in = _whole_number(payload.get("expires_in"))
+    if expires_in is None or not 0 < expires_in <= _MAX_SAFE_INTEGER:
+        raise _bad_exchange("expires_in must be a positive integer")
+    return _TokenExchange(access_token=access_token, expires_in=expires_in)
+
+
+def _whole_number(value: object) -> int | None:
+    """A JSON number with an integral value (``60`` or ``60.0``, which JavaScript
+    cannot tell apart), as an ``int``; anything else (``60.5``, ``true``) is ``None``."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return None
+
+
+def _bad_exchange(problem: str) -> DaytonaError:
+    return create_error(f"token exchange response {problem}", 400, "BAD_REQUEST", "SDK")

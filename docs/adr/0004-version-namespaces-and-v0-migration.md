@@ -86,7 +86,9 @@ module can import both.
 
 **The 2.x client targets Daytona Cloud.** Neither the root nor the v2 config
 takes an API URL. A config that passes one fails with a message that points
-custom-URL users at SDK 0.x. `d.v0` always uses `V0_API_URL`.
+custom-URL users at SDK 0.x. `d.v0` always uses `V0_API_URL`. The 0.x SDK's
+`DAYTONA_API_URL` variable is not read by anything in 2.x; test environments
+select a v2 endpoint with `DAYTONA_V2_API_URL` only.
 
 **What 0.x users change.**
 
@@ -101,7 +103,9 @@ custom-URL users at SDK 0.x. `d.v0` always uses `V0_API_URL`.
    keep working for both namespaces.
 4. Move calls to `d.v2` when ready. Region is now a per-create argument, not
    config, and the config's `target` field is deprecated with a warning that
-   points at v0's per-call `target`.
+   points at v0's per-call `target`. The field stays, deprecated and routed to
+   `d.v0` unchanged, for all of 2.x: removing it would break 2.x callers in a
+   minor release.
 
 ## Alternatives
 

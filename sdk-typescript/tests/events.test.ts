@@ -23,14 +23,15 @@ import {
 import { sandboxState } from '../src/v2/http'
 import {
   AuthenticationError,
-  AuthorizationError,
+  ForbiddenError,
   DaytonaError,
   NotFoundError,
   RequestTimeoutError,
   SandboxTerminalStateError,
   ServiceUnavailableError,
 } from '../src/v2/errors/DaytonaError'
-import type { SandboxEventsConfig, SandboxState } from '../src/v2/types'
+import type { SandboxState } from '../src/v2/types'
+import type { EventsHubConfig } from '../src/v2/events'
 
 /** What every create/start wait registers: reach `started`, reject on a
  *  terminal state (the SDK's DEFAULT_SANDBOX_TERMINAL_STATES). */
@@ -148,18 +149,18 @@ function mockAxios(
   const postFn = jest.fn().mockImplementation(async (url: string) => {
     if (typeof url === 'string' && /\/events\/[^/]+\/ticket$/.test(url)) {
       if (ticketDelayMs > 0) await new Promise((r) => setTimeout(r, ticketDelayMs))
-      if (ticketStatus === 404) throw new NotFoundError('Not Found', 404, 'NOT_FOUND', 'DAYTONA_API')
-      if (ticketStatus === 401) throw new AuthenticationError('Unauthorized', 401, 'UNAUTHORIZED', 'DAYTONA_API')
-      if (ticketStatus === 403) throw new AuthorizationError('Forbidden', 403, 'FORBIDDEN', 'DAYTONA_API')
-      if (ticketStatus >= 400) throw new DaytonaError(`ticket ${ticketStatus}`, ticketStatus)
+      if (ticketStatus === 404) throw new NotFoundError('Not Found', { statusCode: 404, code: 'NOT_FOUND', source: 'DAYTONA_API' })
+      if (ticketStatus === 401) throw new AuthenticationError('Unauthorized', { statusCode: 401, code: 'UNAUTHORIZED', source: 'DAYTONA_API' })
+      if (ticketStatus === 403) throw new ForbiddenError('Forbidden', { statusCode: 403, code: 'FORBIDDEN', source: 'DAYTONA_API' })
+      if (ticketStatus >= 400) throw new DaytonaError(`ticket ${ticketStatus}`, { statusCode: ticketStatus })
       return { data: { ticket: 't0k3n', expires_in_ms: 30_000, subprotocol: 'daytona.events.v1' }, headers: {} }
     }
     return { data: {}, headers: {} }
   })
 
   const getFn = jest.fn().mockImplementation(async () => {
-    if (getStatus === 404) throw new NotFoundError('Not Found', 404, 'NOT_FOUND', 'DAYTONA_API')
-    if (getStatus >= 400) throw new DaytonaError(`get ${getStatus}`, getStatus)
+    if (getStatus === 404) throw new NotFoundError('Not Found', { statusCode: 404, code: 'NOT_FOUND', source: 'DAYTONA_API' })
+    if (getStatus >= 400) throw new DaytonaError(`get ${getStatus}`, { statusCode: getStatus })
     return {
       data: { status: sandboxStatus, id: SANDBOX_ID },
       headers: {},
@@ -187,7 +188,7 @@ function makeHub(
   } = {},
 ): WaitHub {
   const { enabled = true, reconcileIntervalMs = 0, idleCloseMs } = opts
-  const config: SandboxEventsConfig = { enabled, reconcileIntervalMs, idleCloseMs }
+  const config: EventsHubConfig = { enabled, reconcileIntervalMs, idleCloseMs }
   const api = opts.api ?? mockAxios()
   return new WaitHub(
     API_URL,
@@ -1204,7 +1205,7 @@ describe('WaitHub: shared hub', () => {
 
   test('same identity → same hub instance', () => {
     const api = mockAxios()
-    const config: SandboxEventsConfig = { enabled: true, reconcileIntervalMs: 0 }
+    const config: EventsHubConfig = { enabled: true, reconcileIntervalMs: 0 }
     const hub1 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: true, config })
     const hub2 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: true, config })
     expect(hub1).toBe(hub2)
@@ -1215,7 +1216,7 @@ describe('WaitHub: shared hub', () => {
   test('closing first of two refs keeps hub alive for second', async () => {
     const fc = makeFakeConnector()
     const api = mockAxios()
-    const config: SandboxEventsConfig = { enabled: true, reconcileIntervalMs: 0 }
+    const config: EventsHubConfig = { enabled: true, reconcileIntervalMs: 0 }
     const wsFactory = fc.factory.bind(fc) as unknown as (url: string, protocols: readonly string[]) => WebSocket
     const hub1 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: true, config, wsFactory })
     const hub2 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: true, config, wsFactory })
@@ -1248,7 +1249,7 @@ describe('WaitHub: shared hub', () => {
 
   test('hub identity lowercases scheme and host only', async () => {
     const api = mockAxios()
-    const config: SandboxEventsConfig = { enabled: true, reconcileIntervalMs: 0 }
+    const config: EventsHubConfig = { enabled: true, reconcileIntervalMs: 0 }
     const same = attachHub({ _api: api, apiUrl: 'HTTPS://API.EXAMPLE.com/Case/Path/', apiKey: API_KEY, target: undefined, shared: true, config })
     const sameAgain = attachHub({ _api: api, apiUrl: 'https://api.example.com/Case/Path', apiKey: API_KEY, target: undefined, shared: true, config })
     const different = attachHub({ _api: api, apiUrl: 'https://api.example.com/case/path', apiKey: API_KEY, target: undefined, shared: true, config })
@@ -1261,7 +1262,7 @@ describe('WaitHub: shared hub', () => {
 
   test('sharedHub=false gives each call its own hub', async () => {
     const api = mockAxios()
-    const config: SandboxEventsConfig = { enabled: true, reconcileIntervalMs: 0 }
+    const config: EventsHubConfig = { enabled: true, reconcileIntervalMs: 0 }
     const hub1 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: false, config })
     const hub2 = attachHub({ _api: api, apiUrl: API_URL, apiKey: API_KEY, target: undefined, shared: false, config })
     expect(hub1).not.toBe(hub2)

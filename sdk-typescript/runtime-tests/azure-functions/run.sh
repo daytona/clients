@@ -17,7 +17,7 @@ cat >local.settings.json <<SETTINGS
   "Values": {
     "AzureWebJobsStorage": "",
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "DAYTONA_API_URL": "$DAYTONA_API_URL",
+    "DAYTONA_V2_API_URL": "$DAYTONA_V2_API_URL",
     "DAYTONA_API_KEY": "$DAYTONA_API_KEY"
   }
 }

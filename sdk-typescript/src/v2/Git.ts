@@ -4,7 +4,7 @@
  */
 
 import { HttpTransport } from './http.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import type { GitCommitResponse, GitConfigScope, GitRemote, GitStatus, ListResult } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
 
@@ -132,7 +132,7 @@ export class GitService {
   public async commit(path: string, message: string, options: CommitOptions): Promise<GitCommitResponse> {
     const author = options?.author?.trim() ?? ''
     const email = options?.email?.trim() ?? ''
-    if (!author || !email) throw new DaytonaError('git.commit requires author and email', 400, 'BAD_REQUEST')
+    if (!author || !email) throw createDaytonaError('git.commit requires author and email', 400, 'BAD_REQUEST', 'SDK')
     const body: toolbox.CommitRequest = {
       path,
       message,
@@ -213,7 +213,7 @@ export class GitService {
 function validateCloneDepth(depth: number | undefined): number | undefined {
   if (depth === undefined) return undefined
   if (!Number.isInteger(depth) || depth <= 0) {
-    throw new BadRequestError('depth must be a positive integer', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('depth must be a positive integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return depth
 }
@@ -221,7 +221,7 @@ function validateCloneDepth(depth: number | undefined): number | undefined {
 function timeoutConfig(timeout: number | undefined): { readonly timeout: number } {
   if (timeout === undefined) return { timeout: GIT_REMOTE_TIMEOUT_MS }
   if (!Number.isFinite(timeout) || timeout <= 0) {
-    throw new BadRequestError('timeout must be a positive finite number', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('timeout must be a positive finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return { timeout }
 }

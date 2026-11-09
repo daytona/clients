@@ -9,7 +9,7 @@ install_sdk
 
 # The worker gets its configuration as text bindings; with nodejs_compat and a
 # compatibility date from 2025-04-01 on, workerd also exposes them on
-# process.env, where the SDK reads DAYTONA_API_URL. Outbound fetches may reach
+# process.env, where the SDK reads DAYTONA_V2_API_URL. Outbound fetches may reach
 # local addresses (the mock API).
 cat >config.capnp <<CAPNP
 using Workerd = import "/workerd/workerd.capnp";
@@ -27,7 +27,7 @@ const worker :Workerd.Worker = (
   compatibilityDate = "2025-09-01",
   compatibilityFlags = ["nodejs_compat"],
   bindings = [
-    (name = "DAYTONA_API_URL", text = "$DAYTONA_API_URL"),
+    (name = "DAYTONA_V2_API_URL", text = "$DAYTONA_V2_API_URL"),
     (name = "DAYTONA_API_KEY", text = "$DAYTONA_API_KEY"),
   ],
 );

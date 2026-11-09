@@ -25,18 +25,37 @@ have the same structure and the same method set in both languages. Compare
 with [`../../sdk-typescript/src/v2/Sandbox.ts`](../../sdk-typescript/src/v2/Sandbox.ts).
 
 **Naming follows each language.** Python uses `snake_case` and keyword-only
-arguments; TypeScript uses `camelCase` and options objects. Python timeouts
-are seconds and TypeScript timeouts are milliseconds, each following its
-platform's convention. These are spelling differences, not shape differences:
-`sandbox.run_code(...)` and `sandbox.runCode(...)` take the same inputs and
-return the same result.
+arguments; TypeScript uses `camelCase` and options objects. Durations are in
+seconds in both SDKs: Python keeps the bare name (`timeout`,
+`request_timeout`), TypeScript adds the unit to it (`timeoutSeconds`,
+`requestTimeoutSeconds`), and a TypeScript options object rejects a key it does
+not define at runtime, naming the replacement of a renamed one. The client
+configuration follows this rule today; the TypeScript per-call `timeout`
+options that still take milliseconds adopt the seconds convention area by
+area. These are spelling
+differences, not shape differences: `sandbox.run_code(...)` and
+`sandbox.runCode(...)` take the same inputs and return the same result. The
+client's request timeout means the same in both: the total time one ordinary
+call may take (default 60 s), the credential exchange and a 401 retry
+included. Waits and long polls are bounded by their own budget, streams only
+until their response headers arrive, and file transfers have no total
+deadline but are idle-bounded by the request timeout (they fail once no bytes
+move for that long; `0` leaves them unbounded).
 
 **One error hierarchy.** Both SDKs root every error at `DaytonaError`. Below
-it sits one base class per HTTP status category (`DaytonaNotFoundError`,
-`DaytonaConflictError`, `DaytonaRateLimitError`, and so on), and below those,
-one subclass per error code the contract defines. A caller can catch broadly
-by status or narrowly by code, and the same `except` or `instanceof` works
-in both languages. Each SDK has a codes module,
+it sits one base class per HTTP status category (`NotFoundError`,
+`AuthenticationError`, `ForbiddenError`, `ConflictError`, `RateLimitError`,
+and so on, with the same names in both languages and no synonyms), plus
+`ClientTimeoutError` for the client's own timeout and `ConnectionError`. Below
+those, codes that callers branch on get a dedicated subclass; other codes map
+to their status category. A caller can catch broadly by status or narrowly by
+code, and the same `except` or `instanceof` works in both languages. Errors
+carry the code as `code` only; `code` and `source` are open vocabularies (an
+unknown code is kept verbatim and the error falls back to its status
+category). Constructors take the message plus options with the same names and
+defaults in both SDKs. The package roots add one shared category class per
+status (`DaytonaNotFoundError`, ...) that catches the error from either API
+version. Each SDK has one read-only `codes` catalog with the same members,
 [`../../sdk-python/src/daytona/v2/codes.py`](../../sdk-python/src/daytona/v2/codes.py)
 and [`../../sdk-typescript/src/v2/codes.ts`](../../sdk-typescript/src/v2/codes.ts),
 with one catalog per error source (the API, the in-sandbox toolbox, the
@@ -63,7 +82,10 @@ and fails when the SDK falls out of step with it:
 Wire types are generated from the same contract for both SDKs
 (`sdk-typescript/src/v2/gen/`, `sdk-python/src/daytona/v2/_gen/`) by
 [`../../scripts/gen-contract-types.sh`](../../scripts/gen-contract-types.sh),
-and CI checks that the generated files are current.
+and CI checks that the generated files are current. They are meant for the
+HTTP boundary only: a test in each SDK fails when a public export or a type in
+a public signature comes from them, apart from an explicit list of remaining
+exceptions that only shrinks.
 
 **Python is async-native, with a generated sync surface.** Python code is
 written once, as `async def` methods on classes named `Async*`

@@ -4,11 +4,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any, get_args
 
 import httpx
 import pytest
+from _repo import _repo_file
 
 from daytona.v2 import codes
 from daytona.v2._core import RequestSpec
@@ -452,12 +452,12 @@ def test_desktop_lifetime_types_and_error_are_exported() -> None:
     assert daytona.ComputerUseRestartResponse is ComputerUseRestartResponse
     assert daytona.DesktopNotReadyError is DesktopNotReadyError
     assert issubclass(DesktopNotReadyError, ConflictError)
-    assert codes.DESKTOP_NOT_READY == "DESKTOP_NOT_READY"
+    assert "DESKTOP_NOT_READY" in codes.DAEMON_ERROR_CODES
 
 
 def test_desktop_vocabulary_matches_contract() -> None:
     # Desktop vocabulary must match the committed contract.
-    contract = Path(__file__).resolve().parents[2] / "contract" / "toolbox-openapi.json"
+    contract = _repo_file("contract/toolbox-openapi.json")
     schemas = json.loads(contract.read_text())["components"]["schemas"]
     activity_statuses = schemas["ComputerUseActivityStatus"]["enum"]
     states = schemas["ComputerUseDesktopState"]["enum"]

@@ -15,7 +15,7 @@ import { SnapshotsService } from '../src/v2/Snapshots'
 import { WaitHub } from '../src/v2/events'
 import { createHttpClient, createPlatformTokenProvider, HttpTransport } from '../src/v2/http'
 
-it.each(['DAYTONA_V2_API_URL', 'DAYTONA_API_URL'])('omits credential-bearing URLs from diagnostic views when configured via %s', async (variable) => {
+it.each(['DAYTONA_V2_API_URL'])('omits credential-bearing URLs from diagnostic views when configured via %s', async (variable) => {
   // Given a configured endpoint containing userinfo, a query credential and a fragment.
   const url = 'https://private-user:private-password@api.invalid/path?token=private-query#private-fragment'
   const previous = { ...process.env }

@@ -22,7 +22,7 @@ not (you see only the placeholder). This example asserts exactly that
 contrast.
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/secrets_env.py
 """
 

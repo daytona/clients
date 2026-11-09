@@ -9,7 +9,8 @@ import uuid
 from typing import Awaitable, Callable, Mapping, Optional, TypeGuard
 from urllib.parse import quote
 
-from . import _clock, codes
+from . import _clock
+from . import _codes as codes
 from ._core import (
     RequestSpec,
     bounded_request_timeout,

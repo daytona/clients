@@ -17,8 +17,11 @@ import type {
 } from './types.js'
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
-import { encodeQuery, HttpTransport, isAbortError, sseMessages, strictUriEncode } from './http.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { encodeQuery, HttpTransport, isAbortError, maxContentLengthFor, sseMessages, strictUriEncode, transferRequest } from './http.js'
+import { maxResponseBytesOption } from './bodyLimit.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+import type { OptionKeys } from './options.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 
 export type Match = FileMatch
 export type SearchFilesResponse = ListResult<string>
@@ -52,13 +55,39 @@ export interface WriteFileOptions {
   atomic?: boolean
 }
 
-export interface ReadFileOptions {}
+/**
+ * Options of the in-memory file reads (`readBytes`, `readText`).
+ *
+ * `maxResponseBytes` replaces the client's cap on the response body for this
+ * call (`undefined` or `null` keep the client's cap, `0` means no limit, and any other value (negative, fractional, boolean, string, above `Number.MAX_SAFE_INTEGER`) is a `BadRequestError`).
+ * A body over it is refused with `PayloadTooLargeError` before it is read in
+ * full. For large files, or content from a sandbox you don't trust, use
+ * `downloadFile()` (Node.js), which streams to disk.
+ */
+export interface ReadFileOptions {
+  readonly maxResponseBytes?: number | null
+}
 
 export interface WriteManyOptions {
   atomic?: boolean
 }
 
-export interface ReadManyOptions {}
+/**
+ * Options of `readMany`: `maxResponseBytes` caps the whole multipart body, as
+ * in {@link ReadFileOptions}.
+ */
+export interface ReadManyOptions {
+  readonly maxResponseBytes?: number | null
+}
+
+const READ_FILE_OPTION_KEYS = optionKeys<ReadFileOptions>()({ maxResponseBytes: true })
+const READ_MANY_OPTION_KEYS = optionKeys<ReadManyOptions>()({ maxResponseBytes: true })
+
+/** The validated per-call cap of an in-memory read, as axios config. */
+function readLimit(typeName: string, options: ReadFileOptions | ReadManyOptions | undefined, keys: OptionKeys<ReadFileOptions | ReadManyOptions>): { readonly maxContentLength?: number } {
+  assertKnownOptions(typeName, options, keys)
+  return maxContentLengthFor(maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes))
+}
 
 export interface WatchDirOptions {
   recursive?: boolean
@@ -106,7 +135,7 @@ function filesystemEventType(value: unknown): FilesystemEventType {
     case FilesystemEventType.CHMOD:
       return value
     default:
-      throw new DaytonaError(`invalid filesystem event type: ${String(value)}`)
+      throw new DaytonaError(`invalid filesystem event type: ${String(value)}`, { source: 'SDK' })
   }
 }
 
@@ -115,16 +144,16 @@ function parseFilesystemEvent(data: string): FilesystemEvent {
   try {
     parsed = data ? JSON.parse(data) : {}
   } catch (error) {
-    throw new DaytonaError(error instanceof Error ? error.message : String(error))
+    throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
   }
   if (typeof parsed !== 'object' || parsed === null) {
-    throw new DaytonaError('filesystem watch event must be an object')
+    throw new DaytonaError('filesystem watch event must be an object', { source: 'SDK' })
   }
   const raw = parsed as Record<string, unknown>
-  if (typeof raw.name !== 'string') throw new DaytonaError('filesystem watch event name must be a string')
-  if (typeof raw.isDir !== 'boolean') throw new DaytonaError('filesystem watch event isDir must be a boolean')
+  if (typeof raw.name !== 'string') throw new DaytonaError('filesystem watch event name must be a string', { source: 'SDK' })
+  if (typeof raw.isDir !== 'boolean') throw new DaytonaError('filesystem watch event isDir must be a boolean', { source: 'SDK' })
   if (typeof raw.timestamp !== 'number' || !Number.isFinite(raw.timestamp)) {
-    throw new DaytonaError('filesystem watch event timestamp must be a finite number')
+    throw new DaytonaError('filesystem watch event timestamp must be a finite number', { source: 'SDK' })
   }
   return {
     type: filesystemEventType(raw.type),
@@ -163,9 +192,7 @@ function assertExpiresInSeconds(expiresInSeconds: number): void {
   if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 1 || expiresInSeconds > SIGNED_FILE_MAX_TTL_SECONDS) {
     throw new BadRequestError(
       `expiresInSeconds must be an integer between 1 and ${SIGNED_FILE_MAX_TTL_SECONDS} (7 days)`,
-      400,
-      'BAD_REQUEST',
-      'SDK',
+      { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' },
     )
   }
 }
@@ -191,32 +218,42 @@ export class FileSystemService {
     private readonly fileUrlSigner?: FileUrlSigner,
   ) {}
 
-  public async readBytes(path: string, _options: ReadFileOptions = {}): Promise<Uint8Array> {
+  /**
+   * Read a file into memory. A file transfer: no total deadline, but it fails
+   * with `ClientTimeoutError` once no bytes move for the request timeout (a
+   * request timeout of `0` leaves it unbounded). The
+   * body is capped by the client's `maxResponseBytes` or this call's (see
+   * {@link ReadFileOptions}).
+   */
+  public async readBytes(path: string, options?: ReadFileOptions): Promise<Uint8Array> {
+    const limit = readLimit('ReadFileOptions', options, READ_FILE_OPTION_KEYS)
     // Through the transport's wrapped method, never the raw axios instance:
     // the wrapper carries the per-sandbox token (minting/refreshing it) and
     // retries once on a 401 — the raw instance only has the static
     // construction-time credential.
-    const data = await this.transport.get<ArrayBuffer>('/files/download', {
+    const data = await this.transport.get<ArrayBuffer>('/files/download', transferRequest({
       params: { path },
       responseType: 'arraybuffer',
-    })
+      ...limit,
+    }))
     return new Uint8Array(data)
   }
 
-  public async readText(path: string, options: ReadFileOptions = {}): Promise<string> {
+  /** Read a UTF-8 text file into memory; the bounds of {@link readBytes}. */
+  public async readText(path: string, options?: ReadFileOptions): Promise<string> {
     return new TextDecoder().decode(await this.readBytes(path, options))
   }
 
   public async writeBytes(path: string, data: Uint8Array, options: WriteFileOptions = {}): Promise<void> {
     // JavaScript callers migrating from the old write(path, string) get a named error, not a RangeError from TypedArray.set.
-    if (typeof data === 'string') throw new BadRequestError('writeBytes() takes a Uint8Array; use writeText() for strings', 400, 'BAD_REQUEST', 'SDK')
+    if (typeof data === 'string') throw new BadRequestError('writeBytes() takes a Uint8Array; use writeText() for strings', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     const form = new FormData()
     form.append('path', path)
     if (options.mode) form.append('mode', options.mode)
     const ab = new ArrayBuffer(data.byteLength)
     new Uint8Array(ab).set(data)
     form.append('file', new Blob([ab]), path.split('/').pop() || 'file')
-    await this.transport.post('/files/upload', form, { params: uploadQuery(path, options.atomic) })
+    await this.transport.post('/files/upload', form, transferRequest({ params: uploadQuery(path, options.atomic) }))
     if (options.mode) await this.chmod(path, { mode: options.mode })
   }
 
@@ -259,22 +296,28 @@ export class FileSystemService {
       form.append(`files[${index}].file`, new Blob([copyArrayBuffer(data)]), path.split('/').pop() || 'file')
     })
     const atomicParams = uploadManyQuery(options.atomic)
-    const data = await this.transport.post<BulkWriteResult>('/files/bulk-upload', form, atomicParams !== undefined ? { params: atomicParams } : undefined)
+    const data = await this.transport.post<BulkWriteResult>('/files/bulk-upload', form, transferRequest(atomicParams !== undefined ? { params: atomicParams } : {}))
     return {
       files: Array.isArray(data.files) ? data.files : [],
       errors: Array.isArray(data.errors) ? data.errors.filter((item): item is string => typeof item === 'string') : [],
     }
   }
 
-  public async readMany(paths: readonly string[], _options: ReadManyOptions = {}): Promise<BulkReadResult> {
+  /**
+   * Read several files into memory, in one multipart response. The bounds of
+   * {@link readBytes}; `maxResponseBytes` caps the whole multipart body.
+   */
+  public async readMany(paths: readonly string[], options?: ReadManyOptions): Promise<BulkReadResult> {
+    const limit = readLimit('ReadManyOptions', options, READ_MANY_OPTION_KEYS)
     // postRaw: the body carries per-path errors on non-2xx statuses, which
     // the parser interprets — but a 401 still throws into the transport's
     // one-retry mint path instead of being swallowed as a payload.
-    const response = await this.transport.postRaw<ArrayBuffer | Uint8Array>('/files/bulk-download', { paths }, {
+    const response = await this.transport.postRaw<ArrayBuffer | Uint8Array>('/files/bulk-download', { paths }, transferRequest({
       responseType: 'arraybuffer',
-    })
+      ...limit,
+    }))
     const body = toUint8Array(response.data)
-    if (response.status !== 200) throw bulkReadHttpError(response.status, body)
+    if (response.status !== 200) throw bulkReadHttpError(response.status, body, contentTypeHeader(response.headers))
     return parseBulkReadResult(body, contentTypeHeader(response.headers))
   }
 
@@ -374,7 +417,7 @@ export class FileSystemService {
                 stoppedMidCallback = true
                 break
               }
-              if (winner !== 'done') throw winner.error instanceof Error ? winner.error : new DaytonaError(String(winner.error))
+              if (winner !== 'done') throw winner.error instanceof Error ? winner.error : new DaytonaError(String(winner.error), { source: 'SDK' })
               break
             }
             case 'overflow':
@@ -386,16 +429,16 @@ export class FileSystemService {
           if (stoppedMidCallback) break
         }
         if (started) {
-          if (!stopRequested) notifyExit(new DaytonaError('filesystem watch stream ended unexpectedly'))
+          if (!stopRequested) notifyExit(new DaytonaError('filesystem watch stream ended unexpectedly', { source: 'SDK' }))
           else notifyExit()
           return
         }
-        const error = new DaytonaError('filesystem watch stream ended before start')
+        const error = new DaytonaError('filesystem watch stream ended before start', { source: 'SDK' })
         rejectStarted(error)
         notifyExit(error)
       } catch (error) {
         if (isAbortError(error) && stopRequested) {
-          if (!started) rejectStarted(new DaytonaError('filesystem watch stopped before start'))
+          if (!started) rejectStarted(new DaytonaError('filesystem watch stopped before start', { source: 'SDK' }))
           notifyExit()
           return
         }
@@ -455,7 +498,7 @@ export class FileSystemService {
 
   private requireFileUrlSigner(): FileUrlSigner {
     if (this.fileUrlSigner === undefined) {
-      throw new DaytonaError('filesystem handle has no pre-signed URL signer', 400, 'BAD_REQUEST')
+      throw createDaytonaError('filesystem handle has no pre-signed URL signer', 400, 'BAD_REQUEST', 'SDK')
     }
     return this.fileUrlSigner
   }

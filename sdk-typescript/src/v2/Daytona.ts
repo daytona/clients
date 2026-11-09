@@ -4,9 +4,11 @@
  */
 
 import type { AxiosInstance } from 'axios'
-import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
+import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
+import { assertKnownOptions, badRequest, boundedTimerDelay, optionalSeconds, snapshotOptions } from './options.js'
+import { DEFAULT_MAX_RESPONSE_BYTES, maxResponseBytesOption } from './bodyLimit.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
-import { ConnectionError, DaytonaError, DaytonaAuthenticationError, DaytonaValidationError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
+import { ClientTimeoutError, ConnectionError, DaytonaError, AuthenticationError, BadRequestError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
 import { Image, ImageBuilder, isImageBuilder } from './Image.js'
 import { Sandbox, scopedProxyToolboxUrl } from './Sandbox.js'
@@ -19,10 +21,11 @@ import { SnapshotsService } from './Snapshots.js'
 import { VolumeService } from './Volume.js'
 import type * as api from './gen/api-types.js'
 import { SearchTotalRelation as SEARCH_TOTAL_RELATIONS } from './gen/api-enums.js'
+import { SANDBOX_EVENTS_CONFIG_KEYS, V2_CONFIG_KEYS } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
-import { attachHub, eventDestinationFromHeaders, detachHub } from './events.js'
-import type { WaitHub } from './events.js'
-import type { BuildImageOptions, CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions, CreateSandboxResponse, DaytonaConfig, GetLimitsOptions, ListResult, ListSandboxesOptions, NetworkPolicyInfo, NetworkPolicyInput, OrganizationLimits, ProjectBudget, SandboxConnectOptions, SandboxEventsConfig, SandboxHandleJSON, SandboxSearchFilters, SandboxSecretsInfo, SearchResult, SearchSandboxesOptions, SearchTimestamp, SandboxDto } from './types.js'
+import { attachHub, eventDestinationFromHeaders, detachHub, eventsHubConfig } from './events.js'
+import type { EventsHubConfig, WaitHub } from './events.js'
+import type { BuildImageOptions, CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions, CreateSandboxResponse, DaytonaConfig, GetLimitsOptions, ListResult, ListSandboxesOptions, NetworkPolicyInfo, NetworkPolicyInput, OrganizationLimits, ProjectBudget, SandboxConnectOptions, SandboxHandleJSON, SandboxSearchFilters, SandboxSecretsInfo, SearchResult, SearchSandboxesOptions, SearchTimestamp, SandboxDto } from './types.js'
 import type { HttpClientOptions } from './http.js'
 
 // `image` is optional: an imageless Linux create boots the platform default.
@@ -33,8 +36,9 @@ type LinuxCreateRequest = Omit<api.CreateSandboxRequest, 'image'> & {
 
 
 /**
- * The default Daytona Cloud v2 API, used when neither `DAYTONA_V2_API_URL` nor
- * `DAYTONA_API_URL` is set. These variables can select a regional API endpoint.
+ * The default Daytona Cloud v2 API, used unless `DAYTONA_V2_API_URL` (a
+ * regional endpoint or a test environment) selects another one. `DAYTONA_API_URL` belongs to
+ * the 0.x SDK; SDK 2.x never reads it.
  */
 export const DEFAULT_V2_API_URL = 'https://api.daytona.com'
 
@@ -218,16 +222,16 @@ function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function assertPresentStringOption(name: 'jwtToken' | 'projectId', value: string | undefined): void {
-  if (value !== undefined && value.length === 0) {
-    throw new DaytonaValidationError(`${name} must be a non-empty string when provided`)
+function assertPresentStringOption(name: 'apiKey' | 'jwtToken' | 'projectId', value: string | undefined): void {
+  if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
+    throw new BadRequestError(`${name} must be a non-empty string when provided`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
 
 function connectionPoolMaxsize(value: number | undefined): number | undefined {
   if (value === undefined) return undefined
   if (!Number.isInteger(value) || value <= 0) {
-    throw new DaytonaValidationError('connectionPoolMaxsize must be a positive integer')
+    throw new BadRequestError('connectionPoolMaxsize must be a positive integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return value
 }
@@ -236,9 +240,11 @@ function imageSourceString(image: unknown): string {
   if (isImageBuilder(image)) {
     throw new TypeError('daytona.create() only accepts an image name or img_… id; use daytona.createFromBuild(builder, options) for ImageBuilder sources')
   }
-  if (!hasText(image)) {
+  if (typeof image !== 'string') {
     throw new TypeError('daytona.create() only accepts an image name or img_… id')
   }
+  // A blank string is the right type with an invalid value, as in Python.
+  if (!hasText(image)) throw badRequest('image must be a non-empty string')
   return image.trim()
 }
 
@@ -250,8 +256,8 @@ interface LinuxCreateArguments {
 /**
  * Split `create`'s overloaded arguments: `()`, `(image, options?)` (an
  * `undefined` image is the platform default) or `(options)`; an options object
- * carrying `image` or `snapshot` is the v0 shape and a `TypeError`. A string goes through `imageSourceString`, so a blank one keeps
- * its error; an `ImageBuilder`, an `Image` handle or any other non-string
+ * carrying `image` or `snapshot` is the v0 shape and a `TypeError`. A string goes through `imageSourceString`, so a blank one is
+ * a `BadRequestError`; an `ImageBuilder`, an `Image` handle or any other non-string
  * source is still a `TypeError`.
  */
 function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptions | null | undefined, options: CreateSandboxOptions | undefined): LinuxCreateArguments {
@@ -269,14 +275,15 @@ function linuxCreateArguments(imageOrOptions: string | CreateSandboxOptions | nu
 }
 
 function snapshotSourceString(snapshot: string): string {
-  if (!hasText(snapshot)) throw new TypeError('snapshot must be a non-empty snapshot name or snap_… id')
+  if (typeof snapshot !== 'string') throw new TypeError('snapshot must be a non-empty snapshot name or snap_… id')
+  if (!hasText(snapshot)) throw badRequest('snapshot must be a non-empty string')
   return snapshot.trim()
 }
 
 function createWaitSeconds(waitSeconds: number | undefined): number {
   const resolved = waitSeconds ?? 60
   if (!Number.isFinite(resolved) || resolved < 0 || !Number.isInteger(resolved)) {
-    throw new DaytonaError('waitSeconds must be a non-negative integer number of seconds', 400, 'BAD_REQUEST', 'SDK')
+    throw badRequest('waitSeconds must be a non-negative integer number of seconds')
   }
   return resolved
 }
@@ -284,7 +291,7 @@ function createWaitSeconds(waitSeconds: number | undefined): number {
 function createTimeoutSeconds(createTimeoutSeconds: number | undefined): number | undefined {
   if (createTimeoutSeconds === undefined) return undefined
   if (!Number.isFinite(createTimeoutSeconds) || !Number.isInteger(createTimeoutSeconds)) {
-    throw new DaytonaError('createTimeoutSeconds must be an integer number of seconds', 400, 'BAD_REQUEST', 'SDK')
+    throw badRequest('createTimeoutSeconds must be an integer number of seconds')
   }
   return createTimeoutSeconds
 }
@@ -296,7 +303,7 @@ const MAX_INT32 = 2147483647
 function macosCores(cpu: number | undefined): number | undefined {
   if (cpu === undefined) return undefined
   if (typeof cpu !== 'number' || !Number.isInteger(cpu) || cpu < 4 || cpu > MAX_INT32) {
-    throw new DaytonaError('cpu must be an integer between 4 and 2147483647', 400, 'BAD_REQUEST', 'SDK')
+    throw badRequest('cpu must be an integer between 4 and 2147483647')
   }
   return cpu
 }
@@ -305,7 +312,7 @@ function macosMib(gib: number | undefined, axis: 'memory' | 'disk', floorMib: nu
   if (gib === undefined) return undefined
   const mib = typeof gib === 'number' && Number.isFinite(gib) ? gib * 1024 : Number.NaN
   if (!Number.isInteger(mib) || mib < floorMib || mib > MAX_INT32) {
-    throw new DaytonaError(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`, 400, 'BAD_REQUEST', 'SDK')
+    throw badRequest(`${axis} must be a finite GiB value that converts to an integer MiB value between ${floorMib} and 2147483647`)
   }
   return mib
 }
@@ -323,7 +330,7 @@ function secondsToMilliseconds(timeout: number): number {
  */
 function resolveIdempotencyKey(idempotencyKey: string | undefined): string | undefined {
   if (idempotencyKey == null) return undefined
-  if (typeof idempotencyKey !== 'string') throw new DaytonaError('idempotencyKey must be a string', 400, 'BAD_REQUEST', 'SDK')
+  if (typeof idempotencyKey !== 'string') throw badRequest('idempotencyKey must be a string')
   return idempotencyKey
 }
 
@@ -368,7 +375,7 @@ const NAME_KEY_HASH_PREFIX = 'name:sha256:'
  * a named create made with either SDK.
  */
 export async function idempotencyKeyForName(name: string): Promise<string> {
-  if (typeof name !== 'string') throw new DaytonaError('name must be a string', 400, 'BAD_REQUEST', 'SDK')
+  if (typeof name !== 'string') throw badRequest('name must be a string')
   const literal = NAME_KEY_PREFIX + name
   // `/^[\x20-\x7e]*$/` is the API's printable-ASCII rule; `.length` counts
   // UTF-16 units, which equals the byte count for a string that passed it.
@@ -421,7 +428,7 @@ function labelsWithName(name: string | undefined, labels: Record<string, string>
   if (named === undefined) return labels
   const existing = labels?.[NAME_LABEL]
   if (existing !== undefined && existing !== named) {
-    throw new DaytonaError(`labels.${NAME_LABEL} (${JSON.stringify(existing)}) disagrees with name (${JSON.stringify(named)}); the name label is stamped from name, pass one or the other`, 400, 'BAD_REQUEST', 'SDK')
+    throw badRequest(`labels.${NAME_LABEL} (${JSON.stringify(existing)}) disagrees with name (${JSON.stringify(named)}); the name label is stamped from name, pass one or the other`)
   }
   return { ...(labels ?? {}), [NAME_LABEL]: named }
 }
@@ -442,8 +449,9 @@ export class Daytona {
   private keyOrganization?: Promise<string>
   private readonly apiUrl: string
   private readonly httpOptions: HttpClientOptions
+  private readonly maxResponseBytes: number
   private readonly hubShared: boolean
-  private readonly hubEventsConfig: SandboxEventsConfig
+  private readonly hubEventsConfig: EventsHubConfig
   private readonly hubIdentityKey: string
   private hub: WaitHub | undefined
   private closed = false
@@ -453,44 +461,48 @@ export class Daytona {
     // get a compile error), as Python's v2 config rejects them.
     for (const unsupported of ['apiUrl', 'target', 'toolboxUrl']) {
       if (unsupported in config) {
-        throw new TypeError(
+        throw badRequest(
           unsupported === 'apiUrl'
-            ? "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL (or DAYTONA_API_URL) to select an API endpoint"
+            ? "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL to select an API endpoint"
             : unsupported === 'target'
               ? "the v2 client does not take 'target': pass 'region' to each create"
               : "the v2 client does not take 'toolboxUrl': each sandbox carries its own toolbox URL",
         )
       }
     }
-    // DAYTONA_V2_API_URL, else DAYTONA_API_URL, else the
-    // default; read through the computed-key env lookup (bundler-safe).
-    // Trailing slashes are dropped per value, so a slash-only value is unset
-    // and falls through to the next one.
-    const urlFromEnv = (name: string) => optionalNonBlankEnv(name)?.replace(/\/+$/, '') || undefined
-    const apiUrl = urlFromEnv('DAYTONA_V2_API_URL') ?? urlFromEnv('DAYTONA_API_URL') ?? DEFAULT_V2_API_URL
-    // An explicit credential wins over the ambient environment: config.jwtToken
-    // suppresses DAYTONA_API_KEY and config.apiKey suppresses DAYTONA_JWT_TOKEN,
-    // so an exported key never collides with the credential the caller chose.
-    const apiKey = config.apiKey || (config.jwtToken ? undefined : env('DAYTONA_API_KEY'))
-    const ignoreBlankJwtToken = config.jwtToken === '' && typeof apiKey === 'string' && apiKey.length > 0
-    if (!ignoreBlankJwtToken) {
-      assertPresentStringOption('jwtToken', config.jwtToken)
-    }
+    assertKnownOptions('DaytonaConfig', config, V2_CONFIG_KEYS)
+    const events = snapshotOptions('SandboxEventsConfig', config.events, SANDBOX_EVENTS_CONFIG_KEYS)
+    // Only DAYTONA_V2_API_URL selects the endpoint (DAYTONA_API_URL belongs to
+    // the 0.x SDK); read through the computed-key env lookup (bundler-safe).
+    // Ambient values are trimmed and a blank one is unset; a slash-only URL
+    // is unset too.
+    const apiUrl = optionalNonBlankEnv('DAYTONA_V2_API_URL')?.replace(/\/+$/, '') || DEFAULT_V2_API_URL
+    // Explicit values are used as given; an explicitly empty one is an error,
+    // never "unset". An explicit credential wins over the ambient environment:
+    // config.jwtToken suppresses DAYTONA_API_KEY and config.apiKey suppresses
+    // DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
+    // the caller chose.
+    assertPresentStringOption('apiKey', config.apiKey)
+    assertPresentStringOption('jwtToken', config.jwtToken)
     assertPresentStringOption('projectId', config.projectId)
-    const jwtToken = ignoreBlankJwtToken
-      ? undefined
-      : config.jwtToken ?? (config.apiKey ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
+    const apiKey = config.apiKey ?? (config.jwtToken !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
+    const jwtToken = config.jwtToken ?? (config.apiKey !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
     const projectId = config.projectId ?? optionalNonBlankEnv('DAYTONA_PROJECT_ID')
+    const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
+    // Above the timer maximum (about 24.8 days) means no bound, like 0.
+    const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : boundedTimerDelay(requestTimeoutSeconds * 1000)
     const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
     const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
+    const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', config.maxResponseBytes) ?? DEFAULT_MAX_RESPONSE_BYTES
+    this.maxResponseBytes = maxResponseBytes
     if (!apiKey && !jwtToken) {
-      throw new DaytonaAuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', 401, undefined, 'SDK')
+      throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
     }
     if (apiKey && jwtToken) {
-      throw new DaytonaValidationError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)')
+      throw new BadRequestError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     if (jwtToken && !projectId) {
-      throw new DaytonaValidationError('projectId is required when jwtToken is set (set config.projectId or DAYTONA_PROJECT_ID)')
+      throw new BadRequestError('projectId is required when jwtToken is set (set config.projectId or DAYTONA_PROJECT_ID)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     this.apiKey = apiKey ?? undefined
     const base = apiUrl.replace(/\/+$/, '') || DEFAULT_V2_API_URL
@@ -505,16 +517,18 @@ export class Daytona {
         baseURL: base,
         jwtToken,
         projectId,
-        requestTimeout: config.requestTimeout,
+        requestTimeout: requestTimeoutMs,
         otelEnabled,
         otelApi: config.otelApi,
+        maxResponseBytes,
       }) : undefined,
       connectionPoolMaxsize: poolMaxsize,
+      maxResponseBytes,
       otelEnabled,
       otelApi: config.otelApi,
     }
-    this.apiTransport = new HttpTransport(base, this.apiKey, config.requestTimeout, this.httpOptions)
-    this.api = createHttpClient(base, this.apiKey, config.requestTimeout, this.httpOptions)
+    this.apiTransport = new HttpTransport(base, this.apiKey, requestTimeoutMs, this.httpOptions)
+    this.api = createHttpClient(base, this.apiKey, requestTimeoutMs, this.httpOptions)
     this.images = new ImagesService(this.api, this.apiTransport)
     this.snapshots = new SnapshotsService(this.api)
     this.volume = new VolumeService(this.api)
@@ -522,7 +536,7 @@ export class Daytona {
     this.reservations = new ReservationsService(this.api)
     this.macModels = new MacModelsService(this.api)
     this.hubShared = config.sharedHub ?? true
-    this.hubEventsConfig = config.events ?? {}
+    this.hubEventsConfig = eventsHubConfig(events)
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
   }
 
@@ -537,7 +551,10 @@ export class Daytona {
         target: undefined,
         shared: this.hubShared,
         config: this.hubEventsConfig,
+        // The client's own instance: its maxResponseBytes caps the hub's
+        // ticket mint and long-poll fallback (neither is a file transfer).
         _api: this.api,
+        maxResponseBytes: this.maxResponseBytes,
       })
     }
     return this.hub
@@ -593,7 +610,7 @@ export class Daytona {
   public async getLimits(options: GetLimitsOptions = {}): Promise<OrganizationLimits> {
     const organizationId = options.organizationId ?? await this.keyOrganizationId()
     if (organizationId.length === 0) {
-      throw new DaytonaValidationError('organizationId must be a non-empty string', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('organizationId must be a non-empty string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     return this.api
       .get<OrganizationLimits>(`/orgs/${strictUriEncode(organizationId)}/limits`)
@@ -605,7 +622,7 @@ export class Daytona {
   private keyOrganizationId(): Promise<string> {
     if (!this.apiKey) {
       return Promise.reject(
-        new DaytonaValidationError('organizationId is required with jwtToken authentication', 400, 'BAD_REQUEST', 'SDK'),
+        new BadRequestError('organizationId is required with jwtToken authentication', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }),
       )
     }
     this.keyOrganization ??= this.currentApiKey().then(
@@ -713,7 +730,7 @@ export class Daytona {
    * otherwise the API answers `403` `FEATURE_NOT_ENABLED`
    * (thrown as `FeatureNotEnabledError`).
    *
-   * Find regions and their regional API endpoints with `GET /regions`;
+   * Find regions and their regional API endpoints with `daytona region list` (the CLI);
    * discover Mac models and prices with `macModels.catalog({ region: '<region>' })`.
    * To select a regional API endpoint, set `DAYTONA_V2_API_URL` before creating
    * the client. An API that does not serve the region answers `ConflictError`;
@@ -722,7 +739,7 @@ export class Daytona {
   public async createMacos(image: string, options: CreateMacosSandboxOptions = {}): Promise<Sandbox> {
     const source = imageSourceString(image)
     if (options.autoRenew !== undefined && options.reservation !== 'new') {
-      throw new DaytonaError('macos create takes autoRenew only with reservation: "new"', 400, 'BAD_REQUEST', 'SDK')
+      throw badRequest('macos create takes autoRenew only with reservation: "new"')
     }
     const cores = macosCores(options.cpu)
     const memoryMib = macosMib(options.memory, 'memory', 4096)
@@ -778,7 +795,7 @@ export class Daytona {
     const createOptions: CreateSandboxOptions = { ...options }
     if (deadline !== undefined) {
       const remainingWait = Math.ceil((deadline - Date.now()) / 1000)
-      if (remainingWait <= 0) throw new RequestTimeoutError('image build did not finish before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+      if (remainingWait <= 0) throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       createOptions.waitSeconds = remainingWait
     }
     return this.create(readyImage.id, createOptions)
@@ -788,15 +805,15 @@ export class Daytona {
     for (;;) {
       const remainingTimeout = deadline === undefined ? 0 : (deadline - Date.now()) / 1000
       if (deadline !== undefined && remainingTimeout <= 0) {
-        throw new RequestTimeoutError('image build did not finish before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+        throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       }
       try {
         const image = await this.images.get(imageId, { wait: 'ready', timeout: remainingTimeout })
         if (image.status === 'ready') return image
-        if (image.status === 'failed') throw new ImageBuildFailedError(image.error ?? `image ${image.id} build failed`, 409, 'IMAGE_BUILD_FAILED', 'SDK', undefined, image.id)
+        if (image.status === 'failed') throw new ImageBuildFailedError(image.error ?? `image ${image.id} build failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
       } catch (error) {
         if (error instanceof DaytonaError && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && Date.now() >= deadline) {
-          throw new RequestTimeoutError('image build did not finish before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+          throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
         }
         throw error
       }
@@ -832,7 +849,7 @@ export class Daytona {
       return response.data
     }).catch((error: unknown) => {
       if (error instanceof ConnectionError) throw new SandboxCreateConnectionError(idempotencyKey, error.message)
-      if (error instanceof DaytonaError && error.code === 'REQUEST_TIMEOUT') throw new SandboxCreateRequestTimeoutError(idempotencyKey)
+      if (error instanceof ClientTimeoutError) throw new SandboxCreateRequestTimeoutError(idempotencyKey)
       throw error
     })
     // The create response's token is refreshable (unlike a caller-supplied
@@ -931,7 +948,7 @@ export class Daytona {
    * `'local'` to use the default region.
    */
   public async findByName(name: string, options: { region?: string } = {}): Promise<Sandbox[]> {
-    if (typeof name !== 'string' || name.trim() === '') throw new DaytonaError('name must be a non-blank string', 400, 'BAD_REQUEST', 'SDK')
+    if (typeof name !== 'string' || name.trim() === '') throw badRequest('name must be a non-blank string')
     const region = this.createRegion(options)
     const found: Sandbox[] = []
     const seen = new Set<string>()

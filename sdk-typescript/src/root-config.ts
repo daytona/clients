@@ -4,6 +4,9 @@
  */
 
 import type { DaytonaConfig } from './types.js'
+import { assertKnownKeys, assertOptionsObject, badRequest, enumerableKeys, optionKeys, snapshotOptions } from './v2/options.js'
+import { SANDBOX_EVENTS_CONFIG_KEYS } from './v2/types.js'
+import type { SandboxEventsConfig } from './v2/types.js'
 
 export const V0_API_URL = 'https://app.daytona.io/api'
 
@@ -33,7 +36,8 @@ export const ROOT_CONFIG_ROUTING: { readonly [TKey in keyof Required<DaytonaConf
   organizationId: 'v0',
   target: 'v0',
   projectId: 'v2',
-  requestTimeout: 'v2',
+  requestTimeoutSeconds: 'v2',
+  maxResponseBytes: 'v2',
   otelEnabled: 'both',
   otelApi: 'v2',
   connectionPoolMaxsize: 'v2',
@@ -71,26 +75,57 @@ export function resetTargetDeprecationWarningForTests(): void {
   warnedHolder[TARGET_DEPRECATION_WARNED] = false
 }
 
+/** The known keys of the root `DaytonaConfig`. */
+export const ROOT_CONFIG_KEYS = optionKeys<DaytonaConfig>()({
+  apiKey: true,
+  jwtToken: true,
+  organizationId: true,
+  target: true,
+  projectId: true,
+  requestTimeoutSeconds: true,
+  maxResponseBytes: true,
+  otelEnabled: true,
+  otelApi: true,
+  connectionPoolMaxsize: true,
+  sharedHub: true,
+  events: true,
+})
+
 /** The same text as the Python SDK's (parity). */
 const CUSTOM_API_URL = 'SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.'
 const REMOVED_URL_FIELDS = ['apiUrl', 'serverUrl', 'toolboxUrl'] as const
 
-export function snapshotConfig(config: DaytonaConfig): DaytonaConfig {
+function refuseUrlFields(config: DaytonaConfig, fields: Record<string, unknown> = {}): void {
   // A variable bypasses excess-property checking; reject URLs instead of
-  // silently sending a custom-endpoint credential to Daytona Cloud.
+  // silently sending a custom-endpoint credential to Daytona Cloud. Seen
+  // through `in` (prototypes too) and through a Proxy get trap.
   for (const removed of REMOVED_URL_FIELDS) {
-    if (removed in config || Reflect.get(config, removed) !== undefined) throw new TypeError(`DaytonaConfig does not take '${removed}': ${CUSTOM_API_URL}`)
+    if (removed in fields || removed in config || Reflect.get(config, removed) !== undefined) {
+      throw badRequest(`DaytonaConfig does not take '${removed}': ${CUSTOM_API_URL}`)
+    }
   }
-  // Accumulate defined fields once so getters cannot change the checked snapshot.
-  // Read through prototypes and Proxy get traps, regardless of their has result.
+}
+
+/**
+ * The root config, copied once and validated: what `new Daytona(config)` keeps.
+ * Every enumerable key (own or inherited) must be a known one; each known key
+ * is read exactly once, through prototypes and Proxy get traps, and the nested
+ * `events` object is copied the same way, so later changes to the caller's
+ * objects never reach the client. Invalid configuration is a `BadRequestError`.
+ */
+export function snapshotConfig(config: DaytonaConfig): DaytonaConfig {
+  assertOptionsObject('DaytonaConfig', config)
+  refuseUrlFields(config)
+  const keys = enumerableKeys('DaytonaConfig', config)
   const fields: Record<string, unknown> = {}
   for (const key of Object.keys(ROOT_CONFIG_ROUTING)) {
     const value: unknown = Reflect.get(config, key)
     if (value !== undefined) fields[key] = value
   }
-  // A getter may add a URL while the config is read; preserve the second check.
-  for (const removed of REMOVED_URL_FIELDS) {
-    if (removed in fields || removed in config || Reflect.get(config, removed) !== undefined) throw new TypeError(`DaytonaConfig does not take '${removed}': ${CUSTOM_API_URL}`)
-  }
+  // A getter may add a URL while the config is read; check again.
+  refuseUrlFields(config, fields)
+  assertKnownKeys('DaytonaConfig', keys, ROOT_CONFIG_KEYS)
+  const events = snapshotOptions('SandboxEventsConfig', fields.events as SandboxEventsConfig | undefined, SANDBOX_EVENTS_CONFIG_KEYS)
+  if (events !== undefined) fields.events = events
   return fields
 }

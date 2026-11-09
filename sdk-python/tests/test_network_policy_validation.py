@@ -26,7 +26,7 @@ def _config_at(api_url: str, **kwargs: object) -> DaytonaConfig:
     """A v2 config whose client talks to ``api_url``: the v2 client reads its
     URL from the env (the autouse conftest fixture restores it and clears
     DAYTONA_V2_API_URL)."""
-    os.environ["DAYTONA_API_URL"] = api_url
+    os.environ["DAYTONA_V2_API_URL"] = api_url
     return DaytonaConfig(**kwargs)
 
 
@@ -61,7 +61,7 @@ async def test_domains_with_block_all_false_rejected() -> None:
                 "python:3.12",
                 network_policy={"allow_domains": ["api.example.com"], "block_all": False},
             )
-        assert excinfo.value.error_code == "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL"
+        assert excinfo.value.code == "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL"
         assert excinfo.value.status_code == 400
     finally:
         await client.close()

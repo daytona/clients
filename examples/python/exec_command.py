@@ -2,7 +2,7 @@
 """exec-command — run shell commands and interpreter code.
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/exec_command.py
 """
 

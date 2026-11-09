@@ -8,9 +8,9 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import type { CreateReservationOptions, CreateReservationRequest, CreateReservationsBulkOptions, CreateReservationsBulkRequest, ListReservationsOptions, ListResult, MacReservation, MacReservationBatch, RenewReservationOptions, UpdateReservationOptions, UpdateReservationRequest } from './types.js'
 import type * as api from './gen/api-types.js'
 import { runtimeUniqueId, strictUriEncode } from './http.js'
-import { DaytonaError } from './errors/DaytonaError.js'
 import { MacReservationEndReason as END_REASONS, MacReservationOrigin as ORIGINS, MacReservationStatus as STATUSES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
+import { badRequest } from './options.js'
 
 function reservation(value: api.MacReservation): MacReservation {
   const {
@@ -133,7 +133,7 @@ export class ReservationsService {
 // Every purchase and renewal carries a key: the caller's, or a fresh one per call.
 function idempotencyHeaders(idempotencyKey: string | undefined) {
   if (idempotencyKey != null && typeof idempotencyKey !== 'string') {
-    throw new DaytonaError('idempotencyKey must be a string', 400, 'BAD_REQUEST', 'SDK')
+    throw badRequest('idempotencyKey must be a string')
   }
   return { headers: { 'Idempotency-Key': idempotencyKey ?? runtimeUniqueId() } }
 }

@@ -171,7 +171,7 @@ const fake = {
   createFromBuild: async (builder: { toDockerfile(): string }, options: { name?: string } = {}) => {
     const dockerfile = builder.toDockerfile()
     if (scenario.failBuildsContaining && dockerfile.includes(scenario.failBuildsContaining)) {
-      throw new ImageBuildFailedError('image build failed', 409, 'IMAGE_BUILD_FAILED', 'SDK', undefined, 'img_failed')
+      throw new ImageBuildFailedError('image build failed', { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: 'img_failed' })
     }
     const box = sandbox(options.name ?? 'built', {}, dockerfile)
     boxes.push(box)

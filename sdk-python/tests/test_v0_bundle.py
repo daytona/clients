@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from _repo import _repo_file
 
 if TYPE_CHECKING:
     from daytona.v0 import _Daytona  # type: ignore[import-not-found]
@@ -115,14 +116,13 @@ def test_a_per_call_region_id_is_sent_in_the_snapshot_create_body(
 
 def test_the_bundle_is_the_pinned_release() -> None:
     import os
-    from pathlib import Path
 
     from daytona.v0._bundle import BUNDLED_FROM  # type: ignore[import-not-found]
 
     # The publish job passes the tag its gate approved (the pin, or an
     # allow_unpinned_v0 override); otherwise the bundle must be the pin.
     expected = os.environ.get("DAYTONA_V0_EXPECTED_TAG") or (
-        (Path(__file__).resolve().parents[2] / "scripts" / "v0-sdk-version").read_text().splitlines()[0].strip()
+        (_repo_file("scripts/v0-sdk-version")).read_text().splitlines()[0].strip()
     )
     assert expected == BUNDLED_FROM.rsplit("@", 1)[1]
 
@@ -131,7 +131,7 @@ def test_root_v0_sends_to_daytona_v0_api_url_not_daytona_api_url(
     v0_api: tuple[str, list[tuple[str, str, dict[str, object]]]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Daytona().v0 builds the real bundled client against DAYTONA_V0_API_URL;
-    DAYTONA_API_URL (v2's) points somewhere that would fail if used."""
+    DAYTONA_API_URL (the 0.x SDK's variable) points somewhere that would fail if used."""
     from daytona import Daytona, DaytonaConfig
 
     api_url, seen = v0_api
@@ -331,7 +331,7 @@ def test_the_dotenv_warning_names_remedies_that_work_under_the_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """v0's dotenv warning must not tell a root user to pass api_url (the root
-    rejects it) or set DAYTONA_API_URL (.v0 ignores it and it redirects .v2)."""
+    rejects it) or set DAYTONA_API_URL (SDK 2.x, .v0 included, never reads it)."""
     import warnings
 
     from daytona import Daytona, DaytonaConfig

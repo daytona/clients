@@ -10,6 +10,7 @@ import os
 import secrets
 import stat
 import time
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from typing import (
@@ -28,6 +29,7 @@ from typing import (
 )
 from urllib.parse import quote
 
+from ._body_limit import validated_max_response_bytes
 from ._core import (
     RequestSpec,
     TransportPayload,
@@ -43,7 +45,7 @@ from ._core import (
     parse_sse_lines_async,
 )
 from ._transport import AsyncTransport
-from .errors import TransferCancelledError, create_error
+from .errors import ConnectionError, TransferCancelledError, create_error
 from .types import (
     BulkReadResult,
     BulkWriteResult,
@@ -244,14 +246,28 @@ class AsyncFileSystemService:
         self._transport = transport
         self._file_url_signer = file_url_signer
 
-    async def read_bytes(self, path: str) -> bytes:
-        """Read a file as bytes."""
-        value = await self._transport.raw(file_download_spec(path, timeout=None))
-        return value
+    async def read_bytes(self, path: str, *, max_response_bytes: Optional[int] = None) -> bytes:
+        """Read a file as bytes.
 
-    async def read_text(self, path: str) -> str:
-        """Read a UTF-8 text file."""
-        return (await self.read_bytes(path)).decode("utf-8")
+        The whole file is held in memory, with no total deadline (it fails
+        only when no bytes move for the client's ``request_timeout``; with a
+        ``request_timeout`` of ``0``, nothing bounds it).
+        ``max_response_bytes`` replaces the client's cap on the body for this
+        call (``None`` keeps the client's cap, ``0`` means no limit, and any other value (negative, fractional, boolean, string, above 2**53 - 1) is a ``BadRequestError``); a larger body raises ``PayloadTooLargeError``
+        before it is read in full. For large files, or content from a sandbox
+        you don't trust, use :meth:`download_file`, which streams to disk.
+        """
+        spec = file_download_spec(path, timeout=None)
+        if max_response_bytes is not None:
+            spec = replace(
+                spec,
+                max_response_bytes=validated_max_response_bytes("max_response_bytes", max_response_bytes),
+            )
+        return await self._transport.raw(spec)
+
+    async def read_text(self, path: str, *, max_response_bytes: Optional[int] = None) -> str:
+        """Read a UTF-8 text file (see :meth:`read_bytes` for its bounds)."""
+        return (await self.read_bytes(path, max_response_bytes=max_response_bytes)).decode("utf-8")
 
     async def write_bytes(self, path: str, content: bytes, *, atomic: bool = False) -> None:
         """Write bytes to a file, optionally via temp-file + rename."""
@@ -314,6 +330,7 @@ class AsyncFileSystemService:
             self._transport.request(
                 "POST",
                 "/files/upload",
+                transfer=True,
                 params=_atomic_params(path=remote_path, atomic=atomic),
                 headers=headers,
                 content_factory=lambda attempt: _upload_multipart_content(
@@ -388,17 +405,31 @@ class AsyncFileSystemService:
         finally:
             await stream.close()
 
-    async def read_many(self, paths: Sequence[str]) -> BulkReadResult:
+    async def read_many(
+        self, paths: Sequence[str], *, max_response_bytes: Optional[int] = None
+    ) -> BulkReadResult:
         """Read multiple files, buffering each returned file in memory before returning.
 
         Non-200 responses raise the typed SDK error inside the transport;
-        only a 200 multipart body reaches the parser.
+        only a 200 multipart body reaches the parser. The limits are those of
+        :meth:`read_bytes`; ``max_response_bytes`` applies to the whole
+        multipart body.
         """
+        limit = (
+            None
+            if max_response_bytes is None
+            else validated_max_response_bytes("max_response_bytes", max_response_bytes)
+        )
         spec = bulk_download_spec(paths, timeout=None)
         request_kwargs = {"json": spec.json_body}
         if spec.timeout is not None:
             request_kwargs["timeout"] = spec.timeout
-        response = await self._transport.request(spec.method, spec.path, **request_kwargs)
+        if limit is None:
+            response = await self._transport.request(spec.method, spec.path, transfer=True, **request_kwargs)
+        else:
+            response = await self._transport.request(
+                spec.method, spec.path, transfer=True, max_response_bytes=limit, **request_kwargs
+            )
         return parse_bulk_read_result(response.content, content_type=response.headers.get("content-type"))
 
     async def list(self, path: str, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
@@ -630,21 +661,28 @@ class _SignedFileUrl(NamedTuple):
 
 
 def _signed_file_url_from_payload(payload: TransportPayload) -> _SignedFileUrl:
-    # Takes the raw decoded body, whatever JSON type it is: a ``null``, a list,
-    # a string or a malformed object all answer the same invalid-payload error
-    # (parity with the TS SDK's ``readSignedFileUrl``).
+    # Takes the raw decoded body, whatever JSON type it is: a response that
+    # breaks the contract is ``BadRequestError`` naming the field, with the TS
+    # SDK's messages (``readSignedFileUrl``).
     if not isinstance(payload, dict):
-        raise create_error("API returned an invalid signed file URL payload", 500, None, "SDK")
+        raise create_error("signed file URL response is not a JSON object", 400, "BAD_REQUEST", "SDK")
     signature = payload.get("signature")
     expires_at = payload.get("expires_at")
-    if isinstance(signature, str) and signature and isinstance(expires_at, str):
+    if not isinstance(signature, str) or not signature:
+        raise create_error(
+            "signed file URL response signature must be a non-empty string", 400, "BAD_REQUEST", "SDK"
+        )
+    parsed_expiry = None
+    if isinstance(expires_at, str):
         try:
             parsed_expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
         except ValueError:
             parsed_expiry = None
-        if parsed_expiry is not None and parsed_expiry.tzinfo is not None:
-            return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
-    raise create_error("API returned an invalid signed file URL payload", 500, None, "SDK")
+    if parsed_expiry is None or parsed_expiry.tzinfo is None:
+        raise create_error(
+            "signed file URL response expires_at must be an RFC 3339 timestamp", 400, "BAD_REQUEST", "SDK"
+        )
+    return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
 
 
 def _multipart_boundary() -> str:
@@ -809,12 +847,8 @@ def _open_download_staging_file(destination: Path) -> tuple[Path, BinaryIO]:
 
 def _raise_if_length_mismatch(bytes_written: int, total_bytes: int | None) -> None:
     if total_bytes is not None and bytes_written != total_bytes:
-        raise create_error(
-            "download_file() ended before the declared Content-Length was received",
-            500,
-            None,
-            "SDK",
-        )
+        # A truncated transfer, as when the socket drops mid-body.
+        raise ConnectionError("download_file() ended before the declared Content-Length was received")
 
 
 def _preserve_replaced_file_mode(staging_fd: int, destination: Path) -> None:

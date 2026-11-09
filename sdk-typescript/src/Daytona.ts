@@ -46,31 +46,20 @@ type V0ErrorConstructor = (abstract new (...args: never[]) => Error) & Function
  * a specifier consumers cannot resolve. */
 type V0Exports = { readonly [name: string]: unknown }
 
-type InternalOptions = {
-  /** Test seam: replaces the synchronous `#v0-loader`. */
-  readonly v0ModuleLoader?: () => V0Exports
-}
-
 const V0_NAMESPACE_MISSING = 'The v0 namespace is not included in this build of @daytona/sdk'
 
 // The catalog's NOT_IMPLEMENTED shape (501 → NotSupportedError): this build
 // does not implement the v0 namespace. Not a server error.
 class V0NamespaceUnavailableError extends NotSupportedError {
-  public readonly cause?: unknown
-
   constructor(cause?: unknown) {
-    super(V0_NAMESPACE_MISSING, 501, 'NOT_IMPLEMENTED', 'SDK')
-    this.cause = cause
+    super(V0_NAMESPACE_MISSING, { statusCode: 501, code: 'NOT_IMPLEMENTED', source: 'SDK', cause })
   }
 }
 
 /** Any other failure while loading the v0 namespace: not a missing build. */
 class V0NamespaceLoadError extends DaytonaErrorV2 {
-  public readonly cause?: unknown
-
   constructor(cause: unknown) {
-    super(`importing the v0 namespace failed: ${cause instanceof Error ? cause.message : String(cause)}`, undefined, undefined, 'SDK')
-    this.cause = cause
+    super(`importing the v0 namespace failed: ${cause instanceof Error ? cause.message : String(cause)}`, { source: 'SDK', cause })
   }
 }
 
@@ -163,16 +152,15 @@ async function disposeV0(client: unknown): Promise<void> {
 
 export class Daytona {
   private readonly config: DaytonaConfig
-  private readonly loadV0Module: () => V0ModuleExports
+  private loadV0Module: () => V0ModuleExports = loadV0
   private v2Client?: DaytonaV2Client
   private v0Client?: DaytonaV0Client
 
-  constructor(config: DaytonaConfig = {}, internal: InternalOptions = {}) {
-    this.config = snapshotConfig(config)
+  constructor(config?: DaytonaConfig) {
+    this.config = snapshotConfig(config ?? {})
     credentialSafeDiagnostics(this.config, () => ({ type: 'DaytonaConfig' }))
     credentialSafeDiagnostics(this, () => ({ type: 'Daytona' }))
     if (this.config.target !== undefined) warnTargetDeprecated()
-    this.loadV0Module = internal.v0ModuleLoader === undefined ? loadV0 : internal.v0ModuleLoader
     // Wrapped in the moved-member guard (MOVED_TO_V0_GUARD below).
     return new Proxy(this, MOVED_TO_V0_GUARD)
   }
@@ -182,7 +170,8 @@ export class Daytona {
       apiKey: this.config.apiKey,
       jwtToken: this.config.jwtToken,
       projectId: this.config.projectId,
-      requestTimeout: this.config.requestTimeout,
+      requestTimeoutSeconds: this.config.requestTimeoutSeconds,
+      maxResponseBytes: this.config.maxResponseBytes,
       otelEnabled: this.config.otelEnabled,
       otelApi: this.config.otelApi,
       connectionPoolMaxsize: this.config.connectionPoolMaxsize,
@@ -268,10 +257,20 @@ export class Daytona {
       apiUrl: v0ApiUrl(),
       // Python parity (`otel_enabled` reaches v0 too). v0 at v0.230.0 has no
       // pool-size field and takes its timeout in its own unit, so
-      // connectionPoolMaxsize / requestTimeout stay v2-only (ROOT_CONFIG_ROUTING).
+      // connectionPoolMaxsize / requestTimeoutSeconds stay v2-only (ROOT_CONFIG_ROUTING).
       ...(this.config.otelEnabled === undefined ? {} : { otelEnabled: this.config.otelEnabled }),
     })
   }
+}
+
+/**
+ * Test seam: make `root` load the v0 namespace through `loader` instead of the
+ * synchronous `#v0-loader`. Not exported from the package entry points.
+ * @internal
+ */
+export function setV0ModuleLoaderForTests(root: Daytona, loader: () => V0Exports): Daytona {
+  Reflect.set(root, 'loadV0Module', loader)
+  return root
 }
 
 /**

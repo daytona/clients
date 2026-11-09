@@ -178,16 +178,7 @@ from .errors import (
     CouponLimitReachedError,
     CouponNotFoundError,
     CursorExpiredError,
-    DaytonaAuthenticationError,
-    DaytonaAuthorizationError,
-    DaytonaConflictError,
-    DaytonaConnectionError,
     DaytonaError,
-    DaytonaNotFoundError,
-    DaytonaNotSupportedError,
-    DaytonaRateLimitError,
-    DaytonaTimeoutError,
-    DaytonaValidationError,
     CreateTtlOutOfRangeError,
     AtomicUploadUnsupportedError,
     DesktopNotReadyError,
@@ -267,7 +258,7 @@ from .errors import (
     StdinUnavailableError,
     SandboxNotRunningError,
     TransferCancelledError,
-    UnauthorizedError,
+    AuthenticationError,
     UnprocessableEntityError,
     UnsupportedMediaTypeError,
     UnsupportedOperationError,
@@ -347,15 +338,7 @@ from .types import (
 
 # Version-suffixed aliases for the names v0 shares (see _exports.SHARED_WITH_V0).
 AsyncSandboxV2 = AsyncSandbox
-DaytonaAuthenticationErrorV2 = DaytonaAuthenticationError
-DaytonaAuthorizationErrorV2 = DaytonaAuthorizationError
-DaytonaConflictErrorV2 = DaytonaConflictError
-DaytonaConnectionErrorV2 = DaytonaConnectionError
 DaytonaErrorV2 = DaytonaError
-DaytonaNotFoundErrorV2 = DaytonaNotFoundError
-DaytonaRateLimitErrorV2 = DaytonaRateLimitError
-DaytonaTimeoutErrorV2 = DaytonaTimeoutError
-DaytonaValidationErrorV2 = DaytonaValidationError
 ImageV2 = Image
 ListSandboxesQueryV2 = ListSandboxesQuery
 ResourcesV2 = Resources
@@ -479,16 +462,7 @@ __all__ = [
     "PREVIEW_WARNING_SKIP_HEADER_VALUE",
     "NAME_LABEL",
     "idempotency_key_for_name",
-    "DaytonaAuthenticationError",
-    "DaytonaAuthorizationError",
-    "DaytonaConflictError",
-    "DaytonaConnectionError",
     "DaytonaError",
-    "DaytonaNotFoundError",
-    "DaytonaNotSupportedError",
-    "DaytonaRateLimitError",
-    "DaytonaTimeoutError",
-    "DaytonaValidationError",
     "DesktopNotReadyError",
     "DockerNotReadyError",
     "DockerOwner",
@@ -691,7 +665,7 @@ __all__ = [
     "TransferCancelledError",
     "TransferCancelSignal",
     "TransferProgressCallback",
-    "UnauthorizedError",
+    "AuthenticationError",
     "UnprocessableEntityError",
     "UnsupportedMediaTypeError",
     "UnsupportedOperationError",
@@ -703,15 +677,7 @@ __all__ = [
     "AsyncWatchHandle",
     "DEFAULT_V2_API_URL",
     "AsyncSandboxV2",
-    "DaytonaAuthenticationErrorV2",
-    "DaytonaAuthorizationErrorV2",
-    "DaytonaConflictErrorV2",
-    "DaytonaConnectionErrorV2",
     "DaytonaErrorV2",
-    "DaytonaNotFoundErrorV2",
-    "DaytonaRateLimitErrorV2",
-    "DaytonaTimeoutErrorV2",
-    "DaytonaValidationErrorV2",
     "ImageV2",
     "ListSandboxesQueryV2",
     "ResourcesV2",

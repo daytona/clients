@@ -81,8 +81,9 @@ must preserve `manifestId: null` rather than optionalizing it.
   `src/v0-unbundled.ts` fallback in a source checkout. The fallback is only for
   local typecheck / tests; the published package resolves through `exports`.
 - The root client config does not accept `apiUrl`. Its v2 namespace reads
-  `DAYTONA_V2_API_URL`, then `DAYTONA_API_URL`, or falls back to
-  `DEFAULT_V2_API_URL`. Set environment overrides before constructing a client.
+  `DAYTONA_V2_API_URL`, or falls back to `DEFAULT_V2_API_URL`;
+  `DAYTONA_API_URL` belongs to the 0.x SDK and nothing in 2.x reads it. Set
+  environment overrides before constructing a client.
 - `scripts/build-v0.mjs` emits the unbundled stub when `src/v0/` is absent;
   publish builds require the bundle. When present it builds
   `dist/cjs/v0` (`tsconfig.v0.json`) and the
@@ -103,11 +104,9 @@ must preserve `manifestId: null` rather than optionalizing it.
   aliases for names also exported by v2, and merges the v0 runtime dependency
   set into `package.json`. Re-running it replaces the bundle in place.
 - Names also exported by v0 at the pinned tag (`v0.230.0`) on the v2 surface are committed as
-  `...V2` aliases: `DaytonaAuthenticationError`,
-  `DaytonaAuthorizationError`, `DaytonaConflictError`,
-  `DaytonaConnectionError`, `DaytonaError`, `DaytonaNotFoundError`,
-  `DaytonaRateLimitError`, `DaytonaTimeoutError`, `DaytonaValidationError`,
-  `Image`, `LspServer`, and `Sandbox`.
+  `...V2` aliases: `DaytonaError`, `Image`, `LspServer`, and `Sandbox`.
+  `scripts/bundle-v0.mjs` fails when this set and the pinned release's shared
+  value exports disagree.
 
 - `process`: cursor-replayable `logs()`, SSE `streamLogs()` with
   `Last-Event-ID` resume, `wait()` long-poll; PTY `attach()` relies on Node's
@@ -123,12 +122,112 @@ must preserve `manifestId: null` rather than optionalizing it.
   than silently recreating state.
 - Pre-signed file URLs never expose the signing key.
   `expiresInSeconds` is validated to the range 1 to 604800
-  (`SIGNED_FILE_MAX_TTL_SECONDS`) before the request. Invalid response payloads
-  such as JSON `null`, arrays or malformed objects produce the same typed 500
-  error in both SDKs. `sandbox.rotateSigningKey()` resolves `void`; outstanding
+  (`SIGNED_FILE_MAX_TTL_SECONDS`) before the request. A response payload that
+  breaks the contract (JSON `null`, an array, a malformed object) is a
+  `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) naming the field, with
+  the same message in both SDKs; so is a malformed sandbox access-token mint
+  response. `sandbox.rotateSigningKey()` resolves `void`; outstanding
   links stop working within approximately 30 seconds.
 - Errors: status-level bases → code-specific subclasses; `src/v2/codes.ts`
-  is drift-tested against the committed error catalogs under `../contract/`.
+  is drift-tested against the committed error catalogs under `../contract/`
+  and exported as the frozen `codes` namespace. The standard errors take
+  `(message, options?: ErrorOptions)`; a subclass with extra fields extends
+  `ErrorOptions` (`ImageBuildFailedErrorOptions`,
+  `BuildLogInterruptedErrorOptions`), and the specialised errors that build
+  their own message take their identity positionally plus options of their
+  own (`SandboxTerminalStateError(sandboxId, state,
+  SandboxTerminalStateErrorOptions)`, `SandboxCreateRequestTimeoutError(idempotencyKey)`, …). SDK-raised errors pass
+  `{ statusCode, code, source: 'SDK' }`; `createDaytonaError` dispatches a
+  `(source, code)` pair and `errorOptionsFromEnvelope` maps a wire envelope.
+
+### Options objects
+
+Public options objects reject unknown keys at runtime, because a JavaScript
+caller's typo or an option renamed in 2.x would otherwise be ignored silently.
+Today the client configuration does (`DaytonaConfig`, `SandboxEventsConfig`);
+per-call options adopt it area by area. `src/v2/options.ts` provides the
+pieces; applying them to a new options type takes two lines:
+
+```ts
+import { assertKnownOptions, optionKeys } from './options.js'
+
+/** The known keys of {@link CreateSandboxOptions}. */
+export const CREATE_SANDBOX_OPTION_KEYS = optionKeys<CreateSandboxOptions>()({
+  name: true,
+  labels: true,
+  waitSeconds: true,
+  // ...every key of CreateSandboxOptions, nothing else
+})
+
+public async create(image: string, options: CreateSandboxOptions = {}): Promise<Sandbox> {
+  assertKnownOptions('CreateSandboxOptions', options, CREATE_SANDBOX_OPTION_KEYS)
+  // ...
+}
+```
+
+- `optionKeys<T>()` is curried so `T` is explicit while the literal's keys are
+  inferred: a key of `T` missing from the list, or a listed key `T` does not
+  have, is a compile error, so the list cannot drift from the type.
+- `assertKnownOptions` throws `BadRequestError` (400, `BAD_REQUEST`, source
+  `SDK`): "`CreateSandboxOptions has no option \`foo\``". When the unknown key
+  is in `RENAMED_OPTIONS` and its replacement is a known key of the type, the
+  message names it: "`CreateSandboxOptions: \`timeout\` was renamed to
+  \`timeoutSeconds\` (seconds)`". The table covers `timeout`,
+  `executionTimeout`, `escalateAfter`, `requestTimeout`, the 0.x client
+  configuration's `requestTimeoutMs`, `reconcileIntervalMs` and
+  `idleCloseMs`; add a row when another option is renamed.
+- Check the options object itself, and nested SDK-defined option objects
+  (the root checks `config.events` as `SandboxEventsConfig`); never a
+  pass-through map (`env`, `labels`, request headers).
+- A duration option in seconds that the SDK converts itself (the request
+  timeout, the events durations) is validated with `optionalSeconds(name,
+  value)` (finite, non-negative) and converted to milliseconds where it is
+  used. A request-timeout delay goes through `boundedTimerDelay` (above
+  `MAX_TIMER_DELAY_MS` means no bound); the events hub instead clamps its
+  timer delays to `MAX_TIMER_DELAY_MS` (the reconcile interval to that less
+  its 10 % jitter), and Python clamps the same way. Per-call options keep
+  their own validation until their area moves to seconds.
+- A nested options object the SDK keeps (the root's `events`) is copied with
+  `snapshotOptions`, so later changes to the caller's object do not reach the
+  client.
+- Test both the rejection and the rename hint for every type you cover (see
+  `tests/client-config.test.ts`).
+
+### Request timeout
+
+`requestTimeoutSeconds` (default 60, `0` = none) bounds the total time of one
+ordinary request: `createConfiguredHttpClient` arms an abort-signal timer per
+axios request (`armRequestDeadline`), because axios' own `timeout` only bounds
+the wait for headers and idle reads in Node. A request with its own budget
+passes `timeout` explicitly (`0` = unbounded): waits and long polls derive it
+from the caller's deadline. File transfers pass `transferRequest(...)`
+(axios) or `transfer: true` (`HttpTransport.fetch`): no total deadline, an
+idle watchdog (`IdleWatchdog` in `bodyLimit.ts`) of the request timeout
+instead; other `fetch` calls are streams and are bounded only until their
+response headers arrive. The Python transport implements the same rule
+(`_request_deadline`, `RequestSpec.transfer`).
+
+Every axios request goes through `boundedAdapter` (`boundedAdapter.ts`): Node's http
+adapter where the runtime has it, else the SDK's `fetchAdapter`. Every buffered
+response (any `responseType` but `'stream'`, which the caller reads itself and
+which is not capped; a file transfer cannot use it) is opened as a stream and
+read by `readCappedBody` under `maxContentLength`
+(the client's `maxResponseBytes`, or the per-call `maxContentLengthFor(...)`),
+the declared `Content-Length` checked first. Never route a request around it
+(a test that replaces `defaults.adapter` with a mock is the exception).
+Bodies read off `fetch` whole (error bodies, the token exchange) go through
+`readFetchText`. `tests/transfer-bounds.test.ts` runs the bounds against both
+adapters (`forceFetchAdapterForTests`), and the runtime suite's `capOk` check
+runs them in every runtime.
+
+The deadline is absolute (`config.daytona.deadlineAt`), set once when the
+call starts: waiting for the project token is abortable by the request's
+signal (the shared exchange itself runs on under its own timeout for the
+other requests waiting on it), a 401 refresh gets only the remaining budget,
+and the retry re-arms the same deadline. `withAuth`
+(sandbox tokens) sets `deadlineAt` before minting, and `fetch` bounds the
+bearer and the refresh with the same timeout signal.
+
 - Signals: bare names on the surface (`TERM`, `INT`, …), `SIG*` on the wire.
 - Reserved sandbox `env` names: platform-reserved prefixes plus every
   `DAYTONA_*` name other than

@@ -3,7 +3,8 @@
 Every example builds its ``Daytona`` client from the same environment variables
 so they can all use the same Daytona deployment:
 
-    DAYTONA_API_URL      Daytona API base          (default https://api.daytona.com)
+    DAYTONA_V2_API_URL   Daytona API base          (default https://api.daytona.com;
+                         regional endpoint or test environment)
     DAYTONA_API_KEY      bearer api key (dtn_...)   (required)
     DAYTONA_IMAGE        registry image sandboxes start from (default python:3.12-slim)
 """
@@ -62,13 +63,8 @@ def _config() -> DaytonaConfig:
             file=sys.stderr,
         )
         sys.exit(2)
-    # The v2 client reads DAYTONA_V2_API_URL, else DAYTONA_API_URL; default to
-    # the Daytona API when neither is set.
-    if (
-        not (os.environ.get("DAYTONA_V2_API_URL") or "").strip()
-        and not (os.environ.get("DAYTONA_API_URL") or "").strip()
-    ):
-        os.environ["DAYTONA_API_URL"] = "https://api.daytona.com"
+    # The v2 client reads DAYTONA_V2_API_URL itself and defaults to the
+    # Daytona API when it is unset.
     return DaytonaConfig(api_key=api_key)
 
 

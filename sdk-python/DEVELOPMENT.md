@@ -152,14 +152,62 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   override is rejected because pre-signed URLs require the sandbox's public
   endpoint. The raw decoded sign body goes through
   `filesystem._signed_file_url_from_payload` unshaped, so a JSON `null`, a
-  list or a malformed object all raise the same 500 invalid-payload error
-  (parity with TS). `sandbox.rotate_signing_key()` POSTs
+  list or a malformed object all raise a `BadRequestError` (400,
+  `BAD_REQUEST`, source `SDK`) naming the field, with the same message as TS;
+  so does a malformed sandbox access-token mint response. `sandbox.rotate_signing_key()` POSTs
   `/sandboxes/{id}/signing-key/rotate` with no body and returns `None` after
   the API's empty 204 response. The key is never returned; every outstanding
   link for the sandbox becomes invalid. Like minting, it is refused
   locally on a direct `toolbox_url` handle.
 - Typed errors: status-level base classes plus code-specific subclasses;
-  the code table is drift-tested against `../contract/toolbox-openapi.json`.
+  the code tables (`v2/_codes.py`, public read-only view `daytona.v2.codes`)
+  are drift-tested against the committed catalogs under `../contract/`.
+  Constructors are `XError(message, *, status_code=None, code=None,
+  source=None, ...)`. Errors the SDK raises itself carry `source="SDK"`, and
+  the catalog's status and code where it has one (`create_error(message,
+  status, code, "SDK")` dispatches a `(source, code)` pair); client timeouts
+  default to 408 `REQUEST_TIMEOUT`, connection failures carry the source only.
+  One deadline covers the whole call (the bearer, the request, a 401 refresh
+  and its retry): `AsyncTransport.send` / `request` / `open_stream` hold it.
+- Request timeout: `request_timeout` (default 60 s, `0` = none) bounds the
+  total time of one ordinary request (`_transport._request_deadline`, an
+  `anyio.fail_after` around the httpx call, whose own timeouts are per phase).
+  A spec with its own budget sets `timeout`, which replaces the request
+  timeout with the same total-time meaning (`_transport._total_seconds`;
+  `0` or above the timer maximum = none), or `unbounded_read` for a hold
+  with no budget; file
+  transfers set `RequestSpec(transfer=True)` or call
+  `transport.request(..., transfer=True)`: no total deadline, whatever
+  timeout they carry, but httpx's per-phase timeout of the request timeout
+  (`_client_timeout`) bounds each idle phase, so a stalled transfer fails
+  with `ClientTimeoutError`; with `request_timeout=0` it has no bound at all
+  and runs until done or cancelled. Every buffered response body goes through
+  `_body_limit` (`send_buffered` / `read_body`): `max_response_bytes`
+  (client, or `RequestSpec.max_response_bytes` / `request(...,
+  max_response_bytes=)` per call) is checked against the declared
+  `Content-Length` before reading and against the bytes read, and the
+  response is closed when refused. It reads the wire bytes (`aiter_raw`) and
+  decodes gzip / deflate itself, at most `DECODE_STEP` (64 KiB) per step: the
+  kept body never exceeds the cap, and at most one step beyond it is ever
+  produced in memory. Compressed data that stops before its end is a
+  `ConnectionError`, as a body cut short on the wire is; gzip members that
+  follow one another are all decoded, and other bytes after the last member
+  are ignored. The clients send
+  `Accept-Encoding: gzip, deflate` only, and any other `Content-Encoding` is
+  refused undecoded; streams (`open_stream`, `open_exclusive_stream`) are
+  bounded only until their response headers arrive, by the spec's own
+  `timeout` when it has one, else the request timeout
+  (`_transport._stream_open_seconds`; `0` or above the timer maximum =
+  none). The transport bounds no stream's body as a total, but
+  `open_exclusive_stream` keeps an explicit finite per-call `timeout` as
+  httpx's idle-read bound on the body unless the spec sets `unbounded_read`;
+  with no per-call `timeout` it clears the read bound, so the request timeout
+  bounds no gap after the headers (a real-socket test in
+  `test_client_config.py` pins each case). `build_logs._discover` and
+  `read_build_logs` bound their body read themselves (`anyio.move_on_after`
+  with a deadline from their timeout). The deadline starts before the bearer is resolved; the project-token
+  exchange request is also bounded by the client's request timeout. The TypeScript transport
+  implements the same rule.
 - Build logs use URL-only discovery (`{"url": "https://…/build-logs/…"}`).
   `build_logs()` reads the discovered endpoint with `follow=false&format=text`;
   `follow_build_logs()` uses `follow=true&format=sse` and the processed cursor.
@@ -179,6 +227,16 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
 ```bash
 uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q
 ```
+
+The suite also runs from the sdist, which unpacks as `daytona-<version>/`
+with this project's `src/`, `tests/`, `pyproject.toml` and the two `gen/`
+scripts the tests import at its root, and no `sdk-python/` directory or
+anything else from the repository. A test that reads a file outside
+`sdk-python/` (a contract under `contract/`, the TypeScript SDK, `scripts/`,
+`upgrade/`) gets its path from `_repo_file("contract/…")` or
+`_repo_scripts()` in `tests/_repo.py`: in a checkout they return the path (a
+missing file still fails), outside one they skip that test, naming the file.
+Never build such a path from `Path(__file__).parents[…]` directly.
 
 ## Streaming response ownership
 

@@ -8,8 +8,8 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { Snapshot } from './Image.js'
 import type * as api from './gen/api-types.js'
 import { strictUriEncode } from './http.js'
-import { DaytonaError } from './errors/DaytonaError.js'
 import type { ListResult } from './types.js'
+import { badRequest } from './options.js'
 
 const SNAPSHOT_LONGPOLL_MAX_MS = 60_000
 
@@ -44,7 +44,7 @@ export class SnapshotsService {
     if (options.wait !== undefined) {
       params.wait = options.wait
       if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout < 0)) {
-        throw new DaytonaError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+        throw badRequest('timeout must be a non-negative finite number')
       }
       if (options.timeout) {
         params.timeout_ms = Math.min(Math.ceil(options.timeout * 1000), SNAPSHOT_LONGPOLL_MAX_MS)

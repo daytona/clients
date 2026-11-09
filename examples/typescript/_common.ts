@@ -4,7 +4,8 @@
  * Every example builds its `Daytona` client from the same environment
  * variables so they can all use the same Daytona deployment:
  *
- *     DAYTONA_API_URL      Daytona API base         (default https://api.daytona.com)
+ *     DAYTONA_V2_API_URL   Daytona API base         (default https://api.daytona.com;
+ *                          regional endpoint or test environment)
  *     DAYTONA_API_KEY      bearer api key (dtn_...)  (required)
  *     DAYTONA_IMAGE        registry image sandboxes start from (default python:3.12-slim)
  */
@@ -49,13 +50,8 @@ export function client(): DaytonaV2Client {
     console.error('DAYTONA_API_KEY is required (mint a project API key from the dashboard)')
     process.exit(2)
   }
-  // The v2 client reads DAYTONA_V2_API_URL, else DAYTONA_API_URL; default to the
-  // Daytona API when neither is set.
-  if (!process.env.DAYTONA_V2_API_URL?.trim() && !process.env.DAYTONA_API_URL?.trim()) {
-    process.env.DAYTONA_API_URL = 'https://api.daytona.com'
-  }
-  // The examples pick their API through DAYTONA_API_URL (the root client has no
-  // URL field), which the root's v2 client reads.
+  // The root client has no URL field: the v2 client reads DAYTONA_V2_API_URL
+  // itself and defaults to the Daytona API when it is unset.
   return new Daytona({
     apiKey,
   }).v2

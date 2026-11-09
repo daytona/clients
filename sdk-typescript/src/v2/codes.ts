@@ -3,7 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export const DAEMON_ERROR_CODES = [
+/**
+ * The error codes this SDK release knows, per error source. Exported as the
+ * read-only `codes` namespace of `@daytona/sdk/v2` (the Python SDK's
+ * `daytona.v2.codes` has the same members).
+ *
+ * `DaytonaError.code` is an open vocabulary: the server may send a code that
+ * is in none of these catalogs (a newer server), and the error then keeps
+ * that code verbatim and falls back to the class for its HTTP status. Use the
+ * catalogs to recognise a code, not to validate one.
+ */
+
+export const DAEMON_ERROR_CODES = Object.freeze([
   'PROCESS_NOT_FOUND',
   'PROCESS_START_FAILED',
   'PROCESS_TERMINAL',
@@ -32,9 +43,9 @@ export const DAEMON_ERROR_CODES = [
   'GIT_BRANCH_NOT_FOUND',
   'GIT_BRANCH_EXISTS',
   'DESKTOP_NOT_READY',
-] as const
+] as const)
 
-export const API_ERROR_CODES = [
+export const API_ERROR_CODES = Object.freeze([
   'BILLING_DISABLED',
   'BILLING_UNREACHABLE',
   'BILLING_UNAVAILABLE',
@@ -129,22 +140,22 @@ export const API_ERROR_CODES = [
   'V0_SANDBOX_NOT_IMPORTABLE',
   'V0_BACKUP_REGISTRY_UNCONFIGURED',
   'V0_MIGRATION_DEFAULT_PROJECT_ONLY',
-] as const
+] as const)
 
-export const PROXY_ERROR_CODES = [
+export const PROXY_ERROR_CODES = Object.freeze([
   'SANDBOX_NOT_RUNNING',
-] as const
+] as const)
 
-export const ROUTER_ERROR_CODES = [
+export const ROUTER_ERROR_CODES = Object.freeze([
   'REGION_MISMATCH',
   'UNKNOWN_REGION',
   'REGION_REQUIRED',
   'IDEMPOTENCY_KEY_REQUIRED',
   'CREATE_BODY_TOO_LARGE',
   'PLACEMENT_UNAVAILABLE',
-] as const
+] as const)
 
-export const GENERIC_ERROR_CODES = [
+export const GENERIC_ERROR_CODES = Object.freeze([
   'BAD_GATEWAY',
   'BAD_REQUEST',
   'CONFLICT',
@@ -163,7 +174,7 @@ export const GENERIC_ERROR_CODES = [
   'UNAUTHORIZED',
   'UNPROCESSABLE_ENTITY',
   'UNSUPPORTED_MEDIA_TYPE',
-] as const
+] as const)
 
 export type DaemonErrorCode = (typeof DAEMON_ERROR_CODES)[number]
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number]
@@ -172,7 +183,7 @@ export type RouterErrorCode = (typeof ROUTER_ERROR_CODES)[number]
 export type GenericErrorCode = (typeof GENERIC_ERROR_CODES)[number]
 export type ErrorCode = DaemonErrorCode | ApiErrorCode | ProxyErrorCode | RouterErrorCode | GenericErrorCode
 
-export const CODE_STATUS: Record<ErrorCode, number> = {
+export const CODE_STATUS: Readonly<Record<ErrorCode, number>> = Object.freeze({
   PROCESS_NOT_FOUND: 404,
   PROCESS_START_FAILED: 400,
   PROCESS_TERMINAL: 409,
@@ -318,6 +329,11 @@ export const CODE_STATUS: Record<ErrorCode, number> = {
   UNAUTHORIZED: 401,
   UNPROCESSABLE_ENTITY: 422,
   UNSUPPORTED_MEDIA_TYPE: 415,
+})
+
+function frozenExtras(extras: Partial<Record<ErrorCode, readonly string[]>>): Readonly<Partial<Record<ErrorCode, readonly string[]>>> {
+  for (const fields of Object.values(extras)) Object.freeze(fields)
+  return Object.freeze(extras)
 }
 
 /**
@@ -327,7 +343,7 @@ export const CODE_STATUS: Record<ErrorCode, number> = {
  * `GONE` carries `replacement`; the toolbox's carries nothing), so there is
  * one map per source; an unlisted code carries none.
  */
-export const API_CODE_EXTRAS: Partial<Record<ErrorCode, readonly string[]>> = {
+export const API_CODE_EXTRAS: Readonly<Partial<Record<ErrorCode, readonly string[]>>> = frozenExtras({
   ENTITLEMENT_REQUIRED: ['entitlement'],
   FEATURE_NOT_ENABLED: ['feature'],
   GONE: ['replacement'],
@@ -338,27 +354,28 @@ export const API_CODE_EXTRAS: Partial<Record<ErrorCode, readonly string[]>> = {
   CREATE_TTL_OUT_OF_RANGE: ['max'],
   OVERLOADED: ['retry_after_seconds'],
   RATE_LIMITED: ['retry_after_seconds'],
-}
+})
 
-export const DAEMON_CODE_EXTRAS: Partial<Record<ErrorCode, readonly string[]>> = {
+export const DAEMON_CODE_EXTRAS: Readonly<Partial<Record<ErrorCode, readonly string[]>>> = frozenExtras({
   CURSOR_EXPIRED: ['firstAvailableCursor'],
-}
+})
 
-export const PROXY_CODE_EXTRAS: Partial<Record<ErrorCode, readonly string[]>> = {}
+export const PROXY_CODE_EXTRAS: Readonly<Partial<Record<ErrorCode, readonly string[]>>> = frozenExtras({})
 
-export const ROUTER_CODE_EXTRAS: Partial<Record<ErrorCode, readonly string[]>> = {
+export const ROUTER_CODE_EXTRAS: Readonly<Partial<Record<ErrorCode, readonly string[]>>> = frozenExtras({
   REGION_MISMATCH: ['stated', 'actual'],
   UNKNOWN_REGION: ['region'],
-}
+})
 
-const ERROR_CODES: readonly string[] = [
+const ERROR_CODES: ReadonlySet<string> = new Set<string>([
   ...DAEMON_ERROR_CODES,
   ...API_ERROR_CODES,
   ...PROXY_ERROR_CODES,
   ...ROUTER_ERROR_CODES,
   ...GENERIC_ERROR_CODES,
-]
+])
 
+/** Whether `code` is in one of the catalogs above. */
 export function isKnownErrorCode(code: string | undefined): code is ErrorCode {
-  return code !== undefined && ERROR_CODES.includes(code)
+  return typeof code === 'string' && ERROR_CODES.has(code)
 }

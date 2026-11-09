@@ -27,6 +27,8 @@ export type Mapping = {
   readonly packages: { readonly ts: { readonly old: readonly string[]; readonly new: string; readonly range: string } };
   readonly v0Modules: { readonly ts: { readonly old: readonly string[]; readonly root: string; readonly v0: string; readonly keep: readonly string[] } };
   readonly rootNames: { readonly ts: readonly string[] };
+  /** 0.x root error aliases the 2.x root dropped, each mapped to the shared category it named. */
+  readonly rootAliasCategories: Readonly<Record<string, string>>;
   readonly v0Exports?: { readonly ts: readonly string[] };
   readonly movedClientMembers: { readonly ts: readonly string[] };
   readonly config: { readonly ts: Readonly<Record<string, ConfigAction>> };

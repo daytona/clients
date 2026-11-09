@@ -26,10 +26,11 @@ import pytest
 from _handles import lazy_sandbox
 
 from daytona.v2 import (
+    AuthenticationError,
+    BadRequestError,
     ForbiddenError,
     PreviewLink,
     SandboxAccessToken,
-    UnauthorizedError,
 )
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport
@@ -43,7 +44,7 @@ def _config_at(api_url: str, **kwargs: object) -> DaytonaConfig:
     """A v2 config whose client talks to ``api_url``: the v2 client reads its
     URL from the env (the autouse conftest fixture restores it and clears
     DAYTONA_V2_API_URL)."""
-    os.environ["DAYTONA_API_URL"] = api_url
+    os.environ["DAYTONA_V2_API_URL"] = api_url
     return DaytonaConfig(**kwargs)
 
 
@@ -155,6 +156,37 @@ async def test_create_access_token_full_default_mint_sends_an_empty_body():
 
     assert minted.ports is None  # null on the wire = all ports
     assert api.specs[0].json_body == {}
+
+
+# The TypeScript SDK's unit.test.ts asserts the same messages for the same bodies.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        (None, "access token response is not a JSON object"),
+        ([], "access token response is not a JSON object"),
+        (
+            {"expires_at": "2030-01-01T00:00:00Z"},
+            "access token response access_token must be a non-empty string",
+        ),
+        (
+            {"access_token": "", "expires_at": "2030-01-01T00:00:00Z"},
+            "access token response access_token must be a non-empty string",
+        ),
+        ({"access_token": "jwt"}, "access token response expires_at must be a string"),
+        ({"access_token": "jwt", "expires_at": 5}, "access token response expires_at must be a string"),
+    ],
+)
+async def test_create_access_token_names_what_breaks_the_response_contract(payload: object, message: str):
+    client = _client()
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox.sandbox_class = "linux"
+    sandbox._api = _RecordingApi([payload])  # type: ignore[assignment]
+
+    with pytest.raises(BadRequestError) as caught:
+        await sandbox.create_access_token()
+    assert str(caught.value) == message
+    assert (caught.value.status_code, caught.value.code, caught.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 @pytest.mark.anyio
@@ -371,7 +403,7 @@ async def test_second_401_surfaces_after_exactly_one_remint():
         sandbox, _recording_handler(seen, lambda request: httpx.Response(401, json={"error": "unauthorized"}))
     )
 
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(AuthenticationError):
         await sandbox.ports.list()
 
     # Exactly one re-mint and one retry; the second 401 surfaces.
@@ -413,7 +445,7 @@ async def test_caller_supplied_token_is_never_replaced():
     )
 
     # Expiry surfaces to the caller: no mint, no retry, the 401 is theirs.
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(AuthenticationError):
         await sandbox.ports.list()
 
     assert api.specs == []
@@ -734,7 +766,7 @@ async def test_refresh_data_adoption_never_gives_a_caller_supplied_handle_a_mint
     )
 
     # The caller token still rides as-is: the 401 surfaces, nothing is minted.
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(AuthenticationError):
         await sandbox.ports.list()
 
     assert seen == ["Bearer caller_tok"]

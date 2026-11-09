@@ -8,17 +8,18 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { Image, ImageBuilder, Snapshot, buildImageRequest } from './Image.js'
-import { HttpTransport, boundedRequestTimeout, strictUriEncode, transportFromAxiosInstance } from './http.js'
+import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, strictUriEncode, transportFromAxiosInstance } from './http.js'
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
-import { BadRequestError, ImageBuildFailedError, RequestTimeoutError, TimeoutError } from './errors/DaytonaError.js'
+import { BadRequestError, ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
+import { badRequest } from './options.js'
 
 const IMAGE_LONGPOLL_MAX_MS = 60_000
 
 function requestTimeoutMs(timeout: number | undefined): number | undefined {
   if (timeout === undefined) return undefined
-  if (!Number.isFinite(timeout) || timeout < 0) throw new TypeError('timeout must be a non-negative finite number')
+  if (!Number.isFinite(timeout) || timeout < 0) throw badRequest('timeout must be a non-negative finite number')
   return timeout === 0 ? 0 : Math.min(Math.ceil(timeout * 1000), IMAGE_LONGPOLL_MAX_MS)
 }
 
@@ -89,10 +90,10 @@ export class ImagesService {
   /** Import a registry image and wait until ready by default. Timeout is in milliseconds; omitted or zero is unbounded. */
   public async pull(ref: string, options: BuildImageOptions & { readonly wait?: boolean; readonly timeout?: number } = {}): Promise<Image> {
     if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout < 0)) {
-      throw new BadRequestError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('timeout must be a non-negative finite number', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     const deadline = options.timeout === undefined || options.timeout === 0 ? undefined : Date.now() + options.timeout
-    const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+    const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let activeRequestUsesDeadline = false
@@ -133,12 +134,16 @@ export class ImagesService {
         image = new Image(data)
       }
       if (image.status === 'failed' || image.status === 'error') {
-        throw new ImageBuildFailedError(image.error ?? `image pull ${image.id} failed`, 409, 'IMAGE_BUILD_FAILED', 'SDK', undefined, image.id)
+        throw new ImageBuildFailedError(image.error ?? `image pull ${image.id} failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
       }
       return image
     } catch (error) {
-      if (controller.signal.aborted || (error instanceof TimeoutError && (
-        (activeRequestUsesDeadline && error.statusCode === undefined)
+      // The pull's deadline caused this: its own signal fired, or the request
+      // whose budget was the deadline's remainder ran out of it (axios' timer
+      // can fire before the clock reads the deadline). A timeout an auth
+      // provider raised on its own keeps its error.
+      if (controller.signal.aborted || (isRequestBudgetTimeout(error) && (
+        activeRequestUsesDeadline
         || (deadline !== undefined && Date.now() >= deadline)
       ))) throw timeoutError()
       throw error

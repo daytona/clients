@@ -5,7 +5,7 @@
 
 // Serves the vite build on a free port and loads it in headless Chromium.
 // A page has no environment, so the configuration is injected ahead of the
-// bundle: the API key as a page global, and DAYTONA_API_URL through a
+// bundle: the API key as a page global, and DAYTONA_V2_API_URL through a
 // `process.env` shim, which is where the SDK reads it (as it would from any
 // process polyfill an application installs).
 import { readFileSync, existsSync } from 'node:fs'
@@ -15,13 +15,13 @@ import { chromium } from 'playwright'
 
 const DIST = resolve('dist')
 const MIME = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/css' }
-const { DAYTONA_API_URL, DAYTONA_API_KEY } = process.env
-if (!DAYTONA_API_URL || !DAYTONA_API_KEY) {
-  console.error('DAYTONA_API_URL and DAYTONA_API_KEY must be set (run via run-all.sh)')
+const { DAYTONA_V2_API_URL, DAYTONA_API_KEY } = process.env
+if (!DAYTONA_V2_API_URL || !DAYTONA_API_KEY) {
+  console.error('DAYTONA_V2_API_URL and DAYTONA_API_KEY must be set (run via run-all.sh)')
   process.exit(1)
 }
 const inject = `<script>
-  window.process = { env: { DAYTONA_API_URL: ${JSON.stringify(DAYTONA_API_URL)} } };
+  window.process = { env: { DAYTONA_V2_API_URL: ${JSON.stringify(DAYTONA_V2_API_URL)} } };
   window.__DAYTONA_API_KEY__ = ${JSON.stringify(DAYTONA_API_KEY)};
 </script>`
 

@@ -201,7 +201,7 @@ async function main() {
   })
 
   // Daytona().v0 builds the real bundled client against DAYTONA_V0_API_URL,
-  // never v2's DAYTONA_API_URL.
+  // never the 0.x SDK's DAYTONA_API_URL.
   await withRecordingApi(async (apiUrl, seen) => {
     const saved = { v0: process.env.DAYTONA_V0_API_URL, v2: process.env.DAYTONA_API_URL }
     process.env.DAYTONA_V0_API_URL = apiUrl

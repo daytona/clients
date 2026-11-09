@@ -40,16 +40,17 @@ from weakref import WeakValueDictionary
 
 from . import _clock
 from ._auth import ProjectTokenAuth
+from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES
 from ._core import RequestSpec, expect_object, sandbox_state
-from ._transport import AsyncTransport
+from ._transport import AsyncTransport, _request_deadline
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .errors import (
+    AuthenticationError,
     DaytonaError,
     ForbiddenError,
     NotFoundError,
     RequestTimeoutError,
     SandboxTerminalStateError,
-    UnauthorizedError,
     create_error,
 )
 from .types import SandboxEventsConfig, SandboxState
@@ -64,6 +65,7 @@ from .types import SandboxEventsConfig, SandboxState
 _sleep = asyncio.sleep
 
 _SUBPROTOCOL: Final = "daytona.events.v1"
+_TICKET_MINT_SECONDS: Final = 30.0
 _TICKET_PROTOCOL_PREFIX: Final = "daytona.ticket."
 _BACKOFF_BASE_S: Final = 0.250
 _BACKOFF_CAP_S: Final = 30.0
@@ -387,6 +389,7 @@ class WaitHub:
         connector: Optional[Callable[[str, List[str]], Awaitable[_WsConn]]] = None,
         loop: asyncio.AbstractEventLoop | None = None,
         auth: Optional[ProjectTokenAuth] = None,
+        max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     ) -> None:
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
@@ -416,7 +419,10 @@ class WaitHub:
         # instance because the hub outlives any one ``Daytona``.
         # `auth`: a JWT-configured client's project-token exchange, so the
         # ticket mint is authenticated the same way (there is no API key then).
-        self._api = AsyncTransport(self._api_url, api_key or None, source=source, auth=auth)
+        # `max_response_bytes`: the attaching client's cap on buffered bodies.
+        self._api = AsyncTransport(
+            self._api_url, api_key or None, source=source, auth=auth, max_response_bytes=max_response_bytes
+        )
 
     @property
     def enabled(self) -> bool:
@@ -909,7 +915,7 @@ class WaitHub:
         except Exception as exc:
             if not self._waiter_still_pending(waiter):
                 return
-            if isinstance(exc, (NotFoundError, UnauthorizedError, ForbiddenError)):
+            if isinstance(exc, (NotFoundError, AuthenticationError, ForbiddenError)):
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
                 self._maybe_unsubscribe_for_id(waiter.sandbox_id)
@@ -1010,7 +1016,7 @@ class WaitHub:
                     if sock.credential_refusals >= _MAX_CREDENTIAL_REFUSALS:
                         self._fail_socket_waiters(
                             sock,
-                            UnauthorizedError(
+                            AuthenticationError(
                                 "the credential was refused by the events socket; mint a new one and retry",
                                 status_code=401,
                                 code="UNAUTHORIZED",
@@ -1082,10 +1088,14 @@ class WaitHub:
         anything else is a reconnect."""
         path = f"/events/{quote(sock.region, safe='')}/ticket"
         try:
-            data = expect_object(await self._api.send(RequestSpec("POST", path, timeout=30.0)))
+            # One 30 s budget for the whole mint, a token exchange included.
+            with _request_deadline(_TICKET_MINT_SECONDS):
+                data = expect_object(
+                    await self._api.send(RequestSpec("POST", path, timeout=_TICKET_MINT_SECONDS))
+                )
         except NotFoundError as exc:
             raise _PermanentFallbackError() from exc
-        except (UnauthorizedError, ForbiddenError) as exc:
+        except (AuthenticationError, ForbiddenError) as exc:
             raise _AuthError(exc) from exc
         except DaytonaError as exc:
             raise _ReconnectError(f"ticket request failed: {exc}") from exc
@@ -1633,7 +1643,12 @@ def _hub_identity(
     api_key: str,
     target: Optional[str],
     config: Optional[SandboxEventsConfig],
+    max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
+    request_timeout: Optional[float] = None,
 ) -> Tuple[object, ...]:
+    """What a shared hub is keyed on: clients that differ in any of it (their
+    body cap, or the request timeout the hub's token exchange copies) get
+    their own hub, so each client's limits apply to its hub's requests."""
     effective = config if config is not None else SandboxEventsConfig()
     return (
         _normalize_hub_url_identity(api_url),
@@ -1642,6 +1657,8 @@ def _hub_identity(
         effective.enabled,
         effective.reconcile_interval,
         effective.idle_close,
+        max_response_bytes,
+        request_timeout,
     )
 
 
@@ -1656,6 +1673,7 @@ def attach_hub(
     connector: Optional[Callable[[str, List[str]], Awaitable[_WsConn]]] = None,
     auth: Optional[ProjectTokenAuth] = None,
     identity: Optional[str] = None,
+    max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
 ) -> WaitHub:
     key: Optional[Tuple[int, Tuple[object, ...]]] = None
     running_loop: asyncio.AbstractEventLoop | None = None
@@ -1664,7 +1682,14 @@ def attach_hub(
             running_loop = asyncio.get_running_loop()
             key = (
                 id(running_loop),
-                _hub_identity(api_url, identity or api_key, target, config),
+                _hub_identity(
+                    api_url,
+                    identity or api_key,
+                    target,
+                    config,
+                    max_response_bytes,
+                    auth._request_timeout if auth is not None else None,
+                ),
             )
         except RuntimeError:
             key = None
@@ -1685,12 +1710,21 @@ def attach_hub(
             project_id=auth._project_id,
             source=source,
             otel=auth._otel,
+            request_timeout=auth._request_timeout,
+            max_response_bytes=max_response_bytes,
         )
         if auth is not None
         else None
     )
     hub = WaitHub(
-        api_url, api_key, source=source, config=config, connector=connector, loop=running_loop, auth=hub_auth
+        api_url,
+        api_key,
+        source=source,
+        config=config,
+        connector=connector,
+        loop=running_loop,
+        auth=hub_auth,
+        max_response_bytes=max_response_bytes,
     )
     hub._attach()
     if key is not None:

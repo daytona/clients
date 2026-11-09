@@ -63,13 +63,11 @@
       "DaytonaBadRequestError",
       "DaytonaAuthenticationError",
       "DaytonaForbiddenError",
-      "DaytonaAuthorizationError",
       "DaytonaNotFoundError",
       "DaytonaTimeoutError",
       "DaytonaConflictError",
       "DaytonaGoneError",
       "DaytonaUnprocessableEntityError",
-      "DaytonaValidationError",
       "DaytonaRateLimitError",
       "DaytonaInternalServerError",
       "DaytonaServiceUnavailableError",
@@ -90,13 +88,11 @@
       "DaytonaBadRequestError",
       "DaytonaAuthenticationError",
       "DaytonaForbiddenError",
-      "DaytonaAuthorizationError",
       "DaytonaNotFoundError",
       "DaytonaTimeoutError",
       "DaytonaConflictError",
       "DaytonaGoneError",
       "DaytonaUnprocessableEntityError",
-      "DaytonaValidationError",
       "DaytonaRateLimitError",
       "DaytonaInternalServerError",
       "DaytonaServiceUnavailableError",
@@ -106,6 +102,10 @@
       "DaytonaV0Client",
       "DaytonaV2Client"
     ]
+  },
+  "rootAliasCategories": {
+    "DaytonaValidationError": "DaytonaBadRequestError",
+    "DaytonaAuthorizationError": "DaytonaForbiddenError"
   },
   "movedClientMembers": {
     "py": [

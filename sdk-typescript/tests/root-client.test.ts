@@ -9,21 +9,20 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { inspect } from 'node:util'
 
-import { Daytona, DEFAULT_V2_API_URL, MOVED_TO_V0, ROOT_CONFIG_ROUTING, TARGET_DEPRECATION, V0_API_URL, resetTargetDeprecationWarningForTests } from '../src/Daytona'
+import { Daytona, DEFAULT_V2_API_URL, MOVED_TO_V0, ROOT_CONFIG_ROUTING, TARGET_DEPRECATION, V0_API_URL, resetTargetDeprecationWarningForTests, setV0ModuleLoaderForTests } from '../src/Daytona'
 import { Daytona as DaytonaV2 } from '../src/v2/Daytona'
+import * as rootModule from '../src/index'
 import { SDK_VERSION } from '../src/version'
 import {
-  DaytonaAuthorizationError,
   DaytonaBadRequestError,
   DaytonaConflictError,
   DaytonaError,
   DaytonaForbiddenError,
   DaytonaNotFoundError,
   DaytonaTimeoutError,
-  DaytonaValidationError,
   ERROR_REGISTRY_KEY,
 } from '../src/errors'
-import { NotFoundError, NotSupportedError, RequestTimeoutError, TimeoutError } from '../src/v2/errors/DaytonaError'
+import { NotFoundError, NotSupportedError, RequestTimeoutError, ClientTimeoutError } from '../src/v2/errors/DaytonaError'
 
 class FakeV0DaytonaError extends Error {}
 class FakeV0DaytonaNotFoundError extends FakeV0DaytonaError {}
@@ -48,8 +47,8 @@ class FakeV0Daytona {
 
 afterEach(() => {
   jest.restoreAllMocks()
-    process.env.DAYTONA_API_URL = 'http://api.invalid'
-  delete process.env.DAYTONA_V2_API_URL
+  process.env.DAYTONA_V2_API_URL = 'http://api.invalid'
+  process.env.DAYTONA_API_URL = 'http://never-read-by-2x.invalid'
   delete process.env.DAYTONA_V0_API_URL
   FakeV0Daytona.instances.length = 0
 })
@@ -86,7 +85,7 @@ function missingV0Entry(): Error {
 
 describe('root Daytona client', () => {
   it('builds and caches v2 lazily with the default API URL', () => {
-    delete process.env.DAYTONA_API_URL
+    delete process.env.DAYTONA_V2_API_URL
     const root = new Daytona({ apiKey: 'key' })
 
     expect('create' in root).toBe(false)
@@ -122,11 +121,11 @@ describe('root Daytona client', () => {
       }
     }
     const loader = jest.fn(() => ({ RootOnlyClientV0: DisposableV0 }))
-    const untouched = new Daytona({ apiKey: 'key' }, { v0ModuleLoader: loader })
+    const untouched = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), loader)
     await untouched.close()
     expect(loader).not.toHaveBeenCalled()
 
-    const root = new Daytona({ apiKey: 'key' }, { v0ModuleLoader: loader })
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), loader)
     const first = root.v0 as unknown as DisposableV0
     await root.close()
     expect(disposed).toEqual([first])
@@ -155,7 +154,7 @@ describe('root Daytona client', () => {
         disposed.push(this)
       }
     }
-    const root = new Daytona({ apiKey: 'key' }, { v0ModuleLoader: () => ({ RootOnlyClientV0: DisposableV0 }) })
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), () => ({ RootOnlyClientV0: DisposableV0 }))
     void root.v0
     const v2 = root.v2
     jest.spyOn(v2, 'close').mockRejectedValueOnce(new Error('v2 close failed'))
@@ -163,32 +162,48 @@ describe('root Daytona client', () => {
     expect(disposed).toHaveLength(1)
   })
 
-  it.each(['', '   ', '\t\n'])('treats a blank or whitespace DAYTONA_API_URL (%j) as unset', (blank) => {
-    process.env.DAYTONA_API_URL = blank
+  it.each(['', '   ', '\t\n'])('treats a blank or whitespace DAYTONA_V2_API_URL (%j) as unset', (blank) => {
+    process.env.DAYTONA_V2_API_URL = blank
     const v2 = new DaytonaV2({ apiKey: 'key' })
 
     expect(v2['api'].defaults.baseURL).toBe(DEFAULT_V2_API_URL)
   })
 
   it('defaults the v2 client itself to DEFAULT_V2_API_URL instead of requiring apiUrl', () => {
-    delete process.env.DAYTONA_API_URL
+    delete process.env.DAYTONA_V2_API_URL
     const v2 = new DaytonaV2({ apiKey: 'key' })
 
     expect(v2['api'].defaults.baseURL).toBe(DEFAULT_V2_API_URL)
   })
 
-  it('treats direct root instances as native matches and keeps aliases identical', () => {
+  it('treats direct root instances as native matches', () => {
     expect(new DaytonaNotFoundError('missing')).toBeInstanceOf(DaytonaError)
     expect(new DaytonaNotFoundError('missing')).toBeInstanceOf(DaytonaNotFoundError)
-    expect(DaytonaValidationError).toBe(DaytonaBadRequestError)
-    expect(DaytonaAuthorizationError).toBe(DaytonaForbiddenError)
   })
 
-  it('lets the aliases name types as well as values', () => {
-    const asValidation: DaytonaValidationError = new DaytonaBadRequestError('bad')
-    const asAuthorization: DaytonaAuthorizationError = new DaytonaForbiddenError('no')
-    expect(asValidation).toBeInstanceOf(DaytonaBadRequestError)
-    expect(asAuthorization).toBeInstanceOf(DaytonaForbiddenError)
+  it('exports exactly the twelve shared categories and the base, with no synonyms', () => {
+    const rootErrors = Object.keys(rootModule).filter((name) => name.endsWith('Error')).sort()
+    expect(rootErrors).toEqual([
+      'DaytonaAuthenticationError',
+      'DaytonaBadRequestError',
+      'DaytonaConflictError',
+      'DaytonaConnectionError',
+      'DaytonaError',
+      'DaytonaForbiddenError',
+      'DaytonaGoneError',
+      'DaytonaInternalServerError',
+      'DaytonaNotFoundError',
+      'DaytonaRateLimitError',
+      'DaytonaServiceUnavailableError',
+      'DaytonaTimeoutError',
+      'DaytonaUnprocessableEntityError',
+    ])
+  })
+
+  it('takes only the configuration in its published constructor', () => {
+    expect(Daytona.length).toBe(1)
+    const declarations = readFileSync(join(__dirname, '..', 'src', 'Daytona.ts'), 'utf8')
+    expect(declarations).toMatch(/constructor\(config\?: DaytonaConfig\)/)
   })
 
   it('catches errors a separately loaded v0 copy registered on globalThis, with no d.v0 access', () => {
@@ -219,17 +234,17 @@ describe('root Daytona client', () => {
   })
 
   it('maps v2 error instances onto the shared root hierarchy', () => {
-    expect(new NotFoundError('missing', 404, 'NOT_FOUND', 'SDK')).toBeInstanceOf(DaytonaError)
-    expect(new NotFoundError('missing', 404, 'NOT_FOUND', 'SDK')).toBeInstanceOf(DaytonaNotFoundError)
-    expect(new NotFoundError('missing', 404, 'NOT_FOUND', 'SDK')).not.toBeInstanceOf(DaytonaConflictError)
-    expect(new TimeoutError('timed out', 408, 'REQUEST_TIMEOUT', 'SDK')).toBeInstanceOf(DaytonaTimeoutError)
-    expect(new RequestTimeoutError('timed out', 408, 'REQUEST_TIMEOUT', 'SDK')).toBeInstanceOf(DaytonaTimeoutError)
+    expect(new NotFoundError('missing', { statusCode: 404, code: 'NOT_FOUND', source: 'SDK' })).toBeInstanceOf(DaytonaError)
+    expect(new NotFoundError('missing', { statusCode: 404, code: 'NOT_FOUND', source: 'SDK' })).toBeInstanceOf(DaytonaNotFoundError)
+    expect(new NotFoundError('missing', { statusCode: 404, code: 'NOT_FOUND', source: 'SDK' })).not.toBeInstanceOf(DaytonaConflictError)
+    expect(new ClientTimeoutError('timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })).toBeInstanceOf(DaytonaTimeoutError)
+    expect(new RequestTimeoutError('timed out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })).toBeInstanceOf(DaytonaTimeoutError)
   })
 
-  it('prefers DAYTONA_API_URL for v2 and passes JWT exchange inputs through', () => {
-    process.env.DAYTONA_API_URL = 'https://preview.example'
+  it('reads DAYTONA_V2_API_URL for v2 and passes JWT exchange inputs through', () => {
+    process.env.DAYTONA_V2_API_URL = 'https://preview.example'
 
-    const v2 = new Daytona({ jwtToken: 'jwt', projectId: 'project-id', requestTimeout: 12_345 }).v2
+    const v2 = new Daytona({ jwtToken: 'jwt', projectId: 'project-id', requestTimeoutSeconds: 12.345 }).v2
 
     expect(v2['api'].defaults.baseURL).toBe('https://preview.example')
     expect(v2['httpOptions'].authProvider).toBeDefined()
@@ -260,18 +275,15 @@ describe('root Daytona client', () => {
 
   it('forwards exactly the root-config fields routed to v0 (parity with Python)', () => {
     const emit = jest.spyOn(process, 'emitWarning').mockImplementation(() => undefined)
-    const root = new Daytona(
-      {
+    const root = setV0ModuleLoaderForTests(new Daytona({
         apiKey: 'key',
         organizationId: 'org',
         target: 'eu',
         projectId: 'proj',
-        requestTimeout: 5,
+        requestTimeoutSeconds: 5,
         otelEnabled: true,
         connectionPoolMaxsize: 4,
-      },
-      { v0ModuleLoader: () => ({ RootOnlyClientV0: FakeV0Daytona }) },
-    )
+      }), () => ({ RootOnlyClientV0: FakeV0Daytona }))
     void root.v0
     emit.mockRestore()
     const instance = FakeV0Daytona.instances[0]
@@ -288,10 +300,7 @@ describe('root Daytona client', () => {
   it('d.v0 is the real v0 client: loaded synchronously on first access, the same instance after', () => {
     process.env.DAYTONA_API_URL = 'https://ignored.example'
     const loader = jest.fn(() => ({ RootOnlyClientV0: FakeV0Daytona }))
-    const root = new Daytona(
-      { apiKey: 'key', jwtToken: 'jwt', organizationId: 'org-id', target: 'test-target' },
-      { v0ModuleLoader: loader },
-    )
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key', jwtToken: 'jwt', organizationId: 'org-id', target: 'test-target' }), loader)
     expect(loader).not.toHaveBeenCalled() // never at construction
 
     const first = root.v0
@@ -312,7 +321,7 @@ describe('root Daytona client', () => {
   })
 
   it('keeps v0 semantics: sync iterator methods, async services, detached methods as in 0.x', async () => {
-    const root = new Daytona({ apiKey: 'key' }, { v0ModuleLoader: () => ({ RootOnlyClientV0: IteratorV0Daytona }) })
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), () => ({ RootOnlyClientV0: IteratorV0Daytona }))
     const items: string[] = []
     for await (const sandbox of root.v0.list({ labels: { team: 'a' } })) items.push(String(sandbox))
     expect(items).toEqual(['a-1', 'a-2'])
@@ -324,13 +333,11 @@ describe('root Daytona client', () => {
   })
 
   it('registers v0 error classes by name when the v0 namespace loads', () => {
-    const root = new Daytona({ apiKey: 'key' }, {
-      v0ModuleLoader: () => ({
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), () => ({
         RootOnlyClientV0: FakeV0Daytona,
         DaytonaError: FakeV0DaytonaError,
         DaytonaNotFoundError: FakeV0DaytonaNotFoundError,
-      }),
-    })
+      }))
     void root.v0
 
     expect(new FakeV0DaytonaError('base')).toBeInstanceOf(DaytonaError)
@@ -340,7 +347,7 @@ describe('root Daytona client', () => {
   })
 
   it('reports other v0 load failures as what they are, not as a missing build', () => {
-    const broken = new Daytona({}, { v0ModuleLoader: () => { throw new SyntaxError('Unexpected token in bundle') } })
+    const broken = setV0ModuleLoaderForTests(new Daytona({}), () => { throw new SyntaxError('Unexpected token in bundle') })
     const error = (() => {
       try {
         return broken.v0
@@ -353,7 +360,7 @@ describe('root Daytona client', () => {
     expect((error as { code?: string }).code).toBeUndefined()
 
     const missingDependency = Object.assign(new Error("Cannot find module 'socket.io-client'"), { code: 'MODULE_NOT_FOUND' })
-    const partial = new Daytona({}, { v0ModuleLoader: () => { throw missingDependency } })
+    const partial = setV0ModuleLoaderForTests(new Daytona({}), () => { throw missingDependency })
     expect(() => partial.v0).toThrow("importing the v0 namespace failed: Cannot find module 'socket.io-client'")
 
     // CJS appends a require stack naming the bundled v0 files: still a load error.
@@ -361,7 +368,7 @@ describe('root Daytona client', () => {
       new Error("Cannot find module 'socket.io-client'\nRequire stack:\n- /app/node_modules/@daytona/sdk/dist/cjs/v0/Daytona.js"),
       { code: 'MODULE_NOT_FOUND' },
     )
-    const stacked = new Daytona({}, { v0ModuleLoader: () => { throw withStack } })
+    const stacked = setV0ModuleLoaderForTests(new Daytona({}), () => { throw withStack })
     expect(() => stacked.v0).toThrow(expect.objectContaining({ source: 'SDK' }) as unknown as Error)
     try {
       void stacked.v0
@@ -377,7 +384,7 @@ describe('root Daytona client', () => {
         throw missingV0Entry()
       })
       .mockReturnValue({ RootOnlyClientV0: FakeV0Daytona })
-    const root = new Daytona({ apiKey: 'key' }, { v0ModuleLoader: loader })
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), loader)
 
     let error: unknown
     try {
@@ -398,18 +405,18 @@ describe('root Daytona client', () => {
 
     // ESM names the missing file exports["./v0"] points at, not the specifier.
     const fileMissing = Object.assign(new Error("Cannot find module '/app/node_modules/@daytona/sdk/dist/cjs/v0/index.js' imported from /app/x.mjs"), { code: 'ERR_MODULE_NOT_FOUND' })
-    const esm = new Daytona({}, { v0ModuleLoader: () => { throw fileMissing } })
+    const esm = setV0ModuleLoaderForTests(new Daytona({}), () => { throw fileMissing })
     expect(() => esm.v0).toThrow(expect.objectContaining({ code: 'NOT_IMPLEMENTED' }) as unknown as Error)
   })
 
   it('throws NotSupportedError when ./v0 is the unbundled stub', () => {
-    const root = new Daytona({ apiKey: 'key' }, { v0ModuleLoader: () => ({ __daytonaV0Unbundled: true, RootOnlyClientV0: FakeV0Daytona }) })
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), () => ({ __daytonaV0Unbundled: true, RootOnlyClientV0: FakeV0Daytona }))
     expect(() => root.v0).toThrow(NotSupportedError)
     expect(FakeV0Daytona.instances).toHaveLength(0)
   })
 
   it('reads the client class only under its private name', () => {
-    const root = new Daytona({ apiKey: 'key' }, { v0ModuleLoader: () => ({ Daytona: FakeV0Daytona }) })
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), () => ({ Daytona: FakeV0Daytona }))
     expect(() => root.v0).toThrow(expect.objectContaining({ code: 'NOT_IMPLEMENTED' }) as unknown as Error)
     expect(FakeV0Daytona.instances).toHaveLength(0)
   })
@@ -420,7 +427,7 @@ describe('root Daytona client', () => {
         throw new Error('API key or JWT token is required')
       }
     }
-    const root = new Daytona({}, { v0ModuleLoader: () => ({ RootOnlyClientV0: RejectingV0Daytona }) })
+    const root = setV0ModuleLoaderForTests(new Daytona({}), () => ({ RootOnlyClientV0: RejectingV0Daytona }))
 
     expect(() => root.v0).toThrow('API key or JWT token is required')
     try {
@@ -463,7 +470,7 @@ describe('root rejects URL options from untyped callers', () => {
 
 describe('v2 rejects unsupported options from untyped callers', () => {
   it.each([
-    ['apiUrl', "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL (or DAYTONA_API_URL) to select an API endpoint"],
+    ['apiUrl', "the v2 client does not take 'apiUrl': set DAYTONA_V2_API_URL to select an API endpoint"],
     ['target', "does not take 'target'"],
     ['toolboxUrl', "does not take 'toolboxUrl'"],
   ])('constructor rejects %s', (option, message) => {
@@ -562,19 +569,11 @@ describe('per-namespace API URL env vars (dev / non-prod)', () => {
     return { url: `http://127.0.0.1:${port}`, seen, close: () => new Promise((resolve) => server.close(() => resolve())) }
   }
 
-  it.each([
-    ['DAYTONA_V2_API_URL over DAYTONA_API_URL', { v2: true, shared: 'http://shared.invalid' }],
-    ['DAYTONA_API_URL when DAYTONA_V2_API_URL is blank', { v2: false, shared: undefined, blankV2: true }],
-  ])('v2 sends to %s', async (_label, opts) => {
+  it('v2 sends to DAYTONA_V2_API_URL and never to DAYTONA_API_URL', async () => {
     const server = await listServer()
     try {
-      if (opts.v2) {
-        process.env.DAYTONA_V2_API_URL = server.url
-        process.env.DAYTONA_API_URL = opts.shared as string
-      } else {
-        process.env.DAYTONA_V2_API_URL = '   '
-        process.env.DAYTONA_API_URL = server.url
-      }
+      process.env.DAYTONA_V2_API_URL = server.url
+      process.env.DAYTONA_API_URL = 'http://v0-sdk.invalid'
       await new Daytona({ apiKey: 'key' }).v2.list()
       expect(server.seen.some((path) => path.startsWith('/sandboxes'))).toBe(true)
     } finally {
@@ -582,10 +581,11 @@ describe('per-namespace API URL env vars (dev / non-prod)', () => {
     }
   })
 
-  it('v2 treats a slash-only DAYTONA_V2_API_URL as unset and falls back to DAYTONA_API_URL', () => {
-    process.env.DAYTONA_V2_API_URL = '//'
-    process.env.DAYTONA_API_URL = 'http://shared.invalid/'
-    expect(new DaytonaV2({ apiKey: 'key' })['api'].defaults.baseURL).toBe('http://shared.invalid')
+  it.each([undefined, '   ', '//'])('v2 does not fall back to DAYTONA_API_URL when DAYTONA_V2_API_URL is %j', (v2Url) => {
+    if (v2Url === undefined) delete process.env.DAYTONA_V2_API_URL
+    else process.env.DAYTONA_V2_API_URL = v2Url
+    process.env.DAYTONA_API_URL = 'http://v0-sdk.invalid/'
+    expect(new DaytonaV2({ apiKey: 'key' })['api'].defaults.baseURL).toBe(DEFAULT_V2_API_URL)
   })
 
   it('v2 strips trailing slashes from DAYTONA_V2_API_URL', () => {
@@ -607,7 +607,7 @@ describe('per-namespace API URL env vars (dev / non-prod)', () => {
     [{ DAYTONA_V0_API_URL: '/' }, V0_API_URL],
   ])('v0 honours DAYTONA_V0_API_URL and ignores DAYTONA_API_URL (%j)', async (env, expected) => {
     Object.assign(process.env, env)
-    const root = new Daytona({ apiKey: 'key' }, { v0ModuleLoader: () => ({ RootOnlyClientV0: FakeV0Daytona }) })
+    const root = setV0ModuleLoaderForTests(new Daytona({ apiKey: 'key' }), () => ({ RootOnlyClientV0: FakeV0Daytona }))
     void root.v0
     expect(FakeV0Daytona.instances[0]?.config.apiUrl).toBe(expected)
   })

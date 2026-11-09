@@ -21,7 +21,7 @@ def _config_at(api_url: str, **kwargs: object) -> DaytonaConfig:
     """A v2 config whose client talks to ``api_url``: the v2 client reads its
     URL from the env (the autouse conftest fixture restores it and clears
     DAYTONA_V2_API_URL)."""
-    os.environ["DAYTONA_API_URL"] = api_url
+    os.environ["DAYTONA_V2_API_URL"] = api_url
     return DaytonaConfig(**kwargs)
 
 

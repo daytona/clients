@@ -270,6 +270,15 @@ for (const [language, names, root] of [['py', exportedPython, rootPythonNames], 
   for (const name of mapping.rootNames[language]) if (!names.has(name) && !root.has(name)) problems.push(`${language}.rootNames: ${name} is neither a v0 nor a 2.x root export`);
   for (const name of root) if (!mapping.rootNames[language].includes(name)) problems.push(`${language}.rootNames: missing 2.x root export ${name}`);
 }
+// A former root alias is a v0 export (0.x code imports it) that names a shared
+// root category the 2.x root still exports.
+for (const [alias, category] of Object.entries(mapping.rootAliasCategories ?? {})) {
+  for (const [language, names, root] of [['py', exportedPython, rootPythonNames], ['ts', exportedTs, rootTsNames]]) {
+    if (!names.has(alias)) problems.push(`rootAliasCategories: ${alias} is not a ${language} v0 export`);
+    if (root.has(alias)) problems.push(`rootAliasCategories: ${alias} is still a ${language} 2.x root export`);
+    if (!root.has(category)) problems.push(`rootAliasCategories: ${category} is not a ${language} 2.x root export`);
+  }
+}
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exitCode = 1;

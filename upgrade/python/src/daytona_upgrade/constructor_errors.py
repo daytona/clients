@@ -89,7 +89,10 @@ def constructor_error_items(flow: Flow) -> tuple[tuple[tuple[int, int], Item], .
     """Use evaluated constructor/error proofs, excluding deferred scope bodies."""
     mapping = flow.resolver.mapping
     try_star = getattr(ast, "TryStar", None)
-    shared = set(mapping.root_names) - set(mapping.root_imports)
+    # The former root aliases (root_alias_categories) name shared categories too.
+    shared = (set(mapping.root_names) - set(mapping.root_imports)) | set(
+        mapping.root_alias_categories
+    )
     errors = {
         f"module:{module}.{name}"
         for root in mapping.modules

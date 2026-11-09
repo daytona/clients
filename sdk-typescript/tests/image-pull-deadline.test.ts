@@ -9,7 +9,7 @@ import { once } from 'node:events'
 import { ImagesService } from '../src/v2/Images.js'
 import { ImageBuilder } from '../src/v2/Image.js'
 import { createHttpClient } from '../src/v2/http.js'
-import { RequestTimeoutError, TimeoutError } from '../src/v2/errors/DaytonaError.js'
+import { RequestTimeoutError, ClientTimeoutError } from '../src/v2/errors/DaytonaError.js'
 
 type Phase = 'post' | 'initial' | 'poll'
 let server: Server
@@ -79,7 +79,7 @@ it.each([
   // Then rounding does not misclassify an overall-bound timeout or a genuinely shorter root timer.
   await expect(result).rejects.toMatchObject(normalized
     ? { message: 'image pull did not finish before timeout', source: 'SDK' }
-    : { message: 'Operation timed out', code: undefined })
+    : { message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
 })
 
 it.each<Phase>(['post', 'initial', 'poll'])('cancels a stalled %s at the overall deadline', async (stalled) => {
@@ -154,11 +154,11 @@ it.each<Phase>(['post', 'initial'])('preserves a root timeout during %s before t
   // Given a root transport budget smaller than the total pull budget.
   respond = (phase, response) => { if (phase !== stalled) reply(phase, response) }
   const service = new ImagesService(createHttpClient(baseUrl, undefined, 50))
-  // When the transport times out first, without an assumed REQUEST_TIMEOUT code.
+  // When the transport times out first.
   const result = service.pull('alpine', { timeout: 300 })
-  // Then the real Axios timeout remains a generic transport timeout.
-  await expect(result).rejects.toBeInstanceOf(TimeoutError)
-  await expect(result).rejects.toMatchObject({ message: 'Operation timed out', code: undefined })
+  // Then it is the client's own timeout, not the pull's deadline error.
+  await expect(result).rejects.toBeInstanceOf(ClientTimeoutError)
+  await expect(result).rejects.toMatchObject({ message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
 })
 
 it.each([undefined, 0, 1000])('waits past the root timeout when pull timeout is %s', async (timeout) => {
@@ -196,4 +196,16 @@ it('leaves standalone build acceptance-only', async () => {
   // Then no readiness polling is introduced.
   expect(image.status).toBe('pending')
   expect(phases).toEqual(['post', 'initial'])
+})
+
+it('keeps a timeout the credential provider raises itself, before the pull deadline', async () => {
+  // Given a provider whose own exchange times out at once, well inside the budget.
+  const ownTimeout = new ClientTimeoutError('token exchange timed out')
+  const authProvider = { authorizationHeader: async (): Promise<string> => { throw ownTimeout } }
+  const service = new ImagesService(createHttpClient(baseUrl, undefined, 800, { authProvider }))
+  // When pulling with a budget that the request timeout covers.
+  const result = service.pull('alpine', { timeout: 500 })
+  // Then the provider's error is not rewritten as the pull's deadline.
+  await expect(result).rejects.toBe(ownTimeout)
+  expect(phases).toEqual([])
 })

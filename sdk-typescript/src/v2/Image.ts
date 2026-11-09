@@ -6,8 +6,8 @@
 import type * as api from './gen/api-types.js'
 import { ImageRetention as IMAGE_RETENTIONS, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
-import { DaytonaError } from './errors/DaytonaError.js'
 import type { ArtifactClass, ArtifactRetention, CpuArch, ImageDto, ImageOrigin, ImageSource, ImageStatus, SnapshotKind } from './types.js'
+import { badRequest } from './options.js'
 
 type BuilderSource =
   | { readonly type: 'registry'; readonly ref: string }
@@ -22,12 +22,12 @@ type BuilderStep =
   | { readonly type: 'entrypoint'; readonly args: readonly string[] }
 
 function assertText(value: string, label: string): string {
-  if (value.trim() === '') throw new DaytonaError(`${label} must be a non-empty string`, 400, 'BAD_REQUEST', 'SDK')
+  if (value.trim() === '') throw badRequest(`${label} must be a non-empty string`)
   return value
 }
 
 function assertTextList(values: readonly string[], label: string): readonly string[] {
-  if (values.length === 0) throw new DaytonaError(`${label} requires at least one value`, 400, 'BAD_REQUEST', 'SDK')
+  if (values.length === 0) throw badRequest(`${label} requires at least one value`)
   values.forEach((value) => { assertText(value, label) })
   return values
 }

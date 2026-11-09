@@ -17,9 +17,13 @@ from daytona_upgrade.flow import SourceContext, build_index
 from daytona_upgrade.models import Mode, SourceResult, TransformOptions, load_mapping
 from daytona_upgrade.transform import transform_source
 
-ERRORS: Final = tuple(
+# The 0.x root aliases of two shared categories. The 2.x root no longer
+# exports them, but bundled v0 does, so they route to v0 like any other error.
+FORMER_ROOT_ALIASES: Final = ("DaytonaValidationError", "DaytonaAuthorizationError")
+ROOT_ERRORS: Final = tuple(
     name for name in load_mapping().root_names if name.endswith("Error")
 )
+ERRORS: Final = (*ROOT_ERRORS, *FORMER_ROOT_ALIASES)
 FORMS: Final = (
     ("from {module} import {name}\n", "from daytona.v0 import {name}\n"),
     (
@@ -153,3 +157,35 @@ def test_suggests_root_errors_when_v0_module_is_star_imported() -> None:
     # Then the same error-import note attaches to the star import.
     assert result.source.startswith("# daytona-v2: when moving these calls to v2")
     assert ast.dump(ast.parse(result.source)) == ast.dump(ast.parse(source))
+
+
+@pytest.mark.parametrize("name", FORMER_ROOT_ALIASES)
+def test_former_root_aliases_are_v0_exports_not_root_names(name: str) -> None:
+    mapping = load_mapping()
+    assert name not in mapping.root_names
+    assert mapping.v0_exports is not None
+    assert name in mapping.v0_exports
+
+
+@pytest.mark.parametrize(
+    ("name", "category"),
+    [
+        ("DaytonaValidationError", "DaytonaBadRequestError"),
+        ("DaytonaAuthorizationError", "DaytonaForbiddenError"),
+    ],
+)
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from daytona.v0 import {name}\n",
+        "import daytona.v0 as sdk\nerror_type = sdk.{name}\n",
+    ],
+)
+def test_former_root_aliases_get_guidance_naming_the_surviving_category(
+    name: str, category: str, source: str
+) -> None:
+    result = transform(source.format(name=name), "suggest-v2")
+    assert result.source.startswith("# daytona-v2:")
+    assert f"{name} is {category} at the root" in result.source
+    assert [item["kind"] for item in result.items] == ["suggestion"]
+    assert f"{name} is {category} at the root" in result.items[0]["message"]

@@ -64,7 +64,7 @@ function mapWireCause(cause: unknown): ComputerUseDesktopFailure | undefined {
     return undefined
   }
   if (!isComputerUseDesktopFailureWire(cause)) {
-    throw new InternalServerError(INVALID_STATUS_RESPONSE, 500, undefined, 'SDK')
+    throw new InternalServerError(INVALID_STATUS_RESPONSE, { statusCode: 500, source: 'SDK' })
   }
   return mapComputerUseDesktopFailure(cause)
 }
@@ -73,13 +73,13 @@ export function mapComputerUseStatusResponse(
   response: unknown,
 ): ComputerUseStatusResponse {
   if (!isPlainObject(response)) {
-    throw new InternalServerError(INVALID_STATUS_RESPONSE, 500, undefined, 'SDK')
+    throw new InternalServerError(INVALID_STATUS_RESPONSE, { statusCode: 500, source: 'SDK' })
   }
 
   const { status, desktop, cause, ...extraFields } = response
 
   if (typeof status !== 'string' || typeof desktop !== 'string') {
-    throw new InternalServerError(INVALID_STATUS_RESPONSE, 500, undefined, 'SDK')
+    throw new InternalServerError(INVALID_STATUS_RESPONSE, { statusCode: 500, source: 'SDK' })
   }
 
   const mappedCause = mapWireCause(cause)
@@ -110,20 +110,20 @@ export function mapComputerUseStatusResponse(
     }
   }
 
-  throw new InternalServerError(INVALID_STATUS_RESPONSE, 500, undefined, 'SDK')
+  throw new InternalServerError(INVALID_STATUS_RESPONSE, { statusCode: 500, source: 'SDK' })
 }
 
 export function mapComputerUseRestartResponse(
   response: unknown,
 ): ComputerUseRestartResponse {
   if (!isPlainObject(response)) {
-    throw new InternalServerError(INVALID_RESTART_RESPONSE, 500, undefined, 'SDK')
+    throw new InternalServerError(INVALID_RESTART_RESPONSE, { statusCode: 500, source: 'SDK' })
   }
 
   const { message, status, desktop, ...extraFields } = response
 
   if (typeof message !== 'string' || status !== 'active' || desktop !== 'ready') {
-    throw new InternalServerError(INVALID_RESTART_RESPONSE, 500, undefined, 'SDK')
+    throw new InternalServerError(INVALID_RESTART_RESPONSE, { statusCode: 500, source: 'SDK' })
   }
 
   const mapped: ComputerUseRestartResponse = { message, status, desktop }

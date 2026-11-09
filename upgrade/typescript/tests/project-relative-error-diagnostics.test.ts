@@ -31,7 +31,7 @@ it('explains which namespace reads DAYTONA_API_URL', () => {
   // When
   const items = envUrlItems({ file: '.env', line: 1, column: 1 }, { name: 'DAYTONA_API_URL', literal: undefined }, context);
   // Then
-  expect(items[0]?.message).toBe('DAYTONA_API_URL is ignored by SDK 2.x .v0 (it targets Daytona Cloud); .v2 reads DAYTONA_V2_API_URL, then DAYTONA_API_URL, for test environments. Review this setting.');
+  expect(items[0]?.message).toBe('DAYTONA_API_URL is ignored by SDK 2.x: .v0 targets Daytona Cloud, and .v2 reads only DAYTONA_V2_API_URL, for test environments. Review this setting.');
 });
 
 it('names a project-relative manifest when JSON parsing fails', async () => {

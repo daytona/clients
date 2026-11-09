@@ -111,15 +111,18 @@ asyncio.run(main())
 
 `DaytonaConfig` reads `DAYTONA_API_KEY` and `DAYTONA_JWT_TOKEN` from the
 environment when the fields are omitted. Both credentials serve `d.v0` and
-`d.v2`. Additional env vars:
+`d.v2`. Environment values are trimmed, and a blank one counts as unset;
+values you pass in `DaytonaConfig` are used as given, and an empty one
+(`api_key=""`, …) raises `BadRequestError` instead of falling back to the
+environment. `Daytona(config)` copies the config when it is built: changing
+the object afterwards has no effect on the client. Additional env vars:
 
 - `DAYTONA_ORGANIZATION_ID` — scopes a JWT for the v0 namespace.
 - `DAYTONA_PROJECT_ID` — scopes a JWT for the v2 namespace.
-- `DAYTONA_API_URL` — overrides the v2 API endpoint.
-  When unset, the SDK connects to the Daytona API. `d.v0` always uses
-  its own production URL and ignores `DAYTONA_API_URL`. Migrating from the
-  0.x SDK, which documented `DAYTONA_API_URL` as its own API URL: unset it,
-  or `d.v2` sends requests to that (v0) host.
+- `DAYTONA_V2_API_URL` — selects another v2 API endpoint (a regional endpoint,
+  as `daytona region list` in the CLI shows them, or a test environment). When unset, the SDK connects to the Daytona API. `d.v0` always
+  uses its own production URL. SDK 2.x never reads `DAYTONA_API_URL`, the 0.x
+  SDK's variable.
 - Credentials: `d.v2` reads `DAYTONA_*` variables from the process
   environment only. `d.v0` keeps the 0.x SDK's behaviour of also reading
   `.env.local` / `.env`, so a key kept only in a `.env` file reaches `d.v0` but
@@ -127,8 +130,19 @@ environment when the fields are omitted. Both credentials serve `d.v0` and
 - `DAYTONA_OTEL_ENABLED` — enable client spans when `daytona[otel]` is
   installed.
 
-Set `request_timeout=` **(seconds)** to bound individual HTTP calls,
-`connection_pool_maxsize=` to cap both live and keep-alive HTTP connections,
+Set `request_timeout=` **(seconds; default 60; `0`, or a value above 2,147,483.647 (about
+24.8 days), means no limit)** to change
+the total time one ordinary request may take before it raises
+`ClientTimeoutError`. Waits and long polls use their own budget, streams are
+bounded only until their response arrives, and file transfers have no total
+limit but fail with `ClientTimeoutError` once no bytes move for that long
+(with `request_timeout=0` they are not bounded at all).
+Set `max_response_bytes=` **(an integer; `None` keeps the 1 GiB default, `0`
+means no limit, and any other value is a `BadRequestError`)** to cap every
+response body the SDK holds in memory whole: a larger body raises
+`PayloadTooLargeError` before it is read in full (an error response keeps its
+status's error).
+Set `connection_pool_maxsize=` to cap both live and keep-alive HTTP connections,
 and `otel_enabled=True` to emit client spans when `daytona[otel]` is installed.
 The extra brings only `opentelemetry-api`; spans are exported only once your
 application configures an OpenTelemetry SDK tracer provider (and exporter) —
@@ -185,7 +199,7 @@ from daytona.v2 import Sandbox as SandboxV2  # or import SandboxV2 directly
 | `daytona.create(...)` | `daytona.v0.create(...)` |
 | `from daytona import Sandbox` | `from daytona.v0 import Sandbox` |
 | `from daytona import Daytona` then `Daytona()` | `from daytona import Daytona` then `Daytona().v0` (not `daytona.v0.Daytona`, which SDK 2.x does not export) |
-| `DaytonaConfig(api_url=...)` / `DAYTONA_API_URL` for a custom API URL | stay on SDK 0.x: SDK 2.x targets Daytona Cloud, and the root's `.v0` ignores `DAYTONA_API_URL` |
+| `DaytonaConfig(api_url=...)` / `DAYTONA_API_URL` for a custom API URL | stay on SDK 0.x: SDK 2.x targets Daytona Cloud and never reads `DAYTONA_API_URL` |
 
 ### Creating without an image
 
@@ -198,8 +212,8 @@ default is configured, the create raises `DEFAULT_IMAGE_NOT_CONFIGURED` (400).
 ### Regions and safe create retries
 
 `d.v2.create()` accepts an optional `region=` argument that creates the sandbox
-in a region from `GET /regions`. Each entry includes
-`id`, `name`, `available`, and optionally `api_base_url`.
+in a region listed by `daytona region list` (with `-o json`, each entry
+includes `id`, `name`, `available`, and optionally `api_base_url`).
 Omitting `region` falls back to the project's default, then the
 organization's, then `earth`, which means anywhere and may land in any
 geography. Every `d.v2.create*()` method accepts `region=`, including
@@ -521,7 +535,7 @@ access for your organization: without it the API answers `403`
 and reservations, turning auto-renew off, `pause()` and `resume()` do not require
 this access.
 
-Find available regions and their regional API endpoints with `GET /regions`.
+Find available regions and their regional API endpoints with `daytona region list`.
 Use `d.v2.mac_models.catalog(region="<region>")` or
 `daytona mac-model list --region '<region>'` to discover available Mac models
 and current prices. Replace `<region>` and `<model>` in the examples with
@@ -701,7 +715,13 @@ immediately after `kill_all()`.
 contents) / `glob()` (file names), `watch_dir()` for directory
 watches (`get_new_events()`, a single exit notification via `on_exit=` /
 `wait_for_exit()`), and
-`presigned_download_url` / `presigned_upload_url` for direct transfers. The
+`presigned_download_url` / `presigned_upload_url` for direct transfers.
+`read_bytes`, `read_text`, `read_many` and the computer-use recording
+`download()` hold the whole response in memory: they take
+`max_response_bytes=` to replace the client's cap for one call (`None` keeps
+the client's cap, `0` means no limit, any other non-integer is a
+`BadRequestError`). For large files, or content from a sandbox you don't trust, use
+`download_file()`, which streams to disk. The
 platform mints the link; `expires_in_seconds` (default 3600) must be between 1
 and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
 `sandbox.rotate_signing_key()` retires every pre-signed URL minted so far;
@@ -835,9 +855,8 @@ Deleting the image or snapshot immediately afterwards can still raise
 ## Errors
 
 The package root exports the error hierarchy both namespaces share:
-`DaytonaError` and one class per category — `DaytonaBadRequestError`
-(alias `DaytonaValidationError`), `DaytonaAuthenticationError`,
-`DaytonaForbiddenError` (alias `DaytonaAuthorizationError`),
+`DaytonaError` and one class per category — `DaytonaBadRequestError`,
+`DaytonaAuthenticationError`, `DaytonaForbiddenError`,
 `DaytonaNotFoundError`, `DaytonaTimeoutError`, `DaytonaConflictError`,
 `DaytonaGoneError`, `DaytonaUnprocessableEntityError`, `DaytonaRateLimitError`,
 `DaytonaInternalServerError`, `DaytonaServiceUnavailableError` and
@@ -856,11 +875,25 @@ except daytona.DaytonaNotFoundError as e:  # also catches a v0 not-found error
     print(e.status_code, e.code)
 ```
 
-The v2 classes (`from daytona.v2 import NotFoundError, …`) expose `status_code`,
-`code`, `source`, and `trace_id`, and have code-specific subclasses
-(`ProcessNotFoundError`, `SandboxTerminalStateError`, …) so you can catch as
-narrowly as you need. Version-specific errors are imported from `daytona.v2`
-(or `daytona.v0`).
+The v2 classes (`from daytona.v2 import NotFoundError, …`) have the same
+names as in the TypeScript SDK: `BadRequestError`, `AuthenticationError`
+(401), `ForbiddenError` (403), `NotFoundError`, `ConflictError`,
+`RateLimitError`, `RequestTimeoutError` (408), `ClientTimeoutError` (the
+client's own request timeout), `ConnectionError`, … They expose
+`status_code`, `code`, `source` and `trace_id`, and have code-specific
+subclasses (`ProcessNotFoundError`, `SandboxTerminalStateError`, …) so you can
+catch as narrowly as you need. `code` and `source` are open vocabularies: a
+code this release does not know is kept as sent and the error is the class for
+its HTTP status; `daytona.v2.codes` lists the known codes per source
+(`codes.API_ERROR_CODES`, `codes.CODE_STATUS`, `codes.is_known_error_code`, …).
+Import the v2 errors by name rather than with `from daytona.v2 import *`:
+`ConnectionError` and `FileNotFoundError` are the SDK's categories and would
+shadow Python's built-ins. Version-specific errors are imported from
+`daytona.v2` (or `daytona.v0`).
+
+The constructors take the message plus keyword-only fields (`status_code`,
+`code`, `source`, `trace_id`, …), so tests can build the errors your code
+handles.
 
 A request refused because your organization has hit one of its limits (for
 example the maximum number of concurrent sandboxes) raises

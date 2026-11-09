@@ -47,12 +47,21 @@ import type {
   ComputerUseStatusResponse,
 } from './ComputerUseTypes.js'
 import { strictUriEncode } from './http.js'
+import { maxResponseBytesOption } from './bodyLimit.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+
+/** Options of `recording.download()`; see its documentation. */
+export interface RecordingDownloadOptions {
+  readonly maxResponseBytes?: number | null
+}
+
+const RECORDING_DOWNLOAD_OPTION_KEYS = optionKeys<RecordingDownloadOptions>()({ maxResponseBytes: true })
 
 export interface ComputerUseTransport {
   get<T>(path: string, config?: { params?: Record<string, unknown> }): Promise<T>
   post<T>(path: string, body?: unknown): Promise<T>
   delete<T>(path: string): Promise<T>
-  getBytes(path: string): Promise<ArrayBuffer>
+  getBytes(path: string, options?: { readonly maxResponseBytes?: number }): Promise<ArrayBuffer>
 }
 
 export class AddonProcessesService {
@@ -210,8 +219,19 @@ export class RecordingService {
     return this.transport.get<toolbox.ComputerUseRecording>(`/computeruse/recordings/${strictUriEncode(id)}`)
   }
 
-  public async download(id: string): Promise<Uint8Array> {
-    return new Uint8Array(await this.transport.getBytes(`/computeruse/recordings/${strictUriEncode(id)}/download`))
+  /**
+   * Download a recording into memory. A file transfer: no total deadline, but
+   * it fails with `ClientTimeoutError` once no bytes move for the request
+   * timeout (a request timeout of `0` leaves it unbounded). `maxResponseBytes` replaces the client's cap on the body for this
+   * call (`undefined` or `null` keep the client's cap, `0` means no limit, and any other value (negative, fractional, boolean, string, above `Number.MAX_SAFE_INTEGER`) is a `BadRequestError`);
+   * a larger recording is refused with `PayloadTooLargeError`.
+   */
+  public async download(id: string, options?: RecordingDownloadOptions): Promise<Uint8Array> {
+    assertKnownOptions('RecordingDownloadOptions', options, RECORDING_DOWNLOAD_OPTION_KEYS)
+    const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes)
+    const path = `/computeruse/recordings/${strictUriEncode(id)}/download`
+    // The one-argument call unless this call overrides the client's cap.
+    return new Uint8Array(await (maxResponseBytes === undefined ? this.transport.getBytes(path) : this.transport.getBytes(path, { maxResponseBytes })))
   }
 
   public async delete(id: string): Promise<void> {

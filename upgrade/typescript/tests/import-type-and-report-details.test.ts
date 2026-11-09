@@ -43,7 +43,7 @@ it('names the setting in the ignored-env message regardless of which name was re
   const context = { mapping: loadMapping(), dropApiUrl: false };
   // When a diagnostic item is built for it.
   const items = envUrlItems({ file: '.env', line: 1, column: 1 }, { name: 'DAYTONA_SERVER_URL', literal: undefined }, context);
-  // Then the message names that setting and both v2 fallback variables, in order.
+  // Then the message names that setting and the one variable .v2 reads.
   expect(items[0]?.message).toBe(
-    'DAYTONA_SERVER_URL is ignored by SDK 2.x .v0 (it targets Daytona Cloud); .v2 reads DAYTONA_V2_API_URL, then DAYTONA_API_URL, for test environments. Review this setting.');
+    'DAYTONA_SERVER_URL is ignored by SDK 2.x: .v0 targets Daytona Cloud, and .v2 reads only DAYTONA_V2_API_URL, for test environments. Review this setting.');
 });

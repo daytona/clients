@@ -40,7 +40,7 @@ function pullVolumeResult(result: toolbox.PullVolumeResponse): PullVolumeResult 
 
 function assertId(value: string, name: string): void {
   if (typeof value !== 'string' || value.length < 1 || value.length > 128 || /[^A-Za-z0-9_-]/.test(value)) {
-    throw new BadRequestError(`${name} must contain 1–128 ASCII letters, digits, underscores or hyphens`, 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError(`${name} must contain 1–128 ASCII letters, digits, underscores or hyphens`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
 
@@ -53,7 +53,7 @@ export class SandboxVolumesService {
     assertId(volumeId, 'volumeId')
     assertId(options.requestId, 'requestId')
     if (options.timeout !== undefined && (!Number.isInteger(options.timeout) || options.timeout < 0 || options.timeout > 30_000)) {
-      throw new BadRequestError('timeout must be an integer in 0..30000 milliseconds', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('timeout must be an integer in 0..30000 milliseconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     const body: toolbox.PullVolumeRequest = {
       requestId: options.requestId,

@@ -1,0 +1,755 @@
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+// File transfers are idle-bounded, and buffered response bodies are capped.
+// Every test runs against a real HTTP server. sdk-python/tests/test_transfer_bounds.py
+// holds the Python transports to the same rules.
+
+import { createServer } from 'node:http'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
+import { once } from 'node:events'
+import { brotliCompressSync, deflateSync, gzipSync } from 'node:zlib'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { Daytona } from '../src/v2/Daytona'
+import { BadRequestError, ClientTimeoutError, FileNotFoundError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
+import { HttpTransport, createPlatformTokenProvider, forceFetchAdapterForTests, transferRequest } from '../src/v2/http'
+import { attachHub, detachHub, eventsHubConfig } from '../src/v2/events'
+import { BodyBuffer, MAX_PREALLOCATION } from '../src/v2/bodyBuffer'
+import { readFetchText } from '../src/v2/errors/DaytonaError'
+import { lazySandbox } from './lazySandbox'
+
+jest.setTimeout(30_000)
+
+const IDLE_SECONDS = 0.5
+const STALL_MS = 5_000
+
+type Handler = (request: IncomingMessage, response: ServerResponse) => void
+
+let server: Server
+let base: string
+let route: Handler = () => undefined
+let dir: string
+const savedApiUrl = process.env.DAYTONA_V2_API_URL
+
+beforeAll(async () => {
+  server = createServer((request, response) => route(request, response))
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new TypeError('expected TCP address')
+  base = `http://127.0.0.1:${address.port}`
+  process.env.DAYTONA_V2_API_URL = base
+  dir = await mkdtemp(join(tmpdir(), 'daytona-bounds-'))
+})
+
+afterAll(async () => {
+  if (savedApiUrl === undefined) delete process.env.DAYTONA_V2_API_URL
+  else process.env.DAYTONA_V2_API_URL = savedApiUrl
+  server.closeAllConnections()
+  await new Promise<void>((resolve) => server.close(() => resolve()))
+  await rm(dir, { recursive: true, force: true })
+})
+
+/** Hang up after a stall, so a client with no idle bound fails (not with a timeout) instead of hanging the suite. */
+function stallThenHangUp(response: ServerResponse): void {
+  const timer = setTimeout(() => response.destroy(), STALL_MS)
+  response.on('close', () => clearTimeout(timer))
+}
+
+const stallBeforeHeaders: Handler = (request, response) => {
+  request.resume()
+  stallThenHangUp(response)
+}
+
+const stallMidBody: Handler = (request, response) => {
+  request.resume()
+  response.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': '2000' })
+  response.write('x'.repeat(1000))
+  stallThenHangUp(response)
+}
+
+// Reads nothing of the upload: the client's writes stall once the buffers fill.
+const stopReading: Handler = (_request, response) => {
+  stallThenHangUp(response)
+}
+
+function trickle(chunks: number, gapMs: number, chunk = 'x'): Handler {
+  return (request, response) => {
+    request.resume()
+    response.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': String(chunks * chunk.length) })
+    response.flushHeaders()
+    let sent = 0
+    const timer = setInterval(() => {
+      response.write(chunk)
+      if (++sent === chunks) {
+        clearInterval(timer)
+        response.end()
+      }
+    }, gapMs)
+    response.on('close', () => clearInterval(timer))
+  }
+}
+
+function body(payload: string, init: { status?: number; contentType?: string; chunked?: boolean } = {}): Handler {
+  return (request, response) => {
+    request.resume()
+    const headers: Record<string, string> = { 'Content-Type': init.contentType ?? 'application/octet-stream' }
+    if (!init.chunked) headers['Content-Length'] = String(Buffer.byteLength(payload))
+    response.writeHead(init.status ?? 200, headers)
+    if (init.chunked) {
+      for (let i = 0; i < payload.length; i += 512) response.write(payload.slice(i, i + 512))
+      response.end()
+    } else {
+      response.end(payload)
+    }
+  }
+}
+
+/** Declares `size` bytes, then sends a byte every 500 ms and hangs up after 3 s. */
+function declaredThenSlow(size: number): Handler {
+  return (request, response) => {
+    request.resume()
+    response.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': String(size) })
+    response.flushHeaders()
+    let sent = 0
+    const timer = setInterval(() => {
+      response.write('x')
+      if (++sent === 6) {
+        clearInterval(timer)
+        response.destroy()
+      }
+    }, 500)
+    response.on('close', () => clearInterval(timer))
+  }
+}
+
+function sandboxFor(config: { requestTimeoutSeconds?: number; maxResponseBytes?: number | null } = {}) {
+  const client = new Daytona({ apiKey: 'k', ...config })
+  return { client, sandbox: lazySandbox(client, 'sbx', { toolboxUrl: base, accessToken: 't' }) }
+}
+
+async function timesOut(call: () => Promise<unknown>): Promise<number> {
+  const started = performance.now()
+  await expect(call()).rejects.toMatchObject({ constructor: ClientTimeoutError, statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+  return performance.now() - started
+}
+
+describe.each(['http', 'fetch'] as const)('the transfer idle bound (%s adapter)', (adapter) => {
+  beforeAll(() => forceFetchAdapterForTests(adapter === 'fetch'))
+  afterAll(() => forceFetchAdapterForTests(false))
+
+  it.each([
+    ['before the response headers', stallBeforeHeaders],
+    ['mid body', stallMidBody],
+  ])('fails a download stalled %s after the idle bound', async (_label, handler) => {
+    route = handler
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    try {
+      for (const call of [
+        () => sandbox.fs.readBytes('/a'),
+        () => sandbox.fs.readMany(['/a']),
+        () => sandbox.computerUse.recording.download('rec'),
+        () => sandbox.fs.downloadFile('/a', join(dir, 'out.bin')),
+      ]) {
+        const elapsed = await timesOut(call)
+        expect(elapsed).toBeGreaterThanOrEqual(IDLE_SECONDS * 800)
+        expect(elapsed).toBeLessThan(STALL_MS - 1000)
+      }
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('fails an upload the server stops reading after the idle bound', async () => {
+    route = stopReading
+    const big = new Uint8Array(64 << 20)
+    const local = join(dir, 'big.bin')
+    await writeFile(local, big)
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    try {
+      // uploadFile streams its body, so every runtime sees its progress. The
+      // axios uploads report progress through Node's http adapter only; with
+      // fetch their bound starts at the response headers (next test).
+      const calls = adapter === 'http'
+        ? [() => sandbox.fs.writeBytes('/a', big), () => sandbox.fs.writeMany({ '/a': big }), () => sandbox.fs.uploadFile(local, '/a')]
+        : [() => sandbox.fs.uploadFile(local, '/a')]
+      for (const call of calls) {
+        expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+      }
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('bounds a small upload from the start and a large one from its response headers on, in every runtime', async () => {
+    // A small body is handed to the socket at once: a stall is a wait for the response.
+    route = stallBeforeHeaders
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    try {
+      expect(await timesOut(() => sandbox.fs.writeBytes('/a', new Uint8Array(1024)))).toBeLessThan(STALL_MS - 1000)
+      // A large one where fetch reports no upload progress: bounded once the
+      // server answers (here it reads the upload, answers, then stalls mid body).
+      route = (request, response) => {
+        request.on('end', () => stallMidBody(request, response))
+        request.resume()
+      }
+      expect(await timesOut(() => sandbox.fs.writeBytes('/a', new Uint8Array(1 << 20)))).toBeLessThan(STALL_MS - 1000)
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('bounds a buffered upload to a server that stops reading, small from the start and large from its answer', async () => {
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    const transport = new HttpTransport(base, 't', IDLE_SECONDS * 1000)
+    // Small (1 KiB): the server never reads and never answers.
+    route = stopReading
+    const small = new Uint8Array(1024)
+    try {
+      for (const call of [
+        () => sandbox.fs.writeBytes('/a', small),
+        () => sandbox.fs.writeText('/a', 'x'.repeat(1024)),
+        () => sandbox.fs.writeMany({ '/a': small }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: small, transfer: true }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: new Blob([small]), transfer: true }),
+      ]) {
+        expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+      }
+      // Large (4 MiB): the server stops reading and answers; the answer
+      // stalls mid body. Where the runtime reports no upload progress (the
+      // fetch transports) the bound starts at that answer; with Node's http
+      // adapter it was running all along.
+      route = (request, response) => {
+        response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': '2000', Connection: 'close' })
+        response.write('{')
+        stallThenHangUp(response)
+        request.pause()
+      }
+      const large = new Uint8Array(4 << 20)
+      for (const call of [
+        () => sandbox.fs.writeBytes('/a', large),
+        () => sandbox.fs.writeMany({ '/a': large }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: new Blob([large]), transfer: true }).then((response) => response.text()),
+      ]) {
+        expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+      }
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('keeps a transfer\'s moving error body going past the idle bound', async () => {
+    // A 404 whose body trickles 12 chunks 200 ms apart: 2.4 s, about five times the idle bound.
+    const errorBody = JSON.stringify({ code: 'FILE_NOT_FOUND', message: 'gone', source: 'DAYTONA_DAEMON' }).padEnd(72, ' ')
+    route = (request, response) => {
+      request.resume()
+      response.writeHead(404, { 'Content-Type': 'application/json', 'Content-Length': String(errorBody.length) })
+      response.flushHeaders()
+      let sent = 0
+      const timer = setInterval(() => {
+        response.write(errorBody.slice(sent * 6, sent * 6 + 6))
+        if (++sent === 12) {
+          clearInterval(timer)
+          response.end()
+        }
+      }, 200)
+      response.on('close', () => clearInterval(timer))
+    }
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    const transport = new HttpTransport(base, 't', IDLE_SECONDS * 1000)
+    try {
+      for (const call of [() => sandbox.fs.readBytes('/a'), () => transport.fetch('/files/download?path=a', { transfer: true })]) {
+        // The server's code and message, though the file read asked for bytes.
+        await expect(call()).rejects.toMatchObject({ constructor: FileNotFoundError, code: 'FILE_NOT_FOUND', statusCode: 404, message: 'gone' })
+      }
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('ends a call whose credential never resolves at the request timeout, ordinary or transfer', async () => {
+    route = body('{}', { contentType: 'application/json' })
+    // Providers that ignore their signal and never settle.
+    const authProvider = { authorizationHeader: (): Promise<string> => new Promise<string>(() => undefined) }
+    const auth = { bearer: (): Promise<string> => new Promise<string>(() => undefined), onUnauthorized: async (): Promise<undefined> => undefined }
+    for (const options of [{ authProvider }, { auth }]) {
+      const transport = new HttpTransport(base, undefined, IDLE_SECONDS * 1000, options)
+      for (const call of [
+        () => transport.get('/thing'),
+        () => transport.fetch('/thing'),
+        () => transport.getBytes('/files/download?path=a'),
+        () => transport.fetch('/files/download?path=a', { transfer: true }),
+      ]) {
+        const elapsed = await timesOut(call)
+        expect(elapsed).toBeLessThan(STALL_MS - 1000)
+      }
+    }
+  })
+
+  it('bounds a 401 refresh whose provider never resolves by the same deadline', async () => {
+    route = body(JSON.stringify({ code: 'UNAUTHORIZED', message: 'expired' }), { status: 401, contentType: 'application/json' })
+    const authProvider = {
+      authorizationHeader: (options?: { readonly forceRefresh?: boolean }): Promise<string> =>
+        options?.forceRefresh ? new Promise<string>(() => undefined) : Promise.resolve('Bearer stale'),
+    }
+    const transport = new HttpTransport(base, undefined, IDLE_SECONDS * 1000, { authProvider })
+    for (const call of [() => transport.get('/thing'), () => transport.fetch('/thing'), () => transport.fetch('/thing', { method: 'POST', body: new ReadableStream(), duplex: 'half' } as never)]) {
+      expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+    }
+  })
+
+  it('keeps a transfer that keeps moving bytes going past the idle bound', async () => {
+    // 12 bytes 200 ms apart: 2.4 s in all, five times the idle bound.
+    route = trickle(12, 200)
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    try {
+      expect(new TextDecoder().decode(await sandbox.fs.readBytes('/a'))).toBe('x'.repeat(12))
+      expect(new TextDecoder().decode(await sandbox.computerUse.recording.download('rec'))).toBe('x'.repeat(12))
+      await sandbox.fs.downloadFile('/a', join(dir, 'moving.bin'))
+      expect(await readFile(join(dir, 'moving.bin'), 'utf8')).toBe('x'.repeat(12))
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('leaves a transfer unbounded with request timeout 0 (until the caller cancels)', async () => {
+    route = stallMidBody
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: 0 })
+    try {
+      const controller = new AbortController()
+      const started = performance.now()
+      const download = sandbox.fs.downloadFile('/a', join(dir, 'unbounded.bin'), { signal: controller.signal })
+      setTimeout(() => controller.abort(), 1_500)
+      // Well past an idle bound of the other tests, ended only by the cancel.
+      await expect(download).rejects.toMatchObject({ code: 'REQUEST_CANCELLED' })
+      expect(performance.now() - started).toBeGreaterThanOrEqual(1_400)
+    } finally {
+      await client.close()
+    }
+  })
+})
+
+function expectTooLarge(error: unknown, limit: number): void {
+  expect(error).toBeInstanceOf(PayloadTooLargeError)
+  expect(error).toMatchObject({ statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK' })
+  const message = (error as Error).message
+  expect(message).toContain(`${limit}-byte`)
+  expect(message).toContain('maxResponseBytes')
+  expect(message).toContain('downloadFile')
+}
+
+async function rejection(call: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await call()
+  } catch (error) {
+    return error
+  }
+  throw new Error('expected a rejection')
+}
+
+describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', (adapter) => {
+  beforeAll(() => forceFetchAdapterForTests(adapter === 'fetch'))
+  afterAll(() => forceFetchAdapterForTests(false))
+
+  describe('error bodies', () => {
+    const envelope = JSON.stringify({ code: 'FILE_NOT_FOUND', message: 'gone', source: 'DAYTONA_DAEMON' })
+    const errorWith = (contentType: string | undefined): Handler => (request, response) => {
+      request.resume()
+      response.writeHead(404, { 'Content-Length': String(envelope.length), ...(contentType === undefined ? {} : { 'Content-Type': contentType }) })
+      response.end(envelope)
+    }
+    // Every error mapping path: a byte read (the bounded adapter), the fetch
+    // transport, an ordinary JSON call, and the multipart bulk read.
+    const calls = (sandbox: ReturnType<typeof sandboxFor>['sandbox'], transport: HttpTransport) => [
+      () => sandbox.fs.readBytes('/a'),
+      () => transport.fetch('/files/download?path=a'),
+      () => transport.get('/files/info?path=a'),
+      () => sandbox.fs.readMany(['/a']),
+      // The project-token exchange.
+      () => createPlatformTokenProvider({ baseURL: base, jwtToken: 'jwt', projectId: 'p' }).authorizationHeader(),
+    ]
+
+    it.each(['text/plain', 'application/jsonl', 'application/problem+json', undefined])('reads no code from an error body declared as %s', async (contentType) => {
+      route = errorWith(contentType)
+      const { client, sandbox } = sandboxFor()
+      const transport = new HttpTransport(base, 't', 5_000)
+      try {
+        for (const call of calls(sandbox, transport)) {
+          const error = await rejection(call)
+          // The status's own error, its message the body as sent.
+          expect(error?.constructor).toBe(NotFoundError)
+          expect(error).toMatchObject({ statusCode: 404, code: undefined, message: envelope })
+        }
+      } finally {
+        await client.close()
+      }
+    })
+
+    it.each(['application/json', 'Application/JSON ; charset=utf-8'])('reads the code of an error body declared as %s', async (contentType) => {
+      route = errorWith(contentType)
+      const { client, sandbox } = sandboxFor()
+      const transport = new HttpTransport(base, 't', 5_000)
+      try {
+        for (const call of calls(sandbox, transport)) {
+          await expect(call()).rejects.toMatchObject({ constructor: FileNotFoundError, code: 'FILE_NOT_FOUND', source: 'DAYTONA_DAEMON', message: 'gone' })
+        }
+      } finally {
+        await client.close()
+      }
+    })
+  })
+
+  it('refuses a declared length over the cap before reading the body', async () => {
+    route = declaredThenSlow(10_000)
+    const { client, sandbox } = sandboxFor({ maxResponseBytes: 1000 })
+    try {
+      const started = performance.now()
+      expectTooLarge(await rejection(() => sandbox.fs.readBytes('/a')), 1000)
+      // The body would take hours at that rate.
+      expect(performance.now() - started).toBeLessThan(400)
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('refuses a chunked body once it passes the cap', async () => {
+    route = body('y'.repeat(5120), { chunked: true })
+    const { client, sandbox } = sandboxFor({ maxResponseBytes: 2000 })
+    try {
+      expectTooLarge(await rejection(() => sandbox.fs.readBytes('/a')), 2000)
+      expect((await sandbox.fs.readBytes('/a', { maxResponseBytes: 5120 })).byteLength).toBe(5120)
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('lets the per-call option raise, lower and disable the cap', async () => {
+    const payload = 'z'.repeat(5000)
+    const multipart = `--b\r\nContent-Disposition: form-data; name="file"; filename="/a"\r\nContent-Type: application/octet-stream\r\n\r\n${payload}\r\n--b--\r\n`
+    route = (request, response) => (request.url?.startsWith('/files/bulk-download')
+      ? body(multipart, { contentType: 'multipart/form-data; boundary=b' })
+      : body(payload))(request, response)
+    const small = sandboxFor({ maxResponseBytes: 1000 })
+    const large = sandboxFor({ maxResponseBytes: 100_000 })
+    try {
+      const tight = small.sandbox
+      expect(new TextDecoder().decode(await tight.fs.readBytes('/a', { maxResponseBytes: 10_000 }))).toBe(payload)
+      expect(await tight.fs.readText('/a', { maxResponseBytes: 0 })).toBe(payload)
+      expect(new TextDecoder().decode((await tight.fs.readMany(['/a'], { maxResponseBytes: 0 })).files['/a'])).toBe(payload)
+      expect((await tight.computerUse.recording.download('r', { maxResponseBytes: 10_000 })).byteLength).toBe(5000)
+      expect(await rejection(() => tight.fs.readBytes('/a'))).toBeInstanceOf(PayloadTooLargeError)
+      expect(await rejection(() => tight.fs.readMany(['/a']))).toBeInstanceOf(PayloadTooLargeError)
+      // null keeps the client's cap.
+      expect(await rejection(() => tight.fs.readBytes('/a', { maxResponseBytes: null }))).toBeInstanceOf(PayloadTooLargeError)
+      const roomy = large.sandbox
+      expect((await roomy.fs.readBytes('/a')).byteLength).toBe(5000)
+      for (const call of [
+        () => roomy.fs.readBytes('/a', { maxResponseBytes: 100 }),
+        () => roomy.fs.readText('/a', { maxResponseBytes: 100 }),
+        () => roomy.fs.readMany(['/a'], { maxResponseBytes: 100 }),
+        () => roomy.computerUse.recording.download('r', { maxResponseBytes: 100 }),
+      ]) {
+        expectTooLarge(await rejection(call), 100)
+      }
+    } finally {
+      await small.client.close()
+      await large.client.close()
+    }
+  })
+
+  const invalid: readonly unknown[] = [-1, 1.5, true, '10', Number.MAX_SAFE_INTEGER + 1, Number.NaN]
+
+  it.each(invalid)('refuses %p as the client cap', (value) => {
+    expect(() => new Daytona({ apiKey: 'k', maxResponseBytes: value as never })).toThrow(expect.objectContaining({
+      constructor: BadRequestError,
+      message: `maxResponseBytes must be an integer from 0 (no limit) to ${Number.MAX_SAFE_INTEGER}`,
+      statusCode: 400,
+      code: 'BAD_REQUEST',
+      source: 'SDK',
+    }))
+  })
+
+  it('takes undefined / null (the default), 0 and the safe-integer maximum as the client cap', () => {
+    for (const value of [undefined, null, 0, Number.MAX_SAFE_INTEGER]) {
+      expect(() => new Daytona({ apiKey: 'k', maxResponseBytes: value })).not.toThrow()
+    }
+  })
+
+  it.each(invalid)('refuses %p as the per-call cap before any request', async (value) => {
+    let hits = 0
+    route = (request, response) => {
+      hits += 1
+      body('ok')(request, response)
+    }
+    const { client, sandbox } = sandboxFor()
+    try {
+      for (const call of [
+        () => sandbox.fs.readBytes('/a', { maxResponseBytes: value as never }),
+        () => sandbox.fs.readText('/a', { maxResponseBytes: value as never }),
+        () => sandbox.fs.readMany(['/a'], { maxResponseBytes: value as never }),
+        () => sandbox.computerUse.recording.download('r', { maxResponseBytes: value as never }),
+      ]) {
+        await expect(call()).rejects.toMatchObject({ constructor: BadRequestError, statusCode: 400, code: 'BAD_REQUEST' })
+      }
+      // An unknown option key is refused too.
+      await expect(sandbox.fs.readBytes('/a', { maxBytes: 1 } as never)).rejects.toBeInstanceOf(BadRequestError)
+    } finally {
+      await client.close()
+    }
+    expect(hits).toBe(0)
+  })
+
+  it('refuses a JSON response over a small client cap', async () => {
+    route = body(JSON.stringify({ id: 'sbx', state: 'started', pad: 'p'.repeat(4000) }), { contentType: 'application/json', chunked: true })
+    const client = new Daytona({ apiKey: 'k', maxResponseBytes: 1000 })
+    try {
+      expectTooLarge(await rejection(() => client.get('sbx')), 1000)
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('keeps the typed error of an error status whose body is over the cap', async () => {
+    const big = JSON.stringify({ code: 'NOT_FOUND', message: 'm'.repeat(5000) })
+    route = body(big, { status: 404, contentType: 'application/json' })
+    const { client, sandbox } = sandboxFor({ maxResponseBytes: 1000 })
+    try {
+      for (const call of [() => client.get('sbx'), () => sandbox.fs.readBytes('/a'), () => sandbox.fs.downloadFile('/a', join(dir, 'never.bin'))]) {
+        const error = await rejection(call)
+        expect(error).toBeInstanceOf(NotFoundError)
+        expect(error).toMatchObject({ statusCode: 404 })
+        expect((error as Error).message).toContain('too large to read')
+      }
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('caps the events hub\'s ticket mint and long-poll fallback by the client\'s limit', async () => {
+    route = body(JSON.stringify({ id: 'sbx', status: 'started', pad: 'p'.repeat(4000) }), { contentType: 'application/json' })
+    // The hub a client attaches uses the client's own API instance...
+    const client = new Daytona({ apiKey: 'k', maxResponseBytes: 1000, sharedHub: false })
+    const hub = (client as unknown as { acquireHub(): { api: { get(path: string): Promise<unknown> } } }).acquireHub()
+    try {
+      expectTooLarge(await rejection(() => hub.api.get('/sandboxes/sbx')), 1000)
+    } finally {
+      await client.close()
+    }
+    // ...and one that builds its own takes the cap it is given.
+    const own = attachHub({ apiUrl: base, apiKey: 'k', target: undefined, shared: false, config: eventsHubConfig(undefined), maxResponseBytes: 1000 })
+    try {
+      expectTooLarge(await rejection(() => (own as unknown as { api: { get(path: string): Promise<unknown> } }).api.get('/sandboxes/sbx')), 1000)
+    } finally {
+      await detachHub(own, { apiUrl: base, apiKey: 'k', target: undefined, shared: false })
+    }
+  })
+
+  it('gives clients with different limits their own shared events hub', async () => {
+    route = body(JSON.stringify({ id: 'sbx', status: 'started', pad: 'p'.repeat(4000) }), { contentType: 'application/json' })
+    type HubOf = { acquireHub(): { api: { get(path: string): Promise<unknown> } } }
+    const tight = new Daytona({ apiKey: 'k', maxResponseBytes: 1000 })
+    const roomy = new Daytona({ apiKey: 'k', maxResponseBytes: 100_000 })
+    const twin = new Daytona({ apiKey: 'k', maxResponseBytes: 1000 })
+    const slow = new Daytona({ apiKey: 'k', maxResponseBytes: 1000, requestTimeoutSeconds: 9 })
+    try {
+      const [a, b, c, d] = [tight, roomy, twin, slow].map((client) => (client as unknown as HubOf).acquireHub())
+      // Same credentials, same limits: one hub; a different cap or request timeout: a hub of its own.
+      expect(a).toBe(c)
+      expect(a).not.toBe(b)
+      expect(a).not.toBe(d)
+      expectTooLarge(await rejection(() => a.api.get('/sandboxes/sbx')), 1000)
+      await expect(b.api.get('/sandboxes/sbx')).resolves.toBeDefined()
+    } finally {
+      for (const client of [tight, roomy, twin, slow]) await client.close()
+    }
+  })
+
+  describe('compressed bodies', () => {
+    const CAP = 64 * 1024
+    const encoders = { gzip: gzipSync, deflate: deflateSync, br: brotliCompressSync } as const
+    // 32 MiB of zeros: a few dozen KiB on the wire.
+    const bombs = Object.fromEntries(Object.entries(encoders).map(([name, encode]) => [name, encode(new Uint8Array(32 << 20))])) as Record<keyof typeof encoders, Buffer>
+    const encoded = (payload: Buffer, encoding: string, status = 200): Handler => (request, response) => {
+      request.resume()
+      response.writeHead(status, { 'Content-Type': 'application/octet-stream', 'Content-Encoding': encoding, 'Content-Length': String(payload.byteLength) })
+      response.end(payload)
+    }
+    const originalAdd = BodyBuffer.prototype.add
+    /** The size of every decoded chunk the capped readers buffer or refuse. */
+    const chunkSizes = (): { readonly sizes: number[]; readonly restore: () => void } => {
+      const sizes: number[] = []
+      const spy = jest.spyOn(BodyBuffer.prototype, 'add').mockImplementation(function (this: BodyBuffer, chunk: Uint8Array) {
+        sizes.push(chunk.byteLength)
+        return originalAdd.call(this, chunk)
+      })
+      return { sizes, restore: () => spy.mockRestore() }
+    }
+
+    it.each(['gzip', 'deflate', 'br'] as const)('refuses a %s body that decodes past the cap without decoding much past it', async (encoding) => {
+      expect(bombs[encoding].byteLength).toBeLessThan(CAP)
+      route = encoded(bombs[encoding], encoding)
+      const { client, sandbox } = sandboxFor({ maxResponseBytes: CAP })
+      const seen = chunkSizes()
+      try {
+        expectTooLarge(await rejection(() => sandbox.fs.readBytes('/a')), CAP)
+        // The runtime decodes in bounded chunks (zlib's 16 KiB in Node), each
+        // checked before it is buffered: nothing near the 32 MiB is held.
+        expect(Math.max(...seen.sizes)).toBeLessThanOrEqual(CAP)
+        expect(seen.sizes.slice(0, -1).reduce((total, size) => total + size, 0)).toBeLessThanOrEqual(CAP)
+      } finally {
+        seen.restore()
+        await client.close()
+      }
+    })
+
+    it('reads a compressed body under the cap', async () => {
+      const payload = Buffer.from('daytona '.repeat(50_000))
+      route = encoded(gzipSync(payload), 'gzip')
+      const { client, sandbox } = sandboxFor({ maxResponseBytes: payload.byteLength })
+      try {
+        expect(Buffer.from(await sandbox.fs.readBytes('/a')).equals(payload)).toBe(true)
+        expect(await rejection(() => sandbox.fs.readBytes('/a', { maxResponseBytes: payload.byteLength - 1 }))).toBeInstanceOf(PayloadTooLargeError)
+      } finally {
+        await client.close()
+      }
+    })
+
+    it('keeps the typed error of an error status whose compressed body decodes past the cap', async () => {
+      route = encoded(bombs.gzip, 'gzip', 404)
+      const { client, sandbox } = sandboxFor({ maxResponseBytes: CAP })
+      const transport = new HttpTransport(base, 't', 5_000, { maxResponseBytes: CAP })
+      const seen = chunkSizes()
+      try {
+        for (const call of [() => sandbox.fs.readBytes('/a'), () => transport.fetch('/files/download?path=a')]) {
+          const error = await rejection(call)
+          expect(error).toBeInstanceOf(NotFoundError)
+          expect((error as Error).message).toContain('too large to read')
+        }
+        expect(Math.max(...seen.sizes)).toBeLessThanOrEqual(CAP)
+      } finally {
+        seen.restore()
+        await client.close()
+      }
+    })
+  })
+
+  it('never caps downloadFile', async () => {
+    route = body('d'.repeat(50_000))
+    const { client, sandbox } = sandboxFor({ maxResponseBytes: 1000 })
+    try {
+      await sandbox.fs.downloadFile('/a', join(dir, 'uncapped.bin'))
+      expect((await readFile(join(dir, 'uncapped.bin'))).byteLength).toBe(50_000)
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('keeps the client working after a refused response', async () => {
+    let calls = 0
+    route = (request, response) => {
+      calls += 1
+      body('b'.repeat(request.url?.includes('big') ? 5000 : 10))(request, response)
+    }
+    const transport = new HttpTransport(base, 't', 5_000, { maxResponseBytes: 1000 })
+    for (let i = 0; i < 3; i++) {
+      await expect(transport.getBytes('/files/download?path=big')).rejects.toBeInstanceOf(PayloadTooLargeError)
+      expect(new TextDecoder().decode(await transport.getBytes('/files/download?path=small'))).toBe('b'.repeat(10))
+    }
+    expect(calls).toBe(6)
+  })
+})
+
+describe('BodyBuffer', () => {
+  const bytes = (...values: number[]): Uint8Array => new Uint8Array(values)
+
+  it('fills one allocation of a small declared length in place', () => {
+    const body = new BodyBuffer(100, 4)
+    expect(body.add(bytes(1, 2))).toBe(true)
+    expect(body.add(bytes(3, 4))).toBe(true)
+    const out = body.bytes()
+    expect([...(out ?? [])]).toEqual([1, 2, 3, 4])
+    // The one allocation, not a copy of it.
+    expect(out?.buffer.byteLength).toBe(4)
+    expect(body.bytes()).toBe(out)
+  })
+
+  it('preallocates at most 8 MiB and grows with the bytes received, not the declared length', () => {
+    // 100 TiB declared, no limit: nothing near it is allocated up front.
+    const huge = new BodyBuffer(0, 100 * 2 ** 40)
+    expect(huge.capacity).toBe(MAX_PREALLOCATION)
+    huge.add(bytes(1, 2, 3))
+    expect([...(huge.bytes() ?? [])]).toEqual([1, 2, 3])
+    // Past the preallocation it grows (doubling, up to the declared length).
+    const large = new BodyBuffer(0, 3 * MAX_PREALLOCATION)
+    large.add(new Uint8Array(MAX_PREALLOCATION))
+    expect(large.capacity).toBe(MAX_PREALLOCATION)
+    large.add(new Uint8Array(10))
+    expect(large.capacity).toBe(2 * MAX_PREALLOCATION)
+    expect(large.bytes()?.byteLength).toBe(MAX_PREALLOCATION + 10)
+  })
+
+  it('falls back to chunks when an allocation fails', () => {
+    const body = new BodyBuffer(0, 20 * 2 ** 20)
+    body.add(new Uint8Array(MAX_PREALLOCATION))
+    const original = globalThis.Uint8Array
+    // The growth allocation fails as an over-large one would (RangeError).
+    const failing = new Proxy(original, { construct: (target, args: [number]) => {
+      if (typeof args[0] === 'number' && args[0] > MAX_PREALLOCATION) throw new RangeError('Array buffer allocation failed')
+      return new target(...args)
+    } })
+    globalThis.Uint8Array = failing as typeof Uint8Array
+    try {
+      expect(body.add(bytes(7))).toBe(true)
+      expect(body.capacity).toBe(0)
+    } finally {
+      globalThis.Uint8Array = original
+    }
+    const out = body.bytes()
+    expect(out?.byteLength).toBe(MAX_PREALLOCATION + 1)
+    expect(out?.[MAX_PREALLOCATION]).toBe(7)
+  })
+
+  it('reads a fetch body under a declared 100 TiB length without allocating it', async () => {
+    const response = new Response('abc', { headers: { 'content-length': String(100 * 2 ** 40) } })
+    expect(await readFetchText(response, 0)).toBe('abc')
+  })
+
+  it('keeps a body that outgrows or falls short of its declared length', () => {
+    const longer = new BodyBuffer(100, 2)
+    longer.add(bytes(1, 2))
+    longer.add(bytes(3))
+    expect([...(longer.bytes() ?? [])]).toEqual([1, 2, 3])
+    const shorter = new BodyBuffer(100, 8)
+    shorter.add(bytes(1))
+    expect([...(shorter.bytes() ?? [])]).toEqual([1])
+  })
+
+  it('refuses a chunk that would pass the limit and keeps none of it', () => {
+    const body = new BodyBuffer(3)
+    expect(body.add(bytes(1, 2))).toBe(true)
+    expect(body.add(bytes(3, 4))).toBe(false)
+    expect([...(body.bytes() ?? [])]).toEqual([1, 2])
+    // A declared length over the limit is not allocated.
+    expect(new BodyBuffer(3, 1 << 30).add(bytes(1, 2, 3, 4))).toBe(false)
+    expect(new BodyBuffer(0).add(new Uint8Array(10))).toBe(true)
+  })
+})
+
+describe('transferRequest', () => {
+  it('refuses a streamed response before anything is sent (no SDK transfer streams through axios)', async () => {
+    expect(() => transferRequest({ responseType: 'stream' })).toThrow(expect.objectContaining({ statusCode: 500, source: 'SDK' }))
+    let hits = 0
+    route = (request, response) => {
+      hits += 1
+      body('x')(request, response)
+    }
+    const transport = new HttpTransport(base, 't', 5_000)
+    // Marked as a transfer some other way, the adapter refuses it too.
+    await expect(transport.http.get('/files/download', { responseType: 'stream', daytona: { transfer: true } } as never)).rejects.toMatchObject({ statusCode: 500, source: 'SDK' })
+    expect(hits).toBe(0)
+  })
+})

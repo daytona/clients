@@ -12,7 +12,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from daytona.v2 import AtomicUploadUnsupportedError, DaytonaError, TransferCancelledError, codes
+import daytona.v2.errors as v2_errors
+from daytona.v2 import AtomicUploadUnsupportedError, DaytonaError, TransferCancelledError
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport, _decode_response
 from daytona.v2.filesystem import (
@@ -226,7 +227,7 @@ async def test_git_clone_rejects_non_boolean_insecure_skip_tls_before_request() 
     with pytest.raises(DaytonaError, match="insecure_skip_tls must be a boolean") as exc_info:
         await git.clone("https://example.invalid/repo.git", "/repo", insecure_skip_tls="false")  # type: ignore[arg-type]
 
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert exc_info.value.code == "BAD_REQUEST"
     assert transport.specs == []
 
 
@@ -605,10 +606,14 @@ async def test_upload_file_raises_when_source_file_shrinks_mid_stream(
 
     monkeypatch.setattr(Path, "open", shrinking_open)
 
-    with pytest.raises(DaytonaError, match="source file changed size during upload") as exc_info:
+    with pytest.raises(v2_errors.BadRequestError, match="source file changed size during upload") as exc_info:
         await fs.upload_file(local_path, "/remote/payload.bin")
 
-    assert exc_info.value.code == codes.BAD_REQUEST
+    assert (exc_info.value.status_code, exc_info.value.code, exc_info.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
 
 
 def test_upload_preamble_escapes_filename_control_characters() -> None:
@@ -863,8 +868,11 @@ async def test_download_file_rejects_declared_content_length_mismatch_and_remove
     transport = DownloadTransport(stream)
     fs = AsyncFileSystemService(transport)
 
-    with pytest.raises(DaytonaError, match="Content-Length"):
+    # A truncated transfer is a ConnectionError, as when the socket drops mid-body
+    # (the TypeScript SDK raises the same).
+    with pytest.raises(v2_errors.ConnectionError, match="Content-Length") as exc_info:
         await fs.download_file("/remote.bin", destination)
+    assert (exc_info.value.status_code, exc_info.value.code, exc_info.value.source) == (None, None, "SDK")
 
     assert not destination.exists()
     assert list(tmp_path.glob(".daytona-dl-*")) == []
@@ -947,7 +955,7 @@ def test_atomic_upload_unsupported_error_is_raised_from_toolbox_envelope() -> No
                 409,
                 json={
                     "message": "atomic upload is not supported on this filesystem",
-                    "code": codes.ATOMIC_UPLOAD_UNSUPPORTED,
+                    "code": "ATOMIC_UPLOAD_UNSUPPORTED",
                     "source": "DAYTONA_DAEMON",
                 },
             )

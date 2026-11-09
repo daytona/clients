@@ -17,7 +17,7 @@ Set ``DAYTONA_KEEP=1`` to leave the sandbox running at the end instead of
 deleting it, so you can poke at it yourself.
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/dockerfile_sandbox.py
 """
 

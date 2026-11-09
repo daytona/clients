@@ -54,7 +54,7 @@ from ._gen.toolbox import (
 from ._gen.toolbox import (
     TerminalSize as ToolboxTerminalSize,
 )
-from .errors import DaytonaError, ErrorDetails, UnsupportedOperationError, create_error
+from .errors import DaytonaError, UnsupportedOperationError, create_error
 from .types import (
     DISABLED,
     ArtifactRetention,
@@ -119,7 +119,15 @@ class RequestSpec:
     files: Optional[Dict[str, MultipartPart]] = None
     timeout: Optional[float] = None
     unbounded_read: bool = False
+    # A file transfer (upload, download, the bulk byte calls): never bounded by
+    # the client's request timeout. It runs until it finishes or the caller
+    # cancels it.
+    transfer: bool = False
     headers: Dict[str, str] = field(default_factory=dict)
+    # The cap on this response's buffered body, replacing the client's
+    # ``max_response_bytes`` for this request (``0``: no limit); ``None`` keeps
+    # the client's. Streamed bodies are never capped.
+    max_response_bytes: Optional[int] = None
     # Called with the response headers of a successful request (status < 400)
     # before the body is decoded. The events hub learns a sandbox's service
     # endpoint from X-Daytona-Cell on mutation responses this way; a
@@ -135,35 +143,35 @@ def parse_error_payload(status_code: int, payload: JsonObject) -> DaytonaError:
     message = (
         _optional_str(payload.get("message")) or _optional_str(payload.get("error")) or f"HTTP {status_code}"
     )
-    error = create_error(
+    retry_after_ms = payload.get("retryAfterMs")
+    return create_error(
         message,
         status_code,
         _optional_str(payload.get("code")),
         _optional_str(payload.get("source")),
-        details=ErrorDetails(
-            trace_id=_optional_str(payload.get("trace_id")),
-            retry_after_seconds=_optional_int(payload.get("retry_after_seconds")),
-            feature=_optional_str(payload.get("feature")),
-            entitlement=_optional_str(payload.get("entitlement")),
-            replacement=_optional_str(payload.get("replacement")),
-            first_available_cursor=_optional_str(payload.get("firstAvailableCursor")),
-            limit=_optional_str(payload.get("limit")),
-            current=_optional_int(payload.get("current")),
-            max=_optional_int(payload.get("max")),
-            max_bytes=_optional_int(payload.get("max_bytes")),
-            bytes=_optional_int(payload.get("bytes")),
-            stated=_optional_str(payload.get("stated")),
-            actual=_optional_str(payload.get("actual")),
-            region=_optional_str(payload.get("region")),
+        trace_id=_optional_str(payload.get("trace_id")),
+        retry_after_seconds=_optional_int(payload.get("retry_after_seconds")),
+        feature=_optional_str(payload.get("feature")),
+        entitlement=_optional_str(payload.get("entitlement")),
+        replacement=_optional_str(payload.get("replacement")),
+        first_available_cursor=_optional_str(payload.get("firstAvailableCursor")),
+        limit=_optional_str(payload.get("limit")),
+        current=_optional_int(payload.get("current")),
+        max=_optional_int(payload.get("max")),
+        max_bytes=_optional_int(payload.get("max_bytes")),
+        bytes=_optional_int(payload.get("bytes")),
+        stated=_optional_str(payload.get("stated")),
+        actual=_optional_str(payload.get("actual")),
+        region=_optional_str(payload.get("region")),
+        request_id=_optional_str(payload.get("requestId")),
+        retry_after_ms=(
+            retry_after_ms
+            if isinstance(retry_after_ms, int)
+            and not isinstance(retry_after_ms, bool)
+            and retry_after_ms >= 0
+            else None
         ),
     )
-    request_id = payload.get("requestId")
-    retry_after_ms = payload.get("retryAfterMs")
-    if isinstance(request_id, str):
-        error.request_id = request_id
-    if isinstance(retry_after_ms, int) and not isinstance(retry_after_ms, bool) and retry_after_ms >= 0:
-        error.retry_after_ms = retry_after_ms
-    return error
 
 
 def parse_json_bytes(content: bytes) -> JsonValue:
@@ -173,10 +181,26 @@ def parse_json_bytes(content: bytes) -> JsonValue:
     return value
 
 
-def error_from_response(status_code: int, body: bytes) -> DaytonaError:
-    try:
-        payload = expect_object(parse_json_bytes(body))
-    except Exception:
+def is_json_media_type(content_type: Optional[str]) -> bool:
+    """Whether a response's media type is exactly ``application/json`` (type
+    and subtype compared case-insensitively, parameters ignored), as the
+    TypeScript SDK's ``isJsonMediaType``: ``application/jsonl`` is not JSON."""
+    if content_type is None:
+        return False
+    return content_type.split(";", 1)[0].strip().lower() == "application/json"
+
+
+def error_from_response(status_code: int, body: bytes, *, content_type: Optional[str]) -> DaytonaError:
+    """The status's typed error, with the code and details of the body when
+    it is a JSON object declared as ``application/json``; any other body is
+    only the message."""
+    payload: Optional[JsonObject] = None
+    if is_json_media_type(content_type):
+        try:
+            payload = expect_object(parse_json_bytes(body))
+        except Exception:
+            payload = None
+    if payload is None:
         payload = {"message": body.decode("utf-8", errors="replace") or f"HTTP {status_code}"}
     return parse_error_payload(status_code, payload)
 
@@ -975,7 +999,7 @@ def delete_process_spec(process_id: str) -> RequestSpec:
 
 
 def file_download_spec(path: str, *, timeout: Optional[float]) -> RequestSpec:
-    return RequestSpec("GET", "/files/download", params={"path": path}, timeout=timeout)
+    return RequestSpec("GET", "/files/download", params={"path": path}, timeout=timeout, transfer=True)
 
 
 def file_upload_spec(
@@ -986,7 +1010,12 @@ def file_upload_spec(
     if atomic:
         params["atomic"] = True
     return RequestSpec(
-        "POST", "/files/upload", params=params, files={"file": (name, content)}, timeout=timeout
+        "POST",
+        "/files/upload",
+        params=params,
+        files={"file": (name, content)},
+        timeout=timeout,
+        transfer=True,
     )
 
 
@@ -1001,11 +1030,15 @@ def file_bulk_upload_spec(
     params: Dict[str, JsonValue] = {}
     if atomic:
         params["atomic"] = True
-    return RequestSpec("POST", "/files/bulk-upload", params=params, files=parts, timeout=timeout)
+    return RequestSpec(
+        "POST", "/files/bulk-upload", params=params, files=parts, timeout=timeout, transfer=True
+    )
 
 
 def bulk_download_spec(paths: Sequence[str], *, timeout: Optional[float]) -> RequestSpec:
-    return RequestSpec("POST", "/files/bulk-download", json_body={"paths": list(paths)}, timeout=timeout)
+    return RequestSpec(
+        "POST", "/files/bulk-download", json_body={"paths": list(paths)}, timeout=timeout, transfer=True
+    )
 
 
 def parse_bulk_write_result(payload: JsonValue) -> BulkWriteResult:

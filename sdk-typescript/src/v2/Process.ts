@@ -9,7 +9,7 @@ import type {
   ProcessStartOptions, RunOptions, RunResult, TerminalSize,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import type { PtyDuplex } from './ProcessHandle.js'
 import { commandSource, invalidPtyVerbError, knownProcessKind, processFromWire, WAIT_READ_SLACK_MS } from './ProcessWire.js'
@@ -93,14 +93,14 @@ export class ProcessService {
     const sandboxId = requireSessionId(sessionIdOrJSON?.sandboxId, 'sandboxId')
     const sessionId = requireSessionId(sessionIdOrJSON?.sessionId, 'sessionId')
     if (sandboxId !== this.sandboxId) {
-      throw new BadRequestError('session belongs to a different sandbox', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('session belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     return new Session(this, sessionId)
   }
 
   public connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle {
     if (typeof idOrHandle !== 'string' && idOrHandle.sandboxId !== this.sandboxId) {
-      throw new DaytonaError('process handle belongs to a different sandbox', 400, 'BAD_REQUEST')
+      throw createDaytonaError('process handle belongs to a different sandbox', 400, 'BAD_REQUEST', 'SDK')
     }
     return new ProcessHandle(
       this.transport,
@@ -136,7 +136,7 @@ export class ProcessService {
    */
   public async killAll(options: { readonly tag: string; readonly timeout?: number }): Promise<string[]> {
     if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout <= 0)) {
-      throw new BadRequestError('timeout must be a positive, finite number of milliseconds', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('timeout must be a positive, finite number of milliseconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     const body: toolbox.KillProcessesRequest = { tag: options.tag }
     if (options.timeout !== undefined) body.timeoutMs = Math.ceil(options.timeout)

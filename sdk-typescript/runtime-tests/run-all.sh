@@ -130,10 +130,10 @@ if [ -z "$MOCK_PORT" ]; then
   cat "$MOCK_LOG" >&2
   exit 1
 fi
-export DAYTONA_API_URL="http://127.0.0.1:$MOCK_PORT"
-# Only the mock: never a v2 / v0 endpoint from the caller's environment.
-unset DAYTONA_V2_API_URL DAYTONA_V0_API_URL DAYTONA_JWT_TOKEN DAYTONA_PROJECT_ID DAYTONA_OTEL_ENABLED
-echo "    $DAYTONA_API_URL (expects X-Daytona-SDK-Version: $SDK_VERSION)"
+export DAYTONA_V2_API_URL="http://127.0.0.1:$MOCK_PORT"
+# Only the mock: never a v0 endpoint or 0.x setting from the caller's environment.
+unset DAYTONA_API_URL DAYTONA_V0_API_URL DAYTONA_JWT_TOKEN DAYTONA_PROJECT_ID DAYTONA_OTEL_ENABLED
+echo "    $DAYTONA_V2_API_URL (expects X-Daytona-SDK-Version: $SDK_VERSION)"
 
 declare -a RUNTIMES=()
 if [ -n "${ONLY:-}" ]; then

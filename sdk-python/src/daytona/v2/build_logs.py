@@ -19,14 +19,25 @@ from contextlib import aclosing
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-from typing import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Literal, Mapping, TypeGuard
+from typing import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Literal,
+    Mapping,
+    Optional,
+    TypeGuard,
+)
 from urllib.parse import unquote, urlsplit
 
 import anyio
 from pydantic import BaseModel
+from typing_extensions import Unpack
 
 from . import _clock
-from ._core import RequestSpec, parse_error_payload
+from ._core import RequestSpec, is_json_media_type, parse_error_payload
 from ._gen.api import (
     BuildLogChunk,
     BuildLogDone,
@@ -44,7 +55,14 @@ from ._gen.api import (
     BuildLogGapReason as BuildLogGapReasonEnum,
 )
 from ._transport import AsyncResponseStream, AsyncTransport
-from .errors import ClientTimeoutError, ConnectionError, DaytonaError, _attach_interrupt_error, create_error
+from .errors import (
+    ClientTimeoutError,
+    ConnectionError,
+    DaytonaError,
+    _attach_interrupt_error,
+    _ErrorFields,
+    create_error,
+)
 from .types import JsonValue
 
 BuildLogDoneReason = Literal["terminal", "deadline", "not_applicable", "resource_deleted", "unknown"]
@@ -172,10 +190,19 @@ class BuildLogInterruptedError(DaytonaError):
         message: str,
         *,
         cursor: str | None = None,
-        code: str = "BUILD_LOG_INTERRUPTED",
         status_code: int | None = None,
+        code: str | None = None,
+        source: str | None = None,
+        **fields: Unpack[_ErrorFields],
     ) -> None:
-        super().__init__(message, code=code, status_code=status_code, source="SDK")
+        # Omitted or None: code BUILD_LOG_INTERRUPTED, source SDK (as in TypeScript).
+        super().__init__(
+            message,
+            status_code=status_code,
+            code=code if code is not None else "BUILD_LOG_INTERRUPTED",
+            source=source if source is not None else "SDK",
+            **fields,
+        )
         self.cursor = cursor
 
 
@@ -479,12 +506,7 @@ def _resource_identity(value: str, sandbox: bool) -> tuple[str, str | None] | No
         return None
     body, separator, region = value.partition("-")
     # The SDK accepts region tags of 1-64 ASCII [A-Za-z0-9_-] characters.
-    if (
-        not body
-        or len(body) > 22
-        or separator
-        and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", region, re.ASCII)
-    ):
+    if not body or len(body) > 22 or separator and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", region, re.ASCII):
         return None
     alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     number = 0
@@ -554,7 +576,7 @@ def _retry_after(headers: Mapping[str, str]) -> float:
         return 0
 
 
-async def _http_error(status: int, chunks: AsyncIterator[bytes]) -> DaytonaError:
+async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: Optional[str]) -> DaytonaError:
     body = bytearray()
     try:
         async for chunk in chunks:
@@ -567,6 +589,9 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes]) -> DaytonaError
             body.extend(chunk)
     except (ConnectionError, ClientTimeoutError):
         # A known 401/403/etc remains terminal even if its diagnostic body fails.
+        return create_error(f"build log HTTP {status}", status)
+    if not is_json_media_type(content_type):
+        # Only a body declared as application/json carries a code.
         return create_error(f"build log HTTP {status}", status)
     try:
         payload = _object(json.loads(body, parse_constant=_invalid_json_constant))
@@ -591,7 +616,7 @@ async def _finite_http_error(stream: AsyncResponseStream, deadline: float | None
         return create_error(f"build log HTTP {stream.status_code}", stream.status_code)
     with anyio.move_on_after(budget):
         async with aclosing(stream.iter_bytes()) as chunks:
-            return await _http_error(stream.status_code, chunks)
+            return await _http_error(stream.status_code, chunks, stream.headers.get("content-type"))
     # The deadline cut the body short: the status is still the answer.
     return create_error(f"build log HTTP {stream.status_code}", stream.status_code)
 
@@ -681,7 +706,7 @@ async def read_build_logs(api: AsyncTransport, discovery_path: str) -> str:
         finally:
             await stream.close()
     except _ProtocolError as exc:
-        raise DaytonaError(str(exc), code="BUILD_LOG_PROTOCOL_ERROR") from exc
+        raise DaytonaError(str(exc), code="BUILD_LOG_PROTOCOL_ERROR", source="SDK") from exc
 
 
 async def _sleep(seconds: float) -> None:
@@ -699,7 +724,7 @@ async def follow_build_logs(
     timeout: float | None = None,
 ) -> BuildLogFollowResult:
     if timeout is not None and (not math.isfinite(timeout) or timeout < 0):
-        raise ValueError("timeout must be finite and nonnegative")
+        raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
     if not callable(on_logs):
         raise TypeError("on_logs is required")
     caller_deadline = _clock.monotonic() + timeout if timeout else None

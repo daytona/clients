@@ -9,7 +9,7 @@
  *
  *   DAYTONA_API_KEY=dtn_... npx tsx volumes_share.ts
  *
- * DAYTONA_API_URL defaults to https://api.daytona.com. DAYTONA_IMAGE defaults
+ * DAYTONA_V2_API_URL (a regional endpoint or test environment) defaults to https://api.daytona.com. DAYTONA_IMAGE defaults
  * to python:3.12-slim. Set DAYTONA_KEEP=1 to retain resources for inspection.
  */
 
@@ -25,10 +25,7 @@ const RUN = randomUUID().replace(/-/g, '').slice(0, 8)
 const sleep = (seconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, seconds * 1000))
 
 async function main(): Promise<number> {
-  if (!process.env.DAYTONA_V2_API_URL?.trim() && !process.env.DAYTONA_API_URL?.trim()) {
-    process.env.DAYTONA_API_URL = 'https://api.daytona.com'
-  }
-  const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY ?? '' }).v2
+  const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY }).v2
   const volume = await daytona.volume.create(`shared-vol-${RUN}`)
   console.log(`volume id=${volume.id} name=${volume.name} status=${volume.status}`)
   const boxes: Sandbox[] = []

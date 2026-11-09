@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createDaytonaError, DaytonaError } from './errors/DaytonaError.js'
+import { createDaytonaError, DaytonaError, isJsonMediaType } from './errors/DaytonaError.js'
 import type { BulkReadError, BulkReadResult } from './types.js'
 
 const DAYTONA_FILE_BOUNDARY = 'DAYTONA-FILE-BOUNDARY'
@@ -22,7 +22,7 @@ export function parseBulkReadResult(body: Uint8Array, contentType?: string): Bul
       case 'file': {
         const path = contentDispositionFilename(disposition)
         if (path === undefined) {
-          throw new DaytonaError('multipart file part missing filename', 400, 'BAD_REQUEST')
+          throw createDaytonaError('multipart file part missing filename', 400, 'BAD_REQUEST', 'SDK')
         }
         files[path] = part.body
         break
@@ -62,7 +62,7 @@ export function copyArrayBuffer(value: Uint8Array): ArrayBuffer {
 function parseMultipart(body: Uint8Array, boundary: string): ReadonlyArray<{ readonly headers: Record<string, string>; readonly body: Uint8Array }> {
   const marker = asciiBytes(`--${boundary}`)
   if (!startsWithBytes(body, marker, 0)) {
-    throw new DaytonaError('invalid multipart response boundary', 400, 'BAD_REQUEST')
+    throw createDaytonaError('invalid multipart response boundary', 400, 'BAD_REQUEST', 'SDK')
   }
   const parts: Array<{ readonly headers: Record<string, string>; readonly body: Uint8Array }> = []
   let position = marker.length
@@ -71,23 +71,23 @@ function parseMultipart(body: Uint8Array, boundary: string): ReadonlyArray<{ rea
       return parts
     }
     if (!startsWithBytes(body, asciiBytes('\r\n'), position)) {
-      throw new DaytonaError('invalid multipart response delimiter', 400, 'BAD_REQUEST')
+      throw createDaytonaError('invalid multipart response delimiter', 400, 'BAD_REQUEST', 'SDK')
     }
     const headerStart = position + 2
     const headerEnd = indexOfBytes(body, asciiBytes('\r\n\r\n'), headerStart)
     if (headerEnd < 0) {
-      throw new DaytonaError('invalid multipart response headers', 400, 'BAD_REQUEST')
+      throw createDaytonaError('invalid multipart response headers', 400, 'BAD_REQUEST', 'SDK')
     }
     const headers = parseMultipartHeaders(body.slice(headerStart, headerEnd))
     const bodyStart = headerEnd + 4
     const nextBoundary = indexOfDelimiter(body, marker, bodyStart)
     if (nextBoundary < 0) {
-      throw new DaytonaError('unterminated multipart response', 400, 'BAD_REQUEST')
+      throw createDaytonaError('unterminated multipart response', 400, 'BAD_REQUEST', 'SDK')
     }
     parts.push({ headers, body: body.slice(bodyStart, nextBoundary) })
     position = nextBoundary + 2 + marker.length
   }
-  throw new DaytonaError('unterminated multipart response', 400, 'BAD_REQUEST')
+  throw createDaytonaError('unterminated multipart response', 400, 'BAD_REQUEST', 'SDK')
 }
 
 function parseMultipartHeaders(rawHeaders: Uint8Array): Record<string, string> {
@@ -119,7 +119,7 @@ function parseJsonObject(body: Uint8Array): Record<string, unknown> {
   if (isRecord(payload)) {
     return payload
   }
-  throw new DaytonaError('expected JSON object', 400, 'BAD_REQUEST')
+  throw createDaytonaError('expected JSON object', 400, 'BAD_REQUEST', 'SDK')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -180,14 +180,17 @@ function indexOfBytes(haystack: Uint8Array, needle: Uint8Array, start: number): 
   return -1
 }
 
-export function bulkReadHttpError(status: number, body: Uint8Array): DaytonaError {
+export function bulkReadHttpError(status: number, body: Uint8Array, contentType: string | undefined): DaytonaError {
   const text = BODY_DECODER.decode(body)
   let envelope: Record<string, unknown> | undefined
-  try {
-    const parsed: unknown = JSON.parse(text)
-    if (parsed && typeof parsed === 'object') envelope = parsed as Record<string, unknown>
-  } catch {
-    envelope = undefined
+  // Only a body declared as application/json carries a code.
+  if (isJsonMediaType(contentType)) {
+    try {
+      const parsed: unknown = JSON.parse(text)
+      if (parsed && typeof parsed === 'object') envelope = parsed as Record<string, unknown>
+    } catch {
+      envelope = undefined
+    }
   }
   const message = typeof envelope?.message === 'string' ? envelope.message : text || `bulk download failed with status ${status}`
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined

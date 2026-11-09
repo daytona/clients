@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import json
 import re
 import subprocess
 import sys
@@ -21,6 +22,7 @@ import warnings
 from pathlib import Path
 
 import pytest
+from _repo import _repo_file, _repo_scripts
 
 import daytona
 from daytona import (
@@ -63,10 +65,61 @@ def test_root_exports_only_clients_config_constants_and_errors() -> None:
     }
     # The root errors are the shared hierarchy, not v2's classes.
     errors = set(daytona.__all__) - non_errors
-    assert errors == {*_errors.SHARED_ERRORS, "DaytonaValidationError", "DaytonaAuthorizationError"}
+    assert errors == set(_errors.SHARED_ERRORS)
     assert DaytonaError is not daytona_v2.DaytonaError
-    assert daytona.DaytonaValidationError is daytona.DaytonaBadRequestError
-    assert daytona.DaytonaAuthorizationError is daytona.DaytonaForbiddenError
+
+
+@pytest.mark.parametrize(
+    ("name", "category"),
+    [
+        ("DaytonaValidationError", "DaytonaBadRequestError"),
+        ("DaytonaAuthorizationError", "DaytonaForbiddenError"),
+    ],
+)
+def test_removed_root_error_synonyms_name_the_surviving_category_and_daytona_v0(
+    name: str, category: str
+) -> None:
+    # Both were 0.x root names: the guidance names the root category to catch
+    # (as the migration tool's note does) and the 0.x class in daytona.v0.
+    with pytest.raises(ImportError) as caught:
+        getattr(daytona, name)
+    message = str(caught.value)
+    assert f"use the root `{category}`" in message, message
+    assert f"from daytona.v0 import {name}" in message, message
+    assert category in daytona.__all__
+
+
+@pytest.mark.parametrize(
+    ("name", "category"),
+    [
+        ("DaytonaValidationError", "DaytonaBadRequestError"),
+        ("DaytonaAuthorizationError", "DaytonaForbiddenError"),
+    ],
+)
+def test_the_root_alias_guidance_matches_the_migration_tool(name: str, category: str) -> None:
+    mapping = json.loads(_repo_file("upgrade/mapping/mapping.json").read_text(encoding="utf-8"))
+    assert mapping["rootAliasCategories"][name] == category
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "DaytonaAuthenticationError",
+        "DaytonaAuthorizationError",
+        "DaytonaConflictError",
+        "DaytonaConnectionError",
+        "DaytonaNotFoundError",
+        "DaytonaNotSupportedError",
+        "DaytonaRateLimitError",
+        "DaytonaTimeoutError",
+        "DaytonaValidationError",
+        "UnauthorizedError",
+    ],
+)
+def test_v2_exports_no_legacy_error_synonyms(name: str) -> None:
+    assert name not in daytona_v2.__all__
+    assert not hasattr(daytona_v2, name)
+    assert not hasattr(daytona_v2, f"{name}V2")
 
 
 def test_v2_errors_are_caught_by_the_shared_root_classes() -> None:
@@ -80,7 +133,7 @@ def test_v2_errors_are_caught_by_the_shared_root_classes() -> None:
     for timeout in (daytona_v2.RequestTimeoutError("t"), daytona_v2.ClientTimeoutError("t")):
         assert isinstance(timeout, DaytonaTimeoutError)
     assert issubclass(daytona_v2.ForbiddenError, daytona.DaytonaForbiddenError)
-    assert issubclass(daytona_v2.UnauthorizedError, daytona.DaytonaAuthenticationError)
+    assert issubclass(daytona_v2.AuthenticationError, daytona.DaytonaAuthenticationError)
     assert issubclass(daytona_v2.ConnectionError, daytona.DaytonaConnectionError)
     # v2-only categories are not shared: NotSupportedError is v2's InternalServerError.
     assert issubclass(daytona_v2.NotSupportedError, daytona.DaytonaInternalServerError)
@@ -90,7 +143,7 @@ def test_v0_errors_rewritten_by_the_bundle_are_caught_by_the_shared_root_classes
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Run the bundle's errors rewrite on a v0-shaped module and catch its errors at the root."""
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -129,7 +182,7 @@ def test_v0_errors_rewritten_by_the_bundle_are_caught_by_the_shared_root_classes
 
 
 def test_the_bundle_errors_rewrite_refuses_a_class_already_inheriting_a_marker(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -150,7 +203,7 @@ def test_the_bundle_errors_rewrite_refuses_a_class_already_inheriting_a_marker(t
 
 
 def test_the_bundle_errors_self_check_rejects_a_duplicate_base() -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -169,7 +222,7 @@ def test_the_bundle_errors_self_check_rejects_a_duplicate_base() -> None:
 
 
 def test_the_bundle_errors_rewrite_fails_on_a_missing_class(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -181,7 +234,7 @@ def test_the_bundle_errors_rewrite_fails_on_a_missing_class(tmp_path: Path) -> N
 
 
 def _bundler() -> types.ModuleType:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -271,9 +324,6 @@ def test_root_clients_have_no_resource_methods() -> None:
         assert not hasattr(Daytona(DaytonaConfig(api_key="k")), name)
 
 
-_UPGRADE_MAPPING = Path(__file__).resolve().parents[2] / "upgrade" / "mapping" / "mapping.json"
-
-
 @pytest.mark.parametrize("cls", [Daytona, AsyncDaytona])
 def test_moved_client_members_name_the_v0_form(cls: type) -> None:
     client = cls(DaytonaConfig(api_key="k"))
@@ -347,15 +397,10 @@ def test_other_missing_root_attributes_keep_the_plain_message() -> None:
     assert "SDK 2.x moved" not in str(caught.value)
 
 
-@pytest.mark.skipif(
-    not _UPGRADE_MAPPING.is_file(), reason="the upgrade tool's mapping is not in this checkout"
-)
 def test_moved_client_members_match_the_upgrade_tools_mapping() -> None:
-    import json
-
     from daytona._client import _MOVED_TO_V0
 
-    mapping = json.loads(_UPGRADE_MAPPING.read_text(encoding="utf-8"))
+    mapping = json.loads(_repo_file("upgrade/mapping/mapping.json").read_text(encoding="utf-8"))
     assert set(mapping["movedClientMembers"]["py"]) == set(_MOVED_TO_V0)
 
 
@@ -477,7 +522,7 @@ def test_from_daytona_import_v0_imports_the_bundled_submodule(monkeypatch: pytes
 
 
 def test_v2_is_built_lazily_once_from_the_shared_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("DAYTONA_API_URL", raising=False)
+    monkeypatch.delenv("DAYTONA_V2_API_URL", raising=False)
     monkeypatch.delenv("DAYTONA_API_KEY", raising=False)
     client = Daytona(DaytonaConfig(api_key="dtn_key", request_timeout=7.5, organization_id="org-for-v0-only"))
     assert client._v2 is None
@@ -494,14 +539,14 @@ def test_v2_is_built_lazily_once_from_the_shared_config(monkeypatch: pytest.Monk
 
 
 def test_v2_api_url_is_the_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DAYTONA_API_URL", "http://test-env.invalid/")
+    monkeypatch.setenv("DAYTONA_V2_API_URL", "http://test-env.invalid/")
     with Daytona(DaytonaConfig(api_key="k")) as client:
         assert client.v2._impl._api_url == "http://test-env.invalid"
 
 
 @pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
 def test_a_blank_or_whitespace_api_url_counts_as_unset(monkeypatch: pytest.MonkeyPatch, blank: str) -> None:
-    monkeypatch.setenv("DAYTONA_API_URL", blank)
+    monkeypatch.setenv("DAYTONA_V2_API_URL", blank)
     with Daytona(DaytonaConfig(api_key="k")) as client:
         assert client.v2._impl._api_url == DEFAULT_V2_API_URL
 
@@ -634,7 +679,7 @@ def _fake_v0(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
 
 def test_v0_gets_the_shared_credentials_and_its_own_url(monkeypatch: pytest.MonkeyPatch) -> None:
     _fake_v0(monkeypatch)
-    monkeypatch.setenv("DAYTONA_API_URL", "http://v2-test-env.invalid")
+    monkeypatch.setenv("DAYTONA_V2_API_URL", "http://v2-test-env.invalid")
     with pytest.warns(DeprecationWarning):
         config = DaytonaConfig(
             api_key="dtn_key", organization_id="org", target="us", project_id="v2-only", otel_enabled=True
@@ -647,7 +692,7 @@ def test_v0_gets_the_shared_credentials_and_its_own_url(monkeypatch: pytest.Monk
         "api_key": "dtn_key",
         "jwt_token": None,
         "organization_id": "org",
-        # DAYTONA_API_URL addresses v2 test environments; v0 never sees it.
+        # DAYTONA_V2_API_URL addresses v2 test environments; v0 never sees it.
         "api_url": V0_API_URL,
         "target": "us",
         "otel_enabled": True,
@@ -705,7 +750,7 @@ def test_a_v2_only_program_never_imports_v0() -> None:
         capture_output=True,
         text=True,
         cwd=ROOT,
-        env={"DAYTONA_API_URL": "http://api.invalid", "PATH": "/usr/bin:/bin"},
+        env={"DAYTONA_V2_API_URL": "http://api.invalid", "PATH": "/usr/bin:/bin"},
         timeout=60,
         check=False,
     )
@@ -715,7 +760,7 @@ def test_a_v2_only_program_never_imports_v0() -> None:
 
 def _resolve_v0_tag(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh")],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh")],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", **env},
@@ -726,7 +771,7 @@ def _resolve_v0_tag(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 
 def test_the_v0_namespace_is_the_pinned_0x_tag() -> None:
     """scripts/v0-sdk-version is the single source of the vendored v0 tag."""
-    pin = (ROOT.parent / "scripts" / "v0-sdk-version").read_text().splitlines()[0].strip()
+    pin = (_repo_scripts() / "v0-sdk-version").read_text().splitlines()[0].strip()
     assert pin.startswith("v0."), "the v0 namespace vendors the 0.x SDK at a pinned tag"
     result = _resolve_v0_tag({})
     assert result.returncode == 0, result.stderr
@@ -734,11 +779,11 @@ def test_the_v0_namespace_is_the_pinned_0x_tag() -> None:
 
 
 def test_the_pin_records_the_tag_commit() -> None:
-    lines = (ROOT.parent / "scripts" / "v0-sdk-version").read_text().splitlines()
+    lines = (_repo_scripts() / "v0-sdk-version").read_text().splitlines()
     assert len(lines) == 2
     assert re.fullmatch(r"[0-9a-f]{40}", lines[1]), lines
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--sha"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--sha"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin"},
@@ -827,7 +872,7 @@ def test_root_config_routing_covers_every_field_and_matches_the_v0_forwarding(
 
 def _publish_mode(tree: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), str(tree)],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), str(tree)],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", **(env or {})},
@@ -872,7 +917,9 @@ def test_publish_refuses_the_namespace_code_in_only_one_sdk(tmp_path: Path, code
 
 
 def test_publish_refuses_namespace_code_without_a_pin(tmp_path: Path) -> None:
-    result = _publish_mode(_tree(tmp_path, "sdk-python/src/daytona/_client.py", "sdk-typescript/src/v0-unbundled.ts"))
+    result = _publish_mode(
+        _tree(tmp_path, "sdk-python/src/daytona/_client.py", "sdk-typescript/src/v0-unbundled.ts")
+    )
     assert result.returncode != 0
     assert "::error::" in result.stderr
     assert "no scripts/v0-sdk-version pin" in result.stderr
@@ -887,7 +934,7 @@ def test_publish_refuses_a_pin_without_the_namespace_code(tmp_path: Path) -> Non
 
 
 def test_this_tree_bundles_v0() -> None:
-    assert _publish_mode(ROOT.parent).stdout.strip() == "bundle"
+    assert _publish_mode(_repo_scripts().parent).stdout.strip() == "bundle"
 
 
 def test_an_override_equal_to_the_pinned_tag_keeps_the_commit_check(tmp_path: Path) -> None:
@@ -896,7 +943,7 @@ def test_an_override_equal_to_the_pinned_tag_keeps_the_commit_check(tmp_path: Pa
     pin = tmp_path / "pin"
     pin.write_text("v0.224.0\n" + "a" * 40 + "\n")
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--sha"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--sha"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", "DAYTONA_V0_PIN_FILE": str(pin), "DAYTONA_V0_TAG": "v0.224.0"},
@@ -906,7 +953,7 @@ def test_an_override_equal_to_the_pinned_tag_keeps_the_commit_check(tmp_path: Pa
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "a" * 40
     other = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--sha"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--sha"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", "DAYTONA_V0_PIN_FILE": str(pin), "DAYTONA_V0_TAG": "v0.225.0"},
@@ -938,7 +985,7 @@ def test_an_override_equal_to_the_pinned_tag_refuses_a_moved_tag(tmp_path: Path)
     pin = tmp_path / "pin"
     pin.write_text(f"v0.224.0\n{pinned}\n")
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--verify"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--verify"],
         capture_output=True,
         text=True,
         env={
@@ -957,7 +1004,7 @@ def test_an_override_equal_to_the_pinned_tag_refuses_a_moved_tag(tmp_path: Path)
         ["git", "-C", str(work), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
     spoofed = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "resolve-v0-tag.sh"), "--verify"],
+        ["bash", str(_repo_scripts() / "resolve-v0-tag.sh"), "--verify"],
         capture_output=True,
         text=True,
         env={
@@ -988,7 +1035,7 @@ def test_an_override_equal_to_the_pinned_tag_refuses_a_moved_tag(tmp_path: Path)
 )
 def test_publishing_with_a_v0_tag_override_needs_allow_unpinned(env: dict[str, str], ok: bool) -> None:
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), "--check-override"],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), "--check-override"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", **env},
@@ -1015,7 +1062,7 @@ def test_check_override_compares_against_the_pin_file_being_published(
     pin = tmp_path / "pin"
     pin.write_text("v0.223.1\r\n" + "c" * 40 + "\n")
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), "--check-override"],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), "--check-override"],
         capture_output=True,
         text=True,
         env={
@@ -1041,12 +1088,14 @@ def test_check_no_bundled_v0_catches_a_large_bundled_lockfile(tmp_path: Path, bu
     (clients / "sdk-python").mkdir()
     (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("[project.optional-dependencies]\nv0-sdk = []\n")
     (clients / "sdk-typescript" / "package.json").write_text('{"name": "@daytona/sdk"}\n')
     filler = "".join(f'    "node_modules/pkg{i}": {{"version": "1.0.0"}},\n' for i in range(8000))
     client = '    "node_modules/@daytona/api-client": {"version": "0.224.0"},\n' if bundled else ""
-    (clients / "sdk-typescript" / "package-lock.json").write_text('{"packages": {\n' + client + filler + "}}\n")
+    (clients / "sdk-typescript" / "package-lock.json").write_text(
+        '{"packages": {\n' + client + filler + "}}\n"
+    )
     assert (clients / "sdk-typescript" / "package-lock.json").stat().st_size > 256 * 1024
     env = {"PATH": "/usr/bin:/bin", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, env=env)
@@ -1073,7 +1122,7 @@ def test_root_config_rejects_url_fields_saying_to_stay_on_0x(name: str) -> None:
 
 
 def test_the_python_bundler_refuses_symlinks(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -1123,7 +1172,7 @@ def test_dir_lists_v0_only_when_the_bundle_exists(monkeypatch: pytest.MonkeyPatc
 
 
 def test_the_python_bundler_refuses_an_unaliased_dotted_import(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -1137,7 +1186,7 @@ def test_the_python_bundler_refuses_an_unaliased_dotted_import(tmp_path: Path) -
 
 def test_check_override_refuses_a_multi_line_tag() -> None:
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), "--check-override"],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), "--check-override"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin", "DAYTONA_V0_TAG": "v9.9.9\n::notice::forged", "PUBLISH_PYPI": "true"},
@@ -1164,7 +1213,7 @@ def test_check_no_bundled_v0_refuses_committed_bundles(tmp_path: Path, bundle_di
     (clients / "sdk-python").mkdir(exist_ok=True)
     (clients / "sdk-typescript").mkdir(exist_ok=True)
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / bundle_dir / "index.py").write_text("")
     (clients / "sdk-typescript" / "package.json").write_text("{}\n")
@@ -1185,7 +1234,7 @@ def test_check_no_bundled_v0_is_case_insensitive(tmp_path: Path) -> None:
     (clients / "sdk-python" / "src" / "daytona" / "V0").mkdir(parents=True)
     (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / "sdk-python" / "src" / "daytona" / "V0" / "x.py").write_text("")
     (clients / "sdk-typescript" / "package.json").write_text("{}\n")
@@ -1201,7 +1250,7 @@ def test_check_no_bundled_v0_is_case_insensitive(tmp_path: Path) -> None:
 
 
 def test_the_python_bundler_refuses_an_unrewritten_sdk_version_lookup(tmp_path: Path) -> None:
-    sys.path.insert(0, str(ROOT.parent / "scripts"))
+    sys.path.insert(0, str(_repo_scripts()))
     try:
         import bundle_v0_python
     finally:
@@ -1219,7 +1268,7 @@ def test_check_no_bundled_v0_catches_an_entry_at_the_exact_path(tmp_path: Path) 
     (clients / "sdk-python" / "src" / "daytona").mkdir(parents=True)
     (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / "sdk-python" / "src" / "daytona" / "v0").symlink_to("/nonexistent")
     (clients / "sdk-typescript" / "package.json").write_text("{}\n")
@@ -1248,7 +1297,7 @@ def test_check_no_bundled_v0_catches_v0_only_dependencies(tmp_path: Path, manife
     (clients / "sdk-python").mkdir()
     (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
-    script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
+    script.write_text((_repo_scripts() / "check-no-bundled-v0.sh").read_text())
     (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / "sdk-typescript" / "package.json").write_text(manifest + "\n")
     (clients / "sdk-typescript" / "package-lock.json").write_text(
@@ -1280,7 +1329,7 @@ def test_check_dist_artifacts_reads_member_lists(tmp_path: Path, bundled: bool) 
         for name in ["src/daytona/py.typed"] + (["src/daytona/v0/_bundle.py"] if bundled else []):
             info = tarfile.TarInfo(f"daytona-2.0.0/{name}")
             sdist.addfile(info, io.BytesIO(b""))
-    script = str(ROOT.parent / "scripts" / "check_dist_artifacts.py")
+    script = str(_repo_scripts() / "check_dist_artifacts.py")
     plain = subprocess.run(
         [sys.executable, script, "python", str(tmp_path)], capture_output=True, text=True, check=False
     )
@@ -1405,14 +1454,15 @@ def _v2_list_host(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> str:
     ("env", "host"),
     [
         (
-            {"DAYTONA_V2_API_URL": "http://v2.invalid", "DAYTONA_API_URL": "http://fallback.invalid"},
+            {"DAYTONA_V2_API_URL": "http://v2.invalid", "DAYTONA_API_URL": "http://v0-sdk.invalid"},
             "v2.invalid",
         ),
-        ({"DAYTONA_V2_API_URL": "   ", "DAYTONA_API_URL": "http://fallback.invalid"}, "fallback.invalid"),
-        ({"DAYTONA_API_URL": "http://fallback.invalid"}, "fallback.invalid"),
-        ({"DAYTONA_V2_API_URL": "", "DAYTONA_API_URL": " \t"}, "api.daytona.com"),
-        ({"DAYTONA_V2_API_URL": "http://v2.invalid//"}, "v2.invalid"),
-        ({"DAYTONA_V2_API_URL": "//", "DAYTONA_API_URL": "http://fallback.invalid"}, "fallback.invalid"),
+        # DAYTONA_API_URL belongs to the 0.x SDK: 2.x never falls back to it.
+        ({"DAYTONA_V2_API_URL": "   ", "DAYTONA_API_URL": "http://v0-sdk.invalid"}, "api.daytona.com"),
+        ({"DAYTONA_API_URL": "http://v0-sdk.invalid"}, "api.daytona.com"),
+        ({"DAYTONA_V2_API_URL": " \t"}, "api.daytona.com"),
+        ({"DAYTONA_V2_API_URL": " http://v2.invalid// "}, "v2.invalid"),
+        ({"DAYTONA_V2_API_URL": "//", "DAYTONA_API_URL": "http://v0-sdk.invalid"}, "api.daytona.com"),
     ],
 )
 def test_v2_api_url_resolution_order(monkeypatch: pytest.MonkeyPatch, env: dict[str, str], host: str) -> None:
@@ -1444,7 +1494,7 @@ def test_v0_api_url_honours_its_own_var_and_ignores_daytona_api_url(
 
 def test_the_publish_mode_markers_exist_in_this_tree() -> None:
     result = subprocess.run(
-        ["bash", str(ROOT.parent / "scripts" / "v0-publish-mode.sh"), "--check-markers"],
+        ["bash", str(_repo_scripts() / "v0-publish-mode.sh"), "--check-markers"],
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin"},
@@ -1618,12 +1668,38 @@ def test_setting_a_url_field_on_a_config_after_construction_is_refused(name: str
         setattr(config, name, "https://self.example/api")
 
 
-def test_a_url_field_smuggled_into_the_config_dict_stops_the_client_build() -> None:
+@pytest.mark.parametrize("cls", [Daytona, AsyncDaytona])
+def test_a_url_field_smuggled_into_the_config_dict_stops_the_client_build(cls: type) -> None:
     config = DaytonaConfig(api_key="k")
     vars(config)["api_url"] = "https://self.example/api"
-    root = Daytona(config)
     with pytest.raises(TypeError, match="stay on SDK 0.x"):
-        _ = root.v2
+        cls(config)
+
+
+def _mutate_after_build(config: DaytonaConfig) -> None:
+    config.api_key = "second"
+    config.project_id = "p-2"
+    config.request_timeout = 9
+    vars(config)["api_url"] = "https://self.example/api"  # too late to matter
+
+
+def test_the_sync_client_snapshots_the_config_when_it_is_built() -> None:
+    config = DaytonaConfig(api_key="first", project_id="p-1", request_timeout=5)
+    with Daytona(config) as root:
+        _mutate_after_build(config)
+        impl = root.v2._impl
+        assert (impl._api_key, impl._request_timeout) == ("first", 5)
+        assert root._config is not config
+
+
+@pytest.mark.anyio
+async def test_the_async_client_snapshots_the_config_when_it_is_built() -> None:
+    config = DaytonaConfig(api_key="first", project_id="p-1", request_timeout=5)
+    async with AsyncDaytona(config) as root:
+        _mutate_after_build(config)
+        impl = root.v2
+        assert (impl._api_key, impl._request_timeout) == ("first", 5)
+        assert root._config is not config
 
 
 def test_server_url_in_the_constructor_names_the_field() -> None:

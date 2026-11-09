@@ -56,6 +56,7 @@ export {
   RecordingService,
   ScreenService,
 } from './ComputerUseNamespaces.js'
+export type { RecordingDownloadOptions } from './ComputerUseNamespaces.js'
 export { LspServer, LspService } from './Lsp.js'
 export { LspServer as LspServerV2 } from './Lsp.js'
 export { PREVIEW_WARNING_SKIP_HEADER, PREVIEW_WARNING_SKIP_HEADER_VALUE, PortsService } from './Ports.js'
@@ -76,8 +77,7 @@ export type { PullVolumeOptions, PullVolumeResult } from './SandboxVolumes.js'
 export type { ListVolumesOptions, Volume, VolumeRefOptions } from './Volume.js'
 export type { ListSecretsOptions, Secret, SetSecretOptions } from './Secret.js'
 export { DISABLED } from './types.js'
-export { API_ERROR_CODES, DAEMON_ERROR_CODES, GENERIC_ERROR_CODES, PROXY_ERROR_CODES, ROUTER_ERROR_CODES, CODE_STATUS, API_CODE_EXTRAS, DAEMON_CODE_EXTRAS, PROXY_CODE_EXTRAS, ROUTER_CODE_EXTRAS, isKnownErrorCode } from './codes.js'
-export type { ApiErrorCode, DaemonErrorCode, GenericErrorCode, ProxyErrorCode, RouterErrorCode, ErrorCode } from './codes.js'
+export * as codes from './codes.js'
 export {
   DaytonaError,
   FeatureNotEnabledError,
@@ -111,7 +111,7 @@ export {
   ReadOnlyUnsupportedError,
   UnsupportedVolumeTypeError,
   AuthenticationError,
-  AuthorizationError,
+  ForbiddenError,
   NotFoundError,
   RequestTimeoutError,
   SandboxCreateConnectionError,
@@ -133,7 +133,7 @@ export {
   LimitExceededError,
   PreconditionRequiredError,
   ConnectionError,
-  TimeoutError,
+  ClientTimeoutError,
   NotSupportedError,
   ProcessNotFoundError,
   ProcessStartFailedError,
@@ -186,27 +186,9 @@ export {
   SnapshotNotReadyError,
   SnapshotClassMismatchError,
   TransferCancelledError,
-  DaytonaNotFoundError,
-  DaytonaAuthenticationError,
-  DaytonaAuthorizationError,
-  DaytonaConflictError,
-  DaytonaValidationError,
-  DaytonaRateLimitError,
-  DaytonaTimeoutError,
-  DaytonaConnectionError,
-  DaytonaNotSupportedError,
 } from './errors/DaytonaError.js'
-export {
-  DaytonaError as DaytonaErrorV2,
-  DaytonaAuthenticationError as DaytonaAuthenticationErrorV2,
-  DaytonaAuthorizationError as DaytonaAuthorizationErrorV2,
-  DaytonaConflictError as DaytonaConflictErrorV2,
-  DaytonaConnectionError as DaytonaConnectionErrorV2,
-  DaytonaNotFoundError as DaytonaNotFoundErrorV2,
-  DaytonaRateLimitError as DaytonaRateLimitErrorV2,
-  DaytonaTimeoutError as DaytonaTimeoutErrorV2,
-  DaytonaValidationError as DaytonaValidationErrorV2,
-} from './errors/DaytonaError.js'
+export { DaytonaError as DaytonaErrorV2 } from './errors/DaytonaError.js'
+export type { ErrorOptions, ImageBuildFailedErrorOptions, SandboxTerminalStateErrorOptions } from './errors/DaytonaError.js'
 export type { UpdateEnvOptions } from './Sandbox.js'
 export type {
   SandboxEventsConfig,
@@ -404,4 +386,4 @@ export type {
   LspSymbol,
 } from './Lsp.js'
 export { BuildLogInterruptedError } from './BuildLogs.js'
-export type { BuildLogDoneReason, BuildLogEvent, BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
+export type { BuildLogDoneReason, BuildLogEvent, BuildLogFollowOptions, BuildLogFollowResult, BuildLogInterruptedErrorOptions } from './BuildLogs.js'

@@ -13,13 +13,13 @@ import asyncio
 import contextlib
 import gc
 import json
-import pathlib
 from typing import Callable, Dict, List, Optional, Tuple
 
 import httpx
 import pytest
 import respx
 from _handles import lazy_sandbox
+from _repo import _repo_file
 from test_core import RecordingTransport, _sandbox_detail_payload, bind_api
 
 from daytona.v2._core import RequestSpec
@@ -37,11 +37,11 @@ from daytona.v2._events import (
     region_of,
 )
 from daytona.v2.errors import (
+    AuthenticationError,
     DaytonaError,
     NotFoundError,
     RequestTimeoutError,
     SandboxTerminalStateError,
-    UnauthorizedError,
     create_error,
 )
 from daytona.v2.types import SandboxEventsConfig
@@ -67,7 +67,7 @@ def _v2_api_url_is_the_test_host(monkeypatch: pytest.MonkeyPatch) -> None:
 
 _API_KEY = "dtn_test_key"
 
-_CONTRACT_PATH = pathlib.Path(__file__).parent.parent.parent / "contract" / "sandbox-events-protocol.json"
+_CONTRACT = "contract/sandbox-events-protocol.json"
 
 
 # ---------------------------------------------------------------------------
@@ -1665,7 +1665,7 @@ class TestFallback:
 
         with respx.mock:
             ticket_mock("region-a", status=401)
-            with pytest.raises(UnauthorizedError):
+            with pytest.raises(AuthenticationError):
                 await hub.wait("abc-region-a", _started_predicate(), timeout=5)
 
 
@@ -1674,13 +1674,11 @@ class TestProtocolParity:
     """Parity test: verify the hub correctly parses every fixture frame."""
 
     def test_fixture_exists(self) -> None:
-        assert _CONTRACT_PATH.exists(), f"fixture not found: {_CONTRACT_PATH}"
+        contract = _repo_file(_CONTRACT)
+        assert contract.exists(), f"fixture not found: {contract}"
 
     async def test_server_frames_parsed(self) -> None:
-        if not _CONTRACT_PATH.exists():
-            pytest.skip("contract fixture not found")
-
-        fixture = json.loads(_CONTRACT_PATH.read_text())
+        fixture = json.loads(_repo_file(_CONTRACT).read_text())
         server_frames = fixture["server_frames"]
         sdk_state_decoding = fixture["sdk_state_decoding"]
 
@@ -2372,7 +2370,7 @@ class TestCredentialRefusal:
                         )
                     )
                 await asyncio.sleep(0.1)
-            with pytest.raises(UnauthorizedError):
+            with pytest.raises(AuthenticationError):
                 await asyncio.wait_for(task, timeout=5)
             # Exactly one connection per refusal, and the last one ends the
             # loop: "mint a fresh ticket — once, then give up". A `<=` here

@@ -158,7 +158,7 @@ def _pin_sdk_version(root: Path, version: str) -> list[str]:
 
 # v0's dotenv warning tells the user to pass `api_url` to `DaytonaConfig` or set
 # DAYTONA_API_URL. Under the 2.x root neither works (the root rejects api_url,
-# and Daytona().v0 never reads DAYTONA_API_URL, which would redirect .v2), and
+# and nothing in SDK 2.x reads DAYTONA_API_URL, Daytona().v0 included), and
 # the root is the only way to build a v0 client, so the remedy is rewritten for it.
 _DOTENV_REMEDY = (
     '+ f" To change the endpoint, pass `api_url` to `DaytonaConfig` or set `{name}`"\n'

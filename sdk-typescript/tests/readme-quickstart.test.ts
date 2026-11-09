@@ -57,10 +57,8 @@ it('runs the README quickstart through registry readiness, named create, exec an
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('missing HTTP server address')
   base = `http://127.0.0.1:${address.port}`
-  const previousUrl = process.env.DAYTONA_API_URL
-  const previousV2Url = process.env.DAYTONA_V2_API_URL
-  process.env.DAYTONA_API_URL = base
-  delete process.env.DAYTONA_V2_API_URL
+  const previousUrl = process.env.DAYTONA_V2_API_URL
+  process.env.DAYTONA_V2_API_URL = base
   const output: unknown[][] = []
   try {
     // When transpiling and executing the extracted block with the real public package import.
@@ -86,10 +84,8 @@ it('runs the README quickstart through registry readiness, named create, exec an
     expect(output).toEqual([[0, 'Python 3.12.9\n']])
     expect(responses).toHaveLength(0)
   } finally {
-    if (previousUrl === undefined) delete process.env.DAYTONA_API_URL
-    else process.env.DAYTONA_API_URL = previousUrl
-    if (previousV2Url === undefined) delete process.env.DAYTONA_V2_API_URL
-    else process.env.DAYTONA_V2_API_URL = previousV2Url
+    if (previousUrl === undefined) delete process.env.DAYTONA_V2_API_URL
+    else process.env.DAYTONA_V2_API_URL = previousUrl
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
   }
 }, 30_000)

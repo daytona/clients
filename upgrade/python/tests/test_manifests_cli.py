@@ -81,7 +81,7 @@ def test_cli_uses_shared_environment_message_when_reporting_setting(
     report = json.loads(capsys.readouterr().out)
     assert status == 0
     assert report["items"][0]["message"] == (
-        f"{variable} is ignored by SDK 2.x .v0 (it targets Daytona Cloud); .v2 reads DAYTONA_V2_API_URL, then DAYTONA_API_URL, for test environments. Review this setting."
+        f"{variable} is ignored by SDK 2.x: .v0 targets Daytona Cloud, and .v2 reads only DAYTONA_V2_API_URL, for test environments. Review this setting."
     )
 
 

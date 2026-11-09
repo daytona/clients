@@ -30,11 +30,7 @@ if (!apiKey) {
   process.exit(2)
 }
 
-// The v2 client reads DAYTONA_V2_API_URL, else DAYTONA_API_URL. Resolve one
-// URL with that precedence (default: https://api.daytona.com) and pin both, so an
-// exported DAYTONA_V2_API_URL can never send the SDK somewhere else.
-const apiUrl = process.env.DAYTONA_V2_API_URL?.trim() || process.env.DAYTONA_API_URL?.trim() || 'https://api.daytona.com'
-process.env.DAYTONA_V2_API_URL = process.env.DAYTONA_API_URL = apiUrl
+// The v2 client reads DAYTONA_V2_API_URL itself (default: https://api.daytona.com).
 
 const daytona = new Daytona({
   apiKey,

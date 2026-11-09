@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DaytonaError, DockerNotReadyError, DockerWaitTimeoutError, TimeoutError } from './errors/DaytonaError.js'
+import { DockerNotReadyError, DockerWaitTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
 import { encodeQuery, HttpTransport, sleep } from './http.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { WAIT_READ_SLACK_MS } from './Process.js'
 import { DOCKER_OWNERS, DOCKER_STATES } from './types.js'
 import type { DockerOwner, DockerState, DockerStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
+import { badRequest } from './options.js'
 
 export type { DockerOwner, DockerState, DockerStatus } from './types.js'
 
@@ -93,7 +94,7 @@ export class DockerService {
   public async waitUntilReady(options: DockerWaitOptions = {}): Promise<DockerStatus> {
     const timeout = options.timeout ?? DOCKER_WAIT_DEFAULT_TIMEOUT_MS
     if (!Number.isFinite(timeout) || timeout < 0) {
-      throw new DaytonaError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+      throw badRequest('timeout must be a non-negative finite number')
     }
     const deadline = timeout === 0 ? undefined : Date.now() + timeout
     let last: DockerStatus | undefined
@@ -107,7 +108,7 @@ export class DockerService {
       try {
         last = dockerStatusFromWire(await this.transport.get<toolbox.DockerStatus>(`/docker/status${encodeQuery({ waitMs })}`, { timeout: requestTimeout }))
       } catch (error) {
-        if (error instanceof TimeoutError && deadline !== undefined && Date.now() >= deadline) throw new DockerWaitTimeoutError(last)
+        if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) throw new DockerWaitTimeoutError(last)
         throw error
       }
       if (last.state === 'ready') return last

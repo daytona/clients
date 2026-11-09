@@ -10,7 +10,7 @@ before deleting a writer (default 20). Run from the repository root:
 
     DAYTONA_API_KEY=dtn_... python examples/volumes_share.py
 
-DAYTONA_API_URL defaults to https://api.daytona.com. DAYTONA_IMAGE defaults to
+DAYTONA_V2_API_URL (a regional endpoint or test environment) defaults to https://api.daytona.com. DAYTONA_IMAGE defaults to
 python:3.12-slim. Set DAYTONA_KEEP=1 to retain the resources for inspection.
 """
 
@@ -40,12 +40,7 @@ def sh(sandbox: Sandbox, command: str) -> str:
 
 
 def main() -> int:
-    if (
-        not (os.environ.get("DAYTONA_V2_API_URL") or "").strip()
-        and not (os.environ.get("DAYTONA_API_URL") or "").strip()
-    ):
-        os.environ["DAYTONA_API_URL"] = "https://api.daytona.com"
-    daytona = Daytona(DaytonaConfig(api_key=os.environ.get("DAYTONA_API_KEY", ""))).v2
+    daytona = Daytona(DaytonaConfig(api_key=os.environ.get("DAYTONA_API_KEY"))).v2
     volume = daytona.volume.create(name=f"shared-vol-{RUN}")
     print(f"volume id={volume.id} name={volume.name} status={volume.status}")
     boxes: list[Sandbox] = []

@@ -17,13 +17,14 @@ import {
   BadRequestError,
   DaytonaError,
   AuthenticationError,
-  AuthorizationError,
+  ForbiddenError,
   NotFoundError,
   RequestTimeoutError,
   SandboxTerminalStateError,
   ServiceUnavailableError,
 } from './errors/DaytonaError.js'
 import type { SandboxEventsConfig, SandboxState } from './types.js'
+import { MAX_TIMER_DELAY_MS, optionalSeconds } from './options.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 
 // ---------------------------------------------------------------------------
@@ -52,6 +53,31 @@ const BACKOFF_BASE_MS = 250
 const BACKOFF_CAP_MS = 30_000
 const MAX_IDS_PER_FRAME = 1_000
 const FALLBACK_RETRY_MS = 60_000
+/**
+ * The hub's own settings, in milliseconds: {@link SandboxEventsConfig} after
+ * {@link eventsHubConfig} converted its seconds. Internal.
+ */
+export interface EventsHubConfig {
+  readonly enabled?: boolean
+  readonly reconcileIntervalMs?: number
+  readonly idleCloseMs?: number
+}
+
+/** The hub settings for a public {@link SandboxEventsConfig} (seconds → ms). */
+export function eventsHubConfig(config: SandboxEventsConfig | undefined): EventsHubConfig {
+  // Validated (finite, non-negative) here, at construction; large values clamp
+  // to the timer maximum where the hub arms them.
+  const ms = (name: string, seconds: number | undefined): number | undefined => {
+    const valid = optionalSeconds(name, seconds)
+    return valid === undefined ? undefined : valid * 1000
+  }
+  return {
+    enabled: config?.enabled,
+    reconcileIntervalMs: ms('events.reconcileIntervalSeconds', config?.reconcileIntervalSeconds),
+    idleCloseMs: ms('events.idleCloseSeconds', config?.idleCloseSeconds),
+  }
+}
+
 /** The server's close code for a credential that is no longer valid. */
 const CLOSE_UNAUTHORIZED = 4401
 const TRANSIENT_FAILURE_THRESHOLD = 3
@@ -81,7 +107,6 @@ const DEFAULT_CLOSE_GRACE_MS = 1_000
 const DEFAULT_EARLY_PROBE_MS = 10_000
 const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
-const MAX_TIMER_DELAY_MS = 2_147_483_647
 const WAITER_PIN_INTERVAL_MS = 2_147_483_647
 const WS_OPEN = 1
 const WS_CLOSING = 2
@@ -505,15 +530,13 @@ export async function runPollLoop(
     if (remaining !== undefined && remaining <= 0) {
       throw new RequestTimeoutError(
         `sandbox ${sandboxId} did not reach the requested state before timeout`,
-        408,
-        'REQUEST_TIMEOUT',
-        'SDK',
+        { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
       )
     }
     const outcome = await fn()
     const result = evaluate(predicate, outcome.state)
     if (result === 'resolve') return outcome
-    if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, outcome.state, outcome.rawState)
+    if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, outcome.state, { rawState: outcome.rawState })
   }
 }
 
@@ -529,7 +552,7 @@ export class WaitHub {
   private readonly learned: Map<string, string>
   private readonly waiters: Map<string, Waiter[]>
   private readonly known: Map<string, true>
-  private readonly config: Required<Omit<SandboxEventsConfig, 'idleCloseMs'>> & { idleCloseMs: number | undefined }
+  private readonly config: { readonly enabled: boolean; readonly reconcileIntervalMs: number; readonly idleCloseMs: number | undefined }
   private readonly wsFactory: WebSocketFactory
   private readonly openTimeoutMs: number
   private readonly noFrameTimeoutMs: number
@@ -544,7 +567,7 @@ export class WaitHub {
   constructor(
     apiUrl: string,
     apiKey: string,
-    config: SandboxEventsConfig,
+    config: EventsHubConfig,
     wsFactory: WebSocketFactory,
     api?: AxiosInstance,
     timings: {
@@ -627,7 +650,7 @@ export class WaitHub {
         }
       }
     }
-    const err = new ServiceUnavailableError('hub closed', 503, 'SERVICE_UNAVAILABLE', 'SDK')
+    const err = new ServiceUnavailableError('hub closed', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'SDK' })
     for (const list of this.waiters.values()) {
       for (const w of list) {
         this.clearWaiterTimers(w)
@@ -852,9 +875,7 @@ export class WaitHub {
         // be produced by arithmetic: a spent budget is a timeout.
         throw new RequestTimeoutError(
           `sandbox ${sandboxId} did not reach the requested state before timeout`,
-          408,
-          'REQUEST_TIMEOUT',
-          'SDK',
+          { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
         )
       }
       return this.fallbackWait(sandboxId, predicate, remaining)
@@ -883,7 +904,7 @@ export class WaitHub {
     if (haveSnapshot) {
       const verdict = evaluate(predicate, held!)
       if (verdict === 'resolve') return { state: held!, rawState: sock.rawStates.get(sandboxId) ?? '' }
-      if (verdict === 'reject') throw new SandboxTerminalStateError(sandboxId, held!, sock.rawStates.get(sandboxId))
+      if (verdict === 'reject') throw new SandboxTerminalStateError(sandboxId, held!, { rawState: sock.rawStates.get(sandboxId) })
     }
 
     const waiter = this.registerWaiter(sandboxId, predicate, deadline, onObserved, sandboxPollFn)
@@ -959,9 +980,7 @@ export class WaitHub {
           waiter.reject(
             new RequestTimeoutError(
               `sandbox ${sandboxId} did not reach the requested state before timeout`,
-              408,
-              'REQUEST_TIMEOUT',
-              'SDK',
+              { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
             ),
           )
         }).catch(() => { /* ignore */ })
@@ -975,9 +994,7 @@ export class WaitHub {
           waiter.reject(
             new RequestTimeoutError(
               `sandbox ${sandboxId} did not reach the requested state before timeout`,
-              408,
-              'REQUEST_TIMEOUT',
-              'SDK',
+              { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
             ),
           )
         })
@@ -1050,7 +1067,7 @@ export class WaitHub {
       outcome = await sandboxPollFn()
     } catch (err) {
       if (!waiterStillPending(this.waiters, waiter)) return
-      if (err instanceof NotFoundError || err instanceof AuthenticationError || err instanceof AuthorizationError) {
+      if (err instanceof NotFoundError || err instanceof AuthenticationError || err instanceof ForbiddenError) {
         this.clearWaiterTimers(waiter)
         this.removeWaiter(waiter)
         this.maybeUnsubscribeForId(waiter.sandboxId)
@@ -1079,7 +1096,7 @@ export class WaitHub {
     this.clearWaiterTimers(waiter)
     this.removeWaiter(waiter)
     if (result === 'resolve') waiter.resolve(outcome)
-    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, outcome.rawState))
+    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, { rawState: outcome.rawState }))
     this.maybeUnsubscribeForId(waiter.sandboxId)
   }
 
@@ -1090,7 +1107,7 @@ export class WaitHub {
     this.clearWaiterTimers(waiter)
     this.removeWaiter(waiter)
     if (result === 'resolve') waiter.resolve(outcome)
-    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, outcome.rawState))
+    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, { rawState: outcome.rawState }))
     this.maybeUnsubscribeForId(waiter.sandboxId)
   }
 
@@ -1128,9 +1145,7 @@ export class WaitHub {
       if (remaining !== undefined && remaining <= 0) {
         throw new RequestTimeoutError(
           `sandbox ${sandboxId} did not reach the requested state before timeout`,
-          408,
-          'REQUEST_TIMEOUT',
-          'SDK',
+          { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
         )
       }
 
@@ -1177,7 +1192,7 @@ export class WaitHub {
       if (result === 'resolve') return { state, rawState: status }
       if (result === 'reject') {
         const reason = typeof record['error'] === 'string' ? record['error'] : undefined
-        throw new SandboxTerminalStateError(sandboxId, state, status, reason)
+        throw new SandboxTerminalStateError(sandboxId, state, { rawState: status, reason })
       }
 
       const elapsed = Date.now() - pollStart
@@ -1229,9 +1244,7 @@ export class WaitHub {
               sock,
               new AuthenticationError(
                 'the credential was refused by the events socket; mint a new one and retry',
-                401,
-                'UNAUTHORIZED',
-                'SDK',
+                { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' },
               ),
             )
             break
@@ -1395,7 +1408,7 @@ export class WaitHub {
         throw new PermanentFallbackError()
       }
       if (err instanceof AuthenticationError) throw new AuthErrorInternal(err)
-      if (err instanceof AuthorizationError) throw new AuthErrorInternal(err)
+      if (err instanceof ForbiddenError) throw new AuthErrorInternal(err)
       throw err
     }
   }
@@ -1544,9 +1557,7 @@ export class WaitHub {
               sid,
               new BadRequestError(
                 `the server rejected sandbox id '${sid}' as malformed`,
-                400,
-                'BAD_REQUEST',
-                'SDK',
+                { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' },
               ),
             )
             this.releaseSubscription(sock, sid)
@@ -1610,7 +1621,7 @@ export class WaitHub {
       if (result === 'resolve') {
         toResolve.push(w)
       } else if (result === 'reject') {
-        toReject.push([w, new SandboxTerminalStateError(sandboxId, state, outcome.rawState)])
+        toReject.push([w, new SandboxTerminalStateError(sandboxId, state, { rawState: outcome.rawState })])
       }
     }
 
@@ -1651,9 +1662,7 @@ export class WaitHub {
         w.reject(
           new NotFoundError(
             `sandbox ${sandboxId} is no longer present; its final state was not retained`,
-            404,
-            'NOT_FOUND',
-            'SDK',
+            { statusCode: 404, code: 'NOT_FOUND', source: 'SDK' },
           ),
         )
       }
@@ -2107,8 +2116,12 @@ function hubIdentity(
   apiUrl: string,
   apiKey: string,
   target: string | undefined,
-  config: SandboxEventsConfig,
+  config: EventsHubConfig,
+  limits: { readonly requestTimeoutMs: unknown; readonly maxContentLength: unknown } = { requestTimeoutMs: null, maxContentLength: null },
 ): string {
+  // Clients that differ in the request timeout or the body cap of the API
+  // instance the hub uses get their own hub, so each client's limits apply to
+  // its hub's requests.
   return JSON.stringify([
     normalizeHubUrlIdentity(apiUrl),
     apiKey,
@@ -2116,6 +2129,8 @@ function hubIdentity(
     config.enabled ?? true,
     config.reconcileIntervalMs ?? 60_000,
     config.idleCloseMs ?? null,
+    limits.requestTimeoutMs ?? null,
+    limits.maxContentLength ?? null,
   ])
 }
 
@@ -2124,13 +2139,23 @@ export interface AttachHubOptions {
   readonly apiKey: string
   readonly target: string | undefined
   readonly shared: boolean
-  readonly config: SandboxEventsConfig
+  readonly config: EventsHubConfig
   readonly wsFactory?: WebSocketFactory
+  /**
+   * The attaching client's API instance; its buffered-body cap
+   * (`maxResponseBytes`) then bounds the ticket mint and the long-poll
+   * fallback too. Without one the hub builds its own, under `maxResponseBytes`.
+   */
   readonly _api?: AxiosInstance
+  /** The cap on buffered bodies for a hub that builds its own API instance. */
+  readonly maxResponseBytes?: number
 }
 
 export function attachHub(options: AttachHubOptions): WaitHub {
-  const { apiUrl, apiKey, target, shared, config, wsFactory, _api } = options
+  const { apiUrl, apiKey, target, shared, config, wsFactory } = options
+  const _api = options._api ?? (options.maxResponseBytes === undefined
+    ? undefined
+    : createHttpClient(apiUrl.replace(/\/$/, ''), apiKey, 30_000, { maxResponseBytes: options.maxResponseBytes }))
 
   if (!shared) {
     const hub = new WaitHub(apiUrl, apiKey, config, wsFactory ?? defaultWsFactory, _api)
@@ -2138,7 +2163,10 @@ export function attachHub(options: AttachHubOptions): WaitHub {
     return hub
   }
 
-  const key = hubIdentity(apiUrl, apiKey, target, config)
+  const key = hubIdentity(apiUrl, apiKey, target, config, {
+    requestTimeoutMs: _api?.defaults.timeout,
+    maxContentLength: _api?.defaults.maxContentLength ?? options.maxResponseBytes,
+  })
   const existing = HUB_REGISTRY.get(key)?.deref()
   if (existing !== undefined && !existing.closed) {
     existing.attach()

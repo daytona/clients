@@ -7,7 +7,7 @@ from typing import Final, Sequence
 
 import httpx
 
-from . import codes
+from . import _codes as codes
 from ._core import parse_json_bytes
 from .errors import create_error
 from .types import JsonObject, JsonValue, NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput

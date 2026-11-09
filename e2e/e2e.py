@@ -10,8 +10,8 @@ get/list/delete, and error contracts, through the root client (`Daytona().v2`).
 Self-contained: every sandbox and image is uniquely named and torn down on exit.
 
 Env:
-    DAYTONA_API_URL API root (default https://api.daytona.com;
-                    DAYTONA_V2_API_URL wins when set, as in the SDK)
+    DAYTONA_V2_API_URL API root (default https://api.daytona.com; the SDK
+                    reads it, and never reads DAYTONA_API_URL)
     DAYTONA_API_KEY bearer api key (required)
     SMOKE_IMAGE      registry image for image pull/build (default python:3.12-slim)
     DAYTONA_SKIP_TOOLBOX if set, skip the toolbox process round-trip
@@ -96,18 +96,10 @@ def expect_error(label: str, fn, exc_type, status=None) -> None:
 
 
 def main() -> int:
-    # The v2 client reads DAYTONA_V2_API_URL, else DAYTONA_API_URL. Resolve one
-    # URL with that precedence (default: https://api.daytona.com) and pin both, so an
-    # exported DAYTONA_V2_API_URL can never send the SDK somewhere else.
-    api_url = (
-        (os.environ.get("DAYTONA_V2_API_URL") or "").strip()
-        or (os.environ.get("DAYTONA_API_URL") or "").strip()
-        or "https://api.daytona.com"
-    )
-    os.environ["DAYTONA_V2_API_URL"] = os.environ["DAYTONA_API_URL"] = api_url
+    # The v2 client reads DAYTONA_V2_API_URL itself (default: https://api.daytona.com).
     daytona = RootDaytona(
         DaytonaConfig(
-            api_key=os.environ.get("DAYTONA_API_KEY", ""),
+            api_key=os.environ.get("DAYTONA_API_KEY"),
         )
     ).v2
 

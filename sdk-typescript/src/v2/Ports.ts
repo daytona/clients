@@ -7,7 +7,7 @@ import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics, credentialSafeInspection } from '../diagnostics.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import type * as api from './gen/api-types.js'
-import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import { HttpTransport } from './http.js'
 import type { ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, SignedPreviewLink } from './types.js'
@@ -43,20 +43,20 @@ export interface ListEndpointsOptions {
 
 function assertPort(port: number): void {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new BadRequestError(`port must be an integer in 1..65535, got ${port}`, 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError(`port must be an integer in 1..65535, got ${port}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
 
 function portSegment(port: number): string {
   if (!Number.isInteger(port)) {
-    throw new BadRequestError(`port must be an integer, got ${String(port)}`, 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError(`port must be an integer, got ${String(port)}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   return strictUriEncode(String(port))
 }
 
 function assertSignedPreviewTtl(expiresInSeconds: number): void {
   if (!Number.isInteger(expiresInSeconds) || expiresInSeconds <= 0) {
-    throw new BadRequestError('expiresInSeconds must be a positive integer', 400, 'BAD_REQUEST', 'SDK')
+    throw new BadRequestError('expiresInSeconds must be a positive integer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
 }
 
@@ -221,7 +221,7 @@ export class PortsService {
     }
     const response = await this.requireApi().post<api.DaytonaPreviewUrl>(`${this.portPath(port)}/preview-url`).then((result) => result.data)
     if (typeof response?.token !== 'string') {
-      throw new BadRequestError('preview-url response is missing a string token', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('preview-url response is missing a string token', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     let token = response.token
     let expiresAt = previewTokenExpiry(token)
@@ -293,21 +293,21 @@ export class PortsService {
 
   private requireApi(): AxiosInstance {
     if (!this.api) {
-      throw new DaytonaError('API is not available for preview endpoint operations', 400, 'UNSUPPORTED_OPERATION')
+      throw createDaytonaError('API is not available for preview endpoint operations', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     }
     return this.api
   }
 
   private requireToolbox(): HttpTransport {
     if (!this.transport) {
-      throw new DaytonaError('toolbox transport is not available for sandbox port inspection', 400, 'UNSUPPORTED_OPERATION')
+      throw createDaytonaError('toolbox transport is not available for sandbox port inspection', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     }
     return this.transport
   }
 
   private requireSandboxId(): string {
     if (!this.sandboxId) {
-      throw new DaytonaError('sandbox id is required for preview endpoint operations', 400, 'UNSUPPORTED_OPERATION')
+      throw createDaytonaError('sandbox id is required for preview endpoint operations', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     }
     return this.sandboxId
   }

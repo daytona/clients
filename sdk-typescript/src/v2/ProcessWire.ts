@@ -7,8 +7,9 @@ import type * as toolbox from './gen/toolbox-types.js'
 import type { SseMessage } from './http.js'
 import type { LogFrame, ProcessCommand, ProcessDto, ProcessKind, ProcessSignal, ProcessStartOptions, StreamLogEvent, WaitResult } from './types.js'
 import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROCESS_STDIN_MODES } from './types.js'
-import { DaytonaError, UnsupportedOperationError } from './errors/DaytonaError.js'
+import { UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
+import { badRequest } from './options.js'
 
 export type LogFrameWire = toolbox.LogFrameDto
 export type LogsWire = { items?: LogFrameWire[] } | toolbox.ProcessLogsResponse
@@ -27,7 +28,7 @@ export const WAIT_TRANSPORT_RETRY_LIMIT = 3
 export function waitDeadline(timeout: number | undefined): number | undefined {
   if (timeout === undefined || timeout === 0) return undefined
   if (!Number.isFinite(timeout) || timeout < 0) {
-    throw new DaytonaError('timeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+    throw badRequest('timeout must be a non-negative finite number')
   }
   return Date.now() + timeout
 }
@@ -92,14 +93,14 @@ export function startedProcessKind(started: toolbox.ProcessDto, body: toolbox.Cr
 export function invalidPtyVerbError(verb: 'attach' | 'resize' | 'delete', kind: ProcessDto['kind']): UnsupportedOperationError {
   return new UnsupportedOperationError(
     `process.${verb}() is only supported for pty handles; handle kind is ${kind}`,
-    400, 'UNSUPPORTED_OPERATION', 'SDK',
+    { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
   )
 }
 
 export function invalidStdinVerbError(verb: 'writeStdin' | 'closeStdin', kind: ProcessKind): UnsupportedOperationError {
   return new UnsupportedOperationError(
     `process.${verb}() is only supported for exec and pty handles; handle kind is ${kind}`,
-    400, 'UNSUPPORTED_OPERATION', 'SDK',
+    { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
   )
 }
 
@@ -117,21 +118,21 @@ export function bodyFor(commandOrOptions: string | InternalProcessStartOptions, 
   const hasCode = typeof merged.code === 'string'
   const sourceCount = [hasShell, hasArgv, hasCode].filter(Boolean).length
   if (!(merged.kind === 'pty' && sourceCount === 0) && sourceCount !== 1) {
-    throw new DaytonaError('exactly one of cmd, argv, or code is required', 400, 'BAD_REQUEST')
+    throw createDaytonaError('exactly one of cmd, argv, or code is required', 400, 'BAD_REQUEST', 'SDK')
   }
   if (hasCode && merged.user !== undefined) {
     throw new UnsupportedOperationError(
       'user is not supported for code processes; code runs as the sandbox user',
-      400, 'UNSUPPORTED_OPERATION', 'SDK',
+      { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
     )
   }
   if (merged.executionTimeout !== undefined && (!Number.isFinite(merged.executionTimeout) || merged.executionTimeout < 0)) {
-    throw new DaytonaError('executionTimeout must be a non-negative finite number', 400, 'BAD_REQUEST', 'SDK')
+    throw badRequest('executionTimeout must be a non-negative finite number')
   }
   if (merged.terminal !== undefined && merged.kind !== 'pty') {
     throw new UnsupportedOperationError(
       'terminal cols/rows are only supported for pty processes; use sandbox.pty.start() or sandbox.pty.attach()',
-      400, 'UNSUPPORTED_OPERATION', 'SDK',
+      { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
     )
   }
   const body: toolbox.CreateProcessRequest = {
@@ -173,14 +174,14 @@ export function streamEvent(message: SseMessage): StreamLogEvent {
     }
   }
   if (message.event === 'eof') return { type: 'eof', cursor }
-  if (message.event === 'error') return { type: 'error', cursor, error: new DaytonaError(typeof parsed.message === 'string' ? parsed.message : message.data) }
+  if (message.event === 'error') return { type: 'error', cursor, error: createDaytonaError(typeof parsed.message === 'string' ? parsed.message : message.data) }
   return { type: 'log', cursor, frame: frameFromWire({ ...parsed, cursor } as LogFrameWire) }
 }
 
 export function base64Encode(data: Uint8Array): string {
   const maybeBuffer = (globalThis as { Buffer?: { from(input: Uint8Array): { toString(encoding: 'base64'): string } } }).Buffer
   if (maybeBuffer) return maybeBuffer.from(data).toString('base64')
-  if (typeof btoa !== 'function') throw new DaytonaError('base64 encoding is unavailable in this runtime', 400, 'UNSUPPORTED_OPERATION')
+  if (typeof btoa !== 'function') throw createDaytonaError('base64 encoding is unavailable in this runtime', 400, 'UNSUPPORTED_OPERATION', 'SDK')
   let binary = ''
   for (const byte of data) binary += String.fromCharCode(byte)
   return btoa(binary)

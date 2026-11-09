@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
 import socket
@@ -13,6 +14,7 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Callable,
+    Final,
     Iterable,
     Iterator,
     Mapping,
@@ -28,6 +30,15 @@ import httpx
 from typing_extensions import TypedDict, Unpack
 
 from ._auth import ProjectTokenAuth
+from ._body_limit import (
+    ACCEPT_ENCODING,
+    DEFAULT_MAX_RESPONSE_BYTES,
+    read_body,
+    read_body_sync,
+    resolve_limit,
+    send_buffered,
+    send_buffered_sync,
+)
 from ._core import MultipartPart, RequestSpec, error_from_response, parse_json_bytes
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, create_error
@@ -56,6 +67,19 @@ def client_identity_headers(source: str) -> dict[str, str]:
 
 
 _STREAM_RELEASE_GRACE_SECONDS = 5.0
+
+#: The client's default request timeout (``request_timeout``), in seconds: the
+#: total time one ordinary request may take, from sending it to reading the
+#: last byte of the response. ``0`` disables it. Requests governed by another
+#: budget are not cut by it: waits and long polls carry their own deadline,
+#: streams are bounded only until their response headers arrive, and file
+#: transfers have no total bound: the request timeout bounds each of their idle
+#: phases instead (connecting, every write and read gap).
+DEFAULT_REQUEST_TIMEOUT_SECONDS: Final = 60.0
+# The largest request or per-call timeout that is still a bound, in seconds
+# (about 24.8 days): the TypeScript SDK's timers cannot arm a longer one, so
+# both SDKs read a larger value as no limit, like 0.
+_MAX_BOUNDED_TIMEOUT_SECONDS: Final = 2_147_483.647
 _RELATIVE_PATH_ERROR = "absolute request URLs are not allowed; pass a relative SDK path"
 
 
@@ -126,7 +150,7 @@ class SyncResponseStream:
         try:
             yield from self._response.iter_lines()
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
 
@@ -173,6 +197,13 @@ def _bind_auth_client(auth: ProjectTokenAuth | None, client: httpx.AsyncClient) 
 
 
 class SyncTransport:
+    """A minimal blocking transport for tests and internal tooling (not public API).
+
+    The SDK clients do not use it: the synchronous surface bridges onto
+    :class:`AsyncTransport`, which enforces the request timeout as a total-time
+    bound. Here ``request_timeout`` is httpx's per-phase timeout.
+    """
+
     def __init__(
         self,
         base_url: Optional[str],
@@ -182,16 +213,20 @@ class SyncTransport:
         request_timeout: Optional[float] = None,
         connection_pool_maxsize: Optional[int] = None,
         client: Optional[httpx.Client] = None,
+        max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     ) -> None:
         self.base_url = base_url.rstrip("/") if base_url else None
         self.token = token
+        self._max_response_bytes = max_response_bytes
         self._source = source
-        self._request_timeout_seconds = request_timeout if request_timeout is not None else 30.0
+        self._request_timeout_seconds = (
+            request_timeout if request_timeout is not None else DEFAULT_REQUEST_TIMEOUT_SECONDS
+        )
         self._connection_pool_maxsize = connection_pool_maxsize
         self._owns_client = client is None
         if client is None:
             kwargs: dict[str, object] = {
-                "headers": client_identity_headers(source),
+                "headers": {**client_identity_headers(source), "Accept-Encoding": ACCEPT_ENCODING},
                 "timeout": _client_timeout(self._request_timeout_seconds),
                 "http2": _HTTP2_AVAILABLE,
                 "cookies": _cookie_jar(),
@@ -228,6 +263,7 @@ class SyncTransport:
             request_timeout=self._request_timeout_seconds,
             connection_pool_maxsize=self._connection_pool_maxsize,
             client=self._client,
+            max_response_bytes=self._max_response_bytes,
         )
 
     @property
@@ -238,13 +274,13 @@ class SyncTransport:
         try:
             kwargs = _request_kwargs(spec, self._request_timeout_seconds)
             kwargs["headers"] = _request_headers(self._source, self.token, spec.headers)
-            response = self._client.request(
-                spec.method,
-                _request_url(self.base_url, spec.path),
-                **kwargs,
+            response = send_buffered_sync(
+                self._client,
+                self._client.build_request(spec.method, _request_url(self.base_url, spec.path), **kwargs),
+                resolve_limit(spec.max_response_bytes, self._max_response_bytes),
             )
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if spec.on_headers is not None and response.status_code < 400:
@@ -267,7 +303,7 @@ class SyncTransport:
     def open_stream(self, spec: RequestSpec) -> SyncResponseStream:
         try:
             kwargs = _request_kwargs(spec, self._request_timeout_seconds)
-            kwargs["timeout"] = _timeout_with_unbounded_read(self._request_timeout_seconds)
+            kwargs["timeout"] = _stream_timeout(spec, self._request_timeout_seconds)
             kwargs["headers"] = _request_headers(self._source, self.token, spec.headers)
             stream = self._client.stream(
                 spec.method,
@@ -276,19 +312,23 @@ class SyncTransport:
             )
             response = stream.__enter__()
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 400:
             try:
-                body = response.read()
+                body = read_body_sync(
+                    response, resolve_limit(spec.max_response_bytes, self._max_response_bytes)
+                )
             except httpx.TimeoutException as exc:
-                raise ClientTimeoutError("operation timed out") from exc
+                raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
                 raise ConnectionError(str(exc)) from exc
             finally:
                 stream.__exit__(None, None, None)
-            raise error_from_response(response.status_code, body)
+            raise error_from_response(
+                response.status_code, body, content_type=response.headers.get("content-type")
+            )
         return SyncResponseStream(stream, response)
 
     def close(self) -> None:
@@ -303,13 +343,19 @@ class SyncTransport:
         """
         try:
             kwargs["headers"] = _request_headers(self._source, self.token, kwargs.get("headers"))
-            response = self._client.request(method, _request_url(self.base_url, path), **kwargs)
+            response = send_buffered_sync(
+                self._client,
+                self._client.build_request(method, _request_url(self.base_url, path), **kwargs),
+                self._max_response_bytes,
+            )
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 400:
-            raise error_from_response(response.status_code, response.content)
+            raise error_from_response(
+                response.status_code, response.content, content_type=response.headers.get("content-type")
+            )
         return response
 
     def get(self, path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response:
@@ -362,7 +408,7 @@ class AsyncResponseStream:
                 yield chunk
             self._finish_span_ok()
         except httpx.TimeoutException as exc:
-            error = ClientTimeoutError("operation timed out")
+            error = ClientTimeoutError()
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
@@ -387,7 +433,7 @@ class AsyncResponseStream:
                 yield line
             self._finish_span_ok()
         except httpx.TimeoutException as exc:
-            error = ClientTimeoutError("operation timed out")
+            error = ClientTimeoutError()
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
@@ -519,10 +565,13 @@ class AsyncTransport:
         stream_client_factory: Callable[[], httpx.AsyncClient] | None = None,
         auth: ProjectTokenAuth | None = None,
         otel: OpenTelemetrySupport | None = None,
+        max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
         _stream_owners: _StreamOwners | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/") if base_url else None
         self.token = token
+        # The cap on a buffered response body (0: none); see _body_limit.
+        self._max_response_bytes = max_response_bytes
         # Optional per-request bearer resolution (sandbox access tokens).
         # Set by the sandbox handle after construction; None keeps the static
         # `token` behavior.  ProjectTokenAuth satisfies SandboxTokenAuth, so
@@ -531,7 +580,9 @@ class AsyncTransport:
         # own _SandboxTokenAuth when the handle can mint sandbox tokens.
         self.auth_provider: Optional[SandboxTokenAuth] = None
         self._source = source
-        self._request_timeout_seconds = request_timeout if request_timeout is not None else 30.0
+        self._request_timeout_seconds = (
+            request_timeout if request_timeout is not None else DEFAULT_REQUEST_TIMEOUT_SECONDS
+        )
         self._connection_pool_maxsize = connection_pool_maxsize
         self._owns_client = client is None
         self._owns_streams = _stream_owners is None
@@ -555,7 +606,7 @@ class AsyncTransport:
 
     def _new_stream_client(self) -> httpx.AsyncClient:
         kwargs: dict[str, object] = {
-            "headers": client_identity_headers(self._source),
+            "headers": {**client_identity_headers(self._source), "Accept-Encoding": ACCEPT_ENCODING},
             "timeout": _client_timeout(self._request_timeout_seconds),
             "http2": _HTTP2_AVAILABLE,
             "cookies": _cookie_jar(),
@@ -574,6 +625,7 @@ class AsyncTransport:
         connection_pool_maxsize: Optional[int] = None,
         auth: ProjectTokenAuth | None = None,
         otel: OpenTelemetrySupport | None = None,
+        max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     ) -> AsyncTransport:
         return cls(
             None,
@@ -583,6 +635,7 @@ class AsyncTransport:
             connection_pool_maxsize=connection_pool_maxsize,
             auth=auth,
             otel=otel,
+            max_response_bytes=max_response_bytes,
         )
 
     def scoped(self, base_url: str, token: Optional[str] = None) -> AsyncTransport:
@@ -601,6 +654,7 @@ class AsyncTransport:
             stream_client_factory=self._stream_client_factory,
             auth=self._auth if token is None else None,
             otel=self._otel,
+            max_response_bytes=self._max_response_bytes,
             _stream_owners=self._stream_owners,
         )
 
@@ -608,15 +662,23 @@ class AsyncTransport:
     def request_timeout_seconds(self) -> float:
         return self._request_timeout_seconds
 
+    @property
+    def max_response_bytes(self) -> int:
+        """The cap on a buffered response body, in bytes (``0``: no limit)."""
+        return self._max_response_bytes
+
     async def send(self, spec: RequestSpec) -> Union[JsonValue, bytes]:
-        token = await self._request_token()
-        try:
-            return await self._send_once(spec, token)
-        except Exception as exc:
-            retry_token = await self._retry_token_after_401(exc, token)
-            if retry_token is None:
-                raise
-            return await self._send_once(spec, retry_token)
+        # One total deadline for the whole call: resolving the bearer (a token
+        # exchange), the request, a 401 refresh and its retry share it.
+        with _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
+            token = await self._request_token()
+            try:
+                return await self._send_once(spec, token)
+            except Exception as exc:
+                retry_token = await self._retry_token_after_401(exc, token)
+                if retry_token is None:
+                    raise
+                return await self._send_once(spec, retry_token)
 
     async def _send_once(self, spec: RequestSpec, token: Optional[str]) -> Union[JsonValue, bytes]:
         try:
@@ -630,7 +692,11 @@ class AsyncTransport:
                 else None
             )
             try:
-                response = await self._client.request(spec.method, url, **kwargs)
+                response = await send_buffered(
+                    self._client,
+                    self._client.build_request(spec.method, url, **kwargs),
+                    resolve_limit(spec.max_response_bytes, self._max_response_bytes),
+                )
             except BaseException as error:
                 if span is not None:
                     span.finish(error=error)
@@ -638,7 +704,7 @@ class AsyncTransport:
             if span is not None:
                 span.finish(status_code=response.status_code)
         except httpx.TimeoutException as exc:
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         # Every public client runs on THIS transport (the sync surface bridges
@@ -697,21 +763,26 @@ class AsyncTransport:
             await stream.close()
 
     async def open_stream(self, spec: RequestSpec) -> AsyncResponseStream:
-        token = await self._request_token()
-        try:
-            return await self._open_stream_once(spec, token)
-        except Exception as exc:
-            retry_token = await self._retry_token_after_401(exc, token)
-            if retry_token is None:
-                raise
-            return await self._open_stream_once(spec, retry_token)
+        # The request timeout, or the spec's own timeout in its place, bounds
+        # opening the stream (the bearer, the request, a 401 refresh and its
+        # retry, until the response headers arrive), never the stream itself;
+        # a transfer has no total bound (it is idle-bounded per phase).
+        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+            token = await self._request_token()
+            try:
+                return await self._open_stream_once(spec, token)
+            except Exception as exc:
+                retry_token = await self._retry_token_after_401(exc, token)
+                if retry_token is None:
+                    raise
+                return await self._open_stream_once(spec, retry_token)
 
     async def _open_stream_once(self, spec: RequestSpec, token: Optional[str]) -> AsyncResponseStream:
         url = _request_url(self.base_url, spec.path)
         span: _SpanFinisher | None = None
         try:
             kwargs = _request_kwargs(spec, self._request_timeout_seconds)
-            kwargs["timeout"] = _timeout_with_unbounded_read(self._request_timeout_seconds)
+            kwargs["timeout"] = _stream_timeout(spec, self._request_timeout_seconds)
             built_headers = _request_headers(self._source, token, spec.headers)
             span = (
                 self._otel.start_request_span(method=spec.method, url=url, headers=built_headers)
@@ -724,7 +795,7 @@ class AsyncTransport:
         except httpx.TimeoutException as exc:
             if span is not None:
                 span.finish(error=exc)
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             if span is not None:
                 span.finish(error=exc)
@@ -736,13 +807,13 @@ class AsyncTransport:
         if response.status_code >= 400:
             typed_error: BaseException | None = None
             try:
-                body = await response.aread()
+                body = await read_body(
+                    response, resolve_limit(spec.max_response_bytes, self._max_response_bytes)
+                )
             except httpx.TimeoutException as exc:
                 if span is not None:
-                    span.finish(
-                        status_code=response.status_code, error=ClientTimeoutError("operation timed out")
-                    )
-                raise ClientTimeoutError("operation timed out") from exc
+                    span.finish(status_code=response.status_code, error=ClientTimeoutError())
+                raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
                 if span is not None:
                     span.finish(status_code=response.status_code, error=ConnectionError(str(exc)))
@@ -754,7 +825,9 @@ class AsyncTransport:
             finally:
                 with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
                     await stream.__aexit__(None, None, None)
-            typed_error = error_from_response(response.status_code, body)
+            typed_error = error_from_response(
+                response.status_code, body, content_type=response.headers.get("content-type")
+            )
             if span is not None:
                 span.finish(status_code=response.status_code, error=typed_error)
             raise typed_error
@@ -767,8 +840,9 @@ class AsyncTransport:
         itself — except a 401 under a refreshable API credential, which gets the same
         single re-mint + retry as ``send``/``request``/``open_stream``, closing
         the failed stream before the retry. Redirects are never followed, so
-        credentials cannot leave the requested origin. ``spec.timeout`` bounds
-        connect and headers; a 2xx response with ``unbounded_read`` (or no
+        credentials cannot leave the requested origin. ``spec.timeout`` (else
+        the request timeout) bounds opening it, until the headers, as a total
+        deadline and per httpx phase; a 2xx response with ``unbounded_read`` (or no
         explicit timeout) then drops only the idle-read timeout, so a healthy
         live stream is never cut off while finite bodies keep theirs.
         Cancelling the reading task releases the response and closes its
@@ -776,21 +850,24 @@ class AsyncTransport:
         request shares the connection.
         """
         self._stream_owners.ensure_open()
-        token = await self._request_token()
-        stream = await self._open_exclusive_once(spec, token)
-        if stream.status_code != 401:
-            return stream
-        try:
-            retry_token = await self._retry_token_after_401(stream.status_code, token)
-        except BaseException:
-            # A raising re-mint (e.g. a FORBIDDEN mint) surfaces, but never
-            # leaks the failed response.
+        # One deadline for opening it, as for ``open_stream``: the bearer, the
+        # request, a 401 refresh and its retry, until the response headers.
+        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+            token = await self._request_token()
+            stream = await self._open_exclusive_once(spec, token)
+            if stream.status_code != 401:
+                return stream
+            try:
+                retry_token = await self._retry_token_after_401(stream.status_code, token)
+            except BaseException:
+                # A raising re-mint (e.g. a FORBIDDEN mint) surfaces, but never
+                # leaks the failed response.
+                await stream.close()
+                raise
+            if retry_token is None:
+                return stream
             await stream.close()
-            raise
-        if retry_token is None:
-            return stream
-        await stream.close()
-        return await self._open_exclusive_once(spec, retry_token)
+            return await self._open_exclusive_once(spec, retry_token)
 
     async def _open_exclusive_once(self, spec: RequestSpec, token: Optional[str]) -> AsyncResponseStream:
         owned_client = self._stream_client_factory() if self._stream_client_factory is not None else None
@@ -804,7 +881,11 @@ class AsyncTransport:
         try:
             kwargs = _request_kwargs(spec, self._request_timeout_seconds)
             kwargs["timeout"] = (
-                spec.timeout if spec.timeout is not None else _client_timeout(self._request_timeout_seconds)
+                _client_timeout(self._request_timeout_seconds)
+                if spec.timeout is None
+                else spec.timeout
+                if _per_call_seconds(spec.timeout)
+                else httpx.Timeout(None)
             )
             built_headers = _request_headers(self._source, token, spec.headers)
             span = (
@@ -822,7 +903,7 @@ class AsyncTransport:
                 with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
                     await owned_client.aclose()
             if isinstance(exc, httpx.TimeoutException):
-                raise ClientTimeoutError("operation timed out") from exc
+                raise ClientTimeoutError() from exc
             if isinstance(exc, httpx.HTTPError):
                 raise ConnectionError(str(exc)) from exc
             raise
@@ -854,13 +935,33 @@ class AsyncTransport:
         path: str,
         *,
         content_factory: _ReplayableContentFactory | None = None,
+        transfer: bool = False,
+        max_response_bytes: Optional[int] = None,
         **kwargs: Unpack[_RequestKwargs],
     ) -> httpx.Response:
         """Return the raw httpx.Response after envelope-error handling.
 
         Contract: any status >= 400 raises the typed SDK error; callers that
         need undecoded bodies (e.g. multipart bulk reads) rely on this.
+        ``transfer=True`` marks a file transfer: no total deadline, whatever
+        timeout it carries, but the request timeout bounds every idle phase
+        (connecting, each write and read gap). An explicit ``timeout`` in
+        seconds replaces the request timeout as a total bound (``0`` or above
+        the timer maximum: none). ``max_response_bytes`` replaces the client's
+        cap on the buffered body for this call.
         """
+        limit = resolve_limit(max_response_bytes, self._max_response_bytes)
+        explicit = kwargs.get("timeout")
+        if transfer:
+            # No total deadline, whatever timeout it carries; idle-bounded.
+            kwargs["timeout"] = _client_timeout(self._request_timeout_seconds)
+            total = 0.0
+        elif isinstance(explicit, (int, float)) and not isinstance(explicit, bool):
+            # A per-call timeout in seconds: a total bound, like the request timeout.
+            total = _per_call_seconds(explicit)
+            kwargs["timeout"] = explicit if total else httpx.Timeout(None)
+        else:
+            total = 0 if "timeout" in kwargs else self._request_timeout_seconds
         caller_headers = kwargs.get("headers")
         # A one-shot iterator body (no factory) is exhausted by the first send:
         # replaying it on the 401 retry would silently send an empty body, so
@@ -868,18 +969,20 @@ class AsyncTransport:
         one_shot_body = content_factory is None and _is_one_shot_content(kwargs.get("content"))
         if content_factory is not None:
             kwargs["content"] = content_factory(0)
-        token = await self._request_token()
-        try:
-            return await self._request_once(method, path, token, caller_headers, kwargs)
-        except Exception as exc:
-            if one_shot_body:
-                raise
-            retry_token = await self._retry_token_after_401(exc, token)
-            if retry_token is None:
-                raise
-            if content_factory is not None:
-                kwargs["content"] = content_factory(1)
-            return await self._request_once(method, path, retry_token, caller_headers, kwargs)
+        # One total deadline for the bearer, the request, a 401 refresh and its retry.
+        with _request_deadline(total):
+            token = await self._request_token()
+            try:
+                return await self._request_once(method, path, token, caller_headers, kwargs, limit)
+            except Exception as exc:
+                if one_shot_body:
+                    raise
+                retry_token = await self._retry_token_after_401(exc, token)
+                if retry_token is None:
+                    raise
+                if content_factory is not None:
+                    kwargs["content"] = content_factory(1)
+                return await self._request_once(method, path, retry_token, caller_headers, kwargs, limit)
 
     async def _request_once(
         self,
@@ -888,6 +991,7 @@ class AsyncTransport:
         token: Optional[str],
         caller_headers: Optional[Mapping[str, str]],
         kwargs: _RequestKwargs,
+        limit: int,
     ) -> httpx.Response:
         url = _request_url(self.base_url, path)
         built_headers = _request_headers(self._source, token, caller_headers)
@@ -899,11 +1003,13 @@ class AsyncTransport:
             else None
         )
         try:
-            response = await self._client.request(method, url, **request_kwargs)
+            response = await send_buffered(
+                self._client, self._client.build_request(method, url, **request_kwargs), limit
+            )
         except httpx.TimeoutException as exc:
             if span is not None:
                 span.finish(error=exc)
-            raise ClientTimeoutError("operation timed out") from exc
+            raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             if span is not None:
                 span.finish(error=exc)
@@ -915,9 +1021,9 @@ class AsyncTransport:
         if span is not None:
             span.finish(status_code=response.status_code)
         if response.status_code >= 400:
-            err = error_from_response(response.status_code, response.content)
-            await response.aclose()
-            raise err
+            raise error_from_response(
+                response.status_code, response.content, content_type=response.headers.get("content-type")
+            )
         return response
 
     async def _stream_enter(
@@ -977,6 +1083,74 @@ def _client_limits(connection_pool_maxsize: Optional[int]) -> Optional[httpx.Lim
     )
 
 
+def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
+    """The total-time bound of one request, in seconds (``0``: none).
+
+    An ordinary request gets the client's request timeout. A per-call
+    ``timeout`` (a wait's budget plus its slack, a git remote call, ...)
+    replaces it for that request with the same meaning: total time from
+    sending to the last byte, ``0`` or a value above the timer maximum meaning
+    no limit. A hold that reads without a deadline (``unbounded_read``,
+    ``/wait`` with no budget) and a file transfer (idle-bounded per phase
+    instead) have no total bound.
+    """
+    if spec.transfer:
+        return 0.0
+    if spec.timeout is not None:
+        return _per_call_seconds(spec.timeout)
+    if spec.unbounded_read or spec.path.endswith("/wait"):
+        return 0.0
+    return request_timeout_seconds
+
+
+def _per_call_seconds(seconds: float) -> float:
+    """A per-call timeout as a total bound: ``0`` or above the timer maximum is none."""
+    return 0.0 if seconds <= 0 or seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+
+
+def _stream_open_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
+    """The total-time bound on opening a stream, until its headers (``0``: none).
+
+    The spec's own ``timeout`` replaces the request timeout, as for an ordinary
+    request; a transfer has no total bound (it is idle-bounded per phase). The
+    stream's body never has one.
+    """
+    if spec.transfer:
+        return 0.0
+    if spec.timeout is not None:
+        return _per_call_seconds(spec.timeout)
+    return request_timeout_seconds
+
+
+def _stream_timeout(spec: RequestSpec, request_timeout_seconds: float) -> httpx.Timeout:
+    """httpx's per-phase timeouts for a stream: the opening bound, no idle-read bound.
+
+    A streamed file transfer is the exception: the request timeout bounds each
+    idle phase (connecting, each write and read gap), never its total time.
+    """
+    if spec.transfer:
+        return _client_timeout(request_timeout_seconds)
+    return _timeout_with_unbounded_read(_stream_open_seconds(spec, request_timeout_seconds))
+
+
+@contextlib.contextmanager
+def _request_deadline(seconds: float) -> Iterator[None]:
+    """Bound the enclosed request by ``seconds`` of wall-clock time (``0``: no bound).
+
+    httpx's own timeouts apply per phase (connect, each read, each write); this
+    is the total-time bound, the same meaning the TypeScript SDK gives its
+    request timeout.
+    """
+    if seconds <= 0:
+        yield
+        return
+    try:
+        with anyio.fail_after(seconds):
+            yield
+    except TimeoutError as exc:
+        raise ClientTimeoutError() from exc
+
+
 def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _RequestKwargs:
     kwargs: _RequestKwargs = {
         "params": _normalize_params(spec.params),
@@ -984,8 +1158,14 @@ def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _Reque
         "data": spec.data,
         "files": spec.files,
     }
-    if spec.timeout is not None:
-        kwargs["timeout"] = spec.timeout
+    if spec.transfer:
+        # No total deadline (``_total_seconds``), but every idle phase is
+        # bounded by the request timeout: a transfer that keeps moving bytes
+        # runs on, a stalled one fails.
+        kwargs["timeout"] = _client_timeout(request_timeout_seconds)
+    elif spec.timeout is not None:
+        # httpx's per-phase bound; ``_total_seconds`` holds the whole request to it.
+        kwargs["timeout"] = spec.timeout if _per_call_seconds(spec.timeout) else httpx.Timeout(None)
     elif spec.unbounded_read or spec.path.endswith("/wait"):
         kwargs["timeout"] = _timeout_with_unbounded_read(request_timeout_seconds)
     return kwargs
@@ -1030,6 +1210,8 @@ def _request_headers(
     headers: Optional[Mapping[str, str]],
 ) -> Mapping[str, str]:
     request_headers: dict[str, str] = client_identity_headers(source)
+    # Only the encodings the capped readers decode in bounded steps.
+    request_headers["Accept-Encoding"] = ACCEPT_ENCODING
     if token:
         request_headers["Authorization"] = f"Bearer {token}"
     if headers:
@@ -1039,7 +1221,9 @@ def _request_headers(
 
 def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
     if response.status_code >= 400:
-        raise error_from_response(response.status_code, response.content)
+        raise error_from_response(
+            response.status_code, response.content, content_type=response.headers.get("content-type")
+        )
     content_type = response.headers.get("content-type", "")
     if "application/json" in content_type:
         return parse_json_bytes(response.content)

@@ -3,11 +3,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, Optional, Type
 
+from typing_extensions import TypedDict, Unpack
+
 from .. import _errors as _shared
-from . import codes
+from . import _codes as codes
 
 if TYPE_CHECKING:
     from .types import DockerStatus, SandboxState
@@ -17,26 +18,41 @@ def _docker_status_label(status: DockerStatus) -> str:
     return status.raw_state or status.state
 
 
-@dataclass(frozen=True, slots=True)
-class ErrorDetails:
-    trace_id: Optional[str] = None
-    retry_after_seconds: Optional[int] = None
-    feature: Optional[str] = None
-    entitlement: Optional[str] = None
-    replacement: Optional[str] = None
-    first_available_cursor: Optional[str] = None
-    limit: Optional[str] = None
-    current: Optional[int] = None
-    max: Optional[int] = None
-    max_bytes: Optional[int] = None
-    bytes: Optional[int] = None
-    stated: Optional[str] = None
-    actual: Optional[str] = None
-    region: Optional[str] = None
+class _ErrorFields(TypedDict, total=False):
+    """The optional envelope fields every error constructor accepts (internal)."""
+
+    trace_id: Optional[str]
+    retry_after_seconds: Optional[int]
+    feature: Optional[str]
+    entitlement: Optional[str]
+    replacement: Optional[str]
+    first_available_cursor: Optional[str]
+    limit: Optional[str]
+    current: Optional[int]
+    max: Optional[int]
+    max_bytes: Optional[int]
+    bytes: Optional[int]
+    stated: Optional[str]
+    actual: Optional[str]
+    region: Optional[str]
+    request_id: Optional[str]
+    retry_after_ms: Optional[int]
 
 
 class DaytonaError(_shared.DaytonaError):
-    """Base class for all SDK errors."""
+    """Base class for all v2 SDK errors.
+
+    ``code`` and ``source`` are open vocabularies: the server may send a code
+    or source this SDK release does not know yet. An unknown code keeps its
+    exact value on ``code`` and the error falls back to the class for its HTTP
+    status (``NotFoundError`` for a 404, ...). ``daytona.v2.codes`` lists the
+    codes this release knows.
+
+    Every keyword is optional; an error built by the caller carries only what
+    it is given. A subclass with defaults (``ClientTimeoutError``, ...) uses its
+    default for a keyword that is omitted or ``None``, as the TypeScript SDK does
+    for ``undefined``.
+    """
 
     def __init__(
         self,
@@ -45,37 +61,51 @@ class DaytonaError(_shared.DaytonaError):
         status_code: Optional[int] = None,
         code: Optional[str] = None,
         source: Optional[str] = None,
-        details: Optional[ErrorDetails] = None,
+        trace_id: Optional[str] = None,
+        retry_after_seconds: Optional[int] = None,
+        feature: Optional[str] = None,
+        entitlement: Optional[str] = None,
+        replacement: Optional[str] = None,
+        first_available_cursor: Optional[str] = None,
+        limit: Optional[str] = None,
+        current: Optional[int] = None,
+        max: Optional[int] = None,
+        max_bytes: Optional[int] = None,
+        bytes: Optional[int] = None,
+        stated: Optional[str] = None,
+        actual: Optional[str] = None,
+        region: Optional[str] = None,
+        request_id: Optional[str] = None,
+        retry_after_ms: Optional[int] = None,
     ) -> None:
         super().__init__(message)
         self.message = message
         self.status_code = status_code
         self.code = code
         self.source = source
-        self.error_code = code
-        self.trace_id = details.trace_id if details is not None else None
-        self.retry_after_seconds = details.retry_after_seconds if details is not None else None
-        self.feature = details.feature if details is not None else None
-        self.entitlement = details.entitlement if details is not None else None
-        self.replacement = details.replacement if details is not None else None
-        self.first_available_cursor = details.first_available_cursor if details is not None else None
-        self.limit = details.limit if details is not None else None
-        self.current = details.current if details is not None else None
-        self.max = details.max if details is not None else None
-        self.max_bytes = details.max_bytes if details is not None else None
-        self.bytes = details.bytes if details is not None else None
-        self.stated = details.stated if details is not None else None
-        self.actual = details.actual if details is not None else None
-        self.region = details.region if details is not None else None
-        self.request_id: Optional[str] = None
-        self.retry_after_ms: Optional[int] = None
+        self.trace_id = trace_id
+        self.retry_after_seconds = retry_after_seconds
+        self.feature = feature
+        self.entitlement = entitlement
+        self.replacement = replacement
+        self.first_available_cursor = first_available_cursor
+        self.limit = limit
+        self.current = current
+        self.max = max
+        self.max_bytes = max_bytes
+        self.bytes = bytes
+        self.stated = stated
+        self.actual = actual
+        self.region = region
+        self.request_id = request_id
+        self.retry_after_ms = retry_after_ms
 
 
 class BadRequestError(DaytonaError, _shared.DaytonaBadRequestError):
     """HTTP 400."""
 
 
-class UnauthorizedError(DaytonaError, _shared.DaytonaAuthenticationError):
+class AuthenticationError(DaytonaError, _shared.DaytonaAuthenticationError):
     """HTTP 401."""
 
 
@@ -220,8 +250,25 @@ class LimitExceededError(RateLimitError):
     Subclasses :class:`RateLimitError`, so ``except RateLimitError`` keeps matching;
     ``limit`` is the limit's stable machine name (e.g. ``max_concurrent_sandboxes``) and
     ``current``/``max`` are the counts the refusal was computed from. Attributes are
-    ``None`` when a body omits or malforms them.
+    ``None`` when a body omits or malforms them. ``code`` defaults to ``"LIMIT_EXCEEDED"``.
     """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(
+            message,
+            status_code=status_code,
+            code=code if code is not None else "LIMIT_EXCEEDED",
+            source=source,
+            **fields,
+        )
 
 
 class ImageTooLargeError(ConflictError):
@@ -249,15 +296,79 @@ class NotSupportedError(InternalServerError):
 
 
 class ConnectionError(DaytonaError, _shared.DaytonaConnectionError):
-    """Network connection failure."""
+    """The API or the sandbox could not be reached (no HTTP response).
+
+    ``source`` defaults to ``"SDK"``; there is no status or code.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(
+            message,
+            status_code=status_code,
+            code=code,
+            source=source if source is not None else "SDK",
+            **fields,
+        )
 
 
 class ClientTimeoutError(DaytonaError, _shared.DaytonaTimeoutError):
-    """Client-side transport timeout."""
+    """The client gave up waiting for a response.
+
+    Its request timeout or a call's own deadline expired; not the server's
+    HTTP 408 (:class:`RequestTimeoutError`). Defaults: message
+    ``"operation timed out"``, ``status_code=408``, ``code="REQUEST_TIMEOUT"``,
+    ``source="SDK"`` (the same in the TypeScript SDK).
+    """
+
+    def __init__(
+        self,
+        message: str = "operation timed out",
+        *,
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(
+            message,
+            status_code=status_code if status_code is not None else 408,
+            code=code if code is not None else "REQUEST_TIMEOUT",
+            source=source if source is not None else "SDK",
+            **fields,
+        )
 
 
 class TransferCancelledError(DaytonaError):
-    """A local file transfer was cancelled before completion."""
+    """A local file transfer was cancelled before completion.
+
+    Defaults: message ``"file transfer cancelled"``, ``status_code=499``,
+    ``code="REQUEST_CANCELLED"``, ``source="SDK"``.
+    """
+
+    def __init__(
+        self,
+        message: str = "file transfer cancelled",
+        *,
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(
+            message,
+            status_code=status_code if status_code is not None else 499,
+            code=code if code is not None else "REQUEST_CANCELLED",
+            source=source if source is not None else "SDK",
+            **fields,
+        )
 
 
 class SandboxCreateRequestTimeoutError(ClientTimeoutError):
@@ -387,7 +498,7 @@ class FileReadFailedError(InternalServerError):
     """FILE_READ_FAILED."""
 
 
-class GitAuthFailedError(UnauthorizedError):
+class GitAuthFailedError(AuthenticationError):
     """GIT_AUTH_FAILED."""
 
 
@@ -578,7 +689,8 @@ class ImageBuildFailedError(ConflictError):
     """``IMAGE_BUILD_FAILED`` (409), or the SDK-minted refusal when
     ``create_from_build()``'s image build ends ``failed``. ``image_id`` names
     the failed image (so its build log can be fetched) when the SDK knows it;
-    ``build_error`` is the build's recorded error, when any.
+    ``build_error`` is the build's recorded error, when the image has one. It is
+    separate from ``message``, which is always set.
     """
 
     def __init__(
@@ -588,11 +700,11 @@ class ImageBuildFailedError(ConflictError):
         status_code: Optional[int] = None,
         code: Optional[str] = None,
         source: Optional[str] = None,
-        details: Optional[ErrorDetails] = None,
         image_id: Optional[str] = None,
         build_error: Optional[str] = None,
+        **fields: Unpack[_ErrorFields],
     ) -> None:
-        super().__init__(message, status_code=status_code, code=code, source=source, details=details)
+        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
         self.image_id = image_id
         self.build_error = build_error
 
@@ -631,7 +743,7 @@ class SnapshotClassMismatchError(ConflictError):
 
 STATUS_ERROR_CLASSES: Dict[int, Type[DaytonaError]] = {
     400: BadRequestError,
-    401: UnauthorizedError,
+    401: AuthenticationError,
     403: ForbiddenError,
     404: NotFoundError,
     405: MethodNotAllowedError,
@@ -805,7 +917,7 @@ GENERIC_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.REQUEST_TIMEOUT: RequestTimeoutError,
     codes.SERVICE_UNAVAILABLE: ServiceUnavailableError,
     codes.TOO_MANY_REQUESTS: RateLimitError,
-    codes.UNAUTHORIZED: UnauthorizedError,
+    codes.UNAUTHORIZED: AuthenticationError,
     codes.UNPROCESSABLE_ENTITY: UnprocessableEntityError,
     codes.UNSUPPORTED_MEDIA_TYPE: UnsupportedMediaTypeError,
 }
@@ -845,29 +957,18 @@ def error_class_from_status(status_code: Optional[int]) -> Type[DaytonaError]:
 def create_error(
     message: str,
     status_code: Optional[int] = None,
-    error_code: Optional[str] = None,
+    code: Optional[str] = None,
     source: Optional[str] = None,
-    *,
-    details: Optional[ErrorDetails] = None,
+    **fields: Unpack[_ErrorFields],
 ) -> DaytonaError:
+    """The typed error for a ``(source, code)`` pair, else for the status (internal)."""
     source_classes = SOURCE_ERROR_CLASSES.get(source or "", {})
     cls = (
-        source_classes.get(error_code or "")
-        or GENERIC_ERROR_CLASSES.get(error_code or "")
+        source_classes.get(code or "")
+        or GENERIC_ERROR_CLASSES.get(code or "")
         or error_class_from_status(status_code)
     )
-    return cls(message, status_code=status_code, code=error_code, source=source, details=details)
-
-
-DaytonaValidationError = BadRequestError
-DaytonaAuthenticationError = UnauthorizedError
-DaytonaAuthorizationError = ForbiddenError
-DaytonaNotFoundError = NotFoundError
-DaytonaConflictError = ConflictError
-DaytonaRateLimitError = RateLimitError
-DaytonaTimeoutError = ClientTimeoutError
-DaytonaConnectionError = ConnectionError
-DaytonaNotSupportedError = NotSupportedError
+    return cls(message, status_code=status_code, code=code, source=source, **fields)
 
 
 # An async operation that is cancelled may still hold a typed outcome the

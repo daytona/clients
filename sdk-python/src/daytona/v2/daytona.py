@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import builtins
+import dataclasses
 import hashlib
 import json
 import math
@@ -28,6 +29,7 @@ from ._api_core import (
     expect_sandbox_detail,
 )
 from ._auth import ProjectTokenAuth
+from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, validated_max_response_bytes
 from ._core import (
     RequestSpec,
     _optional_int,
@@ -45,8 +47,9 @@ from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
 from ._gen.api import AuditActionList, ProjectApiKeyWithContext, SandboxListItem
 from ._gen.api import Sandbox as SandboxDto
 from ._otel import load_opentelemetry_support
-from ._transport import AsyncTransport
+from ._transport import _MAX_BOUNDED_TIMEOUT_SECONDS, DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 from .errors import (
+    AuthenticationError,
     ClientTimeoutError,
     ConnectionError,
     DaytonaError,
@@ -55,7 +58,6 @@ from .errors import (
     SandboxCreateConnectionError,
     SandboxCreateRequestTimeoutError,
     SandboxTerminalStateError,
-    UnauthorizedError,
     create_error,
 )
 from .image import ImageBuilder
@@ -84,6 +86,7 @@ from .types import (
     ProjectBudget,
     Resources,
     SandboxClass,
+    SandboxEventsConfig,
     SandboxInfo,
     SandboxSecretsInfo,
     SearchOrder,
@@ -110,8 +113,9 @@ CreateConfig = dict[str, CreateConfigValue]
 CreateBody = JsonObject
 
 
-# The default Daytona Cloud v2 API. `DAYTONA_V2_API_URL` /
-# `DAYTONA_API_URL` can select a regional API endpoint instead.
+# The default Daytona Cloud v2 API. `DAYTONA_V2_API_URL` (a regional endpoint
+# or a test environment) selects another one; `DAYTONA_API_URL` belongs to the
+# 0.x SDK.
 DEFAULT_V2_API_URL: Final[str] = "https://api.daytona.com"
 CLOSE_GRACE_SECONDS: Final[float] = 5.0
 _DAYTONA_OTEL_TRUE_VALUES: Final[frozenset[str]] = frozenset({"1", "true"})
@@ -128,6 +132,8 @@ class _ResolvedConfig:
     project_id: Optional[str]
     otel_enabled: bool
     connection_pool_maxsize: Optional[int]
+    request_timeout: float
+    max_response_bytes: int
 
 
 class _UnsetNetworkPolicy:
@@ -158,9 +164,9 @@ class AsyncDaytona:
         # its region with `region=`; "local" sends no selector, so the server
         # resolves the project / organization / platform default.
         self._target = "local"
-        self._request_timeout = config.request_timeout if config is not None else None
+        self._request_timeout = resolved.request_timeout
         shared_hub = config.shared_hub if config is not None else True
-        events_config = config.events if config is not None else None
+        events_config = _resolve_events_config(config.events if config is not None else None)
         # `_source` is the X-Daytona-Source label; Daytona passes "sdk-python"
         # because it drives this class through a bridge and would otherwise be
         # indistinguishable from async callers in usage tracking.
@@ -183,7 +189,10 @@ class AsyncDaytona:
                 project_id=resolved.project_id or "",
                 source=_source,
                 otel=otel,
+                request_timeout=resolved.request_timeout,
+                max_response_bytes=resolved.max_response_bytes,
             )
+        self._max_response_bytes = resolved.max_response_bytes
         self._api = AsyncTransport(
             self._api_url,
             self._api_key,
@@ -192,6 +201,7 @@ class AsyncDaytona:
             connection_pool_maxsize=resolved.connection_pool_maxsize,
             auth=auth,
             otel=otel,
+            max_response_bytes=resolved.max_response_bytes,
         )
         self._auth = auth
         self._toolbox = AsyncTransport.shared(
@@ -200,6 +210,7 @@ class AsyncDaytona:
             connection_pool_maxsize=resolved.connection_pool_maxsize,
             auth=auth,
             otel=otel,
+            max_response_bytes=resolved.max_response_bytes,
         )
         self.images = AsyncImageService(self._api)
         self.snapshots = AsyncSnapshotService(self._api)
@@ -443,7 +454,7 @@ class AsyncDaytona:
         the SDK sends the new sandbox's toolbox credential there, so pass only
         a URL you trust — never one read from stored or user-supplied data.
 
-        Find regions and their regional API endpoints with ``GET /regions``;
+        Find regions and their regional API endpoints with ``daytona region list`` (the CLI);
         discover Mac models and prices with ``mac_models.catalog(region="<region>")``.
         To select a regional API endpoint, set ``DAYTONA_V2_API_URL`` before
         creating the client. An API that does not serve the region answers
@@ -1146,6 +1157,7 @@ class AsyncDaytona:
                 config=self._hub_events_config,
                 auth=self._auth,
                 identity=self._hub_identity,
+                max_response_bytes=self._max_response_bytes,
             )
         return self._hub
 
@@ -1292,24 +1304,28 @@ class AsyncDaytona:
 
 def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     config = config or DaytonaConfig()
-    # A blank or whitespace-only value counts as unset.
-    # DAYTONA_V2_API_URL, else DAYTONA_API_URL, else the
-    # default; blank or whitespace-only counts as unset.
-    api_url = (
-        # Trailing slashes are dropped per value, so a slash-only value is
-        # unset and falls through to the next one.
-        (os.environ.get("DAYTONA_V2_API_URL") or "").strip().rstrip("/")
-        or (os.environ.get("DAYTONA_API_URL") or "").strip().rstrip("/")
-        or DEFAULT_V2_API_URL
+    # Only DAYTONA_V2_API_URL selects the endpoint (DAYTONA_API_URL belongs to
+    # the 0.x SDK). Ambient values are trimmed and a blank one is unset; a
+    # slash-only URL is unset too.
+    api_url = (_ambient("DAYTONA_V2_API_URL") or "").rstrip("/") or DEFAULT_V2_API_URL
+    # Explicit values are used as given; an explicitly empty one is an error,
+    # never "unset". An explicit credential wins over the ambient environment:
+    # jwt_token suppresses DAYTONA_API_KEY and api_key suppresses
+    # DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
+    # the caller chose.
+    for name in ("api_key", "jwt_token", "project_id"):
+        value: object = getattr(config, name)
+        if value is not None and (not isinstance(value, str) or value == ""):
+            raise create_error(f"{name} must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
+    api_key = (
+        config.api_key
+        if config.api_key is not None
+        else (None if config.jwt_token is not None else _ambient("DAYTONA_API_KEY"))
     )
-    # An explicit credential wins over the ambient environment: jwt_token
-    # suppresses DAYTONA_API_KEY and api_key suppresses DAYTONA_JWT_TOKEN, so an
-    # exported key never collides with the credential the caller chose.
-    api_key = config.api_key or (None if config.jwt_token else os.environ.get("DAYTONA_API_KEY"))
     jwt_token = (
         config.jwt_token
         if config.jwt_token is not None
-        else (None if config.api_key else os.environ.get("DAYTONA_JWT_TOKEN"))
+        else (None if config.api_key is not None else _ambient("DAYTONA_JWT_TOKEN"))
     )
     if api_key and jwt_token:
         raise create_error(
@@ -1319,25 +1335,91 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
             "SDK",
         )
     if not api_key and not jwt_token:
-        raise UnauthorizedError("api_key or jwt_token is required", status_code=401, code=None, source="SDK")
-    project_id = _prefer_explicit(config.project_id, "DAYTONA_PROJECT_ID")
+        raise AuthenticationError(
+            "api_key or jwt_token is required", status_code=401, code="UNAUTHORIZED", source="SDK"
+        )
+    project_id = config.project_id if config.project_id is not None else _ambient("DAYTONA_PROJECT_ID")
     if jwt_token and not project_id:
         raise create_error("jwt_token requires project_id", 400, "BAD_REQUEST", "SDK")
     otel_enabled = (
         config.otel_enabled if config.otel_enabled is not None else _env_truthy("DAYTONA_OTEL_ENABLED")
     )
     return _ResolvedConfig(
-        api_url=api_url.rstrip("/") or DEFAULT_V2_API_URL,
+        api_url=api_url,
         api_key=api_key,
         jwt_token=jwt_token,
         project_id=project_id,
         otel_enabled=otel_enabled,
         connection_pool_maxsize=_resolve_connection_pool_maxsize(config.connection_pool_maxsize),
+        max_response_bytes=DEFAULT_MAX_RESPONSE_BYTES
+        if config.max_response_bytes is None
+        else validated_max_response_bytes("max_response_bytes", config.max_response_bytes),
+        request_timeout=_resolve_request_timeout(config.request_timeout),
     )
 
 
-def _prefer_explicit(explicit: Optional[str], env_var: str) -> Optional[str]:
-    return explicit if explicit is not None else os.environ.get(env_var)
+def _ambient(env_var: str) -> Optional[str]:
+    """An environment value, trimmed; blank or whitespace-only is unset."""
+    return (os.environ.get(env_var) or "").strip() or None
+
+
+def _resolve_request_timeout(value: Optional[float]) -> float:
+    if value is None:
+        return DEFAULT_REQUEST_TIMEOUT_SECONDS
+    seconds = _non_negative_seconds("request_timeout", value)
+    return 0.0 if seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+
+
+def _non_negative_seconds(name: str, value: object) -> float | int:
+    """A finite, non-negative number of seconds, or the SDK's ``BadRequestError``.
+
+    Integers are compared without converting them to float, so an integer
+    too large for a float is rejected cleanly rather than overflowing.
+    """
+    valid = (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and value >= 0
+        and (isinstance(value, int) or math.isfinite(value))
+    )
+    if not valid:
+        raise create_error(
+            f"{name} must be a non-negative number of seconds (0 = no limit)", 400, "BAD_REQUEST", "SDK"
+        )
+    assert isinstance(value, (int, float))
+    return value
+
+
+# The events hub's timer ceilings, in seconds, matching the TypeScript SDK:
+# the longest JavaScript timer, and for the reconcile interval that ceiling less
+# its ±10 % jitter. Larger durations clamp to them (unlike the request
+# timeout, where a value above the maximum means no limit).
+_MAX_EVENT_TIMER_SECONDS: Final = 2_147_483.647
+_MAX_RECONCILE_INTERVAL_SECONDS: Final = math.floor(2_147_483_647 / 1.1) / 1000
+
+
+def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[SandboxEventsConfig]:
+    """Validate the events hub durations at construction and clamp oversized ones.
+
+    ``None`` keeps the hub's default for that duration.
+    """
+    if config is None:
+        return config
+    reconcile = _clamped_seconds(
+        "events.reconcile_interval", config.reconcile_interval, _MAX_RECONCILE_INTERVAL_SECONDS
+    )
+    idle = _clamped_seconds("events.idle_close", config.idle_close, _MAX_EVENT_TIMER_SECONDS)
+    if reconcile == config.reconcile_interval and idle == config.idle_close:
+        return config
+    return dataclasses.replace(config, reconcile_interval=reconcile, idle_close=idle)
+
+
+def _clamped_seconds(name: str, value: Optional[float], ceiling: float) -> Optional[float]:
+    """A validated duration, clamped to ``ceiling``; ``None`` stays ``None``."""
+    if value is None:
+        return None
+    seconds = _non_negative_seconds(name, value)
+    return ceiling if seconds > ceiling else value
 
 
 def _env_truthy(env_var: str) -> bool:

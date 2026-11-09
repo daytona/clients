@@ -9,7 +9,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { TimeoutError, TransferCancelledError } from '../src/v2/errors/DaytonaError'
+import { ClientTimeoutError, TransferCancelledError } from '../src/v2/errors/DaytonaError'
 import { FileSystemService } from '../src/v2/FileSystem'
 import { createHttpClient, fetchCacheModeOptions, HttpTransport, resetFetchCacheModeProbeForTests } from '../src/v2/http'
 
@@ -83,11 +83,11 @@ describe('aborts rejected by a fetch polyfill', () => {
     await expect(pending).rejects.toBeInstanceOf(PolyfillAbortError)
   })
 
-  it('maps an abort at the request deadline to TimeoutError', async () => {
+  it('maps an abort at the request deadline to ClientTimeoutError', async () => {
     pendingPolyfillFetch()
     const transport = new HttpTransport('http://toolbox.invalid/sandbox', 'key', 20)
 
-    await expect(transport.fetch('/files')).rejects.toBeInstanceOf(TimeoutError)
+    await expect(transport.fetch('/files')).rejects.toBeInstanceOf(ClientTimeoutError)
   })
 
   it('reports an aborted download as TransferCancelledError', async () => {

@@ -87,7 +87,7 @@ run, because in CI it means a toolchain install step broke.
 | `azure-functions` | `tsc` to CommonJS + `func start` (HTTP trigger, no extension bundle) | CommonJS build in the Functions host |
 
 The configuration reaches each runtime the way an application's would: the
-API URL through `DAYTONA_API_URL` (the v2 client takes no URL option) and the
+API URL through `DAYTONA_V2_API_URL` (the v2 client takes no URL option) and the
 API key as `apiKey`. The `workerd` worker gets both as text bindings (with
 `nodejs_compat` and a compatibility date from 2025-04-01 on, `process.env`
 carries them). The browser page has no environment, so `test-browser.mjs`

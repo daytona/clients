@@ -5,7 +5,7 @@
 #   ... ./run-examples.sh ts       # typescript only
 #   ... ./run-examples.sh py       # python only
 #
-# Env (see each example's header): DAYTONA_API_URL (default https://api.daytona.com),
+# Env (see each example's header): DAYTONA_V2_API_URL (default https://api.daytona.com),
 # DAYTONA_API_KEY (required), DAYTONA_IMAGE (default python:3.12-slim).
 #
 # Notes:
