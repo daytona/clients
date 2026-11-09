@@ -11,7 +11,8 @@ timeout does; Python's image build and pull submissions, `POST /images`,
 which had no time limit, now use the request timeout, as in TypeScript),
 streams (process logs, file watches, build logs, events) are bounded only
 until their response headers arrive, and file transfers (uploads, downloads
-and the bulk read / write calls) are not bounded. `0` disables it, and so
+and the bulk read / write calls) have no total limit but are idle-bounded by
+it (see the transfer-bounds entry). `0` disables it, and so
 does any value above 2,147,483.647 seconds (about 24.8 days, the longest
 timer JavaScript can arm); a negative or non-finite value is a
 `BadRequestError`. TypeScript: the root option `requestTimeout`

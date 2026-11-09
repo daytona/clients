@@ -195,10 +195,23 @@ ordinary request: `createConfiguredHttpClient` arms an abort-signal timer per
 axios request (`armRequestDeadline`), because axios' own `timeout` only bounds
 the wait for headers and idle reads in Node. A request with its own budget
 passes `timeout` explicitly (`0` = unbounded): waits and long polls derive it
-from the caller's deadline. File transfers pass `timeout: 0` (axios) or
-`transfer: true` (`HttpTransport.fetch`); other `fetch` calls are streams and
-are bounded only until their response headers arrive. The Python transport
-implements the same rule (`_request_deadline`, `RequestSpec.transfer`).
+from the caller's deadline. File transfers pass `transferRequest(...)`
+(axios) or `transfer: true` (`HttpTransport.fetch`): no total deadline, an
+idle watchdog (`IdleWatchdog` in `bodyLimit.ts`) of the request timeout
+instead; other `fetch` calls are streams and are bounded only until their
+response headers arrive. The Python transport implements the same rule
+(`_request_deadline`, `RequestSpec.transfer`).
+
+Every axios request goes through `boundedAdapter` (`http.ts`): Node's http
+adapter where the runtime has it, else the SDK's `fetchAdapter`; the response
+is opened as a stream and read by `readCappedBody` under `maxContentLength`
+(the client's `maxResponseBytes`, or the per-call `maxContentLengthFor(...)`),
+the declared `Content-Length` checked first. Never route a request around it
+(a test that replaces `defaults.adapter` with a mock is the exception).
+Bodies read off `fetch` whole (error bodies, the token exchange) go through
+`readFetchText`. `tests/transfer-bounds.test.ts` runs the bounds against both
+adapters (`forceFetchAdapterForTests`), and the runtime suite's `capOk` check
+runs them in every runtime.
 
 The deadline is absolute (`config.daytona.deadlineAt`), set once when the
 call starts: waiting for the project token is abortable by the request's

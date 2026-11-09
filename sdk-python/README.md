@@ -130,7 +130,12 @@ Set `request_timeout=` **(seconds; default 60; `0`, or a value above 2,147,483.6
 24.8 days), means no limit)** to change
 the total time one ordinary request may take before it raises
 `ClientTimeoutError`. Waits and long polls use their own budget, streams are
-bounded only until their response arrives, and file transfers are not bounded.
+bounded only until their response arrives, and file transfers have no total
+limit but fail with `ClientTimeoutError` once no bytes move for that long.
+Set `max_response_bytes=` **(default 1 GiB; `0` means no limit)** to cap every
+response body the SDK holds in memory whole: a larger body raises
+`PayloadTooLargeError` before it is read in full (an error response keeps its
+status's error).
 Set `connection_pool_maxsize=` to cap both live and keep-alive HTTP connections,
 and `otel_enabled=True` to emit client spans when `daytona[otel]` is installed.
 The extra brings only `opentelemetry-api`; spans are exported only once your
@@ -666,7 +671,12 @@ innermost shell function or sourced file; bash and zsh leave the whole command
 contents) / `glob()` (file names), `watch_dir()` for directory
 watches (`get_new_events()`, a single exit notification via `on_exit=` /
 `wait_for_exit()`), and
-`presigned_download_url` / `presigned_upload_url` for direct transfers. The
+`presigned_download_url` / `presigned_upload_url` for direct transfers.
+`read_bytes`, `read_text`, `read_many` and the computer-use recording
+`download()` hold the whole response in memory: they take
+`max_response_bytes=` to replace the client's cap for one call (`0` = no
+limit). For large files, or content from a sandbox you don't trust, use
+`download_file()`, which streams to disk. The
 platform mints the link; `expires_in_seconds` (default 3600) must be between 1
 and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
 `sandbox.rotate_signing_key()` retires every pre-signed URL minted so far;
