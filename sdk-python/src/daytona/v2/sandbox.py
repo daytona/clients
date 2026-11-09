@@ -86,8 +86,10 @@ from .build_logs import (
 from .computer_use import AsyncComputerUseService
 from .docker import AsyncDockerService
 from .errors import (
+    AuthenticationError,
     ClientTimeoutError,
     DaytonaError,
+    ForbiddenError,
     NotFoundError,
     RequestTimeoutError,
     SandboxTerminalStateError,
@@ -1005,6 +1007,10 @@ class AsyncSandbox:
             # Whether the latest outcome came from a full GET (the fallback
             # poll) rather than a socket frame, which carries only the state.
             refreshed_by_poll = False
+            hub_budget = _hub_wait_budget(deadline)
+            # Where the hub's share ends: its probes hold no long poll past it,
+            # so none still runs when the reserve starts reading.
+            hub_deadline = None if hub_budget is None else _clock.monotonic() + hub_budget
 
             async def _sandbox_poll_fn() -> WaitOutcome:
                 # The hub's long-poll fallback: one refresh per call, paced
@@ -1025,10 +1031,15 @@ class AsyncSandbox:
                         "REQUEST_TIMEOUT",
                         "SDK",
                     )
+                held = (
+                    remaining
+                    if hub_deadline is None
+                    else min(remaining or 0.0, hub_deadline - _clock.monotonic())
+                )
                 ms = (
                     WAIT_FOR_STATE_SLICE_MS
-                    if remaining is None
-                    else min(WAIT_FOR_STATE_SLICE_MS, max(1, math.ceil(remaining * 1000)))
+                    if held is None
+                    else min(WAIT_FOR_STATE_SLICE_MS, max(1, math.ceil(held * 1000)))
                 )
                 await self._refresh_data_within(
                     timeout=None if remaining is None else ms / 1000,
@@ -1053,7 +1064,7 @@ class AsyncSandbox:
                 resolved = await hub.wait(
                     self.id,
                     predicate,
-                    timeout=_hub_wait_budget(deadline),
+                    timeout=hub_budget,
                     # `local` names no concrete region.
                     region_hint=None if (self.region or "").strip().lower() == "local" else self.region,
                     sandbox_poll_fn=_sandbox_poll_fn,
@@ -1076,7 +1087,15 @@ class AsyncSandbox:
                         exact,
                         last_read_end=last_poll_end,
                     )
-                except (SandboxTerminalStateError, NotFoundError, RequestTimeoutError):
+                except (
+                    SandboxTerminalStateError,
+                    NotFoundError,
+                    RequestTimeoutError,
+                    AuthenticationError,
+                    ForbiddenError,
+                ):
+                    # What the read decided, or a credential the API refuses
+                    # (final for the hub's own probe too).
                     raise
                 except DaytonaError as read_error:
                     # The wait ran out; a failed read in its reserve does not

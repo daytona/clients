@@ -916,13 +916,15 @@ skipping exist only in the TypeScript tool).
   only `destroyed` / `error` (`delete()`, `wait(until="destroyed")`) holds
   its long polls with `wait_exact=deleted` (Python `wait_query_key`,
   TypeScript `waitQueryKey`); the confirming read is a plain read. A
-  bounded wait never ends on the events hub alone: the hub gets the budget
-  less a final reserve (at most 5 s, at most a quarter of it; Python
-  `WAIT_FINAL_READ_RESERVE_S`, TypeScript `WAIT_FINAL_READ_RESERVE_MS`), and
-  when it has decided nothing by then (a stream that sends no transitions
-  decides only at its reconcile), the reserve is a long-poll read of the
-  server under the same deadline, which returns at once if the state was
-  reached. Once the
+  bounded wait never times out on the events hub alone: the hub gets the
+  budget less a final reserve (at most 5 s, at most a quarter of it; Python
+  `WAIT_FINAL_READ_RESERVE_S`, TypeScript `WAIT_FINAL_READ_RESERVE_MS`; its
+  probes hold no long poll past its share), and when it has decided nothing
+  by then (a stream that sends no transitions decides only at its
+  reconcile), the reserve is spent on long-poll reads of the server under
+  the same deadline, which return at once if the state was reached. A
+  failed read there keeps the timeout, with the read's error as its cause,
+  except a 401 / 403, which is raised. Once the
   target was observed, a failed
   metadata refresh afterwards does not turn that success into an error.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`

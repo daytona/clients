@@ -5,7 +5,7 @@
 
 import type { AxiosInstance } from 'axios'
 import { createSandbox as createSandboxRequest } from '../src/v2/clientCreate'
-import { RequestTimeoutError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError'
+import { AuthenticationError, RequestTimeoutError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError'
 import { WaitHub } from '../src/v2/events'
 import { createHttpClient } from '../src/v2/http'
 import { createSandbox } from './helpers/sandbox'
@@ -188,4 +188,14 @@ it('keeps the wait timeout when the read in the reserve fails', async () => {
   const { result } = await timed(h, () => sandbox.wait({ until: 'started', timeoutSeconds: 1 }).then(() => undefined, (error: unknown) => error))
   expect(result).toBeInstanceOf(RequestTimeoutError)
   expect(result).toMatchObject({ source: 'SDK', code: 'REQUEST_TIMEOUT' })
+  expect((result as RequestTimeoutError).cause).toBeInstanceOf(ServiceUnavailableError)
+})
+
+it('raises a refused credential from the read in the reserve', async () => {
+  const h = harness(new ServerSandbox('stopped', 'running', undefined))
+  const sandbox = handle(h)
+  const refused = new AuthenticationError('unauthorized', { statusCode: 401, code: 'UNAUTHORIZED', source: 'DAYTONA_API' })
+  jest.spyOn(h.api, 'get').mockRejectedValue(refused)
+  const { result } = await timed(h, () => sandbox.wait({ until: 'started', timeoutSeconds: 1 }).then(() => undefined, (error: unknown) => error))
+  expect(result).toBe(refused)
 })

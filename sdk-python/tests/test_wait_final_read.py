@@ -30,7 +30,7 @@ from test_events import _API_KEY, _API_URL, FakeConnector, FakeWS, ticket_mock
 import daytona.v2._events as events_module
 from daytona.v2._core import RequestSpec
 from daytona.v2.daytona import AsyncDaytona
-from daytona.v2.errors import RequestTimeoutError, ServiceUnavailableError, create_error
+from daytona.v2.errors import AuthenticationError, RequestTimeoutError, ServiceUnavailableError, create_error
 from daytona.v2.sandbox import AsyncSandbox
 from daytona.v2.types import DaytonaConfig, SandboxEventsConfig
 
@@ -231,3 +231,18 @@ async def test_a_failed_read_in_the_reserve_keeps_the_wait_timeout(monkeypatch: 
     assert raised.value.source == "SDK"
     assert isinstance(raised.value.__cause__, ServiceUnavailableError)
     assert [spec.method for spec in api.specs] == ["GET"]
+
+
+async def test_a_refused_credential_in_the_reserve_is_raised(monkeypatch: pytest.MonkeyPatch) -> None:
+    sandbox = _Sandbox("stopped", "running", None)
+    refused = create_error("unauthorized", 401, "UNAUTHORIZED", "DAYTONA_API")
+    async with _client(monkeypatch, sandbox) as (client, api):
+
+        async def unauthorized(spec: RequestSpec) -> object:
+            api.specs.append(spec)
+            raise refused
+
+        monkeypatch.setattr(api, "send", unauthorized)
+        with pytest.raises(AuthenticationError) as raised:
+            await _handle(client).wait(until="started", timeout=1)
+    assert raised.value is refused

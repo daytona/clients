@@ -4,7 +4,7 @@
  */
 
 import { strip } from './pyText.js'
-import { BadRequestError, DaytonaError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
+import { AuthenticationError, BadRequestError, DaytonaError, ForbiddenError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
 import { targetPredicate, waitQueryKey } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { sleep } from './http.js'
@@ -140,6 +140,10 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
   if (context.hub?.enabled) {
     let lastPollEnd: number | undefined
     let refreshedByPoll = false
+    const hubBudget = hubWaitBudget(deadline)
+    // Where the hub's share ends: its probes hold no long poll past it, so
+    // none still runs when the reserve starts reading.
+    const hubDeadline = deadline === undefined ? undefined : Date.now() + hubBudget
     const sandboxPollFn = async (): Promise<WaitOutcome> => {
       if (lastPollEnd !== undefined) {
         const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastPollEnd), remaining() ?? Infinity)
@@ -147,14 +151,15 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       }
       const budget = remaining()
       if (budget !== undefined && budget <= 0) throw timeoutError()
-      const result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      const held = budget === undefined || hubDeadline === undefined ? budget : Math.max(1, Math.min(budget, hubDeadline - Date.now()))
+      const result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
       lastPollEnd = Date.now()
       refreshedByPoll = true
       return result
     }
     try {
       const resolved = await context.hub.wait(context.id, targetPredicate(new Set<SandboxState>(states), new Set(effectiveTerminal)), {
-        timeout: hubWaitBudget(deadline),
+        timeout: hubBudget,
         regionHint: context.region !== undefined && strip(context.region).toLowerCase() === 'local' ? undefined : context.region,
         sandboxPollFn,
         onObserved: (outcome) => { refreshedByPoll = false; context.observe(outcome) },
@@ -186,10 +191,14 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         try {
           await pollForState(lastPollEnd)
         } catch (readError) {
-          // The wait ran out; a failed read in its reserve does not replace
-          // that outcome.
-          if (readError instanceof SandboxTerminalStateError || readError instanceof NotFoundError || readError instanceof RequestTimeoutError) throw readError
-          if (readError instanceof DaytonaError) throw error
+          // What the read decided, or a credential the API refuses (final for
+          // the hub's own probe too), stands. Any other failed read does not
+          // replace the wait running out; it is kept as the cause.
+          if (
+            readError instanceof SandboxTerminalStateError || readError instanceof NotFoundError || readError instanceof RequestTimeoutError
+            || readError instanceof AuthenticationError || readError instanceof ForbiddenError
+          ) throw readError
+          if (readError instanceof DaytonaError) throw new RequestTimeoutError(error.message, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: readError })
           throw readError
         }
         return
