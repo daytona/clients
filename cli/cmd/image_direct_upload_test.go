@@ -199,7 +199,12 @@ func (p *directUploadPeer) post(t *testing.T, contextPath string) error {
 
 func (p *directUploadPeer) postWith(t *testing.T, client *apiinternal.Client, contextPath string) error {
 	t.Helper()
-	resp, err := postImageMultipart(context.Background(), client,
+	return p.postWithContext(t, context.Background(), client, contextPath)
+}
+
+func (p *directUploadPeer) postWithContext(t *testing.T, ctx context.Context, client *apiinternal.Client, contextPath string) error {
+	t.Helper()
+	resp, err := postImageMultipart(ctx, client,
 		map[string]string{"name": "img", "cpu_arch": "arm64"}, "build/Dockerfile", contextPath)
 	p.mu.Lock()
 	violations := append([]string(nil), p.violations...)
@@ -502,4 +507,81 @@ func TestPostImageDirect_debugOutputNeverNamesAPartURL(t *testing.T) {
 		require.NotContains(t, line, "Signature")
 		require.NotContains(t, line, p.storage.URL)
 	}
+}
+
+// requireInterrupted asserts an interrupt ends the build with the CLI's own
+// error: exit 130, no part URL, and nothing built.
+func (p *directUploadPeer) requireInterrupted(t *testing.T, err error) {
+	t.Helper()
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))
+	require.Equal(t, "interrupted", err.Error())
+	require.ErrorIs(t, err, context.Canceled)
+	require.NotContains(t, err.Error(), "Signature")
+	require.NotContains(t, err.Error(), p.storage.URL)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	require.False(t, p.completed)
+	require.Nil(t, p.build)
+}
+
+func TestPostImageDirect_interruptWhileStagingExitsInterrupted(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM scratch\n"), 0o600))
+	for name, contextPath := range map[string]string{
+		"a tar file":  writeContextFile(t, []byte("0123456789")),
+		"a directory": dir,
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := newDirectUploadPeer(t, 4)
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			err := p.postWithContext(t, ctx, apiinternal.New(p.api.URL, "k", "test"), contextPath)
+			p.requireInterrupted(t, err)
+			require.Nil(t, p.declared)
+		})
+	}
+}
+
+func TestPostImageDirect_interruptDuringAPartUploadExitsInterrupted(t *testing.T) {
+	p := newDirectUploadPeer(t, 4)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	p.beforePut = func(part string, _ int) {
+		if part == "1" {
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	err := p.postWithContext(t, ctx, apiinternal.New(p.api.URL, "k", "test"), writeContextFile(t, []byte("0123456789")))
+	p.requireInterrupted(t, err)
+	require.NotNil(t, p.declared)
+}
+
+func TestPostImageDirect_interruptWhileAPartWaitsToRetryExitsInterrupted(t *testing.T) {
+	p := newDirectUploadPeer(t, 4)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	p.partStatus = map[string][]int{"1": {http.StatusServiceUnavailable}}
+	imageContextPartBackoff = func(int) time.Duration {
+		cancel()
+		return time.Hour
+	}
+	err := p.postWithContext(t, ctx, apiinternal.New(p.api.URL, "k", "test"), writeContextFile(t, []byte("0123456789")))
+	p.requireInterrupted(t, err)
+	require.Equal(t, 1, p.partPuts["1"])
+}
+
+func TestPostImageDirect_interruptWhileCompleteWaitsToRetryExitsInterrupted(t *testing.T) {
+	p := newDirectUploadPeer(t, 4)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	p.completeStatus = []int{http.StatusServiceUnavailable}
+	imageContextCompleteBackoff = func(int) time.Duration {
+		cancel()
+		return time.Hour
+	}
+	err := p.postWithContext(t, ctx, apiinternal.New(p.api.URL, "k", "test"), writeContextFile(t, []byte("0123456789")))
+	p.requireInterrupted(t, err)
+	require.Equal(t, 1, p.completes)
 }

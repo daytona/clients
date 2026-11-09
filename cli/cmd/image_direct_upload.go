@@ -116,6 +116,24 @@ func stageImageContext(ctx context.Context, upload imageContextUpload) (*stagedI
 	return &stagedImageContext{file: file, size: size, sha256: hex.EncodeToString(digest.Sum(nil)), cleanup: cleanup}, nil
 }
 
+// postImageDirectContext stages the context and uploads it directly. Staging
+// and the part uploads end with the raw context error when the caller's
+// context ends; it is reported as the CLI's interrupt or timeout instead.
+func postImageDirectContext(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath string, upload imageContextUpload) (api.Raw[gen.AsyncOperation], error) {
+	staged, err := stageImageContext(ctx, upload)
+	if err == nil {
+		defer staged.cleanup()
+		var created api.Raw[gen.AsyncOperation]
+		if created, err = postImageDirect(ctx, client, meta, dockerfilePath, staged); err == nil {
+			return created, nil
+		}
+	}
+	if callerErr := cerr.FromContext(ctx); callerErr != nil {
+		return api.Raw[gen.AsyncOperation]{}, callerErr
+	}
+	return api.Raw[gen.AsyncOperation]{}, err
+}
+
 // postImageDirect uploads the context to storage, then builds from the
 // verified upload.
 func postImageDirect(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath string, staged *stagedImageContext) (api.Raw[gen.AsyncOperation], error) {

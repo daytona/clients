@@ -44,12 +44,7 @@ func postImageMultipart(ctx context.Context, client *api.Client, meta map[string
 		return api.Raw[gen.AsyncOperation]{}, err
 	}
 	if contextUpload.size > imageContextMaxBytes {
-		staged, err := stageImageContext(ctx, contextUpload)
-		if err != nil {
-			return api.Raw[gen.AsyncOperation]{}, err
-		}
-		defer staged.cleanup()
-		return postImageDirect(ctx, client, meta, dockerfilePath, staged)
+		return postImageDirectContext(ctx, client, meta, dockerfilePath, contextUpload)
 	}
 	if contextUpload.size <= imageContextReplayLimit {
 		return postBufferedImageMultipart(ctx, client, meta, dockerfilePath, contextUpload)
