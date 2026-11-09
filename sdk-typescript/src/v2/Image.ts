@@ -21,14 +21,14 @@ import type { ResponseFields } from './responseFields.js'
 // The contract fields an Image / Snapshot maps; a field the contract requires
 // must be present, as in Python.
 const IMAGE: ResponseFields = {
-  id: 'string', anonymous: 'boolean', class: 'string', created_at: 'string', updated_at: 'string', origin: 'string',
+  id: 'string', anonymous: 'boolean', class: 'string', created_at: 'timestamp', updated_at: 'timestamp', origin: 'string',
   region_id: 'string', retention: 'string', status: 'string', format_version: 'integer', format_outdated: 'boolean',
   region_ids: arrayOf('string'), platform: 'boolean', default: 'boolean', deprecated: 'boolean', name: 'string?',
-  bytes: 'integer?', disk_mib: 'integer?', error: 'string?', expires_at: 'string?', layer_count: 'integer?', source: 'object?',
+  bytes: 'integer?', disk_mib: 'integer?', error: 'string?', expires_at: 'timestamp?', layer_count: 'integer?', source: 'object?',
 }
 const SNAPSHOT: ResponseFields = {
   id: 'string', name: 'string', class: 'string', kind: 'string', status: 'string', region_id: 'string',
-  region_ids: arrayOf('string'), created_at: 'string', updated_at: 'string', bytes: 'integer?', memory_bytes: 'integer?',
+  region_ids: arrayOf('string'), created_at: 'timestamp', updated_at: 'timestamp', bytes: 'integer?', memory_bytes: 'integer?',
   error: 'string?', sandbox_id: 'string?',
 }
 

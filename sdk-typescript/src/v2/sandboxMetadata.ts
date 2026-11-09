@@ -69,7 +69,7 @@ const SANDBOX: ResponseFields = {
   image: nested(ARTIFACT_REF, true), snapshot: nested(ARTIFACT_REF, true), error: 'string?', mac_boot_mode: 'string?',
   image_build_id: 'string?', persistent: 'boolean?', user: 'string?', spot: 'boolean?', spot_evicted_at: 'timestamp?',
   lifecycle_policy: nested(LIFECYCLE_POLICY, true), forked_from: 'string?', reservation_id: 'string?', toolbox_proxy_url: 'string?',
-  created_at: 'string?', updated_at: 'string?', started_at: 'string?', stopped_at: 'string?',
+  created_at: 'timestamp?', updated_at: 'timestamp?', started_at: 'timestamp?', stopped_at: 'timestamp?',
   last_activity_at: 'timestamp?', create_timeout_at: 'timestamp?',
 }
 

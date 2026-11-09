@@ -14,14 +14,14 @@ import type { ResponseFields } from './responseFields.js'
 // the field, never a raw TypeError.
 const AUDIT_ACTIONS: ResponseFields = { targets: arrayOf(nested({ target_type: 'string', actions: arrayOf('string') })) }
 const API_KEY: ResponseFields = {
-  id: 'string', name: 'string', project_id: 'string', project_permissions: arrayOf('string'), created_at: 'string',
-  created_by: 'string?', expires_at: 'string?', last_used_at: 'string?', revoked_at: 'string?', key_prefix: 'string?',
+  id: 'string', name: 'string', project_id: 'string', project_permissions: arrayOf('string'), created_at: 'timestamp',
+  created_by: 'string?', expires_at: 'timestamp?', last_used_at: 'timestamp?', revoked_at: 'timestamp?', key_prefix: 'string?',
   key_suffix: 'string?', service_account_id: 'string?', service_account_name: 'string?',
   context: nested({ org_id: 'string', org_name: 'string', project_name: 'string' }),
 }
 const PROJECT_BUDGET: ResponseFields = {
-  monthly_limit_cents: 'integer|null', period_start_date: 'string|null', spent_cents: 'integer?', created_at: 'string|null',
-  updated_at: 'string|null', evaluated_at: 'string?', exceeded_at: 'string?', stop_at: 'string?',
+  monthly_limit_cents: 'integer|null', period_start_date: 'string|null', spent_cents: 'integer?', created_at: 'timestamp|null',
+  updated_at: 'timestamp|null', evaluated_at: 'timestamp?', exceeded_at: 'timestamp?', stop_at: 'timestamp?',
 }
 const USAGE: ResponseFields = { limit: 'integer|null', usage: 'integer' }
 const ORGANIZATION_LIMITS: ResponseFields = {

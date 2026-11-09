@@ -55,7 +55,7 @@ export interface ListSecretsOptions {
 const SET_SECRET_KEYS = optionKeys<SetSecretOptions>()({ allowedDomains: true, description: true, ifNotExists: true })
 const LIST_SECRETS_KEYS = optionKeys<ListSecretsOptions>()({ cursor: true, limit: true })
 
-const SECRET: ResponseFields = { name: 'string', allowed_domains: arrayOf('string'), created_at: 'string', updated_at: 'string', description: 'string?' }
+const SECRET: ResponseFields = { name: 'string', allowed_domains: arrayOf('string'), created_at: 'timestamp', updated_at: 'timestamp', description: 'string?' }
 
 function mapSecret(value: api.Secret): Secret {
   const secret = checkResponse<api.Secret>(value, SECRET, 'secret')

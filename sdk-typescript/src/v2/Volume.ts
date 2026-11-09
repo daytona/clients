@@ -68,8 +68,8 @@ function refConfig(options?: DeleteVolumeOptions): { readonly params: { readonly
 }
 
 const VOLUME: ResponseFields = {
-  id: 'string', name: 'string', type: 'string', status: 'string', created_at: 'string', updated_at: 'string',
-  size_gib: 'integer?', error: 'string?', last_used_at: 'string?', options: 'object?', used_bytes: 'integer?', used_bytes_at: 'string?',
+  id: 'string', name: 'string', type: 'string', status: 'string', created_at: 'timestamp', updated_at: 'timestamp',
+  size_gib: 'integer?', error: 'string?', last_used_at: 'timestamp?', options: 'object?', used_bytes: 'integer?', used_bytes_at: 'timestamp?',
 }
 
 function mapVolume(value: api.Volume): Volume {

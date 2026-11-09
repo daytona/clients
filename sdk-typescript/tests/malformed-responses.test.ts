@@ -725,3 +725,62 @@ it.each(['images.pull', 'captureImage', 'createSnapshot'] as const)('refuses a %
     await api.close()
   }
 })
+
+const VOLUME = { id: 'vol', name: 'data', type: 'standard', status: 'ready', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }
+const SECRET = { name: 'KEY', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }
+const API_KEY = {
+  id: 'k', name: 'ci', project_id: 'p', project_permissions: [], created_at: '2026-01-01T00:00:00Z',
+  context: { project_name: 'p', org_id: 'o', org_name: 'o' }, sync_to_v0: true, sync_to_v1: true,
+}
+const LISTED = { ...SANDBOX_DETAIL, id: 'sbx', cursor: 'c1', toolbox_proxy_url: 'https://toolbox.example/sbx' }
+type DateTimeCase = readonly [string, (client: Daytona, api: FakeApi) => Promise<unknown>, string, (field: string, value: string) => unknown]
+
+// Every date-time field the SDK maps, one call per model kind: a string that
+// is not an RFC 3339 timestamp (here a bare date) is refused naming the field
+// (as in Python).
+const DATE_TIMES: readonly DateTimeCase[] = [
+  ...['created_at', 'updated_at', 'started_at', 'stopped_at'].map((field): DateTimeCase => [`get ${field}`, (client) => client.v2.get('src'), field, (f, v) => ({ ...SANDBOX_DETAIL, [f]: v })]),
+  ['list created_at', (client) => client.v2.list(), 'created_at', (f, v) => ({ sandboxes: [{ ...LISTED, [f]: v }], next_cursor: null })],
+  ['search started_at', (client) => client.v2.search(), 'started_at', (f, v) => ({ sandboxes: [{ ...LISTED, [f]: v }], total: 1, total_relation: 'eq', next_cursor: null })],
+  ['images.get updated_at', (client) => client.v2.images.get('img'), 'updated_at', (f, v) => ({ ...imageWire({ id: 'img' }), [f]: v })],
+  ['images.get expires_at', (client) => client.v2.images.get('img'), 'expires_at', (f, v) => ({ ...imageWire({ id: 'img' }), [f]: v })],
+  ['snapshots.get created_at', (client) => client.v2.snapshots.get('snap'), 'created_at', (f, v) => ({ ...snapshotWire(), [f]: v })],
+  ...['created_at', 'updated_at', 'last_used_at', 'used_bytes_at'].map((field): DateTimeCase => [`volumes.get ${field}`, (client) => client.v2.volumes.get('data'), field, (f, v) => ({ ...VOLUME, [f]: v })]),
+  ['secrets.get created_at', (client) => client.v2.secrets.get('KEY'), 'created_at', (f, v) => ({ ...SECRET, [f]: v })],
+  ['ports.expose created_at', (_client, api) => source(api).ports.expose(8080), 'created_at', (f, v) => ({ ...PORT, [f]: v })],
+  ...['created_at', 'expires_at', 'last_used_at', 'revoked_at'].map((field): DateTimeCase => [`currentApiKey ${field}`, (client) => client.v2.currentApiKey(), field, (f, v) => ({ ...API_KEY, [f]: v })]),
+  ...['created_at', 'updated_at', 'evaluated_at', 'exceeded_at', 'stop_at'].map((field): DateTimeCase => [`project budget ${field}`, (client) => client.v2.getProjectBudget(), field, (f, v) => ({ ...BUDGET_NULLS, [f]: v })]),
+]
+
+it.each(DATE_TIMES)('refuses a date-time field that is not RFC 3339: %s', async (_name, call, field, body) => {
+  const api = await startFakeApi([{ status: 200, body: body(field, '2026-01-01') }])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client, api)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`has a ${field} that is not an RFC 3339 timestamp`) })
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// In a create response the field reads as absent, and a read during the
+// create wait that breaks the contract is a failed read: the handle is
+// returned (as in Python).
+it.each(['created_at', 'updated_at', 'started_at', 'stopped_at'])('keeps the create handle over a bad sandbox %s', async (field) => {
+  const accepted = { id: 's1', status: 'pending', [field]: '2026-01-01' }
+  const api = await startFakeApi([
+    { status: 200, body: accepted },
+    { status: 200, body: accepted },
+    { status: 200, body: { ...SANDBOX_DETAIL, id: 's1', status: 'pending', [field]: '2026-01-01' } },
+  ])
+  const client = clientAt(api.url, { events: { enabled: false } })
+  try {
+    await expect(client.v2.create('img_1', { waitSeconds: 0 })).resolves.toMatchObject({ id: 's1' })
+    await expect(client.v2.create('img_1', { waitSeconds: 5 })).resolves.toMatchObject({ id: 's1' })
+    expect(api.requests).toHaveLength(3)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

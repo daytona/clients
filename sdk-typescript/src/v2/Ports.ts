@@ -67,7 +67,7 @@ function assertSignedPreviewTtl(expiresInSeconds: number): void {
   }
 }
 
-const PREVIEW_ENDPOINT: ResponseFields = { port: 'integer', public: 'boolean', url: 'string', created_at: 'string' }
+const PREVIEW_ENDPOINT: ResponseFields = { port: 'integer', public: 'boolean', url: 'string', created_at: 'timestamp' }
 
 function mapPreviewEndpoint(value: api.PreviewEndpoint): PreviewEndpoint {
   const endpoint = checkResponse<api.PreviewEndpoint>(value, PREVIEW_ENDPOINT, 'preview endpoint')
@@ -284,7 +284,7 @@ export class PortsService {
     const path = `/sandboxes/${strictUriEncode(this.requireSandboxId())}/ports/${port}/signed-preview-urls`
     const body = options.expiresInSeconds === undefined ? {} : { expires_in_seconds: options.expiresInSeconds }
     const response = await this.requireApi().post<api.SignedPreviewUrlResponse>(path, body)
-      .then((result) => checkResponse<api.SignedPreviewUrlResponse>(result.data, { url: 'string', token: 'string', expires_at: 'string' }, 'signed preview url'))
+      .then((result) => checkResponse<api.SignedPreviewUrlResponse>(result.data, { url: 'string', token: 'string', expires_at: 'timestamp' }, 'signed preview url'))
     return deepFrozen(credentialSafeInspection({ url: response.url, token: response.token, expiresAt: response.expires_at },
       () => ({ type: 'SignedPreviewLink', expiresAt: response.expires_at })))
   }

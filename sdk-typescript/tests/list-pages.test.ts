@@ -105,7 +105,7 @@ describe('account responses', () => {
   it.each([
     ['audit actions', (client: Daytona) => client.v2.listAuditActions(), { items: [] }, 'missing its targets'],
     ['audit actions', (client: Daytona) => client.v2.listAuditActions(), { targets: [{ target_type: 'sandbox' }] }, 'missing its targets[0].actions'],
-    ['API key', (client: Daytona) => client.v2.currentApiKey(), { id: 'k', name: 'n', project_id: 'p', created_at: 't', project_permissions: [] }, 'missing its context'],
+    ['API key', (client: Daytona) => client.v2.currentApiKey(), { id: 'k', name: 'n', project_id: 'p', created_at: '2026-01-01T00:00:00Z', project_permissions: [] }, 'missing its context'],
     ['project budget', (client: Daytona) => client.v2.getProjectBudget(), [], 'not a JSON object'],
     ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...limits, storage: { volumes: { limit: 1, usage: 0 } } }, 'missing its storage.images'],
     ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), { ...limits, members: 3 }, 'has a members that is not an object'],

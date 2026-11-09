@@ -786,7 +786,9 @@ async def test_a_signed_preview_link_without_expires_at_is_a_contract_error() ->
                 await lazy_sandbox(root.v2, "src").ports.signed_preview_link(8080)
 
 
-async def test_a_signed_preview_link_expiry_without_an_offset_is_utc() -> None:
+async def test_a_signed_preview_link_expiry_without_an_offset_is_refused() -> None:
+    # An expiry without an offset is no RFC 3339 timestamp: refused naming the
+    # field, as TypeScript does (twin in malformed-responses.test.ts).
     body: JsonObject = {
         "url": "https://s.preview.invalid",
         "token": "s" + "0" * 32,
@@ -795,8 +797,8 @@ async def test_a_signed_preview_link_expiry_without_an_offset_is_utc() -> None:
     with FakeApi([PlannedResponse(200, body)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            link = await lazy_sandbox(root.v2, "src").ports.signed_preview_link(8080)
-    assert link.expires_at == datetime(2030, 1, 1, tzinfo=timezone.utc)
+            with _sdk_bad_request("has a expires_at that is not an RFC 3339 timestamp"):
+                await lazy_sandbox(root.v2, "src").ports.signed_preview_link(8080)
 
 
 async def test_an_integer_too_large_for_a_double_in_a_mapped_field_is_a_contract_error() -> None:
@@ -1102,3 +1104,130 @@ async def test_an_acknowledgement_id_that_is_a_dot_segment_is_refused_before_the
                 else:
                     await lazy_sandbox(root.v2, "src").create_snapshot("snap")
     assert len(api.requests) == 1
+
+
+_VOLUME: JsonObject = {
+    "id": "vol",
+    "name": "data",
+    "type": "standard",
+    "status": "ready",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+}
+_SECRET: JsonObject = {
+    "name": "KEY",
+    "allowed_domains": [],
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+}
+_API_KEY: JsonObject = {
+    "id": "k",
+    "name": "ci",
+    "project_id": "p",
+    "project_permissions": [],
+    "created_at": "2026-01-01T00:00:00Z",
+    "context": {"project_name": "p", "org_id": "o", "org_name": "o"},
+    "sync_to_v0": True,
+    "sync_to_v1": True,
+}
+_LISTED: JsonObject = {
+    **_DETAIL,
+    "id": "sbx",
+    "cursor": "c1",
+    "toolbox_proxy_url": "https://toolbox.example/sbx",
+}
+
+# Every date-time field the SDK maps, one call per model kind: a string that
+# is not an RFC 3339 timestamp (here a bare date) is refused naming the field.
+# The TypeScript twin is in malformed-responses.test.ts.
+_DATE_TIMES: list[tuple[str, Call, str, Callable[[str, str], JsonObject]]] = [
+    *[
+        (f"get {field}", lambda d: d.get("src"), field, lambda f, v: {**_DETAIL, f: v})
+        for field in ("created_at", "updated_at", "started_at", "stopped_at")
+    ],
+    (
+        "list created_at",
+        lambda d: d.list(),
+        "created_at",
+        lambda f, v: {"sandboxes": [{**_LISTED, f: v}], "next_cursor": None},
+    ),
+    (
+        "search started_at",
+        lambda d: d.search(),
+        "started_at",
+        lambda f, v: {
+            "sandboxes": [{**_LISTED, f: v}],
+            "total": 1,
+            "total_relation": "eq",
+            "next_cursor": None,
+        },
+    ),
+    ("images.get updated_at", lambda d: d.images.get("img"), "updated_at", lambda f, v: {**_IMAGE, f: v}),
+    ("images.get expires_at", lambda d: d.images.get("img"), "expires_at", lambda f, v: {**_IMAGE, f: v}),
+    (
+        "snapshots.get created_at",
+        lambda d: d.snapshots.get("snap"),
+        "created_at",
+        lambda f, v: {**_SNAPSHOT, f: v},
+    ),
+    *[
+        (f"volumes.get {field}", lambda d: d.volumes.get("data"), field, lambda f, v: {**_VOLUME, f: v})
+        for field in ("created_at", "updated_at", "last_used_at", "used_bytes_at")
+    ],
+    ("secrets.get created_at", lambda d: d.secrets.get("KEY"), "created_at", lambda f, v: {**_SECRET, f: v}),
+    (
+        "ports.expose created_at",
+        lambda d: lazy_sandbox(d, "src").ports.expose(8080),
+        "created_at",
+        lambda f, v: {**_PORT, f: v},
+    ),
+    *[
+        (f"current_api_key {field}", lambda d: d.current_api_key(), field, lambda f, v: {**_API_KEY, f: v})
+        for field in ("created_at", "expires_at", "last_used_at", "revoked_at")
+    ],
+    *[
+        (
+            f"project budget {field}",
+            lambda d: d.get_project_budget(),
+            field,
+            lambda f, v: {**_BUDGET_NULLS, f: v},
+        )
+        for field in ("created_at", "updated_at", "evaluated_at", "exceeded_at", "stop_at")
+    ],
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "call", "field", "body"), _DATE_TIMES, ids=[case[0] for case in _DATE_TIMES]
+)
+async def test_a_date_time_field_that_is_not_rfc_3339_is_refused(
+    name: str, call: Call, field: str, body: Callable[[str, str], JsonObject]
+) -> None:
+    del name
+    with FakeApi([PlannedResponse(200, body(field, "2026-01-01"))]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request(re.escape(f"has a {field} that is not an RFC 3339 timestamp")):
+                await call(root.v2)
+    assert len(api.requests) == 1
+
+
+@pytest.mark.parametrize("field", ["created_at", "updated_at", "started_at", "stopped_at"])
+async def test_a_bad_sandbox_date_time_keeps_the_create_handle(field: str) -> None:
+    # In a create response the field reads as absent, and a read during the
+    # create wait that breaks the contract is a failed read: the handle is
+    # returned (twin in malformed-responses.test.ts).
+    accepted: JsonObject = {"id": "s1", "status": "pending", field: "2026-01-01"}
+    planned = [
+        PlannedResponse(200, accepted),
+        PlannedResponse(200, accepted),
+        PlannedResponse(200, {**_DETAIL, "id": "s1", "status": "pending", field: "2026-01-01"}),
+    ]
+    with FakeApi(planned) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            created = await root.v2.create("img_1", wait_seconds=0)
+            waited = await root.v2.create("img_1", wait_seconds=5)
+    assert (created.id, waited.id) == ("s1", "s1")
+    assert len(api.requests) == 3

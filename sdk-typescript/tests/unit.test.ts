@@ -8718,13 +8718,13 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { secrets: [{ name: 'TOKEN', allowed_domains: [], created_at: 'c', updated_at: 'u' }] } })
-      .mockResolvedValueOnce({ data: { name: 'TOKEN', allowed_domains: [], created_at: 'c', updated_at: 'u' } })
-    const put = jest.spyOn(api, 'put').mockResolvedValue({ data: { name: 'API/TOKEN', allowed_domains: ['*.example.com'], description: 'desc', created_at: 'c', updated_at: 'u' } })
+      .mockResolvedValueOnce({ data: { secrets: [{ name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }] } })
+      .mockResolvedValueOnce({ data: { name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
+    const put = jest.spyOn(api, 'put').mockResolvedValue({ data: { name: 'API/TOKEN', allowed_domains: ['*.example.com'], description: 'desc', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
 
     const secretsPage = await client.secrets.list()
-    expect(secretsPage).toEqual({ items: [{ name: 'TOKEN', allowedDomains: [], createdAt: 'c', updatedAt: 'u' }] })
+    expect(secretsPage).toEqual({ items: [{ name: 'TOKEN', allowedDomains: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }] })
     expect(Object.keys(secretsPage)).toEqual(['items', 'nextCursor'])
     expect(get.mock.calls[0]?.[0]).toBe('/secrets')
     await client.secrets.set('API/TOKEN', 'secret', { allowedDomains: ['*.example.com'], description: 'desc', ifNotExists: true })
@@ -8735,10 +8735,10 @@ describe('toolbox service request shaping', () => {
     )
     await client.secrets.delete('API/TOKEN')
     expect(del.mock.calls[0]?.[0]).toBe('/secrets/API%2FTOKEN')
-    await expect(client.secrets.get('TOKEN')).resolves.toEqual({ name: 'TOKEN', allowedDomains: [], createdAt: 'c', updatedAt: 'u' })
+    await expect(client.secrets.get('TOKEN')).resolves.toEqual({ name: 'TOKEN', allowedDomains: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' })
 
     // set with ["*"] sends allowed_domains: ["*"]
-    put.mockResolvedValueOnce({ data: { name: 'WIDE', allowed_domains: ['*'], created_at: 'c', updated_at: 'u' } })
+    put.mockResolvedValueOnce({ data: { name: 'WIDE', allowed_domains: ['*'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
     await client.secrets.set('WIDE', 'val', { allowedDomains: ['*'] })
     expect(put).toHaveBeenLastCalledWith('/secrets/WIDE', { value: 'val', allowed_domains: ['*'] }, undefined)
 
@@ -11516,12 +11516,12 @@ describe('toolbox endpoint e2e', () => {
     transport.get.mockResolvedValueOnce({ ports: [3000, 8080] }).mockResolvedValueOnce({ isInUse: true })
     const portsApi = {
       get: jest.fn()
-        .mockResolvedValueOnce({ data: { id: 'ep', class: 'linux', port: 8080, public: false, url: 'https://p', created_at: 'now', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }),
+        .mockResolvedValueOnce({ data: { id: 'ep', class: 'linux', port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }),
       post: jest.fn()
         .mockResolvedValueOnce({ data: { url: 'https://p', token: 'preview-token' } })
-        .mockResolvedValueOnce({ data: { url: 'https://signed', token: 'signed-token', expires_at: 'later' } })
+        .mockResolvedValueOnce({ data: { url: 'https://signed', token: 'signed-token', expires_at: '2026-01-01T00:00:00Z' } })
         .mockResolvedValueOnce({ data: undefined }),
-      put: jest.fn().mockResolvedValue({ data: { id: 'ep', class: 'linux', port: 8080, public: true, url: 'https://p', created_at: 'now', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }),
+      put: jest.fn().mockResolvedValue({ data: { id: 'ep', class: 'linux', port: 8080, public: true, url: 'https://p', created_at: '2026-01-01T00:00:00Z', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }),
       delete: jest.fn().mockResolvedValue({ data: {} }),
     }
     const ports = new PortsService(INTERNAL, transport.object, portsApi as never, 'sbx')
@@ -11530,8 +11530,8 @@ describe('toolbox endpoint e2e', () => {
     await expect(ports.isInUse(3999)).resolves.toBe(true)
     await expect(ports.isInUse(39.5)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     await expect(ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: 'preview-token' })
-    await expect(ports.signedPreviewLink(8080, { expiresInSeconds: 300 })).resolves.toEqual({ url: 'https://signed', token: 'signed-token', expiresAt: 'later' })
-    await expect(ports.expose(8080, { public: true })).resolves.toEqual({ port: 8080, public: true, url: 'https://p', createdAt: 'now' })
+    await expect(ports.signedPreviewLink(8080, { expiresInSeconds: 300 })).resolves.toEqual({ url: 'https://signed', token: 'signed-token', expiresAt: '2026-01-01T00:00:00Z' })
+    await expect(ports.expose(8080, { public: true })).resolves.toEqual({ port: 8080, public: true, url: 'https://p', createdAt: '2026-01-01T00:00:00Z' })
     await expect(ports.expireSignedPreviewLink(8080, 'tok/en')).resolves.toBeUndefined()
     await ports.unexpose(8080)
     expect(transport.get.mock.calls[0]).toEqual(['/port'])
