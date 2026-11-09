@@ -21,6 +21,6 @@ frozen at run time at every depth, as are the values a callback receives (a
 watch event): a write to a returned result, which the types already refused,
 now throws in strict mode (live handles, byte buffers and streams are not
 frozen). Unknown top-level response fields are dropped from TypeScript
-computer-use results, as in Python (the process status, desktop status and
-failure models keep theirs in `extra_fields` / `extraFields`), and the
-TypeScript computer-use model arrays are `readonly`.
+computer-use results, as in Python (the process status, desktop status,
+failure and restart models keep theirs in `extra_fields` / `extraFields`), and
+the TypeScript computer-use model arrays are `readonly`.
