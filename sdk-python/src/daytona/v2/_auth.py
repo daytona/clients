@@ -153,7 +153,9 @@ class ProjectTokenAuth:
         if response.status_code >= 400:
             if span is not None:
                 span.finish(status_code=response.status_code)
-            raise error_from_response(response.status_code, response.content)
+            raise error_from_response(
+                response.status_code, response.content, content_type=response.headers.get("content-type")
+            )
         try:
             exchange = _token_exchange(response.content)
         except BaseException as error:

@@ -808,6 +808,16 @@ async def test_http_error_reads_unified_router_envelope():
     assert len(requests) == 2
 
 
+@pytest.mark.parametrize("content_type", ["text/plain", "application/jsonl"])
+async def test_http_error_reads_a_code_only_from_an_application_json_body(content_type):
+    body = b'{"code":"NOT_FOUND","message":"gone","source":"DAYTONA_ROUTER"}'
+    api, _, _ = setup([httpx.Response(404, content=body, headers={"content-type": content_type})])
+    with pytest.raises(NotFoundError) as failure:
+        await read_build_logs(api, DISCOVERY)
+    error = failure.value
+    assert (error.status_code, error.code, error.message) == (404, None, "build log HTTP 404")
+
+
 async def test_http_error_reads_error_and_code_fields():
     api, _, _ = setup(
         [httpx.Response(409, json={"error": "sandbox is not running", "code": "SANDBOX_NOT_RUNNING"})]

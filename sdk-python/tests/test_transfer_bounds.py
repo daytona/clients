@@ -20,7 +20,7 @@ import time
 import tracemalloc
 import zlib
 from pathlib import Path
-from typing import AsyncIterator, Callable, Iterator
+from typing import AsyncIterator, Awaitable, Callable, Iterator
 
 import anyio
 import httpx
@@ -37,7 +37,7 @@ from daytona.v2 import (
     PayloadTooLargeError,
 )
 from daytona.v2._core import RequestSpec
-from daytona.v2._transport import AsyncTransport
+from daytona.v2._transport import AsyncTransport, SyncTransport
 
 IDLE = 0.5
 STALL = 5.0
@@ -933,3 +933,77 @@ async def test_only_bounded_encodings_are_asked_for_and_any_other_is_refused_und
         finally:
             await transport.close()
     assert seen == ["gzip, deflate"] * 4
+
+
+# --- error bodies -------------------------------------------------------------
+
+_ENVELOPE = b'{"code":"FILE_NOT_FOUND","message":"gone","source":"DAYTONA_DAEMON"}'
+
+
+def _error_body(content_type: str | None) -> Handler:
+    def handle(request: http.server.BaseHTTPRequestHandler) -> None:
+        _drain(request)
+        headers = {"Content_Length": str(len(_ENVELOPE))}
+        if content_type is not None:
+            headers["Content_Type"] = content_type
+        _send_head(request, 404, **headers)
+        request.wfile.write(_ENVELOPE)
+
+    return handle
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "content_type", ["text/plain", "application/jsonl", "application/problem+json", None]
+)
+async def test_only_an_error_body_declared_as_application_json_carries_a_code(
+    content_type: str | None,
+) -> None:
+    # A body that looks like an envelope but is not declared as JSON is only
+    # the message: the status's own error, no server code.
+    with _server({"/": _error_body(content_type)}) as base:
+        transport = AsyncTransport(base, "t", request_timeout=10)
+        sync = SyncTransport(base, "t", request_timeout=10)
+        try:
+            calls: list[Callable[[], Awaitable[object]]] = [
+                lambda: transport.send(RequestSpec("GET", "/a")),
+                lambda: transport.raw(RequestSpec("GET", "/files/download")),
+                lambda: transport.open_stream(RequestSpec("GET", "/stream")),
+            ]
+            for call in calls:
+                with pytest.raises(NotFoundError) as caught:
+                    await call()
+                assert type(caught.value) is NotFoundError
+                assert (caught.value.code, str(caught.value)) == (None, _ENVELOPE.decode())
+            with pytest.raises(NotFoundError) as caught_sync:
+                sync.send(RequestSpec("GET", "/a"))
+            assert type(caught_sync.value) is NotFoundError and caught_sync.value.code is None
+        finally:
+            await transport.close()
+            sync.close()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("content_type", ["application/json", "Application/JSON ; charset=utf-8"])
+async def test_an_error_body_declared_as_application_json_carries_its_code(content_type: str) -> None:
+    with _server({"/": _error_body(content_type)}) as base:
+        transport = AsyncTransport(base, "t", request_timeout=10)
+        sync = SyncTransport(base, "t", request_timeout=10)
+        try:
+            for call in (
+                lambda: transport.send(RequestSpec("GET", "/a")),
+                lambda: transport.raw(RequestSpec("GET", "/files/download")),
+                lambda: transport.open_stream(RequestSpec("GET", "/stream")),
+            ):
+                with pytest.raises(FileNotFoundError) as caught:
+                    await call()
+                assert (caught.value.code, caught.value.source, str(caught.value)) == (
+                    "FILE_NOT_FOUND",
+                    "DAYTONA_DAEMON",
+                    "gone",
+                )
+            with pytest.raises(FileNotFoundError):
+                sync.send(RequestSpec("GET", "/a"))
+        finally:
+            await transport.close()
+            sync.close()
