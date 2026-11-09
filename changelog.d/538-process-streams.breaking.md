@@ -17,6 +17,9 @@ or an unterminated final block, dispatches nothing (TypeScript dispatched
 both), and one byte-order mark at the very start of a stream is dropped
 (Python kept it, so the stream's first event lost its type and was skipped).
 Each event is bounded by the client's `max_response_bytes` /
-`maxResponseBytes`, counted as its bytes arrive: one event over it raises
-`PayloadTooLargeError` (413, `PAYLOAD_TOO_LARGE`, source `SDK`). Python
-yielded bare `LogFrame`s and gains `limit=`.
+`maxResponseBytes` (left unset, Python `None` / TypeScript `undefined` or
+`null`, it keeps the configured cap, 1 GiB by default; `0` means no limit; any
+other value is a `BadRequestError`), counted as its bytes arrive: one event
+over it raises `PayloadTooLargeError` (413, `PAYLOAD_TOO_LARGE`, source
+`SDK`); with `0` events are unbounded. Python yielded bare `LogFrame`s and
+gains `limit=`.

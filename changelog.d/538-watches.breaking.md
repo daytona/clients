@@ -40,13 +40,16 @@ it, at most 4096 of them, and the stream may send at most 1 MiB before
 `start`, counted as the bytes arrive, so one event that never ends is refused
 too: a stream that sends more `fs` or `overflow` events, handled by a callback
 or not, or more bytes, before `start` is refused with `BadRequestError` from
-`watch_dir()` / `watchDir()`. After `start`, each event is bounded by the
-client's `max_response_bytes` / `maxResponseBytes` (one event over it ends the
-watch with `PayloadTooLargeError`). Events carry `timestampMs` /
-`timestamp_ms`, and a malformed event ends the watch with `BadRequestError`. A
-watch whose stream ends on its own, or is cut short, ends with
-`ConnectionError` (source `SDK`) in both SDKs (Python raised a 500
-`InternalServerError`, TypeScript a plain `DaytonaError` or the runtime's own
-error), and a stream that fails to close after the caller's own `stop()` no
-longer becomes the exit error (Python could report a `RuntimeError` when
-`stop()` raced the reader's close).
+`watch_dir()` / `watchDir()`; every frame counts, comment-only heartbeats
+included. After `start`, each event is bounded by the client's
+`max_response_bytes` / `maxResponseBytes` (left unset, Python `None` /
+TypeScript `undefined` or `null`, it keeps the configured cap, 1 GiB by
+default; `0` means no limit; any other value is a `BadRequestError`): one
+event over it ends the watch with `PayloadTooLargeError`, and with `0` events
+are unbounded. Events carry `timestampMs` / `timestamp_ms`, and a malformed
+event ends the watch with `BadRequestError`. A watch whose stream ends on its
+own, or is cut short, ends with `ConnectionError` (source `SDK`) in both SDKs
+(Python raised a 500 `InternalServerError`, TypeScript a plain `DaytonaError`
+or the runtime's own error), and a stream that fails to close after the
+caller's own `stop()` no longer becomes the exit error (Python could report a
+`RuntimeError` when `stop()` raced the reader's close).

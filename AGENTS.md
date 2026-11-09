@@ -553,7 +553,9 @@ skipping exist only in the TypeScript tool).
   (never axios' xhr or fetch adapters, which buffer before checking in some
   runtimes); the runtime suite's `capOk` check holds every runtime to it.
   Streamed bodies (`download_file` / `downloadFile`, log, event and
-  build-log streams, watches) are never capped. For large files, or content
+  build-log streams, watches) are never buffered whole, so their total size is
+  never capped; each event of an SSE stream (process logs, watches) is
+  bounded, though (see "Watches are callback-only" below). For large files, or content
   from a sandbox you don't trust, use `download_file` / `downloadFile`, which
   stream to disk with progress and cancellation. TypeScript's `downloadFile`
   is Node.js-only (a browser build throws `NotSupportedError`); in a
@@ -659,7 +661,10 @@ skipping exist only in the TypeScript tool).
   (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`; Python
   `process_tag`, TS `processTag`); the kill timeout is seconds, more than 0
   and at most 60 (Python `timeout`, TS `timeoutSeconds`): the toolbox takes
-  1-60000 ms and has no unbounded wait, so no value means "no limit".
+  1-60000 ms and has no unbounded wait, so no value means "no limit", and an
+  omitted one uses the toolbox's 10-second default. `kill_all()` /
+  `killAll()` raises `UnsupportedOperationError` on macOS and on sandboxes
+  without process containment.
 - **Process results report what the sandbox reported.** `WaitResult` (and
   `ProcessResult`, `InterpreterProcess`, which extend it) always has a
   normalized `reason` (`unknown` + `raw_reason` / `rawReason` for an unlisted
@@ -728,13 +733,16 @@ skipping exist only in the TypeScript tool).
   fails the call with `BadRequestError`. Every SSE reader counts an event's
   bytes as they arrive (Python `SseLineSplitter` over the body's bytes, TS
   `sseMessages` with an `SseBound`), so one never-ending event is bounded:
-  before `start` by the watch's remaining budget, otherwise (after `start`,
+  before `start` by the watch's remaining budget (every frame counts,
+  comment-only heartbeats included; Python `SseLineSplitter.completed_bytes`,
+  TS `SseBound.limit(completed)`), otherwise (after `start`,
   process log streams) by the client's `max_response_bytes` /
   `maxResponseBytes`, an event over it `PayloadTooLargeError` (413,
   `PAYLOAD_TOO_LARGE`, `SDK`). Python decodes every streamed body itself
   (`AsyncResponseStream.iter_bytes()` through `_body_limit.decoded_chunks`:
-  gzip / deflate in `DECODE_STEP` pieces, any other encoding refused, data
-  that stops before its end a `ConnectionError`), never
+  gzip (also sent as `x-gzip`) / deflate in `DECODE_STEP` pieces, any other
+  encoding refused; compressed data that stops before its end raises a
+  `ConnectionError`), never
   through httpx's decoders, so a compressed event is bounded too. A process log stream cut short is
   `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
   and so is one that ends without `eof`: the server ends it with `eof`, so

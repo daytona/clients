@@ -785,8 +785,9 @@ synchronous SDK call, including another watch's methods, raises a
 `read_bytes()`, `read_text()`, `read_many()` and the computer-use recording
 `download()` hold the whole response in memory: they take
 `max_response_bytes=` to replace the client's cap for one call (`None`, the
-default, keeps the client's cap, `0` means no limit, any other non-integer is
-a `BadRequestError`). For large files, or content from a sandbox you don't trust, use `download_file()`, which streams to disk
+default, keeps the client's configured cap, 1 GiB unless set; `0` means no
+limit; any other value, a negative, fractional or oversized number, a
+boolean or a string included, is a `BadRequestError`). For large files, or content from a sandbox you don't trust, use `download_file()`, which streams to disk
 with progress and cancellation (for a recording, pass its `file_path`, not its
 id).
 

@@ -732,8 +732,9 @@ rest of the batch is written.
 `readBytes()`, `readText()`, `readMany()` and the computer-use recording
 `download()` hold the whole response in memory: they take
 `{ maxResponseBytes }` to replace the client's cap for one call (`undefined`
-or `null` keep the client's cap, `0` means no limit, any other non-integer is
-a `BadRequestError`). For large files, or content from a sandbox you don't trust, use `downloadFile()`, which streams to disk
+or `null` keep the client's configured cap, 1 GiB unless set; `0` means no
+limit; any other value, a negative, fractional or oversized number, a
+boolean or a string included, is a `BadRequestError`). For large files, or content from a sandbox you don't trust, use `downloadFile()`, which streams to disk
 with progress and cancellation (for a recording, pass its `filePath`, not its
 id). `downloadFile()` is Node.js-only (a browser build throws
 `NotSupportedError`); in a browser, the in-memory reads and a
