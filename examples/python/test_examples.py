@@ -71,6 +71,7 @@ class FakeWorld:
         self.images: list[SimpleNamespace] = []
         self.image_ids = itertools.count()
         self.pull_conflict = False
+        self.pull_fails: Optional[str] = None
         self.pulled_images: list[tuple[str, Optional[str]]] = []
         self.deleted_images: list[str] = []
         self.fail_builds_containing: Optional[str] = None
@@ -120,8 +121,12 @@ class FakeWorld:
         client.images = images
         return client
 
-    def add_image(self, name: str, status: str, waits: tuple[str, ...] = ("ready",)) -> SimpleNamespace:
-        image = SimpleNamespace(id=f"img-{next(self.image_ids)}", name=name, status=status, waits=list(waits))
+    def add_image(
+        self, name: str, status: str, waits: tuple[str, ...] = ("ready",), error: Optional[str] = None
+    ) -> SimpleNamespace:
+        image = SimpleNamespace(
+            id=f"img-{next(self.image_ids)}", name=name, status=status, waits=list(waits), error=error
+        )
         self.images.append(image)
         return image
 
@@ -136,6 +141,8 @@ class FakeWorld:
         if self.pull_conflict and len(self.pulled_images) == 1:
             self.add_image(name or image, "ready")  # Another run registered it first.
             raise NameConflictError("image name already exists", status_code=409, code="NAME_CONFLICT")
+        if self.pull_fails:
+            return self.add_image(name or image, "pending", ("failed",), self.pull_fails)
         return self.add_image(name or image, "ready")
 
     def _image_delete(self, image_id: str) -> None:
@@ -349,6 +356,17 @@ def test_registers_again_over_a_failed_registration(
     assert code == 0
     assert world.deleted_images == ["img-0"]
     assert len(world.pulled_images) == 1
+
+
+def test_reports_why_the_registration_failed_after_its_retries(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    world = FakeWorld()
+    world.pull_fails = "manifest unknown"
+    with pytest.raises(RuntimeError, match=f"as image {IMAGE_NAME}: manifest unknown$"):
+        run_example("exec_command", world=world)
+    assert len(world.pulled_images) == 3
+    assert world.sandboxes == []
 
 
 def test_uses_the_image_another_run_registered_first(

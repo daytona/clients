@@ -37,6 +37,8 @@ export interface Scenario {
   volumeData?: boolean
   /** Project images that exist before the run: [name, status, statuses its waits return (default ['ready'])]. */
   images?: [string, string, string[]?][]
+  /** Every registration fails during its wait, with this error. */
+  pullFails?: string
   /** Another run registers the image first: pull finds the name taken (409). */
   pullConflict?: boolean
 }
@@ -69,7 +71,7 @@ process.on('exit', () => {
 
 const secrets = new Map<string, string>()
 let nextImage = 0
-const newImage = (name: string, status: string, waits: string[] = ['ready']) => ({ id: `img-${nextImage++}`, name, status, waits })
+const newImage = (name: string, status: string, waits: string[] = ['ready'], error?: string) => ({ id: `img-${nextImage++}`, name, status, waits, error })
 const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(name, status, waits))
 const volumeLines: string[] = []
 
@@ -196,7 +198,7 @@ const fake = {
         images.push(newImage(options.name ?? ref, 'ready'))
         throw new NameConflictError('image name already exists', 409, 'NAME_CONFLICT', 'API')
       }
-      const entry = newImage(options.name ?? ref, 'ready')
+      const entry = scenario.pullFails ? newImage(options.name ?? ref, 'pending', ['failed'], scenario.pullFails) : newImage(options.name ?? ref, 'ready')
       images.push(entry)
       return entry
     },

@@ -84,6 +84,7 @@ def sandbox_image(daytona: DaytonaV2Client) -> str:
     registers), else register it (``images.pull``, ``POST /images``). A failed
     registration is deleted and registered again.
     """
+    cause = "no registration attempt finished"
     for _ in range(3):
         image = _registered(daytona)
         if image is None:
@@ -101,8 +102,11 @@ def sandbox_image(daytona: DaytonaV2Client) -> str:
             return IMAGE_NAME
         if image.status not in ("failed", "error"):
             raise RuntimeError(f"image {IMAGE_NAME} is still {image.status}")
-        daytona.images.delete(image.id)  # A failed registration: register again.
-    raise RuntimeError(f"could not register {IMAGE} as image {IMAGE_NAME}")
+        # A failed registration: report why, then register again.
+        cause = image.error or f"registration {image.status}"
+        info(f"image {IMAGE_NAME} failed: {cause}; registering again")
+        daytona.images.delete(image.id)
+    raise RuntimeError(f"could not register {IMAGE} as image {IMAGE_NAME}: {cause}")
 
 
 def client() -> DaytonaV2Client:

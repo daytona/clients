@@ -74,6 +74,7 @@ async function registered(daytona: DaytonaV2Client): Promise<Image | undefined> 
  * registered again.
  */
 export async function sandboxImage(daytona: DaytonaV2Client): Promise<string> {
+  let cause = 'no registration attempt finished'
   for (let attempt = 0; attempt < 3; attempt += 1) {
     let image = await registered(daytona)
     if (image === undefined) {
@@ -91,7 +92,10 @@ export async function sandboxImage(daytona: DaytonaV2Client): Promise<string> {
     }
     if (image.status === 'ready') return IMAGE_NAME
     if (image.status !== 'failed' && image.status !== 'error') throw new Error(`image ${IMAGE_NAME} is still ${image.status}`)
-    await daytona.images.delete(image.id) // A failed registration: register again.
+    // A failed registration: report why, then register again.
+    cause = image.error ?? `registration ${image.status}`
+    info(`image ${IMAGE_NAME} failed: ${cause}; registering again`)
+    await daytona.images.delete(image.id)
   }
-  throw new Error(`could not register ${IMAGE} as image ${IMAGE_NAME}`)
+  throw new Error(`could not register ${IMAGE} as image ${IMAGE_NAME}: ${cause}`)
 }

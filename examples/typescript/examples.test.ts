@@ -108,6 +108,14 @@ test('registers again over a registration that failed, before or during the wait
   }
 })
 
+test('reports why the registration failed after its retries', () => {
+  const { code, record, output } = runExample(example('exec-command'), { pullFails: 'manifest unknown' })
+  assert.equal(code, 1, output)
+  assert.match(output, new RegExp(`could not register .* as image ${IMAGE_NAME}: manifest unknown`))
+  assert.equal(record.pulledImages.length, 3)
+  assert.deepEqual(record.sandboxes, [])
+})
+
 test('uses the image another run registered first', () => {
   const { code, record, output } = runExample(example('exec-command'), { pullConflict: true })
   assert.equal(code, 0, output)
