@@ -690,8 +690,9 @@ skipping exist only in the TypeScript tool).
   the first events can reach a callback before the caller holds the handle.
   The documented way to stop a watch from an event, in every case, is to
   signal the code that holds the handle and call `stop()` there. Events read
-  before `start` are held and delivered after it, at most 4096; one more
-  fails the call with `BadRequestError`. A process log stream cut short is
+  before `start` are held and delivered after it, at most 4096 and 1 MiB of
+  event data (`WATCH_MAX_EVENTS_BEFORE_START` / `WATCH_MAX_BYTES_BEFORE_START`);
+  more fails the call with `BadRequestError`. A process log stream cut short is
   `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
   and so is one that ends without `eof`: the server ends it with `eof`, so
   an iteration that ends normally always has the whole log.

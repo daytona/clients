@@ -13,5 +13,6 @@ not a boolean and a `pty.start()` / `attach()` command that is not a string
 `terminal` that is not a `TerminalSize`. Both SDKs refuse `.` or `..` as a
 process, session or interpreter context id, a computer-use process name or a
 recording id ("process id must not be '.' or '..'"), which URL resolution
-would route elsewhere, and terminal `cols` / `rows` (on `pty.start()` and
-`resize()`) that are not integers from 1 to 2147483647.
+would route elsewhere, or such an id with a lone surrogate, which has no UTF-8
+form (astral characters are kept), and terminal `cols` / `rows` (on
+`pty.start()` and `resize()`) that are not integers from 1 to 2147483647.

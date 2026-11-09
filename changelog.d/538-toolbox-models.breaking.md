@@ -15,23 +15,25 @@ keyword-only dataclasses (they lose the generated pydantic models' methods:
 whose timestamps are timezone-aware `datetime`s (`ProcessInfo`,
 `FileInfo.modified_at`, `GitCommit.timestamp`, `SystemMetrics.timestamp`,
 computer-use recordings); TypeScript models are readonly interfaces with RFC
-3339 timestamp strings, frozen at run time at every depth, as are the values a
-callback receives (a watch event): a write to a returned result, which the
-types already refused, now throws in strict mode (live handles, byte buffers
-and streams are not frozen). A response that breaks the contract (a missing
-required field or list, a wrong type, a fractional integer, a malformed
-timestamp or watch event) raises `BadRequestError` (400, `BAD_REQUEST`, source
-`SDK`) naming the field (a present field of the wrong type "must be" the
-expected type) instead of being filled with an empty value; this includes the
-computer-use parsers and the pre-signed URL response, which raised a 500
-`InternalServerError` before, and Python `list_remotes()` / `glob()`, which
-returned an empty list. Unknown top-level response fields are dropped from
-TypeScript computer-use results, as in Python (the process status, desktop
-status and failure models keep theirs in `extra_fields` / `extraFields`), and
-TypeScript rejects a negative value where the API's integer has a minimum of
-0, as Python does. TypeScript `listBranches()` / `listRemotes()` accept only
-the API's `{ branches }` / `{ remotes }` shapes, and the computer-use model
-arrays are `readonly`. Both SDKs check `git.status()`'s `fileStatus` list, the
+3339 timestamp strings (except the Unix-millisecond numbers `timestampMs` /
+`timestamp_ms` of log frames and filesystem watch events, in both SDKs),
+frozen at run time at every depth, as are the values a callback receives (a
+watch event): a write to a returned result, which the types already refused,
+now throws in strict mode (live handles, byte buffers and streams are not
+frozen). A response that breaks the contract (a missing required field or
+list, a wrong type, a fractional integer, a malformed timestamp or watch
+event) raises `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) naming the
+field (a present field of the wrong type "must be" the expected type) instead
+of being filled with an empty value; this includes the computer-use parsers
+and the pre-signed URL response, which raised a 500 `InternalServerError`
+before, and Python `list_remotes()` / `glob()`, which returned an empty list.
+Unknown top-level response fields are dropped from TypeScript computer-use
+results, as in Python (the process status, desktop status and failure models
+keep theirs in `extra_fields` / `extraFields`), and TypeScript rejects a
+negative value where the API's integer has a minimum of 0, as Python does.
+TypeScript `listBranches()` / `listRemotes()` accept only the API's
+`{ branches }` / `{ remotes }` shapes, and the computer-use model arrays are
+`readonly`. Both SDKs check `git.status()`'s `fileStatus` list, the
 computer-use `start()` / `stop()` status map, a `get_config()` / `getConfig()`
 value (a string or null) and its `scope` (`'global'` or `'local'`; Python
 gains the `GitConfigScope` type), the error parts of `read_many()` /
@@ -56,14 +58,15 @@ now refuses it naming the field, "must be an integer" / "must be a number", in
 process records, log frames and stream events, watch events, file info, git,
 LSP and computer-use results; integers above 2^53 that a double carries stay
 accepted, except a process record's `timeoutMs`, which must be an integer up
-to 2^53 - 1 so its seconds are exact), and the interpreter session responses
-for the fields they read (`id`, `kernel`; a missing or empty `id` names a
-context id the caller chose, which may have been created), and `glob()`
-accepts only the API's `{ files }` response. A process log stream or watch
-skips an event it does not know (whatever its data) and raises the error for a
-known event whose data is not JSON; Python ended the stream with a
-`JSONDecodeError`. `mkdir()` defaults to mode `"0755"` in both SDKs.
-TypeScript `readText()` decodes strictly as UTF-8 and keeps a leading
-byte-order mark, like Python; `WriteFileOptions.mode` is removed (use
-`chmod()`), as are the aliases `Match`, `SearchFilesResponse`,
-`FilePermissionsParams` and `ListBranchResponse`.
+to 2^53 - 1 so its seconds are exact, and its terminal `cols` / `rows`, which
+must be int32 values), and the interpreter session responses for the fields
+they read (`id`, `kernel`; a missing or empty `id` names a context id the
+caller chose, which may have been created), and `glob()` accepts only the
+API's `{ files }` response. A process log stream or watch skips an event it
+does not know (whatever its data) and raises the error for a known event whose
+data is not JSON; Python ended the stream with a `JSONDecodeError`. `mkdir()`
+defaults to mode `"0755"` in both SDKs. TypeScript `readText()` decodes
+strictly as UTF-8 and keeps a leading byte-order mark, like Python;
+`WriteFileOptions.mode` is removed (use `chmod()`), as are the aliases
+`Match`, `SearchFilesResponse`, `FilePermissionsParams` and
+`ListBranchResponse`.
