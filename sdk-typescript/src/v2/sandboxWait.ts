@@ -16,6 +16,9 @@ export const DEFAULT_SANDBOX_TERMINAL_STATES = ['destroying', 'destroyed', 'erro
 export const PAUSE_TERMINAL_STATES = [...DEFAULT_SANDBOX_TERMINAL_STATES, 'started'] as const
 export const RESUME_TERMINAL_STATES = [...DEFAULT_SANDBOX_TERMINAL_STATES, 'stopped'] as const
 export const WAIT_FOR_STATE_SLICE_MS = 30_000
+// The end of a sandbox wait's budget kept for a read of the server when the
+// events stream has decided nothing: at most 5 s, at most a quarter of it.
+export const WAIT_FINAL_READ_RESERVE_MS = 5_000
 
 /** What a read of the sandbox found: its state, wire status and the server's reason. */
 export interface SandboxReadOutcome extends WaitOutcome {
@@ -63,6 +66,18 @@ export function waitQueryState(state: SandboxWaitState | undefined): string | un
   }
 }
 
+/**
+ * The events hub's share of a wait ending at `deadline`: all but the
+ * final-read reserve. The hub reads `0` as no deadline, so a spent budget is a
+ * timeout here.
+ */
+function hubWaitBudget(deadline: number | undefined): number {
+  if (deadline === undefined) return 0
+  const remaining = deadline - Date.now()
+  if (remaining <= 0) throw timeoutError()
+  return remaining - Math.min(WAIT_FINAL_READ_RESERVE_MS, remaining / 4)
+}
+
 /** Shared event/poll engine; callers decide whether timeout or terminal states raise. */
 export async function waitForSandboxState(context: SandboxWaitContext, states: readonly SandboxWaitState[], options: SandboxStateWaitOptions): Promise<void> {
   if (states.length === 0) throw new BadRequestError('wait requires at least one target state', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
@@ -70,7 +85,6 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
   const seconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? 60
   // 0, or above the timer maximum (about 24.8 days), is no deadline.
   const deadline = waitDeadline(seconds)
-  const timeout = deadline === undefined ? 0 : seconds * 1000
   const terminalStates = options.terminalStates ?? DEFAULT_SANDBOX_TERMINAL_STATES
   const effectiveTerminal = states.includes('destroyed') ? terminalStates.filter((s) => s !== 'destroying') : terminalStates
   const waitTarget = new Set(states).size === 1 ? states[0] : undefined
@@ -104,6 +118,25 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     return new SandboxTerminalStateError(context.id, error.state, { rawState: error.rawState ?? (seen.rawState || undefined), reason: seen.reason })
   }
 
+  // Long-poll reads until a target or terminal state. `lastReadEnd` is when
+  // the wait's previous read ended; the first read keeps the minimum spacing.
+  const pollForState = async (lastReadEnd?: number): Promise<void> => {
+    if (lastReadEnd !== undefined) {
+      const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastReadEnd), remaining() ?? Infinity)
+      if (pause > 0) await sleep(pause)
+    }
+    for (;;) {
+      const budget = remaining()
+      if (budget !== undefined && budget <= 0) throw timeoutError()
+      const pollStarted = Date.now()
+      const outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      if (states.some((target) => target === outcome.state)) return
+      if (effectiveTerminal.includes(outcome.state)) throw terminalError(outcome)
+      const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - pollStarted), remaining() ?? Infinity)
+      if (pause > 0) await sleep(pause)
+    }
+  }
+
   if (context.hub?.enabled) {
     let lastPollEnd: number | undefined
     let refreshedByPoll = false
@@ -121,7 +154,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     }
     try {
       const resolved = await context.hub.wait(context.id, targetPredicate(new Set<SandboxState>(states), new Set(effectiveTerminal)), {
-        timeout,
+        timeout: hubWaitBudget(deadline),
         regionHint: context.region !== undefined && strip(context.region).toLowerCase() === 'local' ? undefined : context.region,
         sandboxPollFn,
         onObserved: (outcome) => { refreshedByPoll = false; context.observe(outcome) },
@@ -142,6 +175,23 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
         context.observe({ state: 'destroyed', rawState: 'deleted' })
+        return
+      }
+      if (deadline !== undefined && error instanceof RequestTimeoutError && error.source === 'SDK') {
+        // The events stream decided nothing within its share of the budget (a
+        // stream that sends no transitions decides only at its reconcile). The
+        // reserve left is read from the server, under the same deadline, so a
+        // wait never runs out on the stream alone. A server's 408 is not this
+        // wait running out.
+        try {
+          await pollForState(lastPollEnd)
+        } catch (readError) {
+          // The wait ran out; a failed read in its reserve does not replace
+          // that outcome.
+          if (readError instanceof SandboxTerminalStateError || readError instanceof NotFoundError || readError instanceof RequestTimeoutError) throw readError
+          if (readError instanceof DaytonaError) throw error
+          throw readError
+        }
         return
       }
       if (!(error instanceof SandboxTerminalStateError)) throw error
@@ -170,14 +220,5 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     }
   }
 
-  for (;;) {
-    const budget = remaining()
-    if (budget !== undefined && budget <= 0) throw timeoutError()
-    const pollStarted = Date.now()
-    const outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
-    if (states.some((target) => target === outcome.state)) return
-    if (effectiveTerminal.includes(outcome.state)) throw terminalError(outcome)
-    const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - pollStarted), remaining() ?? Infinity)
-    if (pause > 0) await sleep(pause)
-  }
+  await pollForState()
 }

@@ -89,6 +89,7 @@ from .errors import (
     ClientTimeoutError,
     DaytonaError,
     NotFoundError,
+    RequestTimeoutError,
     SandboxTerminalStateError,
     create_error,
 )
@@ -140,6 +141,9 @@ _CUSTOM_TOOLBOX_PRESIGNED_FILE_URLS_MESSAGE = (
     "pre-signed URLs require the API-provided toolbox URL or a sandbox-scoped URL template"
 )
 WAIT_FOR_STATE_SLICE_MS = 30_000
+# The end of a sandbox wait's budget kept for a read of the server when the
+# events stream has decided nothing: at most 5 s, at most a quarter of it.
+WAIT_FINAL_READ_RESERVE_S = 5.0
 # A failed pause returns to ``started`` and an unfinished resume ends ``stopped``;
 # after those requests each state means failure, not something to keep waiting past.
 _PAUSE_TERMINAL_STATES: tuple[SandboxState, ...] = (*DEFAULT_SANDBOX_TERMINAL_STATES, "started")
@@ -972,8 +976,11 @@ class AsyncSandbox:
         the read decides: a target state returns, another terminal state
         raises, and any other state means the report was stale, so the wait
         polls on under the same deadline. Without that read, or when it fails,
-        the reported state raises. ``missing_is_destroyed`` (delete) reads a
-        404 as ``destroyed``.
+        the reported state raises. The events hub gets the budget less a final
+        reserve (``WAIT_FINAL_READ_RESERVE_S``, at most a quarter of it); when
+        it has decided nothing by then, the reserve is a long-poll read of the
+        server, so a state the stream never reported still ends the wait.
+        ``missing_is_destroyed`` (delete) reads a 404 as ``destroyed``.
         """
         if not states:
             raise create_error("wait requires at least one target state", 400, "BAD_REQUEST", "SDK")
@@ -1046,12 +1053,36 @@ class AsyncSandbox:
                 resolved = await hub.wait(
                     self.id,
                     predicate,
-                    timeout=timeout,
+                    timeout=_hub_wait_budget(deadline),
                     # `local` names no concrete region.
                     region_hint=None if (self.region or "").strip().lower() == "local" else self.region,
                     sandbox_poll_fn=_sandbox_poll_fn,
                     on_observed=_on_observed,
                 )
+            except RequestTimeoutError as error:
+                # The events stream decided nothing within its share of the
+                # budget (a stream that sends no transitions decides only at
+                # its reconcile). The reserve left is read from the server,
+                # under the same deadline, so a wait never runs out on the
+                # stream alone. A server's 408 is not this wait running out.
+                if deadline is None or error.source != "SDK":
+                    raise
+                try:
+                    await self._poll_for_state(
+                        target_states,
+                        effective_terminal,
+                        wait_target,
+                        deadline,
+                        exact,
+                        last_read_end=last_poll_end,
+                    )
+                except (SandboxTerminalStateError, NotFoundError, RequestTimeoutError):
+                    raise
+                except DaytonaError as read_error:
+                    # The wait ran out; a failed read in its reserve does not
+                    # replace that outcome.
+                    raise error from read_error
+                return
             except SandboxTerminalStateError as error:
                 # What the handle last read, before the report overwrites it.
                 seen = (self.state, self.raw_state, self.error)
@@ -1107,6 +1138,29 @@ class AsyncSandbox:
                             await self._refresh_data_within(timeout=remaining, deadline=deadline)
                 return
 
+        await self._poll_for_state(target_states, effective_terminal, wait_target, deadline, exact)
+
+    async def _poll_for_state(
+        self,
+        target_states: frozenset[SandboxWaitState],
+        effective_terminal: frozenset[SandboxState],
+        wait_target: SandboxWaitState | None,
+        deadline: Optional[float],
+        exact: bool,
+        *,
+        last_read_end: Optional[float] = None,
+    ) -> None:
+        """The polling half of :meth:`_wait_for_state`: long-poll reads until a target or terminal state.
+
+        ``last_read_end`` (a ``_clock.monotonic()`` instant) is when the wait's
+        previous read ended; the first read keeps the minimum spacing after it.
+        """
+        if last_read_end is not None:
+            pause = WAIT_FOR_STATE_MIN_INTERVAL_S - (_clock.monotonic() - last_read_end)
+            if deadline is not None:
+                pause = min(pause, max(0.0, deadline - _clock.monotonic()))
+            if pause > 0:
+                await asyncio.sleep(pause)
         fresh = False
         while True:
             if fresh:
@@ -1190,7 +1244,10 @@ class AsyncSandbox:
         :class:`SandboxTerminalStateError`. A terminal state the events hub
         reports is confirmed with one read before it raises, while the wait has
         budget left, unless that state already came from a full read or is
-        ``destroyed``.
+        ``destroyed``. When the events hub has reported nothing decisive, the
+        last part of a bounded budget (up to 5 s) reads the state from the
+        server, so a state the hub missed still ends the wait; the same holds
+        for the other lifecycle waits and the create and fork waits.
         """
         timeout = _validate_timeout(timeout)
         await self._wait_for_state(_wait_states(until), timeout=timeout)
@@ -2294,6 +2351,17 @@ def _wait_deadline(timeout: Optional[float]) -> Optional[float]:
         return None
     budget = _validate_timeout(timeout)
     return None if budget == 0 else _clock.monotonic() + budget
+
+
+def _hub_wait_budget(deadline: Optional[float]) -> Optional[float]:
+    """The events hub's share of a wait ending at ``deadline``: all but the final-read reserve."""
+    if deadline is None:
+        return None
+    remaining = deadline - _clock.monotonic()
+    if remaining <= 0:
+        # The hub reads 0 as no deadline: a spent budget is a timeout here.
+        raise _wait_timed_out()
+    return remaining - min(WAIT_FINAL_READ_RESERVE_S, remaining / 4)
 
 
 def _wait_query_state(state: SandboxWaitState) -> str:
