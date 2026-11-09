@@ -33,6 +33,7 @@ from ._auth import ProjectTokenAuth
 from ._body_limit import (
     ACCEPT_ENCODING,
     DEFAULT_MAX_RESPONSE_BYTES,
+    decoded_chunks,
     read_body,
     read_body_sync,
     resolve_limit,
@@ -403,9 +404,12 @@ class AsyncResponseStream:
         return self._response.headers
 
     async def iter_bytes(self) -> AsyncGenerator[bytes, None]:
-        """Incremental bytes; unlike iter_lines, never buffers an unbounded line."""
+        """The decoded body as it arrives; unlike iter_lines, never buffers an
+        unbounded line. A gzip or deflate body is decoded here in bounded
+        steps (``decoded_chunks``), never by httpx, whose decoders can expand
+        one small chunk without bound; another encoding is refused."""
         try:
-            async for chunk in self._response.aiter_bytes():
+            async for chunk in decoded_chunks(self._response):
                 yield chunk
             self._finish_span_ok()
         except httpx.TimeoutException as exc:

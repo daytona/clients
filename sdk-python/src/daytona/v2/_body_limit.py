@@ -202,6 +202,28 @@ async def _raw_async(response: httpx.Response) -> AsyncIterator[bytes]:
         yield data
 
 
+async def decoded_chunks(response: httpx.Response) -> AsyncIterator[bytes]:
+    """A streamed body's decoded bytes as they arrive, never decoded by httpx:
+    a gzip or deflate body in steps of at most ``DECODE_STEP`` bytes, so a
+    stream's readers bound what they hold as the bytes arrive; any other
+    encoding is refused undecoded, as for a capped read."""
+    if response.is_stream_consumed:
+        # Built in memory with its (decoded) content, as a test double is.
+        if response.content:
+            yield response.content
+        return
+    decoder = _decoder(response)
+    async for raw in _raw_async(response):
+        if decoder is None:
+            yield raw
+            continue
+        for piece in decoder.feed(raw):
+            yield piece
+    if decoder is not None:
+        for piece in decoder.finish():
+            yield piece
+
+
 async def read_body(response: httpx.Response, limit: int) -> bytes:
     """Read a streamed response's whole body under ``limit``; always closes it.
 

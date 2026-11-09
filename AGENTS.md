@@ -715,7 +715,10 @@ skipping exist only in the TypeScript tool).
   before `start` by the watch's remaining budget, otherwise (after `start`,
   process log streams) by the client's `max_response_bytes` /
   `maxResponseBytes`, an event over it `PayloadTooLargeError` (413,
-  `PAYLOAD_TOO_LARGE`, `SDK`). A process log stream cut short is
+  `PAYLOAD_TOO_LARGE`, `SDK`). Python decodes every streamed body itself
+  (`AsyncResponseStream.iter_bytes()` through `_body_limit.decoded_chunks`:
+  gzip / deflate in `DECODE_STEP` pieces, any other encoding refused), never
+  through httpx's decoders, so a compressed event is bounded too. A process log stream cut short is
   `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
   and so is one that ends without `eof`: the server ends it with `eof`, so
   an iteration that ends normally always has the whole log.

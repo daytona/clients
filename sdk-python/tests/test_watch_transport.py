@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import gzip
 import json
 import threading
 import time
@@ -63,7 +64,25 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         if case == "truncated":
             self.send_header("Content-Length", "100000")
+        if case.startswith("gzip-"):
+            self.send_header("Content-Encoding", "gzip")
+        if case == "brotli":
+            self.send_header("Content-Encoding", "br")
         self.end_headers()
+        if case in ("gzip-events", "gzip-bomb", "brotli"):
+            # gzip-events: start and one fs event, compressed. gzip-bomb: one
+            # fs event whose data line is 64 MiB of "x" before start, which
+            # compresses to about 64 KiB. brotli: an encoding never asked for.
+            if case == "gzip-bomb":
+                body = gzip.compress(b"event: fs\ndata: " + b"x" * (64 << 20))
+            else:
+                body = gzip.compress(("event: start\ndata: {}\n\n" + _fs_frame("a")).encode())
+            with contextlib.suppress(OSError):
+                self.wfile.write(body)
+                self.wfile.flush()
+                self.rfile.read(1)
+            _closed(self.path.split("?")[0]).set()
+            return
         if case.startswith("bytes-"):
             # Two fs events and start, N bytes in all; the stream stays open
             # until the client closes it.
@@ -707,3 +726,63 @@ async def test_a_large_event_after_start_is_delivered_under_the_client_cap_and_r
         "filesystem watch stream: an event is larger than the 1048576-byte max_response_bytes limit"
         in str(error)
     )
+
+
+# A stream's body is decoded by the SDK in bounded steps (as a capped read
+# is), never by httpx: a compressed event cannot expand past its bound in one
+# step, and an encoding the SDK never asked for is refused undecoded.
+@pytest.mark.anyio
+async def test_a_gzip_watch_stream_is_decoded_and_a_gzip_bomb_is_refused_at_the_budget(base: str) -> None:
+    from daytona.v2 import _body_limit
+    from daytona.v2.errors import BadRequestError
+
+    names: list[str] = []
+    transport = AsyncTransport(f"{base}/gzip-events/ok")
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir(
+            "/", lambda event: names.append(event.name)
+        )
+        for _ in range(500):
+            if names:
+                break
+            await asyncio.sleep(0.01)
+        await handle.stop()
+    finally:
+        await transport.close()
+    assert names == ["a"]
+
+    largest = 0
+    feed = _body_limit._BoundedDecoder.feed
+
+    def recording_feed(self: _body_limit._BoundedDecoder, data: bytes) -> Iterator[bytes]:
+        nonlocal largest
+        for piece in feed(self, data):
+            largest = max(largest, len(piece))
+            yield piece
+
+    path = "/gzip-bomb/budget"
+    transport = AsyncTransport(f"{base}{path}")
+    try:
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(_body_limit._BoundedDecoder, "feed", recording_feed)
+            with pytest.raises(BadRequestError, match="more than 1048576 bytes before start"):
+                await asyncio.wait_for(
+                    AsyncFileSystemService(transport).watch_dir("/", lambda _event: None), 30
+                )
+        assert await asyncio.to_thread(_closed(path + "/files/watch").wait, 10)
+    finally:
+        await transport.close()
+    assert 0 < largest <= _body_limit.DECODE_STEP
+
+
+@pytest.mark.anyio
+async def test_a_watch_stream_in_an_unrequested_encoding_is_refused_undecoded(base: str) -> None:
+    from daytona.v2.errors import BadRequestError
+
+    transport = AsyncTransport(f"{base}/brotli/stream")
+    try:
+        with pytest.raises(BadRequestError, match="unrequested content encoding: br") as info:
+            await asyncio.wait_for(AsyncFileSystemService(transport).watch_dir("/", lambda _event: None), 30)
+    finally:
+        await transport.close()
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
