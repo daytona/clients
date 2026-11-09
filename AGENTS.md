@@ -90,6 +90,11 @@ records it). Both roots copy the config's fields once, when the client is
 built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
 caller's object have no effect, and URL fields are refused before and after
 the copy (a getter or property could otherwise add one while it is read).
+Another deliberate difference, in compressed response bodies: a body cut short
+on the wire is caught by `Content-Length` / chunked framing in both SDKs, but
+incomplete compressed data inside a complete HTTP message is refused by Python
+(`ConnectionError`; it decodes itself) and passed through by TypeScript, whose
+runtimes decode it and accept it.
 
 Versions are NOT bumped per PR, nor anywhere else in git: the tracked
 `version` fields in `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and

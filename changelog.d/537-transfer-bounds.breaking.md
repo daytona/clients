@@ -41,4 +41,7 @@ send `Accept-Encoding: gzip, deflate` only (httpx added `br` and `zstd` when
 their packages were installed), a capped response in any other content
 encoding is refused without being decoded, and one whose compressed data
 stops before its end raises `ConnectionError`, as a body cut short on the
-wire does (httpx returned what it had decoded).
+wire does (httpx returned what it had decoded). A body cut short on the wire is
+caught by `Content-Length` / chunked framing in both SDKs; incomplete
+compressed data inside a complete HTTP message is refused by Python and passed
+through by TypeScript, whose runtimes decode it.
