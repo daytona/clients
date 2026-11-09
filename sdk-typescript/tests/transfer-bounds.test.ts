@@ -239,6 +239,37 @@ describe.each(['http', 'fetch'] as const)('the transfer idle bound (%s adapter)'
     }
   })
 
+  it('ends a call whose credential never resolves at the request timeout, ordinary or transfer', async () => {
+    route = body('{}', { contentType: 'application/json' })
+    // Providers that ignore their signal and never settle.
+    const authProvider = { authorizationHeader: (): Promise<string> => new Promise<string>(() => undefined) }
+    const auth = { bearer: (): Promise<string> => new Promise<string>(() => undefined), onUnauthorized: async (): Promise<undefined> => undefined }
+    for (const options of [{ authProvider }, { auth }]) {
+      const transport = new HttpTransport(base, undefined, IDLE_SECONDS * 1000, options)
+      for (const call of [
+        () => transport.get('/thing'),
+        () => transport.fetch('/thing'),
+        () => transport.getBytes('/files/download?path=a'),
+        () => transport.fetch('/files/download?path=a', { transfer: true }),
+      ]) {
+        const elapsed = await timesOut(call)
+        expect(elapsed).toBeLessThan(STALL_MS - 1000)
+      }
+    }
+  })
+
+  it('bounds a 401 refresh whose provider never resolves by the same deadline', async () => {
+    route = body(JSON.stringify({ code: 'UNAUTHORIZED', message: 'expired' }), { status: 401, contentType: 'application/json' })
+    const authProvider = {
+      authorizationHeader: (options?: { readonly forceRefresh?: boolean }): Promise<string> =>
+        options?.forceRefresh ? new Promise<string>(() => undefined) : Promise.resolve('Bearer stale'),
+    }
+    const transport = new HttpTransport(base, undefined, IDLE_SECONDS * 1000, { authProvider })
+    for (const call of [() => transport.get('/thing'), () => transport.fetch('/thing'), () => transport.fetch('/thing', { method: 'POST', body: new ReadableStream(), duplex: 'half' } as never)]) {
+      expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+    }
+  })
+
   it('keeps a transfer that keeps moving bytes going past the idle bound', async () => {
     // 12 bytes 200 ms apart: 2.4 s in all, five times the idle bound.
     route = trickle(12, 200)
