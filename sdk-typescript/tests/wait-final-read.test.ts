@@ -68,7 +68,7 @@ interface Harness {
   readonly sockets: () => number
 }
 
-function harness(sandbox: ServerSandbox): Harness {
+function harness(sandbox: ServerSandbox, earlyProbeMs = 0): Harness {
   const api = createHttpClient('http://api.invalid', 'key')
   const gets: Array<Record<string, unknown> | undefined> = []
   jest.spyOn(api, 'get').mockImplementation(async (_url, config) => {
@@ -93,7 +93,7 @@ function harness(sandbox: ServerSandbox): Harness {
     return new SnapshotOnlyWebSocket(sandbox) as unknown as WebSocket
   }
   // The production reconcile (60 s) never fires within these budgets.
-  const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 60_000 }, factory, api, { earlyProbeMs: 0 })
+  const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 60_000 }, factory, api, { earlyProbeMs })
   hub.attach()
   return { api, hub, gets, sockets: () => sockets }
 }
@@ -198,4 +198,29 @@ it('raises a refused credential from the read in the reserve', async () => {
   jest.spyOn(h.api, 'get').mockRejectedValue(refused)
   const { result } = await timed(h, () => sandbox.wait({ until: 'started', timeoutSeconds: 1 }).then(() => undefined, (error: unknown) => error))
   expect(result).toBe(refused)
+})
+
+it('holds no probe long poll past the hub\'s share', async () => {
+  // With the early probe on and a server that holds each long poll for its
+  // timeout_ms, a probe's long poll ends where the hub's share does (1.5 s of
+  // a 2 s budget), so the reserve's read starts after it, not beside it.
+  jest.spyOn(Math, 'random').mockReturnValue(0.5)
+  const h = harness(new ServerSandbox('stopped', 'running', undefined), 300)
+  const started = Date.now()
+  const reads: Array<[number, number]> = []
+  jest.spyOn(h.api, 'get').mockImplementation(async (_url, config) => {
+    const begun = Date.now() - started
+    const params = config?.params as Record<string, unknown> | undefined
+    const signal = config?.signal as AbortSignal | undefined
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, Number(params?.['timeout_ms'] ?? 0))
+      signal?.addEventListener('abort', () => { clearTimeout(timer); resolve() })
+    })
+    reads.push([begun, Date.now() - started])
+    return { data: detail('stopped'), headers: {} }
+  })
+  await timed(h, () => handle(h).wait({ until: 'started', timeoutSeconds: 2 }).then(() => undefined, (error: unknown) => error))
+  reads.sort((a, b) => a[0] - b[0])
+  expect(reads.length).toBeGreaterThanOrEqual(2)
+  for (let i = 1; i < reads.length; i++) expect(reads[i]![0]).toBeGreaterThanOrEqual(reads[i - 1]![1] - 50)
 })

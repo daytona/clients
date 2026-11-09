@@ -111,7 +111,7 @@ class _Api:
 
 @contextlib.asynccontextmanager
 async def _client(
-    monkeypatch: pytest.MonkeyPatch, sandbox: _Sandbox
+    monkeypatch: pytest.MonkeyPatch, sandbox: _Sandbox, *, early_probe: float = 0
 ) -> AsyncIterator[tuple[AsyncDaytona, _Api]]:
     monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "1")
     monkeypatch.setenv("DAYTONA_V2_API_URL", _API_URL)
@@ -127,7 +127,7 @@ async def _client(
     assert hub is not None
     # On a live socket the hub's keepalive frames keep its early probe from
     # firing; with it off, these waits see what production saw.
-    hub._early_probe_s = 0
+    hub._early_probe_s = early_probe
     try:
         with respx.mock:
             ticket_mock("region-a")
@@ -246,3 +246,27 @@ async def test_a_refused_credential_in_the_reserve_is_raised(monkeypatch: pytest
         with pytest.raises(AuthenticationError) as raised:
             await _handle(client).wait(until="started", timeout=1)
     assert raised.value is refused
+
+
+async def test_the_hubs_probes_hold_no_long_poll_past_its_share(monkeypatch: pytest.MonkeyPatch) -> None:
+    # With the early probe on, a probe asks the server to hold its long poll
+    # no further than the end of the hub's share (1.5 s of a 2 s budget), so
+    # the reserve's read does not start beside a probe still held.
+    monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+    sandbox = _Sandbox("stopped", "running", None)
+    async with _client(monkeypatch, sandbox, early_probe=0.3) as (client, api):
+        started = events_module._clock.monotonic()
+        asked: list[tuple[float, int]] = []
+        original = api.send
+
+        async def recording_send(spec: RequestSpec) -> object:
+            begun = events_module._clock.monotonic() - started
+            asked.append((begun, int(spec.params.get("timeout_ms", 0))))
+            return await original(spec)
+
+        monkeypatch.setattr(api, "send", recording_send)
+        with pytest.raises(RequestTimeoutError):
+            await _handle(client).wait(until="started", timeout=2)
+    probes = [(begun, held) for begun, held in asked if begun < 1.45]
+    assert probes
+    assert all(begun * 1000 + held <= 1_550 for begun, held in probes)
