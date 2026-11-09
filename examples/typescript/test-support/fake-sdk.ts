@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs'
 
 import { Daytona } from '@daytona/sdk'
-import { ImageBuildFailedError, NameConflictError, NotFoundError, RequestTimeoutError } from '@daytona/sdk/v2'
+import { ConflictError, ImageBuildFailedError, NameConflictError, NotFoundError, RequestTimeoutError } from '@daytona/sdk/v2'
 import type {
   BuildLogFollowOptions,
   CreateFromBuildOptions,
@@ -321,6 +321,9 @@ const fake = {
     },
     delete: async (nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> => {
       const volume = await fake.volumes.get(nameOrId, options)
+      // As the API: a volume a sandbox still mounts is a conflict.
+      const inUse = record.mounts.some(({ sandboxId, mounts }) => !record.deletedSandboxes.includes(sandboxId) && mounts.some((mount) => mount.volumeId === volume.id))
+      if (inUse) throw new ConflictError(`volume ${volume.id} is in use`, { statusCode: 409, code: 'CONFLICT', source: 'API' })
       volumes.delete(volume.id)
       // Deleting a volume deletes its files too.
       volumeFiles.delete(volume.id)

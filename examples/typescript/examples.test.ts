@@ -318,6 +318,7 @@ test('the fake volumes follow the SDK', () => {
   assert.equal(code, 0, output)
   assert.match(output, /^get absent: NotFoundError$/m)
   assert.match(output, /^first: <missing>$/m)
+  assert.match(output, /^delete mounted: ConflictError$/m)
   assert.match(output, /^recreated: <missing>$/m)
 })
 

@@ -9,7 +9,7 @@
  * and reads it back. Prints one line per step.
  */
 
-import { ImageBuilder, NotFoundError } from '@daytona/sdk/v2'
+import { ConflictError, ImageBuilder, NotFoundError, type Sandbox } from '@daytona/sdk/v2'
 
 import { client, IMAGE } from '../_common'
 
@@ -18,17 +18,24 @@ async function main(): Promise<void> {
   const absent = await daytona.volumes.get('absent').then(() => 'found', (error: unknown) => error instanceof NotFoundError ? 'NotFoundError' : String(error))
   console.log(`get absent: ${absent}`)
   const read = "if [ -e /data/message.txt ]; then cat /data/message.txt; else echo '<missing>'; fi"
+  let box: Sandbox | undefined
   const writeThenRead = async (volumeId: string): Promise<string> => {
-    const box = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { volumes: [{ volumeId, mountPath: '/data' }] })
+    box = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { volumes: [{ volumeId, mountPath: '/data' }] })
     const before = await box.process.run(read)
     await box.process.run('echo written > /data/message.txt')
     return before.output
   }
   const first = await daytona.volumes.create({ name: 'reused' })
   console.log(`first: ${await writeThenRead(first.id)}`)
+  // A mounted volume cannot be deleted: delete its sandbox first, as the API requires.
+  const inUse = await daytona.volumes.delete(first.id, { idOnly: true }).then(() => 'deleted', (error: unknown) => error instanceof ConflictError ? 'ConflictError' : String(error))
+  console.log(`delete mounted: ${inUse}`)
+  await box?.delete()
   await daytona.volumes.delete(first.id, { idOnly: true })
   const second = await daytona.volumes.create({ name: 'reused' })
   console.log(`recreated: ${await writeThenRead(second.id)}`)
+  await box?.delete()
+  await daytona.volumes.delete(second.id, { idOnly: true })
 }
 
 main().catch((error: unknown) => {

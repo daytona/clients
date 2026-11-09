@@ -20,7 +20,7 @@ import inspect
 import itertools
 import re
 import sys
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import NamedTuple, Optional
@@ -41,6 +41,7 @@ from daytona.v2 import (
     InterpreterProcess,
     InterpreterResult,
     ListResult,
+    ConflictError,
     NameConflictError,
     NotFoundError,
     ProcessResult,
@@ -193,6 +194,10 @@ class FakeWorld:
         found = self._volume_find(name_or_id, id_only=id_only)
         if found is None:
             raise NotFoundError(f"volume {name_or_id} not found", status_code=404, code="NOT_FOUND", source="API")
+        # As the API: a volume a sandbox still mounts is a conflict.
+        live = (mounts for box, mounts in zip(self.sandboxes, self.mounts) if box.id not in self.deleted_sandboxes)
+        if any(mount.volume_id == found.id for mounts in live for mount in mounts):
+            raise ConflictError(f"volume {found.id} is in use", status_code=409, code="CONFLICT", source="API")
         del self.volumes[found.id]
         self.volume_files.pop(found.id, None)
         self.deleted_volumes.append(found.id)
@@ -223,8 +228,9 @@ class FakeWorld:
     def _mounts(self, kwargs: Mapping[str, object]) -> tuple[Mount, ...]:
         """The mounts a create asks for (mount path without a trailing slash);
         the API rejects a mount of a volume the project lacks."""
-        requested = kwargs.get("volumes") or []
-        assert isinstance(requested, list)
+        requested = kwargs.get("volumes") or ()
+        # Any sequence of mounts, as the SDK's Sequence[VolumeMount] takes.
+        assert isinstance(requested, Sequence) and not isinstance(requested, str)
         mounts: list[Mount] = []
         for mount in requested:
             assert isinstance(mount, VolumeMount)
@@ -776,6 +782,10 @@ def test_the_fake_volumes_follow_the_sdk() -> None:
         return output
 
     assert write_then_read("vol-absent") == "<missing>"
+    # A mounted volume cannot be deleted; deleting its sandbox first frees it.
+    with pytest.raises(ConflictError):
+        world.client.volumes.delete("vol-absent", id_only=True)
+    world.sandboxes[-1].delete()
     world.client.volumes.delete("vol-absent", id_only=True)
     with pytest.raises(NotFoundError):
         world.client.volumes.get("absent")
@@ -790,7 +800,7 @@ def test_the_fake_applies_a_mount_subpath_and_read_only() -> None:
 
     def box(subpath: str, read_only: Optional[bool] = None) -> MagicMock:
         mount = VolumeMount(volume_id=volume.id, mount_path="/data", subpath=subpath, read_only=read_only)
-        return world._create_from_build(ImageBuilder.from_registry("python:3.12"), name=subpath, volumes=[mount])
+        return world._create_from_build(ImageBuilder.from_registry("python:3.12"), name=subpath, volumes=(mount,))
 
     def run(sandbox: MagicMock, command: str) -> tuple[int, str]:
         result = sandbox.process.run(command)
