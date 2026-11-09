@@ -14,5 +14,6 @@ more events or more than 1 MiB is `BadRequestError` (400, `BAD_REQUEST`,
 source `SDK`), and one event over a client cap below the remaining budget is
 `PayloadTooLargeError` (413, `PAYLOAD_TOO_LARGE`, source `SDK`). After
 `start`, one event over the client cap ends the watch with
-`PayloadTooLargeError`, and with `0` events are unbounded. A malformed event
-ends the watch with `BadRequestError`.
+`PayloadTooLargeError`, and with `0` events are unbounded. A malformed `fs` or
+`overflow` event (an `overflow` event carries a boolean `dropped`) ends the
+watch with `BadRequestError`, whether or not a callback handles it.
