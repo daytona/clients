@@ -1,0 +1,53 @@
+PUBLISHING.md
+  s_893dbc5d83f0ea::t_61ea0b98906861 87,124,126,129,134
+.github/CODEOWNERS
+  s_893dbc5d83f0ea::t_6d6effb4e86e4f 4-7,17
+  s_893dbc5d83f0ea::t_b75a12809f87d6 18-19
+hack/go-vanity/README.md
+  s_893dbc5d83f0ea::t_b6894d77f91dd6 5,15
+hack/go-vanity/generate-site.sh
+  s_893dbc5d83f0ea::t_48285865c9a0c1 8,15
+hack/ax-evals/evals.json
+  s_893dbc5d83f0ea::t_19e173a5498134 2
+PREPARING_YOUR_CHANGES.md
+  s_893dbc5d83f0ea::t_9b9bb2db56704e 9
+hack/ax-evals/ax-evals.test.js
+  s_893dbc5d83f0ea::t_19e173a5498134 58,60,64,76-79,92,95-96,101,110-111,117-118,121-124,130,132-143,245,262-263
+  s_893dbc5d83f0ea::t_7a5c4c5e5521c7 125-128
+hack/ax-evals/setup/_common.sh
+  s_893dbc5d83f0ea::t_19e173a5498134 10,30,33
+README.md
+  s_893dbc5d83f0ea::t_e434fb1ec5c67c 5-6
+AGENTS.md
+  s_893dbc5d83f0ea::t_bf623bf7bc6ae7 7-12
+.github/workflows/ax_evals.yaml
+  s_893dbc5d83f0ea::t_a8aca039c8e945 6-10,12-13,18-29,38,42
+hack/ax-evals/plan.js
+  s_893dbc5d83f0ea::t_202df6c62e9e0d 4,14-15,32-33,36,39,85,106
+  s_893dbc5d83f0ea::t_a618bbd499d920 37
+.github/workflows/ax_evals_config.yaml
+  s_893dbc5d83f0ea::t_a8aca039c8e945 4-8,12,15,23-24,47
+.github/workflows/deploy-pages.yml
+  s_893dbc5d83f0ea::t_b6894d77f91dd6 3-4,8,17,19,24-25,33
+CONTRIBUTING.md
+  s_893dbc5d83f0ea::t_7a5c4c5e5521c7 7-10
+  s_893dbc5d83f0ea::t_9b9bb2db56704e 11,87,98-99
+hack/ax-evals/report.js
+  s_893dbc5d83f0ea::t_a618bbd499d920 102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ccdd32396cbf75f9372f82938cfc4f8094b78f61",
+  "prompts": {},
+  "sessions": {
+    "s_893dbc5d83f0ea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe4ffcJ4ZClJuutSnISc",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

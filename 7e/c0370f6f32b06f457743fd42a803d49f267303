@@ -1,0 +1,52 @@
+AGENTS.md
+  s_f23bcae77f0e63::t_53b149a02917cf 521-524
+  s_f23bcae77f0e63::t_5cced6471bed73 526
+sdk-python/src/daytona/v2/types.py
+  s_f23bcae77f0e63::t_53b149a02917cf 370
+sdk-typescript/src/v2/FileSystem.ts
+  s_f23bcae77f0e63::t_53b149a02917cf 62
+sdk-typescript/src/v2/Daytona.ts
+  s_f23bcae77f0e63::t_4b115541083aa9 733
+sdk-typescript/src/types.ts
+  s_f23bcae77f0e63::t_53b149a02917cf 47
+sdk-typescript/src/v2/types.ts
+  s_f23bcae77f0e63::t_53b149a02917cf 102-103
+sdk-typescript/README.md
+  s_f23bcae77f0e63::t_53b149a02917cf 108-109,623-624
+  s_f23bcae77f0e63::t_4b115541083aa9 87-88
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_f23bcae77f0e63::t_53b149a02917cf 226
+sdk-typescript/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_4b115541083aa9 131,134-137,209-212
+sdk-python/src/daytona/v2/daytona.py
+  s_f23bcae77f0e63::t_4b115541083aa9 457
+sdk-python/README.md
+  s_f23bcae77f0e63::t_53b149a02917cf 140-141,683-685
+  s_f23bcae77f0e63::t_4b115541083aa9 122-123
+docs/adr/0001-sdk-parity.md
+  s_f23bcae77f0e63::t_4b115541083aa9 33-35,41-43
+sdk-python/src/daytona/v2/filesystem.py
+  s_f23bcae77f0e63::t_53b149a02917cf 256
+sdk-python/src/daytona/_client.py
+  s_f23bcae77f0e63::t_53b149a02917cf 183
+sdk-python/src/daytona/v2/computer_use_services.py
+  s_f23bcae77f0e63::t_53b149a02917cf 441
+changelog.d/537-error-names.breaking.md
+  s_f23bcae77f0e63::t_2775084d354436 19-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ec0370f6f32b06f457743fd42a803d49f267303",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

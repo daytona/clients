@@ -1,0 +1,25 @@
+.github/workflows/upgrade-tool-ci.yaml
+  s_f634d6515dfc0f::t_38d321c8e85db1 187-189,208-211,261
+upgrade/scripts/check-examples.sh
+  s_f634d6515dfc0f::t_109f5cb9f50968 5,14,23-24,142
+upgrade/typescript/tests/installed-package-runtime.test.ts
+  s_f634d6515dfc0f::t_55e89826ac3373 20
+upgrade/typescript/tsconfig.test.json
+  s_f634d6515dfc0f::t_9fd3e3b6c29023 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "778e7f3af027e451d92a1891f15b920ff5b96f75",
+  "prompts": {},
+  "sessions": {
+    "s_f634d6515dfc0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe5ffdSFgY4DdDZq1hEw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

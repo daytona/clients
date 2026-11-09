@@ -1,0 +1,38 @@
+AGENTS.md
+  s_f23bcae77f0e63::t_d51a6463405c7e 602-604
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_1fe572ec0371e3 1699-1706,1708-1723
+  s_f23bcae77f0e63::t_74405f55940b62 1690,1693-1698,1707,1727,1730,1732-1733,1739,1742,1744
+sdk-typescript/src/v2/Sandbox.ts
+  s_f23bcae77f0e63::t_6a4a0df9806874 126-136,1577-1585
+sdk-python/src/daytona/v2/filesystem.py
+  s_f23bcae77f0e63::t_6a4a0df9806874 664-666,668,671,675-676,681-685
+  s_f23bcae77f0e63::t_1fe572ec0371e3 672-674
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_74405f55940b62 6657,6659-6669,6671,6675
+  s_f23bcae77f0e63::t_c7f8ae1916000a 10515-10529
+sdk-python/tests/test_sandbox_tokens.py
+  s_f23bcae77f0e63::t_c7f8ae1916000a 161-167,176-191
+  s_f23bcae77f0e63::t_1fe572ec0371e3 30,168-175
+sdk-python/src/daytona/v2/sandbox.py
+  s_f23bcae77f0e63::t_1fe572ec0371e3 1957-1959
+  s_f23bcae77f0e63::t_6a4a0df9806874 1501-1502,1949-1953,1956,1960-1961
+changelog.d/537-error-constructors.breaking.md
+  s_f23bcae77f0e63::t_3a4af1c232f8d0 45-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "29d61ac5d6f8184f5cd53384be757fdc8e31f0a8",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

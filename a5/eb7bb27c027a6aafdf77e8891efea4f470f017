@@ -1,0 +1,55 @@
+sdk-python/tests/test_transfer_bounds.py
+  s_9a337fd66d5341::t_2bacd96145baa2 1010-1040
+  s_9a337fd66d5341::t_be0dd21fbc44cf 1041-1054,1058-1071
+  s_9a337fd66d5341::t_7def6d1793cb6e 1055-1057
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_9a337fd66d5341::t_2206031a1e0632 241-243
+  s_9a337fd66d5341::t_a97dc9bbb4e6d9 42-44,48,50-55,59-61
+  s_9a337fd66d5341::t_ac0345d2648f7f 62
+  s_9a337fd66d5341::t_cb6d48bc982701 63-64
+sdk-typescript/tests/errors-contract.test.ts
+  s_9a337fd66d5341::t_5caa24d29c93de 116-121
+  s_9a337fd66d5341::t_7c96bcf4382c77 180-192
+  s_9a337fd66d5341::t_94643406f83b8c 193
+  s_9a337fd66d5341::t_281283b812ca90 179
+sdk-python/src/daytona/v2/_transport.py
+  s_9a337fd66d5341::t_5a2ce4c085d117 696,701,741-743,748-749,751-754,818,823,995-998,1005,1007-1013,1030,1037,1169-1176,1194-1196,1199,1230-1232
+  s_9a337fd66d5341::t_41fc0f5c09d67f 697,702,744-747,750,819,824,1031,1038
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_9a337fd66d5341::t_7c96bcf4382c77 124-126,134-141
+  s_9a337fd66d5341::t_9cf50507475300 142
+sdk-typescript/src/v2/http.ts
+  s_9a337fd66d5341::t_be0960f72d04f0 249-250,256-257
+  s_9a337fd66d5341::t_8c042f44a1a8a2 1368-1370,1373,1654-1655,1657
+  s_9a337fd66d5341::t_a97dc9bbb4e6d9 1371,1571-1573
+sdk-python/tests/test_client_config.py
+  s_9a337fd66d5341::t_d3bbfe523a1c9b 286-287
+  s_9a337fd66d5341::t_0491b527e339a3 285
+  s_9a337fd66d5341::t_ebe8abe97b8566 583-620,622-659,664-665,667-668,683
+  s_9a337fd66d5341::t_2a0675f8cfcadf 666,684-686
+  s_9a337fd66d5341::t_8c580142973088 669-682
+  s_9a337fd66d5341::t_14d376d0b0f4c5 18,621,660-663
+sdk-python/src/daytona/v2/_body_limit.py
+  s_9a337fd66d5341::t_e249a8bebcb005 98,122-125,164-168
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_9a337fd66d5341::t_2206031a1e0632 764-788
+  s_9a337fd66d5341::t_5e6422df6c7b2e 312-316
+  s_9a337fd66d5341::t_7025d691285b10 305-311,318-326
+  s_9a337fd66d5341::t_832eb2da83f910 317
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a5eb7bb27c027a6aafdf77e8891efea4f470f017",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

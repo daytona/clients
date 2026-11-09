@@ -1,0 +1,19 @@
+typescript/tests/unit.test.ts
+  s_9f424cdd06a807::t_9d9d85f47faeea 7127-7132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f8c6ae877c70884b20a934b5ebf6ce1fbe81b7dc",
+  "prompts": {},
+  "sessions": {
+    "s_9f424cdd06a807": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "claude-fable-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

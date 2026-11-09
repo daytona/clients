@@ -1,0 +1,22 @@
+scripts/gitignore_test.sh
+  s_170baf016701c2::t_8c55fe13cc027b 1-40
+.gitignore
+  s_170baf016701c2::t_0a32004ba4eb8b 1-5,13-18
+  s_170baf016701c2::t_9cf3d9208dfb79 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7477ce85ecee79c97ddc0f017d4c85385f872e9",
+  "prompts": {},
+  "sessions": {
+    "s_170baf016701c2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179970ffel5mD5rtZsQQcTa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

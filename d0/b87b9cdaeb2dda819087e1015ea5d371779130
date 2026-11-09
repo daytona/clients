@@ -1,0 +1,25 @@
+sdk-typescript/src/v2/Daytona.ts
+  s_f23bcae77f0e63::t_cf1aaa837e97fe 242,245-246,258-259,277-278
+sdk-typescript/tests/sdk-raised-errors.test.ts
+  s_f23bcae77f0e63::t_416fabd38be48f 39-47,81-83
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_416fabd38be48f 1091-1094,1158-1159
+changelog.d/537-error-constructors.breaking.md
+  s_f23bcae77f0e63::t_ad0615b8f81d38 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d0b87b9cdaeb2dda819087e1015ea5d371779130",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+changelog.d/536-fanout-errors.breaking.md
+  s_0df31975f3464b::t_ceb60a298ed763 5-6
+changelog.d/536-acknowledgements.breaking.md
+  s_0df31975f3464b::t_ceb60a298ed763 1-11
+changelog.d/536.security.md
+  s_0df31975f3464b::t_03e7d8d2979b05 8-10
+changelog.d/536-file-case-variants.breaking.md
+  s_0df31975f3464b::t_ceb60a298ed763 1-6
+cli/README.md
+  s_0df31975f3464b::t_457a57bc1ac69e 131-132,237-238,333,350-370,374,415-418
+  s_0df31975f3464b::t_3650e67e2d07a8 382-383
+changelog.d/536-billing-consent.breaking.md
+  s_0df31975f3464b::t_ceb60a298ed763 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "346bdba6c0b9ab36d33ddefdf7f3ffce45db12c7",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+cli/internal/input/request_fields_gen.go
+  s_0df31975f3464b::t_6004424d7cb635 1-3,6-7
+  s_0df31975f3464b::t_6e47df2e87db93 4-5,8-163
+cli/cmd/sandbox_create_helpers.go
+  s_0df31975f3464b::t_35d33400847cae 183
+cli/internal/input/input_test.go
+  s_0df31975f3464b::t_6e47df2e87db93 74,129-132,134,136-139,145-146,150-153,157-161,174-178
+cli/internal/input/fields.go
+  s_0df31975f3464b::t_778ad7b05d307e 1-118
+cli/cmd/snapshot.go
+  s_0df31975f3464b::t_9cf3383dafbcf3 66-67
+  s_0df31975f3464b::t_674ae7367630f2 147,158,161
+  s_0df31975f3464b::t_4589a3a4a6d774 68
+cli/internal/input/input.go
+  s_0df31975f3464b::t_4e505bd8ec2124 59,80-81,84-85
+  s_0df31975f3464b::t_778ad7b05d307e 124-125,129-134
+cli/internal/input/request_fields_test.go
+  s_0df31975f3464b::t_6e47df2e87db93 45-46,51,55-57,59,62,64,66,69,92-111,113-118,120-130,142
+  s_0df31975f3464b::t_6004424d7cb635 1-44,47-50,52-54,58,60-61,63,65,67-68,70-91,112,119,131-141,143-168
+cli/cmd/image_create.go
+  s_0df31975f3464b::t_f1b721ef7e4464 47-48
+  s_0df31975f3464b::t_944788cf197a26 121
+  s_0df31975f3464b::t_35d33400847cae 34
+  s_0df31975f3464b::t_a2bc9ffe300137 49
+cli/cmd/sandbox_lifecycle.go
+  s_0df31975f3464b::t_35d33400847cae 70,90,97-100
+cli/cmd/sandbox_actions_more_test.go
+  s_0df31975f3464b::t_8389a120fd80c5 318-320,326-327
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea7c8a512f575b76477d947fc7c83246f12e1b51",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,68 @@
+examples/python/test_examples.py
+  s_ca009e77d17705::t_e11e1b9569a07b 20,34,44,75-80,124-129,133-160,164-166,323-390
+  s_ca009e77d17705::t_a0c43c216d0466 391-392
+examples/typescript/file-operations/index.ts
+  s_ca009e77d17705::t_e11e1b9569a07b 17
+  s_ca009e77d17705::t_b362eae8a39f24 13
+examples/python/_common.py
+  s_ca009e77d17705::t_e11e1b9569a07b 9,14,16,19,25-34,36-37,81-115
+  s_ca009e77d17705::t_b362eae8a39f24 22
+  s_ca009e77d17705::t_5c233e7d73d009 116-117
+examples/python/file_operations.py
+  s_ca009e77d17705::t_b362eae8a39f24 17
+  s_ca009e77d17705::t_e11e1b9569a07b 22
+examples/typescript/test-support/fake-sdk.ts
+  s_ca009e77d17705::t_82116b2a623b44 15
+  s_ca009e77d17705::t_e11e1b9569a07b 48-53,65-66,79-80,89-91,179-180,214-225,227-235
+  s_ca009e77d17705::t_0bd90056848bf2 226
+changelog.d/528.fixed.md
+  s_ca009e77d17705::t_e11e1b9569a07b 1-5
+examples/python/lifecycle.py
+  s_ca009e77d17705::t_b362eae8a39f24 13
+  s_ca009e77d17705::t_e11e1b9569a07b 20
+examples/python/exec_command.py
+  s_ca009e77d17705::t_b362eae8a39f24 13
+  s_ca009e77d17705::t_e11e1b9569a07b 43
+examples/typescript/secrets-env/index.ts
+  s_ca009e77d17705::t_e11e1b9569a07b 71
+  s_ca009e77d17705::t_b362eae8a39f24 30
+examples/typescript/examples.test.ts
+  s_ca009e77d17705::t_e11e1b9569a07b 21,41,124-172
+  s_ca009e77d17705::t_4ff0faad75ab76 173
+examples/README.md
+  s_ca009e77d17705::t_e11e1b9569a07b 83
+examples/python/git_ops.py
+  s_ca009e77d17705::t_b362eae8a39f24 16
+  s_ca009e77d17705::t_e11e1b9569a07b 24
+examples/typescript/git/index.ts
+  s_ca009e77d17705::t_b362eae8a39f24 12
+  s_ca009e77d17705::t_e11e1b9569a07b 19
+examples/typescript/lifecycle/index.ts
+  s_ca009e77d17705::t_e11e1b9569a07b 15
+  s_ca009e77d17705::t_b362eae8a39f24 9
+examples/python/secrets_env.py
+  s_ca009e77d17705::t_b362eae8a39f24 33
+  s_ca009e77d17705::t_e11e1b9569a07b 73
+examples/typescript/exec-command/index.ts
+  s_ca009e77d17705::t_b362eae8a39f24 10
+  s_ca009e77d17705::t_e11e1b9569a07b 37
+examples/typescript/_common.ts
+  s_ca009e77d17705::t_e11e1b9569a07b 10,13,19-30,66-104
+  s_ca009e77d17705::t_b362eae8a39f24 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43f367c3643894ad54578c210f2dad439942f1c6",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

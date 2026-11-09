@@ -1,0 +1,27 @@
+examples/typescript/file-operations/index.ts
+  s_f634d6515dfc0f::t_d23056e8c27147 32
+examples/typescript/git/index.ts
+  s_f634d6515dfc0f::t_2786da581d1e9b 46
+examples/typescript/volumes/index.ts
+  s_f634d6515dfc0f::t_b5c7671b8e26b4 32,50
+python/src/daytona/v2/__init__.py
+  s_f634d6515dfc0f::t_d80ca55e573cd6 64,457
+python/src/daytona/v2/_exports.py
+  s_f634d6515dfc0f::t_77dc3c3caacb90 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45faeb61df73499db0b2e5c9793e0bd4b4ec121c",
+  "prompts": {},
+  "sessions": {
+    "s_f634d6515dfc0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe5ffdSFgY4DdDZq1hEw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

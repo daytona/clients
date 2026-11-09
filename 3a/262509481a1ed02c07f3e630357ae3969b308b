@@ -1,0 +1,117 @@
+sdk-typescript/src/v2/clientConfig.ts
+  s_ca009e77d17705::t_2eb03bb846231e 12,120,144,147
+sdk-python/src/daytona/v2/_auth.py
+  s_ca009e77d17705::t_0b56ee55d2630b 14,51,55,129,140
+sdk-typescript/src/v2/types.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 93-94,97-105,131
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_ca009e77d17705::t_a6191c686aa345 37
+  s_ca009e77d17705::t_29670efc34af1a 50-52
+sdk-typescript/tests/client-config.test.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 390-392
+sdk-typescript/DEVELOPMENT.md
+  s_ca009e77d17705::t_0b56ee55d2630b 262-278
+sdk-typescript/src/root-config.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 40,86
+changelog.d/537-request-timeout.breaking.md
+  s_ca009e77d17705::t_0b56ee55d2630b 14-15
+sdk-python/src/daytona/_client.py
+  s_ca009e77d17705::t_0b56ee55d2630b 181-185,198,313,334
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_0b56ee55d2630b 43,162,217,228,237,1415-1417
+  s_ca009e77d17705::t_69efaea319ab1f 219,1229
+sdk-typescript/runtime-tests/assert-result.mjs
+  s_ca009e77d17705::t_0b56ee55d2630b 13
+sdk-python/src/daytona/v2/types.py
+  s_ca009e77d17705::t_0b56ee55d2630b 383-388,402
+sdk-typescript/runtime-tests/mock-api.mjs
+  s_ca009e77d17705::t_0b56ee55d2630b 105-114,142
+sdk-typescript/README.md
+  s_ca009e77d17705::t_0b56ee55d2630b 105-109,674-679
+sdk-python/src/daytona/v2/computer_use_services.py
+  s_ca009e77d17705::t_0b56ee55d2630b 6,9,435-447,449-454
+sdk-typescript/src/Daytona.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 174
+sdk-typescript/src/v2/http.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 8,11-14,29-30,166-169,225-229,240-244,265-266,582-602,607,619,631,640,884,887,987,991-997,1153,1159-1162,1243-1248,1388,1391,1463-1469,1516-1524,1591-1595,1597-1598,1625,1627,1682-1684,1693,1695-1696
+sdk-python/src/daytona/v2/filesystem.py
+  s_ca009e77d17705::t_0b56ee55d2630b 13,32,249-250,252-269,407-409,413-415,417-421,426-431
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 50-58,64,222-233
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 1-405
+sdk-typescript/tests/client-response-cap.test.ts
+  s_ca009e77d17705::t_97168deec3a34f 1-44
+sdk-python/src/daytona/v2/_body_limit.py
+  s_ca009e77d17705::t_0b56ee55d2630b 1-121
+sdk-python/tests/test_transfer_bounds.py
+  s_ca009e77d17705::t_0b56ee55d2630b 1-505
+sdk-python/README.md
+  s_ca009e77d17705::t_0b56ee55d2630b 147-152,753-758
+sdk-python/src/daytona/v2/_sync/computer_use_services.py
+  s_ca009e77d17705::t_0b56ee55d2630b 14,232,240
+  s_ca009e77d17705::t_b31880dc335784 233-239
+sdk-python/src/daytona/v2/_transport.py
+  s_ca009e77d17705::t_0b56ee55d2630b 33-40,75-76,215,219,265,276-279,319-321,343-347,563,568-569,623,633,652,660-664,690-694,764,805-807,932,939-944,946,949-950,969,978,987,999-1001,1017,1085-1086,1106-1107,1117-1121,1123,1153-1156
+sdk-typescript/runtime-tests/runtime-checks.mjs
+  s_ca009e77d17705::t_0b56ee55d2630b 13-14,36-48,50,96-108
+  s_ca009e77d17705::t_72184e6a2ce880 109-110
+AGENTS.md
+  s_ca009e77d17705::t_0b56ee55d2630b 495-527
+sdk-typescript/src/types.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 13-14,41,44-49
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 1-304
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_0b56ee55d2630b 33,544-546
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 801-811,813,853-865,869-905
+  s_ca009e77d17705::t_d4091f33f56a6f 906
+sdk-typescript/src/v2/FileSystem.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 20-23,58-69,75-90,221-228,233,236-237,241-242,255,298,305-310,314,316-317
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_ca009e77d17705::t_b31880dc335784 107-115,122-124
+  s_ca009e77d17705::t_0b56ee55d2630b 106,116,118,126,128-130
+sdk-python/DEVELOPMENT.md
+  s_ca009e77d17705::t_0b56ee55d2630b 249-257
+changelog.d/537-transfer-bounds.breaking.md
+  s_ca009e77d17705::t_0b56ee55d2630b 1-28
+sdk-typescript/src/v2/bodyLimit.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 1-232
+sdk-typescript/src/v2/index.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 59
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_0b56ee55d2630b 24,8963,8965,8968-8969
+  s_ca009e77d17705::t_26260201b9c2e4 8970
+sdk-typescript/tests/transfer-timeouts.test.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 6-9,12,27,34,53,60-61,64,66,68,71-72
+sdk-python/src/daytona/v2/_events.py
+  s_ca009e77d17705::t_b31880dc335784 43
+  s_ca009e77d17705::t_85f13f88636511 392,422-425,1673,1704,1710-1717
+sdk-typescript/runtime-tests/runtime-checks.d.mts
+  s_ca009e77d17705::t_0b56ee55d2630b 11,22
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_0b56ee55d2630b 133-136
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_0b56ee55d2630b 4141,4182-4183,4886,6423,6541,7111
+sdk-typescript/tests/published-declarations.test.ts
+  s_ca009e77d17705::t_cefc9e71a54803 33-34
+sdk-python/tests/test_client_response_cap.py
+  s_ca009e77d17705::t_1d0f0b72eaad9e 1-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3a262509481a1ed02c07f3e630357ae3969b308b",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

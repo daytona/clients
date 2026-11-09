@@ -1,0 +1,33 @@
+.github/workflows/upgrade-tool-ci.yaml
+  s_4d9fba4bce0dac::t_4cd0aa2c3bf6f4 16,27
+.github/workflows/prepare-release.yaml
+  s_4d9fba4bce0dac::t_23870735e7686e 55-60,67-72
+  s_4d9fba4bce0dac::t_c89a7344f6ae60 73
+.github/workflows/sdk_publish.yaml
+  s_4d9fba4bce0dac::t_61433b94e87167 1451-1452,1454,1456-1464
+  s_4d9fba4bce0dac::t_2cdaa2679ce955 365-368,379
+  s_4d9fba4bce0dac::t_075005ffc4f44e 983,1625,1658,1666-1667,1671-1672
+upgrade/scripts/publish-channels.test.mjs
+  s_4d9fba4bce0dac::t_6ebaee193b4771 62-63,71-74,143-167
+  s_4d9fba4bce0dac::t_4d6767ccebb48d 733-765
+  s_4d9fba4bce0dac::t_005171fda56119 790-827
+  s_4d9fba4bce0dac::t_b2662bd6585bdf 429-430,437-438,489
+  s_4d9fba4bce0dac::t_71cd77887dbbb2 766-789
+  s_4d9fba4bce0dac::t_a1ef6ef526a7c5 168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9bcc52d0c3c7fdb9b7c7efc5e77ba8f737dbdb2",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

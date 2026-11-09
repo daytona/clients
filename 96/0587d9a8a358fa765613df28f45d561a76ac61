@@ -1,0 +1,25 @@
+sdk-typescript/src/v2/clientSandboxes.ts
+  s_ca009e77d17705::t_ba329bbffec1be 94-96,99-102,120-122,125
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_13d5442a4f70fb 506-525
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_13d5442a4f70fb 283-297
+sdk-typescript/src/v2/clientSearch.ts
+  s_ca009e77d17705::t_ba329bbffec1be 177,187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "960587d9a8a358fa765613df28f45d561a76ac61",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

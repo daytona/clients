@@ -1,0 +1,23 @@
+docs/VERSIONING.md
+  s_a3ea68093feda0::t_e36180c8cc9578 193-195,207-210
+AGENTS.md
+  s_a3ea68093feda0::t_e36180c8cc9578 538-543,563-570
+.claude/skills/contract-refresh/SKILL.md
+  s_a3ea68093feda0::t_e36180c8cc9578 75,77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f4c9cb7d34b7e5fb3b63eae0a1b2601c399b2340",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

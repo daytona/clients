@@ -1,0 +1,58 @@
+AGENTS.md
+  s_9a337fd66d5341::t_14147941913fdf 658-661
+sdk-typescript/src/v2/Lsp.ts
+  s_9a337fd66d5341::t_3deeecd59e9e49 14
+  s_9a337fd66d5341::t_045fce4c869cf7 93,100,105,131,139
+sdk-typescript/src/v2/ProcessRun.ts
+  s_9a337fd66d5341::t_3deeecd59e9e49 17
+  s_9a337fd66d5341::t_045fce4c869cf7 97
+sdk-typescript/src/v2/Process.ts
+  s_9a337fd66d5341::t_2e2d9f1710763f 24,186
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_9a337fd66d5341::t_2e2d9f1710763f 23,149,159,173
+sdk-typescript/src/v2/Git.ts
+  s_9a337fd66d5341::t_3ecd04329a772d 15,164,238
+sdk-typescript/src/v2/ProcessWire.ts
+  s_9a337fd66d5341::t_3deeecd59e9e49 19
+  s_9a337fd66d5341::t_6e70699c4e0251 111,116,270,308,313,315-316,320
+sdk-typescript/src/v2/FileSystem.ts
+  s_9a337fd66d5341::t_3deeecd59e9e49 26
+  s_9a337fd66d5341::t_3ecd04329a772d 611
+  s_9a337fd66d5341::t_045fce4c869cf7 182,187
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_9a337fd66d5341::t_857f12bf424ee7 85,164,195
+  s_9a337fd66d5341::t_a162b41d6a2876 122,126,130,134,141,200,202,209,215,221,227,233,238,242,272,277,343,351,358,362,371,380,385
+  s_9a337fd66d5341::t_3deeecd59e9e49 35
+sdk-typescript/src/v2/Interpreter.ts
+  s_9a337fd66d5341::t_045fce4c869cf7 255,260,264,268,276,284,291,295
+  s_9a337fd66d5341::t_3deeecd59e9e49 28
+sdk-typescript/src/v2/filesystemWire.ts
+  s_9a337fd66d5341::t_045fce4c869cf7 40
+  s_9a337fd66d5341::t_3deeecd59e9e49 9
+changelog.d/538-toolbox-models.breaking.md
+  s_9a337fd66d5341::t_14147941913fdf 18-21
+sdk-typescript/tests/toolbox-frozen-results.test.ts
+  s_9a337fd66d5341::t_14e26205d0e2ab 54
+  s_9a337fd66d5341::t_0ec70ab19d64af 1-53,55-256
+sdk-typescript/src/v2/frozen.ts
+  s_9a337fd66d5341::t_e524874544421b 1-41
+sdk-typescript/src/v2/toolboxModels.ts
+  s_9a337fd66d5341::t_72ac7db3dcd2bf 139,144,150,153,164,170,177,182,191,193,217,225,231,242,248,255,259,278,284,288,294,300,306
+  s_9a337fd66d5341::t_3deeecd59e9e49 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17a05493b18cd1ec41ad0cbdde244fb56bfd6601",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+sdk-typescript/tests/image-pull-deadline.test.ts
+  s_ca009e77d17705::t_a333a303f8ac15 144,148-150,160-163
+  s_ca009e77d17705::t_a74b5f69ffb3d4 90,92-94,98,109,112,114-115,120,125-126,129,132
+sdk-python/tests/test_image_pull_deadline_http.py
+  s_ca009e77d17705::t_ffc4e782ebf355 132-136,138-139,141,143,153-155,158,172,185-186,197,201,206-208,210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7340ebe4cce202bef17a411d638dbfe211b2fa69",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

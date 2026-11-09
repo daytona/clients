@@ -1,0 +1,180 @@
+sdk-typescript/src/v2/Daytona.ts
+  s_f23bcae77f0e63::t_91dad736dc5714 9,223,230,487,490,493,596,608
+  s_f23bcae77f0e63::t_cb4576dec30398 279,287,299,308,326,371,424,725,781,791,799,934
+  s_f23bcae77f0e63::t_13611b2cde7f80 796
+sdk-typescript/src/v2/filesystemWire.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 25,65,74,79,85,90,122
+sdk-python/src/daytona/v2/_codes.py
+  s_f23bcae77f0e63::t_d0e96eecfa006c 1-503
+sdk-typescript/src/v2/Ports.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 46,52,59,224,296,303,310
+sdk-typescript/src/v2/Sandbox.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 129,201,238,323,366,371,383,390,397,403,409,566,730,840,845,920,924,929,1081,1110,1138,1173,1198,1218,1231,1246,1273,1311,1326,1335,1345,1358,1371,1399-1400,1433,1483,1493,1504,1519,1541,1552,1569
+sdk-typescript/src/v2/SandboxVolumes.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 43,56
+sdk-typescript/tests/root-client.test.ts
+  s_f23bcae77f0e63::t_8153247bb087c8 14,179,184-206
+  s_f23bcae77f0e63::t_38d5989846d7d7 25,240
+  s_f23bcae77f0e63::t_ab518ba5d82ef5 12,124,128,157,278,286,303,324,336,340,350,363,371,387,408,413,419,430,617
+  s_f23bcae77f0e63::t_cb4576dec30398 237-239,241
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_983e5f2bc876b1 49,2199,2210,3289,3291,3294,3297,3304,3307,3310,3622,3642,3657,3693,4694,4698-4712,4718-4727,4740,4746,4765,4768,4771,4791,4793,4808,4810-4811,4821,4824,4828,5931,5940,5950,5975,5995,6011,6047,6061,6991,7341,7350,7580,7676,7761,7810,7820,8040,8044,8343,8486,8654,8902,8971,8974,11361,12664,12699
+  s_f23bcae77f0e63::t_cbb30bd90cbae4 10598,10658,10904
+  s_f23bcae77f0e63::t_0b3e802d484245 104,4585-4587,9714
+sdk-typescript/src/v2/Process.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 96,103
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_f23bcae77f0e63::t_a893abf39b5c1b 674-678,682-708,713-718,723,748,752,781,796,798,813,836
+  s_f23bcae77f0e63::t_6a8afebe91afbe 27-31,35-45,59-109,112,123-127,130,132,135-154
+  s_f23bcae77f0e63::t_8ca52bc45e7627 205,218,235,249,266,290-292,296-299,302,304-310,312-313,324,330,348,364,374,393,404-416,419,421-423,425,431-434,533-534,576-577,594,614,652
+  s_f23bcae77f0e63::t_c5ddfd336b7471 749-750
+sdk-typescript/src/v2/Git.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 135,216,224
+sdk-typescript/src/v2/codes.ts
+  s_f23bcae77f0e63::t_bcf20db8d45428 6-17,45,47,142,144,146,148,155,157,176,185,330-334,344,355,357,359,361,363,366,368,374,376,378
+sdk-typescript/src/v2/SandboxSecrets.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 12,21,38,45,59
+sdk-python/tests/test_v0_bundle.py
+  s_f23bcae77f0e63::t_0b3e802d484245 125-128
+sdk-typescript/src/v2/events.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 489,609,834,939,953,1104,1200,1513,1618
+  s_f23bcae77f0e63::t_91dad736dc5714 20,1026,1364
+sdk-typescript/src/v2/Docker.ts
+  s_f23bcae77f0e63::t_91dad736dc5714 6,110
+  s_f23bcae77f0e63::t_cb4576dec30398 96
+sdk-python/src/daytona/v2/errors.py
+  s_f23bcae77f0e63::t_f79a404959a4d0 8-9,21-39,43-53,62-69,71,73-77,84-99
+  s_f23bcae77f0e63::t_0b3e802d484245 70,72,892-893
+  s_f23bcae77f0e63::t_d0e96eecfa006c 11
+  s_f23bcae77f0e63::t_dc78cb1402550e 106,238,241-251,286-301,427,618-619,631,633,672,845,885,887,889,896
+sdk-typescript/src/v2/ProcessWire.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 30,95,102,120,125,129,134,183
+changelog.d/sdk-codes-namespace.breaking.md
+  s_f23bcae77f0e63::t_3c9e7f1f32e992 1-11
+  s_f23bcae77f0e63::t_e4511979bb5fee 12
+sdk-typescript/src/v2/Images.ts
+  s_f23bcae77f0e63::t_91dad736dc5714 15,140
+  s_f23bcae77f0e63::t_cb4576dec30398 92,95
+  s_f23bcae77f0e63::t_13611b2cde7f80 136
+sdk-python/tests/test_fs_transfer.py
+  s_f23bcae77f0e63::t_983e5f2bc876b1 15,229,611,950
+changelog.d/sdk-error-constructors.breaking.md
+  s_f23bcae77f0e63::t_3c9e7f1f32e992 1-14
+sdk-typescript/src/v2/ProcessRun.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 63
+sdk-python/src/daytona/v2/_exports.py
+  s_f23bcae77f0e63::t_8c220a9671f4b8 317
+sdk-typescript/src/v2/Snapshots.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 47
+sdk-typescript/tests/runtime-compat.test.ts
+  s_f23bcae77f0e63::t_38d5989846d7d7 12,90
+sdk-python/tests/test_events.py
+  s_f23bcae77f0e63::t_cbb30bd90cbae4 1606,2313
+  s_f23bcae77f0e63::t_0b3e802d484245 39
+sdk-python/src/daytona/v2/daytona.py
+  s_f23bcae77f0e63::t_0b3e802d484245 50,1322-1324
+sdk-typescript/src/v2/Reservations.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 136
+changelog.d/sdk-error-names.breaking.md
+  s_f23bcae77f0e63::t_3c9e7f1f32e992 1-16
+sdk-python/src/daytona/v2/process.py
+  s_f23bcae77f0e63::t_d0e96eecfa006c 12-13
+sdk-typescript/src/v2/Image.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 25,30
+sdk-python/src/daytona/v2/build_logs.py
+  s_f23bcae77f0e63::t_0b3e802d484245 482
+sdk-python/src/daytona/v2/network_policy.py
+  s_f23bcae77f0e63::t_d0e96eecfa006c 10
+sdk-python/src/daytona/v2/__init__.py
+  s_f23bcae77f0e63::t_8c220a9671f4b8 260,666
+sdk-python/tests/test_sandbox_tokens.py
+  s_f23bcae77f0e63::t_0b3e802d484245 29
+  s_f23bcae77f0e63::t_cbb30bd90cbae4 374,416,737
+sdk-typescript/src/v2/http.ts
+  s_f23bcae77f0e63::t_91dad736dc5714 8,267,270,307,465,485,496,503,888,905,1253,1300-1301,1305,1313,1341
+  s_f23bcae77f0e63::t_cb4576dec30398 986
+sdk-typescript/src/v2/FileSystem.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 166,210,456
+sdk-python/tests/test_desktop.py
+  s_f23bcae77f0e63::t_983e5f2bc876b1 455
+sdk-typescript/src/v2/index.ts
+  s_f23bcae77f0e63::t_622cc8a5a05e61 79,188-189
+  s_f23bcae77f0e63::t_e23c8aa22e969b 387
+  s_f23bcae77f0e63::t_91dad736dc5714 113,135
+sdk-typescript/tests/events.test.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 151-152,154,161-162
+  s_f23bcae77f0e63::t_38d5989846d7d7 26,153
+sdk-python/tests/test_root_client.py
+  s_f23bcae77f0e63::t_0b3e802d484245 74,901-903,1077-1079
+  s_f23bcae77f0e63::t_e7936f2f5cc744 66,68-73,75-95
+  s_f23bcae77f0e63::t_cbb30bd90cbae4 109
+sdk-typescript/src/Daytona.ts
+  s_f23bcae77f0e63::t_3ea4b1eff2e1a2 55,62
+  s_f23bcae77f0e63::t_8153247bb087c8 155,159-160,265-272
+  s_f23bcae77f0e63::t_3ea6dd050a3111 273-274
+sdk-typescript/src/v2/NetworkPolicy.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 21,25,33,50,63,91,98,110,115,129
+sdk-typescript/src/v2/Interpreter.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 138,173,180,192,458,495,498,517
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 161
+  s_f23bcae77f0e63::t_91dad736dc5714 9,127
+sdk-typescript/tests/image-pull-deadline.test.ts
+  s_f23bcae77f0e63::t_38d5989846d7d7 12,160
+sdk-python/tests/test_error_contract.py
+  s_f23bcae77f0e63::t_3a2d1c4476cb3b 1-16,18-42,49-86,90-91,95-124,132,140-146
+  s_f23bcae77f0e63::t_0b3e802d484245 17,43-48,87-89,92-94,125-131,133-139
+sdk-python/src/daytona/v2/_core.py
+  s_f23bcae77f0e63::t_d0a8748e7d94dd 56,137-138,143-159,163
+  s_f23bcae77f0e63::t_0b3e802d484245 160-162
+sdk-typescript/src/v2/filesystemTransfers.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 75,114,171,305,387,410,427
+sdk-python/tests/test_network_policy_validation.py
+  s_f23bcae77f0e63::t_d154ecefaeb7f4 64
+sdk-typescript/tests/sessions.test.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 191,198-199
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_38d5989846d7d7 126,5435,5439,5780,6499,6577,7268,7313,8351,8500,8505,8527,8738
+  s_f23bcae77f0e63::t_508c88a107ed73 8888
+  s_f23bcae77f0e63::t_c228ca7e16a84a 8683,8687,8694,8698
+  s_f23bcae77f0e63::t_10a1200521c748 101
+  s_f23bcae77f0e63::t_cb4576dec30398 2276,2442,2635,2728,2757,2985,3018,3943,5303,5536,5606,8518,9908,10368,10387,10448,10466,10485,10500,10502,10523,10558,10588,10631,10652,10670,10693,10701,10723
+  s_f23bcae77f0e63::t_0bda18fb740826 93,6070,6082,6092-6093,7053,7235,9013-9017,9759,11682,11690
+sdk-python/src/daytona/v2/_events.py
+  s_f23bcae77f0e63::t_d0a8748e7d94dd 889,990,1065
+  s_f23bcae77f0e63::t_0b3e802d484245 46
+sdk-python/src/daytona/v2/interpreter.py
+  s_f23bcae77f0e63::t_d0e96eecfa006c 12-13
+sdk-typescript/tests/errors-contract.test.ts
+  s_f23bcae77f0e63::t_91a268a9274367 1-129
+sdk-typescript/src/v2/Session.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 15
+sdk-python/src/daytona/v2/codes.py
+  s_f23bcae77f0e63::t_0adb6fb353e826 18,37,39,41,43,45
+  s_f23bcae77f0e63::t_abbb0ba1a75777 4,6-9,11-13,15,17,20,22-34,36,38,40,42,44,47-48,50-55,57-63,66-68
+sdk-typescript/src/v2/BuildLogs.ts
+  s_f23bcae77f0e63::t_3ea4b1eff2e1a2 43-51,53-58,556-561
+  s_f23bcae77f0e63::t_e23c8aa22e969b 7
+  s_f23bcae77f0e63::t_91dad736dc5714 6,385,387,393,396,412,471-472,541
+  s_f23bcae77f0e63::t_cb4576dec30398 307,312,473,492,497,543
+sdk-typescript/src/v2/Lsp.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 43,46
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_f23bcae77f0e63::t_cb4576dec30398 67,76,82,113,120,126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "297e8d1dd5b805686e48c1d6ec75991f19ff937f",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+sdk-typescript/scripts/api-surface.mjs
+  s_a3ea68093feda0::t_f83af39e8cfdff 52,55-58,121,140,170,190,205,244-245,265-266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8b45a637d23f90fbf888f94f08c26336642de2a",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

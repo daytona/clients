@@ -1,0 +1,35 @@
+cli/internal/toolbox/archive_test.go
+  s_aec3b70e676052::t_1e113afbcc748f 243,263
+cli/internal/toolbox/archive_extract_windows.go
+  s_aec3b70e676052::t_1e113afbcc748f 17-24
+cli/internal/toolbox/archive_open_windows.go
+  s_aec3b70e676052::t_1e113afbcc748f 42-52
+cli/README.md
+  s_aec3b70e676052::t_48684cbf97818f 273,275-276
+cli/cmd/security_regressions_test.go
+  s_aec3b70e676052::t_1e113afbcc748f 64-68
+cli/cmd/auth_login_command.go
+  s_aec3b70e676052::t_1e113afbcc748f 32-33
+cli/cmd/profile.go
+  s_aec3b70e676052::t_811cf130bbfc39 82-83
+cli/internal/auth/key_cleanup.go
+  s_aec3b70e676052::t_811cf130bbfc39 88-121
+cli/internal/auth/key_cleanup_unix_test.go
+  s_aec3b70e676052::t_811cf130bbfc39 70-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e23d7465830dfa83087e8e6db5e6b250aeb090d7",
+  "prompts": {},
+  "sessions": {
+    "s_aec3b70e676052": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179965ffeH0RQLkfVpwv3D7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

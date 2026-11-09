@@ -1,0 +1,47 @@
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_282746344d8201 557-574
+sdk-typescript/tests/build-logs.test.ts
+  s_ca009e77d17705::t_7d641f6286bbc8 176-185
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_29120234422a29 321-322
+changelog.d/539-argument-checks.breaking.md
+  s_ca009e77d17705::t_3249528e7fd40a 8-19
+sdk-python/tests/test_build_logs.py
+  s_ca009e77d17705::t_7d641f6286bbc8 183,187-192
+  s_ca009e77d17705::t_ddd9bfd15671c8 184-186
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_8ed3a4e615a391 12,332-344
+  s_ca009e77d17705::t_db2d648226f071 345-349
+sdk-python/src/daytona/v2/build_logs.py
+  s_ca009e77d17705::t_5f1ce365d9b8c8 790-793
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_8ed3a4e615a391 215
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_29120234422a29 93-96
+sdk-typescript/src/v2/pathSegment.ts
+  s_ca009e77d17705::t_29120234422a29 18-19,22-36
+  s_ca009e77d17705::t_7542a1d6c63d4e 37
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_282746344d8201 356,358
+  s_ca009e77d17705::t_5f1ce365d9b8c8 361
+sdk-typescript/src/v2/BuildLogs.ts
+  s_ca009e77d17705::t_29120234422a29 542
+changelog.d/539-build-log-media-type.fixed.md
+  s_ca009e77d17705::t_c9875884807561 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66a37c1094800e7b555913b852c238cbd5c75cdd",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

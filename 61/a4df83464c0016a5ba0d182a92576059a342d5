@@ -1,0 +1,32 @@
+changelog.d/cli-dockerignore.security.md
+  s_0df31975f3464b::t_1797a30bc0a748 1-5
+cli/cmd/image_dockerignore_test.go
+  s_0df31975f3464b::t_7f9fc87e90372c 8,36,107-108,110-111
+  s_0df31975f3464b::t_cbb65cab2eaa45 1-7,9-35,37-106,109,112-141
+cli/internal/dockerignore/dockerignore_test.go
+  s_0df31975f3464b::t_f86482d4b77419 1-100
+cli/cmd/image_multipart.go
+  s_0df31975f3464b::t_d7357f0ce7bc19 10,12,16,18,23,38,48-51,75-79,82,93,102-103,195,197,212-263
+cli/internal/dockerignore/dockerignore.go
+  s_0df31975f3464b::t_0ec31b1a3ba3f9 1-213,215-242
+  s_0df31975f3464b::t_e4b1d13a115614 214
+cli/internal/toolbox/archive.go
+  s_0df31975f3464b::t_a32b451abbf551 29-38,40-45,56,63,76,106-153
+  s_0df31975f3464b::t_26914ee2d582f3 154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61a4df83464c0016a5ba0d182a92576059a342d5",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

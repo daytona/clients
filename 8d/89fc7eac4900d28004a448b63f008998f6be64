@@ -1,0 +1,90 @@
+sdk-python/src/daytona/v2/ports.py
+  s_ca009e77d17705::t_2b2c1f38660310 279-280
+sdk-typescript/src/v2/Ports.ts
+  s_ca009e77d17705::t_2b2c1f38660310 6,298-299
+sdk-python/src/daytona/v2/image.py
+  s_ca009e77d17705::t_2b2c1f38660310 170-173
+changelog.d/539-path-header-values.breaking.md
+  s_ca009e77d17705::t_570e24f311494d 13-21
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_f33ca368bbbf10 941-949
+  s_ca009e77d17705::t_e32e7abad504f4 878-940
+  s_ca009e77d17705::t_b55ebda5136fe0 159-168
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_79be8c1c47a11e 632-643
+  s_ca009e77d17705::t_b55ebda5136fe0 116-122
+  s_ca009e77d17705::t_f33ca368bbbf10 622-631
+  s_ca009e77d17705::t_ddcd32e9202597 581-621
+sdk-typescript/src/v2/options.ts
+  s_ca009e77d17705::t_f95f06c8952c99 68-74,78,81,83
+sdk-typescript/src/v2/Volume.ts
+  s_ca009e77d17705::t_93ce45b09fe1cf 140-145
+sdk-typescript/tests/image-builder-parity.test.ts
+  s_ca009e77d17705::t_2b2c1f38660310 29,56
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_ca009e77d17705::t_e4e5b158b70b74 578-579
+sdk-typescript/src/v2/clientSearch.ts
+  s_ca009e77d17705::t_3624211aa11c74 25-29,31,33,38
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_af87d70766169f 13,16,31-40,133,260,262,284,306,319,328,379,504,533,571,573
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_97fdbeaf622312 8617-8619
+  s_ca009e77d17705::t_2dd9f0149372b0 8620-8621
+  s_ca009e77d17705::t_a8b6b81181c682 9645
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_a882595465bd55 61,640,882-883,1674-1675
+  s_ca009e77d17705::t_570e24f311494d 1035-1036
+sdk-python/src/daytona/v2/types.py
+  s_ca009e77d17705::t_3624211aa11c74 1333-1334
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_3624211aa11c74 1354,1377,1380-1386
+  s_ca009e77d17705::t_a882595465bd55 1428-1438,1443,1447-1458
+  s_ca009e77d17705::t_e4e5b158b70b74 1439-1442
+  s_ca009e77d17705::t_70476ba874d840 1459-1460
+sdk-typescript/src/v2/clientCreateOptions.ts
+  s_ca009e77d17705::t_f95f06c8952c99 157-160
+sdk-typescript/src/v2/Daytona.ts
+  s_ca009e77d17705::t_570e24f311494d 318-319
+sdk-typescript/src/v2/MacModels.ts
+  s_ca009e77d17705::t_e37ca48c30402c 6,55-57
+sdk-typescript/src/v2/Image.ts
+  s_ca009e77d17705::t_2b2c1f38660310 6,54-56
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_e37ca48c30402c 866-868
+  s_ca009e77d17705::t_93ce45b09fe1cf 527-530
+changelog.d/539-platform-arguments.breaking.md
+  s_ca009e77d17705::t_570e24f311494d 11-22
+sdk-typescript/src/v2/types.ts
+  s_ca009e77d17705::t_3624211aa11c74 680
+changelog.d/539-list-search-arguments.breaking.md
+  s_ca009e77d17705::t_570e24f311494d 10-22
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_ca009e77d17705::t_2b2c1f38660310 2,21,46,57,60,62,93,172-196
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_570e24f311494d 30-38
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_bd631b1603c431 309,323
+  s_ca009e77d17705::t_af87d70766169f 259
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_d695ccbf60ba17 10266-10270
+  s_ca009e77d17705::t_04d6c917e7d5c9 9977-9978,9982-9983,9987-9988
+changelog.d/539-image-builder.breaking.md
+  s_ca009e77d17705::t_570e24f311494d 7
+  s_ca009e77d17705::t_79be8c1c47a11e 8-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d89fc7eac4900d28004a448b63f008998f6be64",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

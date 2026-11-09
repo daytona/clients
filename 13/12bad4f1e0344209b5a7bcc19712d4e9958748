@@ -1,0 +1,103 @@
+sdk-typescript/src/v2/Docker.ts
+  s_ca009e77d17705::t_7aafe96d8a5cbc 15,115-116
+  s_ca009e77d17705::t_e18112deed6c01 40,110
+  s_ca009e77d17705::t_9b8ecb80e2dda1 28,35
+sdk-typescript/src/v2/sandboxWait.ts
+  s_ca009e77d17705::t_7aafe96d8a5cbc 11,63-65
+sdk-typescript/src/v2/Images.ts
+  s_ca009e77d17705::t_7aafe96d8a5cbc 22,147-148,157-158
+  s_ca009e77d17705::t_e18112deed6c01 41,141
+sdk-typescript/tests/unbounded-waits.test.ts
+  s_ca009e77d17705::t_bb0b59216fc5c5 18-21,33,42,57-66,69,71,86
+  s_ca009e77d17705::t_5594e2dcf47b47 1-17,22-32,34-41,43-56,67-68,70,72-85,87-109
+sdk-python/src/daytona/v2/docker.py
+  s_ca009e77d17705::t_e18112deed6c01 59-60
+sdk-typescript/src/v2/types.ts
+  s_ca009e77d17705::t_c81135b9a9e421 413
+  s_ca009e77d17705::t_e18112deed6c01 406,478
+AGENTS.md
+  s_ca009e77d17705::t_5729182ac7e26d 649-653
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_e18112deed6c01 1012-1013
+  s_ca009e77d17705::t_7aafe96d8a5cbc 45,800-803,825,827-828,841,843
+  s_ca009e77d17705::t_6f1e678428911d 47
+  s_ca009e77d17705::t_428efb929d7ee3 482
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_ca009e77d17705::t_49b505d9822b19 129-130,249-250,281-282,329-330,381-382,392-393,458-459
+sdk-typescript/tests/frozen-results.test.ts
+  s_ca009e77d17705::t_8ff34d2ce440f1 141-142
+  s_ca009e77d17705::t_851ae83f4b14e9 104-140,143-154
+sdk-python/src/daytona/v2/_sync/services.py
+  s_ca009e77d17705::t_49b505d9822b19 84-87,181-182
+sdk-typescript/tests/build-logs.test.ts
+  s_ca009e77d17705::t_fe8ff517d7bbb8 176-193
+  s_ca009e77d17705::t_a4c2a4dcc8a61c 194-214
+sdk-typescript/src/v2/BuildLogs.ts
+  s_ca009e77d17705::t_7aafe96d8a5cbc 11,536-537,553
+  s_ca009e77d17705::t_e18112deed6c01 43
+  s_ca009e77d17705::t_fe3b899191815a 19,276-278
+sdk-python/tests/test_unbounded_waits.py
+  s_ca009e77d17705::t_609a18f7bfae3a 1-7,10-22,24-29,31-70,72-74,76-81,83-90,92-100,102-109,111-120,122-129,131-138,142-152,155-161,166-168,170,172-173,192-193,199-200,204-208,210-212,221-222,224-226
+  s_ca009e77d17705::t_2b46274facf106 198
+  s_ca009e77d17705::t_f92543e0590f0b 201-203
+  s_ca009e77d17705::t_4dc1c026b9dd13 23,82,91,101,110,121,130,139-141,153-154,162-165,169,171,174-191,194-197,209,213-220,223
+  s_ca009e77d17705::t_4685ee3dbc7b6b 8-9,30,71,75
+sdk-typescript/src/v2/options.ts
+  s_ca009e77d17705::t_7aafe96d8a5cbc 227-237
+  s_ca009e77d17705::t_97defb3b1ccc48 226
+sdk-python/src/daytona/v2/_sync/docker.py
+  s_ca009e77d17705::t_49b505d9822b19 51-52
+sdk-python/README.md
+  s_ca009e77d17705::t_c983778d24b7c7 522,821-822,842-843,856-858
+  s_ca009e77d17705::t_042d26babf9133 105-106
+  s_ca009e77d17705::t_dc42877b950448 53-54
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_85d7a4114d0e50 1212-1213,1221-1223,1233,1236,1271-1273,1277,1279-1281,1318-1322,2199-2202,2206
+  s_ca009e77d17705::t_e18112deed6c01 1124-1125,1136-1137,1159-1160,1172-1173,1185-1186,1332-1333
+changelog.d/539-lifecycle-waits.breaking.md
+  s_ca009e77d17705::t_5729182ac7e26d 5-20
+sdk-python/tests/test_build_logs.py
+  s_ca009e77d17705::t_796e66067a787d 1390-1393,1397,1399-1400,1406,1408-1410,1412
+  s_ca009e77d17705::t_08cc111255481a 1394-1396,1398,1401-1405,1407,1411
+sdk-typescript/README.md
+  s_ca009e77d17705::t_dc42877b950448 58
+  s_ca009e77d17705::t_c983778d24b7c7 476-477,760-761,781-782,793-794
+  s_ca009e77d17705::t_042d26babf9133 420
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_ca009e77d17705::t_49b505d9822b19 236-237
+sdk-typescript/src/v2/artifactOptions.ts
+  s_ca009e77d17705::t_f62ee83eda441a 6
+  s_ca009e77d17705::t_7aafe96d8a5cbc 53-54
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_7aafe96d8a5cbc 14,121-122
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_e18112deed6c01 134-136,209-210
+sdk-typescript/src/v2/SandboxVolumes.ts
+  s_ca009e77d17705::t_9b8ecb80e2dda1 44,49
+sdk-typescript/src/v2/SandboxSecrets.ts
+  s_ca009e77d17705::t_9b8ecb80e2dda1 25,35
+  s_ca009e77d17705::t_4bb4441c8b5ed5 10
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_e18112deed6c01 596-597
+changelog.d/539-fork-wait.breaking.md
+  s_ca009e77d17705::t_5729182ac7e26d 3-12
+sdk-typescript/src/v2/NetworkPolicy.ts
+  s_ca009e77d17705::t_4bb4441c8b5ed5 10
+  s_ca009e77d17705::t_9b8ecb80e2dda1 67,77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1312bad4f1e0344209b5a7bcc19712d4e9958748",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

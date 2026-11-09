@@ -1,0 +1,22 @@
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_f23bcae77f0e63::t_3256d3bf67f679 18,532-544
+  s_f23bcae77f0e63::t_da2c0b2cbf1c48 545-546
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_f23bcae77f0e63::t_3256d3bf67f679 15,19-26,47,212-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6d39c6881d5da9f836d864e456fe7ed37a7902ef",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

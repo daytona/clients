@@ -1,0 +1,27 @@
+upgrade/typescript/tests/constructor-errors.test.ts
+  s_f23bcae77f0e63::t_5fce680f11f44e 14,23-25
+upgrade/typescript/src/constructor-errors.ts
+  s_f23bcae77f0e63::t_0ec464a580200a 25-26
+upgrade/python/tests/test_constructor_credentials.py
+  s_f23bcae77f0e63::t_5fce680f11f44e 22-24,43
+upgrade/python/src/daytona_upgrade/constructor_errors.py
+  s_f23bcae77f0e63::t_0ec464a580200a 92-95
+upgrade/python/src/daytona_upgrade/resolution.py
+  s_f23bcae77f0e63::t_8e0dcb47e98c38 93-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e5e17d392f68f90e33da9575595f003a0a72acd",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

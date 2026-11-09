@@ -1,0 +1,92 @@
+examples/python/git_ops.py
+  s_285fc4d3645e63::t_d4872cc84a16a8 24
+examples/python/lifecycle.py
+  s_285fc4d3645e63::t_d4872cc84a16a8 20
+  s_285fc4d3645e63::t_da464fb20dab25 13,33-37
+examples/python/file_operations.py
+  s_285fc4d3645e63::t_d4872cc84a16a8 22
+  s_285fc4d3645e63::t_da464fb20dab25 47-51
+examples/python/exec_command.py
+  s_285fc4d3645e63::t_da464fb20dab25 13,15,18-19,21,25-26,32-33,36-37,47,52
+  s_285fc4d3645e63::t_2f0f55f27b7a57 35
+  s_285fc4d3645e63::t_d4872cc84a16a8 43
+examples/python/snapshots.py
+  s_285fc4d3645e63::t_f17bb63e169c25 29
+  s_285fc4d3645e63::t_7ffddd76f6c70b 25
+examples/typescript/build-logs/index.ts
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 45,66,84
+examples/typescript/file-operations/index.ts
+  s_285fc4d3645e63::t_7763a0b52f3c76 40-44
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 17
+examples/typescript/dynamic-build/index.ts
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 28,55,79
+examples/python/dynamic_build.py
+  s_285fc4d3645e63::t_432f133c45f0a4 23,37-38,40-41,67-68,70,91-92,94
+examples/volumes_share.py
+  s_285fc4d3645e63::t_7e32083142ead1 34-39,88
+examples/python/build_logs.py
+  s_285fc4d3645e63::t_432f133c45f0a4 54-55,57,78-79,81
+  s_285fc4d3645e63::t_ce3ca6e9e2a6ef 23
+  s_285fc4d3645e63::t_7e256806cecf99 50,95-96,99,119-121,123-128,130,132-140,142-143
+examples/typescript/lifecycle/index.ts
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 16
+.github/workflows/ci-passed-rerun.yaml
+  s_285fc4d3645e63::t_97ebf8f86f8436 18
+examples/typescript/secrets-env/index.ts
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 73
+  s_285fc4d3645e63::t_5c5f12a3d16643 32,34,36-39,42,45-69,91-92,94-97,104,106-108,110-111,123-129,132-133,136
+examples/typescript/dockerfile-sandbox/index.ts
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 47,99
+examples/run-examples.sh
+  s_285fc4d3645e63::t_c1886c9f9ed39f 18,42,45-49
+examples/volumes_share.ts
+  s_285fc4d3645e63::t_7e32083142ead1 37-43,82
+examples/typescript/exec-command/index.ts
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 37
+  s_285fc4d3645e63::t_7763a0b52f3c76 10,12-13,15,19-22,26-31,40,42,48-49
+examples/typescript/git/index.ts
+  s_285fc4d3645e63::t_8a81013b683d3c 17,33,74,77
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 19
+.github/workflows/examples-ci.yaml
+  s_285fc4d3645e63::t_a07ffcfb9fc00c 1-48
+examples/typescript/examples.test.ts
+  s_285fc4d3645e63::t_256099f00d4340 59,78-84
+  s_285fc4d3645e63::t_8b98cbcad0e1e7 1-58,60-77,85-142
+examples/python/dockerfile_sandbox.py
+  s_285fc4d3645e63::t_432f133c45f0a4 56-57,59,109-110,112
+  s_285fc4d3645e63::t_236c4df4023502 31
+examples/README.md
+  s_285fc4d3645e63::t_fd335abfee5870 34,51-52,121-124,127
+  s_285fc4d3645e63::t_f099ba306fb545 72
+examples/python/secrets_env.py
+  s_285fc4d3645e63::t_044d8a9a4261ac 35,40,43-45,48-49,51-63,65-70,72-74,77-78,93,101,103-105,107-108,117-122,124
+  s_285fc4d3645e63::t_431ddc1b6e3d1b 8,25,64
+examples/python/test_examples.py
+  s_285fc4d3645e63::t_51e61ee0d5c2b4 1-32,34,36-43,51-72,74-145,147-361,363-389,391
+  s_285fc4d3645e63::t_eda8bd4ef1a979 33,35,44-50
+  s_285fc4d3645e63::t_9c3781105172ea 73,146,362,390
+examples/typescript/test-support/fake-sdk.ts
+  s_285fc4d3645e63::t_a93fc95dd15c40 26-27,135-137
+  s_285fc4d3645e63::t_3b8ae9988d0868 1-16,19-25,28-134,138-144,146-159,161-188
+  s_285fc4d3645e63::t_7a44c0b69e713f 17-18,145,160
+examples/typescript/snapshots/index.ts
+  s_285fc4d3645e63::t_2bdb69c53ebe6e 37
+changelog.d/examples-2x-api.fixed.md
+  s_285fc4d3645e63::t_f099ba306fb545 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f5e5a388e038147d906417e454bfe28b6b21e0bc",
+  "prompts": {},
+  "sessions": {
+    "s_285fc4d3645e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179966ffeCgtLq0AylvVHMy",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

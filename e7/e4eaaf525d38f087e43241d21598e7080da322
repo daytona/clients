@@ -1,0 +1,27 @@
+changelog.d/532.changed.md
+  s_0df31975f3464b::t_c93e2219ed3fe6 1-5
+docs/VERSIONING.md
+  s_0df31975f3464b::t_b1a7bbe80ac207 88-89
+upgrade/mapping/report.schema.json
+  s_0df31975f3464b::t_2d9c6381a7a028 5
+upgrade/python/README.md
+  s_0df31975f3464b::t_a7a4bf63f14699 112-117
+upgrade/typescript/README.md
+  s_0df31975f3464b::t_6e3950f7170a62 310-315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e7e4eaaf525d38f087e43241d21598e7080da322",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

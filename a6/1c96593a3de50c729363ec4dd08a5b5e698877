@@ -1,0 +1,21 @@
+README.md
+  s_aec3b70e676052::t_263bc4ac4adb3e 18
+sdk-python/DEVELOPMENT.md
+  s_aec3b70e676052::t_141a2e4aac9e93 79,120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a61c96593a3de50c729363ec4dd08a5b5e698877",
+  "prompts": {},
+  "sessions": {
+    "s_aec3b70e676052": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179965ffeH0RQLkfVpwv3D7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

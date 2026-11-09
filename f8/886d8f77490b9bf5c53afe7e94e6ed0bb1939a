@@ -1,0 +1,22 @@
+upgrade/typescript/src/v0-version.ts
+  s_7c5ba108c50c01::t_efdfa43419263e 6-7,10,14-21,39-40,43-80,82-124,131,136-140,143-147,154-158,160-161,163,165-175,177-182,185,205
+  s_7c5ba108c50c01::t_4931880f7fb662 206-207
+upgrade/typescript/vitest.config.ts
+  s_7c5ba108c50c01::t_5d922fe042bcb8 6-20,23-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f8886d8f77490b9bf5c53afe7e94e6ed0bb1939a",
+  "prompts": {},
+  "sessions": {
+    "s_7c5ba108c50c01": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e542a0af0ffe6ZDh51IF2VSSft",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

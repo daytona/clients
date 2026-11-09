@@ -1,0 +1,27 @@
+AGENTS.md
+  s_9a337fd66d5341::t_aa0b9d56666a9b 733-734,768-769
+changelog.d/538-json-bodies.breaking.md
+  s_9a337fd66d5341::t_2285d7cf0e620c 17-19
+changelog.d/538-stream-decoding.fixed.md
+  s_9a337fd66d5341::t_8f113ab6ec0df4 7-10
+sdk-python/tests/test_watch_transport.py
+  s_9a337fd66d5341::t_1087c5e9b2099d 69-70,74-87,805-840
+sdk-typescript/tests/json-bodies.test.ts
+  s_9a337fd66d5341::t_e1ce87c9483ec8 148-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b3c5ff5bab5a0af8ce255c4553ece283044a441",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

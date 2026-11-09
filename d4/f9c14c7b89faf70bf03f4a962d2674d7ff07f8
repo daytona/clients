@@ -1,0 +1,26 @@
+scripts/ci-passed.sh
+  s_bcb2dd57ef8ca1::t_bacc8408736604 62,64-74
+  s_bcb2dd57ef8ca1::t_8d08b65906ebc0 21-24
+  s_bcb2dd57ef8ca1::t_15e43e8a360d64 38-39
+AGENTS.md
+  s_bcb2dd57ef8ca1::t_49f9146709e328 536
+.github/workflows/ci-passed.yaml
+  s_bcb2dd57ef8ca1::t_17fdf8dc6c92ac 31-32
+  s_bcb2dd57ef8ca1::t_6cf27e1c0cbda6 23-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d4f9c14c7b89faf70bf03f4a962d2674d7ff07f8",
+  "prompts": {},
+  "sessions": {
+    "s_bcb2dd57ef8ca1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe4ffegmosi5Ke0ybB8o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

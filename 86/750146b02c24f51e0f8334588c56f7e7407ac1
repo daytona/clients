@@ -1,0 +1,19 @@
+upgrade/python/tests/test_report_schema.py
+  s_b9ab62581dcdb7::t_025f3d0bcf982c 8-9,16-17,21-28,39-48,51-58,70-80,90-104,113,116-120,122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86750146b02c24f51e0f8334588c56f7e7407ac1",
+  "prompts": {},
+  "sessions": {
+    "s_b9ab62581dcdb7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e50213ce5ffe6JFHNKMMipbsua",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
