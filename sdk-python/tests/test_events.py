@@ -2988,6 +2988,48 @@ async def test_a_frame_nested_too_deeply_is_skipped_and_the_hub_keeps_reading() 
     assert result.state == "started"
 
 
+def _nested_snapshot(depth: int, version: int) -> str:
+    # A running snapshot (depth 1) carrying an unknown field nested to `depth`.
+    nested = "[" * (depth - 1) + "]" * (depth - 1)
+    return f'{{"type": "snapshot", "id": "abc-region-a", "status": "running", "version": {version}, "extra": {nested}}}'
+
+
+@pytest.mark.anyio
+async def test_a_frame_nested_past_json_max_depth_is_skipped_and_a_later_snapshot_resolves() -> None:
+    # JSON_MAX_DEPTH (600) is the limit in both SDKs: a 601-deep frame is
+    # skipped like an undecodable one, so it cannot resolve the wait. The
+    # TypeScript twin is in tests/events.test.ts.
+    fc = FakeConnector()
+    hub = make_hub(fc)
+    with respx.mock:
+        ticket_mock("region-a")
+        ws = fc.prepare()
+        task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+        await drain()
+        ws._rx.put_nowait(_nested_snapshot(601, 1))
+        await drain()
+        assert not task.done()
+        ws.inject(
+            {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 2, "error": None}
+        )
+        result = await task
+    assert result.state == "started"
+
+
+@pytest.mark.anyio
+async def test_a_frame_nested_exactly_json_max_depth_is_read() -> None:
+    fc = FakeConnector()
+    hub = make_hub(fc)
+    with respx.mock:
+        ticket_mock("region-a")
+        ws = fc.prepare()
+        task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+        await drain()
+        ws._rx.put_nowait(_nested_snapshot(600, 1))
+        result = await asyncio.wait_for(task, 5)
+    assert result.state == "started"
+
+
 @pytest.mark.anyio
 @pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
 async def test_a_frame_with_a_non_json_constant_is_skipped_and_the_hub_keeps_reading(constant: str) -> None:

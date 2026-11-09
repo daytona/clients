@@ -1177,6 +1177,19 @@ def test_preview_token_expiry_floors_fractional_exp_to_milliseconds_like_the_typ
         assert _preview_token_expiry(f"{header}.{payload}.sig") == parse_timestamp(want)
 
 
+@pytest.mark.parametrize(("depth", "want"), [(600, "2030-03-17T17:46:40Z"), (601, None)])
+def test_preview_token_expiry_reads_a_payload_only_within_json_max_depth(depth, want):
+    # The payload (depth 1) carries an unknown claim nested to `depth`: 600 is
+    # read, 601 is not a token to read, as in TypeScript (unit.test.ts).
+    from daytona.v2.ports import _preview_token_expiry
+
+    header = base64.urlsafe_b64encode(b'{"alg":"none"}').rstrip(b"=").decode()
+    claims = '{"exp": 1900000000, "extra": ' + "[" * (depth - 1) + "]" * (depth - 1) + "}"
+    payload = base64.urlsafe_b64encode(claims.encode()).rstrip(b"=").decode()
+    expected = None if want is None else parse_timestamp(want)
+    assert _preview_token_expiry(f"{header}.{payload}.sig") == expected
+
+
 def test_preview_token_expiry_reads_only_the_standard_expiry_claim():
     from daytona.v2.ports import _preview_token_expiry
 

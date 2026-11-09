@@ -3101,6 +3101,29 @@ describe('V2 model', () => {
     await expect(sandbox.ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: routeToken, expiresAt: want })
   })
 
+  it.each([
+    [600, '2030-03-17T17:46:40Z'],
+    [601, undefined],
+  ])('previewLink reads the expiry of a route token payload nested %p deep only within JSON_MAX_DEPTH', async (depth, want) => {
+    // The payload (depth 1) carries an unknown claim nested to `depth`: 600 is
+    // read, 601 is not a token to read, as in Python (test_sandbox_tokens.py).
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, undefined)
+    const segment = (text: string): string => Buffer.from(text).toString('base64url')
+    const claims = `{"exp":1900000000,"extra":${'['.repeat(depth - 1)}${']'.repeat(depth - 1)}}`
+    const routeToken = `${segment('{"alg":"none"}')}.${segment(claims)}.sig`
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
+    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { url: 'https://p', token: routeToken } })
+      .mockImplementation(() => {
+        throw new Error('unexpected mint')
+      })
+
+    const link = await sandbox.ports.previewLink(8080)
+    expect(link.token).toBe(routeToken)
+    expect(link.expiresAt).toBe(want)
+  })
+
   it('previewLink mints for a malformed JWT-like route token without raising', async () => {
     // A malformed route token does not prevent minting a port-scoped token.
     const client = new Daytona({ apiKey: 'key' })
