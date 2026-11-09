@@ -26,7 +26,7 @@ function runMapping(suggestions, context, files) {
   if (files) {
     entryScript = join(directory, 'upgrade/scripts/check-v2-surface.mjs');
     mkdirSync(dirname(entryScript), { recursive: true });
-    for (const name of ['check-v2-surface.mjs', 'v2-typescript-surface.mjs', 'v2-python-surface.py']) {
+    for (const name of ['check-v2-surface.mjs', 'optional-arguments.mjs', 'v2-typescript-surface.mjs', 'v2-python-surface.py']) {
       copyFileSync(new URL(name, import.meta.url), join(dirname(entryScript), name));
     }
     mkdirSync(join(directory, 'sdk-typescript'), { recursive: true });

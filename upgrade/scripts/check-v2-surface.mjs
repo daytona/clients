@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { hasOptionalArguments, withNamedArguments, withoutOptionalArguments } from './optional-arguments.mjs';
 
 const sdkRoot = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -56,7 +57,18 @@ async function main() {
       ...entry, id: `${entry.id} notes.${language}[${index}]`,
       v2: { py: null, ts: null, [language]: form },
     }))));
-  const expanded = { ...mapping, suggestions: [...mapping.suggestions, ...notes] };
+  // A form with optional arguments is checked both ways: every argument
+  // passed (by its v0 name) and every one left out.
+  const forms = mapping.suggestions.flatMap((entry) => {
+    const optional = ['py', 'ts'].filter((lang) => entry.v2[lang] !== null && hasOptionalArguments(entry.v2[lang]));
+    if (optional.length === 0) return [entry];
+    const variant = (render) => Object.fromEntries(['py', 'ts'].map((lang) => [lang, entry.v2[lang] === null ? null : render(entry.v2[lang])]));
+    return [
+      { ...entry, v2: variant(withNamedArguments) },
+      { ...entry, id: `${entry.id} (defaults)`, v2: variant(withoutOptionalArguments) },
+    ];
+  });
+  const expanded = { ...mapping, suggestions: [...forms, ...notes] };
   const python = spawnSync('python3', [fileURLToPath(new URL('./v2-python-surface.py', import.meta.url)), sdkRoot], {
     input: JSON.stringify(expanded), encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
   });

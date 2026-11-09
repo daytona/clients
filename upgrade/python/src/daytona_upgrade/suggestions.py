@@ -12,6 +12,7 @@ from ._workflow_index import WorkflowIndex
 from .flow import Call, Flow
 from .lexical import single_line
 from .models import Item, Mapping, SuggestionReport
+from .optional_arguments import call_argument, render_optional_arguments
 from .persistent_workflow import persistent_lifecycle_calls
 from .resolution import dotted
 from .shared_error_guidance import shared_error_imports
@@ -91,7 +92,15 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
         emitted.add(key)
         client, sandbox = (single_line(value) for value in receivers(call, owners))
         form = (
-            owners.render(entry.form, call)
+            owners.render(
+                render_optional_arguments(
+                    entry.form,
+                    lambda name, position, node=call.node: _single(
+                        call_argument(node, name, position, flow.text.segment)
+                    ),
+                ),
+                call,
+            )
             .replace("{client}", client)
             .replace("{sandbox}", sandbox)
             if entry.form
@@ -252,3 +261,7 @@ def workflow_methods(producer: Call, flow: Flow | WorkflowIndex) -> list[str]:
         if name not in result:
             result.append(name)
     return result
+
+
+def _single(text: str | None) -> str | None:
+    return None if text is None else single_line(text)

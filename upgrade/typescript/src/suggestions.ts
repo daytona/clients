@@ -16,6 +16,7 @@ import { isMemberAccess, memberName } from './member-access.js';
 import { sandboxOwner } from './sandbox-owner.js';
 import { suggestionCommentEdits } from './comment-tokens.js';
 import { errorImportSuggestions } from './error-import-suggestions.js';
+import { renderOptionalArguments, withNamedArguments } from './optional-arguments.js';
 
 function referencesBinding(node: Node, binding: Node, seen: Set<Node> = new Set()): boolean {
   const value = unwrap(node);
@@ -120,7 +121,7 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
     }
     if (!ownerSandbox && servicePath.length && entry.v2.ts?.includes('{sandbox}') &&
       entry.v2.ts.replaceAll(`{sandbox}.${servicePath.join('.')}.`, `${receiver}.`).includes('{sandbox}')) {
-      const form = displayText(entry.v2.ts.replaceAll('{sandbox}', 'sandbox').replaceAll('{client}', client));
+      const form = displayText(withNamedArguments(entry.v2.ts).replaceAll('{sandbox}', 'sandbox').replaceAll('{client}', client));
       const message = `move this call to the owning sandbox: ${form}`;
       items.push({ ...location(call, root), kind: 'fixme', message });
       const owner = statement(call);
@@ -133,8 +134,17 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
       if (!previous.includes(commentEdit(owner, [line]).text.trim())) blocks.set(owner, [...new Set([...(blocks.get(owner) ?? []), line])]);
       continue;
     }
+    const callArguments = call.getArguments();
+    const passed = (name: string, index: number): string | undefined => {
+      // A spread that could hold it renders the argument by its name.
+      if (callArguments.slice(0, index + 1).some((argument) => Node.isSpreadElement(argument))) return name;
+      const argument = callArguments[index];
+      if (argument === undefined || (Node.isIdentifier(argument) && argument.getText() === 'undefined')) return undefined;
+      return displayText(argument.getText());
+    };
     const substitute = (text: string): string => {
-      const serviceForm = !ownerSandbox && servicePath.length ? text.replaceAll(`{sandbox}.${servicePath.join('.')}`, receiver) : text;
+      const filled = renderOptionalArguments(text, passed);
+      const serviceForm = !ownerSandbox && servicePath.length ? filled.replaceAll(`{sandbox}.${servicePath.join('.')}`, receiver) : filled;
       return displayText(serviceForm.replaceAll('{client}', client).replaceAll('{sandbox}', sandbox));
     };
     const suggestion: SuggestionReport = { id: entry.id, receiver: entry.receiver, v0: displayText(access.getText()),
