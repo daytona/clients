@@ -27,20 +27,30 @@ from daytona.v2.types import FilesystemEvent
 _EVENT = json.dumps({"type": "create", "name": "a", "isDir": False, "timestamp": 1})
 
 
-_CLOSED_BY_CLIENT = threading.Event()
+# One close signal per request path: each test gives its request a path of
+# its own (a trailing tag), so it waits for the close of its own stream.
+_CLOSED: dict[str, threading.Event] = {}
+_CLOSED_LOCK = threading.Lock()
 
 
-def _event_data_totalling(total: int) -> list[str]:
-    """Two fs event payloads (``e0``, ``e1`` padded) of ``total`` UTF-8 bytes together."""
+def _closed(path: str) -> threading.Event:
+    with _CLOSED_LOCK:
+        return _CLOSED.setdefault(path, threading.Event())
 
-    def payload(name: str) -> str:
-        return json.dumps(
-            {"type": "create", "name": name, "isDir": False, "timestamp": 1}, separators=(",", ":")
-        )
 
-    first = payload("e0")
-    padding = total - len(first.encode()) - len(payload("e1").encode())
-    return [first, payload("e1" + "x" * padding)]
+def _fs_frame(name: str) -> str:
+    payload = json.dumps(
+        {"type": "create", "name": name, "isDir": False, "timestamp": 1}, separators=(",", ":")
+    )
+    return f"event: fs\ndata: {payload}\n\n"
+
+
+def _stream_totalling(total: int) -> str:
+    """Two fs events (``e0``, ``e1`` padded) and ``start``: ``total`` bytes in all."""
+    start = "event: start\ndata: {}\n\n"
+    first = _fs_frame("e0")
+    padding = total - len(first) - len(_fs_frame("e1")) - len(start)
+    return first + _fs_frame("e1" + "x" * padding) + start
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -55,19 +65,36 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "100000")
         self.end_headers()
         if case.startswith("bytes-"):
-            # Two fs events before start whose data adds up to exactly N
-            # UTF-8 bytes, then start; the stream stays open as for flood-.
-            frames = _event_data_totalling(int(case.removeprefix("bytes-")))
+            # Two fs events and start, N bytes in all; the stream stays open
+            # until the client closes it.
+            with contextlib.suppress(OSError):
+                self.wfile.write(_stream_totalling(int(case.removeprefix("bytes-"))).encode())
+                self.wfile.flush()
+                self.rfile.read(1)
+            _closed(self.path.split("?")[0]).set()
+            return
+        if case == "endless":
+            # One fs event whose data line never ends: 4 MiB of it, then the
+            # stream waits for the client to close it.
+            with contextlib.suppress(OSError):
+                self.wfile.write(b"event: fs\ndata: ")
+                for _ in range(64):
+                    self.wfile.write(b"x" * 65536)
+                self.wfile.flush()
+                self.rfile.read(1)
+            _closed(self.path.split("?")[0]).set()
+            return
+        if case.startswith("bigafter-"):
+            # start, then one fs event of N bytes; the stream stays open.
+            size = int(case.removeprefix("bigafter-"))
+            frame = _fs_frame("big")
             with contextlib.suppress(OSError):
                 self.wfile.write(
-                    (
-                        "".join(f"event: fs\ndata: {data}\n\n" for data in frames)
-                        + "event: start\ndata: {}\n\n"
-                    ).encode()
+                    ("event: start\ndata: {}\n\n" + _fs_frame("big" + "x" * (size - len(frame)))).encode()
                 )
                 self.wfile.flush()
                 self.rfile.read(1)
-            _CLOSED_BY_CLIENT.set()
+            _closed(self.path.split("?")[0]).set()
             return
         if case.startswith(("flood-", "oflood-")):
             # N fs (oflood: overflow) events before start, then start; the
@@ -86,7 +113,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self.wfile.write((events + "event: start\ndata: {}\n\n").encode())
                 self.wfile.flush()
                 self.rfile.read(1)
-            _CLOSED_BY_CLIENT.set()
+            _closed(self.path.split("?")[0]).set()
             return
         if case in ("burst", "early"):
             # start and ten events in ONE write (early: two events before
@@ -287,6 +314,11 @@ async def test_cancelling_watch_dir_before_it_returns_calls_no_exit_callback(aft
         def __init__(self) -> None:
             self.closed = asyncio.Event()
 
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
+
         async def iter_lines(self):
             reading.set()
             if after_start:
@@ -301,6 +333,8 @@ async def test_cancelling_watch_dir_before_it_returns_calls_no_exit_callback(aft
             self.closed.set()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> Stream:
             return Stream()
 
@@ -479,8 +513,8 @@ async def test_a_watch_stream_with_4097_events_before_start_is_refused_without_a
 ) -> None:
     from daytona.v2.errors import BadRequestError
 
-    _CLOSED_BY_CLIENT.clear()
-    transport = AsyncTransport(f"{base}/flood-4097")
+    path = "/flood-4097/events"
+    transport = AsyncTransport(f"{base}{path}")
     exits: list[Optional[Exception]] = []
     seen: list[object] = []
     try:
@@ -488,7 +522,7 @@ async def test_a_watch_stream_with_4097_events_before_start_is_refused_without_a
             await AsyncFileSystemService(transport).watch_dir("/", seen.append, on_exit=exits.append)
         assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
         # The client closed the connection (the server's read ends).
-        assert await asyncio.to_thread(_CLOSED_BY_CLIENT.wait, 10)
+        assert await asyncio.to_thread(_closed(path + "/files/watch").wait, 10)
     finally:
         await transport.close()
     await asyncio.sleep(0.05)
@@ -501,13 +535,13 @@ async def test_overflow_events_before_start_count_toward_the_cap_without_an_over
 ) -> None:
     from daytona.v2.errors import BadRequestError
 
-    _CLOSED_BY_CLIENT.clear()
-    transport = AsyncTransport(f"{base}/oflood-4097")
+    path = "/oflood-4097/overflow"
+    transport = AsyncTransport(f"{base}{path}")
     exits: list[Optional[Exception]] = []
     try:
         with pytest.raises(BadRequestError, match="more than 4096 events before start"):
             await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None, on_exit=exits.append)
-        assert await asyncio.to_thread(_CLOSED_BY_CLIENT.wait, 10)
+        assert await asyncio.to_thread(_closed(path + "/files/watch").wait, 10)
     finally:
         await transport.close()
     await asyncio.sleep(0.05)
@@ -570,10 +604,10 @@ def test_a_task_a_sync_callback_started_can_stop_its_watch_after_the_callback_re
         bridge.close()
 
 
-# Shared with the TypeScript SDK's watch-transport.test.ts: at most 1 MiB of
-# event data before start, whatever the count.
+# Shared with the TypeScript SDK's watch-transport.test.ts: the stream may send
+# at most 1 MiB before start (every byte of it, counted as it arrives).
 @pytest.mark.anyio
-async def test_a_watch_holds_at_most_one_mib_of_event_data_before_start(base: str) -> None:
+async def test_a_watch_reads_at_most_one_mib_before_start(base: str) -> None:
     from daytona.v2.errors import BadRequestError
 
     seen: list[str] = []
@@ -592,14 +626,84 @@ async def test_a_watch_holds_at_most_one_mib_of_event_data_before_start(base: st
         await transport.close()
     assert seen == ["e0", "e1"]
 
-    _CLOSED_BY_CLIENT.clear()
-    transport = AsyncTransport(f"{base}/bytes-1048577")
+    path = "/bytes-1048577/over"
+    transport = AsyncTransport(f"{base}{path}")
     try:
-        with pytest.raises(BadRequestError, match="more than 1048576 bytes of events before start") as info:
+        with pytest.raises(BadRequestError, match="more than 1048576 bytes before start") as info:
             await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None, on_exit=exits.append)
         assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
-        assert await asyncio.to_thread(_CLOSED_BY_CLIENT.wait, 10)
+        assert await asyncio.to_thread(_closed(path + "/files/watch").wait, 10)
     finally:
         await transport.close()
     await asyncio.sleep(0.05)
     assert exits == []
+
+
+@pytest.mark.anyio
+async def test_a_never_ending_event_before_start_is_refused_at_the_budget(base: str) -> None:
+    from daytona.v2.errors import BadRequestError
+
+    path = "/endless/frame"
+    transport = AsyncTransport(f"{base}{path}")
+    exits: list[Optional[Exception]] = []
+    try:
+        with pytest.raises(BadRequestError, match="more than 1048576 bytes before start"):
+            # Without the bound the call would wait for the frame forever.
+            await asyncio.wait_for(
+                AsyncFileSystemService(transport).watch_dir("/", lambda _event: None, on_exit=exits.append),
+                30,
+            )
+        assert await asyncio.to_thread(_closed(path + "/files/watch").wait, 10)
+    finally:
+        await transport.close()
+    assert exits == []
+
+
+def test_the_sse_splitter_holds_no_more_than_its_budget_of_an_endless_line() -> None:
+    from daytona.v2._core import SseLineSplitter
+
+    class TooLarge(Exception):
+        pass
+
+    splitter = SseLineSplitter()
+    chunk = b"x" * 65536
+    with pytest.raises(TooLarge):
+        list(splitter.feed(b"data: ", lambda: 1_048_576, TooLarge))
+        for _ in range(64):
+            list(splitter.feed(chunk, lambda: 1_048_576, TooLarge))
+    assert len(splitter._pending) <= 1_048_576 + len(chunk)
+
+
+@pytest.mark.anyio
+async def test_a_large_event_after_start_is_delivered_under_the_client_cap_and_refused_over_it(
+    base: str,
+) -> None:
+    from daytona.v2.errors import PayloadTooLargeError
+
+    sizes: list[int] = []
+    transport = AsyncTransport(f"{base}/bigafter-3145728/under")
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir(
+            "/", lambda event: sizes.append(len(event.name))
+        )
+        for _ in range(500):
+            if sizes:
+                break
+            await asyncio.sleep(0.01)
+        await handle.stop()
+    finally:
+        await transport.close()
+    assert sizes and sizes[0] > 3_000_000
+
+    transport = AsyncTransport(f"{base}/bigafter-3145728/over", max_response_bytes=1_048_576)
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None)
+        error = await asyncio.wait_for(handle.wait_for_exit(), timeout=10)
+    finally:
+        await transport.close()
+    assert isinstance(error, PayloadTooLargeError)
+    assert (error.status_code, error.code, error.source) == (413, "PAYLOAD_TOO_LARGE", "SDK")
+    assert (
+        "filesystem watch stream: an event is larger than the 1048576-byte max_response_bytes limit"
+        in str(error)
+    )

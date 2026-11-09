@@ -5053,8 +5053,8 @@ describe('toolbox service request shaping', () => {
     for await (const message of sseMessages(sseResponse(fixture))) messages.push(message)
 
     expect(messages).toEqual([
-      { event: 'start', id: undefined, data: '{}' },
-      { event: 'fs', id: undefined, data: '{"type":"create","name":"a.txt","isDir":false,"timestamp":1}' },
+      { event: 'start', data: '{}', size: 23 },
+      { event: 'fs', data: '{"type":"create","name":"a.txt","isDir":false,"timestamp":1}', size: 78 },
     ])
   })
 
@@ -5076,7 +5076,7 @@ describe('toolbox service request shaping', () => {
 
     await expect(iterator.next()).resolves.toEqual({
       done: false,
-      value: { event: 'log', id: 'c1', data: '{"channel":"stdout","data":"hi"}' },
+      value: { event: 'log', id: 'c1', data: '{"channel":"stdout","data":"hi"}', size: 62 },
     })
     const close = iterator.return?.bind(iterator)
     expect(close).toBeDefined()
@@ -11170,6 +11170,7 @@ function transportStub() {
     fetch: jest.fn(),
     bearerToken: jest.fn().mockResolvedValue('key'),
     withBaseUrl: jest.fn(),
+    maxResponseBytes: 0,
   }
   const computerUseObject: ComputerUseTransport = {
     get: <T>(path: string, config?: { params?: Record<string, unknown> }) =>
@@ -12339,11 +12340,12 @@ describe('toolbox surface', () => {
     expect(Object.isFrozen((extra as Record<string, unknown>).__proto__)).toBe(true)
   })
 
-  // Shared with the Python SDK: a lone surrogate is no path id; an astral character is kept.
-  it.each(['\ud800', 'a\udfffb', '\udc00\ud800'])('refuses a path id with a lone surrogate %p before any request', async (bad) => {
+  // Shared with the Python SDK: a surrogate code point (in JavaScript, an
+  // unpaired UTF-16 surrogate) is no path id; an astral character is kept.
+  it.each(['\ud800', 'a\udfffb', '\udc00\ud800'])('refuses a path id with an unpaired surrogate %p before any request', async (bad) => {
     const transport = transportStub()
-    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get(bad)).rejects.toMatchObject({ message: 'process id must not contain a lone surrogate', code: 'BAD_REQUEST' })
-    await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).recording.get(bad)).rejects.toMatchObject({ message: 'recording id must not contain a lone surrogate', code: 'BAD_REQUEST' })
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get(bad)).rejects.toMatchObject({ message: 'process id must not contain a surrogate code point', code: 'BAD_REQUEST' })
+    await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).recording.get(bad)).rejects.toMatchObject({ message: 'recording id must not contain a surrogate code point', code: 'BAD_REQUEST' })
     expect(transport.get).not.toHaveBeenCalled()
   })
 
@@ -12881,6 +12883,49 @@ describe('toolbox surface', () => {
     await expect(drain()).rejects.toMatchObject({ message: 'expected process log log event: the JSON is nested too deeply', code: 'BAD_REQUEST', source: 'SDK' })
   })
 
+  // Shared with the Python SDK's test_toolbox_surface.py: every event of a
+  // log stream is bounded by the client's maxResponseBytes as it arrives.
+  it('bounds each log stream event by the client maxResponseBytes', async () => {
+    const frame = `data: {"cursor":"c1","channel":"stdout","data":"${'x'.repeat(200)}","timestamp":1}`
+    const body = [`event: log\n${frame}\n\nevent: eof\ndata: {"cursor":"c1"}\n\n`]
+    const drain = async (limit: number) => {
+      const transport = transportStub()
+      Object.assign(transport.object as object, { maxResponseBytes: limit })
+      transport.fetch.mockResolvedValue(sseResponse(body))
+      const types: string[] = []
+      for await (const event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) types.push(event.type)
+      return types
+    }
+    const error = await drain(128).then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(PayloadTooLargeError)
+    expect(error).toMatchObject({
+      message: 'expected process log stream: an event is larger than the 128-byte maxResponseBytes limit',
+      statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK',
+    })
+    await expect(drain(4096)).resolves.toEqual(['log', 'eof'])
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: every byte of an
+  // event counts once, however the body is split; an event of exactly the
+  // limit passes, one byte more is refused as it arrives.
+  it('counts every byte of an SSE event across chunks', async () => {
+    const body = 'event: fs\r\ndata: ab\r\n\r\nevent: start\ndata: {}\n\n'
+    const read = async (chunks: string[], limit?: number) => {
+      const sizes: number[] = []
+      const tooLarge = () => new Error('too large')
+      for await (const message of sseMessages(sseResponse(chunks), { limit: () => limit, tooLarge })) sizes.push(message.size)
+      return sizes
+    }
+    for (let split = 1; split < body.length; split++) {
+      const sizes = await read([body.slice(0, split), body.slice(split)])
+      expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(body.length)
+      expect([[23, 23], [22, 24]]).toContainEqual(sizes)
+    }
+    const event = 'event: fs\ndata: ab\n\n'
+    await expect(read([...event], 20)).resolves.toEqual([20])
+    await expect(read([...event], 19)).rejects.toThrow('too large')
+  })
+
   it('refuses an interpreter output nested deeper than 600 levels', async () => {
     const transport = transportStub()
     const deep = `${'['.repeat(601)}${']'.repeat(601)}`
@@ -13171,6 +13216,18 @@ describe('toolbox surface', () => {
         for await (const _event of handle.streamLogs()) { /* drain */ }
       })()).rejects.toThrow('expected process log eof event: cursor must be a non-empty string')
     }
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: an error part nests
+  // at most 600 deep (the object is one level).
+  it.each([[600, true], [601, false]] as const)('reads a bulk download error part nested %i deep: %s', async (depth, readable) => {
+    const { parseBulkReadResult } = await import('../src/v2/filesystemWire')
+    const nest = depth - 1
+    const body = `{"path":"/a","message":"m","x":${'['.repeat(nest)}${']'.repeat(nest)}}`
+    const part = `--DAYTONA-FILE-BOUNDARY\r\nContent-Disposition: form-data; name="error"\r\nContent-Type: application/json\r\n\r\n${body}\r\n--DAYTONA-FILE-BOUNDARY--\r\n`
+    const parse = () => parseBulkReadResult(new TextEncoder().encode(part))
+    if (readable) expect(parse().errors).toEqual([{ path: '/a', message: 'm' }])
+    else expect(parse).toThrow('expected bulk download error part: the JSON is nested too deeply')
   })
 
   it.each([

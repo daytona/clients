@@ -82,6 +82,13 @@ class Transport:
             raise response
         return response
 
+    max_response_bytes = 0  # the client's cap (0 = no limit)
+
+    async def stream_bytes(self, spec: RequestSpec):
+        """The bytes of stream_lines, one LF per line."""
+        async for line in self.stream_lines(spec):
+            yield (line + "\n").encode()
+
     async def stream_lines(self, spec: RequestSpec) -> AsyncIterator[str]:
         self.specs.append(spec)
         for line in self.lines:
@@ -402,6 +409,11 @@ class _WatchStream:
         for line in lines:
             self._queue.put_nowait(line)
 
+    async def iter_bytes(self):
+        """The bytes of iter_lines, one LF per line."""
+        async for line in self.iter_lines():
+            yield (line + "\n").encode()
+
     async def iter_lines(self) -> AsyncIterator[str]:
         while True:
             line = await self._queue.get()
@@ -418,6 +430,8 @@ class _WatchStream:
 class _WatchTransport:
     def __init__(self, stream: _WatchStream) -> None:
         self.stream = stream
+
+    max_response_bytes = 0  # the client's cap (0 = no limit)
 
     async def open_stream(self, spec: RequestSpec) -> _WatchStream:
         return self.stream
@@ -2383,6 +2397,28 @@ def test_a_json_response_nests_at_most_600_deep(depth: int, accepted: bool) -> N
             parse_json_bytes(body)
 
 
+# Shared with the TypeScript SDK's json-bodies.test.ts: an error response
+# keeps its status's typed error; a body nested past the limit is unreadable,
+# so it gives no code or details, and the message says so.
+@pytest.mark.parametrize(("depth", "readable"), [(600, True), (601, False)])
+def test_an_error_body_nested_past_the_limit_keeps_only_its_status(depth: int, readable: bool) -> None:
+    from daytona.v2._core import error_from_response
+    from daytona.v2.errors import NotFoundError
+
+    nest = depth - 1  # the envelope object is one level
+    body = ('{"code":"FILE_NOT_FOUND","message":"gone","details":' + "[" * nest + "]" * nest + "}").encode()
+    error = error_from_response(404, body)
+    assert isinstance(error, NotFoundError)
+    if readable:
+        assert (str(error), error.status_code, error.code) == ("gone", 404, "FILE_NOT_FOUND")
+    else:
+        assert (str(error), error.status_code, error.code) == (
+            "HTTP 404: the response body was nested too deeply to read (over 600 levels of JSON)",
+            404,
+            None,
+        )
+
+
 def test_a_256_level_accessibility_tree_decodes_from_json() -> None:
     from daytona.v2._core import parse_json_bytes
     from daytona.v2.computer_use_core import parse_computer_use_a11y_tree_payload
@@ -2559,17 +2595,19 @@ async def test_list_remotes_names_the_malformed_part(payload: JsonValue, message
     assert str(info.value) == message
 
 
-# Shared with the TypeScript SDK's unit.test.ts: a lone surrogate has no
-# UTF-8 form, so it is no path id; an astral character is kept.
+# Shared with the TypeScript SDK's unit.test.ts: a surrogate code point has no
+# UTF-8 form, so it is no path id; an astral character is kept. A Python
+# string holds code points, so two surrogate code points (the UTF-16 units of
+# an astral character) are refused too.
 @pytest.mark.anyio
-@pytest.mark.parametrize("bad", ["\ud800", "a\udfffb", "\udc00\ud800"])
-async def test_a_lone_surrogate_is_refused_as_a_path_id(bad: str) -> None:
+@pytest.mark.parametrize("bad", ["\ud800", "a\udfffb", "\udc00\ud800", chr(0xD83D) + chr(0xDE00)])
+async def test_a_surrogate_code_point_is_refused_as_a_path_id(bad: str) -> None:
     from daytona.v2.computer_use import AsyncComputerUseService
 
     transport = Transport()
-    with pytest.raises(BadRequestError, match="process id must not contain a lone surrogate"):
+    with pytest.raises(BadRequestError, match="process id must not contain a surrogate code point"):
         await AsyncProcessService("sbx", transport).get(bad)  # type: ignore[arg-type]
-    with pytest.raises(BadRequestError, match="recording id must not contain a lone surrogate"):
+    with pytest.raises(BadRequestError, match="recording id must not contain a surrogate code point"):
         await AsyncComputerUseService(transport).recording.get(bad)  # type: ignore[arg-type]
     assert transport.specs == []
 
@@ -2623,3 +2661,58 @@ async def test_an_unknown_process_status_key_named_proto_is_an_ordinary_extra_fi
     }
     statuses = await AsyncComputerUseService(Transport([{"xvfb": status}])).service.status()  # type: ignore[arg-type]
     assert statuses["xvfb"].extra_fields.get("__proto__") == {"x": 1}
+
+
+@pytest.mark.anyio
+async def test_each_log_stream_event_is_bounded_by_the_client_max_response_bytes() -> None:
+    from daytona.v2.errors import PayloadTooLargeError
+
+    frame = 'data: {"cursor":"c1","channel":"stdout","data":"' + "x" * 200 + '","timestamp":1}'
+    transport = Transport(lines=["event: log", frame, "", "event: eof", 'data: {"cursor":"c1"}', ""])
+    transport.max_response_bytes = 128
+    handle = AsyncProcessService("sbx", transport).connect("proc")  # type: ignore[arg-type]
+
+    with pytest.raises(PayloadTooLargeError) as info:
+        [event async for event in handle.stream_logs()]
+    assert (info.value.status_code, info.value.code, info.value.source) == (413, "PAYLOAD_TOO_LARGE", "SDK")
+    assert "process log stream: an event is larger than the 128-byte max_response_bytes limit" in str(
+        info.value
+    )
+
+    transport.max_response_bytes = 4096
+    events = [event async for event in AsyncProcessService("sbx", transport).connect("proc").stream_logs()]  # type: ignore[arg-type]
+    assert [event.type for event in events] == ["log", "eof"]
+
+
+def test_the_sse_splitter_counts_every_byte_of_an_event_across_chunks() -> None:
+    from daytona.v2._core import SseLineSplitter
+
+    class TooLarge(Exception):
+        pass
+
+    body = b"event: fs\r\ndata: ab\r\n\r\nevent: start\ndata: {}\n\n"
+    for split in range(1, len(body)):
+        splitter = SseLineSplitter()
+        lines: list[str] = []
+        sizes: list[int] = []
+        for chunk in (body[:split], body[split:]):
+            for line in splitter.feed(chunk, lambda: None, TooLarge):
+                lines.append(line)
+                if not line:
+                    sizes.append(splitter.last_event_bytes)
+        assert lines == ["event: fs", "data: ab", "", "event: start", "data: {}", ""], split
+        # Every byte counts once; a CRLF split after a blank line's CR
+        # counts its LF toward the next event.
+        assert sum(sizes) == len(body) and sizes in ([23, 23], [22, 24]), split
+
+    # An event of exactly the limit passes; one byte more is refused as it arrives.
+    event = b"event: fs\ndata: ab\n\n"
+    for limit, refused in ((20, False), (19, True)):
+        splitter = SseLineSplitter()
+        try:
+            for byte in event:
+                list(splitter.feed(bytes([byte]), lambda limit=limit: limit, TooLarge))
+        except TooLarge:
+            assert refused
+        else:
+            assert not refused

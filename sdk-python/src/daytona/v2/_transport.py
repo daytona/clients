@@ -767,6 +767,15 @@ class AsyncTransport:
             return value
         return json.dumps(value).encode("utf-8")
 
+    async def stream_bytes(self, spec: RequestSpec) -> AsyncIterator[bytes]:
+        """A streamed body's bytes as they arrive (never a buffered line)."""
+        stream = await self.open_stream(spec)
+        try:
+            async for chunk in stream.iter_bytes():
+                yield chunk
+        finally:
+            await stream.close()
+
     async def stream_lines(self, spec: RequestSpec) -> AsyncIterator[str]:
         stream = await self.open_stream(spec)
         try:

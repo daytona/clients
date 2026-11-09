@@ -33,6 +33,11 @@ class _Stream:
         self.release = threading.Event()
         self.closed: Optional[asyncio.Event] = None
 
+    async def iter_bytes(self):
+        """The bytes of iter_lines, one LF per line."""
+        async for line in self.iter_lines():
+            yield (line + "\n").encode()
+
     async def iter_lines(self) -> AsyncIterator[str]:
         self.closed = asyncio.Event()
         for index, line in enumerate(self._lines):
@@ -50,6 +55,8 @@ class _Stream:
 class _Transport:
     def __init__(self, stream: _Stream) -> None:
         self.stream = stream
+
+    max_response_bytes = 0  # the client's cap (0 = no limit)
 
     async def open_stream(self, spec: RequestSpec) -> _Stream:
         return self.stream

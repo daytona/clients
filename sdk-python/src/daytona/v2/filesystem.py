@@ -46,8 +46,9 @@ from ._core import (
     parse_bulk_write_result,
     parse_file_match,
     parse_replace_result,
-    parse_sse_messages_async,
+    parse_sse_events_bounded,
     sse_json,
+    stream_event_too_large,
 )
 from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
@@ -70,7 +71,8 @@ WATCH_STOP_JOIN_TIMEOUT_SECONDS: Final[float] = 5.0
 # The most fs / overflow events a watch holds before its stream's `start`
 # (delivered after it); one more is a malformed stream. Raising it is additive.
 WATCH_MAX_EVENTS_BEFORE_START: Final[int] = 4096
-# The most event data, in UTF-8 bytes, a watch holds before `start`: 4096
+# The most bytes a watch's stream may send before `start` (every byte,
+# counted as it arrives, so one never-ending event is bounded too): 4096
 # events of 256 bytes, about twice a typical event. One byte more is a
 # malformed stream, like the count cap.
 WATCH_MAX_BYTES_BEFORE_START: Final[int] = 1_048_576
@@ -80,8 +82,8 @@ _TRANSFER_CANCEL_POLL_SECONDS: Final[float] = 0.05
 _UPLOAD_BOUNDARY_PREFIX: Final[str] = "daytona-upload-"
 
 
-class _LineStream(Protocol):
-    def iter_lines(self) -> AsyncIterator[str]: ...
+class _ByteStream(Protocol):
+    def iter_bytes(self) -> AsyncIterator[bytes]: ...
 
     async def close(self) -> None: ...
 
@@ -185,7 +187,7 @@ class AsyncWatchHandle:
     # methods instead of blocking on the loop they run on.
     _SYNC_LOOP_VARIANTS: Mapping[str, str] = {"stop": "_stop_nowait", "wait_for_exit": "_exit_error_now"}
 
-    def __init__(self, _stream: _LineStream, _on_exit: Optional[WatchExitCallback] = None) -> None:
+    def __init__(self, _stream: _ByteStream, _on_exit: Optional[WatchExitCallback] = None) -> None:
         self._stream = _stream
         self._reader: asyncio.Task[None] | None = None
         self._on_exit = _on_exit
@@ -661,14 +663,39 @@ class AsyncFileSystemService:
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
         when the watch ends, and its own failure is ignored. A failure before
         the watch starts is raised from this call and does not call ``on_exit``;
-        a stream that sends more than 4096 events, or more than 1 MiB of event
-        data, before ``start`` is one (``BadRequestError``).
+        a stream that sends more than 4096 events, or more than 1 MiB, before
+        ``start`` is one (``BadRequestError``). After ``start`` an event larger
+        than the client's ``max_response_bytes`` ends the watch with
+        ``PayloadTooLargeError``.
         """
         stream = await self._transport.open_stream(_watch_spec(path, recursive=recursive))
         handle = AsyncWatchHandle(stream, on_exit)
         ready = asyncio.Event()
         reader_error: list[Exception] = []
         callback_error: list[Exception] = []
+
+        # The stream's bytes are counted as they arrive: before start the
+        # whole stream may not pass WATCH_MAX_BYTES_BEFORE_START, after it
+        # each event is bounded by the client's max_response_bytes.
+        started = False
+        early_bytes = 0
+
+        def event_limit() -> Optional[int]:
+            if started:
+                return client_limit or None
+            remaining = WATCH_MAX_BYTES_BEFORE_START - early_bytes
+            return remaining if client_limit <= 0 else min(remaining, client_limit)
+
+        def event_too_large() -> Exception:
+            remaining = WATCH_MAX_BYTES_BEFORE_START - early_bytes
+            if started or 0 < client_limit < remaining:
+                return stream_event_too_large("filesystem watch stream", client_limit)
+            return create_error(
+                f"expected filesystem watch stream: it sent more than {WATCH_MAX_BYTES_BEFORE_START} bytes before start",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
 
         # Events read before start, delivered after it (none, from a
         # well-behaved toolbox): the reader must keep reading until start, but
@@ -691,33 +718,29 @@ class AsyncFileSystemService:
                     callback_error.append(exc)
                     raise
 
+        client_limit = self._transport.max_response_bytes
+
         async def read_events() -> None:
-            started = False
+            nonlocal early_bytes, started
             early_events = 0
-            early_bytes = 0
             exit_error: Exception | None = None
             try:
-                async for event_name, data, _id in parse_sse_messages_async(stream.iter_lines()):
+                async for event_name, data, _id, size in parse_sse_events_bounded(
+                    stream.iter_bytes(), limit=event_limit, too_large=event_too_large
+                ):
                     if handle._stopped:
                         break
                     callback: Callable[[], None | Awaitable[None]] | None = None
+                    if not started:
+                        early_bytes += size
                     if event_name in ("fs", "overflow") and not started:
                         # Every listed event before start counts toward the
                         # cap, whether or not a callback handles it.
                         early_events += 1
-                        early_bytes += len(data.encode("utf-8"))
                         if early_events > WATCH_MAX_EVENTS_BEFORE_START:
                             raise create_error(
                                 f"expected filesystem watch stream: it sent more than "
                                 f"{WATCH_MAX_EVENTS_BEFORE_START} events before start",
-                                400,
-                                "BAD_REQUEST",
-                                "SDK",
-                            )
-                        if early_bytes > WATCH_MAX_BYTES_BEFORE_START:
-                            raise create_error(
-                                f"expected filesystem watch stream: it sent more than "
-                                f"{WATCH_MAX_BYTES_BEFORE_START} bytes of events before start",
                                 400,
                                 "BAD_REQUEST",
                                 "SDK",

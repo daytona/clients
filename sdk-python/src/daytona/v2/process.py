@@ -20,7 +20,7 @@ from ._core import (
     parse_log_page,
     parse_process,
     parse_process_page,
-    parse_sse_messages_async,
+    parse_sse_events_bounded,
     parse_wait,
     process_create_spec,
     process_list_spec,
@@ -29,6 +29,7 @@ from ._core import (
     signal_spec,
     sse_json,
     stdin_spec,
+    stream_event_too_large,
     timeout_millis_from_seconds,
     toolbox_path_id,
     wait_budget,
@@ -344,10 +345,15 @@ class AsyncProcessHandle:
         resume with ``stream_logs(cursor=...)`` from the last event's cursor.
         """
         transport = self._require_transport()
-        async for event, data, message_id in parse_sse_messages_async(
-            transport.stream_lines(
+        # Every event is bounded by the client's max_response_bytes as its bytes
+        # arrive, so no single event (a huge or never-terminated one) is unbounded.
+        event_limit = transport.max_response_bytes
+        async for event, data, message_id, _size in parse_sse_events_bounded(
+            transport.stream_bytes(
                 logs_spec(self.id, cursor=cursor, limit=limit, encoding=encoding, follow=True)
-            )
+            ),
+            limit=lambda: event_limit or None,
+            too_large=lambda: stream_event_too_large("process log stream", event_limit),
         ):
             parsed = _stream_log_event(event, data, message_id)
             if parsed is not None:

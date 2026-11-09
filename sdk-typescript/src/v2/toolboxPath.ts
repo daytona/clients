@@ -18,14 +18,15 @@ export function refuseDotSegment(value: string, name: string): void {
 
 /**
  * A toolbox id or name as one percent-encoded request-path segment (see
- * {@link refuseDotSegment}). A lone surrogate has no UTF-8 form
+ * {@link refuseDotSegment}). A surrogate code point has no UTF-8 form
  * (`encodeURIComponent` would throw a `URIError`), so it is refused too, as
- * Python's `toolbox_path_id` does; astral characters are kept.
+ * Python's `toolbox_path_id` does. In a JavaScript string that is an unpaired
+ * UTF-16 surrogate: a paired one is an astral character, which is kept.
  * @internal
  */
 export function toolboxPathId(value: string, name: string): string {
   refuseDotSegment(value, name)
-  if (hasLoneSurrogate(value)) throw badRequest(`${name} must not contain a lone surrogate`)
+  if (hasLoneSurrogate(value)) throw badRequest(`${name} must not contain a surrogate code point`)
   return strictUriEncode(value)
 }
 

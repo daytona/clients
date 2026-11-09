@@ -2152,6 +2152,8 @@ async def test_filesystem_watch_dir_waits_for_start_and_drains_events():
         def __init__(self) -> None:
             self.specs: list[RequestSpec] = []
 
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             self.specs.append(spec)
             return stream
@@ -2198,6 +2200,8 @@ async def test_filesystem_watch_dir_raises_setup_error_before_returning_handle()
     setup_error = create_error("missing path", 404, code_names.FILE_NOT_FOUND, "DAYTONA_DAEMON")
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             raise setup_error
 
@@ -2217,6 +2221,11 @@ async def test_filesystem_watch_dir_pre_start_stream_failure_is_raised_without_o
     stream_error = RuntimeError("socket reset before the start frame")
 
     class FailingStream:
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
+
         async def iter_lines(self):
             raise stream_error
             yield  # pragma: no cover - makes this a generator
@@ -2225,6 +2234,8 @@ async def test_filesystem_watch_dir_pre_start_stream_failure_is_raised_without_o
             pass
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> FailingStream:
             return FailingStream()
 
@@ -2251,6 +2262,11 @@ async def test_filesystem_watch_dir_stop_suppresses_frames_already_buffered_with
             self.first_line_read = asyncio.Event()
             self.release = asyncio.Event()
 
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
+
         async def iter_lines(self):
             for index, line in enumerate(self._lines):
                 if index == 3:
@@ -2275,6 +2291,8 @@ async def test_filesystem_watch_dir_stop_suppresses_frames_already_buffered_with
     )
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> PreloadedStream:
             return stream
 
@@ -2360,6 +2378,8 @@ async def test_filesystem_watch_dir_invokes_overflow_callback():
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2395,6 +2415,8 @@ async def test_filesystem_watch_dir_notifies_exit_once_on_stop_and_wait_for_exit
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2428,6 +2450,8 @@ async def test_filesystem_watch_dir_without_overflow_callback_keeps_delivering_e
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2457,6 +2481,8 @@ async def test_filesystem_watch_dir_overflow_callback_error_ends_the_watch():
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2517,6 +2543,8 @@ async def test_filesystem_watch_dir_stop_ends_without_an_error_when_its_close_fa
     stream = FailsOnceStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2576,6 +2604,8 @@ async def test_filesystem_watch_dir_stop_survives_a_stream_that_fails_to_close()
     stream = ExplodingCloseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2609,6 +2639,8 @@ async def test_filesystem_watch_dir_reports_unexpected_exit_through_handle_and_c
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2644,6 +2676,8 @@ async def test_filesystem_watch_dir_stop_from_callback_returns_without_awaiting_
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2679,6 +2713,8 @@ async def test_filesystem_watch_dir_callback_error_ends_the_watch_with_that_erro
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2720,6 +2756,8 @@ async def test_filesystem_watch_dir_awaits_async_callbacks_one_at_a_time():
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2761,6 +2799,8 @@ async def test_filesystem_watch_dir_external_stop_returns_after_the_active_callb
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2800,6 +2840,8 @@ async def test_filesystem_watch_dir_contains_exit_callback_errors():
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2847,6 +2889,11 @@ async def test_watch_handle_stop_is_reentrant_on_reader_task():
         def __init__(self) -> None:
             self.closed = False
 
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
+
         async def iter_lines(self):
             if False:
                 yield ""
@@ -2874,6 +2921,11 @@ async def test_watch_handle_stop_keeps_shutdown_bounded_when_reader_does_not_exi
         def __init__(self) -> None:
             self.closed = False
             self.release = asyncio.Event()
+
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
 
         async def iter_lines(self):
             await self.release.wait()
@@ -9499,6 +9551,13 @@ class RecordingTransport:
         assert isinstance(value, bytes)
         return value
 
+    max_response_bytes = 0  # the client's cap (0 = no limit)
+
+    async def stream_bytes(self, spec: RequestSpec):
+        """The bytes of stream_lines, one LF per line."""
+        async for line in self.stream_lines(spec):
+            yield (line + "\n").encode()
+
     async def stream_lines(self, spec: RequestSpec):
         self.specs.append(spec)
         yield "event: log"
@@ -9518,6 +9577,11 @@ class ControlledSseStream:
 
     def push(self, line: str) -> None:
         self._lines.put_nowait(line)
+
+    async def iter_bytes(self):
+        """The bytes of iter_lines, one LF per line."""
+        async for line in self.iter_lines():
+            yield (line + "\n").encode()
 
     async def iter_lines(self):
         while True:

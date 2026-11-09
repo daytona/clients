@@ -268,12 +268,13 @@ def refuse_dot_segment(value: str, name: str) -> None:
 
 def toolbox_path_id(value: str, name: str) -> str:
     """A toolbox id or name as one percent-encoded request-path segment (see
-    :func:`refuse_dot_segment`). A lone surrogate code point has no UTF-8
-    form, so it is refused too, as TypeScript's ``toolboxPathId`` does;
-    astral characters are kept."""
+    :func:`refuse_dot_segment`). A surrogate code point has no UTF-8 form, so
+    it is refused too, as TypeScript's ``toolboxPathId`` does. A Python string
+    holds code points, so two surrogate code points are no astral character
+    and are refused as well; astral characters are kept."""
     refuse_dot_segment(value, name)
     if any("\ud800" <= char <= "\udfff" for char in value):
-        raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
+        raise create_error(f"{name} must not contain a surrogate code point", 400, "BAD_REQUEST", "SDK")
     return quote(value, safe="")
 
 
@@ -284,8 +285,21 @@ def parse_json_bytes(content: bytes) -> JsonValue:
 
 
 def error_from_response(status_code: int, body: bytes) -> DaytonaError:
+    """The status's typed error, with the code and details of a JSON error
+    body. A body nested deeper than :data:`JSON_MAX_DEPTH` is unreadable, as
+    an oversized one is: the error carries no code or details from it."""
     try:
-        payload = expect_object(parse_json_bytes(body))
+        decoded = parse_json_bytes(body)
+    except DaytonaError:  # nested deeper than JSON_MAX_DEPTH
+        return create_error(
+            f"HTTP {status_code}: the response body was nested too deeply to read "
+            f"(over {JSON_MAX_DEPTH} levels of JSON)",
+            status_code,
+        )
+    except Exception:
+        decoded = None
+    try:
+        payload = expect_object(decoded)
     except Exception:
         payload = {"message": body.decode("utf-8", errors="replace") or f"HTTP {status_code}"}
     return parse_error_payload(status_code, payload)
@@ -1319,15 +1333,93 @@ def sse_json(event: str, data: str, description: str) -> JsonObject:
     return payload
 
 
-async def parse_sse_messages_async(
-    lines: AsyncIterable[str],
-) -> AsyncIterator[Tuple[str, str, Optional[str]]]:
-    """SSE messages as ``(event, data, id)``, the data unparsed (see :func:`sse_json`)."""
+_SSE_LINE_END: Final = re.compile(rb"[\r\n]")
+
+
+class SseLineSplitter:
+    """Sans-I/O splitter of an event-stream body's bytes into lines (CRLF, LF
+    or CR), counting the bytes of the event being read as they arrive: once
+    they pass ``limit()`` (``None`` = no limit) it raises ``too_large()``, so one
+    huge or never-terminated event cannot hold more than that.
+    ``last_event_bytes`` is the size of the event a blank line just ended,
+    terminators included."""
+
+    def __init__(self) -> None:
+        self._pending = bytearray()
+        self._received = 0  # bytes consumed so far
+        self._event_start = 0  # where the current event's bytes begin
+        self._skip_lf = False
+        self.last_event_bytes = 0
+
+    def feed(
+        self, chunk: bytes, limit: Callable[[], Optional[int]], too_large: Callable[[], Exception]
+    ) -> Iterator[str]:
+        if not chunk:
+            return
+        base = self._received
+        self._received += len(chunk)
+        start = 0
+        if self._skip_lf and chunk[:1] == b"\n":
+            # The LF of a CRLF split across chunks (after a blank line's CR,
+            # it counts toward the next event).
+            start = 1
+        self._skip_lf = False
+        while start < len(chunk):
+            found = _SSE_LINE_END.search(chunk, start)
+            if found is None:
+                self._pending += chunk[start:]
+                break
+            end = found.start()
+            self._pending += chunk[start:end]
+            line = bytes(self._pending)
+            self._pending.clear()
+            if chunk[end : end + 1] == b"\r":
+                if end + 1 < len(chunk):
+                    if chunk[end + 1 : end + 2] == b"\n":
+                        end += 1
+                else:
+                    self._skip_lf = True
+            start = end + 1
+            self._check(base + start, limit, too_large)
+            if not line:
+                self.last_event_bytes = base + start - self._event_start
+                self._event_start = base + start
+            yield line.decode("utf-8", errors="replace")
+        self._check(self._received, limit, too_large)
+
+    def _check(
+        self, position: int, limit: Callable[[], Optional[int]], too_large: Callable[[], Exception]
+    ) -> None:
+        bound = limit()
+        if bound is not None and position - self._event_start > bound:
+            raise too_large()
+
+
+async def parse_sse_events_bounded(
+    chunks: AsyncIterable[bytes], *, limit: Callable[[], Optional[int]], too_large: Callable[[], Exception]
+) -> AsyncIterator[Tuple[str, str, Optional[str], int]]:
+    """SSE messages as ``(event, data, id, size)`` from an event-stream
+    body's bytes, each event bounded by ``limit()`` bytes as they arrive (see
+    :class:`SseLineSplitter`); ``size`` is the event's bytes, terminators
+    included; the data unparsed (see :func:`sse_json`)."""
+    splitter = SseLineSplitter()
     parser = SseParser()
-    async for raw in lines:
-        message = parser.feed_message(raw)
-        if message is not None:
-            yield message
+    async for chunk in chunks:
+        for line in splitter.feed(chunk, limit, too_large):
+            message = parser.feed_message(line)
+            if message is not None:
+                yield (*message, splitter.last_event_bytes)
+
+
+def stream_event_too_large(description: str, limit: int) -> DaytonaError:
+    """One stream event over the client's ``max_response_bytes``, which bounds
+    every event of a stream as it bounds every buffered response."""
+    return create_error(
+        f"expected {description}: an event is larger than the {limit}-byte max_response_bytes limit",
+        413,
+        "PAYLOAD_TOO_LARGE",
+        "SDK",
+    )
 
 
 async def parse_sse_lines_async(lines: AsyncIterable[str]) -> AsyncIterator[Tuple[str, JsonObject]]:

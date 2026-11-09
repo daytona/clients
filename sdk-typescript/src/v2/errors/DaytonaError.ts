@@ -5,6 +5,7 @@
 
 import type { AxiosError } from 'axios'
 import { CODE_STATUS } from '../codes.js'
+import { JSON_MAX_DEPTH, nestedDeeperThan } from '../jsonDepth.js'
 import type { ApiErrorCode, DaemonErrorCode, ErrorCode, GenericErrorCode, ProxyErrorCode, RouterErrorCode } from '../codes.js'
 import type { DockerStatus, SandboxState } from '../types.js'
 import {
@@ -822,10 +823,23 @@ export function responseTooLargeError(message: string): PayloadTooLargeError {
   return new PayloadTooLargeError(message, { statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK' })
 }
 
+/**
+ * An error response whose JSON body nests deeper than `JSON_MAX_DEPTH`: the
+ * body is unreadable, as an oversized one is, so the error keeps its status's
+ * class and carries no code or details from it (as in the Python SDK).
+ */
+function tooDeepErrorBody(status: number): DaytonaError {
+  return createDaytonaError(
+    `HTTP ${status}: the response body was nested too deeply to read (over ${JSON_MAX_DEPTH} levels of JSON)`,
+    status,
+  )
+}
+
 export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   if (error.code === PAYLOAD_TOO_LARGE_AXIOS_CODE) return responseTooLargeError(error.message)
-  const envelope = dataObject(error.response?.data)
   const status = error.response?.status
+  if (status !== undefined && nestedDeeperThan(error.response?.data)) return tooDeepErrorBody(status)
+  const envelope = dataObject(error.response?.data)
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
   if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
@@ -846,12 +860,24 @@ export function errorFromEnvelopeBody(
   fallbackMessage: string,
   emptyProseIsAbsent = false,
 ): DaytonaError {
-  let parsed: ErrorEnvelope | undefined
+  return errorFromEnvelope(parsedBody(body), status, fallbackMessage, emptyProseIsAbsent)
+}
+
+function parsedBody(body: string): unknown {
   try {
-    parsed = dataObject(JSON.parse(body) as unknown)
+    return JSON.parse(body) as unknown
   } catch {
-    parsed = undefined
+    return undefined
   }
+}
+
+function errorFromEnvelope(
+  body: unknown,
+  status: number,
+  fallbackMessage: string,
+  emptyProseIsAbsent: boolean,
+): DaytonaError {
+  const parsed = dataObject(body)
   const code = typeof parsed?.code === 'string' ? parsed.code : undefined
   const source = typeof parsed?.source === 'string' ? parsed.source : undefined
   // emptyProseIsAbsent picks the first non-empty of message/error before the
@@ -876,7 +902,9 @@ export async function errorFromFetchResponse(response: Response, limit = 0): Pro
       response.status,
     )
   }
-  return errorFromEnvelopeBody(text, response.status, text || response.statusText)
+  const parsed = parsedBody(text)
+  if (nestedDeeperThan(parsed)) return tooDeepErrorBody(response.status)
+  return errorFromEnvelope(parsed, response.status, text || response.statusText, false)
 }
 
 /**

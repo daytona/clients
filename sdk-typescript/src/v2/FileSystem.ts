@@ -17,7 +17,7 @@ import type {
 } from './types.js'
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
-import { encodeQuery, HttpTransport, isAbortError, maxContentLengthFor, sseMessages, strictUriEncode, transferRequest } from './http.js'
+import { encodeQuery, HttpTransport, isAbortError, maxContentLengthFor, sseMessages, streamEventTooLarge, strictUriEncode, transferRequest } from './http.js'
 import { maxResponseBytesOption } from './bodyLimit.js'
 import { BadRequestError, ConnectionError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { assertInternal } from './internal.js'
@@ -137,12 +137,12 @@ export interface WatchDirOptions {
  */
 const WATCH_MAX_EVENTS_BEFORE_START = 4096
 /**
- * The most event data, in UTF-8 bytes, a watch holds before `start`: 4096
- * events of 256 bytes, about twice a typical event. One byte more is a
- * malformed stream, like the count cap.
+ * The most bytes of events a watch's stream may send before `start` (every
+ * byte of each event, its framing included, counted as it arrives, so one
+ * never-ending event is bounded too): 4096 events of 256 bytes, about twice a
+ * typical event. One byte more is a malformed stream, like the count cap.
  */
 const WATCH_MAX_BYTES_BEFORE_START = 1_048_576
-const UTF8 = new TextEncoder()
 const WRITE_FILE_OPTION_KEYS = optionKeys<WriteFileOptions>()({ atomic: true })
 const WRITE_MANY_OPTION_KEYS = optionKeys<WriteManyOptions>()({ atomic: true })
 const LIST_FILES_OPTION_KEYS = optionKeys<ListFilesOptions>()({ depth: true })
@@ -453,8 +453,10 @@ export class FileSystemService {
    * after a direct `await watchDir(...)` a callback can call `stop()` on it;
    * when the promise is not awaited directly (inside `Promise.all`, or awaited
    * later), signal the code that holds the handle and call `stop()` there. A
-   * stream that sends more than 4096 events, or more than 1 MiB of event data,
-   * before `start` rejects this call with `BadRequestError`.
+   * stream that sends more than 4096 events, or more than 1 MiB, before
+   * `start` rejects this call with `BadRequestError`. After `start` an event
+   * larger than the client's `maxResponseBytes` ends the watch with
+   * `PayloadTooLargeError`.
    */
   public async watchDir(
     path: string,
@@ -493,6 +495,20 @@ export class FileSystemService {
     const held: (() => void | Promise<void>)[] = []
     let earlyEvents = 0
     let earlyBytes = 0
+    // The stream's bytes are counted as they arrive: before start its events
+    // may not pass WATCH_MAX_BYTES_BEFORE_START in all, after it each event
+    // is bounded by the client's maxResponseBytes.
+    const clientLimit = this.transport.maxResponseBytes
+    const remainingBeforeStart = (): number => WATCH_MAX_BYTES_BEFORE_START - earlyBytes
+    const eventBound = {
+      limit: (): number | undefined => {
+        if (started) return clientLimit > 0 ? clientLimit : undefined
+        return clientLimit > 0 ? Math.min(remainingBeforeStart(), clientLimit) : remainingBeforeStart()
+      },
+      tooLarge: (): Error => started || (clientLimit > 0 && clientLimit < remainingBeforeStart())
+        ? streamEventTooLarge('filesystem watch stream', clientLimit)
+        : malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_BYTES_BEFORE_START} bytes before start`),
+    }
     let resolveExit!: (error: Error | undefined) => void
     const exitPromise = new Promise<Error | undefined>((resolve) => {
       resolveExit = resolve
@@ -550,8 +566,9 @@ export class FileSystemService {
           headers: { Accept: 'text/event-stream' },
           signal: controller.signal,
         })
-        for await (const message of sseMessages(response)) {
+        for await (const message of sseMessages(response, eventBound)) {
           if (stopRequested) break
+          if (!started) earlyBytes += message.size
           try {
             if (message.event === 'start') {
               if (!started) {
@@ -565,12 +582,8 @@ export class FileSystemService {
               // Every listed event before start counts toward the cap, whether
               // or not a callback handles it.
               earlyEvents++
-              earlyBytes += UTF8.encode(message.data).byteLength
               if (earlyEvents > WATCH_MAX_EVENTS_BEFORE_START) {
                 throw malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_EVENTS_BEFORE_START} events before start`)
-              }
-              if (earlyBytes > WATCH_MAX_BYTES_BEFORE_START) {
-                throw malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_BYTES_BEFORE_START} bytes of events before start`)
               }
             }
             let callback: (() => void | Promise<void>) | undefined

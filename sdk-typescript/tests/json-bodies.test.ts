@@ -13,7 +13,7 @@ import { createServer } from 'node:http'
 import type { Server } from 'node:http'
 import { once } from 'node:events'
 import { FileSystemService } from '../src/v2/FileSystem'
-import { BadRequestError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
+import { BadRequestError, errorFromFetchResponse, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
 import { parseBulkReadResult } from '../src/v2/filesystemWire'
@@ -33,6 +33,9 @@ const BODIES: Record<string, Buffer> = {
   nan: Buffer.from('{"a": NaN}'),
   valid: Buffer.from(JSON.stringify(FILE_INFO)),
   empty: Buffer.alloc(0),
+  // An error envelope nesting 600 / 601 deep (the object is one level).
+  errdeep600: Buffer.from(`{"code":"FILE_NOT_FOUND","message":"gone","details":${'['.repeat(599)}${']'.repeat(599)}}`),
+  errdeep601: Buffer.from(`{"code":"FILE_NOT_FOUND","message":"gone","details":${'['.repeat(600)}${']'.repeat(600)}}`),
 }
 
 describe('JSON response bodies', () => {
@@ -42,10 +45,10 @@ describe('JSON response bodies', () => {
   beforeEach(async () => {
     server = createServer((request, response) => {
       request.resume()
-      // /<body>/<content type: json | text>/...
+      // /<body>/<content type: json | text>/...; an errdeep body answers 404
       const [, body = 'valid', type = 'json'] = (request.url ?? '').split('/')
       const contentType = type === 'json' ? 'application/json; charset=utf-8' : type === 'mixed' ? 'Application/JSON; charset=UTF-8' : type === 'jsonl' ? 'application/jsonl' : 'text/plain'
-      response.writeHead(200, { 'Content-Type': contentType })
+      response.writeHead(body.startsWith('errdeep') ? 404 : 200, { 'Content-Type': contentType })
       response.end(BODIES[body])
     })
     server.listen(0, '127.0.0.1')
@@ -115,6 +118,27 @@ describe('JSON response bodies', () => {
     await expect(transport('deep601').get('/x')).rejects.toMatchObject({
       constructor: BadRequestError, message: 'expected JSON response: the JSON is nested too deeply', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
     })
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: an error response
+  // keeps its status's typed error; a body nested past the limit is
+  // unreadable, so it gives no code or details, and the message says so.
+  it('reads an error body nested 600 deep and not one nested 601 deep', async () => {
+    await expect(fs('errdeep600').stat('/a')).rejects.toMatchObject({
+      message: 'gone', statusCode: 404, code: 'FILE_NOT_FOUND',
+    })
+    const tooDeep = {
+      message: 'HTTP 404: the response body was nested too deeply to read (over 600 levels of JSON)', statusCode: 404, code: undefined,
+    }
+    const caught = await fs('errdeep601').stat('/a').then(() => undefined, (error: unknown) => error)
+    expect(caught).toBeInstanceOf(NotFoundError)
+    expect(caught).toMatchObject(tooDeep)
+
+    const fetched = (body: string) => errorFromFetchResponse(new Response(String(BODIES[body]), { status: 404, headers: { 'Content-Type': 'application/json' } }))
+    await expect(fetched('errdeep600')).resolves.toMatchObject({ statusCode: 404, code: 'FILE_NOT_FOUND' })
+    const fromFetch = await fetched('errdeep601')
+    expect(fromFetch).toBeInstanceOf(NotFoundError)
+    expect(fromFetch).toMatchObject(tooDeep)
   })
 
   it('does not read application/jsonl as JSON', async () => {

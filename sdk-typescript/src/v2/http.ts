@@ -1518,7 +1518,8 @@ export class HttpTransport {
   private readonly apiKey?: string
   private readonly requestTimeout?: number
   private readonly options?: HttpClientOptions
-  private readonly maxResponseBytes: number
+  /** The client's cap on a buffered body (`0` = no limit), which also bounds each event of an event stream. */
+  public readonly maxResponseBytes: number
 
   constructor(baseUrl: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions) {
     this.maxResponseBytes = options?.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES
@@ -1852,8 +1853,135 @@ export interface SseMessage {
   id?: string
 }
 
-function normalizeSseNewlines(value: string): string {
-  return value.replace(/\r\n|\r/g, '\n')
+/** A dispatched SSE message and its size: every byte of its block, terminators included. */
+export interface SizedSseMessage extends SseMessage {
+  readonly size: number
+}
+
+/**
+ * The bound on each event of an SSE stream, counted in bytes as they arrive:
+ * once the event being read passes `limit()` (`undefined` = no limit), the
+ * stream is refused with `tooLarge()`. Read for every check, so it may
+ * change between events.
+ */
+export interface SseBound {
+  readonly limit: () => number | undefined
+  readonly tooLarge: () => Error
+}
+
+/** The error for one event over the client's `maxResponseBytes`, which bounds every event of a stream. */
+export function streamEventTooLarge(description: string, limit: number): Error {
+  return responseTooLargeError(`expected ${description}: an event is larger than the ${limit}-byte maxResponseBytes limit`)
+}
+
+const CR = 0x0d
+const LF = 0x0a
+
+/**
+ * Splits an event-stream body's bytes into lines (CRLF, LF or CR) and lines
+ * into messages, counting the bytes of the event being read as they arrive
+ * (as the Python SDK's `SseLineSplitter`), so one huge or never-terminated
+ * event holds no more than its bound.
+ */
+class SseReader {
+  private line: Uint8Array[] = []
+  private lineBytes = 0
+  private received = 0
+  private eventStart = 0
+  private skipLf = false
+  private atStreamStart = true
+  private event = 'message'
+  private id: string | undefined
+  private data: string[] = []
+  // Each line is decoded whole (a line never splits a character); one
+  // leading byte-order mark of the stream is dropped below, as the
+  // event-stream format does.
+  private readonly decoder = new TextDecoder('utf-8', { ignoreBOM: true })
+
+  constructor(private readonly bound: SseBound | undefined) {}
+
+  *feed(chunk: Uint8Array): Generator<SizedSseMessage> {
+    if (chunk.byteLength === 0) return
+    const base = this.received
+    this.received += chunk.byteLength
+    let start = 0
+    // The LF of a CRLF split across chunks (after a blank line's CR, it
+    // counts toward the next event).
+    if (this.skipLf && chunk[0] === LF) start = 1
+    this.skipLf = false
+    while (start < chunk.byteLength) {
+      let end = start
+      while (end < chunk.byteLength && chunk[end] !== CR && chunk[end] !== LF) end++
+      if (end === chunk.byteLength) {
+        this.line.push(chunk.slice(start))
+        this.lineBytes += chunk.byteLength - start
+        break
+      }
+      const text = this.takeLine(chunk.subarray(start, end))
+      if (chunk[end] === CR) {
+        if (end + 1 < chunk.byteLength) {
+          if (chunk[end + 1] === LF) end++
+        } else {
+          this.skipLf = true
+        }
+      }
+      start = end + 1
+      this.check(base + start)
+      const message = this.feedLine(text, base + start)
+      if (message !== undefined) yield message
+    }
+    this.check(this.received)
+  }
+
+  private check(position: number): void {
+    const bound = this.bound
+    if (bound === undefined) return
+    const limit = bound.limit()
+    if (limit !== undefined && position - this.eventStart > limit) throw bound.tooLarge()
+  }
+
+  private takeLine(tail: Uint8Array): string {
+    let bytes = tail
+    if (this.lineBytes > 0) {
+      bytes = new Uint8Array(this.lineBytes + tail.byteLength)
+      let offset = 0
+      for (const part of this.line) {
+        bytes.set(part, offset)
+        offset += part.byteLength
+      }
+      bytes.set(tail, offset)
+      this.line = []
+      this.lineBytes = 0
+    }
+    let text = this.decoder.decode(bytes)
+    if (this.atStreamStart) {
+      this.atStreamStart = false
+      if (text.startsWith('\uFEFF')) text = text.slice(1)
+    }
+    return text
+  }
+
+  private feedLine(line: string, position: number): SizedSseMessage | undefined {
+    if (line === '') {
+      const size = position - this.eventStart
+      this.eventStart = position
+      const { event, id, data } = this
+      this.event = 'message'
+      this.id = undefined
+      this.data = []
+      // A block without a `data:` line dispatches nothing (the event-stream format, as in Python).
+      if (data.length === 0) return undefined
+      return { event, ...(id === undefined ? {} : { id }), data: data.join('\n'), size }
+    }
+    if (line.startsWith(':')) return undefined
+    const colon = line.indexOf(':')
+    const field = colon >= 0 ? line.slice(0, colon) : line
+    const value = colon >= 0 ? line.slice(colon + 1).replace(/^ /, '') : ''
+    if (field === 'event') this.event = value
+    if (field === 'id') this.id = value
+    if (field === 'data') this.data.push(value)
+    return undefined
+  }
 }
 
 /**
@@ -1872,12 +2000,15 @@ async function readSseChunk(reader: ReadableStreamDefaultReader<Uint8Array>): Pr
   }
 }
 
-export async function* sseMessages(response: Response): AsyncIterable<SseMessage> {
+/**
+ * The messages of an SSE body. With a `bound`, each event is bounded by it
+ * as its bytes arrive (see {@link SseBound}).
+ */
+export async function* sseMessages(response: Response, bound?: SseBound): AsyncIterable<SizedSseMessage> {
   const body = response.body
   if (!body) return
   const reader = body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
+  const sse = new SseReader(bound)
   let streamDone = false
   try {
     for (;;) {
@@ -1886,15 +2017,7 @@ export async function* sseMessages(response: Response): AsyncIterable<SseMessage
         streamDone = true
         break
       }
-      buffer += decoder.decode(value, { stream: true })
-      let boundary = findSseBoundary(buffer)
-      while (boundary) {
-        const raw = buffer.slice(0, boundary.index)
-        buffer = buffer.slice(boundary.index + boundary.length)
-        const message = parseSseMessage(raw)
-        if (message) yield message
-        boundary = findSseBoundary(buffer)
-      }
+      yield* sse.feed(value)
     }
     // An unterminated final block is discarded, as the event-stream format
     // (and the Python SDK) does: it may be a message cut off mid-way.
@@ -1906,41 +2029,6 @@ export async function* sseMessages(response: Response): AsyncIterable<SseMessage
     }
     reader.releaseLock()
   }
-}
-
-function parseSseMessage(raw: string): SseMessage | undefined {
-  let event = 'message'
-  let id: string | undefined
-  const data: string[] = []
-  for (const line of normalizeSseNewlines(raw).split('\n')) {
-    if (!line || line.startsWith(':')) continue
-    const colon = line.indexOf(':')
-    const field = colon >= 0 ? line.slice(0, colon) : line
-    const value = colon >= 0 ? line.slice(colon + 1).replace(/^ /, '') : ''
-    if (field === 'event') event = value
-    if (field === 'id') id = value
-    if (field === 'data') data.push(value)
-  }
-  // A block without a `data:` line dispatches nothing (the event-stream format, as in Python).
-  if (!data.length) return undefined
-  return { event, id, data: data.join('\n') }
-}
-
-function findSseBoundary(buffer: string): { readonly index: number; readonly length: number } | undefined {
-  for (let index = 0; index < buffer.length; index += 1) {
-    const first = lineTerminatorLength(buffer, index)
-    if (!first) continue
-    const second = lineTerminatorLength(buffer, index + first)
-    if (second) return { index, length: first + second }
-    index += first - 1
-  }
-  return undefined
-}
-
-function lineTerminatorLength(buffer: string, index: number): number {
-  const char = buffer[index]
-  if (char === '\r') return buffer[index + 1] === '\n' ? 2 : 1
-  return char === '\n' ? 1 : 0
 }
 
 export function sandboxState(status: string | undefined): SandboxState {

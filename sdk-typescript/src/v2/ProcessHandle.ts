@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { encodeQuery, HttpTransport, sseMessages } from './http.js'
+import { encodeQuery, HttpTransport, sseMessages, streamEventTooLarge } from './http.js'
 import type {
   KillOptions, LogPage, LogsOptions, ProcessHandleJSON, ProcessInfo, ProcessKind, StreamLogEvent, StreamLogsOptions,
   WaitProcessOptions, WaitResult,
@@ -108,7 +108,10 @@ export class ProcessHandle {
     const headers: Record<string, string> = { Accept: 'text/event-stream' }
     if (options.cursor) headers['Last-Event-ID'] = options.cursor
     const response = await this.transport.fetch(`/processes/${toolboxPathId(this.id, 'process id')}/logs${query}`, { headers, signal: options.signal })
-    for await (const message of sseMessages(response)) {
+    // Every event is bounded by the client's maxResponseBytes as its bytes
+    // arrive, so no single event (a huge or never-terminated one) is unbounded.
+    const limit = this.transport.maxResponseBytes
+    for await (const message of sseMessages(response, { limit: () => (limit > 0 ? limit : undefined), tooLarge: () => streamEventTooLarge('process log stream', limit) })) {
       const event = streamEvent(message)
       if (event === undefined) continue
       yield event
