@@ -17,7 +17,6 @@ from ._core import (
     is_json_value,
     loads_json,
     path_segment,
-    refuse_dot_segment,
     timeout_millis_from_seconds,
     wait_budget,
 )
@@ -407,7 +406,9 @@ class AsyncInterpreterService:
             raise create_error(
                 "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
             )
-        refuse_dot_segment(context_id, "interpreter context id")
+        # Closing deletes the context through its path id, so one that could
+        # not be closed (blank, `.`/`..`, a surrogate) is not bound either.
+        path_segment(context_id, "interpreter context id")
         if not isinstance(language, str) or not language:
             raise create_error(
                 "interpreter context language must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"

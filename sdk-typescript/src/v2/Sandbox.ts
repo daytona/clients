@@ -287,8 +287,8 @@ const LIFECYCLE_ECHO: ResponseFields = {
   id: 'string',
   lifecycle_policy: {
     fields: {
-      timeout_seconds: 'int32?', on_timeout: 'string?', timeout_at: 'string?', idle_expiry_seconds: 'int32?',
-      on_idle_timeout: 'string?', idle_timeout_at: 'string?', last_activity_at: 'string?', last_activity_source: 'string?',
+      timeout_seconds: 'int32?', on_timeout: 'string?', timeout_at: 'timestamp?', idle_expiry_seconds: 'int32?',
+      on_idle_timeout: 'string?', idle_timeout_at: 'timestamp?', last_activity_at: 'timestamp?', last_activity_source: 'string?',
     },
     optional: false,
   },
@@ -296,6 +296,16 @@ const LIFECYCLE_ECHO: ResponseFields = {
 
 function checkLifecycleEcho(data: unknown): { lifecycle_policy: SandboxLifecycleDto; id: string } {
   return checkResponse<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(data, LIFECYCLE_ECHO, 'sandbox lifecycle policy')
+}
+
+/**
+ * A response that breaks the contract (the SDK's own `BadRequestError`): it
+ * says the API answered wrongly, not that a wait or read failed, so a create
+ * or fork throws it rather than returning a handle built on it, as in Python.
+ * @internal
+ */
+export function isContractError(error: DaytonaError): boolean {
+  return error instanceof BadRequestError && error.source === 'SDK'
 }
 
 export class Sandbox {
@@ -798,6 +808,8 @@ export class Sandbox {
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
     // Checked before the fork handle or any further request, as for a create.
     const forked = checkResponse<api.ForkResponse>(response.data, FORK_RESPONSE, 'sandbox fork')
+    // An empty or blank id is no id: nothing can follow without it, as for a create.
+    if (isBlank(forked.id)) throw badRequest('sandbox fork response is missing the sandbox id')
     const rawForkStatus: unknown = Reflect.get(forked, 'status')
     const forkStatus = typeof rawForkStatus === 'string' ? rawForkStatus : undefined
     const rawForkedFrom: unknown = Reflect.get(forked, 'forked_from')
@@ -841,7 +853,9 @@ export class Sandbox {
       fork.observed = metadataFromSandbox(detail)
       fork.refreshToolbox({ ...detail, toolbox_proxy_url: forkToolbox ?? detail.toolbox_proxy_url })
     } catch (error) {
-      if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
+      // The fork exists; a failed read never costs the caller its handle, but
+      // a detail that breaks the contract is thrown.
+      if (error instanceof DaytonaError && !(error instanceof TransferCancelledError) && !isContractError(error)) return fork
       throw error
     }
     const states: readonly SandboxWaitState[] = sandboxClass === 'macos' ? ['started', 'stopped']
@@ -853,7 +867,7 @@ export class Sandbox {
       try {
         await fork.waitForState(states, { timeoutSeconds: remainingSeconds })
       } catch (error) {
-        if (!(error instanceof DaytonaError) || error instanceof TransferCancelledError) throw error
+        if (!(error instanceof DaytonaError) || error instanceof TransferCancelledError || isContractError(error)) throw error
       }
     }
     return fork

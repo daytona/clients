@@ -882,14 +882,30 @@ def parse_lifecycle(payload: JsonObject | LifecyclePolicy) -> SandboxLifecycle:
     raw_payload = payload
     nested = raw_payload.get("lifecycle_policy")
     data: JsonObject = nested if isinstance(nested, dict) else raw_payload
+
+    def stamp(key: str) -> Optional[datetime]:
+        # The responses that reach here were checked (RFC 3339 timestamps); a
+        # present value that still does not parse is the malformed response,
+        # never a silent None.
+        value = data.get(key)
+        parsed = parse_timestamp(value)
+        if value is not None and parsed is None:
+            raise create_error(
+                f"sandbox lifecycle policy has a {key} that is not an RFC 3339 timestamp",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return parsed
+
     return SandboxLifecycle(
         timeout_seconds=_optional_int(data.get("timeout_seconds")),
         on_timeout=_optional_str(data.get("on_timeout")),
-        timeout_at=parse_timestamp(data.get("timeout_at")),
+        timeout_at=stamp("timeout_at"),
         idle_expiry_seconds=_optional_int(data.get("idle_expiry_seconds")),
         on_idle_timeout=_optional_str(data.get("on_idle_timeout")),
-        idle_timeout_at=parse_timestamp(data.get("idle_timeout_at")),
-        last_activity_at=parse_timestamp(data.get("last_activity_at")),
+        idle_timeout_at=stamp("idle_timeout_at"),
+        last_activity_at=stamp("last_activity_at"),
         last_activity_source=_optional_str(data.get("last_activity_source")),
     )
 

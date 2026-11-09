@@ -8,7 +8,7 @@
 import { queryText } from './pageParams.js'
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
-import { boundedTimerDelay, badRequest, waitDeadline } from './options.js'
+import { MAX_TIMER_DELAY_MS, boundedTimerDelay, badRequest, waitDeadline } from './options.js'
 import { HttpTransport } from './http.js'
 import type * as api from './gen/api-types.js'
 import { sameBuildLogResource } from './buildLogIdentity.js'
@@ -421,7 +421,7 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
     if (deadline !== undefined) {
       const budget = deadline - performance.now()
       if (budget <= 0) expire()
-      else timer = setTimeout(expire, Math.min(budget, 2147483647))
+      else timer = setTimeout(expire, Math.min(budget, MAX_TIMER_DELAY_MS))
     }
     if (reader) for (;;) {
       if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`)
@@ -620,7 +620,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
 function pause(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     const finish = (): void => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-    const timer = setTimeout(finish, Math.min(ms, 2147483647))
+    const timer = setTimeout(finish, Math.min(ms, MAX_TIMER_DELAY_MS))
     signal.addEventListener('abort', finish, { once: true })
     if (signal.aborted) finish()
   })

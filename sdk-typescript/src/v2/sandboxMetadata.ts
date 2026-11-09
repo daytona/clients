@@ -52,13 +52,12 @@ const ARTIFACT_REF: ResponseFields = { id: 'string', name: 'string?' }
 // The contract fields the handle reads, required ones without `?` (Python
 // validates the same body against the generated model). An empty
 // `region_id` is derived from the id, as in Python; a missing one is malformed.
-// The detail's lifecycle policy, field by field as Python's generated model
-// reads it: integers of any width, actions any string (an unknown one kept),
-// the activity source a string and the deadlines strings (Python's model also
-// refuses a string it cannot read as a date-time). Unknown fields pass.
+// The detail's lifecycle policy, field by field as Python checks it: integers
+// of any width, actions any string (an unknown one kept), the activity source
+// a string and the deadlines RFC 3339 timestamps. Unknown fields pass.
 const LIFECYCLE_POLICY: ResponseFields = {
   timeout_seconds: 'integer?', idle_expiry_seconds: 'integer?', on_timeout: 'string?', on_idle_timeout: 'string?',
-  timeout_at: 'string?', idle_timeout_at: 'string?', last_activity_at: 'string?', last_activity_source: 'string?',
+  timeout_at: 'timestamp?', idle_timeout_at: 'timestamp?', last_activity_at: 'timestamp?', last_activity_source: 'string?',
 }
 
 const SANDBOX: ResponseFields = {

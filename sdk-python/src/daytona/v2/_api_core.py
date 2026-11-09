@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Mapping, Optional
 
 from . import _gen
 from ._core import (
@@ -30,6 +31,7 @@ from ._gen.api import (
     Volume,
     VolumePage,
 )
+from ._timestamps import rfc3339_timestamp
 from .errors import DaytonaError, create_error
 from .types import (
     AuditActionGroup,
@@ -253,7 +255,12 @@ def expect_endpoint_list_resp(value: TransportPayload) -> SandboxPortPage:
 def expect_fork_resp(value: TransportPayload) -> ForkSandboxOperation:
     # The fork exists once its id came back, as for a create: a missing or
     # non-string status reads as `unknown`, `forked_from` falls back to the
-    # source's id, and the toolbox URL comes from the fork's detail read.
+    # source's id, and the toolbox URL comes from the fork's detail read. A
+    # missing, empty or blank id is no id.
+    if isinstance(value, dict):
+        raw_id = value.get("id")
+        if not isinstance(raw_id, str) or not raw_id.strip():
+            raise create_error("sandbox fork response is missing the sandbox id", 400, "BAD_REQUEST", "SDK")
     return _expect_model_from_dict(
         _id_only(value, ("status", "forked_from", "toolbox_proxy_url")),
         ForkSandboxOperation,
@@ -320,14 +327,25 @@ def expect_daytona_preview_url(value: TransportPayload) -> PreviewUrl:
 
 
 _LIFECYCLE_INTEGERS = ("timeout_seconds", "idle_expiry_seconds")
-_LIFECYCLE_STRINGS = (
-    "on_timeout",
-    "timeout_at",
-    "on_idle_timeout",
-    "idle_timeout_at",
-    "last_activity_at",
-    "last_activity_source",
-)
+_LIFECYCLE_STRINGS = ("on_timeout", "on_idle_timeout", "last_activity_source")
+_LIFECYCLE_TIMESTAMPS = ("timeout_at", "idle_timeout_at", "last_activity_at")
+
+
+def _lifecycle_timestamp_violation(policy: Mapping[str, object]) -> Optional[str]:
+    """What breaks the contract in a lifecycle policy's timestamps, as
+    ``"has a lifecycle_policy.<field> that is not ..."``, or ``None``: each
+    present one is an RFC 3339 timestamp (the rule of TypeScript's
+    ``isRfc3339``; the generated model would also read a date or a time
+    without an offset)."""
+    for key in _LIFECYCLE_TIMESTAMPS:
+        stamp = policy.get(key)
+        if stamp is None:
+            continue
+        if not isinstance(stamp, str):
+            return f"has a lifecycle_policy.{key} that is not a string"
+        if not rfc3339_timestamp(stamp):
+            return f"has a lifecycle_policy.{key} that is not an RFC 3339 timestamp"
+    return None
 
 
 def expect_sandbox_lifecycle_policy(value: TransportPayload) -> JsonObject:
@@ -335,10 +353,9 @@ def expect_sandbox_lifecycle_policy(value: TransportPayload) -> JsonObject:
     ``POST .../reset-idle-timer`` (the contract's ``SandboxLifecyclePolicy``),
     checked field by field as TypeScript checks it: a required string ``id``
     and ``lifecycle_policy`` object, whose optional fields are 32-bit integers
-    or strings when present. Timestamps stay strings here: an unparseable
-    activity clock is a degenerate echo the handle keeps out of its cache, not
-    a malformed response. The raw object is returned because the handle keeps
-    the wire timestamps verbatim."""
+    or strings when present, and whose timestamps are RFC 3339 timestamps.
+    The raw object is returned because the handle keeps the wire timestamps
+    verbatim."""
     what = "sandbox lifecycle policy response"
 
     def malformed(message: str) -> DaytonaError:
@@ -368,6 +385,9 @@ def expect_sandbox_lifecycle_policy(value: TransportPayload) -> JsonObject:
         text = policy.get(key)
         if text is not None and not isinstance(text, str):
             raise malformed(f"has a lifecycle_policy.{key} that is not a string")
+    violation = _lifecycle_timestamp_violation(policy)
+    if violation is not None:
+        raise malformed(violation)
     return data
 
 
@@ -387,6 +407,10 @@ def expect_signed_preview_url_resp(value: TransportPayload) -> SignedPreviewUrl:
 
 
 def expect_sandbox_detail(value: TransportPayload) -> Sandbox:
+    if isinstance(value, dict) and isinstance(value.get("lifecycle_policy"), dict):
+        violation = _lifecycle_timestamp_violation(value["lifecycle_policy"])
+        if violation is not None:
+            raise create_error(f"sandbox detail response {violation}", 400, "BAD_REQUEST", "SDK")
     return _expect_model_from_dict(_with_region(value), Sandbox, "sandbox detail response", Sandbox.from_dict)
 
 

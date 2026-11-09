@@ -1800,12 +1800,16 @@ describe('V2 model', () => {
       lifecycle_policy: { idle_expiry_seconds: 900, on_idle_timeout: 'delete', last_activity_at: '2026-08-27T09:00:00Z', last_activity_source: 'toolbox' },
     }, api, undefined, 'key')
 
-    // Null, absent and unparseable timestamps must all preserve the cache.
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Null and absent timestamps preserve the cache.
+    for (let attempt = 0; attempt < 2; attempt++) {
       await expect(sandbox.resetIdleTimer()).resolves.toMatchObject({ lastActivitySource: 'ssh' })
       expect(sandbox.lifecyclePolicy?.lastActivityAt).toBe('2026-08-27T09:00:00Z')
       expect(sandbox.lifecyclePolicy?.lastActivitySource).toBe('toolbox')
     }
+    // A clock that is not an RFC 3339 timestamp breaks the contract: refused,
+    // and the cache is kept (as in Python).
+    await expect(sandbox.resetIdleTimer()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox lifecycle policy response has a lifecycle_policy.last_activity_at that is not an RFC 3339 timestamp' })
+    expect(sandbox.lifecyclePolicy?.lastActivityAt).toBe('2026-08-27T09:00:00Z')
   })
 
   it('accepts a clockless reset echo into an empty cache', async () => {
@@ -13464,6 +13468,14 @@ describe('toolbox surface', () => {
     await expect(fs.grep('/', 'x')).rejects.toThrow('expected grep match: line must be a non-negative integer')
   })
 
+  it('reads a toolbox timestamp with a fraction of a second, as Python does', async () => {
+    // Through a git commit; the search-bound fixture holds the same value.
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce([{ ...gitCommitWire(), timestamp: '2026-01-02T03:04:05.123Z' }])
+    const history = await new GitService(INTERNAL, transport.object).history('/repo')
+    expect(history.items[0]?.timestamp).toBe('2026-01-02T03:04:05.123Z')
+  })
+
   it('reads RFC 3339 timestamps like the Python SDK', async () => {
     const { isRfc3339 } = await import('../src/v2/rfc3339')
     for (const value of ['2026-01-01T00:00:00.123456789Z', '0001-01-01t00:00:00z', '0099-06-01T12:00:00+00:00']) expect(isRfc3339(value)).toBe(true)
@@ -13676,6 +13688,13 @@ describe('toolbox surface', () => {
     const tail = encoder.encode('"}\r\n--DAYTONA-FILE-BOUNDARY--\r\n')
     const body = new Uint8Array([...head, 0xff, ...tail])
     expect(() => parseBulkReadResult(body)).toThrow('expected bulk download error part: the data is not JSON')
+  })
+
+  // Closing deletes the context through its path id: one that could not be
+  // closed is not bound either (twin in test_toolbox_surface.py).
+  it.each(['  ', '\t\u2028', 'a\ud800b'])('refuses an interpreter context id it could not close (%j)', (contextId) => {
+    const interpreter = new InterpreterService(INTERNAL, transportStub().object, 'sbx')
+    expect(() => interpreter.connectContext(contextId, 'python')).toThrow(/^interpreter context id must /)
   })
 
   it.each([['c', 5], ['c', ''], ['c', { language: 'python' }], ['', 'python']] as const)('refuses an interpreter context identity it could not write back (%p, %p)', (contextId, language) => {

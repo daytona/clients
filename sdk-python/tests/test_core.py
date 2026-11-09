@@ -4613,12 +4613,19 @@ async def test_reset_idle_timer_keeps_a_valid_cached_clock_over_a_clockless_echo
     cached = await sandbox.reset_idle_timer()
     assert sandbox.lifecycle_policy == cached
 
-    # An explicit null, an absent field and an unparseable value are all the
-    # same degenerate echo: returned verbatim, never cached over a valid clock.
-    for _ in range(3):
+    # An explicit null and an absent field are the same degenerate echo:
+    # returned verbatim, never cached over a valid clock.
+    for _ in range(2):
         degenerate = await sandbox.reset_idle_timer()
         assert degenerate.last_activity_source == "ssh"
         assert sandbox.lifecycle_policy == cached
+    # A clock that is not an RFC 3339 timestamp breaks the contract: refused,
+    # and the cache is kept. The TypeScript twin is in unit.test.ts.
+    with pytest.raises(
+        BadRequestError, match="lifecycle_policy.last_activity_at that is not an RFC 3339 timestamp"
+    ):
+        await sandbox.reset_idle_timer()
+    assert sandbox.lifecycle_policy == cached
 
 
 @pytest.mark.anyio
@@ -4634,9 +4641,9 @@ async def test_reset_idle_timer_accepts_a_clockless_echo_into_an_empty_cache():
 
 
 @pytest.mark.anyio
-async def test_reset_idle_timer_survives_a_naive_cached_clock():
-    """A cached offset-naive timestamp must not TypeError the guard comparison
-    after the reset already landed (naive parses are normalized to UTC)."""
+async def test_reset_idle_timer_refuses_a_clock_without_an_offset():
+    """A timestamp without an offset is no RFC 3339 timestamp: the echo is
+    refused and the cache stays as it was (no offset-naive clock is cached)."""
     api = RecordingTransport(
         [
             {
@@ -4657,8 +4664,11 @@ async def test_reset_idle_timer_survives_a_naive_cached_clock():
         ]
     )
     sandbox = AsyncSandbox(sandbox_info_from_id("sbx"), api, None)
-    naive = await sandbox.reset_idle_timer()
-    assert sandbox.lifecycle_policy == naive
+    with pytest.raises(
+        BadRequestError, match="lifecycle_policy.last_activity_at that is not an RFC 3339 timestamp"
+    ):
+        await sandbox.reset_idle_timer()
+    assert sandbox.lifecycle_policy is None
     aware = await sandbox.reset_idle_timer()
     assert aware.last_activity_source == "api"
     assert sandbox.lifecycle_policy == aware

@@ -8,7 +8,7 @@ import { BadRequestError, DaytonaError, NotFoundError, RequestTimeoutError, Sand
 import { targetPredicate, waitQueryKey } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { sleep } from './http.js'
-import { optionalSeconds, waitDeadline } from './options.js'
+import { MAX_TIMER_DELAY_MS, optionalSeconds, waitDeadline } from './options.js'
 import type { SandboxState, SandboxWaitState } from './types.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 
@@ -16,7 +16,6 @@ export const DEFAULT_SANDBOX_TERMINAL_STATES = ['destroying', 'destroyed', 'erro
 export const PAUSE_TERMINAL_STATES = [...DEFAULT_SANDBOX_TERMINAL_STATES, 'started'] as const
 export const RESUME_TERMINAL_STATES = [...DEFAULT_SANDBOX_TERMINAL_STATES, 'stopped'] as const
 export const WAIT_FOR_STATE_SLICE_MS = 30_000
-const MAX_REQUEST_TIMEOUT_MS = 2_147_483_647
 
 /** What a read of the sandbox found: its state, wire status and the server's reason. */
 export interface SandboxReadOutcome extends WaitOutcome {
@@ -132,7 +131,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         const budget = remaining()
         if (budget === undefined || budget > 0) {
           try {
-            await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_REQUEST_TIMEOUT_MS))
+            await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_TIMER_DELAY_MS))
           } catch (error) {
             // The target was observed; a failed refresh keeps that observation.
             if (!(error instanceof DaytonaError)) throw error
@@ -158,7 +157,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (refreshedByPoll || error.state === 'destroyed' || (budget !== undefined && budget <= 0)) throw refreshedByPoll ? withReason(error, seen) : error
       let outcome: SandboxReadOutcome
       try {
-        outcome = await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_REQUEST_TIMEOUT_MS))
+        outcome = await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_TIMER_DELAY_MS))
       } catch (refreshError) {
         // The terminal outcome takes precedence over a failed metadata read.
         if (!(refreshError instanceof DaytonaError)) throw refreshError

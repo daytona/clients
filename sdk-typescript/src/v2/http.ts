@@ -7,7 +7,7 @@ import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
 import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, responseTooLargeError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
-import { boundedTimerDelay, badRequest } from './options.js'
+import { MAX_INT32, boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 export { forceFetchAdapterForTests, maxContentLengthFor, transferRequest } from './boundedAdapter.js'
@@ -2193,7 +2193,7 @@ const LIFECYCLE_WIRE_NAMES: Record<LifecycleField, string> = {
  * The server rejects durations above 2147483647 seconds. Check this before
  * sending a request; organization-specific timeout limits remain server-side.
  */
-export const LIFECYCLE_MAX_SECS = 2147483647
+export const LIFECYCLE_MAX_SECS = MAX_INT32
 
 /**
  * Validate a lifecycle policy and render its snake_case wire object, or undefined when empty.

@@ -579,3 +579,53 @@ it.each([
     await api.close()
   }
 })
+
+// An empty or blank id is no id: nothing can follow without it, as in Python.
+it.each([
+  ['create', ''], ['create', '  '], ['fork', ''], ['fork', '  '],
+] as const)('refuses a %s response whose id is %j', async (call, id) => {
+  const api = await startFakeApi([{ status: 200, body: { id, status: 'pending' } }])
+  const client = clientAt(api.url)
+  try {
+    const pending = call === 'create' ? client.v2.create('img_1', { waitSeconds: 0 }) : source(api).fork({ waitSeconds: 0 })
+    await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: `sandbox ${call} response is missing the sandbox id` })
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// The handle is returned however the wait ends, except when the API answers
+// against the contract: that is thrown, not hidden behind a handle (as in Python).
+it.each(['create', 'fork'] as const)('throws a detail that breaks the contract during a %s wait', async (call) => {
+  const accepted = call === 'fork' ? { id: 'f1', status: 'pending', forked_from: 'src', toolbox_proxy_url: 'https://toolbox.example/fork' } : { id: 'f1', status: 'pending' }
+  const broken = { ...SANDBOX_DETAIL, id: 'f1', class: null }
+  const planned = call === 'fork'
+    ? [{ status: 200, body: SANDBOX_DETAIL }, { status: 200, body: accepted }, { status: 200, body: broken }]
+    : [{ status: 200, body: accepted }, { status: 200, body: broken }]
+  const api = await startFakeApi(planned)
+  const client = clientAt(api.url, { events: { enabled: false } })
+  try {
+    const pending = call === 'create' ? client.v2.create('img_1', { waitSeconds: 5 }) : source(api).fork({ waitSeconds: 5 })
+    await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('class') })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// Present and not an RFC 3339 timestamp: refused naming the field, never read
+// as absent or as a date (as in Python).
+describe.each(['timeout_at', 'idle_timeout_at', 'last_activity_at'])('a lifecycle %s', (field) => {
+  it.each(['nope', '2026-01-01', '2026-01-01T00:00:00', '2026-01-01 00:00:00Z'])('that is %j is a contract error', async (stamp) => {
+    const api = await startFakeApi([{ status: 200, body: { ...SANDBOX_DETAIL, lifecycle_policy: { [field]: stamp } } }])
+    const client = clientAt(api.url)
+    try {
+      await expect(client.v2.get('src')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`has a lifecycle_policy.${field} that is not an RFC 3339 timestamp`) })
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+})

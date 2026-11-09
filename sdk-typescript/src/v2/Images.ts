@@ -19,7 +19,7 @@ import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
 import type { BuildImageOptions, ListResult } from './types.js'
 import { ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
-import { assertKnownOptions, badRequest, optionalSeconds, optionKeys, snapshotOptions, waitDeadline } from './options.js'
+import { MAX_TIMER_DELAY_MS, assertKnownOptions, badRequest, optionalSeconds, optionKeys, snapshotOptions, waitDeadline } from './options.js'
 import { getArtifact } from './artifactOptions.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
 import { INTERNAL, assertInternal } from './internal.js'
@@ -162,7 +162,7 @@ export class ImagesService {
       if (timeout === undefined || controller.signal.aborted) throw timeoutError()
       // Axios's timer can fire before the final clock tick, including rounded/equal budgets.
       activeRequestUsesDeadline = deadline !== undefined && timeout >= deadline - Date.now()
-      return { timeout: timeout > 2_147_483_647 ? 0 : timeout, signal: controller.signal }
+      return { timeout: timeout > MAX_TIMER_DELAY_MS ? 0 : timeout, signal: controller.signal }
     }
     const checkDeadline = (): void => {
       if (deadline !== undefined && Date.now() >= deadline) throw timeoutError()

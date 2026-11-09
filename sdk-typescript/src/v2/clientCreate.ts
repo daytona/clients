@@ -6,7 +6,8 @@
 import { ClientTimeoutError, ConnectionError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, TransferCancelledError } from './errors/DaytonaError.js'
 import { sandboxState, sleep } from './http.js'
 import { eventDestinationFromHeaders } from './events.js'
-import { scopedProxyToolboxUrl } from './Sandbox.js'
+import { isContractError, scopedProxyToolboxUrl } from './Sandbox.js'
+import { isBlank } from './pyText.js'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import { imageOptionsBody, isImageBuilder } from './Image.js'
 import type { Image, ImageBuilder } from './Image.js'
@@ -53,8 +54,9 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     if (error instanceof ClientTimeoutError) throw new SandboxCreateRequestTimeoutError(idempotencyKey)
     throw error
   })
-  if (typeof created !== 'object' || created === null || typeof created.id !== 'string' || created.id === '') {
-    // The contract requires the new sandbox's id; nothing can follow without it.
+  if (typeof created !== 'object' || created === null || typeof created.id !== 'string' || isBlank(created.id)) {
+    // The contract requires the new sandbox's id (an empty or blank one is
+    // none); nothing can follow without it.
     throw badRequest('sandbox create response is missing the sandbox id')
   }
   // The sandbox exists once its id came back: a missing or non-string status
@@ -108,7 +110,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   try {
     return await sandbox.wait({ until: 'started', timeoutSeconds: remainingWait })
   } catch (error) {
-    if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return sandbox
+    if (error instanceof DaytonaError && !(error instanceof TransferCancelledError) && !isContractError(error)) return sandbox
     throw error
   }
 }

@@ -947,3 +947,59 @@ async def test_a_create_token_that_cannot_be_used_is_absent(
     assert sandbox.access_token_expires_at == (
         datetime(2030, 1, 1, tzinfo=timezone.utc) if kept_expiry else None
     )
+
+
+@pytest.mark.parametrize("sandbox_id", ["", "  "], ids=["empty", "blank"])
+@pytest.mark.parametrize("call", ["create", "fork"])
+async def test_a_create_or_fork_response_with_an_empty_id_has_no_id(call: str, sandbox_id: str) -> None:
+    # An empty or blank id is no id: nothing can follow without it. The
+    # TypeScript twin is in malformed-responses.test.ts.
+    body: JsonObject = {"id": sandbox_id, "status": "pending"}
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request(f"^sandbox {call} response is missing the sandbox id$"):
+                if call == "create":
+                    await root.v2.create("img_1", wait_seconds=0)
+                else:
+                    await lazy_sandbox(root.v2, "src").fork(wait_seconds=0)
+    assert len(api.requests) == 1
+
+
+@pytest.mark.parametrize("call", ["create", "fork"])
+async def test_a_detail_that_breaks_the_contract_during_a_create_or_fork_wait_is_raised(call: str) -> None:
+    # The handle is returned however the wait ends, except when the API
+    # answers against the contract: that is raised, not hidden behind a
+    # handle. The TypeScript twin is in malformed-responses.test.ts.
+    accepted: JsonObject = {"id": "f1", "status": "pending"}
+    if call == "fork":
+        accepted.update({"forked_from": "src", "toolbox_proxy_url": "https://toolbox.example/fork"})
+    broken: JsonObject = {**_DETAIL, "id": "f1", "class": None}
+    planned = [PlannedResponse(200, accepted), PlannedResponse(200, broken)]
+    if call == "fork":
+        planned.insert(0, PlannedResponse(200, _DETAIL))
+    with FakeApi(planned) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("class"):
+                if call == "create":
+                    await root.v2.create("img_1", wait_seconds=5)
+                else:
+                    await lazy_sandbox(root.v2, "src").fork(wait_seconds=5)
+
+
+@pytest.mark.parametrize("stamp", ["nope", "2026-01-01", "2026-01-01T00:00:00", "2026-01-01 00:00:00Z"])
+@pytest.mark.parametrize("field", ["timeout_at", "idle_timeout_at", "last_activity_at"])
+async def test_a_lifecycle_timestamp_that_is_not_rfc_3339_is_a_contract_error(field: str, stamp: str) -> None:
+    # Present and not an RFC 3339 timestamp: refused naming the field, never
+    # read as absent or as a date. The TypeScript twin is in
+    # malformed-responses.test.ts.
+    body: JsonObject = {**_DETAIL, "lifecycle_policy": {field: stamp}}
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request(
+                re.escape(f"has a lifecycle_policy.{field} that is not an RFC 3339 timestamp")
+            ):
+                await root.v2.get("src")

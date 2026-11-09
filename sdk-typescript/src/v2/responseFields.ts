@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { badRequest } from './options.js'
+import { MAX_INT32, badRequest } from './options.js'
+import { isRfc3339 } from './rfc3339.js'
 
-type Scalar = 'string' | 'number' | 'integer' | 'int32' | 'boolean' | 'object'
+type Scalar = 'string' | 'timestamp' | 'number' | 'integer' | 'int32' | 'boolean' | 'object'
 
 /**
  * `true`: the field may be absent or null. `'nullable'`: the contract requires
@@ -68,6 +69,12 @@ function checkField(value: unknown, spec: FieldSpec, path: string, what: string)
     return
   }
   const kind = spec.replace('?', '').replace('|null', '')
+  // A timestamp is a string RFC 3339 reads (the rule of `isRfc3339`).
+  if (kind === 'timestamp') {
+    if (typeof value !== 'string') throw badRequest(`${what} response has a ${path} that is not a string`)
+    if (!isRfc3339(value)) throw badRequest(`${what} response has a ${path} that is not an RFC 3339 timestamp`)
+    return
+  }
   const ok = kind === 'string' ? typeof value === 'string'
     : kind === 'number' ? typeof value === 'number' && Number.isFinite(value)
       // Any integral finite number (an int64 above 2^53 within a double's range
@@ -75,7 +82,7 @@ function checkField(value: unknown, spec: FieldSpec, path: string, what: string)
       // reads an integer too large for a double as Infinity) is refused.
       : kind === 'integer' ? Number.isInteger(value)
         // The contract's int32 format: its type rules out anything wider.
-        : kind === 'int32' ? Number.isInteger(value) && (value as number) >= -2_147_483_648 && (value as number) <= 2_147_483_647
+        : kind === 'int32' ? Number.isInteger(value) && (value as number) >= -MAX_INT32 - 1 && (value as number) <= MAX_INT32
         : kind === 'boolean' ? typeof value === 'boolean'
           : isObject(value)
   if (!ok) throw badRequest(`${what} response has a ${path} that is not ${article(kind)}`)

@@ -235,7 +235,7 @@ export const MAX_INT32 = 2 ** 31 - 1
  * The largest delay a JavaScript timer can arm: a larger one fires after
  * about 1 ms instead (Node clamps it, browsers overflow).
  */
-export const MAX_TIMER_DELAY_MS = MAX_INT32
+export const MAX_TIMER_DELAY_MS = 2 ** 31 - 1
 
 /**
  * The deadline of a wait budget in seconds, the one rule for every wait both

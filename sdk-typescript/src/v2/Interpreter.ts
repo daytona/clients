@@ -25,7 +25,7 @@ import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
-import { pathSegment, refuseDotSegment } from './pathSegment.js'
+import { pathSegment } from './pathSegment.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 
 const RUN_OPTION_KEYS = optionKeys<InterpreterRunOptions>()({
@@ -491,7 +491,9 @@ export class InterpreterService {
     // Every context identity round-trips through toJSON(): a non-string id or
     // language would be written in a shape neither SDK reads back.
     if (typeof contextId !== 'string' || contextId === '') throw badRequest('interpreter context id must be a non-empty string')
-    refuseDotSegment(contextId, 'interpreter context id')
+    // Closing deletes the context through its path id, so one that could not
+    // be closed (blank, `.`/`..`, a surrogate) is not bound either.
+    pathSegment(contextId, 'interpreter context id')
     if (typeof language !== 'string' || language === '') throw badRequest('interpreter context language must be a non-empty string')
     const queue = this.queueFor(contextId)
     return new InterpreterContext(

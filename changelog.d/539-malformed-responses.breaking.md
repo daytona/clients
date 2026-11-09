@@ -27,7 +27,10 @@ project budget's `monthly_limit_cents`, `period_start_date`, `created_at` and
 `updated_at`) must be present, while an explicit `null` stays valid. A
 sandbox's `lifecycle_policy` is checked field by field in TypeScript as
 Python's model checks it: integer `timeout_seconds` / `idle_expiry_seconds`,
-string actions (an unknown one is kept), string deadlines and activity source
-(TypeScript read a malformed field as absent). A create or fork response is
-the exception: once its `id` came back the sandbox exists, so the call returns
-the handle (see the `create*()` and `fork()` entry).
+string actions (an unknown one is kept), a string activity source, and
+deadlines that are RFC 3339 timestamps (TypeScript read a malformed field as
+absent; Python read a date, or a date-time without an offset, as UTC, and the
+idle-timer reset and policy update echoes read an unparseable activity clock
+as absent). A create or fork response is the exception: once its `id` came
+back the sandbox exists, so the call returns the handle (see the `create*()`
+and `fork()` entry).
