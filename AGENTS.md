@@ -581,7 +581,10 @@ skipping exist only in the TypeScript tool).
   after the headers. Callers may bound a body themselves: Python's build-log
   discovery (`_discover`) and one-shot read (`read_build_logs`) wrap their
   body read in `anyio.move_on_after` with a deadline from their timeout. A
-  transfer ignores any timeout it carries.
+  transfer's own timeout replaces the request timeout as its idle bound
+  (Python `_transfer_idle_seconds`, TS `transferRequest` / `fetch`'s
+  `timeout`), never as a total deadline; resolving a transfer's credential
+  (the bearer, a 401 refresh) is bounded by that idle bound too.
 - **TypeScript rejects unknown option keys at runtime** (the rule; applied so
   far to the client configuration and the toolbox, see below). A covered options object
   declares its known keys once, with

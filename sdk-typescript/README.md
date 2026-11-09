@@ -883,9 +883,15 @@ catch as broadly or narrowly as you need. `code` and `source` are open
 vocabularies: a code this release does not know is kept as sent and the error
 is the class for its HTTP status; the `codes` namespace lists the known codes
 per source (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`,
-`codes.isKnownErrorCode`, …). Constructors take the message plus an
-`ErrorOptions` object (`statusCode`, `code`, `source`, `traceId`, `cause`, …),
-so tests can build the errors your code handles.
+`codes.isKnownErrorCode`, …). The standard errors' constructors take the
+message plus an `ErrorOptions` object (`statusCode`, `code`, `source`,
+`traceId`, `cause`, …), so tests can build the errors your code handles. A few
+specialised errors build their own message from what identifies them instead:
+`SandboxTerminalStateError(sandboxId, state, { rawState?, reason? })`,
+`SandboxCreateTimeoutError(sandboxId)`,
+`SandboxCreateRequestTimeoutError(idempotencyKey)`,
+`SandboxCreateConnectionError(idempotencyKey, detail)`,
+`DockerWaitTimeoutError(status)` and `DockerNotReadyError(status)`.
 
 ```ts
 import { DaytonaError } from '@daytona/sdk'

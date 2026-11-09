@@ -965,9 +965,15 @@ Import the v2 errors by name rather than with `from daytona.v2 import *`:
 shadow Python's built-ins. Version-specific errors are imported from
 `daytona.v2` (or `daytona.v0`).
 
-The constructors take the message plus keyword-only fields (`status_code`,
-`code`, `source`, `trace_id`, …), so tests can build the errors your code
-handles.
+The standard errors' constructors take the message plus keyword-only fields
+(`status_code`, `code`, `source`, `trace_id`, …), so tests can build the
+errors your code handles. A few specialised errors build their own message
+from positional identity arguments instead:
+`SandboxTerminalStateError(sandbox_id, state, *, raw_state=None, reason=None)`,
+`SandboxCreateTimeoutError(sandbox_id)`,
+`SandboxCreateRequestTimeoutError(idempotency_key)`,
+`SandboxCreateConnectionError(idempotency_key, detail)`,
+`DockerWaitTimeoutError(status)` and `DockerNotReadyError(status)`.
 
 A request refused because your organization has hit one of its limits (for
 example the maximum number of concurrent sandboxes) raises
