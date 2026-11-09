@@ -701,7 +701,8 @@ skipping exist only in the TypeScript tool).
   dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
   frozen at run time at every depth with `deepFrozen` from `frozen.ts`
   (live handles, bytes and streams are not), timestamps as RFC 3339
-  strings), as are log pages and bulk-write results; a value a callback
+  strings, except the Unix-millisecond numbers `timestamp_ms` / `timestampMs`
+  of log frames and filesystem events), as are log pages and bulk-write results; a value a callback
   receives (a watch event) is frozen too,
   with every field the contract requires
   required: a response that breaks the contract in a field the SDK reads or
@@ -717,7 +718,14 @@ skipping exist only in the TypeScript tool).
   and does not decode (invalid JSON, invalid UTF-8, the non-standard `NaN` /
   `Infinity` constants) is that error at the transport, whether or not the
   call reads the body (TS reads such bodies as bytes and decodes them
-  itself, `decodeResponseBody` in `http.ts`).
+  itself, `decodeResponseBody` in `http.ts`). Only the media type
+  `application/json` is JSON (case-insensitive, parameters ignored:
+  Python `is_json_media_type`, TS `isJsonMediaType`), and a JSON value may
+  nest arrays and objects at most 600 deep (`JSON_MAX_DEPTH`, Python
+  `loads_json`, TS `jsonDepth.ts`): the stdlib decoder's own limit depends on
+  the Python version and the thread's stack, so the SDKs set one.
+  `.` and `..` are no path ids: every toolbox id or name in a request path
+  goes through Python `toolbox_path_id` / TS `toolboxPathId`.
 - **Output is channel-filtered.** `stdout`/`stderr` come from their frame
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are

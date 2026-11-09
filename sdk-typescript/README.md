@@ -689,7 +689,7 @@ rest of the batch is written.
 `readBytes()`, `readText()`, `readMany()` and the computer-use recording
 `download()` hold the whole response in memory: they take
 `{ maxResponseBytes }` to replace the client's cap for one call (`0` = no
-limit). For large files, or content from a sandbox you don't trust, use `downloadFile()`, which streams to disk
+limit; `undefined` or `null` keeps the client's cap). For large files, or content from a sandbox you don't trust, use `downloadFile()`, which streams to disk
 with progress and cancellation (for a recording, pass its `filePath`, not its
 id). `downloadFile()` is Node.js-only (a browser build throws
 `NotSupportedError`); in a browser, the in-memory reads and a
@@ -759,7 +759,7 @@ exported from `@daytona/sdk/v2`) with its requests.
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
 `region`; any of `format`, `quality` or `scale` returns a compressed image.
-`a11y.tree()` returns at most 256 levels below the root (`maxDepth`, an
+`a11y.tree({ scope: 'focused' })` returns at most 256 levels below the root (`maxDepth`, an
 integer from 0 to 256, default 256); a deeper UI comes back cut at that depth
 with `truncated` set.
 

@@ -14,9 +14,10 @@ too); a callback (or the exit callback) can stop its own watch and wait for
 its exit without waiting for itself, also from a task it started (Python
 deadlocked on `create_task`, `gather` and, on 3.10 and 3.11, `wait_for`); with
 the synchronous Python client that includes a plain callback calling its own
-watch's `stop()`, while calling another watch's `stop()` / `wait_for_exit()`
-raises a `DaytonaError`. The exit callback runs only for a watch `watch_dir()`
-/ `watchDir()` returned, exactly once: a failure before the watch starts (a
+watch's `stop()`, and a task it started doing so after the callback returned,
+while calling another watch's `stop()` / `wait_for_exit()` raises a
+`DaytonaError`. The exit callback runs only for a watch `watch_dir()` /
+`watchDir()` returned, exactly once: a failure before the watch starts (a
 refused connection, an HTTP error, a stream that ends or breaks before
 `start`, a cancellation) is raised from that call and never calls it
 (TypeScript called it for these, Python for a stream that broke before

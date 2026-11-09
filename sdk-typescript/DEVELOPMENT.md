@@ -186,9 +186,12 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
   used. A request-timeout delay goes through `boundedTimerDelay` (above
   `MAX_TIMER_DELAY_MS` means no bound); the events hub instead clamps its
   timer delays to `MAX_TIMER_DELAY_MS` (the reconcile interval to that less
-  its 10 % jitter), and Python clamps the same way. The toolbox converts its
-  per-call durations with `secondsToMs` (`ProcessWire.ts`) on the request
-  timeout's rule (above the maximum means no limit). Per-call options of other
+  its 10 % jitter), and Python clamps the same way. The toolbox converts
+  process and interpreter caller budgets with `secondsToMs` (`ProcessWire.ts`)
+  on the request timeout's rule (above the maximum means no limit); the kill
+  escalation and the keyboard typing delay go through `exactMs`, which sends a
+  positive sub-millisecond value as 1 ms and refuses one above 2^53 − 1 ms
+  (an execution timeout above the timer maximum is no limit, else `exactMs`). Per-call options of other
   areas keep their own validation until their area moves to seconds.
 - A nested options object the SDK keeps (the root's `events`) is copied with
   `snapshotOptions`, so later changes to the caller's object do not reach the

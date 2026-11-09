@@ -55,13 +55,15 @@ by 400 zeros, which TypeScript reads as `Infinity`, and raised a raw
 now refuses it naming the field, "must be an integer" / "must be a number", in
 process records, log frames and stream events, watch events, file info, git,
 LSP and computer-use results; integers above 2^53 that a double carries stay
-accepted), and the interpreter session responses for the fields they read
-(`id`, `kernel`; a missing or empty `id` names a context id the caller chose,
-which may have been created), and `glob()` accepts only the API's `{ files }`
-response. A process log stream or watch skips an event it does not know
-(whatever its data) and raises the error for a known event whose data is not
-JSON; Python ended the stream with a `JSONDecodeError`. `mkdir()` defaults to
-mode `"0755"` in both SDKs. TypeScript `readText()` decodes strictly as UTF-8
-and keeps a leading byte-order mark, like Python; `WriteFileOptions.mode` is
-removed (use `chmod()`), as are the aliases `Match`, `SearchFilesResponse`,
+accepted, except a process record's `timeoutMs`, which must be an integer up
+to 2^53 - 1 so its seconds are exact), and the interpreter session responses
+for the fields they read (`id`, `kernel`; a missing or empty `id` names a
+context id the caller chose, which may have been created), and `glob()`
+accepts only the API's `{ files }` response. A process log stream or watch
+skips an event it does not know (whatever its data) and raises the error for a
+known event whose data is not JSON; Python ended the stream with a
+`JSONDecodeError`. `mkdir()` defaults to mode `"0755"` in both SDKs.
+TypeScript `readText()` decodes strictly as UTF-8 and keeps a leading
+byte-order mark, like Python; `WriteFileOptions.mode` is removed (use
+`chmod()`), as are the aliases `Match`, `SearchFilesResponse`,
 `FilePermissionsParams` and `ListBranchResponse`.

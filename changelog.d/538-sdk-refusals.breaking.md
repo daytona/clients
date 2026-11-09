@@ -10,4 +10,8 @@ other than `'global'` / `'local'`, and a `delete_context()` /
 included). TypeScript also refuses a `git.clone()` `insecureSkipTls` that is
 not a boolean and a `pty.start()` / `attach()` command that is not a string
 (omitted still starts the default shell); Python refuses a `pty.start()`
-`terminal` that is not a `TerminalSize`.
+`terminal` that is not a `TerminalSize`. Both SDKs refuse `.` or `..` as a
+process, session or interpreter context id, a computer-use process name or a
+recording id ("process id must not be '.' or '..'"), which URL resolution
+would route elsewhere, and terminal `cols` / `rows` (on `pty.start()` and
+`resize()`) that are not integers from 1 to 2147483647.
