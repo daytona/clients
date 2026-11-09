@@ -11,9 +11,10 @@
 
 import type { AxiosInstance } from 'axios'
 import { strictUriEncode } from './http.js'
+import { badRequest } from './options.js'
 import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
-import { BadRequestError, ConnectionError, DaytonaError, NotSupportedError, ServiceUnavailableError, TimeoutError } from './errors/DaytonaError.js'
+import { BadRequestError, ClientTimeoutError, ConnectionError, DaytonaError, NotSupportedError, ServiceUnavailableError, TransferCancelledError } from './errors/DaytonaError.js'
 
 /** A build-context tar: its bytes, a `Blob`, or (Node.js) the path of a `.tar` file. */
 export type BuildContext = Uint8Array | Blob | string
@@ -34,10 +35,6 @@ export const contextUploadRuntime = {
   sleep: (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms)),
   // The API reads the whole stored archive back (up to 1 GiB) before it answers.
   completeTimeoutMs: 10 * 60 * 1000,
-}
-
-function badRequest(message: string): BadRequestError {
-  return new BadRequestError(message, 400, 'BAD_REQUEST', 'SDK')
 }
 
 function isNode(): boolean {
@@ -99,7 +96,7 @@ async function fileSource(path: string): Promise<ContextSource> {
           const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, offset + sent)
           // A short read means the file shrank; the request fails and putPart
           // reports it as a changed context.
-          if (bytesRead === 0) return controller.error(new Error('short read'))
+          if (bytesRead === 0) return controller.error(badRequest('build context changed while it was being uploaded'))
           controller.enqueue(chunk.subarray(0, bytesRead))
           sent += bytesRead
           if (sent === length) controller.close()
@@ -139,7 +136,7 @@ async function sourceOf(context: BuildContext): Promise<ContextSource> {
     if (typeof Blob !== 'undefined' && context instanceof Blob) return blobSource(context)
     throw new TypeError('context must be the bytes of a tar archive, a Blob, or the path of a tar file')
   }
-  if (!contextUploadRuntime.isNode()) throw new NotSupportedError('a build context path is only supported in Node.js; pass its bytes or a Blob', 501, 'NOT_IMPLEMENTED', 'SDK')
+  if (!contextUploadRuntime.isNode()) throw new NotSupportedError('a build context path is only supported in Node.js; pass its bytes or a Blob', { statusCode: 501, code: 'NOT_IMPLEMENTED', source: 'SDK' })
   return fileSource(context)
 }
 
@@ -167,7 +164,7 @@ async function sha256Hex(source: ContextSource): Promise<string> {
 
 async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart, signal: AbortSignal): Promise<void> {
   const changed = (): BadRequestError => badRequest('build context changed while it was being uploaded')
-  const cancelled = (): DaytonaError => new DaytonaError('build context upload cancelled', undefined, undefined, 'SDK')
+  const cancelled = (): TransferCancelledError => new TransferCancelledError('build context upload cancelled')
   let status: number | undefined
   for (let attempt = 0; attempt < PART_ATTEMPTS; attempt++) {
     if (signal.aborted) throw cancelled()
@@ -195,8 +192,8 @@ async function putPart(source: ContextSource, offset: number, part: api.BuildCon
     }
     if (attempt + 1 < PART_ATTEMPTS) await contextUploadRuntime.sleep(500 * 2 ** attempt)
   }
-  if (status === undefined) throw new ConnectionError(`build context part ${part.part_number} could not reach storage`, undefined, undefined, 'SDK')
-  throw new ServiceUnavailableError(`storage did not accept build context part ${part.part_number} (HTTP ${status})`, 503, 'SERVICE_UNAVAILABLE', 'SDK')
+  if (status === undefined) throw new ConnectionError(`build context part ${part.part_number} could not reach storage`)
+  throw new ServiceUnavailableError(`storage did not accept build context part ${part.part_number} (HTTP ${status})`, { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'SDK' })
 }
 
 /** Upload every part, at most `PART_CONCURRENCY` at a time; the first failure aborts the rest and is thrown. */
@@ -209,7 +206,7 @@ async function putParts(source: ContextSource, parts: readonly api.BuildContextU
     offsets.push(total)
     total += part.bytes
   })
-  if (!ordered || total !== source.size) throw new DaytonaError('build context upload parts do not cover the archive', undefined, undefined, 'SDK')
+  if (!ordered || total !== source.size) throw badRequest('build context upload parts do not cover the archive')
   const abort = new AbortController()
   let failure: { readonly error: unknown } | undefined
   let next = 0
@@ -231,7 +228,7 @@ async function putParts(source: ContextSource, parts: readonly api.BuildContextU
 }
 
 function retryableComplete(error: DaytonaError): boolean {
-  if (error instanceof TimeoutError || error instanceof ConnectionError) return true
+  if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return true
   return error.statusCode !== undefined && error.statusCode >= 500 && error.statusCode !== 501
 }
 

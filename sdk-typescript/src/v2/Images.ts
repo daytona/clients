@@ -117,7 +117,7 @@ export class ImagesService {
   public async buildFromContext(context: BuildContext, options: BuildImageOptions & { readonly dockerfile?: string } = {}): Promise<Image> {
     // Checked before the upload: the API refuses the pair only at the build.
     if (options.name !== undefined && options.idleExpirySeconds !== undefined) {
-      throw new BadRequestError('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds', 400, 'BAD_REQUEST', 'SDK')
+      throw badRequest('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds')
     }
     const upload = await uploadBuildContext(this.http, context, { dockerfile: options.dockerfile ?? 'Dockerfile', region: options.region })
     const request: api.CreateImageRequest = {

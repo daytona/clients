@@ -197,7 +197,7 @@ it.each([
 ])('refuses parts %s before uploading any', async (_, rewrite) => {
   rewriteParts = rewrite
   const error = await service().buildFromContext(archive(10_000)).catch((caught: unknown) => caught)
-  expect(error).toBeInstanceOf(DaytonaError)
+  expect(error).toBeInstanceOf(BadRequestError)
   expect(String(error)).toContain('do not cover the archive')
   expect(puts()).toHaveLength(0)
   expect(completes()).toHaveLength(0)
@@ -372,7 +372,7 @@ it('writes no part URL to the console or the standard streams', async () => {
 
 it('refuses a name with an idle expiry before any request', async () => {
   await expect(service().buildFromContext(archive(), { name: 'web', idleExpirySeconds: 60 })).rejects.toThrow(
-    new BadRequestError('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds', 400, 'BAD_REQUEST', 'SDK'),
+    new BadRequestError('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }),
   )
   expect(seen).toEqual([])
 })
