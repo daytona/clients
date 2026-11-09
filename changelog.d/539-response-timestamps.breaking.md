@@ -6,6 +6,7 @@ as TypeScript already did; Python's generated models read a number as a Unix
 time. A build-log state event whose `deadline_at` is not a string is the
 build-log protocol error (`BUILD_LOG_PROTOCOL_ERROR`), as every malformed
 build-log event is, in both SDKs. A create response's
-`access_token_expires_at` that is not a timestamp is not refused but read as
-absent, as every optional create-response field is once the sandbox exists:
-the token is then used until a 401.
+`access_token_expires_at` that is not an RFC 3339 date-time with an offset
+(`Z` or `±hh:mm`) is not refused but read as absent, by the same rule in both
+SDKs, as every optional create-response field is once the sandbox exists: the
+token is then used until a 401.

@@ -20,7 +20,6 @@ import type { PreparedSandboxCreate } from './clientCreateRequests.js'
 import type { SandboxClientContext } from './clientSandboxes.js'
 import type { CreateFromBuildOptions, CreateSandboxOptions, CreateSandboxResponse } from './types.js'
 import { WAIT_READ_SLACK_MS } from './ProcessWire.js'
-import { rfc3339EpochMs } from './sandboxAuth.js'
 
 /** @internal */
 export async function createSandbox(context: SandboxClientContext, request: PreparedSandboxCreate): Promise<Sandbox> {
@@ -75,7 +74,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   const connectOptions: SandboxConnectOptionsFromCreate = {
     accessToken: token !== undefined && isSendableToken(token) ? token : undefined,
     accessTokenFromCreate: true,
-    accessTokenExpiresAt: rfc3339EpochMs(expiry) === undefined ? undefined : expiry,
+    accessTokenExpiresAt: expiry !== undefined && isRfc3339Timestamp(expiry) ? expiry : undefined,
     autoDelete: metadata.autoDelete,
   }
   // The handle holds only what the response carries, plus an `img_` / `snap_`
@@ -110,6 +109,25 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return sandbox
     throw error
   }
+}
+
+/**
+ * Whether a string is an RFC 3339 date-time with an offset (`Z` or `±hh:mm`)
+ * and real calendar and clock values (no leap second), as Python's
+ * `_rfc3339_timestamp` reads it; `Date.parse` would also take a bare date or
+ * a time without an offset.
+ */
+function isRfc3339Timestamp(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|[+-](\d{2}):(\d{2}))$/.exec(value)
+  if (match === null) return false
+  const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number)
+  if (match[7] !== undefined && (Number(match[7]) > 23 || Number(match[8]) > 59)) return false
+  if (year < 1) return false
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  date.setUTCHours(hour, minute, second)
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    && date.getUTCHours() === hour && date.getUTCMinutes() === minute && date.getUTCSeconds() === second
 }
 
 /** Whether a token can be sent as a bearer header: non-empty printable ASCII with no leading or trailing space. */

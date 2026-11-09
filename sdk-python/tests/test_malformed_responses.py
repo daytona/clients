@@ -913,6 +913,14 @@ async def test_a_create_response_with_mistyped_optional_fields_returns_the_handl
         ("tok\n", "2030-01-01T00:00:00Z", False, True),
         ("tok", 5, True, False),
         ("tok", "not a date", True, False),
+        # One RFC 3339 rule in both SDKs: date, time and an offset, real values.
+        ("tok", "2030", True, False),
+        ("tok", "2030-01-01", True, False),
+        ("tok", "2030-01-01T00:00:00", True, False),
+        ("tok", "2030-02-30T00:00:00Z", True, False),
+        ("tok", "2030-01-01T00:00:60Z", True, False),
+        ("tok", "2030-01-01T00:00:00+24:00", True, False),
+        ("tok", "2030-01-01T02:00:00+02:00", True, True),
         ("tok", "2030-01-01T00:00:00Z", True, True),
     ],
 )
