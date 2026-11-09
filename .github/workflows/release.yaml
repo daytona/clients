@@ -24,7 +24,46 @@ env:
   CLI_BINARY_NAME: ${{ github.ref == 'refs/heads/release/v0' && vars.DAYTONA_V0_CUTOVER == 'true' && 'daytona-v0' || 'daytona' }}
 
 jobs:
+  # Off the environment, so its summary is on the run page while `release`
+  # waits for approval.
+  plan:
+    name: Show the plan
+    if: github.repository == 'daytona/clients'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Show the inputs and what approval will run
+        env:
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          requested="**@${TRIGGERING_ACTOR}**"
+          [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
+          {
+            echo "## Release plan — \`${VERSION}\`"
+            echo
+            echo "Requested by ${requested} from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA}); the release is cut from this commit."
+            echo
+            echo "| Input | Value |"
+            echo "|---|---|"
+            echo "| \`version\` | \`${VERSION}\` |"
+            echo
+            echo "After approval of the \`release\` environment, \`release\`:"
+            echo
+            echo "1. validates \`${VERSION}\` (vX.Y.Z[-suffix]; on a release/vN branch, only vN.x) — this plan does not check it, a refused version fails here before anything is tagged;"
+            echo "2. pushes the Go module tags \`api-client-go/${VERSION}\`, \`toolbox-api-client-go/${VERSION}\`, \`sdk-go/${VERSION}\` (existing ones are skipped);"
+            echo "3. creates the GitHub Release and tag \`${VERSION}\` with \`nx release\`$([[ "$GITHUB_REF" == refs/heads/release/* ]] && echo ', then re-pins **Latest** to the highest stable release');"
+            echo "4. builds the CLI as \`${CLI_BINARY_NAME}-<os>-<arch>\` and uploads it to the release$([ "$CLI_BINARY_NAME" = daytona-v0 ] && echo " (plus \`daytona-<os>-<arch>\` copies while no stable 2.x release exists)"), then the SDK docs;"
+            echo "5. if \`go work sync\` changes anything, opens PR \`sync-gosum-${VERSION}\` into \`${BASE_BRANCH}\`."
+            echo
+            echo "\`attest_cli\` then attests the uploaded CLI binaries. No SDK is published to a registry and the Homebrew tap is not touched (that is SDK and CLI Publish)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   release:
+    needs: plan
     if: github.repository == 'daytona/clients'
     runs-on: blacksmith-16vcpu-ubuntu-2404
     # GITHUBBOT_TOKEN lives only in the `release` environment; the run waits
