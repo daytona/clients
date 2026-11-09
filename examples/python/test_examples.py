@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import itertools
 import re
 import sys
 from collections.abc import Callable, Iterator, Mapping
@@ -30,7 +31,7 @@ import pytest
 EXAMPLES = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(EXAMPLES / "python"), str(EXAMPLES)]
 
-from _common import RUN
+from _common import IMAGE, IMAGE_NAME, RUN, image_name
 
 from daytona.v2 import (
     GitCommitResponse,
@@ -42,6 +43,7 @@ from daytona.v2 import (
     InterpreterProcess,
     InterpreterResult,
     ListResult,
+    NameConflictError,
     ProcessResult,
     ReplaceResult,
 )
@@ -69,6 +71,12 @@ class FakeWorld:
         self.sandboxes: list[MagicMock] = []
         self.deleted_sandboxes: list[str] = []
         self.deleted_volumes: list[str] = []
+        self.images: list[SimpleNamespace] = []
+        self.image_ids = itertools.count()
+        self.pull_conflict = False
+        self.pull_fails: Optional[str] = None
+        self.pulled_images: list[tuple[str, Optional[str]]] = []
+        self.deleted_images: list[str] = []
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
         self.build_logs_fail_after_output = False
@@ -107,12 +115,49 @@ class FakeWorld:
 
         images = create_autospec(ImageService, instance=True)
         images.follow_build_logs.side_effect = self._follow_build_logs
+        images.iter.side_effect = lambda *, name=None, **_: iter(
+            [i for i in list(self.images) if name is None or i.name == name]
+        )
+        images.get.side_effect = self._image_ready
+        images.pull.side_effect = self._image_pull
+        images.delete.side_effect = self._image_delete
         client.images = images
         return client
+
+    def add_image(
+        self, name: str, status: str, waits: tuple[str, ...] = ("ready",), error: Optional[str] = None
+    ) -> SimpleNamespace:
+        image = SimpleNamespace(
+            id=f"img-{next(self.image_ids)}", name=name, status=status, waits=list(waits), error=error
+        )
+        self.images.append(image)
+        return image
+
+    def _image_ready(self, image_id: str, **_: object) -> SimpleNamespace:
+        image = next(i for i in self.images if i.id == image_id)
+        if image.waits:
+            image.status = image.waits.pop(0)
+        return image
+
+    def _image_pull(self, image: str, *, name: Optional[str] = None, **_: object) -> SimpleNamespace:
+        self.pulled_images.append((image, name))
+        if self.pull_conflict and len(self.pulled_images) == 1:
+            self.add_image(name or image, "ready")  # Another run registered it first.
+            raise NameConflictError("image name already exists", status_code=409, code="NAME_CONFLICT")
+        if self.pull_fails:
+            return self.add_image(name or image, "pending", ("failed",), self.pull_fails)
+        return self.add_image(name or image, "ready")
+
+    def _image_delete(self, image_id: str) -> None:
+        self.deleted_images.append(image_id)
+        self.images = [i for i in self.images if i.id != image_id]
 
     def _create(self, image: Optional[str] = None, /, **kwargs: object) -> MagicMock:
         if image is not None and not isinstance(image, str):
             raise TypeError("create() accepts an image name or img_… id string")
+        # The API creates only from a project image, never a registry reference.
+        if not any(image in (i.name, i.id) and i.status == "ready" for i in self.images):
+            raise LookupError(f"image not found: {image}")
         env = kwargs.get("env") or {}
         assert isinstance(env, Mapping)
         secrets = kwargs.get("secrets") or []
@@ -264,6 +309,76 @@ def test_example_succeeds_against_the_sdk_surface(
     code, world = run_example(name, *overrides)
     assert code == 0
     assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+def test_registers_the_image_once_when_the_project_lacks_it(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    code, world = run_example("exec_command")
+    assert code == 0
+    assert world.pulled_images == [(IMAGE, IMAGE_NAME)]
+
+
+def test_names_distinct_image_references_apart() -> None:
+    assert re.fullmatch(r"examples-[a-z0-9-]+-[0-9a-f]{8}", IMAGE_NAME)
+    names = [image_name(ref) for ref in ("foo:bar", "foo/bar", "foo.bar")]
+    assert len(set(names)) == 3, names
+
+
+def test_fails_rather_than_hangs_on_a_registration_that_never_finishes(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    world = FakeWorld()
+    world.add_image(IMAGE_NAME, "pending", ())
+    with pytest.raises(RuntimeError, match=f"image {IMAGE_NAME} is still pending"):
+        run_example("exec_command", world=world)
+    assert world.sandboxes == []
+
+
+@pytest.mark.parametrize(
+    ("status", "waits"), [("ready", ()), ("pending", ("ready",)), ("pending", ("building", "ready"))]
+)
+def test_reuses_a_registered_image(
+    run_example: Callable[..., tuple[int, FakeWorld]], status: str, waits: tuple[str, ...]
+) -> None:
+    world = FakeWorld()
+    world.add_image(IMAGE_NAME, status, waits)
+    code, world = run_example("exec_command", world=world)
+    assert code == 0
+    assert world.pulled_images == []
+
+
+@pytest.mark.parametrize(("status", "waits"), [("failed", ()), ("pending", ("failed",))])
+def test_registers_again_over_a_failed_registration(
+    run_example: Callable[..., tuple[int, FakeWorld]], status: str, waits: tuple[str, ...]
+) -> None:
+    world = FakeWorld()
+    world.add_image(IMAGE_NAME, status, waits)
+    code, world = run_example("exec_command", world=world)
+    assert code == 0
+    assert world.deleted_images == ["img-0"]
+    assert len(world.pulled_images) == 1
+
+
+def test_reports_why_the_registration_failed_after_its_retries(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    world = FakeWorld()
+    world.pull_fails = "manifest unknown"
+    with pytest.raises(RuntimeError, match=f"as image {IMAGE_NAME}: manifest unknown$"):
+        run_example("exec_command", world=world)
+    assert len(world.pulled_images) == 3
+    assert world.sandboxes == []
+
+
+def test_uses_the_image_another_run_registered_first(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    world = FakeWorld()
+    world.pull_conflict = True
+    code, world = run_example("exec_command", world=world)
+    assert code == 0
+    assert len(world.pulled_images) == 1
 
 
 def test_build_logs_reads_the_failed_build_through_the_error_image_id(

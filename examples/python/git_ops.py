@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
+from _common import RUN, client, failed, info, passed, sandbox_image, section
 
 
 REPO_URL = "https://github.com/octocat/Hello-World"
@@ -21,7 +21,7 @@ REPO_URL = "https://github.com/octocat/Hello-World"
 
 def main() -> int:
     daytona = client()
-    sandbox = daytona.create(IMAGE, name=f"git-{RUN}", wait_seconds=200)
+    sandbox = daytona.create(sandbox_image(daytona), name=f"git-{RUN}", wait_seconds=200)
     info(f"created sandbox id={sandbox.id}")
 
     ok = True
