@@ -9,14 +9,14 @@
  *       npx tsx typescript/git/index.ts
  */
 
-import { assertStarted, client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
 
 // A small, stable public repo to clone shallowly.
 const REPO_URL = 'https://github.com/octocat/Hello-World'
 
 async function main(): Promise<boolean> {
   const daytona = client()
-  const sandbox = await daytona.create(IMAGE, { name: `git-${RUN}`, waitSeconds: 200 })
+  const sandbox = await daytona.create(await sandboxImage(daytona), { name: `git-${RUN}`, waitSeconds: 200 })
   info(`created sandbox id=${sandbox.id}`)
 
   let ok = true

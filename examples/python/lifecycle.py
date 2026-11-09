@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, require_started, section
+from _common import RUN, client, failed, info, passed, require_started, sandbox_image, section
 
 
 def main() -> int:
     daytona = client()
 
     section("create")
-    sandbox = daytona.create(IMAGE, name=f"life-{RUN}", wait_seconds=200)
+    sandbox = daytona.create(sandbox_image(daytona), name=f"life-{RUN}", wait_seconds=200)
     info(f"created id={sandbox.id} state={sandbox.state} cpu={sandbox.cpu} mem={sandbox.memory}")
 
     ok = True

@@ -14,12 +14,12 @@ from __future__ import annotations
 import json
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, require_started, section
+from _common import RUN, client, failed, info, passed, require_started, sandbox_image, section
 
 
 def main() -> int:
     daytona = client()
-    sandbox = daytona.create(IMAGE, name=f"files-{RUN}", wait_seconds=200)
+    sandbox = daytona.create(sandbox_image(daytona), name=f"files-{RUN}", wait_seconds=200)
     info(f"created sandbox id={sandbox.id}")
 
     ok = True

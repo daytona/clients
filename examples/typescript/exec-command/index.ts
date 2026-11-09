@@ -7,7 +7,7 @@
  */
 
 import type { Sandbox } from '@daytona/sdk/v2'
-import { assertStarted, client, section, info, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, fail, RUN, sandboxImage } from '../_common'
 
 /** Run a command and interpreter code; resolve to whether both succeeded. */
 async function basicExec(sandbox: Sandbox): Promise<boolean> {
@@ -34,7 +34,7 @@ async function basicExec(sandbox: Sandbox): Promise<boolean> {
 async function main() {
   const daytona = client()
 
-  const sandbox = await daytona.create(IMAGE, { name: `exec-${RUN}`, waitSeconds: 200 })
+  const sandbox = await daytona.create(await sandboxImage(daytona), { name: `exec-${RUN}`, waitSeconds: 200 })
   info(`created sandbox id=${sandbox.id} state=${sandbox.state}`)
 
   let ok = false

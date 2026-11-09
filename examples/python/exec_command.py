@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, require_started, section
+from _common import RUN, client, failed, info, require_started, sandbox_image, section
 
 from daytona.v2 import Sandbox
 
@@ -40,7 +40,7 @@ def basic_exec(sandbox: Sandbox) -> bool:
 def main() -> int:
     daytona = client()
 
-    sandbox = daytona.create(IMAGE, name=f"exec-{RUN}", wait_seconds=200)
+    sandbox = daytona.create(sandbox_image(daytona), name=f"exec-{RUN}", wait_seconds=200)
     info(f"created sandbox id={sandbox.id} state={sandbox.state}")
 
     try:
