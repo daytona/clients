@@ -206,6 +206,10 @@ func (p *directUploadPeer) postWithContext(t *testing.T, ctx context.Context, cl
 	t.Helper()
 	resp, err := postImageMultipart(ctx, client,
 		map[string]string{"name": "img", "cpu_arch": "arm64"}, "build/Dockerfile", contextPath)
+	// Close waits for handlers of requests the client gave up on, so the
+	// test reads the peer's state after they last wrote it.
+	p.api.Close()
+	p.storage.Close()
 	p.mu.Lock()
 	violations := append([]string(nil), p.violations...)
 	p.mu.Unlock()
