@@ -171,6 +171,7 @@ export class Daytona {
       jwtToken: this.config.jwtToken,
       projectId: this.config.projectId,
       requestTimeoutSeconds: this.config.requestTimeoutSeconds,
+      maxResponseBytes: this.config.maxResponseBytes,
       otelEnabled: this.config.otelEnabled,
       otelApi: this.config.otelApi,
       connectionPoolMaxsize: this.config.connectionPoolMaxsize,

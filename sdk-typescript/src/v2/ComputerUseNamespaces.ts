@@ -65,13 +65,21 @@ import type {
   ComputerUseStatusResponse,
 } from './ComputerUseTypes.js'
 import { strictUriEncode } from './http.js'
+import { maxResponseBytesOption } from './bodyLimit.js'
+
+/** Options of `recording.download()`; see its documentation. */
+export interface RecordingDownloadOptions {
+  readonly maxResponseBytes?: number | null
+}
+
+const RECORDING_DOWNLOAD_OPTION_KEYS = optionKeys<RecordingDownloadOptions>()({ maxResponseBytes: true })
 
 /** Internal: the toolbox calls the computer-use services make. */
 export interface ComputerUseTransport {
   get<T>(path: string, config?: { params?: Record<string, unknown> }): Promise<T>
   post<T>(path: string, body?: unknown): Promise<T>
   delete<T>(path: string): Promise<T>
-  getBytes(path: string): Promise<ArrayBuffer>
+  getBytes(path: string, options?: { readonly maxResponseBytes?: number }): Promise<ArrayBuffer>
 }
 
 const MOUSE_MOVE_KEYS = optionKeys<ComputerUseMouseMoveRequest>()({ x: true, y: true })
@@ -340,13 +348,20 @@ export class RecordingService {
   }
 
   /**
-   * Download a recording, holding the whole file in memory. For a large
-   * recording, or one from a sandbox you do not trust, download its
-   * `filePath` with `sandbox.fs.downloadFile()` (Node.js-only), which streams
-   * to disk with progress and cancellation.
+   * Download a recording, holding the whole file in memory. A file transfer:
+   * no total deadline, but it fails with `ClientTimeoutError` once no bytes
+   * move for the request timeout. `maxResponseBytes` replaces the client's cap
+   * on the body for this call (an integer, `0` = no limit; `undefined` /
+   * `null` keep the client's); a larger recording is refused with
+   * `PayloadTooLargeError`. For a large recording, or one from a sandbox you
+   * do not trust, download its `filePath` with `sandbox.fs.downloadFile()`
+   * (Node.js-only), which streams to disk with progress and cancellation.
    */
-  public async download(id: string): Promise<Uint8Array> {
-    return new Uint8Array(await this.transport.getBytes(`/computeruse/recordings/${strictUriEncode(id)}/download`))
+  public async download(id: string, options?: RecordingDownloadOptions): Promise<Uint8Array> {
+    assertKnownOptions('RecordingDownloadOptions', options, RECORDING_DOWNLOAD_OPTION_KEYS)
+    const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes)
+    const path = `/computeruse/recordings/${strictUriEncode(id)}/download`
+    return new Uint8Array(await this.transport.getBytes(path, maxResponseBytes === undefined ? undefined : { maxResponseBytes }))
   }
 
   public async delete(id: string): Promise<void> {

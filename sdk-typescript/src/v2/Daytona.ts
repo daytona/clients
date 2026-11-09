@@ -6,6 +6,7 @@
 import type { AxiosInstance } from 'axios'
 import { assertLifecycleClassSupport, createHttpClient, createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS, gbToMib, HttpTransport, lifecycleBody, runtimeUniqueId, sandboxState, strictUriEncode } from './http.js'
 import { assertKnownOptions, badRequest, boundedTimerDelay, optionalSeconds, snapshotOptions } from './options.js'
+import { DEFAULT_MAX_RESPONSE_BYTES, maxResponseBytesOption } from './bodyLimit.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { ClientTimeoutError, ConnectionError, DaytonaError, AuthenticationError, BadRequestError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, SandboxTerminalStateError, createDaytonaError } from './errors/DaytonaError.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
@@ -491,6 +492,7 @@ export class Daytona {
     const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : boundedTimerDelay(requestTimeoutSeconds * 1000)
     const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
     const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
+    const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', config.maxResponseBytes) ?? DEFAULT_MAX_RESPONSE_BYTES
     if (!apiKey && !jwtToken) {
       throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
     }
@@ -516,8 +518,10 @@ export class Daytona {
         requestTimeout: requestTimeoutMs,
         otelEnabled,
         otelApi: config.otelApi,
+        maxResponseBytes,
       }) : undefined,
       connectionPoolMaxsize: poolMaxsize,
+      maxResponseBytes,
       otelEnabled,
       otelApi: config.otelApi,
     }

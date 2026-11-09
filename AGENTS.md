@@ -489,17 +489,41 @@ skipping exist only in the TypeScript tool).
   (they pass their own `timeout`, or `0`; Python `/wait` paths and
   `unbounded_read`), streams (bounded only until their response headers
   arrive), and file transfers (Python `RequestSpec(transfer=True)` /
-  `transport.request(..., transfer=True)`, TS `timeout: 0` on axios or
-  `fetch(..., { transfer: true })`), which run until done or cancelled. A new
-  call of one of those kinds must opt out the same way in both SDKs. The
-  in-memory transfers (`read_bytes` / `readBytes`, `read_many` / `readMany`,
-  the recording download) buffer the whole response, with no size cap and no
-  deadline; for large files, or content from a sandbox you don't trust, use
-  `download_file` / `downloadFile`, which stream to disk with progress and
-  cancellation. TypeScript's `downloadFile` is Node.js-only (a browser build
-  throws `NotSupportedError`); in a browser, the in-memory reads and a
-  pre-signed download URL (`presignedDownloadUrl`), which the browser fetches
-  directly, are the options.
+  `transport.request(..., transfer=True)`, TS `transferRequest(...)` on axios
+  or `fetch(..., { transfer: true })`). A new call of one of those kinds must
+  opt out the same way in both SDKs. File transfers are exempt from the total
+  deadline but idle-bounded: one fails with `ClientTimeoutError` once no
+  bytes move for the request timeout (connecting, the request body, the
+  response headers, every body gap; `0` = no idle bound), and one that keeps
+  moving bytes is never cut. Python gives a transfer httpx's per-phase timeout
+  of that length (`_client_timeout`); TypeScript arms an idle watchdog
+  (`IdleWatchdog`), kicked by upload progress where the runtime reports it
+  (Node's http adapter, a streamed `fetch` body) and by every response chunk;
+  where it cannot see upload progress (the fetch adapter, a request body over
+  64 KiB) the bound starts at the response headers.
+  **Every response body the SDK buffers whole is capped**, through both
+  transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,
+  error bodies): `max_response_bytes` / `maxResponseBytes` on the client
+  config (default 1 GiB, `0` = no limit, an integer up to 2^53 − 1) and per
+  call on the in-memory reads (`read_bytes` / `readBytes`, `read_text` /
+  `readText`, `read_many` / `readMany` (the whole multipart body), the
+  recording download). A declared `Content-Length` over the cap is refused
+  before the body is read, otherwise reading stops once it passes, and the
+  connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
+  `readFetchText`). A refused success response is `PayloadTooLargeError`
+  (413, `PAYLOAD_TOO_LARGE`, `SDK`); an error response keeps its status's
+  error. TypeScript sends every axios request through `boundedAdapter`:
+  Node's http adapter where the runtime has it, else its own `fetchAdapter`
+  (never axios' xhr or fetch adapters, which buffer before checking in some
+  runtimes); the runtime suite's `capOk` check holds every runtime to it.
+  Streamed bodies (`download_file` / `downloadFile`, log, event and
+  build-log streams, watches) are never capped. For large files, or content
+  from a sandbox you don't trust, use `download_file` / `downloadFile`, which
+  stream to disk with progress and cancellation. TypeScript's `downloadFile`
+  is Node.js-only (a browser build throws `NotSupportedError`); in a
+  browser, the in-memory reads (under their cap) and a pre-signed download
+  URL (`presignedDownloadUrl`), which the browser fetches directly, are the
+  options.
   A per-call timeout (a wait's budget plus its slack, a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s

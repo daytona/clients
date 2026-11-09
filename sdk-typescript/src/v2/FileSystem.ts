@@ -17,11 +17,13 @@ import type {
 } from './types.js'
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
-import { encodeQuery, HttpTransport, isAbortError, sseMessages, strictUriEncode } from './http.js'
+import { encodeQuery, HttpTransport, isAbortError, maxContentLengthFor, sseMessages, strictUriEncode, transferRequest } from './http.js'
+import { maxResponseBytesOption } from './bodyLimit.js'
 import { BadRequestError, ConnectionError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
+import type { OptionKeys } from './options.js'
 import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str, strList } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
 
@@ -67,14 +69,40 @@ export interface WriteFileOptions {
   readonly atomic?: boolean
 }
 
-export interface ReadFileOptions {}
+/**
+ * Options of the in-memory file reads (`readBytes`, `readText`).
+ *
+ * `maxResponseBytes` replaces the client's cap on the response body for this
+ * call (an integer, `0` = no limit; `undefined` / `null` keep the client's).
+ * A body over it is refused with `PayloadTooLargeError` before it is read in
+ * full. For large files, or content from a sandbox you don't trust, use
+ * `downloadFile()` (Node.js), which streams to disk.
+ */
+export interface ReadFileOptions {
+  readonly maxResponseBytes?: number | null
+}
 
 export interface WriteManyOptions {
   /** Write each file to a temporary file and rename it into place. */
   readonly atomic?: boolean
 }
 
-export interface ReadManyOptions {}
+/**
+ * Options of `readMany`: `maxResponseBytes` caps the whole multipart body, as
+ * in {@link ReadFileOptions}.
+ */
+export interface ReadManyOptions {
+  readonly maxResponseBytes?: number | null
+}
+
+const READ_FILE_OPTION_KEYS = optionKeys<ReadFileOptions>()({ maxResponseBytes: true })
+const READ_MANY_OPTION_KEYS = optionKeys<ReadManyOptions>()({ maxResponseBytes: true })
+
+/** The validated per-call cap of an in-memory read, as axios config. */
+function readLimit(typeName: string, options: ReadFileOptions | ReadManyOptions | undefined, keys: OptionKeys<ReadFileOptions | ReadManyOptions>): { readonly maxContentLength?: number } {
+  assertKnownOptions(typeName, options, keys)
+  return maxContentLengthFor(maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes))
+}
 
 export interface ListFilesOptions {
   /** How many directory levels to list; the sandbox default is 1. */
@@ -108,9 +136,7 @@ export interface WatchDirOptions {
  */
 const WATCH_MAX_EVENTS_BEFORE_START = 4096
 const WRITE_FILE_OPTION_KEYS = optionKeys<WriteFileOptions>()({ atomic: true })
-const READ_FILE_OPTION_KEYS = optionKeys<ReadFileOptions>()({})
 const WRITE_MANY_OPTION_KEYS = optionKeys<WriteManyOptions>()({ atomic: true })
-const READ_MANY_OPTION_KEYS = optionKeys<ReadManyOptions>()({})
 const LIST_FILES_OPTION_KEYS = optionKeys<ListFilesOptions>()({ depth: true })
 const MKDIR_OPTION_KEYS = optionKeys<MkdirOptions>()({ mode: true })
 const REMOVE_OPTION_KEYS = optionKeys<RemoveOptions>()({ recursive: true })
@@ -254,32 +280,35 @@ export class FileSystemService {
   }
 
   /**
-   * Read a file as bytes, holding the whole file in memory. For large files,
-   * or content from a sandbox you do not trust, use `downloadFile()`, which
-   * streams to disk with progress and cancellation; it is Node.js-only, so in
-   * a browser the in-memory reads and `presignedDownloadUrl()` are the
+   * Read a file as bytes, holding the whole file in memory. A file transfer:
+   * no total deadline, but it fails with `ClientTimeoutError` once no bytes
+   * move for the request timeout. The body is capped by the client's
+   * `maxResponseBytes` or this call's (see {@link ReadFileOptions}). For large
+   * files, or content from a sandbox you do not trust, use `downloadFile()`,
+   * which streams to disk with progress and cancellation; it is Node.js-only,
+   * so in a browser the in-memory reads and `presignedDownloadUrl()` are the
    * options.
    */
-  public async readBytes(path: string, options: ReadFileOptions = {}): Promise<Uint8Array> {
-    assertKnownOptions('ReadFileOptions', options, READ_FILE_OPTION_KEYS)
+  public async readBytes(path: string, options?: ReadFileOptions): Promise<Uint8Array> {
+    const limit = readLimit('ReadFileOptions', options, READ_FILE_OPTION_KEYS)
     // Through the transport's wrapped method, never the raw axios instance:
     // the wrapper carries the per-sandbox token (minting/refreshing it) and
     // retries once on a 401 — the raw instance only has the static
     // construction-time credential.
-    // A file transfer: not bounded by the request timeout (`timeout: 0`).
-    const data = await this.transport.get<ArrayBuffer>('/files/download', {
+    const data = await this.transport.get<ArrayBuffer>('/files/download', transferRequest({
       params: { path },
       responseType: 'arraybuffer',
-      timeout: 0,
-    })
+      ...limit,
+    }))
     return new Uint8Array(data)
   }
 
   /**
-   * Read a UTF-8 text file. Decoding is strict (invalid UTF-8 throws a
-   * `TypeError`) and a leading byte-order mark is kept as `\uFEFF`.
+   * Read a UTF-8 text file into memory, with the bounds of {@link readBytes}.
+   * Decoding is strict (invalid UTF-8 throws a `TypeError`) and a leading
+   * byte-order mark is kept as `\uFEFF`.
    */
-  public async readText(path: string, options: ReadFileOptions = {}): Promise<string> {
+  public async readText(path: string, options?: ReadFileOptions): Promise<string> {
     return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await this.readBytes(path, options))
   }
 
@@ -293,7 +322,7 @@ export class FileSystemService {
     const ab = new ArrayBuffer(data.byteLength)
     new Uint8Array(ab).set(data)
     form.append('file', new Blob([ab]), path.split('/').pop() || 'file')
-    await this.transport.post('/files/upload', form, { params: uploadQuery(path, options.atomic), timeout: 0 })
+    await this.transport.post('/files/upload', form, transferRequest({ params: uploadQuery(path, options.atomic) }))
   }
 
   /** Write a UTF-8 text file. */
@@ -342,27 +371,28 @@ export class FileSystemService {
       form.append(`files[${index}].file`, new Blob([copyArrayBuffer(data)]), path.split('/').pop() || 'file')
     })
     const atomicParams = uploadManyQuery(options.atomic)
-    const data = await this.transport.post<toolbox.BulkUploadResponse>('/files/bulk-upload', form, atomicParams !== undefined ? { params: atomicParams, timeout: 0 } : { timeout: 0 })
+    const data = await this.transport.post<toolbox.BulkUploadResponse>('/files/bulk-upload', form, transferRequest(atomicParams !== undefined ? { params: atomicParams } : {}))
     return bulkWriteResultFromWire(data)
   }
 
   /**
-   * Read several files in one request; a missing file is an entry in
-   * `errors`, not a failure.
-   * The whole response is held in memory. For large files, or content from a
-   * sandbox you do not trust, use `downloadFile()`, which streams to disk with
-   * progress and cancellation; it is Node.js-only, so in a browser the
-   * in-memory reads and `presignedDownloadUrl()` are the options.
+   * Read several files in one multipart response; a missing file is an entry
+   * in `errors`, not a failure. The whole response is held in memory, with the
+   * bounds of {@link readBytes}; `maxResponseBytes` caps the whole multipart
+   * body. For large files, or content from a sandbox you do not trust, use
+   * `downloadFile()`, which streams to disk with progress and cancellation;
+   * it is Node.js-only, so in a browser the in-memory reads and
+   * `presignedDownloadUrl()` are the options.
    */
-  public async readMany(paths: readonly string[], options: ReadManyOptions = {}): Promise<BulkReadResult> {
-    assertKnownOptions('ReadManyOptions', options, READ_MANY_OPTION_KEYS)
+  public async readMany(paths: readonly string[], options?: ReadManyOptions): Promise<BulkReadResult> {
+    const limit = readLimit('ReadManyOptions', options, READ_MANY_OPTION_KEYS)
     // postRaw: the body carries per-path errors on non-2xx statuses, which
     // the parser interprets — but a 401 still throws into the transport's
     // one-retry mint path instead of being swallowed as a payload.
-    const response = await this.transport.postRaw<ArrayBuffer | Uint8Array>('/files/bulk-download', { paths }, {
+    const response = await this.transport.postRaw<ArrayBuffer | Uint8Array>('/files/bulk-download', { paths }, transferRequest({
       responseType: 'arraybuffer',
-      timeout: 0,
-    })
+      ...limit,
+    }))
     const body = toUint8Array(response.data)
     if (response.status !== 200) throw bulkReadHttpError(response.status, body)
     return parseBulkReadResult(body, contentTypeHeader(response.headers))

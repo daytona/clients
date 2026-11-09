@@ -130,7 +130,12 @@ Set `request_timeout=` **(seconds; default 60; `0`, or a value above 2,147,483.6
 24.8 days), means no limit)** to change
 the total time one ordinary request may take before it raises
 `ClientTimeoutError`. Waits and long polls use their own budget, streams are
-bounded only until their response arrives, and file transfers are not bounded.
+bounded only until their response arrives, and file transfers have no total
+limit but fail with `ClientTimeoutError` once no bytes move for that long.
+Set `max_response_bytes=` **(default 1 GiB; `0` means no limit)** to cap every
+response body the SDK holds in memory whole: a larger body raises
+`PayloadTooLargeError` before it is read in full (an error response keeps its
+status's error).
 Set `connection_pool_maxsize=` to cap both live and keep-alive HTTP connections,
 and `otel_enabled=True` to emit client spans when `daytona[otel]` is installed.
 The extra brings only `opentelemetry-api`; spans are exported only once your
@@ -732,8 +737,9 @@ synchronous SDK call, including another watch's methods, raises a
 `DaytonaError` (source `SDK`, no code), which ends the watch.
 
 `read_bytes()`, `read_text()`, `read_many()` and the computer-use recording
-`download()` hold the whole response in memory. For large files, or content
-from a sandbox you don't trust, use `download_file()`, which streams to disk
+`download()` hold the whole response in memory: they take
+`max_response_bytes=` to replace the client's cap for one call (`0` = no
+limit). For large files, or content from a sandbox you don't trust, use `download_file()`, which streams to disk
 with progress and cancellation (for a recording, pass its `file_path`, not its
 id).
 

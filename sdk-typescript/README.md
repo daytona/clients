@@ -100,7 +100,11 @@ effect on the client. A key the config does not define throws
 means no limit) is the total time one
 ordinary request may take before it throws `ClientTimeoutError`; waits and long
 polls use their own budget, streams are bounded only until their response
-arrives, and file transfers are not bounded.
+arrives, and file transfers have no total limit but throw `ClientTimeoutError`
+once no bytes move for that long. `maxResponseBytes` (default 1 GiB; `0` means
+no limit) caps every response body the SDK holds in memory whole: a larger
+body throws `PayloadTooLargeError` before it is read in full (an error response
+keeps its status's error).
 
 The root package exports a shared v0/v2 error hierarchy (`DaytonaError`,
 `DaytonaNotFoundError`, `DaytonaTimeoutError`, …). Catch those from
@@ -679,8 +683,9 @@ as failure messages naming the file and the atomic-rename limitation, while the
 rest of the batch is written.
 
 `readBytes()`, `readText()`, `readMany()` and the computer-use recording
-`download()` hold the whole response in memory. For large files, or content
-from a sandbox you don't trust, use `downloadFile()`, which streams to disk
+`download()` hold the whole response in memory: they take
+`{ maxResponseBytes }` to replace the client's cap for one call (`0` = no
+limit). For large files, or content from a sandbox you don't trust, use `downloadFile()`, which streams to disk
 with progress and cancellation (for a recording, pass its `filePath`, not its
 id). `downloadFile()` is Node.js-only (a browser build throws
 `NotSupportedError`); in a browser, the in-memory reads and a

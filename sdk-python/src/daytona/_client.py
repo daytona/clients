@@ -178,8 +178,11 @@ class DaytonaConfig:
     v0 snapshot create instead. Setting it still works and emits a
     ``DeprecationWarning``.
     ``request_timeout`` (seconds; default 60, ``0`` = no limit) is the total
-    time one ordinary v2 request may take; waits, streams and file transfers
-    are not cut by it. ``request_timeout``, ``connection_pool_maxsize`` and
+    time one ordinary v2 request may take; waits and streams are not cut by
+    it, and file transfers are bounded by it only while idle (no bytes moving
+    for that long). ``max_response_bytes`` (default 1 GiB, ``0`` = no limit)
+    caps every v2 response body the SDK holds in memory whole; the in-memory
+    file reads take it per call too. ``request_timeout``, ``connection_pool_maxsize`` and
     ``otel_enabled`` tune the v2 client's HTTP transport;
     ``connection_pool_maxsize`` and ``otel_enabled`` reach v0 too.
     ``shared_hub`` and ``events`` (``daytona.v2.SandboxEventsConfig``) configure
@@ -192,6 +195,7 @@ class DaytonaConfig:
     project_id: Optional[str] = field(default=None, kw_only=True)
     target: Optional[str] = field(default=None, kw_only=True)
     request_timeout: Optional[float] = field(default=None, kw_only=True)
+    max_response_bytes: Optional[int] = field(default=None, kw_only=True)
     connection_pool_maxsize: Optional[int] = field(default=None, kw_only=True)
     otel_enabled: Optional[bool] = field(default=None, kw_only=True)
     shared_hub: bool = field(default=True, kw_only=True)
@@ -306,6 +310,7 @@ def _v2_config(config: DaytonaConfig) -> _DaytonaConfigV2:
         jwt_token=config.jwt_token,
         project_id=config.project_id,
         request_timeout=config.request_timeout,
+        max_response_bytes=config.max_response_bytes,
         connection_pool_maxsize=config.connection_pool_maxsize,
         otel_enabled=config.otel_enabled,
         shared_hub=config.shared_hub,
@@ -326,6 +331,7 @@ ROOT_CONFIG_ROUTING: Final[dict[str, str]] = {
     "target": "v0",
     "project_id": "v2",
     "request_timeout": "v2",
+    "max_response_bytes": "v2",
     "connection_pool_maxsize": "both",
     "otel_enabled": "both",
     "shared_hub": "v2",

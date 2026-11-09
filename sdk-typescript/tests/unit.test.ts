@@ -4097,7 +4097,7 @@ describe('toolbox service request shaping', () => {
 
     expect(result).toEqual({ files: [{ path: '/tmp/a.txt', bytes: 3 }, { path: '/tmp/b.txt', bytes: 2 }], errors: ['file[2]: missing .path metadata'] })
     expect(transport.post.mock.calls[0]?.[0]).toBe('/files/bulk-upload')
-    expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 0 })
+    expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 0, daytona: { transfer: true } })
 
     const form = transport.post.mock.calls[0]?.[1]
     expect(form).toBeInstanceOf(FormData)
@@ -4140,8 +4140,8 @@ describe('toolbox service request shaping', () => {
     await expect(fs.writeMany({ '/tmp/a.txt': new Uint8Array([1, 2, 3]) }, { atomic: true }))
       .resolves.toStrictEqual({ files: [{ path: '/tmp/a.txt', bytes: 3 }], errors: [] })
 
-    expect(transport.post.mock.calls[0]?.[2]).toEqual({ params: { path: '/tmp/a.txt', atomic: true }, timeout: 0 })
-    expect(transport.post.mock.calls[1]?.[2]).toEqual({ params: { atomic: true }, timeout: 0 })
+    expect(transport.post.mock.calls[0]?.[2]).toEqual({ params: { path: '/tmp/a.txt', atomic: true }, timeout: 0, daytona: { transfer: true } })
+    expect(transport.post.mock.calls[1]?.[2]).toEqual({ params: { atomic: true }, timeout: 0, daytona: { transfer: true } })
   })
 
   it('streams uploadFile with progress callbacks and atomic query parameters', async () => {
@@ -4844,7 +4844,7 @@ describe('toolbox service request shaping', () => {
     expect(transport.postRaw.mock.calls[0]).toEqual([
       '/files/bulk-download',
       { paths: ['dir/ü.txt', '/nope.txt'] },
-      { responseType: 'arraybuffer', timeout: 0 },
+      { responseType: 'arraybuffer', timeout: 0, daytona: { transfer: true } },
     ])
     const downloaded = result.files['dir/ü.txt']
     expect(downloaded).toBeDefined()
@@ -6438,7 +6438,7 @@ describe('toolbox service request shaping', () => {
 
     expect(get).toHaveBeenCalledTimes(2)
     expect(get).toHaveBeenNthCalledWith(1, '/ok', undefined)
-    expect(get).toHaveBeenNthCalledWith(2, '/bytes', { responseType: 'arraybuffer', timeout: 0 })
+    expect(get).toHaveBeenNthCalledWith(2, '/bytes', { responseType: 'arraybuffer', timeout: 0, daytona: { transfer: true } })
   })
 
   it('omits PTY shellCommand for default-shell PTYs', async () => {
@@ -6570,7 +6570,7 @@ describe('toolbox service request shaping', () => {
     expect(transport.delete.mock.calls[0]?.[1]).toMatchObject({ params: { path: '/tmp/dir' } })
     expect(transport.delete.mock.calls[0]?.[1].params).not.toMatchObject({ recursive: true })
     await fs.writeText('/tmp/file', 'x')
-    expect(transport.post).toHaveBeenCalledWith('/files/upload', expect.any(FormData), { params: { path: '/tmp/file' }, timeout: 0 })
+    expect(transport.post).toHaveBeenCalledWith('/files/upload', expect.any(FormData), { params: { path: '/tmp/file' }, timeout: 0, daytona: { transfer: true } })
     await expect(fs.writeText('/tmp/file', 'x', { mode: '0644' } as unknown as WriteFileOptions)).rejects.toThrow('WriteFileOptions has no option `mode`')
     await fs.chmod('/tmp/file', { mode: '0644' })
     expect(transport.post).toHaveBeenCalledWith('/files/permissions', undefined, { params: { path: '/tmp/file', mode: '0644', owner: undefined, group: undefined } })
@@ -7149,7 +7149,7 @@ describe('toolbox service request shaping', () => {
     transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined).mockResolvedValueOnce([{ file: '/tmp/a', success: true, error: null }])
 
     await expect(fs.readText('/tmp/a')).resolves.toBe('hello')
-    expect(transport.get.mock.calls[0]).toEqual(['/files/download', { params: { path: '/tmp/a' }, responseType: 'arraybuffer', timeout: 0 }])
+    expect(transport.get.mock.calls[0]).toEqual(['/files/download', { params: { path: '/tmp/a' }, responseType: 'arraybuffer', timeout: 0, daytona: { transfer: true } }])
     await expect(fs.list('/tmp', { depth: 2 })).resolves.toStrictEqual({ items: [fileInfoWire('a')] })
     expect(transport.get.mock.calls[1]).toEqual(['/files', { params: { path: '/tmp', depth: 2 } }])
     await expect(fs.stat('/tmp/a')).resolves.toMatchObject({ path: '/tmp/a' })

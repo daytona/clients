@@ -12,6 +12,7 @@ import os
 import secrets
 import stat
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import (
     AsyncIterator,
@@ -29,6 +30,7 @@ from typing import (
 )
 from urllib.parse import quote
 
+from ._body_limit import validated_max_response_bytes
 from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
     RequestSpec,
@@ -320,23 +322,31 @@ class AsyncFileSystemService:
         self._transport = _transport
         self._file_url_signer = _file_url_signer
 
-    async def read_bytes(self, path: str) -> bytes:
+    async def read_bytes(self, path: str, *, max_response_bytes: Optional[int] = None) -> bytes:
         """Read a file as bytes, holding the whole file in memory.
 
-        For large files, or content from a sandbox you do not trust, use
-        :meth:`download_file`, which streams to disk with progress and
-        cancellation.
+        No total deadline (it fails only when no bytes move for the client's
+        ``request_timeout``). ``max_response_bytes`` replaces the client's cap
+        on the body for this call (``0`` = no limit); a larger body raises
+        ``PayloadTooLargeError`` before it is read in full. For large files, or
+        content from a sandbox you do not trust, use :meth:`download_file`,
+        which streams to disk with progress and cancellation.
         """
-        value = await self._transport.raw(file_download_spec(path, timeout=None))
-        return value
+        spec = file_download_spec(path, timeout=None)
+        if max_response_bytes is not None:
+            spec = replace(
+                spec,
+                max_response_bytes=validated_max_response_bytes("max_response_bytes", max_response_bytes),
+            )
+        return await self._transport.raw(spec)
 
-    async def read_text(self, path: str) -> str:
-        """Read a UTF-8 text file.
+    async def read_text(self, path: str, *, max_response_bytes: Optional[int] = None) -> str:
+        """Read a UTF-8 text file (see :meth:`read_bytes` for its bounds).
 
         Decoding is strict (invalid UTF-8 raises ``UnicodeDecodeError``) and a
         leading byte-order mark is kept as ``\\ufeff``.
         """
-        return (await self.read_bytes(path)).decode("utf-8")
+        return (await self.read_bytes(path, max_response_bytes=max_response_bytes)).decode("utf-8")
 
     async def write_bytes(self, path: str, content: bytes, *, atomic: bool = False) -> None:
         """Write bytes to a file, optionally via temp-file + rename."""
@@ -483,7 +493,9 @@ class AsyncFileSystemService:
         finally:
             await stream.close()
 
-    async def read_many(self, paths: Sequence[str]) -> BulkReadResult:
+    async def read_many(
+        self, paths: Sequence[str], *, max_response_bytes: Optional[int] = None
+    ) -> BulkReadResult:
         """Read multiple files, buffering each returned file in memory before returning.
 
         The whole response is held in memory. For large files, or content from a
@@ -491,13 +503,25 @@ class AsyncFileSystemService:
         with progress and cancellation.
 
         Non-200 responses raise the typed SDK error inside the transport;
-        only a 200 multipart body reaches the parser.
+        only a 200 multipart body reaches the parser. The limits are those of
+        :meth:`read_bytes`; ``max_response_bytes`` applies to the whole
+        multipart body.
         """
+        limit = (
+            None
+            if max_response_bytes is None
+            else validated_max_response_bytes("max_response_bytes", max_response_bytes)
+        )
         spec = bulk_download_spec(paths, timeout=None)
         request_kwargs = {"json": spec.json_body}
         if spec.timeout is not None:
             request_kwargs["timeout"] = spec.timeout
-        response = await self._transport.request(spec.method, spec.path, transfer=True, **request_kwargs)
+        if limit is None:
+            response = await self._transport.request(spec.method, spec.path, transfer=True, **request_kwargs)
+        else:
+            response = await self._transport.request(
+                spec.method, spec.path, transfer=True, max_response_bytes=limit, **request_kwargs
+            )
         return parse_bulk_read_result(response.content, content_type=response.headers.get("content-type"))
 
     async def list(self, path: str, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
