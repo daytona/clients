@@ -77,9 +77,7 @@ async def test_creation_sends_tag_only_when_given(
             assert_never(unreachable)
     # Then an absent tag stays absent for compatibility with older sandboxes.
     body = json.loads(route.calls.last.request.content)
-    assert ({"tag": body["tag"]} if "tag" in body else {}) == (
-        {} if tag is None else {"tag": tag}
-    )
+    assert ({"tag": body["tag"]} if "tag" in body else {}) == ({} if tag is None else {"tag": tag})
 
 
 @pytest.mark.anyio

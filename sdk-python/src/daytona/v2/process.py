@@ -695,7 +695,6 @@ class AsyncProcessService:
             page = dataclasses.replace(page, items=[item for item in page.items if item.tag == tag])
         return page
 
-
     async def kill_all(self, *, tag: str, timeout: Optional[float] = None) -> List[str]:
         """Kill every process with the tag and everything those processes started.
 
