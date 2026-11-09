@@ -1,0 +1,40 @@
+sdk-python/tests/test_watch_transport.py
+  s_9a337fd66d5341::t_58a78018399f24 150
+sdk-python/tests/test_process_tags.py
+  s_9a337fd66d5341::t_284023629d78d1 185
+sdk-typescript/tests/watch-transport.test.ts
+  s_9a337fd66d5341::t_58a78018399f24 115
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_9a337fd66d5341::t_0a522f15df598b 176-178
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_0a522f15df598b 12477-12489
+  s_9a337fd66d5341::t_3ea03ba3232079 12825-12848
+  s_9a337fd66d5341::t_58a78018399f24 12820
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_3ea03ba3232079 2928-2958
+  s_9a337fd66d5341::t_58a78018399f24 784
+sdk-python/src/daytona/v2/filesystem.py
+  s_9a337fd66d5341::t_58a78018399f24 118-130,771-772
+sdk-typescript/tests/process-tags.test.ts
+  s_9a337fd66d5341::t_284023629d78d1 50
+sdk-typescript/src/v2/FileSystem.ts
+  s_9a337fd66d5341::t_dbc15ec819365e 240
+  s_9a337fd66d5341::t_2532a3e7ea6568 241
+  s_9a337fd66d5341::t_58a78018399f24 225-239,242-243,611-612,614
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7f2b5f5dbb7b6ac9a52ca55d9b89668b968a5db",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
