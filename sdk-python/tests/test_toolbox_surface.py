@@ -781,7 +781,7 @@ async def test_a_watch_skips_unknown_events_with_non_json_data_and_rejects_a_bad
     fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
     seen: list[str] = []
     handle = await fs.watch_dir("/w", lambda event: seen.append(event.name))
-    stream.push("event: ping", "data: not json", "", "event: overflow", "data: nope", "", *_FS_A)
+    stream.push("event: ping", "data: not json", "", *_FS_A)
     stream.push("event: fs", "data: not json", "")
 
     error = await asyncio.wait_for(handle.wait_for_exit(), timeout=2)
@@ -2925,3 +2925,34 @@ def test_computer_use_int32_fields_are_range_checked(
         _computer_use_int32(kind, field, value)
     assert str(info.value) == f"expected {message}"
     assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+# Shared with the TypeScript SDK's unit.test.ts: an overflow event carries
+# {"dropped": <boolean>}; a malformed one ends the watch with BadRequestError,
+# whether or not an overflow callback is set.
+@pytest.mark.anyio
+@pytest.mark.parametrize("with_callback", [True, False])
+@pytest.mark.parametrize(
+    ("data", "detail"),
+    [
+        ("nope", "the data is not JSON"),
+        ("[]", "the data is not a JSON object"),
+        ("{}", "dropped is required"),
+        ('{"dropped":1}', "dropped must be a boolean"),
+        ('{"dropped":null}', "dropped is required"),
+    ],
+)
+async def test_a_malformed_overflow_event_ends_the_watch(data: str, detail: str, with_callback: bool) -> None:
+    stream = _WatchStream(["event: start", "data: {}", ""])
+    fs = AsyncFileSystemService(_WatchTransport(stream))  # type: ignore[arg-type]
+    overflows: list[bool] = []
+    handle = await fs.watch_dir(
+        "/w", lambda _event: None, on_overflow=(lambda: overflows.append(True)) if with_callback else None
+    )
+    stream.push("event: overflow", 'data: {"dropped":true}', "")
+    stream.push("event: overflow", f"data: {data}", "")
+
+    error = await asyncio.wait_for(handle.wait_for_exit(), timeout=2)
+    assert isinstance(error, BadRequestError)
+    assert str(error) == f"expected filesystem watch overflow event: {detail}"
+    assert overflows == ([True] if with_callback else [])

@@ -182,7 +182,7 @@ async def test_list_keeps_only_tagged_items_when_the_daemon_ignores_the_filter(
 # Shared with the TypeScript SDK's process-tags.test.ts: a tag is a safe
 # identifier ([A-Za-z0-9._-], 1-128 characters, not '.' or '..'), refused
 # before any request on every entry point that takes one.
-BAD_TAGS = ["", ".", "..", "a b", "a/b", "ü", "x" * 129, "tag\n"]
+BAD_TAGS = ["", ".", "..", "a b", "a/b", "ü", "x" * 129, "tag\n", "tag\r\n", "\ntag"]
 TAG_MESSAGE = "tag must be 1-128 of the characters A-Z, a-z, 0-9, '.', '_' and '-', and not '.' or '..'"
 
 

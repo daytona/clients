@@ -147,7 +147,7 @@ class _Handler(BaseHTTPRequestHandler):
             # told about.
             kind, count = case.split("-")
             events = (
-                "event: overflow\ndata: {}\n\n" * int(count)
+                'event: overflow\ndata: {"dropped":true}\n\n' * int(count)
                 if kind == "oflood"
                 else "".join(
                     f"event: fs\ndata: {json.dumps({'type': 'create', 'name': f'e{index}', 'isDir': False, 'timestamp': 1})}\n\n"

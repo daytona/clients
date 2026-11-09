@@ -112,7 +112,7 @@ describe('watch stream drops', () => {
         // N fs (oflood: overflow) events before start, then start; the stream
         // stays open until the client closes it, which the test is told about.
         const events = Array.from({ length: Number(flood[2]) }, (_, index) => flood[1] === 'o'
-          ? 'event: overflow\ndata: {}\n\n'
+          ? 'event: overflow\ndata: {"dropped":true}\n\n'
           : `event: fs\ndata: ${JSON.stringify({ type: 'create', name: `e${index}`, isDir: false, timestamp: 1 })}\n\n`)
         response.writeHead(200, { 'Content-Type': 'text/event-stream' })
         response.write(`${events.join('')}event: start\ndata: {}\n\n`)

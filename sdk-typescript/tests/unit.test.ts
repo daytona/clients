@@ -12474,6 +12474,19 @@ describe('toolbox surface', () => {
     expect(Object.keys(mapComputerUseProcessStatusMap(hidden))).toEqual(['x'])
   })
 
+  it('refuses an enumerable symbol key on a nested computer-use process status record', () => {
+    const key = Symbol('extra')
+    const status = {
+      Name: 'x', Running: true, Priority: 1, AutoRestart: false, Failed: false, RestartAttempts: 0, RestartBackoffMs: 0, Status: 'ok',
+    }
+    expect(() => mapComputerUseProcessStatusMap({ x: { ...status, [key]: 1 } })).toThrow(expect.objectContaining({
+      constructor: BadRequestError, message: 'expected computer-use process status: unexpected key Symbol(extra)', code: 'BAD_REQUEST', source: 'SDK',
+    }))
+    const hidden: Record<string, unknown> = { ...status }
+    Object.defineProperty(hidden, key, { value: 1, enumerable: false })
+    expect(mapComputerUseProcessStatusMap({ x: hidden }).x).toMatchObject({ running: true })
+  })
+
   it('keeps an unknown process-status key named __proto__ as an own, frozen extraFields property', async () => {
     const transport = transportStub()
     const status = JSON.parse('{"Running":true,"Priority":1,"AutoRestart":true,"Pid":5,"Failed":false,"RestartAttempts":0,"RestartBackoffMs":1500,"Status":"RUNNING","__proto__":{"x":1}}') as unknown
@@ -12804,9 +12817,33 @@ describe('toolbox surface', () => {
     })
     stream.push('event: start\ndata: {}\n\n')
     const handle = await pending
-    stream.push('event: overflow\ndata: {}\n\n')
+    stream.push('event: overflow\ndata: {"dropped":true}\n\n')
     await expect(handle.waitForExit()).resolves.toMatchObject({ message: 'overflow boom' })
     await expect(handle.stop()).resolves.toBeUndefined()
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: an overflow event
+  // carries {"dropped": <boolean>}; a malformed one ends the watch with
+  // BadRequestError, whether or not an overflow callback is set.
+  it.each([
+    ['nope', 'the data is not JSON'],
+    ['[]', 'the data is not a JSON object'],
+    ['{}', 'dropped is required'],
+    ['{"dropped":1}', 'dropped must be a boolean'],
+    ['{"dropped":null}', 'dropped is required'],
+  ].flatMap(([data, detail]) => [[data, detail, true], [data, detail, false]] as const))('ends the watch on a malformed overflow event %p (%s, callback: %p)', async (data, detail, withCallback) => {
+    const transport = transportStub()
+    const stream = watchStream(transport)
+    const overflows: boolean[] = []
+    const pending = new FileSystemService(INTERNAL, transport.object).watchDir('/w', () => undefined, withCallback ? { onOverflow: () => { overflows.push(true) } } : {})
+    stream.push('event: start\ndata: {}\n\n')
+    const handle = await pending
+    stream.push('event: overflow\ndata: {"dropped":true}\n\n')
+    stream.push(`event: overflow\ndata: ${data}\n\n`)
+    const error = await handle.waitForExit()
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ message: `expected filesystem watch overflow event: ${detail}`, code: 'BAD_REQUEST', source: 'SDK' })
+    expect(overflows).toEqual(withCallback ? [true] : [])
   })
 
   it('returns from an external stop only after the running callback finished', async () => {

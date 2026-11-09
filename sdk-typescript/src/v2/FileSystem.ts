@@ -222,6 +222,25 @@ function parseFilesystemEvent(data: string): FilesystemEvent {
   })
 }
 
+const OVERFLOW_EVENT = 'filesystem watch overflow event'
+
+/**
+ * An `overflow` event carries `{ "dropped": <boolean> }`; anything else is the
+ * malformed-response error, whether or not a callback handles it (as the
+ * Python SDK's `_check_overflow_event`).
+ */
+function checkOverflowEvent(data: string): void {
+  let parsed: unknown
+  try {
+    parsed = data ? JSON.parse(data) : {}
+  } catch {
+    throw malformedResponse(`${OVERFLOW_EVENT}: the data is not JSON`)
+  }
+  if (nestedDeeperThan(parsed)) throw malformedResponse(`${OVERFLOW_EVENT}: the JSON is nested too deeply`)
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw malformedResponse(`${OVERFLOW_EVENT}: the data is not a JSON object`)
+  bool(record(parsed, OVERFLOW_EVENT), 'dropped', OVERFLOW_EVENT)
+}
+
 export interface PresignedUrlOptions {
   /** Whole seconds, 1 to {@link SIGNED_FILE_MAX_TTL_SECONDS}; default 3600. */
   readonly expiresInSeconds?: number
@@ -589,9 +608,10 @@ export class FileSystemService {
             if (message.event === 'fs') {
               const event = parseFilesystemEvent(message.data)
               callback = () => onEvent(event)
-            } else if (message.event === 'overflow' && options.onOverflow !== undefined) {
+            } else if (message.event === 'overflow') {
+              checkOverflowEvent(message.data)
               const onOverflow = options.onOverflow
-              callback = () => onOverflow()
+              if (onOverflow !== undefined) callback = () => onOverflow()
             }
             if (callback === undefined) continue
             if (started) await deliverEvents(callback)

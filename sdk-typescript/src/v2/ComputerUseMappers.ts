@@ -173,6 +173,9 @@ const PROCESS_STATUS_FIELDS = new Set(['Running', 'Priority', 'AutoRestart', 'Pi
 export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessStatus): ComputerUseProcessStatus {
   const d = 'computer-use process status'
   const wire = record(status, d)
+  // Own keys only, as Object.entries reads the fields (as the map around it).
+  const symbol = enumerableSymbolKey(wire, Object.getPrototypeOf(wire) as KeyedObject | null)
+  if (symbol !== undefined) throw malformedResponse(`${d}: unexpected key ${String(symbol)}`)
   const extraFields: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(wire)) {
     // An own data property even for a key named `__proto__` (assignment would

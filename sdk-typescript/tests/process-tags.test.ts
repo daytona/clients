@@ -47,7 +47,7 @@ describe('process tags', () => {
     // Shared with the Python SDK's test_process_tags.py: a tag is a safe
     // identifier ([A-Za-z0-9._-], 1-128 characters, not '.' or '..'), refused
     // before any request on every entry point that takes one.
-    it.each(['', '.', '..', 'a b', 'a/b', 'ü', 'x'.repeat(129), 'tag\n'])('refuses the tag %p before any request', async (tag) => {
+    it.each(['', '.', '..', 'a b', 'a/b', 'ü', 'x'.repeat(129), 'tag\n', 'tag\r\n', '\ntag'])('refuses the tag %p before any request', async (tag) => {
       const post = jest.spyOn(HttpTransport.prototype, 'post').mockResolvedValue(terminal)
       await expect(start(sandbox(), tag)).rejects.toMatchObject({
         constructor: BadRequestError, message: TAG_MESSAGE, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',

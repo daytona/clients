@@ -115,6 +115,19 @@ def _watch_spec(path: str, *, recursive: bool) -> RequestSpec:
     )
 
 
+_OVERFLOW_EVENT: Final = "filesystem watch overflow event"
+
+
+def _check_overflow_event(data: str) -> None:
+    """An ``overflow`` event carries ``{"dropped": <boolean>}``; anything else
+    is the malformed-response error, whether or not a callback handles it (as
+    TypeScript's ``checkOverflowEvent``)."""
+    dropped = sse_json("overflow", data, _OVERFLOW_EVENT).get("dropped")
+    if not isinstance(dropped, bool):
+        problem = "is required" if dropped is None else "must be a boolean"
+        raise create_error(f"expected {_OVERFLOW_EVENT}: dropped {problem}", 400, "BAD_REQUEST", "SDK")
+
+
 def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
     def field(name: str, kind: type[_T], expected: str) -> _T:
         value = payload.get(name)
@@ -755,7 +768,8 @@ class AsyncFileSystemService:
                     if event_name == "fs":
                         event = _parse_filesystem_event(sse_json("fs", data, "filesystem watch event"))
                         callback = functools.partial(on_event, event)
-                    elif event_name == "overflow" and on_overflow is not None:
+                    elif event_name == "overflow":
+                        _check_overflow_event(data)
                         callback = on_overflow
                     if callback is None:
                         continue
