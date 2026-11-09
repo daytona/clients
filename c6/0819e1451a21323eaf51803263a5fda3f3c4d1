@@ -1,0 +1,24 @@
+examples/typescript/test-support/fake-sdk.ts
+  s_ca009e77d17705::t_6b2767a1261083 198-206
+examples/typescript/test-support/volume-lifecycle.ts
+  s_ca009e77d17705::t_6b2767a1261083 33-39
+examples/python/test_examples.py
+  s_ca009e77d17705::t_6b2767a1261083 350-362,611-618
+  s_ca009e77d17705::t_abb9afda16756f 619-620
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c60819e1451a21323eaf51803263a5fda3f3c4d1",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
