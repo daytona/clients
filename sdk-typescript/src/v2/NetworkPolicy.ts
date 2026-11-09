@@ -4,12 +4,14 @@
  */
 
 import type { AxiosResponse } from 'axios'
-import { BadRequestError, InternalServerError } from './errors/DaytonaError.js'
+import { BadRequestError } from './errors/DaytonaError.js'
 import type { NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput } from './types.js'
+import { badRequest } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 const INPUT_FIELDS = new Set(['blockAll', 'allowCidrs', 'allowDomains'])
 
-export function createNetworkPolicyCreateField(options: Record<string, unknown>): Record<string, unknown> | null | undefined {
+export function createNetworkPolicyCreateField(options: { readonly networkPolicy?: NetworkPolicyInput | null }): Record<string, unknown> | null | undefined {
   if (!Object.prototype.hasOwnProperty.call(options, 'networkPolicy')) return undefined
   const value = options.networkPolicy
   if (value === undefined) return undefined
@@ -60,9 +62,9 @@ export function parseNetworkPolicyResponse(response: AxiosResponse<unknown>): Ne
   const data = recordValue(response.data, 'network policy response')
   const etagHeader = response.headers.etag
   if (typeof etagHeader !== 'string' || etagHeader.length === 0) {
-    throw new InternalServerError('network policy response is missing ETag', { statusCode: 500, source: 'SDK' })
+    throw badRequest('network_policy response is missing the ETag header')
   }
-  return {
+  return deepFrozen({
     desired: optionalNetworkPolicy(data.desired, 'desired'),
     desiredRevision: requiredInteger(data.desired_revision, 'desired_revision'),
     etag: etagHeader,
@@ -72,7 +74,7 @@ export function parseNetworkPolicyResponse(response: AxiosResponse<unknown>): Ne
     appliedStartId: optionalString(data.applied_start_id),
     status: optionalString(data.status),
     error: optionalString(data.error),
-  }
+  })
 }
 
 function optionalNetworkPolicy(value: unknown, fieldName: string): NetworkPolicy | undefined {
@@ -95,7 +97,7 @@ function requestStringArray(value: unknown, fieldName: string): string[] {
 
 function responseStringArray(value: unknown, fieldName: string): string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
-    throw new InternalServerError(`${fieldName} must be an array of strings`, { statusCode: 500, source: 'SDK' })
+    throw badRequest(`${fieldName} must be an array of strings`)
   }
   return [...value]
 }
@@ -107,12 +109,12 @@ function optionalResponseStringArray(value: unknown, fieldName: string): string[
 
 function requiredBoolean(value: unknown, fieldName: string): boolean {
   if (typeof value === 'boolean') return value
-  throw new InternalServerError(`${fieldName} must be a boolean`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be a boolean`)
 }
 
 function requiredInteger(value: unknown, fieldName: string): number {
   if (typeof value === 'number' && Number.isInteger(value)) return value
-  throw new InternalServerError(`${fieldName} must be an integer`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be an integer`)
 }
 
 function optionalInteger(value: unknown, fieldName: string): number | undefined {
@@ -126,7 +128,7 @@ function optionalString(value: unknown): string | undefined {
 
 function recordValue(value: unknown, fieldName: string): Record<string, unknown> {
   if (isRecord(value)) return value
-  throw new InternalServerError(`${fieldName} must be an object`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be an object`)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

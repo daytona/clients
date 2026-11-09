@@ -10,6 +10,7 @@
  * instances via ref-counting; WebSockets are shared by waits for the same destination.
  */
 
+import { nestedDeeperThan } from './jsonDepth.js'
 import type { AxiosHeaderValue, AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { createHttpClient, inBrowser, sandboxState } from './http.js'
@@ -107,7 +108,7 @@ const DEFAULT_CLOSE_GRACE_MS = 1_000
 const DEFAULT_EARLY_PROBE_MS = 10_000
 const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
-const WAITER_PIN_INTERVAL_MS = 2_147_483_647
+const WAITER_PIN_INTERVAL_MS = MAX_TIMER_DELAY_MS
 const WS_OPEN = 1
 const WS_CLOSING = 2
 const WS_CLOSED = 3
@@ -1491,6 +1492,9 @@ export class WaitHub {
         } catch {
           return
         }
+        // A frame nested deeper than every JSON body may be is skipped like
+        // an undecodable one (`JSON_MAX_DEPTH`, as in Python).
+        if (nestedDeeperThan(frame)) return
         if (typeof frame !== 'object' || frame === null || Array.isArray(frame)) return
 
         const ftype = frame['type']
@@ -2134,6 +2138,7 @@ function hubIdentity(
   ])
 }
 
+/** @internal */
 export interface AttachHubOptions {
   readonly apiUrl: string
   readonly apiKey: string
@@ -2151,6 +2156,7 @@ export interface AttachHubOptions {
   readonly maxResponseBytes?: number
 }
 
+/** @internal */
 export function attachHub(options: AttachHubOptions): WaitHub {
   const { apiUrl, apiKey, target, shared, config, wsFactory } = options
   const _api = options._api ?? (options.maxResponseBytes === undefined
@@ -2181,6 +2187,7 @@ export function attachHub(options: AttachHubOptions): WaitHub {
   return hub
 }
 
+/** @internal */
 export async function detachHub(
   hub: WaitHub,
   options: {
@@ -2198,5 +2205,5 @@ export async function detachHub(
   }
 }
 
-// Exported for testing only
+/** @internal Exported for testing only. */
 export const _hubRegistryForTest = HUB_REGISTRY

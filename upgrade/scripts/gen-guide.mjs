@@ -6,6 +6,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
+import { withNamedArguments } from './optional-arguments.mjs';
 
 const { values } = parseArgs({ options: { check: { type: 'boolean', default: false } } });
 const root = new URL('../', import.meta.url);
@@ -118,7 +119,7 @@ for (const [receiver, metadata] of Object.entries(mapping.receivers)) {
     lines.push(`### ${heading}`, '', '| v0 call | v2 equivalent | Notes |', '| --- | --- | --- |');
     for (const entry of rows) {
       const before = `${receiverName(receiver, language)}.${entry.v0[language]}(...)`;
-      const after = entry.v2[language] === null ? 'None' : code(entry.v2[language]);
+      const after = entry.v2[language] === null ? 'None' : code(withNamedArguments(entry.v2[language]));
       const notes = [entry.v2[language] === null ? 'none' : entry.category, ...entry.notes[language]].map(cell).join('; ');
       lines.push(`| ${code(before)} | ${after} | ${notes} |`);
     }

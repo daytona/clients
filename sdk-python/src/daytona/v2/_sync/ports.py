@@ -23,9 +23,9 @@ class PortsService:
 
     _async_type = _async.AsyncPortsService
 
-    def __init__(self, impl: _async.AsyncPortsService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncPortsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"PortsService({self._impl!r})"
@@ -37,11 +37,28 @@ class PortsService:
         return hash(self._impl)
 
     def expire_signed_preview_link(self, port: int, token: str) -> None:
-        """Revoke a signed preview link before its natural expiry."""
+        """Revoke a signed preview link before its natural expiry.
+
+        :param port: TCP port the link was issued for.
+        :param token: The ``token`` field from :class:`~daytona.v2.types.SignedPreviewLink`.
+        """
         return self._bridge.call(lambda: self._impl.expire_signed_preview_link(port, token))
 
     def expose(self, port: int, *, public: bool = False) -> PreviewEndpoint:
-        """Register a sandbox port as a preview endpoint."""
+        """Register a sandbox port as a preview endpoint.
+
+        If the port is already exposed, returns the existing endpoint (updating
+        its visibility if ``public`` differs from the current value). Public
+        endpoints need no credential. Programmatic access to a private one
+        needs the token from :meth:`preview_link` (see
+        :class:`~daytona.v2.types.PreviewLink`) or a :meth:`signed_preview_link`
+        URL.
+
+        :param port: TCP port inside the sandbox (1–65535).
+        :param public: When ``True`` the endpoint is publicly accessible
+            without any credential.
+        :returns: :class:`~daytona.v2.types.PreviewEndpoint` with the URL.
+        """
         return self._bridge.call(lambda: self._impl.expose(port, public=public))
 
     def is_in_use(self, port: int) -> bool:
@@ -61,17 +78,46 @@ class PortsService:
         return self._bridge.call(lambda: self._impl.list_endpoints(cursor=cursor, limit=limit))
 
     def preview_link(self, port: int) -> PreviewLink:
-        """Preview URL plus access token for one sandbox port."""
-        return self._bridge.call(lambda: self._impl.preview_link(port))
+        """Preview URL plus access token for one sandbox port.
 
-    def set_public(self, port: int, *, public: bool) -> PreviewEndpoint:
-        """Change the visibility of an exposed port."""
-        return self._bridge.call(lambda: self._impl.set_public(port, public=public))
+        Callers send the token in the ``X-Daytona-Preview-Token`` header.
+        Public endpoints need no token (``token == ""``). The
+        returned :class:`~daytona.v2.types.PreviewLink` also carries
+        ``expires_at`` when the token's expiry is known. For private
+        endpoints, a handle permitted to mint gets a short-lived sandbox
+        access token scoped to exactly this
+        port. Otherwise the preview-url token is passed through unchanged.
+        Token contents are not used to infer access permissions.
+
+        A port that is not exposed yet is exposed first (privately, as
+        :meth:`expose` does): this call registers a preview endpoint.
+        """
+        return self._bridge.call(lambda: self._impl.preview_link(port))
 
     def signed_preview_link(
         self, port: int, *, expires_in_seconds: Optional[int] = None
     ) -> SignedPreviewLink:
-        """Return a self-contained signed URL for one sandbox port."""
+        """Return a self-contained signed URL for one sandbox port.
+
+        The token is embedded in the hostname, so no extra headers or credentials
+        are needed — the right choice for handing a URL to a browser, a tool,
+        or any client that cannot set request headers.
+
+        The default lifetime is 60 seconds. Pass a longer ``expires_in_seconds``
+        for multi-step use (the deployment caps the maximum, typically 7 days).
+        Revoke the link early with :meth:`expire_signed_preview_link`.
+
+        :param port: TCP port inside the sandbox (1–65535).
+        :param expires_in_seconds: Requested token lifetime in seconds (positive
+            integer). Omit for the server default (60 s).
+        :returns: :class:`~daytona.v2.types.SignedPreviewLink` with ``url``,
+            ``token``, and ``expires_at``.
+
+        Example::
+
+            link = sandbox.ports.signed_preview_link(8080, expires_in_seconds=300)
+            # Hand link.url to a browser or another tool — no headers needed.
+        """
         return self._bridge.call(
             lambda: self._impl.signed_preview_link(port, expires_in_seconds=expires_in_seconds)
         )

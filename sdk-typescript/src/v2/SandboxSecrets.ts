@@ -4,8 +4,10 @@
  */
 
 import type { AxiosResponse } from 'axios'
-import { BadRequestError, InternalServerError } from './errors/DaytonaError.js'
+import { BadRequestError } from './errors/DaytonaError.js'
 import type { SandboxSecretsInfo } from './types.js'
+import { badRequest } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 export function serializeSandboxSecretsInput(secrets: readonly string[]): Record<string, readonly string[]> {
   if (!Array.isArray(secrets) || secrets.some((item) => typeof item !== 'string')) {
@@ -18,9 +20,9 @@ export function parseSandboxSecretsResponse(response: AxiosResponse<unknown>): S
   const data = recordValue(response.data, 'sandbox secrets response')
   const etagHeader = response.headers.etag
   if (typeof etagHeader !== 'string' || etagHeader.length === 0) {
-    throw new InternalServerError('sandbox secrets response is missing ETag', { statusCode: 500, source: 'SDK' })
+    throw badRequest('sandbox secrets response is missing the ETag header')
   }
-  return {
+  return deepFrozen({
     secrets: requiredStringArray(data.secrets, 'secrets'),
     desiredRevision: requiredInteger(data.desired_revision, 'desired_revision'),
     etag: etagHeader,
@@ -30,19 +32,19 @@ export function parseSandboxSecretsResponse(response: AxiosResponse<unknown>): S
     error: optionalString(data.error),
     captureStatus: optionalString(data.capture_status),
     captureUnresolvedCount: optionalInteger(data.capture_unresolved_count, 'capture_unresolved_count'),
-  }
+  })
 }
 
 function requiredStringArray(value: unknown, fieldName: string): string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
-    throw new InternalServerError(`${fieldName} must be an array of strings`, { statusCode: 500, source: 'SDK' })
+    throw badRequest(`${fieldName} must be an array of strings`)
   }
   return [...value]
 }
 
 function requiredInteger(value: unknown, fieldName: string): number {
   if (typeof value === 'number' && Number.isInteger(value)) return value
-  throw new InternalServerError(`${fieldName} must be an integer`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be an integer`)
 }
 
 function optionalInteger(value: unknown, fieldName: string): number | undefined {
@@ -56,7 +58,7 @@ function optionalString(value: unknown): string | undefined {
 
 function recordValue(value: unknown, fieldName: string): Record<string, unknown> {
   if (isRecord(value)) return value
-  throw new InternalServerError(`${fieldName} must be an object`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be an object`)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

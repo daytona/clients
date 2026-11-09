@@ -86,7 +86,15 @@ language: Python `snake_case` ↔ TS `camelCase`. One deliberate difference in
 the root config's v0 routing: Python forwards `connection_pool_maxsize` to
 `d.v0`, TypeScript keeps `connectionPoolMaxsize` v2-only, because the 0.x
 TypeScript SDK has no pool-size setting (`ROOT_CONFIG_ROUTING` in both SDKs
-records it). Both roots copy the config's fields once, when the client is
+records it). Another: TypeScript `get()`, `create*()` and `fork()` take
+`autoDelete` (dispose the sandbox with `await using`); Python has no
+counterpart, because its handles have no disposal hook. One exception
+recorded in ADR 0001: TypeScript's `ImageBuilder` has `user()`, `cmd()` and
+`entrypoint()`, which it already offered and Python lacks; removing them
+would break TypeScript users, so they stay, and Python gains them in a 2.x
+minor (additive). TypeScript's config also has `otelApi` (the caller's
+`@opentelemetry/api` module, for bundled browser apps), which Python, whose
+OpenTelemetry package is a plain import, does not need. Both roots copy the config's fields once, when the client is
 built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
 caller's object have no effect, and URL fields are refused before and after
 the copy (a getter or property could otherwise add one while it is read).
@@ -175,7 +183,7 @@ regeneration needs node + a JRE (openapi-generator, tooling pinned under
 
 ## The CLI — `cli/`
 
-Both SDKs, the CLI and the examples support volumes: the client `volume`
+Both SDKs, the CLI and the examples support volumes: the client `volumes`
 service manages them, `volumes` attaches them on create, and `sandbox.volumes`
 provides pull operations. The CLI exposes `volume` and `sandbox create --volume`
 (also on `create-macos`). Keep these surfaces in parity across the SDKs.
@@ -494,10 +502,10 @@ skipping exist only in the TypeScript tool).
   value is sent as at least 1 ms (TypeScript `exactMs` in `ProcessWire.ts`,
   Python `timeout_millis_from_seconds`), and a caller budget or deadline
   above the longest timer is no limit (TypeScript `secondsToMs` /
-  `aboveTimerMaximum`, Python `wait_budget` / `above_timer_maximum`). Known exceptions at this point: the
-  per-call TypeScript `timeout` options of the docker, build-log, image,
-  snapshot and volume calls still take milliseconds until their area is
-  renamed.
+  `aboveTimerMaximum`, Python `wait_budget` / `above_timer_maximum`). The
+  client, lifecycle and platform-service options (images, snapshots,
+  volumes, build logs, docker) are in seconds too; no option takes
+  milliseconds.
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
   `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
@@ -562,7 +570,11 @@ skipping exist only in the TypeScript tool).
   browser, the in-memory reads (under their cap) and a pre-signed download
   URL (`presignedDownloadUrl`), which the browser fetches directly, are the
   options.
-  A per-call timeout (a wait's budget plus its slack, a git remote call, the
+  A per-call timeout (a wait's budget plus its slack; a create POST that
+  asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
+  healthy hold is never cut, with no bound when the request timeout is `0`
+  or the hold is above the timer maximum, while a create with no hold stays
+  an ordinary request; a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
   `timeout`) replaces the request timeout for that call with the same
@@ -587,8 +599,7 @@ skipping exist only in the TypeScript tool).
   (Python `_transfer_idle_seconds`, TS `transferRequest` / `fetch`'s
   `timeout`), never as a total deadline; resolving a transfer's credential
   (the bearer, a 401 refresh) is bounded by that idle bound too.
-- **TypeScript rejects unknown option keys at runtime** (the rule; applied so
-  far to the client configuration and the toolbox, see below). A covered options object
+- **TypeScript rejects unknown option keys at runtime.** A covered options object
   declares its known keys once, with
   `optionKeys<T>()({ ... })` from `src/v2/options.ts` (a compile error when the
   list misses a key of `T` or names one `T` lacks), and its entry point calls
@@ -605,12 +616,49 @@ skipping exist only in the TypeScript tool).
   renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
-  so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`)
-  and to every toolbox options object (process, session, PTY, interpreter,
-  filesystem, git, LSP, computer use, including nested `TerminalSize` /
+  to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`), to
+  every client, sandbox-lifecycle and platform-service options object
+  (nested `resources`, ports and volume mounts included, and the
+  `IfMatchOptions` of the network-policy and secrets updates) and to every
+  toolbox options object (process, session, PTY, interpreter, filesystem,
+  git, LSP, computer use, including nested `TerminalSize` /
   `ComputerUseRegion` / `LspCompletionContext` and the `{ cmd }` / `{ argv }`
-  command); the other per-call options adopt it area by area, each with its
-  duration renames.
+  command).
+- **TypeScript `null` in options, as it stands.** Over every option of the
+  client, the `Sandbox` handle's lifecycle and platform calls and the
+  platform services (toolbox namespaces aside), TypeScript reads `null`
+  exactly as Python reads `None` except where noted:
+  - omitted in both: every create, `createFromBuild()` and fork option
+    `None` omits (nested fields included; the network policy is an explicit
+    null in both), every list, `iter()` and search option except
+    `images.list()` / `iter()`'s `anonymous`, `get()`'s `toolboxUrl` /
+    `accessToken`, `findByName()`'s `region`, `getLimits()`'s
+    `organizationId`, `captureImage()`'s `name` / `idleExpirySeconds`, each
+    `updateLifecyclePolicy()` field, the image options of `images.build()` /
+    `pull()` (`name`, `idleExpirySeconds`, `region`, `cpuArch`),
+    `secrets.set()`'s `description`, the reservations' `idempotencyKey`
+    (create, `createBulk()`, `renew()`) and `macModels.catalog()`'s `region`;
+  - refused in both (`BadRequestError` before any request): every lifecycle
+    and Docker wait budget (`start`, `stop`, `pause`, `resume`, `delete` by
+    handle and by id, `wait()`, `docker.waitUntilReady()`), the create and
+    fork `waitSeconds`, `wait()`'s `until`, `ifMatch`, `followBuildLogs()`'s
+    `onLogs`, `images.pull()`'s `wait`, `images.list()` / `iter()`'s
+    `anonymous`, `volumes.get()`'s `create` / `idOnly`, `volumes.create()`'s
+    `name`, `volumes.delete()`'s `idOnly`, `secrets.set()`'s
+    `allowedDomains` / `ifNotExists`, the reservations' `region`,
+    `createBulk()`'s `count`, `reservations.update()`'s `autoRenew`,
+    `ports.expose()`'s `public` and `sandbox.volumes.pull()`'s `requestId`;
+  - TypeScript-only: `autoDelete` (create, `get()`, fork) refuses `null`;
+    `followBuildLogs()`'s `signal` omits it;
+  - TypeScript refuses `null` where Python's `None` omits, for now
+    (accepting it later is additive): `images.get()` / `snapshots.get()`
+    `wait` and `timeoutSeconds`, `images.pull()` `timeoutSeconds`,
+    `volumes.create()` `sizeGib`, `ports.signedPreviewLink()`
+    `expiresInSeconds`, `createAccessToken()` `ttlSeconds` / `operations` /
+    `ports`, `followBuildLogs()` (client and sandbox) `cursor` /
+    `timeoutSeconds` / `onEvent`, `reservations.create()` / `createBulk()`
+    `model` / `autoRenew`, `createBulk()` `minCount`, and
+    `sandbox.volumes.pull()` `timeoutSeconds`.
 - **Errors have one shape.** v2 category names are identical in both SDKs
   (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
@@ -636,12 +684,20 @@ skipping exist only in the TypeScript tool).
   `tests/sdk-raised-errors.test.ts`, holds to a shrinking list); local
   I/O and protocol failures carry the source only. A response that breaks the
   contract in a field the SDK reads or returns is `BadRequestError` 400
-  `BAD_REQUEST` `SDK` naming the field (fields it neither reads nor returns,
-  such as a pre-signed URL response's `url`, are not checked; the sandbox
-  access-token mint and the pre-signed file URL follow the rule; known
-  exceptions to the rule at this point, which still raise
-  `InternalServerError` 500 with no code: network policy and sandbox
-  secrets, until their areas adopt it). Python callers should not star-import
+  `BAD_REQUEST` `SDK` naming the field, with no exception: every response
+  the client, lifecycle, platform services and toolbox map is checked
+  against the contract fields it reads, nested fields and list items
+  included (TS `checkResponse` in `src/v2/responseFields.ts` and the toolbox
+  mappers, Python the generated models through `expect_*` and the typed
+  toolbox models), and an id another request follows is checked before
+  that request; fields it neither reads nor returns, such as a pre-signed
+  URL response's `url`, are not checked. Integers match between the SDKs except
+  in one case: a JSON number written with a zero fraction (`3.0`) is not an
+  integer in Python, which refuses it, while TypeScript's `JSON.parse` cannot
+  tell it from `3`, so only Python can refuse it. An id or name a call puts
+  into a request path is a non-blank string with no surrogate code point
+  (in TypeScript an unpaired UTF-16 surrogate) that is not `.` or `..`
+  (Python `path_segment`, TypeScript `pathSegment`). Python callers should not star-import
   `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
   built-ins.
 - **Generated wire types must not reach the public surface** (the rule; the
@@ -781,7 +837,7 @@ skipping exist only in the TypeScript tool).
   nested too deeply), as an oversized one is (Python `error_from_response`,
   TS `createAxiosDaytonaError` / `errorFromFetchResponse`).
   `.` and `..` are no path ids: every toolbox id or name in a request path
-  goes through Python `toolbox_path_id` / TS `toolboxPathId`.
+  goes through Python `path_segment` / TS `pathSegment`.
 - **Output is channel-filtered.** `stdout`/`stderr` come from their frame
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are
@@ -808,6 +864,10 @@ skipping exist only in the TypeScript tool).
   loops are forbidden; multi-page traversal lives in explicit iterators
   (`iter()`), each with a cursor-cycle guard. Non-pageable list surfaces such
   as `interpreter.list_contexts()` / `listContexts()` stay one-shot arrays.
+  The client's `list()` / `iter()` take only a cursor and a limit; filters
+  belong to `search()`, whose `states` take SDK states and map to the API's
+  status vocabulary at the boundary. `find_by_name` / `findByName` returns
+  every match and is the one documented exception to the one-page rule.
 - **SDK request attribution uses the Daytona header triple.** `X-Daytona-Source`
   (`sdk-typescript`, `sdk-python`, `sdk-python-async`),
   `X-Daytona-SDK-Version`, and `User-Agent: <source>/<version>` on every request.
@@ -822,11 +882,70 @@ skipping exist only in the TypeScript tool).
 - **Region is per create, never config.** `region=` / `{ region }` on every
   create and on `find_by_name` / `findByName`; neither the root nor the v2
   config carries a region or reads `DAYTONA_TARGET`.
-- **`create()` has one typed source.** Python takes `source: str | Image | None`
-  positionally (`str` = snapshot name); TypeScript takes `snapshot` or
-  `image: Image`. `sandbox.fork()` is the only fork entrypoint, and
-  `create()` with no source sends no image field so the server can resolve the
-  platform default.
+- **One create method per source.** `create(image)` takes an image name or
+  id (or none: no image field is sent, so the server resolves the platform
+  default); `create_from_snapshot` / `createFromSnapshot` takes a snapshot and
+  no sizing (the snapshot carries it); `create_from_build` / `createFromBuild`
+  builds an `ImageBuilder`, bounded by its own `build_timeout` /
+  `buildTimeoutSeconds`, then creates from the image with the full create
+  wait; `create_macos` / `createMacos` creates a macOS sandbox. Sizing is one
+  `resources` entry (`Resources`, `MacosResources`) whose GiB values must be
+  whole MiB. `sandbox.fork()` is the only fork entrypoint.
+- **Lifecycle methods wait; create and fork hand back what they observed.**
+  `start`, `stop`, `pause`, `resume` and `delete` wait for their state
+  (`stop` → `stopped`, `delete` → `destroyed`, a 404 during the delete wait
+  included) with `timeout` / `timeoutSeconds` (default 60, `0` = no deadline;
+  in both SDKs every wait budget of the area, fork's `wait_seconds` /
+  `waitSeconds` included, reads a value above the timer maximum, about
+  24.8 days, as no deadline too: Python `wait_budget_seconds` in
+  `_core.py`, TypeScript `waitDeadline` in `src/v2/options.ts`),
+  raising `RequestTimeoutError` (source `SDK`) or
+  `SandboxTerminalStateError`. A terminal state the events hub reports (it
+  can hold one from before the request, e.g. `error` while a DELETE already
+  moves the sandbox on) is confirmed with one read while the wait has budget
+  left, unless that state already came from a full read or is `destroyed`;
+  the read decides: a target state returns (for delete a 404 too), a terminal
+  state raises with the read state, and any other state keeps polling under
+  the same deadline. Without that read, or when it fails, the reported state
+  raises; when the reported state came from a full read that shows the same
+  state and wire status, the error names that read's reason. Every
+  `SandboxTerminalStateError` carries the wire status it knows as `raw_state`
+  / `rawState`, and one raised from a read the server's `reason` too
+  (`failed` and `lost` share the public `error`, so a reason read for one
+  never labels the other). A wait for `destroyed` whose terminal states are
+  only `destroyed` / `error` (`delete()`, `wait(until="destroyed")`) holds
+  its long polls with `wait_exact=deleted` (Python `wait_query_key`,
+  TypeScript `waitQueryKey`); the confirming read is a plain read. Once the
+  target was observed, a failed
+  metadata refresh afterwards does not turn that success into an error.
+  Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
+  return the handle however their `wait_seconds` / `waitSeconds` wait ends:
+  budget spent, terminal state, or a failed read (any `DaytonaError`). A
+  raised create or fork means the request itself failed, except for
+  `SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+  carry the idempotency key because a sandbox may exist), caller
+  cancellation, and an unexpected non-SDK error during the wait. The lifecycle methods do not
+  pre-check support by class or persistence: the API decides; `fork()` still
+  needs the class, because its wait target depends on it.
+- **Public models are SDK-owned and immutable.** Python: frozen,
+  keyword-only dataclasses with tuples and timezone-aware datetimes; TS:
+  readonly camelCase interfaces and model classes (`Image`, `Snapshot`) with
+  readonly fields, frozen at run time along with list and search pages and
+  their arrays (JSON fields such as `Volume.options` deep-frozen; live
+  handles such as `Sandbox` are not). Sandbox metadata is read-only on the handle
+  (reload with `refresh_data()` / `refreshData()`); constructors of the
+  exported handle and service classes are internal (TS: the `INTERNAL`
+  token from `src/v2/internal.ts`; Python: `_`-prefixed parameters), while
+  Python's model dataclasses stay constructible. Their mapping fields
+  (`Volume.options`, `Sandbox.labels`) are plain `dict` copies typed
+  `Mapping`, never `MappingProxyType`, so `asdict` / `deepcopy` / `pickle` /
+  `json.dumps` work. List and search pages are immutable (Python tuples, TS
+  `readonly T[]`), keyword-only and not iterable in Python: `.items` is the
+  one way in, in both SDKs. The handle exposes the
+  sandbox-scoped `access_token` / `accessToken` it authenticates with, but
+  not its toolbox URL. `to_json()` / `toJSON()` return one
+  credential- and URL-free camelCase `SandboxHandleJSON`, a snapshot only:
+  reconnect with `get(sandboxId)`.
 - **Ports own preview exposure.** Preview/public port verbs live under
   `sandbox.ports` in both SDKs.
 - **LSP is handle-shaped.** `lsp.start(...)` returns an `LspServer` handle;

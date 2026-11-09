@@ -409,7 +409,7 @@ describe('request timeout meaning', () => {
   it('bounds image submissions by the request timeout', async () => {
     // POST /images is an ordinary request (no hold), as in Python.
     handle = late(400)
-    const images = new ImagesService(createHttpClient(base, 'k', 100))
+    const images = new ImagesService(INTERNAL, createHttpClient(base, 'k', 100))
     await expect(images.build(ImageBuilder.fromDockerfile('FROM alpine'))).rejects.toBeInstanceOf(ClientTimeoutError)
     await expect(images.pull('alpine', { wait: false })).rejects.toBeInstanceOf(ClientTimeoutError)
     await expect(images.pull('alpine')).rejects.toBeInstanceOf(ClientTimeoutError)
@@ -451,7 +451,8 @@ describe('request timeout meaning', () => {
     process.env.DAYTONA_V2_API_URL = base
     try {
       const daytona = new Daytona({ apiKey: 'k', requestTimeoutSeconds: 0.1 })
-      const error = await daytona.v2.create('python:3.12', { idempotencyKey: 'run-42' }).catch((caught: unknown) => caught)
+      // No hold (waitSeconds 0): the POST is an ordinary request; a held create is a long poll.
+      const error = await daytona.v2.create('python:3.12', { idempotencyKey: 'run-42', waitSeconds: 0 }).catch((caught: unknown) => caught)
       expect(error).toBeInstanceOf(SandboxCreateRequestTimeoutError)
       expect(error).toBeInstanceOf(ClientTimeoutError)
       expect(error).toMatchObject({ idempotencyKey: 'run-42', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })

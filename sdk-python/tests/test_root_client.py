@@ -739,7 +739,7 @@ def test_a_v2_only_program_never_imports_v0() -> None:
             )
             with Daytona(DaytonaConfig(api_key="k")) as client:
                 page = client.v2.list()
-        assert page.items == [], page
+        assert list(page.items) == [], page
         loaded = sorted(name for name in sys.modules if name == "daytona.v0" or name.startswith("daytona.v0."))
         assert not loaded, loaded
         print("ok")
@@ -1442,7 +1442,9 @@ def _v2_list_host(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> str:
         monkeypatch.setenv(name, value)
     with respx.mock(assert_all_called=False) as router:
         route = router.get(url__regex=r".*/sandboxes.*").mock(
-            return_value=httpx.Response(200, json={"sandboxes": [], "next_cursor": None})
+            return_value=httpx.Response(
+                200, json={"sandboxes": [], "next_cursor": None, "total": 0, "total_relation": "eq"}
+            )
         )
         with Daytona(DaytonaConfig(api_key="k")) as client:
             client.v2.list()

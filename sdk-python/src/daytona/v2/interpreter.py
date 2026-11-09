@@ -16,9 +16,8 @@ from ._core import (
     expect_object,
     is_json_value,
     loads_json,
-    refuse_dot_segment,
+    path_segment,
     timeout_millis_from_seconds,
-    toolbox_path_id,
     wait_budget,
 )
 from ._transport import AsyncTransport
@@ -294,7 +293,7 @@ class AsyncInterpreterService:
             )
         try:
             await self._transport.send(
-                RequestSpec("DELETE", f"/sessions/{toolbox_path_id(context_id, 'interpreter context id')}")
+                RequestSpec("DELETE", f"/sessions/{path_segment(context_id, 'interpreter context id')}")
             )
         except DaytonaError as error:
             if error.code == codes.SESSION_NOT_FOUND:
@@ -407,7 +406,9 @@ class AsyncInterpreterService:
             raise create_error(
                 "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
             )
-        refuse_dot_segment(context_id, "interpreter context id")
+        # Closing deletes the context through its path id, so one that could
+        # not be closed (blank, `.`/`..`, a surrogate) is not bound either.
+        path_segment(context_id, "interpreter context id")
         if not isinstance(language, str) or not language:
             raise create_error(
                 "interpreter context language must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"

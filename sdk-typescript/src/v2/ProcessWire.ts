@@ -12,7 +12,7 @@ import type {
 import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROCESS_STDIN_MODES } from './types.js'
 import { UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
-import { MAX_TIMER_DELAY_MS } from './options.js'
+import { MAX_INT32, MAX_TIMER_DELAY_MS } from './options.js'
 import { bool, int, int32, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, nonNegativeSafeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
@@ -101,13 +101,6 @@ export function aboveTimerMaximum(name: string, seconds: number | undefined): bo
   return seconds * 1000 > MAX_TIMER_DELAY_MS
 }
 
-/** The absolute deadline (epoch ms) of a caller wait budget in seconds; `undefined`/`0` = unbounded. */
-export function waitDeadline(timeoutSeconds: number | undefined, name = 'timeoutSeconds'): number | undefined {
-  const ms = secondsToMs(name, timeoutSeconds)
-  if (ms === undefined || ms === 0) return undefined
-  return Date.now() + ms
-}
-
 /** Round fractional wire budgets up to avoid under-waiting. */
 export function remainingWaitBudgetMs(deadline: number): number {
   return Math.max(0, Math.ceil(deadline - Date.now()))
@@ -192,7 +185,6 @@ export function commandSpec(command: ProcessCommand): ProcessSpec {
   return { cmd: command.cmd }
 }
 
-const MAX_INT32 = 2 ** 31 - 1
 
 /** A terminal's `cols` / `rows`: an int32 of at least 1, as the contract states. */
 export function terminalDimension(value: unknown, name: 'cols' | 'rows'): number {

@@ -7,7 +7,7 @@
  */
 
 import type { Sandbox } from '@daytona/sdk/v2'
-import { client, section, info, fail, RUN, sandboxImage } from '../_common'
+import { assertStarted, client, section, info, fail, RUN, sandboxImage } from '../_common'
 
 /** Run a command and interpreter code; resolve to whether both succeeded. */
 async function basicExec(sandbox: Sandbox): Promise<boolean> {
@@ -39,6 +39,7 @@ async function main() {
 
   let ok = false
   try {
+    assertStarted(sandbox)
     ok = await basicExec(sandbox)
   } finally {
     section('cleanup')

@@ -17,18 +17,16 @@ from daytona.v2.daytona import AsyncDaytona
 @pytest.mark.parametrize(
     "region_case",
     [
-        ("57VSdKNrJGxnSAabjcHD4M-region-c", None, "region-c"),
         ("57VSdKNrJGxnSAabjcHD4M-region-c", "", "region-c"),
         ("57VSdKNrJGxnSAabjcHD4M", "", None),
         ("57VSdKNrJGxnSAabjcHD4M-region-c", "region-a", "region-a"),
-        ("57VSdKNrJGxnSAabjcHD4M", None, None),
-        ("550e8400-e29b-41d4-a716-446655440000", None, None),
+        ("550e8400-e29b-41d4-a716-446655440000", "", None),
     ],
 )
 async def test_region_uses_response_then_routing_tag_when_fetched(
     region_case: tuple[str, str | None, str | None],
 ) -> None:
-    # Given a response with an optional region and an independently tagged id.
+    # Given a response with a region (empty or not) and an independently tagged id.
     sandbox_id, response_region, expected = region_case
     payload = _sandbox_detail_payload(sandbox_id, "running")
     payload["region_id"] = response_region
@@ -81,9 +79,9 @@ async def test_region_uses_id_suffix_when_create_selector_is_local() -> None:
         assert sandbox.region == "region-c"
 
 
-@pytest.mark.parametrize("region", [None, "", "region-a"])
-def test_detail_region_uses_id_suffix_when_response_region_is_empty(region: str | None) -> None:
-    # Given a response whose region may be missing or empty.
+@pytest.mark.parametrize("region", ["", "region-a"])
+def test_detail_region_uses_id_suffix_when_response_region_is_empty(region: str) -> None:
+    # Given a response whose region may be empty.
     payload = _sandbox_detail_payload("57VSdKNrJGxnSAabjcHD4M-region-c", "running")
     payload["region_id"] = region
     # When the response crosses the typed parsing boundary.
@@ -108,3 +106,17 @@ async def test_handle_json_preserves_region_when_derived_from_id(
         payload = sandbox.to_json()
         # Then a derived region survives, without inventing one for ids without a suffix.
         assert payload.get("region") == expected
+
+
+@pytest.mark.parametrize("region", ["missing", None])
+def test_a_detail_without_its_region_is_a_contract_error(region: str | None) -> None:
+    # The contract requires region_id (a string); TypeScript refuses it too.
+    from daytona.v2 import BadRequestError
+
+    payload = _sandbox_detail_payload("57VSdKNrJGxnSAabjcHD4M-region-c", "running")
+    if region == "missing":
+        del payload["region_id"]
+    else:
+        payload["region_id"] = region
+    with pytest.raises(BadRequestError, match="region_id"):
+        expect_sandbox_detail(payload)

@@ -19,19 +19,19 @@ from typing import AsyncIterator, Final, Iterator, Optional
 
 import httpx
 
+from ._core import MAX_SAFE_INTEGER
 from .errors import ConnectionError, DaytonaError, create_error
 
 #: The default cap on a buffered response body: 1 GiB.
 DEFAULT_MAX_RESPONSE_BYTES: Final = 1 << 30
 # The largest integer both SDKs read exactly (JavaScript's Number.MAX_SAFE_INTEGER).
-_MAX_SAFE_INTEGER: Final = 2**53 - 1
 
 
 def validated_max_response_bytes(name: str, value: object) -> int:
     """``value`` as a body limit: an ``int`` from 0 to 2**53 - 1, else ``BadRequestError``."""
-    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= _MAX_SAFE_INTEGER:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= MAX_SAFE_INTEGER:
         raise create_error(
-            f"{name} must be an integer from 0 (no limit) to {_MAX_SAFE_INTEGER}", 400, "BAD_REQUEST", "SDK"
+            f"{name} must be an integer from 0 (no limit) to {MAX_SAFE_INTEGER}", 400, "BAD_REQUEST", "SDK"
         )
     return value
 

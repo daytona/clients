@@ -13,7 +13,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 
 import { Daytona, type DaytonaV2Client } from '@daytona/sdk'
-import { NameConflictError, type Image } from '@daytona/sdk/v2'
+import { NameConflictError, RequestTimeoutError, type Image, type Sandbox } from '@daytona/sdk/v2'
 
 export const IMAGE = process.env.DAYTONA_IMAGE ?? 'python:3.12-slim'
 /**
@@ -26,8 +26,8 @@ export function imageName(ref: string): string {
   return `examples-${readable}-${createHash('sha256').update(ref).digest('hex').slice(0, 8)}`
 }
 export const IMAGE_NAME = imageName(IMAGE)
-/** Server waits for a registering image (each returns after at most about 30 s). */
-const IMAGE_WAITS = 40
+/** How long a registering image may take to settle, as one budgeted wait. */
+export const IMAGE_WAIT_SECONDS = 1200
 // A CSPRNG, not Math.random(): the secrets example derives a demo secret
 // value from RUN.
 export const RUN = randomUUID().replace(/-/g, '').slice(0, 8)
@@ -42,6 +42,13 @@ export const info = (msg: string): void => console.log(`   .. ${msg}`)
 export const pass = (msg: string): void => console.log(`   ${GREEN}PASS${RESET} ${msg}`)
 export const fail = (msg: string): void => console.log(`   ${RED}FAIL${RESET} ${msg}`)
 export const sleep = (s: number): Promise<void> => new Promise((r) => setTimeout(r, s * 1000))
+
+export function assertStarted(sandbox: Sandbox): void {
+  if (sandbox.state === 'started') return
+  const raw = sandbox.state === 'unknown' ? `, rawState=${sandbox.rawState ?? ''}` : ''
+  const reason = sandbox.error ? `: ${sandbox.error}` : ''
+  throw new Error(`sandbox ${sandbox.id} did not start (state=${sandbox.state}${raw})${reason}`)
+}
 
 /** Build the v2 client (the root's `.v2`) from the shared env vars, or exit with a hint. */
 export function client(): DaytonaV2Client {
@@ -82,12 +89,18 @@ export async function sandboxImage(daytona: DaytonaV2Client): Promise<string> {
         throw error
       }
     }
-    // The server's wait returns after a while even when the image is not done.
-    for (let wait = 0; wait < IMAGE_WAITS && !['ready', 'failed', 'error'].includes(image.status); wait += 1) {
-      image = await daytona.images.get(image.id, { wait: 'ready' })
+    if (!['ready', 'failed', 'error'].includes(image.status)) {
+      // One wait over the whole budget: it repeats the server's long poll and
+      // returns once the image settles, or throws RequestTimeoutError when the
+      // budget runs out.
+      try {
+        image = await daytona.images.get(image.id, { wait: 'ready', timeoutSeconds: IMAGE_WAIT_SECONDS })
+      } catch (error) {
+        if (error instanceof RequestTimeoutError) throw new Error(`image ${IMAGE_NAME} did not settle within ${IMAGE_WAIT_SECONDS} s`)
+        throw error
+      }
     }
     if (image.status === 'ready') return IMAGE_NAME
-    if (image.status !== 'failed' && image.status !== 'error') throw new Error(`image ${IMAGE_NAME} is still ${image.status}`)
     // A failed registration: report why, then register again.
     cause = image.error ?? `registration ${image.status}`
     info(`image ${IMAGE_NAME} failed: ${cause}; registering again`)

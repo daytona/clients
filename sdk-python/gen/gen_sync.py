@@ -73,12 +73,12 @@ TARGETS: dict[str, list[str]] = {
     "sandbox_volumes": ["AsyncSandboxVolumesService"],
     "docker": ["AsyncDockerService"],
     "services": [
-        "AsyncImageService",
-        "AsyncSnapshotService",
-        "AsyncVolumeService",
-        "AsyncSecretService",
-        "AsyncReservationService",
-        "AsyncMacModelService",
+        "AsyncImagesService",
+        "AsyncSnapshotsService",
+        "AsyncVolumesService",
+        "AsyncSecretsService",
+        "AsyncReservationsService",
+        "AsyncMacModelsService",
     ],
     "computer_use": ["AsyncComputerUseService"],
     "computer_use_services": [
@@ -133,14 +133,31 @@ _LOOP_FREE = {"to_json", "ref", "from_json", "from_id", "connect"}
 
 
 def _sync_doc(doc: str) -> str:
-    """First docstring line for a sync twin: cross-references to wrapped
-    async classes (``:class:`AsyncDockerService` ``) name the sync twin."""
-    line = doc.strip().splitlines()[0]
+    """The full docstring for a sync twin: cross-references to wrapped async
+    classes (``:class:`AsyncDockerService` ``) name the sync twin."""
+    text = inspect.cleandoc(doc)
+    # Example code in the async docstrings becomes sync code for the twin.
+    text = re.sub(r"\basync with\b", "with", text)
+    text = re.sub(r"\basync for\b", "for", text)
+    text = re.sub(r"\bawait ", "", text)
     return re.sub(
         r"(?<![\w.])Async(" + "|".join(sorted(n.removeprefix("Async") for n in WRAPPED)) + r")(?![\w])",
         r"\1",
-        line,
+        text,
     )
+
+
+def _doc_block(doc: str, indent: str) -> list[str]:
+    """``doc`` as docstring source lines at ``indent`` (raw when it holds a backslash)."""
+    text = _sync_doc(doc)
+    prefix = 'r"""' if "\\" in text else '"""'
+    lines = text.split("\n")
+    if len(lines) == 1:
+        return [f'{indent}{prefix}{lines[0]}"""']
+    out = [f"{indent}{prefix}{lines[0]}"]
+    out.extend(f"{indent}{line}" if line else "" for line in lines[1:])
+    out.append(f'{indent}"""')
+    return out
 
 
 @dataclass
@@ -435,8 +452,7 @@ def _emit_class(module: str, cls: type) -> str:
         _index_source(module)
     lines: list[str] = []
     lines.append(f"class {_twin(name)}:")
-    doc = _sync_doc(cls.__doc__ or f"Synchronous {_twin(name)}.")
-    lines.append(f'    """{doc}"""')
+    lines.extend(_doc_block(cls.__doc__ or f"Synchronous {_twin(name)}.", "    "))
     lines.append("")
     lines.append(f"    _async_type = _async.{name}")
     lines.append("")
@@ -448,9 +464,10 @@ def _emit_class(module: str, cls: type) -> str:
         lines.append(f"        self._impl = _async.{name}(config, _source='sdk-python')")
         lines.append("")
     else:
-        lines.append(f"    def __init__(self, impl: _async.{name}, bridge: SyncBridge) -> None:")
-        lines.append("        self._impl = impl")
-        lines.append("        self._bridge = bridge")
+        # Construction is internal: the SDK wraps the async object it returned.
+        lines.append(f"    def __init__(self, _impl: _async.{name}, _bridge: SyncBridge) -> None:")
+        lines.append("        self._impl = _impl")
+        lines.append("        self._bridge = _bridge")
         lines.append("")
     lines.append("    def __repr__(self) -> str:")
     lines.append(f"        return f'{_twin(name)}({{self._impl!r}})'")
@@ -468,6 +485,7 @@ def _emit_class(module: str, cls: type) -> str:
         lines.append(f"        return {_wrap_expr(ann_text, f'self._impl.{attr}', 'self._bridge')}")
         lines.append("")
 
+    direct_properties: frozenset[str] = getattr(cls, "_SYNC_DIRECT_PROPERTIES", frozenset())
     loop_variants: Mapping[str, str] = getattr(cls, "_SYNC_LOOP_VARIANTS", {})
     after_wraps: Mapping[str, str] = getattr(cls, "_SYNC_AFTER_WRAP", {})
     for m in sorted(_members(cls), key=lambda m: (m.kind == "property", m.name)):
@@ -498,12 +516,18 @@ def _emit_class(module: str, cls: type) -> str:
             # A property on an async class is computed state the loop mutates
             # (a watch's exit_error / overflow_count): read it ON the loop, so
             # a sync caller never observes it mid-update from another thread.
-            # Plain __init__ attributes (emitted above) are set once and read freely.
+            # Plain __init__ attributes (emitted above) are set once and read
+            # freely, and so are the properties a class lists in
+            # `_SYNC_DIRECT_PROPERTIES` (fields of a snapshot the loop replaces
+            # whole), which stay readable after the client closes.
             lines.append("    @property")
             lines.append(f"    def {m.name}(self) -> {ret}:")
             if m.doc:
-                lines.append(f'        """{_sync_doc(m.doc)}"""')
-            inner = f"self._bridge.call_sync(lambda: self._impl.{m.name})"
+                lines.extend(_doc_block(m.doc, "        "))
+            if m.name in direct_properties:
+                inner = f"self._impl.{m.name}"
+            else:
+                inner = f"self._bridge.call_sync(lambda: self._impl.{m.name})"
             lines.append(f"        return {_wrap_expr(m.src_returns or m.returns, inner, 'self._bridge')}")
             lines.append("")
             continue
@@ -518,7 +542,7 @@ def _emit_class(module: str, cls: type) -> str:
             lines.append("    @classmethod")
             lines.append(f"    def {m.name}(cls, {decl}) -> {ret}:")
             if m.doc:
-                lines.append(f'        """{_sync_doc(m.doc)}"""')
+                lines.extend(_doc_block(m.doc, "        "))
             lines.append(
                 f"        return {_wrap_expr(m.src_returns or m.returns, f'_async.{name}.{m.name}({fwd})', '_rt.UNBOUND')}"
             )
@@ -534,7 +558,7 @@ def _emit_class(module: str, cls: type) -> str:
         sig = f"self{', ' if decl else ''}{decl}"
         lines.append(f"    def {m.name}({sig}) -> {ret}:")
         if m.doc:
-            lines.append(f'        """{_sync_doc(m.doc)}"""')
+            lines.extend(_doc_block(m.doc, "        "))
         if m.kind == "coro" and (m.src_returns or "") == "Self":
             # A fluent method returns the SAME handle (`-> Self`): the sync twin
             # must return itself, not a second wrapper around the same impl
@@ -586,12 +610,15 @@ def _emit_class(module: str, cls: type) -> str:
 
 
 def _container_twin(ret: str) -> tuple[str, str] | None:
-    """('list'|'iter'|'page', SyncName) when ret is a container of exactly one wrapped class."""
+    """('list'|'tuple'|'iter'|'page', SyncName) when ret is a container of exactly one wrapped class."""
     import re
 
     m = re.fullmatch(r"(list|List|Sequence)\[(\w+)\]", ret)
     if m and m.group(2) in WRAPPED:
         return ("list", _twin(m.group(2)))
+    m = re.fullmatch(r"(tuple|Tuple)\[(\w+), \.\.\.\]", ret)
+    if m and m.group(2) in WRAPPED:
+        return ("tuple", _twin(m.group(2)))
     m = re.fullmatch(r"(Iterator|AsyncIterator)\[(\w+)\]", ret)
     if m and m.group(2) in WRAPPED:
         return ("iter", _twin(m.group(2)))
@@ -661,7 +688,7 @@ def _wrap_expr(ret: object, inner: str, bridge: str) -> str:
 
     - no SDK handle in the return type: pass the value through, fully typed;
     - exactly one handle class: construct its Sync twin directly (typed);
-    - list/iterator/page of one handle class: typed container helper;
+    - list/tuple/iterator/page of one handle class: typed container helper;
     - anything else containing handles: the erased registry walk in ``_wrap``.
     """
     if ret is None or not _mentions_wrapped(ret):
@@ -675,6 +702,8 @@ def _wrap_expr(ret: object, inner: str, bridge: str) -> str:
             kind, name = container
             if kind == "list":
                 return f"_rt.wrap_list({inner}, {bridge}, {name})"
+            if kind == "tuple":
+                return f"_rt.wrap_tuple({inner}, {bridge}, {name})"
             if kind == "iter":
                 return f"_rt.wrap_iter({inner}, {bridge}, {name})"
             return f"_rt.wrap_page({inner}, {bridge}, {name})  # type: ignore[return-value]"
@@ -713,7 +742,7 @@ def render_module(module: str, names: list[str]) -> str:
     # TYPE_CHECKING for annotations; constructed at runtime through a lazy
     # resolver so the package stays cycle-free.
     # Docstrings are prose: a bare twin name there (``Sandbox``) is not a use.
-    code = "\n".join(line for line in body.split("\n") if not line.lstrip().startswith('"""'))
+    code = re.sub(r'r?"""(?:[^"\\]|\\.|"(?!""))*"""', "", body)
     others = sorted(
         n for n in WRAPPED if n not in names and re.search(rf"(?<![\w.]){_twin(n)}(?![\w])", code)
     )

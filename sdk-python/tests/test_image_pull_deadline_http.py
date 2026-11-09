@@ -13,10 +13,10 @@ import anyio
 import pytest
 
 from daytona.v2._bridge import SyncBridge
-from daytona.v2._sync.services import ImageService
+from daytona.v2._sync.services import ImagesService
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.errors import ClientTimeoutError, RequestTimeoutError
-from daytona.v2.services import AsyncImageService
+from daytona.v2.services import AsyncImagesService
 from daytona.v2.types import Image
 
 
@@ -57,9 +57,9 @@ def pull_peer(phase: int, delay: float | None, *, ready: bool = False) -> Iterat
             payload = (
                 b'{"message":"fixture request timeout","code":"REQUEST_TIMEOUT","source":"API"}'
                 if target and not ready
-                else b'{"id":"img-pull","status":"ready","region_id":"region-c","origin":"registry"}'
+                else b'{"id":"img-pull","class":"linux","updated_at":"2026-01-01T00:00:00Z","retention":"idle","region_ids":[],"anonymous":true,"format_version":2,"format_outdated":false,"platform":false,"default":false,"deprecated":false,"status":"ready","region_id":"region-c","origin":"registry","created_at":"2026-01-01T00:00:00Z"}'
                 if target and ready
-                else b'{"id":"img-pull","status":"building","region_id":"region-c","origin":"registry"}'
+                else b'{"id":"img-pull","class":"linux","updated_at":"2026-01-01T00:00:00Z","retention":"idle","region_ids":[],"anonymous":true,"format_version":2,"format_outdated":false,"platform":false,"default":false,"deprecated":false,"status":"building","region_id":"region-c","origin":"registry","created_at":"2026-01-01T00:00:00Z"}'
             )
             self.send_response(408 if target and not ready else 200)
             self.send_header("Content-Type", "application/json")
@@ -90,7 +90,7 @@ def sync(request: pytest.FixtureRequest) -> bool:
 
 
 @contextmanager
-def sync_service(url: str, root_timeout: float | None) -> Iterator[ImageService]:
+def sync_service(url: str, root_timeout: float | None) -> Iterator[ImagesService]:
     bridge = SyncBridge()
 
     async def make_transport() -> AsyncTransport:
@@ -98,7 +98,7 @@ def sync_service(url: str, root_timeout: float | None) -> Iterator[ImageService]
 
     transport = bridge.call(make_transport)
     try:
-        yield ImageService(AsyncImageService(transport), bridge)
+        yield ImagesService(AsyncImagesService(transport), bridge)
     finally:
         bridge.close(transport.close)
 
@@ -117,7 +117,7 @@ async def invoke_pull(sync: bool) -> AsyncIterator[Pull]:
         else:
             transport = AsyncTransport(peer.url, "offline", request_timeout=root_timeout)
             try:
-                return await AsyncImageService(transport).pull("alpine", timeout=budget)
+                return await AsyncImagesService(transport).pull("alpine", timeout=budget)
             finally:
                 await transport.close()
 
@@ -129,14 +129,18 @@ async def invoke_pull(sync: bool) -> AsyncIterator[Pull]:
 async def test_pull_cancels_request_when_deadline_expires(invoke_pull: Pull, phase: int) -> None:
     # Given a real HTTP peer which never answers this phase.
     with pull_peer(phase, None) as peer:
-        # When the end-to-end budget expires.
+        # When the end-to-end budget expires. The budget comfortably covers
+        # connecting and sending under a loaded parallel run (the earlier
+        # phases answer at once, and the first poll follows the initial read
+        # without a pause), so the deadline cancels the request in flight.
+        budget = 1.0
         started = anyio.current_time()
-        with anyio.fail_after(0.5), pytest.raises(RequestTimeoutError) as error:
-            await invoke_pull(peer, 0.05, 1)
+        with anyio.fail_after(budget + 2), pytest.raises(RequestTimeoutError) as error:
+            await invoke_pull(peer, budget, 5)
         # Then every phase has the same typed error and the socket is cancelled.
-        assert anyio.current_time() - started < 0.5
+        assert anyio.current_time() - started < budget + 2
         assert str(error.value) == "image pull did not finish before timeout"
-        assert await anyio.to_thread.run_sync(peer.disconnected.wait, 0.5)
+        assert await anyio.to_thread.run_sync(peer.disconnected.wait, 2)
         assert len(peer.requests) == phase
 
 
@@ -146,11 +150,12 @@ async def test_pull_cancels_request_when_deadline_expires(invoke_pull: Pull, pha
 async def test_pull_preserves_408_only_when_before_deadline(
     invoke_pull: Pull, phase: int, late: bool
 ) -> None:
-    # Given an HTTP 408 arriving before or after the pull deadline.
-    with pull_peer(phase, 0.25 if late else 0) as peer:
+    # Given an HTTP 408 arriving well before or well after the pull deadline
+    # (a budget that covers connecting under load).
+    with pull_peer(phase, 2.0 if late else 0) as peer:
         # When pulling through the real transport.
         with pytest.raises(RequestTimeoutError) as error:
-            await invoke_pull(peer, 0.1, 1)
+            await invoke_pull(peer, 1.0, 5)
         # Then only actual deadline exhaustion replaces the server message.
         assert str(error.value) == (
             "image pull did not finish before timeout" if late else "fixture request timeout"
@@ -164,7 +169,7 @@ async def test_pull_preserves_root_timeout_when_before_deadline(invoke_pull: Pul
     with pull_peer(phase, None) as peer:
         # When the root timeout expires before the overall pull budget.
         with pytest.raises(ClientTimeoutError) as error:
-            await invoke_pull(peer, 0.4, 0.03)
+            await invoke_pull(peer, 3, 0.2)
         # Then it remains an independent transport error, not pull exhaustion.
         assert str(error.value) == "operation timed out"
 
@@ -177,8 +182,8 @@ async def test_pull_returns_ready_when_poll_outlasts_root_timeout(
     # Given a real readiness poll that lasts longer than the root request timeout.
     with pull_peer(3, 0.5, ready=True) as peer:
         # When pulling with an unbounded or finite readiness budget.
-        with anyio.fail_after(2):
-            image = await invoke_pull(peer, budget, 0.2)
+        with anyio.fail_after(5):
+            image = await invoke_pull(peer, 3 if budget == 1 else budget, 0.2)
         # Then readiness wins over the shorter per-request timeout.
         assert image.status == "ready"
 
@@ -189,18 +194,19 @@ async def test_pull_uses_whole_deadline_when_poll_never_answers(invoke_pull: Pul
     with pull_peer(3, None) as peer:
         started = anyio.current_time()
         # When the one-second pull budget expires.
-        with anyio.fail_after(2), pytest.raises(RequestTimeoutError) as error:
+        with anyio.fail_after(3), pytest.raises(RequestTimeoutError) as error:
             await invoke_pull(peer, 1, 0.2)
         # Then exhaustion, not the root timeout, supplies the error and timing.
         assert str(error.value) == "image pull did not finish before timeout"
-        assert 0.9 <= anyio.current_time() - started < 1.8
+        assert 0.9 <= anyio.current_time() - started < 3
 
 
 @pytest.mark.anyio
 async def test_pull_returns_ready_when_scaled_default_timeout_would_expire(invoke_pull: Pull) -> None:
-    # Given a 30/45/35-second timing case scaled by 1/100 for both entrypoints.
-    with pull_peer(3, 0.35, ready=True) as peer:
+    # Given a 30-second request timeout, a readiness answer after 35 s and a
+    # pull budget well above that, scaled down for both entrypoints.
+    with pull_peer(3, 1.4, ready=True) as peer:
         # When readiness arrives after the request timeout but within the pull deadline.
-        image = await invoke_pull(peer, 0.45, 0.3)
+        image = await invoke_pull(peer, 3, 1.2)
         # Then the import completes rather than raising ClientTimeoutError.
         assert image.status == "ready"

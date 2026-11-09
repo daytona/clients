@@ -320,15 +320,15 @@ async def test_git_results_are_sdk_models() -> None:
         branch_published=True,
         file_status=[GitFileStatus(name="README.md", staging="M", worktree=" ", extra="")],
     )
-    assert (await git.history("/repo")).items == [
+    assert (await git.history("/repo")).items == (
         GitCommit(
             hash="h",
             message="m",
             author="A",
             email="a@example.invalid",
             timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        )
-    ]
+        ),
+    )
     with pytest.raises(BadRequestError, match="git status response"):
         await git.status("/repo")
 
@@ -998,6 +998,10 @@ async def test_malformed_filesystem_results_name_the_field(
         "2026-01-01T00:00:00",
         "Jan 1 2026",
         "0000-01-01T00:00:00Z",
+        # One rule for every timestamp both SDKs read: `T` (or `t`) joins date and time.
+        "0099-06-01 12:00:00+00:00",
+        # ASCII digits only.
+        "\u0662\u0660\u0662\u0666-01-01T00:00:00Z",
     ],
 )
 def test_timestamps_reject_what_is_not_rfc_3339_like_the_typescript_sdk(value: str) -> None:
@@ -1012,7 +1016,7 @@ def test_timestamps_reject_what_is_not_rfc_3339_like_the_typescript_sdk(value: s
     [
         ("2026-01-01T00:00:00.123456789Z", datetime(2026, 1, 1, 0, 0, 0, 123456, tzinfo=timezone.utc)),
         ("0001-01-01t00:00:00z", datetime(1, 1, 1, tzinfo=timezone.utc)),
-        ("0099-06-01 12:00:00+00:00", datetime(99, 6, 1, 12, tzinfo=timezone.utc)),
+        ("0099-06-01T12:00:00+00:00", datetime(99, 6, 1, 12, tzinfo=timezone.utc)),
     ],
 )
 def test_timestamps_accept_rfc_3339_variants_like_the_typescript_sdk(value: str, expected: datetime) -> None:
@@ -1507,6 +1511,16 @@ def test_connect_context_refuses_an_identity_it_could_not_write_back(
 
     with pytest.raises(BadRequestError, match="interpreter context"):
         interpreter.connect_context(context_id, language=language)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("context_id", ["  ", "\t\u2028", "a\ud800b"])
+def test_connect_context_refuses_an_id_it_could_not_close(context_id: str) -> None:
+    # Closing deletes the context through its path id: one that could not be
+    # closed is not bound either (twin in unit.test.ts).
+    interpreter = AsyncInterpreterService("sbx", Transport(), AsyncProcessService("sbx", Transport()))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="^interpreter context id must "):
+        interpreter.connect_context(context_id, language="python")
 
 
 def test_a_reconnected_context_identity_round_trips() -> None:
@@ -2650,6 +2664,43 @@ async def test_a_surrogate_code_point_is_refused_as_a_path_id(bad: str) -> None:
         await AsyncProcessService("sbx", transport).get(bad)  # type: ignore[arg-type]
     with pytest.raises(BadRequestError, match="recording id must not contain a surrogate code point"):
         await AsyncComputerUseService(transport).recording.get(bad)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.anyio
+async def test_a_toolbox_timestamp_with_a_fraction_of_a_second_is_read() -> None:
+    # A fraction is RFC 3339 too: a git commit timestamp with milliseconds is
+    # read, not refused (twin in unit.test.ts; the search-bound fixture holds
+    # the same value).
+    transport = Transport(
+        [
+            [
+                {
+                    "hash": "h",
+                    "message": "m",
+                    "author": "A",
+                    "email": "a@example.invalid",
+                    "timestamp": "2026-01-02T03:04:05.123Z",
+                }
+            ]
+        ]
+    )
+    commit = (await AsyncGitService(transport).history("/repo")).items[0]  # type: ignore[arg-type]
+    assert commit.timestamp == datetime(2026, 1, 2, 3, 4, 5, 123000, tzinfo=timezone.utc)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("blank", ["", " ", "\t\u2028"])
+async def test_a_blank_toolbox_path_id_is_refused(blank: str) -> None:
+    # One path-id check for every request path in both SDKs (path_segment):
+    # a blank toolbox id is refused as a blank client id is. Twin in unit.test.ts.
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    transport = Transport()
+    with pytest.raises(BadRequestError, match="^process id must be a non-empty string$"):
+        await AsyncProcessService("sbx", transport).get(blank)
+    with pytest.raises(BadRequestError, match="^recording id must be a non-empty string$"):
+        await AsyncComputerUseService(transport).recording.get(blank)
     assert transport.specs == []
 
 

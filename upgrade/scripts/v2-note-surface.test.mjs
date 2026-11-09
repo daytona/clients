@@ -15,7 +15,7 @@ function fixture(context, { suggestions, dependencies = true }) {
   const root = mkdtempSync(join(tmpdir(), 'v2-note-surface-'));
   context.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'upgrade/scripts'), { recursive: true });
-  for (const name of ['check-v2-surface.mjs', 'v2-typescript-surface.mjs', 'v2-python-surface.py']) {
+  for (const name of ['check-v2-surface.mjs', 'optional-arguments.mjs', 'v2-typescript-surface.mjs', 'v2-python-surface.py']) {
     copyFileSync(new URL(name, import.meta.url), join(root, 'upgrade/scripts', name));
   }
   mkdirSync(join(root, 'sdk-typescript/src/v2'), { recursive: true });

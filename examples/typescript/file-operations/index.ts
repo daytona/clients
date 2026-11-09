@@ -10,7 +10,7 @@
  *       npx tsx typescript/file-operations/index.ts
  */
 
-import { client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
+import { assertStarted, client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
 
 async function main() {
   const daytona = client()
@@ -19,6 +19,7 @@ async function main() {
 
   let ok = true
   try {
+    assertStarted(sandbox)
     const dir = 'project-files'
 
     section('mkdir + list')

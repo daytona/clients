@@ -18,7 +18,6 @@ from typing_extensions import Self
 from .. import sandbox as _async
 from .._bridge import SyncBridge
 from ..sandbox import *
-from ..sandbox import _EventCallback, _LogsCallback
 from . import _runtime as _rt
 
 if TYPE_CHECKING:
@@ -35,13 +34,18 @@ if TYPE_CHECKING:
 
 
 class Sandbox:
-    """Serializable sandbox handle with process/fs/git/interpreter/pty namespaces."""
+    """A sandbox handle with process/fs/git/interpreter/pty namespaces.
+
+    Built by the client (``create*()``, ``get()``, ``list()``, ``fork()``); the
+    constructor is internal. Observed metadata is read-only and changes only
+    when the SDK reads the sandbox again (``refresh_data()``, a wait).
+    """
 
     _async_type = _async.AsyncSandbox
 
-    def __init__(self, impl: _async.AsyncSandbox, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncSandbox, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"Sandbox({self._impl!r})"
@@ -52,136 +56,38 @@ class Sandbox:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    @property
-    def id(self) -> str:
-        return self._impl.id
-
-    @property
-    def name(self) -> str | None:
-        return self._impl.name
-
-    @property
-    def state(
-        self,
-    ) -> Literal[
-        "queued",
-        "creating",
-        "starting",
-        "started",
-        "pausing",
-        "paused",
-        "stopping",
-        "stopped",
-        "destroying",
-        "destroyed",
-        "error",
-        "unknown",
-    ]:
-        return self._impl.state
-
-    @property
-    def image_build_id(self) -> str | None:
-        return self._impl.image_build_id
-
-    @property
-    def image(self) -> ImageRef | None:
-        return self._impl.image
-
-    @property
-    def snapshot(self) -> SnapshotRef | None:
-        return self._impl.snapshot
-
-    @property
-    def target(self) -> str | None:
-        return self._impl.target
-
-    @property
-    def region(self) -> Optional[str]:
-        return self._impl.region
-
-    @property
-    def labels(self) -> Dict[str, str]:
-        return self._impl.labels
-
-    @property
-    def cpu(self) -> Optional[float]:
-        return self._impl.cpu
-
-    @property
-    def cpu_max(self) -> Optional[float]:
-        return self._impl.cpu_max
-
-    @property
-    def memory(self) -> Optional[float]:
-        return self._impl.memory
-
-    @property
-    def memory_max(self) -> Optional[float]:
-        return self._impl.memory_max
-
-    @property
-    def disk(self) -> Optional[float]:
-        return self._impl.disk
-
-    @property
-    def disk_max(self) -> Optional[float]:
-        return self._impl.disk_max
-
-    @property
-    def sandbox_class(self) -> Optional[SandboxClass]:
-        return self._impl.sandbox_class
-
-    @property
-    def persistent(self) -> Optional[bool]:
-        return self._impl.persistent
-
-    @property
-    def spot(self) -> Optional[bool]:
-        return self._impl.spot
-
-    @property
-    def spot_evicted_at(self) -> Optional[str]:
-        return self._impl.spot_evicted_at
-
-    @property
-    def lifecycle_policy(self) -> Optional[SandboxLifecycle]:
-        return self._impl.lifecycle_policy
-
-    @property
-    def forked_from(self) -> Optional[str]:
-        return self._impl.forked_from
-
-    @property
-    def reservation_id(self) -> Optional[str]:
-        return self._impl.reservation_id
-
-    @property
-    def user(self) -> Optional[str]:
-        return self._impl.user
-
-    @property
-    def error(self) -> Optional[str]:
-        return self._impl.error
-
-    @property
-    def error_reason(self) -> Optional[str]:
-        return self._impl.error_reason
-
-    @property
-    def access_token(self) -> str | None:
-        return self._impl.access_token
-
-    @property
-    def access_token_expires_at(self) -> str | None:
-        return self._impl.access_token_expires_at
-
-    @property
-    def toolbox_proxy_url(self) -> str | None:
-        return self._impl.toolbox_proxy_url
-
     def build_logs(self) -> str:
-        """Return retained build output as one-shot text, not a live follower."""
+        """Return retained build output as one-shot text, not a live follower.
+
+        The body includes a state line and the currently available build tail.
+        A sandbox with no image build (for example a registry image) raises
+        ``NotFoundError``. Retained-tail truncation is indicated in the text.
+        Use :meth:`follow_build_logs` for live output and completeness metadata.
+        """
         return self._bridge.call(lambda: self._impl.build_logs())
+
+    def capture_image(
+        self, *, name: Optional[str] = None, idle_expiry_seconds: Optional[int] = None
+    ) -> Image:
+        """Capture this sandbox's filesystem as a new :class:`Image` (``POST /sandboxes/{id}/images``).
+
+        The result boots new sandboxes (``daytona.create(image.id)``); a Linux
+        sandbox keeps running. A macOS
+        sandbox must be persistent and stopped; it cannot start until the
+        snapshot is ``ready``.
+
+        ``name`` makes the image named and permanent. ``idle_expiry_seconds`` is
+        the idle-retention window of an ANONYMOUS capture: it is deleted once
+        that long has passed without a sandbox being created from it (every
+        create restarts the clock). Same rule as ``images.build``: omitted or
+        ``-1`` ⇒ the server maximum (7 days by default); above it ⇒ 400.
+        Promote the image to keep it. ``idle_expiry_seconds`` with ``name`` is
+        a 400. Returns once the API accepts the capture; wait for readiness
+        with ``images.get(image.id, wait="ready")``.
+        """
+        return self._bridge.call(
+            lambda: self._impl.capture_image(name=name, idle_expiry_seconds=idle_expiry_seconds)
+        )
 
     def create_access_token(
         self,
@@ -190,7 +96,24 @@ class Sandbox:
         ports: Optional[Sequence[int]] = None,
         ttl_seconds: Optional[int] = None,
     ) -> SandboxAccessToken:
-        """Mint a scoped, short-lived access token for THIS sandbox."""
+        """Mint a scoped, short-lived access token for THIS sandbox.
+
+        The token authorizes sandbox services (toolbox, SSH, desktop,
+        private previews) and the self-service sandbox routes, for exactly the
+        granted ``operations`` and ``ports`` — hand it to a collaborator, a CI
+        job, or a browser instead of a project API key.
+
+        ``operations`` is the sandbox-operation vocabulary (``toolbox``,
+        ``toolbox:exec``, ``toolbox:fs``, ``toolbox:git``, ``toolbox:lsp``,
+        ``desktop``, ``ssh``, ``sandbox:stop``, ``sandbox:pause``,
+        ``sandbox:delete``); omitted means the minter's full grantable set, and
+        ``[]`` is a valid ports-only grant. ``ports`` names the private-preview
+        ports the token may reach (omitted = all, ``[]`` = none). ``ttl_seconds``
+        overrides the deployment's default lifetime, capped server-side; an
+        unknown operation or an over-cap TTL is a 400, never a silent
+        narrowing. The token cannot be refreshed and cannot mint further
+        credentials — mint a fresh one here instead.
+        """
         return self._bridge.call(
             lambda: self._impl.create_access_token(
                 operations=operations, ports=ports, ttl_seconds=ttl_seconds
@@ -200,9 +123,19 @@ class Sandbox:
     def create_snapshot(self, name: str) -> Snapshot:
         return self._bridge.call(lambda: self._impl.create_snapshot(name))
 
-    def delete(self) -> None:
-        """Request sandbox deletion."""
-        return self._bridge.call(lambda: self._impl.delete())
+    def delete(self, *, timeout: float = 60) -> None:
+        """Delete the sandbox and wait until it is ``destroyed``.
+
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and an
+        ``error`` state raises :class:`SandboxTerminalStateError` (one the
+        events hub reports is confirmed with one read first, while the wait
+        has budget left and unless it already came from a full read). A 404 while
+        waiting counts as destroyed. A destroyed sandbox does not guarantee
+        that its image can already be deleted: image deletion may still
+        answer 409 for a while.
+        """
+        return self._bridge.call(lambda: self._impl.delete(timeout=timeout))
 
     def entrypoint_logs(self) -> str:
         """Return the sandbox entrypoint-session log as text."""
@@ -225,7 +158,41 @@ class Sandbox:
         keep_logs: Optional[RunKeepLogs] = None,
         tag: Optional[str] = None,
     ) -> ProcessResult:
-        """Run a command, wait for its shell to exit, and collect its output."""
+        """Run a command, wait for its shell to exit, and collect its output.
+
+        A convenience alias for :meth:`process.run` — identical behaviour, same
+        parameters, same return value.
+
+        **Shell selection.** Passing a string ``command`` runs it through the
+        sandbox shell: ``bash`` when the image has it, else ``sh``. Pass
+        ``shell=`` to pin another interpreter, and quote globs and
+        brackets (``pip install -e '.[test]'``) so the command means the same
+        under any shell. Use ``argv=`` to bypass the shell entirely, which is
+        the safe form for untrusted arguments. For persistent shell state, use
+        :meth:`process.create_session`.
+
+        **Background processes.** The call returns when the shell exits. If the
+        command launches a background child that holds output open (e.g.
+        ``python3 -m http.server 8000 &``), the call waits at most ~2 seconds
+        for output to drain and then returns; output the child writes later is not
+        part of the result. For a long-running server use
+        :meth:`process.start`, which returns a :class:`ProcessHandle` immediately
+        (logs, wait, kill). Alternatively redirect: ``nohup cmd > server.log 2>&1 &``.
+
+        :param command: Shell command string; mutually exclusive with ``argv``.
+        :param argv: Argument vector for shell-free execution.
+        :param cwd: Working directory inside the sandbox.
+        :param env: Extra environment variables merged into the process environment.
+        :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
+        :param timeout: Caller wait budget in seconds. Omit to wait until the process
+            ends. Does not kill the process; use ``execution_timeout`` for that.
+        :param execution_timeout: Server-side deadline in seconds. The sandbox kills
+            the process tree when this expires.
+        :param keep_logs: How long the sandbox keeps the process log: ``"on_exit_ttl"``
+            (default) or ``"until_cleanup"``.
+        :returns: :class:`~daytona.v2.types.ProcessResult` with ``stdout``, ``stderr``,
+            ``output``, ``logs``, ``exit_code``, and ``reason``.
+        """
         return self._bridge.call(
             lambda: self._impl.exec(
                 command,
@@ -247,12 +214,21 @@ class Sandbox:
     def follow_build_logs(
         self,
         *,
-        on_logs: _LogsCallback,
-        on_event: Optional[_EventCallback] = None,
+        on_logs: BuildLogsCallback,
+        on_event: Optional[BuildLogEventCallback] = None,
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
-        """Observe this sandbox's build without changing its execution lifetime."""
+        """Observe this sandbox's build without changing its execution lifetime.
+
+        ``on_logs`` receives decoded output; optional ``on_event`` receives each
+        typed ``BuildLogEvent``. Either callback may return an awaitable, which
+        is awaited before the next event. ``timeout`` (seconds) bounds this
+        observation only; cancelling the awaiting task closes the stream, not
+        the build. Discovery failures, including a 404 for a sandbox with no
+        image build, raise ``BuildLogInterruptedError`` with the HTTP status
+        and last cursor. They do not fall back to another log source.
+        """
         return self._bridge.call(
             lambda: self._impl.follow_build_logs(
                 on_logs=on_logs, on_event=on_event, cursor=cursor, timeout=timeout
@@ -260,11 +236,31 @@ class Sandbox:
         )
 
     def fork(
-        self, *, name: Optional[str] = None, memory: Optional[bool] = None, timeout: Optional[float] = None
+        self, *, name: Optional[str] = None, memory: Optional[bool] = None, wait_seconds: float = 60
     ) -> Sandbox:
-        """Fork this sandbox."""
+        """Fork this sandbox and return the fork's handle.
+
+        By default the fork continues from the source's memory (running
+        processes included). ``memory=False`` copies only the disk, and the
+        fork boots fresh. A macOS fork copies the disk only: omit ``memory``
+        or pass ``memory=False`` (``memory=True`` is refused with
+        ``NOT_SUPPORTED_FOR_CLASS``); a fork of a running macOS sandbox boots
+        with a fresh machine identity. A fork needs available capacity for
+        its size; insufficient capacity can answer ``NO_FREE_SLOT`` or
+        ``MAC_DISK_FULL``.
+
+        ``wait_seconds`` (default 60; ``0`` returns as soon as the API accepts
+        the fork; a value above about 24.8 days, the timer maximum, waits with
+        no deadline) bounds the wait for the state the fork settles in: a fork of
+        a running Linux sandbox ``started``; otherwise it rests — ``paused``
+        for a memory fork of a paused source, else ``stopped`` (call
+        ``start()``). A macOS fork settles ``started`` or ``stopped``. Like
+        ``create()``, ``fork()`` never raises because of how the wait ended:
+        when the budget runs out or the fork fails, it returns the handle —
+        check ``fork.state``.
+        """
         return Sandbox(
-            self._bridge.call(lambda: self._impl.fork(name=name, memory=memory, timeout=timeout)),
+            self._bridge.call(lambda: self._impl.fork(name=name, memory=memory, wait_seconds=wait_seconds)),
             self._bridge,
         )
 
@@ -272,7 +268,12 @@ class Sandbox:
         return self._bridge.call(lambda: self._impl.get_network_policy())
 
     def get_secrets(self) -> SandboxSecretsInfo:
-        """Read this sandbox's attached secret names and their apply state (``GET /sandboxes/{id}/secrets``)."""
+        """Read this sandbox's attached secret names and their apply state (``GET /sandboxes/{id}/secrets``).
+
+        Returns names and revisions only, never values. ``etag`` is the ``If-Match`` value for
+        :meth:`replace_secrets`; ``status`` is ``pending`` until the sandbox has applied
+        ``desired_revision``.
+        """
         return self._bridge.call(lambda: self._impl.get_secrets())
 
     def metrics(self) -> SystemMetrics:
@@ -280,38 +281,72 @@ class Sandbox:
         return self._bridge.call(lambda: self._impl.metrics())
 
     def pause(self, *, timeout: float = 60) -> None:
-        """Pause a macOS sandbox, preserving its memory."""
+        """Pause the sandbox with its memory and wait until it is ``paused``.
+
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
+        then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
+        keeps its Mac slot but does not keep its reservation renewing. Which
+        sandboxes can pause is the API's decision.
+        """
         return self._bridge.call(lambda: self._impl.pause(timeout=timeout))
 
-    def refresh_data(
-        self,
-        *,
-        timeout: Optional[float] = None,
-        wait: SandboxWaitState | None = None,
-        wait_timeout_ms: int | None = None,
-    ) -> None:
-        """Refresh sandbox fields from the API."""
-        return self._bridge.call(
-            lambda: self._impl.refresh_data(timeout=timeout, wait=wait, wait_timeout_ms=wait_timeout_ms)
-        )
+    def refresh_data(self) -> None:
+        """Read the sandbox's metadata from the API again."""
+        return self._bridge.call(lambda: self._impl.refresh_data())
 
     def replace_secrets(self, *, secrets: Sequence[str], if_match: str) -> SandboxSecretsInfo:
-        """Replace the full set of project secrets attached to this sandbox (``PUT /sandboxes/{id}/secrets``)."""
+        """Replace the full set of project secrets attached to this sandbox (``PUT /sandboxes/{id}/secrets``).
+
+        ``secrets`` names project secrets; unchanged names remain attached. ``if_match`` is
+        the ``etag`` of the last read; a stale one raises :class:`PreconditionFailedError`. The change
+        applies asynchronously: poll :meth:`get_secrets` until ``status`` is ``applied``. Running
+        processes keep their environment; processes started afterwards see the new names.
+        """
         return self._bridge.call(lambda: self._impl.replace_secrets(secrets=secrets, if_match=if_match))
 
     def reset_idle_timer(self) -> SandboxLifecycle:
-        """Reset this sandbox's idle timer (an explicit out-of-band keepalive)."""
+        """Reset this sandbox's idle timer (an explicit out-of-band keepalive).
+
+        For work the platform cannot see: bumps the sandbox's activity clock
+        (``last_activity_at``, attributed
+        server-side to the ``api`` source), which restarts the idle countdown —
+        ``idle_timeout_at`` re-anchors to now + ``idle_expiry_seconds``. The
+        wall-clock ``timeout_at`` is NOT affected. Succeeds whether or not an
+        idle timeout is armed (an unarmed sandbox echoes
+        ``idle_timeout_at=None``), and in any state — a never-started sandbox
+        already carries its creation-time activity stamp, which the reset
+        advances.
+
+        The echo is the full post-reset lifecycle, the same shape
+        :meth:`update_lifecycle_policy` returns. Advance-only: a newer concurrent
+        activity bump keeps the clock, and what comes back is the state that
+        won.
+        """
         return self._bridge.call(lambda: self._impl.reset_idle_timer())
 
     def reset_network_policy(self, *, if_match: str) -> NetworkPolicyInfo:
         return self._bridge.call(lambda: self._impl.reset_network_policy(if_match=if_match))
 
     def resume(self, *, timeout: float = 60) -> None:
-        """Resume a paused macOS sandbox and wait for started."""
+        """Resume a paused sandbox and wait until it is ``started``.
+
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
+        raises :class:`SandboxTerminalStateError`.
+        """
         return self._bridge.call(lambda: self._impl.resume(timeout=timeout))
 
     def rotate_signing_key(self) -> None:
-        """Rotate the sandbox's signing key, invalidating existing pre-signed URLs."""
+        """Rotate the sandbox's signing key, invalidating existing pre-signed URLs.
+
+        Every pre-signed URL minted so far stops working within ~30 s; new URLs
+        from ``presigned_download_url`` / ``presigned_upload_url`` use the new
+        key. The key itself is never returned.
+
+        Like minting, this requires the API-provided toolbox URL or a
+        sandbox-scoped URL template, rather than an arbitrary custom endpoint.
+        """
         return self._bridge.call(lambda: self._impl.rotate_signing_key())
 
     def run_code(
@@ -338,28 +373,54 @@ class Sandbox:
             )
         )
 
-    def set_labels(self, *, labels: Mapping[str, str]) -> Dict[str, str]:
-        """Replace the sandbox label set; pass ``{}`` to clear all labels."""
-        return self._bridge.call(lambda: self._impl.set_labels(labels=labels))
+    def set_labels(self, labels: Mapping[str, str]) -> Mapping[str, str]:
+        """Replace the sandbox label set; pass ``{}`` to clear all labels.
 
-    def snapshot_filesystem(self, *, name: Optional[str] = None, idle: Optional[int] = None) -> Image:
-        """Snapshot this sandbox's filesystem as a new :class:`Image` (``POST /sandboxes/{id}/images``)."""
-        return self._bridge.call(lambda: self._impl.snapshot_filesystem(name=name, idle=idle))
+        Returns the labels the API applied, as a fresh plain ``dict`` (typed
+        ``Mapping``, as :attr:`labels` is): changing it changes nothing.
+        """
+        return self._bridge.call(lambda: self._impl.set_labels(labels))
 
     def start(self, *, timeout: float = 60) -> None:
-        """Start a stopped sandbox, or resume a paused one, and wait for started."""
+        """Start a stopped sandbox, or resume a paused one, and wait until it is ``started``.
+
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
+        terminal state raises :class:`SandboxTerminalStateError`. Whether the
+        sandbox can be started is the API's decision: a refusal surfaces as its
+        typed error.
+        """
         return self._bridge.call(lambda: self._impl.start(timeout=timeout))
 
-    def stop(self) -> None:
-        """Stop a persistent macOS sandbox."""
-        return self._bridge.call(lambda: self._impl.stop())
+    def stop(self, *, timeout: float = 60) -> None:
+        """Stop the sandbox and wait until it is ``stopped``.
 
-    def to_json(self) -> Dict[str, JsonValue]:
-        """The sandbox's data as JSON, without any toolbox URL; resume a stored sandbox with ``get(info["sandboxId"])``."""
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
+        value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
+        terminal state raises :class:`SandboxTerminalStateError`. Which
+        sandboxes can stop (today: persistent macOS sandboxes) is the API's
+        decision; a refusal surfaces as its typed error.
+        """
+        return self._bridge.call(lambda: self._impl.stop(timeout=timeout))
+
+    def to_json(self) -> SandboxHandleJSON:
+        """The handle's metadata as :class:`SandboxHandleJSON` (camelCase, no URL, no credential).
+
+        A snapshot, not a way back: reconnect to a stored sandbox with
+        ``client.get(json["sandboxId"])``. A key is present only when the handle
+        knows its value; timestamps are RFC 3339 strings.
+        """
         return self._impl.to_json()
 
     def update_env(self, env: Optional[Mapping[str, str]] = None, *, unset: Sequence[str] = ()) -> None:
-        """Update SDK-managed environment entries for new processes, PTYs, and sessions."""
+        """Update SDK-managed environment entries for new processes, PTYs, and sessions.
+
+        Processes, PTYs, and sessions started after this call inherit the updated
+        environment. Running processes and already-running session kernels keep
+        their current environment unchanged. ``unset`` removes only values
+        previously set through ``update_env()``; image-level environment entries
+        remain untouched.
+        """
         return self._bridge.call(lambda: self._impl.update_env(env, unset=unset))
 
     def update_lifecycle_policy(
@@ -370,7 +431,15 @@ class Sandbox:
         idle_expiry_seconds: Optional[int] = None,
         on_idle_timeout: Optional[LifecycleAction] = None,
     ) -> SandboxLifecycle:
-        """Update this sandbox's lifecycle policy; omitted knobs stay unchanged."""
+        """Update this sandbox's lifecycle policy; omitted knobs stay unchanged.
+
+        ``timeout_seconds`` re-anchors the deadline from now (``>= 1``; the timeout
+        cannot be disabled). ``idle_expiry_seconds=DISABLED`` clears the idle pair;
+        arming it on a sandbox with no idle policy requires ``on_idle_timeout``.
+        Setting either action to ``"delete"`` — or touching a pair whose current
+        or resulting action is ``"delete"`` — requires the API key to hold
+        ``delete:sandboxes`` in addition to ``write:sandboxes``.
+        """
         return self._bridge.call(
             lambda: self._impl.update_lifecycle_policy(
                 timeout_seconds=timeout_seconds,
@@ -387,20 +456,37 @@ class Sandbox:
             lambda: self._impl.update_network_policy(network_policy=network_policy, if_match=if_match)
         )
 
-    def wait(self, *, until: SandboxWaitState = "started", timeout: Optional[float] = 60) -> Self:
-        """Wait for one public sandbox state and return ``self``."""
+    def wait(
+        self, *, until: SandboxWaitState | Sequence[SandboxWaitState] = "started", timeout: float = 60
+    ) -> Self:
+        """Wait until the sandbox reaches ``until`` (one state or any of several) and return ``self``.
+
+        ``timeout`` is the wait budget in seconds (default 60; ``0``, or a value
+        above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
+        reaching ``destroying``, ``destroyed`` or ``error`` first raises
+        :class:`SandboxTerminalStateError`. A terminal state the events hub
+        reports is confirmed with one read before it raises, while the wait has
+        budget left, unless that state already came from a full read or is
+        ``destroyed``.
+        """
         self._bridge.call(lambda: self._impl.wait(until=until, timeout=timeout))
         return self
 
-    def wait_for_state(
-        self,
-        states: Sequence[SandboxWaitState],
-        terminal_states: Sequence[SandboxState] = DEFAULT_SANDBOX_TERMINAL_STATES,
-        *,
-        timeout: Optional[float] = None,
-    ) -> None:
-        """Wait until the sandbox reaches one of ``states``."""
-        return self._bridge.call(lambda: self._impl.wait_for_state(states, terminal_states, timeout=timeout))
+    @property
+    def access_token(self) -> Optional[str]:
+        """The sandbox-scoped bearer this handle currently authenticates with.
+
+        It comes from the create response (returned only by the first call of
+        a named get-or-create), a caller override (``get(id, access_token=...)``)
+        or a token the handle minted; ``None`` until one is known. Never
+        serialized by :meth:`to_json`.
+        """
+        return self._impl.access_token
+
+    @property
+    def access_token_expires_at(self) -> Optional[datetime]:
+        """Expiry of :attr:`access_token`, or ``None`` when not reported."""
+        return self._impl.access_token_expires_at
 
     @property
     def computer_use(self) -> ComputerUseService:
@@ -409,11 +495,39 @@ class Sandbox:
         return ComputerUseService(self._bridge.call_sync(lambda: self._impl.computer_use), self._bridge)
 
     @property
+    def cpu(self) -> Optional[float]:
+        """Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU)."""
+        return self._impl.cpu
+
+    @property
+    def cpu_max(self) -> Optional[float]:
+        """CPU limit (the boot shape), in cores; ``None`` when the API did not report it."""
+        return self._impl.cpu_max
+
+    @property
+    def disk(self) -> Optional[float]:
+        """Disk in GiB, exactly the API's MiB / 1024."""
+        return self._impl.disk
+
+    @property
+    def disk_max(self) -> Optional[float]:
+        return self._impl.disk_max
+
+    @property
     def docker(self) -> DockerService:
         """Docker Engine status inside the sandbox; see :class:`DockerService`."""
         from .docker import DockerService
 
         return DockerService(self._bridge.call_sync(lambda: self._impl.docker), self._bridge)
+
+    @property
+    def error(self) -> Optional[str]:
+        """The failure the API recorded, or ``None``."""
+        return self._impl.error
+
+    @property
+    def forked_from(self) -> Optional[str]:
+        return self._impl.forked_from
 
     @property
     def fs(self) -> FileSystemService:
@@ -428,10 +542,35 @@ class Sandbox:
         return GitService(self._bridge.call_sync(lambda: self._impl.git), self._bridge)
 
     @property
+    def id(self) -> str:
+        return self._impl.id
+
+    @property
+    def image(self) -> Optional[ImageRef]:
+        """The image the sandbox booted, or ``None`` (a snapshot restore, or not yet known)."""
+        return self._impl.image
+
+    @property
+    def image_build_id(self) -> Optional[str]:
+        """The image build this sandbox booted from, or ``None`` for other image sources."""
+        return self._impl.image_build_id
+
+    @property
     def interpreter(self) -> InterpreterService:
         from .interpreter import InterpreterService
 
         return InterpreterService(self._bridge.call_sync(lambda: self._impl.interpreter), self._bridge)
+
+    @property
+    def labels(self) -> Mapping[str, str]:
+        """The sandbox labels: a fresh copy on every read (changing it changes
+        nothing); replace them with :meth:`set_labels`.
+        """
+        return self._impl.labels
+
+    @property
+    def lifecycle_policy(self) -> Optional[SandboxLifecycle]:
+        return self._impl.lifecycle_policy
 
     @property
     def lsp(self) -> LspService:
@@ -442,7 +581,26 @@ class Sandbox:
     @property
     def mac_boot_mode(self) -> Optional[MacBootMode]:
         """macOS only: how the sandbox resumed, as reported by the API, or None."""
-        return self._bridge.call_sync(lambda: self._impl.mac_boot_mode)
+        return self._impl.mac_boot_mode
+
+    @property
+    def memory(self) -> Optional[float]:
+        """Memory in GiB, exactly the API's MiB / 1024 (4608 MiB -> 4.5)."""
+        return self._impl.memory
+
+    @property
+    def memory_max(self) -> Optional[float]:
+        return self._impl.memory_max
+
+    @property
+    def name(self) -> Optional[str]:
+        """The sandbox name; ``None`` until the API reports it."""
+        return self._impl.name
+
+    @property
+    def persistent(self) -> Optional[bool]:
+        """macOS only: whether a stop keeps the disk; ``None`` until known."""
+        return self._impl.persistent
 
     @property
     def ports(self) -> PortsService:
@@ -463,9 +621,61 @@ class Sandbox:
         return PtyService(self._bridge.call_sync(lambda: self._impl.pty), self._bridge)
 
     @property
+    def raw_sandbox_class(self) -> Optional[str]:
+        """The class exactly as the API reported it, or ``None`` until known."""
+        return self._impl.raw_sandbox_class
+
+    @property
     def raw_state(self) -> str:
-        """Wire status string exactly as the server sent it."""
-        return self._bridge.call_sync(lambda: self._impl.raw_state)
+        """Wire status string exactly as the server sent it (``""`` before any read).
+
+        Informational only — the SDK never branches on this value.  Use
+        :attr:`state` for all flow-control logic; ``raw_state`` is useful for
+        logging when ``state == "unknown"`` (the SDK does not recognize the value).
+        """
+        return self._impl.raw_state
+
+    @property
+    def region(self) -> Optional[str]:
+        return self._impl.region
+
+    @property
+    def reservation_id(self) -> Optional[str]:
+        """macOS only: the reservation selected by the current or latest successful claim.
+
+        ``None`` before the first claim, and on search reads (``search()``),
+        which omit it: ``refresh_data()`` reads it.
+        """
+        return self._impl.reservation_id
+
+    @property
+    def sandbox_class(self) -> Optional[Literal["linux", "macos", "unknown"]]:
+        """``"linux"``, ``"macos"``, or ``"unknown"`` for a class this SDK does not know
+        (see :attr:`raw_sandbox_class`); ``None`` until the class is known.
+        """
+        return self._impl.sandbox_class
+
+    @property
+    def snapshot(self) -> Optional[SnapshotRef]:
+        """The memory snapshot this sandbox resumed, or ``None`` when it booted an image."""
+        return self._impl.snapshot
+
+    @property
+    def spot(self) -> Optional[bool]:
+        return self._impl.spot
+
+    @property
+    def spot_evicted_at(self) -> Optional[datetime]:
+        return self._impl.spot_evicted_at
+
+    @property
+    def state(self) -> SandboxState:
+        """The last observed state; ``"unknown"`` before any read and for a state this SDK does not know."""
+        return self._impl.state
+
+    @property
+    def user(self) -> Optional[str]:
+        return self._impl.user
 
     @property
     def volumes(self) -> SandboxVolumesService:

@@ -264,3 +264,96 @@ def test_git_remote_calls_carry_request_timeout_into_the_v2_timeout(
         for note in entry["notes"]
     )
     assert "timeout=request_timeout" in result.source
+
+
+def _lifecycle_form(call: str, entry_id: str) -> str:
+    source = (
+        f"from daytona import Daytona\napi = Daytona()\nbox = api.v0.create()\n{call}\n"
+    )
+    mapping = load_mapping()
+    result = transform_source(
+        source,
+        TransformOptions(mapping, "suggest-v2"),
+        SourceContext("app.py", "app", build_index({"app": source}, mapping)),
+    )
+    form = next(
+        item["suggestion"]["v2"]
+        for item in result.items
+        if "suggestion" in item and item["suggestion"]["id"] == entry_id
+    )
+    assert form is not None
+    return form
+
+
+@pytest.mark.parametrize(
+    ("call", "entry_id", "expected"),
+    [
+        # A 0.x call that used the default timeout: v2's default holds, and the
+        # suggestion names no variable the call did not have.
+        ("box.start()", "sandbox.start", "box.start()"),
+        ("box.stop()", "sandbox.stop", "box.stop()"),
+        ("box.delete()", "sandbox.delete", "box.delete()"),
+        ("box.pause()", "sandbox.pause", "box.pause()"),
+        (
+            "box.wait_for_sandbox_start()",
+            "sandbox.waitUntilStarted",
+            'box.wait(until="started")',
+        ),
+        ("box.fork()", "sandbox.fork", "box.fork(memory=False)"),
+        ("api.v0.delete(box)", "client.delete", "api.v2.delete(sandbox)"),
+        # A 0.x call that passed one keeps it, by its own source.
+        (
+            "box.start(120)",
+            "sandbox.start",
+            "box.start(timeout=120)",
+        ),
+        ("box.pause(timeout=5)", "sandbox.pause", "box.pause(timeout=5)"),
+        (
+            "box.fork(name='copy', timeout=30)",
+            "sandbox.fork",
+            "box.fork(name='copy', memory=False, wait_seconds=30)",
+        ),
+        # A numeric literal is computed; a variable keeps the expression.
+        (
+            "box.fork(timeout=0)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400)",
+        ),
+        (
+            "box.fork(timeout=budget)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400 if budget in (None, 0) else budget)",
+        ),
+        (
+            "box.start(budget)",
+            "sandbox.start",
+            "box.start(timeout=0 if budget is None else budget)",
+        ),
+        # An expression is parenthesized where the form computes with it.
+        (
+            "box.fork(timeout=5 if fast else 60)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400 if (5 if fast else 60) in (None, 0) else (5 if fast else 60))",
+        ),
+        (
+            "box.start(a or b)",
+            "sandbox.start",
+            "box.start(timeout=0 if (a or b) is None else (a or b))",
+        ),
+        ("box.pause(timeout=a or b)", "sandbox.pause", "box.pause(timeout=a or b)"),
+        # `sandbox` in a client form stands for the 0.x call's sandbox, as the
+        # guide says of every identifier but `{client}` / `{sandbox}`.
+        ("api.v0.stop(box)", "client.stop", "api.v2.stop(sandbox)"),
+        ("api.v0.stop(box, 30)", "client.stop", "api.v2.stop(sandbox, timeout=30)"),
+        (
+            "api.v0.delete(box, 30)",
+            "client.delete",
+            "api.v2.delete(sandbox, timeout=30)",
+        ),
+    ],
+)
+def test_lifecycle_suggestions_carry_only_the_timeout_the_call_passed(
+    call: str, entry_id: str, expected: str
+) -> None:
+    # The TypeScript tool renders the same forms (tests/optional-arguments.test.ts).
+    assert _lifecycle_form(call, entry_id) == expected

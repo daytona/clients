@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto'
 import { Daytona, DaytonaError } from '@daytona/sdk'
 import { ImageBuilder } from '@daytona/sdk/v2'
 import type { Sandbox } from '@daytona/sdk/v2'
+import { assertStarted } from './typescript/_common'
 
 const IMAGE = process.env.DAYTONA_IMAGE ?? 'python:3.12-slim'
 const SYNC_WAIT_SECONDS = Number(process.env.EXAMPLE_SYNC_WAIT_SECONDS ?? '20')
@@ -26,7 +27,7 @@ const sleep = (seconds: number): Promise<void> => new Promise((resolve) => setTi
 
 async function main(): Promise<number> {
   const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY }).v2
-  const volume = await daytona.volume.create(`shared-vol-${RUN}`)
+  const volume = await daytona.volumes.create({ name: `shared-vol-${RUN}` })
   console.log(`volume id=${volume.id} name=${volume.name} status=${volume.status}`)
   const boxes: Sandbox[] = []
   let ok = true
@@ -40,9 +41,11 @@ async function main(): Promise<number> {
   }
   const newBox = async (name: string): Promise<Sandbox> => {
     const box = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), {
-      name: `${name}-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: '/data' }], waitSeconds: 240,
+      name: `${name}-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: '/data' }],
+      buildTimeoutSeconds: 240, waitSeconds: 240,
     })
     boxes.push(box)
+    assertStarted(box)
     return box
   }
 
@@ -55,7 +58,6 @@ async function main(): Promise<number> {
     await sleep(SYNC_WAIT_SECONDS)
     await a.delete()
     boxes.splice(boxes.indexOf(a), 1)
-    await sleep(3)
 
     console.log("2. sandbox B reads A's file and appends a line")
     const b = await newBox('vol-b')
@@ -72,7 +74,6 @@ async function main(): Promise<number> {
     await sleep(SYNC_WAIT_SECONDS)
     await b.delete()
     boxes.splice(boxes.indexOf(b), 1)
-    await sleep(3)
 
     console.log("3. sandbox C reads both writers' data")
     const c = await newBox('vol-c')
@@ -93,15 +94,13 @@ async function main(): Promise<number> {
           console.log(`delete sandbox failed: ${error}`)
         }
       }
-      // Allow sandbox deletion to finish before deleting the volume.
-      await sleep(3)
       try {
-        await daytona.volume.delete(volume)
+        await daytona.volumes.delete(volume.id, { idOnly: true })
       } catch (error) {
         if (!(error instanceof DaytonaError)) throw error
         console.log(`delete volume failed (retrying once): ${error}`)
         await sleep(5)
-        await daytona.volume.delete(volume)
+        await daytona.volumes.delete(volume.id, { idOnly: true })
       }
     }
   }

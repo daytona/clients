@@ -17,9 +17,9 @@ import math
 from typing import Final, Optional
 
 from . import _clock
-from ._core import WAIT_READ_SLACK_SECONDS, RequestSpec, expect_docker_status
+from ._core import WAIT_READ_SLACK_SECONDS, RequestSpec, expect_docker_status, wait_budget_seconds
 from ._transport import AsyncTransport
-from .errors import ClientTimeoutError, DockerNotReadyError, DockerWaitTimeoutError, create_error
+from .errors import ClientTimeoutError, DockerNotReadyError, DockerWaitTimeoutError
 from .types import DockerStatus
 
 #: Default ``wait_until_ready()`` budget in seconds.
@@ -43,8 +43,8 @@ class AsyncDockerService:
     :meth:`wait_until_ready` with a ``NotFoundError`` (404).
     """
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def status(self) -> DockerStatus:
         """Return the current Docker Engine status for this boot, answered immediately.
@@ -56,8 +56,8 @@ class AsyncDockerService:
     async def wait_until_ready(self, *, timeout: float = DOCKER_WAIT_DEFAULT_TIMEOUT_SECONDS) -> DockerStatus:
         """Poll the Docker status until it is ``ready`` and return that status.
 
-        ``timeout`` is the wait budget in seconds (default 60); ``0`` waits
-        without a deadline — avoid it for sandboxes whose Docker can stay
+        ``timeout`` is the wait budget in seconds (default 60); ``0``, or a
+        value above about 24.8 days, waits without a deadline — avoid it for sandboxes whose Docker can stay
         ``deferred``. Each poll asks the server to hold for up to one second
         while Docker is ``starting``; answers that come back sooner are spaced
         0.5 s apart.
@@ -70,9 +70,10 @@ class AsyncDockerService:
         when a status request is still unanswered at the deadline. No request
         runs more than a fraction of a second past the deadline.
         """
-        if isinstance(timeout, bool) or not math.isfinite(timeout) or timeout < 0:
-            raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
-        deadline = None if timeout == 0 else _clock.monotonic() + timeout
+        # 0, or above the timer maximum (an integer too large for a float
+        # included), waits without a deadline.
+        budget = wait_budget_seconds(timeout)
+        deadline = None if budget == 0 else _clock.monotonic() + budget
         last: Optional[DockerStatus] = None
         while True:
             remaining = None if deadline is None else deadline - _clock.monotonic()

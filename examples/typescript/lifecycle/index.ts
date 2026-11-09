@@ -6,7 +6,7 @@
  *       npx tsx typescript/lifecycle/index.ts
  */
 
-import { client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
+import { assertStarted, client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
 
 async function main() {
   const daytona = client()
@@ -17,6 +17,7 @@ async function main() {
 
   let ok = true
   try {
+    assertStarted(sandbox)
     section('get(id) + list')
     const got = await daytona.get(sandbox.id)
     info(`get(id) -> ${got.id}`)

@@ -30,7 +30,7 @@ import uuid
 
 from daytona import Daytona as RootDaytona
 from daytona import DaytonaConfig, DaytonaV2Client
-from daytona.v2 import DaytonaError, ImageBuilder, UnsupportedOperationError
+from daytona.v2 import DaytonaError, ImageBuilder, RequestTimeoutError, UnsupportedOperationError
 
 IMAGE = os.environ.get("SMOKE_IMAGE", "python:3.12-slim")
 RUN = uuid.uuid4().hex[:8]
@@ -67,15 +67,15 @@ def check(label: str, cond: bool, detail: str = "") -> bool:
     return cond
 
 
-def wait_ready(daytona: DaytonaV2Client, image_id: str, deadline_s: float = 900) -> str:
-    """`images.get(wait="ready")` long-polls at most 60 s per call: repeat it
-    until the image settles or the overall deadline passes."""
-    deadline = time.monotonic() + deadline_s
-    while True:
-        status = daytona.images.get(image_id, wait="ready", timeout=60).status
-        if status in ("ready", "failed") or time.monotonic() >= deadline:
-            return status
-        time.sleep(1)
+def wait_ready(daytona: DaytonaV2Client, image_id: str, timeout_s: float = 900) -> str:
+    """One `images.get(wait="ready")` with the whole budget: it repeats the
+    server's long poll and returns the image once it settles (`ready`,
+    `failed` or `error`), or raises `RequestTimeoutError` when the budget runs
+    out, reported here as a failed check."""
+    try:
+        return daytona.images.get(image_id, wait="ready", timeout=timeout_s).status
+    except RequestTimeoutError:
+        return f"not settled within {timeout_s:g} s"
 
 
 def skip(label: str, reason: str) -> None:
@@ -133,7 +133,7 @@ def main() -> int:
             check("dockerfile image name echoed", df_image.name == DFSNAP)
 
         log("images: list + wait ready")
-        check("list returns images", isinstance(daytona.images.list().items, list))
+        check("list returns images", isinstance(daytona.images.list().items, tuple))
         for built in [image] + ([df_image] if df_image else []):
             status = wait_ready(daytona, built.id)
             check(f"image {built.name} ready", status == "ready", status)
@@ -153,7 +153,7 @@ def main() -> int:
         check("get(id)", daytona.get(box.id).id == box.id)
         check("list includes ours", any(s.id == box.id for s in daytona.list().items))
 
-        if not SKIP_TOOLBOX:
+        if not SKIP_TOOLBOX and box.state == "started":
             log("toolbox: exec round-trip")
             r = box.process.run("echo daytona-$((6*7))")
             check(
@@ -232,7 +232,7 @@ def main() -> int:
                 df_box.state == "started",
                 f"{time.time() - t0:.1f}s id={df_box.id}",
             )
-            if not SKIP_TOOLBOX:
+            if not SKIP_TOOLBOX and df_box.state == "started":
                 rm = df_box.process.run("cat /etc/daytona-marker")
                 check(
                     "dockerfile RUN layer present",
@@ -272,8 +272,8 @@ def teardown(daytona: DaytonaV2Client) -> None:
         except Exception as e:
             FAIL += 1
             print(f"    box delete failed: {str(e)[:80]}")
-    # Sandbox delete is asynchronous: the image stays referenced (409) until the
-    # sandboxes are gone, so retry for a bounded time.
+    # Image references can still be releasing after sandbox deletion has
+    # completed; retry conflicts for a bounded time.
     for image in _images:
         for attempt in range(60):
             try:

@@ -4,9 +4,10 @@
  */
 
 import { Daytona } from '../src/v2/Daytona'
-import { InternalServerError } from '../src/v2/index'
+import { lazySandbox } from './lazySandbox'
+import { BadRequestError } from '../src/v2/index'
 
-import { jsonBody, startFakeApi } from './networkPolicyTestServer'
+import { jsonBody, sentRequest, startFakeApi } from './networkPolicyTestServer'
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
   const previous = process.env.DAYTONA_V2_API_URL
@@ -45,7 +46,8 @@ describe('network policy wire contract', () => {
     }
 
     const postBodies = api.requests.filter((request) => request.method === 'POST').map(jsonBody) as Array<Record<string, unknown>>
-    expect(api.requests[0]?.path).toBe('/sandboxes')
+    expect(postBodies).toHaveLength(5)
+    expect(sentRequest(api, 10, 0).path).toBe('/sandboxes')
     expect(postBodies[0]).not.toHaveProperty('network_policy')
     expect(postBodies[1]?.network_policy).toBeNull()
     expect(postBodies[2]?.network_policy).toEqual({})
@@ -91,8 +93,10 @@ describe('network policy wire contract', () => {
       await api.close()
     }
 
-    expect(api.requests[0]?.path).toBe('/sandboxes')
-    expect(jsonBody(api.requests[0]!)).not.toHaveProperty('network_policy')
+    // The create, then its wait read.
+    const request = sentRequest(api, 2, 0)
+    expect(request.path).toBe('/sandboxes')
+    expect(jsonBody(request)).not.toHaveProperty('network_policy')
   })
 
   it('returns etag, revisions, and read-side versioned policy state', async () => {
@@ -113,8 +117,8 @@ describe('network policy wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      const policy = await client.getNetworkPolicy('sbx')
-      expect(api.requests[0]?.path).toBe('/sandboxes/sbx/network-policy')
+      const policy = await lazySandbox(client, 'sbx').getNetworkPolicy()
+      expect(sentRequest(api, 1).path).toBe('/sandboxes/sbx/network-policy')
       expect(policy).toMatchObject({ etag: '"np-7"', httpStatus: 200, desiredRevision: 7, appliedRevision: 6, appliedStartId: 'start-1', status: 'pending' })
       expect(policy.desired).toMatchObject({ version: 2, blockAll: true, allowCidrs: ['1.2.3.4/32'], allowDomains: ['api.example.com'] })
       expect(policy.applied).toMatchObject({ version: 2, blockAll: false, allowCidrs: [], allowDomains: null })
@@ -154,19 +158,21 @@ describe('network policy wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      const updated = await client.updateNetworkPolicy('sbx', { blockAll: true, allowCidrs: [], allowDomains: [] }, { ifMatch: '"np-1"' })
-      const reset = await client.resetNetworkPolicy('sbx', { ifMatch: '"np-2"' })
+      const updated = await lazySandbox(client, 'sbx').updateNetworkPolicy({ blockAll: true, allowCidrs: [], allowDomains: [] }, { ifMatch: '"np-1"' })
+      const reset = await lazySandbox(client, 'sbx').resetNetworkPolicy({ ifMatch: '"np-2"' })
       expect(updated).toMatchObject({ etag: '"np-2"', httpStatus: 202, desiredRevision: 2, status: 'pending' })
       expect(reset).toMatchObject({ etag: '"np-3"', httpStatus: 202, desiredRevision: 3, status: 'applied' })
     } finally {
       await api.close()
     }
 
-    expect(api.requests[0]?.path).toBe('/sandboxes/sbx/network-policy')
-    expect(api.requests[0]?.headers['if-match']).toBe('"np-1"')
-    expect(jsonBody(api.requests[0]!)).toEqual({ block_all: true, allow_cidrs: [], allow_domains: [] })
-    expect(api.requests[1]?.headers['if-match']).toBe('"np-2"')
-    expect(jsonBody(api.requests[1]!)).toBeNull()
+    const update = sentRequest(api, 2, 0)
+    const reset = sentRequest(api, 2, 1)
+    expect(update.path).toBe('/sandboxes/sbx/network-policy')
+    expect(update.headers['if-match']).toBe('"np-1"')
+    expect(jsonBody(update)).toEqual({ block_all: true, allow_cidrs: [], allow_domains: [] })
+    expect(reset.headers['if-match']).toBe('"np-2"')
+    expect(jsonBody(reset)).toBeNull()
   })
 
   it('keeps 200 success parsing only as a compatibility parser case', async () => {
@@ -187,13 +193,13 @@ describe('network policy wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      await expect(client.getNetworkPolicy('sbx')).resolves.toMatchObject({ etag: '"np-4"', httpStatus: 200, desiredRevision: 4 })
+      await expect(lazySandbox(client, 'sbx').getNetworkPolicy()).resolves.toMatchObject({ etag: '"np-4"', httpStatus: 200, desiredRevision: 4 })
     } finally {
       await api.close()
     }
   })
 
-  it('classifies malformed server response arrays as internal errors, not client validation errors', async () => {
+  it('classifies malformed server response arrays as contract errors (BadRequestError, source SDK)', async () => {
     const api = await startFakeApi([
       {
         status: 200,
@@ -213,12 +219,13 @@ describe('network policy wire contract', () => {
     try {
       let thrown: unknown
       try {
-        await client.getNetworkPolicy('sbx')
+      await lazySandbox(client, 'sbx').getNetworkPolicy()
       } catch (error) {
         thrown = error
       }
-      expect(thrown).toBeInstanceOf(InternalServerError)
-      expect(thrown).toMatchObject({ message: 'desired.allow_cidrs must be an array of strings' })
+      // A response that breaks the contract is the SDK's BadRequestError.
+      expect(thrown).toBeInstanceOf(BadRequestError)
+      expect(thrown).toMatchObject({ message: 'desired.allow_cidrs must be an array of strings', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     } finally {
       await api.close()
     }

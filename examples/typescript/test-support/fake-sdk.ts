@@ -12,11 +12,21 @@
 import { writeFileSync } from 'node:fs'
 
 import { Daytona } from '@daytona/sdk'
-import { ImageBuildFailedError, NameConflictError } from '@daytona/sdk/v2'
+import { ConflictError, ImageBuildFailedError, NameConflictError, NotFoundError, RequestTimeoutError } from '@daytona/sdk/v2'
+import type {
+  BuildLogFollowOptions,
+  CreateFromBuildOptions,
+  CreateSandboxOptions,
+  CreateVolumeOptions,
+  DeleteVolumeOptions,
+  GetVolumeOptions,
+  SetSecretOptions,
+} from '@daytona/sdk/v2'
 
 import { RUN } from '../_common'
 
 export interface Scenario {
+  readonly sandboxStates?: readonly string[]
   /** [regex, exitCode, output]: the first pattern matching a command answers it. */
   overrides?: [string, number, string][]
   interpreterExitCode?: number
@@ -44,36 +54,77 @@ export interface Scenario {
 }
 
 export interface Record {
+  readonly commands: { readonly sandboxId: string; readonly command: string }[]
   sandboxes: string[]
   deletedSandboxes: string[]
   secretSets: { name: string; ifNotExists: boolean }[]
   deletedSecrets: string[]
+  createdVolumes: string[]
   deletedVolumes: string[]
   followedImages: string[]
   pulledImages: { ref: string; name?: string }[]
   deletedImages: string[]
+  imageWaits: { wait?: string; timeoutSeconds?: number }[]
+  mounts: { sandboxId: string; mounts: Mount[] }[]
 }
 
 const scenario: Scenario = JSON.parse(process.env.EXAMPLE_FAKE_SCENARIO ?? '{}')
 const record: Record = {
+  commands: [],
   sandboxes: [],
   deletedSandboxes: [],
   secretSets: [],
   deletedSecrets: [],
+  createdVolumes: [],
   deletedVolumes: [],
   followedImages: [],
   pulledImages: [],
   deletedImages: [],
+  imageWaits: [],
+  mounts: [],
 }
 process.on('exit', () => {
   if (process.env.EXAMPLE_FAKE_RECORD) writeFileSync(process.env.EXAMPLE_FAKE_RECORD, JSON.stringify(record))
 })
 
 const secrets = new Map<string, string>()
+type FakeVolume = { readonly id: string; readonly name: string; readonly status: 'ready' }
+const volumes = new Map<string, FakeVolume>()
 let nextImage = 0
 const newImage = (name: string, status: string, waits: string[] = ['ready'], error?: string) => ({ id: `img-${nextImage++}`, name, status, waits, error })
 const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(name, status, waits))
-const volumeLines: string[] = []
+// Each volume's files (path inside the volume → bytes); a sandbox reads and
+// writes a path, through its commands and its `fs` alike, in the volume
+// mounted over it, else on its own disk.
+type FileStore = Map<string, Uint8Array>
+const volumeFiles = new Map<string, FileStore>()
+type Mount = { readonly volumeId: string; readonly mountPath: string; readonly subpath?: string; readonly readOnly?: boolean }
+
+function mountsOf(requested: CreateSandboxOptions['volumes']): Mount[] {
+  return (requested ?? []).map(({ volumeId, mountPath, subpath, readOnly }) => {
+    // The API rejects a mount of a volume the project lacks.
+    if (!volumes.has(volumeId)) throw new Error(`volume ${volumeId} not found`)
+    return {
+      volumeId,
+      mountPath: mountPath.replace(/\/+$/, ''),
+      ...(subpath === undefined ? {} : { subpath }),
+      ...(readOnly === undefined ? {} : { readOnly }),
+    }
+  })
+}
+
+/**
+ * Where a path lives: under a mount, in that volume below its subpath (and
+ * read-only when the mount is); else on the sandbox's own disk.
+ */
+function fileStore(path: string, mounts: readonly Mount[], disk: FileStore): { store: FileStore; key: string; readOnly: boolean } {
+  const mount = mounts.find(({ mountPath }) => path === mountPath || path.startsWith(`${mountPath}/`))
+  if (mount === undefined) return { store: disk, key: path, readOnly: false }
+  const store = volumeFiles.get(mount.volumeId) ?? new Map<string, Uint8Array>()
+  volumeFiles.set(mount.volumeId, store)
+  const below = mount.subpath === undefined ? '' : `/${mount.subpath.replace(/^\/+|\/+$/g, '')}`
+  return { store, key: `${below}${path.slice(mount.mountPath.length)}`, readOnly: mount.readOnly === true }
+}
 
 // Every field the SDK's ProcessResult requires, so an example reading any of them sees a real shape:
 // non-empty output is one stdout log frame, as the sandbox reports it.
@@ -82,17 +133,24 @@ const result = (exitCode: number, output: string) => ({
   logs: output === '' ? [] : [{ cursor: '1', channel: 'stdout', data: output, timestampMs: 0 }],
 })
 
-function run(command: string, env: { [name: string]: string }, dockerfile: string) {
+const encode = (text: string): Uint8Array => new TextEncoder().encode(text)
+const decode = (bytes: Uint8Array | undefined): string => new TextDecoder().decode(bytes ?? new Uint8Array())
+const readOnlyFailure = (path: string) => `sh: can't create ${path}: Read-only file system`
+
+function run(command: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[], disk: FileStore) {
   for (const [pattern, exitCode, output] of scenario.overrides ?? []) {
     if (new RegExp(pattern).test(command)) return result(exitCode, output)
   }
   if (scenario.volumeData && command.includes('/data/message.txt')) {
-    const write = /echo (\S+) >>? \/data\/message\.txt/.exec(command)
+    const { store, key, readOnly } = fileStore('/data/message.txt', mounts, disk)
+    const write = /echo (\S+) (>>?) \/data\/message\.txt/.exec(command)
+    if (write && readOnly) return result(1, readOnlyFailure('/data/message.txt'))
     if (write) {
-      volumeLines.push(write[1])
+      store.set(key, encode(`${write[2] === '>>' ? decode(store.get(key)) : ''}${write[1]}\n`))
       return result(0, '')
     }
-    return result(0, volumeLines.join('\n'))
+    const bytes = store.get(key)
+    return result(0, bytes === undefined ? (command.includes("echo '<missing>'") ? '<missing>' : '') : decode(bytes).replace(/\n$/, ''))
   }
   const variable = /^printf %s "\$(\w+)"$/.exec(command)
   if (variable) return result(0, env[variable[1]] ?? '')
@@ -104,17 +162,28 @@ function run(command: string, env: { [name: string]: string }, dockerfile: strin
   return result(0, '')
 }
 
-function sandbox(name: string, env: { [name: string]: string }, dockerfile: string) {
+function sandbox(name: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[] = []) {
   const id = `sbx-${record.sandboxes.length}`
   record.sandboxes.push(id)
-  const files = new Map<string, Uint8Array>()
+  record.mounts.push({ sandboxId: id, mounts: [...mounts] })
+  const disk: FileStore = new Map()
+  // The `fs` calls go through the same mount-aware store as the commands.
+  const at = (path: string) => fileStore(path, mounts, disk)
+  const write = (path: string, data: Uint8Array): void => {
+    const { store, key, readOnly } = at(path)
+    if (readOnly) throw new Error(readOnlyFailure(path))
+    store.set(key, data)
+  }
   const box = {
     id,
     name,
-    state: 'started',
+    state: scenario.sandboxStates?.[record.sandboxes.length - 1] ?? 'started',
     cpu: 1,
     memory: 1,
-    process: { run: async (command: string) => run(command, env, dockerfile) },
+    process: { run: async (command: string) => {
+      record.commands.push({ sandboxId: id, command })
+      return run(command, env, dockerfile, mounts, disk)
+    } },
     interpreter: {
       run: async () => ({
         process: { processId: 'p', reason: 'exited' as const, exitCode: scenario.interpreterExitCode ?? 0 },
@@ -125,15 +194,27 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     },
     fs: {
       mkdir: async () => undefined,
-      list: async () => ({ items: [] }),
+      list: async (dir: string) => {
+        // The entries directly below `dir`, from the store that holds `dir`:
+        // `.` (or empty) is the relative root, `/` the absolute one.
+        const relative = dir.replace(/^(?:\.\/)+/, '').replace(/\/+$/, '')
+        const root = relative === '' || relative === '.'
+        const { store, key } = at(root ? (dir.startsWith('/') ? '/' : '.') : relative)
+        const prefix = root ? (dir.startsWith('/') ? '/' : '') : `${key}/`
+        const names = [...store.keys()]
+          .filter((path) => path.startsWith(prefix) && (prefix !== '' || !path.startsWith('/')))
+          .map((path) => path.slice(prefix.length).split('/')[0])
+        return { items: [...new Set(names)].map((name) => ({ name })) }
+      },
       glob: async () => ({ items: [] }),
-      writeBytes: async (path: string, data: Uint8Array) => void files.set(path, data),
-      writeText: async (path: string, text: string) => void files.set(path, new TextEncoder().encode(text)),
-      readBytes: async (path: string) => files.get(path) ?? new Uint8Array(),
+      writeBytes: async (path: string, data: Uint8Array) => write(path, data),
+      writeText: async (path: string, text: string) => write(path, encode(text)),
+      readBytes: async (path: string) => { const { store, key } = at(path); return store.get(key) ?? new Uint8Array() },
+      readText: async (path: string) => { const { store, key } = at(path); return decode(store.get(key)) },
       replace: async (paths: string[], pattern: string, value: string) => {
         for (const path of paths) {
-          const text = new TextDecoder().decode(files.get(path))
-          files.set(path, new TextEncoder().encode(text.replace(pattern, value)))
+          const { store, key } = at(path)
+          write(path, encode(decode(store.get(key)).replace(pattern, value)))
         }
         return { items: paths.map((file) => ({ file, success: true })) }
       },
@@ -161,25 +242,32 @@ type Box = ReturnType<typeof sandbox>
 const boxes: Box[] = []
 
 const fake = {
-  create: async (image: string, options: { name?: string; env?: { [k: string]: string }; envVars?: { [k: string]: string }; secrets?: string[] } = {}) => {
+  create: async (image: string, options: CreateSandboxOptions = {}) => {
     // The API creates only from a project image, never a registry reference.
     if (!images.some((entry) => (entry.name === image || entry.id === image) && entry.status === 'ready')) throw new Error(`image not found: ${image}`)
-    const env = { ...options.env, ...options.envVars }
+    const env = { ...options.env }
     for (const name of options.secrets ?? []) {
       // The API rejects a create that attaches a secret the project lacks.
       if (!secrets.has(name)) throw new Error(`secret ${name} not found`)
       env[name] = scenario.leakSecrets ? (secrets.get(name) ?? '') : 'DAYTONA_SECRET_PLACEHOLDER'
     }
-    const box = sandbox(options.name ?? image, env, '')
+    const box = sandbox(options.name ?? image, env, '', mountsOf(options.volumes))
     boxes.push(box)
     return box
   },
-  createFromBuild: async (builder: { toDockerfile(): string }, options: { name?: string } = {}) => {
+  createFromBuild: async (builder: { toDockerfile(): string }, options: CreateFromBuildOptions = {}) => {
     const dockerfile = builder.toDockerfile()
     if (scenario.failBuildsContaining && dockerfile.includes(scenario.failBuildsContaining)) {
-      throw new ImageBuildFailedError('image build failed', { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: 'img_failed' })
+      throw new ImageBuildFailedError('image build failed', {
+        statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: 'img_failed',
+      })
     }
-    const box = sandbox(options.name ?? 'built', {}, dockerfile)
+    const env = { ...options.env }
+    for (const name of options.secrets ?? []) {
+      if (!secrets.has(name)) throw new Error(`secret ${name} not found`)
+      env[name] = scenario.leakSecrets ? (secrets.get(name) ?? '') : 'DAYTONA_SECRET_PLACEHOLDER'
+    }
+    const box = sandbox(options.name ?? 'built', env, dockerfile, mountsOf(options.volumes))
     boxes.push(box)
     return box
   },
@@ -193,9 +281,16 @@ const fake = {
     iter: async function* (options: { name?: string } = {}) {
       yield* images.filter((entry) => options.name === undefined || entry.name === options.name)
     },
-    get: async (id: string) => {
+    get: async (id: string, options: { wait?: string; timeoutSeconds?: number } = {}) => {
+      // Without wait: 'ready', the image as it is now. With it, as the SDK's
+      // budgeted wait: it follows the image until it settles, or throws
+      // RequestTimeoutError when it never does.
+      record.imageWaits.push({ wait: options.wait, timeoutSeconds: options.timeoutSeconds })
       const entry = images.find((candidate) => candidate.id === id)
-      if (entry) entry.status = entry.waits.shift() ?? entry.status
+      if (entry === undefined || options.wait !== 'ready') return entry
+      const settled = (): boolean => ['ready', 'failed', 'error'].includes(entry.status)
+      while (!settled() && entry.waits.length > 0) entry.status = entry.waits.shift() ?? entry.status
+      if (!settled()) throw new RequestTimeoutError('image did not settle', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       return entry
     },
     pull: async (ref: string, options: { name?: string } = {}) => {
@@ -212,15 +307,15 @@ const fake = {
       record.deletedImages.push(id)
       images.splice(images.findIndex((entry) => entry.id === id), 1)
     },
-    followBuildLogs: async (imageId: string, options: { onLogs: (chunk: string) => void }) => {
+    followBuildLogs: async (imageId: string, options: BuildLogFollowOptions) => {
       record.followedImages.push(imageId)
-      if (!scenario.emptyBuildLogs) options.onLogs(`intentional-build-failure-${RUN}\n`)
+      if (!scenario.emptyBuildLogs) await options.onLogs(`intentional-build-failure-${RUN}\n`)
       if (scenario.buildLogsThrowAfterOutput) throw new Error('stream interrupted')
       return {}
     },
   },
-  secret: {
-    set: async (name: string, value: string, options: { ifNotExists?: boolean }) => {
+  secrets: {
+    set: async (name: string, value: string, options: SetSecretOptions) => {
       record.secretSets.push({ name, ifNotExists: options.ifNotExists === true })
       if (scenario.secretSetThrows) throw new Error(scenario.secretSetThrows)
       if (options.ifNotExists && secrets.has(name)) throw new Error('secret already exists')
@@ -238,9 +333,31 @@ const fake = {
       record.deletedSecrets.push(name)
     },
   },
-  volume: {
-    create: async (name: string) => ({ id: `vol-${name}`, name, status: 'ready' }),
-    delete: async (volume: { id: string }) => void record.deletedVolumes.push(volume.id),
+  volumes: {
+    create: async ({ name }: CreateVolumeOptions): Promise<FakeVolume> => {
+      const volume = { id: `vol-${name}`, name, status: 'ready' } as const
+      volumes.set(volume.id, volume)
+      record.createdVolumes.push(volume.id)
+      return volume
+    },
+    get: async (nameOrId: string, options: GetVolumeOptions = {}): Promise<FakeVolume> => {
+      const volume = volumes.get(nameOrId) ?? (!options.idOnly
+        ? [...volumes.values()].find((entry) => entry.name === nameOrId) : undefined)
+      if (volume) return volume
+      if (options.create && !options.idOnly) return fake.volumes.create({ name: nameOrId })
+      // As the SDK: an absent volume is NotFoundError unless create is set.
+      throw new NotFoundError(`volume ${nameOrId} not found`, { statusCode: 404, code: 'NOT_FOUND', source: 'API' })
+    },
+    delete: async (nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> => {
+      const volume = await fake.volumes.get(nameOrId, options)
+      // As the API: a volume a sandbox still mounts is a conflict.
+      const inUse = record.mounts.some(({ sandboxId, mounts }) => !record.deletedSandboxes.includes(sandboxId) && mounts.some((mount) => mount.volumeId === volume.id))
+      if (inUse) throw new ConflictError(`volume ${volume.id} is in use`, { statusCode: 409, code: 'CONFLICT', source: 'API' })
+      volumes.delete(volume.id)
+      // Deleting a volume deletes its files too.
+      volumeFiles.delete(volume.id)
+      record.deletedVolumes.push(volume.id)
+    },
   },
 }
 

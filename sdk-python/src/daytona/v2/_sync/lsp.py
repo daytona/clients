@@ -25,9 +25,9 @@ class LspServer:
 
     _async_type = _async.AsyncLspServer
 
-    def __init__(self, impl: _async.AsyncLspServer, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncLspServer, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"LspServer({self._impl!r})"
@@ -77,9 +77,9 @@ class LspService:
 
     _async_type = _async.AsyncLspService
 
-    def __init__(self, impl: _async.AsyncLspService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncLspService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"LspService({self._impl!r})"

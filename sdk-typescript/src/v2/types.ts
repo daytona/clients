@@ -12,9 +12,6 @@ import {
   BuildLogDoneReason as API_BUILD_LOG_DONE_REASONS,
   BuildLogGapReason as API_BUILD_LOG_GAP_REASONS,
   ImageRetention as API_IMAGE_RETENTIONS,
-  MacReservationEndReason as API_MAC_RESERVATION_END_REASONS,
-  MacReservationOrigin as API_MAC_RESERVATION_ORIGINS,
-  MacReservationStatus as API_MAC_RESERVATION_STATUSES,
   SearchTotalRelation as API_SEARCH_TOTAL_RELATIONS,
   SnapshotKind as API_SNAPSHOT_KINDS,
   VolumeStatus as API_VOLUME_STATUSES,
@@ -140,41 +137,38 @@ export const V2_CONFIG_KEYS = optionKeys<DaytonaConfig>()({
   events: true,
 })
 
-export interface SandboxInfo {
-  sandboxId: string
-  /**
-   * Internal: the create path passes the create response's toolbox URL here.
-   * `toJSON()` never writes it, and the public `Sandbox` constructor ignores it
-   * — pass `options.toolboxUrl` to set a toolbox URL explicitly.
-   */
-  toolboxProxyUrl?: string
-  name?: string
-  image?: ImageRef
-  snapshot?: SnapshotRef
-  target?: string
-  cpu?: number
-  cpuMax?: number
-  memory?: number
-  memoryMax?: number
-  disk?: number
-  diskMax?: number
-  state?: SandboxState
-  error?: string
-  imageBuildId?: string
-  sandboxClass?: SandboxClass
-  labels?: Record<string, string>
-  region?: string
-  /** macOS only: preserve the sandbox's disk when stopped. */
-  persistent?: boolean
-  spot?: boolean
-  spotEvictedAt?: string
-  lifecyclePolicy?: SandboxLifecycle
-  forkedFrom?: string
-  reservationId?: string
-  user?: string
+export interface SandboxHandleJSON {
+  readonly sandboxId: string
+  readonly name?: string
+  readonly image?: ImageRef
+  readonly snapshot?: SnapshotRef
+  readonly cpu?: number
+  readonly cpuMax?: number
+  readonly memory?: number
+  readonly memoryMax?: number
+  readonly disk?: number
+  readonly diskMax?: number
+  readonly state?: SandboxState
+  readonly rawState?: string
+  readonly error?: string
+  readonly imageBuildId?: string
+  readonly sandboxClass?: SandboxClass | 'unknown'
+  readonly rawSandboxClass?: string
+  readonly labels?: Readonly<Record<string, string>>
+  readonly region?: string
+  readonly persistent?: boolean
+  readonly spot?: boolean
+  readonly spotEvictedAt?: string
+  readonly lifecyclePolicy?: SandboxLifecycle
+  readonly forkedFrom?: string
+  readonly reservationId?: string
+  readonly user?: string
 }
 
-export type SandboxHandleJSON = SandboxInfo
+/** @internal */
+export interface SandboxInfo extends SandboxHandleJSON {
+  readonly toolboxProxyUrl?: string
+}
 
 /** A process handle's serialized identity (`handle.toJSON()`), the same shape the Python SDK writes. Reconnect with `sandbox.process.connect(value)`. */
 export interface ProcessHandleJSON {
@@ -184,13 +178,8 @@ export interface ProcessHandleJSON {
 }
 
 export interface ListResult<T> {
-  items: T[]
-  nextCursor?: string
-  /** Only set for search results (`Daytona.list()` with a search filter). */
-  total?: number
-  /** `'eq'` when `total` is exact, `'gte'` when it is a lower bound; only set with `total`. */
-  totalRelation?: SearchTotalRelation
-  rawTotalRelation?: string
+  readonly items: readonly T[]
+  readonly nextCursor?: string
 }
 
 /**
@@ -200,11 +189,11 @@ export interface ListResult<T> {
  * `'gte'`.
  */
 export interface SearchResult<T> {
-  items: T[]
-  nextCursor?: string
-  total: number
-  totalRelation: SearchTotalRelation
-  rawTotalRelation: string
+  readonly items: readonly T[]
+  readonly nextCursor?: string
+  readonly total: number
+  readonly totalRelation: SearchTotalRelation
+  readonly rawTotalRelation: string
 }
 
 export type SearchTotalRelation = (typeof API_SEARCH_TOTAL_RELATIONS)[number] | 'unknown'
@@ -232,7 +221,7 @@ export type MacBootMode = string
 // This vocabulary accepts arbitrary API values.
 export type ImageStatus = 'pending' | 'building' | 'ready' | 'failed' | (string & {})
 export type ArtifactRetention = (typeof API_IMAGE_RETENTIONS)[number] | 'unknown'
-export type ArtifactClass = 'linux' | (string & {})
+export type SnapshotClass = 'linux' | 'unknown'
 export type ImageOrigin = 'registry' | 'dockerfile' | 'capture' | (string & {})
 export type SnapshotKind = (typeof API_SNAPSHOT_KINDS)[number] | 'unknown'
 
@@ -258,28 +247,34 @@ export interface SnapshotRef {
  */
 export interface Resources {
   /** CPU request in cores (1 core = 2 vCPUs), fractional allowed. */
-  cpu?: number
+  readonly cpu?: number
   /** CPU limit in cores, a multiple of 0.5: the sandbox boots `cpuMax * 2` vCPUs. */
-  cpuMax?: number
+  readonly cpuMax?: number
   /** Memory in GiB. */
-  memory?: number
+  readonly memory?: number
   /** Memory limit in GiB. */
-  memoryMax?: number
+  readonly memoryMax?: number
   /** Scratch disk in GiB. */
-  disk?: number
+  readonly disk?: number
   /** Scratch disk limit in GiB. */
-  diskMax?: number
+  readonly diskMax?: number
+}
+
+export interface MacosResources {
+  readonly cpu?: number
+  readonly memory?: number
+  readonly disk?: number
 }
 
 export interface PortMapping {
-  port: number
-  proto?: 'tcp' | 'udp'
+  readonly port: number
+  readonly proto?: 'tcp' | 'udp'
 }
 
 export interface NetworkPolicyInput {
-  blockAll?: boolean | null
-  allowCidrs?: string[]
-  allowDomains?: string[] | null
+  readonly blockAll?: boolean | null
+  readonly allowCidrs?: readonly string[]
+  readonly allowDomains?: readonly string[] | null
 }
 
 export interface VolumeMount {
@@ -291,34 +286,34 @@ export interface VolumeMount {
 }
 
 export interface NetworkPolicy {
-  version: number
-  blockAll: boolean
-  allowCidrs: string[]
-  allowDomains: string[] | null
+  readonly version: number
+  readonly blockAll: boolean
+  readonly allowCidrs: readonly string[]
+  readonly allowDomains: readonly string[] | null
 }
 
 export interface NetworkPolicyInfo {
-  desired?: NetworkPolicy
-  desiredRevision: number
-  etag: string
-  httpStatus: number
-  applied?: NetworkPolicy
-  appliedRevision?: number
-  appliedStartId?: string
-  status?: string
-  error?: string
+  readonly desired?: NetworkPolicy
+  readonly desiredRevision: number
+  readonly etag: string
+  readonly httpStatus: number
+  readonly applied?: NetworkPolicy
+  readonly appliedRevision?: number
+  readonly appliedStartId?: string
+  readonly status?: string
+  readonly error?: string
 }
 
 export interface SandboxSecretsInfo {
-  secrets: string[]
-  desiredRevision: number
-  etag: string
-  httpStatus: number
-  appliedRevision?: number
-  status?: string
-  error?: string
-  captureStatus?: string
-  captureUnresolvedCount?: number
+  readonly secrets: readonly string[]
+  readonly desiredRevision: number
+  readonly etag: string
+  readonly httpStatus: number
+  readonly appliedRevision?: number
+  readonly status?: string
+  readonly error?: string
+  readonly captureStatus?: string
+  readonly captureUnresolvedCount?: number
 }
 
 /**
@@ -372,10 +367,10 @@ export const DISABLED = -1
  * `LifecycleAction` for the supported actions.
  */
 export interface LifecyclePolicyOptions {
-  timeoutSeconds?: number
-  onTimeout?: LifecycleAction
-  idleExpirySeconds?: number
-  onIdleTimeout?: LifecycleAction
+  readonly timeoutSeconds?: number
+  readonly onTimeout?: LifecycleAction
+  readonly idleExpirySeconds?: number
+  readonly onIdleTimeout?: LifecycleAction
 }
 
 /**
@@ -388,11 +383,11 @@ export interface LifecyclePolicyOptions {
  * server) is passed through as its wire string.
  */
 export interface SandboxLifecycle {
-  timeoutSeconds?: number
-  onTimeout?: string
-  timeoutAt?: string
-  idleExpirySeconds?: number
-  onIdleTimeout?: string
+  readonly timeoutSeconds?: number
+  readonly onTimeout?: string
+  readonly timeoutAt?: string
+  readonly idleExpirySeconds?: number
+  readonly onIdleTimeout?: string
   /**
    * When `onIdleTimeout` becomes eligible to fire:
    * `lastActivityAt + idleExpirySeconds`, server-derived and read-only.
@@ -402,9 +397,9 @@ export interface SandboxLifecycle {
    * `process.start`, `runCode` and interpreter cells included), or
    * `sandbox.resetIdleTimer()` — advances `lastActivityAt` and pushes it.
    */
-  idleTimeoutAt?: string
-  lastActivityAt?: string
-  lastActivitySource?: string
+  readonly idleTimeoutAt?: string
+  readonly lastActivityAt?: string
+  readonly lastActivitySource?: string
 }
 
 /** Wire shape of the lifecycle object on sandbox DTOs and the lifecycle PATCH response. */
@@ -419,28 +414,35 @@ export interface SandboxLifecycleDto {
   last_activity_source?: string | null
 }
 
-export interface WaitForStateOptions {
-  terminalStates?: readonly SandboxState[]
-  /** Caller wait budget in milliseconds; `0` and `undefined` wait unbounded. */
-  timeout?: number
+export interface LifecycleWaitOptions {
+  /** Wait budget in seconds; default 60; `0`, or a value above about 24.8 days, waits without a deadline. */
+  readonly timeoutSeconds?: number
+}
+
+export interface ForkOptions {
+  readonly name?: string
+  readonly memory?: boolean
+  /** Wait budget in seconds; default 60; `0` returns immediately after acceptance; a value above about 24.8 days (the timer maximum) waits with no deadline. */
+  readonly waitSeconds?: number
+  readonly autoDelete?: boolean
 }
 
 export interface CreateRequestBaseOptions {
-  name?: string
-  labels?: Record<string, string>
-  ports?: PortMapping[]
+  readonly name?: string
+  readonly labels?: Readonly<Record<string, string>>
+  readonly ports?: readonly PortMapping[]
   /**
    * `null` is accepted and means "no policy", exactly like omitting the key —
    * a JSON config round-trip produces it, and the Python SDK's `None` (the same
    * argument in the same position) already reads that way.
    */
-  lifecyclePolicy?: LifecyclePolicyOptions | null
-  cpuArch?: CpuArch
-  cpuType?: string
+  readonly lifecyclePolicy?: LifecyclePolicyOptions | null
   /** Region selector for this create request. */
-  region?: string
-  waitSeconds?: number
-  createTimeoutSeconds?: number
+  readonly region?: string
+  readonly waitSeconds?: number
+  readonly createTimeoutSeconds?: number
+  /** Delete on disposal only when explicitly enabled; default false. */
+  readonly autoDelete?: boolean
   /**
    * Identifies this create to the server: a second `create()` with the same
    * key and request (in the same project and API endpoint) returns the
@@ -457,7 +459,7 @@ export interface CreateRequestBaseOptions {
    * or one with characters outside printable ASCII with `400 BAD_REQUEST` (it
    * travels as an HTTP header).
    */
-  idempotencyKey?: string
+  readonly idempotencyKey?: string
 }
 
 /**
@@ -472,48 +474,47 @@ export interface CreateRequestBaseOptions {
  * ceiling.
  */
 export interface CreateSandboxOptions extends CreateRequestBaseOptions {
-  volumes?: VolumeMount[]
-  env?: Record<string, string>
-  envVars?: Record<string, string>
-  resources?: Resources
-  cpu?: number
-  memory?: number
-  disk?: number
-  secrets?: string[]
-  spot?: boolean
-  user?: string
-  networkPolicy?: NetworkPolicyInput | null
+  readonly volumes?: readonly VolumeMount[]
+  readonly env?: Readonly<Record<string, string>>
+  readonly resources?: Resources
+  readonly cpuArch?: CpuArch
+  readonly cpuType?: string
+  readonly secrets?: readonly string[]
+  readonly spot?: boolean
+  readonly user?: string
+  readonly networkPolicy?: NetworkPolicyInput | null
+}
+
+export interface CreateFromBuildOptions extends CreateSandboxOptions {
+  readonly idleExpirySeconds?: number
+  /** Image build budget in seconds; omitted, `0` or a value above about 24.8 days waits without a deadline. */
+  readonly buildTimeoutSeconds?: number
 }
 
 export interface CreateSandboxFromSnapshotOptions extends CreateRequestBaseOptions {}
 
 /**
- * Options for a macOS create (`POST /sandboxes/macos`). `cpu`, `memory` and
- * `disk` size the sandbox; omitted values use the API defaults.
+ * Options for a macOS create. `resources` sizes the sandbox; omitted axes use
+ * the API defaults.
  * CPU selectors do not apply.
  */
-export interface CreateMacosSandboxOptions extends Omit<CreateRequestBaseOptions, 'cpuArch' | 'cpuType'> {
+export interface CreateMacosSandboxOptions extends CreateRequestBaseOptions {
   /** Read-write disk volumes. Cannot be combined with `persistent: true`. */
-  volumes?: VolumeMount[]
-  env?: Record<string, string>
-  envVars?: Record<string, string>
+  readonly volumes?: readonly VolumeMount[]
+  readonly env?: Readonly<Record<string, string>>
   /**
    * Project secret names to attach, as on `create`. Values are write-only and
    * restricted to each secret's allowed domains. Needs `read:secrets` permission.
    */
-  secrets?: string[]
-  /** CPU cores, at least 4; sent as `cores`. Omitted uses the API default. */
-  cpu?: number
-  /** Memory in GiB, at least 4; sent as memory_mib. memory * 1024 must be an integer. Omitted uses the API default. */
-  memory?: number
-  /** Disk in GiB, at least 80, including macOS; sent as disk_mib. disk * 1024 must be an integer. Omitted uses the API default. */
-  disk?: number
+  readonly secrets?: readonly string[]
+  /** Physical cores and GiB; omitted axes use the platform defaults. */
+  readonly resources?: MacosResources
   /**
    * Preserve the sandbox's disk when stopped. Start or resume to continue;
    * delete to remove it. At reservation end, the disk is saved as an anonymous
    * image that can be used to create another sandbox.
    */
-  persistent?: boolean
+  readonly persistent?: boolean
   /**
    * Which Mac reservation the sandbox runs on. Omitted: any fitting reservation of the
    * organization in the region; when none fits and the organization's
@@ -523,47 +524,53 @@ export interface CreateMacosSandboxOptions extends Omit<CreateRequestBaseOptions
    * A reservation ID selects that reservation. Acceptance does not guarantee
    * immediate capacity; the sandbox can wait for room or time out.
    */
-  reservation?: 'new' | (string & {})
+  readonly reservation?: 'new' | (string & {})
   /**
    * Only with `reservation: 'new'`: whether the bought reservation renews itself
    * each period. The server defaults it to the organization's auto-reserve
    * setting. Rejected before posting otherwise.
    */
-  autoRenew?: boolean
+  readonly autoRenew?: boolean
   /**
    * Network policy, as on `create`, effective from the sandbox's first boot.
    * Change it later with `sandbox.updateNetworkPolicy`.
    */
-  networkPolicy?: NetworkPolicyInput | null
+  readonly networkPolicy?: NetworkPolicyInput | null
 }
 
 export interface BuildImageOptions {
-  name?: string
+  readonly name?: string
   /**
    * Idle-retention window in seconds for an ANONYMOUS image: the image is
    * deleted once this long has passed without a sandbox being created from it
    * (every create restarts the clock). Only without `name`. Omitted ⇒ the
    * server maximum.
    */
-  idleExpirySeconds?: number
-  region?: string
-  cpuArch?: CpuArch
+  readonly idleExpirySeconds?: number
+  /**
+   * The region, by create's rule: omitted, blank or `local` (any case, any
+   * surrounding whitespace) uses the project's default region and sends no
+   * `region_id`; any other value is sent as given and must be printable ASCII
+   * with no leading or trailing whitespace.
+   */
+  readonly region?: string
+  readonly cpuArch?: CpuArch
 }
 
 export interface CaptureImageOptions {
-  name?: string
+  readonly name?: string
   /**
    * Idle-retention window in seconds for an ANONYMOUS capture: deleted once
    * this long has passed without a sandbox being created from it. Only without
    * `name`. Same rule as `images.build`: omitted or `-1` ⇒ the server maximum
    * (7 days by default); above it ⇒ 400. Promote the image to keep it.
    */
-  idleExpirySeconds?: number
+  readonly idleExpirySeconds?: number
 }
 
 export interface WaitOptions {
-  until?: SandboxWaitState | readonly SandboxWaitState[]
-  timeout?: number
+  readonly until?: SandboxWaitState | readonly SandboxWaitState[]
+  readonly timeoutSeconds?: number
 }
 
 export interface SandboxConnectOptions {
@@ -574,16 +581,16 @@ export interface SandboxConnectOptions {
    * never one read from stored or user-supplied data. Omit it to use the URL
    * the API returns.
    */
-  toolboxUrl?: string
+  readonly toolboxUrl?: string
   /**
    * Token override for this sandbox's toolbox requests. A caller-supplied token is
    * used verbatim and never silently replaced: its expiry surfaces as a 401.
-   * Without one, a handle with a project API key mints and refreshes
+   * Without one, a handle with an API key or a JWT client's project token mints and refreshes
    * short-lived sandbox access tokens transparently.
    */
-  accessToken?: string
+  readonly accessToken?: string
   /** Auto-delete when disposed with `await using`; defaults to false. */
-  autoDelete?: boolean
+  readonly autoDelete?: boolean
 }
 
 export interface SandboxDto {
@@ -591,7 +598,7 @@ export interface SandboxDto {
   /** Sandbox class (`linux` | `macos`); the authoritative class when present. */
   class?: SandboxClass | string
   name?: string
-  image?: api.ImageReference | null
+  image?: { readonly id: string; readonly name?: string | null } | null
   status?: string
   /** Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs). */
   cpu?: number
@@ -610,7 +617,7 @@ export interface SandboxDto {
   region_id?: string
   image_build_id?: string | null
   user?: string | null
-  snapshot?: api.SnapshotReference | null
+  snapshot?: { readonly id: string; readonly name?: string | null } | null
   /** macOS only: set on the `running` that ends a resume; null otherwise. */
   mac_boot_mode?: string | null
   /** macOS only: the reservation selected for this sandbox. `GET /sandboxes/search` items omit it. */
@@ -633,6 +640,7 @@ export interface SandboxDto {
   cursor?: string
 }
 
+/** @internal */
 export type CreateSandboxResponse = api.CreateSandboxResponse
 
 /** Options for {@link Sandbox.createAccessToken}. */
@@ -668,11 +676,13 @@ export interface SandboxAccessToken {
   readonly ports?: readonly number[]
 }
 
-export type AuditActionList = api.AuditActionList
-export type AuditActionGroup = api.AuditActionGroup
-export type ProjectApiKeyWithContext = api.ProjectApiKeyWithContext
-export type ProjectBudget = api.ProjectBudget
-export type OrganizationLimits = api.OrganizationLimits
+export type { AuditActionList, AuditActionGroup, ProjectApiKey, ProjectApiKeyContext, ProjectBudget, OrganizationLimits, UsageLimit, SandboxLimits, ImageBuildLimits, StorageLimits, SandboxResourceLimits, MemberLimits } from './accountTypes.js'
+
+export type JsonValue = string | number | boolean | null | readonly JsonValue[] | { readonly [key: string]: JsonValue }
+
+export interface FindByNameOptions {
+  readonly region?: string
+}
 
 /** Options for `Daytona.getLimits`. */
 export interface GetLimitsOptions {
@@ -680,90 +690,84 @@ export interface GetLimitsOptions {
    * The organization to read. Defaults to the API key's organization;
    * required when the client authenticates with `jwtToken`.
    */
-  organizationId?: string
+  readonly organizationId?: string
 }
 
 export type SearchSort = 'created_at' | 'updated_at' | 'last_activity_at' | 'name' | 'cores' | 'memory_mib' | 'disk_mib'
 export type SearchOrder = 'asc' | 'desc'
-/** An RFC 3339 string, or a `Date` (serialized with `toISOString()`, i.e. UTC). */
+/**
+ * A search bound: an RFC 3339 timestamp without a leap second (year 0001-9999,
+ * a real calendar date), checked and sent exactly as written; or a `Date`,
+ * sent in UTC (`toISOString()`), so its UTC instant must fall in years 0001-9999.
+ */
 export type SearchTimestamp = Date | string
 
 /**
- * The `GET /sandboxes/search` filters shared by `Daytona.search()` and `Daytona.list()`.
+ * Filters for `Daytona.search()`.
  *
- * `status`, `sandboxClass` and `region` take a single value or a list; lists are
- * joined with commas on the wire. `labels` is sent as a JSON object string
+ * `states`, `sandboxClass` and `region` take a single value or a list. `states`
+ * uses the SDK lifecycle names. `labels` is sent as a JSON object string
  * (containment match); numeric bounds and timestamp starts are inclusive;
  * timestamp ends are exclusive.
  */
 export interface SandboxSearchFilters {
   /** Free text over name and image; also an exact match when it is a sandbox id. */
-  q?: string
-  /** A single value or a list (any-of) over the API's lifecycle state names (`running`, `stopped`, ...). */
-  status?: string | readonly string[]
+  readonly q?: string
+  /** SDK lifecycle states; `creating` and `error` each match multiple server states. */
+  readonly states?: Exclude<SandboxState, 'unknown'> | readonly Exclude<SandboxState, 'unknown'>[]
   /** A single value or a list (any-of). */
-  sandboxClass?: SandboxClass | readonly SandboxClass[]
+  readonly sandboxClass?: SandboxClass | readonly SandboxClass[]
   /** A single value or a list (any-of) over region slugs. */
-  region?: string | readonly string[]
-  imageRef?: string
-  imageRefPrefix?: string
+  readonly region?: string | readonly string[]
+  readonly imageRef?: string
+  readonly imageRefPrefix?: string
   /** Containment: every listed label must match. */
-  labels?: Record<string, string>
-  spot?: boolean
+  readonly labels?: Readonly<Record<string, string>>
+  readonly spot?: boolean
   /** Sandboxes forked from this sandbox id. */
-  forkedFrom?: string
+  readonly forkedFrom?: string
   /** Inclusive bounds on `cores_max` (the CPU limit), in cores (1 core = 2 vCPUs). */
-  minCores?: number
-  maxCores?: number
-  minMemoryMib?: number
-  maxMemoryMib?: number
-  minDiskMib?: number
-  maxDiskMib?: number
-  createdStartAt?: SearchTimestamp
-  createdEndAt?: SearchTimestamp
-  updatedStartAt?: SearchTimestamp
-  updatedEndAt?: SearchTimestamp
-  lastActivityStartAt?: SearchTimestamp
-  lastActivityEndAt?: SearchTimestamp
+  readonly minCores?: number
+  readonly maxCores?: number
+  readonly minMemoryMib?: number
+  readonly maxMemoryMib?: number
+  readonly minDiskMib?: number
+  readonly maxDiskMib?: number
+  readonly createdStartAt?: SearchTimestamp
+  readonly createdEndAt?: SearchTimestamp
+  readonly updatedStartAt?: SearchTimestamp
+  readonly updatedEndAt?: SearchTimestamp
+  readonly lastActivityStartAt?: SearchTimestamp
+  readonly lastActivityEndAt?: SearchTimestamp
   /** Defaults to `created_at`. */
-  sort?: SearchSort
+  readonly sort?: SearchSort
   /** Defaults to `desc`. */
-  order?: SearchOrder
+  readonly order?: SearchOrder
 }
 
 /** Every `Daytona.search()` option (`GET /sandboxes/search`). */
 export interface SearchSandboxesOptions extends SandboxSearchFilters {
-  /** Server-side prefix on the name (the search form of `list({ name })`). */
-  namePrefix?: string
-  /** Server-side prefix on the id (the search form of `list({ id })`). */
-  idPrefix?: string
-  /** Clamped to 1..200 by the server. */
-  limit?: number
+  /** Server-side prefix on the name. */
+  readonly namePrefix?: string
+  /** Server-side prefix on the id. */
+  readonly idPrefix?: string
+  /** An integer from 1 to 200; anything else is `BadRequestError` before any request. */
+  readonly limit?: number
   /** Opaque; bound to the filter + sort that produced it. */
-  cursor?: string
+  readonly cursor?: string
 }
 
-/**
- * Every `Daytona.list()` option. `cursor`/`limit` alone read `GET /sandboxes`;
- * `id`/`name` and any inherited search filter route the call to
- * `/sandboxes/search`.
- */
-export interface ListSandboxesOptions extends SandboxSearchFilters {
-  cursor?: string
-  limit?: number
-  /** Prefix on the id. */
-  id?: string
-  /** Prefix on the name. */
-  name?: string
+/** One page of `Daytona.list()`; filtering belongs to `search()`. */
+export interface ListSandboxesOptions {
+  readonly cursor?: string
+  readonly limit?: number
 }
-
-export type ListSandboxesQuery = ListSandboxesOptions
 
 export interface PreviewEndpoint {
-  port: number
-  public: boolean
-  url: string
-  createdAt?: string
+  readonly port: number
+  readonly public: boolean
+  readonly url: string
+  readonly createdAt?: string
 }
 
 /**
@@ -787,10 +791,10 @@ export interface PreviewEndpoint {
  * ```
  */
 export interface PreviewLink {
-  url: string
-  token: string
+  readonly url: string
+  readonly token: string
   /** Absent when the preview token has no readable expiry. */
-  expiresAt?: string
+  readonly expiresAt?: string
 }
 
 /**
@@ -801,11 +805,11 @@ export interface PreviewLink {
  * {@link PortsService.expireSignedPreviewLink}.
  */
 export interface SignedPreviewLink {
-  url: string
-  token: string
-  /** Absent when the server response carried no expiry (parity with the Python
-   * SDK's `expires_at: Optional[str]`). */
-  expiresAt?: string
+  readonly url: string
+  readonly token: string
+  /** When the link stops resolving (RFC 3339). The contract requires it: a
+   * response without it is a `BadRequestError`. */
+  readonly expiresAt: string
 }
 
 export interface SystemMetrics {
@@ -858,12 +862,12 @@ export const DOCKER_OWNERS = TOOLBOX_DOCKER_OWNERS
 type _DockerOwnersMatchContract = AssertExact<IsExact<Exclude<DockerOwner, 'unknown'>, (typeof TOOLBOX_DOCKER_OWNERS)[number]>>
 
 export interface DockerStatus {
-  owner: DockerOwner
-  rawOwner: string
-  processId?: string | null
-  reason?: string | null
-  state: DockerState
-  rawState: string
+  readonly owner: DockerOwner
+  readonly rawOwner: string
+  readonly processId?: string | null
+  readonly reason?: string | null
+  readonly state: DockerState
+  readonly rawState: string
 }
 export type PullVolumeStatus = 'pulled' | 'unchanged' | 'pending' | 'unknown'
 export const PULL_VOLUME_STATUSES = TOOLBOX_PULL_VOLUME_STATUSES
@@ -1296,58 +1300,6 @@ export interface InterpreterResult {
   readonly error?: InterpreterError
 }
 
-export type SandboxStateSnapshot = api.Snapshot
-/** `GET /snapshots/{id}` details. */
-export type SnapshotDetail = api.Snapshot
-
-export interface ImageDto {
-  id: string
-  name: string | null
-  anonymous: boolean
-  availableIn: string[]
-  bytes?: number | null
-  class: ArtifactClass
-  createdAt: string
-  updatedAt: string
-  error?: string | null
-  expiresAt?: string | null
-  origin: ImageOrigin
-  region: string
-  retention: ArtifactRetention
-  rawRetention: string
-  source?: ImageSource | null
-  status: ImageStatus
-  layer_count?: number | null
-  /**
-   * The image's format generation, as reported by the API. Undefined when
-   * the API omits this field.
-   */
-  formatVersion?: number
-  /**
-   * `formatVersion` is below the current one: the image converts on its first
-   * Linux sandbox create, or ahead of time with `POST /images/{id}/convert`;
-   * other operations refuse it with `IMAGE_FORMAT_OUTDATED` until then.
-   */
-  formatOutdated: boolean
-  /**
-   * A platform image: published by Daytona and visible to every project.
-   */
-  platform: boolean
-  /** The platform default for its class: the image an imageless `create()` boots. */
-  default: boolean
-  /**
-   * A deprecated platform image: it still boots and resolves by id, but
-   * `images.list({ platform: 'true' })` no longer lists it.
-   */
-  deprecated: boolean
-  /**
-   * The disk size in MiB that a sandbox created from this image gets when the
-   * create omits `disk_mib`. Set for macOS snapshots; null for every other
-   * image when a disk size is not reported.
-   */
-  diskMib: number | null
-}
-
 export type ImageSource =
   | { readonly type: 'registry'; readonly ref: string }
   | { readonly type: 'dockerfile'; readonly contextObject: string; readonly dockerfile: string }
@@ -1358,134 +1310,9 @@ export type ImageSource =
 export type VolumeState = (typeof API_VOLUME_STATUSES)[number] | 'unknown'
 export type VolumeType = (typeof API_VOLUME_TYPES)[number] | 'unknown'
 
-export interface CpuTypeInfo {
-  id: string
-  name: string
-  cpuArch: CpuArch
-}
-
-/**
- * A registered Mac model (`GET /mac-models`), with its physical resources,
- * sandbox disk room, `max_sandboxes`, and `default_size` for omitted create sizes.
- */
-export type MacModel = api.MacModel
-
-/** `GET /mac-catalog`: per region, the default model and each model's `MacModel`, free Macs (`available`) and `price` (null when pricing is unavailable). */
-export type MacCatalog = api.MacCatalog
-
-export type MacReservationStatus = (typeof API_MAC_RESERVATION_STATUSES)[number] | 'unknown'
-export type MacReservationEndReason = (typeof API_MAC_RESERVATION_END_REASONS)[number] | 'unknown'
-/** `explicit`: bought by `reservations.create()` or a macOS create with `reservation: 'new'`; `auto`: bought by the organization's auto-reserve. */
-export type MacReservationOrigin = (typeof API_MAC_RESERVATION_ORIGINS)[number] | 'unknown'
-
-type MacReservationResources = {
-  /** CPU cores; a Mac core is one CPU of the Mac. */
-  cores: number
-  memoryMib: number
-  diskMib: number
-}
-
-/** A dedicated-Mac reservation. Timestamps are RFC 3339 strings. */
-export type MacReservation = {
-  id: string
-  orgId: string
-  projectId: string
-  region: string
-  autoRenew: boolean
-  sandboxesPerMac: number
-  slotsUsed: number
-  model?: string | null
-  capacity?: MacReservationResources | null
-  resourcesUsed: MacReservationResources
-  periodN: number
-  periodSeconds: number
-  createdAt: string
-  activatedAt?: string | null
-  pendingMacStartedAt?: string | null
-  periodStartedAt?: string | null
-  periodEnd?: string | null
-  reissuedAt?: string | null
-  endedAt?: string | null
-  renewalPending: boolean
-  renewalError?: string | null
-  status: MacReservationStatus
-  rawStatus: string
-  endReason?: MacReservationEndReason | null
-  rawEndReason?: string | null
-  origin: MacReservationOrigin
-  rawOrigin: string
-}
-
-/** Wire body of `POST /reservations`. */
-export type CreateReservationRequest = api.CreateReservationRequest
-
-/** One cursor page of `GET /reservations`. */
-export type ReservationPage = Omit<api.ListReservationsResponse, 'reservations'> & {
-  reservations: MacReservation[]
-}
-
-export interface ListReservationsOptions {
-  readonly cursor?: string
-  readonly limit?: number
-}
-
-/** `POST /reservations/bulk`: `requested` (the request's count), `reserved`, and one reservation per reserved Mac. */
-export type MacReservationBatch = Omit<api.MacReservationBatch, 'reservations'> & {
-  reservations: MacReservation[]
-}
-
-/** Wire body of `POST /reservations/bulk`. */
-export type CreateReservationsBulkRequest = api.CreateReservationsBulkRequest
-export interface CreateReservationOptions {
-  /** Region slug to reserve a Mac in. */
-  region: string
-  /** Mac model slug from GET /mac-models. Omitted uses the region's default model. An unavailable model is never upgraded. */
-  model?: string
-  /**
-   * A retry with the same key returns the first request's reservation instead of reserving (and
-   * charging for) a second Mac. Omitted: a random key per call, so pass your own if you may retry.
-   */
-  idempotencyKey?: string
-  /**
-   * Whether the reservation renews itself each period. The server defaults it to
-   * the organization's auto-reserve setting at purchase time.
-   */
-  autoRenew?: boolean
-}
-
-export interface CreateReservationsBulkOptions {
-  /** Region slug to reserve the Macs in. */
-  region: string
-  /** How many Macs to reserve, 1 to 100. */
-  count: number
-  /** The fewest Macs to accept, 1 to count. Omitted means count: all or nothing. */
-  minCount?: number
-  /** Mac model slug from GET /mac-models. Omitted uses the region's default model. An unavailable model is never upgraded. */
-  model?: string
-  /**
-   * Whether each reservation renews itself each period. The server defaults it to
-   * the organization's auto-reserve setting at purchase time.
-   */
-  autoRenew?: boolean
-  /**
-   * A retry with the same key returns the first request's reservations instead of reserving
-   * more Macs. Omitted: a random key per call, so pass your own if you may retry.
-   */
-  idempotencyKey?: string
-}
-
-export interface RenewReservationOptions {
-  /**
-   * A retry with the same key returns the reservation without charging another period.
-   * Omitted: a random key per call, so pass your own if you may retry.
-   */
-  idempotencyKey?: string
-}
-
-/** Wire body of `PATCH /reservations/{id}`. */
-export type UpdateReservationRequest = api.UpdateReservationRequest
-
-export interface UpdateReservationOptions {
-  /** Whether the reservation renews itself each period. */
-  autoRenew: boolean
-}
+export type {
+  MacResources, MacModel, MacPrice, MacCatalogModel, MacCatalogRegion, MacCatalog,
+  MacReservation, MacReservationStatus, MacReservationEndReason, MacReservationOrigin,
+  MacReservationBatch, ListReservationsOptions, CreateReservationOptions,
+  CreateReservationsBulkOptions, RenewReservationOptions, UpdateReservationOptions,
+} from './macTypes.js'

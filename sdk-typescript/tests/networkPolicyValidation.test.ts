@@ -12,7 +12,7 @@ import {
   ServiceUnavailableError,
 } from '../src/v2/index'
 
-import { type PlannedResponse, startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi, type PlannedResponse } from './networkPolicyTestServer'
 import { lazySandbox } from './lazySandbox'
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
@@ -69,7 +69,7 @@ describe('network policy validation parity', () => {
     try {
       let thrown: unknown
       try {
-        await client.updateNetworkPolicy('sbx', { allowDomains: null }, { ifMatch: '"np-7"' })
+      await lazySandbox(client, 'sbx').updateNetworkPolicy({ allowDomains: null }, { ifMatch: '"np-7"' })
       } catch (error) {
         thrown = error
       }
@@ -78,16 +78,14 @@ describe('network policy validation parity', () => {
     } finally {
       await api.close()
     }
-    expect(api.requests).toHaveLength(1)
-    expect(api.requests[0]?.headers['if-match']).toBe('"np-7"')
+    expect(sentRequest(api, 1).headers['if-match']).toBe('"np-7"')
   })
 
   it.each(['linux', 'macos'] as const)('reads network policy for a %s sandbox', async (sandboxClass) => {
     // Given
     const api = await startFakeApi([{ status: 200, headers: { ETag: '"np-1"' }, body: { desired_revision: 1 } }])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = sandboxClass
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass })
     try {
       // When
       const policy = await sandbox.getNetworkPolicy()

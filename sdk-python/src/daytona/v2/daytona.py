@@ -12,8 +12,20 @@ import math
 import os
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from types import TracebackType
-from typing import AsyncIterator, Callable, Dict, Final, Literal, Mapping, Optional, Sequence, Union
+from typing import (
+    AsyncIterator,
+    Callable,
+    Dict,
+    Final,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeGuard,
+    Union,
+)
 from urllib.parse import quote
 
 import anyio
@@ -23,86 +35,104 @@ from . import _clock
 from ._api_core import (
     expect_audit_actions,
     expect_current_api_key,
-    expect_list_sandboxes_resp,
     expect_organization_limits,
     expect_project_budget,
     expect_sandbox_detail,
+    sandbox_detail_wire,
+    usable_path_id,
 )
 from ._auth import ProjectTokenAuth
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, validated_max_response_bytes
 from ._core import (
+    INT32_MAX,
+    MAX_BOUNDED_TIMEOUT_SECONDS,
+    MAX_SAFE_INTEGER,
+    MAX_WIRE_WAIT_SECONDS,
+    WAIT_READ_SLACK_SECONDS,
     RequestSpec,
-    _optional_int,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
     expect_object,
-    gb_to_mib,
+    finite_number,
+    gib_to_mib,
+    header_text,
+    image_options_body,
     lifecycle_body,
+    page_params,
     parse_search_page,
+    parse_timestamp,
+    path_segment,
+    region_selector,
+    rfc3339_timestamp,
     sandbox_state,
-    search_filters_present,
     search_params,
+    wait_budget_seconds,
 )
 from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
-from ._gen.api import AuditActionList, ProjectApiKeyWithContext, SandboxListItem
 from ._gen.api import Sandbox as SandboxDto
+from ._gen.api import SandboxListItem
 from ._otel import load_opentelemetry_support
-from ._transport import _MAX_BOUNDED_TIMEOUT_SECONDS, DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
+from ._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 from .errors import (
     AuthenticationError,
     ClientTimeoutError,
     ConnectionError,
     DaytonaError,
     ImageBuildFailedError,
-    RequestTimeoutError,
     SandboxCreateConnectionError,
     SandboxCreateRequestTimeoutError,
-    SandboxTerminalStateError,
     create_error,
 )
 from .image import ImageBuilder
 from .network_policy import serialize_network_policy_input
-from .sandbox import AsyncSandbox, _scoped_toolbox_url, sandbox_info_from_id
+from .sandbox import (
+    AsyncSandbox,
+    _scoped_toolbox_url,
+    _wait_without_raising_for_its_end,
+    sandbox_info_from_id,
+)
 from .services import (
-    AsyncImageService,
-    AsyncMacModelService,
-    AsyncReservationService,
-    AsyncSecretService,
-    AsyncSnapshotService,
-    AsyncVolumeService,
+    AsyncImagesService,
+    AsyncMacModelsService,
+    AsyncReservationsService,
+    AsyncSecretsService,
+    AsyncSnapshotsService,
+    AsyncVolumesService,
 )
 from .types import (
+    AuditActionList,
     DaytonaConfig,
     Image,
     ImageRef,
     JsonObject,
     JsonValue,
-    LifecyclePolicyConfig,
+    LifecyclePolicyOptions,
     ListResult,
-    NetworkPolicyInfo,
+    MacosResources,
     NetworkPolicyInput,
     OrganizationLimits,
     PortMapping,
+    ProjectApiKey,
     ProjectBudget,
     Resources,
     SandboxClass,
     SandboxEventsConfig,
-    SandboxInfo,
-    SandboxSecretsInfo,
     SearchOrder,
     SearchResult,
-    SearchSandboxesQuery,
+    SearchSandboxesOptions,
+    SearchSandboxState,
     SearchSort,
     SearchTimestamp,
     SnapshotRef,
     VolumeMount,
+    _SandboxInfo,
 )
 
 CreateConfigValue = (
     JsonValue
     | dict[str, str]
     | Resources
-    | LifecyclePolicyConfig
+    | LifecyclePolicyOptions
     | Sequence[PortMapping]
     | Sequence[VolumeMount]
     | Sequence[str]
@@ -136,11 +166,10 @@ class _ResolvedConfig:
     max_response_bytes: int
 
 
-class _UnsetNetworkPolicy:
-    pass
-
-
-_UNSET_NETWORK_POLICY: Final = _UnsetNetworkPolicy()
+# The `network_policy` default of the create methods: its identity means
+# "omitted" (the API applies no policy field), `None` sends an explicit null,
+# and a mapping sends that policy.
+_UNSET_NETWORK_POLICY: Final[NetworkPolicyInput] = {}
 
 
 def _on_event_loop() -> bool:
@@ -160,9 +189,8 @@ class AsyncDaytona:
         self._key_org_id: Optional[str] = None
         self._key_org_lock = anyio.Lock()
         self._api_url = resolved.api_url
-        # No region in config: a create picks
-        # its region with `region=`; "local" sends no selector, so the server
-        # resolves the project / organization / platform default.
+        # No region in config: a create picks its region with `region=`; the
+        # events hub key carries no region either.
         self._target = "local"
         self._request_timeout = resolved.request_timeout
         shared_hub = config.shared_hub if config is not None else True
@@ -212,14 +240,18 @@ class AsyncDaytona:
             otel=otel,
             max_response_bytes=resolved.max_response_bytes,
         )
-        self.images = AsyncImageService(self._api)
-        self.snapshots = AsyncSnapshotService(self._api)
-        self.volume = AsyncVolumeService(self._api)
-        self.secret = AsyncSecretService(self._api)
-        self.secrets = self.secret
-        self.reservations = AsyncReservationService(self._api)
+        #: Images: build, pull, list, promote, delete, follow build logs.
+        self.images = AsyncImagesService(self._api)
+        #: Memory snapshots (``Sandbox.create_snapshot()`` makes them).
+        self.snapshots = AsyncSnapshotsService(self._api)
+        #: Volumes that keep files between sandboxes.
+        self.volumes = AsyncVolumesService(self._api)
+        #: Project secrets (write-only values).
+        self.secrets = AsyncSecretsService(self._api)
+        #: Dedicated-Mac reservations, which macOS sandboxes run on.
+        self.reservations = AsyncReservationsService(self._api)
         #: The Mac model registry that ``reservations.create(model=...)`` draws from.
-        self.mac_models = AsyncMacModelService(self._api)
+        self.mac_models = AsyncMacModelsService(self._api)
         # Hub is attached lazily on the first async call so that the asyncio
         # event loop id (needed for per-loop hub isolation) is always the loop
         # the hub will actually run on — not the calling thread's default loop.
@@ -235,27 +267,24 @@ class AsyncDaytona:
         /,
         *,
         name: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
         resources: Optional[Resources] = None,
-        cpu: Optional[float] = None,
-        memory: Optional[int] = None,
-        disk: Optional[int] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
         spot: Optional[bool] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
+        user: Optional[str] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
         cpu_arch: Optional[str] = None,
         cpu_type: Optional[str] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
     ) -> AsyncSandbox:
-        """Create from a registered image name or ``img_…`` id.
+        """Create a Linux sandbox from a registered image name or ``img_…`` id.
 
         Omitting ``image`` boots the platform default image, the Linux image
         Daytona marks as default (``images.list(platform="true")`` shows
@@ -263,61 +292,116 @@ class AsyncDaytona:
         image the server booted. When no default is configured the create
         fails with ``DEFAULT_IMAGE_NOT_CONFIGURED`` (400). An empty or
         whitespace-only ``image`` is still an error, raised before any request.
+        Snapshots and image builds have their own methods:
+        :meth:`create_from_snapshot`, :meth:`create_from_build`.
 
-        Fast path: the server holds this create briefly, so a sandbox that
-        reaches ``running`` within that hold returns in one round trip.
-        ``wait_seconds`` and ``create_timeout_seconds`` are budgets: the SDK long-polls any
-        remainder of ``wait_seconds`` client-side, and ``create_timeout_seconds`` is the server's
-        total budget for reaching ``running`` before deletion.
+        **Waiting.** The server holds this create briefly, so a sandbox that
+        reaches ``started`` within that hold returns in one round trip; the SDK
+        waits for any remainder of ``wait_seconds`` (whole seconds, default 60;
+        ``0`` returns as soon as the API accepts the create).
+        ``create_timeout_seconds`` is the server's own budget for reaching
+        ``started`` before it deletes the sandbox. ``create()`` never raises
+        because of how its wait ended: when the budget runs out, or the sandbox
+        reaches ``error``, it returns the handle — check ``sandbox.state``. It
+        raises when the request itself fails (validation, authentication,
+        limits, :class:`SandboxCreateRequestTimeoutError`,
+        :class:`SandboxCreateConnectionError`).
 
-        ``name`` is non-unique display metadata — and the handle of the
+        **Names.** ``name`` is non-unique display metadata and the handle of the
         one-sandbox-per-end-user pattern: a named create stamps
-        ``labels["name"] = name`` (:func:`find_by_name` reads it back) and,
+        ``labels["name"] = name`` (:meth:`find_by_name` reads it back) and,
         unless ``idempotency_key`` is given, derives its idempotency key from
-        the name (:func:`idempotency_key_for_name`). A repeated or retried
-        ``create(image, name="example-user")`` at one regional API endpoint is therefore a
-        get-or-create: the same sandbox comes back, not a second one or a 409
-        — until the first is deleted, which releases the key. The guarantee is
-        scoped to a regional API endpoint (creates of one end user that reach two
-        regional API endpoints make two sandboxes; pin them to one region), per class,
-        and exact: a same-name create with
-        different arguments is a 409 too, never a silent replay of the first
-        sandbox's parameters. An explicit ``idempotency_key`` always wins over
-        the derived one.
+        the name. A repeated or retried ``create(image, name="example-user")``
+        at one regional API endpoint is therefore a get-or-create: the same
+        sandbox comes back, not a second one — until the first is deleted,
+        which releases the key. This is permanent behaviour of ``name=``. The
+        guarantee is scoped to a regional API endpoint (creates of one end user
+        that reach two regional API endpoints make two sandboxes; pin them to
+        one region), per class, and exact: a same-name create with different
+        arguments is a 409, never a silent replay of the first sandbox's
+        parameters. An explicit ``idempotency_key`` always wins.
 
-        **Visible resources.** Burstable sandboxes start with the
-        burst ceiling (``resources.cpu_max`` / ``memory_max``, or the deployment
-        cap when omitted), so ``nproc`` and ``/proc/meminfo`` report that ceiling,
-        not the guaranteed ``cpu``. Tools that size themselves from the CPU count
-        (``pytest -n auto``, ``make -j$(nproc)``) start one worker per visible
-        CPU. Pass an explicit worker count when you need the guarantee instead of
-        the ceiling.
+        **Visible resources.** ``resources`` sizes the sandbox (cores and GiB;
+        see :class:`Resources`). Burstable sandboxes start with the burst
+        ceiling (``resources.cpu_max`` / ``memory_max``, or the deployment cap
+        when omitted), so ``nproc`` and ``/proc/meminfo`` report that ceiling,
+        not the guaranteed ``cpu``. Tools that size themselves from the CPU
+        count (``pytest -n auto``, ``make -j$(nproc)``) start one worker per
+        visible CPU. Pass an explicit worker count when you need the guarantee
+        instead of the ceiling.
+
+        ``network_policy`` sets the sandbox's egress policy from its first boot
+        (``None`` sends an explicit "no policy"); change it later with
+        :meth:`AsyncSandbox.update_network_policy`.
 
         Creating Linux sandboxes requires Linux access enabled for the organization.
         Otherwise a caller holding ``write:sandboxes`` gets
         ``403`` ``FEATURE_NOT_ENABLED`` (raised as
         :class:`FeatureNotEnabledError`).
-
-        ``toolbox_url`` overrides the toolbox URL the API returns;
-        the SDK sends the new sandbox's toolbox credential there, so pass only
-        a URL you trust — never one read from stored or user-supplied data.
         """
         resolved_image = _require_image_source(image) if image is not None else None
-        config = _merge_create_params(
-            route="linux",
-            source_kind="image",
-            source=resolved_image,
+        config = self._linux_create_config(
+            resolved_image,
             name=name,
             env=env,
             labels=labels,
             resources=resources,
-            cpu=cpu,
-            memory=memory,
-            disk=disk,
             ports=ports,
             volumes=volumes,
             secrets=secrets,
             spot=spot,
+            user=user,
+            lifecycle_policy=lifecycle_policy,
+            network_policy=network_policy,
+            cpu_arch=cpu_arch,
+            cpu_type=cpu_type,
+            region=region,
+            wait_seconds=wait_seconds,
+            create_timeout_seconds=create_timeout_seconds,
+        )
+        return await self._create_with_wait(
+            config,
+            idempotency_key=idempotency_key,
+            sandbox_class="linux",
+            image_ref=_source_image_ref(resolved_image) if resolved_image is not None else None,
+            snapshot_ref=None,
+        )
+
+    def _linux_create_config(
+        self,
+        image: Optional[str],
+        *,
+        name: Optional[str],
+        env: Optional[Mapping[str, str]],
+        labels: Optional[Mapping[str, str]],
+        resources: Optional[Resources],
+        ports: Optional[Sequence[PortMapping]],
+        volumes: Optional[Sequence[VolumeMount]],
+        secrets: Optional[Sequence[str]],
+        spot: Optional[bool],
+        user: Optional[str],
+        lifecycle_policy: Optional[LifecyclePolicyOptions],
+        network_policy: Optional[NetworkPolicyInput],
+        cpu_arch: Optional[str],
+        cpu_type: Optional[str],
+        region: Optional[str],
+        wait_seconds: int,
+        create_timeout_seconds: Optional[int],
+    ) -> CreateConfig:
+        _validate_wait(wait_seconds)  # None is refused, not the default
+        config = _merge_create_params(
+            route="linux",
+            source_kind="image",
+            source=image,
+            name=name,
+            env=_dict_or_none(env, "env"),
+            labels=_dict_or_none(labels, "labels"),
+            resources=resources,
+            ports=ports,
+            volumes=volumes,
+            secrets=secrets,
+            spot=spot,
+            user=user,
             lifecycle_policy=lifecycle_policy,
             cpu_arch=cpu_arch,
             cpu_type=cpu_type,
@@ -325,16 +409,9 @@ class AsyncDaytona:
             wait_seconds=wait_seconds,
             create_timeout_seconds=create_timeout_seconds,
         )
-        if not isinstance(network_policy, _UnsetNetworkPolicy):
+        if network_policy is not _UNSET_NETWORK_POLICY:
             config["network_policy"] = network_policy
-        return await self._create_with_wait(
-            config,
-            toolbox_url=toolbox_url,
-            idempotency_key=idempotency_key,
-            sandbox_class="linux",
-            image_ref=_source_image_ref(resolved_image) if resolved_image is not None else None,
-            snapshot_ref=None,
-        )
+        return config
 
     async def create_from_snapshot(
         self,
@@ -342,33 +419,35 @@ class AsyncDaytona:
         /,
         *,
         name: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
+        labels: Optional[Mapping[str, str]] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
     ) -> AsyncSandbox:
-        """Create a sandbox from a snapshot.
+        """Create a Linux sandbox that resumes a memory snapshot (name or ``snap_…`` id).
+
+        The sandbox continues from the snapshot's memory and disk, so its size,
+        environment and attachments are the snapshot's own. ``name``,
+        ``idempotency_key``, ``wait_seconds`` and ``create_timeout_seconds``
+        behave as on :meth:`create`, and like :meth:`create` this never raises
+        because of how its wait ended.
 
         Creating Linux sandboxes requires Linux access enabled for the organization.
         Otherwise a caller holding ``write:sandboxes`` gets
         ``403`` ``FEATURE_NOT_ENABLED`` (raised as
         :class:`FeatureNotEnabledError`).
-
-        ``toolbox_url`` overrides the toolbox URL the API returns;
-        the SDK sends the new sandbox's toolbox credential there, so pass only
-        a URL you trust — never one read from stored or user-supplied data.
         """
         resolved_snapshot = _require_snapshot_source(snapshot)
+        _validate_wait(wait_seconds)  # None is refused, not the default
         config = _merge_create_params(
             route="linux",
             source_kind="snapshot",
             source=resolved_snapshot,
             name=name,
-            labels=labels,
+            labels=_dict_or_none(labels, "labels"),
             lifecycle_policy=lifecycle_policy,
             ports=ports,
             target=region if region is not None else self._target,
@@ -377,7 +456,6 @@ class AsyncDaytona:
         )
         return await self._create_with_wait(
             config,
-            toolbox_url=toolbox_url,
             idempotency_key=idempotency_key,
             sandbox_class="linux",
             image_ref=None,
@@ -389,36 +467,32 @@ class AsyncDaytona:
         image: str,
         /,
         *,
-        cpu: Optional[int] = None,
-        memory: Optional[float] = None,
-        disk: Optional[float] = None,
+        resources: Optional[MacosResources] = None,
         name: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
         secrets: Optional[Sequence[str]] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         persistent: Optional[bool] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         reservation: Optional[str] = None,
         auto_renew: Optional[bool] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
     ) -> AsyncSandbox:
         """Create a macOS sandbox on a reserved Mac from a macOS image name.
 
-        ``cpu``: CPU cores, at least 4; sent as ``cores``. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted uses half of the claiming Mac's cores, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one.
-
-        ``memory``: Memory in GiB, at least 4; sent as memory_mib. memory * 1024 must be an integer. Omitted uses half of the claiming Mac's memory, rounded down, on a model that runs two sandboxes, or all of it on a model that runs one.
-
-        ``disk``: Disk in GiB, at least 80; sent as disk_mib. The whole sandbox disk, macOS included. disk * 1024 must be an integer. Omitted uses half of the claiming Mac's sandbox disk room, rounded down to a whole GiB, on a model that runs two sandboxes, or all of it on a model that runs one.
-
-        The first successful claim fixes the size, which the sandbox reports
-        from then on.
+        ``resources`` sizes the sandbox (:class:`MacosResources`: physical CPU
+        cores, at least 4; memory in GiB, at least 4; disk in GiB, at least 80,
+        macOS included; memory and disk must convert to whole MiB). Each
+        omitted value uses half of the claiming Mac, rounded down, on a model
+        that runs two sandboxes, or all of it on a model that runs one. The
+        first successful claim fixes the size, which the sandbox reports from
+        then on.
 
         ``persistent``: Stop keeps the disk on the same Mac. Start and resume use that Mac. Delete erases the disk. At reservation end, the disk is saved as an anonymous image before the Mac is erased; a lost Mac saves it if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
 
@@ -435,7 +509,8 @@ class AsyncDaytona:
         to use it raises :class:`ConflictError` (``NO_ACTIVE_RESERVATION``,
         ``NO_FREE_SLOT``, ``MAC_DISK_FULL``, ``AUTO_RESERVE_LIMIT_REACHED``,
         ``NO_MAC_AVAILABLE``). ``name``, ``idempotency_key``, ``wait_seconds``
-        and ``create_timeout_seconds`` behave as on :meth:`create`.
+        and ``create_timeout_seconds`` behave as on :meth:`create`, and like
+        :meth:`create` this never raises because of how its wait ended.
 
         Creating macOS sandboxes requires macOS access enabled for the organization;
         otherwise the API answers ``403``
@@ -450,35 +525,38 @@ class AsyncDaytona:
         cannot be enforced, the API answers ``503``. Change it later with
         :meth:`AsyncSandbox.update_network_policy`.
 
-        ``toolbox_url`` overrides the toolbox URL the API returns;
-        the SDK sends the new sandbox's toolbox credential there, so pass only
-        a URL you trust — never one read from stored or user-supplied data.
-
         Find regions and their regional API endpoints with ``daytona region list`` (the CLI);
         discover Mac models and prices with ``mac_models.catalog(region="<region>")``.
         To select a regional API endpoint, set ``DAYTONA_V2_API_URL`` before
         creating the client. An API that does not serve the region answers
         :class:`ConflictError`; the SDK does not reroute.
         """
-        resolved_image = _require_image_source(image)
+        resolved_image = _require_image_source(image, "create_macos")
         if auto_renew is not None and reservation != "new":
             raise create_error(
                 'macos create takes auto_renew only with reservation="new"', 400, "BAD_REQUEST", "SDK"
             )
+        if resources is not None and not isinstance(resources, MacosResources):
+            raise create_error("create_macos takes resources=MacosResources(...)", 400, "BAD_REQUEST", "SDK")
+        _validate_wait(wait_seconds)  # None is refused, not the default
         config = _merge_create_params(
             route="macos",
             source_kind="image",
             source=resolved_image,
             name=name,
-            env=env,
-            labels=labels,
+            env=_dict_or_none(env, "env"),
+            labels=_dict_or_none(labels, "labels"),
             secrets=secrets,
             ports=ports,
             persistent=persistent,
             volumes=volumes,
-            cores=_macos_cores(cpu),
-            memory_mib=_macos_mib(memory, axis="memory", floor_mib=4096),
-            disk_mib=_macos_mib(disk, axis="disk", floor_mib=81920),
+            cores=_macos_cores(resources.cpu) if resources is not None else None,
+            memory_mib=_macos_mib(resources.memory, axis="memory", floor_mib=4096)
+            if resources is not None
+            else None,
+            disk_mib=_macos_mib(resources.disk, axis="disk", floor_mib=81920)
+            if resources is not None
+            else None,
             lifecycle_policy=lifecycle_policy,
             reservation=reservation,
             auto_renew=auto_renew,
@@ -486,11 +564,10 @@ class AsyncDaytona:
             wait_seconds=wait_seconds,
             create_timeout_seconds=create_timeout_seconds,
         )
-        if not isinstance(network_policy, _UnsetNetworkPolicy):
+        if network_policy is not _UNSET_NETWORK_POLICY:
             config["network_policy"] = network_policy
         return await self._create_with_wait(
             config,
-            toolbox_url=toolbox_url,
             idempotency_key=idempotency_key,
             sandbox_class="macos",
             image_ref=_source_image_ref(resolved_image),
@@ -502,58 +579,117 @@ class AsyncDaytona:
         builder: ImageBuilder,
         /,
         *,
+        name: Optional[str] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
+        resources: Optional[Resources] = None,
+        ports: Optional[Sequence[PortMapping]] = None,
+        volumes: Optional[Sequence[VolumeMount]] = None,
+        secrets: Optional[Sequence[str]] = None,
+        spot: Optional[bool] = None,
+        user: Optional[str] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
+        cpu_arch: Optional[str] = None,
+        cpu_type: Optional[str] = None,
+        region: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
+        wait_seconds: int = 60,
+        create_timeout_seconds: Optional[int] = None,
         idle_expiry_seconds: Optional[int] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
-        **kwargs: object,
+        build_timeout: Optional[float] = None,
     ) -> AsyncSandbox:
-        """Build an anonymous image first, then create the sandbox from it.
+        """Build an anonymous image from ``builder``, wait for it, then create the sandbox from it.
 
-        Slow path: ``POST /images`` followed by ``create(image.id, ...)``.
-        ``idle_expiry_seconds`` describes the anonymous image's idle window;
-        every other keyword goes to ``create()``. Docker storage is included.
-        ``region`` applies to both the image build and the create: a
-        Dockerfile-built image can only boot in its own region, so it is built where
-        the sandbox will run. If the image build fails, this raises
-        ``ImageBuildFailedError`` and no sandbox exists.
+        The build submission is an ordinary request, bounded by the client's
+        request timeout. The build itself is always awaited, bounded by
+        ``build_timeout`` (seconds; ``None``, ``0`` or a value above about
+        24.8 days = no deadline). A failed
+        build (image status ``failed`` or ``error``) raises
+        :class:`ImageBuildFailedError` and a build that outlasts
+        ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
+        no sandbox exists. Then the sandbox is created exactly as by
+        :meth:`create` with the same keywords — ``wait_seconds`` is the create's
+        own wait, and the create never raises because of how that wait ended.
+
+        ``idle_expiry_seconds`` is the anonymous image's idle-retention window
+        (see ``images.build``). ``region`` and ``cpu_arch`` apply to both the
+        build and the create: a Dockerfile-built image boots only in its own
+        region, so it is built where the sandbox will run.
         """
-        if "target" in kwargs:
-            raise TypeError(
-                "create_from_build() got an unexpected keyword argument 'target'; "
-                "use region= (it selects the region for both the image build and the sandbox)"
-            )
-        wait_seconds = kwargs.get("wait_seconds", 60)
+        if not isinstance(builder, ImageBuilder):
+            raise create_error("create_from_build() takes an ImageBuilder", 400, "BAD_REQUEST", "SDK")
         _validate_wait(wait_seconds)
-        wait_budget = wait_seconds if isinstance(wait_seconds, int) else 60
-        deadline = None if wait_budget == 0 else _clock.monotonic() + wait_budget
-        region = kwargs.get("region")
-        target = region if isinstance(region, str) else self._target
+        # Every create option is validated before the (billed) build: a caller
+        # error must not cost a build first. The image id is not known yet.
+        _create_body(
+            self._linux_create_config(
+                "img_pending",
+                name=name,
+                env=env,
+                labels=labels,
+                resources=resources,
+                ports=ports,
+                volumes=volumes,
+                secrets=secrets,
+                spot=spot,
+                user=user,
+                lifecycle_policy=lifecycle_policy,
+                network_policy=network_policy,
+                cpu_arch=cpu_arch,
+                cpu_type=cpu_type,
+                region=region,
+                wait_seconds=wait_seconds,
+                create_timeout_seconds=create_timeout_seconds,
+            )
+        )
+        _resolve_idempotency_key(idempotency_key, name)
+        image_options_body(idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch)
+        # 0, None or above the timer maximum (a huge integer included) is no limit.
+        if build_timeout is not None:
+            build_timeout = wait_budget_seconds(build_timeout, name="build_timeout") or None
+        build_region = region_selector(region if region is not None else self._target)
+
+        def build_timed_out(cause: Optional[BaseException] = None) -> DaytonaError:
+            error = create_error("image build did not finish before timeout", 408, "REQUEST_TIMEOUT", "SDK")
+            error.__cause__ = cause
+            return error
+
         image = await self.images.build(
             builder,
             idle_expiry_seconds=idle_expiry_seconds,
-            region=target if target and target.strip().lower() != "local" else None,
-            cpu_arch=kwargs.get("cpu_arch") if isinstance(kwargs.get("cpu_arch"), str) else None,
+            region=build_region,
+            cpu_arch=cpu_arch,
         )
-        while image.status not in ("ready", "failed"):
-            remaining_timeout = None if deadline is None else deadline - _clock.monotonic()
-            if remaining_timeout is not None and remaining_timeout <= 0:
-                raise create_error(
-                    "image build did not finish before timeout",
-                    408,
-                    "REQUEST_TIMEOUT",
-                    "SDK",
-                )
+        # The build budget starts once the submission (an ordinary request) is accepted.
+        deadline = None if not build_timeout else _clock.monotonic() + build_timeout
+        while image.status not in ("ready", "failed", "error"):
+            remaining = None if deadline is None else deadline - _clock.monotonic()
+            if remaining is not None and remaining <= 0:
+                raise build_timed_out()
+            poll_started = _clock.monotonic()
             try:
-                image = await self.images.get(image.id, wait="ready", timeout=remaining_timeout)
-            except ClientTimeoutError as error:
-                if deadline is not None and _clock.monotonic() >= deadline:
-                    raise create_error(
-                        "image build did not finish before timeout",
-                        408,
-                        "REQUEST_TIMEOUT",
-                        "SDK",
-                    ) from error
+                image = await self.images.get(image.id, wait="ready", timeout=remaining)
+            except DaytonaError as error:
+                # Only the client's own deadline is the build timeout; a server
+                # 408 keeps its source, as in TypeScript.
+                own_timeout = error.source == "SDK" and error.code == "REQUEST_TIMEOUT"
+                # The artifact wait's own timeout (not a client read timer) is
+                # always this deadline running out: the wait shares it.
+                wait_ran_out = not isinstance(error, ClientTimeoutError) or _clock.monotonic() >= (
+                    deadline or 0
+                )
+                if own_timeout and deadline is not None and wait_ran_out:
+                    raise build_timed_out(error) from error
                 raise
-        if image.status == "failed":
+            if image.status not in ("ready", "failed", "error"):
+                # A server that answers the long poll early is not polled in a loop.
+                pause = _BUILD_POLL_INTERVAL_S - (_clock.monotonic() - poll_started)
+                if deadline is not None:
+                    pause = min(pause, deadline - _clock.monotonic())
+                if pause > 0:
+                    await asyncio.sleep(pause)
+        if image.status in ("failed", "error"):
             raise ImageBuildFailedError(
                 image.error or f"image build {image.id} failed",
                 status_code=409,
@@ -562,26 +698,31 @@ class AsyncDaytona:
                 image_id=image.id,
                 build_error=image.error,
             )
-        create_kwargs = dict(kwargs)
-        if deadline is not None:
-            remaining_wait = deadline - _clock.monotonic()
-            if remaining_wait <= 0:
-                raise create_error(
-                    "image build did not finish before timeout",
-                    408,
-                    "REQUEST_TIMEOUT",
-                    "SDK",
-                )
-            create_kwargs["wait_seconds"] = max(1, math.ceil(remaining_wait))
-        if not isinstance(network_policy, _UnsetNetworkPolicy):
-            create_kwargs["network_policy"] = network_policy
-        return await self.create(image.id, **create_kwargs)
+        return await self.create(
+            image.id,
+            name=name,
+            env=env,
+            labels=labels,
+            resources=resources,
+            ports=ports,
+            volumes=volumes,
+            secrets=secrets,
+            spot=spot,
+            user=user,
+            lifecycle_policy=lifecycle_policy,
+            network_policy=network_policy,
+            cpu_arch=cpu_arch,
+            cpu_type=cpu_type,
+            region=region,
+            idempotency_key=idempotency_key,
+            wait_seconds=wait_seconds,
+            create_timeout_seconds=create_timeout_seconds,
+        )
 
     async def _create_with_wait(
         self,
         config: CreateConfig,
         *,
-        toolbox_url: Optional[str],
         idempotency_key: Optional[str],
         sandbox_class: SandboxClass,
         image_ref: ImageRef | None,
@@ -591,7 +732,7 @@ class AsyncDaytona:
         path = _create_path(config)
         create_key = _resolve_idempotency_key(idempotency_key, config.get("name"))
         target = str(body["region_id"]) if isinstance(body.get("region_id"), str) else None
-        wait_budget = _create_wait_budget(body)
+        wait_budget = _create_wait_budget(config)
         # The create response first associates the sandbox id with its
         # regional API endpoint for the events hub.
         created_endpoints: list[str] = []
@@ -601,6 +742,20 @@ class AsyncDaytona:
             if endpoint:
                 created_endpoints.append(endpoint)
 
+        # A create that asks the server to hold is a long poll: the hold plus
+        # read slack is never cut by a shorter request timeout. No limit stays
+        # no limit; a create with wait_seconds=0 is an ordinary request.
+        root_timeout = getattr(self._api, "request_timeout_seconds", 0) or 0
+        # A budget above the timer maximum is no limit (compared as an integer,
+        # before any float arithmetic): no client deadline on the POST either.
+        unbounded = wait_budget > MAX_WIRE_WAIT_SECONDS
+        hold_timeout: Optional[float]
+        if wait_budget <= 0 or root_timeout <= 0:
+            hold_timeout = None
+        elif unbounded:
+            hold_timeout = 0.0
+        else:
+            hold_timeout = max(root_timeout, wait_budget + WAIT_READ_SLACK_SECONDS)
         try:
             data = expect_object(
                 await self._api.send(
@@ -608,6 +763,7 @@ class AsyncDaytona:
                         "POST",
                         path,
                         json_body=body,
+                        timeout=hold_timeout,
                         headers={
                             "Idempotency-Key": create_key,
                             **({"x-daytona-region": target} if target is not None else {}),
@@ -620,18 +776,51 @@ class AsyncDaytona:
             raise SandboxCreateRequestTimeoutError(create_key) from error
         except ConnectionError as error:
             raise SandboxCreateConnectionError(create_key, error.message) from error
-        sandbox_id = str(data.get("id"))
-        access_token = str(data.get("access_token")) if isinstance(data.get("access_token"), str) else None
-        # Tokens with no reported expiry are used as-is until a 401.
-        access_token_expires_at = (
-            str(data.get("access_token_expires_at")) if data.get("access_token_expires_at") else None
-        )
+        raw_id = data.get("id")
+        if not isinstance(raw_id, str) or not usable_path_id(raw_id):
+            # The contract requires the new sandbox's id (one no request path
+            # can carry is none); nothing can follow without it.
+            raise create_error("sandbox create response is missing the sandbox id", 400, "BAD_REQUEST", "SDK")
+        sandbox_id = raw_id
+        # A token that could not be sent as a header, or an expiry that is not a
+        # timestamp, is absent (the handle mints its own, or uses the token
+        # until a 401), never an error: the sandbox exists. Tokens with no
+        # reported expiry are used as-is until a 401.
+        raw_token = data.get("access_token")
+        access_token = raw_token if _sendable_token(raw_token) else None
+        raw_expiry = data.get("access_token_expires_at")
+        access_token_expires_at = parse_timestamp(raw_expiry) if rfc3339_timestamp(raw_expiry) else None
         create_toolbox_base = (
             str(data.get("toolbox_proxy_url")) if isinstance(data.get("toolbox_proxy_url"), str) else None
         )
+        # The sandbox exists once its id came back: a missing or non-string
+        # status reads as `unknown`, never an error (as `wait_cap_seconds`).
+        status = data.get("status")
+        raw_status = status if isinstance(status, str) else ""
+        # The handle holds only what the response carries, plus an `img_` /
+        # `snap_` id the caller passed (a name is never an id), and the class
+        # the create route fixes (linux, or macos for create_macos); the rest
+        # is unknown until a detail read. The response's `image` is canonical when present.
+        booted = artifact_ref_from_wire(data.get("image"))
+        info = _SandboxInfo(
+            id=sandbox_id,
+            name=str(data.get("name")) if isinstance(data.get("name"), str) else None,
+            state=sandbox_state(raw_status),
+            raw_state=raw_status,
+            image=ImageRef(id=booted.id, name=booted.name) if booted is not None else image_ref,
+            snapshot=snapshot_ref,
+            region=target,
+            # The create route fixes the class (linux or macos).
+            sandbox_class=sandbox_class,
+            raw_sandbox_class=sandbox_class,
+            # Read before the early return: a create a Mac claims within its hold
+            # answers running with the reservation.
+            reservation_id=str(data.get("reservation_id"))
+            if isinstance(data.get("reservation_id"), str)
+            else None,
+        )
         sandbox = self._sandbox_handle(
-            sandbox_info_from_id(sandbox_id),
-            direct_toolbox_url=toolbox_url,
+            info,
             toolbox_base_url=create_toolbox_base,
             access_token=access_token,
             access_token_expires_at=access_token_expires_at,
@@ -639,42 +828,27 @@ class AsyncDaytona:
             hub=self._acquire_hub() if _on_event_loop() else None,
             hub_provider=self._acquire_hub,
         )
-        sandbox.name = str(data.get("name")) if isinstance(data.get("name"), str) else None
-        sandbox.state = _create_response_state(data)
-        sandbox._raw_state = str(data.get("status") or "")
-        sandbox.sandbox_class = sandbox_class
-        # The response's `image` ({id, name}) is canonical for every create —
-        # a named create resolves to its `img_` id, an imageless create learns
-        # the default it booted. When omitted, use the input-derived ref.
-        booted = artifact_ref_from_wire(data.get("image"))
-        sandbox.image = booted if isinstance(booted, ImageRef) else image_ref
-        sandbox.snapshot = snapshot_ref
-        sandbox.target = target
-        # Read before the early return: a create a Mac claims within its hold answers running with the reservation.
-        sandbox.reservation_id = (
-            str(data.get("reservation_id")) if isinstance(data.get("reservation_id"), str) else None
-        )
         if created_endpoints:
             sandbox._learn_endpoint(created_endpoints[-1])
         if sandbox.state == "started" or wait_budget == 0:
             return sandbox
-        wait_cap = _optional_int(data.get("wait_cap_seconds")) or 0
-        remaining = max(0, wait_budget - wait_cap)
-        if remaining == 0:
+        # Read as TypeScript reads it, never refused (the sandbox exists): a
+        # finite number, a negative one clamped to 0; anything else is 0.
+        raw_wait_cap = data.get("wait_cap_seconds")
+        wait_cap = max(0.0, float(raw_wait_cap)) if finite_number(raw_wait_cap) else 0.0
+        # No limit stays no limit (0) after the server's hold.
+        remaining = 0 if unbounded else max(0, wait_budget - wait_cap)
+        if remaining == 0 and not unbounded:
             return sandbox
         # Wait through successive long-poll responses until the remaining
         # budget is spent. A spent budget or a terminal state hands back the
-        # sandbox as it is, like `create_from_build`'s post-create wait.
-        try:
-            await sandbox.wait(until="started", timeout=remaining)
-        except (RequestTimeoutError, SandboxTerminalStateError):
-            pass
+        # sandbox as it is.
+        await _wait_without_raising_for_its_end(sandbox, ["started"], remaining)
         return sandbox
 
     def _sandbox_by_id(self, sandbox_id: str) -> AsyncSandbox:
-        """A metadata-less handle for the by-id API verbs (``start``,
-        ``stop``, ``delete``, …): no toolbox URL, no fetch. Not public — a
-        sandbox object comes from ``create*()``, ``get()`` or ``list()``."""
+        """A metadata-less handle for the by-id verbs (``start``, ``stop``,
+        ``delete``, …): no toolbox URL, no fetch."""
         return self._sandbox_handle(
             sandbox_info_from_id(sandbox_id),
             access_token_caller_supplied=False,
@@ -682,7 +856,9 @@ class AsyncDaytona:
             hub_provider=self._acquire_hub,
         )
 
-    async def get(self, sandbox_id: str, *, toolbox_url: Optional[str] = None) -> AsyncSandbox:
+    async def get(
+        self, sandbox_id: str, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
+    ) -> AsyncSandbox:
         """Fetch a sandbox by id.
 
         ``toolbox_url`` overrides the toolbox URL the API returns.
@@ -690,26 +866,38 @@ class AsyncDaytona:
         sends this sandbox's toolbox credential there (the API key, a project
         token, or a minted sandbox token), so pass only a URL you trust —
         never one read from stored or user-supplied data.
+
+        ``access_token`` is a sandbox access token the handle sends to sandbox
+        services instead of minting its own; the handle never replaces it.
+
+        Both are checked before any request: ``toolbox_url`` must be a
+        non-blank string, and ``access_token`` (sent as a bearer credential)
+        non-empty printable ASCII with no surrounding whitespace, never
+        stripped; ``None`` omits either.
         """
+        # A blank id would read the sandbox list: refused before any request.
+        segment = path_segment(sandbox_id, "sandbox_id")
+        _check_connect_options(toolbox_url, access_token)
         return self._sandbox_from_sandbox(
-            expect_sandbox_detail(
-                await self._api.send(RequestSpec("GET", f"/sandboxes/{quote(sandbox_id, safe='')}"))
-            ),
+            sandbox_detail_wire(await self._api.send(RequestSpec("GET", f"/sandboxes/{segment}"))),
             toolbox_url=toolbox_url,
+            access_token=access_token,
+            access_token_caller_supplied=access_token is not None,
         )
 
-    async def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> list[AsyncSandbox]:
-        """Sandboxes created with ``name=name``, newest first; ``[]`` when none.
+    async def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> tuple[AsyncSandbox, ...]:
+        """Sandboxes created with ``name=name``, newest first; ``()`` when none.
 
         Exact match on the ``labels["name"]`` every ``create*(name=…)`` stamps,
-        read through sandbox search. Names are not unique, so this is a list:
-        a get-or-create caller takes ``[0]`` when it is non-empty and calls
-        ``create(..., name=name)`` otherwise — and because that create derives
-        the same key as the first one, a lost race between two such callers
-        still yields one sandbox. A new sandbox becomes searchable shortly after
-        its create. Sandboxes that are ``deleted`` or ``deleting`` are left out.
-        A deployment without search raises :class:`SearchNotConfiguredError`
-        (501).
+        read through sandbox search. Names are not unique, so this is a tuple —
+        every match, read page by page: the one list method that is not a
+        single page. A get-or-create caller takes ``[0]`` when it is non-empty
+        and calls ``create(..., name=name)`` otherwise — and because that create
+        derives the same key as the first one, a lost race between two such
+        callers still yields one sandbox. A new sandbox becomes searchable
+        shortly after its create. Sandboxes that are ``destroyed`` or
+        ``destroying`` are left out. A deployment without search raises
+        :class:`SearchNotConfiguredError` (501).
 
         ``region`` scopes the read the way it scopes a create: it is sent as
         the same ``x-daytona-region`` selector ``create*()`` sends, and
@@ -718,27 +906,21 @@ class AsyncDaytona:
         """
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-blank string", 400, "BAD_REQUEST", "SDK")
-        resolved_target = region if region is not None else self._target
-        selector = (
-            resolved_target
-            if isinstance(resolved_target, str) and resolved_target.strip().lower() != "local"
-            else None
-        )
+        # The same selector create*() sends: blank or "local" is the default region.
+        selector = region_selector(region if region is not None else self._target)
         headers: Dict[str, str] = {"x-daytona-region": selector} if selector is not None else {}
         found: list[AsyncSandbox] = []
-        params: Dict[str, JsonValue] = {"labels": json.dumps({NAME_LABEL: name}), "limit": 100}
+        params: Dict[str, JsonValue] = {"labels": json.dumps({_NAME_LABEL: name}), "limit": 100}
         seen_cursors: set[str] = set()
         while True:
             payload = await self._api.send(
                 RequestSpec("GET", "/sandboxes/search", params=dict(params), headers=headers)
             )
-            items, next_cursor, _, _, _ = parse_search_page(payload)
+            items, next_cursor, _, _, _ = parse_search_page(payload, expect_sandbox_detail)
             live = [item for item in items if item.get("status") not in ("deleted", "deleting")]
-            for sandbox in await self._sandboxes_from_sandboxes(live):
-                sandbox.target = selector
-                found.append(sandbox)
+            found.extend(await self._sandboxes_from_sandboxes(live))
             if not next_cursor or next_cursor in seen_cursors:
-                return found
+                return tuple(found)
             seen_cursors.add(next_cursor)
             params["cursor"] = next_cursor
 
@@ -746,7 +928,7 @@ class AsyncDaytona:
         """Return the actions the audit log can record for each target type."""
         return expect_audit_actions(await self._api.send(RequestSpec("GET", "/audit/actions")))
 
-    async def current_api_key(self) -> ProjectApiKeyWithContext:
+    async def current_api_key(self) -> ProjectApiKey:
         """Describe the API key this client authenticates with.
 
         Returns its name, masked display parts, the project and organization it
@@ -776,10 +958,10 @@ class AsyncDaytona:
         not included: they are served to signed-in members only.
         """
         org_id = organization_id if organization_id is not None else await self._key_organization_id()
-        if not org_id:
-            raise create_error("organization_id must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         return expect_organization_limits(
-            await self._api.send(RequestSpec("GET", f"/orgs/{quote(org_id, safe='')}/limits"))
+            await self._api.send(
+                RequestSpec("GET", f"/orgs/{path_segment(org_id, 'organization_id')}/limits")
+            )
         )
 
     async def _key_organization_id(self) -> str:
@@ -800,109 +982,41 @@ class AsyncDaytona:
         *,
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
-        id: Optional[str] = None,
-        name: Optional[str] = None,
-        q: Optional[str] = None,
-        status: Optional[Sequence[str]] = None,
-        sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None,
-        region: Optional[Sequence[str]] = None,
-        image_ref: Optional[str] = None,
-        image_ref_prefix: Optional[str] = None,
-        labels: Optional[Mapping[str, str]] = None,
-        spot: Optional[bool] = None,
-        forked_from: Optional[str] = None,
-        min_cores: Optional[float] = None,
-        max_cores: Optional[float] = None,
-        min_memory_mib: Optional[int] = None,
-        max_memory_mib: Optional[int] = None,
-        min_disk_mib: Optional[int] = None,
-        max_disk_mib: Optional[int] = None,
-        created_start_at: Optional[SearchTimestamp] = None,
-        created_end_at: Optional[SearchTimestamp] = None,
-        updated_start_at: Optional[SearchTimestamp] = None,
-        updated_end_at: Optional[SearchTimestamp] = None,
-        last_activity_start_at: Optional[SearchTimestamp] = None,
-        last_activity_end_at: Optional[SearchTimestamp] = None,
-        sort: Optional[SearchSort] = None,
-        order: Optional[SearchOrder] = None,
     ) -> ListResult[AsyncSandbox]:
-        """List sandboxes as one page ``{items, next_cursor}``.
+        """List sandboxes as one page ``{items, next_cursor}`` (``GET /sandboxes``), newest first.
 
-        With only ``cursor``/``limit`` this is the read-your-writes path: one
-        page of ``GET /sandboxes``, newest first. A sandbox you just created is in
-        the result; walk further pages with ``iter()`` or the returned cursor.
-        Use the returned cursor to request the next page.
-
-        Any other parameter — including ``id`` / ``name`` (sent as ``id_prefix``
-        / ``name_prefix``), ``q``, ``status``, ``sandbox_class``, ``region``,
-        ``labels``, the resource and timestamp bounds, ``sort``, ``order`` —
-        switches the call to a single ``GET /sandboxes/search`` request, the same
-        surface as :meth:`search`, and fills ``total``, ``total_relation`` and
-        search totals on the result. That path is **eventually consistent**: a
-        recent change may not appear immediately. Results span every region. The
-        cursor it returns is opaque and tied to the exact filter and sort that
-        produced it (reusing it with a different filter or sort is a 400), and
-        paging is best-effort under concurrent mutation. If the API has
-        search disabled (501, :class:`SearchNotConfiguredError` with
-        ``code == "SEARCH_NOT_CONFIGURED"``) or search is unavailable (503,
-        :class:`SearchUnavailableError` with ``code == "SEARCH_UNAVAILABLE"``),
-        drop the search parameters to fall back to the ``GET /sandboxes`` path.
+        Read-your-writes: a sandbox you just created is in the result. Walk
+        further pages with :meth:`iter` or the returned cursor. Filtering is
+        :meth:`search`'s job.
         """
-        query = SearchSandboxesQuery(
-            q=q,
-            status=status,
-            sandbox_class=sandbox_class,
-            region=region,
-            image_ref=image_ref,
-            image_ref_prefix=image_ref_prefix,
-            labels=labels,
-            spot=spot,
-            forked_from=forked_from,
-            min_cores=min_cores,
-            max_cores=max_cores,
-            min_memory_mib=min_memory_mib,
-            max_memory_mib=max_memory_mib,
-            min_disk_mib=min_disk_mib,
-            max_disk_mib=max_disk_mib,
-            created_start_at=created_start_at,
-            created_end_at=created_end_at,
-            updated_start_at=updated_start_at,
-            updated_end_at=updated_end_at,
-            last_activity_start_at=last_activity_start_at,
-            last_activity_end_at=last_activity_end_at,
-            sort=sort,
-            order=order,
-            name_prefix=name,
-            id_prefix=id,
-            cursor=cursor,
-            limit=limit,
-        )
-        # ``GET /sandboxes`` has no id/name filters; a prefix match applied to ONE
-        # page would silently miss later pages, so a prefix routes to the
-        # search API like every other filter.
-        if search_filters_present(query) or id is not None or name is not None:
-            found = await self._search_page(query)
-            return ListResult(
-                found.items,
-                found.next_cursor,
-                total=found.total,
-                total_relation=found.total_relation,
-                raw_total_relation=found.raw_total_relation,
+        params: Dict[str, JsonValue] = page_params(cursor, limit)
+        payload = await self._api.send(RequestSpec("GET", "/sandboxes", params=params))
+        # The page's shape and every item's sandbox fields, as in TypeScript; the
+        # per-item `cursor` is not read, so it is not required.
+        if not isinstance(payload, dict):
+            raise create_error("sandbox list response is not a JSON object", 400, "BAD_REQUEST", "SDK")
+        raw_items = payload.get("sandboxes")
+        if not isinstance(raw_items, list):
+            raise create_error(
+                "sandbox list response is missing the sandboxes array", 400, "BAD_REQUEST", "SDK"
             )
-        params: Dict[str, JsonValue] = {}
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
-        page = expect_list_sandboxes_resp(
-            await self._api.send(RequestSpec("GET", "/sandboxes", params=params))
+        # Both spellings get the same check: a mistyped cursor would end
+        # pagination silently.
+        for key in ("next_cursor", "nextCursor"):
+            value = payload.get(key)
+            if value is not None and not isinstance(value, str):
+                raise create_error(
+                    f"sandbox list response has a {key} that is not a string", 400, "BAD_REQUEST", "SDK"
+                )
+        raw_cursor = payload.get("next_cursor")
+        candidate = payload.get("nextCursor")
+        next_cursor = (
+            raw_cursor if isinstance(raw_cursor, str) else candidate if isinstance(candidate, str) else None
         )
-        next_cursor = page.next_cursor
-        if next_cursor is None:
-            candidate = page.additional_properties.get("nextCursor")
-            next_cursor = candidate if isinstance(candidate, str) else None
-        sandboxes = await self._sandboxes_from_sandboxes(page.sandboxes)
-        return ListResult(sandboxes, next_cursor)
+        # Wire objects, strings (timestamps) verbatim.
+        items = [sandbox_detail_wire(item) for item in raw_items]
+        sandboxes = await self._sandboxes_from_sandboxes(items)
+        return ListResult(items=sandboxes, next_cursor=next_cursor)
 
     async def search(
         self,
@@ -910,9 +1024,9 @@ class AsyncDaytona:
         q: Optional[str] = None,
         name_prefix: Optional[str] = None,
         id_prefix: Optional[str] = None,
-        status: Optional[Sequence[str]] = None,
+        states: Optional[Union[SearchSandboxState, Sequence[SearchSandboxState]]] = None,
         sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None,
-        region: Optional[Sequence[str]] = None,
+        region: Optional[Union[str, Sequence[str]]] = None,
         image_ref: Optional[str] = None,
         image_ref_prefix: Optional[str] = None,
         labels: Optional[Mapping[str, str]] = None,
@@ -935,26 +1049,28 @@ class AsyncDaytona:
         limit: Optional[int] = None,
         cursor: Optional[str] = None,
     ) -> SearchResult[AsyncSandbox]:
-        """Search sandboxes across every region (``GET /sandboxes/search``).
+        """Search sandboxes across every region (``GET /sandboxes/search``), one page.
 
         Every parameter is optional and they combine as AND. ``q`` is free text
-        over name and image (or an exact id); ``name_prefix``/``id_prefix`` are
-        the server-side form of ``list(name=...)``/``list(id=...)``; ``status``,
-        ``sandbox_class`` and ``region`` accept a single value or a list (any-of;
-        lifecycle states use the API's wire names such as ``running``); ``labels`` is a
-        containment match; the ``min_*``/``max_*`` bounds are inclusive,
-        ``*_start_at`` timestamp bounds are inclusive, and ``*_end_at`` bounds
-        are exclusive. Timestamps accept RFC 3339 strings or ``datetime`` objects
-        (naive values are taken as UTC). ``sort`` defaults to
-        ``created_at`` and ``order`` to ``desc``; ``limit`` is clamped to
-        1..200 by the server. Returns a :class:`SearchResult` whose ``items`` are
-        the same :class:`AsyncSandbox` handles :meth:`list` returns.
+        over name and image (or an exact id); ``name_prefix``/``id_prefix`` match
+        the start of the name or id; ``states``, ``sandbox_class`` and
+        ``region`` accept a single value or a list (any-of). ``states`` are the
+        SDK's sandbox states (``started``, ``stopped``, ``error``, ...), each
+        sent as the API status names it covers; ``"unknown"`` is refused.
+        ``labels`` is a containment match; the ``min_*``/``max_*`` bounds are
+        inclusive, ``*_start_at`` timestamp bounds are inclusive, and
+        ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 timestamps
+        without a leap second (year 0001-9999, a real calendar date) or
+        ``datetime`` objects (naive values are taken as UTC). ``sort`` defaults
+        to ``created_at`` and ``order`` to ``desc``; ``limit`` must be an
+        integer from 1 to 200, else :class:`BadRequestError` before any
+        request. Returns a :class:`SearchResult` whose ``items``
+        are the same :class:`AsyncSandbox` handles :meth:`list` returns.
 
         Consistency: search is **eventually consistent**. Results may be briefly
         stale after a create, update or delete, so a sandbox you
         just created may not be in the result yet — use :meth:`get` or
-        :meth:`list` without search filters for read-your-writes. Results span
-        every region.
+        :meth:`list` for read-your-writes. Results span every region.
 
         Cursor: ``next_cursor`` is opaque and bound to the exact filter and sort
         that produced it — presenting it with a different filter or sort is a
@@ -965,21 +1081,19 @@ class AsyncDaytona:
         deletes mid-walk shift later pages.
 
         Errors: 400 (:class:`BadRequestError`) for a malformed or mismatched
-        cursor, an unknown ``status``/``sandbox_class``/``sort`` value, a non-object
+        cursor, an unknown ``sandbox_class``/``sort`` value, a non-object
         ``labels`` or a ``min`` above its ``max``; 501
         (:class:`SearchNotConfiguredError` with
         ``code == "SEARCH_NOT_CONFIGURED"``) when the API has search
         disabled; 503 (:class:`SearchUnavailableError` with
-        ``code == "SEARCH_UNAVAILABLE"``) when search is unavailable. The
-        server body is the unified ``{code, message, source, trace_id}``
-        envelope. On 501/503 callers may fall back to :meth:`list` without search
-        parameters, which does not use search.
+        ``code == "SEARCH_UNAVAILABLE"``) when search is unavailable. On 501/503
+        callers may fall back to :meth:`list`, which does not use search.
         """
-        query = SearchSandboxesQuery(
+        query = SearchSandboxesOptions(
             q=q,
             name_prefix=name_prefix,
             id_prefix=id_prefix,
-            status=status,
+            states=states,
             sandbox_class=sandbox_class,
             region=region,
             image_ref=image_ref,
@@ -1004,14 +1118,13 @@ class AsyncDaytona:
             limit=limit,
             cursor=cursor,
         )
-        return await self._search_page(query)
-
-    async def _search_page(self, query: SearchSandboxesQuery) -> SearchResult[AsyncSandbox]:
         payload = await self._api.send(RequestSpec("GET", "/sandboxes/search", params=search_params(query)))
-        items, next_cursor, total, total_relation, raw_total_relation = parse_search_page(payload)
+        items, next_cursor, total, total_relation, raw_total_relation = parse_search_page(
+            payload, expect_sandbox_detail
+        )
         return SearchResult(
-            await self._sandboxes_from_sandboxes(items),
-            next_cursor,
+            items=await self._sandboxes_from_sandboxes(items),
+            next_cursor=next_cursor,
             total=total,
             total_relation=total_relation,
             raw_total_relation=raw_total_relation,
@@ -1019,12 +1132,12 @@ class AsyncDaytona:
 
     def _sandbox_handle(
         self,
-        info: SandboxInfo,
+        info: _SandboxInfo,
         *,
         direct_toolbox_url: Optional[str] = None,
         toolbox_base_url: Optional[str] = None,
         access_token: Optional[str] = None,
-        access_token_expires_at: Optional[str] = None,
+        access_token_expires_at: Optional[datetime | str] = None,
         access_token_caller_supplied: bool,
         hub: Optional[WaitHub] = None,
         hub_provider: Optional[Callable[[], Optional[WaitHub]]] = None,
@@ -1037,23 +1150,21 @@ class AsyncDaytona:
             toolbox, resolved, base = self._toolbox_transport(
                 info.id, base=toolbox_base_url, access_token=access_token
             )
-        return self._track(
-            AsyncSandbox(
-                info,
-                self._api,
-                toolbox,
-                toolbox_owner=self._toolbox,
-                toolbox_url=resolved,
-                access_token=access_token,
-                access_token_expires_at=access_token_expires_at,
-                toolbox_base_url=base,
-                toolbox_token=access_token or self._api_key,
-                direct_toolbox_url=direct_toolbox_url,
-                request_timeout=self._request_timeout,
-                access_token_caller_supplied=access_token_caller_supplied,
-                hub=hub,
-                hub_provider=hub_provider,
-            )
+        return AsyncSandbox(
+            info,
+            self._api,
+            toolbox,
+            _toolbox_owner=self._toolbox,
+            _toolbox_url=resolved,
+            _access_token=access_token,
+            _access_token_expires_at=access_token_expires_at,
+            _toolbox_base_url=base,
+            _toolbox_token=access_token or self._api_key,
+            _direct_toolbox_url=direct_toolbox_url,
+            _request_timeout=self._request_timeout,
+            _access_token_caller_supplied=access_token_caller_supplied,
+            _hub=hub,
+            _hub_provider=hub_provider,
         )
 
     async def iter(
@@ -1062,6 +1173,7 @@ class AsyncDaytona:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> AsyncIterator[AsyncSandbox]:
+        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size)."""
         seen_cursors: set[str] = set()
         page_cursor = cursor
         if page_cursor is not None:
@@ -1080,65 +1192,36 @@ class AsyncDaytona:
             page_cursor = page.next_cursor
 
     async def start(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
-        """Start a sandbox (accepts a Sandbox or its id)."""
+        """Start a sandbox by handle or id; see :meth:`AsyncSandbox.start`."""
         await self._resolve_with_hub(sandbox).start(timeout=timeout)
 
-    async def stop(self, sandbox: Union[AsyncSandbox, str]) -> None:
-        """Stop a persistent macOS sandbox (accepts a Sandbox or its id)."""
-        await self._resolve_with_hub(sandbox).stop()
+    async def stop(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
+        """Stop a sandbox by handle or id and wait until it is stopped; see :meth:`AsyncSandbox.stop`."""
+        await self._resolve_with_hub(sandbox).stop(timeout=timeout)
 
     async def pause(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
-        """Pause a sandbox (accepts a Sandbox or its id); see :meth:`Sandbox.pause`."""
+        """Pause a sandbox by handle or id; see :meth:`AsyncSandbox.pause`."""
         await self._resolve_with_hub(sandbox).pause(timeout=timeout)
 
     async def resume(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
-        """Resume a sandbox (accepts a Sandbox or its id)."""
+        """Resume a sandbox by handle or id; see :meth:`AsyncSandbox.resume`."""
         await self._resolve_with_hub(sandbox).resume(timeout=timeout)
 
-    async def delete(self, sandbox: Union[AsyncSandbox, str]) -> None:
-        """Request sandbox deletion.
-
-        Image deletion may still return 409 after this call returns, even if the
-        sandbox reports ``destroyed`` or a subsequent read returns 404.
-        """
-        await self._resolve_with_hub(sandbox).delete()
-
-    async def get_network_policy(self, sandbox: Union[AsyncSandbox, str]) -> NetworkPolicyInfo:
-        return await self._resolve_with_hub(sandbox).get_network_policy()
-
-    async def update_network_policy(
-        self,
-        sandbox: Union[AsyncSandbox, str],
-        *,
-        network_policy: NetworkPolicyInput,
-        if_match: str,
-    ) -> NetworkPolicyInfo:
-        return await self._resolve_with_hub(sandbox).update_network_policy(
-            network_policy=network_policy,
-            if_match=if_match,
-        )
-
-    async def reset_network_policy(
-        self, sandbox: Union[AsyncSandbox, str], *, if_match: str
-    ) -> NetworkPolicyInfo:
-        return await self._resolve_with_hub(sandbox).reset_network_policy(if_match=if_match)
-
-    async def get_sandbox_secrets(self, sandbox: Union[AsyncSandbox, str]) -> SandboxSecretsInfo:
-        """Read a sandbox's attached secret names and apply state; see :meth:`AsyncSandbox.get_secrets`."""
-        return await self._resolve_with_hub(sandbox).get_secrets()
-
-    async def replace_sandbox_secrets(
-        self,
-        sandbox: Union[AsyncSandbox, str],
-        *,
-        secrets: Sequence[str],
-        if_match: str,
-    ) -> SandboxSecretsInfo:
-        """Replace a sandbox's attached secret names; see :meth:`AsyncSandbox.replace_secrets`."""
-        return await self._resolve_with_hub(sandbox).replace_secrets(secrets=secrets, if_match=if_match)
+    async def delete(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
+        """Delete a sandbox by handle or id and wait until it is destroyed; see :meth:`AsyncSandbox.delete`."""
+        await self._resolve_with_hub(sandbox).delete(timeout=timeout)
 
     def _resolve(self, sandbox: Union[AsyncSandbox, str]) -> AsyncSandbox:
-        return self._sandbox_by_id(sandbox) if isinstance(sandbox, str) else sandbox
+        if isinstance(sandbox, AsyncSandbox):
+            return sandbox
+        # A wrong type or a blank id is refused before any request, as in TypeScript.
+        if not isinstance(sandbox, str) or not sandbox.strip():
+            raise create_error(
+                "sandbox must be a Sandbox or a non-empty sandbox id", 400, "BAD_REQUEST", "SDK"
+            )
+        # The id goes into request paths: refused like any path value.
+        path_segment(sandbox, "sandbox")
+        return self._sandbox_by_id(sandbox)
 
     def _acquire_hub(self) -> Optional[WaitHub]:
         # Only ever called on the event loop (see `_sandbox_by_id()`), whose single
@@ -1204,6 +1287,7 @@ class AsyncDaytona:
         toolbox_url: Optional[str] = None,
         access_token: Optional[str] = None,
         access_token_expires_at: Optional[str] = None,
+        access_token_caller_supplied: bool = False,
     ) -> AsyncSandbox:
         if isinstance(sandbox_data, (SandboxDto, SandboxListItem)):
             sandbox_id = sandbox_data.id
@@ -1215,27 +1299,23 @@ class AsyncDaytona:
         toolbox, resolved, base = self._toolbox_transport(
             sandbox_id, direct=toolbox_url, base=sandbox_base, access_token=access_token
         )
-        return self._track(
-            AsyncSandbox.from_api(
-                sandbox_data,
-                self._api,
-                toolbox,
-                toolbox_owner=self._toolbox,
-                toolbox_url=resolved,
-                access_token=access_token,
-                toolbox_base_url=base,
-                toolbox_token=access_token or self._api_key,
-                direct_toolbox_url=toolbox_url,
-                request_timeout=self._request_timeout,
-                access_token_expires_at=access_token_expires_at,
-                # Tokens reach here only from SDK-internal construction paths,
-                # so mint-over stays allowed (the TS twin's
-                # accessTokenFromCreate). A caller's own token enters only through
-                # the low-level `AsyncSandbox.from_api(..., access_token=...)`.
-                access_token_caller_supplied=False,
-                hub=self._acquire_hub(),
-                hub_provider=self._acquire_hub,
-            )
+        return AsyncSandbox._from_api(
+            sandbox_data,
+            self._api,
+            toolbox,
+            toolbox_owner=self._toolbox,
+            toolbox_url=resolved,
+            access_token=access_token,
+            toolbox_base_url=base,
+            toolbox_token=access_token or self._api_key,
+            direct_toolbox_url=toolbox_url,
+            request_timeout=self._request_timeout,
+            access_token_expires_at=access_token_expires_at,
+            # A caller's token (get(access_token=...)) is never replaced; one
+            # from an SDK-internal path may be minted over.
+            access_token_caller_supplied=access_token_caller_supplied,
+            hub=self._acquire_hub(),
+            hub_provider=self._acquire_hub,
         )
 
     async def _sandboxes_from_sandboxes(
@@ -1266,10 +1346,11 @@ class AsyncDaytona:
             access_token=access_token,
             access_token_expires_at=access_token_expires_at,
         )
-        if toolbox_url is not None or sandbox.toolbox_proxy_url is not None:
+        if toolbox_url is not None or sandbox._toolbox_proxy_url is not None:
             return sandbox
         try:
-            detail = expect_object(
+            # A detail that breaks the contract is unreadable too: the list item stands.
+            detail = sandbox_detail_wire(
                 await self._api.send(RequestSpec("GET", f"/sandboxes/{quote(sandbox.id, safe='')}"))
             )
         except DaytonaError:
@@ -1281,12 +1362,6 @@ class AsyncDaytona:
             access_token=access_token,
             access_token_expires_at=access_token_expires_at,
         )
-
-    def _track(self, sandbox: AsyncSandbox) -> AsyncSandbox:
-        # Handles share the client's transports and own nothing that needs
-        # closing, so there is nothing to retain here; the
-        # hook stays as the single construction point for every handle.
-        return sandbox
 
     def _toolbox_transport(
         self,
@@ -1367,7 +1442,7 @@ def _resolve_request_timeout(value: Optional[float]) -> float:
     if value is None:
         return DEFAULT_REQUEST_TIMEOUT_SECONDS
     seconds = _non_negative_seconds("request_timeout", value)
-    return 0.0 if seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+    return 0.0 if seconds > MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
 
 
 def _non_negative_seconds(name: str, value: object) -> float | int:
@@ -1394,7 +1469,6 @@ def _non_negative_seconds(name: str, value: object) -> float | int:
 # the longest JavaScript timer, and for the reconcile interval that ceiling less
 # its ±10 % jitter. Larger durations clamp to them (unlike the request
 # timeout, where a value above the maximum means no limit).
-_MAX_EVENT_TIMER_SECONDS: Final = 2_147_483.647
 _MAX_RECONCILE_INTERVAL_SECONDS: Final = math.floor(2_147_483_647 / 1.1) / 1000
 
 
@@ -1408,7 +1482,7 @@ def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[Sa
     reconcile = _clamped_seconds(
         "events.reconcile_interval", config.reconcile_interval, _MAX_RECONCILE_INTERVAL_SECONDS
     )
-    idle = _clamped_seconds("events.idle_close", config.idle_close, _MAX_EVENT_TIMER_SECONDS)
+    idle = _clamped_seconds("events.idle_close", config.idle_close, MAX_BOUNDED_TIMEOUT_SECONDS)
     if reconcile == config.reconcile_interval and idle == config.idle_close:
         return config
     return dataclasses.replace(config, reconcile_interval=reconcile, idle_close=idle)
@@ -1440,6 +1514,17 @@ def _resolve_connection_pool_maxsize(value: Optional[int]) -> Optional[int]:
     return value
 
 
+def _dict_or_none(value: Optional[Mapping[str, str]], label: str) -> Optional[dict[str, str]]:
+    """A string-to-string mapping argument, copied; anything else is refused, never dropped."""
+    if value is None:
+        return None
+    if not isinstance(value, Mapping) or not all(
+        isinstance(key, str) and isinstance(item, str) for key, item in value.items()
+    ):
+        raise create_error(f"{label} must be a mapping of string to string", 400, "BAD_REQUEST", "SDK")
+    return dict(value)
+
+
 def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
     merged: CreateConfig = {}
     for key, value in overrides.items():
@@ -1448,15 +1533,29 @@ def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
     return merged
 
 
-_MAX_MACOS_RESOURCE_VALUE: Final = 2147483647
+#: The least time between two build polls when the server answers early.
+_BUILD_POLL_INTERVAL_S: Final = 1.0
 
 
 # Omitted macOS sizes use the server defaults. Supplied sizes must be within
 # the accepted range; GiB converts to MiB exactly, never rounded.
+def _sendable_token(value: object) -> TypeGuard[str]:
+    """Whether a create response's token can be sent as a bearer header:
+    non-empty printable ASCII with no leading or trailing space (the header
+    rule, as TypeScript reads it)."""
+    return (
+        isinstance(value, str)
+        and bool(value)
+        and all(" " <= char <= "~" for char in value)
+        and value[0] != " "
+        and value[-1] != " "
+    )
+
+
 def _macos_cores(cpu: object) -> Optional[int]:
     if cpu is None:
         return None
-    if isinstance(cpu, bool) or not isinstance(cpu, int) or not 4 <= cpu <= _MAX_MACOS_RESOURCE_VALUE:
+    if isinstance(cpu, bool) or not isinstance(cpu, int) or not 4 <= cpu <= INT32_MAX:
         raise create_error("cpu must be an integer between 4 and 2147483647", 400, "BAD_REQUEST", "SDK")
     return cpu
 
@@ -1467,7 +1566,7 @@ def _macos_mib(gib: object, *, axis: str, floor_mib: int) -> Optional[int]:
     mib = gib * 1024 if isinstance(gib, (int, float)) and not isinstance(gib, bool) else math.nan
     # An int needs no float check: math.isfinite() and int() raise OverflowError past the float range.
     whole = isinstance(mib, int) or (math.isfinite(mib) and mib == int(mib))
-    if not whole or not floor_mib <= mib <= _MAX_MACOS_RESOURCE_VALUE:
+    if not whole or not floor_mib <= mib <= INT32_MAX:
         raise create_error(
             f"{axis} must be a finite GiB value that converts to an integer MiB value between {floor_mib} and 2147483647",
             400,
@@ -1477,9 +1576,9 @@ def _macos_mib(gib: object, *, axis: str, floor_mib: int) -> Optional[int]:
     return int(mib)
 
 
-#: The label every ``create*(name=…)`` stamps with the name:
-#: ``labels == {"name": name, …}``. :meth:`AsyncDaytona.find_by_name` reads it back.
-NAME_LABEL: Final = "name"
+# The label every ``create*(name=…)`` stamps with the name:
+# ``labels == {"name": name, …}``. ``AsyncDaytona.find_by_name`` reads it back.
+_NAME_LABEL: Final = "name"
 
 #: Longest idempotency key the API accepts, in characters.
 _MAX_IDEMPOTENCY_KEY_LEN: Final = 256
@@ -1487,7 +1586,7 @@ _NAME_KEY_PREFIX: Final = "name:"
 _NAME_KEY_HASH_PREFIX: Final = "name:sha256:"
 
 
-def idempotency_key_for_name(name: str) -> str:
+def _idempotency_key_for_name(name: str) -> str:
     """The idempotency key ``create*(name=name)`` derives when none is given.
 
     ``"name:" + name`` when that is a key the API accepts verbatim — printable
@@ -1497,8 +1596,7 @@ def idempotency_key_for_name(name: str) -> str:
     over the UTF-8 bytes. The ``name:`` namespace keeps a derived key from ever
     colliding with a caller's explicit key of the same spelling. Deterministic
     and identical in the TypeScript SDK, so retries from either SDK use the
-    same key within a regional API endpoint: use it to recover or inspect the key
-    behind a named create.
+    same key within a regional API endpoint.
     """
     if not isinstance(name, str):
         raise create_error("name must be a string", 400, "BAD_REQUEST", "SDK")
@@ -1521,14 +1619,26 @@ def _named_create(name: CreateConfigValue | None) -> Optional[str]:
     return name if isinstance(name, str) and name.strip() else None
 
 
+def _check_connect_options(toolbox_url: object, access_token: object) -> None:
+    """``get()``'s connect options, as TypeScript checks them: ``None`` is
+    omitted; a toolbox URL is a non-blank string; an access token follows the
+    header rule (it is sent as a bearer credential), never stripped."""
+    if toolbox_url is not None and (not isinstance(toolbox_url, str) or not toolbox_url.strip()):
+        raise create_error("toolbox_url must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    if access_token is not None:
+        if not isinstance(access_token, str):
+            raise create_error("access_token must be a string", 400, "BAD_REQUEST", "SDK")
+        header_text(access_token, "access_token")
+
+
 def _resolve_idempotency_key(idempotency_key: Optional[str], name: CreateConfigValue | None = None) -> str:
     if idempotency_key is not None:
         if not isinstance(idempotency_key, str):
             raise create_error("idempotency_key must be a string", 400, "BAD_REQUEST", "SDK")
-        return idempotency_key
+        return header_text(idempotency_key, "idempotency_key")
     named = _named_create(name)
     if named is not None:
-        return idempotency_key_for_name(named)
+        return _idempotency_key_for_name(named)
     return str(uuid.uuid4())
 
 
@@ -1544,16 +1654,16 @@ def _labels_with_name(config: CreateConfig) -> dict[str, str] | None:
     if named is None:
         return labels
     stamped = dict(labels or {})
-    existing = stamped.get(NAME_LABEL)
+    existing = stamped.get(_NAME_LABEL)
     if existing is not None and existing != named:
         raise create_error(
-            f"labels[{NAME_LABEL!r}] ({existing!r}) disagrees with name= ({named!r}); "
+            f"labels[{_NAME_LABEL!r}] ({existing!r}) disagrees with name= ({named!r}); "
             "the name label is stamped from name=, pass one or the other",
             400,
             "BAD_REQUEST",
             "SDK",
         )
-    stamped[NAME_LABEL] = named
+    stamped[_NAME_LABEL] = named
     return stamped
 
 
@@ -1576,6 +1686,22 @@ def _create_body(config: CreateConfig) -> CreateBody:
         sandbox_class=route,
         persistent=route == "macos" and config.get("persistent") is True,
     )
+    # A mistyped value is refused, never silently dropped.
+    for key, kind, description in (
+        ("name", str, "a string"),
+        ("spot", bool, "a boolean"),
+        ("persistent", bool, "a boolean"),
+        ("user", str, "a string"),
+        ("cpu_arch", str, "a string"),
+        ("cpu_type", str, "a string"),
+        ("reservation", str, "a string"),
+        ("auto_renew", bool, "a boolean"),
+    ):
+        _optional_typed(config, key, kind, description)
+    # The platform's architectures (the contract's CpuArchitecture), as for the
+    # image option: SDK inputs are closed.
+    if config.get("cpu_arch") is not None and config.get("cpu_arch") not in ("amd64", "arm64"):
+        raise create_error('cpu_arch must be "amd64" or "arm64"', 400, "BAD_REQUEST", "SDK")
     body: CreateBody = {}
     if not source_omitted:
         body[source_kind] = source
@@ -1599,27 +1725,46 @@ def _create_body(config: CreateConfig) -> CreateBody:
     env = _string_map(config.get("env"))
     if env and source_kind == "image":
         body["env"] = env
-    target = config.get("target")
-    if isinstance(target, str) and target and target.strip().lower() != "local":
+    target = region_selector(config.get("target"))
+    if target is not None:
         body["region_id"] = target
-    if isinstance(resources, Resources) and source_kind == "image":
-        if resources.cpu is not None:
-            body["cpu"] = resources.cpu
-        if resources.cpu_max is not None:
-            body["cores_max"] = resources.cpu_max
-        if resources.memory is not None:
-            body["memory_mib"] = gb_to_mib(resources.memory)
-        if resources.memory_max is not None:
-            body["memory_max_mib"] = gb_to_mib(resources.memory_max)
-        if resources.disk is not None:
-            body["disk_mib"] = gb_to_mib(resources.disk)
-        if resources.disk_max is not None:
-            body["disk_max_mib"] = gb_to_mib(resources.disk_max)
-    if source_kind == "image":
-        for source_name, dest in (("cpu", "cpu"), ("memory", "memory_mib"), ("disk", "disk_mib")):
-            amount = config.get(source_name)
-            if isinstance(amount, (int, float)) and not isinstance(amount, bool):
-                body[dest] = gb_to_mib(amount) if source_name in ("memory", "disk") else amount
+    if resources is not None and route == "linux" and source_kind == "image":
+        if not isinstance(resources, Resources):
+            raise create_error("resources must be Resources(...)", 400, "BAD_REQUEST", "SDK")
+        for cores, wire, label in (
+            (resources.cpu, "cpu", "cpu"),
+            (resources.cpu_max, "cores_max", "cpu_max"),
+        ):
+            if cores is None:
+                continue
+            # A double on the wire: any finite positive number a double carries.
+            if not finite_number(cores) or cores <= 0:
+                raise create_error(
+                    f"resources.{label} must be a positive number of cores", 400, "BAD_REQUEST", "SDK"
+                )
+            # The contract's cores_max is a positive multiple of 0.5.
+            if wire == "cores_max" and not float(cores * 2).is_integer():
+                raise create_error(
+                    "resources.cpu_max must be a positive multiple of 0.5 cores", 400, "BAD_REQUEST", "SDK"
+                )
+            body[wire] = cores
+        for gib, wire, label in (
+            (resources.memory, "memory_mib", "resources.memory"),
+            (resources.memory_max, "memory_max_mib", "resources.memory_max"),
+            (resources.disk, "disk_mib", "resources.disk"),
+            (resources.disk_max, "disk_max_mib", "resources.disk_max"),
+        ):
+            if gib is not None:
+                mib = gib_to_mib(gib, label=label)
+                # The contract types these sizes as int32 MiB.
+                if mib > INT32_MAX:
+                    raise create_error(
+                        f"{label} must convert to at most 2147483647 MiB", 400, "BAD_REQUEST", "SDK"
+                    )
+                body[wire] = mib
+    user = config.get("user")
+    if isinstance(user, str) and route == "linux" and source_kind == "image":
+        body["user"] = user
     ports = _port_requests(config.get("ports"))
     if ports is not None:
         body["ports"] = [{"port": port.port, "proto": port.proto} for port in ports]
@@ -1632,12 +1777,8 @@ def _create_body(config: CreateConfig) -> CreateBody:
     labels = _labels_with_name(config)
     if labels:
         body["labels"] = labels
-    network_policy = config.get("network_policy") if "network_policy" in config else _UNSET_NETWORK_POLICY
-    if (
-        route in ("linux", "macos")
-        and source_kind == "image"
-        and not isinstance(network_policy, _UnsetNetworkPolicy)
-    ):
+    network_policy = config.get("network_policy")
+    if route in ("linux", "macos") and source_kind == "image" and "network_policy" in config:
         body["network_policy"] = (
             None if network_policy is None else serialize_network_policy_input(network_policy)
         )
@@ -1654,16 +1795,29 @@ def _create_body(config: CreateConfig) -> CreateBody:
                 body[axis] = amount
     if lifecycle:
         body["lifecycle_policy"] = lifecycle
-    wait_seconds = config.get("wait_seconds")
-    if wait_seconds is not None:
-        # Validate whatever the caller passed — a float or a bool is a caller
-        # bug, not "use the default" (parity with the TS SDK's createWaitSeconds).
+    if "wait_seconds" in config:
+        # Validate whatever the caller passed — None, a float or a bool is a
+        # caller bug, not "use the default" (parity with the TS SDK's createWaitSeconds).
+        wait_seconds = config["wait_seconds"]
         _validate_wait(wait_seconds)
-        body["wait_seconds"] = wait_seconds
+        assert isinstance(wait_seconds, int)  # _validate_wait proved it
+        # Above the timer maximum is no limit: the body carries the maximum, in
+        # whole seconds, the same value in both SDKs (never a 400-digit integer).
+        body["wait_seconds"] = min(wait_seconds, MAX_WIRE_WAIT_SECONDS)
     create_timeout_seconds = config.get("create_timeout_seconds")
     if create_timeout_seconds is not None:
-        if isinstance(create_timeout_seconds, bool) or not isinstance(create_timeout_seconds, int):
-            raise create_error("create_timeout_seconds must be an integer", 400, "BAD_REQUEST", "SDK")
+        # The server's own budget (an int64 on the wire) that both SDKs carry exactly.
+        if (
+            isinstance(create_timeout_seconds, bool)
+            or not isinstance(create_timeout_seconds, int)
+            or not -1 <= create_timeout_seconds <= MAX_SAFE_INTEGER
+        ):
+            raise create_error(
+                "create_timeout_seconds must be an integer from -1 (the server maximum) to 9007199254740991",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         body["create_timeout_seconds"] = create_timeout_seconds
     return body
 
@@ -1713,8 +1867,9 @@ def _create_response_state(
     return sandbox_state(str(payload.get("status") or ""))
 
 
-def _create_wait_budget(body: CreateBody) -> int:
-    wait_seconds = body.get("wait_seconds")
+def _create_wait_budget(config: CreateConfig) -> int:
+    """The caller's create wait, uncapped (the body carries it capped)."""
+    wait_seconds = config.get("wait_seconds")
     return wait_seconds if isinstance(wait_seconds, int) and not isinstance(wait_seconds, bool) else 60
 
 
@@ -1723,42 +1878,44 @@ def _validate_wait(wait_seconds: object) -> None:
         raise create_error("wait_seconds must be a non-negative integer", 400, "BAD_REQUEST", "SDK")
 
 
-def _require_image_source(image: str | Image | ImageBuilder) -> str:
+def _require_image_source(image: str | Image | ImageBuilder, method: str = "create") -> str:
     if isinstance(image, str):
         cleaned = image.strip()
         if cleaned:
             return cleaned
         raise create_error("image must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    expected = f"{method}() accepts an image name or img_… id string"
     if isinstance(image, ImageBuilder):
-        raise TypeError(
-            "create() accepts an image name or img_… id string; use create_from_build(...) for ImageBuilder"
+        hint = (
+            "macOS sandboxes boot registered macOS images and do not build one"
+            if method == "create_macos"
+            else "use create_from_build(...) for an ImageBuilder"
         )
+        raise create_error(f"{expected}; {hint}", 400, "BAD_REQUEST", "SDK")
     if isinstance(image, Image):
-        raise TypeError(
-            "create() accepts an image name or img_… id string; pass image.id or use create_from_build(...)"
-        )
-    raise TypeError("create() accepts an image name or img_… id string")
+        raise create_error(f"{expected}; pass image.id", 400, "BAD_REQUEST", "SDK")
+    raise create_error(expected, 400, "BAD_REQUEST", "SDK")
 
 
 def _require_snapshot_source(snapshot: str) -> str:
     if not isinstance(snapshot, str):
-        raise TypeError("create_from_snapshot() accepts a snapshot name or snap_… id string")
+        raise create_error(
+            "create_from_snapshot() accepts a snapshot name or snap_… id string", 400, "BAD_REQUEST", "SDK"
+        )
     cleaned = snapshot.strip()
     if not cleaned:
         raise create_error("snapshot must be a non-empty string", 400, "BAD_REQUEST", "SDK")
     return cleaned
 
 
-def _source_image_ref(source: str) -> ImageRef:
-    return ImageRef(id=source, name=None) if source.startswith("img_") else ImageRef(id=source, name=source)
+def _source_image_ref(source: str) -> Optional[ImageRef]:
+    """The caller's image as a reference when it is an ``img_`` id; a name is never an id."""
+    return ImageRef(id=source, name=None) if source.startswith("img_") else None
 
 
-def _source_snapshot_ref(source: str) -> SnapshotRef:
-    return (
-        SnapshotRef(id=source, name=None)
-        if source.startswith("snap_")
-        else SnapshotRef(id=source, name=source)
-    )
+def _source_snapshot_ref(source: str) -> Optional[SnapshotRef]:
+    """The caller's snapshot as a reference when it is a ``snap_`` id; a name is never an id."""
+    return SnapshotRef(id=source, name=None) if source.startswith("snap_") else None
 
 
 def _volume_mount(mount: VolumeMount) -> JsonObject:
@@ -1770,34 +1927,76 @@ def _volume_mount(mount: VolumeMount) -> JsonObject:
     return body
 
 
-def _volume_mounts(value: CreateConfigValue | None) -> Sequence[VolumeMount] | None:
+def _bad_create_value(message: str) -> DaytonaError:
+    return create_error(message, 400, "BAD_REQUEST", "SDK")
+
+
+def _list_items(
+    value: CreateConfigValue | None, ok: Callable[[object], bool], message: str
+) -> Optional[list[object]]:
+    """A list/tuple create argument whose every entry passes ``ok``; ``None`` when absent.
+
+    Anything else (a bare string, a mapping, a mistyped entry) is refused, never dropped.
+    """
+    if value is None:
+        return None
     if (
-        isinstance(value, Sequence)
-        and not isinstance(value, (str, bytes))
-        and all(isinstance(item, VolumeMount) for item in value)
+        isinstance(value, (str, bytes))
+        or not isinstance(value, Sequence)
+        or not all(ok(item) for item in value)
     ):
-        return [item for item in value if isinstance(item, VolumeMount)]
-    return None
+        raise _bad_create_value(message)
+    return list(value)
+
+
+def _is_volume_mount(item: object) -> bool:
+    return (
+        isinstance(item, VolumeMount)
+        and isinstance(item.volume_id, str)
+        and bool(item.volume_id.strip())
+        and isinstance(item.mount_path, str)
+        and bool(item.mount_path.strip())
+        and (item.subpath is None or isinstance(item.subpath, str))
+        and (item.read_only is None or isinstance(item.read_only, bool))
+    )
+
+
+def _is_port_mapping(item: object) -> bool:
+    return (
+        isinstance(item, PortMapping)
+        and isinstance(item.port, int)
+        and not isinstance(item.port, bool)
+        and 1 <= item.port <= 65535
+        # The contract's PortProtocol values only: SDK inputs are closed.
+        and item.proto in ("tcp", "udp")
+    )
+
+
+def _volume_mounts(value: CreateConfigValue | None) -> Sequence[VolumeMount] | None:
+    items = _list_items(
+        value, _is_volume_mount, "volumes must be a list of VolumeMount(volume_id=..., mount_path=...)"
+    )
+    return None if items is None else [item for item in items if isinstance(item, VolumeMount)]
 
 
 def _port_requests(value: CreateConfigValue | None) -> Sequence[PortMapping] | None:
-    if (
-        isinstance(value, Sequence)
-        and not isinstance(value, (str, bytes))
-        and all(isinstance(item, PortMapping) for item in value)
-    ):
-        return [item for item in value if isinstance(item, PortMapping)]
-    return None
+    items = _list_items(
+        value, _is_port_mapping, "ports must be a list of PortMapping(port=...) with a port in 1..65535"
+    )
+    return None if items is None else [item for item in items if isinstance(item, PortMapping)]
 
 
 def _secret_names(value: CreateConfigValue | None) -> Sequence[str] | None:
-    if (
-        isinstance(value, Sequence)
-        and not isinstance(value, (str, bytes))
-        and all(isinstance(item, str) for item in value)
-    ):
-        return [item for item in value if isinstance(item, str)]
-    return None
+    items = _list_items(
+        value, lambda item: isinstance(item, str) and bool(item), "secrets must be a list of secret names"
+    )
+    return None if items is None else [item for item in items if isinstance(item, str)]
+
+
+def _optional_typed(config: CreateConfig, key: str, kind: type, description: str) -> None:
+    value = config.get(key)
+    if value is not None and (not isinstance(value, kind) or (kind is not bool and isinstance(value, bool))):
+        raise _bad_create_value(f"{key} must be {description}")
 
 
 def _string_map(value: CreateConfigValue | None) -> dict[str, str] | None:

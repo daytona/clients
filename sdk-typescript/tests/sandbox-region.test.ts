@@ -4,7 +4,7 @@
  */
 
 import { Daytona } from '../src/v2/Daytona'
-import { Sandbox } from '../src/v2/Sandbox'
+import { createSandbox } from './helpers/sandbox'
 import { startFakeApi } from './networkPolicyTestServer'
 
 describe('sandbox region', () => {
@@ -16,17 +16,16 @@ describe('sandbox region', () => {
   })
   describe.each(['create', 'get'])('%s', (operation) => {
     it.each([
-      { id: '57VSdKNrJGxnSAabjcHD4M-region-a', region: undefined, expected: 'region-a' },
+      // The contract requires region_id; an empty one is derived from the id.
       { id: '57VSdKNrJGxnSAabjcHD4M-region-a', region: '', expected: 'region-a' },
       { id: '57VSdKNrJGxnSAabjcHD4M', region: '', expected: undefined },
       { id: '57VSdKNrJGxnSAabjcHD4M-region-a', region: 'region-b', expected: 'region-b' },
-      { id: '57VSdKNrJGxnSAabjcHD4M', region: undefined, expected: undefined },
-      { id: '550e8400-e29b-41d4-a716-446655440000', region: undefined, expected: undefined },
+      { id: '550e8400-e29b-41d4-a716-446655440000', region: '', expected: undefined },
     ])('resolves $id with region $region to $expected', async (fixture) => {
       // Given responses covering explicit regions, region tags and untagged ids.
       const api = await startFakeApi([{
         status: 200,
-        body: { id: fixture.id, ...(operation === 'get' ? { region_id: fixture.region } : {}), name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', wait_cap_seconds: 0 },
+        body: { id: fixture.id, class: 'linux', ...(operation === 'get' ? { region_id: fixture.region } : {}), name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', wait_cap_seconds: 0, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] },
       }])
       process.env.DAYTONA_V2_API_URL = api.url
       const client = new Daytona({ apiKey: 'key' })
@@ -48,7 +47,7 @@ describe('sandbox region', () => {
   it('keeps the region tag when the refreshed region is empty', async () => {
     // Given a fetched sandbox whose next response has an empty region.
     const id = '57VSdKNrJGxnSAabjcHD4M-region-a'
-    const response = { id, name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid' }
+    const response = { id, class: 'linux', name: 'test', status: 'running', toolbox_proxy_url: 'http://toolbox.invalid', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
     const api = await startFakeApi([
       { status: 200, body: { ...response, region_id: 'region-a' } },
       { status: 200, body: { ...response, region_id: '' } },
@@ -71,7 +70,7 @@ describe('sandbox region', () => {
     // Given serialized metadata with an empty region.
     const info = { sandboxId: '57VSdKNrJGxnSAabjcHD4M-region-a', region: '' }
     // When a low-level handle is constructed.
-    const sandbox = new Sandbox(info, undefined, undefined, undefined)
+    const sandbox = createSandbox(info)
     // Then the complete region tag remains available.
     expect(sandbox.region).toBe('region-a')
   })
@@ -81,7 +80,7 @@ describe('sandbox region', () => {
     { id: '57VSdKNrJGxnSAabjcHD4M', expected: undefined },
   ])('preserves the id-derived region in handle JSON for $id', ({ id, expected }) => {
     // Given a metadata-less handle with only its id.
-    const sandbox = new Sandbox(id, undefined, undefined, undefined)
+    const sandbox = createSandbox(id)
     // When the handle is serialized.
     const payload = sandbox.toJSON()
     // Then the recovered region survives, without inventing one for untagged ids.

@@ -20,7 +20,8 @@ import { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 
 import * as publicSdk from '../src/v2/index'
 import type { components as ApiComponents } from '../src/v2/gen/api'
 import type { components as ToolboxComponents } from '../src/v2/gen/toolbox'
-import { Daytona, NAME_LABEL, hasSearchFilters, idempotencyKeyForName, searchQueryParams, searchTimestamp } from '../src/v2/Daytona'
+import { Daytona } from '../src/v2/Daytona'
+import { searchQueryParams, searchTimestamp } from '../src/v2/clientSearch'
 import { LIST_VALUE_LIST, SINGLE_VALUE_SEARCH, searchConsumerCalls } from './search-options.consumer'
 import { Image as ImageHandle, ImageBuilder, Snapshot } from '../src/v2/Image'
 import { ImagesService } from '../src/v2/Images'
@@ -41,10 +42,11 @@ import { GitService } from '../src/v2/Git'
 import { InterpreterService } from '../src/v2/Interpreter'
 import { LspService } from '../src/v2/Lsp'
 import { PortsService } from '../src/v2/Ports'
-import { SecretService } from '../src/v2/Secret'
-import { VolumeService } from '../src/v2/Volume'
+import { SecretsService } from '../src/v2/Secret'
+import { VolumesService } from '../src/v2/Volume'
 import { ProcessHandle, ProcessService, PtyService, TIMED_OUT_LOG_PAGE_LIMIT, WAIT_READ_SLACK_MS, startProcess } from '../src/v2/Process'
 import { Sandbox } from '../src/v2/Sandbox'
+import { createSandbox } from './helpers/sandbox'
 import type { SandboxConnectOptionsFromCreate } from '../src/v2/Sandbox'
 import { DOCKER_WAIT_DEADLINE_GRACE_MS, DockerService } from '../src/v2/Docker'
 import {
@@ -65,7 +67,7 @@ import type {
   ComputerUseDesktopFailureCode,
   ComputerUseDesktopState,
   AuditActionList,
-  ProjectApiKeyWithContext,
+  ProjectApiKey,
   ProjectBudget,
   OrganizationLimits,
   ComputerUseRestartResponse,
@@ -73,7 +75,6 @@ import type {
   ListSecretsOptions,
   ListVolumesOptions,
   Volume,
-  SandboxInfo,
   ProcessInfo,
   StreamLogEvent,
   WriteFileOptions,
@@ -83,7 +84,7 @@ import type {
   WaitProcessOptions,
   SandboxState,
   SandboxWaitState,
-  WaitForStateOptions,
+  WaitOptions,
   ComputerUseStatusResponse,
   ProcessHandleJSON,
   ProcessState,
@@ -141,25 +142,37 @@ import {
   UnsupportedOperationError,
   SandboxCreateConnectionError,
   SandboxCreateRequestTimeoutError,
-  SandboxCreateTimeoutError,
   SandboxTerminalStateError,
   SandboxNotRunningError,
   RequestTimeoutError,
   SearchNotConfiguredError,
   SearchUnavailableError,
 } from '../src/v2/errors/DaytonaError'
-import { routeTemplate, HttpTransport, sandboxState, sseMessages, gbToMib, mibToGb, boundedRequestTimeout, parseSandboxLifecycle, lifecycleBody, assertLifecycleClassSupport, authHeaders, LIFECYCLE_MAX_SECS, createPlatformTokenProvider } from '../src/v2/http'
+import { routeTemplate, HttpTransport, sandboxState, sseMessages, boundedRequestTimeout, parseSandboxLifecycle, lifecycleBody, assertLifecycleClassSupport, authHeaders, LIFECYCLE_MAX_SECS, createPlatformTokenProvider } from '../src/v2/http'
+import { gibToMib, mibToGib } from '../src/v2/resources'
 import { WaitHub, targetPredicate, type WebSocketFactory } from '../src/v2/events'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from '../src/v2/waitConstants'
 import { WAIT_TRANSPORT_RETRY_LIMIT } from '../src/v2/ProcessWire'
 import { SDK_VERSION } from '../src/version'
 import { DISABLED } from '../src/v2/types'
-import type { CreateSandboxOptions, LifecyclePolicyOptions, Resources, SandboxHandleJSON, SearchResult, SandboxDto } from '../src/v2/types'
+import type { CreateSandboxOptions, LifecyclePolicyOptions, Resources, SandboxHandleJSON, SearchResult, SandboxDto, SandboxInfo } from '../src/v2/types'
 import type { GitConfigScope, GitRemote } from '../src/v2'
 import { lazySandbox } from './lazySandbox'
 
 const SIGNED_FILE_TEST_SIGNATURE = 'v1_c2VydmVyLW1pbnRlZC1zaWduYXR1cmU'
 const FIXED_TEST_EPOCH_MS = 1_725_984_000_000
+
+const CURRENT_KEY_WIRE: ApiComponents['schemas']['ProjectApiKeyWithContext'] = {
+  id: 'current-key', name: 'test-key', project_id: 'project-1', project_permissions: ['read:sandboxes'],
+  created_at: '2026-01-01T00:00:00Z', key_prefix: 'key', key_suffix: 'tail',
+  context: { org_id: 'org-1', org_name: 'Acme', project_name: 'default' },
+  imported_from: null, sync_to_v0: false, sync_to_v1: false,
+}
+const CURRENT_KEY: ProjectApiKey = {
+  id: 'current-key', name: 'test-key', projectId: 'project-1', projectPermissions: ['read:sandboxes'],
+  createdAt: '2026-01-01T00:00:00Z', keyPrefix: 'key', keySuffix: 'tail',
+  context: { orgId: 'org-1', orgName: 'Acme', projectName: 'default' },
+}
 
 function sandboxJwt(exp: number, aud = 'test-audience'): string {
   const header = Buffer.from(JSON.stringify({ alg: 'ES256', typ: 'at+jwt' })).toString('base64url')
@@ -227,6 +240,7 @@ function sandboxDetail(overrides: Record<string, unknown> = {}): Record<string, 
     cores_max: 1,
     memory_mib: 1024,
     disk_mib: 1024,
+    region_id: '', port_map: [],
     persistent: false,
     toolbox_proxy_url: 'http://toolbox',
     image: { id: 'img_123', name: 'base' },
@@ -275,6 +289,11 @@ function imageResponse(overrides: Record<string, unknown> = {}): Record<string, 
     region_id: 'region-a',
     retention: 'permanent',
     status: 'ready',
+    format_version: 2,
+    format_outdated: false,
+    platform: false,
+    default: false,
+    deprecated: false,
     ...overrides,
   }
 }
@@ -417,6 +436,22 @@ function collectRoutesFromSourceFile(sourceFile: ts.SourceFile, filePath: string
       if (webSocketRouteUses.length > 0) routes.push(...webSocketRouteUses)
     }
 
+    if (ts.isPropertyAssignment(node) && identifierText(node.name) === 'path') {
+      let parent: ts.Node | undefined = node.parent
+      while (parent && !ts.isFunctionDeclaration(parent)) parent = parent.parent
+      if (parent && ts.isFunctionDeclaration(parent) && parent.type?.getText(sourceFile) === 'PreparedSandboxCreate') {
+        const variants = routeVariants(node.initializer, scope, sourceFile)
+        if (variants.length === 0) throw new Error('SDK route drift: cannot resolve prepared sandbox create path')
+        for (const raw of variants) {
+          const path = normalizeSdkRoute(raw)
+          if (path === undefined) throw new Error('SDK route drift: cannot resolve prepared sandbox create path')
+          routes.push({ file: relative(resolve(__dirname, '..'), filePath),
+            line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
+            method: 'POST', path, raw: node.initializer.getText(sourceFile) })
+        }
+      }
+    }
+
     ts.forEachChild(node, (child) => visit(child, nextScope))
   }
 
@@ -436,7 +471,7 @@ function collectHttpRouteUses(
 ): readonly RouteLiteralUse[] {
   // Build-log helpers forward discovery paths; the dynamic proxy URL is not
   // a hard-coded API route. Collect the literal at every forwarding call site.
-  const forwarding = ts.isIdentifier(node.expression) && ['followBuildLogs', 'readBuildLogs', 'discovery'].includes(node.expression.text)
+  const forwarding = ts.isIdentifier(node.expression) && ['followBuildLogs', 'readBuildLogs', 'discovery', 'getArtifact'].includes(node.expression.text)
   if (!forwarding && !ts.isPropertyAccessExpression(node.expression)) return []
   const method = forwarding ? 'GET' : httpMethodForCall(node, scope)
   const arg = node.arguments[forwarding ? 1 : 0]
@@ -444,7 +479,8 @@ function collectHttpRouteUses(
   if (ts.isIdentifier(arg) && arg.text === 'path') {
     let parent: ts.Node | undefined = node.parent
     while (parent && !ts.isFunctionDeclaration(parent) && !ts.isMethodDeclaration(parent)) parent = parent.parent
-    if (parent && ((ts.isFunctionDeclaration(parent) && parent.name && ['followBuildLogs', 'readBuildLogs', 'discovery'].includes(parent.name.text)) || (ts.isMethodDeclaration(parent) && parent.name.getText(sourceFile) === 'createSandbox'))) return []
+    // Prepared create descriptors are collected at their path definitions.
+    if (parent && ((ts.isFunctionDeclaration(parent) && parent.name && ['followBuildLogs', 'readBuildLogs', 'discovery', 'getArtifact', 'createSandbox'].includes(parent.name.text)) || (ts.isMethodDeclaration(parent) && parent.name.getText(sourceFile) === 'createSandbox'))) return []
   }
   const variants = routeVariants(arg, scope, sourceFile)
   const paths = variants.map((raw) => normalizeSdkRoute(raw)).filter((path): path is string => path !== undefined)
@@ -584,7 +620,30 @@ function routeVariants(
     const key = `${sourceFile.fileName}:${expression.text}`
     if (seen.has(key)) return []
     const resolved = scope.get(expression.text)
-    return resolved ? routeVariants(resolved, scope, sourceFile, new Set([...seen, key])) : []
+    const nextSeen = new Set([...seen, key])
+    if (resolved) return routeVariants(resolved, scope, sourceFile, nextSeen)
+    // Constants can live beside a request builder rather than its transport call.
+    for (const statement of sourceFile.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+      const bindings = statement.importClause?.namedBindings
+      if (!bindings || !ts.isNamedImports(bindings)) continue
+      const binding = bindings.elements.find((entry) => entry.name.text === expression.text)
+      if (!binding) continue
+      const module = ts.resolveModuleName(statement.moduleSpecifier.text, sourceFile.fileName,
+        { moduleResolution: ts.ModuleResolutionKind.Bundler }, ts.sys).resolvedModule
+      if (!module) return []
+      const imported = ts.createSourceFile(module.resolvedFileName, readFileSync(module.resolvedFileName, 'utf8'), ts.ScriptTarget.Latest, true)
+      const importedScope = new Map<string, ts.Expression>()
+      for (const item of imported.statements) {
+        if (!ts.isVariableStatement(item)) continue
+        for (const declaration of item.declarationList.declarations) {
+          if (ts.isIdentifier(declaration.name) && declaration.initializer) importedScope.set(declaration.name.text, declaration.initializer)
+        }
+      }
+      const initializer = importedScope.get(binding.propertyName?.text ?? binding.name.text)
+      return initializer ? routeVariants(initializer, importedScope, imported, nextSeen) : []
+    }
+    return []
   }
   if (ts.isConditionalExpression(expression)) {
     return uniqueStrings([...routeVariants(expression.whenTrue, scope, sourceFile, seen), ...routeVariants(expression.whenFalse, scope, sourceFile, seen)])
@@ -753,12 +812,12 @@ describe('V2 model', () => {
     const remote: GitRemote = { name: 'origin', url: 'https://example.invalid/repo.git' }
     const scope: GitConfigScope = 'local'
     const waitState: SandboxWaitState = 'started'
-    const waitForStateOptions: WaitForStateOptions = { timeout: 1 }
+    const waitOptions: WaitOptions = { timeoutSeconds: 1 }
 
     expect(remote).toEqual({ name: 'origin', url: 'https://example.invalid/repo.git' })
     expect(scope).toBe('local')
     expect(waitState).toBe('started')
-    expect(waitForStateOptions.timeout).toBe(1)
+    expect(waitOptions.timeoutSeconds).toBe(1)
   })
 
   it('exports the list pagination option types from the package root', () => {
@@ -772,11 +831,11 @@ describe('V2 model', () => {
       cursor: 'c1',
       limit: 10,
     } satisfies ListEndpointsOptions
-    const secrets: Parameters<SecretService['list']>[0] = {
+    const secrets: Parameters<SecretsService['list']>[0] = {
       cursor: 'c2',
       limit: 20,
     } satisfies ListSecretsOptions
-    const volumes: Parameters<VolumeService['list']>[0] = {
+    const volumes: Parameters<VolumesService['list']>[0] = {
       cursor: 'c3',
       limit: 30,
     } satisfies ListVolumesOptions
@@ -805,8 +864,8 @@ describe('V2 model', () => {
 
   it('sends a read-only volume mount as read_only and omits the flag when it is unset', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await client.create('python:3.12', {
       volumes: [
@@ -833,7 +892,7 @@ describe('V2 model', () => {
     const client = newClient()
     const post = jest.spyOn(clientInstance(client), 'post').mockImplementation(async (path: string) => {
       if (path === '/images') return { data: { id: 'img_vol', name: null, region: 'region-a', status: 'pending' } }
-      if (path === '/sandboxes') return { data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } }
+      if (path === '/sandboxes') return { data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
       throw new Error(`unexpected post ${path}`)
     })
     jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ id: 'img_vol', anonymous: true, name: null }) })
@@ -848,8 +907,8 @@ describe('V2 model', () => {
 
   it('maps image create resource units', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', name: 'n', status: 'running', class: 'linux', memory_mib: 2048, disk_mib: 3072 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', name: 'n', status: 'running', class: 'linux', memory_mib: 2048, disk_mib: 3072, cpu: 1, cores_max: 1, region_id: '', port_map: [] } })
     const sandbox = await client.create('python:3.12', { resources: { cpu: 1.5, memory: 2, disk: 3 } })
     expect(sandbox.id).toBe('sbx')
     expect(post.mock.calls[0]?.[0]).toBe('/sandboxes')
@@ -867,7 +926,7 @@ describe('V2 model', () => {
 
     const client = new Daytona({ apiKey: 'key' })
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({
-      data: { id: 'sbx', name: 'n', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' },
+      data: { id: 'sbx', class: 'linux', name: 'n', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
     })
     const get = jest.spyOn(clientInstance(client), 'get')
 
@@ -887,11 +946,11 @@ describe('V2 model', () => {
     // labels {} as known fields, and toJSON() persisted them.
     const client = new Daytona({ apiKey: 'key' })
     jest.spyOn(clientInstance(client), 'post').mockResolvedValue({
-      data: { id: 'sbx', name: 'n', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' },
+      data: { id: 'sbx', class: 'linux', name: 'n', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
     })
     const get = jest.spyOn(clientInstance(client), 'get')
 
-    const sandbox = await client.create('python:3.12', { labels: { team: 'a' }, memory: 8, waitSeconds: 0 })
+    const sandbox = await client.create('python:3.12', { labels: { team: 'a' }, resources: { memory: 8 }, waitSeconds: 0 })
 
     expect(get).not.toHaveBeenCalled()
     expect(sandbox.memory).toBeUndefined()
@@ -916,32 +975,33 @@ describe('V2 model', () => {
   test('waitForState rejects NaN and non-finite timeouts before any request', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, 'sbx')
-    await expect(sandbox.waitForState(['started'], { timeout: Number.NaN })).rejects.toThrow('timeout must be a non-negative finite number')
-    await expect(sandbox.waitForState(['started'], { timeout: Number.POSITIVE_INFINITY })).rejects.toThrow('timeout must be a non-negative finite number')
+    await expect(sandbox.wait({ until: 'started', timeoutSeconds: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(sandbox.wait({ until: 'started', timeoutSeconds: Number.POSITIVE_INFINITY })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   it('maps snapshot creates to the snapshot source field', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await client.createFromSnapshot('snap')
     expect(post.mock.calls[0]?.[0]).toBe('/sandboxes/from-snapshot')
     expect(post.mock.calls[0]?.[1]).toMatchObject({ snapshot: 'snap' })
   })
 
-  it('does not forward an unrecognized create option', async () => {
+  it('rejects an unrecognized create option before posting', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     // Untyped input may contain unknown options, which must not reach the wire.
-    await client.create('py312', { unknownOption: 4096 } as unknown as CreateSandboxOptions)
-    expect(post.mock.calls[0]?.[1]).not.toHaveProperty('unknown_option')
+    await expect(client.create('py312', { unknownOption: 4096 } as unknown as CreateSandboxOptions))
+      .rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('unknownOption') })
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('leaves the remaining source forms unchanged on the wire', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await client.create('python:3.12')
     expect(post.mock.calls[0]?.[1]).toMatchObject({ image: 'python:3.12', wait_seconds: 60, idempotency_key: expect.any(String) })
@@ -1082,8 +1142,8 @@ describe('V2 model', () => {
 
   it('maps burst caps to cores_max, memory_max_mib and disk_max_mib', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await client.create('python:3.12', { resources: { cpu: 0.5, cpuMax: 4, memory: 1, memoryMax: 0.25, diskMax: 20 } })
     expect(post.mock.calls[0]?.[1]).toMatchObject({ cores_max: 4, memory_max_mib: 256, disk_max_mib: 20480 })
     // Fractional GiB limits convert to integer MiB values.
@@ -1094,8 +1154,8 @@ describe('V2 model', () => {
   it('sends every resource limit when creating a Linux sandbox', async () => {
     // A fixed resource shape sets each limit equal to its requested amount.
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await client.create('python:3.12', { resources: { cpu: 2, cpuMax: 2, memory: 4, memoryMax: 4, disk: 10, diskMax: 10 } })
     expect(post.mock.calls[0]?.[0]).toBe('/sandboxes')
     expect(post.mock.calls[0]?.[1]).toMatchObject({ cpu: 2, cores_max: 2, memory_mib: 4096, memory_max_mib: 4096, disk_mib: 10240, disk_max_mib: 10240 })
@@ -1103,9 +1163,9 @@ describe('V2 model', () => {
   it('forwards labels when creating a sandbox', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const post = jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValueOnce({ data: { id: 'linux' } })
+      .mockResolvedValueOnce({ data: { id: 'linux', class: 'linux', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { id: 'linux', status: 'running' } })
+      .mockResolvedValueOnce({ data: { id: 'linux', class: 'linux', status: 'running', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await createFixture(client, { image: Image.base('python:3.12'), labels: { team: 'sdk' } })
     expect(post.mock.calls[0]?.[1]).toMatchObject({ labels: { team: 'sdk' } })
@@ -1118,7 +1178,7 @@ describe('V2 model', () => {
     await expect(client.create('   ')).rejects.toThrow(new BadRequestError('image must be a non-empty string'))
     await expect(client.createFromSnapshot('')).rejects.toThrow(new BadRequestError('snapshot must be a non-empty string'))
     await expect(client.createFromSnapshot('   ')).rejects.toThrow(new BadRequestError('snapshot must be a non-empty string'))
-    await expect(client.createFromSnapshot(5 as never)).rejects.toThrow(new TypeError('snapshot must be a non-empty snapshot name or snap_… id'))
+    await expect(client.createFromSnapshot(5 as never)).rejects.toThrow(new BadRequestError('daytona.createFromSnapshot() only accepts a snapshot name or snap_… id'))
     expect(() => Image.fromDockerfile('   ')).toThrow('non-empty Dockerfile')
     expect(post).not.toHaveBeenCalled()
   })
@@ -1126,15 +1186,15 @@ describe('V2 model', () => {
   it('creates from the platform default when no image is passed', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const post = jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValueOnce({ data: { id: 'bare', status: 'running', wait_cap_seconds: 3, image: { id: 'img_default', name: 'daytona-base' } } })
-      .mockResolvedValueOnce({ data: { id: 'opts', status: 'running', wait_cap_seconds: 3 } })
-      .mockResolvedValueOnce({ data: { id: 'undef', status: 'running', wait_cap_seconds: 3 } })
-      .mockResolvedValueOnce({ data: { id: 'named', status: 'running', wait_cap_seconds: 3 } })
+      .mockResolvedValueOnce({ data: { id: 'bare', class: 'linux', status: 'running', wait_cap_seconds: 3, image: { id: 'img_default', name: 'daytona-base' }, name: 'bare', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { class: 'linux', id: 'opts', status: 'running', wait_cap_seconds: 3, name: 'opts', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'undef', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'undef', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'named', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'named', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     const bare = await client.create()
     const withOptions = await client.create({ name: 'example-user', labels: { team: 'sdk' } })
     const maybe: string | undefined = undefined as string | undefined
-    await client.create(maybe, { cpu: 2 })
+    await client.create(maybe, { resources: { cpu: 2 } })
     await client.create('python:3.12', { name: 'img' })
 
     expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes', '/sandboxes', '/sandboxes', '/sandboxes'])
@@ -1151,14 +1211,14 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const echoed = { id: 'img_py', name: 'python:3.12' }
     jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValueOnce({ data: { id: 'named', status: 'running', wait_cap_seconds: 3, image: echoed } })
-      .mockResolvedValueOnce({ data: { id: 'by-id', status: 'running', wait_cap_seconds: 3, image: echoed } })
-      .mockResolvedValueOnce({ data: { id: 'bare', status: 'running', wait_cap_seconds: 3, image: { id: 'img_default', name: 'daytona-base' } } })
-      .mockResolvedValueOnce({ data: { id: 'mac', status: 'running', wait_cap_seconds: 3, image: { id: 'img_mac', name: 'base-macos' } } })
+      .mockResolvedValueOnce({ data: { id: 'named', class: 'linux', status: 'running', wait_cap_seconds: 3, image: echoed, name: 'named', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'by-id', class: 'linux', status: 'running', wait_cap_seconds: 3, image: echoed, name: 'by-id', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'bare', class: 'linux', status: 'running', wait_cap_seconds: 3, image: { id: 'img_default', name: 'daytona-base' }, name: 'bare', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'mac', class: 'linux', status: 'running', wait_cap_seconds: 3, image: { id: 'img_mac', name: 'base-macos' }, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
       // Create responses without an `image` field.
-      .mockResolvedValueOnce({ data: { id: 'missing-image-named', status: 'running', wait_cap_seconds: 3 } })
-      .mockResolvedValueOnce({ data: { id: 'missing-image-id', status: 'running', wait_cap_seconds: 3 } })
-      .mockResolvedValueOnce({ data: { id: 'missing-image-bare', status: 'running', wait_cap_seconds: 3 } })
+      .mockResolvedValueOnce({ data: { id: 'missing-image-named', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'missing-image-named', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'missing-image-id', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'missing-image-id', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'missing-image-bare', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'missing-image-bare', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     const named = await client.create('python:3.12')
     const byId = await client.create('img_py')
@@ -1185,7 +1245,7 @@ describe('V2 model', () => {
     await expect(client.create('')).rejects.toBeInstanceOf(BadRequestError)
     await expect(client.create('   ', { name: 'x' })).rejects.toThrow('image must be a non-empty string')
     await expect(client.create(ImageBuilder.fromRegistry('python:3.12') as unknown as string)).rejects.toThrow('createFromBuild')
-    await expect(client.create(new ImageHandle(imageResponse() as never) as unknown as string)).rejects.toThrow('daytona.create() only accepts an image name or img_… id')
+    await expect(client.create(new ImageHandle(INTERNAL, imageResponse() as never) as unknown as string)).rejects.toThrow('daytona.create() only accepts an image name or img_… id')
     await expect(client.create(42 as unknown as string)).rejects.toThrow('daytona.create() only accepts an image name or img_… id')
     await expect(client.create({ name: 'a' } as unknown as string, { name: 'b' })).rejects.toThrow('create(options) or create(image, options)')
     expect(post).not.toHaveBeenCalled()
@@ -1196,7 +1256,7 @@ describe('V2 model', () => {
     const post = jest.spyOn(clientInstance(client), 'post')
     const message = 'daytona.create() takes the image as its first argument: create(image, options), not create({ image })'
     // Through a variable, so TypeScript's excess-property check does not fire.
-    const imageObject = { image: 'python:3.12', cpu: 2 }
+    const imageObject = { image: 'python:3.12', resources: { cpu: 2 } }
     const snapshotObject = { snapshot: 'snap_abc', name: 'x' }
     await expect(client.create(imageObject)).rejects.toThrow(message)
     await expect(client.create(snapshotObject)).rejects.toThrow(message)
@@ -1207,7 +1267,7 @@ describe('V2 model', () => {
   it('type-checks an optional image argument', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const post = jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValue({ data: { id: 'opt', status: 'running', wait_cap_seconds: 3 } })
+      .mockResolvedValue({ data: { class: 'linux', id: 'opt', status: 'running', wait_cap_seconds: 3, name: 'opt', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const maybe = (process.env.DAYTONA_TEST_UNSET_IMAGE ?? undefined) as string | undefined
     await client.create(undefined)
     await client.create(maybe)
@@ -1223,13 +1283,12 @@ describe('V2 model', () => {
       .mockResolvedValueOnce({ data: { images: [imageResponse()], next_cursor: null } })
 
     const platform = await client.images.list({ platform: 'true' })
-    const withoutPlatformFields = await client.images.list({ platform: 'any', name: 'daytona-base' })
+    const ordinary = await client.images.list({ platform: 'any', name: 'daytona-base' })
 
     expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { platform: 'true' } })
     expect(get.mock.calls[1]?.[1]).toMatchObject({ params: { platform: 'any', name: 'daytona-base' } })
     expect(platform.items[0]).toMatchObject({ platform: true, default: true, deprecated: false })
-    // Absent platform fields default to false.
-    expect(withoutPlatformFields.items[0]).toMatchObject({ platform: false, default: false, deprecated: false })
+    expect(ordinary.items[0]).toMatchObject({ platform: false, default: false, deprecated: false })
   })
 
   it('parses disk_mib of a macOS snapshot image', async () => {
@@ -1250,13 +1309,13 @@ describe('V2 model', () => {
   it('omits the lifecycle key entirely when nothing is set', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const post = jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValueOnce({ data: { id: 'linux' } })
-      .mockResolvedValueOnce({ data: { id: 'bare' } })
-      .mockResolvedValueOnce({ data: { id: 'null-lifecycle' } })
+      .mockResolvedValueOnce({ data: { id: 'linux', class: 'linux', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'bare', class: 'linux', name: 'bare', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'null-lifecycle', class: 'linux', name: 'null-lifecycle', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { id: 'linux', status: 'running' } })
-      .mockResolvedValueOnce({ data: { id: 'bare', status: 'running' } })
-      .mockResolvedValueOnce({ data: { id: 'null-lifecycle', status: 'running' } })
+      .mockResolvedValueOnce({ data: { id: 'linux', class: 'linux', status: 'running', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'bare', class: 'linux', status: 'running', name: 'bare', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'null-lifecycle', class: 'linux', status: 'running', name: 'null-lifecycle', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await createFixture(client, { image: Image.base('python:3.12'), lifecycle: {} })
     await createFixture(client, { image: Image.base('python:3.12') })
@@ -1269,16 +1328,16 @@ describe('V2 model', () => {
     // `onTimeout` is optional: the server fills the class default, so the SDK
     // never invents one — and `onTimeout` alone may ride on the default timeout.
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await createFixture(client, { image: Image.base('py'), lifecycle: { timeoutSeconds: 300 } })
     expect((post.mock.calls[0]?.[1] as { lifecycle_policy: unknown }).lifecycle_policy).toEqual({ timeout_seconds: 300 })
   })
 
   it('sends timeoutSeconds verbatim without unit conversion', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await createFixture(client, { image: Image.base('py'), lifecycle: { timeoutSeconds: 3600 } })
 
@@ -1301,10 +1360,10 @@ describe('V2 model', () => {
 
   it('deletes a Linux snapshot restore when disposed', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', name: 'sbx', status: 'running', class: 'linux' } })
+    jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', name: 'sbx', status: 'deleted', class: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const del = jest.spyOn(clientInstance(client), 'delete').mockResolvedValue({ data: {} })
-    const sandbox = await client.createFromSnapshot('snap', { waitSeconds: 0 })
+    const sandbox = await client.createFromSnapshot('snap', { waitSeconds: 0, autoDelete: true })
     await sandbox[Symbol.asyncDispose]()
     expect(del).toHaveBeenCalledTimes(1)
   })
@@ -1312,7 +1371,7 @@ describe('V2 model', () => {
   it('keeps a persistent macOS sandbox when disposed', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'mac', class: 'macos', persistent: true, status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ id: 'mac', class: 'macos', persistent: true, status: 'running', name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const del = jest.spyOn(api, 'delete')
 
     await sandbox[Symbol.asyncDispose]()
@@ -1322,8 +1381,8 @@ describe('V2 model', () => {
 
   it('accepts the delete action on Linux creates', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const variants: CreateFixtureOptions[] = [
       { image: Image.base('py') },
     ]
@@ -1345,8 +1404,8 @@ describe('V2 model', () => {
         .rejects.toThrow('lifecyclePolicy.timeoutSeconds must be at least 1; the timeout cannot be disabled')
     }
     expect(post).not.toHaveBeenCalled()
-    post.mockResolvedValueOnce({ data: { id: 'one' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValueOnce({ data: { id: 'one', status: 'running' } })
+    post.mockResolvedValueOnce({ data: { id: 'one', class: 'linux', name: 'one', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValueOnce({ data: { id: 'one', class: 'linux', status: 'running', name: 'one', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await createFixture(client, { image: Image.base('py'), lifecycle: { timeoutSeconds: 1 } })
     expect((post.mock.calls[0]?.[1] as { lifecycle_policy: unknown }).lifecycle_policy).toEqual({ timeout_seconds: 1 })
   })
@@ -1354,8 +1413,8 @@ describe('V2 model', () => {
   it('accepts DISABLED only on idleExpirySeconds', async () => {
     expect(DISABLED).toBe(-1)
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await createFixture(client, { image: Image.base('py'), lifecycle: { idleExpirySeconds: DISABLED } })
     expect((post.mock.calls[0]?.[1] as { lifecycle_policy: unknown }).lifecycle_policy).toEqual({ idle_expiry_seconds: -1 })
@@ -1394,7 +1453,7 @@ describe('V2 model', () => {
     await expect(createFixture(client, { image: Image.base('py'), lifecycle: [] } as unknown as CreateFixtureOptions))
       .rejects.toThrow('lifecyclePolicy must be an object')
     await expect(createFixture(client, { image: Image.base('py'), lifecycle: [{ timeoutSeconds: 60 }] } as unknown as CreateFixtureOptions))
-      .rejects.toThrow('lifecyclePolicy must be an object')
+      .rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(post).not.toHaveBeenCalled()
   })
 
@@ -1404,18 +1463,18 @@ describe('V2 model', () => {
     const post = jest.spyOn(clientInstance(client), 'post')
     // SAFETY: deliberately misspelled lifecycle input exercises runtime validation for untyped callers.
     await expect(createFixture(client, { image: Image.base('py'), lifecycle: { timeoutSec: 900 } } as unknown as CreateFixtureOptions))
-      .rejects.toThrow('lifecyclePolicy contains unknown fields: timeoutSec')
+      .rejects.toThrow('LifecyclePolicyOptions has no option `timeoutSec`')
     await expect(createFixture(client, { image: Image.base('py'), lifecycle: { idleExpirySeconds: 60, nope: 1 } } as unknown as CreateFixtureOptions))
-      .rejects.toThrow('lifecyclePolicy contains unknown fields: nope')
+      .rejects.toThrow('LifecyclePolicyOptions has no option `nope`')
     // A snake_case knob is the wire/Python spelling, unknown on the TS surface.
     await expect(createFixture(client, { image: Image.base('py'), lifecycle: { timeout_seconds: 60 } } as unknown as CreateFixtureOptions))
-      .rejects.toThrow('lifecyclePolicy contains unknown fields: timeout_seconds')
+      .rejects.toThrow('LifecyclePolicyOptions has no option `timeout_seconds`')
     // Alternative spellings are not accepted as aliases.
     // SAFETY: deliberately unknown lifecycle input exercises runtime validation for untyped callers.
     await expect(createFixture(client, { image: Image.base('py'), lifecycle: { stopAfterIdleSecs: 900 } } as unknown as CreateFixtureOptions))
-      .rejects.toThrow('lifecyclePolicy contains unknown fields: stopAfterIdleSecs')
+      .rejects.toThrow('LifecyclePolicyOptions has no option `stopAfterIdleSecs`')
     await expect(createFixture(client, { image: Image.base('py'), lifecycle: { deleteInSecs: 60 } } as unknown as CreateFixtureOptions))
-      .rejects.toThrow('lifecyclePolicy contains unknown fields: deleteInSecs')
+      .rejects.toThrow('LifecyclePolicyOptions has no option `deleteInSecs`')
     expect(post).not.toHaveBeenCalled()
   })
 
@@ -1427,7 +1486,7 @@ describe('V2 model', () => {
     for (const lifecycle of [{ timeoutSec: 900 }, { onIdle: 'stop' }, { unknown_option: true }]) {
       // SAFETY: deliberately misspelled lifecycle input exercises runtime validation for untyped callers.
       await expect(createFixture(client, { image: Image.base('py'), lifecycle } as unknown as CreateFixtureOptions))
-        .rejects.toThrow('lifecyclePolicy contains unknown fields')
+        .rejects.toThrow('LifecyclePolicyOptions has no option')
     }
     expect(post).not.toHaveBeenCalled()
   })
@@ -1466,8 +1525,8 @@ describe('V2 model', () => {
 
   it('treats known lifecycle fields carrying undefined as omitted', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     // A known field carrying undefined is the documented "omitted" case
     // (unchanged on PATCH, disabled at create) — not an unknown field.
@@ -1483,7 +1542,7 @@ describe('V2 model', () => {
     const api = clientInstance(client)
     const patch = jest.spyOn(api, 'patch')
       .mockResolvedValueOnce({
-        data: { id: 'sbx', lifecycle_policy: {
+        data: { id: 'sbx', class: 'linux', lifecycle_policy: {
           timeout_seconds: 300,
           on_timeout: 'stop',
           timeout_at: '2026-08-28T10:00:00Z',
@@ -1491,10 +1550,10 @@ describe('V2 model', () => {
           on_idle_timeout: 'stop',
           last_activity_at: '2026-08-27T09:00:00Z',
           last_activity_source: 'toolbox',
-        } },
+        }, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
       })
 
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running', class: 'macos', persistent: true }, api, undefined, 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'running', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const lifecycle = await sandbox.updateLifecyclePolicy({ idleExpirySeconds: 900, onIdleTimeout: 'stop' })
     expect(patch.mock.calls[0]?.[0]).toBe('/sandboxes/sbx/lifecycle-policy')
     expect(patch.mock.calls[0]?.[1]).toEqual({ idle_expiry_seconds: 900, on_idle_timeout: 'stop' })
@@ -1514,19 +1573,19 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const patch = jest.spyOn(api, 'patch')
-      .mockResolvedValueOnce({ data: { id: 'omitted', lifecycle_policy: { timeout_seconds: 60 } } })
-      .mockResolvedValueOnce({ data: { id: 'disabled', lifecycle_policy: { idle_expiry_seconds: null, on_idle_timeout: null } } })
-      .mockResolvedValueOnce({ data: { id: 'value', lifecycle_policy: { idle_expiry_seconds: 3600, on_idle_timeout: 'delete' } } })
+      .mockResolvedValueOnce({ data: { id: 'omitted', class: 'linux', lifecycle_policy: { timeout_seconds: 60 }, name: 'omitted', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'disabled', class: 'linux', lifecycle_policy: { idle_expiry_seconds: null, on_idle_timeout: null }, name: 'disabled', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'value', class: 'linux', lifecycle_policy: { idle_expiry_seconds: 3600, on_idle_timeout: 'delete' }, name: 'value', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    const omitted = new Sandbox({ id: 'omitted', status: 'running' }, api, undefined, 'key')
+    const omitted = createSandbox({ id: 'omitted', status: 'running', class: 'linux', name: 'omitted', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     await omitted.updateLifecyclePolicy({ timeoutSeconds: 60 })
     expect(patch.mock.calls[0]?.[1]).toEqual({ timeout_seconds: 60 })
 
-    const disabled = new Sandbox({ id: 'disabled', status: 'running' }, api, undefined, 'key')
+    const disabled = createSandbox({ id: 'disabled', status: 'running', class: 'linux', name: 'disabled', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     await disabled.updateLifecyclePolicy({ idleExpirySeconds: DISABLED })
     expect(patch.mock.calls[1]?.[1]).toEqual({ idle_expiry_seconds: DISABLED })
 
-    const value = new Sandbox({ id: 'value', status: 'running' }, api, undefined, 'key')
+    const value = createSandbox({ id: 'value', status: 'running', class: 'linux', name: 'value', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     await value.updateLifecyclePolicy({ idleExpirySeconds: 3600, onIdleTimeout: 'delete' })
     expect(patch.mock.calls[2]?.[1]).toEqual({ idle_expiry_seconds: 3600, on_idle_timeout: 'delete' })
   })
@@ -1536,7 +1595,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const patch = jest.spyOn(api, 'patch')
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running', class: 'macos', persistent: true }, api, undefined, 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'running', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     // When / Then
     await expect(sandbox.updateLifecyclePolicy({ onTimeout: 'pause' })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(patch).not.toHaveBeenCalled()
@@ -1548,9 +1607,9 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const patch = jest.spyOn(api, 'patch')
-      .mockResolvedValueOnce({ data: { id: 'sbx', lifecycle_policy: { idle_expiry_seconds: 1800, on_idle_timeout: 'stop' } } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', lifecycle_policy: { idle_expiry_seconds: 1800, on_idle_timeout: 'delete' } } })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running', class: 'macos', persistent: true }, api, undefined, 'key')
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', lifecycle_policy: { idle_expiry_seconds: 1800, on_idle_timeout: 'stop' }, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', lifecycle_policy: { idle_expiry_seconds: 1800, on_idle_timeout: 'delete' }, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'running', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     await sandbox.updateLifecyclePolicy({ idleExpirySeconds: 1800 })
     await sandbox.updateLifecyclePolicy({ onIdleTimeout: 'delete' })
     expect(patch.mock.calls.map((call) => call[1])).toEqual([{ idle_expiry_seconds: 1800 }, { on_idle_timeout: 'delete' }])
@@ -1562,8 +1621,8 @@ describe('V2 model', () => {
       await expect(createFixture(client, { image: Image.base('py'), lifecycle: { [field]: 2147483648, onIdleTimeout: 'delete' } }))
         .rejects.toThrow(`lifecyclePolicy.${field} must not exceed 2147483647 seconds`)
     }
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValueOnce({ data: { id: 'ok' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValueOnce({ data: { id: 'ok', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValueOnce({ data: { id: 'ok', class: 'linux', name: 'ok', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValueOnce({ data: { id: 'ok', class: 'linux', status: 'running', name: 'ok', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await createFixture(client, { image: Image.base('py'), lifecycle: { timeoutSeconds: 2147483647 } })
     expect((post.mock.calls[0]?.[1] as { lifecycle_policy: unknown }).lifecycle_policy).toEqual({ timeout_seconds: 2147483647 })
   })
@@ -1572,9 +1631,9 @@ describe('V2 model', () => {
     // Disabling the idle timeout is valid for every supported class.
     const client = new Daytona({ apiKey: 'key' })
     const post = jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValueOnce({ data: { id: 'linux' } })
+      .mockResolvedValueOnce({ data: { id: 'linux', class: 'linux', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { id: 'linux', status: 'running' } })
+      .mockResolvedValueOnce({ data: { id: 'linux', class: 'linux', status: 'running', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const off: LifecyclePolicyOptions = { idleExpirySeconds: DISABLED }
     await createFixture(client, { image: Image.base('py'), lifecycle: off })
     for (const call of post.mock.calls) {
@@ -1587,11 +1646,11 @@ describe('V2 model', () => {
     const api = clientInstance(client)
     const patch = jest.spyOn(api, 'patch')
 
-    const linux = new Sandbox({ id: 'linux', status: 'running', class: 'linux' }, api, undefined, 'key')
+    const linux = createSandbox({ id: 'linux', status: 'running', class: 'linux', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     await expect(linux.updateLifecyclePolicy({ onIdleTimeout: 'pause' })).rejects.toThrow('lifecyclePolicy.onIdleTimeout=pause')
     await expect(linux.updateLifecyclePolicy({ onTimeout: 'stop' })).rejects.toThrow('lifecyclePolicy.onTimeout=stop')
 
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     await expect(sandbox.updateLifecyclePolicy({})).rejects.toThrow('updateLifecyclePolicy requires at least one lifecycle field')
     await expect(sandbox.updateLifecyclePolicy({ timeoutSeconds: DISABLED })).rejects.toThrow('the timeout cannot be disabled')
     await expect(sandbox.updateLifecyclePolicy({ idleExpirySeconds: 0 })).rejects.toThrow('lifecyclePolicy.idleExpirySeconds: 0 is not a valid budget')
@@ -1621,7 +1680,7 @@ describe('V2 model', () => {
       })
       .mockResolvedValueOnce({ data: { lifecycle_policy: { last_activity_at: '2026-08-27T09:00:02Z', last_activity_source: 'toolbox' }, id: 'mac' } })
 
-    const linux = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const linux = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const lifecycle = await linux.resetIdleTimer()
     expect(post.mock.calls[0]?.[0]).toBe('/sandboxes/sbx/reset-idle-timer')
     expect(post.mock.calls[0]?.[1]).toBeUndefined()
@@ -1641,7 +1700,7 @@ describe('V2 model', () => {
 
     // The response may report newer concurrent activity and its source.
     // An unarmed idle policy has no idle deadline.
-    const mac = new Sandbox({ id: 'mac', status: 'running', class: 'macos' }, api, undefined, 'key')
+    const mac = createSandbox({ id: 'mac', status: 'running', class: 'macos', name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const macLifecycle = await mac.resetIdleTimer()
     expect(macLifecycle.lastActivitySource).toBe('toolbox')
     expect(macLifecycle.idleTimeoutAt).toBeUndefined()
@@ -1657,7 +1716,7 @@ describe('V2 model', () => {
 
     // Cached clock is NEWER than the echo — the shape a slow response from an
     // earlier concurrent reset arrives in.
-    const sandbox = new Sandbox({
+    const sandbox = createSandbox({
       id: 'sbx',
       status: 'running',
       lifecycle_policy: {
@@ -1683,7 +1742,7 @@ describe('V2 model', () => {
       // Newer by 500 microseconds — also invisible to Date.parse.
       .mockResolvedValueOnce({ data: { lifecycle_policy: { last_activity_at: '2026-08-27T09:00:00.309260Z', last_activity_source: 'api' }, id: 'sbx' } })
 
-    const sandbox = new Sandbox({
+    const sandbox = createSandbox({
       id: 'sbx',
       status: 'running',
       lifecycle_policy: { last_activity_at: '2026-08-27T09:00:00.308760Z', last_activity_source: 'toolbox' },
@@ -1706,7 +1765,7 @@ describe('V2 model', () => {
     // Second-precision cache, micros-precision echo: the same Date.parse
     // millisecond, but the echo is 500 microseconds NEWER. Lexicographically
     // '.' < 'Z', so a raw string tiebreak would reject this advance.
-    const advancing = new Sandbox({
+    const advancing = createSandbox({
       id: 'sbx',
       status: 'running',
       lifecycle_policy: { last_activity_at: '2026-08-27T09:00:00Z', last_activity_source: 'toolbox' },
@@ -1717,7 +1776,7 @@ describe('V2 model', () => {
 
     // The mirror image: the echo is 500 microseconds OLDER at the same
     // millisecond, so the cache keeps its clock.
-    const regressing = new Sandbox({
+    const regressing = createSandbox({
       id: 'older',
       status: 'running',
       lifecycle_policy: { last_activity_at: '2026-08-27T09:00:00.000500Z', last_activity_source: 'toolbox' },
@@ -1735,18 +1794,22 @@ describe('V2 model', () => {
       .mockResolvedValueOnce({ data: { lifecycle_policy: { last_activity_source: 'ssh' }, id: 'sbx' } })
       .mockResolvedValueOnce({ data: { lifecycle_policy: { last_activity_at: 'not-a-timestamp', last_activity_source: 'ssh' }, id: 'sbx' } })
 
-    const sandbox = new Sandbox({
+    const sandbox = createSandbox({
       id: 'sbx',
       status: 'running',
       lifecycle_policy: { idle_expiry_seconds: 900, on_idle_timeout: 'delete', last_activity_at: '2026-08-27T09:00:00Z', last_activity_source: 'toolbox' },
     }, api, undefined, 'key')
 
-    // Null, absent and unparseable timestamps must all preserve the cache.
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Null and absent timestamps preserve the cache.
+    for (let attempt = 0; attempt < 2; attempt++) {
       await expect(sandbox.resetIdleTimer()).resolves.toMatchObject({ lastActivitySource: 'ssh' })
       expect(sandbox.lifecyclePolicy?.lastActivityAt).toBe('2026-08-27T09:00:00Z')
       expect(sandbox.lifecyclePolicy?.lastActivitySource).toBe('toolbox')
     }
+    // A clock that is not an RFC 3339 timestamp breaks the contract: refused,
+    // and the cache is kept (as in Python).
+    await expect(sandbox.resetIdleTimer()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox lifecycle policy response has a lifecycle_policy.last_activity_at that is not an RFC 3339 timestamp' })
+    expect(sandbox.lifecyclePolicy?.lastActivityAt).toBe('2026-08-27T09:00:00Z')
   })
 
   it('accepts a clockless reset echo into an empty cache', async () => {
@@ -1755,7 +1818,7 @@ describe('V2 model', () => {
     jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { lifecycle_policy: { idle_expiry_seconds: 900, on_idle_timeout: 'delete' }, id: 'sbx' } })
 
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const fresh = await sandbox.resetIdleTimer()
     expect(fresh.lastActivityAt).toBeUndefined()
     expect(sandbox.lifecyclePolicy).toEqual(fresh)
@@ -1775,16 +1838,16 @@ describe('V2 model', () => {
   it('rejects unknown fields on the updateLifecyclePolicy PATCH path too', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const patch = jest.spyOn(api, 'patch').mockResolvedValue({ data: { id: 'sbx', lifecycle_policy: { timeout_seconds: 900 } } })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const patch = jest.spyOn(api, 'patch').mockResolvedValue({ data: { id: 'sbx', class: 'linux', lifecycle_policy: { timeout_seconds: 900 }, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'running', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
 
     // Untyped JS callers reach this path too, and a dropped typo here would
     // read as "updateLifecyclePolicy requires at least one lifecycle field" at best and
     // as a silently ignored policy change at worst.
     await expect(sandbox.updateLifecyclePolicy({ timeoutSec: 900 } as unknown as LifecyclePolicyOptions))
-      .rejects.toThrow('lifecyclePolicy contains unknown fields: timeoutSec')
+      .rejects.toThrow('LifecyclePolicyOptions has no option `timeoutSec`')
     await expect(sandbox.updateLifecyclePolicy({ timeoutSeconds: 900, unknown_option: true } as unknown as LifecyclePolicyOptions))
-      .rejects.toThrow('lifecyclePolicy contains unknown fields: unknown_option')
+      .rejects.toThrow('LifecyclePolicyOptions has no option `unknown_option`')
     expect(patch).not.toHaveBeenCalled()
 
     // Omitted stays omitted: the guard inspects key NAMES, so it cannot smuggle
@@ -1796,7 +1859,7 @@ describe('V2 model', () => {
   it('exposes the read-side lifecycle from sandbox metadata', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({
+    const sandbox = createSandbox({
       id: 'sbx',
       status: 'running',
       lifecycle_policy: {
@@ -1818,7 +1881,7 @@ describe('V2 model', () => {
       lastActivityAt: '2026-08-27T09:00:00Z',
       lastActivitySource: 'toolbox',
     })
-    expect(new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key').lifecyclePolicy).toBeUndefined()
+    expect(createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key').lifecyclePolicy).toBeUndefined()
   })
 
   it('passes an unknown lifecycle action through as its wire string', () => {
@@ -1826,9 +1889,9 @@ describe('V2 model', () => {
     expect(parseSandboxLifecycle({ timeout_seconds: 60, on_timeout: 'hibernate' }).onTimeout).toBe('hibernate')
   })
 
-  it('maps extended sandbox metadata from Sandbox and serializes it to SandboxInfo', () => {
+  it('maps extended sandbox metadata into credential-free handle JSON', () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox({
+    const sandbox = createSandbox({
       id: 'sbx',
       class: 'macos',
       name: 'train',
@@ -1856,7 +1919,7 @@ describe('V2 model', () => {
       forked_from: 'sbx-parent',
       user: 'dev',
       error: 'failed once',
-      labels: { team: 'sdk', env: 'ci' },
+      labels: { team: 'sdk', env: 'ci' }, toolbox_proxy_url: 'https://proxy.example/sandboxes',
     }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
 
     expect(sandbox.labels).toEqual({ team: 'sdk', env: 'ci' })
@@ -1874,7 +1937,7 @@ describe('V2 model', () => {
     expect(sandbox.user).toBe('dev')
     expect(sandbox.error).toBe('failed once')
 
-    const info = sandbox.toJSON() as SandboxInfo
+    const info = sandbox.toJSON()
     expect(info.labels).toEqual({ team: 'sdk', env: 'ci' })
     expect(info.memoryMax).toBe(5)
     expect(info.lifecyclePolicy).toEqual({ timeoutSeconds: 3600, onTimeout: 'stop', timeoutAt: '2026-10-02T10:00:00Z', idleExpirySeconds: 600, onIdleTimeout: 'stop', lastActivityAt: '2026-10-01T09:00:00Z', lastActivitySource: 'preview' })
@@ -1909,11 +1972,11 @@ describe('V2 model', () => {
     expect(put).not.toHaveBeenCalled()
   })
 
-  it('sets labels without fetching metadata and loads macOS persistence before stopping', async () => {
+  it('sets labels without fetching metadata and observes stopped after posting stop', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, 'lazy')
     const api = clientInstance(client)
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'lazy', status: 'stopped', class: 'macos', persistent: true } })
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'lazy', status: 'stopped', class: 'macos', persistent: true, name: 'lazy', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const put = jest.spyOn(api, 'put').mockResolvedValue({ data: { labels: { team: 'sdk' } } })
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
 
@@ -1923,13 +1986,12 @@ describe('V2 model', () => {
 
     await sandbox.stop()
     expect(post.mock.calls[0]?.[0]).toBe('/sandboxes/lazy/stop')
-    expect(get).toHaveBeenCalledTimes(2)
+    expect(get).toHaveBeenCalledTimes(1)
   })
 
   it('replaces labels through the sandbox labels route and updates local state', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'mac')
-    sandbox.sandboxClass = 'macos'
+    const sandbox = lazySandbox(client, { sandboxId: 'mac', sandboxClass: 'macos' })
     const put = jest.spyOn(clientInstance(client), 'put').mockResolvedValue({ data: { labels: { team: 'sdk' } } })
 
     await expect(sandbox.setLabels({ team: 'sdk' })).resolves.toEqual({ team: 'sdk' })
@@ -1943,8 +2005,7 @@ describe('V2 model', () => {
 
   it('preserves __proto__ labels and env keys through request and response maps', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
     const labelPayload = Object.create(null) as Record<string, string>
     labelPayload['__proto__'] = 'label-value'
     const labelResponse = Object.create(null) as Record<string, string>
@@ -1982,7 +2043,7 @@ describe('V2 model', () => {
   })
 
   it('updates future sandbox env via the toolbox route', async () => {
-    const sandbox = new Sandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
+    const sandbox = createSandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
     const post = jest.spyOn(toolboxInstance(sandbox), 'post').mockResolvedValue({ data: undefined })
 
     await sandbox.updateEnv({ HELLO: 'world' }, { unset: ['OLD'] })
@@ -1991,7 +2052,7 @@ describe('V2 model', () => {
   })
 
   it('rejects invalid updateEnv keys before any request', async () => {
-    const sandbox = new Sandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
+    const sandbox = createSandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
     const post = jest.spyOn(toolboxInstance(sandbox), 'post')
 
     await expect(sandbox.updateEnv({ '': 'x' })).rejects.toBeInstanceOf(BadRequestError)
@@ -2008,7 +2069,7 @@ describe('V2 model', () => {
     ['BAD\nKEY', 'env key is not a valid variable name'],
     ['BAD\rKEY', 'env key is not a valid variable name'],
   ])('refuses env key %p that no environment can hold', async (key, message) => {
-    const sandbox = new Sandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
+    const sandbox = createSandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
     const post = jest.spyOn(toolboxInstance(sandbox), 'post')
 
     await expect(sandbox.updateEnv({ [key]: 'x' })).rejects.toMatchObject({ message, code: 'BAD_REQUEST' })
@@ -2016,7 +2077,7 @@ describe('V2 model', () => {
   })
 
   it('leaves the reserved-name policy to the toolbox API', async () => {
-    const sandbox = new Sandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
+    const sandbox = createSandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
     const post = jest.spyOn(toolboxInstance(sandbox), 'post').mockResolvedValue({ data: undefined })
 
     await sandbox.updateEnv({ APP_DEBUG: '1' })
@@ -2039,7 +2100,7 @@ describe('V2 model', () => {
 
   it('wires image operations to their API routes', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'img', name: 'python', status: 'pending' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { class: 'linux', id: 'img', name: 'python', status: 'pending', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ id: 'img', name: 'python' }) })
     await client.images.build(ImageBuilder.fromRegistry('python:3.12'), { name: 'python' })
     expect(post.mock.calls[0]?.[0]).toBe('/images')
@@ -2060,6 +2121,7 @@ describe('V2 model', () => {
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({
       data: {
         id: 'sbx',
+        class: 'linux',
         name: 'partial',
         image: { id: 'img_py', name: 'python:3.12' },
         labels: undefined,
@@ -2069,7 +2131,7 @@ describe('V2 model', () => {
         region: 'region-a',
         persistent: false,
         spot: false,
-        toolbox_proxy_url: 'http://region-toolbox',
+        toolbox_proxy_url: 'http://region-toolbox', cpu: 1, cores_max: 1, region_id: '', port_map: [],
       },
     })
 
@@ -2082,9 +2144,9 @@ describe('V2 model', () => {
       sandboxId: 'sbx',
       name: 'partial',
       image: { id: 'img_py', name: 'python:3.12' },
-      labels: {},
       state: 'started',
     }))
+    expect(sandbox.toJSON()).not.toHaveProperty('labels')
   })
 
   it('omits sandbox accessToken from toJSON and JSON.stringify output', () => {
@@ -2114,16 +2176,14 @@ describe('V2 model', () => {
     ['resetNetworkPolicy', (s: Sandbox) => s.resetNetworkPolicy({ ifMatch: 'v1' })],
     ['updateLifecyclePolicy', (s: Sandbox) => s.updateLifecyclePolicy({ timeoutSeconds: 60 })],
     ['resetIdleTimer', (s: Sandbox) => s.resetIdleTimer()],
-    ['snapshotFilesystem', (s: Sandbox) => s.snapshotFilesystem()],
+    ['captureImage', (s: Sandbox) => s.captureImage()],
     ['createSnapshot', (s: Sandbox) => s.createSnapshot('snap')],
     ['setLabels', (s: Sandbox) => s.setLabels({ team: 'sdk' })],
     ['entrypointLogs', (s: Sandbox) => s.entrypointLogs()],
     ['buildLogs', (s: Sandbox) => s.buildLogs()],
     ['followBuildLogs', (s: Sandbox) => s.followBuildLogs({ onLogs: () => undefined })],
   ] as const)('%s on a Sandbox built without an API client fails with UNSUPPORTED_OPERATION', async (_name, call) => {
-    const sandbox = new Sandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
-    sandbox.sandboxClass = 'macos'
-    sandbox.persistent = true
+    const sandbox = createSandbox({ sandboxId: 'sbx', sandboxClass: 'macos', persistent: true }, undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
     await expect(call(sandbox)).rejects.toMatchObject({
       message: 'API is not available for this sandbox',
       code: 'UNSUPPORTED_OPERATION',
@@ -2134,18 +2194,18 @@ describe('V2 model', () => {
   it.each([
     ['SandboxInfo toolboxProxyUrl', { sandboxId: 'sbx', toolboxProxyUrl: 'http://evil.invalid/sandbox-api/sbx' }],
     ['SandboxInfo toolboxUrl', { sandboxId: 'sbx', toolboxUrl: 'http://evil.invalid/sandbox-api/sbx' }],
-    ['SandboxDto toolbox_proxy_url', { id: 'sbx', status: 'running', toolbox_proxy_url: 'http://evil.invalid/sandbox-api' }],
-    ['SandboxDto toolboxProxyUrl', { id: 'sbx', status: 'running', toolboxProxyUrl: 'http://evil.invalid/sandbox-api' }],
-  ] as const)('the exported Sandbox constructor ignores a toolbox URL inside its input (%s)', (_inputKind, input) => {
+    ['SandboxDto toolbox_proxy_url', { class: 'linux', id: 'sbx', status: 'running', toolbox_proxy_url: 'http://evil.invalid/sandbox-api', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }],
+    ['SandboxDto toolboxProxyUrl', { class: 'linux', id: 'sbx', status: 'running', toolboxProxyUrl: 'http://evil.invalid/sandbox-api', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }],
+  ] as const)('the internal sandbox factory ignores untrusted toolbox URLs in metadata (%s)', (_inputKind, input) => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox(input as unknown as SandboxInfo, clientInstance(client), undefined, 'key')
+    const sandbox = createSandbox(input as unknown as SandboxInfo, clientInstance(client), undefined, 'key')
     expect(sandbox.toolboxProxyUrl).toBeUndefined()
     expect(() => sandbox.fs).toThrow('sandbox handle has no toolbox URL')
   })
 
-  it('the exported Sandbox constructor honors an explicit toolboxUrl option', () => {
+  it('the internal sandbox factory honors an explicit toolboxUrl option', () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox({ sandboxId: 'sbx', toolboxProxyUrl: 'http://evil.invalid/sandbox-api/sbx' }, clientInstance(client), undefined, 'key', undefined, { toolboxUrl: 'http://trusted.invalid/sandbox-api/sbx' })
+    const sandbox = createSandbox({ sandboxId: 'sbx', toolboxProxyUrl: 'http://evil.invalid/sandbox-api/sbx' }, clientInstance(client), undefined, 'key', undefined, { toolboxUrl: 'http://trusted.invalid/sandbox-api/sbx' })
     expect(sandbox.toolboxProxyUrl).toBe('http://trusted.invalid/sandbox-api/sbx')
   })
 
@@ -2188,7 +2248,7 @@ describe('V2 model', () => {
   it('refreshes lazy sandbox toolbox transports from sandbox metadata', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, { sandboxId: 'sbx' })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running', toolbox_proxy_url: 'http://region-toolbox' } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'http://region-toolbox', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await sandbox.refreshData()
     expect(sandbox.toolboxProxyUrl).toBe('http://region-toolbox/sbx')
     expect(sandbox.process.connect('p').toJSON()).toEqual({ sandboxId: 'sbx', processId: 'p' })
@@ -2198,7 +2258,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, { sandboxId: 'sbx' })
     jest.spyOn(clientInstance(client), 'get').mockResolvedValue({
-      data: { id: 'sbx', status: 'running', toolbox_proxy_url: 'http://region-toolbox', image_build_id: 'build-123' },
+      data: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'http://region-toolbox', image_build_id: 'build-123', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
     })
 
     await sandbox.refreshData()
@@ -2210,7 +2270,7 @@ describe('V2 model', () => {
   it('preserves direct scoped toolbox URLs across refreshes', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, { sandboxId: 'sbx' }, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running', toolbox_proxy_url: 'http://region-toolbox' } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'http://region-toolbox', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await sandbox.refreshData()
     expect(sandbox.toolboxProxyUrl).toBe('http://toolbox.invalid/sandbox-api/sbx')
   })
@@ -2225,8 +2285,8 @@ describe('V2 model', () => {
 
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { sandboxes: [{ id: 'sbx', status: 'running' }] } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], total: 0, total_relation: 'eq' } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     try {
       const page = await client.list({ limit: 1 })
@@ -2243,7 +2303,7 @@ describe('V2 model', () => {
   })
 
   it('reads sandbox metrics from the toolbox transport', async () => {
-    const sandbox = new Sandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
+    const sandbox = createSandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
     const toolboxTransport = Reflect.get(sandbox, 'toolboxTransport') as HttpTransport
     const get = jest.spyOn(toolboxTransport, 'get').mockResolvedValue({
       timestamp: '2026-08-23T00:00:00Z',
@@ -2260,7 +2320,7 @@ describe('V2 model', () => {
   })
 
   it('reads sandbox metrics from the toolbox transport', async () => {
-    const sandbox = new Sandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox/sbx' })
+    const sandbox = createSandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox/sbx' })
     const toolboxTransport = Reflect.get(sandbox, 'toolboxTransport') as HttpTransport
     const get = jest.spyOn(toolboxTransport, 'get').mockResolvedValue({
       timestamp: '2026-08-23T00:00:00Z',
@@ -2278,12 +2338,12 @@ describe('V2 model', () => {
 
   it('resumes paused sandboxes when starting them', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'paused', class: 'macos', persistent: true }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'paused', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
     const get = jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'paused', class: 'macos', persistent: true } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', class: 'macos', persistent: true } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'paused', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValueOnce({ data: {} })
-    await sandbox.start({ timeout: 1 })
+    await sandbox.start({ timeoutSeconds: 0.001 })
     expect(get).toHaveBeenCalledTimes(2)
     expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/sbx/resume'])
   })
@@ -2292,31 +2352,31 @@ describe('V2 model', () => {
     // Given a paused sandbox whose resume request conflicts with another operation.
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'paused', class: 'macos', persistent: true }, api, undefined, 'key')
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', status: 'paused', class: 'macos', persistent: true } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'paused', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', status: 'paused', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const error = new DaytonaError('another operation is in progress', { statusCode: 409, code: 'CONFLICT' })
     const post = jest.spyOn(api, 'post').mockRejectedValue(error)
 
     // When starting requires a resume, Then the original error remains observable.
-    await expect(sandbox.start({ timeout: 1 })).rejects.toBe(error)
+    await expect(sandbox.start({ timeoutSeconds: 0.001 })).rejects.toBe(error)
     expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/sbx/resume'])
   })
 
-  it('captures Linux and macOS snapshots and quotes the sandbox id', async () => {
+  it('captures Linux snapshots with an encoded id and preserves a macOS server refusal', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
+    const refused = new NotSupportedForClassError('snapshots require Linux', { code: 'NOT_SUPPORTED_FOR_CLASS', source: 'API' })
     const post = jest.spyOn(api, 'post')
-      .mockResolvedValueOnce({ data: { id: 'linux', status: 'pending' } })
-      .mockResolvedValueOnce({ data: { id: 'mac', status: 'pending' } })
+      .mockResolvedValueOnce({ data: { id: 'linux', class: 'linux', status: 'pending', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockRejectedValueOnce(refused)
     jest.spyOn(api, 'get')
       .mockResolvedValueOnce({ data: snapshotResponse({ id: 'linux' }) })
-      .mockResolvedValueOnce({ data: snapshotResponse({ id: 'mac', class: 'macos' }) })
 
-    const linux = new Sandbox({ id: "sbx!'()*", status: 'running' }, api, undefined, 'key')
-    const mac = new Sandbox({ id: 'mac', status: 'running', class: 'macos' }, api, undefined, 'key')
+    const linux = createSandbox({ class: 'linux', id: "sbx!'()*", status: 'running', name: "sbx!'()*", cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    const mac = createSandbox({ id: 'mac', status: 'running', class: 'macos', name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
 
     await expect(linux.createSnapshot('snap')).resolves.toBeInstanceOf(Snapshot)
-    await expect(mac.createSnapshot('snap')).resolves.toBeInstanceOf(Snapshot)
+    await expect(mac.createSnapshot('snap')).rejects.toBe(refused)
 
     expect(post.mock.calls).toEqual([
       ["/sandboxes/sbx%21%27%28%29%2A/snapshots", { name: 'snap' }],
@@ -2326,10 +2386,10 @@ describe('V2 model', () => {
 
   it('rejects negative start and resume timeouts before posting lifecycle requests', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'stopped' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'stopped' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: {} })
-    await expect(sandbox.start({ timeout: -1 })).rejects.toThrow('timeout must be a non-negative finite number')
-    await expect(sandbox.resume({ timeout: -1 })).rejects.toThrow('timeout must be a non-negative finite number')
+    await expect(sandbox.start({ timeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(sandbox.resume({ timeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(post).not.toHaveBeenCalled()
   })
 
@@ -2340,25 +2400,26 @@ describe('V2 model', () => {
     ['macos', 'stop'],
     ['macos', 'pause'],
     ['macos', 'resume'],
-  ] as const)('rejects %s %s when unsupported by its configuration before posting', async (sandboxClass, operation) => {
+  ] as const)('preserves the server refusal for %s %s without a local persistence check', async (sandboxClass, operation) => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', class: sandboxClass, persistent: false, status: 'running' }, api, undefined, 'key')
-    const post = jest.spyOn(api, 'post')
+    const sandbox = createSandbox({ id: 'sbx', class: sandboxClass, persistent: false, status: 'running' }, api, undefined, 'key')
+    const refusal = new NotSupportedForClassError('operation is unavailable', { code: 'NOT_SUPPORTED_FOR_CLASS', source: 'API' })
+    const post = jest.spyOn(api, 'post').mockRejectedValue(refusal)
 
-    await expect(sandbox[operation]()).rejects.toMatchObject({ code: 'UNSUPPORTED_OPERATION' })
+    await expect(sandbox[operation]()).rejects.toBe(refusal)
 
-    expect(post).not.toHaveBeenCalled()
+    expect(post).toHaveBeenCalledWith(`/sandboxes/sbx/${operation}`)
   })
 
   it('does not post start for existing startup transitions', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
     const get = jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'booting' } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'running' } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: {} })
-    await sandbox.start({ timeout: 1 })
+    await sandbox.start({ timeoutSeconds: 0.001 })
     expect(get).toHaveBeenCalledTimes(2)
     expect(post).not.toHaveBeenCalled()
   })
@@ -2366,10 +2427,10 @@ describe('V2 model', () => {
   it('lists paginated preview ports and upserts exposure by port', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
-    jest.spyOn(api, 'put').mockResolvedValue({ data: { id: 'ep', port: 8080, public: false, url: 'https://p' } })
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { ports: [{ id: 'ep', port: 8080, public: false, url: 'https://p' }], next_cursor: 'next' } })
-    await expect(sandbox.ports.listEndpoints()).resolves.toEqual({ items: [{ port: 8080, public: false, url: 'https://p', createdAt: undefined }], nextCursor: 'next' })
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    jest.spyOn(api, 'put').mockResolvedValue({ data: { id: 'ep', class: 'linux', port: 8080, public: false, url: 'https://p', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], created_at: '2026-01-01T00:00:00Z' } })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { ports: [{ id: 'ep', port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' }], next_cursor: 'next' } })
+    await expect(sandbox.ports.listEndpoints()).resolves.toEqual({ items: [{ port: 8080, public: false, url: 'https://p', createdAt: '2026-01-01T00:00:00Z' }], nextCursor: 'next' })
     await expect(sandbox.ports.expose(8080)).resolves.toMatchObject({ port: 8080 })
     expect(api.put).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080', { public: false })
   })
@@ -2377,10 +2438,10 @@ describe('V2 model', () => {
   it('marks waitForState timeout errors as SDK-originated', async () => {
     jest.useFakeTimers()
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'booting' } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     try {
-      const waiting = expect(sandbox.waitForState(['started'], { timeout: 1 })).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      const waiting = expect(sandbox.wait({ until: 'started', timeoutSeconds: 0.001 })).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', source: 'SDK' })
       await jest.advanceTimersByTimeAsync(1)
       await waiting
     } finally {
@@ -2391,10 +2452,10 @@ describe('V2 model', () => {
   it('wait() raises RequestTimeoutError on timeout', async () => {
     jest.useFakeTimers()
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'booting' } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     try {
-      const waiting = sandbox.wait({ timeout: 0.001 }).catch((error: unknown) => error)
+      const waiting = sandbox.wait({ timeoutSeconds: 0.001 }).catch((error: unknown) => error)
       await jest.advanceTimersByTimeAsync(1)
       const error = await waiting
       expect(error).toBeInstanceOf(RequestTimeoutError)
@@ -2410,10 +2471,10 @@ describe('V2 model', () => {
     ['deleting', 'destroying'],
   ])('waitForState raises with the observed default terminal state: %s', async (status, state) => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, clientInstance(client), 'http://toolbox/{sandboxId}', 'key')
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    const failure = sandbox.waitForState(['started'])
+    const failure = sandbox.wait({ until: 'started' })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
     await expect(failure).rejects.toBeInstanceOf(publicSdk.ConflictError)
     await expect(failure).rejects.toMatchObject({ statusCode: 409, code: 'CONFLICT', source: 'SDK', state })
@@ -2422,28 +2483,29 @@ describe('V2 model', () => {
   it('waitForState uses API long-poll slices', async () => {
     const client = new Daytona({ apiKey: 'key', requestTimeoutSeconds: 5 })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key')
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'booting' } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'running' } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    const waiting = sandbox.waitForState(['started'], { timeout: 60_000 })
+    const waiting = sandbox.wait({ until: 'started', timeoutSeconds: 60 })
     await jest.advanceTimersByTimeAsync(200)
-    await expect(waiting).resolves.toBeUndefined()
+    await expect(waiting).resolves.toBe(sandbox)
 
-    expect(get.mock.calls[0]).toEqual(['/sandboxes/sbx', { timeout: 35_000, params: { wait: 'running', timeout_ms: 30000 } }])
-    expect(get.mock.calls[1]).toEqual(['/sandboxes/sbx', { timeout: 35_000, params: { wait: 'running', timeout_ms: 30000 } }])
+    // Each hold is a full 30 s slice despite the 5 s request timeout; the read adds network slack.
+    expect(get.mock.calls[0]).toEqual(['/sandboxes/sbx', { timeout: 35_000, params: { wait: 'running', timeout_ms: 30_000 } }])
+    expect(get.mock.calls[1]).toEqual(['/sandboxes/sbx', { timeout: 35_000, params: { wait: 'running', timeout_ms: 30_000 } }])
   })
 
   it('rounds waitForState sub-millisecond budgets up before sending timeout_ms', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key')
-    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', status: 'running' } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key')
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    await sandbox.waitForState(['started'], { timeout: 0.5 })
+    await sandbox.wait({ until: 'started', timeoutSeconds: 0.0005 })
 
-    expect(get.mock.calls[0]).toEqual(['/sandboxes/sbx', { timeout: 5001, params: { wait: 'running', timeout_ms: 1 } }])
+    expect(get.mock.calls[0]).toEqual(['/sandboxes/sbx', { timeout: 1, params: { wait: 'running', timeout_ms: 1 } }])
   })
 
   it('waitForState re-arms a failed probe poll at the full early-probe delay', async () => {
@@ -2459,10 +2521,10 @@ describe('V2 model', () => {
     } as unknown as AxiosInstance
     const ws = new HubTestWebSocket()
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, () => ws as unknown as WebSocket, ticketApi, { earlyProbeMs: 40, noFrameTimeoutMs: 5_000 })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
     const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_API' }))
     try {
-      const waiting = sandbox.waitForState(['started'], { timeout: 130 }).catch((error: unknown) => error)
+      const waiting = sandbox.wait({ until: 'started', timeoutSeconds: 0.13 }).catch((error: unknown) => error)
       await jest.advanceTimersByTimeAsync(130)
       expect(await waiting).toBeInstanceOf(RequestTimeoutError)
       expect(get.mock.calls.length).toBeLessThanOrEqual(3)
@@ -2486,10 +2548,10 @@ describe('V2 model', () => {
     } as unknown as AxiosInstance
     const ws = new HubTestWebSocket()
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, () => ws as unknown as WebSocket, ticketApi, { earlyProbeMs: 80, noFrameTimeoutMs: 5_000 })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: sandboxDetail({ id: 'sbx', status: 'running' }) })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
     try {
-      const waiting = sandbox.waitForState(['started'], { timeout: 100 })
+      const waiting = sandbox.wait({ until: 'started', timeoutSeconds: 0.1 })
       await jest.advanceTimersByTimeAsync(20)
       ws.inject({ type: 'snapshot', id: 'sbx', state: 'pending', version: 1, error: null })
       await jest.advanceTimersByTimeAsync(30)
@@ -2518,7 +2580,7 @@ describe('V2 model', () => {
     } as unknown as AxiosInstance
     const ws = new HubTestWebSocket()
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, () => ws as unknown as WebSocket, ticketApi, { earlyProbeMs: 1_000, noFrameTimeoutMs: 5_000 })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
     const probeAt: number[] = []
     const startedAt = Date.now()
     const get = jest.spyOn(api, 'get')
@@ -2527,9 +2589,9 @@ describe('V2 model', () => {
         return { data: sandboxDetail({ id: 'sbx', status: probeAt.at(-1)! - startedAt >= 2_300 ? 'running' : 'booting' }) }
       })
     try {
-      const waiting = sandbox.waitForState(['started', 'stopped'], { timeout: 2_600 })
+      const waiting = sandbox.wait({ until: ['started', 'stopped'], timeoutSeconds: 2.6 })
       await jest.advanceTimersByTimeAsync(2_600)
-      await expect(waiting).resolves.toBeUndefined()
+      await expect(waiting).resolves.toBe(sandbox)
       expect(probeAt.slice(1).every((at, index) => at - probeAt[index]! >= WAIT_FOR_STATE_MIN_INTERVAL_MS)).toBe(true)
     } finally {
       if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
@@ -2581,13 +2643,13 @@ describe('V2 model', () => {
   it('waitForState polls plainly when several targets are given', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, undefined, 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, undefined, 'key')
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'booting' } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'stopped' } })
-    const waiting = sandbox.waitForState(['started', 'stopped'], { timeout: 10_000 })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    const waiting = sandbox.wait({ until: ['started', 'stopped'], timeoutSeconds: 10 })
     await jest.advanceTimersByTimeAsync(200)
-    await expect(waiting).resolves.toBeUndefined()
+    await expect(waiting).resolves.toBe(sandbox)
     expect(sandbox.state).toBe('stopped')
     // No server long-poll for a multi-target wait: plain GETs, no wait/timeout_ms.
     for (const call of get.mock.calls) expect(call[1]?.params).toBeUndefined()
@@ -2596,15 +2658,15 @@ describe('V2 model', () => {
   it('waitForState never trusts a stale cached state (resume after a foreign pause)', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running', class: 'macos', persistent: true }, api, undefined, 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'running', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     expect(sandbox.state).toBe('started') // stale: another client paused it since
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
     // The class is already known from the constructor response, so every GET below is
     // the waiter's. A returned-on-cache bug would show as 0 waits.
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'assigned', class: 'macos', persistent: true } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', class: 'macos', persistent: true } })
-    const resumed = sandbox.resume({ timeout: 10_000 })
+      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'assigned', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', class: 'macos', persistent: true, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    const resumed = sandbox.resume({ timeoutSeconds: 10 })
     await jest.advanceTimersByTimeAsync(200)
     await expect(resumed).resolves.toBeUndefined()
     expect(post).toHaveBeenCalledTimes(1)
@@ -2615,77 +2677,84 @@ describe('V2 model', () => {
   it('waitForState treats destroying as progress only when waiting for destroyed', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'deleting' } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'deleted' } })
-    const waiting = sandbox.waitForState(['destroyed'], { timeout: 10_000 })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'deleting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'deleted', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    const waiting = sandbox.wait({ until: 'destroyed', timeoutSeconds: 10 })
     await jest.advanceTimersByTimeAsync(200)
-    await expect(waiting).resolves.toBeUndefined()
+    await expect(waiting).resolves.toBe(sandbox)
     expect(sandbox.state).toBe('destroyed')
 
-    const other = new Sandbox({ id: 'sbx2', status: 'running' }, api, undefined, 'key')
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx2', status: 'deleting' } })
-    await expect(other.waitForState(['started'], { timeout: 10_000 })).rejects.toMatchObject({ state: 'destroying' })
+    const other = createSandbox({ class: 'linux', id: 'sbx2', status: 'running', name: 'sbx2', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx2', class: 'linux', status: 'deleting', name: 'sbx2', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    await expect(other.wait({ until: 'started', timeoutSeconds: 10 })).rejects.toMatchObject({ state: 'destroying' })
   })
 
-  it('waitForState holds an exact long poll for destroyed and names a failed deletion', async () => {
+  // The wait engine's long polls and terminal errors (carried from main into
+  // this engine): a wait for `destroyed` alone holds `wait_exact=deleted`, and
+  // a terminal error carries the read's wire status and the server's reason.
+  const wire = (status: string, extra: Record<string, unknown> = {}) => ({ data: { id: 'sbx', class: 'linux', status, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], ...extra } })
+  const engine = (sandbox: Sandbox) => sandbox as unknown as { waitForState(states: readonly string[], options: { timeoutSeconds?: number; terminalStates?: readonly string[] }): Promise<void> }
+
+  it.each(['wait', 'delete'] as const)('holds an exact long poll for destroyed and names a failed deletion (%s)', async (call) => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    jest.spyOn(api, 'delete').mockResolvedValue({ data: {}, headers: {} })
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'deleting' } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'failed', error: 'sandbox deletion did not finish' } })
-    const waiting = sandbox.waitForState(['destroyed'], { timeout: 10_000 }).then(() => undefined, (e: unknown) => e)
+      .mockResolvedValueOnce(wire('deleting'))
+      .mockResolvedValueOnce(wire('failed', { error: 'sandbox deletion did not finish' }))
+    const waiting = (call === 'wait' ? sandbox.wait({ until: 'destroyed', timeoutSeconds: 10 }) : sandbox.delete({ timeoutSeconds: 10 })).then(() => undefined, (e: unknown) => e)
     await jest.advanceTimersByTimeAsync(200)
     const error = await waiting
     expect(error).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
-    expect(error).toMatchObject({ state: 'error', reason: 'sandbox deletion did not finish' })
+    expect(error).toMatchObject({ state: 'error', rawState: 'failed', reason: 'sandbox deletion did not finish' })
     expect((error as Error).message).toBe('sandbox sbx reached terminal state error: sandbox deletion did not finish')
-    expect(sandbox.errorReason).toBe('sandbox deletion did not finish')
+    expect(sandbox.error).toBe('sandbox deletion did not finish')
     // `wait=deleted` is already met by `deleting`, so every poll would answer
     // at once while the deletion finishes; the exact form holds it.
     expect(get).toHaveBeenCalledTimes(2)
-    for (const call of get.mock.calls) {
-      const params = (call[1] as { params?: Record<string, unknown> } | undefined)?.params
+    for (const getCall of get.mock.calls) {
+      const params = (getCall[1] as { params?: Record<string, unknown> } | undefined)?.params
       expect(params).toMatchObject({ wait_exact: 'deleted' })
       expect(params).not.toHaveProperty('wait')
     }
   })
 
-  it('waitForState keeps other targets on the loose long poll', async () => {
+  it('keeps other targets on the loose long poll', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, undefined, 'key')
-    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', status: 'running' } })
-    await sandbox.waitForState(['started'], { timeout: 10_000 })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, undefined, 'key')
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce(wire('running'))
+    await sandbox.wait({ until: 'started', timeoutSeconds: 10 })
     const params = (get.mock.calls[0]?.[1] as { params?: Record<string, unknown> } | undefined)?.params
     expect(params).toMatchObject({ wait: 'running' })
     expect(params).not.toHaveProperty('wait_exact')
   })
 
-  it('names the server reason after a hub rejection, unless the follow-up read moved on', async () => {
+  it('names the reason of the state the confirming read finds after a hub rejection', async () => {
     const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
     process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'deleting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const sandbox = createSandbox({ id: 'sbx', status: 'deleting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'failed', error: 'sandbox deletion did not finish' } })
+      .mockResolvedValueOnce(wire('failed', { error: 'sandbox deletion did not finish' }))
       // A late finish turned the row deleted between the frame and the read:
-      // the read's error describes a different state, so it is not attached.
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'deleted', error: 'stale' } })
+      // the read decides, so the error is the read's state with the read's reason.
+      .mockResolvedValueOnce(wire('deleted', { error: 'stale' }))
     jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error', { rawState: 'failed' }))
     try {
-      const named = await sandbox.waitForState(['destroyed'], { timeout: 1_000 }).then(() => undefined, (e: unknown) => e)
+      const named = await sandbox.wait({ until: 'destroyed', timeoutSeconds: 1 }).then(() => undefined, (e: unknown) => e)
       expect(named).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
       expect(named).toMatchObject({ state: 'error', rawState: 'failed', reason: 'sandbox deletion did not finish' })
 
-      const unnamed = await sandbox.waitForState(['started'], { timeout: 1_000 }).then(() => undefined, (e: unknown) => e)
-      expect(unnamed).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
-      expect((unnamed as { reason?: string }).reason).toBeUndefined()
-      expect((unnamed as Error).message).toBe('sandbox sbx reached terminal state error')
+      const moved = await sandbox.wait({ until: 'started', timeoutSeconds: 1 }).then(() => undefined, (e: unknown) => e)
+      expect(moved).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      expect(moved).toMatchObject({ state: 'destroyed', rawState: 'deleted', reason: 'stale' })
+      expect((moved as Error).message).toBe('sandbox sbx reached terminal state destroyed: stale')
     } finally {
       get.mockRestore()
       if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
@@ -2693,36 +2762,34 @@ describe('V2 model', () => {
     }
   })
 
-  it('waitForState keeps the loose long poll for destroyed when another terminal state is named', async () => {
+  it('keeps the loose long poll for destroyed when another terminal state is named', async () => {
     // The exact form answers only on deleted, failed and lost: a wait that also
     // rejects on stopped must keep the loose form to see stopped at once.
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
-    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', status: 'stopped' } })
-    await expect(sandbox.waitForState(['destroyed'], { terminalStates: ['stopped', 'error'], timeout: 10_000 })).rejects.toMatchObject({ state: 'stopped' })
+    const sandbox = createSandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce(wire('stopped'))
+    await expect(engine(sandbox).waitForState(['destroyed'], { terminalStates: ['stopped', 'error'], timeoutSeconds: 10 })).rejects.toMatchObject({ state: 'stopped', rawState: 'stopped' })
     const params = (get.mock.calls[0]?.[1] as { params?: Record<string, unknown> } | undefined)?.params
     expect(params).toMatchObject({ wait: 'deleted' })
     expect(params).not.toHaveProperty('wait_exact')
   })
 
-  it('keeps a lost reason off a failed hub rejection', async () => {
+  it('never labels a failed report with a lost reason', async () => {
     const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
     process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'deleting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    // `failed` and `lost` both read as public `error`: the read's explanation
-    // belongs to `lost`, not to the `failed` the hub reported.
-    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', status: 'lost', error: 'the host stopped responding' } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'deleting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    // `failed` and `lost` both read as public `error`: the read decides, so the
+    // error is the read's `lost`, with lost's explanation, never `failed` with it.
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce(wire('lost', { error: 'the host stopped responding' }))
     jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error', { rawState: 'failed' }))
     try {
-      const error = await sandbox.waitForState(['destroyed'], { timeout: 1_000 }).then(() => undefined, (e: unknown) => e)
+      const error = await sandbox.wait({ until: 'destroyed', timeoutSeconds: 1 }).then(() => undefined, (e: unknown) => e)
       expect(error).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
-      expect(error).toMatchObject({ rawState: 'failed' })
-      expect((error as { reason?: string }).reason).toBeUndefined()
-      expect((error as Error).message).toBe('sandbox sbx reached terminal state error')
+      expect(error).toMatchObject({ state: 'error', rawState: 'lost', reason: 'the host stopped responding' })
     } finally {
       get.mockRestore()
       if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
@@ -2736,14 +2803,13 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'deleting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    // The follow-up read fails; the handle still holds an explanation from an
-    // earlier read, which says nothing about this outcome.
-    sandbox.errorReason = 'an earlier start failure'
+    // The handle holds an explanation from an earlier read, which says
+    // nothing about this outcome; the follow-up read fails.
+    const sandbox = createSandbox({ id: 'sbx', status: 'failed', error: 'an earlier start failure' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
     const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_API' }))
     jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error', { rawState: 'failed' }))
     try {
-      const error = await sandbox.waitForState(['destroyed'], { timeout: 1_000 }).then(() => undefined, (e: unknown) => e)
+      const error = await sandbox.wait({ until: 'destroyed', timeoutSeconds: 1 }).then(() => undefined, (e: unknown) => e)
       expect(error).toBeInstanceOf(publicSdk.SandboxTerminalStateError)
       expect(get).toHaveBeenCalledTimes(1)
       expect((error as { reason?: string }).reason).toBeUndefined()
@@ -2768,10 +2834,10 @@ describe('V2 model', () => {
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
     jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error'))
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
 
     try {
-      await expect(sandbox.waitForState(['started'], { timeout: 1_000 })).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
       expect(sandbox.state).toBe('error')
     } finally {
       if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
@@ -2787,15 +2853,16 @@ describe('V2 model', () => {
       await options?.sandboxPollFn?.()
       throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    const now = jest.spyOn(Date, 'now')
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', status: 'booting' } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    let clock = 1_000
+    const now = jest.spyOn(Date, 'now').mockImplementation(() => clock)
+    const get = jest.spyOn(api, 'get').mockImplementation(async () => {
+      clock = 1_002
+      return { data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
+    })
 
     try {
-      now.mockReturnValueOnce(1_000)
-      now.mockReturnValueOnce(1_000)
-      now.mockReturnValueOnce(1_002)
-      await expect(sandbox.waitForState(['started'], { timeout: 1 })).rejects.toBeInstanceOf(RequestTimeoutError)
+      await expect(sandbox.wait({ until: 'started', timeoutSeconds: 0.001 })).rejects.toBeInstanceOf(RequestTimeoutError)
       expect(get).toHaveBeenCalledTimes(1)
     } finally {
       get.mockRestore()
@@ -2812,32 +2879,32 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running', memory_mib: 2048 } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', memory_mib: 2048, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [] } })
     const wait = jest.spyOn(hub, 'wait')
     try {
       wait.mockResolvedValueOnce({ state: 'started', rawState: 'running' })
-      await sandbox.waitForState(['started'], { timeout: 1_000 })
+      await sandbox.wait({ until: 'started', timeoutSeconds: 1 })
       expect(get).toHaveBeenCalledTimes(1)
       expect(sandbox.memory).toBe(2)
 
       // Decided by the fallback poll: that poll already did the GET.
       wait.mockImplementationOnce(async (_id, _predicate, options) => options!.sandboxPollFn!())
       get.mockClear()
-      await sandbox.waitForState(['started'], { timeout: 1_000 })
+      await sandbox.wait({ until: 'started', timeoutSeconds: 1 })
       expect(get).toHaveBeenCalledTimes(1)
 
       // The refresh shares the caller's budget.
       wait.mockResolvedValueOnce({ state: 'started', rawState: 'running' })
       get.mockClear()
-      await sandbox.waitForState(['started'], { timeout: 1_000 })
+      await sandbox.wait({ until: 'started', timeoutSeconds: 1 })
       const config = get.mock.calls[0]?.[1] as { timeout?: number } | undefined
       expect(config?.timeout).toBeLessThanOrEqual(1_000)
 
       // A destroyed sandbox has nothing to fill in: no GET (it would 404).
       wait.mockResolvedValueOnce({ state: 'destroyed', rawState: 'deleted' })
       get.mockClear()
-      await sandbox.waitForState(['destroyed'], { timeout: 1_000 })
+      await sandbox.wait({ until: 'destroyed', timeoutSeconds: 1 })
       expect(get).not.toHaveBeenCalled()
     } finally {
       get.mockRestore()
@@ -2852,12 +2919,12 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', status: 'failed', error: 'image pull failed' } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'failed', error: 'image pull failed', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     jest.spyOn(hub, 'wait').mockRejectedValue(new publicSdk.SandboxTerminalStateError('sbx', 'error'))
     try {
-      await expect(sandbox.waitForState(['started'], { timeout: 1_000 })).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
-      expect(sandbox.errorReason).toBe('image pull failed')
+      await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      expect(sandbox.error).toBe('image pull failed')
     } finally {
       get.mockRestore()
       if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
@@ -2873,7 +2940,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
     // A GET that hangs unless it carries a timeout.
     const get = jest.spyOn(api, 'get').mockImplementation(async (_url, config) => {
       const ms = (config as { timeout?: number } | undefined)?.timeout
@@ -2885,12 +2952,12 @@ describe('V2 model', () => {
     try {
       wait.mockRejectedValueOnce(new publicSdk.SandboxTerminalStateError('sbx', 'error'))
       const started = Date.now()
-      await expect(sandbox.waitForState(['started'], { timeout: 200 })).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      await expect(sandbox.wait({ until: 'started', timeoutSeconds: 0.2 })).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
       expect(Date.now() - started).toBeLessThan(2_000)
 
       wait.mockRejectedValueOnce(new publicSdk.SandboxTerminalStateError('sbx', 'destroyed'))
       get.mockClear()
-      await expect(sandbox.waitForState(['started'], { timeout: 200 })).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
+      await expect(sandbox.wait({ until: 'started', timeoutSeconds: 0.2 })).rejects.toBeInstanceOf(publicSdk.SandboxTerminalStateError)
       expect(get).not.toHaveBeenCalled()
     } finally {
       get.mockRestore()
@@ -2909,11 +2976,10 @@ describe('V2 model', () => {
       options?.onObserved?.({ state: 'stopped', rawState: 'stopped' })
       throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     })
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    sandbox.rawState = 'running'
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
 
     try {
-      await expect(sandbox.waitForState(['started'], { timeout: 1_000 })).rejects.toBeInstanceOf(RequestTimeoutError)
+      await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).rejects.toBeInstanceOf(RequestTimeoutError)
       expect(sandbox.state).toBe('stopped')
       expect(sandbox.rawState).toBe('stopped')
     } finally {
@@ -2929,11 +2995,11 @@ describe('V2 model', () => {
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
     const wait = jest.spyOn(hub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
-    const sandbox = new Sandbox({ id: '550e8400-e29b-41d4-a716-446655440000', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', 'local', {}, undefined, undefined, hub)
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: '550e8400-e29b-41d4-a716-446655440000', status: 'running' } })
+    const sandbox = createSandbox({ id: '550e8400-e29b-41d4-a716-446655440000', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', 'local', {}, undefined, undefined, hub)
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: '550e8400-e29b-41d4-a716-446655440000', class: 'linux', status: 'running', name: '550e8400-e29b-41d4-a716-446655440000', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     try {
-      await sandbox.waitForState(['started'], { timeout: 1_000 })
+      await sandbox.wait({ until: 'started', timeoutSeconds: 1 })
 
       expect(wait).toHaveBeenCalledWith(
         '550e8400-e29b-41d4-a716-446655440000',
@@ -2965,7 +3031,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const get = jest.spyOn(api, 'get')
-    await expect(lazySandbox(client, 'sbx').waitForState([], { timeout: 1_000 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(lazySandbox(client, 'sbx').wait({ until: [], timeoutSeconds: 1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(get).not.toHaveBeenCalled()
   })
 
@@ -2973,13 +3039,13 @@ describe('V2 model', () => {
     jest.useFakeTimers()
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, undefined, 'key')
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, undefined, 'key')
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'booting' } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'booting' } })
-      .mockResolvedValueOnce({ data: { id: 'sbx', status: 'running' } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'booting', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     try {
-      const waiting = sandbox.waitForState(['started'], { timeout: 10_000 })
+      const waiting = sandbox.wait({ until: 'started', timeoutSeconds: 10 })
       // Two instant answers: without the back-off floor the third refresh would
       // already have fired here.
       await jest.advanceTimersByTimeAsync(0)
@@ -2990,7 +3056,7 @@ describe('V2 model', () => {
       expect(get).toHaveBeenCalledTimes(2)
       await jest.advanceTimersByTimeAsync(200)
       expect(get).toHaveBeenCalledTimes(3)
-      await expect(waiting).resolves.toBeUndefined()
+      await expect(waiting).resolves.toBe(sandbox)
       for (const call of get.mock.calls) expect(call).toEqual(['/sandboxes/sbx', { timeout: expect.any(Number), params: { wait: 'running', timeout_ms: expect.any(Number) } }])
     } finally {
       jest.useRealTimers()
@@ -3000,10 +3066,10 @@ describe('V2 model', () => {
   it('waitForState strictly encodes sandbox ids in long-poll refreshes', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: "sbx!'()*", status: 'booting' }, api, undefined, 'key')
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: "sbx!'()*", status: 'running' } })
+    const sandbox = createSandbox({ id: "sbx!'()*", status: 'booting' }, api, undefined, 'key')
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { class: 'linux', id: "sbx!'()*", status: 'running', name: "sbx!'()*", cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    await expect(sandbox.waitForState(['started'], { timeout: 1_000 })).resolves.toBeUndefined()
+    await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).resolves.toBe(sandbox)
     expect(get.mock.calls[0]?.[0]).toBe('/sandboxes/sbx%21%27%28%29%2A')
   })
 
@@ -3021,8 +3087,8 @@ describe('V2 model', () => {
   it('mints a ports-scoped sandbox token for private preview links when a key is present', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'ep', port: 8080, public: false, url: 'https://p' } })
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'ep', class: 'linux', port: 8080, public: false, url: 'https://p', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], created_at: '2026-01-01T00:00:00Z' } })
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { url: 'https://p', token: 'preview-token' } })
       .mockResolvedValueOnce({
@@ -3038,9 +3104,9 @@ describe('V2 model', () => {
   it('previewLink mints a port-scoped token even when the route token has JWT claims', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const routeToken = sandboxJwt(1_900_000_000)
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p' } })
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { url: 'https://p', token: routeToken } })
       .mockResolvedValueOnce({
@@ -3057,21 +3123,44 @@ describe('V2 model', () => {
   ])('previewLink floors a fractional exp %p to whole milliseconds like the Python SDK', async (exp, want) => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, undefined)
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, undefined)
     const routeToken = sandboxJwt(exp)
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p' } })
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
     jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { url: 'https://p', token: routeToken } })
 
     await expect(sandbox.ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: routeToken, expiresAt: want })
+  })
+
+  it.each([
+    [600, '2030-03-17T17:46:40Z'],
+    [601, undefined],
+  ])('previewLink reads the expiry of a route token payload nested %p deep only within JSON_MAX_DEPTH', async (depth, want) => {
+    // The payload (depth 1) carries an unknown claim nested to `depth`: 600 is
+    // read, 601 is not a token to read, as in Python (test_sandbox_tokens.py).
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, undefined)
+    const segment = (text: string): string => Buffer.from(text).toString('base64url')
+    const claims = `{"exp":1900000000,"extra":${'['.repeat(depth - 1)}${']'.repeat(depth - 1)}}`
+    const routeToken = `${segment('{"alg":"none"}')}.${segment(claims)}.sig`
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
+    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { url: 'https://p', token: routeToken } })
+      .mockImplementation(() => {
+        throw new Error('unexpected mint')
+      })
+
+    const link = await sandbox.ports.previewLink(8080)
+    expect(link.token).toBe(routeToken)
+    expect(link.expiresAt).toBe(want)
   })
 
   it('previewLink mints for a malformed JWT-like route token without raising', async () => {
     // A malformed route token does not prevent minting a port-scoped token.
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const routeToken = 'eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCJ9.bm90LWpzb24.signature'
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p' } })
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { url: 'https://p', token: routeToken } })
       .mockResolvedValueOnce({
@@ -3086,9 +3175,9 @@ describe('V2 model', () => {
     // The expiry is unknown but the token is still reusable (no mint).
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, undefined)
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, undefined)
     const routeToken = sandboxJwt(1e13)
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p' } })
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { url: 'https://p', token: routeToken } })
       .mockImplementation(() => {
@@ -3102,8 +3191,8 @@ describe('V2 model', () => {
   it('previewLink prefers a minted token over a route token with standard JWT claims', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p' } })
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { url: 'https://p', token: sandboxJwt(1_900_000_000, 'unrelated-application') } })
       .mockResolvedValueOnce({
@@ -3117,8 +3206,8 @@ describe('V2 model', () => {
   it('previewLink raises a typed error on a malformed preview-url body', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p' } })
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
     jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { url: 'https://p', token: null } })
 
     const caught = await sandbox.ports.previewLink(8080).catch((error: unknown) => error)
@@ -3129,8 +3218,8 @@ describe('V2 model', () => {
   it('previewLink falls back to the route token when the port-scoped mint fails transiently', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'ep', port: 8080, public: false, url: 'https://p' } })
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'ep', class: 'linux', port: 8080, public: false, url: 'https://p', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], created_at: '2026-01-01T00:00:00Z' } })
     // The preview-url route already answered with a usable token; a transient
     // mint failure must not discard it and fail the whole call.
     const post = jest.spyOn(api, 'post')
@@ -3144,8 +3233,8 @@ describe('V2 model', () => {
   it('passes the route token through for a caller-supplied-token configuration', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key', undefined, { accessToken: 'caller-token' })
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'ep', port: 8080, public: false, url: 'https://p' } })
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key', undefined, { accessToken: 'caller-token' })
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'ep', class: 'linux', port: 8080, public: false, url: 'https://p', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], created_at: '2026-01-01T00:00:00Z' } })
     const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { url: 'https://p', token: 'preview-token' } })
 
     await expect(sandbox.ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: 'preview-token' })
@@ -3155,8 +3244,8 @@ describe('V2 model', () => {
   it('previewLink returns no token expiry for public endpoints', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
-    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: true, url: 'https://p' } })
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { port: 8080, public: true, url: 'https://p', created_at: '2026-01-01T00:00:00Z' } })
     const post = jest.spyOn(api, 'post')
 
     await expect(sandbox.ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: '' })
@@ -3167,9 +3256,9 @@ describe('V2 model', () => {
   it('creates a private preview endpoint before fetching its token link', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     jest.spyOn(api, 'get').mockRejectedValueOnce(new NotFoundError('missing', { statusCode: 404, code: 'NOT_FOUND' }))
-    jest.spyOn(api, 'put').mockResolvedValueOnce({ data: { id: 'ep', port: 8080, public: false, url: 'https://p' } })
+    jest.spyOn(api, 'put').mockResolvedValueOnce({ data: { id: 'ep', class: 'linux', port: 8080, public: false, url: 'https://p', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], created_at: '2026-01-01T00:00:00Z' } })
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { url: 'https://p', token: 'preview-token' } })
       .mockResolvedValueOnce({
@@ -3185,7 +3274,7 @@ describe('V2 model', () => {
   it('mints signed preview links with an explicit TTL query', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: { url: 'https://8080-sdeadbeef.preview', token: 'sdeadbeef', expires_at: '2026-08-28T00:05:00Z' } })
 
     await expect(sandbox.ports.signedPreviewLink(8080, { expiresInSeconds: 300 })).resolves.toEqual({ url: 'https://8080-sdeadbeef.preview', token: 'sdeadbeef', expiresAt: '2026-08-28T00:05:00Z' })
@@ -3196,7 +3285,7 @@ describe('V2 model', () => {
   it('omits the TTL query when minting signed preview links with the server default', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: { url: 'https://8080-sdeadbeef.preview', token: 'sdeadbeef', expires_at: '2026-08-28T00:01:00Z' } })
 
     await expect(sandbox.ports.signedPreviewLink(8080)).resolves.toEqual({ url: 'https://8080-sdeadbeef.preview', token: 'sdeadbeef', expiresAt: '2026-08-28T00:01:00Z' })
@@ -3206,7 +3295,7 @@ describe('V2 model', () => {
   it('rejects non-positive signed preview TTLs before posting', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const post = jest.spyOn(api, 'post')
 
     await expect(sandbox.ports.signedPreviewLink(8080, { expiresInSeconds: 0 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
@@ -3217,7 +3306,7 @@ describe('V2 model', () => {
   it('expires signed preview links with a URL-encoded token path segment', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: "sbx!'()*", status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: "sbx!'()*", status: 'running', name: "sbx!'()*", cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const post = jest.spyOn(api, 'post').mockResolvedValue({ status: 204, data: undefined })
 
     await expect(sandbox.ports.expireSignedPreviewLink(8080, 'tok/en')).resolves.toBeUndefined()
@@ -3231,7 +3320,7 @@ describe('V2 model', () => {
   it('accepts toolbox_proxy_url and next_cursor response fields', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { sandboxes: [{ id: 'sbx', status: 'running', toolbox_proxy_url: 'http://toolbox' }], next_cursor: 'next' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx', status: 'running', toolbox_proxy_url: 'http://toolbox', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], next_cursor: 'next', total: 0, total_relation: 'eq' } })
     const page = await client.list()
     expect(get).toHaveBeenCalledTimes(1)
     expect(page.nextCursor).toBe('next')
@@ -3240,8 +3329,8 @@ describe('V2 model', () => {
 
   it.each([
     ['list', (client: Daytona) => client.list()],
-    ['filtered list (search route)', (client: Daytona) => client.list({ name: 'sbx' })],
-    ['search', (client: Daytona) => client.search({ status: ['running'] })],
+    ['filtered search', (client: Daytona) => client.search({ namePrefix: 'sbx' })],
+    ['search', (client: Daytona) => client.search({ states: ['started'] })],
   ])('%s handles reach each response\'s regional toolbox without a refresh', async (_label, read) => {
     const metrics = { timestamp: '2026-10-08T00:00:00Z', cpuCount: 1, cpuUtilization: 0, memoryUsageBytes: 0, memoryTotalBytes: 0, diskUsageBytes: 0, diskTotalBytes: 0 }
     const hits: string[] = []
@@ -3262,10 +3351,10 @@ describe('V2 model', () => {
       const get = jest.spyOn(api, 'get').mockResolvedValue({
         data: {
           sandboxes: [
-            { id: 'sbx-a', status: 'running', region: 'region-a', toolbox_proxy_url: firstUrl },
-            { id: 'sbx-b', status: 'running', region: 'region-b', toolbox_proxy_url: secondUrl },
+            { class: 'linux', id: 'sbx-a', status: 'running', region: 'region-a', toolbox_proxy_url: firstUrl, name: 'sbx-a', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
+            { class: 'linux', id: 'sbx-b', status: 'running', region: 'region-b', toolbox_proxy_url: secondUrl, name: 'sbx-b', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
           ],
-          next_cursor: null,
+          next_cursor: null, total: 0, total_relation: 'eq',
         },
       })
       jest.spyOn(api, 'post').mockResolvedValue({
@@ -3289,7 +3378,7 @@ describe('V2 model', () => {
     let call = 0
     jest.spyOn(clientInstance(client), 'get').mockImplementation(async () => {
       call += 1
-      return { data: { sandboxes: [{ id: `sbx-${call}`, status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }], next_cursor: `cursor-${call}` } }
+      return { data: { sandboxes: [{ id: `sbx-${call}`, class: 'linux', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: `sbx-${call}`, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], next_cursor: `cursor-${call}`, total: 0, total_relation: 'eq' } }
     })
     const page = await client.list()
     expect(call).toBe(1)
@@ -3299,17 +3388,17 @@ describe('V2 model', () => {
     const iteratorClient = new Daytona({ apiKey: 'key' })
     const iteratorGet = jest.spyOn(clientInstance(iteratorClient), 'get')
     iteratorGet
-      .mockResolvedValueOnce({ data: { sandboxes: [{ id: 'sbx-1', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }], next_cursor: 'cursor-1' } })
-      .mockResolvedValueOnce({ data: { sandboxes: [{ id: 'sbx-2', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }], next_cursor: 'cursor-2' } })
-      .mockResolvedValueOnce({ data: { sandboxes: [{ id: 'sbx-3', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }], next_cursor: 'cursor-2' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx-1', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'sbx-1', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], next_cursor: 'cursor-1', total: 0, total_relation: 'eq' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx-2', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'sbx-2', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], next_cursor: 'cursor-2', total: 0, total_relation: 'eq' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx-3', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'sbx-3', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], next_cursor: 'cursor-2', total: 0, total_relation: 'eq' } })
     const all = []
     for await (const sandbox of iteratorClient.iter()) all.push(sandbox.id)
     expect(all).toEqual(['sbx-1', 'sbx-2', 'sbx-3'])
   })
 
   it('reads the sandbox class and image from metadata', () => {
-    const sandbox = new Sandbox(
-      { id: 'mac', status: 'running', class: 'macos', image: { id: 'img_mac', name: 'mac-base' } },
+    const sandbox = createSandbox(
+      { id: 'mac', status: 'running', class: 'macos', image: { id: 'img_mac', name: 'mac-base' }, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 },
       undefined,
       undefined,
       'key',
@@ -3322,8 +3411,8 @@ describe('V2 model', () => {
     expect(sandboxState('running')).toBe('started')
     expect(sandboxState('pausing')).toBe('pausing')
     expect(sandboxState('paused')).toBe('paused')
-    expect(gbToMib(1.5)).toBe(1536)
-    expect(mibToGb(1536)).toBe(2)
+    expect(gibToMib(1.5, 'memory')).toBe(1536)
+    expect(mibToGib(1536)).toBe(1.5)
     expect(createDaytonaError('conflict', 409, 'NAME_CONFLICT', 'DAYTONA_DAEMON')).toBeInstanceOf(NameConflictError)
     expect(createDaytonaError('expired', 409, 'CURSOR_EXPIRED', 'DAYTONA_DAEMON')).toBeInstanceOf(CursorExpiredError)
     expect(createDaytonaError('unsupported', 400, 'UNSUPPORTED_OPERATION', 'DAYTONA_DAEMON')).toBeInstanceOf(UnsupportedOperationError)
@@ -3345,14 +3434,14 @@ describe('list fallback detail reads', () => {
     let inFlight = 0
     let peak = 0
     jest.spyOn(api, 'get').mockImplementation(async (url: string) => {
-      if (url === '/sandboxes') return { data: { sandboxes: ids.map((id) => ({ id, status: 'running' })), next_cursor: null } }
+      if (url === '/sandboxes') return { data: { sandboxes: ids.map((id) => ({ class: 'linux', id, status: 'running', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] })), next_cursor: null, total: 0, total_relation: 'eq' } }
       const id = url.split('/').pop() ?? ''
       inFlight++
       peak = Math.max(peak, inFlight)
       await new Promise((resolve) => setTimeout(resolve, 5))
       inFlight--
-      if (id === 's3') throw new Error('404 unknown sandbox')
-      return { data: { id, status: 'running', toolbox_proxy_url: 'https://p.example/sandbox-api' } }
+      if (id === 's3') throw new NotFoundError('unknown sandbox', { statusCode: 404 })
+      return { data: { class: 'linux', id, status: 'running', toolbox_proxy_url: 'https://p.example/sandbox-api', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
     })
 
     const page = await client.list()
@@ -3457,9 +3546,9 @@ describe('client identity headers', () => {
 describe('creation shape', () => {
   it('creates a linux sandbox from an image name', async () => {
     const client = newClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', name: 'sandbox', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sandbox', status: 'running', wait_cap_seconds: 3, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    const sandbox = await client.create('python:3.12', { cpu: 2, memory: 4, createTimeoutSeconds: 90, waitSeconds: 60 })
+    const sandbox = await client.create('python:3.12', { resources: { cpu: 2, memory: 4 }, createTimeoutSeconds: 90, waitSeconds: 60 })
 
     expect(sandbox.id).toBe('sbx')
     expect(post).toHaveBeenCalledWith('/sandboxes', expect.objectContaining({ image: 'python:3.12', cpu: 2, memory_mib: 4096, create_timeout_seconds: 90, wait_seconds: 60 }), expect.any(Object))
@@ -3467,7 +3556,7 @@ describe('creation shape', () => {
 
   it('sets rawState from the create response when create already returns a running sandbox', async () => {
     const client = newClient()
-    jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', name: 'sandbox', status: 'running', wait_cap_seconds: 3 } })
+    jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sandbox', status: 'running', wait_cap_seconds: 3, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     const sandbox = await client.create('python:3.12', { waitSeconds: 60 })
 
@@ -3477,7 +3566,7 @@ describe('creation shape', () => {
 
   it('creates from snapshot on the snapshot route with shared fields only', async () => {
     const client = newClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', name: 'sandbox', status: 'queued', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sandbox', status: 'queued', wait_cap_seconds: 3, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: sandboxDetail({ status: 'queued', image: null, snapshot: { id: 'snap_123', name: 'after-setup' } }) })
 
     const sandbox = await client.createFromSnapshot('after-setup', { name: 'restore', waitSeconds: 0, labels: { role: 'worker' } })
@@ -3497,10 +3586,10 @@ describe('creation shape', () => {
   it('wait=0 resolves after the create response and wait=60 long-polls the remainder', async () => {
     const client = newClient()
     const post = jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValueOnce({ data: { id: 'queued', name: 'queued', status: 'queued', wait_cap_seconds: 3 } })
-      .mockResolvedValueOnce({ data: { id: 'waiting', name: 'waiting', status: 'queued', wait_cap_seconds: 3 } })
+      .mockResolvedValueOnce({ data: { id: 'queued', class: 'linux', name: 'queued', status: 'queued', wait_cap_seconds: 3, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'waiting', class: 'linux', name: 'waiting', status: 'queued', wait_cap_seconds: 3, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const get = jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: sandboxDetail({ id: 'waiting', status: 'running' }) })
+      .mockResolvedValueOnce({ data: sandboxDetail({ class: 'linux', id: 'waiting', status: 'running', name: 'waiting', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
 
     await client.create('python:3.12', { waitSeconds: 0 })
     await client.create('python:3.12', { waitSeconds: 60 })
@@ -3516,10 +3605,10 @@ describe('creation shape', () => {
     const client = newClient()
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post').mockResolvedValue({
-      data: { id: 'sbx', name: 'sandbox', status: 'booting', wait_cap_seconds: 0 },
+      data: { id: 'sbx', class: 'linux', name: 'sandbox', status: 'booting', wait_cap_seconds: 0, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
         headers: { 'x-daytona-cell': 'route-a' },
     })
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: sandboxDetail({ id: 'sbx', status: 'running', region_id: 'region-a' }) })
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'running', region_id: 'region-a', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [] }) })
     try {
       const hub = (client as unknown as { acquireHub(): WaitHub | undefined }).acquireHub()
       expect(hub).toBeDefined()
@@ -3529,7 +3618,7 @@ describe('creation shape', () => {
       })
 
       const sandbox = await client.create('python:3.12', { waitSeconds: 0 })
-      await sandbox.waitForState(['started'], { timeout: 1_000 })
+      await sandbox.wait({ until: 'started', timeoutSeconds: 1 })
 
       expect(post).toHaveBeenCalledTimes(1)
       expect(wait).toHaveBeenCalledTimes(1)
@@ -3548,7 +3637,7 @@ describe('creation shape', () => {
       if (path === '/images') return { data: { id: 'img_failed', name: null, region: 'region-a', status: 'pending' } }
       throw new Error(`unexpected post ${path}`)
     })
-    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ id: 'img_failed', status: 'failed', error: 'boom', anonymous: true, name: null }) })
+    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ class: 'linux', id: 'img_failed', status: 'failed', error: 'boom', anonymous: true, name: null, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
 
     await expect(client.createFromBuild(ImageBuilder.fromRegistry('python:3.12').runCommands('echo hi'))).rejects.toMatchObject({ buildError: 'boom', imageId: 'img_failed', statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK' })
     await expect(client.createFromBuild(ImageBuilder.fromRegistry('python:3.12').runCommands('echo hi'))).rejects.toBeInstanceOf(ImageBuildFailedError)
@@ -3556,15 +3645,15 @@ describe('creation shape', () => {
     expect(get.mock.calls.every(([path]) => String(path).startsWith('/images/'))).toBe(true)
   })
 
-  it('createFromBuild passes the remaining wait budget to create()', async () => {
+  it('createFromBuild passes the full wait budget to create()', async () => {
     const client = newClient()
     const post = jest.spyOn(clientInstance(client), 'post').mockImplementation(async (path: string) => {
       if (path === '/images') return { data: { id: 'img_wait', name: null, region: 'region-a', status: 'pending' } }
-      if (path === '/sandboxes') return { data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } }
+      if (path === '/sandboxes') return { data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
       throw new Error(`unexpected post ${path}`)
     })
     jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: imageResponse({ id: 'img_wait', status: 'pending', anonymous: true, name: null }) })
+      .mockResolvedValueOnce({ data: imageResponse({ class: 'linux', id: 'img_wait', status: 'pending', anonymous: true, name: null, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
       .mockResolvedValueOnce({ data: imageResponse({ id: 'img_wait', anonymous: true, name: null }) })
     const now = jest.spyOn(Date, 'now')
     try {
@@ -3577,28 +3666,24 @@ describe('creation shape', () => {
       now.mockRestore()
     }
 
-    expect(post.mock.calls.find(([path]) => path === '/sandboxes')?.[1]).toMatchObject({ image: 'img_wait', wait_seconds: 2 })
+    expect(post.mock.calls.find(([path]) => path === '/sandboxes')?.[1]).toMatchObject({ image: 'img_wait', wait_seconds: 5 })
   })
 
   it('createFromBuild times out while the build is still pending and never posts /sandboxes', async () => {
     const client = newClient()
     const post = jest.spyOn(clientInstance(client), 'post').mockImplementation(async (path: string) => {
       if (path === '/images') return { data: { id: 'img_wait', name: null, region: 'region-a', status: 'pending' } }
-      if (path === '/sandboxes') return { data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } }
+      if (path === '/sandboxes') return { data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
       throw new Error(`unexpected post ${path}`)
     })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ id: 'img_wait', status: 'pending', anonymous: true, name: null }) })
-    const now = jest.spyOn(Date, 'now')
-    try {
-      now.mockReturnValueOnce(0)
-      now.mockReturnValueOnce(0)
-      now.mockReturnValueOnce(6_000)
-      const failure = client.createFromBuild(ImageBuilder.fromDockerfile('FROM python:3.12'), { waitSeconds: 5 })
-      await expect(failure).rejects.toBeInstanceOf(RequestTimeoutError)
-      await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
-    } finally {
-      now.mockRestore()
-    }
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ class: 'linux', id: 'img_wait', status: 'pending', anonymous: true, name: null, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+    // The build wait polls the pending image until its budget is spent (fake timers).
+    const failure = client.createFromBuild(ImageBuilder.fromDockerfile('FROM python:3.12'), { waitSeconds: 60, buildTimeoutSeconds: 5 })
+    const settled = failure.then(() => undefined, () => undefined)
+    await jest.advanceTimersByTimeAsync(6_000)
+    await settled
+    await expect(failure).rejects.toBeInstanceOf(RequestTimeoutError)
+    await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', message: 'image build did not finish before timeout' })
 
     expect(post.mock.calls.filter(([path]) => path === '/sandboxes')).toHaveLength(0)
   })
@@ -3624,24 +3709,15 @@ describe('creation shape', () => {
   ]
 
   it.each(NAME_KEY_VECTORS)('idempotencyKeyForName parity vectors: %j', async (name, expected) => {
-    const key = await idempotencyKeyForName(name)
-    expect(key).toBe(expected)
-    // Every derived key is one the API accepts verbatim.
-    expect(key).toBe(key.trim())
-    expect(key.length).toBeLessThanOrEqual(256)
-    expect(/^[\x20-\x7e]*$/.test(key)).toBe(true)
-  })
-
-  it('idempotencyKeyForName rejects non-strings and exports the label name', async () => {
-    await expect(idempotencyKeyForName(42 as unknown as string)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
-    expect(NAME_LABEL).toBe('name')
-    expect(publicSdk.idempotencyKeyForName).toBe(idempotencyKeyForName)
-    expect(publicSdk.NAME_LABEL).toBe(NAME_LABEL)
+    const client = newClient()
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    await client.create({ name })
+    expect(post).toHaveBeenCalledWith('/sandboxes', expect.objectContaining({ idempotency_key: expected }), expect.objectContaining({ headers: expect.objectContaining({ 'Idempotency-Key': expected }) }))
   })
 
   it('a named create stamps the name label and derives the key', async () => {
     const client = newClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await client.create('py312', { name: 'example-user', labels: { team: 'cli' } })
 
@@ -3657,7 +3733,7 @@ describe('creation shape', () => {
     ['createFromSnapshot', 'snap', '/sandboxes/from-snapshot'],
   ] as const)('%s stamps the name label and derives the key', async (method, arg, path) => {
     const client = newClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await (client[method] as (source: string, options: { name: string }) => Promise<unknown>)(arg, { name: 'example-user' })
 
@@ -3669,7 +3745,7 @@ describe('creation shape', () => {
 
   it('an explicit idempotencyKey wins over the name, and a blank name derives nothing', async () => {
     const client = newClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await client.create('py312', { name: 'example-user', idempotencyKey: 'my-key' })
     let [, body, config] = post.mock.calls[0] as [string, Record<string, unknown>, { headers: Record<string, string> }]
@@ -3694,7 +3770,7 @@ describe('creation shape', () => {
 
   it('a named create refuses a contradicting name label', async () => {
     const client = newClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await expect(client.create('py312', { name: 'example-user', labels: { name: 'other' } })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(post).not.toHaveBeenCalled()
@@ -3722,7 +3798,7 @@ describe('creation shape', () => {
   it('findByName uses the same region selector as named creates', async () => {
     // The lookup sends the same `x-daytona-region` selector as create*().
     const client = withApiUrl('http://api.invalid', () => new Daytona({ apiKey: 'key' }))
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { sandboxes: [sandboxDetail({ id: 'sbx', name: 'example-user' })], total: 1, total_relation: 'eq' } })
 
     await client.create('py312', { name: 'example-user', region: 'eu' })
@@ -3748,7 +3824,7 @@ describe('creation shape', () => {
     const client = newClient()
     const get = jest.spyOn(clientInstance(client), 'get')
       .mockResolvedValueOnce({ data: { sandboxes: [], total: 0, total_relation: 'eq' } })
-      .mockResolvedValueOnce({ data: { sandboxes: [sandboxDetail({ id: 'a' }), sandboxDetail({ id: 'gone', status: 'deleted' })], next_cursor: 'c1', total: 3, total_relation: 'eq' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [sandboxDetail({ id: 'a' }), sandboxDetail({ class: 'linux', id: 'gone', status: 'deleted', name: 'gone', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] })], next_cursor: 'c1', total: 3, total_relation: 'eq' } })
       .mockResolvedValueOnce({ data: { sandboxes: [sandboxDetail({ id: 'b' })], total: 3, total_relation: 'eq' } })
 
     expect(await client.findByName('nobody')).toEqual([])
@@ -3762,10 +3838,10 @@ describe('creation shape', () => {
     const client = newClient()
     const post = jest.spyOn(clientInstance(client), 'post').mockImplementation(async (path: string) => {
       if (path === '/images') return { data: { id: 'img_eu', name: null, region: 'region-a', status: 'pending' } }
-      if (path === '/sandboxes') return { data: { id: 'sbx-eu', status: 'running', wait_cap_seconds: 3 } }
+      if (path === '/sandboxes') return { data: { id: 'sbx-eu', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx-eu', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
       throw new Error(`unexpected post ${path}`)
     })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ id: 'img_eu', status: 'ready', anonymous: true, name: null, region: 'region-a' }) })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ class: 'linux', id: 'img_eu', status: 'ready', anonymous: true, name: null, region: 'region-a', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
 
     await client.createFromBuild(ImageBuilder.fromDockerfile('FROM python:3.12'), { region: 'region-a', idleExpirySeconds: 3600, cpuArch: 'arm64' })
     // Build the image in the sandbox's requested region; build-only options
@@ -3778,13 +3854,13 @@ describe('creation shape', () => {
     expect(buildBody).not.toHaveProperty('name')
     expect(createBody.region_id).toBe('region-a')
     expect(createBody).not.toHaveProperty('idle_expiry_seconds')
-    await expect(client.createFromBuild(ImageBuilder.fromDockerfile('FROM x'), { target: 'region-a' } as never)).rejects.toThrow(/region/)
+    await expect(client.createFromBuild(ImageBuilder.fromDockerfile('FROM x'), { target: 'region-a' } as never)).rejects.toThrow(/target/)
   })
 
   it('maps image methods to the images surface', async () => {
     const client = newClient()
     const post = jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValueOnce({ data: { id: 'img_123', status: 'pending' } })
+      .mockResolvedValueOnce({ data: { class: 'linux', id: 'img_123', status: 'pending', name: 'img_123', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const get = jest.spyOn(clientInstance(client), 'get')
       .mockResolvedValueOnce({ data: imageResponse({ anonymous: true, name: null, status: 'pending' }) })
       .mockResolvedValueOnce({ data: { images: [imageResponse()], next_cursor: 'next' } })
@@ -3794,7 +3870,7 @@ describe('creation shape', () => {
 
     const built = await client.images.build(ImageBuilder.fromRegistry('python:3.12').pipInstall('numpy'))
     const listed = await client.images.list({ anonymous: true, sandboxId: 'sbx' })
-    const got = await client.images.get('img_999', { wait: 'ready', timeout: 15 })
+    const got = await client.images.get('img_999', { wait: 'ready', timeoutSeconds: 15 })
     const promoted = await client.images.promote('img_123', 'keep-this')
     await client.images.delete('img_123')
 
@@ -3802,7 +3878,7 @@ describe('creation shape', () => {
     expect(post.mock.calls[0]?.[0]).toBe('/images')
     expect(post.mock.calls[0]?.[1]).toMatchObject({ dockerfile: expect.stringContaining('FROM python:3.12') })
     expect(get.mock.calls[1]).toEqual(['/images', { params: { cursor: undefined, limit: undefined, name: undefined, anonymous: true, sandbox_id: 'sbx' } }])
-    expect(get.mock.calls[2]).toEqual(['/images/img_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 20000 }])
+    expect(get.mock.calls[2]).toEqual(['/images/img_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 15000 }])
     expect(patch).toHaveBeenCalledWith('/images/img_123', { name: 'keep-this' })
     expect(del).toHaveBeenCalledWith('/images/img_123')
     expect(listed.items[0]).toBeInstanceOf(ImageHandle)
@@ -3810,7 +3886,7 @@ describe('creation shape', () => {
     expect(promoted.name).toBe('keep-this')
   })
 
-  it('keeps direct ImagesService(api) construction working for followBuildLogs', async () => {
+  it('derives the build-log transport from the internal service factory', async () => {
     const originalFetch = globalThis.fetch
     const client = newClient()
     globalThis.fetch = jest.fn(async (input: string | URL | Request) => {
@@ -3829,7 +3905,7 @@ describe('creation shape', () => {
     }) as never
 
     try {
-      const service = new ImagesService(clientInstance(client))
+      const service = new ImagesService(INTERNAL, clientInstance(client))
       await expect(service.followBuildLogs('img_123', { onLogs: () => {} })).resolves.toMatchObject({
         status: 'ready',
       })
@@ -3846,12 +3922,12 @@ describe('creation shape', () => {
     const del = jest.spyOn(clientInstance(client), 'delete').mockResolvedValue({ data: undefined })
 
     const page = await client.snapshots.list({ name: 'after-setup', sandboxId: 'sbx' })
-    const detail = await client.snapshots.get('snap_999', { wait: 'ready', timeout: 15 })
+    const detail = await client.snapshots.get('snap_999', { wait: 'ready', timeoutSeconds: 15 })
     await client.snapshots.delete('snap_999')
 
     expect(page.items[0]).toBeInstanceOf(Snapshot)
     expect(get.mock.calls[0]).toEqual(['/snapshots', { params: { cursor: undefined, limit: undefined, name: 'after-setup', sandbox_id: 'sbx' } }])
-    expect(get.mock.calls[1]).toEqual(['/snapshots/snap_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 20000 }])
+    expect(get.mock.calls[1]).toEqual(['/snapshots/snap_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 15000 }])
     expect(del).toHaveBeenCalledWith('/snapshots/snap_999')
     expect(detail).toBeInstanceOf(Snapshot)
   })
@@ -3859,14 +3935,14 @@ describe('creation shape', () => {
   it('creates image and snapshot artifacts from a sandbox', async () => {
     const api = clientInstance(newClient())
     const post = jest.spyOn(api, 'post')
-      .mockResolvedValueOnce({ data: { id: 'img_456', status: 'pending' } })
-      .mockResolvedValueOnce({ data: { id: 'snap_456', status: 'pending' } })
+      .mockResolvedValueOnce({ data: { class: 'linux', id: 'img_456', status: 'pending', name: 'img_456', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { class: 'linux', id: 'snap_456', status: 'pending', name: 'snap_456', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     jest.spyOn(api, 'get')
       .mockResolvedValueOnce({ data: imageResponse({ id: 'img_456', anonymous: true, name: null, retention: 'idle' }) })
       .mockResolvedValueOnce({ data: snapshotResponse({ id: 'snap_456', name: 'after-setup' }) })
-    const sandbox = new Sandbox(sandboxDetail() as never, api, 'http://toolbox/{sandboxId}', 'key')
+    const sandbox = createSandbox(sandboxDetail() as never, api, 'http://toolbox/{sandboxId}', 'key')
 
-    const image = await sandbox.snapshotFilesystem({ idleExpirySeconds: 86400 })
+    const image = await sandbox.captureImage({ idleExpirySeconds: 86400 })
     const snapshot = await sandbox.createSnapshot('after-setup')
 
     expect(post.mock.calls[0]).toEqual(['/sandboxes/sbx/images', { name: undefined, idle_expiry_seconds: 86400 }])
@@ -3876,7 +3952,7 @@ describe('creation shape', () => {
   })
 
   it('parses image and snapshot refs from sandbox dto payloads', () => {
-    const sandbox = new Sandbox(sandboxDetail({ image: { id: 'img_999', name: 'kept' }, snapshot: { id: 'snap_999', name: 'saved' } }) as never, undefined, undefined, undefined)
+    const sandbox = createSandbox(sandboxDetail({ image: { id: 'img_999', name: 'kept' }, snapshot: { id: 'snap_999', name: 'saved' } }) as never, undefined, undefined, undefined)
 
     expect(sandbox.image).toEqual({ id: 'img_999', name: 'kept' })
     expect(sandbox.snapshot).toEqual({ id: 'snap_999', name: 'saved' })
@@ -3926,7 +4002,7 @@ describe('creation shape', () => {
     for (const state of states) {
       const sandbox = lazySandbox(client, { sandboxId: `sbx-${state}`, state })
       expect(sandbox.state).toBe(state)
-      expect(sandbox.toJSON().state).toBe(state)
+      expect(sandbox.toJSON().state).toBe(state === 'unknown' ? undefined : state)
     }
   })
 })
@@ -5635,9 +5711,9 @@ describe('toolbox service request shaping', () => {
     const foreignTransport = transportStub()
     foreignTransport.post.mockResolvedValueOnce(sessionWire('ctx'))
 
-    const localSandbox = new Sandbox('local', undefined, undefined, 'key')
+    const localSandbox = createSandbox('local', undefined, undefined, 'key')
     Reflect.set(localSandbox, 'toolboxTransport', localTransport.object)
-    const foreignSandbox = new Sandbox('foreign', undefined, undefined, 'key')
+    const foreignSandbox = createSandbox('foreign', undefined, undefined, 'key')
     Reflect.set(foreignSandbox, 'toolboxTransport', foreignTransport.object)
 
     const foreignContext = await foreignSandbox.interpreter.createContext({ contextId: 'ctx', language: 'python' })
@@ -5658,9 +5734,9 @@ describe('toolbox service request shaping', () => {
     const foreignTransport = transportStub()
     foreignTransport.post.mockResolvedValueOnce(sessionWire('ctx'))
 
-    const localSandbox = new Sandbox('local', undefined, undefined, 'key')
+    const localSandbox = createSandbox('local', undefined, undefined, 'key')
     Reflect.set(localSandbox, 'toolboxTransport', localTransport.object)
-    const foreignSandbox = new Sandbox('foreign', undefined, undefined, 'key')
+    const foreignSandbox = createSandbox('foreign', undefined, undefined, 'key')
     Reflect.set(foreignSandbox, 'toolboxTransport', foreignTransport.object)
 
     const foreignContext = await foreignSandbox.interpreter.createContext({ contextId: 'ctx', language: 'python' })
@@ -5876,6 +5952,9 @@ describe('toolbox service request shaping', () => {
 
     try {
       const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
+      // A JWT handle mints its own sandbox token; on a deployment without the
+      // mint route (405) it falls back to the exchanged platform token.
+      jest.spyOn(clientInstance(client), 'post').mockRejectedValue(createDaytonaError('method not allowed', 405, 'METHOD_NOT_ALLOWED', 'DAYTONA_API'))
       const duplex = await lazySandbox(client, 'sbx', { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' }).process.connect('proc').attach()
       duplex.close()
     } finally {
@@ -6604,8 +6683,7 @@ describe('toolbox service request shaping', () => {
   function presignedSandbox(options: { sandboxClass?: 'linux' | 'macos'; id?: string; toolboxUrl?: string } = {}) {
     const client = new Daytona({ apiKey: 'key' })
     const id = options.id ?? 'sbx'
-    const sandbox = lazySandbox(client, id, { toolboxUrl: options.toolboxUrl ?? `http://toolbox.invalid/sandbox-api/${id}` })
-    sandbox.sandboxClass = options.sandboxClass ?? 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: id, sandboxClass: options.sandboxClass ?? 'linux' }, { toolboxUrl: options.toolboxUrl ?? `http://toolbox.invalid/sandbox-api/${id}` })
     const api = clientInstance(client)
     return { sandbox, get: jest.spyOn(api, 'get'), post: jest.spyOn(api, 'post'), now: jest.spyOn(Date, 'now').mockReturnValue(1_781_230_967_750) }
   }
@@ -6843,8 +6921,7 @@ describe('toolbox service request shaping', () => {
 
   it('treats a create-response toolboxProxyUrl as proxied regardless of its shape', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, { sandboxId: 'sbx', toolboxProxyUrl: 'http://toolbox.invalid/sbx' })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = createSandbox({ sandboxId: 'sbx', sandboxClass: 'linux', toolboxProxyUrl: 'http://toolbox.invalid/sbx' }, clientInstance(client), undefined, 'key', undefined, { toolboxUrlFromApi: true })
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValueOnce(signResponse())
     const now = jest.spyOn(Date, 'now').mockReturnValue(1_781_230_967_000)
     try {
@@ -6950,17 +7027,18 @@ describe('toolbox service request shaping', () => {
     }) as never
 
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: 'http://10.0.0.7:2280' })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: 'http://10.0.0.7:2280' })
     const api = clientInstance(client)
-    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked', toolbox_proxy_url: 'https://proxy.example/sandbox-api' } })
-    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', name: 'the-fork', status: 'running' } })
+    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', status: 'pending' } })
+    const get = jest.spyOn(api, 'get')
+      .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', name: 'the-fork', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     try {
       const forked = await sandbox.fork()
       expect(toolboxInstance(forked).getUri({ url: '/version' })).toBe('https://proxy.example/sandbox-api/forked/version')
       expect(forked.name).toBe('the-fork')
-      expect(get).toHaveBeenCalledTimes(1)
+      expect(get).toHaveBeenCalledTimes(2)
       expect(seen).toEqual([])
     } finally {
       globalThis.fetch = originalFetch
@@ -6971,13 +7049,12 @@ describe('toolbox service request shaping', () => {
     // Inheriting the parent's URL would send fork requests to the wrong sandbox.
     // The fork instead uses the toolbox URL returned by the API.
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: 'http://10.0.0.7:2280' })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: 'http://10.0.0.7:2280' })
     const api = clientInstance(client)
-    const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked', toolbox_proxy_url: 'https://proxy.example' } })
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', status: 'pending' } })
+    const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', toolbox_proxy_url: 'https://proxy.example', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', status: 'pending' } })
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', status: 'pending', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    const forked = await sandbox.fork()
+    const forked = await sandbox.fork({ waitSeconds: 0 })
 
     expect(forked.toolboxProxyUrl).toBe('https://proxy.example/forked')
     expect(forked.toolboxProxyUrl).not.toBe(sandbox.toolboxProxyUrl)
@@ -6988,82 +7065,79 @@ describe('toolbox service request shaping', () => {
     // memory=false asks for a disk-only fork; an omitted
     // option leaves the server default (a memory fork) in charge.
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' })
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
-      .mockResolvedValueOnce({ data: { id: 'a' } })
-      .mockResolvedValueOnce({ data: { id: 'b' } })
+      .mockResolvedValueOnce({ data: { id: 'a', status: 'pending', forked_from: 'sbx', toolbox_proxy_url: 'https://proxy.example/sandboxes' } })
+      .mockResolvedValueOnce({ data: { id: 'b', status: 'pending', forked_from: 'sbx', toolbox_proxy_url: 'https://proxy.example/sandboxes' } })
     jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { id: 'a', status: 'stopped' } })
-      .mockResolvedValueOnce({ data: { id: 'b', status: 'paused' } })
+      .mockResolvedValueOnce({ data: { id: 'a', class: 'linux', status: 'stopped', name: 'a', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'b', class: 'linux', status: 'paused', name: 'b', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    expect((await sandbox.fork({ name: 'disk', memory: false })).id).toBe('a')
-    expect((await sandbox.fork()).id).toBe('b')
+    expect((await sandbox.fork({ name: 'disk', memory: false, waitSeconds: 0 })).id).toBe('a')
+    expect((await sandbox.fork({ waitSeconds: 0 })).id).toBe('b')
     expect(post).toHaveBeenNthCalledWith(1, '/sandboxes/sbx/fork', { name: 'disk', memory: false })
     expect(post).toHaveBeenNthCalledWith(2, '/sandboxes/sbx/fork', {})
   })
 
-  it('fork({ timeout }) waits for the state the fork settles in, by source state', async () => {
+  it('fork({ waitSeconds }) waits for the state the fork settles in, by source state', async () => {
     jest.useRealTimers()
     // A paused or stopped source's fork rests; waiting for `started` would
     // time out on a fork that was created and is usable.
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' })
     const api = clientInstance(client)
-    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'f' } })
+    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'f', status: 'pending', forked_from: 'sbx', toolbox_proxy_url: 'https://proxy.example/sandboxes' } })
     const get = jest.spyOn(api, 'get')
     // source refresh (stopped), fork DTO, then the fork's state polls
-    get.mockResolvedValueOnce({ data: { id: 'sbx', status: 'stopped', class: 'linux' } })
-      .mockResolvedValueOnce({ data: { id: 'f', status: 'pending' } })
-      .mockResolvedValue({ data: { id: 'f', status: 'stopped' } })
-    const rested = await sandbox.fork({ memory: false, timeout: 5_000 })
+    get.mockResolvedValueOnce({ data: { id: 'sbx', status: 'stopped', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'f', class: 'linux', status: 'pending', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValue({ data: { id: 'f', class: 'linux', status: 'stopped', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    const rested = await sandbox.fork({ memory: false, waitSeconds: 5 })
     expect(rested.state).toBe('stopped')
 
     get.mockReset()
-    get.mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', class: 'linux' } })
-      .mockResolvedValueOnce({ data: { id: 'f', status: 'pending' } })
-      .mockResolvedValue({ data: { id: 'f', status: 'running' } })
-    const running = await sandbox.fork({ timeout: 5_000 })
+    get.mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'f', class: 'linux', status: 'pending', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValue({ data: { id: 'f', class: 'linux', status: 'running', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    const running = await sandbox.fork({ waitSeconds: 5 })
     expect(running.state).toBe('started')
   })
 
-  it('macOS fork({ timeout }) settles on started or stopped whatever the source showed before the POST', async () => {
+  it('macOS fork({ waitSeconds }) settles on started or stopped whatever the source showed before the POST', async () => {
     jest.useRealTimers()
     // The source may stop after a previous read; the fork's returned state
     // determines whether the wait is complete.
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = 'macos'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'macos' })
     const api = clientInstance(client)
-    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'f' } })
+    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'f', status: 'pending', forked_from: 'sbx', toolbox_proxy_url: 'https://proxy.example/sandboxes' } })
     const get = jest.spyOn(api, 'get')
-    get.mockResolvedValueOnce({ data: { id: 'f', status: 'pending' } })
-      .mockResolvedValue({ data: { id: 'f', status: 'stopped' } })
-    expect((await sandbox.fork({ timeout: 5_000 })).state).toBe('stopped')
+    get.mockResolvedValueOnce({ data: { id: 'f', class: 'linux', status: 'pending', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValue({ data: { id: 'f', class: 'linux', status: 'stopped', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    expect((await sandbox.fork({ waitSeconds: 5 })).state).toBe('stopped')
     expect(get).not.toHaveBeenCalledWith('/sandboxes/sbx')
 
     get.mockReset()
-    get.mockResolvedValueOnce({ data: { id: 'f', status: 'pending' } })
-      .mockResolvedValue({ data: { id: 'f', status: 'running' } })
-    expect((await sandbox.fork({ timeout: 5_000 })).state).toBe('started')
+    get.mockResolvedValueOnce({ data: { id: 'f', class: 'linux', status: 'pending', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValue({ data: { id: 'f', class: 'linux', status: 'running', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    expect((await sandbox.fork({ waitSeconds: 5 })).state).toBe('started')
   })
 
-  it('gives a fork no toolbox rather than the parent URL when the response carries none', async () => {
-    // With no response URL or client base, toolbox calls must fail rather than
-    // silently target the parent's sandbox.
+  it('returns a fork whose response has no toolbox URL without reusing the parent URL', async () => {
+    // The fork exists once its id came back, so the handle is returned; it has
+    // no toolbox until a detail read supplies the fork's own, never the parent's.
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: 'http://10.0.0.7:2280' })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: 'http://10.0.0.7:2280' })
     const api = clientInstance(client)
-    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked' } })
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', status: 'pending' } })
+    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked', forked_from: 'source', status: 'pending' } })
+    const get = jest.spyOn(api, 'get')
 
-    const forked = await sandbox.fork()
-
-    expect(forked.toolboxProxyUrl).toBeUndefined()
-    expect(() => forked.fs).toThrow('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)')
+    const fork = await sandbox.fork({ waitSeconds: 0 })
+    expect(fork.id).toBe('forked')
+    expect(fork.toolboxProxyUrl).toBeUndefined()
+    expect(() => fork.fs).toThrow('sandbox handle has no toolbox URL')
+    expect(get).not.toHaveBeenCalled()
   })
 
   it('mints a fresh credential for forked toolbox requests instead of inheriting the parent per-sandbox token', async () => {
@@ -7077,12 +7151,11 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({
       apiKey: 'project-key',
     })
-    const sandbox = lazySandbox(client, 'sbx', { accessToken: 'parent-sandbox-token' })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { accessToken: 'parent-sandbox-token' })
     const api = clientInstance(client)
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', status: 'running' } })
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', status: 'running', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     jest.spyOn(api, 'post')
-      .mockResolvedValueOnce({ data: { id: 'forked', toolbox_proxy_url: 'https://proxy.region-1.example.com' } })
+      .mockResolvedValueOnce({ data: { id: 'forked', status: 'pending', forked_from: 'sbx', toolbox_proxy_url: 'https://proxy.region-1.example.com' } })
       // The fork handle is key-configured (no caller token), so its first
       // toolbox call lazily mints its OWN sandbox token — never the parent's.
       .mockResolvedValueOnce({
@@ -7090,7 +7163,7 @@ describe('toolbox service request shaping', () => {
       })
 
     try {
-      const forked = await sandbox.fork()
+      const forked = await sandbox.fork({ waitSeconds: 0 })
       const toolboxTransport = Reflect.get(forked, 'toolboxTransport') as HttpTransport
 
       await toolboxTransport.fetch('/version')
@@ -7117,14 +7190,17 @@ describe('toolbox service request shaping', () => {
     }) as never
 
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' })
     const api = clientInstance(client)
-    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked', toolbox_proxy_url: 'https://proxy.example/sandbox-api' } })
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', status: 'running' } })
+    jest.spyOn(api, 'post')
+      .mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', status: 'pending' } })
+      // The fork's handle mints its own sandbox token; without the mint route
+      // (405) it falls back to the exchanged platform token.
+      .mockRejectedValueOnce(createDaytonaError('method not allowed', 405, 'METHOD_NOT_ALLOWED', 'DAYTONA_API'))
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', status: 'running', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     try {
-      const forked = await sandbox.fork()
+      const forked = await sandbox.fork({ waitSeconds: 0 })
       await (Reflect.get(forked, 'toolboxTransport') as HttpTransport).fetch('/version')
       expect(seen[0]?.headers).toMatchObject({ Authorization: 'Bearer platform-1' })
     } finally {
@@ -7387,7 +7463,7 @@ describe('toolbox service request shaping', () => {
       let headers = new Headers()
       clientInstance(client).defaults.adapter = async (config) => {
         headers = responseHeaders(config)
-        return { data: { id: 'current-key' }, status: 200, statusText: 'OK', headers: {}, config }
+        return { data: CURRENT_KEY_WIRE, status: 200, statusText: 'OK', headers: {}, config }
       }
       await client.currentApiKey()
       expect(headers.get('traceparent') ?? '').not.toMatch(/^00-0{32}-/)
@@ -7411,7 +7487,7 @@ describe('toolbox service request shaping', () => {
       let enabledHeaders = new Headers()
       clientInstance(enabled).defaults.adapter = async (config) => {
         enabledHeaders = responseHeaders(config)
-        return { data: { id: 'current-key' }, status: 200, statusText: 'OK', headers: {}, config }
+        return { data: CURRENT_KEY_WIRE, status: 200, statusText: 'OK', headers: {}, config }
       }
       await enabled.currentApiKey()
       // A real (non-zero) trace id proves the instrumentation path ran — the
@@ -7432,7 +7508,7 @@ describe('toolbox service request shaping', () => {
       let disabledHeaders = new Headers()
       clientInstance(disabled).defaults.adapter = async (config) => {
         disabledHeaders = responseHeaders(config)
-        return { data: { id: 'current-key' }, status: 200, statusText: 'OK', headers: {}, config }
+        return { data: CURRENT_KEY_WIRE, status: 200, statusText: 'OK', headers: {}, config }
       }
       await disabled.currentApiKey()
       expect(disabledHeaders.get('traceparent')).toBeNull()
@@ -7450,7 +7526,9 @@ describe('toolbox service request shaping', () => {
     const toolboxAuth: string[] = []
     clientInstance(client).defaults.adapter = async (config) => {
       apiAuth.push(responseHeaders(config).get('authorization') ?? '')
-      return { data: { id: 'current-key' }, status: 200, statusText: 'OK', headers: {}, config }
+      // The handle's mint, answered 405 (no mint route): it falls back to the platform token.
+      if (config.url?.endsWith('/access-token')) throw createDaytonaError('method not allowed', 405, 'METHOD_NOT_ALLOWED', 'DAYTONA_API')
+      return { data: CURRENT_KEY_WIRE, status: 200, statusText: 'OK', headers: {}, config }
     }
     toolboxInstance(sandbox).defaults.adapter = async (config) => {
       toolboxAuth.push(responseHeaders(config).get('authorization') ?? '')
@@ -7471,8 +7549,9 @@ describe('toolbox service request shaping', () => {
       headers: { 'content-type': 'application/json' },
     }))
 
-    await expect(pending).resolves.toEqual([{ id: 'current-key' }, gitStatusWire()])
-    expect(apiAuth).toEqual(['Bearer platform-1'])
+    await expect(pending).resolves.toEqual([CURRENT_KEY, gitStatusWire()])
+    // The key read and the mint attempt share the one exchange.
+    expect(apiAuth).toEqual(['Bearer platform-1', 'Bearer platform-1'])
     expect(toolboxAuth).toEqual(['Bearer platform-1'])
   })
 
@@ -7481,7 +7560,7 @@ describe('toolbox service request shaping', () => {
     const auths: string[] = []
     clientInstance(client).defaults.adapter = async (config) => {
       auths.push(responseHeaders(config).get('authorization') ?? '')
-      return { data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config }
+      return { data: config.url === '/api-keys/current' ? CURRENT_KEY_WIRE : { targets: [] }, status: 200, statusText: 'OK', headers: {}, config }
     }
     const fetch = jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'platform-1', expires_in: 300, token_type: 'Bearer', issued_token_type: 'urn:ietf:params:oauth:token-type:access_token' }), { headers: { 'content-type': 'application/json' } }))
@@ -7499,7 +7578,7 @@ describe('toolbox service request shaping', () => {
 
   it('short platform-token TTLs refresh at half the lifetime instead of on every request', async () => {
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
-    clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
+    clientInstance(client).defaults.adapter = async (config) => ({ data: { targets: [] }, status: 200, statusText: 'OK', headers: {}, config })
     const fetch = jest.spyOn(globalThis, 'fetch')
       .mockImplementation(async () => new Response(JSON.stringify({ access_token: 'platform', expires_in: 10, token_type: 'Bearer', issued_token_type: 'urn:ietf:params:oauth:token-type:access_token' }), { headers: { 'content-type': 'application/json' } }))
     for (let i = 0; i < 5; i += 1) await client.listAuditActions()
@@ -7545,7 +7624,7 @@ describe('toolbox service request shaping', () => {
     [undefined, false],
   ] as const)('reads a token exchange as JSON only when declared (%p)', async (contentType, accepted) => {
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
-    clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
+    clientInstance(client).defaults.adapter = async (config) => ({ data: { targets: [] }, status: 200, statusText: 'OK', headers: {}, config })
     const body = new TextEncoder().encode('{"access_token": "t", "expires_in": 60}')
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, contentType === undefined ? {} : { headers: { 'content-type': contentType } }))
     if (accepted) await expect(client.listAuditActions()).resolves.toBeDefined()
@@ -7572,7 +7651,7 @@ describe('toolbox service request shaping', () => {
     const auths: string[] = []
     clientInstance(client).defaults.adapter = async (config) => {
       auths.push(responseHeaders(config).get('authorization') ?? '')
-      return { data: { items: [] }, status: 200, statusText: 'OK', headers: {}, config }
+      return { data: { targets: [] }, status: 200, statusText: 'OK', headers: {}, config }
     }
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`{"access_token": "platform", "expires_in": ${raw}}`, { headers: { 'content-type': 'application/json' } }))
     await client.listAuditActions()
@@ -7584,7 +7663,7 @@ describe('toolbox service request shaping', () => {
     const auths: string[] = []
     clientInstance(client).defaults.adapter = async (config) => {
       auths.push(responseHeaders(config).get('authorization') ?? '')
-      return { data: { items: [] }, status: 200, statusText: 'OK', headers: {}, config }
+      return { data: { targets: [] }, status: 200, statusText: 'OK', headers: {}, config }
     }
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ access_token: 'platform', expires_in: 9007199254740991 }), { headers: { 'content-type': 'application/json' } }))
     await client.listAuditActions()
@@ -7647,10 +7726,10 @@ describe('toolbox service request shaping', () => {
       let authorization: string | null = null
       clientInstance(client).defaults.adapter = async (config) => {
         authorization = responseHeaders(config).get('authorization')
-        return { data: { id: 'current-key' }, status: 200, statusText: 'OK', headers: {}, config }
+        return { data: CURRENT_KEY_WIRE, status: 200, statusText: 'OK', headers: {}, config }
       }
 
-      await expect(client.currentApiKey()).resolves.toEqual({ id: 'current-key' })
+      await expect(client.currentApiKey()).resolves.toEqual(CURRENT_KEY)
       expect(authorization).toBe('Bearer key')
       expect(fetch).not.toHaveBeenCalled()
     } finally {
@@ -7957,7 +8036,7 @@ describe('toolbox service request shaping', () => {
     clientInstance(client).defaults.adapter = async (config) => {
       httpAgent = config.httpAgent
       httpsAgent = config.httpsAgent
-      return { data: { id: 'current-key' }, status: 200, statusText: 'OK', headers: {}, config }
+      return { data: CURRENT_KEY_WIRE, status: 200, statusText: 'OK', headers: {}, config }
     }
 
     await client.currentApiKey()
@@ -8138,7 +8217,7 @@ describe('toolbox service request shaping', () => {
     try {
       const client = withApiUrl('https://api.example/api/v2', () => new Daytona({ apiKey: 'key', otelEnabled: true, otelApi }))
       clientInstance(client).defaults.adapter = async (config) => ({
-        data: { id: 'sbx', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' },
+        data: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -8215,7 +8294,7 @@ describe('toolbox service request shaping', () => {
       clientInstance(client).defaults.adapter = async (config) => ({
         data: config.url?.includes('/preview-url')
           ? { url: 'https://p.invalid', token: 't' }
-          : { port: 8080, public: false, url: 'https://p.invalid' },
+          : { port: 8080, public: false, url: 'https://p.invalid', created_at: '2026-01-01T00:00:00Z' },
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -8312,7 +8391,7 @@ describe('toolbox service request shaping', () => {
     }
     try {
       const client = new Daytona({ apiKey: 'key', otelEnabled: true })
-      clientInstance(client).defaults.adapter = async (config) => ({ data: { id: 'current-key' }, status: 200, statusText: 'OK', headers: {}, config })
+      clientInstance(client).defaults.adapter = async (config) => ({ data: CURRENT_KEY_WIRE, status: 200, statusText: 'OK', headers: {}, config })
       await expect(client.currentApiKey()).rejects.toThrow('@opentelemetry/api')
     } finally {
       delete (globalThis as typeof globalThis & { __DAYTONA_OTEL_IMPORT__?: () => Promise<never> }).__DAYTONA_OTEL_IMPORT__
@@ -8323,18 +8402,19 @@ describe('toolbox service request shaping', () => {
   describe('API resource services', () => {
   it('reads the authenticated public audit action matrix', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const response: AuditActionList = {
+    const response: ApiComponents['schemas']['AuditActionList'] = {
       targets: [{ target_type: 'sandbox', actions: ['create', 'delete'] }],
     }
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: response })
 
-    await expect(client.listAuditActions()).resolves.toEqual(response)
+    const expected: AuditActionList = { targets: [{ targetType: 'sandbox', actions: ['create', 'delete'] }] }
+    await expect(client.listAuditActions()).resolves.toEqual(expected)
     expect(get).toHaveBeenCalledWith('/audit/actions')
   })
 
   it('describes the API key the client authenticates with', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const response: ProjectApiKeyWithContext = {
+    const response: ApiComponents['schemas']['ProjectApiKeyWithContext'] = {
       id: '0d1c8a6e-4a0a-4f6c-9c58-6a7b2f4b7c11',
       name: 'ci',
       key_prefix: 'dtn_a1b2c3d',
@@ -8355,13 +8435,19 @@ describe('toolbox service request shaping', () => {
     }
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: response })
 
-    await expect(client.currentApiKey()).resolves.toEqual(response)
+    const expected: ProjectApiKey = {
+      id: '0d1c8a6e-4a0a-4f6c-9c58-6a7b2f4b7c11', name: 'ci',
+      keyPrefix: 'dtn_a1b2c3d', keySuffix: 'xyz', projectId: '6e1a2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b',
+      context: { projectName: 'sdk-tests', orgId: 'b7a6c5d4-e3f2-4a1b-9c8d-7e6f5a4b3c2d', orgName: 'acme' },
+      projectPermissions: ['read:sandboxes'], createdAt: '2026-09-08T14:00:00Z',
+    }
+    await expect(client.currentApiKey()).resolves.toEqual(expected)
     expect(get).toHaveBeenCalledWith('/api-keys/current')
   })
 
   it('reads the API key project budget', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const response: ProjectBudget = {
+    const response: ApiComponents['schemas']['ProjectBudget'] = {
       monthly_limit_cents: 50000,
       period_start_date: '2026-10-01',
       spent_cents: 41237,
@@ -8373,19 +8459,21 @@ describe('toolbox service request shaping', () => {
     }
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: response })
 
-    await expect(client.getProjectBudget()).resolves.toEqual(response)
+    const expected: ProjectBudget = { monthlyLimitCents: 50000, periodStartDate: '2026-10-01',
+      spentCents: 41237, evaluatedAt: '2026-10-07T09:41:00Z', createdAt: '2026-09-30T08:00:00Z', updatedAt: '2026-10-05T12:30:00Z' }
+    await expect(client.getProjectBudget()).resolves.toEqual(expected)
     expect(get).toHaveBeenCalledWith('/usage/budget')
   })
 
   it('returns the unset project-budget state', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const unset: ProjectBudget = { monthly_limit_cents: null, period_start_date: null, created_at: null, updated_at: null }
+    const unset: ApiComponents['schemas']['ProjectBudget'] = { monthly_limit_cents: null, period_start_date: null, created_at: null, updated_at: null }
     jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: unset })
 
-    await expect(client.getProjectBudget()).resolves.toEqual(unset)
+    await expect(client.getProjectBudget()).resolves.toEqual({})
   })
 
-  const organizationLimits: OrganizationLimits = {
+  const organizationLimitsWire: ApiComponents['schemas']['OrganizationLimits'] = {
     sandboxes: {
       concurrent: { limit: 100, usage: 3 },
       total: { limit: 400, usage: 11 },
@@ -8402,12 +8490,20 @@ describe('toolbox service request shaping', () => {
     api_keys_per_organization: { limit: 100, usage: 0 },
   }
 
+  const organizationLimits: OrganizationLimits = {
+    sandboxes: { concurrent: { limit: 100, usage: 3 }, total: { limit: 400, usage: 11 } },
+    sandboxResources: { maxCores: 4, maxMemoryMib: 8192 }, imageBuilds: { concurrent: { usage: 0 } },
+    storage: { images: { usage: 4 }, snapshots: { usage: 0 }, volumes: { usage: 1 } },
+    secretsPerProject: { limit: 500, usage: 2 }, apiKeysPerProject: { limit: 100, usage: 1 },
+    apiKeysPerOrganization: { limit: 100, usage: 0 },
+  }
+
   it('reads the API key organization limits, looking the organization up once', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(clientInstance(client), 'get').mockImplementation(async (url: string) =>
       url === '/api-keys/current'
-        ? { data: { context: { org_id: 'org-1', org_name: 'Acme', project_name: 'default' } } }
-        : { data: organizationLimits },
+        ? { data: CURRENT_KEY_WIRE }
+        : { data: organizationLimitsWire },
     )
 
     await expect(client.getLimits()).resolves.toEqual(organizationLimits)
@@ -8422,7 +8518,7 @@ describe('toolbox service request shaping', () => {
 
   it('reads the named organization limits without a key lookup', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: organizationLimits })
+    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: organizationLimitsWire })
 
     await client.getLimits({ organizationId: 'org/2' })
 
@@ -8433,8 +8529,8 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(clientInstance(client), 'get').mockImplementation(async (url: string) =>
       url === '/api-keys/current'
-        ? { data: { context: { org_id: 'org-1', org_name: 'Acme', project_name: 'default' } } }
-        : { data: organizationLimits },
+        ? { data: CURRENT_KEY_WIRE }
+        : { data: organizationLimitsWire },
     )
 
     await Promise.all(Array.from({ length: 5 }, () => client.getLimits()))
@@ -8449,8 +8545,8 @@ describe('toolbox service request shaping', () => {
     const unauthorized = createDaytonaError('unauthorized', 401, 'UNAUTHORIZED', 'DAYTONA_API')
     const get = jest.spyOn(clientInstance(client), 'get')
       .mockRejectedValueOnce(unauthorized)
-      .mockResolvedValueOnce({ data: { context: { org_id: 'org-1', org_name: 'Acme', project_name: 'default' } } })
-      .mockResolvedValueOnce({ data: organizationLimits })
+      .mockResolvedValueOnce({ data: CURRENT_KEY_WIRE })
+      .mockResolvedValueOnce({ data: organizationLimitsWire })
 
     await expect(client.getLimits()).rejects.toBe(unauthorized)
     await expect(client.getLimits()).resolves.toEqual(organizationLimits)
@@ -8489,8 +8585,8 @@ describe('toolbox service request shaping', () => {
   it('shapes image build/list requests and parses pagination', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const post = jest.spyOn(clientInstance(client), 'post')
-      .mockResolvedValueOnce({ data: { id: 'img-build', name: 'built', status: 'pending' } })
-      .mockResolvedValueOnce({ data: { id: 'img-pull', name: 'pulled', status: 'pending' } })
+      .mockResolvedValueOnce({ data: { class: 'linux', id: 'img-build', name: 'built', status: 'pending', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { class: 'linux', id: 'img-pull', name: 'pulled', status: 'pending', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const get = jest.spyOn(clientInstance(client), 'get')
       .mockResolvedValueOnce({ data: imageResponse({ id: 'img-build', name: 'built', region: 'region-a' }) })
       .mockResolvedValueOnce({ data: imageResponse({ id: 'img-pull', name: 'pulled', region: 'region-b' }) })
@@ -8547,8 +8643,8 @@ describe('toolbox service request shaping', () => {
 
     try {
       const client = withApiUrl(`http://127.0.0.1:${address.port}`, () => new Daytona({ apiKey: 'key' }))
-      const volumes = client.volume
-      await expect(volumes.get('missing', true)).resolves.toEqual({ id: 'created-volume', name: 'missing', type: 'disk', rawType: 'disk', status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
+      const volumes = client.volumes
+      await expect(volumes.get('missing', { create: true })).resolves.toEqual({ id: 'created-volume', name: 'missing', type: 'disk', rawType: 'disk', status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
       expect(requests).toEqual(['GET /volumes/missing', 'POST /volumes'])
     } finally {
       await new Promise<void>((resolve, reject) => http.close(error => error ? reject(error) : resolve()))
@@ -8568,7 +8664,7 @@ describe('toolbox service request shaping', () => {
 
     try {
       const client = withApiUrl(`http://127.0.0.1:${address.port}`, () => new Daytona({ apiKey: 'key' }))
-      await expect(client.volume.get('00000000-0000-4000-8000-000000000001', true, { idOnly: true })).rejects.toBeInstanceOf(NotFoundError)
+      await expect(client.volumes.get('00000000-0000-4000-8000-000000000001', { create: true, idOnly: true })).rejects.toBeInstanceOf(NotFoundError)
       expect(requests).toEqual(['GET /volumes/00000000-0000-4000-8000-000000000001?id_only=true'])
     } finally {
       await new Promise<void>((resolve, reject) => http.close(error => error ? reject(error) : resolve()))
@@ -8578,7 +8674,7 @@ describe('toolbox service request shaping', () => {
   it('shapes volume routes with encoded ids', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const volumes = client.volume
+    const volumes = client.volumes
     const get = jest.spyOn(api, 'get')
       .mockResolvedValueOnce({ data: { volumes: [{ id: 'vol 1', name: 'listed', type: 'disk', size_gib: 4, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true }] } })
       .mockResolvedValueOnce({ data: { id: 'vol 1', name: 'fetched', type: 'disk', size_gib: 8, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true } })
@@ -8593,9 +8689,9 @@ describe('toolbox service request shaping', () => {
     await expect(volumes.get('vol/name')).resolves.toEqual({ id: 'vol 1', name: 'fetched', type: 'disk', rawType: 'disk', sizeGib: 8, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
     expect(get.mock.calls[1]?.[0]).toBe('/volumes/vol%2Fname')
     expect(post).not.toHaveBeenCalled()
-    const created = await volumes.create('created', 16)
+    const created = await volumes.create({ name: 'created', sizeGib: 16 })
     expect(created).toEqual({ id: 'vol 2', name: 'created', type: 'disk', rawType: 'disk', sizeGib: 16, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
-    await volumes.delete({ ...created, id: 'vol/id' })
+    await volumes.delete('vol/id')
     expect(del.mock.calls[0]?.[0]).toBe('/volumes/vol%2Fid')
   })
 
@@ -8603,13 +8699,13 @@ describe('toolbox service request shaping', () => {
     const volumeId = '00000000-0000-4000-8000-000000000001'
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const volumes = client.volume
+    const volumes = client.volumes
     const response = { id: volumeId, name: 'named-volume', type: 'disk', status: 'deleting', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z' }
     const get = jest.spyOn(api, 'get').mockResolvedValue({ data: response })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: response })
 
     await expect(volumes.delete('named-volume')).resolves.toBeUndefined()
-    await expect(volumes.get(volumeId, false, { idOnly: true })).resolves.toEqual({ id: volumeId, name: 'named-volume', type: 'disk', rawType: 'disk', status: 'deleting', rawStatus: 'deleting', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
+    await expect(volumes.get(volumeId, { idOnly: true })).resolves.toEqual({ id: volumeId, name: 'named-volume', type: 'disk', rawType: 'disk', status: 'deleting', rawStatus: 'deleting', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
     await expect(volumes.delete(volumeId, { idOnly: true })).resolves.toBeUndefined()
     expect(del.mock.calls).toEqual([
       ['/volumes/named-volume', undefined],
@@ -8622,32 +8718,32 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { secrets: [{ name: 'TOKEN' }] } })
-      .mockResolvedValueOnce({ data: { name: 'TOKEN', allowed_domains: [], created_at: 'c', updated_at: 'u' } })
-    const put = jest.spyOn(api, 'put').mockResolvedValue({ data: {} })
+      .mockResolvedValueOnce({ data: { secrets: [{ name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }] } })
+      .mockResolvedValueOnce({ data: { name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
+    const put = jest.spyOn(api, 'put').mockResolvedValue({ data: { name: 'API/TOKEN', allowed_domains: ['*.example.com'], description: 'desc', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
 
-    const secretsPage = await client.secret.list()
-    expect(secretsPage).toEqual({ items: [{ name: 'TOKEN' }] })
+    const secretsPage = await client.secrets.list()
+    expect(secretsPage).toEqual({ items: [{ name: 'TOKEN', allowedDomains: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }] })
     expect(Object.keys(secretsPage)).toEqual(['items', 'nextCursor'])
     expect(get.mock.calls[0]?.[0]).toBe('/secrets')
-    await client.secret.set('API/TOKEN', 'secret', { allowedDomains: ['*.example.com'], description: 'desc', ifNotExists: true })
+    await client.secrets.set('API/TOKEN', 'secret', { allowedDomains: ['*.example.com'], description: 'desc', ifNotExists: true })
     expect(put).toHaveBeenCalledWith(
       '/secrets/API%2FTOKEN',
       { value: 'secret', allowed_domains: ['*.example.com'], description: 'desc' },
       { headers: { 'If-None-Match': '*' } },
     )
-    await client.secret.delete('API/TOKEN')
+    await client.secrets.delete('API/TOKEN')
     expect(del.mock.calls[0]?.[0]).toBe('/secrets/API%2FTOKEN')
-    await expect(client.secret.get('TOKEN')).resolves.toEqual({ name: 'TOKEN', allowed_domains: [], description: null, created_at: 'c', updated_at: 'u' })
+    await expect(client.secrets.get('TOKEN')).resolves.toEqual({ name: 'TOKEN', allowedDomains: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' })
 
     // set with ["*"] sends allowed_domains: ["*"]
-    put.mockResolvedValueOnce({ data: {} })
-    await client.secret.set('WIDE', 'val', { allowedDomains: ['*'] })
+    put.mockResolvedValueOnce({ data: { name: 'WIDE', allowed_domains: ['*'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
+    await client.secrets.set('WIDE', 'val', { allowedDomains: ['*'] })
     expect(put).toHaveBeenLastCalledWith('/secrets/WIDE', { value: 'val', allowed_domains: ['*'] }, undefined)
 
     // @ts-expect-error options is required — allowedDomains must be provided
-    const _setRequiresScope = () => client.secret.set('X', 'v')
+    const _setRequiresScope = () => client.secrets.set('X', 'v')
   })
 
   it('surfaces secret delete conflicts with the server message', async () => {
@@ -8662,7 +8758,7 @@ describe('toolbox service request shaping', () => {
       ),
     )
 
-    const failure = client.secret.delete('TOKEN')
+    const failure = client.secrets.delete('TOKEN')
 
     await expect(failure).rejects.toBeInstanceOf(publicSdk.ConflictError)
     await expect(failure).rejects.toMatchObject({
@@ -8681,21 +8777,21 @@ describe('toolbox service request shaping', () => {
     const get = jest.spyOn(api, 'get').mockResolvedValue({ data: response })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
 
-    await expect(client.snapshots.get('snap/1')).resolves.toEqual(new Snapshot(response as never))
-    expect(get.mock.calls[0]).toEqual(['/snapshots/snap%2F1', { params: {} }])
+    await expect(client.snapshots.get('snap/1')).resolves.toEqual(new Snapshot(INTERNAL, response as never))
+    expect(get.mock.calls[0]).toEqual(['/snapshots/snap%2F1', { params: undefined, timeout: undefined }])
 
-    // wait: 'ready' long-polls; the HTTP timeout outlives the server hold.
-    await client.snapshots.get('snap/1', { wait: 'ready', timeout: 30 })
-    expect(get.mock.calls[1]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: 30000 }, timeout: 35_000 }])
-    // No explicit budget: the server picks the hold, so the request is unbounded.
+    // Positive budgets share the remaining wait time with the request bound.
+    await client.snapshots.get('snap/1', { wait: 'ready', timeoutSeconds: 30 })
+    expect(get.mock.calls[1]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: 30000 }, timeout: 30_000 }])
+    // No explicit budget: the server picks the hold; the request keeps its root bound.
     await client.snapshots.get('snap/1', { wait: 'ready' })
-    expect(get.mock.calls[2]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready' }, timeout: 0 }])
+    expect(get.mock.calls[2]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: undefined }, timeout: 0 }])
     // A budget beyond the server's 60s hold ceiling is capped on the wire (and
     // never becomes an overflowing HTTP timer).
-    await client.snapshots.get('snap/1', { wait: 'ready', timeout: 10 * 24 * 60 * 60 * 1000 })
+    await client.snapshots.get('snap/1', { wait: 'ready', timeoutSeconds: 10 * 24 * 60 * 60 })
     expect(get.mock.calls[3]).toEqual(['/snapshots/snap%2F1', { params: { wait: 'ready', timeout_ms: 60000 }, timeout: 65_000 }])
-    await expect(client.snapshots.get('snap/1', { wait: 'ready', timeout: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
-    await expect(client.snapshots.get('snap/1', { wait: 'ready', timeout: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(client.snapshots.get('snap/1', { wait: 'ready', timeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(client.snapshots.get('snap/1', { wait: 'ready', timeoutSeconds: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(get).toHaveBeenCalledTimes(4)
 
     await client.snapshots.delete('snap/1')
@@ -8715,8 +8811,8 @@ describe('toolbox service request shaping', () => {
     const post = jest.spyOn(api, 'post')
       .mockRejectedValueOnce(new ClientTimeoutError())
       .mockRejectedValueOnce(new ConnectionError('socket closed'))
-      .mockResolvedValueOnce({ data: { id: 'sbx-region' } })
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx-region', status: 'running' } })
+      .mockResolvedValueOnce({ data: { id: 'sbx-region', class: 'linux', name: 'sbx-region', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx-region', class: 'linux', status: 'running', name: 'sbx-region', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const options = { image: Image.base('python:3.12'), region, name: 'same-action' }
     const uncertain = await createFixture(client, options).catch((error: unknown) => error)
     expect(uncertain).toBeInstanceOf(SandboxCreateRequestTimeoutError)
@@ -8737,8 +8833,8 @@ describe('toolbox service request shaping', () => {
 
   it('treats omitted regions as local and clears the selector header for region=local', async () => {
     const client = withApiUrl('http://api.invalid', () => new Daytona({ apiKey: 'key' }))
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await client.create('python:3.12', { region: 'region-a' })
     await client.create('python:3.12', { region: 'local' })
     await client.create('python:3.12')
@@ -8761,9 +8857,9 @@ describe('toolbox service request shaping', () => {
     const secondHub = new WaitHub('http://api.invalid', 'key-2', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, clientInstance(second))
     const waitFirst = jest.spyOn(firstHub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
     const waitSecond = jest.spyOn(secondHub, 'wait').mockRejectedValue(new Error('unexpected second hub wait'))
-    const sandbox = new Sandbox(sandboxDetail({ id: 'sbx', status: 'stopped' }) as unknown as SandboxDto, firstApi, 'http://toolbox/{sandboxId}', 'key-1', undefined, {}, undefined, undefined, firstHub)
+    const sandbox = createSandbox(sandboxDetail({ id: 'sbx', status: 'stopped' }) as unknown as SandboxDto, firstApi, 'http://toolbox/{sandboxId}', 'key-1', undefined, {}, undefined, undefined, firstHub)
     ;(second as unknown as { hub?: WaitHub }).hub = secondHub
-    jest.spyOn(firstApi, 'get').mockResolvedValue({ data: sandboxDetail({ id: 'sbx', status: 'stopped' }) })
+    jest.spyOn(firstApi, 'get').mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
     jest.spyOn(firstApi, 'post').mockResolvedValue({ data: {} })
 
     try {
@@ -8796,11 +8892,11 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ apiKey: 'key' })
     lazySandbox(client, 'seed')
     await client.close()
-    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const sandbox = lazySandbox(client, 'sbx')
 
     expect((sandbox as unknown as { _hub?: WaitHub })._hub).toBeUndefined()
-    await expect(sandbox.waitForState(['started'], { timeout: 50 })).resolves.toBeUndefined()
+    await expect(sandbox.wait({ until: 'started', timeoutSeconds: 0.05 })).resolves.toBe(sandbox)
     expect(get).toHaveBeenCalled()
   })
 
@@ -8813,10 +8909,10 @@ describe('toolbox service request shaping', () => {
     const firstHub = new WaitHub('http://api.invalid', 'key-1', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, firstApi)
     const secondHub = new WaitHub('http://api.invalid', 'key-2', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, clientInstance(second))
     const waitSecond = jest.spyOn(secondHub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
-    const sandbox = new Sandbox(sandboxDetail({ id: 'sbx', status: 'stopped' }) as unknown as SandboxDto, firstApi, 'http://toolbox/{sandboxId}', 'key-1', undefined, {}, undefined, undefined, firstHub)
+    const sandbox = createSandbox(sandboxDetail({ id: 'sbx', status: 'stopped' }) as unknown as SandboxDto, firstApi, 'http://toolbox/{sandboxId}', 'key-1', undefined, {}, undefined, undefined, firstHub)
     ;(second as unknown as { hub?: WaitHub }).hub = secondHub
     await firstHub.detach()
-    jest.spyOn(firstApi, 'get').mockResolvedValue({ data: sandboxDetail({ id: 'sbx', status: 'stopped' }) })
+    jest.spyOn(firstApi, 'get').mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
     jest.spyOn(firstApi, 'post').mockResolvedValue({ data: {} })
 
     try {
@@ -8831,8 +8927,8 @@ describe('toolbox service request shaping', () => {
 
   it('sends a caller-supplied idempotencyKey verbatim and mints one when omitted', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 'run-42/attempt-1' })
     await createFixture(client, { image: Image.base('python:3.12') })
@@ -8847,16 +8943,17 @@ describe('toolbox service request shaping', () => {
 
   it('forwards the idempotencyKey verbatim and only type-checks it', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx' } })
-    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', status: 'running' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await expect(createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 42 as unknown as string })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(post).not.toHaveBeenCalled()
 
-    // Length, blank and character rules are the server's (400), not the SDK's:
-    // the key is the create's identity and goes out exactly as given.
-    await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: '  k'.repeat(100) })
-    expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Idempotency-Key': '  k'.repeat(100) } })
+    // Length rules are the server's (400), not the SDK's: the key is the
+    // create's identity and goes out exactly as given (the SDK refuses only a
+    // header value no client sends as-is: padded, blank or not printable ASCII).
+    await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 'k  k'.repeat(100) })
+    expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Idempotency-Key': 'k  k'.repeat(100) } })
   })
 
   // The create POST timing out is driven through a real server in
@@ -8885,8 +8982,8 @@ describe('toolbox service request shaping', () => {
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
       .mockRejectedValueOnce(new ClientTimeoutError())
-      .mockResolvedValueOnce({ data: { id: 'sbx-first', access_token: null } })
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx-first', status: 'running' } })
+      .mockResolvedValueOnce({ data: { id: 'sbx-first', class: 'linux', access_token: null, name: 'sbx-first', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx-first', class: 'linux', status: 'running', name: 'sbx-first', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     const error = await createFixture(client, { image: Image.base('python:3.12') }).catch((e: unknown) => e as SandboxCreateRequestTimeoutError)
     expect(error).toBeInstanceOf(SandboxCreateRequestTimeoutError)
@@ -9019,18 +9116,16 @@ describe('toolbox service request shaping', () => {
     expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
   })
 
-  it('sizes waitForState long-poll slices by the caller budget, not the global requestTimeout', async () => {
-    // A long-poll must be allowed to outlive the short per-request default:
-    // the slice is min(30s, remaining caller budget) and the HTTP timeout
-    // matches the slice, in both SDKs.
+  it('holds for the wait budget, not the shorter request timeout', async () => {
+    // The hold is the caller budget; the read is capped by that budget, never by the request timeout.
     const client = new Daytona({ apiKey: 'key', requestTimeoutSeconds: 0.123 })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, 123)
-    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', status: 'running' } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, 123)
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
-    await sandbox.waitForState(['started'], { timeout: 500 })
+    await sandbox.wait({ until: 'started', timeoutSeconds: 0.5 })
 
-    expect(get).toHaveBeenCalledWith('/sandboxes/sbx', { timeout: 5_500, params: { wait: 'running', timeout_ms: 500 } })
+    expect(get).toHaveBeenCalledWith('/sandboxes/sbx', { timeout: 500, params: { wait: 'running', timeout_ms: 500 } })
   })
 })
 
@@ -9464,6 +9559,33 @@ describe('toolbox error-code drift', () => {
 })
 
 describe('SDK route drift', () => {
+  it('resolves an imported route constant through its local alias', () => {
+    // Given a forwarding module importing the search route under another name.
+    const path = resolve(__dirname, '../src/v2/import-fixture.ts')
+    const source = ts.createSourceFile(path, "import { SEARCH_PATH as route } from './clientSearch.js'; api.get(route)", ts.ScriptTarget.Latest, true)
+    // When inventorying the request.
+    const routes = collectRoutesFromSourceFile(source, path)
+    // Then its defining constant supplies the path checked against the contract.
+    expect(routes.map(({ method, path }) => ({ method, path }))).toEqual([{ method: 'GET', path: '/sandboxes/search' }])
+  })
+
+  it('collects the POST routes stored in prepared create descriptors', () => {
+    // Given a request builder whose route is consumed by the submission helper.
+    const path = resolve(__dirname, '../src/v2/create-fixture.ts')
+    const source = ts.createSourceFile(path, "function request(): PreparedSandboxCreate { return { path: '/sandboxes/macos' } }", ts.ScriptTarget.Latest, true)
+    // When inventorying that source.
+    const routes = collectRoutesFromSourceFile(source, path)
+    // Then the descriptor still participates in operation drift checks.
+    expect(routes.map(({ method, path }) => ({ method, path }))).toEqual([{ method: 'POST', path: '/sandboxes/macos' }])
+  })
+
+  it('refuses an unresolved prepared create route instead of dropping it from drift checks', () => {
+    // Given a descriptor whose path cannot be statically resolved.
+    const path = resolve(__dirname, '../src/v2/create-fixture.ts')
+    const source = ts.createSourceFile(path, 'function request(): PreparedSandboxCreate { return { path: externalRoute() } }', ts.ScriptTarget.Latest, true)
+    // When inventorying that source, then the unresolved route fails the gate.
+    expect(() => collectRoutesFromSourceFile(source, path)).toThrow('cannot resolve prepared sandbox create path')
+  })
   const operations = [...readContractOperations('api'), ...readContractOperations('toolbox')]
 
   it('keeps build-log discovery forwarders in the route inventory', () => {
@@ -9538,13 +9660,13 @@ const KNOWN_COMPUTER_USE_DESKTOP_FAILURE_CODES = [
 ] as const satisfies readonly ComputerUseDesktopFailureCode[]
 
 describe('service response mapping', () => {
-  it('keeps explicit nulls and omitted optionals while mapping volume fields', async () => {
+  it('normalizes explicit nulls and omitted optionals while mapping volume fields', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const payload = { id: 'vol', name: 'vol', type: 'disk', status: 'ready', error: null, used_bytes: null, created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z' }
     jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: payload })
-    const volume = await client.volume.get('vol')
-    expect(volume).toEqual({ id: 'vol', name: 'vol', type: 'disk', rawType: 'disk', status: 'ready', rawStatus: 'ready', error: null, usedBytes: null, createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
-    expect('lastUsedAt' in volume).toBe(false)
+    const volume = await client.volumes.get('vol')
+    expect(volume).toEqual({ id: 'vol', name: 'vol', type: 'disk', rawType: 'disk', status: 'ready', rawStatus: 'ready', error: undefined, usedBytes: undefined, createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
+    expect(volume.lastUsedAt).toBeUndefined()
   })
 
   it('maps the image and snapshot update timestamps apart from their create timestamps', async () => {
@@ -9692,7 +9814,7 @@ describe('sandbox search', () => {
       q: 'build',
       namePrefix: 'ci-',
       idPrefix: 'sbx-',
-      status: ['running', 'stopped'],
+      states: ['started', 'stopped'],
       sandboxClass: ['linux', 'macos'],
       region: ['region-a', 'region-b'],
       imageRef: 'python:3.12',
@@ -9754,19 +9876,15 @@ describe('sandbox search', () => {
 
   it('omits unset options and rejects comma-bearing list entries', () => {
     expect(searchQueryParams({})).toEqual({})
-    expect(searchQueryParams({ status: ['running'], limit: 5 })).toEqual({ status: 'running', limit: 5 })
+    expect(searchQueryParams({ states: ['started'], limit: 5 })).toEqual({ status: 'running', limit: 5 })
     expect(searchTimestamp('2026-01-01T00:00:00+02:00')).toBe('2026-01-01T00:00:00+02:00')
     expect(() => searchQueryParams({ region: ['a,b'] })).toThrow(BadRequestError)
     // An empty list / object is not "no filter": the server would
     // read the empty parameter as absent and answer an unfiltered search.
-    expect(() => searchQueryParams({ status: [] })).toThrow('status must name at least one value')
+    expect(() => searchQueryParams({ states: [] })).toThrow('states must name at least one value')
     expect(() => searchQueryParams({ labels: {} })).toThrow('labels must name at least one pair')
     // JS `null` is absent, like Python's `None` — never a raw TypeError.
-    expect(hasSearchFilters({ status: null as unknown as undefined })).toBe(false)
-    expect(() => searchQueryParams({ status: null as unknown as undefined, spot: true })).not.toThrow()
-    expect(hasSearchFilters({})).toBe(false)
-    expect(hasSearchFilters({ spot: false })).toBe(true)
-  expect(hasSearchFilters({ cursor: 'c', limit: 1, id: 'x', name: 'y' } as import('../src/v2/types').ListSandboxesOptions)).toBe(false)
+    expect(() => searchQueryParams({ states: null as unknown as undefined, spot: true })).not.toThrow()
   })
 
   it('parses search results and tolerates unknown response fields', async () => {
@@ -9775,6 +9893,7 @@ describe('sandbox search', () => {
       data: {
         sandboxes: [{
           id: 'sbx-1',
+          class: 'linux',
           name: 'ci-1',
           status: 'running',
           toolbox_proxy_url: 'https://proxy.example/sandbox-api',
@@ -9785,7 +9904,7 @@ describe('sandbox search', () => {
           stopped_at: null,
           forked_from: null,
           cursor: 'page-cursor',
-          unknown_field: { nested: true },
+          unknown_field: { nested: true }, cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [],
         }],
         next_cursor: 'page-2',
         total: 10000,
@@ -9793,11 +9912,11 @@ describe('sandbox search', () => {
         future_top_level: 1,
       },
     })
-    const page: SearchResult<Sandbox> = await client.search({ status: ['running'] })
+    const page: SearchResult<Sandbox> = await client.search({ states: ['started'] })
     expect(page.items.map((sandbox) => sandbox.id)).toEqual(['sbx-1'])
     expect(page.items[0]?.name).toBe('ci-1')
     expect(page.items[0]?.state).toBe('started')
-    expect(page.items[0]?.target).toBe('region-a')
+    expect(page.items[0]?.region).toBe('region-a')
     expect(page.nextCursor).toBe('page-2')
     expect(page.total).toBe(10000)
     expect(page.totalRelation).toBe('gte')
@@ -9805,7 +9924,7 @@ describe('sandbox search', () => {
 
   it('defaults the summary fields when the body omits them', async () => {
     const { client, api } = searchClient()
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [{ id: 'sbx', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }], next_cursor: null } })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [{ class: 'linux', id: 'sbx', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], next_cursor: null, total: 0, total_relation: 'eq' } })
     const page = await client.search()
     expect(page.nextCursor).toBeUndefined()
     expect(page.total).toBe(0)
@@ -9820,29 +9939,37 @@ describe('sandbox search', () => {
   it('rejects a search body without a sandboxes array exactly like the Python SDK', async () => {
     const { client, api } = searchClient()
     const get = jest.spyOn(api, 'get')
-    for (const data of [{ items: [{ id: 'sbx', status: 'running' }] }, { sandboxes: 'sbx' }, { sandboxes: null }, {}, { sandboxes: { id: 'sbx' } }]) {
+    for (const data of [{ items: [{ id: 'sbx', status: 'running' }] }, { sandboxes: 'sbx', total: 0, total_relation: 'eq' }, { sandboxes: null, total: 0, total_relation: 'eq' }, {}, { sandboxes: { id: 'sbx' }, total: 0, total_relation: 'eq' }]) {
       get.mockResolvedValue({ data })
       await expect(client.search({ q: 'build' })).rejects.toThrow('search response is missing the sandboxes array')
       await expect(client.search({ q: 'build' })).rejects.toBeInstanceOf(BadRequestError)
-      // `list()` with a search filter shares the parser and the strictness.
-      await expect(client.list({ status: ['running'] })).rejects.toBeInstanceOf(BadRequestError)
     }
-    for (const data of [[{ id: 'sbx' }], 'sandboxes', null, { sandboxes: [{ id: 'sbx' }, 'sbx-2'] }]) {
+    for (const data of [[{ id: 'sbx' }], 'sandboxes', null, { sandboxes: [{ id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }, 'sbx-2'], total: 0, total_relation: 'eq' }]) {
       get.mockResolvedValue({ data })
-      await expect(client.search()).rejects.toThrow('expected JSON object')
+      await expect(client.search()).rejects.toThrow(/response is not a JSON object$/)
       await expect(client.search()).rejects.toBeInstanceOf(BadRequestError)
     }
     const error = await client.search().catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(BadRequestError)
     expect((error as BadRequestError).source).toBe('SDK')
 
-    get.mockResolvedValue({ data: { sandboxes: [{ id: 'sbx', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', unknown_field: 1 }], future_top_level: true } })
+    get.mockResolvedValue({ data: { sandboxes: [{ class: 'linux', id: 'sbx', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', unknown_field: 1, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], future_top_level: true, total: 0, total_relation: 'eq' } })
     expect((await client.search({ q: 'build' })).items.map((sandbox) => sandbox.id)).toEqual(['sbx'])
-    // The cursor is the contract's snake_case `next_cursor`; a non-string is no cursor.
-    get.mockResolvedValue({ data: { sandboxes: [], next_cursor: 'page-2' } })
+    // The cursor is the contract's snake_case `next_cursor`; a non-string one is a
+    // contract error (it would silently end search() / findByName() early), as are
+    // a missing or mistyped total / total_relation.
+    get.mockResolvedValue({ data: { sandboxes: [], next_cursor: 'page-2', total: 0, total_relation: 'eq' } })
     expect((await client.search()).nextCursor).toBe('page-2')
-    get.mockResolvedValue({ data: { sandboxes: [], next_cursor: 7 } })
-    expect((await client.search()).nextCursor).toBeUndefined()
+    for (const [data, message] of [
+      [{ sandboxes: [], next_cursor: 7, total: 0, total_relation: 'eq' }, 'search response has a next_cursor that is not a string'],
+      [{ sandboxes: [], total_relation: 'eq' }, 'search response is missing its total'],
+      [{ sandboxes: [], total: 1.5, total_relation: 'eq' }, 'search response has a total that is not an integer'],
+      [{ sandboxes: [], total: 0 }, 'search response is missing its total_relation'],
+      [{ sandboxes: [{ class: 'linux', status: 'running' }], total: 1, total_relation: 'eq' }, 'sandbox response is missing its id'],
+    ] as const) {
+      get.mockResolvedValue({ data })
+      await expect(client.search()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+    }
   })
 
   // Timestamp-bound parity fixture — the SAME values are pinned in
@@ -9852,8 +9979,8 @@ describe('sandbox search', () => {
   // it must surface as BadRequestError, never the `RangeError` from `toISOString()`.
   it('rejects an invalid Date and non-timestamp bounds with BadRequestError, never RangeError', async () => {
     const { client, api } = searchClient()
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [] } })
-    const message = 'timestamp bounds must be a valid Date or an RFC 3339 string'
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [], total: 0, total_relation: 'eq' } })
+    const message = 'timestamp bounds must be a valid Date or an RFC 3339 timestamp without a leap second (year 0001-9999, a real calendar date)'
     for (const value of [new Date('not a date'), new Date(NaN), 1700000000, 1700000000.5, ['2026-01-01T00:00:00Z'], { iso: '2026-01-01T00:00:00Z' }, true]) {
       const bound = value as unknown as Date
       expect(() => searchTimestamp(bound)).not.toThrow(RangeError)
@@ -9879,6 +10006,7 @@ describe('sandbox search', () => {
     // SandboxDto drifts back to a non-null `updated_at` or loses `created_at`.
     const item: SandboxDto = {
       id: 'sbx-1',
+      class: 'linux',
       status: 'running',
       toolbox_proxy_url: 'https://proxy.example/sandbox-api',
       created_at: '2026-01-01T00:00:00Z',
@@ -9887,10 +10015,10 @@ describe('sandbox search', () => {
       started_at: null,
       stopped_at: null,
       forked_from: null,
-      cursor: 'page-cursor',
+      cursor: 'page-cursor', name: 'sbx-1', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024,
     }
     const { client, api } = searchClient()
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [item] } })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [{ ...item, region_id: '', port_map: [] }], total: 0, total_relation: 'eq' } })
     const page = await client.search()
     expect(page.items[0]?.id).toBe('sbx-1')
     expect(page.items[0]?.state).toBe('started')
@@ -9908,28 +10036,28 @@ describe('sandbox search', () => {
     })
 
     // (a) a single value is one entry — accepted by the types, not only at runtime.
-    expect(searchQueryParams({ status: 'running', sandboxClass: 'linux', region: 'local' })).toEqual({ status: 'running', class: 'linux', region_ids: 'local' })
+    expect(searchQueryParams({ states: 'started', sandboxClass: 'linux', region: 'local' })).toEqual({ status: 'running', class: 'linux', region_ids: 'local' })
     expect(searchQueryParams({ region: ['region-a', 'region-b'] })).toEqual({ region_ids: 'region-a,region-b' })
 
     // (b) client-side rejections, none of them reach the transport.
     for (const labels of ['team=ml', ['team=ml'], 42]) {
       const options = { labels: labels as unknown as Record<string, string> }
       expect(() => searchQueryParams(options)).toThrow(BadRequestError)
-      expect(() => searchQueryParams(options)).toThrow('labels must be an object')
+      expect(() => searchQueryParams(options)).toThrow('labels must be a plain object')
       await expect(client.search(options)).rejects.toBeInstanceOf(BadRequestError)
     }
     // JS `null` is absent (Python's `None`): no parameter, no request-time error.
     expect(searchQueryParams({ labels: null as unknown as Record<string, string> })).toEqual({})
-    for (const status of [['running', 7], ['running', ''], ['a,b']]) {
+    for (const status of [['running', 7], ['running', ''], ['a,b'], ['started', 'unknown'], ['unknown', 'started']]) {
       // Deliberately invalid entries a JS caller could pass; the cast only exists to reach the runtime guard.
-      const options = { status: status as unknown as readonly string[] }
+      const options = { states: status as unknown as readonly Exclude<import('../src/v2/types').SandboxState, 'unknown'>[] }
       expect(() => searchQueryParams(options)).toThrow(BadRequestError)
-      expect(() => searchQueryParams(options)).toThrow('status entries must be non-empty strings without commas')
+      expect(() => searchQueryParams(options)).toThrow('unknown sandbox state')
       await expect(client.search(options)).rejects.toBeInstanceOf(BadRequestError)
     }
     expect(get).not.toHaveBeenCalled()
 
-    const page = await client.search({ status: 'running' })
+    const page = await client.search({ states: 'started' })
     expect(get.mock.calls[0]?.[1]).toEqual({ params: { status: 'running' } })
     expect(page.total).toBe(0)
   })
@@ -9939,7 +10067,7 @@ describe('sandbox search', () => {
     // tsconfig.tests.json (`npm run typecheck`) and ts-jest without a single
     // cast, so `{ status: 'running' }` can never regress to a TS2322 again.
     const { client, api } = searchClient()
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [], total: 0 } })
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [], total: 0, total_relation: 'eq' } })
     await searchConsumerCalls(client)
     expect(get.mock.calls.map((call) => call[1])).toEqual([
       { params: { status: 'running', class: 'linux', region_ids: 'local' } },
@@ -9948,23 +10076,22 @@ describe('sandbox search', () => {
     ])
     expect(searchQueryParams(SINGLE_VALUE_SEARCH)).toEqual({ status: 'running', class: 'linux', region_ids: 'local' })
     expect(searchQueryParams(LIST_VALUE_LIST)).toEqual({ status: 'running,stopped' })
-    expect(hasSearchFilters(LIST_VALUE_LIST)).toBe(true)
   })
 
-  it('routes list() with any search filter to a single /sandboxes/search call and never walks /sandboxes', async () => {
+  it('routes search filters to a single /sandboxes/search call and never walks /sandboxes', async () => {
     const { client, api } = searchClient()
     const get = jest.spyOn(api, 'get').mockImplementation(async (path: string) => {
       if (path !== '/sandboxes/search') throw new Error(`unexpected GET ${path}`)
       return {
         data: {
-          sandboxes: [{ id: 'sbx-a', name: 'ci-a', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }],
+          sandboxes: [{ class: 'linux', id: 'sbx-a', name: 'ci-a', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }],
           next_cursor: 'more',
           total: 42,
           total_relation: 'eq',
         },
       }
     })
-    const page = await client.list({ id: 'sbx', name: 'ci', limit: 5, status: ['running'], labels: { team: 'ml' } })
+    const page = await client.search({ idPrefix: 'sbx', namePrefix: 'ci', limit: 5, states: ['started'], labels: { team: 'ml' } })
     expect(get).toHaveBeenCalledTimes(1)
     expect(get.mock.calls[0]?.[0]).toBe('/sandboxes/search')
     expect(get.mock.calls[0]?.[1]).toEqual({ params: { id_prefix: 'sbx', name_prefix: 'ci', limit: 5, status: 'running', labels: '{"team":"ml"}' } })
@@ -9974,10 +10101,10 @@ describe('sandbox search', () => {
     expect(page.totalRelation).toBe('eq')
   })
 
-  it('forwards the list() cursor to /sandboxes/search when a search filter is present', async () => {
+  it('forwards the search cursor with the selected sort', async () => {
     const { client, api } = searchClient()
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [], total: 0 } })
-    await client.list({ cursor: 'c1', sort: 'name', order: 'asc' })
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { sandboxes: [], total: 0, total_relation: 'eq' } })
+    await client.search({ cursor: 'c1', sort: 'name', order: 'asc' })
     expect(get.mock.calls[0]?.[0]).toBe('/sandboxes/search')
     expect(get.mock.calls[0]?.[1]).toEqual({ params: { cursor: 'c1', sort: 'name', order: 'asc' } })
   })
@@ -9986,16 +10113,16 @@ describe('sandbox search', () => {
     // list() returns one page; iter() follows subsequent pages explicitly.
     const { client, api } = searchClient()
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { sandboxes: [{ id: 'sbx-1', name: 'ci-1', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }, { id: 'other', name: 'x', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }], next_cursor: 'p2' } })
-      .mockResolvedValueOnce({ data: { sandboxes: [{ id: 'sbx-2', name: 'ci-2', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }] } })
-      .mockResolvedValueOnce({ data: { sandboxes: [{ id: 'sbx-1', name: 'ci-1', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api' }], total: 1, total_relation: 'eq' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx-1', name: 'ci-1', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }, { class: 'linux', id: 'other', name: 'x', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], next_cursor: 'p2', total: 0, total_relation: 'eq' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx-2', name: 'ci-2', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], total: 0, total_relation: 'eq' } })
+      .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx-1', name: 'ci-1', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], total: 1, total_relation: 'eq' } })
     const page = await client.list()
     expect(get).toHaveBeenCalledTimes(1)
     expect(get.mock.calls[0]).toEqual(['/sandboxes', { params: { cursor: undefined, limit: undefined } }])
     expect(page.items.map((sandbox) => sandbox.id)).toEqual(['sbx-1', 'other'])
     expect(page.nextCursor).toBe('p2')
-    expect(page.total).toBeUndefined()
-    expect(page.totalRelation).toBeUndefined()
+    expect(page).not.toHaveProperty('total')
+    expect(page).not.toHaveProperty('totalRelation')
 
     // iter() is how you walk: it follows the cursor page by page.
     const rest: string[] = []
@@ -10006,17 +10133,14 @@ describe('sandbox search', () => {
     // `GET /sandboxes` has no id/name filters: a prefix applied client-side to one page
     // would silently miss later pages, so a prefix uses the search endpoint
     // (as id_prefix / name_prefix) like every other filter.
-    const filtered = await client.list({ id: 'sbx', name: 'ci' })
+    const filtered = await client.search({ idPrefix: 'sbx', namePrefix: 'ci' })
     expect(get.mock.calls[2]?.[0]).toBe('/sandboxes/search')
     expect(get.mock.calls[2]?.[1]).toEqual({ params: { id_prefix: 'sbx', name_prefix: 'ci' } })
     expect(filtered.items.map((sandbox) => sandbox.id)).toEqual(['sbx-1'])
     expect(filtered.total).toBe(1)
 
-    // An explicit null (reachable from untyped JS) is "no filter", exactly like
-    // Python's `id=None`: it uses the list endpoint, not search.
-    get.mockResolvedValueOnce({ data: { sandboxes: [], next_cursor: undefined } })
-    await client.list({ id: null, name: null } as unknown as Parameters<typeof client.list>[0])
-    expect(get.mock.calls[3]?.[0]).toBe('/sandboxes')
+    // Unknown list options are rejected even when their values are null.
+    await expect(client.list(Object.assign({ limit: 5 }, { id: null, name: null }))).rejects.toBeInstanceOf(BadRequestError)
   })
 
   it.each([
@@ -10026,7 +10150,7 @@ describe('sandbox search', () => {
     const { client, api } = searchClient()
     jest.spyOn(api, 'get').mockRejectedValue(axios4xx(status, { code, message: code, source: 'DAYTONA_API', trace_id: '0af7651916cd43dd8448eb211c80319c' }))
     await expect(client.search({ q: 'x' })).rejects.toBeInstanceOf(expected)
-    await expect(client.list({ status: ['running'] })).rejects.toBeInstanceOf(expected)
+    await expect(client.search({ states: ['started'] })).rejects.toBeInstanceOf(expected)
     const error = await client.search({ q: 'x' }).catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(DaytonaError)
     expect((error as DaytonaError).statusCode).toBe(status)
@@ -10048,11 +10172,11 @@ describe('sandbox search', () => {
 describe('macOS sandboxes and reservations', () => {
   it('sends disk volumes on a macOS create', async () => {
     const client = macClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await client.createMacos('base-macos', { volumes: [{ volumeId: 'data', mountPath: '/Users/daytona/data', subpath: 'proj' }] })
     expect(JSON.parse(JSON.stringify(post.mock.calls[0]?.[1])).volumes).toEqual([{ volume: 'data', mount_path: '/Users/daytona/data', subpath: 'proj' }])
   })
-  const macResponse = { id: 'mac', status: 'running', class: 'macos', persistent: true }
+  const macResponse = { id: 'mac', status: 'running', class: 'macos', persistent: true, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
 
   function macClient(): Daytona {
     return new Daytona({ apiKey: 'key' })
@@ -10060,7 +10184,7 @@ describe('macOS sandboxes and reservations', () => {
 
   it('createMacos posts to /sandboxes/macos with the CreateMacosSandboxRequest body', async () => {
     const client = macClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     const sandbox = await client.createMacos('base-macos', { region: 'mac-region' })
     expect(post.mock.calls[0]?.[0]).toBe('/sandboxes/macos')
@@ -10127,7 +10251,7 @@ describe('macOS sandboxes and reservations', () => {
 
   it('hands back the reservation a running macOS create claimed, with no second read', async () => {
     const client = macClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', status: 'running', wait_cap_seconds: 3, reservation_id: 'mac-region:res-1' } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', class: 'linux', status: 'running', wait_cap_seconds: 3, reservation_id: 'mac-region:res-1', name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const get = jest.spyOn(clientInstance(client), 'get')
 
     const sandbox = await client.createMacos('base-macos')
@@ -10139,7 +10263,7 @@ describe('macOS sandboxes and reservations', () => {
 
   it('sends a network policy on a macOS create', async () => {
     const client = macClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await client.createMacos('base-macos', { networkPolicy: { blockAll: true, allowCidrs: ['93.184.215.14/32'] } })
     const body = JSON.parse(JSON.stringify(post.mock.calls[0]?.[1])) as Record<string, unknown>
     expect(body.network_policy).toEqual({ block_all: true, allow_cidrs: ['93.184.215.14/32'] })
@@ -10158,15 +10282,15 @@ describe('macOS sandboxes and reservations', () => {
 
   it('sends supplied macOS size axes exactly and omits absent ones', async () => {
     const client = macClient()
-    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', status: 'running', wait_cap_seconds: 3 } })
+    const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'mac', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await client.createMacos('base-macos')
     // macOS accepts the persistent option alongside a reservation.
-    await client.createMacos('base-macos', { reservation: 'mac-region:res-1', cpu: 10, memory: 16, persistent: true })
-    await client.createMacos('base-macos', { memory: 4.5 })
-    await client.createMacos('base-macos', { cpu: 4 })
-    await client.createMacos('base-macos', { disk: 115 })
-    await client.createMacos('base-macos', { disk: 80.5 })
+    await client.createMacos('base-macos', { reservation: 'mac-region:res-1', resources: { cpu: 10, memory: 16 }, persistent: true })
+    await client.createMacos('base-macos', { resources: { memory: 4.5 } })
+    await client.createMacos('base-macos', { resources: { cpu: 4 } })
+    await client.createMacos('base-macos', { resources: { disk: 115 } })
+    await client.createMacos('base-macos', { resources: { disk: 80.5 } })
 
     const bodies = post.mock.calls.map((call) => JSON.parse(JSON.stringify(call[1])) as Record<string, unknown>)
     expect(bodies[0]).not.toHaveProperty('cores')
@@ -10188,18 +10312,19 @@ describe('macOS sandboxes and reservations', () => {
     ['fractional cpu', { cpu: 4.5 }, 'cpu must be an integer between 4 and 2147483647'],
     ['cpu above int32', { cpu: 2147483648 }, 'cpu must be an integer between 4 and 2147483647'],
     ['NaN cpu', { cpu: Number.NaN }, 'cpu must be an integer between 4 and 2147483647'],
-    ['memory below 4 GiB', { memory: 3.999 }, 'memory must be a finite GiB value that converts to an integer MiB value between 4096 and 2147483647'],
+    ['memory below 4 GiB', { memory: 3.5 }, 'memory must be a finite GiB value that converts to an integer MiB value between 4096 and 2147483647'],
     ['memory with a fractional MiB', { memory: 4.0001 }, 'memory must be a finite GiB value that converts to an integer MiB value between 4096 and 2147483647'],
     ['infinite memory', { memory: Number.POSITIVE_INFINITY }, 'memory must be a finite GiB value that converts to an integer MiB value between 4096 and 2147483647'],
     ['memory above int32 MiB', { memory: 2097152 }, 'memory must be a finite GiB value that converts to an integer MiB value between 4096 and 2147483647'],
-    ['disk below 80 GiB', { disk: 79.999 }, 'disk must be a finite GiB value that converts to an integer MiB value between 81920 and 2147483647'],
+    ['disk below 80 GiB', { disk: 79.5 }, 'disk must be a finite GiB value that converts to an integer MiB value between 81920 and 2147483647'],
     ['disk with a fractional MiB', { disk: 80.0001 }, 'disk must be a finite GiB value that converts to an integer MiB value between 81920 and 2147483647'],
     ['NaN disk', { disk: Number.NaN }, 'disk must be a finite GiB value that converts to an integer MiB value between 81920 and 2147483647'],
+    ['zero memory', { memory: 0 }, 'memory must be a finite GiB value that converts to an integer MiB value between 4096 and 2147483647'],
     ['disk above int32 MiB', { disk: 2097152 }, 'disk must be a finite GiB value that converts to an integer MiB value between 81920 and 2147483647'],
   ])('refuses an invalid macOS size (%s) before posting', async (_case, size, message) => {
     const client = macClient()
     const post = jest.spyOn(clientInstance(client), 'post')
-    const error = await client.createMacos('base-macos', size).catch((caught: unknown) => caught)
+    const error = await client.createMacos('base-macos', { resources: size }).catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(DaytonaError)
     expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
     expect(post).not.toHaveBeenCalled()
@@ -10208,24 +10333,24 @@ describe('macOS sandboxes and reservations', () => {
   it('reports a macOS size in exact GiB and keeps the reservation id through serialization', () => {
     const client = macClient()
     const api = clientInstance(client)
-    const mac = new Sandbox({ ...macResponse, cpu: 7, cores_max: 7, memory_mib: 4608, memory_max_mib: 4608, disk_mib: 117760, disk_max_mib: 117760, reservation_id: 'mac-region:res-1' }, api, undefined, 'key')
+    const mac = createSandbox({ ...macResponse, cpu: 7, cores_max: 7, memory_mib: 4608, memory_max_mib: 4608, disk_mib: 117760, disk_max_mib: 117760, reservation_id: 'mac-region:res-1' }, api, undefined, 'key')
     expect(mac.memory).toBe(4.5)
     expect(mac.memoryMax).toBe(4.5)
     expect(mac.disk).toBe(115)
     expect(mac.diskMax).toBe(115)
-    expect(new Sandbox({ ...macResponse, disk_mib: 82432 }, api, undefined, 'key').disk).toBe(80.5)
+    expect(createSandbox({ ...macResponse, disk_mib: 82432 }, api, undefined, 'key').disk).toBe(80.5)
     expect(mac.reservationId).toBe('mac-region:res-1')
     const json = mac.toJSON()
     expect(json).toMatchObject({ memory: 4.5, memoryMax: 4.5, disk: 115, diskMax: 115, reservationId: 'mac-region:res-1' })
 
-    const unclaimed = new Sandbox({ ...macResponse, status: 'pending', memory_mib: 0, disk_mib: 0, reservation_id: null }, api, undefined, 'key')
+    const unclaimed = createSandbox({ ...macResponse, status: 'pending', memory_mib: 0, disk_mib: 0, reservation_id: null }, api, undefined, 'key')
     expect(unclaimed.memory).toBe(0)
     expect(unclaimed.disk).toBe(0)
     expect(unclaimed.reservationId).toBeUndefined()
-    // Linux keeps whole GiB, rounded up.
-    const linux = new Sandbox({ id: 'lin', status: 'running', class: 'linux', memory_mib: 4608, disk_mib: 1536 }, api, undefined, 'key')
-    expect(linux.memory).toBe(5)
-    expect(linux.disk).toBe(2)
+    // Linux reports exact GiB too.
+    const linux = createSandbox({ id: 'lin', status: 'running', class: 'linux', memory_mib: 4608, disk_mib: 1536, name: 'lin', cpu: 1, cores_max: 1 }, api, undefined, 'key')
+    expect(linux.memory).toBe(4.5)
+    expect(linux.disk).toBe(1.5)
   })
 
   it('refreshes the claimed lease id and size from the sandbox detail', async () => {
@@ -10261,16 +10386,16 @@ describe('macOS sandboxes and reservations', () => {
   it('reads the macOS sandbox class from metadata', async () => {
     const client = macClient()
     const sandbox = lazySandbox(client, 'mac')
-    // `class` alone decides the class; a response without it reads as linux.
+    // Only a returned `class` establishes the observed sandbox class.
     const get = jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { id: 'mac', status: 'stopped', class: 'macos', persistent: true } })
-      .mockResolvedValueOnce({ data: { id: 'mac', status: 'running', class: 'macos', persistent: true } })
-      .mockResolvedValueOnce({ data: { id: 'mac', status: 'running', class: 'macos', persistent: true } })
+      .mockResolvedValueOnce({ data: { id: 'mac', status: 'stopped', class: 'macos', persistent: true, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'mac', status: 'running', class: 'macos', persistent: true, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'mac', status: 'stopped', class: 'macos', persistent: true, name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
       .mockRejectedValueOnce(new NotFoundError('gone', { statusCode: 404, code: 'NOT_FOUND' }))
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: {} })
     const del = jest.spyOn(clientInstance(client), 'delete').mockResolvedValue({ data: {} })
 
-    await sandbox.start({ timeout: 1 })
+    await sandbox.start({ timeoutSeconds: 0.001 })
     expect(sandbox.sandboxClass).toBe('macos')
     await sandbox.stop()
     await sandbox.delete()
@@ -10284,8 +10409,8 @@ describe('macOS sandboxes and reservations', () => {
     const client = macClient()
     const sandbox = lazySandbox(client, 'mac')
     const get = jest.spyOn(clientInstance(client), 'get')
-      .mockResolvedValueOnce({ data: { id: 'mac', status: 'stopped', class: 'macos' } })
-      .mockResolvedValueOnce({ data: { id: 'mac-fork', status: 'pending', class: 'macos' } })
+      .mockResolvedValueOnce({ data: { id: 'mac', status: 'stopped', class: 'macos', name: 'mac', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'mac-fork', status: 'stopped', class: 'macos', name: 'mac-fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const post = jest.spyOn(clientInstance(client), 'post')
       .mockResolvedValue({ data: { forked_from: 'mac', status: 'pending', toolbox_proxy_url: 'https://proxy.example', id: 'mac-fork' }, headers: {} })
 
@@ -10299,7 +10424,7 @@ describe('macOS sandboxes and reservations', () => {
   it('pauses and resumes macOS sandboxes, waiting through pausing and assigned', async () => {
     const client = macClient()
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ ...macResponse, persistent: true }, api, undefined, 'key')
+    const sandbox = createSandbox({ ...macResponse, persistent: true }, api, undefined, 'key')
     const post = jest.spyOn(api, 'post')
       .mockResolvedValueOnce({ data: { status: 'pausing', id: 'mac' } })
       .mockResolvedValueOnce({ data: { status: 'assigned', id: 'mac' } })
@@ -10309,13 +10434,13 @@ describe('macOS sandboxes and reservations', () => {
       .mockResolvedValueOnce({ data: { ...macResponse, status: 'assigned' } })
       .mockResolvedValueOnce({ data: { ...macResponse, status: 'running', mac_boot_mode: 'future-mode' } })
 
-    const paused = sandbox.pause({ timeout: 10_000 })
+    const paused = sandbox.pause({ timeoutSeconds: 10 })
     await jest.advanceTimersByTimeAsync(200)
     await expect(paused).resolves.toBeUndefined()
     expect(sandbox.state).toBe('paused')
     expect(sandbox.macBootMode).toBeNull()
 
-    const resumed = sandbox.resume({ timeout: 10_000 })
+    const resumed = sandbox.resume({ timeoutSeconds: 10 })
     await jest.advanceTimersByTimeAsync(200)
     await expect(resumed).resolves.toBeUndefined()
     expect(sandbox.state).toBe('started')
@@ -10334,7 +10459,7 @@ describe('macOS sandboxes and reservations', () => {
       .mockResolvedValueOnce({ data: { ...macResponse, status: 'paused' } })
       .mockResolvedValueOnce({ data: { ...macResponse, status: 'running', mac_boot_mode: 'future-mode' } })
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: { status: 'assigned', id: 'mac' } })
-    await sandbox.start({ timeout: 10_000 })
+    await sandbox.start({ timeoutSeconds: 10 })
     expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/mac/resume'])
     expect(sandbox.macBootMode).toBe('future-mode')
   })
@@ -10342,25 +10467,25 @@ describe('macOS sandboxes and reservations', () => {
   it('fails a macOS pause that returns to running and a resume that ends stopped', async () => {
     const client = macClient()
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ ...macResponse, persistent: true }, api, undefined, 'key')
+    const sandbox = createSandbox({ ...macResponse, persistent: true }, api, undefined, 'key')
     jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
     jest.spyOn(api, 'get')
       .mockResolvedValueOnce({ data: { ...macResponse, status: 'running', error: 'Disk is full' } })
       .mockResolvedValueOnce({ data: { ...macResponse, status: 'stopped' } })
 
-    await expect(sandbox.pause({ timeout: 10_000 })).rejects.toMatchObject({ name: 'SandboxTerminalStateError', state: 'started' })
-    expect(sandbox.errorReason).toBe('Disk is full')
-    await expect(sandbox.resume({ timeout: 10_000 })).rejects.toMatchObject({ name: 'SandboxTerminalStateError', state: 'stopped' })
+    await expect(sandbox.pause({ timeoutSeconds: 10 })).rejects.toMatchObject({ name: 'SandboxTerminalStateError', state: 'started' })
+    expect(sandbox.error).toBe('Disk is full')
+    await expect(sandbox.resume({ timeoutSeconds: 10 })).rejects.toMatchObject({ name: 'SandboxTerminalStateError', state: 'stopped' })
   })
 
   it('reads an arbitrary mac_boot_mode from the response', () => {
     const client = macClient()
     const api = clientInstance(client)
-    const resumed = new Sandbox({ ...macResponse, mac_boot_mode: 'future-mode', error: 'Resume details' }, api, undefined, 'key')
+    const resumed = createSandbox({ ...macResponse, mac_boot_mode: 'future-mode', error: 'Resume details' }, api, undefined, 'key')
     expect(resumed.macBootMode).toBe('future-mode')
-    expect(resumed.errorReason).toBe('Resume details')
-    expect(new Sandbox({ ...macResponse, mac_boot_mode: null }, api, undefined, 'key').macBootMode).toBeNull()
-    expect(new Sandbox({ id: 'lin', status: 'running', class: 'linux' }, api, undefined, 'key').macBootMode).toBeNull()
+    expect(resumed.error).toBe('Resume details')
+    expect(createSandbox({ ...macResponse, mac_boot_mode: null }, api, undefined, 'key').macBootMode).toBeNull()
+    expect(createSandbox({ id: 'lin', status: 'running', class: 'linux', name: 'lin', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key').macBootMode).toBeNull()
   })
 
   it('refuses class-gated calls for a sandbox class it does not know instead of assuming linux', async () => {
@@ -10368,9 +10493,9 @@ describe('macOS sandboxes and reservations', () => {
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
     const patch = jest.spyOn(api, 'patch')
-    const unknown = new Sandbox({ id: 'odd', status: 'running', class: 'future-class' }, api, undefined, 'key')
-    expect(unknown.sandboxClass).toBeUndefined()
-    await expect(unknown.pause()).rejects.toThrow('unsupported sandbox class future-class')
+    const unknown = createSandbox({ id: 'odd', status: 'running', class: 'future-class', name: 'odd', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    expect(unknown.sandboxClass).toBe('unknown')
+    expect(unknown.rawSandboxClass).toBe('future-class')
     await expect(unknown.updateLifecyclePolicy({ onIdleTimeout: 'delete' })).rejects.toBeInstanceOf(UnsupportedOperationError)
     await expect(unknown.fork()).rejects.toThrow('unsupported sandbox class future-class')
     expect(post).not.toHaveBeenCalled()
@@ -10380,12 +10505,12 @@ describe('macOS sandboxes and reservations', () => {
   it('allows class-independent calls for a sandbox class it does not know', async () => {
     const client = macClient()
     const api = clientInstance(client)
-    const odd = { id: 'odd', status: 'running', class: 'future-class' }
-    const snapshotPayload = { id: 'snap', name: 'snap', class: 'future-class', kind: 'full', region_id: 'region-a', region_ids: [], status: 'pending', created_at: '2026-09-22T00:00:00Z' }
+    const odd = { id: 'odd', status: 'running', class: 'future-class', name: 'odd', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
+    const snapshotPayload = { id: 'snap', name: 'snap', class: 'future-class', kind: 'full', region_id: 'region-a', region_ids: [], status: 'pending', created_at: '2026-09-22T00:00:00Z', updated_at: '2026-09-22T00:00:00Z' }
     const get = jest.spyOn(api, 'get').mockResolvedValue({ data: odd })
     get.mockResolvedValueOnce({ data: odd }).mockResolvedValueOnce({ data: snapshotPayload })
     const post = jest.spyOn(api, 'post')
-      .mockResolvedValueOnce({ data: { id: 'snap', status: 'pending' } })
+      .mockResolvedValueOnce({ data: { class: 'linux', id: 'snap', status: 'pending', name: 'snap', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
       .mockResolvedValueOnce({ data: { signature: SIGNED_FILE_TEST_SIGNATURE, expires_at: '2026-06-12T03:22:47Z' } })
       .mockResolvedValueOnce({ status: 204, data: undefined })
       .mockResolvedValueOnce({ data: {} })
@@ -10393,14 +10518,15 @@ describe('macOS sandboxes and reservations', () => {
 
     // Already started: start() returns after its refresh, whatever the class.
     await expect(sandbox.start()).resolves.toBeUndefined()
-    expect(sandbox.sandboxClass).toBeUndefined()
+    expect(sandbox.sandboxClass).toBe('unknown')
+    expect(sandbox.rawSandboxClass).toBe('future-class')
     // Snapshot and signed-URL routes do not depend on the class.
-    await expect(sandbox.createSnapshot('snap')).resolves.toMatchObject({ id: 'snap', class: 'future-class' })
+    await expect(sandbox.createSnapshot('snap')).resolves.toMatchObject({ id: 'snap', sandboxClass: 'unknown', rawSandboxClass: 'future-class' })
     await expect(sandbox.fs.presignedDownloadUrl('/tmp/demo.txt')).resolves.toContain('/files/download?path=%2Ftmp%2Fdemo.txt')
     await expect(sandbox.rotateSigningKey()).resolves.toBeUndefined()
     // A stopped sandbox uses the same start route.
     get.mockResolvedValueOnce({ data: { ...odd, status: 'stopped' } })
-    await expect(sandbox.start({ timeout: 1000 })).resolves.toBeUndefined()
+    await expect(sandbox.start({ timeoutSeconds: 1 })).resolves.toBeUndefined()
     expect(get.mock.calls.map((call) => call[0])).toContain('/snapshots/snap')
     expect(post.mock.calls.map((call) => call[0])).toEqual([
       '/sandboxes/odd/snapshots',
@@ -10408,10 +10534,11 @@ describe('macOS sandboxes and reservations', () => {
       '/sandboxes/odd/signing-key/rotate',
       '/sandboxes/odd/start',
     ])
-    // Resuming a paused one depends on the class, so it is still refused.
+    // A paused sandbox uses resume without a local class gate too.
     get.mockResolvedValueOnce({ data: { ...odd, status: 'paused' } })
-    await expect(sandbox.start()).rejects.toThrow('unsupported sandbox class future-class')
-    expect(post).toHaveBeenCalledTimes(4)
+    post.mockResolvedValueOnce({ data: {} })
+    await expect(sandbox.start()).resolves.toBeUndefined()
+    expect(post).toHaveBeenLastCalledWith('/sandboxes/odd/resume')
   })
 
   it('drives the reservations namespace over /reservations', async () => {
@@ -10455,7 +10582,7 @@ describe('macOS sandboxes and reservations', () => {
       periodSeconds: 86_400, periodStartedAt: '2026-09-22T00:00:00Z',
       periodEnd: '2026-09-23T00:00:00Z', pendingMacStartedAt: '2026-09-21T23:59:00Z',
       createdAt: '2026-09-22T00:00:00Z', slotsUsed: 1, renewalPending: false,
-      renewalError: null, autoRenew: true, origin: 'explicit', rawOrigin: 'explicit',
+      renewalError: undefined, autoRenew: true, origin: 'explicit', rawOrigin: 'explicit',
     }
     expect(created).toEqual(expectedReservation)
     expect(created.capacity?.cores).toBe(10)
@@ -10479,7 +10606,7 @@ describe('macOS sandboxes and reservations', () => {
     const client = macClient()
     const api = clientInstance(client)
     const reservation = {
-      id: 'res-1',
+      ...lease('res-1'),
       status: 'active',
       origin: 'explicit',
       capacity: { cores: 10, memory_mib: 16384, disk_mib: 235520 },
@@ -10492,11 +10619,11 @@ describe('macOS sandboxes and reservations', () => {
     expect(fetched.capacity?.diskMib).toBe(235520)
     expect(fetched.resourcesUsed.diskMib).toBe(117760)
     const [listed, tiny] = await client.macModels.list()
-    expect(listed?.sandbox_disk_mib).toBe(235520)
-    expect(listed?.max_sandboxes).toBe(2)
-    expect(listed?.default_size).toEqual({ cores: 5, memory_mib: 8192, disk_mib: 117760 })
-    expect(tiny?.max_sandboxes).toBe(0)
-    expect(tiny?.default_size).toBeNull()
+    expect(listed?.sandboxDiskMib).toBe(235520)
+    expect(listed?.maxSandboxes).toBe(2)
+    expect(listed?.defaultSize).toEqual({ cores: 5, memoryMib: 8192, diskMib: 117760 })
+    expect(tiny?.maxSandboxes).toBe(0)
+    expect(tiny?.defaultSize).toBeUndefined()
   })
 
   it('renews with the caller key, or a fresh key per call', async () => {
@@ -10556,20 +10683,29 @@ describe('macOS sandboxes and reservations', () => {
       }],
     }
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: catalog })
-    await expect(client.macModels.catalog({ region: 'mac-region' })).resolves.toEqual(catalog)
+    await expect(client.macModels.catalog({ region: 'mac-region' })).resolves.toEqual({ regions: [{
+      id: 'mac-region', defaultModel: 'm4-10c-16g', models: [{
+        model: { id: 'm4-10c-16g', name: 'Apple M4', cores: 10, memoryMib: 16384, diskMib: 244198,
+          sandboxDiskMib: 235520, maxSandboxes: 2, defaultSize: { cores: 5, memoryMib: 8192, diskMib: 117760 } },
+        available: 3, price: { centsPerHour: 135.12, periodCents: 3243, currency: 'usd', periodSeconds: 86400 },
+      }],
+    }] })
     await client.macModels.catalog()
     expect(get.mock.calls).toEqual([['/mac-catalog', { params: { region_ids: 'mac-region' } }], ['/mac-catalog', undefined]])
   })
 
   it('lists the Mac model registry from GET /mac-models', async () => {
     const client = macClient()
-    const models = [
-      { id: 'm4-10c-16g', name: 'Apple M4', cores: 10, memory_mib: 16384, disk_mib: 244198 },
-      { id: 'm4pro-12c-24g', name: 'Apple M4 Pro', cores: 12, memory_mib: 24576, disk_mib: 488386 },
+    const models: ApiComponents['schemas']['MacModel'][] = [
+      { id: 'm4-10c-16g', name: 'Apple M4', cores: 10, memory_mib: 16384, disk_mib: 244198, sandbox_disk_mib: 235520, max_sandboxes: 2, default_size: null },
+      { id: 'm4pro-12c-24g', name: 'Apple M4 Pro', cores: 12, memory_mib: 24576, disk_mib: 488386, sandbox_disk_mib: 475136, max_sandboxes: 3, default_size: null },
     ]
     const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { mac_models: models } })
     expect(client.macModels).toBeInstanceOf(publicSdk.MacModelsService)
-    await expect(client.macModels.list()).resolves.toEqual(models)
+    await expect(client.macModels.list()).resolves.toEqual([
+      { id: 'm4-10c-16g', name: 'Apple M4', cores: 10, memoryMib: 16384, diskMib: 244198, sandboxDiskMib: 235520, maxSandboxes: 2 },
+      { id: 'm4pro-12c-24g', name: 'Apple M4 Pro', cores: 12, memoryMib: 24576, diskMib: 488386, sandboxDiskMib: 475136, maxSandboxes: 3 },
+    ])
     expect(get.mock.calls).toEqual([['/mac-models']])
   })
 
@@ -10681,12 +10817,12 @@ describe('sandbox access tokens', () => {
 
   // The Python SDK's test_sandbox_tokens.py asserts the same messages for the same bodies.
   it.each([
-    [null, 'access token response is not a JSON object'],
-    [[], 'access token response is not a JSON object'],
-    [{ expires_at: '2030-01-01T00:00:00Z' }, 'access token response access_token must be a non-empty string'],
-    [{ access_token: '', expires_at: '2030-01-01T00:00:00Z' }, 'access token response access_token must be a non-empty string'],
-    [{ access_token: 'jwt' }, 'access token response expires_at must be a string'],
-    [{ access_token: 'jwt', expires_at: 5 }, 'access token response expires_at must be a string'],
+    [null, 'sandbox access token response is not a JSON object'],
+    [[], 'sandbox access token response is not a JSON object'],
+    [{ token_type: 'Bearer', expires_at: '2030-01-01T00:00:00Z' }, 'sandbox access token response is missing its access_token'],
+    [{ access_token: '', token_type: 'Bearer', expires_at: '2030-01-01T00:00:00Z', operations: [] }, 'sandbox access token response has an empty access_token'],
+    [{ access_token: 'jwt', token_type: 'Bearer' }, 'sandbox access token response is missing its expires_at'],
+    [{ access_token: 'jwt', token_type: 'Bearer', expires_at: 5 }, 'sandbox access token response has a expires_at that is not a string'],
   ])('createAccessToken names what breaks the response contract (%p)', async (data, message) => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, 'sbx')
@@ -10696,8 +10832,7 @@ describe('sandbox access tokens', () => {
 
   it('createAccessToken sends an empty body for the full default mint and maps null ports to undefined', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' })
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('full-jwt') })
 
@@ -10709,18 +10844,15 @@ describe('sandbox access tokens', () => {
 
   it('createAccessToken rejects invalid ports and ttl before any request', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' })
     await expect(sandbox.createAccessToken({ ports: [0] })).rejects.toThrow('port must be an integer')
     await expect(sandbox.createAccessToken({ ttlSeconds: 0 })).rejects.toThrow('ttlSeconds must be a positive integer')
   })
 
   it('mints once under concurrency when the held token is inside the 60 s expiry lead', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX })
-    sandbox.sandboxClass = 'linux'
-    sandbox.accessToken = 'old-jwt'
-    sandbox.accessTokenExpiresAt = new Date(Date.now() + 30_000).toISOString()
+    const options: SandboxConnectOptionsFromCreate = { toolboxUrl: TOOLBOX, accessToken: 'old-jwt', accessTokenFromCreate: true, accessTokenExpiresAt: new Date(Date.now() + 30_000).toISOString() }
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, options)
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-jwt') })
     const transport = toolboxTransportOf(sandbox)
@@ -10736,8 +10868,7 @@ describe('sandbox access tokens', () => {
 
   it('concurrent callers share one failed mint attempt', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX })
     const api = clientInstance(client)
     // The shared in-flight promise must make exactly ONE attempt and fail
     // every joiner with it — never N sequential attempts (Python parity).
@@ -10754,11 +10885,9 @@ describe('sandbox access tokens', () => {
 
   it('rides the still-unexpired token when the proactive refresh fails transiently', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX })
-    sandbox.sandboxClass = 'linux'
     // A failed proactive refresh must not discard a token before it expires.
-    sandbox.accessToken = 'old-jwt'
-    sandbox.accessTokenExpiresAt = new Date(Date.now() + 30_000).toISOString()
+    const options: SandboxConnectOptionsFromCreate = { toolboxUrl: TOOLBOX, accessToken: 'old-jwt', accessTokenFromCreate: true, accessTokenExpiresAt: new Date(Date.now() + 30_000).toISOString() }
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, options)
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('boom', { statusCode: 500 }))
     const transport = toolboxTransportOf(sandbox)
@@ -10772,14 +10901,13 @@ describe('sandbox access tokens', () => {
     expect(post).toHaveBeenCalledTimes(2)
 
     // An EXPIRED token cannot be ridden — the mint error surfaces.
-    sandbox.accessTokenExpiresAt = new Date(Date.now() - 1_000).toISOString()
+    jest.setSystemTime(Date.now() + 31_000)
     await expect(sandbox.ports.list()).rejects.toMatchObject({ statusCode: 500 })
   })
 
   it('file I/O carries the minted sandbox token on every op, not the static credential', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX })
     const api = clientInstance(client)
     jest.spyOn(api, 'post').mockResolvedValue({ data: mintPayload('minted-jwt') })
     const transport = toolboxTransportOf(sandbox)
@@ -10815,8 +10943,7 @@ describe('sandbox access tokens', () => {
 
   it('file reads re-mint exactly once and retry on a toolbox 401', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX, accessToken: 'dtnv_secret', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX, accessToken: 'dtnv_secret', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
     const api = clientInstance(client)
     const mint = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-jwt') })
     const transport = toolboxTransportOf(sandbox)
@@ -10833,8 +10960,7 @@ describe('sandbox access tokens', () => {
     const client = new Daytona({ apiKey: 'key' })
     // An opaque create-response token has no known expiry; a 401 triggers
     // one refresh and one retry with the new token.
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX, accessToken: 'dtnv_secret', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX, accessToken: 'dtnv_secret', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-jwt') })
     const transport = toolboxTransportOf(sandbox)
@@ -10853,8 +10979,7 @@ describe('sandbox access tokens', () => {
 
   it('surfaces the second 401 after exactly one re-mint', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX, accessToken: 'dtnv_secret', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX, accessToken: 'dtnv_secret', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-jwt') })
     const transport = toolboxTransportOf(sandbox)
@@ -10867,8 +10992,7 @@ describe('sandbox access tokens', () => {
 
   it('surfaces a mint 403 during the 401 retry instead of the toolbox 401', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX, accessToken: 'dtnv_secret', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX, accessToken: 'dtnv_secret', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
     const api = clientInstance(client)
     // The mint is FORBIDDEN (the credential cannot mint for this sandbox):
     // that is the actionable error, not the toolbox 401 the retry started
@@ -10886,10 +11010,9 @@ describe('sandbox access tokens', () => {
     const client = new Daytona({ apiKey: 'key' })
     // No toolbox at construction; refreshData rebuilds the transport from the
     // API's toolbox_proxy_url with the caller token, without a provider.
-    const sandbox = lazySandbox(client, 'sbx', { accessToken: 'caller-token' })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { accessToken: 'caller-token' })
     const api = clientInstance(client)
-    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', toolbox_proxy_url: 'http://toolbox2.invalid/sandbox-api' } })
+    jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', toolbox_proxy_url: 'http://toolbox2.invalid/sandbox-api', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     const post = jest.spyOn(api, 'post')
 
     await sandbox.refreshData()
@@ -10908,8 +11031,7 @@ describe('sandbox access tokens', () => {
   it('lazily mints on first toolbox use for a key-configured handle', async () => {
     const client = new Daytona({ apiKey: 'key' })
     // A get()/list()-shaped handle has no token and a configured project key.
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX })
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('lazy-jwt') })
     const transport = toolboxTransportOf(sandbox)
@@ -10926,8 +11048,7 @@ describe('sandbox access tokens', () => {
 
   it('never replaces a caller-supplied token: the 401 surfaces and nothing is minted', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX, accessToken: 'caller-token' })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX, accessToken: 'caller-token' })
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
     const transport = toolboxTransportOf(sandbox)
@@ -10942,8 +11063,7 @@ describe('sandbox access tokens', () => {
 
   it('uses the create-response opaque token as-is until a 401', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX, accessToken: 'dtnv_x', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX, accessToken: 'dtnv_x', accessTokenFromCreate: true } as SandboxConnectOptionsFromCreate)
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
     const transport = toolboxTransportOf(sandbox)
@@ -10958,10 +11078,9 @@ describe('sandbox access tokens', () => {
 
   it('falls back to the project key when the deployment has no mint routes', async () => {
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX })
-    sandbox.sandboxClass = 'linux'
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: TOOLBOX })
     const api = clientInstance(client)
-    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('not found', { statusCode: 404 }))
+    const post = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('method not allowed', { statusCode: 405 }))
     const transport = toolboxTransportOf(sandbox)
     const get = jest.spyOn(transport.http, 'get').mockResolvedValue({ data: { ports: [] } })
 
@@ -10977,14 +11096,13 @@ describe('sandbox access tokens', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const expiresAt = new Date(Date.now() + 3_600_000).toISOString()
-    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', access_token: 'create-jwt', access_token_expires_at: expiresAt } })
+    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'running', access_token: 'create-jwt', access_token_expires_at: expiresAt, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     const sandbox = await client.createFromSnapshot('snap', { waitSeconds: 0 })
 
     expect(sandbox.accessToken).toBe('create-jwt')
     expect(sandbox.accessTokenExpiresAt).toBe(expiresAt)
-    expect(Reflect.get(sandbox, 'accessTokenCallerSupplied')).toBe(false)
-    expect(Reflect.get(sandbox, 'sandboxTokenMintable')).toBe(true)
+    expect(sandbox['auth'].transportAuth).toBeDefined()
   })
 
   it('jwt client: creation token is mintable; 401 triggers one re-mint through API client, retry succeeds', async () => {
@@ -10997,8 +11115,7 @@ describe('sandbox access tokens', () => {
       accessTokenExpiresAt: expiresAt,
     } as SandboxConnectOptionsFromCreate)
 
-    expect(Reflect.get(sandbox, 'sandboxTokenMintable')).toBe(true)
-    expect(Reflect.get(sandbox, 'accessTokenCallerSupplied')).toBe(false)
+    expect(sandbox['auth'].transportAuth).toBeDefined()
 
     const api = clientInstance(client)
     const mint = jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mintPayload('fresh-sandbox-tok') })
@@ -11025,7 +11142,7 @@ describe('sandbox access tokens', () => {
     try {
       const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
       const api = clientInstance(client)
-      const mint = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('not found', { statusCode: 404 }))
+      const mint = jest.spyOn(api, 'post').mockRejectedValue(new DaytonaError('method not allowed', { statusCode: 405 }))
 
       const expired = lazySandbox(client, 'sbx', {
         toolboxUrl: TOOLBOX,
@@ -11090,8 +11207,7 @@ describe('sandbox access tokens', () => {
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
     const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: TOOLBOX, accessToken: 'caller-tok' })
 
-    expect(Reflect.get(sandbox, 'accessTokenCallerSupplied')).toBe(true)
-    expect(Reflect.get(sandbox, 'sandboxTokenMintable')).toBe(false)
+    expect(sandbox['auth'].transportAuth).toBeUndefined()
 
     const api = clientInstance(client)
     const mint = jest.spyOn(api, 'post')
@@ -11400,22 +11516,22 @@ describe('toolbox endpoint e2e', () => {
     transport.get.mockResolvedValueOnce({ ports: [3000, 8080] }).mockResolvedValueOnce({ isInUse: true })
     const portsApi = {
       get: jest.fn()
-        .mockResolvedValueOnce({ data: { id: 'ep', port: 8080, public: false, url: 'https://p', created_at: 'now' } }),
+        .mockResolvedValueOnce({ data: { id: 'ep', class: 'linux', port: 8080, public: false, url: 'https://p', created_at: '2026-01-01T00:00:00Z', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }),
       post: jest.fn()
         .mockResolvedValueOnce({ data: { url: 'https://p', token: 'preview-token' } })
-        .mockResolvedValueOnce({ data: { url: 'https://signed', token: 'signed-token', expires_at: 'later' } })
+        .mockResolvedValueOnce({ data: { url: 'https://signed', token: 'signed-token', expires_at: '2026-01-01T00:00:00Z' } })
         .mockResolvedValueOnce({ data: undefined }),
-      put: jest.fn().mockResolvedValue({ data: { id: 'ep', port: 8080, public: true, url: 'https://p', created_at: 'now' } }),
+      put: jest.fn().mockResolvedValue({ data: { id: 'ep', class: 'linux', port: 8080, public: true, url: 'https://p', created_at: '2026-01-01T00:00:00Z', name: 'ep', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }),
       delete: jest.fn().mockResolvedValue({ data: {} }),
     }
-    const ports = new PortsService(transport.object, portsApi as never, 'sbx')
+    const ports = new PortsService(INTERNAL, transport.object, portsApi as never, 'sbx')
 
     await expect(ports.list()).resolves.toEqual({ items: [3000, 8080] })
     await expect(ports.isInUse(3999)).resolves.toBe(true)
     await expect(ports.isInUse(39.5)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     await expect(ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: 'preview-token' })
-    await expect(ports.signedPreviewLink(8080, { expiresInSeconds: 300 })).resolves.toEqual({ url: 'https://signed', token: 'signed-token', expiresAt: 'later' })
-    await expect(ports.setPublic(8080, { public: true })).resolves.toEqual({ port: 8080, public: true, url: 'https://p', createdAt: 'now' })
+    await expect(ports.signedPreviewLink(8080, { expiresInSeconds: 300 })).resolves.toEqual({ url: 'https://signed', token: 'signed-token', expiresAt: '2026-01-01T00:00:00Z' })
+    await expect(ports.expose(8080, { public: true })).resolves.toEqual({ port: 8080, public: true, url: 'https://p', createdAt: '2026-01-01T00:00:00Z' })
     await expect(ports.expireSignedPreviewLink(8080, 'tok/en')).resolves.toBeUndefined()
     await ports.unexpose(8080)
     expect(transport.get.mock.calls[0]).toEqual(['/port'])
@@ -11484,9 +11600,9 @@ describe('toolbox endpoint e2e', () => {
   it('creates snapshots through the sandbox snapshots route', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, api, undefined, 'key')
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const post = jest.spyOn(api, 'post')
-      .mockResolvedValueOnce({ data: { id: 'snap-full', status: 'pending' } })
+      .mockResolvedValueOnce({ data: { class: 'linux', id: 'snap-full', status: 'pending', name: 'snap-full', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     jest.spyOn(api, 'get').mockResolvedValueOnce({ data: snapshotResponse({ id: 'snap-full', name: 'full' }) })
 
     const snapshot = await sandbox.createSnapshot('full')
@@ -12227,17 +12343,17 @@ describe('sandbox.docker', () => {
   const status = (state: string, extra: Record<string, unknown> = {}) => ({ state, owner: 'daemon', ...extra })
 
   it('is a toolbox namespace on the sandbox handle', () => {
-    const sandbox = new Sandbox({ id: 'sbx', status: 'running' }, undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox/sbx' })
+    const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox/sbx' })
     expect(sandbox.docker).toBeInstanceOf(DockerService)
     expect(sandbox.docker).toBe(sandbox.docker)
-    const bare = new Sandbox({ id: 'sbx', status: 'running' }, undefined, undefined, 'key')
+    const bare = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, undefined, undefined, 'key')
     expect(() => bare.docker).toThrow('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)')
   })
 
   it('status() reads GET /docker/status without waiting', async () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce(status('failed', { reason: 'service failed', processId: 'p-1' }))
-    const docker = new DockerService(transport.object)
+    const docker = new DockerService(INTERNAL, transport.object)
     await expect(docker.status()).resolves.toEqual({ state: 'failed', rawState: 'failed', owner: 'daemon', rawOwner: 'daemon', reason: 'service failed', processId: 'p-1' })
     expect(transport.get.mock.calls[0]).toEqual(['/docker/status'])
   })
@@ -12247,8 +12363,8 @@ describe('sandbox.docker', () => {
     transport.get
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting', { processId: 'p-1' }) })
       .mockResolvedValueOnce(status('ready', { processId: 'p-1' }))
-    const docker = new DockerService(transport.object)
-    await expect(docker.waitUntilReady({ timeout: 10_000 })).resolves.toEqual({ state: 'ready', rawState: 'ready', owner: 'daemon', rawOwner: 'daemon', processId: 'p-1', reason: undefined })
+    const docker = new DockerService(INTERNAL, transport.object)
+    await expect(docker.waitUntilReady({ timeoutSeconds: 10 })).resolves.toEqual({ state: 'ready', rawState: 'ready', owner: 'daemon', rawOwner: 'daemon', processId: 'p-1', reason: undefined })
     expect(transport.get.mock.calls).toEqual([
       ['/docker/status?waitMs=1000', { timeout: 1_000 + WAIT_READ_SLACK_MS }],
       ['/docker/status?waitMs=1000', { timeout: 1_000 + WAIT_READ_SLACK_MS }],
@@ -12260,7 +12376,7 @@ describe('sandbox.docker', () => {
     transport.get
       .mockResolvedValueOnce(status('deferred', { owner: 'none', reason: 'deferred' }))
       .mockResolvedValueOnce(status('ready'))
-    const docker = new DockerService(transport.object)
+    const docker = new DockerService(INTERNAL, transport.object)
     const waiting = docker.waitUntilReady()
     await jest.advanceTimersByTimeAsync(499)
     expect(transport.get).toHaveBeenCalledTimes(1)
@@ -12272,7 +12388,7 @@ describe('sandbox.docker', () => {
   it.each(['failed', 'not_present', 'disabled', 'unmanaged', 'unsupported'])('waitUntilReady() raises DockerNotReadyError on terminal state %s', async (state) => {
     const transport = transportStub()
     transport.get.mockResolvedValue(status(state, { reason: 'why' }))
-    const failure = new DockerService(transport.object).waitUntilReady({ timeout: 5_000 })
+    const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerNotReadyError)
     await expect(failure).rejects.toBeInstanceOf(publicSdk.ConflictError)
     await expect(failure).rejects.toMatchObject({ statusCode: 409, code: 'CONFLICT', source: 'SDK', status: { state, reason: 'why' } })
@@ -12288,7 +12404,7 @@ describe('sandbox.docker', () => {
   it('waitUntilReady() raises DockerWaitTimeoutError with the last status when the budget runs out', async () => {
     const transport = transportStub()
     transport.get.mockImplementation(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
-    const failure = new DockerService(transport.object).waitUntilReady({ timeout: 1_500 })
+    const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     await expect(failure).rejects.toBeInstanceOf(RequestTimeoutError)
     await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', status: { state: 'starting' } })
@@ -12301,7 +12417,7 @@ describe('sandbox.docker', () => {
     transport.get
       .mockResolvedValueOnce(status('deferred', { owner: 'none', reason: 'waiting-for-resource' }))
       .mockResolvedValueOnce(status('ready'))
-    const waiting = new DockerService(transport.object).waitUntilReady({ timeout: 5_000 })
+    const waiting = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 5 })
     await jest.advanceTimersByTimeAsync(499)
     expect(transport.get).toHaveBeenCalledTimes(1)
     await jest.advanceTimersByTimeAsync(1)
@@ -12312,7 +12428,7 @@ describe('sandbox.docker', () => {
   it('waitUntilReady() caps each request timeout at the deadline plus a small grace', async () => {
     const transport = transportStub()
     transport.get.mockImplementation(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
-    const failure = new DockerService(transport.object).waitUntilReady({ timeout: 1_500 })
+    const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     expect(transport.get.mock.calls).toEqual([
       ['/docker/status?waitMs=1000', { timeout: 1_500 + DOCKER_WAIT_DEADLINE_GRACE_MS }],
@@ -12325,7 +12441,7 @@ describe('sandbox.docker', () => {
     transport.get
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 750); throw new publicSdk.ClientTimeoutError() })
-    const failure = new DockerService(transport.object).waitUntilReady({ timeout: 1_500 })
+    const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
   })
@@ -12334,7 +12450,7 @@ describe('sandbox.docker', () => {
     const transport = transportStub()
     const stalled = new publicSdk.ClientTimeoutError()
     transport.get.mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
-    await expect(new DockerService(transport.object).waitUntilReady({ timeout: 60_000 })).rejects.toBe(stalled)
+    await expect(new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 60 })).rejects.toBe(stalled)
   })
 
   it('waitUntilReady() against a stalling server ends near the deadline with DockerWaitTimeoutError', async () => {
@@ -12344,9 +12460,9 @@ describe('sandbox.docker', () => {
     await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
     try {
       const { port } = server.address() as AddressInfo
-      const docker = new DockerService(new HttpTransport(`http://127.0.0.1:${port}`, 'key'))
+      const docker = new DockerService(INTERNAL, new HttpTransport(`http://127.0.0.1:${port}`, 'key'))
       const started = Date.now()
-      const failure = docker.waitUntilReady({ timeout: 1_000 })
+      const failure = docker.waitUntilReady({ timeoutSeconds: 1 })
       await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
       await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', status: undefined })
       const overshoot = Date.now() - started - 1_000
@@ -12360,9 +12476,9 @@ describe('sandbox.docker', () => {
   })
 
   it('waitUntilReady() validates its timeout', async () => {
-    const docker = new DockerService(transportStub().object)
-    await expect(docker.waitUntilReady({ timeout: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
-    await expect(docker.waitUntilReady({ timeout: Number.NaN })).rejects.toThrow('timeout must be a non-negative finite number')
+    const docker = new DockerService(INTERNAL, transportStub().object)
+    await expect(docker.waitUntilReady({ timeoutSeconds: -1 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(docker.waitUntilReady({ timeoutSeconds: Number.NaN })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
   })
 })
 
@@ -12508,6 +12624,15 @@ describe('toolbox surface', () => {
     const transport = transportStub()
     await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get(bad)).rejects.toMatchObject({ message: 'process id must not contain a surrogate code point', code: 'BAD_REQUEST' })
     await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).recording.get(bad)).rejects.toMatchObject({ message: 'recording id must not contain a surrogate code point', code: 'BAD_REQUEST' })
+    expect(transport.get).not.toHaveBeenCalled()
+  })
+
+  // One path-id check for every request path in both SDKs (pathSegment): a
+  // blank toolbox id is refused as a blank client id is. Twin in test_toolbox_surface.py.
+  it.each(['', ' ', '\t\u2028'])('refuses a blank toolbox path id (%j) before any request', async (blank) => {
+    const transport = transportStub()
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get(blank)).rejects.toMatchObject({ message: 'process id must be a non-empty string', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).recording.get(blank)).rejects.toMatchObject({ message: 'recording id must be a non-empty string', code: 'BAD_REQUEST' })
     expect(transport.get).not.toHaveBeenCalled()
   })
 
@@ -13343,10 +13468,19 @@ describe('toolbox surface', () => {
     await expect(fs.grep('/', 'x')).rejects.toThrow('expected grep match: line must be a non-negative integer')
   })
 
+  it('reads a toolbox timestamp with a fraction of a second, as Python does', async () => {
+    // Through a git commit; the search-bound fixture holds the same value.
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce([{ ...gitCommitWire(), timestamp: '2026-01-02T03:04:05.123Z' }])
+    const history = await new GitService(INTERNAL, transport.object).history('/repo')
+    expect(history.items[0]?.timestamp).toBe('2026-01-02T03:04:05.123Z')
+  })
+
   it('reads RFC 3339 timestamps like the Python SDK', async () => {
-    const { isRfc3339 } = await import('../src/v2/toolboxModels')
-    for (const value of ['2026-01-01T00:00:00.123456789Z', '0001-01-01t00:00:00z', '0099-06-01 12:00:00+00:00']) expect(isRfc3339(value)).toBe(true)
-    for (const value of ['2026-01-01T00:00:00Z\n', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00', 'Jan 1 2026', '0099-02-29T00:00:00Z', '0000-01-01T00:00:00Z']) expect(isRfc3339(value)).toBe(false)
+    const { isRfc3339 } = await import('../src/v2/rfc3339')
+    for (const value of ['2026-01-01T00:00:00.123456789Z', '0001-01-01t00:00:00z', '0099-06-01T12:00:00+00:00']) expect(isRfc3339(value)).toBe(true)
+    // One rule for every timestamp both SDKs read: the date and time are joined by `T` (or `t`), not a space.
+    for (const value of ['2026-01-01T00:00:00Z\n', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00', 'Jan 1 2026', '0099-02-29T00:00:00Z', '0000-01-01T00:00:00Z', '0099-06-01 12:00:00+00:00']) expect(isRfc3339(value)).toBe(false)
   })
 
   it('accepts only the contract shape of the git branch and remote lists, like the Python SDK', async () => {
@@ -13556,6 +13690,13 @@ describe('toolbox surface', () => {
     expect(() => parseBulkReadResult(body)).toThrow('expected bulk download error part: the data is not JSON')
   })
 
+  // Closing deletes the context through its path id: one that could not be
+  // closed is not bound either (twin in test_toolbox_surface.py).
+  it.each(['  ', '\t\u2028', 'a\ud800b'])('refuses an interpreter context id it could not close (%j)', (contextId) => {
+    const interpreter = new InterpreterService(INTERNAL, transportStub().object, 'sbx')
+    expect(() => interpreter.connectContext(contextId, 'python')).toThrow(/^interpreter context id must /)
+  })
+
   it.each([['c', 5], ['c', ''], ['c', { language: 'python' }], ['', 'python']] as const)('refuses an interpreter context identity it could not write back (%p, %p)', (contextId, language) => {
     const interpreter = new InterpreterService(INTERNAL, transportStub().object, 'sbx')
     expect(() => interpreter.connectContext(contextId as never, language as never)).toThrow(BadRequestError)
@@ -13657,7 +13798,7 @@ describe('toolbox surface', () => {
   })
 
   it.each(['2026-01-01T24:00:00Z', '2026-01-01T23:60:00Z', '2026-12-31T23:59:60Z', '2026-13-01T00:00:00Z', '2026-00-01T00:00:00Z', '2026-01-00T00:00:00Z', '2026-01-32T00:00:00Z', '2026-02-30T00:00:00Z', '2026-01-01T00:00:00+24:00', '2026-01-01T00:00:00+05:60', '0000-01-01T00:00:00Z'])('refuses the out-of-range timestamp %s, exactly as the Python SDK does', async (value) => {
-    const { isRfc3339 } = await import('../src/v2/toolboxModels')
+    const { isRfc3339 } = await import('../src/v2/rfc3339')
     expect(isRfc3339(value)).toBe(false)
   })
 

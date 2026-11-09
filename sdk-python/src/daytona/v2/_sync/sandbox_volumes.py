@@ -23,9 +23,9 @@ class SandboxVolumesService:
 
     _async_type = _async.AsyncSandboxVolumesService
 
-    def __init__(self, impl: _async.AsyncSandboxVolumesService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncSandboxVolumesService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"SandboxVolumesService({self._impl!r})"
@@ -37,5 +37,11 @@ class SandboxVolumesService:
         return hash(self._impl)
 
     def pull(self, volume_id: str, *, request_id: str, timeout: Optional[float] = None) -> PullVolumeResult:
-        """Submit/check once; timeout is a server wait in seconds (0–30, default 30)."""
+        """Submit/check once; timeout is a server wait in seconds (0–30, default 30).
+
+        Zero does not wait: it submits a new request_id, or returns a known one's
+        last outcome without retrying it; a timeout above zero retries pending,
+        unavailable or rate-limited work. Expiry does not cancel work. Neither
+        retries nor identities are automatic.
+        """
         return self._bridge.call(lambda: self._impl.pull(volume_id, request_id=request_id, timeout=timeout))

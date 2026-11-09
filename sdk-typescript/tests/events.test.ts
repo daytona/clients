@@ -1987,6 +1987,38 @@ describe('WaitHub: an oversized server frame', () => {
   })
 })
 
+describe('WaitHub: a frame nested past JSON_MAX_DEPTH', () => {
+  // A snapshot (depth 1) carrying an unknown field nested to `depth`: 600 is
+  // read, 601 is skipped like an undecodable frame, as in Python.
+  const nestedSnapshot = (depth: number, version: number): string =>
+    `{"type":"snapshot","id":"${SANDBOX_ID}","status":"running","version":${version},"extra":${'['.repeat(depth - 1)}${']'.repeat(depth - 1)}}`
+
+  test('is ignored, and a later valid snapshot still resolves the wait', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc, { idleCloseMs: 0 })
+    const ws = fc.prepare()
+    let settled = false
+    const waiting = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).finally(() => { settled = true })
+    await drain()
+    ws.injectRaw(nestedSnapshot(601, 1))
+    await drain()
+    expect(settled).toBe(false)
+    expect(ws.readyState).toBe(1)
+    ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'running', version: 2, error: null })
+    await expect(waiting).resolves.toMatchObject({ state: 'started' })
+  })
+
+  test('reads a frame nested exactly JSON_MAX_DEPTH deep', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc, { idleCloseMs: 0 })
+    const ws = fc.prepare()
+    const waiting = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 })
+    await drain()
+    ws.injectRaw(nestedSnapshot(600, 1))
+    await expect(waiting).resolves.toMatchObject({ state: 'started' })
+  })
+})
+
 describe('WaitHub: idle close', () => {
   test('idleCloseMs: 0 keeps a socket with no waiters open', async () => {
     const fc = makeFakeConnector()
@@ -2168,4 +2200,86 @@ describe('eventDestinationFromHeaders', () => {
     expect(eventDestinationFromHeaders({})).toBe('')
     expect(eventDestinationFromHeaders(undefined)).toBe('')
   })
+})
+
+describe('a terminal state the hub reports, on the real hub', () => {
+  // A wait that rejects from a state the hub already holds for the sandbox
+  // carries the wire status the hub holds with it. The Python twin is in
+  // tests/test_terminal_report.py.
+  async function hold(state: string, api?: AxiosInstance) {
+    const fc = makeFakeConnector()
+    const ws = fc.prepare()
+    const hub = makeHub(fc, api === undefined ? {} : { api })
+    // A waiter that treats nothing as terminal keeps the subscription, and so
+    // the state the hub holds, alive.
+    const keeper = hub.wait(SANDBOX_ID, targetPredicate(new Set(['started']), new Set()), { timeout: 30_000 }).catch(() => undefined)
+    await drain()
+    ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: state, version: 1 })
+    await drain()
+    return { hub, keeper }
+  }
+
+  test.each(['failed', 'lost'])('a wait rejected from a held %s state carries its wire status', async (state) => {
+    const { hub, keeper } = await hold(state)
+    try {
+      const error: unknown = await hub.wait(SANDBOX_ID, targetPredicate(new Set(['started']), new Set(['destroying', 'destroyed', 'error'])), { timeout: 5_000 }).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(SandboxTerminalStateError)
+      expect(error).toMatchObject({ state: 'error', rawState: state })
+    } finally {
+      await hub.detach()
+      await keeper
+    }
+  })
+
+  test('a held terminal state keeps its wire status when the confirming read fails', async () => {
+    const { createSandbox } = await import('./helpers/sandbox')
+    const api = mockAxios({ getStatus: 503 })
+    const { hub, keeper } = await hold('lost', api)
+    try {
+      const sandbox = createSandbox({ id: SANDBOX_ID, class: 'linux', status: 'running', region_id: 'regiona' }, api, undefined, 'key', undefined, {}, undefined, undefined, hub)
+      const error: unknown = await sandbox.wait({ until: 'started', timeoutSeconds: 5 }).catch((caught: unknown) => caught)
+      // The confirming read was made, failed, and the held report stands.
+      expect((api.get as jest.Mock).mock.calls).toHaveLength(1)
+      expect(error).toBeInstanceOf(SandboxTerminalStateError)
+      expect(error).toMatchObject({ state: 'error', rawState: 'lost' })
+      expect((error as { reason?: string }).reason).toBeUndefined()
+    } finally {
+      await hub.detach()
+      await keeper
+    }
+  })
+
+  test('a stale error snapshot ends a delete once the sandbox is gone', async () => {
+    // delete() sends the DELETE, subscribes, and the snapshot still says
+    // `failed` (taken before the DELETE moved the sandbox on). The hub reports
+    // `error` at once; the read finds `deleting`, so the wait polls on to the
+    // 404. The Python twin is in tests/test_terminal_report.py.
+    const { createHttpClient } = await import('../src/v2/http')
+    const { createSandbox } = await import('./helpers/sandbox')
+    const { startFakeApi } = await import('./networkPolicyTestServer')
+    const detail = { id: SANDBOX_ID, class: 'linux', name: SANDBOX_ID, status: 'deleting', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], region_id: 'regiona' }
+    const api = await startFakeApi([
+      { status: 200, body: {} },
+      { status: 200, body: detail },
+      { status: 404, body: { error: 'sandbox not found', code: 'NOT_FOUND' } },
+    ])
+    const fc = makeFakeConnector()
+    const ws = fc.prepare()
+    const hub = makeHub(fc)
+    try {
+      const sandbox = createSandbox({ id: SANDBOX_ID, class: 'linux', status: 'running', region_id: 'regiona' }, createHttpClient(api.url, 'key'), undefined, 'key', undefined, {}, undefined, undefined, hub)
+      const deleting = sandbox.delete({ timeoutSeconds: 5 })
+      for (let i = 0; i < 200 && !ws.sentFrames().some((f) => f['type'] === 'subscribe'); i++) await drain()
+      expect(ws.sentFrames().some((f) => f['type'] === 'subscribe')).toBe(true)
+      ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'failed', version: 1, error: 'boom' })
+      await deleting
+      expect(api.requests.map((r) => `${r.method} ${r.path.split('?')[0]}`)).toEqual([
+        `DELETE /sandboxes/${SANDBOX_ID}`, `GET /sandboxes/${SANDBOX_ID}`, `GET /sandboxes/${SANDBOX_ID}`,
+      ])
+      expect([sandbox.state, sandbox.rawState]).toEqual(['destroyed', 'deleted'])
+    } finally {
+      await hub.detach()
+      await api.close()
+    }
+  }, 15_000)
 })

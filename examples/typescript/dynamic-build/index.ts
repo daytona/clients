@@ -10,7 +10,7 @@
  */
 
 import { ImageBuilder } from '@daytona/sdk/v2'
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
 async function main() {
   const daytona = client()
@@ -25,9 +25,11 @@ async function main() {
     let started = Date.now()
     const first = await daytona.createFromBuild(ImageBuilder.fromDockerfile(dockerfile), {
       name: `dynbuild-first-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     sandboxes.push(first)
+    assertStarted(first)
     const firstSecs = (Date.now() - started) / 1000
     info(`first create took ${firstSecs.toFixed(1)}s`)
 
@@ -52,9 +54,11 @@ async function main() {
     started = Date.now()
     const second = await daytona.createFromBuild(ImageBuilder.fromDockerfile(dockerfile), {
       name: `dynbuild-second-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     sandboxes.push(second)
+    assertStarted(second)
     const secondSecs = (Date.now() - started) / 1000
     info(`second create took ${secondSecs.toFixed(1)}s`)
 
@@ -76,9 +80,11 @@ async function main() {
     section("change the Dockerfile's output")
     const other = await daytona.createFromBuild(ImageBuilder.fromDockerfile(`FROM ${IMAGE}\nRUN echo other-${RUN} > /marker\n`), {
       name: `dynbuild-other-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     sandboxes.push(other)
+    assertStarted(other)
     const otherMarker = (await other.process.run('cat /marker')).output.trim()
     info(`marker: ${otherMarker}`)
     if (otherMarker.startsWith('other-')) pass('the changed Dockerfile produced the expected file content')

@@ -21,13 +21,18 @@ from ..types import *
 
 
 class InterpreterContext:
-    """An interpreter context: kernel state of its own in one sandbox."""
+    """An interpreter context: kernel state of its own in one sandbox.
+
+    Built by the interpreter service (``create_context()``,
+    ``connect_context()``, ``list_contexts()``), never directly. Serialize it
+    with :meth:`to_json` and reconnect with ``interpreter.connect_context()``.
+    """
 
     _async_type = _async.AsyncInterpreterContext
 
-    def __init__(self, impl: _async.AsyncInterpreterContext, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncInterpreterContext, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"InterpreterContext({self._impl!r})"
@@ -64,7 +69,14 @@ class InterpreterContext:
     def run(
         self, code: str, *, cwd: Optional[str] = None, timeout: Optional[float] = None
     ) -> InterpreterResult:
-        """Execute code inside this interpreter context."""
+        """Execute code inside this interpreter context.
+
+        Environment variables are set when the context is created. If the
+        context vanished, the API's typed ``SESSION_NOT_FOUND`` error surfaces
+        unchanged so the caller can recreate the context and decide what code,
+        if any, is safe to rerun. ``timeout`` is the caller wait budget in
+        seconds; ``0`` waits unbounded.
+        """
         return self._bridge.call(lambda: self._impl.run(code, cwd=cwd, timeout=timeout))
 
     def to_json(self) -> InterpreterContextJSON:

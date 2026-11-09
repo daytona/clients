@@ -37,12 +37,12 @@ def _pull_volume_status_or_unknown(value: str) -> PullVolumeStatus:
     return value if _is_pull_volume_status_known(value) else "unknown"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PullVolumeResult:
     request_id: str
     status: PullVolumeStatus
-    manifest_id: Optional[str]
-    raw_status: Optional[str] = None
+    raw_status: str
+    manifest_id: Optional[str] = None
 
 
 def pull_volume_spec(volume_id: str, *, request_id: str, timeout: Optional[float] = None) -> RequestSpec:
@@ -85,18 +85,18 @@ def parse_pull_volume(value: TransportPayload) -> PullVolumeResult:
     )
     raw_status = enum_str(response.status)
     return PullVolumeResult(
-        response.request_id,
-        _pull_volume_status_or_unknown(raw_status),
-        response.manifest_id,
-        raw_status,
+        request_id=response.request_id,
+        status=_pull_volume_status_or_unknown(raw_status),
+        raw_status=raw_status,
+        manifest_id=response.manifest_id,
     )
 
 
 class AsyncSandboxVolumesService:
     """Pull attached volumes, separate from the root platform volume service."""
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def pull(
         self, volume_id: str, *, request_id: str, timeout: Optional[float] = None

@@ -41,14 +41,18 @@ def sh(sandbox: Sandbox, command: str) -> str:
 
 def main() -> int:
     daytona = Daytona(DaytonaConfig(api_key=os.environ.get("DAYTONA_API_KEY"))).v2
-    volume = daytona.volume.create(name=f"shared-vol-{RUN}")
+    volume = daytona.volumes.create(name=f"shared-vol-{RUN}")
     print(f"volume id={volume.id} name={volume.name} status={volume.status}")
     boxes: list[Sandbox] = []
     ok = True
 
     def new_box(name: str) -> Sandbox:
-        box = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"{name}-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path="/data")], wait_seconds=240)
+        box = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"{name}-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path="/data")], build_timeout=240, wait_seconds=240)
         boxes.append(box)
+        # A create returns its handle however its wait ended: check before using it.
+        if box.state != "started":
+            raw = f" (raw state {box.raw_state!r})" if box.state == "unknown" else ""
+            raise RuntimeError(f"sandbox {box.id} is {box.state}{raw}, not started")
         return box
 
     try:
@@ -60,7 +64,6 @@ def main() -> int:
         time.sleep(SYNC_WAIT_SECONDS)
         a.delete()
         boxes.remove(a)
-        time.sleep(3)
 
         print("2. sandbox B reads A's file and appends a line")
         b = new_box("vol-b")
@@ -76,7 +79,6 @@ def main() -> int:
         time.sleep(SYNC_WAIT_SECONDS)
         b.delete()
         boxes.remove(b)
-        time.sleep(3)
 
         print("3. sandbox C reads both writers' data")
         c = new_box("vol-c")
@@ -93,14 +95,13 @@ def main() -> int:
                     box.delete()
                 except DaytonaError as error:
                     print(f"delete sandbox failed: {error}")
-            # Allow sandbox deletion to finish before deleting the volume.
-            time.sleep(3)
+            # delete() waits until each sandbox is destroyed.
             try:
-                daytona.volume.delete(volume.id)
+                daytona.volumes.delete(volume.id, id_only=True)
             except DaytonaError as error:
                 print(f"delete volume failed (retrying once): {error}")
                 time.sleep(5)
-                daytona.volume.delete(volume.id)
+                daytona.volumes.delete(volume.id, id_only=True)
     print("SUCCESS" if ok else "FAILURE")
     return 0 if ok else 1
 

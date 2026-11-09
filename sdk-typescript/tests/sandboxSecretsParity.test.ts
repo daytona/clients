@@ -17,7 +17,6 @@ import {
   BadRequestError,
   ConflictError,
   DaytonaError,
-  InternalServerError,
   NotFoundError,
   PreconditionFailedError,
   PreconditionRequiredError,
@@ -31,9 +30,9 @@ type SecretsCall = 'get' | 'replace'
 function call(client: Daytona, secretsCall: SecretsCall): Promise<SandboxSecretsInfo> {
   switch (secretsCall) {
     case 'get':
-      return client.getSandboxSecrets('sbx')
+      return lazySandbox(client, 'sbx').getSecrets()
     case 'replace':
-      return client.replaceSandboxSecrets('sbx', ['TOKEN'], { ifMatch: '"sv-3"' })
+      return lazySandbox(client, 'sbx').replaceSecrets(['TOKEN'], { ifMatch: '"sv-3"' })
     default: {
       const unreachable: never = secretsCall
       throw new Error(`unreachable secrets call: ${String(unreachable)}`)
@@ -71,7 +70,7 @@ async function getWith(body: SandboxSecretsWire): Promise<SandboxSecretsInfo> {
   const api = await startFakeApi([{ status: 200, headers: { ETag: '"sv-3"' }, body }])
   const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
   try {
-    return await client.getSandboxSecrets('sbx')
+    return await lazySandbox(client, 'sbx').getSecrets()
   } finally {
     await api.close()
   }
@@ -126,7 +125,7 @@ describe('sandbox secrets parity', () => {
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     let thrown: unknown
     try {
-      await client.getSandboxSecrets('sbx')
+      await lazySandbox(client, 'sbx').getSecrets()
     } catch (error) {
       thrown = error
     } finally {
@@ -152,7 +151,7 @@ describe('sandbox secrets parity', () => {
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     let thrown: unknown
     try {
-      await client.replaceSandboxSecrets('sbx', secrets, { ifMatch: '"sv-3"' })
+      await lazySandbox(client, 'sbx').replaceSecrets(secrets, { ifMatch: '"sv-3"' })
     } catch (error) {
       thrown = error
     } finally {
@@ -173,7 +172,7 @@ describe('sandbox secrets parity', () => {
     const missing = JSON.parse('null')
     let thrown: unknown
     try {
-      await client.replaceSandboxSecrets('sbx', missing, { ifMatch: '"sv-3"' })
+      await lazySandbox(client, 'sbx').replaceSecrets(missing, { ifMatch: '"sv-3"' })
     } catch (error) {
       thrown = error
     } finally {
@@ -189,12 +188,11 @@ describe('sandbox secrets parity', () => {
   it.each(['linux', 'macos'] as const)('root replace validates input for a %s sandbox before sending a request', async (sandboxClass: SandboxClass) => {
     const api = await startFakeApi([])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = sandboxClass
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass })
     const notAnArray = JSON.parse('"TOKEN"')
     let thrown: unknown
     try {
-      await client.replaceSandboxSecrets(sandbox, notAnArray, { ifMatch: '"sv-3"' })
+      await sandbox.replaceSecrets(notAnArray, { ifMatch: '"sv-3"' })
     } catch (error) {
       thrown = error
     } finally {
@@ -222,9 +220,9 @@ describe('sandbox secrets parity', () => {
       await api.close()
     }
 
-    expect(thrown).toBeInstanceOf(InternalServerError)
+    expect(thrown).toBeInstanceOf(BadRequestError)
     const error = thrown as DaytonaError
-    expect([error.statusCode, error.code, error.source, error.message]).toEqual([500, undefined, 'SDK', 'sandbox secrets response is missing ETag'])
+    expect([error.statusCode, error.code, error.source, error.message]).toEqual([400, 'BAD_REQUEST', 'SDK', 'sandbox secrets response is missing the ETag header'])
     expect(api.requests).toHaveLength(1)
   })
 

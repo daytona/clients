@@ -3,6 +3,6 @@
 
 from __future__ import annotations
 
-from .services import AsyncVolumeService
+from .services import AsyncVolumesService
 
-__all__ = ["AsyncVolumeService"]
+__all__ = ["AsyncVolumesService"]

@@ -65,7 +65,7 @@ import type {
   ComputerUseStatusResponse,
 } from './ComputerUseTypes.js'
 import { maxResponseBytesOption } from './bodyLimit.js'
-import { toolboxPathId } from './toolboxPath.js'
+import { pathSegment } from './pathSegment.js'
 
 /** Options of `recording.download()`; see its documentation. */
 export interface RecordingDownloadOptions {
@@ -121,20 +121,20 @@ export class AddonProcessesService {
           await this.transport.get<toolbox.ComputerUseProcessStatusMap>('/computeruse/process-status'),
         )
       : mapComputerUseProcessRunningStatus(
-          await this.transport.get<toolbox.ComputerUseProcessRunningStatus>(`/computeruse/process/${toolboxPathId(name, 'process name')}/status`),
+          await this.transport.get<toolbox.ComputerUseProcessRunningStatus>(`/computeruse/process/${pathSegment(name, 'process name')}/status`),
         )
   }
 
   public async restart(name: string): Promise<ComputerUseProcessRestartResponse> {
-    return mapComputerUseProcessRestartResponse(await this.transport.post<toolbox.ComputerUseProcessRestartResponse>(`/computeruse/process/${toolboxPathId(name, 'process name')}/restart`))
+    return mapComputerUseProcessRestartResponse(await this.transport.post<toolbox.ComputerUseProcessRestartResponse>(`/computeruse/process/${pathSegment(name, 'process name')}/restart`))
   }
 
   public async logs(name: string): Promise<ComputerUseProcessLogsResponse> {
-    return mapComputerUseProcessLogsResponse(await this.transport.get<toolbox.ComputerUseProcessLogsResponse>(`/computeruse/process/${toolboxPathId(name, 'process name')}/logs`))
+    return mapComputerUseProcessLogsResponse(await this.transport.get<toolbox.ComputerUseProcessLogsResponse>(`/computeruse/process/${pathSegment(name, 'process name')}/logs`))
   }
 
   public async errors(name: string): Promise<ComputerUseProcessErrorsResponse> {
-    return mapComputerUseProcessErrorsResponse(await this.transport.get<toolbox.ComputerUseProcessErrorsResponse>(`/computeruse/process/${toolboxPathId(name, 'process name')}/errors`))
+    return mapComputerUseProcessErrorsResponse(await this.transport.get<toolbox.ComputerUseProcessErrorsResponse>(`/computeruse/process/${pathSegment(name, 'process name')}/errors`))
   }
 }
 
@@ -344,7 +344,7 @@ export class RecordingService {
   }
 
   public async get(id: string): Promise<ComputerUseRecording> {
-    return mapComputerUseRecording(await this.transport.get<toolbox.ComputerUseRecording>(`/computeruse/recordings/${toolboxPathId(id, 'recording id')}`))
+    return mapComputerUseRecording(await this.transport.get<toolbox.ComputerUseRecording>(`/computeruse/recordings/${pathSegment(id, 'recording id')}`))
   }
 
   /**
@@ -363,13 +363,13 @@ export class RecordingService {
   public async download(id: string, options?: RecordingDownloadOptions): Promise<Uint8Array> {
     assertKnownOptions('RecordingDownloadOptions', options, RECORDING_DOWNLOAD_OPTION_KEYS)
     const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes)
-    const path = `/computeruse/recordings/${toolboxPathId(id, 'recording id')}/download`
+    const path = `/computeruse/recordings/${pathSegment(id, 'recording id')}/download`
     // The one-argument call unless this call overrides the client's cap.
     return new Uint8Array(await (maxResponseBytes === undefined ? this.transport.getBytes(path) : this.transport.getBytes(path, { maxResponseBytes })))
   }
 
   public async delete(id: string): Promise<void> {
-    await this.transport.delete<void>(`/computeruse/recordings/${toolboxPathId(id, 'recording id')}`)
+    await this.transport.delete<void>(`/computeruse/recordings/${pathSegment(id, 'recording id')}`)
   }
 }
 

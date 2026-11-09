@@ -12,28 +12,78 @@ internal details — see `../AGENTS.md`.
 
 ### Delete completion and image or snapshot conflicts
 
-Keep `Sandbox.delete()` acceptance-only. The v2 client's `delete()` delegates
-to it. Reusing
-`waitForState(['destroyed'])` would wait for an observed lifecycle state,
-not establish that deleting its image or snapshot can no longer conflict:
+`Sandbox.delete({ timeoutSeconds })` requests deletion, then waits for
+`destroyed`. A typed 404 on any read during that wait also means completion;
+the handle is updated to `destroyed`. Ordinary `refreshData()` and other
+waits still propagate 404. The private waiter treats `destroying` as progress
+when targeting `destroyed`. `stop()` similarly waits for `stopped`.
 
-An accepted delete (HTTP 202), or a subsequent `destroyed` state, does not
-guarantee that deleting the sandbox's image or snapshot will succeed without
-a conflict. Callers must still handle `ConflictError` from those operations.
+All lifecycle methods use `LifecycleWaitOptions` (default 60 seconds, `0`
+unbounded). The v2 client's methods delegate to the handle, including when
+given an ID. Timeout throws `RequestTimeoutError`; a terminal state throws
+`SandboxTerminalStateError`. Server errors decide class and persistence
+support, without client-side lifecycle prechecks.
 
-The existing waiter treats `destroying` as progress when targeting
-`destroyed`. Its refresh still propagates a typed 404; the 404-to-`destroyed`
-mapping is local to `Sandbox.delete()`'s single follow-up refresh, not
-`refreshData()` or the waiter. Neither a new default wait nor an extra
-refresh changes this API guarantee.
+An observed `destroyed` state does not guarantee that deleting the sandbox's
+image or snapshot will succeed without a conflict. Callers must still handle
+`ConflictError` from those operations.
+
+### Create, fork and public metadata
+
+After a create or fork POST succeeds, the call returns its handle however the
+readiness wait ends, including any `DaytonaError` from a wait read. Non-SDK
+errors and caller cancellation propagate; a cancelled create may already have
+created a sandbox. A raised create or fork means the request itself failed, except for
+`SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+carry the idempotency key because a sandbox may exist), caller cancellation,
+and an unexpected non-SDK error during the wait.
+Create uses whole-second
+`waitSeconds`; fork permits fractions and uses `0` to skip waiting. Linux
+forks refresh the source before submission when waiting: running sources wait
+for `started`, paused sources retaining memory wait for `paused`, and other
+sources wait for `stopped`. macOS forks wait for `started` or `stopped`.
+
+`createFromBuild()` always waits for the image build with its independent
+`buildTimeoutSeconds` budget (omitted or `0` is unbounded), then creates with
+the caller's full `waitSeconds`. Build failure throws `ImageBuildFailedError`
+with `imageId` and `buildError`; build timeout throws `RequestTimeoutError`.
+Build submission and its initial lookup are ordinary requests; the build wait
+budget begins afterwards. Long polls (sandbox waits, image pulls, artifact
+gets) are governed by the wait budget, not the request timeout: each hold is
+the smaller of its slice and the remaining budget, in whole milliseconds, and
+the read allows the hold plus a few seconds of slack. Positive artifact-get
+budgets repeat holds capped at 60 seconds and pause up to one second after an early
+non-terminal response; omitted or zero budgets send one default hold.
+
+All create sizing lives in `resources`. GiB values must convert to whole MiB
+without rounding, and sandbox readback divides MiB by 1024 exactly. Public
+models use readonly camelCase fields and SDK-owned types. Construction of
+`Sandbox`, `Image`, `Snapshot`, `ImagesService`, `SnapshotsService`,
+`VolumesService`, `SecretsService`, `ReservationsService`, `MacModelsService`,
+`PortsService`, `DockerService` and `SandboxVolumesService` requires the
+package-internal construction token. This does not describe toolbox classes
+such as `Session` or `ProcessService`. `SandboxHandleJSON` includes known metadata but no URLs or
+credentials; callers reconnect with `get(info.sandboxId)`. `autoDelete` defaults
+to false on every acquisition route, including `get()` and `fork()`.
+The read-only `accessToken` getter exposes the sandbox-scoped bearer currently
+used by the handle (create response, caller override, or minted token), is
+`undefined` until known, and is never serialized. The toolbox URL is internal.
+
+`list()` / `iter()` accept only cursor and limit. `search()` carries filters,
+including public `states`, which map to the API's status vocabulary at the
+boundary. Named creates permanently support get-or-create; name-key helpers
+remain internal. `findByName()` returns all matches and is the explicit
+exception to the one-page list rule.
 
 ### Volumes
 
-`daytona.v2.volume` manages named volumes through the platform API.
+`daytona.v2.volumes` manages named volumes through the platform API.
 `Volume.ts` maps contract fields to the public camel-case `Volume` type,
-preserving explicit nulls and normalizing unknown states and types to
+mapping absent optional fields to undefined and normalizing unknown states and types to
 `unknown` with the original value in `rawStatus` / `rawType`. `list()` reads
-one cursor page; `iter()` traverses pages with a cursor-cycle guard.
+one cursor page; `iter()` traverses pages with a cursor-cycle guard. `get()`
+takes `{ create?, idOnly? }`, `create()` takes `{ name, sizeGib? }` and sends
+`type: 'disk'`, and `delete()` takes a name or ID plus `{ idOnly? }`.
 
 `create`, `createFromBuild` and `createMacos` accept `VolumeMount` entries
 through `volumes`. Request mapping uses `volume`, `mount_path`, `subpath`
@@ -44,7 +94,9 @@ macOS accepts read-write disk volumes only, without `persistent: true`.
 when the sandbox connection is refreshed. `pull()` preserves the caller's
 request identity, accepts a nullable `manifestId`, and makes one request
 without automatic retries. Its HTTP deadline includes read slack beyond the
-requested wait. `tests/volume-pull.test.ts` exercises these behaviors over HTTP;
+requested wait. `timeoutSeconds` accepts 0–30 seconds, including fractions;
+the wire `waitMs` is floored, with every positive input producing at least 1 ms.
+`tests/volume-pull.test.ts` exercises these behaviors over HTTP;
 `tests/unit.test.ts` covers management, create mappings and route telemetry.
 
 `npm run gen:contract` restores volume aliases in the API and toolbox alias
@@ -148,8 +200,16 @@ must preserve `manifestId: null` rather than optionalizing it.
 
 Public options objects reject unknown keys at runtime, because a JavaScript
 caller's typo or an option renamed in 2.x would otherwise be ignored silently.
-Today the client configuration does (`DaytonaConfig`, `SandboxEventsConfig`);
-per-call options adopt it area by area. `src/v2/options.ts` provides the
+Today the client configuration does (`DaytonaConfig`, `SandboxEventsConfig`),
+and so does every client, sandbox-lifecycle and platform-service options
+object, nested entries (`resources`, ports, volume mounts) and
+`IfMatchOptions` included; the toolbox namespaces' per-call options adopt it
+area by area. Every one of those options parameters also refuses a value that
+is not an options object (`assertOptionsObject`: `null`, a primitive, an
+array, a function, a built-in) before any request; only an omitted argument
+takes the defaults. Create option values (`env`, `labels`, `secrets`, port and
+volume entries, `spot`, `user`, `cpuArch`, ...) are checked by
+`assertCreateNestedOptions`, before the build in `createFromBuild()`. `src/v2/options.ts` provides the
 pieces; applying them to a new options type takes two lines:
 
 ```ts
@@ -180,11 +240,15 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
   `executionTimeout`, `escalateAfter`, `requestTimeout`, the 0.x client
   configuration's `requestTimeoutMs`, `reconcileIntervalMs` and
   `idleCloseMs`, and the `keyboard.type()` option `delay`; add a row when
-  another option is renamed.
+  another option is renamed. The optional fourth argument supplies per-type
+  mappings: fork maps `timeout` to `waitSeconds`, and `createFromBuild` maps
+  it to `buildTimeoutSeconds`. Removed `envVars` is an unknown key without a
+  rename hint.
 - Check the options object itself, and nested SDK-defined option objects
-  (the root checks `config.events` as `SandboxEventsConfig`, `pty.start()`
-  checks `terminal` as `TerminalSize`); never a pass-through map (`env`,
-  `labels`, request headers).
+  (`resources`, `ports`, `volumes`, `networkPolicy`, `lifecyclePolicy`, the
+  root's `events` as `SandboxEventsConfig`, `pty.start()`'s `terminal` as
+  `TerminalSize`); never a pass-through map (`env`, `labels`, request
+  headers).
 - A duration option in seconds that the SDK converts itself (the request
   timeout, the events durations) is validated with `optionalSeconds(name,
   value)` (finite, non-negative) and converted to milliseconds where it is

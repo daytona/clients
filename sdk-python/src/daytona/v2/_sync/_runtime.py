@@ -13,12 +13,13 @@ handle carries.
 from __future__ import annotations
 
 import dataclasses
-from typing import Iterator, TypeVar
+from typing import Callable, Iterator, TypeVar
 
 from .._bridge import SyncBridge
 from ..errors import create_error
 
 _T = TypeVar("_T")
+_A = TypeVar("_A")
 
 # async class -> Sync twin. Populated by the generated package __init__ once
 # every twin module has been imported; empty until then by construction.
@@ -47,6 +48,13 @@ def wrap(value: object, bridge: SyncBridge) -> object:
 
 def wrap_list(items: list[object], bridge: SyncBridge, twin: type[_T]) -> list[_T]:
     return [twin(item, bridge) for item in items]  # type: ignore[call-arg]
+
+
+def wrap_tuple(
+    items: tuple[_A, ...], bridge: SyncBridge, twin: Callable[[_A, SyncBridge], _T]
+) -> tuple[_T, ...]:
+    """Typed end to end: ``twin`` is the Sync class, called as its constructor."""
+    return tuple(twin(item, bridge) for item in items)
 
 
 def wrap_iter(items: Iterator[object], bridge: SyncBridge, twin: type[_T]) -> Iterator[_T]:

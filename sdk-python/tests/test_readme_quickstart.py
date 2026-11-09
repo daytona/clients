@@ -41,6 +41,14 @@ def test_readme_quickstart_waits_for_import_and_deletion(
                     "origin": "registry",
                     "region_ids": [],
                     "created_at": "2026-01-01T00:00:00Z",
+                    "updated_at": "2026-01-01T00:00:00Z",
+                    "class": "linux",
+                    "retention": "permanent",
+                    "format_version": 2,
+                    "format_outdated": False,
+                    "platform": False,
+                    "default": False,
+                    "deprecated": False,
                 },
             )
             for status in ("pending", "building", "ready")
@@ -65,6 +73,7 @@ def test_readme_quickstart_waits_for_import_and_deletion(
                 "access_token": "toolbox-jwt",
                 "token_type": "Bearer",
                 "expires_at": "2099-01-01T00:00:00Z",
+                "operations": ["toolbox"],
             },
         )
         command = wire.post("http://toolbox.invalid/sbx-quickstart/processes").respond(
@@ -100,3 +109,6 @@ def test_readme_quickstart_waits_for_import_and_deletion(
         assert json.loads(command.calls[0].request.content)["shellCommand"] == "python -V"
         assert capsys.readouterr().out == "0 Python 3.12.9\n\n"
         assert delete.call_count == destroyed.call_count == 1
+        # delete() holds its long poll for `deleted` exactly.
+        assert destroyed.calls[0].request.url.params.get("wait_exact") == "deleted"
+        assert "wait" not in destroyed.calls[0].request.url.params

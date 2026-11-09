@@ -25,7 +25,7 @@ import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
-import { refuseDotSegment, toolboxPathId } from './toolboxPath.js'
+import { pathSegment, refuseDotSegment } from './pathSegment.js'
 
 // Preserve internal import paths used by the interpreter and other namespaces.
 export { ProcessHandle } from './ProcessHandle.js'
@@ -198,7 +198,7 @@ export class ProcessService {
 
   /** Fetch current process metadata by id or live name alias. */
   public async get(id: string): Promise<ProcessInfo> {
-    return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${toolboxPathId(id, 'process id')}`))
+    return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${pathSegment(id, 'process id')}`))
   }
 
   /** List processes; `tag` keeps only the processes created with that tag. */

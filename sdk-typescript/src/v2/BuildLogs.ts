@@ -3,42 +3,51 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// allow: SIZE_OK — One resumable build-log state machine owns discovery, cursors, and cancellation.
+
+import { queryText } from './pageParams.js'
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
-import { boundedTimerDelay, badRequest } from './options.js'
+import { isRfc3339 } from './rfc3339.js'
+import { MAX_TIMER_DELAY_MS, boundedTimerDelay, badRequest, waitDeadline } from './options.js'
 import { HttpTransport } from './http.js'
 import type * as api from './gen/api-types.js'
 import { sameBuildLogResource } from './buildLogIdentity.js'
 import { BUILD_LOG_DONE_REASONS, BUILD_LOG_GAP_REASONS } from './types.js'
 import type { BuildLogDoneReason, BuildLogGapReason } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
+import { assertKnownOptions, assertOptionsObject, optionKeys, optionalSeconds } from './options.js'
+import { deepFrozen } from './frozen.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 
 export type { BuildLogDoneReason } from './types.js'
 
 export interface BuildLogFollowResult {
-  status: string
-  reason: BuildLogDoneReason
-  rawReason: string
-  cursor?: string
-  outputComplete: boolean
+  readonly status: string
+  readonly reason: BuildLogDoneReason
+  readonly rawReason: string
+  readonly cursor?: string
+  readonly outputComplete: boolean
 }
 export type BuildLogEvent =
-  | { type: 'state'; status: string; error?: string; deadlineAt?: string }
-  | { type: 'log'; dataBase64: string; startOffset: string; nextOffset: string; cursor: string }
-  | { type: 'gap'; reason: BuildLogGapReason; rawReason: string; requestedOffset: string; firstAvailableOffset: string; droppedBytes: string; cursor: string }
-  | { type: 'unavailable'; reason: string }
-  | { type: 'source_changed'; reason: string }
-  | { type: 'done'; result: BuildLogFollowResult }
-  | { type: 'error'; error: string; code: string; retryable: boolean; traceId?: string }
+  | { readonly type: 'state'; readonly status: string; readonly error?: string; readonly deadlineAt?: string }
+  | { readonly type: 'log'; readonly dataBase64: string; readonly startOffset: string; readonly nextOffset: string; readonly cursor: string }
+  | { readonly type: 'gap'; readonly reason: BuildLogGapReason; readonly rawReason: string; readonly requestedOffset: string; readonly firstAvailableOffset: string; readonly droppedBytes: string; readonly cursor: string }
+  | { readonly type: 'unavailable'; readonly reason: string }
+  | { readonly type: 'source_changed'; readonly reason: string }
+  | { readonly type: 'done'; readonly result: BuildLogFollowResult }
+  | { readonly type: 'error'; readonly error: string; readonly code: string; readonly retryable: boolean; readonly traceId?: string }
 
 export interface BuildLogFollowOptions {
-  onLogs: (chunk: string) => void | Promise<void>
-  onEvent?: (event: BuildLogEvent) => void | Promise<void>
-  cursor?: string
-  /** Total observation budget in milliseconds; zero/omitted adds no deadline. */
-  timeout?: number
-  signal?: AbortSignal
+  readonly onLogs: (chunk: string) => void | Promise<void>
+  readonly onEvent?: (event: BuildLogEvent) => void | Promise<void>
+  readonly cursor?: string
+  /** Total observation budget in seconds; zero, omitted or above about 24.8 days adds no deadline. */
+  readonly timeoutSeconds?: number
+  readonly signal?: AbortSignal
 }
+
+const BUILD_LOG_FOLLOW_OPTION_KEYS = optionKeys<BuildLogFollowOptions>()({ onLogs: true, onEvent: true, cursor: true, timeoutSeconds: true, signal: true })
 
 /** Last successfully delivered checkpoint. Callback failures never auto-retry. */
 /** {@link BuildLogInterruptedError}'s options: the common ones plus the last delivered cursor. */
@@ -74,6 +83,8 @@ const MAX_ONE_SHOT_BYTES = 2 * 1024 * 1024
 /** JSON-boundary scratch values never escape the validated DTO constructors. */
 function jsonObject(json: string): Record<string, unknown> {
   const value: unknown = JSON.parse(json)
+  // Nested deeper than every JSON body may be (`JSON_MAX_DEPTH`, as in Python).
+  if (nestedDeeperThan(value)) throw new ProtocolError('JSON nested too deeply')
   if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new ProtocolError('expected JSON object')
   // SAFETY: JSON.parse produced a non-null, non-array object, whose keys are
   // strings. This assertion establishes indexing only: every property remains
@@ -96,11 +107,26 @@ function offset(str: string): bigint {
   if (!/^(0|[1-9][0-9]{0,19})$/.test(str) || BigInt(str) > 18446744073709551615n) throw new ProtocolError('invalid uint64 offset')
   return BigInt(str)
 }
+// Cursors are opaque. One rule in both SDKs and both directions: non-empty,
+// bounded, and no C0 control character or DEL; offset continuity comes from
+// the event's public byte-offset fields.
+function cursorOk(str: string): boolean {
+  // The 2048 bound counts code points, as Python's len() does (not UTF-16 units).
+  return str.length > 0 && codePoints(str) <= 2048 && !/[\x00-\x1f\x7f]/.test(str)
+}
+function codePoints(str: string): number {
+  let count = 0
+  for (const _ of str) count++
+  return count
+}
 function cursor(str: string): string {
-  // Cursors are opaque. Apply only client-side size and SSE safety bounds;
-  // offset continuity comes from the event's public byte-offset fields.
-  if (!str || str.length > 2048 || /[\x00-\x1f\x7f]/.test(str)) throw new ProtocolError('invalid cursor')
+  if (!cursorOk(str)) throw new ProtocolError('invalid cursor')
   return str
+}
+/** A caller's resume cursor: BadRequestError naming it, before any request, as in Python; it is sent as a query value. */
+function callerCursor(value: unknown): string {
+  if (typeof value !== 'string' || !cursorOk(value)) throw badRequest('cursor must be a non-empty string of at most 2048 characters with no control characters')
+  return queryText(value, 'cursor')
 }
 function bytes(str: string): Uint8Array {
   if (str.length > 87384 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(str)) throw new ProtocolError('invalid base64')
@@ -174,7 +200,10 @@ async function cancelResponse(response?: Response): Promise<void> {
     // Preserve the primary failure on an already errored response.
   }
 }
-/** Byte framing bounds both complete and unfinished events before decoding. */
+/**
+ * Byte framing bounds both complete and unfinished events before decoding.
+ * @internal
+ */
 export async function* buildLogMessages(response: Response): AsyncIterable<Message> {
   if (!response.body) return
   const reader = response.body.getReader()
@@ -248,6 +277,9 @@ class Observer {
     this.offset = this.cursor === undefined ? 0n : undefined
   }
   private async emit(event: BuildLogEvent, output = ''): Promise<void> {
+    // Frozen before any callback sees it: a callback cannot rewrite the event,
+    // nor the `done` result the call returns.
+    deepFrozen(event)
     try {
       if (output) await interruptible(Promise.resolve(this.options.onLogs(output)), this.signal)
       if (this.options.onEvent) await interruptible(Promise.resolve(this.options.onEvent(event)), this.signal)
@@ -268,8 +300,8 @@ class Observer {
         const deadlineAt = data.deadline_at ?? undefined, error = data.error ?? undefined
         // Execution deadlines are metadata, not client observation deadlines.
         if (deadlineAt !== undefined) {
-          const expires = Date.parse(deadlineAt)
-          if (!Number.isFinite(expires) || !/(Z|[+-]\d\d:\d\d)$/.test(deadlineAt)) throw new ProtocolError('invalid build deadline')
+          // An RFC 3339 timestamp, by the rule of every response timestamp.
+          if (!isRfc3339(deadlineAt)) throw new ProtocolError('invalid build deadline')
         }
         await this.emit({ type: 'state', status: data.status, deadlineAt, error })
         break
@@ -370,7 +402,16 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
   let body = '', size = 0
   let expired = false
   let timer: ReturnType<typeof setTimeout> | undefined
-  const decoder = new TextDecoder()
+  // A discovery body is decoded strictly (invalid UTF-8 and a leading BOM are
+  // not JSON, as in Python); an error body stays lenient for error mapping.
+  const decoder = kind === 'discovery' ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }) : new TextDecoder()
+  const decode = (bytes?: Uint8Array): string => {
+    try {
+      return bytes === undefined ? decoder.decode() : decoder.decode(bytes, { stream: true })
+    } catch {
+      throw new ProtocolError(`invalid build log ${kind} JSON`)
+    }
+  }
   const expire = (): void => {
     expired = true
     // Cancel this response, not the follower's controller: HTTP/2 peers and
@@ -381,7 +422,7 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
     if (deadline !== undefined) {
       const budget = deadline - performance.now()
       if (budget <= 0) expire()
-      else timer = setTimeout(expire, Math.min(budget, 2147483647))
+      else timer = setTimeout(expire, Math.min(budget, MAX_TIMER_DELAY_MS))
     }
     if (reader) for (;;) {
       if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`)
@@ -390,10 +431,10 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
       if (next.done) break
       size += next.value.byteLength
       if (size > MAX_EVENT) throw new ProtocolError(`oversized build log ${kind} response`)
-      body += decoder.decode(next.value, { stream: true })
+      body += decode(next.value)
     }
     if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`)
-    return body + decoder.decode()
+    return body + decode()
   } catch (error) {
     if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`)
     if (error instanceof DaytonaError || error instanceof ProtocolError) throw error
@@ -457,6 +498,7 @@ async function readOneShotBody(response: Response): Promise<string> {
   }
 }
 
+/** @internal */
 export async function readBuildLogs(api: HttpTransport, path: string): Promise<string> {
   const controller = new AbortController()
   const readTimeout = boundedTimerDelay(api.defaultTimeout)
@@ -481,14 +523,22 @@ export async function readBuildLogs(api: HttpTransport, path: string): Promise<s
   }
 }
 
+/** @internal */
 export async function followBuildLogs(api: HttpTransport, path: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
-  if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout < 0)) throw badRequest('timeout must be a non-negative finite number')
-  if (typeof options.onLogs !== 'function') throw new TypeError('onLogs is required')
+  assertOptionsObject('BuildLogFollowOptions', options)
+  assertKnownOptions('BuildLogFollowOptions', options, BUILD_LOG_FOLLOW_OPTION_KEYS)
+  const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
+  // Invalid arguments are BadRequestError before any request, as in Python.
+  if (typeof options.onLogs !== 'function') throw badRequest('onLogs must be a function')
+  const onEvent: unknown = options.onEvent
+  if (onEvent !== undefined && typeof onEvent !== 'function') throw badRequest('onEvent must be a function when given')
+  if (options.cursor !== undefined) callerCursor(options.cursor)
   const controller = new AbortController()
   const relay = (): void => controller.abort(options.signal?.reason)
   if (options.signal?.aborted) relay()
   else options.signal?.addEventListener('abort', relay, { once: true })
-  const callerDeadline = options.timeout ? performance.now() + options.timeout : undefined
+  // Omitted, 0, or above the timer maximum (about 24.8 days): no deadline.
+  const callerDeadline = waitDeadline(timeoutSeconds, performance.now())
   let timer: ReturnType<typeof setTimeout> | undefined
   let observer: Observer | undefined
   const remaining = (): number | undefined => {
@@ -504,7 +554,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
   const arm = (): void => {
     clearTimeout(timer)
     const budget = remaining()
-    if (budget !== undefined) timer = setTimeout(budget > 2147483647 ? arm : () => controller.abort(), Math.min(budget, 2147483647))
+    if (budget !== undefined) timer = setTimeout(() => controller.abort(), budget)
   }
   try {
     observer = new Observer(options, controller.signal)
@@ -527,7 +577,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
           if (response.status === 429 || response.status >= 500) throw new Retry(`build log HTTP ${response.status}`, retryAfter(response))
           throw await httpError(response, deadline)
         }
-        if (response.headers.get('content-type')?.split(';')[0].trim() !== 'text/event-stream') throw new ProtocolError('expected text/event-stream')
+        if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'text/event-stream') throw new ProtocolError('expected text/event-stream')
         started = performance.now()
         healthy = true
         for await (const message of buildLogMessages(response)) {
@@ -571,7 +621,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
 function pause(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     const finish = (): void => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-    const timer = setTimeout(finish, Math.min(ms, 2147483647))
+    const timer = setTimeout(finish, Math.min(ms, MAX_TIMER_DELAY_MS))
     signal.addEventListener('abort', finish, { once: true })
     if (signal.aborted) finish()
   })

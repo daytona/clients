@@ -11,7 +11,7 @@ from typing_extensions import assert_never
 
 from daytona.v2._gen.api import MacReservation as WireReservation
 from daytona.v2._transport import AsyncTransport
-from daytona.v2.services import AsyncReservationService
+from daytona.v2.services import AsyncReservationsService
 
 # Full API response fixture, including optional lifecycle and billing fields.
 WIRE: Final = {
@@ -76,7 +76,7 @@ async def test_every_reservation_field_when_returned_by_service(operation: Opera
     # The public dataclass names the region `region`; the wire calls it `region_id`.
     expected["region"] = expected.pop("region_id")
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
-        service = AsyncReservationService(AsyncTransport("https://api.test", client=http))
+        service = AsyncReservationsService(AsyncTransport("https://api.test", client=http))
         # When
         match operation:
             case "get":
@@ -96,10 +96,8 @@ async def test_every_reservation_field_when_returned_by_service(operation: Opera
     # Then: every generated reservation field is present in the public dataclass.
     assert set(WIRE) == set(WireReservation.model_fields) - {"additional_properties"}
     actual = asdict(result)
-    actual["capacity"] = (
-        result.capacity.model_dump(exclude={"additional_properties"}) if result.capacity is not None else None
-    )
-    actual["resources_used"] = result.resources_used.model_dump(exclude={"additional_properties"})
+    actual["capacity"] = asdict(result.capacity) if result.capacity is not None else None
+    actual["resources_used"] = asdict(result.resources_used)
     assert actual == expected
 
 
@@ -126,7 +124,7 @@ async def test_optional_reservation_fields_when_null_or_omitted(omit: bool) -> N
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
     ) as http:
-        service = AsyncReservationService(AsyncTransport("https://api.test", client=http))
+        service = AsyncReservationsService(AsyncTransport("https://api.test", client=http))
         # When
         result = await service.get("region-a:reservation-1")
     # Then
@@ -142,10 +140,39 @@ async def test_raw_reservation_enums_when_wire_values_are_unknown() -> None:
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
     ) as http:
-        service = AsyncReservationService(AsyncTransport("https://api.test", client=http))
+        service = AsyncReservationsService(AsyncTransport("https://api.test", client=http))
         # When
         result = await service.get("region-a:reservation-1")
     # Then
     assert (result.status, result.raw_status) == ("unknown", "future_status")
     assert (result.origin, result.raw_origin) == ("unknown", "future_origin")
     assert (result.end_reason, result.raw_end_reason) == ("unknown", "future_reason")
+
+
+_RESERVATION_TIMESTAMPS = (
+    "created_at",
+    "activated_at",
+    "pending_mac_started_at",
+    "period_started_at",
+    "period_end",
+    "reissued_at",
+    "ended_at",
+)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("stamp", ["nope", "2026-10-20", "2026-10-20T00:00:00"])
+@pytest.mark.parametrize("field", _RESERVATION_TIMESTAMPS)
+async def test_a_reservation_timestamp_that_is_not_rfc_3339_is_refused(field: str, stamp: str) -> None:
+    # The contract's date-time fields are RFC 3339 timestamps; a date, or one
+    # without an offset, is refused naming the field (twin in
+    # reservation-fields.test.ts).
+    from daytona.v2 import BadRequestError
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={**WIRE, field: stamp})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        service = AsyncReservationsService(AsyncTransport("https://api.test", client=http))
+        with pytest.raises(BadRequestError, match=f"has a {field} that is not an RFC 3339 timestamp"):
+            await service.get("region-a:reservation-1")

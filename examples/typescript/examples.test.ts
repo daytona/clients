@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { IMAGE, IMAGE_NAME, imageName } from './_common.js'
+import { IMAGE, IMAGE_NAME, IMAGE_WAIT_SECONDS, imageName } from './_common.js'
 import type { Record, Scenario } from './test-support/fake-sdk.js'
 
 const EXAMPLES = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -60,6 +60,55 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
 const example = (name: string) => `typescript/${name}/index.ts`
 const SECRET_NAME = /^EXAMPLE_API_KEY_[0-9A-F]{8}$/
 
+for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dynamic-build', 'dockerfile-sandbox', 'volumes', 'lifecycle']) {
+  test(`${name} skips work and cleans up when create returns a non-started sandbox`, () => {
+    // Given an accepted create whose readiness wait did not finish.
+    const scenario = { sandboxStates: ['creating'] }
+    // When the real example runs through its public entrypoint.
+    const { code, record } = runExample(example(name), scenario)
+    // Then no commands run on that sandbox and acquisition is still cleaned up.
+    assert.equal(code, 1)
+    assert.equal(record.sandboxes.length, 1)
+    assert.deepEqual(record.commands, [])
+    assertCleanedUp(record)
+    // The other resources the example acquired are cleaned up too.
+    if (name === 'secrets-env') {
+      assert.equal(record.secretSets.length, 1)
+      assert.deepEqual(record.deletedSecrets, record.secretSets.map((set) => set.name))
+    }
+    if (name === 'volumes') {
+      assert.equal(record.createdVolumes.length, 1)
+      assert.deepEqual(record.deletedVolumes, record.createdVolumes)
+    }
+  })
+}
+
+for (const name of ['dynamic-build', 'dockerfile-sandbox']) test(`${name} skips a non-started second sandbox`, () => {
+  // Given a first sandbox that starts and a second one still provisioning.
+  const scenario = { sandboxStates: ['started', 'creating'] }
+  // When running the multi-sandbox example.
+  const { code, record } = runExample(example(name), scenario)
+  // Then the second sandbox never receives a command, and both are deleted.
+  assert.equal(code, 1)
+  assert.equal(record.sandboxes.length, 2)
+  assert.equal(record.commands.some((entry) => entry.sandboxId === record.sandboxes[1]), false)
+  assertCleanedUp(record)
+})
+
+test('volume sharing skips a non-started sandbox and still deletes its resources', () => {
+  // Given a volume-backed create that returns before readiness.
+  const scenario = { sandboxStates: ['creating'] }
+  // When running the persistence example.
+  const { code, record } = runExample('volumes_share.ts', scenario)
+  // Then no sandbox work runs and both sandbox and volume are cleaned up.
+  assert.equal(code, 1)
+  assert.equal(record.sandboxes.length, 1)
+  assert.equal(record.createdVolumes.length, 1)
+  assert.deepEqual(record.commands, [])
+  assertCleanedUp(record)
+  assert.deepEqual(record.deletedVolumes, record.createdVolumes)
+})
+
 function assertCleanedUp(record: Record): void {
   assert.deepEqual([...record.deletedSandboxes].sort(), [...record.sandboxes].sort())
 }
@@ -84,6 +133,15 @@ test('registers the image once when the project lacks it', () => {
   assert.deepEqual(record.pulledImages, [{ ref: IMAGE, name: IMAGE_NAME }])
 })
 
+test('the fake images.get waits only when asked', () => {
+  // As the SDK: get() without wait: 'ready' returns the image as it is now;
+  // with it, the image once it settles (twin in test_examples.py).
+  const { code, output } = runExample('typescript/test-support/image-get.ts', { images: [[IMAGE_NAME, 'pending', ['ready']]] })
+  assert.equal(code, 0, output)
+  assert.match(output, /^get: pending$/m)
+  assert.match(output, /^get ready: ready$/m)
+})
+
 test('names distinct image references apart', () => {
   assert.match(IMAGE_NAME, /^examples-[a-z0-9-]+-[0-9a-f]{8}$/)
   const names = ['foo:bar', 'foo/bar', 'foo.bar'].map(imageName)
@@ -93,7 +151,7 @@ test('names distinct image references apart', () => {
 test('fails, rather than hangs, on a registration that never finishes', () => {
   const { code, record, output } = runExample(example('exec-command'), { images: [[IMAGE_NAME, 'pending', []]] })
   assert.equal(code, 1, output)
-  assert.match(output, new RegExp(`image ${IMAGE_NAME} is still pending`))
+  assert.match(output, new RegExp(`image ${IMAGE_NAME} did not settle within ${IMAGE_WAIT_SECONDS} s`))
   assert.deepEqual(record.sandboxes, [])
 })
 
@@ -102,6 +160,8 @@ test('reuses a registered image, and waits for one still registering', () => {
     const { code, record, output } = runExample(example('exec-command'), { images: [[IMAGE_NAME, status, [...waits]]] })
     assert.equal(code, 0, output)
     assert.deepEqual(record.pulledImages, [])
+    // One budgeted wait for an image still registering, none for a ready one.
+    assert.deepEqual(record.imageWaits, status === 'ready' ? [] : [{ wait: 'ready', timeoutSeconds: IMAGE_WAIT_SECONDS }])
   }
 })
 
@@ -157,6 +217,16 @@ test('build-logs reads the failed build through the error image id', () => {
   const { code, record, output } = runExample(example('build-logs'), { failBuildsContaining: 'intentional-build-failure-' })
   assert.equal(code, 0, output)
   assert.deepEqual(record.followedImages, ['img_failed'])
+  assertCleanedUp(record)
+})
+
+test('build-logs fails when a deliberately broken build unexpectedly succeeds', () => {
+  // Given: the fake accepts even the Dockerfile containing a failing command.
+  // When: the example evaluates the failed-build demonstration.
+  const { code, record, output } = runExample(example('build-logs'))
+  // Then: accepting the broken build cannot produce a successful example run.
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* the deliberately broken build unexpectedly created/)
   assertCleanedUp(record)
 })
 
@@ -236,9 +306,53 @@ test('secrets-env leaves a secret it did not create', () => {
 })
 
 test('volumes_share round-trips through the volume', () => {
+  // The fake keeps /data on a sandbox's own disk unless a volume is mounted
+  // there, so the round trip passes only through the mounted volume.
   const { code, record, output } = runExample('volumes_share.ts', { volumeData: true })
   assert.equal(code, 0, output)
+  assert.deepEqual(record.mounts.map(({ mounts }) => mounts), record.sandboxes.map(() => [{ volumeId: record.createdVolumes[0], mountPath: '/data' }]))
   assert.equal(record.deletedVolumes.length, 1)
+  assert.deepEqual(record.deletedVolumes, record.createdVolumes)
+  assertCleanedUp(record)
+})
+
+test('the fake volumes follow the SDK', () => {
+  // As the SDK: get() of an absent volume without create is NotFoundError, and
+  // a deleted volume's files go with it, so a volume created again under the
+  // same name starts empty (twin in test_examples.py).
+  const { code, output } = runExample('typescript/test-support/volume-lifecycle.ts', { volumeData: true })
+  assert.equal(code, 0, output)
+  assert.match(output, /^get absent: NotFoundError$/m)
+  assert.match(output, /^first: <missing>$/m)
+  assert.match(output, /^delete mounted: ConflictError$/m)
+  assert.match(output, /^recreated: <missing>$/m)
+})
+
+test('the fake applies a mount\'s subpath and readOnly', () => {
+  // The fake resolves a path below the mount's subpath, and refuses a write
+  // through a read-only mount, as the sandbox does.
+  const { code, record, output } = runExample('typescript/test-support/volume-mounts.ts', { volumeData: true })
+  assert.equal(code, 0, output)
+  assert.match(output, /^write a: exit=0 $/m)
+  assert.match(output, /^read b: exit=0 <missing>$/m)
+  assert.match(output, /^read a read-only: exit=0 from-a$/m)
+  assert.match(output, /^write a read-only: exit=1 .*Read-only file system$/m)
+  assert.deepEqual(record.mounts.map(({ mounts }) => mounts), [
+    [{ volumeId: record.createdVolumes[0], mountPath: '/data', subpath: 'a' }],
+    [{ volumeId: record.createdVolumes[0], mountPath: '/data', subpath: 'b' }],
+    [{ volumeId: record.createdVolumes[0], mountPath: '/data', subpath: 'a', readOnly: true }],
+  ])
+})
+
+test('volumes cleans up the volume acquired with create enabled', () => {
+  // Given: no volumes exist in the fake project.
+  // When: the example acquires a named volume and mounts it in three sandboxes.
+  const { code, record, output } = runExample(example('volumes'))
+  // Then: cleanup removes that volume and every created sandbox.
+  assert.equal(code, 0, output)
+  assert.equal(record.createdVolumes.length, 1)
+  assert.deepEqual(record.deletedVolumes, record.createdVolumes)
+  assertCleanedUp(record)
 })
 
 test('volumes_share reports a failed read instead of a partial result', () => {

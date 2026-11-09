@@ -18,7 +18,16 @@ from ._api_core import (
     expect_preview_endpoint,
     expect_signed_preview_url_resp,
 )
-from ._core import RequestSpec, expect_is_port_in_use_response, expect_port_list
+from ._core import (
+    INT32_MAX,
+    JSON_MAX_DEPTH,
+    RequestSpec,
+    _nested_deeper_than,
+    expect_is_port_in_use_response,
+    expect_port_list,
+    page_params,
+    parse_timestamp,
+)
 from ._gen.api import SandboxPort as PreviewEndpointDto
 from ._transport import AsyncTransport
 from .errors import create_error
@@ -32,7 +41,7 @@ PREVIEW_WARNING_SKIP_HEADER_VALUE = "true"
 _JWT_SEGMENT = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
-def _preview_token_expiry(token: str) -> Optional[str]:
+def _preview_token_expiry(token: str) -> Optional[datetime]:
     """Read the standard JWT expiry claim as advisory metadata only.
 
     Token contents never determine its permissions or whether to mint a
@@ -45,6 +54,9 @@ def _preview_token_expiry(token: str) -> Optional[str]:
         raw = base64.b64decode(parts[1] + "=" * (-len(parts[1]) % 4), altchars=b"-_", validate=True)
         payload = json.loads(raw)
     except (binascii.Error, json.JSONDecodeError, RecursionError, UnicodeError, ValueError):
+        return None
+    # Nested deeper than every JSON body may be: not a token to read.
+    if _nested_deeper_than(payload, JSON_MAX_DEPTH):
         return None
     if not isinstance(payload, dict):
         return None
@@ -59,7 +71,7 @@ def _preview_token_expiry(token: str) -> Optional[str]:
         expires = datetime.fromtimestamp(ms // 1000, tz=timezone.utc) + timedelta(milliseconds=ms % 1000)
     except (OverflowError, OSError, ValueError):
         return None
-    return expires.isoformat(timespec="milliseconds").replace("+00:00", "Z").replace(".000Z", "Z")
+    return expires
 
 
 def _assert_port(port: int) -> None:
@@ -84,32 +96,41 @@ def _port_segment(port: int) -> str:
 
 def _preview_endpoint_from_api(payload: PreviewEndpointDto) -> PreviewEndpoint:
     return PreviewEndpoint(
-        payload.port,
-        payload.public,
-        payload.url,
-        payload.created_at.isoformat().replace("+00:00", "Z") if payload.created_at is not None else None,
+        port=payload.port,
+        public=payload.public,
+        url=payload.url,
+        created_at=parse_timestamp(payload.created_at),
     )
 
 
 class AsyncPortsService:
     def __init__(
         self,
-        transport: Optional[AsyncTransport],
-        api: Optional[AsyncTransport] = None,
+        _transport: Optional[AsyncTransport],
+        _api: Optional[AsyncTransport] = None,
         *,
-        sandbox_id: Optional[str] = None,
-        mint_preview_token: Optional[Callable[[int], Awaitable[Optional[SandboxAccessToken]]]] = None,
+        _sandbox_id: Optional[str] = None,
+        _mint_preview_token: Optional[Callable[[int], Awaitable[Optional[SandboxAccessToken]]]] = None,
     ) -> None:
-        self._transport = transport
-        self._api = api
-        self._sandbox_id = sandbox_id
+        self._transport = _transport
+        self._api = _api
+        self._sandbox_id = _sandbox_id
         # Sandbox-provided minter for a ports-scoped sandbox access token.
         # Returns None when the handle cannot
         # mint (caller-supplied token, no key, route unavailable).
-        self._mint_preview_token = mint_preview_token
+        self._mint_preview_token = _mint_preview_token
 
     async def list(self) -> ListResult[int]:
         payload = expect_port_list(await self._require_toolbox().send(RequestSpec("GET", "/port")))
+        # The contract types each port as an int32 and declares no range.
+        for index, port in enumerate(payload.ports):
+            if not -INT32_MAX - 1 <= port <= INT32_MAX:
+                raise create_error(
+                    f"port list response has a ports[{index}] that is not a 32-bit integer",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
         return ListResult(items=list(payload.ports))
 
     async def is_in_use(self, port: int) -> bool:
@@ -121,11 +142,7 @@ class AsyncPortsService:
     async def list_endpoints(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> ListResult[PreviewEndpoint]:
-        params = {}
-        if cursor is not None:
-            params["cursor"] = cursor
-        if limit is not None:
-            params["limit"] = limit
+        params = page_params(cursor, limit)
         payload = expect_endpoint_list_resp(
             await self._require_api().send(RequestSpec("GET", self._ports_path(), params=params))
         )
@@ -166,28 +183,8 @@ class AsyncPortsService:
         :returns: :class:`~daytona.v2.types.PreviewEndpoint` with the URL.
         """
         _assert_port(port)
-        payload = expect_preview_endpoint(
-            await self._require_api().send(
-                RequestSpec("PUT", self._port_path(port), json_body={"public": public})
-            )
-        )
-        return _preview_endpoint_from_api(payload)
-
-    async def set_public(self, port: int, *, public: bool) -> PreviewEndpoint:
-        """Change the visibility of an exposed port.
-
-        The request replaces the port's preview registration in full, so a
-        port that is not exposed yet is exposed with this visibility rather
-        than rejected. Public endpoints need no credential.
-        Programmatic access to a private one needs the token from
-        :meth:`preview_link` or a :meth:`signed_preview_link` URL.
-
-        :param port: TCP port inside the sandbox.
-        :param public: ``True`` to make the endpoint publicly accessible;
-            ``False`` to restrict it to credentialed callers.
-        :returns: Updated :class:`~daytona.v2.types.PreviewEndpoint`.
-        """
-        _assert_port(port)
+        if not isinstance(public, bool):
+            raise create_error("public must be a boolean", 400, "BAD_REQUEST", "SDK")
         payload = expect_preview_endpoint(
             await self._require_api().send(
                 RequestSpec("PUT", self._port_path(port), json_body={"public": public})
@@ -206,6 +203,9 @@ class AsyncPortsService:
         access token scoped to exactly this
         port. Otherwise the preview-url token is passed through unchanged.
         Token contents are not used to infer access permissions.
+
+        A port that is not exposed yet is exposed first (privately, as
+        :meth:`expose` does): this call registers a preview endpoint.
         """
         _assert_port(port)
         try:
@@ -219,7 +219,7 @@ class AsyncPortsService:
                 raise
             resolved = await self.expose(port)
         if resolved.public:
-            return PreviewLink(resolved.url, "")
+            return PreviewLink(url=resolved.url, token="")
         payload = expect_daytona_preview_url(
             await self._require_api().send(RequestSpec("POST", f"{self._port_path(port)}/preview-url"))
         )
@@ -236,7 +236,7 @@ class AsyncPortsService:
             if minted is not None:
                 token = minted.access_token
                 expires_at = minted.expires_at
-        return PreviewLink(payload.url or resolved.url, token, expires_at)
+        return PreviewLink(url=payload.url or resolved.url, token=token, expires_at=expires_at)
 
     async def signed_preview_link(
         self, port: int, *, expires_in_seconds: Optional[int] = None
@@ -275,11 +275,12 @@ class AsyncPortsService:
                 )
             )
         )
-        return SignedPreviewLink(
-            payload.url,
-            payload.token,
-            payload.expires_at.isoformat().replace("+00:00", "Z") if payload.expires_at is not None else None,
-        )
+        # Required by the contract, so the model always carries it; without an
+        # offset it is UTC, as parse_timestamp reads it.
+        expires_at = payload.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return SignedPreviewLink(url=payload.url, token=payload.token, expires_at=expires_at)
 
     async def expire_signed_preview_link(self, port: int, token: str) -> None:
         """Revoke a signed preview link before its natural expiry.
@@ -288,6 +289,8 @@ class AsyncPortsService:
         :param token: The ``token`` field from :class:`~daytona.v2.types.SignedPreviewLink`.
         """
         _assert_port(port)
+        if not isinstance(token, str) or not token.strip():
+            raise create_error("token must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         await self._require_api().send(
             RequestSpec(
                 "POST",

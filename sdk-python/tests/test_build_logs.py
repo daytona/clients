@@ -45,8 +45,9 @@ from daytona.v2.build_logs import (
 )
 from daytona.v2.errors import _interrupt_error_of
 from daytona.v2.sandbox import AsyncSandbox
-from daytona.v2.services import AsyncImageService
-from daytona.v2.types import DaytonaConfig, SandboxInfo
+from daytona.v2.services import AsyncImagesService
+from daytona.v2.types import DaytonaConfig
+from daytona.v2.types import _SandboxInfo as SandboxInfo
 
 pytestmark = pytest.mark.anyio
 
@@ -177,6 +178,16 @@ async def test_expired_server_state_still_delivers_explicit_deadline_completion(
     result = await follow_build_logs(api, DISCOVERY, on_logs=output.append, on_event=lambda _: None)
     assert output == ["tail"] and result.reason == "deadline" and result.cursor == cursor(4)
     assert not result.output_complete and len(requests) == 2
+
+
+async def test_the_stream_media_type_is_read_case_insensitively():
+    reply = httpx.Response(
+        200, headers={"content-type": "Text/Event-Stream; charset=utf-8"}, content=log(b"tail", 0) + done(4)
+    )
+    api, _, _ = setup([reply])
+    output: list[str] = []
+    result = await follow_build_logs(api, DISCOVERY, on_logs=output.append)
+    assert output == ["tail"] and result.output_complete
 
 
 async def test_awaitable_callbacks_are_awaited_before_the_next_event():
@@ -319,7 +330,7 @@ async def test_real_http_finite_json_bodies_cannot_outlive_request_budget(stage,
 async def test_explicit_image_follow_preserves_utf8_across_reconnect_and_checkpoints():
     api, requests, streams = setup([log(b"\xf0\x9f", 0), log(b"\x98\x80!", 2) + done(5)])
     output: list[str] = []
-    result = await AsyncImageService(api).follow_build_logs("image", on_logs=output.append)
+    result = await AsyncImagesService(api).follow_build_logs("image", on_logs=output.append)
     assert output == ["😀!"]
     assert result.cursor == cursor(5) and result.output_complete
     assert [request.url.host for request in requests] == ["api.example", "logs.example", "logs.example"]
@@ -572,6 +583,8 @@ async def test_task_cancellation_closes_only_its_response_and_carries_checkpoint
         ),
         ("unavailable", {}, None),
         ("new_unknown_event", {}, None),
+        # A timestamp is a string (the model would read a number as Unix time).
+        ("state", {"status": "building", "deadline_at": 5}, None),
     ],
 )
 async def test_malformed_protocol_never_retries(name, payload, ident):
@@ -596,12 +609,26 @@ async def test_cursor_contents_are_opaque_and_returned_unchanged():
     assert len(requests) == 2
 
 
-@pytest.mark.parametrize("checkpoint", ["", "bad\x00cursor", "bad\rcursor", "bad\ncursor", "x" * 2049])
+@pytest.mark.parametrize(
+    "checkpoint", ["", "bad\x00cursor", "bad\rcursor", "bad\ncursor", "a\tb", "a\x7fb", "x" * 2049, 5]
+)
 async def test_invalid_caller_cursor_rejected_without_request(checkpoint):
+    # One cursor rule in both SDKs: a caller's cursor that breaks it is
+    # BadRequestError naming it, before any request.
     api, requests, _ = setup([])
-    with pytest.raises(BuildLogInterruptedError):
+    with pytest.raises(BadRequestError, match="^cursor must be"):
         await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None, cursor=checkpoint)
     assert requests == []
+
+
+async def test_a_server_cursor_with_a_tab_is_a_protocol_error():
+    # The same rule for server-sent ids: TypeScript refuses it too.
+    api, _, _ = setup(
+        [event("log", {"data_base64": "eA==", "start_offset": "0", "next_offset": "1"}, "a\tb")]
+    )
+    with pytest.raises(BuildLogInterruptedError) as failure:
+        await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+    assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
 
 
 async def test_resumed_cursor_establishes_offset_from_first_log_event():
@@ -769,6 +796,28 @@ def test_sse_crlf_and_multiline_json_byte_fragmentation():
     assert list(_messages(iter(bytes([byte]) for byte in wire))) == [
         ("state", None, {"status": "ready", "error": None})
     ]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b'{"url": "\xff"}', b"\xef\xbb\xbf" + json.dumps({"url": LOGS_URL}).encode()],
+    ids=["invalid UTF-8", "a leading BOM"],
+)
+async def test_a_discovery_body_that_is_not_strict_utf8_json_is_a_protocol_error(body: bytes) -> None:
+    # As TypeScript decodes it: strict UTF-8, a BOM is not JSON.
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, headers={"content-type": "application/json"}, content=body)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    api = AsyncTransport("https://api.example", "secret-test-key", client=client)
+    with pytest.raises(BuildLogInterruptedError) as failure:
+        await follow_build_logs(api, DISCOVERY, on_logs=lambda _chunk: None)
+    assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
+    assert str(failure.value) == "invalid build log discovery JSON"
+    assert len(requests) == 1
 
 
 async def test_unknown_event_is_rejected_before_delivery_or_retry():
@@ -1122,7 +1171,10 @@ async def test_server_deadlines_remain_visible_as_metadata_through_terminal_stat
     state = _Observer(lambda _: None, on_event, None)
     await state.accept("state", None, {"status": "building", "deadline_at": "2999-01-01T00:00:00Z"})
     await state.accept("state", None, {"status": "ready", "deadline_at": "2000-01-01T00:00:00Z"})
-    assert [item.deadline_at for item in events] == ["2999-01-01T00:00:00Z", "2000-01-01T00:00:00Z"]
+    assert [item.deadline_at for item in events] == [
+        datetime(2999, 1, 1, tzinfo=timezone.utc),
+        datetime(2000, 1, 1, tzinfo=timezone.utc),
+    ]
     assert [item.status for item in events] == ["building", "ready"]
 
 
@@ -1300,7 +1352,7 @@ def sync_client(
     impl = client._impl
     original = impl._api
     impl._api = AsyncTransport("http://api.invalid", "k", client=mock)
-    impl.images = AsyncImageService(impl._api)
+    impl.images = AsyncImagesService(impl._api)
     try:
         yield client, requests
     finally:
@@ -1367,3 +1419,62 @@ def test_sync_ctrl_c_surfaces_canceled_checkpoint_and_closes_the_stream():
             return 42
 
         assert client._bridge.call(answer) == 42
+
+
+@pytest.mark.parametrize(("budget", "completes"), [(3_000_000, True), (2_000_000, False)])
+async def test_a_budget_above_the_timer_maximum_is_no_deadline(monkeypatch, budget, completes):
+    # The clock moves 30 days once the first chunk is delivered: 2,000,000 s
+    # (23 days) is a real deadline that then passes, 3,000,000 s (above the
+    # timer maximum) is none. The TypeScript twin is tests/unbounded-waits.test.ts.
+    now = [0.0]
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: now[0])
+    api, _, _ = setup([log(b"a", 0) + log(b"b", 1) + done(2)])
+    output: list[str] = []
+
+    def on_logs(chunk: str) -> None:
+        output.append(chunk)
+        now[0] += 30 * 86_400.0
+
+    if completes:
+        result = await follow_build_logs(api, DISCOVERY, on_logs=on_logs, timeout=budget)
+        assert output == ["a", "b"] and result.output_complete
+    else:
+        with pytest.raises(BuildLogInterruptedError) as failure:
+            await follow_build_logs(api, DISCOVERY, on_logs=on_logs, timeout=budget)
+        assert failure.value.code == "REQUEST_TIMEOUT"
+
+
+@pytest.mark.parametrize(("depth", "accepted"), [(600, True), (601, False)])
+async def test_build_log_json_nested_past_the_shared_depth_limit_is_a_protocol_error(depth, accepted):
+    # Both SDKs refuse JSON nested deeper than JSON_MAX_DEPTH (600): a done
+    # event (depth 1) carrying an unknown field nested to `depth`. The
+    # TypeScript twin is in tests/build-logs.test.ts.
+    nested = "[" * (depth - 1) + "]" * (depth - 1)
+    frame = (
+        'event: done\ndata: {"status": "ready", "reason": "terminal", "output_complete": true, '
+        f'"extra": {nested}}}\n\n'
+    ).encode()
+    api, _, _ = setup([frame])
+    if accepted:
+        result = await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+        assert result.status == "ready"
+    else:
+        with pytest.raises(BuildLogInterruptedError) as failure:
+            await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+        assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
+
+
+@pytest.mark.parametrize(
+    ("encoding", "message"),
+    [("utf-16", "build log HTTP 409"), ("utf-8-sig", "sandbox is not running")],
+    ids=["utf-16 is not read", "utf-8 with a BOM is read"],
+)
+async def test_http_error_body_is_read_as_utf8_like_typescript(encoding, message):
+    # TypeScript's TextDecoder reads UTF-8, strips the BOM and replaces bad
+    # bytes; json.loads alone would detect UTF-16. Twin in build-logs.test.ts.
+    body = json.dumps({"error": "sandbox is not running", "code": "SANDBOX_NOT_RUNNING"}).encode(encoding)
+    api, _, _ = setup([httpx.Response(409, content=body, headers={"content-type": "application/json"})])
+    with pytest.raises(DaytonaError) as failure:
+        await read_build_logs(api, DISCOVERY)
+    assert failure.value.status_code == 409
+    assert failure.value.message == message

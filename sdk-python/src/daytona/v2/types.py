@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from types import TracebackType
 from typing import (
@@ -14,42 +14,25 @@ from typing import (
     Callable,
     Dict,
     Generic,
-    Iterator,
+    Iterable,
     List,
     Literal,
     Mapping,
     Optional,
     Protocol,
     Sequence,
+    Tuple,
     TypedDict,
     TypeGuard,
     TypeVar,
     Union,
-    get_args,
 )
 
-from typing_extensions import NotRequired, Self
+from typing_extensions import NotRequired, Required, Self
 
 from . import _gen
 from .errors import create_error
 
-AuditActionList = _gen.api.AuditActionList
-AuditActionGroup = _gen.api.AuditActionGroup
-ProjectApiKeyWithContext = _gen.api.ProjectApiKeyWithContext
-ImageBuildResponse = _gen.api.AsyncOperation
-ProjectBudget = _gen.api.ProjectBudget
-OrganizationLimits = _gen.api.OrganizationLimits
-ImageListItem = _gen.api.ImageListItem
-Secret = _gen.api.Secret
-SandboxStateSnapshot = _gen.api.SnapshotListItem
-SnapshotDetail = _gen.api.Snapshot
-MacModel = _gen.api.MacModel
-MacModelList = _gen.api.MacModelList
-MacResources = _gen.api.MacResources
-ReservationPage = _gen.api.ReservationPage
-# ``GET /mac-catalog``: per region, the default model and each model's
-# ``MacModel``, free Macs (``available``) and ``price`` (``None`` when pricing is unavailable).
-MacCatalog = _gen.api.MacCatalog
 MacReservationStatus = Literal[
     "pending_charge", "pending_mac", "active", "ending", "released", "failed", "unknown"
 ]
@@ -80,6 +63,12 @@ class TransferCancelSignal(Protocol):
     def is_set(self) -> bool: ...
 
 
+#: A sandbox CPU architecture.
+CpuArch = Literal["amd64", "arm64"]
+
+#: An image's build status; the API may add values, so any string can appear.
+ImageStatus = Union[Literal["pending", "building", "ready", "failed"], str]
+
 SandboxState = Literal[
     "queued",
     "creating",
@@ -93,6 +82,21 @@ SandboxState = Literal[
     "destroyed",
     "error",
     "unknown",
+]
+#: The sandbox states ``search(states=...)`` filters on: every
+#: :data:`SandboxState` except ``"unknown"``, which names no API status.
+SearchSandboxState = Literal[
+    "queued",
+    "creating",
+    "starting",
+    "started",
+    "pausing",
+    "paused",
+    "stopping",
+    "stopped",
+    "destroying",
+    "destroyed",
+    "error",
 ]
 SandboxWaitState = Literal[
     "queued",
@@ -131,6 +135,7 @@ ProcessStdinMode = Literal["closed", "open", "unknown"]
 ProcessReason = Literal["exited", "signaled", "timed_out", "lost", "failed", "unknown"]
 ProcessSignal = Literal["TERM", "KILL", "INT", "HUP", "QUIT", "USR1", "USR2"]
 SandboxClass = Literal["linux", "macos"]
+SnapshotClass = Literal["linux", "unknown"]
 ArtifactRetention = Literal["permanent", "idle", "unknown"]
 SnapshotKind = Literal["full", "unknown"]
 VolumeState = Literal["ready", "deleting", "deleted", "error", "unknown"]
@@ -256,7 +261,7 @@ are rejected before sending the request.
 
 
 DISABLED: int = -1
-"""Clears :attr:`LifecyclePolicyConfig.idle_expiry_seconds` — and only that field.
+"""Clears :attr:`LifecyclePolicyOptions.idle_expiry_seconds` — and only that field.
 
 ``idle_expiry_seconds`` value space, identical at create and on
 :meth:`daytona.v2.Sandbox.update_lifecycle_policy`: omitted = unchanged (update) /
@@ -269,7 +274,7 @@ read back raised; ``0`` and anything below -1 are rejected.
 """
 
 
-class LifecyclePolicyConfig(TypedDict, total=False):
+class LifecyclePolicyOptions(TypedDict, total=False):
     """Per-sandbox lifecycle policy: a wall-clock timeout and an idle timeout,
     each paired with the action it fires.
 
@@ -304,41 +309,51 @@ class LifecyclePolicyConfig(TypedDict, total=False):
     on_idle_timeout: LifecycleAction
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ListResult(Generic[T]):
-    """Cursor-paginated list result.
-
-    ``total`` and ``total_relation`` are only populated
-    when the result came from search (``Daytona.list()`` with any
-    search filter); they are ``None`` on every other list surface.
+    """One page of a cursor-paginated list: ``items`` and the ``next_cursor``
+    to pass for the next page (``None`` on the last one). Immutable: ``items``
+    is a tuple (any iterable passed in is copied into one). Keyword-only, and
+    not iterable: ``.items`` is the one way to the entries, as in TypeScript.
     """
 
-    items: List[T]
+    items: Tuple[T, ...]
     next_cursor: Optional[str] = None
-    total: Optional[int] = None
-    total_relation: Optional[SearchTotalRelation] = None
-    raw_total_relation: Optional[str] = None
 
-    def __iter__(self) -> Iterator[T]:
-        return iter(self.items)
+    def __init__(self, *, items: Iterable[T], next_cursor: Optional[str] = None) -> None:
+        object.__setattr__(self, "items", tuple(items))
+        object.__setattr__(self, "next_cursor", next_cursor)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class SearchResult(Generic[T]):
     """One page of ``GET /sandboxes/search`` (``Daytona.search()``).
 
     ``total`` is exact when ``total_relation == "eq"`` and a lower bound when it
-    is ``"gte"`` (exact counting is capped at 10 000).
+    is ``"gte"`` (exact counting is capped at 10 000). Immutable, like
+    :class:`ListResult`.
     """
 
-    items: List[T]
+    items: Tuple[T, ...]
     next_cursor: Optional[str] = None
     total: int = 0
     total_relation: SearchTotalRelation = "eq"
     raw_total_relation: str = "eq"
 
-    def __iter__(self) -> Iterator[T]:
-        return iter(self.items)
+    def __init__(
+        self,
+        *,
+        items: Iterable[T],
+        next_cursor: Optional[str] = None,
+        total: int = 0,
+        total_relation: SearchTotalRelation = "eq",
+        raw_total_relation: str = "eq",
+    ) -> None:
+        object.__setattr__(self, "items", tuple(items))
+        object.__setattr__(self, "next_cursor", next_cursor)
+        object.__setattr__(self, "total", total)
+        object.__setattr__(self, "total_relation", total_relation)
+        object.__setattr__(self, "raw_total_relation", raw_total_relation)
 
 
 @dataclass(frozen=True)
@@ -390,34 +405,52 @@ class DaytonaConfig:
     max_response_bytes: Optional[int] = field(default=None, kw_only=True)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Resources:
-    """Sandbox resource request; CPU is cores (1 core = 2 vCPUs), memory and disk are GiB.
+    """Linux sandbox resources; CPU is cores (1 core = 2 vCPUs), memory and disk are GiB.
 
     ``cpu``/``memory``/``disk`` are the request: what is reserved and billed as a
     floor. ``cpu_max``/``memory_max``/``disk_max`` are the limits: the boot shape
     and the ceiling, the system cap when omitted. Set each limit equal to its
     request for a fixed shape. Requests below the platform minimums are raised
     to them, so a fixed shape below a minimum is refused. ``cpu_max`` is a
-    multiple of 0.5 cores: the sandbox boots ``cpu_max * 2`` vCPUs.
-
+    multiple of 0.5 cores: the sandbox boots ``cpu_max * 2`` vCPUs. A memory or
+    disk value must convert to a whole number of MiB (``value * 1024``);
+    anything else raises :class:`BadRequestError`.
     """
 
     cpu: Optional[float] = None
     cpu_max: Optional[float] = None
-    memory: Optional[int] = None
+    memory: Optional[float] = None
     memory_max: Optional[float] = None
-    disk: Optional[int] = None
+    disk: Optional[float] = None
     disk_max: Optional[float] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
+class MacosResources:
+    """macOS sandbox size; each omitted value uses the claiming Mac's default.
+
+    ``cpu`` is physical Mac CPU cores (Apple Silicon has no SMT), at least 4.
+    ``memory`` is GiB, at least 4; ``disk`` is GiB, at least 80, macOS included.
+    Memory and disk must convert to a whole number of MiB (``value * 1024``).
+    Omitted values use half of the claiming Mac, rounded down, on a model that
+    runs two sandboxes, or all of it on a model that runs one; the first
+    successful claim fixes the size.
+    """
+
+    cpu: Optional[int] = None
+    memory: Optional[float] = None
+    disk: Optional[float] = None
+
+
+@dataclass(frozen=True, kw_only=True)
 class PortMapping:
     port: int
     proto: str = "tcp"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class VolumeMount:
     """Attach a volume to a sandbox."""
 
@@ -434,15 +467,15 @@ class NetworkPolicyInput(TypedDict, total=False):
     allow_domains: Optional[Sequence[str]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class NetworkPolicy:
     version: int
     block_all: bool = False
-    allow_cidrs: List[str] = field(default_factory=list)
-    allow_domains: Optional[List[str]] = None
+    allow_cidrs: tuple[str, ...] = ()
+    allow_domains: Optional[tuple[str, ...]] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class NetworkPolicyInfo:
     desired: Optional[NetworkPolicy]
     desired_revision: int
@@ -455,9 +488,9 @@ class NetworkPolicyInfo:
     error: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SandboxSecretsInfo:
-    secrets: List[str]
+    secrets: tuple[str, ...]
     desired_revision: int
     etag: str
     http_status: int
@@ -468,238 +501,113 @@ class SandboxSecretsInfo:
     capture_unresolved_count: Optional[int] = None
 
 
-@dataclass(frozen=True)
-class SandboxInfo:
-    """Serializable sandbox DTO."""
+@dataclass(frozen=True, kw_only=True)
+class _SandboxInfo:
+    """The metadata a sandbox handle is built from (internal)."""
 
     id: str
     name: Optional[str] = None
     state: SandboxState = "unknown"
+    raw_state: str = ""
     image: Optional[ImageRef] = None
-    target: Optional[str] = None
-    #: The memory snapshot this sandbox resumed, or ``None`` when it booted an image.
     snapshot: Optional[SnapshotRef] = None
-    #: The image build this sandbox booted from, or ``None`` for other image sources.
     image_build_id: Optional[str] = None
-    # Optional metadata fields are keyword-only (per-field, not the KW_ONLY
-    # sentinel: Python 3.10's
-    # typing.get_type_hints() cannot evaluate the sentinel's annotation).
-    region: Optional[str] = field(default=None, kw_only=True)
-    labels: Dict[str, str] = field(default_factory=dict, kw_only=True)
-    #: Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU).
-    cpu: Optional[float] = field(default=None, kw_only=True)
-    #: CPU limit (the boot shape), in cores; ``None`` when the API did not report it.
-    cpu_max: Optional[float] = field(default=None, kw_only=True)
-    #: GiB. macOS reports its assigned size exactly (4608 MiB -> 4.5 GiB,
-    #: 117760 MiB -> 115 GiB; 0 before assignment); Linux reports whole GiB.
-    memory: Optional[float] = field(default=None, kw_only=True)
-    memory_max: Optional[float] = field(default=None, kw_only=True)
-    disk: Optional[float] = field(default=None, kw_only=True)
-    disk_max: Optional[float] = field(default=None, kw_only=True)
-    sandbox_class: Optional[SandboxClass] = field(default=None, kw_only=True)
-    persistent: Optional[bool] = field(default=None, kw_only=True)
-    spot: Optional[bool] = field(default=None, kw_only=True)
-    spot_evicted_at: Optional[str] = field(default=None, kw_only=True)
-    lifecycle_policy: Optional[SandboxLifecycle] = field(default=None, kw_only=True)
-    forked_from: Optional[str] = field(default=None, kw_only=True)
-    #: macOS only: the external ID of the reservation selected by the current or
-    #: latest successful claim. Unset before first claim, and on search
-    #: reads (``search()``, a search-routed ``list()``), which omit it:
-    #: ``refresh_data()`` reads it.
-    reservation_id: Optional[str] = field(default=None, kw_only=True)
-    user: Optional[str] = field(default=None, kw_only=True)
-    error: Optional[str] = field(default=None, kw_only=True)
-
-    def to_json(self) -> Dict[str, JsonValue]:
-        """Return a JSON-safe sandbox-info payload."""
-        payload: Dict[str, JsonValue] = {
-            "id": self.id,
-            "state": self.state,
-            "labels": dict(self.labels),
-        }
-        _put_json_value(payload, "name", self.name)
-        _put_json_value(payload, "image", _artifact_ref_to_json(self.image))
-        _put_json_value(payload, "snapshot", _artifact_ref_to_json(self.snapshot))
-        _put_json_value(payload, "target", self.target)
-        _put_json_value(payload, "region", self.region)
-        _put_json_value(payload, "image_build_id", self.image_build_id)
-        _put_json_value(payload, "cpu", self.cpu)
-        _put_json_value(payload, "cpu_max", self.cpu_max)
-        _put_json_value(payload, "memory", self.memory)
-        _put_json_value(payload, "memory_max", self.memory_max)
-        _put_json_value(payload, "disk", self.disk)
-        _put_json_value(payload, "disk_max", self.disk_max)
-        _put_json_value(payload, "sandbox_class", self.sandbox_class)
-        _put_json_value(payload, "persistent", self.persistent)
-        _put_json_value(payload, "spot", self.spot)
-        _put_json_value(payload, "spot_evicted_at", self.spot_evicted_at)
-        _put_json_value(payload, "forked_from", self.forked_from)
-        _put_json_value(payload, "reservation_id", self.reservation_id)
-        _put_json_value(payload, "user", self.user)
-        _put_json_value(payload, "error", self.error)
-        if self.lifecycle_policy is not None:
-            payload["lifecycle_policy"] = _sandbox_lifecycle_to_json(self.lifecycle_policy)
-        return payload
-
-    @classmethod
-    def from_json(cls, value: Mapping[str, JsonValue]) -> Self:
-        """Rehydrate sandbox info from :meth:`to_json` output."""
-        target = _json_str(value.get("target"))
-        region = _json_str(value.get("region"))
-        lifecycle_value = value.get("lifecycle_policy")
-        return cls(
-            id=_json_required_str(value.get("id"), "id"),
-            name=_json_str(value.get("name")),
-            state=_json_sandbox_state(value.get("state")),
-            image=_json_image_ref(value.get("image")),
-            snapshot=_json_snapshot_ref(value.get("snapshot")),
-            target=target,
-            region=region,
-            labels=_json_string_map(value.get("labels")),
-            image_build_id=_json_str(value.get("image_build_id")),
-            cpu=_json_number(value.get("cpu")),
-            cpu_max=_json_number(value.get("cpu_max")),
-            memory=_json_gib(value.get("memory")),
-            memory_max=_json_gib(value.get("memory_max")),
-            disk=_json_gib(value.get("disk")),
-            disk_max=_json_gib(value.get("disk_max")),
-            sandbox_class=_json_sandbox_class(value.get("sandbox_class")),
-            persistent=_json_bool(value.get("persistent")),
-            spot=_json_bool(value.get("spot")),
-            spot_evicted_at=_json_str(value.get("spot_evicted_at")),
-            lifecycle_policy=_json_sandbox_lifecycle(lifecycle_value),
-            forked_from=_json_str(value.get("forked_from")),
-            reservation_id=_json_str(value.get("reservation_id")),
-            user=_json_str(value.get("user")),
-            error=_json_str(value.get("error")),
-        )
+    region: Optional[str] = None
+    labels: Mapping[str, str] = field(default_factory=dict)
+    cpu: Optional[float] = None
+    cpu_max: Optional[float] = None
+    memory: Optional[float] = None
+    memory_max: Optional[float] = None
+    disk: Optional[float] = None
+    disk_max: Optional[float] = None
+    sandbox_class: Optional[Literal["linux", "macos", "unknown"]] = None
+    raw_sandbox_class: Optional[str] = None
+    mac_boot_mode: Optional[MacBootMode] = None
+    persistent: Optional[bool] = None
+    spot: Optional[bool] = None
+    spot_evicted_at: Optional[datetime] = None
+    lifecycle_policy: Optional[SandboxLifecycle] = None
+    forked_from: Optional[str] = None
+    reservation_id: Optional[str] = None
+    user: Optional[str] = None
+    error: Optional[str] = None
+    #: The server's timestamp strings, verbatim, keyed by their
+    #: ``SandboxHandleJSON`` name (``spotEvictedAt``, ``timeoutAt``,
+    #: ``idleTimeoutAt``, ``lastActivityAt``): ``to_json()`` writes them back
+    #: unchanged, so both SDKs serialize the same instant to the same string.
+    wire_timestamps: Mapping[str, str] = field(default_factory=dict)
 
 
-def _artifact_ref_to_json(ref: ImageRef | SnapshotRef | None) -> JsonValue:
-    """An image or snapshot reference containing its ID and optional name."""
-    if ref is None:
-        return None
-    return {"id": ref.id, "name": ref.name}
+class ArtifactRefJSON(TypedDict):
+    """An image or snapshot reference inside :class:`SandboxHandleJSON`."""
+
+    id: str
+    name: Optional[str]
 
 
-def _json_artifact_ref_parts(value: JsonValue) -> Optional[tuple[str, Optional[str]]]:
-    if isinstance(value, Mapping):
-        ref_id = value.get("id")
-        if isinstance(ref_id, str) and ref_id:
-            name = value.get("name")
-            return ref_id, name if isinstance(name, str) else None
-    return None
+class SandboxLifecycleJSON(TypedDict, total=False):
+    """The lifecycle policy inside :class:`SandboxHandleJSON` (timestamps RFC 3339)."""
+
+    timeoutSeconds: int
+    onTimeout: str
+    timeoutAt: str
+    idleExpirySeconds: int
+    onIdleTimeout: str
+    idleTimeoutAt: str
+    lastActivityAt: str
+    lastActivitySource: str
 
 
-def _json_image_ref(value: JsonValue) -> Optional[ImageRef]:
-    parts = _json_artifact_ref_parts(value)
-    return ImageRef(id=parts[0], name=parts[1]) if parts else None
+class SandboxHandleJSON(TypedDict, total=False):
+    """A sandbox handle's metadata as plain JSON: ``Sandbox.to_json()``.
+
+    The same camelCase shape as the TypeScript SDK's ``SandboxHandleJSON``, so a
+    snapshot stored by one SDK reads the same in the other. A key is present only
+    when the handle knows its value. It carries no URL and no credential, and it
+    is a snapshot, not a way back: reconnect with ``client.get(json["sandboxId"])``.
+    Timestamps are RFC 3339 strings.
+    """
+
+    sandboxId: Required[str]
+    name: str
+    state: SandboxState
+    rawState: str
+    image: ArtifactRefJSON
+    snapshot: ArtifactRefJSON
+    region: str
+    labels: Dict[str, str]
+    cpu: float
+    cpuMax: float
+    memory: float
+    memoryMax: float
+    disk: float
+    diskMax: float
+    sandboxClass: Literal["linux", "macos", "unknown"]
+    rawSandboxClass: str
+    persistent: bool
+    spot: bool
+    spotEvictedAt: str
+    lifecyclePolicy: SandboxLifecycleJSON
+    forkedFrom: str
+    reservationId: str
+    user: str
+    error: str
+    imageBuildId: str
 
 
-def _json_snapshot_ref(value: JsonValue) -> Optional[SnapshotRef]:
-    parts = _json_artifact_ref_parts(value)
-    return SnapshotRef(id=parts[0], name=parts[1]) if parts else None
-
-
-def _put_json_value(payload: Dict[str, JsonValue], key: str, value: JsonValue) -> None:
-    if value is not None:
-        payload[key] = value
-
-
-def _json_required_str(value: JsonValue, field_name: str) -> str:
-    if isinstance(value, str):
-        return value
-    raise create_error(f"SandboxInfo.{field_name} must be a string", 400, "BAD_REQUEST", "SDK")
-
-
-def _json_str(value: JsonValue) -> Optional[str]:
-    return value if isinstance(value, str) else None
-
-
-def _json_bool(value: JsonValue) -> Optional[bool]:
-    return value if isinstance(value, bool) else None
-
-
-def _json_int(value: JsonValue) -> Optional[int]:
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
-
-
-def _json_number(value: JsonValue) -> Optional[float]:
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return float(value)
-    return None
-
-
-def _json_gib(value: JsonValue) -> Optional[float]:
-    """A GiB amount: whole for Linux, possibly fractional (4.5) for macOS."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    return value
-
-
-def _json_string_map(value: JsonValue) -> Dict[str, str]:
-    if not isinstance(value, Mapping):
-        return {}
-    return {key: item for key, item in value.items() if isinstance(key, str) and isinstance(item, str)}
-
-
-def _json_sandbox_class(value: JsonValue) -> Optional[SandboxClass]:
-    if value in ("linux", "macos"):
-        return value
-    return None
-
-
-def _sandbox_lifecycle_to_json(value: SandboxLifecycle) -> JsonObject:
-    payload: JsonObject = {}
-    _put_json_value(payload, "timeout_seconds", value.timeout_seconds)
-    _put_json_value(payload, "on_timeout", value.on_timeout)
-    _put_json_value(payload, "timeout_at", value.timeout_at)
-    _put_json_value(payload, "idle_expiry_seconds", value.idle_expiry_seconds)
-    _put_json_value(payload, "on_idle_timeout", value.on_idle_timeout)
-    _put_json_value(payload, "idle_timeout_at", value.idle_timeout_at)
-    _put_json_value(payload, "last_activity_at", value.last_activity_at)
-    _put_json_value(payload, "last_activity_source", value.last_activity_source)
-    return payload
-
-
-def _json_sandbox_lifecycle(value: JsonValue) -> Optional[SandboxLifecycle]:
-    if not isinstance(value, Mapping):
-        return None
-    return SandboxLifecycle(
-        timeout_seconds=_json_int(value.get("timeout_seconds")),
-        on_timeout=_json_str(value.get("on_timeout")),
-        timeout_at=_json_str(value.get("timeout_at")),
-        idle_expiry_seconds=_json_int(value.get("idle_expiry_seconds")),
-        on_idle_timeout=_json_str(value.get("on_idle_timeout")),
-        idle_timeout_at=_json_str(value.get("idle_timeout_at")),
-        last_activity_at=_json_str(value.get("last_activity_at")),
-        last_activity_source=_json_str(value.get("last_activity_source")),
-    )
-
-
-def _is_sandbox_state(value: str) -> TypeGuard[SandboxState]:
-    return value in get_args(SandboxState)
-
-
-def _json_sandbox_state(value: JsonValue) -> SandboxState:
-    if isinstance(value, str) and _is_sandbox_state(value):
-        return value
-    return "unknown"
-
-
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ImageRef:
     id: str
     name: Optional[str] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SnapshotRef:
     id: str
     name: Optional[str] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Volume:
     id: str
     name: str
@@ -712,12 +620,89 @@ class Volume:
     size_gib: Optional[int] = None
     error: Optional[str] = None
     last_used_at: Optional[datetime] = None
-    options: Optional[JsonObject] = None
+    #: Type-specific settings as read-only JSON (bucket settings and credential secret names).
+    options: Optional[Mapping[str, JsonValue]] = None
     used_bytes: Optional[int] = None
     used_bytes_at: Optional[datetime] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Secret:
+    """A project secret's metadata; the value is write-only and never returned."""
+
+    name: str
+    #: The hosts the value may be sent to; ``("*",)`` means any verified host.
+    allowed_domains: tuple[str, ...]
+    created_at: datetime
+    updated_at: datetime
+    description: Optional[str] = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacResources:
+    """A Mac sandbox size: CPU cores (one Mac CPU each), memory and disk in MiB."""
+
+    cores: int
+    memory_mib: int
+    disk_mib: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacModel:
+    """A registered Mac model (``GET /mac-models``).
+
+    ``memory_mib`` and ``disk_mib`` are the Mac's physical memory and SSD;
+    ``sandbox_disk_mib`` is the disk room for sandboxes on one Mac;
+    ``max_sandboxes`` how many run at once; ``default_size`` the size a create
+    gives each size it omits.
+    """
+
+    id: str
+    name: str
+    cores: int
+    memory_mib: int
+    disk_mib: int
+    sandbox_disk_mib: int
+    max_sandboxes: int
+    default_size: Optional[MacResources] = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacPrice:
+    """What one reservation of a Mac model costs: ``period_cents`` per ``period_seconds``."""
+
+    cents_per_hour: float
+    period_cents: int
+    period_seconds: int
+    #: Lowercase ISO 4217 code.
+    currency: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacCatalogModel:
+    """One Mac model in a region: ``available`` free Macs (advisory) and its ``price`` (``None`` without pricing)."""
+
+    model: MacModel
+    available: int
+    price: Optional[MacPrice] = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacCatalogRegion:
+    id: str
+    #: The model a reservation that names none buys.
+    default_model: str
+    models: tuple[MacCatalogModel, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacCatalog:
+    """``GET /mac-catalog``: per region, the default model and each model's free Macs and price."""
+
+    regions: tuple[MacCatalogRegion, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class MacReservation:
     id: str
     org_id: str
@@ -750,34 +735,167 @@ class MacReservation:
     renewal_error: Optional[str] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class MacReservationBatch:
     """``POST /reservations/bulk``: ``requested`` (the request's count), ``reserved``, and one reservation per reserved Mac."""
 
     requested: int
     reserved: int
-    reservations: List[MacReservation]
+    reservations: tuple[MacReservation, ...]
 
 
-class RegistryImageSource(TypedDict):
-    type: Literal["registry"]
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ProjectBudget:
+    """The monthly spend budget of a project, in US cents at list price.
+
+    ``monthly_limit_cents`` is ``None`` when no budget is set. ``spent_cents``
+    and ``evaluated_at`` are ``None`` until the first evaluation of the period;
+    ``exceeded_at`` is set once the project reaches its budget and ``stop_at``
+    is when its grace period ends.
+    """
+
+    #: The first day (UTC) of the current budget period.
+    period_start_date: Optional[date] = None
+    monthly_limit_cents: Optional[int] = None
+    spent_cents: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    evaluated_at: Optional[datetime] = None
+    exceeded_at: Optional[datetime] = None
+    stop_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class UsageLimit:
+    """A limit and the usage counted against it; ``limit`` ``None`` means unlimited."""
+
+    limit: Optional[int]
+    usage: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MemberLimits:
+    limit: Optional[int]
+    usage: int
+    #: Invitations that hold a member slot until accepted or declined.
+    pending_invitations: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SandboxLimits:
+    concurrent: UsageLimit
+    total: UsageLimit
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ImageBuildLimits:
+    concurrent: UsageLimit
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class StorageLimits:
+    volumes: UsageLimit
+    images: UsageLimit
+    snapshots: UsageLimit
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SandboxResourceLimits:
+    """Per-sandbox maximums for Linux sandboxes: ``cores_max`` in cores and ``memory_max_mib``."""
+
+    max_cores: float
+    max_memory_mib: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrganizationLimits:
+    """An organization's limits and current usage (``get_limits()``)."""
+
+    sandboxes: SandboxLimits
+    image_builds: ImageBuildLimits
+    storage: StorageLimits
+    secrets_per_project: UsageLimit
+    api_keys_per_project: UsageLimit
+    api_keys_per_organization: UsageLimit
+    sandbox_resources: Optional[SandboxResourceLimits] = None
+    #: Omitted for credentials scoped to a project.
+    members: Optional[MemberLimits] = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ProjectApiKeyContext:
+    """The project and organization an API key acts in."""
+
+    org_id: str
+    org_name: str
+    project_name: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ProjectApiKey:
+    """An API key's metadata (``current_api_key()``); the token itself is never returned."""
+
+    id: str
+    name: str
+    project_id: str
+    project_permissions: tuple[str, ...]
+    created_at: datetime
+    context: ProjectApiKeyContext
+    created_by: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    last_used_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
+    #: The recognizable leading and trailing token characters, when available.
+    key_prefix: Optional[str] = None
+    key_suffix: Optional[str] = None
+    service_account_id: Optional[str] = None
+    service_account_name: Optional[str] = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AuditActionGroup:
+    """The actions the audit log can record against one target type."""
+
+    target_type: str
+    actions: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AuditActionList:
+    targets: tuple[AuditActionGroup, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class RegistryImageSource:
+    """An image imported from a registry reference."""
+
     ref: str
+    type: Literal["registry"] = "registry"
 
 
-class DockerfileImageSource(TypedDict):
-    type: Literal["dockerfile"]
+@dataclass(frozen=True, kw_only=True, slots=True)
+class DockerfileImageSource:
+    """An image built from a Dockerfile and its uploaded build context."""
+
     context_object: str
     dockerfile: str
+    type: Literal["dockerfile"] = "dockerfile"
 
 
-class NamedImageSource(TypedDict):
-    type: Literal["named"]
+@dataclass(frozen=True, kw_only=True, slots=True)
+class NamedImageSource:
+    """An image that names another image."""
+
     name: str
+    type: Literal["named"] = "named"
 
 
-class ManifestImageSource(TypedDict):
-    type: Literal["manifest"]
+@dataclass(frozen=True, kw_only=True, slots=True)
+class ManifestImageSource:
+    """An image described by a named manifest."""
+
     name: str
+    type: Literal["manifest"] = "manifest"
 
 
 ImageSource = Union[
@@ -788,29 +906,31 @@ ImageSource = Union[
 ]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Image:
     id: str
     name: Optional[str]
-    # pending | building | ready | failed: the pipeline state of the artifact
-    # at its current `format_version`.
-    status: str
+    # pending | building | ready | failed (open): the pipeline state of the
+    # artifact at its current `format_version`.
+    status: ImageStatus
     region: str
     anonymous: bool
     retention: ArtifactRetention
-    var_class: str
-    available_in: list[str]
+    raw_retention: str
+    #: The sandbox class the image boots (open vocabulary).
+    sandbox_class: str
+    available_in: tuple[str, ...]
+    #: How the image was created (open vocabulary: registry, dockerfile, capture, ...).
     origin: str
-    created_at: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
     error: Optional[str] = None
-    expires_at: Optional[str] = None
+    expires_at: Optional[datetime] = None
     source: Optional[ImageSource] = None
     bytes: Optional[int] = None
     layer_count: Optional[int] = None
-    cursor: Optional[str] = None
     # The image format: 1 for images imported from Daytona v0, 2 for the
-    # current format. None when omitted by the API. Appended after `cursor`
-    # so positional construction keeps its meaning.
+    # current format. None when omitted by the API.
     format_version: Optional[int] = None
     # `format_version` is below the current one: the image converts on its
     # first Linux sandbox create, or ahead of time with `POST /images/{id}/convert`;
@@ -823,38 +943,32 @@ class Image:
     # A deprecated platform image: still boots and resolves by id, but no
     # longer listed by `list(platform="true")` or chosen as the default.
     deprecated: bool = False
-    # When the image was last updated.
-    # Appended last so positional construction keeps its meaning.
-    updated_at: Optional[str] = None
     # The disk size in MiB that a sandbox created from this image gets when
     # the create omits `disk_mib`. Set for macOS snapshots; None for every
     # other image or when unavailable.
     disk_mib: Optional[int] = None
-    raw_retention: str = field(default="", kw_only=True)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Snapshot:
     id: str
     name: str
     status: str
     region: str
     kind: SnapshotKind
-    var_class: str
-    available_in: list[str]
-    created_at: Optional[str] = None
+    raw_kind: str
+    sandbox_class: SnapshotClass
+    raw_sandbox_class: str
+    available_in: tuple[str, ...]
+    created_at: datetime
+    updated_at: datetime
     error: Optional[str] = None
     bytes: Optional[int] = None
     memory_bytes: Optional[int] = None
     sandbox_id: Optional[str] = None
-    raw_kind: str = field(default="", kw_only=True)
-    cursor: Optional[str] = None
-    # When the snapshot was last updated.
-    # Appended last so positional construction keeps its meaning.
-    updated_at: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SandboxLifecycle:
     """Lifecycle policy as the API reports it.
 
@@ -874,11 +988,11 @@ class SandboxLifecycle:
 
     timeout_seconds: Optional[int] = None
     on_timeout: Optional[str] = None
-    timeout_at: Optional[str] = None
+    timeout_at: Optional[datetime] = None
     idle_expiry_seconds: Optional[int] = None
     on_idle_timeout: Optional[str] = None
-    idle_timeout_at: Optional[str] = None
-    last_activity_at: Optional[str] = None
+    idle_timeout_at: Optional[datetime] = None
+    last_activity_at: Optional[datetime] = None
     last_activity_source: Optional[str] = None
 
 
@@ -975,14 +1089,14 @@ class WaitResult:
     raw_reason: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DockerStatus:
     owner: DockerOwner
+    raw_owner: str
     state: DockerState
+    raw_state: str
     process_id: Optional[str] = None
     reason: Optional[str] = None
-    raw_owner: Optional[str] = None
-    raw_state: Optional[str] = None
 
 
 class InterpreterContextJSON(TypedDict):
@@ -1333,25 +1447,24 @@ class AsyncInterpreterContext:
         await self._require_binding().closer()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PreviewEndpoint:
     """A sandbox HTTP preview endpoint."""
 
     port: int
     public: bool
     url: str
-    created_at: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PreviewLink:
     """Preview URL plus an access token for one sandbox port.
 
     Send ``token`` in the ``X-Daytona-Preview-Token`` header to reach a private
     endpoint; without a credential it answers 401. Public endpoints set
     ``token`` to ``""`` and need no credential.
-    ``expires_at`` (RFC 3339) is set when the token's expiry is known, else
-    ``None``.
+    ``expires_at`` is set when the token's expiry is known, else ``None``.
 
     Example — curl a private endpoint::
 
@@ -1364,31 +1477,32 @@ class PreviewLink:
 
     url: str = field(repr=False)
     token: str = field(repr=False)
-    expires_at: Optional[str] = None
+    expires_at: Optional[datetime] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SignedPreviewLink:
     """Self-contained signed URL for one sandbox port.
 
     The token is embedded in the hostname — no extra headers or credentials are
-    needed. The link expires at ``expires_at`` (RFC 3339). Revoke it early with
+    needed. The link expires at ``expires_at``, which the contract requires
+    (a response without it is a ``BadRequestError``). Revoke it early with
     :meth:`~daytona.v2.ports.AsyncPortsService.expire_signed_preview_link`.
     """
 
     url: str = field(repr=False)
     token: str = field(repr=False)
-    expires_at: Optional[str] = None
+    expires_at: datetime
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SandboxAccessToken:
     """A short-lived per-sandbox access token (``POST …/access-token``).
 
     ``access_token`` is a bearer for sandbox services (toolbox, SSH,
     desktop, private previews) and for the self-service sandbox routes named
     by ``operations`` (``sandbox:stop`` / ``sandbox:pause`` /
-    ``sandbox:delete``). It expires at ``expires_at`` (RFC 3339) and cannot
+    ``sandbox:delete``). It expires at ``expires_at`` and cannot
     be refreshed — mint a fresh one with
     :meth:`~daytona.v2.sandbox.AsyncSandbox.create_access_token` instead. ``ports``
     is the granted private-preview port set; ``None`` means every port.
@@ -1396,9 +1510,9 @@ class SandboxAccessToken:
 
     access_token: str = field(repr=False)
     token_type: str
-    expires_at: str
-    operations: Sequence[str]
-    ports: Optional[Sequence[int]] = None
+    expires_at: datetime
+    operations: tuple[str, ...]
+    ports: Optional[tuple[int, ...]] = None
 
 
 SearchSort = Literal[
@@ -1406,26 +1520,26 @@ SearchSort = Literal[
 ]
 SearchOrder = Literal["asc", "desc"]
 SearchTimestamp = Union[str, datetime]
-"""An RFC 3339 string, or a ``datetime`` (naive values are taken as UTC)."""
+"""A search bound: an RFC 3339 timestamp without a leap second (year 0001-9999,
+a real calendar date), checked and sent exactly as written; or a ``datetime``,
+sent in UTC, so its UTC instant must fall in years 0001-9999 (a naive one,
+whose ``utcoffset()`` is ``None``, is taken as UTC)."""
 
 
 @dataclass(frozen=True, kw_only=True)
 class SandboxSearchFilters:
-    """The ``GET /sandboxes/search`` filters shared by ``Daytona.search()`` and ``Daytona.list()``.
+    """The ``GET /sandboxes/search`` filters (``Daytona.search()``).
 
-    ``status``, ``sandbox_class`` and ``region`` take a single value or a list;
-    lists are joined with commas on the wire. ``labels`` is sent as a JSON
-    object string (containment match); timestamp starts are inclusive and ends
-    are exclusive.
-
-    Every filter is keyword-only; :class:`ListSandboxesQuery` accepts its
-    pagination parameters positionally.
+    ``states``, ``sandbox_class`` and ``region`` take a single value or a list
+    (any-of); ``states`` are the SDK's sandbox states (``started``,
+    ``stopped``, ...), sent as the API's status names. ``labels`` is a
+    containment match; timestamp starts are inclusive and ends are exclusive.
     """
 
     q: Optional[str] = None
-    status: Optional[Sequence[str]] = None
+    states: Optional[Union[SearchSandboxState, Sequence[SearchSandboxState]]] = None
     sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None
-    region: Optional[Sequence[str]] = None
+    region: Optional[Union[str, Sequence[str]]] = None
     image_ref: Optional[str] = None
     image_ref_prefix: Optional[str] = None
     labels: Optional[Mapping[str, str]] = None
@@ -1450,8 +1564,8 @@ class SandboxSearchFilters:
 
 
 @dataclass(frozen=True, kw_only=True)
-class SearchSandboxesQuery(SandboxSearchFilters):
-    """Every ``Daytona.search()`` parameter (``GET /sandboxes/search``); keyword-only."""
+class SearchSandboxesOptions(SandboxSearchFilters):
+    """Every ``Daytona.search()`` parameter (``GET /sandboxes/search``)."""
 
     name_prefix: Optional[str] = None
     id_prefix: Optional[str] = None
@@ -1459,20 +1573,12 @@ class SearchSandboxesQuery(SandboxSearchFilters):
     limit: Optional[int] = None
 
 
-@dataclass(frozen=True)
-class ListSandboxesQuery(SandboxSearchFilters):
-    """Every ``Daytona.list()`` parameter.
-
-    ``cursor``/``limit``/``id``/``name`` remain the only positional parameters,
-    in that order. ``cursor``/``limit`` alone read ``GET /sandboxes``; ``id``/``name``
-    and any inherited (keyword-only) search filter route the call to
-    ``/sandboxes/search``.
-    """
+@dataclass(frozen=True, kw_only=True)
+class ListSandboxesOptions:
+    """Every ``Daytona.list()`` / ``iter()`` parameter: one ``GET /sandboxes`` page."""
 
     cursor: Optional[str] = None
     limit: Optional[int] = None
-    id: Optional[str] = None
-    name: Optional[str] = None
 
 
 class CreateReservationRequest(TypedDict):

@@ -471,7 +471,7 @@
       ],
       "notes": [
         "Python: sync and async method names match; create_lsp_server is synchronous even on AsyncSandbox and returns an AsyncLspServer",
-        "v2 fork waits for the new sandbox only when a timeout is passed (Python: seconds, 0 waits without a deadline; TypeScript: milliseconds)"
+        "v2 fork waits for the new sandbox with a wait_seconds / waitSeconds budget in seconds (default 60; 0 returns once the fork is accepted) and returns the fork however the wait ends"
       ]
     },
     "sandbox.fs": {
@@ -3771,19 +3771,19 @@
       "notes": {
         "py": [
           "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
-          "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references",
-          "Translate target to region and rebuild creation parameters, resource units and lifecycle settings",
-          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is wait_seconds (default 60), and wait_seconds=0 returns without waiting, so pass wait_seconds=0 and wait once with the original budget (sandbox.wait(until=\"started\", timeout=timeout), where 0 waits without a deadline); create_timeout_seconds is the server budget before it deletes a sandbox that never starts",
-          "v0 create raised when the sandbox failed to start; v2 create can return a sandbox that is not running yet, and that single wait raises on a terminal state (await it on AsyncDaytona)",
+          "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references; a v2 snapshot boots with create_from_snapshot(snapshot)",
+          "Translate target to region and rebuild creation parameters, resource units (one resources=Resources(...) entry; memory and disk in GiB) and lifecycle settings",
+          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is wait_seconds (default 60), and wait_seconds=0 returns without waiting; the suggested create keeps v2's 60-second wait, so to keep a 0.x budget, add wait_seconds=0 to it and wait once with that budget (sandbox.wait(until=\"started\", timeout=0 if timeout is None else timeout), where 0 waits without a deadline); wait_seconds is whole seconds; create_timeout_seconds is the server budget before it deletes a sandbox that never starts",
+          "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error), and that single wait raises on a terminal state (await it on AsyncDaytona)",
           "Image builds use create_from_build(builder, ...) instead of passing a v0 Image",
           "A registry image string such as \"python:3.12\" is not a v2 create source (IMAGE_NOT_FOUND); use create_from_build(ImageBuilder.from_registry(...)) or register the image first"
         ],
         "ts": [
           "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
-          "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references",
-          "Translate target to region and rebuild creation options, resource units and lifecycle settings",
-          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is waitSeconds (default 60), and waitSeconds: 0 returns without waiting, so pass waitSeconds: 0 and wait once with the original budget (await sandbox.wait({ until: 'started', timeout }), where 0 waits without a deadline); createTimeoutSeconds is the server budget before it deletes a sandbox that never starts",
-          "v0 create raised when the sandbox failed to start; v2 create can return a sandbox that is not running yet, and that single wait throws on a terminal state",
+          "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references; a v2 snapshot boots with createFromSnapshot(snapshot)",
+          "Translate target to region and rebuild creation options, resource units (one resources entry; memory and disk in GiB) and lifecycle settings",
+          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is waitSeconds (default 60), and waitSeconds: 0 returns without waiting; the suggested create keeps v2's 60-second wait, so to keep a 0.x budget, add waitSeconds: 0 to it and wait once with that budget (await sandbox.wait({ until: 'started', timeoutSeconds }), where 0 waits without a deadline); createTimeoutSeconds is the server budget before it deletes a sandbox that never starts",
+          "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error), and that single wait throws on a terminal state",
           "Image builds use createFromBuild(builder, options) instead of passing a v0 Image",
           "A registry image string such as 'python:3.12' is not a v2 create source (IMAGE_NOT_FOUND); use createFromBuild(ImageBuilder.fromRegistry(...)) or register the image first"
         ]
@@ -3821,20 +3821,20 @@
         "ts": "delete"
       },
       "v2": {
-        "py": "{client}.v2.delete(sandbox)",
-        "ts": "{client}.v2.delete(sandbox)"
+        "py": "{client}.v2.delete(sandbox[[timeout@1|, timeout=60 if $ is None else $|, timeout=$]])",
+        "ts": "{client}.v2.delete(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
       "notes": {
         "py": [
           "Accepts a v2 sandbox or ID",
-          "No timeout or wait parameters",
-          "v0 delete(wait=True) blocked until destroyed; with a v2 sandbox handle, follow with sandbox.wait(until=\"destroyed\", timeout=timeout) (await it on AsyncDaytona)"
+          "Waits until the sandbox is destroyed: timeout is keyword-only seconds (default 60; 0 waits without a deadline)",
+          "v0 delete(wait=False) returned at once; v2 always waits, so pass a short timeout and handle RequestTimeoutError if you must not block"
         ],
         "ts": [
           "Accepts a v2 sandbox or ID",
-          "No timeout or wait parameters",
-          "v0 delete(sandbox, timeout, true) blocked until destroyed; with a v2 sandbox handle, follow with await sandbox.wait({ until: 'destroyed', timeout })"
+          "Waits until the sandbox is destroyed: timeoutSeconds in an options object (default 60; 0 waits without a deadline)",
+          "v0 delete without wait returned at once; v2 always waits, so pass a short timeoutSeconds and handle RequestTimeoutError if you must not block"
         ]
       },
       "anchor": "client",
@@ -3849,14 +3849,14 @@
       },
       "v2": {
         "py": null,
-        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ name, memory: false, timeout: timeoutSeconds * 1000 }))"
+        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ [[params@1|...$, ]]memory: false[[timeout@2|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] }))"
       },
       "category": "differs",
       "notes": {
         "py": [],
         "ts": [
           "Fork moved to the v2 sandbox handle; there is no client.v2.fork",
-          "v0 took seconds and always waited (60 s by default); v2 waits for the fork only when timeout is set and takes milliseconds, so pass timeout: timeoutSeconds * 1000 (timeout: 60_000 for the v0 default; 0 waits without a deadline)",
+          "v0 took seconds and always waited (60 s by default; 0 waited without a deadline); v2 waitSeconds is seconds and defaults to 60 too, so leave it out when the 0.x call did, but waitSeconds: 0 returns once the fork is accepted, and v2 reads a waitSeconds above about 24.8 days (the timer maximum) as no deadline, so the suggestion passes 30 days for a v0 timeout of 0; however the wait ends, the fork is returned: check fork.state",
           "memory: false preserves v0 filesystem-only cloning",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ]
@@ -3873,7 +3873,7 @@
       },
       "v2": {
         "py": null,
-        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ name, memory: false, timeout: timeoutSeconds * 1000 }))"
+        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ [[params@1|...$, ]]memory: false[[timeout@2|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] }))"
       },
       "category": "differs",
       "notes": {
@@ -3881,7 +3881,7 @@
         "ts": [
           "Deprecated alias of fork in 0.x",
           "Fork moved to the v2 sandbox handle; there is no client.v2.fork",
-          "v0 took seconds and always waited (60 s by default); v2 waits for the fork only when timeout is set and takes milliseconds, so pass timeout: timeoutSeconds * 1000 (timeout: 60_000 for the v0 default; 0 waits without a deadline)",
+          "v0 took seconds and always waited (60 s by default; 0 waited without a deadline); v2 waitSeconds is seconds and defaults to 60 too, so leave it out when the 0.x call did, but waitSeconds: 0 returns once the fork is accepted, and v2 reads a waitSeconds above about 24.8 days (the timer maximum) as no deadline, so the suggestion passes 30 days for a v0 timeout of 0; however the wait ends, the fork is returned: check fork.state",
           "memory: false preserves v0 filesystem-only cloning",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ]
@@ -3903,7 +3903,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "get accepts an ID, not a name; find_by_name(name, region=...) returns a list",
+          "get accepts an ID, not a name; find_by_name(name, region=...) returns a tuple",
           "No per-call request_timeout argument"
         ],
         "ts": [
@@ -3921,20 +3921,22 @@
         "ts": "list"
       },
       "v2": {
-        "py": "{client}.v2.list(labels=labels, cursor=cursor, limit=limit)",
-        "ts": "{client}.v2.list({ labels, cursor, limit })"
+        "py": "{client}.v2.search(labels=labels, cursor=cursor, limit=limit)",
+        "ts": "{client}.v2.search({ labels, cursor, limit })"
       },
       "category": "differs",
       "notes": {
         "py": [
-          "Returns one ListResult page with items and next_cursor, not an iterator",
-          "Use iter() for automatic unfiltered pagination; filtered pagination uses list with cursors",
-          "Translate ListSandboxesQuery filters; async list now awaits a page instead of yielding sandboxes"
+          "Returns one page with items and next_cursor, not an iterator",
+          "list(cursor=, limit=) takes no filters; filtered queries (labels, states, region, ...) use search(), which is eventually consistent",
+          "Translate ListSandboxesQuery filters to search() keywords (states take SDK states such as \"started\"); async calls now await a page instead of yielding sandboxes",
+          "Use iter() for automatic unfiltered pagination"
         ],
         "ts": [
-          "Returns a Promise of one ListResult page with items and nextCursor, not an async iterator",
-          "Use iter({ labels }) for automatic pagination; it passes the same filters to every page",
-          "Translate ListSandboxesQuery filters rather than copying the old query"
+          "Returns a Promise of one page with items and nextCursor, not an async iterator",
+          "list({ cursor, limit }) takes no filters; filtered queries (labels, states, region, ...) use search(), which is eventually consistent",
+          "Translate ListSandboxesQuery filters to search() options (states take SDK states such as 'started')",
+          "Use iter() for automatic unfiltered pagination"
         ]
       },
       "anchor": "client",
@@ -3948,8 +3950,8 @@
         "ts": "start"
       },
       "v2": {
-        "py": "{client}.v2.start(sandbox, timeout=0 if timeout is None else timeout)",
-        "ts": "{client}.v2.start(sandbox, { timeout: timeoutSeconds * 1000 })"
+        "py": "{client}.v2.start(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$]])",
+        "ts": "{client}.v2.start(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
       "notes": {
@@ -3958,7 +3960,7 @@
           "Accepts a v2 macOS sandbox or ID and resumes it if paused"
         ],
         "ts": [
-          "v0 took seconds; v2 timeout is milliseconds (multiply by 1000; omit it to keep the default)",
+          "v0 took seconds; v2 takes timeoutSeconds, also seconds (omit it to keep the 60-second default; 0 waits without a deadline)",
           "Accepts a v2 macOS sandbox or ID and resumes it if paused"
         ]
       },
@@ -3973,21 +3975,20 @@
         "ts": "stop"
       },
       "v2": {
-        "py": "{client}.v2.stop(sandbox)",
-        "ts": "{client}.v2.stop(sandbox)"
+        "py": "{client}.v2.stop(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$]])",
+        "ts": "{client}.v2.stop(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
       "notes": {
         "py": [
           "Accepts a v2 sandbox or ID",
           "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
-          "No timeout argument",
-          "Requests stop and refreshes metadata; use sandbox.wait(until=\"stopped\") when completion is required"
+          "Waits until stopped: timeout is keyword-only seconds (default 60; 0 waits without a deadline); there is no force argument"
         ],
         "ts": [
           "Accepts a v2 sandbox or ID",
           "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
-          "Requests stop and refreshes metadata; use sandbox.wait({ until: 'stopped' }) when completion is required"
+          "Waits until stopped: timeoutSeconds in an options object (default 60; 0 waits without a deadline); there is no force option"
         ]
       },
       "anchor": "client",
@@ -4147,8 +4148,8 @@
         "ts": "create"
       },
       "v2": {
-        "py": "{client}.v2.volume.create(name=name)",
-        "ts": "{client}.v2.volume.create(name)"
+        "py": "{client}.v2.volumes.create(name=name)",
+        "ts": "{client}.v2.volumes.create({ name })"
       },
       "category": "differs",
       "notes": {
@@ -4158,7 +4159,7 @@
         ],
         "ts": [
           "Creates a v2 disk volume; migrate v0 volume data separately",
-          "Optional second argument sizeGib sets capacity in GiB"
+          "Optional sizeGib in the options object sets capacity in GiB"
         ]
       },
       "anchor": "client-volume",
@@ -4172,17 +4173,17 @@
         "ts": "delete"
       },
       "v2": {
-        "py": "{client}.v2.volume.delete(volume_id)",
-        "ts": "{client}.v2.volume.delete(volume)"
+        "py": "{client}.v2.volumes.delete(volume_id)",
+        "ts": "{client}.v2.volumes.delete(volumeId)"
       },
       "category": "differs",
       "notes": {
         "py": [
-          "Pass a v2 volume ID rather than a v0 Volume object; delete attached sandboxes first",
+          "Pass a v2 volume name or ID rather than a v0 Volume object; delete attached sandboxes first",
           "Requests deletion without waiting for completion; on AsyncDaytona this call must be awaited"
         ],
         "ts": [
-          "Pass a v2 Volume or its ID rather than a v0 Volume object; delete attached sandboxes first",
+          "Pass a v2 volume name or ID rather than a v0 Volume object; delete attached sandboxes first",
           "Requests deletion without waiting for completion"
         ]
       },
@@ -4197,8 +4198,8 @@
         "ts": "get"
       },
       "v2": {
-        "py": "{client}.v2.volume.get(name_or_id, create=create)",
-        "ts": "{client}.v2.volume.get(nameOrId, create)"
+        "py": "{client}.v2.volumes.get(name_or_id, create=create)",
+        "ts": "{client}.v2.volumes.get(nameOrId, { create })"
       },
       "category": "differs",
       "notes": {
@@ -4207,7 +4208,7 @@
           "Migrate v0 volume data separately; on AsyncDaytona this call must be awaited"
         ],
         "ts": [
-          "Looks up a v2 volume by name or ID; create=true creates a disk volume if missing",
+          "Looks up a v2 volume by name or ID; create: true creates a disk volume if missing",
           "Migrate v0 volume data separately"
         ]
       },
@@ -4222,17 +4223,17 @@
         "ts": "list"
       },
       "v2": {
-        "py": "{client}.v2.volume.list()",
-        "ts": "{client}.v2.volume.list()"
+        "py": "{client}.v2.volumes.list()",
+        "ts": "{client}.v2.volumes.list()"
       },
       "category": "differs",
       "notes": {
         "py": [
-          "Returns one envelope page with items and next_cursor; use volume.iter() to traverse all pages",
+          "Returns one envelope page with items and next_cursor; use volumes.iter() to traverse all pages",
           "On AsyncDaytona this call must be awaited"
         ],
         "ts": [
-          "Returns one envelope page with items and nextCursor; use volume.iter() to traverse all pages"
+          "Returns one envelope page with items and nextCursor; use volumes.iter() to traverse all pages"
         ]
       },
       "anchor": "client-volume",
@@ -4246,8 +4247,8 @@
         "ts": "create"
       },
       "v2": {
-        "py": "{client}.v2.secret.set(name, value, allowed_domains=domains, description=description, if_not_exists=True)",
-        "ts": "{client}.v2.secret.set(name, value, { allowedDomains: domains, description, ifNotExists: true })"
+        "py": "{client}.v2.secrets.set(name, value, allowed_domains=domains, description=description, if_not_exists=True)",
+        "ts": "{client}.v2.secrets.set(name, value, { allowedDomains: domains, description, ifNotExists: true })"
       },
       "category": "differs",
       "notes": {
@@ -4273,8 +4274,8 @@
         "ts": "delete"
       },
       "v2": {
-        "py": "{client}.v2.secret.delete(name)",
-        "ts": "{client}.v2.secret.delete(name)"
+        "py": "{client}.v2.secrets.delete(name)",
+        "ts": "{client}.v2.secrets.delete(name)"
       },
       "category": "differs",
       "notes": {
@@ -4296,8 +4297,8 @@
         "ts": "get"
       },
       "v2": {
-        "py": "{client}.v2.secret.get(name)",
-        "ts": "{client}.v2.secret.get(name)"
+        "py": "{client}.v2.secrets.get(name)",
+        "ts": "{client}.v2.secrets.get(name)"
       },
       "category": "differs",
       "notes": {
@@ -4321,8 +4322,8 @@
         "ts": "list"
       },
       "v2": {
-        "py": "{client}.v2.secret.list()",
-        "ts": "{client}.v2.secret.list()"
+        "py": "{client}.v2.secrets.list()",
+        "ts": "{client}.v2.secrets.list()"
       },
       "category": "differs",
       "notes": {
@@ -4346,8 +4347,8 @@
         "ts": "update"
       },
       "v2": {
-        "py": "{client}.v2.secret.set(name, value, allowed_domains=domains, description=description)",
-        "ts": "{client}.v2.secret.set(name, value, { allowedDomains: domains, description })"
+        "py": "{client}.v2.secrets.set(name, value, allowed_domains=domains, description=description)",
+        "ts": "{client}.v2.secrets.set(name, value, { allowedDomains: domains, description })"
       },
       "category": "differs",
       "notes": {
@@ -4512,21 +4513,21 @@
         "ts": "createSnapshot"
       },
       "v2": {
-        "py": "{sandbox}.snapshot_filesystem(name=name)",
-        "ts": "{sandbox}.snapshotFilesystem({ name })"
+        "py": "{sandbox}.capture_image(name=name)",
+        "ts": "{sandbox}.captureImage({ name })"
       },
       "category": "differs",
       "notes": {
         "py": [
           "V0 filesystem snapshots correspond to v2 images",
           "Returns an Image and has no timeout argument",
-          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), then check that the returned image status is \"ready\" (it can be \"failed\", or still pending on timeout) before booting from it",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), which returns the image once it settles (\"ready\", \"failed\" or \"error\"; check that it is \"ready\" before booting from it) and raises RequestTimeoutError when the budget runs out",
           "V2 create_snapshot(name) captures sandbox state and is a different operation"
         ],
         "ts": [
           "V0 filesystem snapshots correspond to v2 images",
           "Returns an Image and has no timeout argument",
-          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeout }), then check that the returned image status is 'ready' (it can be 'failed', or still pending on timeout) before booting from it",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds }), which returns the image once it settles ('ready', 'failed' or 'error'; check that it is 'ready' before booting from it) and throws RequestTimeoutError when the budget runs out",
           "V2 createSnapshot(name) captures sandbox state and is a different operation"
         ]
       },
@@ -4541,8 +4542,8 @@
         "ts": "_experimental_createSnapshot"
       },
       "v2": {
-        "py": "{sandbox}.snapshot_filesystem(name=name)",
-        "ts": "{sandbox}.snapshotFilesystem({ name })"
+        "py": "{sandbox}.capture_image(name=name)",
+        "ts": "{sandbox}.captureImage({ name })"
       },
       "category": "differs",
       "notes": {
@@ -4550,14 +4551,14 @@
           "Deprecated alias of create_snapshot in 0.x",
           "V0 filesystem snapshots correspond to v2 images",
           "Returns an Image and has no timeout argument",
-          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), then check that the returned image status is \"ready\" (it can be \"failed\", or still pending on timeout) before booting from it",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), which returns the image once it settles (\"ready\", \"failed\" or \"error\"; check that it is \"ready\" before booting from it) and raises RequestTimeoutError when the budget runs out",
           "V2 create_snapshot(name) captures sandbox state and is a different operation"
         ],
         "ts": [
           "Deprecated alias of createSnapshot in 0.x",
           "V0 filesystem snapshots correspond to v2 images",
           "Returns an Image and has no timeout argument",
-          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeout }), then check that the returned image status is 'ready' (it can be 'failed', or still pending on timeout) before booting from it",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds }), which returns the image once it settles ('ready', 'failed' or 'error'; check that it is 'ready' before booting from it) and throws RequestTimeoutError when the budget runs out",
           "V2 createSnapshot(name) captures sandbox state and is a different operation"
         ]
       },
@@ -4597,18 +4598,18 @@
         "ts": "delete"
       },
       "v2": {
-        "py": "{sandbox}.delete()",
-        "ts": "{sandbox}.delete()"
+        "py": "{sandbox}.delete([[timeout@0|timeout=60 if $ is None else $|timeout=$]])",
+        "ts": "{sandbox}.delete([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
       "notes": {
         "py": [
-          "No timeout or wait arguments",
-          "v0 delete(wait=True) blocked until destroyed; follow with sandbox.wait(until=\"destroyed\", timeout=timeout) (await it on AsyncSandbox)"
+          "Waits until the sandbox is destroyed: timeout is keyword-only seconds (default 60; 0 waits without a deadline)",
+          "v0 delete(wait=False) returned at once; v2 always waits, so pass a short timeout and handle RequestTimeoutError if you must not block"
         ],
         "ts": [
-          "No timeout or wait arguments",
-          "v0 delete(timeout, true) blocked until destroyed; follow with await sandbox.wait({ until: 'destroyed', timeout })"
+          "Waits until the sandbox is destroyed: timeoutSeconds in an options object (default 60; 0 waits without a deadline)",
+          "v0 delete without wait returned at once; v2 always waits, so pass a short timeoutSeconds and handle RequestTimeoutError if you must not block"
         ]
       },
       "anchor": "sandbox",
@@ -4674,19 +4675,19 @@
         "ts": "fork"
       },
       "v2": {
-        "py": "{sandbox}.fork(name=name, memory=False, timeout=0 if timeout is None else timeout)",
-        "ts": "{sandbox}.fork({ name, memory: false, timeout: timeoutSeconds * 1000 })"
+        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $|, wait_seconds=$|, wait_seconds=30 * 86_400]])",
+        "ts": "{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] })"
       },
       "category": "differs",
       "notes": {
         "py": [
           "memory=False preserves v0 filesystem-only cloning; v2 otherwise includes memory",
-          "name, memory and timeout are keyword-only; v2 waits for the fork only when timeout is set (0 waits without a deadline), so pass it to keep the v0 wait; v0's None (wait without limit) is 0 in v2",
+          "name, memory and wait_seconds are keyword-only; wait_seconds is seconds and defaults to 60, like v0, so omit it when the 0.x call omitted timeout; wait_seconds=0 returns once the fork is accepted, while a v0 timeout of 0 or None waited without a deadline; v2 reads a wait_seconds above about 24.8 days (the timer maximum) as no deadline, so the suggestion passes 30 days for those; however the wait ends, the fork is returned: check fork.state",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ],
         "ts": [
           "memory: false preserves v0 filesystem-only cloning; v2 otherwise includes memory",
-          "timeout moves into the options object and waiting is optional; v0 took seconds and always waited (60 s by default); v2 waits for the fork only when timeout is set and takes milliseconds, so pass timeout: timeoutSeconds * 1000 (timeout: 60_000 for the v0 default; 0 waits without a deadline)",
+          "timeout becomes waitSeconds in the options object, still seconds and defaulting to 60 like v0, so leave it out when the 0.x call did; waitSeconds: 0 returns once the fork is accepted, while a v0 timeout of 0 waited without a deadline; v2 reads a waitSeconds above about 24.8 days (the timer maximum) as no deadline, so the suggestion passes 30 days for it; however the wait ends, the fork is returned: check fork.state",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ]
       },
@@ -4701,21 +4702,21 @@
         "ts": "_experimental_fork"
       },
       "v2": {
-        "py": "{sandbox}.fork(name=name, memory=False, timeout=0 if timeout is None else timeout)",
-        "ts": "{sandbox}.fork({ name, memory: false, timeout: timeoutSeconds * 1000 })"
+        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $|, wait_seconds=$|, wait_seconds=30 * 86_400]])",
+        "ts": "{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] })"
       },
       "category": "differs",
       "notes": {
         "py": [
           "Deprecated alias of fork in 0.x",
           "memory=False preserves v0 filesystem-only cloning; v2 otherwise includes memory",
-          "name, memory and timeout are keyword-only; v2 waits for the fork only when timeout is set (0 waits without a deadline), so pass it to keep the v0 wait; v0's None (wait without limit) is 0 in v2",
+          "name, memory and wait_seconds are keyword-only; wait_seconds is seconds and defaults to 60, like v0, so omit it when the 0.x call omitted timeout; wait_seconds=0 returns once the fork is accepted, while a v0 timeout of 0 or None waited without a deadline; v2 reads a wait_seconds above about 24.8 days (the timer maximum) as no deadline, so the suggestion passes 30 days for those; however the wait ends, the fork is returned: check fork.state",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ],
         "ts": [
           "Deprecated alias of fork in 0.x",
           "memory: false preserves v0 filesystem-only cloning; v2 otherwise includes memory",
-          "timeout moves into the options object and waiting is optional; v0 took seconds and always waited (60 s by default); v2 waits for the fork only when timeout is set and takes milliseconds, so pass timeout: timeoutSeconds * 1000 (timeout: 60_000 for the v0 default; 0 waits without a deadline)",
+          "timeout becomes waitSeconds in the options object, still seconds and defaulting to 60 like v0, so leave it out when the 0.x call did; waitSeconds: 0 returns once the fork is accepted, while a v0 timeout of 0 waited without a deadline; v2 reads a waitSeconds above about 24.8 days (the timer maximum) as no deadline, so the suggestion passes 30 days for it; however the wait ends, the fork is returned: check fork.state",
           "Only running sources start the fork automatically; paused or stopped sources require resume or start"
         ]
       },
@@ -4897,8 +4898,8 @@
         "ts": "pause"
       },
       "v2": {
-        "py": "{sandbox}.pause(timeout=timeout)",
-        "ts": "{sandbox}.pause({ timeout: timeoutSeconds * 1000 })"
+        "py": "{sandbox}.pause([[timeout@0|timeout=$]])",
+        "ts": "{sandbox}.pause([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
       "notes": {
@@ -4907,7 +4908,7 @@
           "Requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
         ],
         "ts": [
-          "v0 took seconds; v2 timeout is milliseconds (multiply by 1000; omit it to keep the default)",
+          "v0 took seconds; v2 takes timeoutSeconds, also seconds (omit it to keep the 60-second default)",
           "Requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
         ]
       },
@@ -4970,13 +4971,13 @@
         "ts": "refreshData"
       },
       "v2": {
-        "py": "{sandbox}.refresh_data(timeout=request_timeout)",
+        "py": "{sandbox}.refresh_data()",
         "ts": "{sandbox}.refreshData()"
       },
       "category": "differs",
       "notes": {
         "py": [
-          "request_timeout becomes keyword-only timeout"
+          "No arguments; request_timeout is removed (the client-wide request_timeout applies)"
         ],
         "ts": [
           "Same name, no arguments, on the v2 sandbox handle"
@@ -5164,13 +5165,13 @@
         "ts": "setLabels"
       },
       "v2": {
-        "py": "{sandbox}.set_labels(labels=labels)",
+        "py": "{sandbox}.set_labels(labels)",
         "ts": "{sandbox}.setLabels(labels)"
       },
       "category": "differs",
       "notes": {
         "py": [
-          "labels is keyword-only; no request_timeout argument",
+          "No request_timeout argument; returns the applied labels as a plain dict typed Mapping",
           "Replaces the complete label set"
         ],
         "ts": [
@@ -5188,18 +5189,18 @@
         "ts": "setPublic"
       },
       "v2": {
-        "py": "{sandbox}.ports.set_public(port, public=public)",
-        "ts": "{sandbox}.ports.setPublic(port, { public: isPublic })"
+        "py": "{sandbox}.ports.expose(port, public=public)",
+        "ts": "{sandbox}.ports.expose(port, { public: isPublic })"
       },
       "category": "differs",
       "notes": {
         "py": [
           "Visibility is per exposed port, not sandbox-wide",
-          "Choose a port explicitly; returns PreviewEndpoint"
+          "Choose a port explicitly; expose() also changes the visibility of an already exposed port and returns PreviewEndpoint"
         ],
         "ts": [
           "Visibility is per exposed port, not sandbox-wide",
-          "Choose a port explicitly; returns PreviewEndpoint"
+          "Choose a port explicitly; expose() also changes the visibility of an already exposed port and returns PreviewEndpoint"
         ]
       },
       "anchor": "sandbox",
@@ -5242,8 +5243,8 @@
         "ts": "start"
       },
       "v2": {
-        "py": "{sandbox}.start(timeout=0 if timeout is None else timeout)",
-        "ts": "{sandbox}.start({ timeout: timeoutSeconds * 1000 })"
+        "py": "{sandbox}.start([[timeout@0|timeout=0 if $ is None else $|timeout=$]])",
+        "ts": "{sandbox}.start([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
       "notes": {
@@ -5252,7 +5253,7 @@
           "Requires a macOS sandbox; starts it if stopped or resumes it if paused, and waits for started"
         ],
         "ts": [
-          "v0 took seconds; v2 timeout is milliseconds (multiply by 1000; omit it to keep the default)",
+          "v0 took seconds; v2 takes timeoutSeconds, also seconds (omit it to keep the 60-second default; 0 waits without a deadline)",
           "Requires a macOS sandbox; starts it if stopped or resumes it if paused, and waits for started"
         ]
       },
@@ -5267,20 +5268,18 @@
         "ts": "stop"
       },
       "v2": {
-        "py": "{sandbox}.stop()",
-        "ts": "{sandbox}.stop()"
+        "py": "{sandbox}.stop([[timeout@0|timeout=0 if $ is None else $|timeout=$]])",
+        "ts": "{sandbox}.stop([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
       "notes": {
         "py": [
           "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
-          "No timeout or force arguments",
-          "Requests stop and refreshes metadata; wait separately for stopped when required"
+          "Waits until stopped: timeout is keyword-only seconds (default 60; 0 waits without a deadline); there is no force argument"
         ],
         "ts": [
           "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
-          "No timeout or force arguments",
-          "Requests stop and refreshes metadata; wait separately for stopped when required"
+          "Waits until stopped: timeoutSeconds in an options object (default 60; 0 waits without a deadline); there is no force option"
         ]
       },
       "anchor": "sandbox",
@@ -5448,18 +5447,18 @@
         "ts": "waitUntilStarted"
       },
       "v2": {
-        "py": "{sandbox}.wait(until=\"started\", timeout=timeout)",
-        "ts": "{sandbox}.wait({ until: 'started', timeout })"
+        "py": "{sandbox}.wait(until=\"started\"[[timeout@0|, timeout=0 if $ is None else $|, timeout=$]])",
+        "ts": "{sandbox}.wait({ until: 'started'[[timeout@0|, timeoutSeconds: $]] })"
       },
       "category": "differs",
       "notes": {
         "py": [
           "Uses the public state-wait helper and returns the sandbox handle",
-          "timeout is keyword-only"
+          "timeout is keyword-only and must be a number: v0's None (wait without limit) is 0 in v2"
         ],
         "ts": [
           "Uses the public state-wait helper and returns the sandbox handle",
-          "timeout moves into an options object"
+          "timeout becomes timeoutSeconds in an options object, still seconds"
         ]
       },
       "anchor": "sandbox",
@@ -5473,20 +5472,20 @@
         "ts": "waitUntilStopped"
       },
       "v2": {
-        "py": "{sandbox}.wait(until=\"stopped\", timeout=timeout)",
-        "ts": "{sandbox}.wait({ until: 'stopped', timeout })"
+        "py": "{sandbox}.wait(until=\"stopped\"[[timeout@0|, timeout=0 if $ is None else $|, timeout=$]])",
+        "ts": "{sandbox}.wait({ until: 'stopped'[[timeout@0|, timeoutSeconds: $]] })"
       },
       "category": "differs",
       "notes": {
         "py": [
           "Uses the public state-wait helper and returns the sandbox handle",
-          "timeout is keyword-only",
-          "v0 also returned when the sandbox was destroyed; wait(until=\"stopped\") raises on destroyed, so use sandbox.wait_for_state([\"stopped\", \"destroyed\"], timeout=timeout) (await it on AsyncSandbox) to keep that behavior"
+          "timeout is keyword-only and must be a number: v0's None (wait without limit) is 0 in v2",
+          "v0 also returned when the sandbox was destroyed; wait(until=\"stopped\") raises on destroyed, so use sandbox.wait(until=[\"stopped\", \"destroyed\"], timeout=0 if timeout is None else timeout) (await it on AsyncSandbox) to keep that behavior"
         ],
         "ts": [
           "Uses the public state-wait helper and returns the sandbox handle",
-          "timeout moves into an options object",
-          "v0 also returned when the sandbox was destroyed; wait({ until: 'stopped' }) throws on destroyed, so use wait({ until: ['stopped', 'destroyed'], timeout }) to keep that behavior"
+          "timeout becomes timeoutSeconds in an options object, still seconds",
+          "v0 also returned when the sandbox was destroyed; wait({ until: 'stopped' }) throws on destroyed, so use wait({ until: ['stopped', 'destroyed'], timeoutSeconds }) to keep that behavior"
         ]
       },
       "anchor": "sandbox",

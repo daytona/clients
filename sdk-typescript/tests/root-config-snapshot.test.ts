@@ -26,7 +26,7 @@ describe('root config snapshot', () => {
       const server = createServer((request, response) => {
         seen.push({ authorization: request.headers.authorization, url: request.url })
         response.writeHead(200, { 'Content-Type': 'application/json' })
-        response.end(JSON.stringify({ sandboxes: [], next_cursor: null }))
+        response.end(JSON.stringify({ sandboxes: [], next_cursor: null, total: 0, total_relation: 'eq' }))
       })
       await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
       const address = server.address()

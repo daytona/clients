@@ -9,6 +9,8 @@ the same rule (util.inspect, JSON).
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from daytona import AsyncDaytona, Daytona, DaytonaConfig
@@ -17,6 +19,8 @@ from daytona.v2._transport import AsyncTransport
 from daytona.v2.daytona import _resolve_config
 from daytona.v2.types import DaytonaConfig as V2DaytonaConfig
 from daytona.v2.types import PreviewLink, SandboxAccessToken, SignedPreviewLink
+
+_EXPIRES = datetime(2030, 1, 1, tzinfo=timezone.utc)
 
 SECRET = "s3cret-credential-value"
 
@@ -34,7 +38,7 @@ def _objects() -> list[object]:
             access_token=SECRET, token_type="Bearer", expires_at="2030-01-01T00:00:00Z", operations=[]
         ),
         PreviewLink(url="https://preview.invalid", token=SECRET),
-        SignedPreviewLink(url=f"https://preview.invalid/{SECRET}", token=SECRET),
+        SignedPreviewLink(url=f"https://preview.invalid/{SECRET}", token=SECRET, expires_at=_EXPIRES),
         ProjectTokenAuth(
             api_url="http://api.invalid", jwt_token=SECRET, project_id="p", source="sdk-python-async"
         ),

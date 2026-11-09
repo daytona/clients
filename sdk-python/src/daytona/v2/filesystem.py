@@ -625,7 +625,7 @@ class AsyncFileSystemService:
             raise create_error(
                 "expected glob response: files must be a list of strings", 400, "BAD_REQUEST", "SDK"
             )
-        return ListResult([str(item) for item in raw], None)
+        return ListResult(items=[str(item) for item in raw])
 
     async def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult[ReplaceResult]:
         """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""

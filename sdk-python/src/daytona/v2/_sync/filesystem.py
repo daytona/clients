@@ -23,9 +23,9 @@ class FileSystemService:
 
     _async_type = _async.AsyncFileSystemService
 
-    def __init__(self, impl: _async.AsyncFileSystemService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncFileSystemService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"FileSystemService({self._impl!r})"
@@ -55,7 +55,15 @@ class FileSystemService:
         on_progress: TransferProgressCallback | None = None,
         cancel: TransferCancelSignal | None = None,
     ) -> None:
-        """Stream ``remote_path`` to ``local_path`` without holding it in memory."""
+        """Stream ``remote_path`` to ``local_path`` without holding it in memory.
+
+        Writes to a unique temporary file in the destination directory and
+        renames it over ``local_path`` on success; on an error or a
+        cancellation that temporary file is removed. ``on_progress(bytes,
+        total)`` reports progress (``total`` from ``Content-Length`` when the
+        sandbox sends it); ``cancel`` is any object with ``is_set()``, checked
+        between chunks, and raises ``TransferCancelledError``.
+        """
         return self._bridge.call(
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
         )
@@ -65,7 +73,10 @@ class FileSystemService:
         return self._bridge.call(lambda: self._impl.glob(path, pattern))
 
     def grep(self, path: str, pattern: str) -> ListResult[FileMatch]:
-        """Search file contents under ``path`` for the literal substring ``pattern``."""
+        """Search file contents under ``path`` for the literal substring ``pattern``.
+
+        Returns matches with one-based line numbers.
+        """
         return self._bridge.call(lambda: self._impl.grep(path, pattern))
 
     def list(self, path: str, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
@@ -81,27 +92,60 @@ class FileSystemService:
         return self._bridge.call(lambda: self._impl.move(source, destination))
 
     def presigned_download_url(self, path: str, *, expires_in_seconds: int = 3600) -> str:
-        """Return a pre-signed download URL for a sandbox file."""
+        """Return a pre-signed download URL for a sandbox file.
+
+        The signature is minted by the API; ``expires_in_seconds``
+        must be between 1 and :data:`SIGNED_FILE_MAX_TTL_SECONDS` (7 days).
+        """
         return self._bridge.call(
             lambda: self._impl.presigned_download_url(path, expires_in_seconds=expires_in_seconds)
         )
 
     def presigned_upload_url(self, path: str, *, expires_in_seconds: int = 3600) -> str:
-        """Return a pre-signed upload URL for a sandbox file."""
+        """Return a pre-signed upload URL for a sandbox file.
+
+        The signature is minted by the API; ``expires_in_seconds``
+        must be between 1 and :data:`SIGNED_FILE_MAX_TTL_SECONDS` (7 days).
+        """
         return self._bridge.call(
             lambda: self._impl.presigned_upload_url(path, expires_in_seconds=expires_in_seconds)
         )
 
     def read_bytes(self, path: str, *, max_response_bytes: Optional[int] = None) -> bytes:
-        """Read a file as bytes, holding the whole file in memory."""
+        """Read a file as bytes, holding the whole file in memory.
+
+        No total deadline (it fails only when no bytes move for the client's
+        ``request_timeout``; with a ``request_timeout`` of ``0``, nothing
+        bounds it). ``max_response_bytes`` replaces the client's cap on the
+        body for this call (``None`` keeps the client's cap, ``0`` means no
+        limit, and any other value (negative, fractional, boolean, string,
+        above 2**53 - 1) is a ``BadRequestError``); a larger body raises
+        ``PayloadTooLargeError`` before it is read in full. For large files, or
+        content from a sandbox you do not trust, use :meth:`download_file`,
+        which streams to disk with progress and cancellation.
+        """
         return self._bridge.call(lambda: self._impl.read_bytes(path, max_response_bytes=max_response_bytes))
 
     def read_many(self, paths: Sequence[str], *, max_response_bytes: Optional[int] = None) -> BulkReadResult:
-        """Read multiple files, buffering each returned file in memory before returning."""
+        """Read multiple files, buffering each returned file in memory before returning.
+
+        The whole response is held in memory. For large files, or content from a
+        sandbox you do not trust, use :meth:`download_file`, which streams to disk
+        with progress and cancellation.
+
+        Non-200 responses raise the typed SDK error inside the transport;
+        only a 200 multipart body reaches the parser. The limits are those of
+        :meth:`read_bytes`; ``max_response_bytes`` applies to the whole
+        multipart body.
+        """
         return self._bridge.call(lambda: self._impl.read_many(paths, max_response_bytes=max_response_bytes))
 
     def read_text(self, path: str, *, max_response_bytes: Optional[int] = None) -> str:
-        """Read a UTF-8 text file (see :meth:`read_bytes` for its bounds)."""
+        r"""Read a UTF-8 text file (see :meth:`read_bytes` for its bounds).
+
+        Decoding is strict (invalid UTF-8 raises ``UnicodeDecodeError``) and a
+        leading byte-order mark is kept as ``\ufeff``.
+        """
         return self._bridge.call(lambda: self._impl.read_text(path, max_response_bytes=max_response_bytes))
 
     def remove(self, path: str, *, recursive: bool = False) -> None:
@@ -141,7 +185,21 @@ class FileSystemService:
         on_overflow: Optional[WatchOverflowCallback] = None,
         on_exit: Optional[WatchExitCallback] = None,
     ) -> WatchHandle:
-        """Watch ``path`` for changes, calling ``on_event`` for each one."""
+        """Watch ``path`` for changes, calling ``on_event`` for each one.
+
+        Returns once the watch is established; callbacks are held until it has
+        returned its handle (see :class:`WatchHandle` for stopping a watch
+        from an event). Callbacks (plain or coroutine functions) run one at a
+        time, in order.
+        A failing ``on_event`` or
+        ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
+        when the watch ends, and its own failure is ignored. A failure before
+        the watch starts is raised from this call and does not call ``on_exit``;
+        a stream that sends more than 4096 events, or more than 1 MiB, before
+        ``start`` is one (``BadRequestError``). After ``start`` an event larger
+        than the client's ``max_response_bytes`` ends the watch with
+        ``PayloadTooLargeError``.
+        """
         result = WatchHandle(
             self._bridge.call(
                 lambda: self._impl.watch_dir(
@@ -167,13 +225,34 @@ class FileSystemService:
 
 
 class WatchHandle:
-    """A running directory watch, returned by ``fs.watch_dir()``."""
+    """A running directory watch, returned by ``fs.watch_dir()``.
+
+    Callbacks run one at a time, in order, and are awaited. A failing event or
+    overflow callback ends the watch: that error becomes :attr:`exit_error`
+    and is passed to ``on_exit``. Never constructed directly.
+
+    To stop a watch from an event, signal the code that holds the handle (an
+    ``asyncio.Event``, or a ``threading.Event`` with the synchronous client)
+    and call ``stop()`` there; this works in every case. As a shorthand, after
+    a direct ``watch_dir(...)`` a callback can call ``stop()`` on the
+    returned handle itself: callbacks are held until ``watch_dir()`` has
+    returned its handle. When ``watch_dir()`` runs inside another task
+    (``asyncio.gather``, ``asyncio.create_task``, or ``asyncio.wait_for`` on
+    Python 3.10-3.11), or with the synchronous client, the first events can
+    reach the callback before the caller holds the handle.
+
+    With the synchronous client, callbacks run on the SDK's event-loop thread:
+    there a callback may call its own watch's ``stop()`` (which then returns
+    without waiting), ``wait_for_exit()`` and ``exit_error`` (which return the
+    current exit error), but no other synchronous SDK call (another watch's
+    included): that raises ``BridgeError``.
+    """
 
     _async_type = _async.AsyncWatchHandle
 
-    def __init__(self, impl: _async.AsyncWatchHandle, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncWatchHandle, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"WatchHandle({self._impl!r})"
@@ -185,13 +264,21 @@ class WatchHandle:
         return hash(self._impl)
 
     def stop(self) -> None:
-        """Stop the watch, once a running callback and ``on_exit`` finish (its own callback: at once)."""
+        """Stop the watch, once a running callback and ``on_exit`` finish (its own callback: at once).
+
+        A callback (or ``on_exit``) may call ``stop()`` on its own watch, also
+        from a task it started; that call returns without waiting for itself.
+        """
         if self._bridge.on_loop_thread():
             return self._impl._stop_nowait()
         return self._bridge.call(lambda: self._impl.stop())
 
     def wait_for_exit(self) -> Exception | None:
-        """Wait until the watch ends and return :attr:`exit_error` (its own callback: at once)."""
+        """Wait until the watch ends and return :attr:`exit_error` (its own callback: at once).
+
+        Called by the watch's own callback, it returns the current exit error
+        without waiting for itself.
+        """
         if self._bridge.on_loop_thread():
             return self._impl._exit_error_now()
         return self._bridge.call(lambda: self._impl.wait_for_exit())

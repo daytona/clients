@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import sys
 
-from _common import RUN, client, failed, info, passed, sandbox_image, section
+from _common import RUN, client, failed, info, passed, require_started, sandbox_image, section
 
 
 def main() -> int:
@@ -24,6 +24,8 @@ def main() -> int:
 
     ok = True
     try:
+        if not require_started(sandbox):
+            return 1
         d = "project-files"
 
         section("mkdir + list")

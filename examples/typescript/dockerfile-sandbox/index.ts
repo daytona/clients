@@ -2,9 +2,9 @@
  * dockerfile-sandbox — the happy path: build a Dockerfile, get a working
  * sandbox, do real work in it.
  *
- * One call takes an inline Dockerfile to a RUNNING sandbox: Daytona builds the
- * image, boots it, and hands back something you can immediately run commands
- * in. No image to register first, no build to poll.
+ * One call builds an inline Dockerfile and waits for a sandbox to boot. Check
+ * the returned state before running commands: the readiness wait can expire.
+ * The image build and sandbox readiness have independent time budgets.
  *
  * The Dockerfile bakes in a script, a data file and an environment variable,
  * and the sandbox then proves all three survived into the running sandbox —
@@ -18,7 +18,7 @@
  */
 
 import { ImageBuilder } from '@daytona/sdk/v2'
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
 // Everything here is baked at BUILD time. If the sandbox can see it at RUN
 // time, the image it booted is the one we just built.
@@ -44,15 +44,13 @@ async function main() {
     section('build the Dockerfile and boot it, in one call')
     sandbox = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `dockerfile-sandbox-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     info(`sandbox ${sandbox.id}`)
     info(`state   ${sandbox.state}`)
-    if (sandbox.state === 'started') pass('the sandbox is running')
-    else {
-      fail(`expected a running sandbox, got ${sandbox.state}`)
-      ok = false
-    }
+    assertStarted(sandbox)
+    pass('the sandbox is running')
 
     section('run the script the Dockerfile baked in')
     const greet = await sandbox.process.run('/app/greet.sh')
@@ -96,10 +94,12 @@ async function main() {
     section('create a second sandbox from the same Dockerfile')
     const twin = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `dockerfile-sandbox-twin-${RUN}`,
+      buildTimeoutSeconds: 400,
       waitSeconds: 400,
     })
     try {
       info(`sandbox ${twin.id} is ${twin.state}`)
+      assertStarted(twin)
       const twinGreet = await twin.process.run('/app/greet.sh')
       if (twinGreet.exitCode === 0 && twinGreet.output.includes(RUN)) {
         pass('the second sandbox runs the expected script')
@@ -122,7 +122,7 @@ async function main() {
         info(`could not delete ${sandbox.id}: ${error}`)
       }
     } else if (sandbox) {
-      info(`DAYTONA_KEEP=1 — leaving ${sandbox.id} running`)
+      info(`DAYTONA_KEEP=1 — leaving ${sandbox.id} (${sandbox.state ?? 'unknown'}) in place`)
       info(`connect with: daytona.get('${sandbox.id}')`)
     }
   }

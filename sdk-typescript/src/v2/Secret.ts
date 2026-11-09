@@ -4,7 +4,7 @@
  */
 
 /*
- * Daytona SDK — SecretService.
+ * Daytona SDK — SecretsService.
  *
  * Project-scoped secrets: named key/value pairs. Attach one or more to a
  * sandbox at creation through the `secrets` option (a list of names).
@@ -14,23 +14,37 @@
  * Uses the `/secrets` routes, scoped to the API key's project.
  */
 
+import { pageParams } from './pageParams.js'
+import { pathSegment } from './pathSegment.js'
+import { deepFrozen, frozenPage } from './frozen.js'
+import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { ListResult } from './types.js'
-import { strictUriEncode } from './http.js'
+import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
+import { arrayOf, checkResponse } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
 
 /** Secret metadata (never the value). */
-export type Secret = api.Secret
+export interface Secret {
+  readonly name: string
+  readonly allowedDomains: readonly string[]
+  readonly description?: string
+  readonly createdAt: string
+  readonly updatedAt: string
+}
 
 /** Options for creating/updating a secret. */
 export interface SetSecretOptions {
   /** The hosts where this secret's value may be sent (exact or `*.` wildcard),
    *  or `["*"]` for any verified host. `"*"` lets the value reach any HTTPS
    *  host, including one a compromised sandbox controls. */
-  allowedDomains: string[]
-  description?: string
-  ifNotExists?: boolean
+  readonly allowedDomains: readonly string[]
+  readonly description?: string
+  readonly ifNotExists?: boolean
 }
 
 export interface ListSecretsOptions {
@@ -38,19 +52,43 @@ export interface ListSecretsOptions {
   readonly limit?: number
 }
 
+const SET_SECRET_KEYS = optionKeys<SetSecretOptions>()({ allowedDomains: true, description: true, ifNotExists: true })
+const LIST_SECRETS_KEYS = optionKeys<ListSecretsOptions>()({ cursor: true, limit: true })
+
+const SECRET: ResponseFields = { name: 'string', allowed_domains: arrayOf('string'), created_at: 'timestamp', updated_at: 'timestamp', description: 'string?' }
+
+function mapSecret(value: api.Secret): Secret {
+  const secret = checkResponse<api.Secret>(value, SECRET, 'secret')
+  return deepFrozen({
+    name: secret.name,
+    allowedDomains: [...secret.allowed_domains],
+    description: secret.description ?? undefined,
+    createdAt: secret.created_at,
+    updatedAt: secret.updated_at,
+  })
+}
+
 /** Service for managing project-scoped secrets. */
-export class SecretService {
-  constructor(private readonly api: AxiosInstance) {
-    credentialSafeDiagnostics(this, () => ({ type: 'SecretService' }))
+export class SecretsService {
+  /** @internal */
+  constructor(token: Internal, api: AxiosInstance)
+  /** Built by the SDK: get it from the client or a sandbox. */
+  constructor(token: Internal, init: never)
+  constructor(token: Internal, private readonly api: AxiosInstance) {
+    assertInternal(token, 'SecretsService')
+    credentialSafeDiagnostics(this, () => ({ type: 'SecretsService' }))
   }
 
   /** Lists secret metadata for the project (never values). */
   public async list(options: ListSecretsOptions = {}): Promise<ListResult<Secret>> {
-    const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: options })
-    return { items: data.secrets, nextCursor: data.next_cursor ?? undefined }
+    options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
+    const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: pageParams(options.cursor, options.limit) })
+    const page = listPage<api.Secret>(data, 'secrets', 'secret list')
+    return frozenPage({ items: page.items.map(mapSecret), nextCursor: page.nextCursor })
   }
 
   public async *iter(options: ListSecretsOptions = {}): AsyncIterable<Secret> {
+    options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
     let cursor = options.cursor
     const seen = new Set<string>()
     if (cursor !== undefined) seen.add(cursor)
@@ -65,26 +103,38 @@ export class SecretService {
 
   /** Gets one secret's metadata (never its value). */
   public async get(name: string): Promise<Secret> {
-    const { data } = await this.api.get<api.Secret>(`/secrets/${strictUriEncode(name)}`)
-    return { name: data.name, allowed_domains: data.allowed_domains, description: data.description ?? null, created_at: data.created_at ?? null, updated_at: data.updated_at ?? null }
+    const { data } = await this.api.get<api.Secret>(`/secrets/${pathSegment(name, 'name')}`)
+    return mapSecret(data)
   }
 
   /** Creates or updates a secret's value + metadata. */
   public async set(name: string, value: string, options: SetSecretOptions): Promise<Secret> {
-    const body: api.PutSecretRequest = { value, allowed_domains: options.allowedDomains }
-    if (options.description !== undefined) body.description = options.description
-    const config = options.ifNotExists ? { headers: { 'If-None-Match': '*' } } : undefined
-    return this.api.put<api.Secret>(`/secrets/${strictUriEncode(name)}`, body, config)
-      .then((response) => ({
-        name: response.data.name,
-        allowed_domains: response.data.allowed_domains,
-        description: response.data.description ?? null,
-        created_at: response.data.created_at,
-        updated_at: response.data.updated_at,
-      }))
+    const path = `/secrets/${pathSegment(name, 'name')}`
+    // The options are required: an omitted value is refused like any non-object.
+    assertOptionsObject('SetSecretOptions', options)
+    assertKnownOptions('SetSecretOptions', options, SET_SECRET_KEYS)
+    // The name, the options object and its keys, then the value and each option.
+    const given: unknown = value
+    if (typeof given !== 'string') throw badRequest('value must be a string')
+    const description: unknown = options.description
+    if (description !== undefined && description !== null && typeof description !== 'string') throw badRequest('description must be a string')
+    const ifNotExists: unknown = options.ifNotExists
+    if (ifNotExists !== undefined && typeof ifNotExists !== 'boolean') throw badRequest('ifNotExists must be a boolean')
+    // Read once: a getter cannot answer the check and the copy differently.
+    const allowedDomains: unknown = options.allowedDomains
+    if (!Array.isArray(allowedDomains)) throw badRequest('allowedDomains must be an array of strings')
+    const domains: unknown[] = [...allowedDomains]
+    if (!domains.every((domain): domain is string => typeof domain === 'string')) throw badRequest('allowedDomains must be an array of strings')
+    // The API rejects an empty list (`['*']` is any verified host), as in Python.
+    if (domains.length === 0) throw badRequest('allowedDomains must not be empty')
+    const body: api.PutSecretRequest = { value, allowed_domains: domains }
+    if (typeof description === 'string') body.description = description
+    const config = ifNotExists === true ? { headers: { 'If-None-Match': '*' } } : undefined
+    const { data } = await this.api.put<api.Secret>(path, body, config)
+    return mapSecret(data)
   }
 
   public async delete(name: string): Promise<void> {
-    await this.api.delete(`/secrets/${strictUriEncode(name)}`)
+    await this.api.delete(`/secrets/${pathSegment(name, 'name')}`)
   }
 }

@@ -41,7 +41,7 @@ from weakref import WeakValueDictionary
 from . import _clock
 from ._auth import ProjectTokenAuth
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES
-from ._core import RequestSpec, expect_object, sandbox_state
+from ._core import RequestSpec, expect_object, loads_json, sandbox_state
 from ._transport import AsyncTransport, _request_deadline
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .errors import (
@@ -710,17 +710,19 @@ class WaitHub:
             if sandbox_id in sock.subscriptions and sandbox_id not in sock.snapshot_pending
             else None
         )
-        have_snapshot = held is not None
-        if have_snapshot:
-            verdict = _evaluate(predicate, held, sandbox_id)  # type: ignore[arg-type]
+        if held is not None:
+            verdict = _evaluate(predicate, held, sandbox_id)
             if verdict == "resolve":
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
-                return WaitOutcome(held, sock.raw_states.get(sandbox_id, ""))  # type: ignore[arg-type]
+                return WaitOutcome(held, sock.raw_states.get(sandbox_id, ""))
             if verdict == "reject":
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
-                raise SandboxTerminalStateError(sandbox_id, held)  # type: ignore[arg-type]
+                # The wire status the hub holds with the state, as TypeScript.
+                raise SandboxTerminalStateError(
+                    sandbox_id, held, raw_state=sock.raw_states.get(sandbox_id) or None
+                )
         waiter.registered_at = _clock.monotonic()
 
         if sandbox_id not in sock.subscriptions:
@@ -1174,8 +1176,10 @@ class WaitHub:
             sock.last_frame_at = _clock.monotonic()
             sock.client_ping_sent_for_frame_at = None
             try:
-                frame = json.loads(msg)
-            except (json.JSONDecodeError, TypeError):
+                # A frame nested too deeply to decode is skipped like any
+                # undecodable one, never a RecursionError out of the hub.
+                frame = loads_json(msg, "sandbox events frame")
+            except (ValueError, TypeError, DaytonaError):
                 continue
             if not isinstance(frame, dict):
                 continue

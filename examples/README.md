@@ -64,13 +64,13 @@ The examples exercise the V2 SDK surface in both languages.
 | files | `file-operations` | ✅ `fs.*` single-file upload, list, search, replace and download. |
 | git | `git` | ✅ clone/add/commit/branches/status/push/pull. |
 | lifecycle | `lifecycle` | ✅ create/get/list/run/delete. |
-| images | `snapshots` | ✅ `images.build({ dockerfile })`, image-status polling, then create from the registered image. |
+| images | `snapshots` | ✅ `images.build(ImageBuilder.fromDockerfile(...), { name })` / `images.build(ImageBuilder.from_dockerfile(...), name=...)`, image-status polling, then create from the registered image. |
 | dynamic build | `dynamic-build` | ✅ Create sandboxes from inline Dockerfiles, read their build logs, and verify the files produced by each Dockerfile. Reports create durations without assuming a speedup. Requires image-build support. |
-| dockerfile sandbox | `dockerfile-sandbox` | ✅ The happy path — one call builds an inline Dockerfile and hands back a **running** sandbox, then proves the baked script, `ENV`, `WORKDIR` and data file all survived into the sandbox, and round-trips a file at runtime. `DAYTONA_KEEP=1` leaves it running to poke at. Requires image-build support. |
+| dockerfile sandbox | `dockerfile-sandbox` | ✅ The happy path — one call builds an inline Dockerfile and waits for the sandbox to start (the example checks it did), then proves the baked script, `ENV`, `WORKDIR` and data file all survived into the sandbox, and round-trips a file at runtime. `DAYTONA_KEEP=1` leaves it running to poke at. Requires image-build support. |
 | build logs | `build-logs` | ✅ Prints Dockerfile build output (`sandbox.build_logs()` / `buildLogs()`), including each `RUN` step's stdout and a failed build's reason. Also reads logs for a second sandbox created from the same Dockerfile. Requires image-build support. |
 | pagination | `pagination` | ✅ `images.iter()` for lazy all-pages traversal plus manual `images.list(...)` cursor control. |
-| `secrets` (+ env) | `secrets-env` | ✅ `secret.set/iter/delete` (a run-scoped name) + attach via `secrets: [name]`, alongside per-sandbox `envVars`. Shows the key contrast — **env vars carry real values into the sandbox; secrets show only a placeholder there** (the real value is used only in outgoing requests to the allowed domains). |
-| volumes | `volumes` | `volume.get(create)` and mounts at different paths, including a subpath. See also `volumes_share.*`. |
+| `secrets` (+ env) | `secrets-env` | ✅ `secrets.set/iter/delete` (a run-scoped name) + attach via `secrets: [name]`, alongside per-sandbox `env`. Shows the key contrast — **env vars carry real values into the sandbox; secrets show only a placeholder there** (the real value is used only in outgoing requests to the allowed domains). |
+| volumes | `volumes` | `volumes.get(name, { create: true })` / `volumes.get(name, create=True)` and mounts at different paths, including a subpath. See also `volumes_share.*`. |
 
 Not covered here: LSP servers and network settings.
 

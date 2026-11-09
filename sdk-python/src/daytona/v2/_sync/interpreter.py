@@ -27,9 +27,9 @@ class InterpreterService:
 
     _async_type = _async.AsyncInterpreterService
 
-    def __init__(self, impl: _async.AsyncInterpreterService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncInterpreterService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"InterpreterService({self._impl!r})"
@@ -61,7 +61,10 @@ class InterpreterService:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterContext:
-        """Create an interpreter context: kernel state of its own."""
+        """Create an interpreter context: kernel state of its own.
+
+        ``cwd`` and ``env`` apply to every run in the context.
+        """
         from .types import InterpreterContext
 
         return InterpreterContext(
@@ -92,7 +95,22 @@ class InterpreterService:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
-        """Execute code and return the parsed interpreter result."""
+        """Execute code and return the parsed interpreter result.
+
+        Without ``context`` (or ``isolated``) runs share kernel state per
+        ``language`` (default ``"python"``). ``context`` selects an interpreter
+        context by handle, ``to_json()`` identity or id; an id needs
+        ``language``. ``isolated=True`` runs in a throwaway context. ``env``
+        applies to context-free and isolated runs; a context takes its
+        environment when it is created.
+
+        A rehydrated ``kind='code'`` process handle can still replay logs and
+        wait/kill, but it does not reconstruct this decomposed result on
+        another worker. A vanished explicit context surfaces the API's typed
+        ``SESSION_NOT_FOUND`` error; callers decide whether to recreate the
+        context and what to rerun. ``timeout`` is the caller wait budget in
+        seconds; ``0`` waits unbounded.
+        """
         return self._bridge.call(
             lambda: self._impl.run(
                 code,

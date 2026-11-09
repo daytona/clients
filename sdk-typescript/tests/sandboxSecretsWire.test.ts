@@ -6,7 +6,7 @@
 import { Daytona } from '../src/v2/Daytona'
 import { lazySandbox } from './lazySandbox'
 
-import { jsonBody, startFakeApi } from './networkPolicyTestServer'
+import { jsonBody, sentRequest, startFakeApi } from './networkPolicyTestServer'
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
   const previous = process.env.DAYTONA_V2_API_URL
@@ -38,8 +38,8 @@ describe('sandbox secret wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      const info = await client.getSandboxSecrets('sbx')
-      expect(api.requests[0]?.path).toBe('/sandboxes/sbx/secrets')
+      const info = await lazySandbox(client, 'sbx').getSecrets()
+      expect(sentRequest(api, 1).path).toBe('/sandboxes/sbx/secrets')
       expect(info).toMatchObject({ etag: '"sv-7"', httpStatus: 200, desiredRevision: 7, appliedRevision: 6, status: 'pending' })
       expect(info.secrets).toEqual(['OPENAI_API_KEY', 'GITHUB_TOKEN'])
     } finally {
@@ -65,15 +65,16 @@ describe('sandbox secret wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      const updated = await client.replaceSandboxSecrets('sbx', ['OPENAI_API_KEY'], { ifMatch: '"sv-1"' })
+      const updated = await lazySandbox(client, 'sbx').replaceSecrets(['OPENAI_API_KEY'], { ifMatch: '"sv-1"' })
       expect(updated).toMatchObject({ etag: '"sv-2"', httpStatus: 202, desiredRevision: 2, status: 'pending' })
     } finally {
       await api.close()
     }
 
-    expect(api.requests[0]?.path).toBe('/sandboxes/sbx/secrets')
-    expect(api.requests[0]?.headers['if-match']).toBe('"sv-1"')
-    expect(jsonBody(api.requests[0]!)).toEqual({ secrets: ['OPENAI_API_KEY'] })
+    const request = sentRequest(api, 1)
+    expect(request.path).toBe('/sandboxes/sbx/secrets')
+    expect(request.headers['if-match']).toBe('"sv-1"')
+    expect(jsonBody(request)).toEqual({ secrets: ['OPENAI_API_KEY'] })
   })
 
   it('percent-encodes lazy sandbox ids on the sandbox secret path', async () => {

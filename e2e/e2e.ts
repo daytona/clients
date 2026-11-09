@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { Daytona } from '../sdk-typescript/src/index'
-import { DaytonaError, ImageBuilder, UnsupportedOperationError, type Image, type ProcessInfo, type Sandbox } from '../sdk-typescript/src/v2/index'
+import { DaytonaError, ImageBuilder, RequestTimeoutError, UnsupportedOperationError, type Image, type ProcessInfo, type Sandbox } from '../sdk-typescript/src/v2/index'
 
 const run = randomUUID().replace(/-/g, '').slice(0, 8)
 const image = process.env.SMOKE_IMAGE ?? 'python:3.12-slim'
@@ -46,14 +46,16 @@ function check(label: string, condition: boolean, detail = ''): void {
   }
 }
 
-// `images.get({ wait: 'ready' })` long-polls at most 60 s per call: repeat it
-// until the image settles or the overall deadline passes.
-async function waitReady(imageId: string, deadlineMs = 900_000): Promise<string> {
-  const deadline = Date.now() + deadlineMs
-  for (;;) {
-    const { status } = await daytona.images.get(imageId, { wait: 'ready', timeout: 60 })
-    if (status === 'ready' || status === 'failed' || Date.now() >= deadline) return status
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+// One `images.get({ wait: 'ready' })` with the whole budget: it repeats the
+// server's long poll and returns the image once it settles (`ready`, `failed`
+// or `error`), or throws `RequestTimeoutError` when the budget runs out,
+// reported here as a failed check.
+async function waitReady(imageId: string, timeoutSeconds = 900): Promise<string> {
+  try {
+    return (await daytona.images.get(imageId, { wait: 'ready', timeoutSeconds })).status
+  } catch (error) {
+    if (error instanceof RequestTimeoutError) return `not settled within ${timeoutSeconds} s`
+    throw error
   }
 }
 
@@ -94,7 +96,8 @@ async function main(): Promise<number> {
     if (built) {
       const dockerBox = await daytona.create(dockerName)
       boxes.push(dockerBox)
-      if (!skipToolbox) {
+      check('dockerfile sandbox started', dockerBox.state === 'started', dockerBox.id)
+      if (!skipToolbox && dockerBox.state === 'started') {
         const marker = await dockerBox.process.run('cat /etc/daytona-marker')
         check('dockerfile image marker', marker.exitCode === 0 && marker.output.includes(`daytona-built-${run}`), marker.output.trim())
       }
@@ -102,7 +105,7 @@ async function main(): Promise<number> {
     check('get(id)', (await daytona.get(box.id)).id === box.id)
     check('list includes sandbox', (await daytona.list()).items.some((item) => item.id === box.id))
 
-    if (!skipToolbox) {
+    if (!skipToolbox && box.state === 'started') {
       const result = await box.process.run('echo daytona-$((6*7))')
       check('process.run', result.exitCode === 0 && result.output.includes('daytona-42'), result.output.trim())
 
@@ -166,8 +169,8 @@ async function main(): Promise<number> {
           fail++
         }
       }
-      // Sandbox delete is asynchronous: the image stays referenced (409) until
-      // the sandboxes are gone, so retry for a bounded time.
+      // Image references can still be releasing after sandbox deletion has
+      // completed; retry conflicts for a bounded time.
       for (const entry of images) {
         for (let attempt = 0; attempt < 60; attempt++) {
           try {

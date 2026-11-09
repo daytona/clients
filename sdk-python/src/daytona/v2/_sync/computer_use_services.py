@@ -23,9 +23,9 @@ class A11yService:
 
     _async_type = _async.AsyncA11yService
 
-    def __init__(self, impl: _async.AsyncA11yService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncA11yService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"A11yService({self._impl!r})"
@@ -65,7 +65,12 @@ class A11yService:
     def tree(
         self, *, scope: ComputerUseA11yScope, pid: int | None = None, max_depth: int | None = None
     ) -> ComputerUseA11yTree:
-        """Read the accessibility tree, at most 256 levels below the root."""
+        """Read the accessibility tree, at most 256 levels below the root.
+
+        ``max_depth`` is how many levels below the root to return: an integer
+        from 0 to 256 (the SDK's cap), default 256. A deeper UI comes back cut
+        at that depth with ``truncated`` set; ``-1`` (unbounded) is refused.
+        """
         return self._bridge.call(lambda: self._impl.tree(scope=scope, pid=pid, max_depth=max_depth))
 
 
@@ -74,9 +79,9 @@ class AddonProcessesService:
 
     _async_type = _async.AsyncAddonProcessesService
 
-    def __init__(self, impl: _async.AsyncAddonProcessesService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncAddonProcessesService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"AddonProcessesService({self._impl!r})"
@@ -113,9 +118,9 @@ class DisplayService:
 
     _async_type = _async.AsyncDisplayService
 
-    def __init__(self, impl: _async.AsyncDisplayService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncDisplayService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"DisplayService({self._impl!r})"
@@ -138,9 +143,9 @@ class KeyboardService:
 
     _async_type = _async.AsyncKeyboardService
 
-    def __init__(self, impl: _async.AsyncKeyboardService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncKeyboardService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"KeyboardService({self._impl!r})"
@@ -167,9 +172,9 @@ class MouseService:
 
     _async_type = _async.AsyncMouseService
 
-    def __init__(self, impl: _async.AsyncMouseService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncMouseService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"MouseService({self._impl!r})"
@@ -215,9 +220,9 @@ class RecordingService:
 
     _async_type = _async.AsyncRecordingService
 
-    def __init__(self, impl: _async.AsyncRecordingService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncRecordingService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"RecordingService({self._impl!r})"
@@ -232,7 +237,19 @@ class RecordingService:
         return self._bridge.call(lambda: self._impl.delete(id))
 
     def download(self, id: str, *, max_response_bytes: Optional[int] = None) -> bytes:
-        """Download a recording, holding the whole file in memory."""
+        """Download a recording, holding the whole file in memory.
+
+        No total deadline (it fails only when no bytes move for the client's
+        ``request_timeout``; with a ``request_timeout`` of ``0``, nothing
+        bounds it). ``max_response_bytes`` replaces the client's cap
+        on the body for this call (``None`` keeps the client's cap, ``0`` means
+        no limit, and any other value (negative, fractional, boolean, string,
+        above 2**53 - 1) is a ``BadRequestError``); a larger recording raises
+        ``PayloadTooLargeError`` before it is read in full. For a large
+        recording, or one from a sandbox you do not trust, download its
+        ``file_path`` with ``sandbox.fs.download_file()``, which streams to disk
+        with progress and cancellation.
+        """
         return self._bridge.call(lambda: self._impl.download(id, max_response_bytes=max_response_bytes))
 
     def get(self, id: str) -> ComputerUseRecording:
@@ -253,9 +270,9 @@ class ScreenService:
 
     _async_type = _async.AsyncScreenService
 
-    def __init__(self, impl: _async.AsyncScreenService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncScreenService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"ScreenService({self._impl!r})"
@@ -275,7 +292,10 @@ class ScreenService:
         scale: float | None = None,
         show_cursor: bool | None = None,
     ) -> ComputerUseScreenshot:
-        """Capture the screen, or ``region`` of it."""
+        """Capture the screen, or ``region`` of it.
+
+        Setting any of ``format``, ``quality`` or ``scale`` returns a compressed image.
+        """
         return self._bridge.call(
             lambda: self._impl.screenshot(
                 region=region, format=format, quality=quality, scale=scale, show_cursor=show_cursor

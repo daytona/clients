@@ -41,50 +41,7 @@ def _is_v2_sdk(module: str) -> bool:
 
 # Today's violations, as "<owner>.<member>: <generated class>" or
 # "export <name>". Remove an entry when its type becomes SDK-owned.
-ALLOWED = frozenset(
-    {
-        # Client, sandbox lifecycle and platform services.
-        "AsyncDaytona.current_api_key: ProjectApiKeyWithContext",
-        "AsyncDaytona.get_limits: OrganizationLimits",
-        "AsyncDaytona.get_project_budget: ProjectBudget",
-        "AsyncDaytona.list_audit_actions: AuditActionList",
-        "Daytona.current_api_key: ProjectApiKeyWithContext",
-        "Daytona.get_limits: OrganizationLimits",
-        "Daytona.get_project_budget: ProjectBudget",
-        "Daytona.list_audit_actions: AuditActionList",
-        "AsyncMacModelService.catalog: MacCatalog",
-        "AsyncMacModelService.list: MacModel",
-        "MacModelService.catalog: MacCatalog",
-        "MacModelService.list: MacModel",
-        "MacReservation.__init__(capacity): MacResources",
-        "MacReservation.__init__(resources_used): MacResources",
-        "MacReservation.capacity: MacResources",
-        "MacReservation.resources_used: MacResources",
-        "AsyncSandbox.from_api(sandbox_data): Sandbox",
-        "AsyncSandbox.from_api(sandbox_data): SandboxListItem",
-        "AsyncSecretService.get: Secret",
-        "AsyncSecretService.iter: Secret",
-        "AsyncSecretService.list: Secret",
-        "AsyncSecretService.set: Secret",
-        "SecretService.get: Secret",
-        "SecretService.iter: Secret",
-        "SecretService.list: Secret",
-        "SecretService.set: Secret",
-        "export AuditActionGroup",
-        "export AuditActionList",
-        "export ImageBuildResponse",
-        "export ImageListItem",
-        "export MacCatalog",
-        "export MacModel",
-        "export OrganizationLimits",
-        "export ProjectApiKeyWithContext",
-        "export ProjectBudget",
-        "export SandboxStateSnapshot",
-        "export Secret",
-        "export SecretV2",
-        "export SnapshotDetail",
-    }
-)
+ALLOWED: frozenset[str] = frozenset()
 
 # Names the generic typing machinery needs when an annotation string refers to
 # them from another module (a callback alias defined elsewhere).

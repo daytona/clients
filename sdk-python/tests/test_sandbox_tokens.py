@@ -32,7 +32,7 @@ from daytona.v2 import (
     PreviewLink,
     SandboxAccessToken,
 )
-from daytona.v2._core import RequestSpec
+from daytona.v2._core import RequestSpec, parse_timestamp
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.daytona import AsyncDaytona
 from daytona.v2.errors import create_error
@@ -134,8 +134,8 @@ async def test_create_access_token_posts_without_fetching_metadata():
     assert isinstance(minted, SandboxAccessToken)
     assert minted.access_token == "scoped_jwt"
     assert minted.token_type == "Bearer"
-    assert minted.operations == ["toolbox:fs", "ssh"]
-    assert minted.ports == [3000]
+    assert minted.operations == ("toolbox:fs", "ssh")
+    assert minted.ports == (3000,)
     assert [(spec.method, spec.path) for spec in api.specs] == [("POST", "/sandboxes/sbx/access-token")]
     assert api.specs[0].json_body == {
         "operations": ["toolbox:fs", "ssh"],
@@ -148,7 +148,7 @@ async def test_create_access_token_posts_without_fetching_metadata():
 async def test_create_access_token_full_default_mint_sends_an_empty_body():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = _RecordingApi([_mint_payload()])
     sandbox._api = api  # type: ignore[assignment]
 
@@ -163,24 +163,35 @@ async def test_create_access_token_full_default_mint_sends_an_empty_body():
 @pytest.mark.parametrize(
     ("payload", "message"),
     [
-        (None, "access token response is not a JSON object"),
-        ([], "access token response is not a JSON object"),
+        (None, "sandbox access token response is not a JSON object"),
+        ([], "sandbox access token response is not a JSON object"),
         (
-            {"expires_at": "2030-01-01T00:00:00Z"},
-            "access token response access_token must be a non-empty string",
+            {"token_type": "Bearer", "expires_at": "2030-01-01T00:00:00Z"},
+            "sandbox access token response is missing its access_token",
         ),
         (
-            {"access_token": "", "expires_at": "2030-01-01T00:00:00Z"},
-            "access token response access_token must be a non-empty string",
+            {
+                "access_token": "",
+                "token_type": "Bearer",
+                "expires_at": "2030-01-01T00:00:00Z",
+                "operations": [],
+            },
+            "sandbox access token response has an empty access_token",
         ),
-        ({"access_token": "jwt"}, "access token response expires_at must be a string"),
-        ({"access_token": "jwt", "expires_at": 5}, "access token response expires_at must be a string"),
+        (
+            {"access_token": "jwt", "token_type": "Bearer"},
+            "sandbox access token response is missing its expires_at",
+        ),
+        (
+            {"access_token": "jwt", "token_type": "Bearer", "expires_at": 5},
+            "sandbox access token response has a expires_at that is not a string",
+        ),
     ],
 )
 async def test_create_access_token_names_what_breaks_the_response_contract(payload: object, message: str):
     client = _client()
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux", raw_sandbox_class="linux")
     sandbox._api = _RecordingApi([payload])  # type: ignore[assignment]
 
     with pytest.raises(BadRequestError) as caught:
@@ -193,9 +204,11 @@ async def test_create_access_token_names_what_breaks_the_response_contract(paylo
 async def test_expiring_token_refresh_mints_once_under_concurrency():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
-    sandbox.access_token = "old_jwt"
-    sandbox.access_token_expires_at = _rfc3339(time.time() + 30)  # inside the 60 s lead
+    sandbox._update(sandbox_class="linux")
+    sandbox._access_token = "old_jwt"
+    sandbox._access_token_expires_at = datetime.fromtimestamp(
+        time.time() + 30, tz=timezone.utc
+    )  # inside the 60 s lead
     # A single scripted mint: a second mint would pop an empty list and fail.
     api = _RecordingApi([_mint_payload("fresh_jwt")])
     sandbox._api = api  # type: ignore[assignment]
@@ -213,7 +226,7 @@ async def test_expiring_token_refresh_mints_once_under_concurrency():
 async def test_concurrent_callers_share_one_failed_mint_attempt():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     # Eight scripted errors: if the single-flight serialized failures, the
     # suite would see up to eight mint specs — the shared task must make
     # exactly ONE attempt and fail every joiner with it (TS parity).
@@ -237,7 +250,7 @@ async def test_cancelled_joiners_leave_no_unhandled_mint_exception():
     traceback at ERROR even with the exception consumed)."""
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     gate = asyncio.Event()
 
     async def failing_mint() -> str:
@@ -271,12 +284,12 @@ async def test_cancelled_joiners_leave_no_unhandled_mint_exception():
 async def test_still_unexpired_token_rides_through_a_transient_refresh_failure():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     # Inside the 60 s refresh lead but before expiry: this token remains valid,
     # so a failed refresh must not fail the request
     # that triggered it — and the next call retries the mint (no latch).
-    sandbox.access_token = "old_jwt"
-    sandbox.access_token_expires_at = _rfc3339(time.time() + 30)
+    sandbox._access_token = "old_jwt"
+    sandbox._access_token_expires_at = datetime.fromtimestamp(time.time() + 30, tz=timezone.utc)
     api = _RecordingApi(
         [
             create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API"),
@@ -289,13 +302,13 @@ async def test_still_unexpired_token_rides_through_a_transient_refresh_failure()
     _bind_toolbox(sandbox, _recording_handler(seen))
 
     result = await sandbox.ports.list()
-    assert result.items == []
+    assert list(result.items) == []
     await sandbox.ports.list()
     assert seen == ["Bearer old_jwt", "Bearer old_jwt"]
     assert [spec.path for spec in api.specs] == ["/sandboxes/sbx/access-token", "/sandboxes/sbx/access-token"]
 
     # An EXPIRED token cannot be ridden — the mint error surfaces.
-    sandbox.access_token_expires_at = _rfc3339(time.time() - 1)
+    sandbox._access_token_expires_at = datetime.fromtimestamp(time.time() - 1, tz=timezone.utc)
     with pytest.raises(Exception, match="boom"):
         await sandbox.ports.list()
 
@@ -307,7 +320,7 @@ async def test_toolbox_401_mints_once_and_retries_once():
     sandbox = client._sandbox_from_sandbox(
         {"id": "sbx", "status": "running"}, toolbox_url=TOOLBOX_URL, access_token="opaque_secret"
     )
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = _RecordingApi([_mint_payload("fresh_jwt")])
     sandbox._api = api  # type: ignore[assignment]
     seen: list[Optional[str]] = []
@@ -321,7 +334,7 @@ async def test_toolbox_401_mints_once_and_retries_once():
 
     result = await sandbox.ports.list()
 
-    assert result.items == [3000]
+    assert list(result.items) == [3000]
     assert [spec.path for spec in api.specs] == ["/sandboxes/sbx/access-token"]
     assert seen == ["Bearer opaque_secret", "Bearer fresh_jwt"]
     assert sandbox.access_token == "fresh_jwt"
@@ -366,7 +379,7 @@ async def test_jwt_created_handle_remints_through_the_api_transport_after_a_401(
         toolbox_url=TOOLBOX_URL,
         access_token="opaque_secret",
     )
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     seen: list[Optional[str]] = []
 
     def respond(request: httpx.Request) -> httpx.Response:
@@ -383,7 +396,7 @@ async def test_jwt_created_handle_remints_through_the_api_transport_after_a_401(
         await client.close()
 
     assert sandbox._sandbox_token_mintable  # type: ignore[attr-defined]
-    assert result.items == [3000]
+    assert list(result.items) == [3000]
     assert exchange_calls == 1
     assert mint_authorization == ["Bearer platform-1"]
     assert seen == ["Bearer opaque_secret", "Bearer fresh_jwt"]
@@ -395,7 +408,7 @@ async def test_second_401_surfaces_after_exactly_one_remint():
     sandbox = client._sandbox_from_sandbox(
         {"id": "sbx", "status": "running"}, toolbox_url=TOOLBOX_URL, access_token="opaque_secret"
     )
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = _RecordingApi([_mint_payload("fresh_jwt")])
     sandbox._api = api  # type: ignore[assignment]
     seen: list[Optional[str]] = []
@@ -417,7 +430,7 @@ async def test_key_configured_handle_lazily_mints_on_first_toolbox_use():
     # A get()/list()-shaped handle: no token, project key configured — the
     # configuration must obtain a scoped token instead of sending the key.
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = _RecordingApi([_mint_payload("lazy_jwt")])
     sandbox._api = api  # type: ignore[assignment]
     seen: list[Optional[str]] = []
@@ -436,7 +449,7 @@ async def test_key_configured_handle_lazily_mints_on_first_toolbox_use():
 async def test_caller_supplied_token_is_never_replaced():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL, access_token="caller_tok")
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = _RecordingApi([])
     sandbox._api = api  # type: ignore[assignment]
     seen: list[Optional[str]] = []
@@ -459,7 +472,7 @@ async def test_create_response_opaque_token_is_used_as_is_until_401():
     sandbox = client._sandbox_from_sandbox(
         {"id": "sbx", "status": "running"}, toolbox_url=TOOLBOX_URL, access_token="opaque_token"
     )
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = _RecordingApi([])
     sandbox._api = api  # type: ignore[assignment]
     seen: list[Optional[str]] = []
@@ -473,12 +486,13 @@ async def test_create_response_opaque_token_is_used_as_is_until_401():
 
 
 @pytest.mark.anyio
-async def test_mint_route_unsupported_falls_back_to_the_project_key():
+@pytest.mark.parametrize("status", [405, 501])
+async def test_mint_route_unsupported_falls_back_to_the_project_key(status: int):
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
-    # An unavailable mint route falls back to the API key without repeated mint attempts.
-    api = _RecordingApi([create_error("not found", 404, "NOT_FOUND", "DAYTONA_API")])
+    sandbox._update(sandbox_class="linux")
+    # An absent mint route (405/501) falls back to the API key without repeated mint attempts.
+    api = _RecordingApi([create_error("unsupported", status, None, "DAYTONA_API")])
     sandbox._api = api  # type: ignore[assignment]
     seen: list[Optional[str]] = []
     _bind_toolbox(sandbox, _recording_handler(seen))
@@ -491,10 +505,38 @@ async def test_mint_route_unsupported_falls_back_to_the_project_key():
 
 
 @pytest.mark.anyio
+async def test_a_mint_404_falls_back_once_and_keeps_minting():
+    client = _client()
+    sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
+    sandbox._update(sandbox_class="linux")
+    # A 404 is not proof the route is absent: that request falls back, the next one mints again.
+    api = _RecordingApi(
+        [
+            create_error("not found", 404, "NOT_FOUND", "DAYTONA_API"),
+            {
+                "access_token": "minted",
+                "expires_at": "2999-01-01T00:00:00Z",
+                "token_type": "Bearer",
+                "operations": [],
+            },
+        ]
+    )
+    sandbox._api = api  # type: ignore[assignment]
+    seen: list[Optional[str]] = []
+    _bind_toolbox(sandbox, _recording_handler(seen))
+
+    await sandbox.ports.list()
+    await sandbox.ports.list()
+
+    assert len(api.specs) == 2
+    assert seen == ["Bearer key", "Bearer minted"]
+
+
+@pytest.mark.anyio
 async def test_preview_link_mints_a_ports_scoped_token_when_a_key_is_present():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     minted = _mint_payload("scoped_jwt", operations=[], ports=[3000])
     api = _RecordingApi(
         [
@@ -514,7 +556,11 @@ async def test_preview_link_mints_a_ports_scoped_token_when_a_key_is_present():
     link = await sandbox.ports.preview_link(3000)
 
     # URL unchanged; the token comes from the explicit port-scoped request.
-    assert link == PreviewLink("https://3000-sbx.preview.example", "scoped_jwt", str(minted["expires_at"]))
+    assert link == PreviewLink(
+        url="https://3000-sbx.preview.example",
+        token="scoped_jwt",
+        expires_at=parse_timestamp(minted["expires_at"]),
+    )
     mint = api.specs[2]
     assert (mint.method, mint.path) == ("POST", "/sandboxes/sbx/access-token")
     assert mint.json_body == {"operations": [], "ports": [3000]}
@@ -541,7 +587,11 @@ async def test_preview_link_keeps_route_token_and_advisory_expiry_when_caller_su
 
     link = await sandbox.ports.preview_link(3000)
 
-    assert link == PreviewLink("https://3000-sbx.preview.example", route_token, "2030-03-17T17:46:40Z")
+    assert link == PreviewLink(
+        url="https://3000-sbx.preview.example",
+        token=route_token,
+        expires_at=datetime(2030, 3, 17, 17, 46, 40, tzinfo=timezone.utc),
+    )
     assert [spec.method for spec in api.specs] == ["GET", "POST"]
 
 
@@ -554,7 +604,7 @@ async def test_preview_link_mints_port_scoped_token_independently_of_route_token
     # never claims read from an unverified token payload.
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     minted = _mint_payload("scoped_jwt", operations=[], ports=[3000])
     api = _RecordingApi(
         [
@@ -576,7 +626,11 @@ async def test_preview_link_mints_port_scoped_token_independently_of_route_token
 
     link = await sandbox.ports.preview_link(3000)
 
-    assert link == PreviewLink("https://3000-sbx.preview.example", "scoped_jwt", str(minted["expires_at"]))
+    assert link == PreviewLink(
+        url="https://3000-sbx.preview.example",
+        token="scoped_jwt",
+        expires_at=parse_timestamp(minted["expires_at"]),
+    )
     assert [spec.method for spec in api.specs] == ["GET", "POST", "POST"]
 
 
@@ -584,7 +638,7 @@ async def test_preview_link_mints_port_scoped_token_independently_of_route_token
 async def test_preview_link_falls_back_to_the_route_token_when_the_mint_fails_transiently():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     # The preview-url route already answered with a usable token; a transient
     # mint failure must not discard it and fail the whole call.
     api = _RecordingApi(
@@ -604,7 +658,7 @@ async def test_preview_link_falls_back_to_the_route_token_when_the_mint_fails_tr
 
     link = await sandbox.ports.preview_link(3000)
 
-    assert link == PreviewLink("https://3000-sbx.preview.example", "preview-token")
+    assert link == PreviewLink(url="https://3000-sbx.preview.example", token="preview-token")
     mint = api.specs[2]
     assert (mint.method, mint.path) == ("POST", "/sandboxes/sbx/access-token")
 
@@ -613,7 +667,7 @@ async def test_preview_link_falls_back_to_the_route_token_when_the_mint_fails_tr
 async def test_preview_link_keeps_the_route_token_for_a_caller_supplied_config():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL, access_token="caller_tok")
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     api = _RecordingApi(
         [
             {
@@ -630,7 +684,7 @@ async def test_preview_link_keeps_the_route_token_for_a_caller_supplied_config()
 
     link = await sandbox.ports.preview_link(3000)
 
-    assert link == PreviewLink("https://3000-sbx.preview.example", "preview-token")
+    assert link == PreviewLink(url="https://3000-sbx.preview.example", token="preview-token")
     assert [spec.method for spec in api.specs] == ["GET", "POST"]
 
 
@@ -653,7 +707,7 @@ async def test_preview_link_returns_no_expiry_for_public_endpoints():
 
     link = await sandbox.ports.preview_link(3000)
 
-    assert link == PreviewLink("https://3000-sbx.preview.example", "", None)
+    assert link == PreviewLink(url="https://3000-sbx.preview.example", token="", expires_at=None)
     assert [spec.method for spec in api.specs] == ["GET"]
 
 
@@ -698,10 +752,10 @@ async def test_create_wires_the_create_response_token_and_expiry_into_the_handle
     api = _CreateApi()
     client._api = api  # type: ignore[assignment]
 
-    sandbox = await client.create("snap", toolbox_url=TOOLBOX_URL)
+    sandbox = await client.create("snap")
 
     assert sandbox.access_token == "create_jwt"
-    assert sandbox.access_token_expires_at == expires_at
+    assert sandbox.access_token_expires_at == parse_timestamp(expires_at)
     assert sandbox._sandbox_token_mintable  # type: ignore[attr-defined]
     assert not sandbox._access_token_caller_supplied  # type: ignore[attr-defined]
 
@@ -712,7 +766,7 @@ async def test_mint_403_during_the_401_retry_surfaces_instead_of_the_toolbox_401
     sandbox = client._sandbox_from_sandbox(
         {"id": "sbx", "status": "running"}, toolbox_url=TOOLBOX_URL, access_token="opaque_secret"
     )
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     # The mint is FORBIDDEN (the credential cannot mint for this sandbox): that
     # is the actionable error, not the toolbox 401 the retry started from. The
     # unsupported-route fallback (404/405/501) is a different, kept path.
@@ -782,7 +836,7 @@ def test_from_api_treats_an_explicit_token_as_caller_supplied_by_default():
     client = _client()
     sandbox_payload = {"id": "sbx", "status": "running"}
     toolbox, resolved, base = client._toolbox_transport("sbx", direct=TOOLBOX_URL, access_token="scoped_tok")
-    pinned = AsyncSandbox.from_api(
+    pinned = AsyncSandbox._from_api(
         sandbox_payload,
         client._api,
         toolbox,
@@ -801,7 +855,7 @@ def test_from_api_treats_an_explicit_token_as_caller_supplied_by_default():
     replaceable_box, replaceable_resolved, replaceable_base = client._toolbox_transport(
         "sbx", direct=TOOLBOX_URL, access_token="create_jwt"
     )
-    replaceable = AsyncSandbox.from_api(
+    replaceable = AsyncSandbox._from_api(
         sandbox_payload,
         client._api,
         replaceable_box,
@@ -902,7 +956,7 @@ async def test_exclusive_stream_second_401_is_returned_after_exactly_one_remint(
 def test_create_access_token_rejects_invalid_ports_and_ttl():
     client = _client()
     sandbox = lazy_sandbox(client, "sbx")
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     with pytest.raises(Exception, match="port must be an integer"):
         asyncio.run(sandbox.create_access_token(ports=[0]))
     with pytest.raises(Exception, match="ttl_seconds must be a positive integer"):
@@ -942,7 +996,7 @@ async def test_jwt_handle_without_create_token_lazily_mints_on_first_toolbox_use
 
     client, http = _jwt_client_with_mock(handler)
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)  # type: ignore[union-attr]
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     seen: list[Optional[str]] = []
     _bind_toolbox(sandbox, _recording_handler(seen))
 
@@ -982,7 +1036,7 @@ async def test_jwt_handle_mint_404_falls_back_to_project_token():
 
     client, http = _jwt_client_with_mock(handler)
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)  # type: ignore[union-attr]
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     seen: list[Optional[str]] = []
     _bind_toolbox(sandbox, _recording_handler(seen))
 
@@ -993,7 +1047,8 @@ async def test_jwt_handle_mint_404_falls_back_to_project_token():
         await http.aclose()
         await client.close()  # type: ignore[union-attr]
 
-    assert len(mint_calls) == 1
+    # Each 404 falls back to the project token for that request only.
+    assert len(mint_calls) == 2
     assert seen == ["Bearer platform-tok", "Bearer platform-tok"]
 
 
@@ -1023,15 +1078,15 @@ async def test_jwt_handle_without_mint_routes_falls_back_to_the_project_token():
     expired = client._sandbox_from_sandbox(  # type: ignore[union-attr]
         {"id": "sbx", "status": "running"}, toolbox_url=TOOLBOX_URL, access_token="creation-tok"
     )
-    expired.sandbox_class = "linux"
-    expired.access_token_expires_at = _rfc3339(time.time() - 1)
+    expired._update(sandbox_class="linux")
+    expired._access_token_expires_at = datetime.fromtimestamp(time.time() - 1, tz=timezone.utc)
     expired_seen: list[Optional[str]] = []
     _bind_toolbox(expired, _recording_handler(expired_seen))
 
     rejected = client._sandbox_from_sandbox(  # type: ignore[union-attr]
         {"id": "sbx2", "status": "running"}, toolbox_url=TOOLBOX_URL, access_token="opaque-creation-tok"
     )
-    rejected.sandbox_class = "linux"
+    rejected._update(sandbox_class="linux")
     rejected_seen: list[Optional[str]] = []
 
     def respond(request: httpx.Request) -> httpx.Response:
@@ -1081,7 +1136,7 @@ async def test_jwt_handle_without_mint_routes_re_exchanges_a_rejected_project_to
 
     client, http = _jwt_client_with_mock(control_handler)
     sandbox = lazy_sandbox(client, "sbx", toolbox_url=TOOLBOX_URL)  # type: ignore[union-attr]
-    sandbox.sandbox_class = "linux"
+    sandbox._update(sandbox_class="linux")
     seen: list[Optional[str]] = []
 
     def respond(request: httpx.Request) -> httpx.Response:
@@ -1109,7 +1164,7 @@ def test_preview_token_expiry_unrepresentable_exp_is_unknown_not_an_error(exp):
     assert _preview_token_expiry(f"{header}.{payload}.sig") is None
 
 
-def test_preview_token_expiry_formats_fractional_exp_like_the_typescript_sdk():
+def test_preview_token_expiry_floors_fractional_exp_to_milliseconds_like_the_typescript_sdk():
     from daytona.v2.ports import _preview_token_expiry
 
     header = base64.urlsafe_b64encode(b'{"alg":"none"}').rstrip(b"=").decode()
@@ -1119,7 +1174,20 @@ def test_preview_token_expiry_formats_fractional_exp_like_the_typescript_sdk():
         ("1900000000.1239", "2030-03-17T17:46:40.123Z"),
     ):
         payload = base64.urlsafe_b64encode(f'{{"exp": {exp}}}'.encode()).rstrip(b"=").decode()
-        assert _preview_token_expiry(f"{header}.{payload}.sig") == want
+        assert _preview_token_expiry(f"{header}.{payload}.sig") == parse_timestamp(want)
+
+
+@pytest.mark.parametrize(("depth", "want"), [(600, "2030-03-17T17:46:40Z"), (601, None)])
+def test_preview_token_expiry_reads_a_payload_only_within_json_max_depth(depth, want):
+    # The payload (depth 1) carries an unknown claim nested to `depth`: 600 is
+    # read, 601 is not a token to read, as in TypeScript (unit.test.ts).
+    from daytona.v2.ports import _preview_token_expiry
+
+    header = base64.urlsafe_b64encode(b'{"alg":"none"}').rstrip(b"=").decode()
+    claims = '{"exp": 1900000000, "extra": ' + "[" * (depth - 1) + "]" * (depth - 1) + "}"
+    payload = base64.urlsafe_b64encode(claims.encode()).rstrip(b"=").decode()
+    expected = None if want is None else parse_timestamp(want)
+    assert _preview_token_expiry(f"{header}.{payload}.sig") == expected
 
 
 def test_preview_token_expiry_reads_only_the_standard_expiry_claim():
@@ -1131,7 +1199,9 @@ def test_preview_token_expiry_reads_only_the_standard_expiry_claim():
         payload = base64.urlsafe_b64encode(claims.encode()).rstrip(b"=").decode()
         return f"{header}.{payload}.sig"
 
-    assert _preview_token_expiry(tok('{"exp": 1900000000}')) == "2030-03-17T17:46:40Z"
+    assert _preview_token_expiry(tok('{"exp": 1900000000}')) == datetime(
+        2030, 3, 17, 17, 46, 40, tzinfo=timezone.utc
+    )
     assert _preview_token_expiry(tok('{"exp": 1e13}')) is None
     assert _preview_token_expiry(tok('{"unrelated": "value"}')) is None
     assert _preview_token_expiry("opaque-preview-token") is None
@@ -1141,7 +1211,7 @@ def test_preview_token_expiry_reads_only_the_standard_expiry_claim():
 @pytest.mark.parametrize("key", ["toolbox_proxy_url", "toolboxProxyUrl"])
 @pytest.mark.parametrize("mint", ["unsupported", "ok"])
 async def test_from_api_ignores_a_toolbox_url_inside_stored_data(key: str, mint: str):
-    # AsyncSandbox.from_api is public; a dict from storage must not pick
+    # AsyncSandbox._from_api is internal; even so, a dict from storage must not pick
     # where the SDK sends the API key or a token it mints itself.
     response: object = (
         create_error("not found", 404, "NOT_FOUND", "DAYTONA_API")
@@ -1149,13 +1219,13 @@ async def test_from_api_ignores_a_toolbox_url_inside_stored_data(key: str, mint:
         else _mint_payload("minted_jwt")
     )
     api = _RecordingApi([response])
-    sandbox = AsyncSandbox.from_api(
+    sandbox = AsyncSandbox._from_api(
         {"id": "sbx", "status": "running", "class": "linux", key: "http://evil.invalid/sandboxes"},
         api,  # type: ignore[arg-type]
         None,
     )
 
-    assert sandbox.toolbox_proxy_url is None
+    assert sandbox._toolbox_proxy_url is None
     with pytest.raises(Exception, match="no toolbox URL"):
         await sandbox.ports.list()
     assert api.specs == []
@@ -1163,11 +1233,11 @@ async def test_from_api_ignores_a_toolbox_url_inside_stored_data(key: str, mint:
 
 @pytest.mark.anyio
 async def test_from_api_honors_an_explicit_toolbox_url():
-    sandbox = AsyncSandbox.from_api(
+    sandbox = AsyncSandbox._from_api(
         {"id": "sbx", "status": "running", "toolbox_proxy_url": "http://evil.invalid/sandboxes"},
         None,
         None,
         toolbox_url="http://trusted.invalid/sandboxes/sbx",
     )
 
-    assert sandbox.toolbox_proxy_url == "http://trusted.invalid/sandboxes/sbx"
+    assert sandbox._toolbox_proxy_url == "http://trusted.invalid/sandboxes/sbx"

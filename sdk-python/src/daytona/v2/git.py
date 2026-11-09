@@ -102,7 +102,7 @@ class AsyncGitService:
         payload = expect_branch_list(
             await _json_payload(self._transport, RequestSpec("GET", "/git/branches", params={"path": path}))
         )
-        return ListResult(list(payload.branches), None)
+        return ListResult(items=list(payload.branches))
 
     async def list_remotes(self, path: str) -> ListResult[GitRemote]:
         """List the configured remotes; URLs come back with any credentials removed."""
@@ -121,7 +121,7 @@ class AsyncGitService:
                     "BAD_REQUEST",
                     "SDK",
                 )
-        return ListResult([_git_remote(remote) for remote in raw], None)
+        return ListResult(items=[_git_remote(remote) for remote in raw])
 
     async def history(self, path: str) -> ListResult[GitCommit]:
         """List commits, newest first."""
@@ -129,7 +129,9 @@ class AsyncGitService:
             await _json_payload(self._transport, RequestSpec("GET", "/git/history", params={"path": path})),
             description="git history response",
         )
-        return ListResult([_git_commit(_expect_commit_info(item)) for item in items], next_cursor)
+        return ListResult(
+            items=[_git_commit(_expect_commit_info(item)) for item in items], next_cursor=next_cursor
+        )
 
     async def create_branch(self, path: str, name: str) -> None:
         """Create a branch."""

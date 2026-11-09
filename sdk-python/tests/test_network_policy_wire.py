@@ -10,7 +10,7 @@ from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse, json_body
 from test_core import _image_page_payload, _sandbox_detail_payload
 
-from daytona.v2 import ImageBuilder, InternalServerError
+from daytona.v2 import BadRequestError, ImageBuilder
 from daytona.v2.daytona import AsyncDaytona
 from daytona.v2.types import DaytonaConfig
 
@@ -27,15 +27,15 @@ def _config_at(api_url: str, **kwargs: object) -> DaytonaConfig:
 
 async def test_create_network_policy_preserves_missing_null_and_empty_shapes() -> None:
     responses = [
-        PlannedResponse(200, {"id": "sbx-a"}),
+        PlannedResponse(200, {"id": "sbx-a", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-a", "running")),
-        PlannedResponse(200, {"id": "sbx-b"}),
+        PlannedResponse(200, {"id": "sbx-b", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-b", "running")),
-        PlannedResponse(200, {"id": "sbx-c"}),
+        PlannedResponse(200, {"id": "sbx-c", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-c", "running")),
-        PlannedResponse(200, {"id": "sbx-d"}),
+        PlannedResponse(200, {"id": "sbx-d", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-d", "running")),
-        PlannedResponse(200, {"id": "sbx-e"}),
+        PlannedResponse(200, {"id": "sbx-e", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-e", "running")),
     ]
     with FakeApi(responses) as api:
@@ -82,7 +82,7 @@ async def test_get_network_policy_returns_etag_and_read_side_versions() -> None:
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            policy = await client.get_network_policy("sbx")
+            policy = await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()
 
@@ -128,12 +128,11 @@ async def test_update_and_reset_network_policy_use_exact_path_headers_and_actual
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            updated = await client.update_network_policy(
-                "sbx",
+            updated = await lazy_sandbox(client, "sbx").update_network_policy(
                 network_policy={"block_all": True, "allow_cidrs": [], "allow_domains": []},
                 if_match='"np-1"',
             )
-            reset = await client.reset_network_policy("sbx", if_match='"np-2"')
+            reset = await lazy_sandbox(client, "sbx").reset_network_policy(if_match='"np-2"')
         finally:
             await client.close()
 
@@ -263,7 +262,7 @@ async def test_network_policy_response_parser_accepts_non_api_200_compat_success
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            policy = await client.get_network_policy("sbx")
+            policy = await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()
 
@@ -271,7 +270,7 @@ async def test_network_policy_response_parser_accepts_non_api_200_compat_success
     assert policy.etag == '"np-4"'
 
 
-async def test_malformed_server_network_policy_arrays_raise_internal_server_error() -> None:
+async def test_malformed_server_network_policy_arrays_are_contract_errors() -> None:
     with FakeApi(
         [
             PlannedResponse(
@@ -291,7 +290,7 @@ async def test_malformed_server_network_policy_arrays_raise_internal_server_erro
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            with pytest.raises(InternalServerError, match="desired.allow_cidrs must be an array of strings"):
-                await client.get_network_policy("sbx")
+            with pytest.raises(BadRequestError, match="desired.allow_cidrs must be an array of strings"):
+                await lazy_sandbox(client, "sbx").get_network_policy()
         finally:
             await client.close()

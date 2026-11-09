@@ -24,6 +24,7 @@ from ._core import (
     parse_process_page,
     parse_sse_events_bounded,
     parse_wait,
+    path_segment,
     process_create_spec,
     process_kill_spec,
     process_list_spec,
@@ -34,7 +35,6 @@ from ._core import (
     stdin_spec,
     stream_event_too_large,
     timeout_millis_from_seconds,
-    toolbox_path_id,
     wait_budget,
     wait_spec,
 )
@@ -253,7 +253,7 @@ class AsyncProcessHandle:
         """Fetch current process metadata."""
         return parse_process(
             expect_process_dto(
-                await self._send(RequestSpec("GET", f"/processes/{toolbox_path_id(self.id, 'process id')}"))
+                await self._send(RequestSpec("GET", f"/processes/{path_segment(self.id, 'process id')}"))
             )
         )
 
@@ -297,7 +297,7 @@ class AsyncProcessHandle:
                     await self._send(
                         RequestSpec(
                             "GET",
-                            f"/processes/{toolbox_path_id(self.id, 'process id')}",
+                            f"/processes/{path_segment(self.id, 'process id')}",
                             timeout=None
                             if deadline is None
                             else deadline - _clock.monotonic() + WAIT_READ_SLACK_SECONDS,
@@ -781,7 +781,7 @@ class AsyncProcessService:
         return parse_process(
             expect_process_dto(
                 await self._transport.send(
-                    RequestSpec("GET", f"/processes/{toolbox_path_id(process_id, 'process id')}")
+                    RequestSpec("GET", f"/processes/{path_segment(process_id, 'process id')}")
                 )
             )
         )

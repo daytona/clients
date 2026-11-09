@@ -5,6 +5,7 @@
 
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from json import dumps, loads
 from pprint import pformat
 from typing import Final, Protocol, TypeVar
@@ -16,23 +17,25 @@ from daytona.v2._bridge import SyncBridge
 from daytona.v2._sync._runtime import UNBOUND
 from daytona.v2._sync.ports import PortsService
 from daytona.v2._sync.services import (
-    ImageService,
-    MacModelService,
-    ReservationService,
-    SecretService,
-    SnapshotService,
+    ImagesService,
+    MacModelsService,
+    ReservationsService,
+    SecretsService,
+    SnapshotsService,
 )
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.ports import AsyncPortsService
 from daytona.v2.sandbox import AsyncSandbox, sandbox_info_from_id
 from daytona.v2.services import (
-    AsyncImageService,
-    AsyncMacModelService,
-    AsyncReservationService,
-    AsyncSecretService,
-    AsyncSnapshotService,
+    AsyncImagesService,
+    AsyncMacModelsService,
+    AsyncReservationsService,
+    AsyncSecretsService,
+    AsyncSnapshotsService,
 )
 from daytona.v2.types import PreviewLink, SandboxAccessToken, SignedPreviewLink
+
+_EXPIRES = datetime(2030, 1, 1, tzinfo=timezone.utc)
 
 KEY: Final = "dtn_namespace_caller_secret"
 ACCESS: Final = "opaque_namespace_provider_secret"
@@ -64,11 +67,11 @@ class CallerOwnedProvider:
 @pytest.mark.parametrize(
     "constructors",
     [
-        (AsyncImageService, ImageService),
-        (AsyncSnapshotService, SnapshotService),
-        (AsyncReservationService, ReservationService),
-        (AsyncMacModelService, MacModelService),
-        (AsyncSecretService, SecretService),
+        (AsyncImagesService, ImagesService),
+        (AsyncSnapshotsService, SnapshotsService),
+        (AsyncReservationsService, ReservationsService),
+        (AsyncMacModelsService, MacModelsService),
+        (AsyncSecretsService, SecretsService),
     ],
     ids=["images", "snapshots", "reservations", "mac-models", "secrets"],
 )
@@ -122,9 +125,9 @@ async def test_sandbox_ports_repr_when_api_retains_caller_credentials(
         if with_provider:
             transport.auth_provider = provider
         # When
-        sandbox = AsyncSandbox(sandbox_info_from_id("sandbox"), transport, None, access_token=ACCESS)
+        sandbox = AsyncSandbox(sandbox_info_from_id("sandbox"), transport, None, _access_token=ACCESS)
         ports = PortsService(sandbox.ports, UNBOUND) if sync else sandbox.ports
-        direct_ports = AsyncPortsService(None, transport, sandbox_id="sandbox")
+        direct_ports = AsyncPortsService(None, transport, _sandbox_id="sandbox")
         # Then: cover both direct ports construction and the parent's namespace.
         for namespace in (direct_ports, ports):
             for output in (repr(namespace), pformat({"ports": [namespace]})):
@@ -139,10 +142,19 @@ async def test_sandbox_ports_repr_when_api_retains_caller_credentials(
 @pytest.mark.parametrize(
     ("holder", "credential_field", "expected_url"),
     [
-        (SandboxAccessToken(ACCESS, "Bearer", "2099-01-01T00:00:00Z", []), "access_token", None),
-        (PreviewLink("https://preview.invalid", ACCESS), "token", "https://preview.invalid"),
         (
-            SignedPreviewLink(f"https://{ACCESS}.preview.invalid", ACCESS),
+            SandboxAccessToken(
+                access_token=ACCESS,
+                token_type="Bearer",
+                expires_at=datetime(2099, 1, 1, tzinfo=timezone.utc),
+                operations=(),
+            ),
+            "access_token",
+            None,
+        ),
+        (PreviewLink(url="https://preview.invalid", token=ACCESS), "token", "https://preview.invalid"),
+        (
+            SignedPreviewLink(url=f"https://{ACCESS}.preview.invalid", token=ACCESS, expires_at=_EXPIRES),
             "token",
             f"https://{ACCESS}.preview.invalid",
         ),
@@ -156,7 +168,7 @@ def test_explicit_dto_json_when_credentials_are_requested(
 ) -> None:
     # Given: these credential-return dataclasses are shared by async/sync APIs.
     # When
-    payload = loads(dumps(asdict(holder)))
+    payload = loads(dumps(asdict(holder), default=str))
     # Then: diagnostic safety must not suppress explicitly requested credentials.
     assert payload[credential_field] == ACCESS
     assert payload.get("url") == expected_url
