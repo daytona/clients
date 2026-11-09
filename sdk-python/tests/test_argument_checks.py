@@ -183,6 +183,8 @@ _REFUSED: list[tuple[str, Call]] = [
     ("search sandbox_class bogus", lambda d, _url: d.search(sandbox_class="bogus")),  # type: ignore[arg-type]
     ("search created_start_at not RFC 3339", lambda d, _url: d.search(created_start_at="yesterday")),
     ("volumes.create name U+001C", lambda d, _url: d.volumes.create(name="\u001c")),
+    # The contract's size_gib is an int32 (twin in argument-checks.test.ts).
+    ("volumes.create size_gib above int32", lambda d, _url: d.volumes.create(name="v", size_gib=2**31)),
     (
         "create volumes[].volume_id U+001C",
         lambda d, _url: d.create(volumes=[VolumeMount(volume_id="\u001c", mount_path="/m")]),

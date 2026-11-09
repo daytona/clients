@@ -17,7 +17,7 @@ import type { JsonValue, ListResult, VolumeState, VolumeType } from './types.js'
 import { VolumeStatus as VOLUME_STATUSES, VolumeType as VOLUME_TYPES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { NotFoundError } from './errors/DaytonaError.js'
-import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
+import { MAX_INT32, assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 
@@ -162,8 +162,9 @@ export class VolumesService {
     assertOptionsObject('CreateVolumeOptions', options)
     assertKnownOptions('CreateVolumeOptions', options, CREATE_VOLUME_KEYS)
     if (typeof options.name !== 'string' || isBlank(options.name)) throw badRequest('name must be a non-empty string')
-    if (options.sizeGib !== undefined && (!Number.isInteger(options.sizeGib) || options.sizeGib <= 0)) {
-      throw badRequest('sizeGib must be a positive integer')
+    // The contract's int32.
+    if (options.sizeGib !== undefined && (!Number.isInteger(options.sizeGib) || options.sizeGib <= 0 || options.sizeGib > MAX_INT32)) {
+      throw badRequest(`sizeGib must be a positive integer up to ${MAX_INT32}`)
     }
     const body: api.CreateVolumeRequest = { name: options.name, type: 'disk', size_gib: options.sizeGib }
     const { data } = await this.api.post<api.Volume>('/volumes', body)

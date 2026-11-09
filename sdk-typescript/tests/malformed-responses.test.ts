@@ -582,7 +582,7 @@ it.each([
 
 // An empty or blank id is no id: nothing can follow without it, as in Python.
 it.each([
-  ['create', ''], ['create', '  '], ['fork', ''], ['fork', '  '],
+  ['create', ''], ['create', '  '], ['create', '.'], ['create', '..'], ['fork', ''], ['fork', '  '], ['fork', '.'], ['fork', '..'],
 ] as const)('refuses a %s response whose id is %j', async (call, id) => {
   const api = await startFakeApi([{ status: 200, body: { id, status: 'pending' } }])
   const client = clientAt(api.url)
@@ -799,6 +799,51 @@ it.each([
       await expect(pending).resolves.toMatchObject({ expiresAt })
     }
   } finally {
+    await api.close()
+  }
+})
+
+// As in Python.
+it.each(['members', 'sandbox_resources'] as const)('reads a null optional organization limit %s as absent', async (field) => {
+  const api = await startFakeApi([{ status: 200, body: { ...LIMITS, [field]: null } }])
+  const client = clientAt(api.url)
+  try {
+    const limits = await client.v2.getLimits({ organizationId: 'org' })
+    expect(field === 'members' ? limits.members : limits.sandboxResources).toBeUndefined()
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each([
+  ['2026-02-30', true], ['2026-1-1', true], ['2026-01-01T00:00:00Z', true], ['2026-01-01', false],
+] as const)('reads a project budget period_start_date %j as a calendar date (refused: %s)', async (value, refused) => {
+  const api = await startFakeApi([{ status: 200, body: { ...BUDGET_NULLS, period_start_date: value } }])
+  const client = clientAt(api.url)
+  try {
+    const pending = client.v2.getProjectBudget()
+    if (refused) await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'project budget response has a period_start_date that is not a YYYY-MM-DD date' })
+    else await expect(pending).resolves.toMatchObject({ periodStartDate: value })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('reads secrets.set allowedDomains once', async () => {
+  // A getter answering the check and the copy differently cannot slip a
+  // non-string domain into the request.
+  const api = await startFakeApi([{ status: 200, body: { name: 'K', allowed_domains: ['*'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } }])
+  const client = clientAt(api.url)
+  let reads = 0
+  const options = { get allowedDomains() { reads += 1; return reads === 1 ? ['*'] : [5] } }
+  try {
+    await client.v2.secrets.set('K', 'v', options as never)
+    expect(reads).toBe(1)
+    expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ allowed_domains: ['*'] })
+  } finally {
+    await client.close()
     await api.close()
   }
 })

@@ -482,11 +482,25 @@ def field_violation(value: object, model_type: object, path: str = "") -> Option
             # model alone would also read a date, or one without an offset);
             # TypeScript declares the same fields `'timestamp'`.
             return f"has a {path}{key} that is not an RFC 3339 timestamp"
+        if isinstance(child, str) and _names(info.annotation, (date,)) and not _calendar_date(child):
+            # A `date` field is a real calendar date written YYYY-MM-DD (the
+            # generated model would also read a date-time); as TypeScript.
+            return f"has a {path}{key} that is not a YYYY-MM-DD date"
         if child is not None:
             found = _field_violation_in(child, info.annotation, f"{path}{key}")
             if found is not None:
                 return found
     return None
+
+
+def _calendar_date(value: str) -> bool:
+    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value) is None:
+        return False
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
 
 
 def _field_violation_in(value: object, annotation: object, path: str) -> Optional[str]:

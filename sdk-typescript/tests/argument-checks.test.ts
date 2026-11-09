@@ -80,6 +80,8 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   ['reservations.update autoRenew as a string', (client) => client.v2.reservations.update('res', { autoRenew: 'yes' as never })],
   ['volumes.delete(a Volume object)', (client) => client.v2.volumes.delete({ id: 'vol' } as never)],
   ['volumes.delete(blank)', (client) => client.v2.volumes.delete(' ')],
+  // The contract's size_gib is an int32 (twin in test_argument_checks.py).
+  ['volumes.create sizeGib above int32', (client) => client.v2.volumes.create({ name: 'v', sizeGib: 2 ** 31 })],
   ['ports.expose public as a string', (_client, api) => handle(api).ports.expose(8080, { public: 'false' as never })],
   ['createAccessToken operations not an array', (_client, api) => handle(api).createAccessToken({ operations: 'toolbox' as never })],
   ['createAccessToken operations with a number', (_client, api) => handle(api).createAccessToken({ operations: [1] as never })],

@@ -237,6 +237,16 @@ def _id_only(value: TransportPayload, fields: tuple[str, ...]) -> TransportPaylo
     return {**value, **{name: "" for name in fields if not isinstance(value.get(name), str)}}
 
 
+def usable_path_id(value: object) -> bool:
+    """Whether a server-returned id can be a request path id (the rule of
+    ``path_segment``): a create or fork response without one has no id."""
+    try:
+        path_segment(value, "id")
+    except DaytonaError:
+        return False
+    return True
+
+
 def _acknowledgement(value: TransportPayload, description: str) -> AsyncOperation:
     """An accepted operation's acknowledgement; its id is the path id the
     follow-up read uses, so an empty or blank one is refused before it."""
@@ -266,11 +276,10 @@ def expect_fork_resp(value: TransportPayload) -> ForkSandboxOperation:
     # The fork exists once its id came back, as for a create: a missing or
     # non-string status reads as `unknown`, `forked_from` falls back to the
     # source's id, and the toolbox URL comes from the fork's detail read. A
-    # missing, empty or blank id is no id.
-    if isinstance(value, dict):
-        raw_id = value.get("id")
-        if not isinstance(raw_id, str) or not raw_id.strip():
-            raise create_error("sandbox fork response is missing the sandbox id", 400, "BAD_REQUEST", "SDK")
+    # missing id, or one no request path can carry (blank, `.`, `..`, a
+    # surrogate), is no id.
+    if isinstance(value, dict) and not usable_path_id(value.get("id")):
+        raise create_error("sandbox fork response is missing the sandbox id", 400, "BAD_REQUEST", "SDK")
     return _expect_model_from_dict(
         _id_only(value, ("status", "forked_from", "toolbox_proxy_url")),
         ForkSandboxOperation,

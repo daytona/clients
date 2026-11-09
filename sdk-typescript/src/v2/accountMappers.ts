@@ -5,6 +5,7 @@
 
 import { deepFrozen } from './frozen.js'
 import type * as api from './gen/api-types.js'
+import { badRequest } from './options.js'
 import type { AuditActionList, OrganizationLimits, ProjectApiKey, ProjectBudget, UsageLimit } from './accountTypes.js'
 import { arrayOf, checkResponse, nested } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
@@ -58,8 +59,21 @@ export function projectApiKey(value: api.ProjectApiKeyWithContext): ProjectApiKe
   })
 }
 
+function isCalendarDate(value: string): boolean {
+  const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(value)
+  if (match === null) return false
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  const date = new Date(Date.UTC(year, month - 1, day))
+  date.setUTCFullYear(year)
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}
+
 export function projectBudget(value: api.ProjectBudget): ProjectBudget {
   const data = checkResponse<api.ProjectBudget>(value, PROJECT_BUDGET, 'project budget')
+  // The contract's `date`: a real calendar date written YYYY-MM-DD, as in Python.
+  if (data.period_start_date != null && !isCalendarDate(data.period_start_date)) {
+    throw badRequest('project budget response has a period_start_date that is not a YYYY-MM-DD date')
+  }
   return deepFrozen({
     monthlyLimitCents: data.monthly_limit_cents ?? undefined,
     periodStartDate: data.period_start_date ?? undefined,
@@ -85,11 +99,12 @@ export function organizationLimits(value: api.OrganizationLimits): OrganizationL
     secretsPerProject: usageLimit(data.secrets_per_project),
     apiKeysPerProject: usageLimit(data.api_keys_per_project),
     apiKeysPerOrganization: usageLimit(data.api_keys_per_organization),
-    sandboxResources: data.sandbox_resources === undefined ? undefined : {
+    // Optional, and `null` reads as absent.
+    sandboxResources: data.sandbox_resources == null ? undefined : {
       maxCores: data.sandbox_resources.max_cores,
       maxMemoryMib: data.sandbox_resources.max_memory_mib,
     },
-    members: data.members === undefined ? undefined : {
+    members: data.members == null ? undefined : {
       ...usageLimit(data.members),
       pendingInvitations: data.members.pending_invitations,
     },

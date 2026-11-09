@@ -951,7 +951,7 @@ async def test_a_create_token_that_cannot_be_used_is_absent(
     )
 
 
-@pytest.mark.parametrize("sandbox_id", ["", "  "], ids=["empty", "blank"])
+@pytest.mark.parametrize("sandbox_id", ["", "  ", ".", ".."], ids=["empty", "blank", "dot", "dot-dot"])
 @pytest.mark.parametrize("call", ["create", "fork"])
 async def test_a_create_or_fork_response_with_an_empty_id_has_no_id(call: str, sandbox_id: str) -> None:
     # An empty or blank id is no id: nothing can follow without it. The
@@ -1260,3 +1260,37 @@ async def test_an_access_token_expiry_follows_the_rfc_3339_rule(expires_at: str,
             else:
                 token = await lazy_sandbox(root.v2, "src").create_access_token()
                 assert token.expires_at == datetime(2030, 1, 1, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize("field", ["members", "sandbox_resources"])
+async def test_null_optional_organization_limits_read_as_absent(field: str) -> None:
+    # The TypeScript twin is in malformed-responses.test.ts.
+    with FakeApi([PlannedResponse(200, {**_LIMITS, field: None})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            limits = await root.v2.get_limits(organization_id="org")
+    assert getattr(limits, field) is None
+
+
+@pytest.mark.parametrize(
+    ("value", "refused"),
+    [
+        ("2026-02-30", True),
+        ("2026-1-1", True),
+        ("2026-01-01T00:00:00Z", True),
+        ("2026-01-01", False),
+    ],
+)
+async def test_a_project_budget_period_start_is_a_calendar_date(value: str, refused: bool) -> None:
+    # The TypeScript twin is in malformed-responses.test.ts.
+    with FakeApi([PlannedResponse(200, {**_BUDGET_NULLS, "period_start_date": value})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            if refused:
+                with _sdk_bad_request(
+                    "^project budget response has a period_start_date that is not a YYYY-MM-DD date$"
+                ):
+                    await root.v2.get_project_budget()
+            else:
+                budget = await root.v2.get_project_budget()
+                assert str(budget.period_start_date) == value

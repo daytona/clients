@@ -38,6 +38,7 @@ from ._api_core import (
     secret_from_wire,
 )
 from ._core import (
+    INT32_MAX,
     RequestSpec,
     TransportPayload,
     _expect_model_from_dict,
@@ -547,9 +548,18 @@ class AsyncVolumesService:
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         if size_gib is not None and (
-            isinstance(size_gib, bool) or not isinstance(size_gib, int) or size_gib <= 0
+            isinstance(size_gib, bool)
+            or not isinstance(size_gib, int)
+            or size_gib <= 0
+            or size_gib > INT32_MAX
         ):
-            raise create_error("size_gib must be a positive integer number of GiB", 400, "BAD_REQUEST", "SDK")
+            # The contract's int32.
+            raise create_error(
+                f"size_gib must be a positive integer number of GiB up to {INT32_MAX}",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         body: JsonObject = {"name": name, "type": "disk"}
         if size_gib is not None:
             body["size_gib"] = size_gib

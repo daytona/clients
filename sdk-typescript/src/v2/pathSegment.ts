@@ -53,3 +53,13 @@ export function hasLoneSurrogate(value: string): boolean {
   }
   return false
 }
+
+/**
+ * Whether a server-returned id can be a request path id (the rule of
+ * `pathSegment`): a create or fork response without one has no id, as in
+ * Python's `usable_path_id`.
+ * @internal
+ */
+export function usablePathId(value: unknown): value is string {
+  return typeof value === 'string' && !isBlank(value) && value !== '.' && value !== '..' && !hasLoneSurrogate(value)
+}

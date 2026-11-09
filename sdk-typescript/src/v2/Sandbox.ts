@@ -5,7 +5,7 @@
 
 import { withoutNullOptions } from './clientOptionKeys.js'
 import { acknowledgedId, checkResponse } from './responseFields.js'
-import { pathSegment } from './pathSegment.js'
+import { pathSegment, usablePathId } from './pathSegment.js'
 import type { ResponseFields } from './responseFields.js'
 import { isBlank } from './pyText.js'
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
@@ -800,7 +800,7 @@ export class Sandbox {
     // Checked before the fork handle or any further request, as for a create.
     const forked = checkResponse<api.ForkResponse>(response.data, FORK_RESPONSE, 'sandbox fork')
     // An empty or blank id is no id: nothing can follow without it, as for a create.
-    if (isBlank(forked.id)) throw badRequest('sandbox fork response is missing the sandbox id')
+    if (!usablePathId(forked.id)) throw badRequest('sandbox fork response is missing the sandbox id')
     const rawForkStatus: unknown = Reflect.get(forked, 'status')
     const forkStatus = typeof rawForkStatus === 'string' ? rawForkStatus : undefined
     const rawForkedFrom: unknown = Reflect.get(forked, 'forked_from')

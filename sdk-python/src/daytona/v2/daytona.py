@@ -39,6 +39,7 @@ from ._api_core import (
     expect_project_budget,
     expect_sandbox_detail,
     sandbox_detail_wire,
+    usable_path_id,
 )
 from ._auth import ProjectTokenAuth
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, validated_max_response_bytes
@@ -776,9 +777,9 @@ class AsyncDaytona:
         except ConnectionError as error:
             raise SandboxCreateConnectionError(create_key, error.message) from error
         raw_id = data.get("id")
-        if not isinstance(raw_id, str) or not raw_id.strip():
-            # The contract requires the new sandbox's id (an empty or blank one
-            # is none); nothing can follow without it.
+        if not isinstance(raw_id, str) or not usable_path_id(raw_id):
+            # The contract requires the new sandbox's id (one no request path
+            # can carry is none); nothing can follow without it.
             raise create_error("sandbox create response is missing the sandbox id", 400, "BAD_REQUEST", "SDK")
         sandbox_id = raw_id
         # A token that could not be sent as a header, or an expiry that is not a

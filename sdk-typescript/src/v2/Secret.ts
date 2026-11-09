@@ -120,10 +120,12 @@ export class SecretsService {
     if (description !== undefined && description !== null && typeof description !== 'string') throw badRequest('description must be a string')
     const ifNotExists: unknown = options.ifNotExists
     if (ifNotExists !== undefined && typeof ifNotExists !== 'boolean') throw badRequest('ifNotExists must be a boolean')
-    if (!Array.isArray(options.allowedDomains) || options.allowedDomains.some((domain) => typeof domain !== 'string')) {
-      throw badRequest('allowedDomains must be an array of strings')
-    }
-    const body: api.PutSecretRequest = { value, allowed_domains: [...options.allowedDomains] }
+    // Read once: a getter cannot answer the check and the copy differently.
+    const allowedDomains: unknown = options.allowedDomains
+    if (!Array.isArray(allowedDomains)) throw badRequest('allowedDomains must be an array of strings')
+    const domains: unknown[] = [...allowedDomains]
+    if (!domains.every((domain): domain is string => typeof domain === 'string')) throw badRequest('allowedDomains must be an array of strings')
+    const body: api.PutSecretRequest = { value, allowed_domains: domains }
     if (typeof description === 'string') body.description = description
     const config = ifNotExists === true ? { headers: { 'If-None-Match': '*' } } : undefined
     const { data } = await this.api.put<api.Secret>(path, body, config)
