@@ -15,6 +15,7 @@ import json
 import os
 import re
 from collections.abc import Awaitable, Callable, Iterator
+from datetime import datetime, timezone
 
 import anyio
 import pytest
@@ -686,15 +687,33 @@ async def test_a_numeric_artifact_timestamp_is_a_contract_error(
     assert len(api.requests) == 1
 
 
-@pytest.mark.parametrize("status", [5, None, ["running"]], ids=["number", "null", "array"])
-async def test_a_create_status_that_is_not_a_string_is_a_contract_error(status: JsonValue) -> None:
-    # As the id is checked: a wrong status is never read as `unknown`. The
-    # TypeScript twin is in malformed-responses.test.ts.
-    with FakeApi([PlannedResponse(200, {"id": "sbx", "status": status})]) as api:
+_MISSING = object()
+
+
+@pytest.mark.parametrize(
+    "status", [5, None, ["running"], _MISSING], ids=["number", "null", "array", "missing"]
+)
+@pytest.mark.parametrize("call", ["create", "fork"])
+async def test_a_create_or_fork_status_that_is_not_a_string_reads_as_unknown(
+    call: str, status: object
+) -> None:
+    # The sandbox exists once its id came back: create and fork return the
+    # handle, its state `unknown`, and raise only when the request failed or
+    # no id came back. The TypeScript twin is in malformed-responses.test.ts.
+    body: JsonObject = {"id": "sbx"}
+    if call == "fork":
+        body.update({"forked_from": "src", "toolbox_proxy_url": "https://p.example"})
+    if status is not _MISSING:
+        body["status"] = status  # type: ignore[assignment]
+    with FakeApi([PlannedResponse(200, body)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with _sdk_bad_request("sandbox create response has a status that is not a string"):
-                await root.v2.create("img_1", wait_seconds=0)
+            if call == "create":
+                handle = await root.v2.create("img_1", wait_seconds=0)
+            else:
+                handle = await lazy_sandbox(root.v2, "src").fork(wait_seconds=0)
+    assert handle.id == "sbx"
+    assert handle.state == "unknown"
     assert len(api.requests) == 1
 
 
@@ -765,3 +784,28 @@ async def test_a_signed_preview_link_without_expires_at_is_a_contract_error() ->
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             with _sdk_bad_request("expires_at: Field required"):
                 await lazy_sandbox(root.v2, "src").ports.signed_preview_link(8080)
+
+
+async def test_a_signed_preview_link_expiry_without_an_offset_is_utc() -> None:
+    body: JsonObject = {
+        "url": "https://s.preview.invalid",
+        "token": "s" + "0" * 32,
+        "expires_at": "2030-01-01T00:00:00",
+    }
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            link = await lazy_sandbox(root.v2, "src").ports.signed_preview_link(8080)
+    assert link.expires_at == datetime(2030, 1, 1, tzinfo=timezone.utc)
+
+
+async def test_an_integer_too_large_for_a_double_in_a_mapped_field_is_a_contract_error() -> None:
+    # TypeScript's JSON.parse reads it as Infinity, which its integer check
+    # refuses; Python refuses the same field before the model parse. The
+    # TypeScript twin is in malformed-responses.test.ts.
+    body = json.dumps({**_IMAGE, "bytes": 1}).replace('"bytes": 1', '"bytes": 1' + "0" * 400)
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("^image detail response has a bytes that is not an integer$"):
+                await root.v2.images.get("img")

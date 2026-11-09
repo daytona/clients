@@ -807,10 +807,9 @@ export interface PreviewLink {
 export interface SignedPreviewLink {
   readonly url: string
   readonly token: string
-  /** When the link stops resolving (RFC 3339). Always set by
-   * {@link PortsService.signedPreviewLink}: the contract requires it, and a
+  /** When the link stops resolving (RFC 3339). The contract requires it: a
    * response without it is a `BadRequestError`. */
-  readonly expiresAt?: string
+  readonly expiresAt: string
 }
 
 export interface SystemMetrics {

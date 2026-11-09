@@ -88,10 +88,11 @@ the root config's v0 routing: Python forwards `connection_pool_maxsize` to
 TypeScript SDK has no pool-size setting (`ROOT_CONFIG_ROUTING` in both SDKs
 records it). Another: TypeScript `get()`, `create*()` and `fork()` take
 `autoDelete` (dispose the sandbox with `await using`); Python has no
-counterpart, because its handles have no disposal hook. A known gap, not a
-decision: TypeScript's `ImageBuilder` has `user()`, `cmd()` and `entrypoint()`,
-which are TypeScript-only for now; Python can gain them in a 2.x minor
-(additive). Both roots copy the config's fields once, when the client is
+counterpart, because its handles have no disposal hook. One exception
+recorded in ADR 0001: TypeScript's `ImageBuilder` has `user()`, `cmd()` and
+`entrypoint()`, which it already offered and Python lacks; removing them
+would break TypeScript users, so they stay, and Python gains them in a 2.x
+minor (additive). Both roots copy the config's fields once, when the client is
 built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
 caller's object have no effect, and URL fields are refused before and after
 the copy (a getter or property could otherwise add one while it is read).
@@ -565,8 +566,9 @@ skipping exist only in the TypeScript tool).
   browser the in-memory reads, under their cap, are the only option.
   A per-call timeout (a wait's budget plus its slack; a create POST that
   asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
-  healthy hold is never cut, while a create with no hold stays an ordinary
-  request; a git remote call, the
+  healthy hold is never cut, with no bound when the request timeout is `0`
+  or the hold is above the timer maximum, while a create with no hold stays
+  an ordinary request; a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
   `timeout`) replaces the request timeout for that call with the same

@@ -111,7 +111,9 @@ export interface UpdateEnvOptions {
 const LIFECYCLE_WAIT_KEYS = optionKeys<LifecycleWaitOptions>()({ timeoutSeconds: true })
 const WAIT_KEYS = optionKeys<WaitOptions>()({ until: true, timeoutSeconds: true })
 const FORK_KEYS = optionKeys<ForkOptions>()({ name: true, memory: true, waitSeconds: true, autoDelete: true })
-const FORK_RESPONSE: ResponseFields = { id: 'string', status: 'string', forked_from: 'string', toolbox_proxy_url: 'string' }
+// No status: the fork exists once its id came back, so a missing or
+// non-string status reads as `unknown`, as for a create.
+const FORK_RESPONSE: ResponseFields = { id: 'string', forked_from: 'string', toolbox_proxy_url: 'string' }
 const CAPTURE_KEYS = optionKeys<CaptureImageOptions>()({ name: true, idleExpirySeconds: true })
 const UPDATE_ENV_KEYS = optionKeys<UpdateEnvOptions>()({ unset: true })
 const LIFECYCLE_POLICY_KEYS = optionKeys<LifecyclePolicyOptions>()({ timeoutSeconds: true, onTimeout: true, idleExpirySeconds: true, onIdleTimeout: true })
@@ -796,6 +798,8 @@ export class Sandbox {
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
     // Checked before the fork handle or any further request, as for a create.
     const forked = checkResponse<api.ForkResponse>(response.data, FORK_RESPONSE, 'sandbox fork')
+    const rawForkStatus: unknown = Reflect.get(forked, 'status')
+    const forkStatus = typeof rawForkStatus === 'string' ? rawForkStatus : undefined
     // The fork's metadata comes from its detail; its toolbox from the fork
     // response, never the source's per-sandbox override.
     // 0 is one request; above the timer maximum (about 24.8 days) the fork
@@ -805,8 +809,8 @@ export class Sandbox {
     const fork = new Sandbox(INTERNAL, {
       sandbox: {
         sandboxId: forked.id,
-        rawState: forked.status,
-        state: sandboxState(forked.status),
+        rawState: forkStatus,
+        state: sandboxState(forkStatus),
         // A fork has its source's class; it names its source.
         sandboxClass,
         rawSandboxClass,

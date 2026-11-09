@@ -783,13 +783,10 @@ class AsyncDaytona:
         create_toolbox_base = (
             str(data.get("toolbox_proxy_url")) if isinstance(data.get("toolbox_proxy_url"), str) else None
         )
-        raw_status = data.get("status", "")
-        if not isinstance(raw_status, str):
-            # The contract types the status as a string; a wrong one is not
-            # read as `unknown` (an absent one is, as the sandbox exists).
-            raise create_error(
-                "sandbox create response has a status that is not a string", 400, "BAD_REQUEST", "SDK"
-            )
+        # The sandbox exists once its id came back: a missing or non-string
+        # status reads as `unknown`, never an error (as `wait_cap_seconds`).
+        status = data.get("status")
+        raw_status = status if isinstance(status, str) else ""
         # The handle holds only what the response carries, plus an `img_` /
         # `snap_` id the caller passed (a name is never an id), and the class
         # only when the call fixes it (create_macos); the rest is unknown until

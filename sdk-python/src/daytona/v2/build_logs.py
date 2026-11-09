@@ -41,7 +41,6 @@ from ._core import (
     RequestSpec,
     _nested_deeper_than,
     is_json_media_type,
-    non_string_timestamp,
     parse_error_payload,
     query_text,
     wait_budget_seconds,
@@ -443,10 +442,6 @@ class _Observer:
             model.model_validate(data)
         except ValueError as exc:
             raise _ProtocolError("invalid build log event schema") from exc
-        # A timestamp is a string, as TypeScript reads it: the model would
-        # also read a number as a Unix time.
-        if non_string_timestamp(data, model) is not None:
-            raise _ProtocolError("invalid build log event schema")
         if event not in ("log", "gap", "done") and ident is not None:
             raise _ProtocolError("control event must not advance cursor")
         if event == "state":

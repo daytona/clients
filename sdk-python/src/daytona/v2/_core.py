@@ -417,13 +417,15 @@ def _missing_required_key(value: JsonValue, model_type: object, path: str) -> Op
     return None
 
 
-def non_string_timestamp(value: object, model_type: object, path: str = "") -> Optional[str]:
-    """The path of the first date or date-time field of a generated model
-    (nested models and list items included) whose value is present, not
-    ``null`` and not a string, or ``None``.
+def field_violation(value: object, model_type: object, path: str = "") -> Optional[str]:
+    """What breaks the contract in the first date, date-time or number field
+    of a generated model (nested models and list items included) whose value
+    is present and not ``null``, as ``"has a <path> that is not ..."``, or
+    ``None``.
 
-    The contract's timestamps are strings, and TypeScript refuses anything
-    else; the generated models would read a number as a Unix time.
+    TypeScript refuses both: a timestamp is a string (the generated models
+    would read a number as a Unix time), and an integer too large for a
+    double is not a number (``JSON.parse`` reads it as ``Infinity``).
     """
     model_fields = getattr(model_type, "model_fields", None)
     if not isinstance(value, dict) or not isinstance(model_fields, dict):
@@ -432,31 +434,37 @@ def non_string_timestamp(value: object, model_type: object, path: str = "") -> O
         key = info.alias or name
         child = value.get(key)
         if child is not None:
-            found = _non_string_timestamp_in(child, info.annotation, f"{path}{key}")
+            found = _field_violation_in(child, info.annotation, f"{path}{key}")
             if found is not None:
                 return found
     return None
 
 
-def _non_string_timestamp_in(value: object, annotation: object, path: str) -> Optional[str]:
+def _field_violation_in(value: object, annotation: object, path: str) -> Optional[str]:
     if isinstance(value, list):
         for index, item in enumerate(value):
-            found = None if item is None else _non_string_timestamp_in(item, annotation, f"{path}[{index}]")
+            found = None if item is None else _field_violation_in(item, annotation, f"{path}[{index}]")
             if found is not None:
                 return found
         return None
-    if _names_date(annotation) and not isinstance(value, str):
-        return path
+    if _names(annotation, (date, datetime)) and not isinstance(value, str):
+        return f"has a {path} that is not a string"
+    if isinstance(value, int) and not isinstance(value, bool) and not finite_number(value):
+        if _names(annotation, (int,)):
+            return f"has a {path} that is not an integer"
+        if _names(annotation, (float,)):
+            return f"has a {path} that is not a number"
     for candidate in _model_types(annotation):
-        found = non_string_timestamp(value, candidate, f"{path}.")
+        found = field_violation(value, candidate, f"{path}.")
         if found is not None:
             return found
     return None
 
 
-def _names_date(annotation: object) -> bool:
-    """Whether an annotation is a date or date-time (through Optional / List)."""
-    return annotation in (date, datetime) or any(_names_date(argument) for argument in get_args(annotation))
+def _names(annotation: object, types: Tuple[type, ...]) -> bool:
+    """Whether an annotation is one of ``types`` (through Optional / List /
+    Annotated)."""
+    return annotation in types or any(_names(argument, types) for argument in get_args(annotation))
 
 
 def _model_types(annotation: object) -> List[object]:
@@ -487,11 +495,9 @@ def _expect_model_from_dict(
             raise create_error(
                 f"expected {description}: {missing}: Field required", 400, "BAD_REQUEST", "SDK"
             )
-        timestamp = non_string_timestamp(value, model_type)
-        if timestamp is not None:
-            raise create_error(
-                f"{description} has a {timestamp} that is not a string", 400, "BAD_REQUEST", "SDK"
-            )
+        violation = field_violation(value, model_type)
+        if violation is not None:
+            raise create_error(f"{description} {violation}", 400, "BAD_REQUEST", "SDK")
     try:
         parsed = from_dict(value)
     except ValidationError as exc:

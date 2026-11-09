@@ -274,11 +274,12 @@ class AsyncPortsService:
                 )
             )
         )
-        return SignedPreviewLink(
-            url=payload.url,
-            token=payload.token,
-            expires_at=parse_timestamp(payload.expires_at),
-        )
+        # Required by the contract, so the model always carries it; without an
+        # offset it is UTC, as parse_timestamp reads it.
+        expires_at = payload.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return SignedPreviewLink(url=payload.url, token=payload.token, expires_at=expires_at)
 
     async def expire_signed_preview_link(self, port: int, token: str) -> None:
         """Revoke a signed preview link before its natural expiry.

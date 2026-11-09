@@ -56,10 +56,10 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     // The contract requires the new sandbox's id; nothing can follow without it.
     throw badRequest('sandbox create response is missing the sandbox id')
   }
-  // The contract types the status as a string; a wrong one is not read as
-  // `unknown` (an absent one is, as the sandbox exists).
-  const status: unknown = Reflect.get(created, 'status')
-  if (status !== undefined && typeof status !== 'string') throw badRequest('sandbox create response has a status that is not a string')
+  // The sandbox exists once its id came back: a missing or non-string status
+  // reads as `unknown`, never an error (as `wait_cap_seconds`).
+  const rawStatus: unknown = Reflect.get(created, 'status')
+  const status = typeof rawStatus === 'string' ? rawStatus : undefined
   // A create token is refreshable, unlike a caller-supplied one.
   const connectOptions: SandboxConnectOptionsFromCreate = {
     accessToken: created.access_token ?? undefined,
@@ -75,8 +75,8 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     sandboxId: created.id,
     toolboxProxyUrl: scopedProxyToolboxUrl(created.toolbox_proxy_url, created.id),
     name: created.name,
-    rawState: created.status ?? undefined,
-    state: sandboxState(created.status),
+    rawState: status,
+    state: sandboxState(status),
     region,
     image: typeof booted?.id === 'string' && booted.id !== ''
       ? { id: booted.id, name: booted.name ?? null }

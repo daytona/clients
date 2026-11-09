@@ -41,3 +41,7 @@ included). `NAME_LABEL` and `idempotency_key_for_name` /
 `idempotencyKeyForName` are no longer exported (named creates are still
 get-or-create). Python `Sandbox.labels` is a fresh `dict` on every read
 (`Mapping` to type checkers): changing it changes nothing on the handle.
+`SignedPreviewLink.expires_at` (Python, a `datetime`) / `expiresAt`
+(TypeScript, an RFC 3339 string) is required, as the contract requires it:
+`signed_preview_link()` / `signedPreviewLink()` refuse a response without it
+(Python's was an optional string).

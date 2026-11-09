@@ -396,13 +396,22 @@ it.each([
   }
 })
 
-it.each([5, null, ['running']])('refuses a create status that is not a string (%j)', async (status) => {
-  // As the id is checked: a wrong status is never read as `unknown`. The
-  // Python twin is in test_malformed_responses.py.
-  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status } }])
+it.each([
+  ['create', 5], ['create', null], ['create', ['running']], ['create', 'missing'],
+  ['fork', 5], ['fork', null], ['fork', ['running']], ['fork', 'missing'],
+] as const)('%s reads a status that is not a string (%j) as unknown and returns the handle', async (call, status) => {
+  // The sandbox exists once its id came back: create and fork return the
+  // handle, its state `unknown`, and raise only when the request failed or no
+  // id came back. The Python twin is in test_malformed_responses.py.
+  const body: Record<string, unknown> = call === 'fork' ? { id: 'sbx', forked_from: 'src', toolbox_proxy_url: 'https://p.example' } : { id: 'sbx' }
+  if (status !== 'missing') body.status = status
+  const api = await startFakeApi([{ status: 200, body }])
   const client = clientAt(api.url)
   try {
-    await expect(client.v2.create('img_1', { waitSeconds: 0 })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox create response has a status that is not a string' })
+    const handle = call === 'create' ? await client.v2.create('img_1', { waitSeconds: 0 }) : await source(api).fork({ waitSeconds: 0 })
+    expect(handle.id).toBe('sbx')
+    expect(handle.state).toBe('unknown')
+    expect(handle.rawState).toBeUndefined()
     expect(api.requests).toHaveLength(1)
   } finally {
     await client.close()
@@ -452,6 +461,18 @@ it('refuses a signed preview link without expires_at, which the contract require
   try {
     await expect(source(api).ports.signedPreviewLink(8080)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'signed preview url response is missing its expires_at' })
   } finally {
+    await api.close()
+  }
+})
+
+it('refuses an integer too large for a double in a mapped field, as Python does', async () => {
+  const body = JSON.stringify({ ...imageWire({ id: 'img' }), bytes: 1 }).replace('"bytes":1', `"bytes":1${'0'.repeat(400)}`)
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.images.get('img')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'image response has a bytes that is not an integer' })
+  } finally {
+    await client.close()
     await api.close()
   }
 })

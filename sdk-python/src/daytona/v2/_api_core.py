@@ -232,6 +232,10 @@ def expect_endpoint_list_resp(value: TransportPayload) -> SandboxPortPage:
 
 
 def expect_fork_resp(value: TransportPayload) -> ForkSandboxOperation:
+    # The fork exists once its id came back: a missing or non-string status
+    # reads as `unknown`, never an error, as for a create.
+    if isinstance(value, dict) and not isinstance(value.get("status"), str):
+        value = {**value, "status": ""}
     return _expect_model_from_dict(
         value, ForkSandboxOperation, "sandbox fork response", ForkSandboxOperation.from_dict
     )

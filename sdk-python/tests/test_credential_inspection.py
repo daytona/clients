@@ -16,6 +16,8 @@ from daytona.v2._transport import AsyncTransport, SyncTransport
 from daytona.v2.daytona import _resolve_config, _ResolvedConfig
 from daytona.v2.types import DaytonaConfig, PreviewLink, SandboxAccessToken, SignedPreviewLink
 
+_EXPIRES = datetime(2030, 1, 1, tzinfo=timezone.utc)
+
 
 @pytest.mark.parametrize(
     "holder",
@@ -26,7 +28,11 @@ from daytona.v2.types import DaytonaConfig, PreviewLink, SandboxAccessToken, Sig
         DaytonaConfig(jwt_token="dtn_inspection_secret"),
         _CachedProjectToken("dtn_inspection_secret", 100.0, 30.0),
         PreviewLink(url="https://preview.invalid", token="dtn_inspection_secret"),
-        SignedPreviewLink(url="https://dtn_inspection_secret.preview.invalid", token="dtn_inspection_secret"),
+        SignedPreviewLink(
+            url="https://dtn_inspection_secret.preview.invalid",
+            token="dtn_inspection_secret",
+            expires_at=_EXPIRES,
+        ),
         SandboxAccessToken(
             access_token="dtn_inspection_secret",
             token_type="Bearer",
@@ -92,7 +98,10 @@ async def test_repr_omits_url_credentials_when_transport_has_configured_endpoint
 def test_repr_omits_url_credentials_when_preview_links_have_credential_bearing_urls() -> None:
     # Given preview links whose URLs contain credentials.
     url = "https://private-user:private-password@preview.invalid/path?token=private-query#private-fragment"
-    links = [PreviewLink(url=url, token="token"), SignedPreviewLink(url=url, token="token")]
+    links = [
+        PreviewLink(url=url, token="token"),
+        SignedPreviewLink(url=url, token="token", expires_at=_EXPIRES),
+    ]
     # When diagnostics are rendered.
     output = repr(links)
     # Then diagnostics omit URL credentials without changing the explicit values.

@@ -23,6 +23,11 @@ namespaces (`process`, `interpreter`, `fs`, `git`, `ports`, `lsp`, and so on)
 have the same structure and the same method set in both languages. Compare
 [`../../sdk-python/src/daytona/v2/sandbox.py`](../../sdk-python/src/daytona/v2/sandbox.py)
 with [`../../sdk-typescript/src/v2/Sandbox.ts`](../../sdk-typescript/src/v2/Sandbox.ts).
+One exception, recorded for 2.0: TypeScript's `ImageBuilder` has `user()`,
+`cmd()` and `entrypoint()`, which it already offered before this rule was
+enforced and Python lacks. Removing them would break TypeScript users, so
+they stay; Python gains them in a 2.x minor release (an additive change),
+which closes the exception.
 
 **Naming follows each language.** Python uses `snake_case` and keyword-only
 arguments; TypeScript uses `camelCase` and options objects. Durations are in

@@ -35,6 +35,8 @@ from daytona.v2.services import (
 )
 from daytona.v2.types import PreviewLink, SandboxAccessToken, SignedPreviewLink
 
+_EXPIRES = datetime(2030, 1, 1, tzinfo=timezone.utc)
+
 KEY: Final = "dtn_namespace_caller_secret"
 ACCESS: Final = "opaque_namespace_provider_secret"
 
@@ -152,7 +154,7 @@ async def test_sandbox_ports_repr_when_api_retains_caller_credentials(
         ),
         (PreviewLink(url="https://preview.invalid", token=ACCESS), "token", "https://preview.invalid"),
         (
-            SignedPreviewLink(url=f"https://{ACCESS}.preview.invalid", token=ACCESS),
+            SignedPreviewLink(url=f"https://{ACCESS}.preview.invalid", token=ACCESS, expires_at=_EXPIRES),
             "token",
             f"https://{ACCESS}.preview.invalid",
         ),
