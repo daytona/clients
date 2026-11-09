@@ -36,12 +36,16 @@ task (Python `asyncio.gather`, `asyncio.create_task`, or `asyncio.wait_for` on
 Python 3.10–3.11; TypeScript `Promise.all` or a later await), or with the
 synchronous Python client, the first events can reach the callback before the
 caller holds the handle. Events that arrive before `start` are delivered after
-it, at most 4096 of them and 1 MiB of event data: a stream that sends more
-`fs` or `overflow` events before `start`, handled by a callback or not, is
-refused with `BadRequestError` from `watch_dir()` / `watchDir()`. Events carry
-`timestampMs` / `timestamp_ms`, and a malformed event ends the watch with
-`BadRequestError`. A watch whose stream ends on its own, or is cut short, ends
-with `ConnectionError` (source `SDK`) in both SDKs (Python raised a 500
+it, at most 4096 of them, and the stream may send at most 1 MiB before
+`start`, counted as the bytes arrive, so one event that never ends is refused
+too: a stream that sends more `fs` or `overflow` events, handled by a callback
+or not, or more bytes, before `start` is refused with `BadRequestError` from
+`watch_dir()` / `watchDir()`. After `start`, each event is bounded by the
+client's `max_response_bytes` / `maxResponseBytes` (one event over it ends the
+watch with `PayloadTooLargeError`). Events carry `timestampMs` /
+`timestamp_ms`, and a malformed event ends the watch with `BadRequestError`. A
+watch whose stream ends on its own, or is cut short, ends with
+`ConnectionError` (source `SDK`) in both SDKs (Python raised a 500
 `InternalServerError`, TypeScript a plain `DaytonaError` or the runtime's own
 error), and a stream that fails to close after the caller's own `stop()` no
 longer becomes the exit error (Python could report a `RuntimeError` when

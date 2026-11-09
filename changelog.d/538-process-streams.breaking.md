@@ -16,4 +16,7 @@ or not it carries a cursor. In both SDKs an SSE block without a `data:` line,
 or an unterminated final block, dispatches nothing (TypeScript dispatched
 both), and one byte-order mark at the very start of a stream is dropped
 (Python kept it, so the stream's first event lost its type and was skipped).
-Python yielded bare `LogFrame`s and gains `limit=`.
+Each event is bounded by the client's `max_response_bytes` /
+`maxResponseBytes`, counted as its bytes arrive: one event over it raises
+`PayloadTooLargeError` (413, `PAYLOAD_TOO_LARGE`, source `SDK`). Python
+yielded bare `LogFrame`s and gains `limit=`.

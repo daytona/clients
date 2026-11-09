@@ -13,6 +13,8 @@ not a boolean and a `pty.start()` / `attach()` command that is not a string
 `terminal` that is not a `TerminalSize`. Both SDKs refuse `.` or `..` as a
 process, session or interpreter context id, a computer-use process name or a
 recording id ("process id must not be '.' or '..'"), which URL resolution
-would route elsewhere, or such an id with a lone surrogate, which has no UTF-8
-form (astral characters are kept), and terminal `cols` / `rows` (on
+would route elsewhere, or such an id with a surrogate code point, which has no
+UTF-8 form ("process id must not contain a surrogate code point"; in
+TypeScript that is an unpaired UTF-16 surrogate, since a paired one is an
+astral character, which both SDKs accept), and terminal `cols` / `rows` (on
 `pty.start()` and `resize()`) that are not integers from 1 to 2147483647.
