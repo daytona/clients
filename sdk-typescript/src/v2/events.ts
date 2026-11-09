@@ -109,12 +109,17 @@ const DEFAULT_EARLY_PROBE_MS = 10_000
 const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
 /**
- * An id a waiter holds that hears no state frame for one to two of these ticks
- * is re-subscribed; the server answers with a fresh snapshot. This bounds the
- * delay a missed event adds to a wait, which neither the early probe (held off
- * while the socket is live, keepalives included) nor the reconcile timer does.
+ * An id a waiter holds that has heard no state frame (and sent no subscribe)
+ * for `DEFAULT_STALE_AFTER_MS` is re-subscribed at the next sweep tick; the
+ * server answers with a fresh snapshot. This bounds the delay a missed event
+ * adds to a wait (about 4 s), which neither the early probe (held off while the
+ * socket is live, keepalives included) nor the reconcile timer does.
  */
-const DEFAULT_STALE_RESUBSCRIBE_TICK_MS = 5_000
+const DEFAULT_STALE_AFTER_MS = 3_000
+const DEFAULT_STALE_SWEEP_TICK_MS = 1_000
+/** Ids one sweep tick re-subscribes at most: the per-socket subscribe burst.
+ *  The oldest go first, so the rest go on the next ticks. */
+const STALE_SWEEP_MAX_IDS = 10_000
 const WAITER_PIN_INTERVAL_MS = MAX_TIMER_DELAY_MS
 const WS_OPEN = 1
 const WS_CLOSING = 2
@@ -497,8 +502,8 @@ interface SocketState {
   readonly unsubscribeReplacedIds: Set<string>
   subscribeFlushTimer: ReturnType<typeof setTimeout> | undefined
   readonly snapshotPending: Map<string, number>
-  /** Ids subscribed, or given a state frame, since the last stale sweep. */
-  readonly stateHeard: Set<string>
+  /** When each subscribed id was last sent a subscribe or given a state frame. */
+  heardAt: Map<string, number>
   /** The last decoded state per subscribed id: a new waiter on an id the
    *  socket already holds is judged against it at once (a sandbox resting in
    *  its target state emits no further event). */
@@ -571,7 +576,8 @@ export class WaitHub {
   private readonly earlyProbeMs: number
   private readonly clientPingAfterMs: number
   private readonly subscribeFlushMs: number
-  private readonly staleResubscribeTickMs: number
+  private readonly staleAfterMs: number
+  private readonly staleSweepTickMs: number
   private refCount: number
   private waiterPin: ReturnType<typeof setInterval> | undefined
   closed: boolean
@@ -589,7 +595,8 @@ export class WaitHub {
         readonly earlyProbeMs?: number
         readonly clientPingAfterMs?: number
         readonly subscribeFlushMs?: number
-        readonly staleResubscribeTickMs?: number
+        readonly staleAfterMs?: number
+        readonly staleSweepTickMs?: number
       } = {},
   ) {
     this.apiUrl = apiUrl.replace(/\/$/, '')
@@ -622,7 +629,8 @@ export class WaitHub {
     this.earlyProbeMs = timings.earlyProbeMs ?? DEFAULT_EARLY_PROBE_MS
     this.clientPingAfterMs = timings.clientPingAfterMs ?? DEFAULT_CLIENT_PING_AFTER_MS
     this.subscribeFlushMs = clampTimerDelayMs(timings.subscribeFlushMs) ?? DEFAULT_SUBSCRIBE_FLUSH_MS
-    this.staleResubscribeTickMs = timings.staleResubscribeTickMs ?? DEFAULT_STALE_RESUBSCRIBE_TICK_MS
+    this.staleAfterMs = timings.staleAfterMs ?? DEFAULT_STALE_AFTER_MS
+    this.staleSweepTickMs = timings.staleSweepTickMs ?? DEFAULT_STALE_SWEEP_TICK_MS
     credentialSafeDiagnostics(this, () => ({ type: 'WaitHub' }))
   }
 
@@ -846,7 +854,7 @@ export class WaitHub {
         unsubscribeReplacedIds: new Set(),
         subscribeFlushTimer: undefined,
         snapshotPending: new Map(),
-        stateHeard: new Set(),
+        heardAt: new Map(),
         states: new Map(),
         wake: undefined,
         clientClosing: false,
@@ -1381,7 +1389,6 @@ export class WaitHub {
     // open: a server that answers 101 and then says nothing must still reach
     // the fallback threshold.
     this.startReconcileTimer(sock)
-    sock.stateHeard.clear()
     this.armStaleSweep(sock)
 
     try {
@@ -1550,7 +1557,7 @@ export class WaitHub {
           // the id's waiters: they now listen elsewhere.
           if (!sock.subscriptions.has(sid)) return
           sock.versions.set(sid, version)
-          sock.stateHeard.add(sid)
+          sock.heardAt.set(sid, Date.now())
 
           const decoded = sandboxState(wireState)
           sock.states.set(sid, decoded)
@@ -1856,9 +1863,10 @@ export class WaitHub {
   private async sendSubscribeIds(sock: SocketState, ids: readonly string[]): Promise<void> {
     const ws = sock.ws
     if (ws === undefined || ws.readyState !== WS_OPEN) return
+    const now = Date.now()
     for (const id of ids) {
       sock.snapshotPending.set(id, sock.versions.get(id) ?? -1)
-      sock.stateHeard.add(id)
+      sock.heardAt.set(id, now)
     }
     for (const chunk of chunks(ids, MAX_IDS_PER_FRAME)) {
       const frame = {
@@ -2013,27 +2021,42 @@ export class WaitHub {
   }
 
   /**
-   * Re-subscribe every waited-on id that heard nothing for a whole tick. A wait
-   * whose transition event never arrives would otherwise end only at the
-   * reconcile timer. At most one subscribe frame per tick; the frame path pays
-   * one set insert.
+   * Re-subscribe every waited-on id that has heard nothing for `staleAfterMs`.
+   * A wait whose transition event never arrives would otherwise end only at
+   * the reconcile timer. The frame path pays one map store; a tick scans the
+   * subscriptions and sends nothing while every id is fresh. `ws.send` queues
+   * synchronously, so no flush can interleave with the sweep's frames.
    */
   private armStaleSweep(sock: SocketState): void {
-    if (this.staleResubscribeTickMs <= 0 || sock.staleTimer !== undefined) return
+    if (this.staleSweepTickMs <= 0 || sock.staleTimer !== undefined) return
     const t = setTimeout(() => {
       sock.staleTimer = undefined
       const ws = sock.ws
       if (this.closed || ws === undefined) return
-      const heard = sock.stateHeard
-      const pending = sock.pendingSubscribeIds
-      const stale: string[] = []
-      for (const sid of sock.subscriptions) {
-        if (!heard.has(sid) && !pending.has(sid) && (this.waiters.get(sid)?.length ?? 0) > 0) stale.push(sid)
+      if (sock.heardAt.size > sock.subscriptions.size) {
+        // Drop the times of released ids.
+        const kept = new Map<string, number>()
+        for (const sid of sock.subscriptions) {
+          const at = sock.heardAt.get(sid)
+          if (at !== undefined) kept.set(sid, at)
+        }
+        sock.heardAt = kept
       }
-      heard.clear()
+      const heardAt = sock.heardAt
+      const cutoff = Date.now() - this.staleAfterMs
+      const pending = sock.pendingSubscribeIds
+      let stale: string[] = []
+      for (const sid of sock.subscriptions) {
+        if ((heardAt.get(sid) ?? 0) <= cutoff && !pending.has(sid) && (this.waiters.get(sid)?.length ?? 0) > 0) {
+          stale.push(sid)
+        }
+      }
+      if (stale.length > STALE_SWEEP_MAX_IDS) {
+        stale = stale.sort((a, b) => (heardAt.get(a) ?? 0) - (heardAt.get(b) ?? 0)).slice(0, STALE_SWEEP_MAX_IDS)
+      }
       if (stale.length > 0 && ws.readyState === WS_OPEN) void this.sendSubscribeIds(sock, stale)
       this.armStaleSweep(sock)
-    }, Math.round(jittered(this.staleResubscribeTickMs)))
+    }, Math.round(jittered(this.staleSweepTickMs)))
     unrefTimer(t)
     sock.staleTimer = t
   }

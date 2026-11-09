@@ -184,7 +184,8 @@ function makeHub(
       earlyProbeMs?: number
       clientPingAfterMs?: number
       subscribeFlushMs?: number
-      staleResubscribeTickMs?: number
+      staleAfterMs?: number
+      staleSweepTickMs?: number
     }
   } = {},
 ): WaitHub {
@@ -1210,7 +1211,7 @@ describe('WaitHub: stale sweep', () => {
       const fc = makeFakeConnector()
       const api = mockAxios()
       const poll = jest.fn(async () => ({ state: 'started' as const, rawState: 'running' }))
-      const hub = makeHub(fc, { api, timings: { staleResubscribeTickMs: 100, noFrameTimeoutMs: 5_000 } })
+      const hub = makeHub(fc, { api, timings: { staleAfterMs: 100, staleSweepTickMs: 50, noFrameTimeoutMs: 5_000 } })
       const ws = fc.prepare()
       const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000, sandboxPollFn: poll })
       await drain()
@@ -1235,12 +1236,49 @@ describe('WaitHub: stale sweep', () => {
     }
   })
 
+  test('one tick re-subscribes at most the burst budget, oldest first', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: { staleAfterMs: 100, staleSweepTickMs: 300, noFrameTimeoutMs: 60_000 } })
+      const ws = fc.prepare()
+      const ids = Array.from({ length: 10_001 }, (_, i) => `id${i}-regiona`)
+      const waits = ids.map((id) => hub.wait(id, startedPredicate(), { timeout: 30_000 }).catch(() => undefined))
+      await drain()
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      const subscribed = (from: number): string[] =>
+        ws
+          .sentFrames()
+          .slice(from)
+          .filter((f) => f['type'] === 'subscribe')
+          .flatMap((f) => (f['ids'] as Array<{ id: string }>).map((e) => e.id))
+      expect(new Set(subscribed(0)).size).toBe(10_001)
+      // Make the last id the oldest: every other id hears a snapshot later.
+      await jest.advanceTimersByTimeAsync(10)
+      for (const id of ids.slice(0, -1)) ws.inject({ type: 'snapshot', id, status: 'booting', version: 1 })
+      const before = ws.sent.length
+      // One tick (at 300 ms) finds every id stale.
+      await jest.advanceTimersByTimeAsync(240)
+      await drain()
+      const swept = subscribed(before)
+      expect(swept.length).toBe(10_000)
+      expect(swept[0]).toBe(ids[ids.length - 1])
+      await hub.detach()
+      await Promise.all(waits)
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
   test('a waiter that keeps hearing events is not re-subscribed', async () => {
     jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
     try {
       const fc = makeFakeConnector()
-      const hub = makeHub(fc, { timings: { staleResubscribeTickMs: 100, noFrameTimeoutMs: 5_000 } })
+      const hub = makeHub(fc, { timings: { staleAfterMs: 100, staleSweepTickMs: 50, noFrameTimeoutMs: 5_000 } })
       const ws = fc.prepare()
       const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 })
       await drain()

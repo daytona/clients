@@ -972,7 +972,7 @@ class TestHubReconcile:
         monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
         fc = FakeConnector()
         hub = make_hub(fc)
-        hub._stale_resubscribe_tick_s = 0.1
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.05
         polls = 0
 
         async def poll() -> WaitOutcome:
@@ -1008,6 +1008,72 @@ class TestHubReconcile:
         assert result.state == "started"
         assert polls == 0
 
+    async def test_one_tick_resubscribes_at_most_the_burst_budget_oldest_first(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        monkeypatch.setattr(events_module, "_STALE_SWEEP_MAX_IDS", 2)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.2, 10.0
+        ids = ["a-region-a", "b-region-a", "c-region-a"]
+
+        def subscribed(frames: List[dict]) -> List[str]:
+            return [e["id"] for f in frames if f.get("type") == "subscribe" for e in f["ids"]]
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            tasks = [asyncio.create_task(hub.wait(i, _started_predicate(), timeout=5)) for i in ids]
+            await asyncio.wait_for(_wait_for(lambda: len(subscribed(ws.sent_frames())) == 3), timeout=1)
+            # `c` is the oldest: the others hear a snapshot later.
+            await asyncio.sleep(0.05)
+            for version, sid in enumerate(ids[:2], start=1):
+                ws.inject({"type": "snapshot", "id": sid, "status": "booting", "version": version})
+            await asyncio.sleep(0.3)
+            before = len(ws.sent_frames())
+            sock = next(iter(hub._sockets.values()))
+            sock.stale_task.cancel()  # type: ignore[union-attr]
+            hub._stale_sweep_tick_s = 0.0
+            sock.stale_task = asyncio.create_task(hub._stale_resubscribe_loop(sock))
+            await asyncio.wait_for(_wait_for(lambda: len(ws.sent_frames()) > before), timeout=1)
+            sock.stale_task.cancel()
+            swept = subscribed(ws.sent_frames()[before:before + 1])
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        assert swept == ["c-region-a", "a-region-a"]
+
+    async def test_the_sweep_sends_under_the_flush_lock(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # A waiter that leaves while the sweep waits for the lock is not
+        # re-subscribed after its unsubscribe.
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.05
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: any(f.get("type") == "subscribe" for f in ws.sent_frames())), timeout=1
+            )
+            sock = next(iter(hub._sockets.values()))
+            async with sock.flush_send_lock:
+                await asyncio.sleep(0.25)  # the sweep finds the id stale and waits
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            await asyncio.sleep(0.2)
+
+        kinds = [f["type"] for f in ws.sent_frames() if f.get("type") in ("subscribe", "unsubscribe")]
+        assert kinds == ["subscribe", "unsubscribe"]
+
     async def test_a_waiter_that_keeps_hearing_events_is_not_resubscribed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1016,7 +1082,7 @@ class TestHubReconcile:
         monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
         fc = FakeConnector()
         hub = make_hub(fc)
-        hub._stale_resubscribe_tick_s = 0.1
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.05
 
         with respx.mock:
             ticket_mock("region-a")

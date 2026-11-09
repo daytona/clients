@@ -87,11 +87,16 @@ _EARLY_PROBE_S: Final = 10.0
 _CLIENT_PING_AFTER_S: Final = 5.0
 _NO_FRAME_TIMEOUT_S: Final = 70.0
 _SUBSCRIBE_FLUSH_S: Final = 0.05
-#: An id a waiter holds that hears no state frame for one to two of these ticks
-#: is re-subscribed; the server answers with a fresh snapshot. This bounds the
-#: delay a missed event adds to a wait, which neither the early probe (held off
-#: while the socket is live, keepalives included) nor the reconcile timer does.
-_STALE_RESUBSCRIBE_TICK_S: Final = 5.0
+#: An id a waiter holds that has heard no state frame (and sent no subscribe)
+#: for ``_STALE_AFTER_S`` is re-subscribed at the next sweep tick; the server
+#: answers with a fresh snapshot. This bounds the delay a missed event adds to
+#: a wait (about 4 s), which neither the early probe (held off while the socket
+#: is live, keepalives included) nor the reconcile timer does.
+_STALE_AFTER_S: Final = 3.0
+_STALE_SWEEP_TICK_S: Final = 1.0
+#: Ids one sweep tick re-subscribes at most: the per-socket subscribe burst.
+#: The oldest go first, so the rest go on the next ticks.
+_STALE_SWEEP_MAX_IDS: Final = 10_000
 
 # ---------------------------------------------------------------------------
 # Utilities
@@ -325,8 +330,8 @@ class _SocketState:
     ws: Optional[_WsConn] = None
     versions: Dict[str, int] = field(default_factory=dict)
     snapshot_pending: Dict[str, int] = field(default_factory=dict)
-    # Ids subscribed, or given a state frame, since the last stale sweep.
-    state_heard: Set[str] = field(default_factory=set)
+    # When each subscribed id was last sent a subscribe or given a state frame.
+    heard_at: Dict[str, float] = field(default_factory=dict)
     # The last decoded state per subscribed id: a new waiter on an id the
     # socket already holds is judged against it at once (a sandbox resting in
     # its target state emits no further event to wait for).
@@ -420,7 +425,8 @@ class WaitHub:
         self._early_probe_s: float = _EARLY_PROBE_S
         self._client_ping_after_s: float = _CLIENT_PING_AFTER_S
         self._subscribe_flush_s: float = _SUBSCRIBE_FLUSH_S
-        self._stale_resubscribe_tick_s: float = _STALE_RESUBSCRIBE_TICK_S
+        self._stale_after_s: float = _STALE_AFTER_S
+        self._stale_sweep_tick_s: float = _STALE_SWEEP_TICK_S
 
         # The hub's own API transport (the SDK's, not a bare HTTP
         # client): the ticket mint and the long-poll fallback carry the same
@@ -1080,8 +1086,7 @@ class WaitHub:
         if ri and ri > 0 and (sock.reconcile_task is None or sock.reconcile_task.done()):
             loop = asyncio.get_event_loop()
             sock.reconcile_task = loop.create_task(self._reconcile_loop(sock))
-        sock.state_heard.clear()
-        if self._stale_resubscribe_tick_s > 0 and (sock.stale_task is None or sock.stale_task.done()):
+        if self._stale_sweep_tick_s > 0 and (sock.stale_task is None or sock.stale_task.done()):
             sock.stale_task = asyncio.get_running_loop().create_task(self._stale_resubscribe_loop(sock))
 
         try:
@@ -1227,7 +1232,7 @@ class WaitHub:
                 if sid not in sock.subscriptions:
                     continue
                 sock.versions[sid] = version
-                sock.state_heard.add(sid)
+                sock.heard_at[sid] = _clock.monotonic()
                 raw = str(frame.get("status") or "")
                 decoded = sandbox_state(raw)
                 sock.states[sid] = decoded
@@ -1492,9 +1497,10 @@ class WaitHub:
     async def _send_subscribe_ids(self, sock: _SocketState, ids: List[str]) -> None:
         if sock.ws is None:
             return
+        now = _clock.monotonic()
         for sandbox_id in ids:
             sock.snapshot_pending[sandbox_id] = sock.versions.get(sandbox_id, -1)
-            sock.state_heard.add(sandbox_id)
+            sock.heard_at[sandbox_id] = now
         for chunk in _chunks(ids, _MAX_IDS_PER_FRAME):
             frame = {
                 "type": "subscribe",
@@ -1553,25 +1559,40 @@ class WaitHub:
                 await self._resubscribe_all(sock)
 
     async def _stale_resubscribe_loop(self, sock: _SocketState) -> None:
-        """Re-subscribe every waited-on id that heard nothing for a whole tick.
+        """Re-subscribe every waited-on id that has heard nothing for
+        ``_stale_after_s``.
 
         A wait whose transition event never arrives would otherwise end only
-        at the reconcile timer. At most one subscribe frame per tick; the frame
-        path pays one set insert.
+        at the reconcile timer. The frame path pays one dict store; a tick
+        scans the subscriptions and sends nothing while every id is fresh.
         """
-        tick = self._stale_resubscribe_tick_s
         while not self._closed:
-            await _sleep(_jittered(tick))
-            heard = sock.state_heard
-            pending = sock.pending_subscribe_ids
-            stale = [
-                sid
-                for sid in sock.subscriptions
-                if sid not in heard and sid not in pending and self._waiters.get(sid)
-            ]
-            heard.clear()
-            if stale and sock.ws is not None:
-                await self._send_subscribe_ids(sock, stale)
+            await _sleep(_jittered(self._stale_sweep_tick_s))
+            if sock.ws is None:
+                continue
+            heard_at = sock.heard_at
+            if len(heard_at) > len(sock.subscriptions):
+                # Drop the times of released ids.
+                sock.heard_at = heard_at = {
+                    sid: at for sid, at in heard_at.items() if sid in sock.subscriptions
+                }
+            cutoff = _clock.monotonic() - self._stale_after_s
+            if not any(heard_at.get(sid, 0.0) <= cutoff for sid in sock.subscriptions):
+                continue
+            # Under the flush lock, so a flush's unsubscribe of an id that
+            # leaves meanwhile cannot overtake this subscribe of it.
+            async with sock.flush_send_lock:
+                pending = sock.pending_subscribe_ids
+                stale = [
+                    sid
+                    for sid in sock.subscriptions
+                    if heard_at.get(sid, 0.0) <= cutoff and sid not in pending and self._waiters.get(sid)
+                ]
+                if len(stale) > _STALE_SWEEP_MAX_IDS:
+                    stale.sort(key=lambda sid: heard_at.get(sid, 0.0))
+                    del stale[_STALE_SWEEP_MAX_IDS:]
+                if stale and sock.ws is not None:
+                    await self._send_subscribe_ids(sock, stale)
 
     # ------------------------------------------------------------------
     # Fallback helpers
