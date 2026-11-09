@@ -631,7 +631,7 @@ original process exited:
 ```ts
 const handle = await sandbox.process.start('./start-server.sh') // backgrounds a server, exits
 await handle.wait()
-await handle.kill() // Linux: also stops the server it left running
+await handle.kill() // Linux with process containment: also stops the server
 ```
 
 ### Files

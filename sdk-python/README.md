@@ -659,7 +659,8 @@ innermost shell function or sourced file; bash and zsh leave the whole command
 ### Tags
 
 Group independently started processes with an optional `tag`, a safe identifier
-of 1–128 characters using letters, digits, `.`, `_` and `-` (not `.` or `..`):
+of 1–128 characters using ASCII letters, digits, `.`, `_` and `-` (not `.` or
+`..`):
 
 ```python
 await sandbox.process.start("python -m api_server", tag="job-123")
@@ -673,7 +674,7 @@ killed = await sandbox.process.kill_all(tag="job-123")
 
 handle = await sandbox.process.start("./start-server.sh")  # Backgrounds a server, exits.
 await handle.wait()
-await handle.kill()  # Linux: also stops the server it left running.
+await handle.kill()  # Linux with process containment: also stops the server.
 ```
 
 These examples use `AsyncDaytona`; omit `await` with `Daytona`. Tags also work
@@ -682,7 +683,7 @@ session commands inherit it, and interpreter code executions cannot be tagged.
 `ProcessInfo.tag` exposes it. `kill_all()` keeps records and logs and returns
 the ids of the tagged processes that were running, or had running descendants,
 when it began; survivors of deleted or expired records are killed too but not
-listed. Its `timeout` is in seconds (up to 60, fractions allowed, default 10); `ProcessKillIncompleteError` means the timeout expired before all
+listed. Its `timeout` is in seconds (1 ms to 60 s, fractions allowed, default 10); `ProcessKillIncompleteError` means the timeout expired before all
 work stopped, and retrying is safe. A start racing the kill either precedes it
 and is killed, or starts afterwards and keeps running.
 

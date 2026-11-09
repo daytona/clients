@@ -126,6 +126,7 @@ async function main(): Promise<number> {
       // A tagged command that leaves a detached child behind and exits.
       await box.process.run(`setsid sh -c 'echo $$ > /tmp/dtn-tag-${run}; exec sleep 300' >/dev/null 2>&1 & sleep 0.5`, { tag })
       const detached = (await box.process.run(`cat /tmp/dtn-tag-${run}`)).output.trim()
+      check('detached child started', /^\d+$/.test(detached), JSON.stringify(detached))
 
       // When the shared tag is killed, both roots exit but the other can finish.
       // A sandbox without process containment refuses the tag-wide kill.

@@ -194,6 +194,7 @@ def main() -> int:
                 tag=tag,
             )
             detached = box.process.run(f"cat /tmp/dtn-tag-{RUN}").output.strip()
+            check("detached child started", detached.isdigit(), repr(detached))
 
             # When the shared tag is killed, both roots exit but the other can finish.
             # A sandbox without process containment refuses the tag-wide kill.
