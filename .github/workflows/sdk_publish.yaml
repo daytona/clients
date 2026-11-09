@@ -42,7 +42,8 @@ permissions: {}
 
 jobs:
   # Off the environment, so its summary is on the run page while `publish`
-  # waits for approval.
+  # waits for approval. The tap row mirrors "Resolve Homebrew tap updates" and
+  # "Validate daytona@0 version" below; keep them in sync.
   plan:
     name: Show the plan
     if: github.repository == 'daytona/clients'
@@ -54,6 +55,7 @@ jobs:
           PUBLISH_CLI: ${{ inputs.publish_cli }}
           V0_CUTOVER: ${{ vars.DAYTONA_V0_CUTOVER }}
           ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           REPO: ${{ github.repository }}
           SERVER: ${{ github.server_url }}
         run: |
@@ -65,8 +67,13 @@ jobs:
           if [ "$PUBLISH_CLI" != true ]; then
             tap="skipped (\`publish_cli\` off)"
           elif [ "$GITHUB_REF" = refs/heads/release/v0 ]; then
-            if [ "$V0_CUTOVER" = true ]; then tap="\`daytona@0\` (and \`daytona\` while no stable 2.x release exists)"
-            else tap="skipped (release/v0 updates the tap only after the cutover, \`DAYTONA_V0_CUTOVER\`)"; fi
+            if [ "$V0_CUTOVER" != true ]; then
+              tap="skipped (release/v0 updates the tap only after the cutover, \`DAYTONA_V0_CUTOVER\`)"
+            elif [[ ! "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
+              tap=":x: **will fail** — \`daytona@0\` takes stable v0.X.Y only (got $(or_dash "$VERSION")); dispatch prereleases with \`publish_cli\` off"
+            else
+              tap="\`daytona@0\` (and \`daytona\` while no stable 2.x release exists)"
+            fi
           elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
             tap="skipped (${GITHUB_REF_NAME} never updates the tap)"
           elif [ "$NPM_TAG" = latest ]; then
@@ -74,10 +81,15 @@ jobs:
           else
             tap="skipped (\`npm_tag\` is \`${NPM_TAG}\`, not \`latest\`)"
           fi
+          if [[ "$tap" != skipped* && "$tap" != :x:* ]]; then
+            tap="${tap}, pointed at the assets of the existing GitHub Release $(or_dash "$VERSION") (built by Release, not by this run)"
+          fi
+          requested="**@${TRIGGERING_ACTOR}**"
+          [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
           {
             echo "## SDK and CLI Publish plan — \`${VERSION}\`"
             echo
-            echo "Requested by **@${ACTOR}** from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA}); every leg publishes this commit."
+            echo "Requested by ${requested} from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA}); the SDK legs build and publish this commit."
             echo
             echo "| Input | Value |"
             echo "|---|---|"
@@ -93,10 +105,11 @@ jobs:
             echo
             echo "| Leg | Version | Goes to |"
             echo "|---|---|---|"
-            target "TypeScript SDK" "$NPM_PKG_VERSION" "npm, dist-tag \`${NPM_TAG}\`"
-            target "Python SDK" "$PYPI_PKG_VERSION" "PyPI"
-            target "Ruby SDK" "$RUBYGEMS_PKG_VERSION" "RubyGems"
-            target "Java SDK" "$MAVEN_PKG_VERSION" "Maven Central"
+            if [ -n "$NPM_TAG" ]; then npm_dest="dist-tag \`${NPM_TAG}\`"; else npm_dest=":x: **will fail** — \`npm_tag\` is empty"; fi
+            target "TypeScript SDK" "$NPM_PKG_VERSION" "npm \`@daytona/sdk\` and deprecated \`@daytonaio/sdk\`, after the api-client, toolbox-api-client and analytics-api-client packages; ${npm_dest}"
+            target "Python SDK" "$PYPI_PKG_VERSION" "PyPI \`daytona\` and \`daytona_sdk\`"
+            target "Ruby SDK" "$RUBYGEMS_PKG_VERSION" "RubyGems \`daytona\`, after its three API-client gems"
+            target "Java SDK" "$MAVEN_PKG_VERSION" "Maven Central, after its three API-client artifacts"
             echo "| CLI (Homebrew tap) | $(or_dash "$VERSION") | ${tap} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -235,6 +248,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: hack
       - name: Resolve Homebrew tap updates
+        # The `plan` job's tap row repeats this decision; keep them in sync.
         # From main, the `daytona` formula follows the main release line. From
         # release/v0, once the 2.x CLI has taken the `daytona` name (repository
         # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona@0` formula

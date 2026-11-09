@@ -35,14 +35,17 @@ jobs:
       - name: Show the inputs and what approval will run
         env:
           ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           REPO: ${{ github.repository }}
           SERVER: ${{ github.server_url }}
         run: |
           set -euo pipefail
+          requested="**@${TRIGGERING_ACTOR}**"
+          [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
           {
             echo "## Release plan — \`${VERSION}\`"
             echo
-            echo "Requested by **@${ACTOR}** from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA}); the release is cut from this commit."
+            echo "Requested by ${requested} from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA}); the release is cut from this commit."
             echo
             echo "| Input | Value |"
             echo "|---|---|"
@@ -50,11 +53,11 @@ jobs:
             echo
             echo "After approval of the \`release\` environment, \`release\`:"
             echo
-            echo "1. validates \`${VERSION}\` (vX.Y.Z[-suffix]; on a release/vN branch, only vN.x);"
+            echo "1. validates \`${VERSION}\` (vX.Y.Z[-suffix]; on a release/vN branch, only vN.x) — this plan does not check it, a refused version fails here before anything is tagged;"
             echo "2. pushes the Go module tags \`api-client-go/${VERSION}\`, \`toolbox-api-client-go/${VERSION}\`, \`sdk-go/${VERSION}\` (existing ones are skipped);"
             echo "3. creates the GitHub Release and tag \`${VERSION}\` with \`nx release\`$([[ "$GITHUB_REF" == refs/heads/release/* ]] && echo ', then re-pins **Latest** to the highest stable release');"
             echo "4. builds the CLI as \`${CLI_BINARY_NAME}-<os>-<arch>\` and uploads it to the release$([ "$CLI_BINARY_NAME" = daytona-v0 ] && echo " (plus \`daytona-<os>-<arch>\` copies while no stable 2.x release exists)"), then the SDK docs;"
-            echo "5. opens the \`go.sum\` sync PR into \`${BASE_BRANCH}\`."
+            echo "5. if \`go work sync\` changes anything, opens PR \`sync-gosum-${VERSION}\` into \`${BASE_BRANCH}\`."
             echo
             echo "\`attest_cli\` then attests the uploaded CLI binaries. No SDK is published to a registry and the Homebrew tap is not touched (that is SDK and CLI Publish)."
           } >> "$GITHUB_STEP_SUMMARY"
