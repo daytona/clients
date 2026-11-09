@@ -187,8 +187,12 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   max_response_bytes=)` per call) is checked against the declared
   `Content-Length` before reading and against the bytes read, and the
   response is closed when refused. It reads the wire bytes (`aiter_raw`) and
-  decodes gzip / deflate itself, at most `DECODE_STEP` (64 KiB) per step, so a
-  compressed body never expands past the cap in memory; the clients send
+  decodes gzip / deflate itself, at most `DECODE_STEP` (64 KiB) per step: the
+  kept body never exceeds the cap, and at most one step beyond it is ever
+  produced in memory. Compressed data that stops before its end is a
+  `ConnectionError`, as a body cut short on the wire is; gzip members that
+  follow one another are all decoded, and other bytes after the last member
+  are ignored. The clients send
   `Accept-Encoding: gzip, deflate` only, and any other `Content-Encoding` is
   refused undecoded; streams (`open_stream`, `open_exclusive_stream`) are
   bounded only until their response headers arrive, by the spec's own

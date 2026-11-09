@@ -529,13 +529,16 @@ skipping exist only in the TypeScript tool).
   recording download. A declared `Content-Length` over the cap is refused
   before the body is read, otherwise reading stops once it passes, and the
   connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
-  `readFetchText`). A compressed body never decodes past the cap in memory:
-  Python reads the wire bytes and decodes gzip / deflate itself in 64 KiB
-  steps, asks only for those (`Accept-Encoding: gzip, deflate`) and refuses
-  any other encoding undecoded; in TypeScript the runtime decodes the body as
-  a stream (Node's zlib streams and Node's `fetch` yield 16 KiB chunks, which
-  `tests/transfer-bounds.test.ts` checks on both adapters), and each chunk is
-  checked before it is kept. A refused success response is `PayloadTooLargeError`
+  `readFetchText`). A compressed body is capped on its decoded bytes:
+  Python reads the wire bytes and decodes gzip / deflate itself in steps of
+  at most 64 KiB (`DECODE_STEP`), so at most one step past the cap is ever
+  produced, asks only for those (`Accept-Encoding: gzip, deflate`), refuses
+  any other encoding undecoded, and refuses compressed data that stops before
+  its end as a `ConnectionError`, like a body cut short on the wire; in
+  TypeScript the runtime decodes the body, and every decoded chunk is checked
+  against the cap before it is kept (on Node both adapters decode in chunks
+  of at most 16 KiB, measured by `tests/transfer-bounds.test.ts`; other
+  runtimes use their own chunk sizes). A refused success response is `PayloadTooLargeError`
   (413, `PAYLOAD_TOO_LARGE`, `SDK`); an error response keeps its status's
   error. TypeScript sends every axios request through `boundedAdapter`:
   Node's http adapter where the runtime has it, else its own `fetchAdapter`
