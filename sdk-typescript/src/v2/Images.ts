@@ -171,7 +171,7 @@ export class ImagesService {
     try {
       const { data: response } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(ImageBuilder.fromRegistry(ref), options), requestOptions())
       const submittedId = acknowledgedId(response, 'image create')
-      const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(submittedId)}`, requestOptions())
+      const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${pathSegment(submittedId, 'image id')}`, requestOptions())
       checkDeadline()
       let image = new Image(INTERNAL, initial)
       if (options.wait === false) return image

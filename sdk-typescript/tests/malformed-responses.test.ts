@@ -673,3 +673,55 @@ describe.each(['images.pull', 'images.build', 'captureImage', 'createSnapshot'] 
     }
   })
 })
+
+// Refused on a read, naming the field; a create response reads it as absent
+// (as in Python).
+describe.each(['last_activity_at', 'create_timeout_at'])('a sandbox %s', (field) => {
+  it.each(['nope', '2026-01-01', '2026-01-01T00:00:00'])('that is %j is refused on a read and absent on a create', async (stamp) => {
+    const api = await startFakeApi([
+      { status: 200, body: { ...SANDBOX_DETAIL, [field]: stamp } },
+      { status: 200, body: { id: 's1', status: 'pending', [field]: stamp } },
+    ])
+    const client = clientAt(api.url)
+    try {
+      await expect(client.v2.get('src')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`has a ${field} that is not an RFC 3339 timestamp`) })
+      await expect(client.v2.create('img_1', { waitSeconds: 0 })).resolves.toMatchObject({ id: 's1' })
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+})
+
+it('keeps the source id when the fork detail omits forked_from (as in Python)', async () => {
+  // SANDBOX_DETAIL carries no forked_from.
+  const detail = SANDBOX_DETAIL
+  const api = await startFakeApi([
+    { status: 200, body: SANDBOX_DETAIL },
+    { status: 200, body: { id: 'f1', status: 'pending', toolbox_proxy_url: 'https://toolbox.example/fork' } },
+    { status: 200, body: { ...detail, id: 'f1', status: 'stopped' } },
+  ])
+  const client = clientAt(api.url, { events: { enabled: false } })
+  try {
+    const fork = await source(api).fork({ waitSeconds: 5 })
+    expect([fork.id, fork.forkedFrom]).toEqual(['f1', 'src'])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// As in Python.
+it.each(['images.pull', 'captureImage', 'createSnapshot'] as const)('refuses a %s acknowledgement id of ".." before the read', async (call) => {
+  const api = await startFakeApi([{ status: 200, body: { id: '..', status: 'pending' } }])
+  const client = clientAt(api.url)
+  try {
+    const pending = call === 'images.pull' ? client.v2.images.pull('python:3.12', { wait: false })
+      : call === 'captureImage' ? source(api).captureImage() : source(api).createSnapshot('snap')
+    await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(/must not be '\.' or '\.\.'$/) })
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

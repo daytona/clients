@@ -1049,3 +1049,56 @@ async def test_an_acknowledgement_with_a_blank_id_is_refused_before_the_read(
                 else:
                     await lazy_sandbox(root.v2, "src").create_snapshot("snap")
     assert len(api.requests) == 1
+
+
+@pytest.mark.parametrize("stamp", ["nope", "2026-01-01", "2026-01-01T00:00:00"])
+@pytest.mark.parametrize("field", ["last_activity_at", "create_timeout_at"])
+async def test_a_sandbox_activity_or_create_deadline_that_is_not_rfc_3339_is_refused(
+    field: str, stamp: str
+) -> None:
+    # Refused on a read, naming the field; a create response reads it as
+    # absent (twin in malformed-responses.test.ts).
+    with FakeApi([PlannedResponse(200, {**_DETAIL, field: stamp})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request(f"has a {field} that is not an RFC 3339 timestamp"):
+                await root.v2.get("src")
+    with FakeApi([PlannedResponse(200, {"id": "s1", "status": "pending", field: stamp})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            created = await root.v2.create("img_1", wait_seconds=0)
+    assert created.id == "s1"
+
+
+async def test_a_fork_detail_without_forked_from_keeps_the_source_id() -> None:
+    # The TypeScript twin is in malformed-responses.test.ts.
+    detail = {key: value for key, value in _DETAIL.items() if key != "forked_from"}
+    planned = [
+        PlannedResponse(200, _DETAIL),
+        PlannedResponse(
+            200, {"id": "f1", "status": "pending", "toolbox_proxy_url": "https://toolbox.example/fork"}
+        ),
+        PlannedResponse(200, {**detail, "id": "f1", "status": "stopped"}),
+    ]
+    with FakeApi(planned) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            fork = await lazy_sandbox(root.v2, "src").fork(wait_seconds=5)
+    assert (fork.id, fork.forked_from) == ("f1", "src")
+
+
+@pytest.mark.parametrize("call", ["images.pull", "capture_image", "create_snapshot"])
+async def test_an_acknowledgement_id_that_is_a_dot_segment_is_refused_before_the_read(call: str) -> None:
+    # The TypeScript twin is in malformed-responses.test.ts.
+    with FakeApi([PlannedResponse(200, {"id": "..", "status": "pending"})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("must not be '.' or '..'$"):
+                if call == "images.pull":
+                    await root.v2.images.pull("python:3.12", wait=False)
+                elif call == "capture_image":
+                    await lazy_sandbox(root.v2, "src").capture_image()
+                else:
+                    await lazy_sandbox(root.v2, "src").create_snapshot("snap")
+    assert len(api.requests) == 1

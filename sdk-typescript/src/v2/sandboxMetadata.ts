@@ -70,7 +70,7 @@ const SANDBOX: ResponseFields = {
   image_build_id: 'string?', persistent: 'boolean?', user: 'string?', spot: 'boolean?', spot_evicted_at: 'timestamp?',
   lifecycle_policy: nested(LIFECYCLE_POLICY, true), forked_from: 'string?', reservation_id: 'string?', toolbox_proxy_url: 'string?',
   created_at: 'string?', updated_at: 'string?', started_at: 'string?', stopped_at: 'string?',
-  last_activity_at: 'string?', create_timeout_at: 'string?',
+  last_activity_at: 'timestamp?', create_timeout_at: 'timestamp?',
 }
 
 /**

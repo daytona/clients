@@ -473,9 +473,10 @@ _MAC_RESERVATION_TIMESTAMPS = (
     "reissued_at",
     "ended_at",
 )
+_SANDBOX_TIMESTAMPS = ("spot_evicted_at", "last_activity_at", "create_timeout_at")
 _RFC3339_FIELDS: Mapping[str, Tuple[str, ...]] = {
-    "Sandbox": ("spot_evicted_at",),
-    "SandboxListItem": ("spot_evicted_at",),
+    "Sandbox": _SANDBOX_TIMESTAMPS,
+    "SandboxListItem": _SANDBOX_TIMESTAMPS,
     "MacReservation": _MAC_RESERVATION_TIMESTAMPS,
 }
 

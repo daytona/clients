@@ -14,6 +14,7 @@ from ._core import (
     expect_object,
     parse_image,
     parse_timestamp,
+    path_segment,
 )
 from ._events import region_of
 from ._gen.api import (
@@ -244,6 +245,8 @@ def _acknowledgement(value: TransportPayload, description: str) -> AsyncOperatio
     )
     if not operation.id.strip():
         raise create_error(f"{description} is missing its id", 400, "BAD_REQUEST", "SDK")
+    # `.`, `..` or a surrogate cannot be the path id of the read either.
+    path_segment(operation.id, f"{description} id")
     return operation
 
 

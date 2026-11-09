@@ -48,6 +48,7 @@ from ._core import (
     parse_lifecycle,
     parse_snapshot,
     parse_timestamp,
+    path_segment,
     rfc3339,
     sandbox_state,
     wait_budget_seconds,
@@ -1340,6 +1341,10 @@ class AsyncSandbox:
                 # The fork exists; a failed read never costs the caller its handle.
                 detail = None
         accepted = data.to_dict()
+        forked_from = accepted.get("forked_from") or self.id
+        if detail is not None and not detail.get("forked_from"):
+            # A detail without `forked_from` keeps the source's id the fork names.
+            detail = {**detail, "forked_from": forked_from}
         # The fork gets its own toolbox URL from the API; inheriting the
         # parent's override could send its file and process calls to the parent.
         fork = AsyncSandbox._from_api(
@@ -1348,7 +1353,7 @@ class AsyncSandbox:
             else {
                 "id": fork_id,
                 "status": accepted.get("status"),
-                "forked_from": accepted.get("forked_from") or self.id,
+                "forked_from": forked_from,
                 **({"class": sandbox_class} if sandbox_class is not None else {}),
             },
             self._api,
@@ -1579,7 +1584,9 @@ class AsyncSandbox:
             )
         )
         return expect_image(
-            await self._require_api().send(RequestSpec("GET", f"/images/{quote(operation.id, safe='')}"))
+            await self._require_api().send(
+                RequestSpec("GET", f"/images/{path_segment(operation.id, 'image id')}")
+            )
         )
 
     async def create_snapshot(self, name: str) -> Snapshot:
@@ -1595,7 +1602,9 @@ class AsyncSandbox:
         # The detail is checked against the contract before it is mapped, as images are.
         return parse_snapshot(
             expect_snapshot(
-                await self._require_api().send(RequestSpec("GET", f"/snapshots/{quote(created.id, safe='')}"))
+                await self._require_api().send(
+                    RequestSpec("GET", f"/snapshots/{path_segment(created.id, 'snapshot id')}")
+                )
             )
         )
 

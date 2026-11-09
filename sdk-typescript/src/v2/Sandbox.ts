@@ -5,6 +5,7 @@
 
 import { withoutNullOptions } from './clientOptionKeys.js'
 import { acknowledgedId, checkResponse } from './responseFields.js'
+import { pathSegment } from './pathSegment.js'
 import type { ResponseFields } from './responseFields.js'
 import { isBlank } from './pyText.js'
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
@@ -840,7 +841,9 @@ export class Sandbox {
       if (timeout === undefined) return fork
       const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, { timeout }).then((r) => r.data)
       assertSandboxResponse(detail)
-      fork.observed = metadataFromSandbox(detail)
+      // A detail without `forked_from` keeps the source's id the fork already names.
+      const observed = metadataFromSandbox(detail)
+      fork.observed = observed.forkedFrom === undefined || observed.forkedFrom === '' ? { ...observed, forkedFrom } : observed
       fork.refreshToolbox({ ...detail, toolbox_proxy_url: forkToolbox ?? detail.toolbox_proxy_url })
     } catch (error) {
       if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
@@ -1053,7 +1056,7 @@ export class Sandbox {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const { data } = await this.api.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, body)
     const operationId = acknowledgedId(data, 'image capture')
-    const image = await this.api.get<api.ImageListItem>(`/images/${strictUriEncode(operationId)}`).then((response) => response.data)
+    const image = await this.api.get<api.ImageListItem>(`/images/${pathSegment(operationId, 'image id')}`).then((response) => response.data)
     return new Image(INTERNAL, image)
   }
 
@@ -1066,7 +1069,7 @@ export class Sandbox {
     const encodedId = strictUriEncode(this.id)
     const response = await http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name })
     const operationId = acknowledgedId(response.data, 'snapshot create')
-    const snapshot = await http.get<api.Snapshot>(`/snapshots/${strictUriEncode(operationId)}`).then((result) => result.data)
+    const snapshot = await http.get<api.Snapshot>(`/snapshots/${pathSegment(operationId, 'snapshot id')}`).then((result) => result.data)
     return new Snapshot(INTERNAL, snapshot)
   }
 

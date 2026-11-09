@@ -4,6 +4,7 @@
  */
 
 import { MAX_INT32, badRequest } from './options.js'
+import { pathSegment } from './pathSegment.js'
 import { isBlank } from './pyText.js'
 import { isRfc3339 } from './rfc3339.js'
 
@@ -123,6 +124,8 @@ export const ASYNC_OPERATION: ResponseFields = { id: 'string' }
 export function acknowledgedId(value: unknown, what: string): string {
   const { id } = checkResponse<{ id: string }>(value, ASYNC_OPERATION, what)
   if (isBlank(id)) throw badRequest(`${what} response is missing its id`)
+  // `.`, `..` or a lone surrogate cannot be the path id of the read either.
+  pathSegment(id, `${what} response id`)
   return id
 }
 

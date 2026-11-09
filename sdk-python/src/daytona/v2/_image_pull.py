@@ -6,13 +6,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from urllib.parse import quote
 
 import anyio
 
 from . import _clock
 from ._api_core import expect_create_image_resp, expect_image
-from ._core import RequestSpec, TransportPayload, timeout_millis_from_seconds
+from ._core import RequestSpec, TransportPayload, path_segment, timeout_millis_from_seconds
 from ._transport import AsyncTransport
 from .errors import ClientTimeoutError, ImageBuildFailedError, RequestTimeoutError, create_error
 from .types import Image, JsonObject
@@ -32,7 +31,7 @@ class ImagePull:
         with anyio.move_on_after(self._remaining(deadline)) as scope:
             try:
                 created = expect_create_image_resp(await self._send(submission, deadline))
-                path = f"/images/{quote(created.id, safe='')}"
+                path = f"/images/{path_segment(created.id, 'image id')}"
                 image = expect_image(await self._send(RequestSpec("GET", path), deadline))
                 last_poll_started: float | None = None
                 while wait and image.status not in ("ready", "failed", "error"):
