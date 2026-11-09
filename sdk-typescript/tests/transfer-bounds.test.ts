@@ -17,6 +17,7 @@ import { Daytona } from '../src/v2/Daytona'
 import { BadRequestError, ClientTimeoutError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport, forceFetchAdapterForTests } from '../src/v2/http'
 import { attachHub, detachHub, eventsHubConfig } from '../src/v2/events'
+import { BodyBuffer } from '../src/v2/bodyBuffer'
 import { lazySandbox } from './lazySandbox'
 
 jest.setTimeout(30_000)
@@ -491,5 +492,40 @@ describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', 
       expect(new TextDecoder().decode(await transport.getBytes('/files/download?path=small'))).toBe('b'.repeat(10))
     }
     expect(calls).toBe(6)
+  })
+})
+
+describe('BodyBuffer', () => {
+  const bytes = (...values: number[]): Uint8Array => new Uint8Array(values)
+
+  it('fills one allocation of the declared length in place', () => {
+    const body = new BodyBuffer(100, 4)
+    expect(body.add(bytes(1, 2))).toBe(true)
+    expect(body.add(bytes(3, 4))).toBe(true)
+    const out = body.bytes()
+    expect([...out]).toEqual([1, 2, 3, 4])
+    // The one allocation, not a copy of it.
+    expect(out.buffer.byteLength).toBe(4)
+    expect(body.bytes()).toBe(out)
+  })
+
+  it('keeps a body that outgrows or falls short of its declared length', () => {
+    const longer = new BodyBuffer(100, 2)
+    longer.add(bytes(1, 2))
+    longer.add(bytes(3))
+    expect([...longer.bytes()]).toEqual([1, 2, 3])
+    const shorter = new BodyBuffer(100, 8)
+    shorter.add(bytes(1))
+    expect([...shorter.bytes()]).toEqual([1])
+  })
+
+  it('refuses a chunk that would pass the limit and keeps none of it', () => {
+    const body = new BodyBuffer(3)
+    expect(body.add(bytes(1, 2))).toBe(true)
+    expect(body.add(bytes(3, 4))).toBe(false)
+    expect([...body.bytes()]).toEqual([1, 2])
+    // A declared length over the limit is not allocated.
+    expect(new BodyBuffer(3, 1 << 30).add(bytes(1, 2, 3, 4))).toBe(false)
+    expect(new BodyBuffer(0).add(new Uint8Array(10))).toBe(true)
   })
 })

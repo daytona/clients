@@ -5,6 +5,7 @@
 
 import type { AxiosError } from 'axios'
 import { CODE_STATUS } from '../codes.js'
+import { BodyBuffer, declaredLength } from '../bodyBuffer.js'
 import type { ApiErrorCode, DaemonErrorCode, ErrorCode, GenericErrorCode, ProxyErrorCode, RouterErrorCode } from '../codes.js'
 import type { DockerStatus, SandboxState } from '../types.js'
 import {
@@ -892,29 +893,21 @@ export async function readFetchText(response: Response, limit: number): Promise<
   }
   const reader = response.body?.getReader()
   if (reader === undefined) return ''
-  const chunks: Uint8Array[] = []
-  let size = 0
+  // Allocated once when the length is declared (see BodyBuffer for the peak).
+  const body = new BodyBuffer(limit, declaredLength(declared))
   try {
     for (;;) {
       const next = await reader.read()
       if (next.done) break
-      size += next.value.byteLength
-      if (size > limit) {
+      if (!body.add(next.value)) {
         await reader.cancel().catch(() => undefined)
         return undefined
       }
-      chunks.push(next.value)
     }
   } finally {
     reader.releaseLock()
   }
-  const bytes = new Uint8Array(size)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return new TextDecoder().decode(bytes)
+  return new TextDecoder().decode(body.bytes())
 }
 
 export function statusForCode(code: ErrorCode): number {

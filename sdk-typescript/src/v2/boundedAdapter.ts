@@ -13,6 +13,7 @@ import axios, { AxiosError } from 'axios'
 import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { BodyTooLarge, IdleWatchdog, bytesAs, declaresMoreThan, discardBody, isSmallRequestBody, readCappedBody, tooLargeErrorStatusMessage, tooLargeMessage } from './bodyLimit.js'
 import { PAYLOAD_TOO_LARGE_AXIOS_CODE } from './errors/DaytonaError.js'
+import { declaredLength } from './bodyBuffer.js'
 import { boundedTimerDelay } from './options.js'
 
 /** The request meta the adapter reads (the transport's `daytona` field). */
@@ -263,7 +264,7 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
       throw tooLarge()
     }
     try {
-      bytes = await readCappedBody(response.data, limit, watchdog === undefined ? {} : { waiting: () => watchdog.kick(), received: () => watchdog.pause() }, release)
+      bytes = await readCappedBody(response.data, limit, watchdog === undefined ? {} : { waiting: () => watchdog.kick(), received: () => watchdog.pause() }, release, declaredLength(response.headers['content-length']))
     } catch (error) {
       if (error instanceof BodyTooLarge) throw tooLarge()
       throw failed(error)
