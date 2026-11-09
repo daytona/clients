@@ -210,7 +210,8 @@ it('holds no probe long poll past the hub\'s share', async () => {
   const readTimeouts: Array<[number, number]> = []
   jest.spyOn(h.api, 'get').mockImplementation(async (_url, config) => {
     const begun = Date.now() - started
-    readTimeouts.push([begun, Number(config?.timeout ?? 0)])
+    // An unbounded read (absent or 0) never fits the share.
+    readTimeouts.push([begun, config?.timeout ? Number(config.timeout) : Infinity])
     const params = config?.params as Record<string, unknown> | undefined
     const signal = config?.signal as AbortSignal | undefined
     await new Promise<void>((resolve) => {

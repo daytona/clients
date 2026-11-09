@@ -262,7 +262,8 @@ async def test_the_hubs_probes_hold_no_long_poll_past_its_share(monkeypatch: pyt
 
         async def recording_send(spec: RequestSpec) -> object:
             begun = events_module._clock.monotonic() - started
-            asked.append((begun, int(spec.params.get("timeout_ms", 0)), spec.timeout or 0.0))
+            # An unbounded read (None or 0) never fits the share.
+            asked.append((begun, int(spec.params.get("timeout_ms", 0)), spec.timeout or float("inf")))
             return await original(spec)
 
         monkeypatch.setattr(api, "send", recording_send)
