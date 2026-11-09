@@ -223,6 +223,7 @@ class Sandbox:
         execution_timeout: Optional[float] = None,
         name: Optional[str] = None,
         keep_logs: Optional[RunKeepLogs] = None,
+        tag: Optional[str] = None,
     ) -> ProcessResult:
         """Run a command, wait for its shell to exit, and collect its output."""
         return self._bridge.call(
@@ -239,6 +240,7 @@ class Sandbox:
                 execution_timeout=execution_timeout,
                 name=name,
                 keep_logs=keep_logs,
+                tag=tag,
             )
         )
 

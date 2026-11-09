@@ -12,8 +12,17 @@
 import axios, { AxiosError } from 'axios'
 import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { BodyTooLarge, IdleWatchdog, bytesAs, declaresMoreThan, discardBody, isSmallRequestBody, readCappedBody, tooLargeErrorStatusMessage, tooLargeMessage } from './bodyLimit.js'
-import { PAYLOAD_TOO_LARGE_AXIOS_CODE } from './errors/DaytonaError.js'
+import { PAYLOAD_TOO_LARGE_AXIOS_CODE, createDaytonaError } from './errors/DaytonaError.js'
+import { declaredLength } from './bodyBuffer.js'
 import { boundedTimerDelay } from './options.js'
+
+/**
+ * An axios transfer is read whole by the adapter, which applies its idle
+ * bound; no SDK call streams one (streamed transfers use `fetch`). Internal.
+ */
+function streamTransferError(): Error {
+  return createDaytonaError('internal: an axios file transfer cannot use responseType "stream"; stream it through HttpTransport.fetch with transfer: true', 500, undefined, 'SDK')
+}
 
 /** The request meta the adapter reads (the transport's `daytona` field). */
 interface TransferMeta {
@@ -35,6 +44,7 @@ function unrefTimer(timer: ReturnType<typeof setTimeout>): void {
  * in the response body). `0` request timeout = no idle bound.
  */
 export function transferRequest<T extends AxiosRequestConfig>(config: T): T {
+  if (config.responseType === 'stream') throw streamTransferError()
   const marked = { ...config, timeout: 0 } as T & { daytona?: TransferMeta }
   marked.daytona = { ...marked.daytona, transfer: true }
   return marked
@@ -172,6 +182,16 @@ function smallRequestBody(config: InternalAxiosRequestConfig): boolean {
   return isSmallRequestBody(config.method, config.data)
 }
 
+/** A JSON object error body, parsed; `undefined` for anything else. */
+function errorEnvelopeData(bytes: Uint8Array): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes))
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function settleError(config: InternalAxiosRequestConfig, response: AxiosResponse): AxiosError {
   return new AxiosError(
     `Request failed with status code ${response.status}`,
@@ -199,6 +219,9 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
   const base: AxiosAdapter = httpBase ?? fetchAdapter
   const responseType = config.responseType
   if (responseType === 'stream') {
+    // The idle bound is enforced on a body this adapter reads; a streamed
+    // response is read by the caller, so it cannot be a transfer here.
+    if ((config as InternalAxiosRequestConfig & { daytona?: TransferMeta }).daytona?.transfer === true) throw streamTransferError()
     if (http) return base(config)
     const streamed = await fetchAdapter(config)
     const accepts = config.validateStatus
@@ -263,7 +286,7 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
       throw tooLarge()
     }
     try {
-      bytes = await readCappedBody(response.data, limit, watchdog === undefined ? {} : { waiting: () => watchdog.kick(), received: () => watchdog.pause() }, release)
+      bytes = await readCappedBody(response.data, limit, watchdog === undefined ? {} : { waiting: () => watchdog.kick(), received: () => watchdog.pause() }, release, declaredLength(response.headers['content-length']))
     } catch (error) {
       if (error instanceof BodyTooLarge) throw tooLarge()
       throw failed(error)
@@ -271,7 +294,10 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
     const settled: AxiosResponse = { ...response, config, data: bytesAs(bytes, responseType) }
     const validateStatus = config.validateStatus
     if (validateStatus === null || validateStatus === undefined || validateStatus(settled.status)) return settled
-    throw settleError(config, settled)
+    // A refused status carries its error envelope whatever `responseType` the
+    // success body would have had (a file read asks for bytes), so the typed
+    // error keeps the server's code and message.
+    throw settleError(config, { ...settled, data: errorEnvelopeData(bytes) ?? settled.data })
   } finally {
     watchdog?.dispose()
   }

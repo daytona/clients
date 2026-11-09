@@ -119,8 +119,8 @@ the object afterwards has no effect on the client. Additional env vars:
 
 - `DAYTONA_ORGANIZATION_ID` — scopes a JWT for the v0 namespace.
 - `DAYTONA_PROJECT_ID` — scopes a JWT for the v2 namespace.
-- `DAYTONA_V2_API_URL` — selects another v2 API endpoint (a regional endpoint
-  from `GET /regions`, or a test environment). When unset, the SDK connects to the Daytona API. `d.v0` always
+- `DAYTONA_V2_API_URL` — selects another v2 API endpoint (a regional endpoint,
+  as `daytona region list` in the CLI shows them, or a test environment). When unset, the SDK connects to the Daytona API. `d.v0` always
   uses its own production URL. SDK 2.x never reads `DAYTONA_API_URL`, the 0.x
   SDK's variable.
 - Credentials: `d.v2` reads `DAYTONA_*` variables from the process
@@ -137,7 +137,8 @@ the total time one ordinary request may take before it raises
 bounded only until their response arrives, and file transfers have no total
 limit but fail with `ClientTimeoutError` once no bytes move for that long
 (with `request_timeout=0` they are not bounded at all).
-Set `max_response_bytes=` **(default 1 GiB; `0` means no limit)** to cap every
+Set `max_response_bytes=` **(an integer; `None` keeps the 1 GiB default, `0`
+means no limit, and any other value is a `BadRequestError`)** to cap every
 response body the SDK holds in memory whole: a larger body raises
 `PayloadTooLargeError` before it is read in full (an error response keeps its
 status's error).
@@ -211,8 +212,8 @@ default is configured, the create raises `DEFAULT_IMAGE_NOT_CONFIGURED` (400).
 ### Regions and safe create retries
 
 `d.v2.create()` accepts an optional `region=` argument that creates the sandbox
-in a region from `GET /regions`. Each entry includes
-`id`, `name`, `available`, and optionally `api_base_url`.
+in a region listed by `daytona region list` (with `-o json`, each entry
+includes `id`, `name`, `available`, and optionally `api_base_url`).
 Omitting `region` falls back to the project's default, then the
 organization's, then `earth`, which means anywhere and may land in any
 geography. Every `d.v2.create*()` method accepts `region=`, including
@@ -534,7 +535,7 @@ access for your organization: without it the API answers `403`
 and reservations, turning auto-renew off, `pause()` and `resume()` do not require
 this access.
 
-Find available regions and their regional API endpoints with `GET /regions`.
+Find available regions and their regional API endpoints with `daytona region list`.
 Use `d.v2.mac_models.catalog(region="<region>")` or
 `daytona mac-model list --region '<region>'` to discover available Mac models
 and current prices. Replace `<region>` and `<model>` in the examples with
@@ -696,6 +697,46 @@ pause/resume but not a sandbox stop/start. In dash, BusyBox `sh` and mksh, an in
 innermost shell function or sourced file; bash and zsh leave the whole command
 (bash older than 4.4, macOS's `/bin/bash`, only when no DEBUG trap is set).
 
+### Tags
+
+Group independently started processes with an optional `tag`, a safe identifier
+of 1–128 characters using ASCII letters, digits, `.`, `_` and `-` (not `.` or
+`..`):
+
+```python
+await sandbox.process.start("python -m api_server", tag="job-123")
+await sandbox.process.start(argv=["node", "worker.js"], tag="job-123")
+shell = await sandbox.process.create_session(cwd="/app", tag="job-123")
+await shell.run("nohup ./watcher.sh &")  # Commands inherit the session's tag.
+
+await sandbox.process.list(tag="job-123")
+killed = await sandbox.process.kill_all(tag="job-123")
+# Returns once everything the kill covered has stopped. The tag can be reused.
+
+handle = await sandbox.process.start("./start-server.sh")  # Backgrounds a server, exits.
+await handle.wait()
+await handle.kill()  # Linux with process containment: also stops the server.
+```
+
+These examples use `AsyncDaytona`; omit `await` with `Daytona`. Tags also work
+with `process.run()`, `sandbox.exec()` and `pty.start()`. A tag is immutable;
+session commands inherit it, and interpreter code executions cannot be tagged.
+`ProcessInfo.tag` exposes it. `kill_all()` keeps records and logs and returns
+the ids of the tagged processes that were running, or had running descendants,
+when it began; survivors of deleted or expired records are killed too but not
+listed. Its `timeout` is in seconds (more than 0 and at most 60, fractions
+allowed, default 10). A tag or timeout outside those rules raises
+`BadRequestError` before any request. `ProcessKillIncompleteError` means the
+timeout expired before all work stopped, and retrying is safe. A start racing the kill either precedes it
+and is killed, or starts afterwards and keeps running.
+
+Linux and Windows support tags, filtering and tag-wide kills. macOS supports
+tags and filtering only: `kill_all()` raises `UnsupportedOperationError`, as it
+does on sandboxes without process containment. On Linux with containment,
+`kill()` also stops detached descendants (`setsid`, `nohup`, double fork) and
+survivors of an exited process; macOS `kill()` is unchanged. Tags can be reused
+immediately after `kill_all()`.
+
 ### Files
 
 `read_text` / `write_text`, `read_bytes` / `write_bytes`, `upload_file()` /
@@ -743,8 +784,9 @@ synchronous SDK call, including another watch's methods, raises a
 
 `read_bytes()`, `read_text()`, `read_many()` and the computer-use recording
 `download()` hold the whole response in memory: they take
-`max_response_bytes=` to replace the client's cap for one call (`0` = no
-limit; `None`, the default, keeps the client's cap). For large files, or content from a sandbox you don't trust, use `download_file()`, which streams to disk
+`max_response_bytes=` to replace the client's cap for one call (`None`, the
+default, keeps the client's cap, `0` means no limit, any other non-integer is
+a `BadRequestError`). For large files, or content from a sandbox you don't trust, use `download_file()`, which streams to disk
 with progress and cancellation (for a recording, pass its `file_path`, not its
 id).
 

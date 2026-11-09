@@ -366,11 +366,11 @@ class DaytonaConfig:
     ``region=`` to a create.
 
     ``request_timeout`` is the total time one ordinary request may take, in
-    seconds (default 60; ``0`` = no limit). Waits and long polls use their own
+    seconds (default 60; ``0``, or a value above 2,147,483.647 (about 24.8
+    days), means no limit). Waits and long polls use their own
     budget, streams are bounded only until their response headers arrive, and
     file transfers have no total bound but fail when no bytes move for that
-    long (with ``0``, transfers are not bounded at all). ``max_response_bytes`` (default 1 GiB, ``0`` = no limit; an integer
-    up to 2**53 - 1) caps every response body the SDK holds in memory whole: a
+    long (with ``0``, transfers are not bounded at all). ``max_response_bytes`` (an integer up to 2**53 - 1; ``None`` keeps the 1 GiB default, ``0`` means no limit, and any other value (negative, fractional, boolean, string, too large) is a ``BadRequestError``) caps every response body the SDK holds in memory whole: a
     body over it raises ``PayloadTooLargeError`` (an error response's status
     error for an error status). The in-memory file reads take
     ``max_response_bytes=`` per call too.  ``shared_hub`` controls whether this instance
@@ -912,6 +912,8 @@ class ProcessInfo:
     created_at: datetime
     system: bool = False
     name: Optional[str] = None
+    tag: Optional[str] = None
+    """The tag the process was created with; a session command carries its session's tag. Never changes."""
     pid: Optional[int] = None
     session_id: Optional[str] = None
     shell_command: Optional[str] = None

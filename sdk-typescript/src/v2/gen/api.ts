@@ -1520,7 +1520,7 @@ export interface paths {
         };
         /**
          * List regions
-         * @description Lists selectable regions in tree order: `earth` first, then each region followed by its contained regions. `parent_region_ids` lists containing regions. A parent region with no available child remains listed with `available: false` and cannot be requested when creating a sandbox.
+         * @description Lists selectable regions in tree order: `earth` first, then each region followed by its contained regions. `parent_region_ids` lists containing regions. A parent region none of whose contained regions accepts automatic placement remains listed with `available: false` and cannot be requested when creating a sandbox.
          */
         get: operations["list_regions"];
         put?: never;
@@ -3178,7 +3178,7 @@ export interface components {
             reservation?: string | null;
             /** @description Names of project secrets to attach. Secret values are used only for requests to their allowed hosts. */
             secrets?: string[];
-            /** @description Disk volumes to attach: at most 8, each read-write. A bucket volume returns 400. */
+            /** @description Disk volumes to attach: at most 8, each read-write. A sandbox with volumes cannot be persistent. A bucket volume returns 400. */
             volumes?: components["schemas"]["VolumeMount"][];
             /**
              * Format: int64
@@ -4148,7 +4148,7 @@ export interface components {
              */
             last_activity_at?: string | null;
             /**
-             * @description The kind of activity most recently observed, such as an API request, a running command, or sandbox traffic. Open vocabulary: treat an unrecognized value as sandbox activity.
+             * @description The kind of activity most recently observed, such as an explicit idle-timer reset (`api`), a running command, or sandbox traffic. Open vocabulary: treat an unrecognized value as sandbox activity.
              * @example api
              */
             last_activity_source?: string | null;
@@ -5312,7 +5312,7 @@ export interface components {
             /** @description Display name. */
             name: string;
             /**
-             * @description IDs of the containing regions, outermost first; the last is the direct parent. Empty for `earth`. All IDs appear in this response. Membership does not guarantee that capacity is available.
+             * @description IDs of the containing regions, outermost first; the last is the direct parent. Empty for `earth`. All IDs appear in this response. A create that names one of these regions is placed here only if this region accepts automatic placement, and membership does not guarantee capacity.
              * @example [
              *       "earth",
              *       "region-group",
@@ -5551,7 +5551,7 @@ export interface components {
         SandboxAccessToken: {
             /**
              * Format: password
-             * @description The sandbox access token. Returned only by this operation.
+             * @description The sandbox access token.
              */
             access_token: string;
             /**
@@ -6038,7 +6038,7 @@ export interface components {
             path: string;
             /** @description The link's signature. Pass it back unchanged. */
             signature: string;
-            /** @description The full pre-signed preview URL. */
+            /** @description The full pre-signed file URL. */
             url: string;
         };
         /** @description A signed preview link. */
@@ -8222,7 +8222,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The organization is a personal organization (`CONFLICT`). The organization still holds a live Mac lease (`CONFLICT`). The organization still owns live sandboxes, images or snapshots (`CONFLICT`). The organization still has sandboxes shutting down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`) */
+            /** @description The organization is a personal organization (`CONFLICT`). The organization still holds a live Mac lease (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -12364,7 +12364,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The project is the organization's default project, which cannot be deleted (`CONFLICT`). The project still owns live sandboxes, images or snapshots (`CONFLICT`). The project still has sandboxes shutting down (`CONFLICT`). The project still has sandbox creates in flight (`CONFLICT`) */
+            /** @description The project is the organization's default project, which cannot be deleted (`CONFLICT`). The project still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The project still has sandboxes or operations winding down (`CONFLICT`). The project still has sandbox creates in flight (`CONFLICT`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -14355,7 +14355,7 @@ export interface operations {
                  *     non-object value answers 400.
                  */
                 labels?: string;
-                /** @description Filter macOS sandboxes by persistence: `true` for persistent, `false` for ephemeral. */
+                /** @description Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes. */
                 persistent?: boolean;
                 /** @description Spot-tier sandboxes only (`true`) or on-demand only (`false`). */
                 spot?: boolean;

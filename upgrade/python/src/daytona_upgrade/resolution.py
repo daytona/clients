@@ -90,7 +90,8 @@ class Resolver:
             if (
                 name in self.mapping.root_names
                 and name not in self.mapping.root_imports
-            ):
+            ) or name in self.mapping.root_alias_categories:
+                # A shared error, or a former root alias naming one.
                 return "module:" + module + "." + name
         return self.index.exports.get(module, {}).get(name, "")
 

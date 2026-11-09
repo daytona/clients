@@ -38,7 +38,9 @@ differences, not shape differences: `sandbox.run_code(...)` and
 client's request timeout means the same in both: the total time one ordinary
 call may take (default 60 s), the credential exchange and a 401 retry
 included. Waits and long polls are bounded by their own budget, streams only
-until their response headers arrive, and file transfers not at all.
+until their response headers arrive, and file transfers have no total
+deadline but are idle-bounded by the request timeout (they fail once no bytes
+move for that long; `0` leaves them unbounded).
 Timestamps are not durations; the toolbox's Unix-millisecond ones carry the
 unit in the name (`timestamp_ms` / `timestampMs`). Serialized identities
 (`ProcessHandleJSON`, `SessionJSON`, `InterpreterContextJSON`) are one

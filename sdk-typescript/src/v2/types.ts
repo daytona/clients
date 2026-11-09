@@ -91,16 +91,16 @@ export interface DaytonaConfig {
   readonly projectId?: string
   /**
    * The total time one ordinary request may take, in seconds (default 60;
-   * `0` = no limit). Waits and long polls use their own budget, streams are
+   * `0`, or a value above 2,147,483.647 (about 24.8 days), means no limit).
+   * Waits and long polls use their own budget, streams are
    * bounded only until their response headers arrive, and file transfers have
    * no total bound but fail once no bytes move for this long (with `0`,
    * transfers are not bounded at all).
    */
   readonly requestTimeoutSeconds?: number
   /**
-   * The cap on a response body the SDK holds in memory whole, in bytes: an
-   * integer from 0 (no limit) to `Number.MAX_SAFE_INTEGER`; default 1 GiB
-   * (`undefined` / `null`). A success response over it is refused with
+   * The cap on a response body the SDK holds in memory whole, in bytes:
+   * an integer up to `Number.MAX_SAFE_INTEGER`; `undefined` or `null` keep the 1 GiB default, `0` means no limit, and any other value (negative, fractional, boolean, string, too large) is a `BadRequestError`. A success response over it is refused with
    * `PayloadTooLargeError` before it is read in full; an error response keeps
    * its status's error. The in-memory file reads take it per call too.
    * Streamed bodies (`downloadFile`, log and event streams) are never capped.
@@ -117,8 +117,9 @@ export interface DaytonaConfig {
   /** Node-only keep-alive socket pool size for axios-backed HTTP requests. */
   readonly connectionPoolMaxsize?: number
   /**
-   * When `true` (default) all `Daytona` instances with the same identity share
-   * one `WaitHub`. When `false` each instance gets its own private hub.
+   * When `true` (default) all `Daytona` instances with matching connection
+   * settings (API URL, credential identity, request timeout, response body
+   * cap) and events settings share one `WaitHub`. When `false` each instance gets its own private hub.
    */
   readonly sharedHub?: boolean
   /** Customise the sandbox-state events hub. `undefined` uses the defaults. */
@@ -916,6 +917,8 @@ export interface ProcessInfo {
   readonly createdAt: string
   readonly system: boolean
   readonly name?: string
+  /** The tag the process was created with; a session command carries its session's tag. Never changes. */
+  readonly tag?: string
   readonly pid?: number
   readonly sessionId?: string
   readonly argv?: readonly string[]
@@ -966,6 +969,8 @@ export type RunKeepLogs = Exclude<KeepLogs, 'none'>
 
 export interface ProcessStartOptions {
   readonly name?: string
+  /** Groups this process for `list({ tag })` and `killAll({ tag })`: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`). */
+  readonly tag?: string
   readonly cwd?: string
   readonly env?: Readonly<Record<string, string>>
   readonly user?: string
@@ -1000,6 +1005,8 @@ export interface PtyStartOptions {
   readonly executionTimeoutSeconds?: number
   /** Default `'until_cleanup'`. */
   readonly keepLogs?: KeepLogs
+  /** Groups the PTY for `list({ tag })` and `killAll({ tag })` (a safe identifier, as for `tag` on start). */
+  readonly tag?: string
 }
 
 export type StdinMode = 'closed' | 'open'
@@ -1077,6 +1084,14 @@ export interface StreamLogsOptions extends LogsOptions {
   readonly signal?: AbortSignal
 }
 
+/** Options of `process.killAll()`. */
+export interface KillAllOptions {
+  /** The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`). */
+  readonly tag: string
+  /** How long to wait for them to exit, in seconds: more than 0 and at most 60 (default 10). */
+  readonly timeoutSeconds?: number
+}
+
 export interface WaitProcessOptions {
   /** Caller wait budget in seconds; omitted or `0` waits until the process ends. */
   readonly timeoutSeconds?: number
@@ -1092,6 +1107,8 @@ export interface KillOptions {
 }
 
 export interface ProcessListOptions {
+  /** Only processes created with this tag (a safe identifier, as for `tag` on start). */
+  readonly tag?: string
   readonly state?: 'running' | 'terminal' | 'all'
   readonly kind?: ProcessKind
   readonly sessionId?: string

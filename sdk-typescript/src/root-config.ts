@@ -116,7 +116,7 @@ function refuseUrlFields(config: DaytonaConfig, fields: Record<string, unknown> 
 export function snapshotConfig(config: DaytonaConfig): DaytonaConfig {
   assertOptionsObject('DaytonaConfig', config)
   refuseUrlFields(config)
-  const keys = enumerableKeys(config)
+  const keys = enumerableKeys('DaytonaConfig', config)
   const fields: Record<string, unknown> = {}
   for (const key of Object.keys(ROOT_CONFIG_ROUTING)) {
     const value: unknown = Reflect.get(config, key)

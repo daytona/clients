@@ -125,12 +125,17 @@ interface SandboxAccessTokenPayload {
   ports?: number[] | null
 }
 
-function sandboxAccessTokenFromPayload(payload: SandboxAccessTokenPayload | null | undefined): SandboxAccessToken {
-  const accessToken = payload?.access_token
-  const expiresAt = payload?.expires_at
-  if (typeof accessToken !== 'string' || accessToken.length === 0 || typeof expiresAt !== 'string') {
-    throw createDaytonaError('API returned an invalid access token payload', 500, undefined, 'SDK')
-  }
+/**
+ * The minted token, or `BadRequestError` naming the field that breaks the
+ * response contract (the Python SDK's messages for the same body).
+ */
+function sandboxAccessTokenFromPayload(raw: unknown): SandboxAccessToken {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) throw badRequest('access token response is not a JSON object')
+  const payload = raw as SandboxAccessTokenPayload
+  const accessToken = payload.access_token
+  const expiresAt = payload.expires_at
+  if (typeof accessToken !== 'string' || accessToken.length === 0) throw badRequest('access token response access_token must be a non-empty string')
+  if (typeof expiresAt !== 'string') throw badRequest('access token response expires_at must be a string')
   return credentialSafeInspection({
     accessToken,
     tokenType: typeof payload?.token_type === 'string' ? payload.token_type : 'Bearer',
@@ -1573,14 +1578,13 @@ export class Sandbox {
 export { createHttpClient }
 
 function readSignedFileUrl(payload: api.SignedFileUrlResponse | unknown): SignedFileUrl {
-  // Typed against the vendored wire model, but still checked at runtime: a
-  // JSON `null` body is a valid axios `data`, and dereferencing it would
-  // surface a raw TypeError instead of the malformed-response error.
-  if (payload !== null && typeof payload === 'object' && 'signature' in payload && 'expires_at' in payload) {
-    const { signature, expires_at: expiresAt } = payload
-    if (typeof signature === 'string' && signature.length > 0 && typeof expiresAt === 'string' && isRfc3339(expiresAt)) {
-      return { signature, expiresAt }
-    }
-  }
-  throw createDaytonaError('expected signed file URL response: signature and expires_at are required', 400, 'BAD_REQUEST', 'SDK')
+  // Typed against the vendored wire model, but still checked at runtime (a
+  // JSON `null` body is a valid axios `data`): a response that breaks the
+  // contract is `BadRequestError` naming the field, with the Python SDK's
+  // messages.
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) throw badRequest('signed file URL response is not a JSON object')
+  const { signature, expires_at: expiresAt } = payload as { readonly signature?: unknown; readonly expires_at?: unknown }
+  if (typeof signature !== 'string' || signature.length === 0) throw badRequest('signed file URL response signature must be a non-empty string')
+  if (typeof expiresAt !== 'string' || !isRfc3339(expiresAt)) throw badRequest('signed file URL response expires_at must be an RFC 3339 timestamp')
+  return { signature, expiresAt }
 }

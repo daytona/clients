@@ -41,6 +41,7 @@ from ._gen.toolbox import (
     BulkUploadResponse,
     ExitResult,
     IsPortInUseResponse,
+    KillProcessesResponse,
     LogFrameDto,
     PortList,
     ProcessDto,
@@ -832,6 +833,12 @@ def expect_process_list_response(value: TransportPayload) -> ProcessListResponse
     )
 
 
+def expect_kill_processes_response(value: TransportPayload) -> KillProcessesResponse:
+    return _expect_model_from_dict(
+        value, KillProcessesResponse, "kill processes response", KillProcessesResponse.from_dict
+    )
+
+
 def expect_search_response(value: TransportPayload) -> SearchResponse:
     return _expect_model_from_dict(value, SearchResponse, "search response", SearchResponse.from_dict)
 
@@ -910,6 +917,7 @@ def process_create_spec(
     wait_ms: Optional[int] = None,
     inline_logs: bool = False,
     request_timeout: Optional[float] = None,
+    tag: Optional[str] = None,
 ) -> RequestSpec:
     chosen = [command is not None, argv is not None, code is not None]
     if kind in ("pty", "session") and sum(1 for item in chosen if item) == 0:
@@ -955,6 +963,7 @@ def process_create_spec(
     optional: Dict[str, JsonValue] = {
         "language": language,
         "name": name,
+        "tag": None if tag is None else process_tag(tag),
         "sessionId": session_id,
         "cwd": cwd,
         "env": dict(env) if env is not None else None,
@@ -1030,6 +1039,7 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         created_at=parse_timestamp(payload.created_at, "process response: createdAt"),
         system=payload.system is True,
         name=payload.name,
+        tag=payload.tag,
         pid=payload.pid,
         session_id=payload.session_id,
         shell_command=payload.shell_command,
@@ -1061,6 +1071,7 @@ def process_list_spec(
     session_id: Optional[str],
     name: Optional[str],
     pid: Optional[int],
+    tag: Optional[str] = None,
 ) -> RequestSpec:
     params: Dict[str, JsonValue] = {}
     for key, value in {
@@ -1069,10 +1080,60 @@ def process_list_spec(
         "sessionId": session_id,
         "name": name,
         "pid": pid,
+        "tag": None if tag is None else process_tag(tag),
     }.items():
         if value is not None:
             params[key] = value
     return RequestSpec("GET", "/processes", params=params)
+
+
+_PROCESS_TAG: Final = re.compile(r"[A-Za-z0-9._-]{1,128}")
+
+# ``kill_all()``'s default ``timeout`` and the longest the toolbox takes
+# (``timeoutMs`` 1-60000), in seconds.
+KILL_ALL_DEFAULT_TIMEOUT_SECONDS: Final = 10
+KILL_ALL_MAX_TIMEOUT_SECONDS: Final = 60
+
+
+def process_tag(value: object) -> str:
+    """A process tag, as the toolbox takes it: a safe identifier
+    (``[A-Za-z0-9._-]``, 1-128 characters, not ``.`` or ``..``). Anything else
+    is the SDK's ``BadRequestError`` before any request (as TypeScript's
+    ``processTag``)."""
+    if not isinstance(value, str) or _PROCESS_TAG.fullmatch(value) is None or value in (".", ".."):
+        raise create_error(
+            "tag must be 1-128 of the characters A-Z, a-z, 0-9, '.', '_' and '-', and not '.' or '..'",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return value
+
+
+def process_kill_spec(*, tag: str, timeout: Optional[float]) -> RequestSpec:
+    """``POST /processes:kill``. ``timeout`` is more than 0 and at most 60
+    seconds, sent as whole milliseconds rounded up; ``None`` keeps the
+    toolbox default (10 s). The toolbox has no unbounded wait, so nothing
+    above 60 seconds means no limit."""
+    body: JsonObject = {"tag": process_tag(tag)}
+    wait = float(KILL_ALL_DEFAULT_TIMEOUT_SECONDS)
+    if timeout is not None:
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, (int, float))
+            or not 0 < timeout <= KILL_ALL_MAX_TIMEOUT_SECONDS
+        ):
+            raise create_error(
+                f"timeout must be greater than 0 and at most {KILL_ALL_MAX_TIMEOUT_SECONDS} seconds",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        # Rounded up as timeout_millis_from_seconds does: at least 1 ms.
+        milliseconds = max(1, math.ceil(round(timeout * 1000, 6)))
+        body["timeoutMs"] = milliseconds
+        wait = milliseconds / 1000
+    return RequestSpec("POST", "/processes:kill", json_body=body, timeout=wait + WAIT_READ_SLACK_SECONDS)
 
 
 def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:

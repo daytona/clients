@@ -27,6 +27,7 @@ from _handles import lazy_sandbox
 
 from daytona.v2 import (
     AuthenticationError,
+    BadRequestError,
     ForbiddenError,
     PreviewLink,
     SandboxAccessToken,
@@ -155,6 +156,37 @@ async def test_create_access_token_full_default_mint_sends_an_empty_body():
 
     assert minted.ports is None  # null on the wire = all ports
     assert api.specs[0].json_body == {}
+
+
+# The TypeScript SDK's unit.test.ts asserts the same messages for the same bodies.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        (None, "access token response is not a JSON object"),
+        ([], "access token response is not a JSON object"),
+        (
+            {"expires_at": "2030-01-01T00:00:00Z"},
+            "access token response access_token must be a non-empty string",
+        ),
+        (
+            {"access_token": "", "expires_at": "2030-01-01T00:00:00Z"},
+            "access token response access_token must be a non-empty string",
+        ),
+        ({"access_token": "jwt"}, "access token response expires_at must be a string"),
+        ({"access_token": "jwt", "expires_at": 5}, "access token response expires_at must be a string"),
+    ],
+)
+async def test_create_access_token_names_what_breaks_the_response_contract(payload: object, message: str):
+    client = _client()
+    sandbox = lazy_sandbox(client, "sbx")
+    sandbox.sandbox_class = "linux"
+    sandbox._api = _RecordingApi([payload])  # type: ignore[assignment]
+
+    with pytest.raises(BadRequestError) as caught:
+        await sandbox.create_access_token()
+    assert str(caught.value) == message
+    assert (caught.value.status_code, caught.value.code, caught.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 @pytest.mark.anyio

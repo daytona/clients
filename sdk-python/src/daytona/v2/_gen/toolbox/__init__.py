@@ -82,6 +82,8 @@ from daytona.v2._gen.toolbox.models.init_request import InitRequest as InitReque
 from daytona.v2._gen.toolbox.models.is_port_in_use_response import IsPortInUseResponse as IsPortInUseResponse
 from daytona.v2._gen.toolbox.models.keep_logs import KeepLogs as KeepLogs
 from daytona.v2._gen.toolbox.models.kernel_kind import KernelKind as KernelKind
+from daytona.v2._gen.toolbox.models.kill_processes_request import KillProcessesRequest as KillProcessesRequest
+from daytona.v2._gen.toolbox.models.kill_processes_response import KillProcessesResponse as KillProcessesResponse
 from daytona.v2._gen.toolbox.models.kind import Kind as Kind
 from daytona.v2._gen.toolbox.models.list_query import ListQuery as ListQuery
 from daytona.v2._gen.toolbox.models.list_remotes_response import ListRemotesResponse as ListRemotesResponse

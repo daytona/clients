@@ -126,16 +126,21 @@ must preserve `manifestId: null` rather than optionalizing it.
   than silently recreating state.
 - Pre-signed file URLs never expose the signing key.
   `expiresInSeconds` is validated to the range 1 to 604800
-  (`SIGNED_FILE_MAX_TTL_SECONDS`) before the request. Invalid response payloads
-  such as JSON `null`, arrays or malformed objects produce the same typed 500
-  error in both SDKs. `sandbox.rotateSigningKey()` resolves `void`; outstanding
+  (`SIGNED_FILE_MAX_TTL_SECONDS`) before the request. A response payload that
+  breaks the contract (JSON `null`, an array, a malformed object) is a
+  `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) naming the field, with
+  the same message in both SDKs; so is a malformed sandbox access-token mint
+  response. `sandbox.rotateSigningKey()` resolves `void`; outstanding
   links stop working within approximately 30 seconds.
 - Errors: status-level bases → code-specific subclasses; `src/v2/codes.ts`
   is drift-tested against the committed error catalogs under `../contract/`
-  and exported as the frozen `codes` namespace. Constructors take
+  and exported as the frozen `codes` namespace. The standard errors take
   `(message, options?: ErrorOptions)`; a subclass with extra fields extends
   `ErrorOptions` (`ImageBuildFailedErrorOptions`,
-  `BuildLogInterruptedErrorOptions`). SDK-raised errors pass
+  `BuildLogInterruptedErrorOptions`), and the specialised errors that build
+  their own message take their identity positionally plus options of their
+  own (`SandboxTerminalStateError(sandboxId, state,
+  SandboxTerminalStateErrorOptions)`, `SandboxCreateRequestTimeoutError(idempotencyKey)`, …). SDK-raised errors pass
   `{ statusCode, code, source: 'SDK' }`; `createDaytonaError` dispatches a
   `(source, code)` pair and `errorOptionsFromEnvelope` maps a wire envelope.
 
@@ -214,8 +219,10 @@ response headers arrive. The Python transport implements the same rule
 (`_request_deadline`, `RequestSpec.transfer`).
 
 Every axios request goes through `boundedAdapter` (`boundedAdapter.ts`): Node's http
-adapter where the runtime has it, else the SDK's `fetchAdapter`; the response
-is opened as a stream and read by `readCappedBody` under `maxContentLength`
+adapter where the runtime has it, else the SDK's `fetchAdapter`. Every buffered
+response (any `responseType` but `'stream'`, which the caller reads itself and
+which is not capped; a file transfer cannot use it) is opened as a stream and
+read by `readCappedBody` under `maxContentLength`
 (the client's `maxResponseBytes`, or the per-call `maxContentLengthFor(...)`),
 the declared `Content-Length` checked first. Never route a request around it
 (a test that replaces `defaults.adapter` with a mock is the exception).

@@ -1690,45 +1690,75 @@ async def test_presigned_urls_surface_the_server_400_and_403_as_typed_errors(mon
 
 
 @pytest.mark.parametrize(
-    "payload",
+    ("payload", "message"),
     [
         # Parity matrix with the TS suite ('reports a malformed files/sign
-        # payload'): every non-object body and every malformed object answer
-        # the malformed-response error.
-        None,
-        {},
-        [],
-        "str",
-        {"signature": "", "expires_at": 1},
-        {"signature": "v1_x", "expires_at": 1.5},
-        {"signature": "", "expires_at": "2026-06-12T03:22:47Z"},
-        {"signature": "v1_ok"},
-        {"signature": "v1_ok", "expires_at": "not-a-date"},
-        {"signature": "v1_ok", "expires_at": "2026-06-12T03:22:47"},
-        {"signature": "v1_ok", "expires_at": "1781234567"},
-        {"signature": "v1_ok", "expires_at": True},
-        {"signature": 7, "expires_at": "2026-06-12T03:22:47Z"},
-        {"signature": "v1_ok", "expires_at": "Jan 1 2026"},
-        {"signature": "v1_ok", "expires_at": "2026-06-12T03:22:47Z\n"},
+        # payload'): a body that breaks the contract is BadRequestError naming
+        # the field, with the same message in both SDKs.
+        (None, "signed file URL response is not a JSON object"),
+        ([], "signed file URL response is not a JSON object"),
+        ("str", "signed file URL response is not a JSON object"),
+        ({}, "signed file URL response signature must be a non-empty string"),
+        (
+            {"signature": "", "expires_at": "2026-06-12T03:22:47Z"},
+            "signed file URL response signature must be a non-empty string",
+        ),
+        (
+            {"signature": 7, "expires_at": "2026-06-12T03:22:47Z"},
+            "signed file URL response signature must be a non-empty string",
+        ),
+        ({"signature": "v1_ok"}, "signed file URL response expires_at must be an RFC 3339 timestamp"),
+        (
+            {"signature": "v1_ok", "expires_at": 1781234567},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": "invalid"},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": "2026-06-12T03:22:47"},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": True},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_x", "expires_at": 1.5},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": "1781234567"},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": "Jan 1 2026"},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": "2026-06-12T03:22:47Z\n"},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
     ],
 )
 @pytest.mark.anyio
-async def test_presigned_urls_reject_a_malformed_sign_payload(monkeypatch, payload):
+async def test_presigned_urls_reject_a_malformed_sign_payload(monkeypatch, payload, message):
     sandbox, _ = _presigned_sandbox(monkeypatch, [payload])
 
-    with pytest.raises(BadRequestError, match="expected signed file URL response") as info:
+    with pytest.raises(BadRequestError) as info:
         await sandbox.fs.presigned_download_url("/tmp/demo.txt")
+    assert str(info.value) == message
     assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 @pytest.mark.anyio
 async def test_presigned_urls_reject_a_null_sign_body(monkeypatch):
     # JSON ``null`` decodes to None; the raw body reaches the payload parser,
-    # which answers the same malformed-response error the TS SDK raises —
-    # never the transport's "expected JSON object" guard.
+    # which names it as the TS SDK does.
     sandbox, _ = _presigned_sandbox(monkeypatch, [None])
 
-    with pytest.raises(BadRequestError, match="expected signed file URL response") as info:
+    with pytest.raises(BadRequestError, match="signed file URL response is not a JSON object") as info:
         await sandbox.fs.presigned_download_url("/f.txt")
     assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
 
@@ -3241,6 +3271,8 @@ async def test_client_identity_headers_match_the_v0_sdk_triple_for_sync_and_asyn
         "X-Daytona-Source": "sdk-python",
         "X-Daytona-SDK-Version": SDK_VERSION,
         "User-Agent": f"sdk-python/{SDK_VERSION}",
+        # Only the encodings the capped readers decode in bounded steps.
+        "Accept-Encoding": "gzip, deflate",
     }
     sync_transport = SyncTransport("http://api.invalid")
     async_transport = AsyncTransport("http://api.invalid")
@@ -3250,6 +3282,8 @@ async def test_client_identity_headers_match_the_v0_sdk_triple_for_sync_and_asyn
         assert async_transport._client.headers["x-daytona-source"] == "sdk-python-async"
         assert async_transport._client.headers["x-daytona-sdk-version"] == SDK_VERSION
         assert async_transport._client.headers["user-agent"] == f"sdk-python-async/{SDK_VERSION}"
+        assert sync_transport._client.headers["accept-encoding"] == "gzip, deflate"
+        assert async_transport._client.headers["accept-encoding"] == "gzip, deflate"
     finally:
         sync_transport.close()
         await async_transport.close()
@@ -9094,7 +9128,9 @@ async def test_open_stream_closes_stream_context_when_error_body_read_fails():
             self.request = httpx.Request("GET", "http://api.invalid/fail")
             self.headers = httpx.Headers()
 
-        def iter_bytes(self) -> Iterator[bytes]:
+        is_stream_consumed = False
+
+        def iter_raw(self) -> Iterator[bytes]:
             raise httpx.ReadError("broken body", request=self.request)
 
         def close(self) -> None:

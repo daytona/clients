@@ -134,6 +134,12 @@ describe('JSON response bodies', () => {
     expect(caught).toBeInstanceOf(NotFoundError)
     expect(caught).toMatchObject(tooDeep)
 
+    // A file transfer reads its error body through the bounded adapter: the same rule.
+    const transfer = await fs('errdeep601').readBytes('/a').then(() => undefined, (error: unknown) => error)
+    expect(transfer).toBeInstanceOf(NotFoundError)
+    expect(transfer).toMatchObject(tooDeep)
+    await expect(fs('errdeep600').readBytes('/a')).rejects.toMatchObject({ statusCode: 404, code: 'FILE_NOT_FOUND' })
+
     const fetched = (body: string) => errorFromFetchResponse(new Response(String(BODIES[body]), { status: 404, headers: { 'Content-Type': 'application/json' } }))
     await expect(fetched('errdeep600')).resolves.toMatchObject({ statusCode: 404, code: 'FILE_NOT_FOUND' })
     const fromFetch = await fetched('errdeep601')

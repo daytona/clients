@@ -143,6 +143,18 @@ describe('option keys', () => {
     expectBadRequest(() => new Daytona(value as never), `DaytonaConfig must be an options object, got ${given}`)
   })
 
+  it('refuses an enumerable symbol key, own or inherited, like an unknown key', () => {
+    const keys = optionKeys<{ readonly create?: boolean }>()({ create: true })
+    const own = { create: true, [Symbol('extra')]: 1 }
+    expectBadRequest(() => assertKnownOptions('VolumeGetOptions', own as never, keys), 'VolumeGetOptions has no option `Symbol(extra)`')
+    expectBadRequest(() => assertKnownOptions('VolumeGetOptions', Object.create({ [Symbol('inherited')]: 1 }) as never, keys), 'VolumeGetOptions has no option `Symbol(inherited)`')
+    expectBadRequest(() => new Daytona({ apiKey: 'k', [Symbol('extra')]: 1 } as never), 'DaytonaConfig has no option `Symbol(extra)`')
+    expectBadRequest(() => new Daytona({ apiKey: 'k', events: { [Symbol('extra')]: 1 } } as never), 'SandboxEventsConfig has no option `Symbol(extra)`')
+    // A non-enumerable symbol is not an option.
+    const hidden = Object.defineProperty({ create: true }, Symbol('hidden'), { value: 1, enumerable: false })
+    expect(() => assertKnownOptions('VolumeGetOptions', hidden as never, keys)).not.toThrow()
+  })
+
   it('accepts class instances and prototype-based options objects', () => {
     class Options { public create = true }
     const keys = optionKeys<{ readonly create?: boolean }>()({ create: true })
@@ -404,15 +416,16 @@ describe('request timeout meaning', () => {
   })
 
   it('does not cut file transfers that keep moving bytes', async () => {
-    // 300 ms in all, a byte every 50 ms: past the 100 ms request timeout,
-    // inside the transfer idle bound (tests/transfer-bounds.test.ts).
-    const transport = new HttpTransport(base, 'k', 100)
+    // A byte every 20 ms for 800 ms: more than three times the 250 ms request
+    // timeout in all, while each gap stays a twelfth of the transfer idle
+    // bound, so a loaded runner keeps a wide margin (tests/transfer-bounds.test.ts).
+    const transport = new HttpTransport(base, 'k', 250)
     const fs = new FileSystemService(INTERNAL, transport)
-    handle = trickle(6, 50)
-    expect(new TextDecoder().decode(await fs.readBytes('/a'))).toBe('xxxxxx')
+    handle = trickle(40, 20)
+    expect(new TextDecoder().decode(await fs.readBytes('/a'))).toBe('x'.repeat(40))
     await expect(fs.writeBytes('/a', new Uint8Array([1, 2, 3]))).resolves.toBeUndefined()
     const response = await transport.fetch('/files/download?path=%2Fa', { transfer: true })
-    expect(await response.text()).toBe('xxxxxx')
+    expect(await response.text()).toBe('x'.repeat(40))
     await expect(transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: 'data', transfer: true })).resolves.toMatchObject({ status: 200 })
   })
 

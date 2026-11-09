@@ -11,10 +11,14 @@ tests/transfer-bounds.test.ts holds its transports to the same rules.
 from __future__ import annotations
 
 import contextlib
+import functools
+import gzip
 import http.server
 import socket
 import threading
 import time
+import tracemalloc
+import zlib
 from pathlib import Path
 from typing import AsyncIterator, Callable, Iterator
 
@@ -24,7 +28,13 @@ import pytest
 from _handles import lazy_sandbox
 
 from daytona import AsyncDaytona, Daytona, DaytonaConfig
-from daytona.v2 import BadRequestError, ClientTimeoutError, NotFoundError, PayloadTooLargeError
+from daytona.v2 import (
+    BadRequestError,
+    ClientTimeoutError,
+    FileNotFoundError,
+    NotFoundError,
+    PayloadTooLargeError,
+)
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport
 
@@ -216,6 +226,34 @@ async def test_a_transfer_that_keeps_moving_bytes_outlasts_the_idle_bound(tmp_pa
             assert await sandbox.computer_use.recording.download("rec") == b"x" * 12
             await sandbox.fs.download_file("/a", tmp_path / "out.bin")
             assert (tmp_path / "out.bin").read_bytes() == b"x" * 12
+        finally:
+            await root.close()
+
+
+@pytest.mark.anyio
+async def test_a_transfers_moving_error_body_outlasts_the_idle_bound() -> None:
+    # A 404 whose body trickles 12 chunks 0.2 s apart, as the TypeScript suite's.
+    body = b'{"code":"FILE_NOT_FOUND","message":"gone","source":"DAYTONA_DAEMON"}'.ljust(72)
+
+    def handle(request: http.server.BaseHTTPRequestHandler) -> None:
+        _drain(request)
+        _send_head(request, 404, Content_Type="application/json", Content_Length=str(len(body)))
+        for start in range(0, len(body), 6):
+            time.sleep(0.2)
+            request.wfile.write(body[start : start + 6])
+            request.wfile.flush()
+
+    with _server({"/files/download": handle}) as base:
+        root = _client(base, request_timeout=IDLE)
+        try:
+            sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+            with pytest.raises(FileNotFoundError) as caught:
+                await sandbox.fs.read_bytes("/a")
+            assert (caught.value.status_code, caught.value.code, str(caught.value)) == (
+                404,
+                "FILE_NOT_FOUND",
+                "gone",
+            )
         finally:
             await root.close()
 
@@ -487,6 +525,61 @@ async def test_the_events_hub_is_capped_by_the_client_limit(
             await root.close()
 
 
+@pytest.mark.anyio
+async def test_clients_with_different_limits_get_their_own_shared_hub(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    big = b'{"id":"sbx","status":"started","pad":"' + b"p" * 4000 + b'"}'
+    token = b'{"access_token":"t","expires_in":3600}'
+    routes: dict[str, Handler] = {
+        "/auth/token": lambda r: (_drain(r), _json(r, token)),  # type: ignore[func-returns-value]
+        "/sandboxes": lambda r: (_drain(r), _json(r, big)),  # type: ignore[func-returns-value]
+    }
+    with _server(routes) as base:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", base)
+        tight = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=1000))
+        roomy = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=100_000))
+        twin = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=1000))
+        jwt_a = AsyncDaytona(DaytonaConfig(jwt_token="j", project_id="p", request_timeout=5))
+        jwt_b = AsyncDaytona(DaytonaConfig(jwt_token="j", project_id="p", request_timeout=9))
+        try:
+            hubs = [client.v2._acquire_hub() for client in (tight, roomy, twin, jwt_a, jwt_b)]  # type: ignore[attr-defined]
+            # Same credentials, same limits: one hub; a different cap or token
+            # exchange timeout: a hub of its own.
+            assert hubs[0] is hubs[2]
+            assert hubs[0] is not hubs[1]
+            assert hubs[3] is not hubs[4]
+            assert hubs[3]._api._auth._request_timeout == 5
+            assert hubs[4]._api._auth._request_timeout == 9
+            with pytest.raises(PayloadTooLargeError):
+                await hubs[0]._api.send(RequestSpec("GET", "/sandboxes/sbx"))
+            assert isinstance(await hubs[1]._api.send(RequestSpec("GET", "/sandboxes/sbx")), dict)
+        finally:
+            for client in (tight, roomy, twin, jwt_a, jwt_b):
+                await client.close()
+
+
+@pytest.mark.parametrize(
+    ("declared", "too_large"),
+    [
+        ("9" * 5000, True),  # past int()'s digit limit: over any cap, not a ValueError
+        ("1001", True),
+        ("01001", True),
+        ("1000", False),
+        ("0999", False),
+        ("", False),
+        ("12x", False),
+        ("1\u00b2", False),  # a non-ASCII digit (isdigit() accepts it) is not a declared length
+    ],
+)
+def test_a_declared_length_is_compared_without_converting_it(declared: str, too_large: bool) -> None:
+    from daytona.v2._body_limit import _declared_too_large
+
+    response = httpx.Response(200, headers={"content-length": declared.encode("latin-1")} if declared else {})
+    assert _declared_too_large(response, 1000) is too_large
+    assert _declared_too_large(response, 0) is False
+
+
 def test_a_single_chunk_past_the_cap_is_never_buffered() -> None:
     from daytona.v2._body_limit import read_body, read_body_sync
 
@@ -503,10 +596,12 @@ def test_a_single_chunk_past_the_cap_is_never_buffered() -> None:
         status_code = 200
         headers = httpx.Headers()
 
-        def iter_bytes(self) -> Iterator[Unbufferable]:
+        is_stream_consumed = False
+
+        def iter_raw(self) -> Iterator[Unbufferable]:
             yield Unbufferable()
 
-        async def aiter_bytes(self) -> AsyncIterator[Unbufferable]:
+        async def aiter_raw(self) -> AsyncIterator[Unbufferable]:
             yield Unbufferable()
 
         def close(self) -> None:
@@ -581,3 +676,159 @@ def test_the_sync_client_caps_buffered_bodies_too() -> None:
         assert time.monotonic() - started < 2
         with pytest.raises(PayloadTooLargeError):
             sandbox.fs.read_bytes("/a", max_response_bytes=500)
+
+
+# --- compressed bodies --------------------------------------------------------
+
+_BOMB_SIZE = 32 << 20  # decoded: 32 MiB of zeros, a few dozen KiB on the wire
+_CAP = 64 * 1024
+
+
+@functools.cache
+def _bomb(encoding: str) -> bytes:
+    zeros = bytes(_BOMB_SIZE)
+    return gzip.compress(zeros, 9) if encoding == "gzip" else zlib.compress(zeros, 9)
+
+
+def _encoded(payload: bytes, encoding: str, status: int = 200, seen: list[str] | None = None) -> Handler:
+    def handle(request: http.server.BaseHTTPRequestHandler) -> None:
+        if seen is not None:
+            seen.append(request.headers.get("Accept-Encoding", ""))
+        _drain(request)
+        _send_head(
+            request,
+            status,
+            Content_Type="application/octet-stream",
+            Content_Encoding=encoding,
+            Content_Length=str(len(payload)),
+        )
+        request.wfile.write(payload)
+
+    return handle
+
+
+@contextlib.contextmanager
+def _decoded_pieces() -> Iterator[list[int]]:
+    """The size of every decoded piece the capped reader keeps or refuses."""
+    from daytona.v2 import _body_limit
+
+    sizes: list[int] = []
+    original = _body_limit._Collector._keep
+
+    def keep(self: _body_limit._Collector, piece: bytes) -> None:
+        sizes.append(len(piece))
+        original(self, piece)
+
+    _body_limit._Collector._keep = keep  # type: ignore[method-assign]
+    try:
+        yield sizes
+    finally:
+        _body_limit._Collector._keep = original  # type: ignore[method-assign]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("encoding", ["gzip", "deflate"])
+async def test_a_compressed_body_past_the_cap_is_refused_without_decoding_past_it(encoding: str) -> None:
+    from daytona.v2._body_limit import DECODE_STEP
+
+    bomb = _bomb(encoding)
+    assert len(bomb) < _CAP  # the wire length passes the declared-length check
+    with _server({"/files/download": _encoded(bomb, encoding)}) as base:
+        transport = AsyncTransport(base, "t", request_timeout=10, max_response_bytes=_CAP)
+        try:
+            with _decoded_pieces() as sizes:
+                tracemalloc.start()
+                try:
+                    with pytest.raises(PayloadTooLargeError):
+                        await transport.raw(RequestSpec("GET", "/files/download"))
+                    _, peak = tracemalloc.get_traced_memory()
+                finally:
+                    tracemalloc.stop()
+            # No decoded piece is larger than one bounded step, the kept bytes
+            # never pass the cap, and memory stays far below the decoded size.
+            assert max(sizes) <= DECODE_STEP
+            assert sum(sizes[:-1]) <= _CAP
+            assert peak < 8 << 20
+        finally:
+            await transport.close()
+
+
+def test_the_sync_client_refuses_a_compressed_body_past_the_cap_too() -> None:
+    from daytona.v2._body_limit import DECODE_STEP
+
+    with (
+        _server({"/files/download": _encoded(_bomb("gzip"), "gzip")}) as base,
+        Daytona(DaytonaConfig(api_key="k", max_response_bytes=_CAP)) as root,
+    ):
+        sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+        with _decoded_pieces() as sizes, pytest.raises(PayloadTooLargeError):
+            sandbox.fs.read_bytes("/a")
+        assert max(sizes) <= DECODE_STEP
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("encoding", ["gzip", "deflate", "x-gzip"])
+async def test_a_compressed_body_under_the_cap_decodes(encoding: str) -> None:
+    payload = b"daytona " * 50_000  # 400 KB decoded: several bounded steps
+    wire = zlib.compress(payload) if encoding == "deflate" else gzip.compress(payload)
+    raw_deflate = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+    raw = raw_deflate.compress(payload) + raw_deflate.flush()
+    routes: dict[str, Handler] = {
+        "/files/download": _encoded(wire, encoding),
+        "/raw": _encoded(raw, "deflate"),
+    }
+    with _server(routes) as base:
+        root = _client(base, max_response_bytes=len(payload))
+        try:
+            sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+            assert await sandbox.fs.read_bytes("/a") == payload
+            # Exactly at the cap is fine; a byte under it is refused.
+            with pytest.raises(PayloadTooLargeError):
+                await sandbox.fs.read_bytes("/a", max_response_bytes=len(payload) - 1)
+            # A deflate body without its zlib header decodes too, as httpx accepts.
+            assert await sandbox._toolbox.raw(RequestSpec("GET", "/raw")) == payload  # type: ignore[attr-defined]
+        finally:
+            await root.close()
+
+
+@pytest.mark.anyio
+async def test_an_error_status_with_a_compressed_body_past_the_cap_keeps_its_typed_error() -> None:
+    with _server({"/files/download": _encoded(_bomb("gzip"), "gzip", status=404)}) as base:
+        root = _client(base, max_response_bytes=_CAP)
+        try:
+            sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+            with _decoded_pieces() as sizes, pytest.raises(NotFoundError, match="too large to read"):
+                await sandbox.fs.read_bytes("/a")
+            assert sum(sizes[:-1]) <= _CAP
+        finally:
+            await root.close()
+
+
+@pytest.mark.anyio
+async def test_only_bounded_encodings_are_asked_for_and_any_other_is_refused_undecoded() -> None:
+    seen: list[str] = []
+    routes: dict[str, Handler] = {
+        "/files/download": _encoded(b"\x00" * 16, "br", seen=seen),
+        "/missing": _encoded(b"\x00" * 16, "br", status=404, seen=seen),
+        "/twice": _encoded(gzip.compress(gzip.compress(b"x")), "gzip, gzip", seen=seen),
+    }
+    with _server(routes) as base:
+        transport = AsyncTransport(base, "t", request_timeout=10)
+        try:
+            with pytest.raises(BadRequestError, match="unrequested content encoding: br") as caught:
+                await transport.raw(RequestSpec("GET", "/files/download"))
+            assert (caught.value.status_code, caught.value.code, caught.value.source) == (
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+            with pytest.raises(NotFoundError, match="unrequested content encoding: br"):
+                await transport.raw(RequestSpec("GET", "/missing"))
+            with pytest.raises(BadRequestError, match="unrequested content encoding: gzip, gzip"):
+                await transport.raw(RequestSpec("GET", "/twice"))
+            # A caller (or an injected client) asking for more is narrowed.
+            with pytest.raises(BadRequestError):
+                await transport.request("GET", "/files/download", headers={"Accept-Encoding": "br, gzip"})
+        finally:
+            await transport.close()
+    assert seen == ["gzip, deflate"] * 4

@@ -524,13 +524,21 @@ skipping exist only in the TypeScript tool).
   **Every response body the SDK buffers whole is capped**, through both
   transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,
   error bodies): `max_response_bytes` / `maxResponseBytes` on the client
-  config (default 1 GiB, `0` = no limit, an integer up to 2^53 − 1) and per
-  call on the in-memory reads (`read_bytes` / `readBytes`, `read_text` /
+  config (an integer up to 2^53 − 1; Python `None` / TypeScript `undefined`
+  or `null` keep the 1 GiB default, `0` means no limit, any other value is a
+  `BadRequestError`) and per call on the in-memory reads (the same values;
+  unset keeps the client's cap): `read_bytes` / `readBytes`, `read_text` /
   `readText`, `read_many` / `readMany` (the whole multipart body), the
-  recording download). A declared `Content-Length` over the cap is refused
+  recording download. A declared `Content-Length` over the cap is refused
   before the body is read, otherwise reading stops once it passes, and the
   connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
-  `readFetchText`). A refused success response is `PayloadTooLargeError`
+  `readFetchText`). A compressed body never decodes past the cap in memory:
+  Python reads the wire bytes and decodes gzip / deflate itself in 64 KiB
+  steps, asks only for those (`Accept-Encoding: gzip, deflate`) and refuses
+  any other encoding undecoded; in TypeScript the runtime decodes the body as
+  a stream (Node's zlib streams and Node's `fetch` yield 16 KiB chunks, which
+  `tests/transfer-bounds.test.ts` checks on both adapters), and each chunk is
+  checked before it is kept. A refused success response is `PayloadTooLargeError`
   (413, `PAYLOAD_TOO_LARGE`, `SDK`); an error response keeps its status's
   error. TypeScript sends every axios request through `boundedAdapter`:
   Node's http adapter where the runtime has it, else its own `fetchAdapter`
@@ -573,14 +581,15 @@ skipping exist only in the TypeScript tool).
   list misses a key of `T` or names one `T` lacks), and its entry point calls
   `assertKnownOptions('TypeName', options, KEYS)` (or `snapshotOptions`, which
   also copies it), which throws `BadRequestError` (400, `BAD_REQUEST`, source
-  `SDK`) naming the key; inherited enumerable keys count, and a value that is
+  `SDK`) naming the key; inherited enumerable keys count (symbol keys too), and a value that is
   not an options object (`null`, a boolean, an array: an older positional
   argument; a built-in such as a `Date` or a `Map`) is refused (the root
   constructor alone reads `null` as no configuration, as Python does `None`). A key in
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
   `requestTimeout`, the 0.x `requestTimeoutMs`, `delay`, `reconcileIntervalMs`,
   `idleCloseMs`) whose replacement is
-  a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
+  a known key gets a message naming both, for `timeout`: "`timeout` was
+  renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
   so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`)
@@ -610,7 +619,8 @@ skipping exist only in the TypeScript tool).
   I/O and protocol failures carry the source only. A response that breaks the
   contract in a field the SDK reads or returns is `BadRequestError` 400
   `BAD_REQUEST` `SDK` naming the field (fields it neither reads nor returns,
-  such as a pre-signed URL response's `url`, are not checked; known
+  such as a pre-signed URL response's `url`, are not checked; the sandbox
+  access-token mint and the pre-signed file URL follow the rule; known
   exceptions to the rule at this point, which still raise
   `InternalServerError` 500 with no code: network policy and sandbox
   secrets, until their areas adopt it). Python callers should not star-import
@@ -628,6 +638,12 @@ skipping exist only in the TypeScript tool).
   lives in exactly one place per SDK (`signal_spec` / `signalWire`), and wait
   results and process metadata strip the prefix on the way back
   (`bare_signal` / `bareSignal`).
+- **Process tags are checked before any request.** A `tag` (every create,
+  `list()`, `kill_all()` / `killAll()`) is a safe identifier
+  (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`; Python
+  `process_tag`, TS `processTag`); the kill timeout is seconds, more than 0
+  and at most 60 (Python `timeout`, TS `timeoutSeconds`): the toolbox takes
+  1-60000 ms and has no unbounded wait, so no value means "no limit".
 - **Process results report what the sandbox reported.** `WaitResult` (and
   `ProcessResult`, `InterpreterProcess`, which extend it) always has a
   normalized `reason` (`unknown` + `raw_reason` / `rawReason` for an unlisted

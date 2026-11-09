@@ -17,6 +17,7 @@
  */
 
 import { badRequest } from './options.js'
+import { BodyBuffer } from './bodyBuffer.js'
 
 /** The default cap on a buffered response body: 1 GiB. */
 export const DEFAULT_MAX_RESPONSE_BYTES = 1_073_741_824
@@ -76,16 +77,6 @@ function chunkBytes(chunk: unknown): Uint8Array {
   return new Uint8Array(0)
 }
 
-function concat(chunks: readonly Uint8Array[], size: number): Uint8Array {
-  if (chunks.length === 1) return chunks[0]
-  const out = new Uint8Array(size)
-  let offset = 0
-  for (const chunk of chunks) {
-    out.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return out
-}
 
 /** A declared `Content-Length` (header value) above `limit`. */
 export function declaresMoreThan(contentLength: unknown, limit: number): boolean {
@@ -109,13 +100,11 @@ export interface ReadHooks {
  * connection) and throws {@link BodyTooLarge}; on any other failure it
  * cancels it too and rethrows.
  */
-export async function readCappedBody(data: unknown, limit: number, hooks: ReadHooks = {}, release?: () => void): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = []
-  let size = 0
+export async function readCappedBody(data: unknown, limit: number, hooks: ReadHooks = {}, release?: () => void, declaredLength?: number): Promise<Uint8Array> {
+  // Allocated once when the length is declared (see BodyBuffer for the peak).
+  const body = new BodyBuffer(limit, declaredLength)
   const add = (chunk: Uint8Array): void => {
-    size += chunk.byteLength
-    if (limit > 0 && size > limit) throw new BodyTooLarge(limit)
-    chunks.push(chunk)
+    if (!body.add(chunk)) throw new BodyTooLarge(limit)
   }
   if (isNodeReadable(data)) {
     const iterator = data[Symbol.asyncIterator]()
@@ -132,7 +121,7 @@ export async function readCappedBody(data: unknown, limit: number, hooks: ReadHo
       release?.()
       throw error
     }
-    return concat(chunks, size)
+    return collected(body, limit)
   }
   if (isWebStream(data)) {
     const reader = data.getReader()
@@ -151,11 +140,11 @@ export async function readCappedBody(data: unknown, limit: number, hooks: ReadHo
     } finally {
       reader.releaseLock()
     }
-    return concat(chunks, size)
+    return collected(body, limit)
   }
   if (data === undefined || data === null || data === '') return new Uint8Array(0)
   add(chunkBytes(data))
-  return concat(chunks, size)
+  return collected(body, limit)
 }
 
 /**
@@ -194,6 +183,13 @@ export async function discardBody(data: unknown, release?: () => void): Promise<
   if (isNodeReadable(data)) data.destroy()
   else if (isWebStream(data)) await data.cancel().catch(() => undefined)
   release?.()
+}
+
+/** The collected bytes, or `BodyTooLarge` when the runtime cannot hold them. */
+function collected(body: BodyBuffer, limit: number): Uint8Array {
+  const bytes = body.bytes()
+  if (bytes === undefined) throw new BodyTooLarge(limit)
+  return bytes
 }
 
 /**

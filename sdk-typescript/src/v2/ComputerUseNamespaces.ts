@@ -352,17 +352,20 @@ export class RecordingService {
    * no total deadline, but it fails with `ClientTimeoutError` once no bytes
    * move for the request timeout (a request timeout of `0` leaves it
    * unbounded). `maxResponseBytes` replaces the client's cap on the body for
-   * this call (an integer, `0` = no limit; `undefined` / `null` keep the
-   * client's); a larger recording is refused with `PayloadTooLargeError`. For
-   * a large recording, or one from a sandbox you do not trust, download its
-   * `filePath` with `sandbox.fs.downloadFile()` (Node.js-only), which streams
-   * to disk with progress and cancellation.
+   * this call (`undefined` or `null` keep the client's cap, `0` means no
+   * limit, and any other value (negative, fractional, boolean, string, above
+   * `Number.MAX_SAFE_INTEGER`) is a `BadRequestError`); a larger recording is
+   * refused with `PayloadTooLargeError`. For a large recording, or one from a
+   * sandbox you do not trust, download its `filePath` with
+   * `sandbox.fs.downloadFile()` (Node.js-only), which streams to disk with
+   * progress and cancellation.
    */
   public async download(id: string, options?: RecordingDownloadOptions): Promise<Uint8Array> {
     assertKnownOptions('RecordingDownloadOptions', options, RECORDING_DOWNLOAD_OPTION_KEYS)
     const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes)
     const path = `/computeruse/recordings/${toolboxPathId(id, 'recording id')}/download`
-    return new Uint8Array(await this.transport.getBytes(path, maxResponseBytes === undefined ? undefined : { maxResponseBytes }))
+    // The one-argument call unless this call overrides the client's cap.
+    return new Uint8Array(await (maxResponseBytes === undefined ? this.transport.getBytes(path) : this.transport.getBytes(path, { maxResponseBytes })))
   }
 
   public async delete(id: string): Promise<void> {

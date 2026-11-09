@@ -48,14 +48,15 @@ class CreateProcessRequest(BaseModel):
     language: Optional[StrictStr] = Field(default=None, description="Code language such as `python`, `typescript`, or `javascript`.")
     login: Optional[StrictBool] = Field(default=None, description="Whether to request a login shell.")
     name: Optional[StrictStr] = Field(default=None, description="Optional live-only alias. Must be a safe identifier.")
-    session_id: Optional[StrictStr] = Field(default=None, description="The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true` and `user` (the session's settings apply). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in.", alias="sessionId")
+    session_id: Optional[StrictStr] = Field(default=None, description="The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true`, `user` and `tag` (the session's settings apply; the command takes the session's tag). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in.", alias="sessionId")
     shell: Optional[StrictStr] = Field(default=None, description="Requested shell path or shell name. For `kind=session` on Linux and macOS it must be a POSIX shell (bash, sh, dash, zsh, ksh): the session answers 400 `PROCESS_START_FAILED` when the shell does not run POSIX commands within 5 s of starting.")
     shell_command: Optional[StrictStr] = Field(default=None, description="Shell command to execute.", alias="shellCommand")
     stdin: Optional[StdinMode] = None
+    tag: Optional[StrictStr] = Field(default=None, description="Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag.")
     terminal: Optional[TerminalSize] = None
     timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Per-process timeout in milliseconds. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.", alias="timeoutMs")
     user: Optional[StrictStr] = Field(default=None, description="Optional execution user. Not supported for `kind=code`; returns 400 `UNSUPPORTED_OPERATION`.")
-    __properties: ClassVar[List[str]] = ["argv", "code", "cwd", "env", "keepLogs", "kind", "language", "login", "name", "sessionId", "shell", "shellCommand", "stdin", "terminal", "timeoutMs", "user"]
+    __properties: ClassVar[List[str]] = ["argv", "code", "cwd", "env", "keepLogs", "kind", "language", "login", "name", "sessionId", "shell", "shellCommand", "stdin", "tag", "terminal", "timeoutMs", "user"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -156,6 +157,11 @@ class CreateProcessRequest(BaseModel):
         if self.stdin is None and "stdin" in self.model_fields_set:
             _dict['stdin'] = None
 
+        # set to None if tag (nullable) is None
+        # and model_fields_set contains the field
+        if self.tag is None and "tag" in self.model_fields_set:
+            _dict['tag'] = None
+
         # set to None if terminal (nullable) is None
         # and model_fields_set contains the field
         if self.terminal is None and "terminal" in self.model_fields_set:
@@ -196,6 +202,7 @@ class CreateProcessRequest(BaseModel):
             **({"shell": obj["shell"]} if "shell" in obj else {}),
             **({"shellCommand": obj["shellCommand"]} if "shellCommand" in obj else {}),
             **({"stdin": obj["stdin"]} if "stdin" in obj else {}),
+            **({"tag": obj["tag"]} if "tag" in obj else {}),
             **({"terminal": TerminalSize.from_dict(obj["terminal"]) if obj["terminal"] is not None else None} if "terminal" in obj else {}),
             **({"timeoutMs": obj["timeoutMs"]} if "timeoutMs" in obj else {}),
             **({"user": obj["user"]} if "user" in obj else {})

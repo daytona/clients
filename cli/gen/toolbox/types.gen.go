@@ -940,16 +940,19 @@ type CreateProcessRequest struct {
 	// Name Optional live-only alias. Must be a safe identifier.
 	Name *string `json:"name,omitempty"`
 
-	// SessionId The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true` and `user` (the session's settings apply). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in.
+	// SessionId The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true`, `user` and `tag` (the session's settings apply; the command takes the session's tag). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in.
 	SessionId *string `json:"sessionId,omitempty"`
 
 	// Shell Requested shell path or shell name. For `kind=session` on Linux and macOS it must be a POSIX shell (bash, sh, dash, zsh, ksh): the session answers 400 `PROCESS_START_FAILED` when the shell does not run POSIX commands within 5 s of starting.
 	Shell *string `json:"shell,omitempty"`
 
 	// ShellCommand Shell command to execute.
-	ShellCommand *string       `json:"shellCommand,omitempty"`
-	Stdin        *StdinMode    `json:"stdin,omitempty"`
-	Terminal     *TerminalSize `json:"terminal,omitempty"`
+	ShellCommand *string    `json:"shellCommand,omitempty"`
+	Stdin        *StdinMode `json:"stdin,omitempty"`
+
+	// Tag Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag.
+	Tag      *string       `json:"tag,omitempty"`
+	Terminal *TerminalSize `json:"terminal,omitempty"`
 
 	// TimeoutMs Per-process timeout in milliseconds. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.
 	TimeoutMs *int64 `json:"timeoutMs,omitempty"`
@@ -1122,7 +1125,7 @@ type InfoResponse struct {
 	// BuildTime Toolbox build time in RFC 3339 UTC, or `unknown` when unavailable. May be omitted.
 	BuildTime *string `json:"buildTime,omitempty"`
 
-	// UserHomeDir Home directory of the configured default user. Omitted when no user or home directory is available.
+	// UserHomeDir Home directory of the configured default user; omitted when that user cannot be resolved. Without a configured default user, the toolbox's own home directory.
 	UserHomeDir *string `json:"userHomeDir,omitempty"`
 
 	// Version Platform release version, for example `2.0.0-alpha.1`; `0.0.0-dev` when unavailable. Distinct from the toolbox build identifier returned by `GET /version`.
@@ -1153,6 +1156,21 @@ type KeepLogs string
 
 // KernelKind Interpreter language. `/sessions` creates interpreter contexts; shell sessions are `kind=session` processes on `/processes`.
 type KernelKind string
+
+// KillProcessesRequest `POST /processes:kill` request body.
+type KillProcessesRequest struct {
+	// Tag The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`).
+	Tag string `json:"tag"`
+
+	// TimeoutMs How long to wait for every killed process to exit, in milliseconds. 1-60000; default 10000.
+	TimeoutMs *int64 `json:"timeoutMs,omitempty"`
+}
+
+// KillProcessesResponse `POST /processes:kill` response body.
+type KillProcessesResponse struct {
+	// ProcessIds The tagged processes that were still running when the call started, and exited tagged processes that still had descendants running. Every one of them, and everything it started, has exited. Processes whose records were deleted or expired are killed too but not listed, so an empty list does not mean nothing was stopped.
+	ProcessIds []string `json:"processIds"`
+}
 
 // Kind What kind of process the API should run.
 type Kind string
@@ -1303,7 +1321,10 @@ type ProcessDto struct {
 	Stdin StdinMode `json:"stdin"`
 
 	// System Whether this is a protected system process.
-	System   *bool         `json:"system,omitempty"`
+	System *bool `json:"system,omitempty"`
+
+	// Tag The tag the process was created with, omitted when it has none. A command run in a session carries the session's tag. Never changes.
+	Tag      *string       `json:"tag,omitempty"`
 	Terminal *TerminalSize `json:"terminal,omitempty"`
 
 	// TimeoutMs Process timeout in milliseconds, omitted when unset.
@@ -1407,7 +1428,10 @@ type ProcessRecord struct {
 	Stdin StdinMode `json:"stdin"`
 
 	// System Whether this is a protected system process.
-	System   *bool         `json:"system,omitempty"`
+	System *bool `json:"system,omitempty"`
+
+	// Tag The tag the process was created with, omitted when it has none. A command run in a session carries the session's tag. Never changes.
+	Tag      *string       `json:"tag,omitempty"`
 	Terminal *TerminalSize `json:"terminal,omitempty"`
 
 	// TimeoutMs Process timeout in milliseconds, omitted when unset.
@@ -1924,6 +1948,9 @@ type ListProcessesParams struct {
 
 	// Pid Filter by OS process id.
 	Pid *int32 `form:"pid,omitempty" json:"pid,omitempty"`
+
+	// Tag Filter by tag.
+	Tag *string `form:"tag,omitempty" json:"tag,omitempty"`
 }
 
 // CreateProcessParams defines parameters for CreateProcess.
@@ -2084,6 +2111,9 @@ type ProcessSignalsJSONRequestBody = SignalRequest
 
 // ProcessStdinJSONRequestBody defines body for ProcessStdin for application/json ContentType.
 type ProcessStdinJSONRequestBody = StdinRequest
+
+// KillProcessesJSONRequestBody defines body for KillProcesses for application/json ContentType.
+type KillProcessesJSONRequestBody = KillProcessesRequest
 
 // CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
 type CreateSessionJSONRequestBody = CreateSessionRequest

@@ -2419,6 +2419,40 @@ def test_an_error_body_nested_past_the_limit_keeps_only_its_status(depth: int, r
         )
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize(("depth", "readable"), [(600, True), (601, False)])
+async def test_a_transfer_error_body_nested_past_the_limit_keeps_only_its_status(
+    depth: int, readable: bool
+) -> None:
+    # A file transfer reads its error body through the bounded reader: the same rule.
+    import httpx
+
+    from daytona.v2._transport import AsyncTransport
+    from daytona.v2.errors import NotFoundError
+    from daytona.v2.filesystem import AsyncFileSystemService
+
+    nest = depth - 1
+    body = ('{"code":"FILE_NOT_FOUND","message":"gone","details":' + "[" * nest + "]" * nest + "}").encode()
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(404, content=body, headers={"Content-Type": "application/json"})
+        )
+    )
+    transport = AsyncTransport("http://toolbox.invalid", client=client)
+    try:
+        with pytest.raises(NotFoundError) as info:
+            await AsyncFileSystemService(transport).read_bytes("/a")
+    finally:
+        await client.aclose()
+    if readable:
+        assert (info.value.code, str(info.value)) == ("FILE_NOT_FOUND", "gone")
+    else:
+        assert (info.value.code, str(info.value)) == (
+            None,
+            "HTTP 404: the response body was nested too deeply to read (over 600 levels of JSON)",
+        )
+
+
 def test_a_256_level_accessibility_tree_decodes_from_json() -> None:
     from daytona.v2._core import parse_json_bytes
     from daytona.v2.computer_use_core import parse_computer_use_a11y_tree_payload

@@ -52,7 +52,7 @@ from ._core import (
 )
 from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
-from .errors import ConnectionError, TransferCancelledError, create_error
+from .errors import ConnectionError, DaytonaError, TransferCancelledError, create_error
 from .types import (
     BulkReadResult,
     BulkWriteResult,
@@ -351,7 +351,9 @@ class AsyncFileSystemService:
         No total deadline (it fails only when no bytes move for the client's
         ``request_timeout``; with a ``request_timeout`` of ``0``, nothing
         bounds it). ``max_response_bytes`` replaces the client's cap on the
-        body for this call (``0`` = no limit); a larger body raises
+        body for this call (``None`` keeps the client's cap, ``0`` means no
+        limit, and any other value (negative, fractional, boolean, string,
+        above 2**53 - 1) is a ``BadRequestError``); a larger body raises
         ``PayloadTooLargeError`` before it is read in full. For large files, or
         content from a sandbox you do not trust, use :meth:`download_file`,
         which streams to disk with progress and cancellation.
@@ -866,24 +868,28 @@ class _SignedFileUrl(NamedTuple):
 
 
 def _signed_file_url_from_payload(payload: TransportPayload) -> _SignedFileUrl:
-    # Takes the raw decoded body, whatever JSON type it is: a ``null``, a list,
-    # a string or a malformed object all answer the same invalid-payload error
-    # (parity with the TS SDK's ``readSignedFileUrl``).
+    # Takes the raw decoded body, whatever JSON type it is: a response that
+    # breaks the contract is ``BadRequestError`` naming the field, with the TS
+    # SDK's messages (``readSignedFileUrl``).
     if not isinstance(payload, dict):
-        raise create_error(
-            "expected signed file URL response: signature and expires_at are required",
-            400,
-            "BAD_REQUEST",
-            "SDK",
-        )
+        raise create_error("signed file URL response is not a JSON object", 400, "BAD_REQUEST", "SDK")
     signature = payload.get("signature")
     expires_at = payload.get("expires_at")
-    if isinstance(signature, str) and signature and isinstance(expires_at, str):
+    if not isinstance(signature, str) or not signature:
+        raise create_error(
+            "signed file URL response signature must be a non-empty string", 400, "BAD_REQUEST", "SDK"
+        )
+    if not isinstance(expires_at, str):
+        raise create_error(
+            "signed file URL response expires_at must be an RFC 3339 timestamp", 400, "BAD_REQUEST", "SDK"
+        )
+    try:
         parsed_expiry = parse_timestamp(expires_at, "signed file URL response: expires_at")
-        return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
-    raise create_error(
-        "expected signed file URL response: signature and expires_at are required", 400, "BAD_REQUEST", "SDK"
-    )
+    except DaytonaError:
+        raise create_error(
+            "signed file URL response expires_at must be an RFC 3339 timestamp", 400, "BAD_REQUEST", "SDK"
+        ) from None
+    return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
 
 
 def _multipart_boundary() -> str:

@@ -241,6 +241,7 @@ ROOT_EXPORTS = [
     "PreviewEndpoint",
     "PreviewLink",
     "ProcessExecutionTimeoutError",
+    "ProcessKillIncompleteError",
     "AsyncProcessHandle",
     "ProcessInfo",
     "ProcessReportedKind",

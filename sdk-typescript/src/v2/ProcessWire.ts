@@ -31,6 +31,7 @@ export interface ProcessSpec {
   readonly language?: string
   readonly sessionId?: string
   readonly name?: string
+  readonly tag?: string
   readonly cwd?: string
   readonly env?: Readonly<Record<string, string>>
   readonly user?: string
@@ -41,6 +42,24 @@ export interface ProcessSpec {
   readonly terminal?: TerminalSize
   readonly keepLogs?: KeepLogs
 }
+
+const PROCESS_TAG = /^[A-Za-z0-9._-]{1,128}$/
+
+/**
+ * A process tag, as the toolbox takes it: a safe identifier
+ * (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`). Anything else is
+ * refused before any request (as Python's `process_tag`).
+ */
+export function processTag(value: string): string {
+  if (typeof value !== 'string' || !PROCESS_TAG.test(value) || value === '.' || value === '..') {
+    throw badRequest("tag must be 1-128 of the characters A-Z, a-z, 0-9, '.', '_' and '-', and not '.' or '..'")
+  }
+  return value
+}
+
+/** The default `timeoutMs` of `killAll()` / `kill_all()` and the longest the toolbox takes, in seconds. */
+export const KILL_ALL_DEFAULT_TIMEOUT_SECONDS = 10
+export const KILL_ALL_MAX_TIMEOUT_SECONDS = 60
 
 /** Extra HTTP read budget for a bounded process long-poll. */
 export const WAIT_READ_SLACK_MS = 5_000
@@ -217,7 +236,8 @@ export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
     : exactMs('executionTimeoutSeconds', spec.executionTimeoutSeconds)
   const body: toolbox.CreateProcessRequest = {
     shellCommand: spec.cmd, argv: spec.argv === undefined ? undefined : [...spec.argv], code: spec.code, kind: spec.kind,
-    name: spec.name, sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : { ...spec.env },
+    name: spec.name, tag: spec.tag === undefined ? undefined : processTag(spec.tag),
+    sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : { ...spec.env },
     user: spec.user, shell: spec.shell, login: spec.login,
     // Sessions take no stdin mode.
     stdin: spec.kind === 'session' ? undefined : spec.stdin,
@@ -263,6 +283,7 @@ export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
     createdAt: timestamp(raw, 'createdAt', PROCESS),
     system: optional(raw, 'system', bool, PROCESS) === true,
     name: optional(raw, 'name', str, PROCESS),
+    tag: optional(raw, 'tag', str, PROCESS),
     pid: optional(raw, 'pid', int, PROCESS),
     sessionId: optional(raw, 'sessionId', str, PROCESS),
     argv,

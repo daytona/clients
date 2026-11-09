@@ -5,15 +5,18 @@
 
 import { encodeQuery, HttpTransport } from './http.js'
 import type {
-  ListResult, ProcessCommand, ProcessHandleJSON, ProcessInfo, ProcessListOptions, ProcessResult,
+  KillAllOptions, ListResult, ProcessCommand, ProcessHandleJSON, ProcessInfo, ProcessListOptions, ProcessResult,
   ProcessStartOptions, PtyStartOptions, RunOptions,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import type { PtyDuplex } from './ProcessHandle.js'
-import { bodyFor, commandSpec, invalidPtyVerbError, knownProcessKind, processFromWire, terminalSpec } from './ProcessWire.js'
-import { envelopeList } from './toolboxModels.js'
+import {
+  bodyFor, commandSpec, invalidPtyVerbError, KILL_ALL_DEFAULT_TIMEOUT_SECONDS, KILL_ALL_MAX_TIMEOUT_SECONDS, knownProcessKind,
+  processFromWire, processTag, terminalSpec, WAIT_READ_SLACK_MS,
+} from './ProcessWire.js'
+import { envelopeList, record, strList } from './toolboxModels.js'
 import { runProcess, startProcess } from './ProcessRun.js'
 import type { ProcessBinding } from './ProcessRun.js'
 import { requireSessionId, Session } from './Session.js'
@@ -31,19 +34,36 @@ export { WAIT_READ_SLACK_MS, base64Encode } from './ProcessWire.js'
 export { TIMED_OUT_LOG_PAGE_LIMIT, collectAllLogs, startProcess } from './ProcessRun.js'
 
 const START_OPTION_KEYS = optionKeys<ProcessStartOptions>()({
-  name: true, cwd: true, env: true, user: true, shell: true, login: true, stdin: true,
+  name: true, tag: true, cwd: true, env: true, user: true, shell: true, login: true, stdin: true,
   executionTimeoutSeconds: true, keepLogs: true,
 })
 const RUN_OPTION_KEYS = optionKeys<RunOptions>()({
-  name: true, cwd: true, env: true, user: true, shell: true, login: true, stdin: true,
+  name: true, tag: true, cwd: true, env: true, user: true, shell: true, login: true, stdin: true,
   executionTimeoutSeconds: true, keepLogs: true, timeoutSeconds: true,
 })
-const CREATE_SESSION_OPTION_KEYS = optionKeys<CreateSessionOptions>()({ cwd: true, env: true, shell: true, login: true, name: true })
-const LIST_OPTION_KEYS = optionKeys<ProcessListOptions>()({ state: true, kind: true, sessionId: true, name: true, pid: true })
+const CREATE_SESSION_OPTION_KEYS = optionKeys<CreateSessionOptions>()({ tag: true, cwd: true, env: true, shell: true, login: true, name: true })
+const LIST_OPTION_KEYS = optionKeys<ProcessListOptions>()({ state: true, kind: true, sessionId: true, name: true, pid: true, tag: true })
+const KILL_ALL_OPTION_KEYS = optionKeys<KillAllOptions>()({ tag: true, timeoutSeconds: true })
 const PTY_START_OPTION_KEYS = optionKeys<PtyStartOptions>()({
   terminal: true, cwd: true, env: true, name: true, user: true, shell: true, login: true, stdin: true,
-  executionTimeoutSeconds: true, keepLogs: true,
+  executionTimeoutSeconds: true, keepLogs: true, tag: true,
 })
+
+const KILL_PROCESSES = 'kill processes response'
+
+/**
+ * `killAll()`'s `timeoutSeconds` as wire milliseconds: more than 0 and at
+ * most 60 seconds (the toolbox takes 1-60000 ms), rounded up to whole
+ * milliseconds; omitted keeps the toolbox default of 10 seconds. The toolbox
+ * has no unbounded wait, so nothing above 60 seconds means "no limit".
+ */
+function killAllTimeoutMs(timeoutSeconds: number | undefined): number | undefined {
+  if (timeoutSeconds === undefined) return undefined
+  if (typeof timeoutSeconds !== 'number' || !Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > KILL_ALL_MAX_TIMEOUT_SECONDS) {
+    throw badRequest(`timeoutSeconds must be greater than 0 and at most ${KILL_ALL_MAX_TIMEOUT_SECONDS} seconds`)
+  }
+  return Math.max(1, Math.ceil(Math.round(timeoutSeconds * 1000 * 1e6) / 1e6))
+}
 const DEFAULT_TERMINAL_SIZE = { cols: 80, rows: 24 } as const
 
 /** A serialized handle's optional `kind`: anything present but a string is refused. */
@@ -181,11 +201,45 @@ export class ProcessService {
     return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${toolboxPathId(id, 'process id')}`))
   }
 
+  /** List processes; `tag` keeps only the processes created with that tag. */
   public async list(options: ProcessListOptions = {}): Promise<ListResult<ProcessInfo>> {
     assertKnownOptions('ProcessListOptions', options, LIST_OPTION_KEYS)
-    const query = encodeQuery({ state: options.state, kind: options.kind, sessionId: options.sessionId, name: options.name, pid: options.pid })
+    const tag = options.tag === undefined ? undefined : processTag(options.tag)
+    const query = encodeQuery({ state: options.state, kind: options.kind, sessionId: options.sessionId, name: options.name, pid: options.pid, tag })
     const data = await this.transport.get<toolbox.ProcessListResponse>(`/processes${query}`)
-    return deepFrozen({ items: envelopeList(data, 'items', 'process list response', processFromWire) })
+    const items = envelopeList(data, 'items', 'process list response', processFromWire)
+    // A sandbox whose daemon predates tags ignores the filter and returns
+    // every process: keep only the tagged ones.
+    return deepFrozen({ items: tag === undefined ? items : items.filter((item) => item.tag === tag) })
+  }
+
+  /**
+   * Kill every process created with `tag` and everything those processes
+   * started, including detached descendants and the survivors of tagged
+   * processes that already exited, keeping their records and logs. Returns
+   * the ids of the tagged processes it stopped once none of them is running;
+   * the tag can be used again right away. Processes whose records were
+   * deleted or expired are stopped too but not listed.
+   *
+   * @param options.tag A safe identifier (`[A-Za-z0-9._-]`, 1-128
+   *   characters, not `.` or `..`).
+   * @param options.timeoutSeconds How long to wait for them to exit, in
+   *   seconds: more than 0 and at most 60 (default 10).
+   * @throws ProcessKillIncompleteError when some were still running at the
+   *   timeout, or another start or kill under the tag was in progress; calling
+   *   again is safe.
+   * @throws UnsupportedOperationError on macOS and on sandboxes without
+   *   process containment.
+   */
+  public async killAll(options: KillAllOptions): Promise<readonly string[]> {
+    assertKnownOptions('KillAllOptions', options, KILL_ALL_OPTION_KEYS)
+    const tag = processTag(options.tag)
+    const timeoutMs = killAllTimeoutMs(options.timeoutSeconds)
+    const body: toolbox.KillProcessesRequest = timeoutMs === undefined ? { tag } : { tag, timeoutMs }
+    const data = await this.transport.post<toolbox.KillProcessesResponse>('/processes:kill', body, {
+      timeout: (timeoutMs ?? KILL_ALL_DEFAULT_TIMEOUT_SECONDS * 1000) + WAIT_READ_SLACK_MS,
+    })
+    return deepFrozen(strList(record(data, KILL_PROCESSES), 'processIds', KILL_PROCESSES))
   }
 }
 

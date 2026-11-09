@@ -14,7 +14,8 @@ watches) are never held whole and are not capped.
 
 from __future__ import annotations
 
-from typing import Final, Optional
+import zlib
+from typing import AsyncIterator, Final, Iterator, Optional
 
 import httpx
 
@@ -60,22 +61,158 @@ def too_large_error(status_code: int, limit: int) -> DaytonaError:
 
 
 def _declared_too_large(response: httpx.Response, limit: int) -> bool:
-    declared = response.headers.get("content-length", "")
-    return bool(limit) and declared.isdigit() and int(declared) > limit
+    declared = response.headers.get("content-length", "").strip().lstrip("0") or "0"
+    if not limit or not declared.isascii() or not declared.isdigit():
+        return False
+    # Compared by digit count first: a length too long for int() is over any cap.
+    bound = str(limit)
+    return len(declared) > len(bound) or (len(declared) == len(bound) and declared > bound)
+
+
+#: The ``Accept-Encoding`` the SDK's clients send: the encodings its capped
+#: readers decode with bounded output. httpx would add ``br`` / ``zstd`` when
+#: their packages are installed, whose decoders cannot bound one chunk's output.
+ACCEPT_ENCODING: Final = "gzip, deflate"
+_BOUNDED_ENCODINGS: Final = frozenset({"gzip", "x-gzip", "deflate"})
+#: The most decoded bytes one decoding step produces.
+DECODE_STEP: Final = 64 * 1024
+
+
+def bounded_accept_encoding(value: Optional[str]) -> bool:
+    """Whether an ``Accept-Encoding`` asks only for encodings the SDK can bound."""
+    if value is None:
+        return False
+    tokens = {token.split(";")[0].strip().lower() for token in value.split(",")} - {""}
+    return tokens <= (_BOUNDED_ENCODINGS | {"identity"})
+
+
+def _unreadable(status_code: int, detail: str) -> DaytonaError:
+    if status_code >= 400:
+        return create_error(
+            f"HTTP {status_code}: the response body could not be read ({detail})", status_code
+        )
+    return create_error(f"the response body {detail}", 400, "BAD_REQUEST", "SDK")
+
+
+class _BoundedDecoder:
+    """Decodes a gzip or deflate body incrementally, at most ``DECODE_STEP``
+    decoded bytes at a time, so a small compressed chunk never expands into a
+    large decoded one (a decompression bomb) before the cap is checked."""
+
+    def __init__(self, encoding: str, status_code: int) -> None:
+        self._encoding = encoding
+        self._status_code = status_code
+        self._gzip = encoding in ("gzip", "x-gzip")
+        self._first = True
+        self._z = self._new()
+
+    def _new(self) -> "zlib._Decompress":  # noqa: UP037
+        return zlib.decompressobj(16 + zlib.MAX_WBITS if self._gzip else zlib.MAX_WBITS)
+
+    def _decompress(self, data: bytes) -> bytes:
+        try:
+            out = self._z.decompress(data, DECODE_STEP)
+        except zlib.error:
+            if self._first and not self._gzip:
+                # A raw deflate stream (no zlib header), as httpx accepts.
+                self._first = False
+                self._z = zlib.decompressobj(-zlib.MAX_WBITS)
+                return self._decompress(data)
+            raise _unreadable(self._status_code, f"is not valid {self._encoding} data") from None
+        self._first = False
+        return out
+
+    def feed(self, data: bytes) -> Iterator[bytes]:
+        pending = data
+        while True:
+            out = self._decompress(pending)
+            if out:
+                yield out
+            pending = self._z.unconsumed_tail
+            if self._z.eof and self._z.unused_data:
+                # Another gzip member follows.
+                pending = self._z.unused_data
+                self._z = self._new()
+                continue
+            if not pending and len(out) < DECODE_STEP:
+                return
+
+    def finish(self) -> Iterator[bytes]:
+        tail = self._z.flush()
+        for offset in range(0, len(tail), DECODE_STEP):
+            yield tail[offset : offset + DECODE_STEP]
+
+
+def _decoder(response: httpx.Response) -> Optional[_BoundedDecoder]:
+    """The bounded decoder for the response's ``Content-Encoding``, ``None`` for
+    none (or ``identity``); any other encoding is refused without decoding."""
+    tokens = [
+        token.strip().lower()
+        for token in response.headers.get("content-encoding", "").split(",")
+        if token.strip() and token.strip().lower() != "identity"
+    ]
+    if not tokens:
+        return None
+    if len(tokens) == 1 and tokens[0] in _BOUNDED_ENCODINGS:
+        return _BoundedDecoder(tokens[0], response.status_code)
+    raise _unreadable(response.status_code, f"uses an unrequested content encoding: {', '.join(tokens)}")
+
+
+class _Collector:
+    """The decoded body, checked against ``limit`` before each piece is kept."""
+
+    def __init__(self, response: httpx.Response, limit: int, *, decode: bool) -> None:
+        self._response = response
+        self._limit = limit
+        self.body = bytearray()
+        self._decoder = _decoder(response) if decode else None
+
+    def add(self, raw: bytes) -> None:
+        for piece in self._decoder.feed(raw) if self._decoder is not None else (raw,):
+            self._keep(piece)
+
+    def finish(self) -> bytes:
+        if self._decoder is not None:
+            for piece in self._decoder.finish():
+                self._keep(piece)
+        return bytes(self.body)
+
+    def _keep(self, piece: bytes) -> None:
+        # Checked before buffering: no byte past the cap is ever held, and a
+        # piece is at most one bounded decoding step.
+        if self._limit and len(self.body) + len(piece) > self._limit:
+            raise too_large_error(self._response.status_code, self._limit)
+        self.body.extend(piece)
+
+
+def _start(response: httpx.Response, limit: int) -> _Collector:
+    if _declared_too_large(response, limit):
+        raise too_large_error(response.status_code, limit)
+    if response.is_stream_consumed:
+        # Built in memory with its (decoded) content, as a test double is:
+        # only the cap applies.
+        collector = _Collector(response, limit, decode=False)
+        collector.add(response.content)
+        return collector
+    return _Collector(response, limit, decode=True)
+
+
+async def _raw_async(response: httpx.Response) -> AsyncIterator[bytes]:
+    async for data in response.aiter_raw():
+        yield data
 
 
 async def read_body(response: httpx.Response, limit: int) -> bytes:
-    """Read a streamed response's whole body under ``limit``; always closes it."""
+    """Read a streamed response's whole body under ``limit``; always closes it.
+
+    The wire bytes are decoded here, in bounded steps, never by httpx.
+    """
     try:
-        if _declared_too_large(response, limit):
-            raise too_large_error(response.status_code, limit)
-        body = bytearray()
-        async for chunk in response.aiter_bytes():
-            # Checked before buffering: no byte past the cap is ever held.
-            if limit and len(body) + len(chunk) > limit:
-                raise too_large_error(response.status_code, limit)
-            body.extend(chunk)
-        return bytes(body)
+        collector = _start(response, limit)
+        if not response.is_stream_consumed:
+            async for raw in _raw_async(response):
+                collector.add(raw)
+        return collector.finish()
     finally:
         await response.aclose()
 
@@ -83,15 +220,11 @@ async def read_body(response: httpx.Response, limit: int) -> bytes:
 def read_body_sync(response: httpx.Response, limit: int) -> bytes:
     """:func:`read_body` for a blocking client."""
     try:
-        if _declared_too_large(response, limit):
-            raise too_large_error(response.status_code, limit)
-        body = bytearray()
-        for chunk in response.iter_bytes():
-            # Checked before buffering: no byte past the cap is ever held.
-            if limit and len(body) + len(chunk) > limit:
-                raise too_large_error(response.status_code, limit)
-            body.extend(chunk)
-        return bytes(body)
+        collector = _start(response, limit)
+        if not response.is_stream_consumed:
+            for raw in response.iter_raw():
+                collector.add(raw)
+        return collector.finish()
     finally:
         response.close()
 
@@ -113,11 +246,20 @@ def buffered(response: httpx.Response, body: bytes) -> httpx.Response:
 
 async def send_buffered(client: httpx.AsyncClient, request: httpx.Request, limit: int) -> httpx.Response:
     """Send ``request`` and buffer its body under ``limit``."""
+    _bound_accept_encoding(request)
     response = await client.send(request, stream=True)
     return buffered(response, await read_body(response, limit))
 
 
 def send_buffered_sync(client: httpx.Client, request: httpx.Request, limit: int) -> httpx.Response:
     """:func:`send_buffered` for a blocking client."""
+    _bound_accept_encoding(request)
     response = client.send(request, stream=True)
     return buffered(response, read_body_sync(response, limit))
+
+
+def _bound_accept_encoding(request: httpx.Request) -> None:
+    """Ask only for encodings the capped reader decodes with bounded output
+    (a client the caller injected may advertise more)."""
+    if not bounded_accept_encoding(request.headers.get("accept-encoding")):
+        request.headers["Accept-Encoding"] = ACCEPT_ENCODING

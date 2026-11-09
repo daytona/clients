@@ -74,7 +74,7 @@ export interface WriteFileOptions {
  * Options of the in-memory file reads (`readBytes`, `readText`).
  *
  * `maxResponseBytes` replaces the client's cap on the response body for this
- * call (an integer, `0` = no limit; `undefined` / `null` keep the client's).
+ * call (`undefined` or `null` keep the client's cap, `0` means no limit, and any other value (negative, fractional, boolean, string, above `Number.MAX_SAFE_INTEGER`) is a `BadRequestError`).
  * A body over it is refused with `PayloadTooLargeError` before it is read in
  * full. For large files, or content from a sandbox you don't trust, use
  * `downloadFile()` (Node.js), which streams to disk.

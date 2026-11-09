@@ -1643,7 +1643,12 @@ def _hub_identity(
     api_key: str,
     target: Optional[str],
     config: Optional[SandboxEventsConfig],
+    max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
+    request_timeout: Optional[float] = None,
 ) -> Tuple[object, ...]:
+    """What a shared hub is keyed on: clients that differ in any of it (their
+    body cap, or the request timeout the hub's token exchange copies) get
+    their own hub, so each client's limits apply to its hub's requests."""
     effective = config if config is not None else SandboxEventsConfig()
     return (
         _normalize_hub_url_identity(api_url),
@@ -1652,6 +1657,8 @@ def _hub_identity(
         effective.enabled,
         effective.reconcile_interval,
         effective.idle_close,
+        max_response_bytes,
+        request_timeout,
     )
 
 
@@ -1675,7 +1682,14 @@ def attach_hub(
             running_loop = asyncio.get_running_loop()
             key = (
                 id(running_loop),
-                _hub_identity(api_url, identity or api_key, target, config),
+                _hub_identity(
+                    api_url,
+                    identity or api_key,
+                    target,
+                    config,
+                    max_response_bytes,
+                    auth._request_timeout if auth is not None else None,
+                ),
             )
         except RuntimeError:
             key = None

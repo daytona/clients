@@ -202,8 +202,9 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   override is rejected because pre-signed URLs require the sandbox's public
   endpoint. The raw decoded sign body goes through
   `filesystem._signed_file_url_from_payload` unshaped, so a JSON `null`, a
-  list or a malformed object all raise the same 500 invalid-payload error
-  (parity with TS). `sandbox.rotate_signing_key()` POSTs
+  list or a malformed object all raise a `BadRequestError` (400,
+  `BAD_REQUEST`, source `SDK`) naming the field, with the same message as TS;
+  so does a malformed sandbox access-token mint response. `sandbox.rotate_signing_key()` POSTs
   `/sandboxes/{id}/signing-key/rotate` with no body and returns `None` after
   the API's empty 204 response. The key is never returned; every outstanding
   link for the sandbox becomes invalid. Like minting, it is refused
@@ -235,7 +236,11 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   (client, or `RequestSpec.max_response_bytes` / `request(...,
   max_response_bytes=)` per call) is checked against the declared
   `Content-Length` before reading and against the bytes read, and the
-  response is closed when refused; streams (`open_stream`, `open_exclusive_stream`) are
+  response is closed when refused. It reads the wire bytes (`aiter_raw`) and
+  decodes gzip / deflate itself, at most `DECODE_STEP` (64 KiB) per step, so a
+  compressed body never expands past the cap in memory; the clients send
+  `Accept-Encoding: gzip, deflate` only, and any other `Content-Encoding` is
+  refused undecoded; streams (`open_stream`, `open_exclusive_stream`) are
   bounded only until their response headers arrive, by the spec's own
   `timeout` when it has one, else the request timeout
   (`_transport._stream_open_seconds`; `0` or above the timer maximum =

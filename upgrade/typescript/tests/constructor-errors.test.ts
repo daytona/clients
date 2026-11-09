@@ -11,7 +11,7 @@ import { upgrade } from '../src/upgrade.js';
 import { contents, invoke, temporaryProject } from './helpers.js';
 
 const mapping = loadMapping();
-const imports = "import { Daytona, DaytonaError, DaytonaAuthenticationError } from '@daytonaio/sdk';";
+const imports = "import { Daytona, DaytonaError, DaytonaAuthenticationError, DaytonaValidationError, DaytonaAuthorizationError } from '@daytonaio/sdk';";
 
 it.each([
   ['bare catch binding', 'catch (e) { client = undefined; }'],
@@ -20,6 +20,9 @@ it.each([
   ['built-in Error', 'catch (e) { if (e instanceof Error) client = undefined; }'],
   ['authentication error', 'catch (e) { if (e instanceof DaytonaAuthenticationError) client = undefined; }'],
   ['filtered rethrow', 'catch (e) { if (e instanceof DaytonaError) return; throw e; }'],
+  // The two 0.x root aliases 2.0 dropped name shared categories too.
+  ['former validation alias', 'catch (e) { if (e instanceof DaytonaValidationError) client = undefined; }'],
+  ['former authorization alias', 'catch (e) { if (e instanceof DaytonaAuthorizationError) client = undefined; }'],
 ])('reports the constructor when protected by %s', (_name, handler) => {
   // Given
   const source = new Project({ useInMemoryFileSystem: true }).createSourceFile('/app.ts',

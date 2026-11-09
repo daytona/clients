@@ -24,6 +24,8 @@ export function requireSessionId(value: unknown, field: 'sandboxId' | 'sessionId
 
 /** Settings for the persistent shell, inherited by every command. */
 export interface CreateSessionOptions {
+  /** Immutable tag inherited by every command run in this shell. */
+  readonly tag?: string
   readonly cwd?: string
   readonly env?: Readonly<Record<string, string>>
   /**
