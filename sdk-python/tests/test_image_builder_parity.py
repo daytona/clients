@@ -14,6 +14,7 @@ import json
 import os
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 from network_policy_test_server import FakeApi, PlannedResponse
@@ -133,3 +134,11 @@ async def test_images_pull_strips_the_ref_and_refuses_a_non_string_before_any_re
             assert fake.requests == []
             await root.v2.images.pull(" python:3.12 ", wait=False)
     assert json.loads(fake.requests[0].body)["source"] == {"type": "registry", "ref": "python:3.12"}
+
+
+def test_env_refuses_a_mapping_with_a_second_argument() -> None:
+    # The mapping carries its values; TypeScript refuses the same call.
+    with pytest.raises(BadRequestError) as raised:
+        values: Any = {"A": "1"}
+        ImageBuilder.from_registry("alpine").env(values, "2")
+    assert str(raised.value) == "ImageBuilder.env takes a name and a value, or a mapping of names to values"

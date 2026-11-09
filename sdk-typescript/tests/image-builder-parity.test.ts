@@ -97,3 +97,18 @@ it('refuses a user name with a control character', () => {
     name: 'BadRequestError', message: 'ImageBuilder.user name "root\\nRUN x" must not contain a control character',
   }))
 })
+
+it('refuses env() with a mapping and a second argument, as Python does', () => {
+  const values: unknown = { A: '1' }
+  expect(() => ImageBuilder.fromRegistry('alpine').env(values as string, '2')).toThrow(expect.objectContaining({
+    name: 'BadRequestError', message: 'ImageBuilder.env takes a name and a value, or a mapping of names to values',
+  }))
+})
+
+it('refuses an env mapping with an enumerable symbol key, which no mapping has', () => {
+  const values = { A: '1', [Symbol('hidden')]: '2' }
+  expect(() => ImageBuilder.fromRegistry('alpine').env(values)).toThrow(expect.objectContaining({ name: 'BadRequestError' }))
+  // A non-enumerable symbol is not part of the mapping.
+  const hidden = Object.defineProperty({ A: '1' }, Symbol('meta'), { value: 'x', enumerable: false })
+  expect(ImageBuilder.fromRegistry('alpine').env(hidden).toDockerfile()).toContain('ENV A="1"')
+})

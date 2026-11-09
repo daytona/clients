@@ -2,8 +2,10 @@
 `BadRequestError` naming the argument: every id or name a call puts into a
 request path (images, snapshots, volumes, secrets, reservations, the
 organization id of `get_limits()` / `getLimits()`, the id `get()` and the
-client lifecycle verbs take) must be a string that is not blank, has no lone
-surrogate and is not `.` or `..`. A dot segment is resolved away by the HTTP
-client, so `secrets.delete("..")` reached another route. Before, TypeScript
-sent `/secrets/undefined`, Python raised a raw `TypeError`, and neither
-refused a blank id.
+client lifecycle verbs take) must be a string that is not blank, has no
+surrogate code point and is not `.` or `..`: both SDKs refuse surrogate code
+points in path ids; in TypeScript that means unpaired UTF-16 surrogates, since
+a paired one is a real astral character, which both accept. A dot segment is
+resolved away by the HTTP client, so `secrets.delete("..")` reached another
+route. Before, TypeScript sent `/secrets/undefined`, Python raised a raw
+`TypeError`, and neither refused a blank id.

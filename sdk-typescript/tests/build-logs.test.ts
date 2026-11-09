@@ -224,6 +224,21 @@ describe('resumable build logs', () => {
     else await expect(pending).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
   })
 
+  it('refuses a numeric state deadline_at as a protocol error, as Python does', async () => {
+    const { client } = setup(['event: state\ndata: {"status": "building", "deadline_at": 5}\n\n'])
+    await expect(client.images.followBuildLogs('image', { onLogs: () => undefined })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
+  })
+
+  it.each([
+    ['utf-16 is not read', 'utf-16le', 'build log HTTP 409'],
+    ['utf-8 with a BOM is read', 'utf-8-bom', 'sandbox is not running'],
+  ] as const)('reads an HTTP error body as UTF-8, as Python does: %s', async (_name, encoding, message) => {
+    const text = JSON.stringify({ error: 'sandbox is not running', code: 'SANDBOX_NOT_RUNNING' })
+    const body = encoding === 'utf-16le' ? Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]) : Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(text, 'utf8')])
+    const { client } = setup([new Response(body, { status: 409, headers: { 'content-type': 'application/json' } })])
+    await expect(client.images.followBuildLogs('image', { onLogs: () => undefined })).rejects.toMatchObject({ statusCode: 409, message })
+  })
+
   it('reads the stream media type case-insensitively', async () => {
     const bytes = new TextEncoder().encode(log('tail', 0) + done(4))
     const reply = new Response(bytes, { headers: { 'content-type': 'Text/Event-Stream; charset=utf-8' } })

@@ -1987,6 +1987,38 @@ describe('WaitHub: an oversized server frame', () => {
   })
 })
 
+describe('WaitHub: a frame nested past JSON_MAX_DEPTH', () => {
+  // A snapshot (depth 1) carrying an unknown field nested to `depth`: 600 is
+  // read, 601 is skipped like an undecodable frame, as in Python.
+  const nestedSnapshot = (depth: number, version: number): string =>
+    `{"type":"snapshot","id":"${SANDBOX_ID}","status":"running","version":${version},"extra":${'['.repeat(depth - 1)}${']'.repeat(depth - 1)}}`
+
+  test('is ignored, and a later valid snapshot still resolves the wait', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc, { idleCloseMs: 0 })
+    const ws = fc.prepare()
+    let settled = false
+    const waiting = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).finally(() => { settled = true })
+    await drain()
+    ws.injectRaw(nestedSnapshot(601, 1))
+    await drain()
+    expect(settled).toBe(false)
+    expect(ws.readyState).toBe(1)
+    ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'running', version: 2, error: null })
+    await expect(waiting).resolves.toMatchObject({ state: 'started' })
+  })
+
+  test('reads a frame nested exactly JSON_MAX_DEPTH deep', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc, { idleCloseMs: 0 })
+    const ws = fc.prepare()
+    const waiting = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 })
+    await drain()
+    ws.injectRaw(nestedSnapshot(600, 1))
+    await expect(waiting).resolves.toMatchObject({ state: 'started' })
+  })
+})
+
 describe('WaitHub: idle close', () => {
   test('idleCloseMs: 0 keeps a socket with no waiters open', async () => {
     const fc = makeFakeConnector()

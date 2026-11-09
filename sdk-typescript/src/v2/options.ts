@@ -118,7 +118,7 @@ export function isPlainStringRecord(value: unknown): value is Readonly<Record<st
 
 /**
  * Whether `value` is a plain object (prototype `Object.prototype` or `null`)
- * whose enumerable keys are all its own: JavaScript's counterpart of a Python
+ * whose enumerable keys are all its own strings: JavaScript's counterpart of a Python
  * mapping argument. A `Map`, a `Date`, a class instance or inherited keys
  * would otherwise be read as empty.
  * @internal
@@ -127,6 +127,11 @@ export function isPlainRecord(value: unknown): value is Readonly<Record<string, 
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const prototype: unknown = Object.getPrototypeOf(value)
   if (prototype !== Object.prototype && prototype !== null) return false
+  // No mapping argument has symbol keys: an enumerable one would be dropped
+  // silently (as `enumerableKeys` refuses one on an options object).
+  for (const symbol of Object.getOwnPropertySymbols(value)) {
+    if (Object.prototype.propertyIsEnumerable.call(value, symbol)) return false
+  }
   for (const key in value) {
     if (!Object.prototype.hasOwnProperty.call(value, key)) return false
   }

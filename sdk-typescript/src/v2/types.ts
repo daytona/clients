@@ -805,8 +805,9 @@ export interface PreviewLink {
 export interface SignedPreviewLink {
   readonly url: string
   readonly token: string
-  /** Absent when the server response carried no expiry (parity with the Python
-   * SDK's `expires_at: Optional[str]`). */
+  /** When the link stops resolving (RFC 3339). Always set by
+   * {@link PortsService.signedPreviewLink}: the contract requires it, and a
+   * response without it is a `BadRequestError`. */
   readonly expiresAt?: string
 }
 

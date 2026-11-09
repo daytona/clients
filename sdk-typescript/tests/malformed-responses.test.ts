@@ -395,3 +395,63 @@ it.each([
     await api.close()
   }
 })
+
+it.each([5, null, ['running']])('refuses a create status that is not a string (%j)', async (status) => {
+  // As the id is checked: a wrong status is never read as `unknown`. The
+  // Python twin is in test_malformed_responses.py.
+  const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.create('img_1', { waitSeconds: 0 })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox create response has a status that is not a string' })
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// Every timestamp a mapped response carries is a string, on the preview
+// endpoint and signed preview link responses too, as in Python
+// (test_a_numeric_timestamp_is_a_contract_error_on_every_model).
+const PORT = { port: 8080, public: false, url: 'https://8080-src.preview.invalid', created_at: '2026-01-01T00:00:00Z' }
+it.each([
+  ['ports.expose', (api: FakeApi) => source(api).ports.expose(8080), { ...PORT, created_at: 5 }, 'created_at'],
+  ['ports.listEndpoints', (api: FakeApi) => source(api).ports.listEndpoints(), { ports: [{ ...PORT, created_at: 1.5 }], next_cursor: null }, 'created_at'],
+  ['ports.signedPreviewLink', (api: FakeApi) => source(api).ports.signedPreviewLink(8080), { url: 'https://s.preview.invalid', token: `s${'0'.repeat(32)}`, expires_at: 5 }, 'expires_at'],
+] as const)('refuses a numeric timestamp: %s', async (_name, call, body, field) => {
+  const api = await startFakeApi([{ status: 200, body }])
+  try {
+    await expect(call(api)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`${field} that is not a string`) })
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await api.close()
+  }
+})
+
+// Neither SDK reads the per-item cursor (nextCursor continues the list), so a
+// missing or mistyped one is not a contract error, as in Python.
+it.each([
+  ['images', 'missing'], ['images', 5], ['snapshots', 'missing'], ['snapshots', 5],
+] as const)('reads a %s page whose item cursor is %s', async (key, cursor) => {
+  const base: Record<string, unknown> = key === 'images' ? { ...imageWire({ id: 'img' }) } : { ...snapshotWire() }
+  if (cursor === 'missing') delete base.cursor
+  else base.cursor = cursor
+  const api = await startFakeApi([{ status: 200, body: { [key]: [base], next_cursor: null } }])
+  const client = clientAt(api.url)
+  try {
+    const page = key === 'images' ? await client.v2.images.list() : await client.v2.snapshots.list()
+    expect(page.items).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('refuses a signed preview link without expires_at, which the contract requires', async () => {
+  const api = await startFakeApi([{ status: 200, body: { url: 'https://s.preview.invalid', token: `s${'0'.repeat(32)}` } }])
+  try {
+    await expect(source(api).ports.signedPreviewLink(8080)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'signed preview url response is missing its expires_at' })
+  } finally {
+    await api.close()
+  }
+})

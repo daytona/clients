@@ -237,38 +237,26 @@ def expect_fork_resp(value: TransportPayload) -> ForkSandboxOperation:
     )
 
 
-_IMAGE_TIMESTAMPS = ("created_at", "updated_at", "expires_at")
-_SNAPSHOT_TIMESTAMPS = ("created_at", "updated_at")
-
-
-def _refuse_numeric_timestamps(
-    value: TransportPayload, fields: tuple[str, ...], what: str, *, items: str | None = None
-) -> None:
-    """The contract's timestamps are strings: the generated models would also
-    read a number as a Unix time, which TypeScript refuses. ``items`` names a
-    page's array, whose entries are checked the same way."""
-    if not isinstance(value, dict):
-        return
-    entries = value.get(items) if items is not None else [value]
-    for entry in entries if isinstance(entries, list) else ():
-        if not isinstance(entry, dict):
-            continue
-        for name in fields:
-            timestamp = entry.get(name)
-            if timestamp is not None and not isinstance(timestamp, str):
-                raise create_error(f"{what} has a {name} that is not a string", 400, "BAD_REQUEST", "SDK")
+def _without_item_cursors(value: TransportPayload, items: str) -> TransportPayload:
+    """A list page whose items' ``cursor`` is not read: neither SDK reads the
+    per-item cursor (the page's ``next_cursor`` continues the list), so a
+    missing or mistyped one is not a contract error, as in TypeScript."""
+    if not isinstance(value, dict) or not isinstance(value.get(items), list):
+        return value
+    entries = [{**entry, "cursor": ""} if isinstance(entry, dict) else entry for entry in value[items]]
+    return {**value, items: entries}
 
 
 def expect_images_page(value: TransportPayload) -> ImagePage:
     # Every contract-required field (`platform`, `default` and `deprecated`
     # included) must be present: a missing one is the malformed-response error.
-    _refuse_numeric_timestamps(value, _IMAGE_TIMESTAMPS, "image list response", items="images")
-    return _expect_model_from_dict(value, ImagePage, "image list response", ImagePage.from_dict)
+    return _expect_model_from_dict(
+        _without_item_cursors(value, "images"), ImagePage, "image list response", ImagePage.from_dict
+    )
 
 
 def expect_image(value: TransportPayload) -> Image:
     """An image detail checked against the contract (as the list items are) before it is mapped."""
-    _refuse_numeric_timestamps(value, _IMAGE_TIMESTAMPS, "image detail response")
     wire = _expect_model_from_dict(value, _gen.api.Image, "image detail response", _gen.api.Image.from_dict)
     return parse_image(wire)
 
@@ -278,13 +266,16 @@ def expect_list_secrets_resp(value: TransportPayload) -> SecretPage:
 
 
 def expect_snapshot(value: TransportPayload) -> Snapshot:
-    _refuse_numeric_timestamps(value, _SNAPSHOT_TIMESTAMPS, "snapshot detail response")
     return _expect_model_from_dict(value, Snapshot, "snapshot detail response", Snapshot.from_dict)
 
 
 def expect_list_snapshots_resp(value: TransportPayload) -> SnapshotPage:
-    _refuse_numeric_timestamps(value, _SNAPSHOT_TIMESTAMPS, "snapshot list response", items="snapshots")
-    return _expect_model_from_dict(value, SnapshotPage, "snapshot list response", SnapshotPage.from_dict)
+    return _expect_model_from_dict(
+        _without_item_cursors(value, "snapshots"),
+        SnapshotPage,
+        "snapshot list response",
+        SnapshotPage.from_dict,
+    )
 
 
 def expect_volume(value: TransportPayload) -> Volume:
@@ -368,37 +359,7 @@ def expect_signed_preview_url_resp(value: TransportPayload) -> SignedPreviewUrl:
     )
 
 
-_SANDBOX_TIMESTAMPS = (
-    "create_timeout_at",
-    "created_at",
-    "last_activity_at",
-    "spot_evicted_at",
-    "started_at",
-    "stopped_at",
-    "updated_at",
-)
-_LIFECYCLE_TIMESTAMPS = ("idle_timeout_at", "last_activity_at", "timeout_at")
-
-
-def _check_timestamp_strings(value: TransportPayload) -> None:
-    """The contract's timestamps are strings: the generated model would also
-    read a number as a Unix time, which TypeScript refuses. A string the
-    model cannot read as a date-time is refused by the model."""
-    if not isinstance(value, dict):
-        return
-    fields = [(name, value.get(name)) for name in _SANDBOX_TIMESTAMPS]
-    policy = value.get("lifecycle_policy")
-    if isinstance(policy, dict):
-        fields += [(f"lifecycle_policy.{name}", policy.get(name)) for name in _LIFECYCLE_TIMESTAMPS]
-    for name, timestamp in fields:
-        if timestamp is not None and not isinstance(timestamp, str):
-            raise create_error(
-                f"sandbox detail response has a {name} that is not a string", 400, "BAD_REQUEST", "SDK"
-            )
-
-
 def expect_sandbox_detail(value: TransportPayload) -> Sandbox:
-    _check_timestamp_strings(value)
     return _expect_model_from_dict(_with_region(value), Sandbox, "sandbox detail response", Sandbox.from_dict)
 
 

@@ -89,6 +89,14 @@ class ImageBuilder:
                 ),
             )
         elif isinstance(name_or_values, Mapping):
+            # A mapping carries its values: a second argument would be dropped.
+            if value is not None:
+                raise create_error(
+                    "ImageBuilder.env takes a name and a value, or a mapping of names to values",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
             entries = tuple(
                 (
                     self._env_name(key, "ImageBuilder.env key"),

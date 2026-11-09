@@ -1301,7 +1301,10 @@ class SignedPreviewLink:
     """Self-contained signed URL for one sandbox port.
 
     The token is embedded in the hostname — no extra headers or credentials are
-    needed. The link expires at ``expires_at``. Revoke it early with
+    needed. The link expires at ``expires_at``, which
+    :meth:`~daytona.v2.ports.AsyncPortsService.signed_preview_link` always
+    sets: the contract requires it, and a response without it is a
+    ``BadRequestError``. Revoke it early with
     :meth:`~daytona.v2.ports.AsyncPortsService.expire_signed_preview_link`.
     """
 

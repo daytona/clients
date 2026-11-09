@@ -27,15 +27,15 @@ def _config_at(api_url: str, **kwargs: object) -> DaytonaConfig:
 
 async def test_create_network_policy_preserves_missing_null_and_empty_shapes() -> None:
     responses = [
-        PlannedResponse(200, {"id": "sbx-a"}),
+        PlannedResponse(200, {"id": "sbx-a", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-a", "running")),
-        PlannedResponse(200, {"id": "sbx-b"}),
+        PlannedResponse(200, {"id": "sbx-b", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-b", "running")),
-        PlannedResponse(200, {"id": "sbx-c"}),
+        PlannedResponse(200, {"id": "sbx-c", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-c", "running")),
-        PlannedResponse(200, {"id": "sbx-d"}),
+        PlannedResponse(200, {"id": "sbx-d", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-d", "running")),
-        PlannedResponse(200, {"id": "sbx-e"}),
+        PlannedResponse(200, {"id": "sbx-e", "status": "pending"}),
         PlannedResponse(200, _sandbox_detail_payload("sbx-e", "running")),
     ]
     with FakeApi(responses) as api:

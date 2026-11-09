@@ -583,6 +583,8 @@ async def test_task_cancellation_closes_only_its_response_and_carries_checkpoint
         ),
         ("unavailable", {}, None),
         ("new_unknown_event", {}, None),
+        # A timestamp is a string (the model would read a number as Unix time).
+        ("state", {"status": "building", "deadline_at": 5}, None),
     ],
 )
 async def test_malformed_protocol_never_retries(name, payload, ident):
@@ -1430,3 +1432,19 @@ async def test_build_log_json_nested_past_the_shared_depth_limit_is_a_protocol_e
         with pytest.raises(BuildLogInterruptedError) as failure:
             await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
         assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
+
+
+@pytest.mark.parametrize(
+    ("encoding", "message"),
+    [("utf-16", "build log HTTP 409"), ("utf-8-sig", "sandbox is not running")],
+    ids=["utf-16 is not read", "utf-8 with a BOM is read"],
+)
+async def test_http_error_body_is_read_as_utf8_like_typescript(encoding, message):
+    # TypeScript's TextDecoder reads UTF-8, strips the BOM and replaces bad
+    # bytes; json.loads alone would detect UTF-16. Twin in build-logs.test.ts.
+    body = json.dumps({"error": "sandbox is not running", "code": "SANDBOX_NOT_RUNNING"}).encode(encoding)
+    api, _, _ = setup([httpx.Response(409, content=body, headers={"content-type": "application/json"})])
+    with pytest.raises(DaytonaError) as failure:
+        await read_build_logs(api, DISCOVERY)
+    assert failure.value.status_code == 409
+    assert failure.value.message == message

@@ -1038,7 +1038,7 @@ async def test_daytona_create_posts_to_the_configured_base_even_for_an_explicit_
     base_url = "https://api.example.com"
     regions_route = respx.get(f"{base_url}/regions").mock(return_value=httpx.Response(200, json=[]))
     create_route = respx.post(f"{base_url}/sandboxes").mock(
-        return_value=httpx.Response(200, json={"id": "sbx"})
+        return_value=httpx.Response(200, json={"id": "sbx", "status": "pending"})
     )
     get_route = respx.get(f"{base_url}/sandboxes/sbx").mock(
         return_value=httpx.Response(200, json=_sandbox_detail_payload("sbx", "running", region="region-c"))
@@ -6613,9 +6613,9 @@ async def test_create_region_is_per_call_and_local_keeps_the_server_default():
     client = AsyncDaytona(_config_at("http://api.invalid", api_key="key"))
     api = RecordingTransport(
         [
-            {"id": "first"},
+            {"id": "first", "status": "pending"},
             _sandbox_detail_payload("first", "running"),
-            {"id": "second"},
+            {"id": "second", "status": "pending"},
             _sandbox_detail_payload("second", "running"),
         ]
     )

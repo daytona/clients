@@ -10,7 +10,7 @@ import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field, fields
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import (
     AsyncIterable,
@@ -378,7 +378,8 @@ def _missing_required_key(value: JsonValue, model_type: object, path: str) -> Op
     """
     if isinstance(value, list):
         for index, item in enumerate(value):
-            missing = _missing_required_key(item, model_type, f"{path}[{index}]")
+            # `path` ends in the list's `.`: an item reads `items[0].key`.
+            missing = _missing_required_key(item, model_type, f"{path.removesuffix('.')}[{index}].")
             if missing is not None:
                 return missing
         return None
@@ -397,6 +398,48 @@ def _missing_required_key(value: JsonValue, model_type: object, path: str) -> Op
             if missing is not None:
                 return missing
     return None
+
+
+def non_string_timestamp(value: object, model_type: object, path: str = "") -> Optional[str]:
+    """The path of the first date or date-time field of a generated model
+    (nested models and list items included) whose value is present, not
+    ``null`` and not a string, or ``None``.
+
+    The contract's timestamps are strings, and TypeScript refuses anything
+    else; the generated models would read a number as a Unix time.
+    """
+    model_fields = getattr(model_type, "model_fields", None)
+    if not isinstance(value, dict) or not isinstance(model_fields, dict):
+        return None
+    for name, info in model_fields.items():
+        key = info.alias or name
+        child = value.get(key)
+        if child is not None:
+            found = _non_string_timestamp_in(child, info.annotation, f"{path}{key}")
+            if found is not None:
+                return found
+    return None
+
+
+def _non_string_timestamp_in(value: object, annotation: object, path: str) -> Optional[str]:
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            found = None if item is None else _non_string_timestamp_in(item, annotation, f"{path}[{index}]")
+            if found is not None:
+                return found
+        return None
+    if _names_date(annotation) and not isinstance(value, str):
+        return path
+    for candidate in _model_types(annotation):
+        found = non_string_timestamp(value, candidate, f"{path}.")
+        if found is not None:
+            return found
+    return None
+
+
+def _names_date(annotation: object) -> bool:
+    """Whether an annotation is a date or date-time (through Optional / List)."""
+    return annotation in (date, datetime) or any(_names_date(argument) for argument in get_args(annotation))
 
 
 def _model_types(annotation: object) -> List[object]:
@@ -426,6 +469,11 @@ def _expect_model_from_dict(
             # A list item's path keeps its index; a nested key reads `a.b`.
             raise create_error(
                 f"expected {description}: {missing}: Field required", 400, "BAD_REQUEST", "SDK"
+            )
+        timestamp = non_string_timestamp(value, model_type)
+        if timestamp is not None:
+            raise create_error(
+                f"{description} has a {timestamp} that is not a string", 400, "BAD_REQUEST", "SDK"
             )
     try:
         parsed = from_dict(value)

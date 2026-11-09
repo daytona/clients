@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 from collections.abc import Awaitable, Callable, Iterator
 
 import anyio
@@ -648,12 +649,16 @@ _SNAPSHOT: JsonObject = {
     [
         ("images.get", {**_IMAGE, "created_at": 5}, "created_at"),
         ("images.get", {**_IMAGE, "expires_at": 5}, "expires_at"),
-        ("images.list", {"images": [{**_IMAGE, "updated_at": 1.5}], "next_cursor": None}, "updated_at"),
+        (
+            "images.list",
+            {"images": [{**_IMAGE, "cursor": "c", "updated_at": 1.5}], "next_cursor": None},
+            "images[0].updated_at",
+        ),
         ("snapshots.get", {**_SNAPSHOT, "created_at": 5}, "created_at"),
         (
             "snapshots.list",
-            {"snapshots": [{**_SNAPSHOT, "updated_at": 5}], "next_cursor": None},
-            "updated_at",
+            {"snapshots": [{**_SNAPSHOT, "cursor": "c", "updated_at": 5}], "next_cursor": None},
+            "snapshots[0].updated_at",
         ),
     ],
     ids=[
@@ -676,6 +681,87 @@ async def test_a_numeric_artifact_timestamp_is_a_contract_error(
     with FakeApi([PlannedResponse(200, body)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with _sdk_bad_request(f"has a {field} that is not a string"):
+            with _sdk_bad_request(re.escape(f"has a {field} that is not a string")):
                 await calls[call](root.v2)
     assert len(api.requests) == 1
+
+
+@pytest.mark.parametrize("status", [5, None, ["running"]], ids=["number", "null", "array"])
+async def test_a_create_status_that_is_not_a_string_is_a_contract_error(status: JsonValue) -> None:
+    # As the id is checked: a wrong status is never read as `unknown`. The
+    # TypeScript twin is in malformed-responses.test.ts.
+    with FakeApi([PlannedResponse(200, {"id": "sbx", "status": status})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("sandbox create response has a status that is not a string"):
+                await root.v2.create("img_1", wait_seconds=0)
+    assert len(api.requests) == 1
+
+
+_PORT: JsonObject = {
+    "port": 8080,
+    "public": False,
+    "url": "https://8080-src.preview.invalid",
+    "created_at": "2026-01-01T00:00:00Z",
+}
+
+
+# Every date-time a generated API model reads is checked the same way, on the
+# sandbox, preview endpoint and signed preview link responses too.
+@pytest.mark.parametrize(
+    ("call", "body", "path"),
+    [
+        (lambda d: lazy_sandbox(d, "src").ports.expose(8080), {**_PORT, "created_at": 5}, "created_at"),
+        (
+            lambda d: lazy_sandbox(d, "src").ports.list_endpoints(),
+            {"ports": [{**_PORT, "created_at": 1.5}], "next_cursor": None},
+            "ports[0].created_at",
+        ),
+        (
+            lambda d: lazy_sandbox(d, "src").ports.signed_preview_link(8080),
+            {"url": "https://s.preview.invalid", "token": "s" + "0" * 32, "expires_at": 5},
+            "expires_at",
+        ),
+        (
+            lambda d: d.list(),
+            {"sandboxes": [{**_DETAIL, "updated_at": 5}], "next_cursor": None},
+            "updated_at",
+        ),
+    ],
+    ids=["preview endpoint", "preview endpoint list", "signed preview link", "sandbox list"],
+)
+async def test_a_numeric_timestamp_is_a_contract_error_on_every_model(
+    call: Call, body: JsonObject, path: str
+) -> None:
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request(re.escape(f"has a {path} that is not a string")):
+                await call(root.v2)
+    assert len(api.requests) == 1
+
+
+@pytest.mark.parametrize("cursor", ["missing", 5], ids=["missing", "not a string"])
+@pytest.mark.parametrize("call", ["images.list", "snapshots.list"])
+async def test_a_list_item_cursor_is_not_read(call: str, cursor: object) -> None:
+    # Neither SDK reads the per-item cursor (next_cursor continues the list),
+    # so a missing or mistyped one is not a contract error, as in TypeScript.
+    key, item = ("images", _IMAGE) if call == "images.list" else ("snapshots", _SNAPSHOT)
+    entry: JsonObject = dict(item) if cursor == "missing" else {**item, "cursor": 5}
+    with FakeApi([PlannedResponse(200, {key: [entry], "next_cursor": None})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            service = root.v2.images if call == "images.list" else root.v2.snapshots
+            page = await service.list()
+    assert len(page.items) == 1
+
+
+async def test_a_signed_preview_link_without_expires_at_is_a_contract_error() -> None:
+    # The contract requires expires_at, so the link always carries it; the
+    # TypeScript twin is in malformed-responses.test.ts.
+    body: JsonObject = {"url": "https://s.preview.invalid", "token": "s" + "0" * 32}
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("expires_at: Field required"):
+                await lazy_sandbox(root.v2, "src").ports.signed_preview_link(8080)

@@ -14,17 +14,18 @@ and `fork()` check the id they follow. TypeScript used to throw a raw
 `/images/undefined`; Python `images.get()` raised a raw `KeyError`. An access
 token whose `expires_at` does not parse, a malformed access-token response and
 a non-text entrypoint log are `BadRequestError` too (they were 500 with no
-code), and a search page needs its `total`, `total_relation` and a string
-`next_cursor` (a mistyped cursor used to end `search()` / `find_by_name()`
-early); `list()` checks `nextCursor` as it checks `next_cursor`. Python
-refuses a sandbox object whose `labels` is not a map of strings, as TypeScript
-does (it dropped them silently). A detail read behind a list item that breaks
-the contract keeps the list item, as an unreadable one does. A response or
-events frame nested deeper than the JSON decoder can follow is a malformed
-response naming the response (Python) or skipped (an events frame), never a
-raw `RecursionError`, and nothing the SDK does with response data recurses
-without a bound. An integer too large for a double, which overflows to
-infinity (`10**400`; Python read it, TypeScript's `JSON.parse` turns it into
+code), and a search page needs its `total` and `total_relation`, while its
+`next_cursor` may be omitted or `null` and only a present non-string one is
+refused (a mistyped cursor used to end `search()` / `find_by_name()` early);
+`list()` checks `nextCursor` as it checks `next_cursor`. Python refuses a
+sandbox object whose `labels` is not a map of strings, as TypeScript does (it
+dropped them silently). A detail read behind a list item that breaks the
+contract keeps the list item, as an unreadable one does. A response or events
+frame nested deeper than the JSON decoder can follow is a malformed response
+naming the response (Python) or skipped (an events frame), never a raw
+`RecursionError`, and nothing the SDK does with response data recurses without
+a bound. An integer too large for a double, which overflows to infinity
+(`10**400`; Python read it, TypeScript's `JSON.parse` turns it into
 `Infinity`), is refused in both SDKs; an integer above 2^53 within a double's
 range (2^53 + 1, a search `total` of 2^60) is accepted in both, and TypeScript
 may round it. Both SDKs refuse an image whose `platform`, `default` or
@@ -35,16 +36,20 @@ missing `region_id` from the sandbox id); only an empty `region_id` is derived
 from the id. A required field the contract allows to be null (for example the
 project budget's `monthly_limit_cents`, `period_start_date`, `created_at` and
 `updated_at`) must be present, while an explicit `null` stays valid. Python no
-longer requires the per-item `cursor` of a list page; neither SDK reads it. A
-search page's `total` must be a non-negative integer (the contract's minimum
-of 0; both SDKs read a negative one as given). A sandbox's `lifecycle_policy`
-is checked field by field in TypeScript as Python's model checks it: integer
-`timeout_seconds` / `idle_expiry_seconds`, string actions (an unknown one is
-kept), string deadlines and activity source (TypeScript read a malformed field
-as absent). Python also refuses a number where the contract has a timestamp
-string, on the sandbox and its lifecycle policy (its model read it as a Unix
-time). Python refuses a number as an image's or snapshot's `created_at`,
-`updated_at` or `expires_at` too, as TypeScript does. JSON nested deeper than
-600 levels is refused the same way in both SDKs in a build-log event or
-discovery response (the build-log protocol error), and an events-hub frame
-nested that deep is skipped like an undecodable one.
+longer requires the per-item `cursor` of a list page (an image or snapshot
+page item without one, or with a non-string one, was refused); neither SDK
+reads it. A search page's `total` must be a non-negative integer, the
+contract's minimum of 0: both SDKs reject a negative one (released versions
+read it as given). A sandbox's `lifecycle_policy` is checked field by field in
+TypeScript as Python's model checks it: integer `timeout_seconds` /
+`idle_expiry_seconds`, string actions (an unknown one is kept), string
+deadlines and activity source (TypeScript read a malformed field as absent).
+Python also refuses a number where the contract has a date or timestamp
+string, in every response it maps (the sandbox and its lifecycle policy,
+images, snapshots, preview endpoints, signed preview links, the project
+budget, a build-log state's `deadline_at`), as TypeScript does (its models
+read a number as a Unix time). JSON nested deeper than 600 levels is refused
+the same way in both SDKs in a build-log event or discovery response (the
+build-log protocol error), and an events-hub frame nested that deep is skipped
+like an undecodable one. A create response's `status`, when present, must be a
+string (both SDKs read any other value as `unknown`).

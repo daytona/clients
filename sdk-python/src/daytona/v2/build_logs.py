@@ -30,6 +30,7 @@ from ._core import (
     JSON_MAX_DEPTH,
     RequestSpec,
     _nested_deeper_than,
+    non_string_timestamp,
     parse_error_payload,
     query_text,
     wait_budget_seconds,
@@ -431,6 +432,10 @@ class _Observer:
             model.model_validate(data)
         except ValueError as exc:
             raise _ProtocolError("invalid build log event schema") from exc
+        # A timestamp is a string, as TypeScript reads it: the model would
+        # also read a number as a Unix time.
+        if non_string_timestamp(data, model) is not None:
+            raise _ProtocolError("invalid build log event schema")
         if event not in ("log", "gap", "done") and ident is not None:
             raise _ProtocolError("control event must not advance cursor")
         if event == "state":
@@ -627,7 +632,9 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes]) -> DaytonaError
         # A known 401/403/etc remains terminal even if its diagnostic body fails.
         return create_error(f"build log HTTP {status}", status)
     try:
-        payload = _object(_json(body))
+        # UTF-8 with the BOM stripped and bad bytes replaced, as TypeScript's
+        # TextDecoder reads it: json.loads would also detect UTF-16 and UTF-32.
+        payload = _object(_json(bytes(body).decode("utf-8", errors="replace").removeprefix("\ufeff")))
     except (ValueError, RecursionError, _ProtocolError):
         return create_error(f"build log HTTP {status}", status)
     # No usable prose (absent, empty or malformed) keeps the build-log status

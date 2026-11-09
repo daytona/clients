@@ -152,7 +152,8 @@ export class ImageBuilder {
     const given: unknown = nameOrValues
     // A plain object is the counterpart of Python's mapping; a Map, a Date or a
     // class instance would read as empty and drop the step, so it is refused.
-    if (typeof given !== 'string' && !isPlainRecord(given)) {
+    // A mapping carries its values: a second argument would be dropped.
+    if (typeof given !== 'string' && (!isPlainRecord(given) || value !== undefined)) {
       throw badRequest('ImageBuilder.env takes a name and a value, or a mapping of names to values')
     }
     const pairs: ReadonlyArray<readonly [string, string]> = typeof nameOrValues === 'string'

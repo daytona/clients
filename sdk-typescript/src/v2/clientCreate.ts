@@ -56,6 +56,10 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     // The contract requires the new sandbox's id; nothing can follow without it.
     throw badRequest('sandbox create response is missing the sandbox id')
   }
+  // The contract types the status as a string; a wrong one is not read as
+  // `unknown` (an absent one is, as the sandbox exists).
+  const status: unknown = Reflect.get(created, 'status')
+  if (status !== undefined && typeof status !== 'string') throw badRequest('sandbox create response has a status that is not a string')
   // A create token is refreshable, unlike a caller-supplied one.
   const connectOptions: SandboxConnectOptionsFromCreate = {
     accessToken: created.access_token ?? undefined,
