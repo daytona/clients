@@ -4,79 +4,91 @@
 package main
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestReadmeInstall_installsNewestV2_whenCommandIsCopied(t *testing.T) {
-	if _, err := exec.LookPath("sh"); err != nil {
-		t.Skip("install script requires sh")
-	}
-	// Given the executable shell command published in the README, and a newer
-	// v2 release below a v0 release in GitHub's newest-first release list.
+// The README's bootstrap commands fetch the installer from the main branch, so
+// they need no edit per release. They must work before the first stable 2.x
+// release and pick the stable line after it.
+const (
+	readmeInstallSh  = "https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh"
+	readmeInstallPs1 = "https://raw.githubusercontent.com/daytona/clients/main/cli/install.ps1"
+)
+
+// readmeCommands returns the README lines that start with prefix and name the
+// installer url.
+func readmeCommands(t *testing.T, prefix, url string) []string {
+	t.Helper()
 	readme, err := os.ReadFile("README.md")
 	require.NoError(t, err)
-	var command string
+	var commands []string
 	for line := range strings.Lines(string(readme)) {
-		if strings.HasPrefix(line, "curl ") && strings.Contains(line, "/install.sh") {
-			command = strings.TrimSpace(line)
-			break
+		if strings.HasPrefix(line, prefix) && strings.Contains(line, url) {
+			commands = append(commands, strings.TrimSpace(line))
 		}
 	}
-	require.NotEmpty(t, command)
-	root := t.TempDir()
-	binDir := filepath.Join(root, "bin")
-	mockDir := filepath.Join(root, "mock")
-	require.NoError(t, os.Mkdir(mockDir, 0o755))
-	asset := "#!/bin/sh\necho newest-v2\n"
-	sum := fmt.Sprintf("%x", sha256.Sum256([]byte(asset)))
-	writeMockTool(t, filepath.Join(mockDir, "uname"), `#!/bin/sh
-if [ "$1" = "-s" ]; then echo Linux; else echo x86_64; fi
-`)
-	writeMockTool(t, filepath.Join(mockDir, "curl"), fmt.Sprintf(`#!/bin/sh
-set -eu
-out=''
-url=''
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    -o) out="$2"; shift 2 ;;
-    -*) shift ;;
-    *) url="$1"; shift ;;
-  esac
-done
-case "$url" in
-  *github.com/daytona/clients/releases/download/v2.*/install.sh) cat install.sh ;;
-  *api.github.com/repos/daytona/clients/releases?per_page=100)
-    echo '[{"tag_name":"v0.999.0"},{"tag_name":"v2.0.0-alpha.9"}]' ;;
-  */v2.0.0-alpha.9/daytona-linux-amd64)
-    printf '#!/bin/sh\necho newest-v2\n' > "$out" ;;
-  */v2.0.0-alpha.9/SHA256SUMS)
-    printf '%%s  daytona-linux-amd64\n' '%s' > "$out" ;;
-  *) echo "unexpected download: $url" >&2; exit 1 ;;
-esac
-`, sum))
-	cmd := exec.Command("sh", "-c", command)
-	cmd.Env = append(os.Environ(),
-		"DAYTONA_VERSION=",
-		"DAYTONA_RELEASE_REPO=daytona/clients",
-		"DAYTONA_INSTALL_DIR="+binDir,
-		"PATH="+mockDir+":"+os.Getenv("PATH"),
-	)
+	return commands
+}
 
-	// When a user copies the command without selecting a binary version.
-	out, err := cmd.CombinedOutput()
-
-	// Then the installed executable comes from the newest v2 release, not the
-	// release that supplies the bootstrap script or GitHub's latest v0 release.
-	require.NoError(t, err, string(out))
-	installed, err := os.ReadFile(filepath.Join(binDir, "daytona"))
+func TestReadmeInstall_bootstrapsFromMainNotFromARelease(t *testing.T) {
+	readme, err := os.ReadFile("README.md")
 	require.NoError(t, err)
-	require.Equal(t, asset, string(installed))
+
+	require.NotContains(t, string(readme), "/releases/download/v", "a pinned release URL needs an edit for every release")
+	shell := readmeCommands(t, "curl ", readmeInstallSh)
+	require.NotEmpty(t, shell, "README has no install.sh command")
+	require.Equal(t, "curl -fsSL "+readmeInstallSh+" | sh", shell[0])
+	require.Equal(t, []string{"irm " + readmeInstallPs1 + " | iex"}, readmeCommands(t, "irm ", readmeInstallPs1))
+}
+
+func TestReadmeInstall_shellCommandsInstallTheExpectedRelease(t *testing.T) {
+	commands := readmeCommands(t, "curl ", readmeInstallSh)
+	require.Len(t, commands, 3)
+	for _, tc := range []struct {
+		name, command string
+		index         releaseIndex
+		want          string
+	}{
+		{name: "default before 2.0.0", command: commands[0], index: preGAIndex, want: "2.0.0-alpha.8"},
+		{name: "default after 2.0.0", command: commands[0], index: postGAIndex, want: "2.1.0"},
+		{name: "alpha channel after 2.0.0", command: commands[1], index: postGAIndex, want: "2.2.0-alpha.1"},
+		{name: "exact version", command: commands[2], index: postGAIndex, want: "2.0.0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// When a user copies the README command.
+			out, got, err := runInstallSh(t, tc.command, tc.index)
+
+			// Then the installer fetched from main installs the expected release.
+			require.NoError(t, err, out)
+			require.Equal(t, tc.want, got, out)
+		})
+	}
+}
+
+func TestReadmeInstall_powershellCommandInstallsTheExpectedRelease(t *testing.T) {
+	commands := readmeCommands(t, "irm ", readmeInstallPs1)
+	require.Len(t, commands, 1, "README needs exactly one install.ps1 command")
+	command := commands[0]
+	for _, tc := range []struct {
+		name  string
+		index releaseIndex
+		env   []string
+		want  string
+	}{
+		{name: "default before 2.0.0", index: preGAIndex, want: "2.0.0-alpha.8"},
+		{name: "default after 2.0.0", index: postGAIndex, want: "2.1.0"},
+		{name: "alpha channel after 2.0.0", index: postGAIndex, env: []string{"DAYTONA_CHANNEL=alpha"}, want: "2.2.0-alpha.1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, got, err := runInstallPs1(t, command, tc.index, tc.env...)
+
+			require.NoError(t, err, out)
+			require.NotContains(t, out, "INSTALL_FAILED")
+			require.Equal(t, tc.want, got, out)
+		})
+	}
 }

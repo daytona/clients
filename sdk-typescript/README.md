@@ -13,6 +13,9 @@ declarations. Node >= 22.15 (or a browser environment with `WebSocket`).
 npm install @daytona/sdk@alpha
 ```
 
+The legacy package `@daytonaio/sdk` is published only from the 0.x line:
+installing or upgrading it never gives you 2.x. Install `@daytona/sdk`.
+
 The package includes the v0 namespace, so installing it also installs the
 0.x SDK's runtime dependencies (AWS S3 client, OpenTelemetry, socket.io, …),
 even if you only use `daytona.v2`. In Node builds they load only on first

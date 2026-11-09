@@ -33,8 +33,11 @@ The roots are
 [`../../sdk-python/src/daytona/__init__.py`](../../sdk-python/src/daytona/__init__.py)
 with [`../../sdk-python/src/daytona/_client.py`](../../sdk-python/src/daytona/_client.py),
 and [`../../sdk-typescript/src/index.ts`](../../sdk-typescript/src/index.ts) with
-[`../../sdk-typescript/src/Daytona.ts`](../../sdk-typescript/src/Daytona.ts). Nothing
-loads v0 until `.v0` is first used.
+[`../../sdk-typescript/src/Daytona.ts`](../../sdk-typescript/src/Daytona.ts). In
+Python and in Node, importing the root doesn't load v0: it loads on the first
+use of `.v0` or an import of the `v0` namespace. A browser bundle of the
+TypeScript root includes v0, so that `.v0` stays synchronous there too (see
+Consequences).
 
 **v0 is bundled at publish time from a pinned 0.x tag.** The `v0` namespace
 (`daytona.v0`, `@daytona/sdk/v0`) is the 0.x SDK from this repository's
@@ -46,7 +49,9 @@ package when publishing. The bundled tree is never committed, and
 if the pinned tag moves. Nothing is patched into v0's behavior: a v0 fix
 reaches 2.x users by releasing it on the 0.x line and bumping the pin, which
 is a manual pull request (the pin, plus the migration tool's v0 data; see
-RELEASING, "The v0 pin") and a 2.x release.
+RELEASING, "The v0 pin") and a 2.x release. Within 2.x the pin moves only to a
+0.x release that stays compatible for `.v0` callers, runtime floor included
+([`../VERSIONING.md`](../VERSIONING.md), "Public API surface").
 
 **One shared error hierarchy.** The root defines `DaytonaError` and the
 twelve status categories both versions share (`DaytonaBadRequestError`,
@@ -136,8 +141,15 @@ point keeps configuration in one place.
 - Source checkouts and unbundled installs have no v0: in TypeScript, `d.v0`
   throws a "not included in this build" error. Published packages always
   carry the bundle.
-- In browsers, a bundle of the TypeScript root includes v0. Apps that need
-  only 2.x import `@daytona/sdk/v2` types and keep bundles small.
+- In browsers, a bundle of the TypeScript root includes v0, even for an app
+  that uses only 2.x: the root is the only way to build a client, and
+  importing types from `@daytona/sdk/v2` doesn't change what the root pulls
+  in. A browser app that needs no v0 can alias the root's package-internal
+  `#v0-loader` import to a stub module in its bundler configuration; its
+  bundle then carries no v0. The stub exports a `loadV0()` that returns
+  `{ __daytonaV0Unbundled: true }`, so `.v0` throws the "not included in this
+  build" error. The hook is internal: its shape may change in any release
+  ([`../VERSIONING.md`](../VERSIONING.md), "Public API surface").
 - In Python, `hasattr(daytona, "Sandbox")` raises `ImportError` instead of
   returning `False`, the cost of guiding `from daytona import Sandbox`.
 - The shared error classes are a public contract between both namespaces.

@@ -111,7 +111,7 @@ func TestSandboxCreate_fileBaseWithFlagOverride(t *testing.T) {
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
 }
 func TestSandboxCreate_waitAndCreateTTLShape(t *testing.T) {
-	stdout, _, err := runCLI(t, []string{"sandbox", "create", "--image", "python:3.12", "--wait", "9", "--create-ttl", "600", "--no-wait"}, []expectedRequest{{
+	stdout, _, err := runCLI(t, []string{"sandbox", "create", "--image", "python:3.12", "--wait", "9s", "--create-ttl", "10m", "--no-wait"}, []expectedRequest{{
 		method:   http.MethodPost,
 		path:     "/sandboxes",
 		status:   202,
@@ -120,6 +120,51 @@ func TestSandboxCreate_waitAndCreateTTLShape(t *testing.T) {
 	}})
 	require.NoError(t, err)
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
+}
+
+func TestSandboxCreate_durationKeywordsAndValidation(t *testing.T) {
+	_, _, err := runCLI(t, []string{"sandbox", "create", "--create-ttl", "max", "--wait", "0s", "--no-wait"}, []expectedRequest{{
+		method:   http.MethodPost,
+		path:     "/sandboxes",
+		status:   202,
+		bodyJSON: `{"wait_seconds":0,"create_timeout_seconds":-1}`,
+		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
+	}})
+	require.NoError(t, err)
+	for _, args := range [][]string{
+		{"--wait", "9"},                  // a unit is required
+		{"--create-ttl", "-1"},           // the sentinel is the keyword `max`
+		{"--create-ttl", "0s"},           // zero is not a deadline
+		{"--idle-timeout", "off"},        // `off` exists on update only
+		{"--lifecycle-timeout", "90.5s"}, // whole seconds
+		{"--timeout", "3600"},            // --timeout is the local wait, a Go duration
+		{"--cores-max", "2"},             // renamed to --cpu-max
+		{"--mem-max", "2048"},            // renamed to --memory-max
+	} {
+		_, _, err := runCLI(t, append([]string{"sandbox", "create", "--no-wait"}, args...), nil)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), args)
+	}
+}
+
+func TestSandboxCreate_lifecycleActionsFollowTheClass(t *testing.T) {
+	for _, args := range [][]string{
+		{"sandbox", "create", "--on-lifecycle-timeout", "stop", "--lifecycle-timeout", "1h"},
+		{"sandbox", "create", "--on-idle-timeout", "pause", "--idle-timeout", "1h"},
+		{"sandbox", "create-from-snapshot", "snap_1", "--on-lifecycle-timeout", "pause", "--lifecycle-timeout", "1h"},
+		{"sandbox", "create-macos", "--image", "base-macos", "--reservation", "region-a:res-1", "--on-lifecycle-timeout", "stop", "--lifecycle-timeout", "1h"},
+		{"sandbox", "create-macos", "--image", "base-macos", "--reservation", "region-a:res-1", "--persistent", "--on-idle-timeout", "pause", "--idle-timeout", "1h"},
+	} {
+		_, _, err := runCLI(t, append(args, "--no-wait"), nil)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), args)
+	}
+	_, _, err := runCLI(t, []string{"sandbox", "create-macos", "--image", "base-macos", "--reservation", "region-a:res-1", "--persistent", "--on-lifecycle-timeout", "stop", "--lifecycle-timeout", "1h", "--no-wait"}, []expectedRequest{{
+		method:   http.MethodPost,
+		path:     "/sandboxes/macos",
+		status:   202,
+		bodyJSON: `{"image":"base-macos","reservation":"region-a:res-1","persistent":true,"lifecycle_policy":{"timeout_seconds":3600,"on_timeout":"stop"}}`,
+		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"33333333-3333-3333-3333-333333333333","name":"macbox","status":"pending","wait_cap_seconds":3,"reservation_id":null}`,
+	}})
+	require.NoError(t, err)
 }
 
 func TestSandboxCreate_noWaitReturnsImmediately(t *testing.T) {
@@ -154,8 +199,8 @@ func TestSandboxCreate_allResourceFlags(t *testing.T) {
 		"--cpu", "1.5",
 		"--memory", "2048",
 		"--disk", "4096",
-		"--cores-max", "2.5",
-		"--mem-max", "4096",
+		"--cpu-max", "2.5",
+		"--memory-max", "4096",
 		"--disk-max", "8192",
 		"--cpu-arch", "amd64",
 		"--cpu-type", "zen5",
@@ -167,12 +212,12 @@ func TestSandboxCreate_allResourceFlags(t *testing.T) {
 		"--secret", "db",
 		"--allow-domain", "api.example.com",
 		"--allow-cidr", "1.2.3.4/32",
-		"--timeout", "3600",
-		"--on-timeout", "delete",
-		"--idle-timeout", "600",
+		"--lifecycle-timeout", "1h",
+		"--on-lifecycle-timeout", "delete",
+		"--idle-timeout", "10m",
 		"--on-idle-timeout", "delete",
-		"--wait", "9",
-		"--create-ttl", "600",
+		"--wait", "9s",
+		"--create-ttl", "10m",
 		"--no-wait",
 	}, []expectedRequest{{
 		method: http.MethodPost,
@@ -190,6 +235,7 @@ func TestSandboxCreate_allResourceFlags(t *testing.T) {
 			assert.Equal(t, "sandbox", m["user"])
 			assert.Equal(t, float64(9), m["wait_seconds"])
 			assert.Equal(t, float64(600), m["create_timeout_seconds"])
+			assert.Equal(t, map[string]any{"timeout_seconds": float64(3600), "on_timeout": "delete", "idle_expiry_seconds": float64(600), "on_idle_timeout": "delete"}, m["lifecycle_policy"])
 			_, hasBodyKey := m["idempotency_key"]
 			assert.False(t, hasBodyKey)
 			assert.Equal(t, "idem-1", r.Header.Get("Idempotency-Key"))
@@ -210,7 +256,7 @@ func TestSandboxCreate_allResourceFlags(t *testing.T) {
 func TestSandboxCreate_linuxLimitFlags(t *testing.T) {
 	_, _, err := runCLI(t, []string{
 		"sandbox", "create", "--image", "python:3.12",
-		"--cpu", "2", "--cores-max", "2", "--memory", "4096", "--mem-max", "4096",
+		"--cpu", "2", "--cpu-max", "2", "--memory", "4096", "--memory-max", "4096",
 		"--disk", "10240", "--disk-max", "10240", "--no-wait",
 	}, []expectedRequest{{
 		method: http.MethodPost,

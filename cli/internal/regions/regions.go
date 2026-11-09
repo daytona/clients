@@ -10,6 +10,7 @@ package regions
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -153,10 +154,16 @@ func SplitCursor(cursor string) map[string]string {
 }
 
 func toRegionError(region string, err error) output.RegionError {
-	re := output.RegionError{Region: region, Message: err.Error()}
+	re := output.RegionError{Region: region, Message: err.Error(), Err: err}
 	var ae *api.APIError
 	if asAPIError(err, &ae) {
 		re.Status = ae.Status
+		re.Code = ae.Code
+		re.Source = ae.Source
+		re.TraceID = ae.TraceID
+		if ae.Message != "" {
+			re.Message = ae.Message
+		}
 	}
 	return re
 }
@@ -176,6 +183,16 @@ func asAPIError(err error, target **api.APIError) bool {
 	return false
 }
 
+// partialFailure marks an incomplete list as the servers' failure, not the
+// CLI's: the error object then has no code or source of its own (each
+// region's are in the list's `errors`).
+type partialFailure struct{ msg string }
+
+func (p partialFailure) Error() string        { return p.msg }
+func (p partialFailure) ErrorCode() string    { return "" }
+func (p partialFailure) ErrorSource() string  { return "" }
+func (p partialFailure) ErrorTraceID() string { return "" }
+
 // PartialError returns the exit-7 error for an incomplete list, or nil.
 func PartialError[T any](l output.List[T]) error {
 	if !l.Incomplete {
@@ -183,12 +200,28 @@ func PartialError[T any](l output.List[T]) error {
 	}
 	var parts []string
 	for _, e := range l.Errors {
-		if e.Region != "" {
-			parts = append(parts, e.Region+": "+e.Message)
-		} else {
-			parts = append(parts, e.Message)
-		}
+		parts = append(parts, regionFailureText(e))
 	}
-	return cerr.New(cerr.ExitPartial, "incomplete results — %d region(s) failed: %s", len(l.Errors), strings.Join(parts, "; ")).
-		WithHint("the items shown are from the regions that answered")
+	msg := fmt.Sprintf("incomplete results — %d region(s) failed: %s", len(l.Errors), strings.Join(parts, "; "))
+	return cerr.Wrap(cerr.ExitPartial, partialFailure{msg}, "%s", msg).
+		WithHint("the items shown are from the regions that answered; with -o json or -o yaml the list's `errors` holds each failure")
+}
+
+// regionFailureText is one region's failure for the human-readable message:
+// the region, the HTTP status, the server's message and its error code.
+func regionFailureText(e output.RegionError) string {
+	text := e.Message
+	if e.Status != 0 {
+		text = fmt.Sprintf("%d %s", e.Status, text)
+	}
+	if e.Code != "" {
+		text += " (" + e.Code + ")"
+	}
+	if e.TraceID != "" {
+		text += " [trace " + e.TraceID + "]"
+	}
+	if e.Region != "" {
+		text = e.Region + ": " + text
+	}
+	return text
 }

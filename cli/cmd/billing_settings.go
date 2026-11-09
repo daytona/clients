@@ -4,10 +4,12 @@
 package cmd
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +19,7 @@ func newBillingAutomaticTopUpCmd() *cobra.Command {
 	cmd.AddCommand(
 		newBillingGetCmd[gen.AutomaticTopUp]("get", "/automatic-top-up", ""),
 		newBillingAutomaticTopUpSetCmd(),
-		newBillingDeleteCmd("delete", "/automatic-top-up", "Delete automatic top-up"),
+		newBillingDeleteCmd("delete", "/automatic-top-up", "Delete automatic top-up", "automatic top-up"),
 	)
 	return cmd
 }
@@ -25,18 +27,25 @@ func newBillingAutomaticTopUpCmd() *cobra.Command {
 func newBillingAutomaticTopUpSetCmd() *cobra.Command {
 	var thresholdCents int64
 	var targetCents int64
-	cmd := &cobra.Command{Use: "set", Short: "Set automatic top-up", Long: "Set automatic top-up using integer-cent thresholds. Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	cmd := &cobra.Command{Use: "set", Short: "Set automatic top-up", Long: "Set automatic top-up using integer-cent thresholds. It charges the organization's payment method, so it asks for confirmation; in non-interactive mode (no terminal, -o json|yaml, or CI) pass --yes or set DAYTONA_YES=1. Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		if err := requireBillingFlag(cmd, "threshold-cents"); err != nil {
 			return err
 		}
 		if err := requireBillingFlag(cmd, "target-cents"); err != nil {
 			return err
 		}
+		const target = "automatic top-up, which charges the organization's payment method"
+		if err := FromContext(cmd.Context()).PreflightConfirm("set", target); err != nil {
+			return err
+		}
 		orgID, mc, a, err := billingClient(cmd)
 		if err != nil {
 			return err
 		}
-		var payload gen.AutomaticTopUp
+		if err := a.Confirm("set", fmt.Sprintf("automatic top-up of organization %s to %d cents when the balance falls below %d cents, charged to its payment method", orgID, targetCents, thresholdCents)); err != nil {
+			return err
+		}
+		var payload api.Raw[gen.AutomaticTopUp]
 		err = mc.Do(cmd.Context(), http.MethodPut, billingBasePath(orgID)+"/automatic-top-up", nil, gen.SetAutomaticTopUpRequest{ThresholdCents: thresholdCents, TargetCents: targetCents}, &payload)
 		if err != nil {
 			return err
@@ -53,7 +62,7 @@ func newBillingBalanceNotificationCmd() *cobra.Command {
 	cmd.AddCommand(
 		newBillingGetCmd[gen.BalanceNotification]("get", "/balance-notification", ""),
 		newBillingBalanceNotificationSetCmd(),
-		newBillingDeleteCmd("delete", "/balance-notification", "Delete the low-balance notification"),
+		newBillingDeleteCmd("delete", "/balance-notification", "Delete the low-balance notification", "the low-balance notification"),
 	)
 	return cmd
 }
@@ -68,7 +77,7 @@ func newBillingBalanceNotificationSetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.BalanceNotification
+		var payload api.Raw[gen.BalanceNotification]
 		err = mc.Do(cmd.Context(), http.MethodPut, billingBasePath(orgID)+"/balance-notification", nil, gen.SetBalanceNotificationRequest{ThresholdCents: thresholdCents}, &payload)
 		if err != nil {
 			return err
@@ -86,13 +95,23 @@ func requireBillingFlag(cmd *cobra.Command, name string) error {
 	return nil
 }
 
-func newBillingDeleteCmd(use string, suffix string, short string) *cobra.Command {
-	return &cobra.Command{Use: use, Short: short, Long: short + ". Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+func newBillingDeleteCmd(use, suffix, short, target string) *cobra.Command {
+	return &cobra.Command{Use: use, Short: short, Long: short + ". Asks for confirmation; in non-interactive mode (no terminal, -o json|yaml, or CI) pass --yes or set DAYTONA_YES=1. Requires write:billing.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		a := FromContext(cmd.Context())
+		if err := a.PreflightConfirm("delete", target); err != nil {
+			return err
+		}
 		orgID, mc, _, err := billingClient(cmd)
 		if err != nil {
 			return err
 		}
-		return mc.Do(cmd.Context(), http.MethodDelete, billingBasePath(orgID)+suffix, nil, nil, nil)
+		if err := a.Confirm("delete", target+" of organization "+orgID); err != nil {
+			return err
+		}
+		if err := mc.Do(cmd.Context(), http.MethodDelete, billingBasePath(orgID)+suffix, nil, nil, nil); err != nil {
+			return err
+		}
+		return printAck(a, "org_id", orgID, "deleted", "")
 	}}
 }
 
@@ -103,7 +122,7 @@ func newBillingCouponCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.CouponRedemption
+		var payload api.Raw[gen.CouponRedemption]
 		err = mc.Do(cmd.Context(), http.MethodPost, billingBasePath(orgID)+"/coupons/redeem", nil, gen.RedeemCouponRequest{Code: args[0]}, &payload)
 		if err != nil {
 			return err
@@ -118,16 +137,22 @@ func newBillingPlanCmd() *cobra.Command {
 	cmd.AddCommand(
 		newBillingGetCmd[gen.BillingPlan]("get", "/plan", ""),
 		newBillingGetCmd[gen.PlanList]("list", "/plans", "plans"),
-		&cobra.Command{Use: "set <starter|team|enterprise>", Short: "Set the billing plan", Long: "Set the organization's billing plan. Requires write:billing.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "set <starter|team|enterprise>", Short: "Set the billing plan", Long: "Set the organization's billing plan. It changes what the organization is billed, so it asks for confirmation; in non-interactive mode (no terminal, -o json|yaml, or CI) pass --yes or set DAYTONA_YES=1. Requires write:billing.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 			plan := strings.ToLower(args[0])
 			if plan != "starter" && plan != "team" && plan != "enterprise" {
 				return cerr.Usage("plan must be starter, team, or enterprise")
+			}
+			if err := FromContext(cmd.Context()).PreflightConfirm("set", "the billing plan to "+plan); err != nil {
+				return err
 			}
 			orgID, mc, a, err := billingClient(cmd)
 			if err != nil {
 				return err
 			}
-			var payload gen.BillingPlan
+			if err := a.Confirm("set", "the billing plan of organization "+orgID+" to "+plan); err != nil {
+				return err
+			}
+			var payload api.Raw[gen.BillingPlan]
 			err = mc.Do(cmd.Context(), http.MethodPut, billingBasePath(orgID)+"/plan", nil, gen.SetPlanRequest{Plan: gen.PlanName(plan)}, &payload)
 			if err != nil {
 				return err
@@ -162,7 +187,7 @@ func newBillingContactSetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var payload gen.BillingContact
+		var payload api.Raw[gen.BillingContact]
 		err = mc.Do(cmd.Context(), http.MethodPut, billingBasePath(orgID)+"/contact", nil, billingContactRequest{Email: value}, &payload)
 		if err != nil {
 			return err

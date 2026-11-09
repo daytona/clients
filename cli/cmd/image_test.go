@@ -24,7 +24,7 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 	}{
 		{
 			name: "import image waits for ready",
-			args: []string{"image", "import", "img", "--ref", "python:3.12"},
+			args: []string{"image", "create", "img", "--ref", "python:3.12"},
 			expected: []expectedRequest{
 				{method: http.MethodPost, path: "/images", status: 202, bodyJSON: `{"name":"img","source":{"type":"registry","ref":"python:3.12"}}`, response: `{"id":"11111111-1111-1111-1111-111111111111","status":"pending"}`},
 				{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111", query: "wait=ready&timeout_ms=55000", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
@@ -32,7 +32,7 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 		},
 		{
 			name:     "import image",
-			args:     []string{"image", "import", "img", "--ref", "python:3.12", "--no-wait"},
+			args:     []string{"image", "create", "img", "--ref", "python:3.12", "--no-wait"},
 			expected: []expectedRequest{{method: http.MethodPost, path: "/images", status: 202, bodyJSON: `{"name":"img","source":{"type":"registry","ref":"python:3.12"}}`, response: `{"id":"11111111-1111-1111-1111-111111111111","status":"pending"}`}},
 		},
 		{
@@ -62,19 +62,20 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 			expected: []expectedRequest{{method: http.MethodPatch, path: "/images/11111111-1111-1111-1111-111111111111", status: 200, bodyJSON: `{"name":"keep-this"}`, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")}},
 		},
 		{
-			name:     "delete image",
-			args:     []string{"image", "delete", "11111111-1111-1111-1111-111111111111", "--yes"},
-			expected: []expectedRequest{{method: http.MethodDelete, path: "/images/11111111-1111-1111-1111-111111111111", status: 204}},
+			name: "delete image",
+			// One request: the API resolves an id or a name, and the
+			// acknowledgement repeats the reference as given.
+			args:     []string{"image", "delete", "py312", "--yes"},
+			expected: []expectedRequest{{method: http.MethodDelete, path: "/images/py312", status: 204}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stdout, _, err := runCLI(t, tt.args, tt.expected)
 			require.NoError(t, err)
-			out := requireJSONStdout(t, stdout)
-			require.NotEmpty(t, out)
+			require.NotEmpty(t, requireJSONStdout(t, stdout))
 			if tt.name == "delete image" {
-				require.Equal(t, true, out["deleted"])
+				require.True(t, isAck(t, stdout, "ref", "py312", "deleted"), stdout)
 			}
 		})
 	}
@@ -137,7 +138,7 @@ func runCLIWithResponseReplacement(t *testing.T, args []string, expected []expec
 	serverURL = server.URL
 
 	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	stdout := &bytes.Buffer{}

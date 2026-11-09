@@ -24,8 +24,8 @@ type sandboxCreateFlags struct {
 	cores          int32
 	memory         int32
 	disk           int32
-	coresMax       float64
-	memMax         int32
+	cpuMax         float64
+	memoryMax      int32
 	diskMax        int32
 	cpuArch        string
 	cpuType        string
@@ -41,12 +41,12 @@ type sandboxCreateFlags struct {
 	allowDomains   []string
 	allowCIDRs     []string
 	blockAll       bool
-	timeoutSecs    int64
-	onTimeout      string
-	idleTimeout    int64
+	lifecycleTTL   secondsFlag
+	onLifecycleTTL string
+	idleTimeout    secondsFlag
 	onIdleTimeout  string
-	wait           int64
-	createTTL      int64
+	wait           secondsFlag
+	createTTL      secondsFlag
 	reservation    string
 	autoRenew      bool
 }
@@ -68,14 +68,18 @@ type createSurface struct {
 	// selectors and the stop|delete lifecycle actions.
 	resources, burst, cpuConstraints, user, volumes, secrets, spot, networkPolicy, macos bool
 	decode                                                                               func(cmd *cobra.Command, a *app.App, flags sandboxCreateFlags, body input.Body, headers http.Header) error
+	// keys checks the body's keys against the request type, before the
+	// lifecycle check reads them.
+	keys func(input.Body) error
 }
 
 func newSandboxCreateCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create", short: "Create a sandbox from an image",
-		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --image py312\n  daytona sandbox create --image py312 --name example-user --wait 60 --create-ttl 3600",
+		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --image py312\n  daytona sandbox create --image py312 --name example-user --wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
 		path: "/sandboxes", imageOptional: true, resources: true, burst: true, cpuConstraints: true, user: true, volumes: true, secrets: true, spot: true, networkPolicy: true,
 		decode: decodeAndCreate[gen.CreateSandboxRequest],
+		keys:   input.CheckKeysFor[gen.CreateSandboxRequest],
 	})
 }
 
@@ -85,6 +89,7 @@ func newSandboxCreateFromSnapshotCommand() *cobra.Command {
 		long: "Create a Linux sandbox from a snapshot (POST /sandboxes/from-snapshot). The SDK twin is create_from_snapshot(snapshot, …).\nResources come from the snapshot; only name, labels, ports, lifecycle, wait and create-ttl apply.\nExample:\n  daytona sandbox create-from-snapshot after-setup --name resumed",
 		path: "/sandboxes/from-snapshot", snapshot: true,
 		decode: decodeAndCreate[gen.CreateSandboxFromSnapshotRequest],
+		keys:   input.CheckKeysFor[gen.CreateSandboxFromSnapshotRequest],
 	})
 }
 
@@ -102,7 +107,7 @@ func postCreate(cmd *cobra.Command, a *app.App, req any, headers http.Header) er
 	if err != nil {
 		return err
 	}
-	var created gen.SandboxCreateOperation
+	var created api.Raw[gen.SandboxCreateOperation]
 	if err := home.DoWithHeaders(cmd.Context(), http.MethodPost, path, nil, headers, req, &created); err != nil {
 		return err
 	}
@@ -110,7 +115,7 @@ func postCreate(cmd *cobra.Command, a *app.App, req any, headers http.Header) er
 }
 
 func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
-	flags := sandboxCreateFlags{}
+	flags := &sandboxCreateFlags{}
 	// Snapshot surfaces take the snapshot as their one positional argument;
 	// image surfaces take none (the image is --image). Cobra enforces the
 	// count before RunE, so args[0] below is always present.
@@ -134,11 +139,17 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 			if sf.snapshot {
 				flags.snapshot = args[0]
 			}
-			body, err := buildSandboxCreateBody(cmd, a, flags, sf.snapshot, sf.imageOptional)
+			body, err := buildSandboxCreateBody(cmd, a, *flags, sf.snapshot, sf.imageOptional)
 			if err != nil {
 				return err
 			}
-			return sf.decode(cmd, a, flags, body, sandboxCreateHeaders(flags, cmd, a.Globals.Region, body))
+			if err := sf.keys(body); err != nil {
+				return err
+			}
+			if err := validateLifecycleBody(sf.macos, body); err != nil {
+				return err
+			}
+			return sf.decode(cmd, a, *flags, body, sandboxCreateHeaders(*flags, cmd, a.Globals.Region, body))
 		},
 	}
 	if sf.imageOptional {
@@ -151,19 +162,23 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	f.StringVar(&flags.idempotencyKey, "idempotency-key", "", "idempotency key")
 	f.StringArrayVar(&flags.labels, "label", nil, "label KEY=VALUE (repeatable)")
 	f.StringArrayVar(&flags.ports, "port", nil, "port as PORT or PORT/PROTO (repeatable)")
-	// Lifecycle actions are validated by the API for the requested sandbox class.
-	f.Int64Var(&flags.timeoutSecs, "timeout", 0, "wall-clock seconds until --on-timeout fires (re-arms on every start)")
-	f.Int64Var(&flags.idleTimeout, "idle-timeout", 0, "idle seconds until --on-idle-timeout fires")
+	addSecondsFlag(f, &flags.lifecycleTTL, "lifecycle-timeout", "", "wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; re-arms on every start")
+	flags.idleTimeout.min = minIdleSeconds
+	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, at least 1m) until --on-idle-timeout fires")
 	if sf.macos {
-		macosCreateLifecycleFlags(f, &flags)
+		macosCreateLifecycleFlags(f, flags)
 	} else {
-		f.StringVar(&flags.onTimeout, "on-timeout", "", "action when --timeout elapses: delete")
+		f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete")
 		f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete")
+		flagPlaceholder(f, "on-lifecycle-timeout", "ACTION")
+		flagPlaceholder(f, "on-idle-timeout", "ACTION")
 	}
-	f.Int64Var(&flags.wait, "wait", 0, "server-side wait budget in seconds before the create response returns")
-	f.Int64Var(&flags.createTTL, "create-ttl", 0, "deadline in seconds for the sandbox to reach running (queued or booting) before the server deletes it (-1 = server max)")
+	flags.wait.allowZero = true
+	addSecondsFlag(f, &flags.wait, "wait", "", "how long the server holds the create response for the sandbox to reach running (Go duration; 0s returns at once; server default 3s)")
+	flags.createTTL.keywords = map[string]int64{"max": -1}
+	addSecondsFlag(f, &flags.createTTL, "create-ttl", "", "deadline (Go duration) for the sandbox to reach running, queued or booting, before the server deletes it; max = the server's maximum (server default 1h)")
 	if sf.macos {
-		macosCreateFlags(f, &flags)
+		macosCreateFlags(f, flags)
 	}
 	if sf.resources {
 		f.Float64Var(&flags.cpu, "cpu", 0, "guaranteed CPU in cores (1 core = 2 vCPUs)")
@@ -172,8 +187,8 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 		f.StringArrayVar(&flags.env, "env", nil, "environment variable KEY=VALUE (repeatable)")
 	}
 	if sf.burst {
-		f.Float64Var(&flags.coresMax, "cores-max", 0, "CPU limit in cores, a multiple of 0.5 (boot shape and CPU ceiling); equal to --cpu for a fixed shape")
-		f.Int32Var(&flags.memMax, "mem-max", 0, "memory limit in MiB; equal to --memory for a fixed shape")
+		f.Float64Var(&flags.cpuMax, "cpu-max", 0, "CPU limit in cores, a multiple of 0.5 (boot shape and CPU ceiling); equal to --cpu for a fixed shape")
+		f.Int32Var(&flags.memoryMax, "memory-max", 0, "memory limit in MiB; equal to --memory for a fixed shape")
 		f.Int32Var(&flags.diskMax, "disk-max", 0, "scratch disk limit in MiB; equal to --disk for a fixed shape")
 	}
 	if sf.cpuConstraints {
@@ -199,12 +214,16 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 		f.StringArrayVar(&flags.allowCIDRs, "allow-cidr", nil, "network policy: allowed IPv4 address or CIDR, any port (repeatable; needs --block-all or --allow-domain)")
 		f.BoolVar(&flags.blockAll, "block-all", false, "network policy: deny all egress not explicitly allowed")
 	}
+	addRegionFlag(cmd, "region to create the sandbox in (default: the project's, then the organization's, then earth)")
+	addFileFlag(cmd, "")
+	addWaitFlags(cmd)
 	return cmd
 }
 
-func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache *workload.CatalogCache, created gen.SandboxCreateOperation) error {
+func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache *workload.CatalogCache, raw api.Raw[gen.SandboxCreateOperation]) error {
+	created := raw.V
 	if a.Globals.NoWait {
-		return a.Printer().Object(created, [][2]string{{"id", created.Id}, {"name", created.Name}, {"status", created.Status}})
+		return a.Printer().Object(raw, [][2]string{{"id", created.Id}, {"name", created.Name}, {"status", created.Status}})
 	}
 	timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 	if err != nil {
@@ -223,5 +242,5 @@ func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache
 	if err != nil {
 		return err
 	}
-	return a.Printer().Object(detail, sandboxDetailKV(detail))
+	return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 }

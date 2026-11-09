@@ -26,19 +26,56 @@ func normalizeBaseURL(base string) string {
 	return u.String()
 }
 
+// InScope reports whether region id is the region selected or a region
+// inside it (its parent_region_ids name selected).
+func (c *Catalog) InScope(selected, id string) bool {
+	if strings.EqualFold(id, selected) {
+		return true
+	}
+	if c == nil {
+		return false
+	}
+	if r := c.Find(id); r != nil {
+		for _, parent := range r.ParentRegionIds {
+			if strings.EqualFold(parent, selected) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// scopeBases maps every API base URL serving the region only or a region
+// inside it to the region that names that endpoint's cursor and errors: only
+// itself for its own base, else the first region of the scope (in
+// OrderedRegions order) on that base. Nil when only is not listed.
+func (c *Catalog) scopeBases(home, only string) map[string]string {
+	selected := c.Find(only)
+	if selected == nil {
+		return nil
+	}
+	bases := map[string]string{BaseFor(*selected, home): selected.Id}
+	for _, r := range c.OrderedRegions() {
+		if !c.InScope(selected.Id, r.Id) {
+			continue
+		}
+		if base := BaseFor(r, home); bases[base] == "" {
+			bases[base] = r.Id
+		}
+	}
+	return bases
+}
+
 // ListRegionKeys maps resource regions to their endpoint's representative cursor key.
-// With --region, the selected region names the cursor even if its API returns
-// items from other regions. Without a catalog, the bare home cursor is used.
+// With --region, the endpoints serving the selected region or a region inside
+// it are named by scopeBases even if they return items from other regions.
+// Without a catalog, the bare home cursor is used.
 func (c *Catalog) ListRegionKeys(home, only string) map[string]string {
 	keys := map[string]string{}
 	if c == nil {
 		return keys
 	}
-	onlyBase := ""
-	if r := c.Find(only); r != nil {
-		only = r.Id
-		onlyBase = BaseFor(*r, home)
-	}
+	scope := c.scopeBases(home, only)
 	byBase := map[string]string{}
 	for _, r := range c.OrderedRegions() {
 		if c.HasListAliases() {
@@ -51,8 +88,8 @@ func (c *Catalog) ListRegionKeys(home, only string) map[string]string {
 			key = r.Id
 			byBase[base] = key
 		}
-		if only != "" && base == onlyBase {
-			key = only
+		if named, ok := scope[base]; ok {
+			key = named
 		}
 		keys[r.Id] = key
 	}

@@ -23,8 +23,9 @@ func init() {
 rendered as Markdown on stdout — one page an agent or a human can read in a
 single pass. With --dir the same reference is written as one Markdown file per
 command.`,
-			GroupID: GroupOther,
-			Args:    cobra.NoArgs,
+			GroupID:     GroupOther,
+			Args:        cobra.NoArgs,
+			Annotations: map[string]string{annotationProfileOptional: "true"},
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				root := cmd.Root()
 				root.DisableAutoGenTag = true

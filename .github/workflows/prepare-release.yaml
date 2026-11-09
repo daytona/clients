@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to prepare (vX.Y.Z or vX.Y.Z-alpha.N / -beta.N / -rc.N)'
+        description: 'Version to prepare (vX.Y.Z, vX.Y.Z-rc.N or vX.Y.Z-alpha.N)'
         required: true
         type: string
 
@@ -46,15 +46,30 @@ jobs:
         run: |
           set -euo pipefail
           derived=$(scripts/sdk-version.sh "$VERSION_INPUT")
+          # Only a version the publish workflow takes (alpha, rc, stable).
+          scripts/release-channel.sh "$VERSION_INPUT" >/dev/null
           version=$(sed -n 's/^version=//p' <<<"$derived")
           case "$version" in
             0.*) echo "::error::${version} is a 0.x version — prepare it from release/v0"; exit 1 ;;
           esac
+          # sdk_publish.yaml refuses 2.0.0-rc.1 by name: npm 2.0.0-rc.1 and
+          # PyPI 2.0.0rc1 were published before this release line.
+          if [ "$version" = 2.0.0-rc.1 ]; then
+            echo "::error::2.0.0-rc.1 is taken by SDK packages published before this release line; prepare v2.0.0-rc.2 or later"
+            exit 1
+          fi
           case "$version" in
             *-*) ;;
             *)
               if [ "$GITHUB_REF" != refs/heads/main ]; then
                 echo "::error::${version} is a stable version; prepare stable releases from main (dispatched from ${GITHUB_REF})"
+                exit 1
+              fi
+              # No stable 2.x backports (sdk_publish.yaml's gate refuses
+              # them): every stable release records its v2.Y.Z tag.
+              highest=$(git tag -l 'v2.*' | grep -E '^v2\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 || true)
+              if [ -n "$highest" ] && [ "$(printf '%s\n%s\n' "$highest" "$version" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)" = "$highest" ]; then
+                echo "::error::${version} is not above the highest stable 2.x release v${highest}: 2.x publishes no stable backports"
                 exit 1
               fi ;;
           esac

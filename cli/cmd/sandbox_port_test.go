@@ -96,15 +96,16 @@ func TestToolboxPortList_fallsBackAcrossRegionsForBareUUID(t *testing.T) {
 	require.Len(t, items, 1)
 }
 
-func TestToolboxExec_rejectsFileDashBecauseStdinIsProcessInput(t *testing.T) {
+// exec takes no request body: stdin is the process's input, so --file is not
+// a flag of exec at all.
+func TestToolboxExec_hasNoFileFlag(t *testing.T) {
 	api := newFakeAPI(t)
 	_, stderr, code := run(t, cfgDir(t), nil,
 		"--api-url", api.srv.URL,
 		"--api-key", "k",
-		"--file", "-",
-		"sandbox", "exec", "sbx", "--", "cat",
+		"sandbox", "exec", "sbx", "--file", "-", "--", "cat",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
-	require.Contains(t, stderr, "--file - is not supported")
+	require.Contains(t, stderr, "unknown flag: --file")
 	require.Empty(t, api.requests)
 }

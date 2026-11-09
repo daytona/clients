@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/daytona/clients/cli/internal/api"
+
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/input"
@@ -52,7 +54,7 @@ func newSandboxForkCommand() *cobra.Command {
 		if cmd.Flags().Changed("name") {
 			body = &gen.ForkSandboxRequest{Name: &name}
 		}
-		var resp gen.ForkSandboxOperation
+		var resp api.Raw[gen.ForkSandboxOperation]
 		if err := resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/fork", url.PathEscape(resolved.Detail.Id)), nil, body, &resp); err != nil {
 			return nil, "", "", err
 		}
@@ -63,7 +65,7 @@ func newSandboxForkCommand() *cobra.Command {
 		if macos || resolved.Detail.Status == "running" {
 			waitFor = "running"
 		}
-		return resp, resp.Id, waitFor, nil
+		return resp, resp.V.Id, waitFor, nil
 	})
 	cmd.Flags().StringVar(&name, "name", "", "fork name")
 	return cmd
@@ -84,23 +86,58 @@ func newSandboxDeleteCommand() *cobra.Command {
 }
 
 type sandboxUpdateFlags struct {
-	labels          []string
-	clearLabels     bool
-	timeoutSecs     int64
-	onTimeout       string
-	idleTimeoutSecs int64
-	onIdleTimeout   string
+	labels         []string
+	clearLabels    bool
+	lifecycleTTL   secondsFlag
+	onLifecycleTTL string
+	idleTimeout    secondsFlag
+	onIdleTimeout  string
 }
 
+// sandboxUpdateFileKeys are the only top-level keys of `sandbox update -f`:
+// the body is the CLI's composite of the labels and lifecycle-policy
+// requests, not either wire body.
+var sandboxUpdateFileKeys = []string{"labels", "lifecycle_policy"}
+
+var sandboxLifecycleFlagNames = []string{"lifecycle-timeout", "on-lifecycle-timeout", "idle-timeout", "on-idle-timeout"}
+
 func newSandboxUpdateCommand() *cobra.Command {
-	flags := sandboxUpdateFlags{}
+	flags := &sandboxUpdateFlags{}
 	cmd := &cobra.Command{
 		Use:   "update <id>",
 		Short: "Update sandbox labels or lifecycle",
-		Long:  "Update sandbox labels or lifecycle.\nExamples:\n  daytona sandbox update <id> --label env=dev\n  daytona sandbox update <id> --idle-timeout 600 --on-idle-timeout stop",
-		Args:  cobra.ExactArgs(1),
+		Long: "Update sandbox labels or lifecycle policy. Labels are replaced, not merged.\n" +
+			"--file takes {\"labels\": {...}, \"lifecycle_policy\": {...}}; any other top-level key is rejected.\n" +
+			"Examples:\n  daytona sandbox update <id> --label env=dev\n  daytona sandbox update <id> --idle-timeout 30m --on-idle-timeout delete\n  daytona sandbox update <id> --idle-timeout off",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			fileBody, err := input.Load(a.Globals.File, os.Stdin, false)
+			if err != nil {
+				return err
+			}
+			if err := rejectUnknownKeys(fileBody, "--file", sandboxUpdateFileKeys...); err != nil {
+				return err
+			}
+			labelUpdate := hasLabelUpdate(cmd, fileBody, *flags)
+			lifecycleUpdate := hasLifecycleUpdate(cmd, fileBody)
+			if !labelUpdate && !lifecycleUpdate {
+				return cerr.Usage("nothing to update").WithHint("pass --label, --clear-labels, lifecycle flags, or --file")
+			}
+			var labelsBody gen.SetSandboxLabelsRequest
+			if labelUpdate {
+				labelsBody, err = buildSandboxLabelsBody(cmd, fileBody, *flags)
+				if err != nil {
+					return err
+				}
+			}
+			var lifecycleBody gen.UpdateSandboxLifecyclePolicyRequest
+			if lifecycleUpdate {
+				lifecycleBody, err = buildSandboxLifecycleBody(cmd, fileBody, *flags)
+				if err != nil {
+					return err
+				}
+			}
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
@@ -109,29 +146,9 @@ func newSandboxUpdateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fileBody, err := input.Load(a.Globals.File, os.Stdin, false)
-			if err != nil {
-				return err
-			}
-			labelUpdate := hasLabelUpdate(cmd, fileBody, flags)
-			lifecycleUpdate := hasLifecycleUpdate(cmd, fileBody)
-			if !labelUpdate && !lifecycleUpdate {
-				return cerr.Usage("nothing to update").WithHint("pass --label, --clear-labels, lifecycle flags, or --file")
-			}
-			var labelsBody gen.SetSandboxLabelsRequest
-			if labelUpdate {
-				labelsBody, err = buildSandboxLabelsBody(cmd, fileBody, flags)
-				if err != nil {
-					return err
-				}
-			}
-			var lifecycleBody gen.UpdateSandboxLifecyclePolicyRequest
 			if lifecycleUpdate {
-				lifecycleBody, err = buildSandboxLifecycleBody(cmd, fileBody, flags)
-				if err != nil {
-					return err
-				}
-				if err := validateSandboxLifecycleUpdate(string(resolved.Detail.Class), lifecycleBody); err != nil {
+				persistent := resolved.Detail.Persistent != nil && *resolved.Detail.Persistent
+				if err := validateLifecycleActions(string(resolved.Detail.Class), persistent, lifecycleBody); err != nil {
 					return err
 				}
 			}
@@ -150,17 +167,23 @@ func newSandboxUpdateCommand() *cobra.Command {
 			return printSandboxDetail(cmd.Context(), args[0])
 		},
 	}
-	cmd.Flags().StringArrayVar(&flags.labels, "label", nil, "replacement label KEY=VALUE (repeatable)")
-	cmd.Flags().BoolVar(&flags.clearLabels, "clear-labels", false, "replace the label set with {}")
-	cmd.Flags().Int64Var(&flags.timeoutSecs, "timeout", 0, "wall-clock seconds until --on-timeout fires (re-anchors the deadline from now)")
-	cmd.Flags().StringVar(&flags.onTimeout, "on-timeout", "", "action when --timeout elapses: stop|pause|delete (stop and pause need a persistent macOS sandbox)")
-	cmd.Flags().Int64Var(&flags.idleTimeoutSecs, "idle-timeout", 0, "idle seconds until --on-idle-timeout fires (-1 clears the pair)")
-	cmd.Flags().StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: stop|pause|delete (stop and pause need a persistent macOS sandbox)")
+	f := cmd.Flags()
+	f.StringArrayVar(&flags.labels, "label", nil, "replacement label KEY=VALUE (repeatable)")
+	f.BoolVar(&flags.clearLabels, "clear-labels", false, "replace the label set with {}")
+	addSecondsFlag(f, &flags.lifecycleTTL, "lifecycle-timeout", "", "wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; restarts the countdown from now")
+	f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, or stop on a persistent macOS sandbox")
+	flags.idleTimeout.keywords = map[string]int64{"off": -1}
+	flags.idleTimeout.min = minIdleSeconds
+	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, at least 1m) until --on-idle-timeout fires; off clears the idle expiry")
+	f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete, or stop on a persistent macOS sandbox")
+	flagPlaceholder(f, "on-lifecycle-timeout", "ACTION")
+	flagPlaceholder(f, "on-idle-timeout", "ACTION")
+	addFileFlag(cmd, `JSON body {"labels": {...}, "lifecycle_policy": {...}} from a file (or - for stdin); explicit flags override its fields`)
 	return cmd
 }
 
 func newSandboxActionCommand(verb string, run func(cmd *cobra.Command, resolved workload.ResolvedSandbox) (any, string, string, error)) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   verb + " <id>",
 		Short: strings.ToUpper(verb[:1]) + verb[1:] + " a sandbox",
 		Long:  strings.ToUpper(verb[:1]) + verb[1:] + " a sandbox.\nExample:\n  daytona sandbox " + verb + " <id>",
@@ -215,15 +238,17 @@ func newSandboxActionCommand(verb string, run func(cmd *cobra.Command, resolved 
 				if waitErr != nil {
 					return waitErr
 				}
-				return a.Printer().Object(detail, sandboxDetailKV(detail))
+				return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 			}
 			final, err := workload.WaitForSandbox(cmd.Context(), resolved.Client, waitOptions)
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(final, sandboxDetailKV(final))
+			return a.Printer().Object(final, sandboxDetailKV(final.V))
 		},
 	}
+	addWaitFlags(cmd)
+	return cmd
 }
 
 func sandboxJobAction[T any](cmd *cobra.Command, resolved workload.ResolvedSandbox, verb string) (any, string, string, error) {
@@ -235,7 +260,7 @@ func sandboxJobAction[T any](cmd *cobra.Command, resolved workload.ResolvedSandb
 		path = fmt.Sprintf("/sandboxes/%s", url.PathEscape(resolved.Detail.Id))
 		waitFor = "deleted"
 	}
-	var resp T
+	var resp api.Raw[T]
 	if err := resolved.Client.Do(cmd.Context(), method, path, nil, nil, &resp); err != nil {
 		return nil, "", "", err
 	}
@@ -251,7 +276,7 @@ func hasLabelUpdate(cmd *cobra.Command, fileBody input.Body, flags sandboxUpdate
 }
 
 func hasLifecycleUpdate(cmd *cobra.Command, fileBody input.Body) bool {
-	for _, name := range []string{"timeout", "on-timeout", "idle-timeout", "on-idle-timeout"} {
+	for _, name := range sandboxLifecycleFlagNames {
 		if cmd.Flags().Changed(name) {
 			return true
 		}
@@ -284,17 +309,20 @@ func buildSandboxLabelsBody(cmd *cobra.Command, fileBody input.Body, flags sandb
 
 func buildSandboxLifecycleBody(cmd *cobra.Command, fileBody input.Body, flags sandboxUpdateFlags) (gen.UpdateSandboxLifecyclePolicyRequest, error) {
 	hasOverride := false
-	for _, name := range []string{"timeout", "on-timeout", "idle-timeout", "on-idle-timeout"} {
+	for _, name := range sandboxLifecycleFlagNames {
 		if cmd.Flags().Changed(name) {
 			hasOverride = true
 			break
 		}
 	}
-	if existing, ok := fileBody["lifecycle_policy"]; ok && !hasOverride {
-		if existing == nil {
-			return gen.UpdateSandboxLifecyclePolicyRequest{}, cerr.Usage("\"lifecycle_policy\" is not nullable; omit it to keep the current value")
-		}
+	// A null policy is replaced by the lifecycle flags when there are any; a
+	// value that is not an object is malformed either way.
+	if existing, ok := fileBody["lifecycle_policy"]; ok {
 		switch existing.(type) {
+		case nil:
+			if !hasOverride {
+				return gen.UpdateSandboxLifecyclePolicyRequest{}, cerr.Usage("\"lifecycle_policy\" is not nullable; omit it to keep the current value")
+			}
 		case map[string]any, input.Body:
 		default:
 			return gen.UpdateSandboxLifecyclePolicyRequest{}, cerr.Usage("\"lifecycle_policy\" must be an object")
@@ -311,9 +339,9 @@ func buildSandboxLifecycleBody(cmd *cobra.Command, fileBody input.Body, flags sa
 			body[key] = value
 		}
 	}
-	workload.SetIfChanged(body, cmd.Flags(), "timeout", "timeout_seconds", flags.timeoutSecs)
-	workload.SetIfChanged(body, cmd.Flags(), "on-timeout", "on_timeout", flags.onTimeout)
-	workload.SetIfChanged(body, cmd.Flags(), "idle-timeout", "idle_expiry_seconds", flags.idleTimeoutSecs)
+	workload.SetIfChanged(body, cmd.Flags(), "lifecycle-timeout", "timeout_seconds", flags.lifecycleTTL.seconds)
+	workload.SetIfChanged(body, cmd.Flags(), "on-lifecycle-timeout", "on_timeout", flags.onLifecycleTTL)
+	workload.SetIfChanged(body, cmd.Flags(), "idle-timeout", "idle_expiry_seconds", flags.idleTimeout.seconds)
 	workload.SetIfChanged(body, cmd.Flags(), "on-idle-timeout", "on_idle_timeout", flags.onIdleTimeout)
 	if err := input.RejectNulls(body, "timeout_seconds", "on_timeout", "idle_expiry_seconds", "on_idle_timeout"); err != nil {
 		return gen.UpdateSandboxLifecyclePolicyRequest{}, err
@@ -321,14 +349,20 @@ func buildSandboxLifecycleBody(cmd *cobra.Command, fileBody input.Body, flags sa
 	return workload.DecodeBody[gen.UpdateSandboxLifecyclePolicyRequest](body)
 }
 
-func validateSandboxLifecycleUpdate(class string, lifecycle gen.UpdateSandboxLifecyclePolicyRequest) error {
-	if class == workload.ClassLinux {
-		return nil
-	}
-	pauses := (lifecycle.OnTimeout != nil && *lifecycle.OnTimeout == gen.Pause) ||
-		(lifecycle.OnIdleTimeout != nil && *lifecycle.OnIdleTimeout == gen.Pause)
-	if pauses {
-		return cerr.Usage("%s sandboxes do not support the pause lifecycle action", class)
+// rejectUnknownKeys refuses a top-level key outside allowed. Keys match
+// exactly: a differently cased key would otherwise be dropped silently.
+func rejectUnknownKeys(body input.Body, what string, allowed ...string) error {
+	for key := range body {
+		known := false
+		for _, a := range allowed {
+			if key == a {
+				known = true
+				break
+			}
+		}
+		if !known {
+			return cerr.Usage("%s: unknown field %q (allowed: %s)", what, key, strings.Join(allowed, ", "))
+		}
 	}
 	return nil
 }

@@ -22,14 +22,14 @@ import (
 const workloadKeyLifetime = 24 * time.Hour
 
 type keyMint struct {
-	app                       *app.App
-	client                    *api.Client
-	project, source, rejected string
-	permissions               []string
+	app               *app.App
+	client            *api.Client
+	project, rejected string
+	permissions       []string
 }
 
 // mint checks/snapshots, mints outside the lock, then reconciles. Only keys
-// from this profile, source, project and API can be superseded. Revoke is
+// from this profile, project and API can be superseded. Revoke is
 // best-effort outside the lock; failed cleanup is bounded by server expiry.
 func (m keyMint) mint(ctx context.Context) (string, error) {
 	a := m.app
@@ -37,10 +37,10 @@ func (m keyMint) mint(ctx context.Context) (string, error) {
 	var session, key, profileBase string
 	err := a.Store.Update(func(c *config.Config, cr *config.Credentials) (bool, bool, error) {
 		pc := cr.Profiles[a.Profile.Name]
-		if m.source == "" && pc.OIDC == nil {
+		if pc.OIDC == nil {
 			return false, false, cerr.New(cerr.ExitAuth, "not logged in").WithHint("run `daytona login`")
 		}
-		if m.source == "" && pc.OIDC.AccessToken != m.client.Credential {
+		if pc.OIDC.AccessToken != m.client.Credential {
 			return false, false, cerr.New(cerr.ExitAuth, "session changed while minting a project key").WithHint("run the command again")
 		}
 		if p, ok := c.Profile(a.Profile.Name); ok {
@@ -75,14 +75,14 @@ func (m keyMint) mint(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if resp.ExpiresAt != nil {
-		exp = *resp.ExpiresAt
+	if resp.V.ExpiresAt != nil {
+		exp = *resp.V.ExpiresAt
 	}
-	minted := config.WorkloadKey{ProjectID: m.project, KeyID: resp.Id.String(), Key: resp.Token, Name: resp.Name, ExpiresAt: exp, Ceiling: ceiling, Source: m.source, APIURL: m.client.BaseURL}
+	minted := config.WorkloadKey{ProjectID: m.project, KeyID: resp.V.Id.String(), Key: resp.V.Token, Name: resp.V.Name, ExpiresAt: exp, Ceiling: ceiling, APIURL: m.client.BaseURL}
 	var superseded []config.WorkloadKey
 	err = a.Store.Update(func(_ *config.Config, cr *config.Credentials) (bool, bool, error) {
 		pc, ok := cr.Profiles[a.Profile.Name]
-		if !ok || pc.KeySession != session || (m.source == "" && pc.OIDC == nil) {
+		if !ok || pc.KeySession != session || pc.OIDC == nil {
 			return false, false, cerr.New(cerr.ExitAuth, "session changed while minting a project key").WithHint("run the command again")
 		}
 		kept := make([]config.WorkloadKey, 0, len(pc.WorkloadKeys)+1)
@@ -108,11 +108,6 @@ func (m keyMint) mint(ctx context.Context) (string, error) {
 	})
 	if err != nil {
 		revokeKeys(ctx, a, m.client, []config.WorkloadKey{minted})
-		// Static exchange callbacks preserve the original workload rejection,
-		// so returning an error alone would hide a cache persistence failure.
-		if m.source != "" && cerr.ExitCode(err) != cerr.ExitAuth {
-			a.Info("warning: could not save the project-key cache (%v); the minted key was discarded", err)
-		}
 		return "", err
 	}
 	if key != minted.Key {
@@ -123,13 +118,14 @@ func (m keyMint) mint(ctx context.Context) (string, error) {
 }
 
 func (m keyMint) matches(k config.WorkloadKey, profileBase string) bool {
-	if k.ProjectID != m.project || k.Source != m.source {
+	// Entries with a Source were exchanged from a static credential by an
+	// earlier CLI release; nothing uses them, and the next save drops them.
+	if k.ProjectID != m.project || k.Source != "" {
 		return false
 	}
 	if k.APIURL != "" {
 		return k.APIURL == m.client.BaseURL
 	}
-	// Static sources already fingerprint the origin. Login
-	// entries belong to the saved URL, never the invocation's override.
-	return m.source != "" || profileBase == m.client.BaseURL
+	// Login entries belong to the saved URL, never the invocation's override.
+	return profileBase == m.client.BaseURL
 }

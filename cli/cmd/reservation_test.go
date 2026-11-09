@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -91,7 +92,18 @@ func TestMacModelList_regionAddsAvailabilityAndPrices(t *testing.T) {
 
 	stdout, _, err = runCLI(t, []string{"mac-model", "list", "--region", "region-b"}, []expectedRequest{routing, catalog})
 	require.NoError(t, err)
-	require.JSONEq(t, macCatalogFixture(), stdout)
+	// The list envelope holds the region's catalog entries as the API sends
+	// them (a null price stays null).
+	var fixture struct {
+		Regions []struct {
+			Models []json.RawMessage `json:"models"`
+		} `json:"regions"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(macCatalogFixture()), &fixture))
+	want, err := json.Marshal(map[string]any{"items": fixture.Regions[0].Models, "incomplete": false})
+	require.NoError(t, err)
+	require.JSONEq(t, string(want), stdout)
+	require.Contains(t, stdout, `"price": null`)
 
 	_, _, err = runCLIWithOutput(t, "table", []string{"mac-model", "list", "--region", "region-b,region-a"}, nil)
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
@@ -106,7 +118,7 @@ func TestMacModelList_regionAddsAvailabilityAndPrices(t *testing.T) {
 	help, _, err := runCLI(t, []string{"mac-model", "list", "--help"}, nil)
 	require.NoError(t, err)
 	for _, line := range []string{
-		"--region R region slug: also show free Macs and prices from GET /mac-catalog",
+		"--region REGION region slug: also show free Macs and prices from GET /mac-catalog",
 		"With --region, also show how many Macs of each model a purchase can reserve now (AVAILABLE) and the price of one Mac-hour and one 24-hour period.",
 		"daytona mac-model list --region '<region>'",
 	} {
@@ -125,23 +137,25 @@ func TestFormatCents(t *testing.T) {
 	require.Equal(t, "$12.00", formatCentsPerHour(1200))
 }
 
+// --region wins over the --file body; DAYTONA_REGION is not read.
 func TestReservationRegion_precedence(t *testing.T) {
-	env := func(region string) func(string) string {
-		return func(key string) string {
-			if key == "DAYTONA_REGION" {
-				return region
-			}
-			return ""
+	getenv := func(key string) string {
+		if key == "DAYTONA_REGION" {
+			return "env"
 		}
+		return ""
 	}
-	resolve := func(flag string, body input.Body, envRegion string) string {
-		region, err := reservationRegion(&app.App{Globals: app.Globals{Region: flag}, Getenv: env(envRegion)}, body)
-		require.NoError(t, err)
-		return region
+	resolve := func(flag string, body input.Body) (string, error) {
+		return reservationRegion(&app.App{Globals: app.Globals{Region: flag}, Getenv: getenv}, body)
 	}
-	require.Equal(t, "flag", resolve("flag", input.Body{"region_id": "file"}, "env"))
-	require.Equal(t, "file", resolve("", input.Body{"region_id": "file"}, "env"))
-	require.Equal(t, "env", resolve("", input.Body{}, "env"))
+	region, err := resolve("flag", input.Body{"region_id": "file"})
+	require.NoError(t, err)
+	require.Equal(t, "flag", region)
+	region, err = resolve("", input.Body{"region_id": "file"})
+	require.NoError(t, err)
+	require.Equal(t, "file", region)
+	_, err = resolve("", input.Body{})
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 }
 
 func TestReservationGetAndList_printMissingCapacityWithDashes(t *testing.T) {
@@ -174,7 +188,11 @@ func TestReservationGetAndList_printMissingCapacityWithDashes(t *testing.T) {
 // `reservation get` fields.
 func TestReservationRenew_sendsAKeyPerInvocation(t *testing.T) {
 	renewed := macReservationFixture(`"m4-10c-16g"`, m4Capacity)
-	stdout, _, err := runCLIWithOutput(t, "table", []string{"reservation", "renew", "region-a:res-1", "--idempotency-key", "renew-region-a:res-1-2"}, []expectedRequest{{
+	_, _, err := runCLI(t, []string{"reservation", "renew", "region-a:res-1"}, nil)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), "renewing charges the organization: off a terminal it needs --yes")
+	require.ErrorContains(t, err, "--yes")
+
+	stdout, _, err := runCLIWithOutput(t, "table", []string{"reservation", "renew", "region-a:res-1", "--idempotency-key", "renew-region-a:res-1-2", "--yes"}, []expectedRequest{{
 		method: http.MethodPost, path: "/reservations/region-a:res-1/renew", status: 200, response: renewed,
 		check: func(t *testing.T, r *http.Request, body []byte) {
 			require.Equal(t, "renew-region-a:res-1-2", r.Header.Get("Idempotency-Key"))
@@ -191,7 +209,7 @@ func TestReservationRenew_sendsAKeyPerInvocation(t *testing.T) {
 		check: func(t *testing.T, r *http.Request, _ []byte) { keys = append(keys, r.Header.Get("Idempotency-Key")) },
 	}
 	for range 2 {
-		_, _, err = runCLI(t, []string{"reservation", "renew", "region-a:res-1"}, []expectedRequest{fresh})
+		_, _, err = runCLI(t, []string{"reservation", "renew", "region-a:res-1", "--yes"}, []expectedRequest{fresh})
 		require.NoError(t, err)
 	}
 	require.Len(t, keys, 2)
@@ -204,7 +222,8 @@ func TestReservationRenew_sendsAKeyPerInvocation(t *testing.T) {
 	for _, line := range []string{
 		"Charge the next period of an active reservation (POST /reservations/{id}/renew); period_end moves out by one period on the same Mac. The SDK twin is reservations.renew(…).",
 		"Without --idempotency-key the CLI sends a fresh key; pass your own to retry without paying for a second period.",
-		"daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-2",
+		"Asks for confirmation at a terminal; off a terminal pass --yes (or set DAYTONA_YES=1).",
+		"daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-2 --yes",
 		"--idempotency-key KEY a retry with the same key returns the reservation without charging another period (default: a fresh key per invocation)",
 	} {
 		require.Contains(t, text, line)

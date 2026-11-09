@@ -88,7 +88,7 @@ func TestWaitForSandbox_stoppedUsesWaitExact(t *testing.T) {
 	defer srv.Close()
 	detail, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "stopped", Timeout: 1 * time.Second})
 	require.NoError(t, err)
-	require.Equal(t, "stopped", detail.Status)
+	require.Equal(t, "stopped", detail.V.Status)
 }
 
 func TestWaitForSandbox_deletedUsesWaitExact(t *testing.T) {
@@ -99,7 +99,7 @@ func TestWaitForSandbox_deletedUsesWaitExact(t *testing.T) {
 	defer srv.Close()
 	detail, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: 1 * time.Second})
 	require.NoError(t, err)
-	require.Equal(t, "deleted", detail.Status)
+	require.Equal(t, "deleted", detail.V.Status)
 }
 
 func TestWaitForImage_failedTerminal(t *testing.T) {
@@ -243,7 +243,7 @@ func TestWaitForSandbox_startFromStoppedSucceeds(t *testing.T) {
 	defer srv.Close()
 	d, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "running", Timeout: 5 * time.Second, AllowInitialStopped: true})
 	require.NoError(t, err)
-	require.Equal(t, "running", d.Status)
+	require.Equal(t, "running", d.V.Status)
 }
 
 // But a sandbox that was under way and then DROPS into stopping/stopped has
@@ -273,7 +273,7 @@ func TestWaitForSandbox_deletingProgressesToDeleted(t *testing.T) {
 	defer srv.Close()
 	detail, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: 5 * time.Second})
 	require.NoError(t, err)
-	require.Equal(t, "deleted", detail.Status)
+	require.Equal(t, "deleted", detail.V.Status)
 }
 
 // A delete the server could not finish reads failed with an explanation; the

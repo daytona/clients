@@ -8,8 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import jsonschema
 import pytest
+from report_schema import validate_report
 
 from daytona_upgrade.cli import main
 from daytona_upgrade.flow import SourceContext, build_index
@@ -51,8 +51,7 @@ def test_refuses_when_project_owns_sdk_module(
     assert report["changedFiles"] == []
     assert app.read_text() == source
     assert requirements.read_text() == "daytona-sdk==0.226.0\n"
-    schema = Path(__file__).parents[2] / "mapping/report.schema.json"
-    jsonschema.validate(report, json.loads(schema.read_text()))
+    validate_report(report)
 
 
 @pytest.mark.parametrize(

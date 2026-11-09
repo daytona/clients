@@ -33,7 +33,8 @@ func TestLoginRejectsEmptyTokenFlag(t *testing.T) {
 
 // Deleting an OIDC profile revokes its cached login-minted project keys
 // against the profile's saved API, after the store lock is released, and
-// leaves exchanged, foreign-origin and other profiles' keys alone.
+// leaves foreign-origin and other profiles' keys alone. A key an earlier
+// release exchanged from a static credential is dropped by the write.
 func TestProfileDeleteRevokesLoginMintedKeys(t *testing.T) {
 	f, override := newFakeAPI(t), newFakeAPI(t)
 	d := cfgDir(t)
@@ -65,7 +66,7 @@ func TestProfileDeleteRevokesLoginMintedKeys(t *testing.T) {
 	for _, k := range cr.Profiles["other"].WorkloadKeys {
 		otherKeys = append(otherKeys, k.KeyID)
 	}
-	require.Equal(t, []string{logoutKeyID, "static-key", "foreign-key"}, otherKeys)
+	require.Equal(t, []string{logoutKeyID, "foreign-key"}, otherKeys)
 }
 
 // A platform token is a credential of the API that minted it: an invocation

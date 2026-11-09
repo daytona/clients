@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/google/uuid"
@@ -64,11 +65,11 @@ func newReservationGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/reservations/"+url.PathEscape(args[0]), nil, nil, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 }
@@ -77,13 +78,19 @@ func newReservationRenewCommand() *cobra.Command {
 	var idempotencyKey string
 	cmd := &cobra.Command{
 		Use:   "renew ID",
-		Short: "Renew a Mac reservation for another period",
+		Short: "Charge and renew a Mac reservation for another period",
 		Long: "Charge the next period of an active reservation (POST /reservations/{id}/renew); period_end moves out by one period on the same Mac. The SDK twin is reservations.renew(…).\n" +
+			"Asks for confirmation at a terminal; off a terminal pass --yes (or set DAYTONA_YES=1).\n" +
 			"Without --idempotency-key the CLI sends a fresh key; pass your own to retry without paying for a second period.\n" +
-			"Example:\n  daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-2",
+			"Example:\n  daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-2 --yes",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			// Consent comes before anything else: resolving the client can
+			// exchange a token or mint a project key.
+			if err := a.Confirm("renew", "reservation "+args[0]+" for another period, billed to the organization"); err != nil {
+				return err
+			}
 			if !cmd.Flags().Changed("idempotency-key") {
 				idempotencyKey = uuid.NewString()
 			}
@@ -91,12 +98,12 @@ func newReservationRenewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			headers := http.Header{"Idempotency-Key": {idempotencyKey}}
 			if err := client.DoWithHeaders(cmd.Context(), http.MethodPost, "/reservations/"+url.PathEscape(args[0])+"/renew", nil, headers, nil, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 	cmd.Flags().StringVar(&idempotencyKey, "idempotency-key", "", "a retry with the same key returns the reservation without charging another period (default: a fresh key per invocation)")
@@ -123,12 +130,12 @@ func newReservationUpdateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			req := gen.UpdateReservationRequest{AutoRenew: autoRenew}
 			if err := client.Do(cmd.Context(), http.MethodPatch, "/reservations/"+url.PathEscape(args[0]), nil, req, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 	cmd.Flags().BoolVar(&autoRenew, "auto-renew", false, "renew near period_end while a sandbox is in use on the reservation; false lets it end at period_end")

@@ -14,6 +14,7 @@ import (
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/spf13/cobra"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/auth"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -133,7 +134,8 @@ func joinComma(s []string) string {
 
 func newOrgCmd() *cobra.Command {
 	c := &cobra.Command{Use: "org", Short: "Organizations: list, select, create, rename, delete, leave, limits", GroupID: GroupManagement}
-	c.AddCommand(&cobra.Command{
+	var listFlags pageFlags
+	list := &cobra.Command{
 		Use: "list", Short: "List the organizations you belong to", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
@@ -141,13 +143,17 @@ func newOrgCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			orgs, err := mgmt.ListOrgs(cmd.Context(), mc)
+			orgs, err := mgmtListPage(cmd.Context(), listFlags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.OrganizationListItem], error) {
+				return mgmt.OrgsPage(ctx, mc, cursor, limit)
+			})
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), output.List[gen.OrganizationListItem]{Items: orgs}, func(os []gen.OrganizationListItem) output.Table { return orgTable(os, a.Profile.OrgID) })
+			return listOutRaw(a.Printer(), orgs, func(os []gen.OrganizationListItem) output.Table { return orgTable(os, a.Profile.OrgID) })
 		},
-	})
+	}
+	addPageFlags(list, &listFlags)
+	c.AddCommand(list)
 	c.AddCommand(&cobra.Command{
 		Use: "get [id|name]", Short: "Show one organization (default: the selected one)", Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -171,7 +177,7 @@ func newOrgCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(o, [][2]string{{"ID", o.Id.String()}, {"Name", o.Name}, {"Personal", strconv.FormatBool(o.Personal)}, {"Suspended", strconv.FormatBool(o.Suspended)}, {"Created", o.CreatedAt.Format("2006-01-02 15:04")}, {"Updated", o.UpdatedAt.Format("2006-01-02 15:04")}})
+			return a.Printer().Object(o, [][2]string{{"ID", o.V.Id.String()}, {"Name", o.V.Name}, {"Personal", strconv.FormatBool(o.V.Personal)}, {"Suspended", strconv.FormatBool(o.V.Suspended)}, {"Created", o.V.CreatedAt.Format("2006-01-02 15:04")}, {"Updated", o.V.UpdatedAt.Format("2006-01-02 15:04")}})
 		},
 	})
 	c.AddCommand(&cobra.Command{
@@ -278,11 +284,11 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			var out gen.Organization
+			var out api.Raw[gen.Organization]
 			if err := mc.Do(cmd.Context(), http.MethodPost, "/orgs", nil, gen.CreateOrganizationRequest{Name: args[0]}, &out); err != nil {
 				return err
 			}
-			return a.Printer().Object(out, [][2]string{{"id", out.Id.String()}, {"name", out.Name}})
+			return a.Printer().Object(out, [][2]string{{"id", out.V.Id.String()}, {"name", out.V.Name}})
 		},
 	})
 	upd := &cobra.Command{
@@ -301,11 +307,11 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			var out gen.Organization
+			var out api.Raw[gen.Organization]
 			if err := mc.Do(cmd.Context(), http.MethodPatch, "/orgs/"+url.PathEscape(id), nil, gen.UpdateOrganizationRequest{Name: mgmt.Ref(name)}, &out); err != nil {
 				return err
 			}
-			return a.Printer().Object(out, [][2]string{{"id", out.Id.String()}, {"name", out.Name}})
+			return a.Printer().Object(out, [][2]string{{"id", out.V.Id.String()}, {"name", out.V.Name}})
 		},
 	}
 	upd.Flags().String("name", "", "new name")
@@ -342,8 +348,7 @@ shows a picker at a terminal.`,
 			if lookupFailed {
 				a.Info("warning: deleted organization %s on the server, but the CLI could not list its projects during cleanup; cached credentials for other projects in that org may remain. Run `daytona logout` to clear local cached credentials.", id)
 			}
-			a.Info("Organization %s deleted.", id)
-			return nil
+			return printAck(a, "id", id, "deleted", fmt.Sprintf("Organization %s deleted.", id))
 		},
 	})
 	c.AddCommand(&cobra.Command{
@@ -384,7 +389,7 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			if err := mc.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(id)+"/members/"+url.PathEscape(me.Id.String()), nil, nil, nil); err != nil {
+			if err := mc.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(id)+"/members/"+url.PathEscape(me.V.Id.String()), nil, nil, nil); err != nil {
 				return err
 			}
 			if err := finalizeOrgLocalState(a, id, drop, "left"); err != nil {
@@ -393,7 +398,7 @@ shows a picker at a terminal.`,
 			if lookupFailed {
 				a.Info("warning: left organization %s on the server, but the CLI could not list its projects during cleanup; cached credentials for other projects in that org may remain. Run `daytona logout` to clear local cached credentials.", id)
 			}
-			return a.Printer().Object(map[string]any{"left": id}, [][2]string{{"left", id}})
+			return printAck(a, "id", id, "left", "")
 		},
 	})
 	return c

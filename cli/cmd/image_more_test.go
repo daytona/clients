@@ -7,6 +7,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -132,15 +133,17 @@ func TestImageListAll_oneAPIServingSeveralRegionsLosesNoTrimmedItem(t *testing.T
 }
 
 func TestImageImport_missingRef(t *testing.T) {
-	_, _, err := runCLI(t, []string{"image", "import", "img"}, nil)
-	require.Error(t, err)
-	// cobra marks --ref as required, so this is a usage error
+	_, _, err := runCLI(t, []string{"image", "create", "img"}, nil)
+	// RunE checks the merged body: without --ref (or a source in --file) it
+	// is a usage error before any request.
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "--ref is required")
 }
 
 func TestImageImport_rejectsNullSourceFromFile(t *testing.T) {
 	bodyPath := filepath.Join(t.TempDir(), "image.json")
 	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"source":null}`), 0o600))
-	_, _, err := runCLI(t, []string{"image", "import", "img", "--file", bodyPath}, nil)
+	_, _, err := runCLI(t, []string{"image", "create", "img", "--file", bodyPath}, nil)
 	require.Error(t, err)
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "--ref is required")
@@ -200,11 +203,70 @@ func TestImageLogs_followStreamsSanitizedChunksBeforeInterrupt(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	root := NewRoot(stdout, stderr)
-	root.SetArgs([]string{"--api-url", srv.URL, "--api-key", "k", "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow"})
+	root.SetArgs([]string{"--api-url", srv.URL, "--api-key", "k", "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow", "-o", "table"})
 	err := root.ExecuteContext(ctx)
 	require.Error(t, err)
 	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))
 	require.Equal(t, "first\nred\tok\n", stdout.String())
+}
+
+func TestImageLogs_followJSONStreamsNDJSONChunks(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	streaming := make(chan struct{})
+	secondChunk := make(chan struct{})
+	serverURL := ""
+	// Handler assertions are non-fatal: FailNow may only run on the test goroutine.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
+		assert.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
+		switch r.URL.Path {
+		case "/images/11111111-1111-1111-1111-111111111111/build-logs-url":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"url":"`+serverURL+`/build-logs/images/11111111-1111-1111-1111-111111111111"}`)
+		case "/build-logs/images/11111111-1111-1111-1111-111111111111":
+			assert.Equal(t, "follow=true&format=text", r.URL.RawQuery)
+			w.Header().Set("Content-Type", "text/plain")
+			flusher, ok := w.(http.Flusher)
+			if !assert.True(t, ok) {
+				return
+			}
+			_, _ = io.WriteString(w, "first\n\x1b[")
+			flusher.Flush()
+			close(streaming)
+			_, _ = io.WriteString(w, "31mred\tok\n")
+			flusher.Flush()
+			close(secondChunk)
+			<-r.Context().Done()
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+	serverURL = srv.URL
+	go func() {
+		<-streaming
+		<-secondChunk
+		time.Sleep(5 * time.Millisecond)
+		cancel()
+	}()
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	root := NewRoot(stdout, stderr)
+	root.SetArgs([]string{"--api-url", srv.URL, "--api-key", "k", "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow", "-o", "json"})
+	err := root.ExecuteContext(ctx)
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))
+	// JSON data is not a terminal: the bytes arrive unsanitized, one
+	// {"data": ...} object per chunk.
+	var joined strings.Builder
+	for _, line := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
+		var chunk map[string]string
+		require.NoError(t, json.Unmarshal([]byte(line), &chunk), line)
+		require.Len(t, chunk, 1)
+		joined.WriteString(chunk["data"])
+	}
+	require.Equal(t, "first\n\x1b[31mred\tok\n", joined.String())
 }
 
 func TestImageLogs_rejectsInvalidDiscoveryURLBeforeForwardingCredential(t *testing.T) {
@@ -253,10 +315,18 @@ func TestImageBuild_rejectsNonRegularContextEntries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires unix socket entry")
 	}
-	root := t.TempDir()
-	contextDir := filepath.Join(root, "context")
+	// A short directory: a socket path is limited to about 104 bytes, which a
+	// long TMPDIR plus t.TempDir()'s name can exceed.
+	dir := ""
+	if len(os.TempDir()) > 64 {
+		dir = "/tmp"
+	}
+	root, err := os.MkdirTemp(dir, "s")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	contextDir := filepath.Join(root, "c")
 	require.NoError(t, os.MkdirAll(contextDir, 0o755))
-	socketPath := filepath.Join(contextDir, "bad.sock")
+	socketPath := filepath.Join(contextDir, "b.sock")
 	listener, err := net.Listen("unix", socketPath)
 	require.NoError(t, err)
 	defer listener.Close()
@@ -385,7 +455,7 @@ func TestPostImageMultipart_retriesUnauthorizedWhenBodyIsSeekable(t *testing.T) 
 	client.OnUnauthorized = func(context.Context) (string, error) { return "new", nil }
 	resp, err := postImageMultipart(context.Background(), client, map[string]string{"name": "img"}, "Dockerfile", contextPath)
 	require.NoError(t, err)
-	require.Equal(t, "11111111-1111-1111-1111-111111111111", resp.Id)
+	require.Equal(t, "11111111-1111-1111-1111-111111111111", resp.V.Id)
 	require.Equal(t, int32(2), calls.Load())
 }
 
@@ -614,13 +684,13 @@ func runCLIText(t *testing.T, args []string, expected []expectedRequest) (string
 	defer server.Close()
 
 	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	root := NewRoot(stdout, stderr)
-	root.SetArgs(append([]string{"--api-url", server.URL, "--api-key", "k"}, args...))
+	root.SetArgs(append([]string{"--api-url", server.URL, "--api-key", "k", "-o", "table"}, args...))
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	err := root.ExecuteContext(ctx)

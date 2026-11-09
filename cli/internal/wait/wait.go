@@ -61,8 +61,7 @@ func UntilBackoff[T any](ctx context.Context, timeout time.Duration, schedule []
 		}
 		remaining = time.Until(deadline)
 		if remaining <= 0 {
-			return s, cerr.New(cerr.ExitTimeout, "timed out after %s waiting for the operation to finish", timeout).
-				WithHint("the server keeps working; re-run with a longer --timeout, or use --no-wait and poll `get`")
+			return s, timeoutError(timeout)
 		}
 		sleep := schedule[len(schedule)-1]
 		if attempt < len(schedule) {
@@ -84,5 +83,5 @@ func UntilBackoff[T any](ctx context.Context, timeout time.Duration, schedule []
 
 func timeoutError(timeout time.Duration) error {
 	return cerr.New(cerr.ExitTimeout, "timed out after %s waiting for the operation to finish", timeout).
-		WithHint("the server keeps working; re-run with a longer --timeout, or use --no-wait and poll `get`")
+		WithHint("the server keeps working; check on it with the resource's `get` command, or wait longer with a larger --timeout")
 }

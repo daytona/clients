@@ -20,7 +20,7 @@ func newLoginCmd() *cobra.Command {
 		Use: "login", Short: "Sign in with your browser, a device code, or a static credential",
 		Long: `Signs in to the Daytona API (` + app.DefaultAPIURL + `) and saves the session in
 the active profile. For a test environment, point the CLI at another API with
-DAYTONA_V2_API_URL (or DAYTONA_API_URL, or --api-url); the profile remembers it.
+DAYTONA_V2_API_URL (or --api-url); the profile remembers it.
 
 Default at a terminal: opens your browser (authorization code + PKCE on a
 loopback redirect) and prints the URL too — nothing to type, approve and you
@@ -45,6 +45,7 @@ Examples:
   daytona login --device
   daytona login --token dtn_…`,
 		GroupID: GroupAuth, Args: cobra.NoArgs,
+		Annotations: map[string]string{annotationCreatesProfile: "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
 			if cmd.Flags().Changed("token") {
@@ -53,14 +54,11 @@ Examples:
 				}
 				return loginToken(cmd.Context(), a, token)
 			}
-			if device && browser {
-				return cerr.Usage("--device and --browser are mutually exclusive")
-			}
 			return loginOIDC(cmd.Context(), a, device, browser, clientID)
 		},
 	}
 	c.Flags().BoolVar(&device, "device", false, "device-code login for hosts without a browser")
-	c.Flags().BoolVar(&browser, "browser", false, "force the browser (loopback) flow even inside an SSH session — for when you forward the callback port with `ssh -L`")
+	c.Flags().BoolVar(&browser, "browser", false, "force the browser (loopback) flow even inside an SSH session, for when you forward the callback port with ssh -L")
 	c.Flags().StringVar(&token, "token", "", "store this static credential instead of signing in")
 	c.Flags().StringVar(&clientID, "client-id", "", "OIDC client id override (default: discovered from the API, or DAYTONA_OIDC_CLIENT_ID)")
 	return c

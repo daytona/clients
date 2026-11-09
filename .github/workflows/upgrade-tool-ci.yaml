@@ -13,6 +13,7 @@ on:
       - 'sdk-typescript/**'
       - '.github/workflows/upgrade-tool-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
+      - '.github/workflows/prepare-release.yaml'
       - 'scripts/test-upgrade.sh'
   pull_request:
     paths:
@@ -23,6 +24,7 @@ on:
       - 'sdk-typescript/**'
       - '.github/workflows/upgrade-tool-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
+      - '.github/workflows/prepare-release.yaml'
       - 'scripts/test-upgrade.sh'
 
 permissions:

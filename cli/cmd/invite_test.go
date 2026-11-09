@@ -147,12 +147,12 @@ func TestInviteAndRoleCommands_JSON(t *testing.T) {
 		t.Fatalf("guard: %d %s", code, errb)
 	}
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "revoke", "11111111-1111-1111-1111-111111111111", "--yes")
-	if code != 0 || mustJSON(t, out)["revoked"] != "11111111-1111-1111-1111-111111111111" {
+	if code != 0 || !isAck(t, out, "id", "11111111-1111-1111-1111-111111111111", "revoked") {
 		t.Fatalf("revoke: %d %s", code, out)
 	}
 	// show takes the bare token; accept the emailed link; decline the token
 	// again — the fake accepts exactly one body for all three.
-	out, _, code = runMgmt(t, f, d, "invite", "show", testInviteToken)
+	out, _, code = runMgmt(t, f, d, "invite", "get", testInviteToken)
 	if code != 0 || mustJSON(t, out)["org_name"] != "Acme" || mustJSON(t, out)["invited_by"] != "Alice" {
 		t.Fatalf("show: %d %s", code, out)
 	}
@@ -181,7 +181,7 @@ func TestInviteAndRoleCommands_JSON(t *testing.T) {
 	}
 	// A bare token that is not the contract shape is refused the same way.
 	before = len(f.requests)
-	_, errb, code = runMgmt(t, f, d, "invite", "show", testInviteToken+"x")
+	_, errb, code = runMgmt(t, f, d, "invite", "get", testInviteToken+"x")
 	if code != cerr.ExitUsage || !has(errb, "invitation token or link required") || len(f.requests) != before {
 		t.Fatalf("show with a malformed token: %d %s (requests %d -> %d)", code, errb, before, len(f.requests))
 	}
