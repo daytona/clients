@@ -1046,7 +1046,7 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         system=payload.system is True,
         name=payload.name,
         tag=payload.tag,
-        pid=_int32(payload.pid, "pid", "process response"),
+        pid=int32_field(payload.pid, "pid", "process response"),
         session_id=payload.session_id,
         shell_command=payload.shell_command,
         argv=payload.argv,
@@ -1058,7 +1058,7 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         user=payload.user,
         execution_timeout=timeout_seconds_from_millis(_exact_timeout_ms(payload.timeout_ms)),
         terminal=_parse_terminal(payload.terminal),
-        exit_code=_int32(payload.exit_code, "exitCode", "process response"),
+        exit_code=int32_field(payload.exit_code, "exitCode", "process response"),
         signal=bare_signal(payload.signal),
         reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else None,
         raw_reason=raw_reason,
@@ -1259,10 +1259,22 @@ def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = Fa
     )
 
 
-def _int32(value: Optional[int], field: str, description: str) -> Optional[int]:
-    """An int32 field (``pid``, ``exitCode``), as the contract types it; a
-    value outside it is the malformed-response error, as in TypeScript."""
-    if value is not None and not -(2**31) <= value <= 2**31 - 1:
+def int32_field(
+    value: Optional[int], field: str, description: str, *, non_negative: bool = False
+) -> Optional[int]:
+    """An int32 field (``pid``, ``exitCode``, computer-use geometry), as the
+    contract types it; a value outside it is the malformed-response error,
+    with TypeScript's messages (``int32`` / ``nonNegativeInt32``)."""
+    if value is None:
+        return value
+    if non_negative and not 0 <= value <= 2**31 - 1:
+        raise create_error(
+            f"expected {description}: {field} must be a non-negative 32-bit integer",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    if not -(2**31) <= value <= 2**31 - 1:
         raise create_error(
             f"expected {description}: {field} must be a signed 32-bit integer", 400, "BAD_REQUEST", "SDK"
         )
@@ -1273,7 +1285,7 @@ def parse_wait(payload: WaitPayload) -> WaitResult:
     raw_reason = enum_str(payload.reason) if payload.reason is not None else None
     return WaitResult(
         reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else "unknown",
-        exit_code=_int32(payload.exit_code, "exitCode", "wait result"),
+        exit_code=int32_field(payload.exit_code, "exitCode", "wait result"),
         signal=bare_signal(payload.signal),
         raw_reason=raw_reason,
     )

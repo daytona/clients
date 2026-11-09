@@ -66,6 +66,23 @@ export function int(input: WireRecord, field: string, description: string): numb
   return value
 }
 
+const MIN_INT32 = -(2 ** 31)
+const MAX_INT32 = 2 ** 31 - 1
+
+/** A signed 32-bit integer, for the contract's `int32` fields. */
+export function int32(input: WireRecord, field: string, description: string): number {
+  const value = int(input, field, description)
+  if (value < MIN_INT32 || value > MAX_INT32) throw malformedResponse(`${description}: ${field} must be a signed 32-bit integer`)
+  return value
+}
+
+/** A non-negative 32-bit integer, for the contract's `int32` fields with `minimum: 0`. */
+export function nonNegativeInt32(input: WireRecord, field: string, description: string): number {
+  const value = nonNegativeInt(input, field, description)
+  if (value > MAX_INT32) throw malformedResponse(`${description}: ${field} must be a non-negative 32-bit integer`)
+  return value
+}
+
 /** A non-negative integer, for the contract's integer fields with `minimum: 0`. */
 export function nonNegativeInt(input: WireRecord, field: string, description: string): number {
   const value = input[field]

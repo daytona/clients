@@ -30,7 +30,7 @@ import type {
 } from './ComputerUseTypes.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { knownOrUnknown } from './knownValue.js'
-import { bool, int, malformedResponse, nonNegativeInt, nonNegativeSafeInt, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
+import { bool, int, int32, malformedResponse, nonNegativeInt, nonNegativeInt32, nonNegativeSafeInt, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
 import { enumerableSymbolKey } from './symbolKeys.js'
@@ -179,14 +179,14 @@ export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessSt
     // set the bag's prototype instead).
     if (!PROCESS_STATUS_FIELDS.has(key)) Object.defineProperty(extraFields, wireKeyToSdkKey(key), { value, enumerable: true, writable: true, configurable: true })
   }
-  const pid = optional(wire, 'Pid', int, d)
+  const pid = optional(wire, 'Pid', int32, d)
   const mapped: Mutable<ComputerUseProcessStatus> = {
     running: bool(wire, 'Running', d),
-    priority: int(wire, 'Priority', d),
+    priority: int32(wire, 'Priority', d),
     autoRestart: bool(wire, 'AutoRestart', d),
     ...(pid === undefined ? {} : { pid }),
     failed: bool(wire, 'Failed', d),
-    restartAttempts: nonNegativeInt(wire, 'RestartAttempts', d),
+    restartAttempts: nonNegativeInt32(wire, 'RestartAttempts', d),
     restartBackoffSeconds: nonNegativeSafeInt(wire, 'RestartBackoffMs', d) / 1000,
     status: str(wire, 'Status', d),
   }
@@ -243,7 +243,7 @@ export function mapComputerUseProcessErrorsResponse(response: unknown): Computer
 
 export function mapComputerUsePoint(response: unknown, d = 'computer-use point'): ComputerUsePoint {
   const wire = record(response, d)
-  return deepFrozen({ x: int(wire, 'x', d), y: int(wire, 'y', d) })
+  return deepFrozen({ x: int32(wire, 'x', d), y: int32(wire, 'y', d) })
 }
 
 export function mapComputerUseScrollResponse(response: unknown): ComputerUseScrollResponse {
@@ -254,8 +254,8 @@ function mapComputerUseDisplay(display: unknown): ComputerUseDisplay {
   const d = 'computer-use display'
   const wire = record(display, d)
   return {
-    id: nonNegativeInt(wire, 'id', d), x: int(wire, 'x', d), y: int(wire, 'y', d),
-    width: nonNegativeInt(wire, 'width', d), height: nonNegativeInt(wire, 'height', d), isActive: bool(wire, 'isActive', d),
+    id: nonNegativeInt(wire, 'id', d), x: int32(wire, 'x', d), y: int32(wire, 'y', d),
+    width: nonNegativeInt32(wire, 'width', d), height: nonNegativeInt32(wire, 'height', d), isActive: bool(wire, 'isActive', d),
   }
 }
 
@@ -263,8 +263,8 @@ function mapComputerUseWindow(window: unknown): ComputerUseWindow {
   const d = 'computer-use window'
   const wire = record(window, d)
   return {
-    id: nonNegativeSafeInt(wire, 'id', d), title: str(wire, 'title', d), x: int(wire, 'x', d), y: int(wire, 'y', d),
-    width: nonNegativeInt(wire, 'width', d), height: nonNegativeInt(wire, 'height', d), isActive: bool(wire, 'isActive', d),
+    id: nonNegativeSafeInt(wire, 'id', d), title: str(wire, 'title', d), x: int32(wire, 'x', d), y: int32(wire, 'y', d),
+    width: nonNegativeInt32(wire, 'width', d), height: nonNegativeInt32(wire, 'height', d), isActive: bool(wire, 'isActive', d),
   }
 }
 
@@ -308,8 +308,8 @@ function mapA11yNodeFields(wire: WireRecord): MutableA11yNode {
     role: str(wire, 'role', d),
     name: str(wire, 'name', d),
     bounds: {
-      x: int(boundsWire, 'x', `${d}: bounds`), y: int(boundsWire, 'y', `${d}: bounds`),
-      width: int(boundsWire, 'width', `${d}: bounds`), height: int(boundsWire, 'height', `${d}: bounds`),
+      x: int32(boundsWire, 'x', `${d}: bounds`), y: int32(boundsWire, 'y', `${d}: bounds`),
+      width: int32(boundsWire, 'width', `${d}: bounds`), height: int32(boundsWire, 'height', `${d}: bounds`),
     },
     states: strList(wire, 'states', d),
     valueTruncated: optional(wire, 'valueTruncated', bool, d) === true,

@@ -12,6 +12,7 @@ from ._core import (
     _expect_model_from_dict,
     enum_str,
     finite_number,
+    int32_field,
     is_json_value,
 )
 from ._gen.toolbox import (
@@ -485,13 +486,14 @@ def parse_computer_use_process_status_map(
     result: Dict[str, ComputerUseProcessStatusInfo] = {}
     for name, raw in payload.items():
         extra_fields = _additional_json_fields(raw.additional_properties)
+        d = "computer-use process status"
         result[name] = ComputerUseProcessStatusInfo(
             running=raw.running,
-            priority=raw.priority,
+            priority=_i32(raw.priority, "Priority", d),
             auto_restart=raw.auto_restart,
-            pid=raw.pid,
+            pid=int32_field(raw.pid, "Pid", d),
             failed=raw.failed,
-            restart_attempts=raw.restart_attempts,
+            restart_attempts=_i32(raw.restart_attempts, "RestartAttempts", d, non_negative=True),
             restart_backoff=_restart_backoff_seconds(raw.restart_backoff_ms),
             status=raw.status,
             extra_fields={wire_key_to_sdk_key(key): value for key, value in extra_fields.items()}
@@ -531,13 +533,23 @@ def parse_computer_use_process_errors(payload: ComputerUseProcessErrorsResponse)
     return ComputerUseProcessErrors(process_name=payload.process_name, errors=payload.errors)
 
 
-def parse_computer_use_point(payload: ComputerUsePoint) -> ComputerUsePointInfo:
-    return ComputerUsePointInfo(x=payload.x, y=payload.y)
+def _i32(value: int, field: str, description: str, *, non_negative: bool = False) -> int:
+    """A required int32 field (see :func:`int32_field`)."""
+    int32_field(value, field, description, non_negative=non_negative)
+    return value
+
+
+def parse_computer_use_point(
+    payload: ComputerUsePoint, description: str = "computer-use point"
+) -> ComputerUsePointInfo:
+    return ComputerUsePointInfo(x=_i32(payload.x, "x", description), y=_i32(payload.y, "y", description))
 
 
 def parse_computer_use_screenshot(payload: ComputerUseScreenshotResponse) -> ComputerUseScreenshot:
     cursor_position = (
-        parse_computer_use_point(payload.cursor_position) if payload.cursor_position is not None else None
+        parse_computer_use_point(payload.cursor_position, "computer-use screenshot response: cursorPosition")
+        if payload.cursor_position is not None
+        else None
     )
     return ComputerUseScreenshot(
         screenshot=payload.screenshot,
@@ -586,12 +598,13 @@ def parse_computer_use_windows(payload: ComputerUseDisplayWindowsResponse) -> li
 
 
 def _parse_computer_use_display(payload: ComputerUseDisplay) -> ComputerUseDisplayInfo:
+    d = "computer-use display"
     return ComputerUseDisplayInfo(
         id=payload.id,
-        x=payload.x,
-        y=payload.y,
-        width=payload.width,
-        height=payload.height,
+        x=_i32(payload.x, "x", d),
+        y=_i32(payload.y, "y", d),
+        width=_i32(payload.width, "width", d, non_negative=True),
+        height=_i32(payload.height, "height", d, non_negative=True),
         is_active=payload.is_active,
     )
 
@@ -600,10 +613,10 @@ def _parse_computer_use_window(payload: ComputerUseWindow) -> ComputerUseWindowI
     return ComputerUseWindowInfo(
         id=payload.id,
         title=payload.title,
-        x=payload.x,
-        y=payload.y,
-        width=payload.width,
-        height=payload.height,
+        x=_i32(payload.x, "x", "computer-use window"),
+        y=_i32(payload.y, "y", "computer-use window"),
+        width=_i32(payload.width, "width", "computer-use window", non_negative=True),
+        height=_i32(payload.height, "height", "computer-use window", non_negative=True),
         is_active=payload.is_active,
     )
 
@@ -618,10 +631,10 @@ def _a11y_node_info(
         name=payload.name,
         description=payload.description,
         bounds=ComputerUseAccessibilityBounds(
-            x=bounds_payload.x,
-            y=bounds_payload.y,
-            width=bounds_payload.width,
-            height=bounds_payload.height,
+            x=_i32(bounds_payload.x, "x", "computer-use accessibility node: bounds"),
+            y=_i32(bounds_payload.y, "y", "computer-use accessibility node: bounds"),
+            width=_i32(bounds_payload.width, "width", "computer-use accessibility node: bounds"),
+            height=_i32(bounds_payload.height, "height", "computer-use accessibility node: bounds"),
         ),
         states=payload.states,
         actions=payload.actions,

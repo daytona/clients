@@ -26,7 +26,11 @@ import { Image as ImageHandle, ImageBuilder, Snapshot } from '../src/v2/Image'
 import { ImagesService } from '../src/v2/Images'
 import { ComputerUseService, type ComputerUseTransport } from '../src/v2/ComputerUse'
 import {
+  mapComputerUseA11yTree,
+  mapComputerUseDisplayInfo,
+  mapComputerUseDisplayWindows,
   mapComputerUseLifecycleResponse,
+  mapComputerUsePoint,
   mapComputerUseProcessStatusMap,
   mapComputerUseRestartResponse,
   mapComputerUseStatusResponse,
@@ -12143,8 +12147,9 @@ describe('computer-use namespace', () => {
       },
     )
 
-    // A pid is int32 (process-tags.test.ts checks its range).
-    it.each(cases.filter(([kind]) => kind !== 'process pid'))('accepts %s above 2**53 that a double carries', async (kind) => {
+    // A pid and window coordinates are int32 (process-tags.test.ts and the
+    // computer-use int32 cases check their range).
+    it.each(cases.filter(([kind]) => kind !== 'process pid' && kind !== 'window x'))('accepts %s above 2**53 that a double carries', async (kind) => {
       await expect(read(kind, String(2 ** 60))).resolves.toBeDefined()
     })
   })
@@ -12412,6 +12417,48 @@ describe('toolbox surface', () => {
     transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce(payload)
     const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
     await expect(server.completions('u', { line: 0, character: 0 })).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: computer-use geometry
+  // and process-status integers are int32 in the contract (widths, heights and
+  // RestartAttempts non-negative); a value outside is a malformed response.
+  it.each([
+    ['point', 'x', 2147483647, true, ''],
+    ['point', 'x', 2147483648, false, 'computer-use point: x must be a signed 32-bit integer'],
+    ['point', 'y', -2147483648, true, ''],
+    ['point', 'y', -2147483649, false, 'computer-use point: y must be a signed 32-bit integer'],
+    ['display', 'x', -2147483649, false, 'computer-use display: x must be a signed 32-bit integer'],
+    ['display', 'width', 2147483647, true, ''],
+    ['display', 'width', 2147483648, false, 'computer-use display: width must be a non-negative 32-bit integer'],
+    ['window', 'height', 2147483648, false, 'computer-use window: height must be a non-negative 32-bit integer'],
+    ['window', 'y', 2147483648, false, 'computer-use window: y must be a signed 32-bit integer'],
+    ['bounds', 'width', -2147483648, true, ''],
+    ['bounds', 'width', -2147483649, false, 'computer-use accessibility node: bounds: width must be a signed 32-bit integer'],
+    ['status', 'Pid', 2147483648, false, 'computer-use process status: Pid must be a signed 32-bit integer'],
+    ['status', 'Priority', -2147483649, false, 'computer-use process status: Priority must be a signed 32-bit integer'],
+    ['status', 'RestartAttempts', 2147483647, true, ''],
+    ['status', 'RestartAttempts', 2147483648, false, 'computer-use process status: RestartAttempts must be a non-negative 32-bit integer'],
+  ] as const)('range-checks the int32 %s %s %p', (kind, field, value, ok, message) => {
+    // The field under test over a valid record.
+    const at = (base: Record<string, unknown>): Record<string, unknown> => ({ ...base, [String(field)]: value })
+    const read = (): unknown => {
+      switch (kind) {
+        case 'point':
+          return mapComputerUsePoint(at({ x: 0, y: 0 }))
+        case 'display':
+          return mapComputerUseDisplayInfo({ displays: [at({ id: 0, x: 0, y: 0, width: 1, height: 1, isActive: true })] })
+        case 'window':
+          return mapComputerUseDisplayWindows({ windows: [at({ id: 1, title: 't', x: 0, y: 0, width: 1, height: 1, isActive: true })] })
+        case 'bounds':
+          return mapComputerUseA11yTree({ root: { id: 'n', role: 'r', name: 'n', bounds: at({ x: 0, y: 0, width: 1, height: 1 }), states: [] }, truncated: false })
+        default:
+          return mapComputerUseProcessStatusMap({
+            x: at({ Running: true, Priority: 1, AutoRestart: false, Pid: 7, Failed: false, RestartAttempts: 0, RestartBackoffMs: 0, Status: 'ok' }),
+          })
+      }
+    }
+    if (ok) expect(read()).toBeDefined()
+    else expect(read).toThrow(expect.objectContaining({ constructor: BadRequestError, message: `expected ${message}`, code: 'BAD_REQUEST', source: 'SDK' }))
   })
 
   it('refuses an enumerable symbol key in a computer-use process status map', () => {

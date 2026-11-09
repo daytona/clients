@@ -2241,8 +2241,11 @@ async def test_an_integer_a_double_cannot_carry_is_refused_naming_the_field(
 
 
 @pytest.mark.anyio
-# A pid is int32 (test_process_tags.py checks its range).
-@pytest.mark.parametrize(("case", "field"), [case for case in _INTEGER_CASES if case[1] != "pid"])
+# A pid and window coordinates are int32 (test_process_tags.py and the int32
+# cases below check their range).
+@pytest.mark.parametrize(
+    ("case", "field"), [case for case in _INTEGER_CASES if case[0] not in ("process pid", "window x")]
+)
 async def test_an_integer_above_2_53_that_a_double_carries_is_accepted(case: str, field: str) -> None:
     assert await _read_integer_field(case, 2**60) is not None
 
@@ -2812,3 +2815,113 @@ def test_the_sse_splitter_checks_before_copying_a_line_or_buffering_a_remainder(
         with pytest.raises(TooLarge):
             list(splitter.feed(chunk, lambda _c: 1024, lambda _c: TooLarge()))
         assert len(splitter._pending) == 0
+
+
+# Shared with the TypeScript SDK's unit.test.ts: computer-use geometry and
+# process-status integers are int32 in the contract (widths, heights and
+# RestartAttempts non-negative); a value outside is a malformed response.
+_INT32_CASES = [
+    ("point", "x", 2147483647, True, ""),
+    ("point", "x", 2147483648, False, "computer-use point: x must be a signed 32-bit integer"),
+    ("point", "y", -2147483648, True, ""),
+    ("point", "y", -2147483649, False, "computer-use point: y must be a signed 32-bit integer"),
+    ("display", "x", -2147483649, False, "computer-use display: x must be a signed 32-bit integer"),
+    ("display", "width", 2147483647, True, ""),
+    (
+        "display",
+        "width",
+        2147483648,
+        False,
+        "computer-use display: width must be a non-negative 32-bit integer",
+    ),
+    (
+        "window",
+        "height",
+        2147483648,
+        False,
+        "computer-use window: height must be a non-negative 32-bit integer",
+    ),
+    ("window", "y", 2147483648, False, "computer-use window: y must be a signed 32-bit integer"),
+    ("bounds", "width", -2147483648, True, ""),
+    (
+        "bounds",
+        "width",
+        -2147483649,
+        False,
+        "computer-use accessibility node: bounds: width must be a signed 32-bit integer",
+    ),
+    ("status", "Pid", 2147483648, False, "computer-use process status: Pid must be a signed 32-bit integer"),
+    (
+        "status",
+        "Priority",
+        -2147483649,
+        False,
+        "computer-use process status: Priority must be a signed 32-bit integer",
+    ),
+    ("status", "RestartAttempts", 2147483647, True, ""),
+    (
+        "status",
+        "RestartAttempts",
+        2147483648,
+        False,
+        "computer-use process status: RestartAttempts must be a non-negative 32-bit integer",
+    ),
+]
+
+
+def _computer_use_int32(kind: str, field: str, value: int) -> object:
+    from daytona.v2 import computer_use_core as core
+
+    if kind == "point":
+        point = {"x": 0, "y": 0, field: value}
+        return core.parse_computer_use_point(core.expect_computer_use_point(point))
+    if kind == "display":
+        display = {"id": 0, "x": 0, "y": 0, "width": 1, "height": 1, "isActive": True, field: value}
+        return core.parse_computer_use_displays(
+            core.expect_computer_use_display_info_response({"displays": [display]})
+        )
+    if kind == "window":
+        window = {
+            "id": 1,
+            "title": "t",
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 1,
+            "isActive": True,
+            field: value,
+        }
+        return core.parse_computer_use_windows(
+            core.expect_computer_use_display_windows_response({"windows": [window]})
+        )
+    if kind == "bounds":
+        bounds = {"x": 0, "y": 0, "width": 1, "height": 1, field: value}
+        node = {"id": "n", "role": "r", "name": "n", "bounds": bounds, "states": []}
+        return core.parse_computer_use_a11y_tree_payload({"root": node, "truncated": False}, max_depth=256)
+    status = {
+        "Running": True,
+        "Priority": 1,
+        "AutoRestart": False,
+        "Pid": 7,
+        "Failed": False,
+        "RestartAttempts": 0,
+        "RestartBackoffMs": 0,
+        "Status": "ok",
+        field: value,
+    }
+    return core.parse_computer_use_process_status_map(
+        core.expect_computer_use_process_status_map({"x": status})
+    )
+
+
+@pytest.mark.parametrize(("kind", "field", "value", "ok", "message"), _INT32_CASES)
+def test_computer_use_int32_fields_are_range_checked(
+    kind: str, field: str, value: int, ok: bool, message: str
+) -> None:
+    if ok:
+        assert _computer_use_int32(kind, field, value) is not None
+        return
+    with pytest.raises(BadRequestError) as info:
+        _computer_use_int32(kind, field, value)
+    assert str(info.value) == f"expected {message}"
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")

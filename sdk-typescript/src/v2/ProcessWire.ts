@@ -13,7 +13,7 @@ import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROC
 import { UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
-import { bool, int, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, nonNegativeSafeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
+import { bool, int, int32, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, nonNegativeSafeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
@@ -121,15 +121,6 @@ export function signalWire(signal: ProcessSignal | undefined): string | undefine
 export function bareSignal(signal: unknown): string | undefined {
   if (typeof signal !== 'string') return undefined
   return signal.startsWith('SIG') ? signal.slice(3) : signal
-}
-
-const MIN_INT32 = -(2 ** 31)
-
-/** An int32 field (`pid`, `exitCode`), as the contract types it; outside it is malformed. */
-function int32(input: WireRecord, field: string, description: string): number {
-  const value = int(input, field, description)
-  if (value < MIN_INT32 || value > MAX_INT32) throw malformedResponse(`${description}: ${field} must be a signed 32-bit integer`)
-  return value
 }
 
 export function waitResult(input: toolbox.ExitResult): WaitResult {
