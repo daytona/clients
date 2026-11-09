@@ -15,13 +15,18 @@ import { clientAt } from './helpers/client'
 // an unsettled observation; a settled artifact is returned; no budget is one
 // hold whose answer is returned; a budget above the timer maximum waits
 // without a deadline. The Python twin is tests/test_artifact_waits.py.
+const MAX_HOLD_MS = 5_000
+
 async function serve(statuses: readonly string[], hold: boolean): Promise<{ readonly url: string; readonly server: Server; readonly reads: () => number }> {
   let reads = 0
   const server = createServer((request, response) => {
     request.resume()
     const status = statuses[Math.min(reads, statuses.length - 1)] ?? 'building'
     reads++
-    const held = Number(new URL(request.url ?? '/', 'http://x').searchParams.get('timeout_ms') ?? 0)
+    // The hold the request asks for, bounded to MAX_HOLD_MS: every test here
+    // ends its wait well within that, and the server never waits longer.
+    const asked = Number(new URL(request.url ?? '/', 'http://x').searchParams.get('timeout_ms') ?? 0)
+    const held = Number.isFinite(asked) && asked > 0 ? Math.min(asked, MAX_HOLD_MS) : 0
     const timer = setTimeout(() => {
       response.writeHead(200, { 'Content-Type': 'application/json' })
       response.end(JSON.stringify(imageWire({ id: 'img', status })))

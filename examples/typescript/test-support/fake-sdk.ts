@@ -65,7 +65,7 @@ export interface Record {
   pulledImages: { ref: string; name?: string }[]
   deletedImages: string[]
   imageWaits: { wait?: string; timeoutSeconds?: number }[]
-  mounts: { sandboxId: string; mounts: { volumeId: string; mountPath: string }[] }[]
+  mounts: { sandboxId: string; mounts: Mount[] }[]
 }
 
 const scenario: Scenario = JSON.parse(process.env.EXAMPLE_FAKE_SCENARIO ?? '{}')
@@ -96,22 +96,32 @@ const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(n
 // Each volume's files (path inside the volume → lines); a sandbox reads and
 // writes a path through the volume mounted over it, else its own disk.
 const volumeFiles = new Map<string, Map<string, string[]>>()
-type Mount = { readonly volumeId: string; readonly mountPath: string }
+type Mount = { readonly volumeId: string; readonly mountPath: string; readonly subpath?: string; readonly readOnly?: boolean }
 
 function mountsOf(requested: CreateSandboxOptions['volumes']): Mount[] {
-  return (requested ?? []).map(({ volumeId, mountPath }) => {
+  return (requested ?? []).map(({ volumeId, mountPath, subpath, readOnly }) => {
     // The API rejects a mount of a volume the project lacks.
     if (!volumes.has(volumeId)) throw new Error(`volume ${volumeId} not found`)
-    return { volumeId, mountPath: mountPath.replace(/\/+$/, '') }
+    return {
+      volumeId,
+      mountPath: mountPath.replace(/\/+$/, ''),
+      ...(subpath === undefined ? {} : { subpath }),
+      ...(readOnly === undefined ? {} : { readOnly }),
+    }
   })
 }
 
-function fileStore(path: string, mounts: readonly Mount[], disk: Map<string, string[]>): { store: Map<string, string[]>; key: string } {
+/**
+ * Where a path lives: under a mount, in that volume below its subpath (and
+ * read-only when the mount is); else on the sandbox's own disk.
+ */
+function fileStore(path: string, mounts: readonly Mount[], disk: Map<string, string[]>): { store: Map<string, string[]>; key: string; readOnly: boolean } {
   const mount = mounts.find(({ mountPath }) => path === mountPath || path.startsWith(`${mountPath}/`))
-  if (mount === undefined) return { store: disk, key: path }
+  if (mount === undefined) return { store: disk, key: path, readOnly: false }
   const store = volumeFiles.get(mount.volumeId) ?? new Map<string, string[]>()
   volumeFiles.set(mount.volumeId, store)
-  return { store, key: path.slice(mount.mountPath.length) }
+  const below = mount.subpath === undefined ? '' : `/${mount.subpath.replace(/^\/+|\/+$/g, '')}`
+  return { store, key: `${below}${path.slice(mount.mountPath.length)}`, readOnly: mount.readOnly === true }
 }
 
 const result = (exitCode: number, output: string) => ({ exitCode, output, stdout: output, stderr: '' })
@@ -121,8 +131,9 @@ function run(command: string, env: { [name: string]: string }, dockerfile: strin
     if (new RegExp(pattern).test(command)) return result(exitCode, output)
   }
   if (scenario.volumeData && command.includes('/data/message.txt')) {
-    const { store, key } = fileStore('/data/message.txt', mounts, disk)
+    const { store, key, readOnly } = fileStore('/data/message.txt', mounts, disk)
     const write = /echo (\S+) (>>?) \/data\/message\.txt/.exec(command)
+    if (write && readOnly) return result(1, `sh: can't create /data/message.txt: Read-only file system`)
     if (write) {
       store.set(key, [...(write[2] === '>>' ? store.get(key) ?? [] : []), write[1]])
       return result(0, '')

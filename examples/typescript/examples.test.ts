@@ -301,6 +301,22 @@ test('volumes_share round-trips through the volume', () => {
   assertCleanedUp(record)
 })
 
+test('the fake applies a mount\'s subpath and readOnly', () => {
+  // The fake resolves a path below the mount's subpath, and refuses a write
+  // through a read-only mount, as the sandbox does.
+  const { code, record, output } = runExample('typescript/test-support/volume-mounts.ts', { volumeData: true })
+  assert.equal(code, 0, output)
+  assert.match(output, /^write a: exit=0 $/m)
+  assert.match(output, /^read b: exit=0 <missing>$/m)
+  assert.match(output, /^read a read-only: exit=0 from-a$/m)
+  assert.match(output, /^write a read-only: exit=1 .*Read-only file system$/m)
+  assert.deepEqual(record.mounts.map(({ mounts }) => mounts), [
+    [{ volumeId: record.createdVolumes[0], mountPath: '/data', subpath: 'a' }],
+    [{ volumeId: record.createdVolumes[0], mountPath: '/data', subpath: 'b' }],
+    [{ volumeId: record.createdVolumes[0], mountPath: '/data', subpath: 'a', readOnly: true }],
+  ])
+})
+
 test('volumes cleans up the volume acquired with create enabled', () => {
   // Given: no volumes exist in the fake project.
   // When: the example acquires a named volume and mounts it in three sandboxes.

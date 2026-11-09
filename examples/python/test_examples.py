@@ -23,7 +23,7 @@ import sys
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from typing import Optional
+from typing import NamedTuple, Optional
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
@@ -60,6 +60,15 @@ Override = tuple[str, int, str]
 _CREATE_FROM_BUILD_PARAMS = inspect.signature(SyncDaytona.create_from_build).parameters
 
 
+class Mount(NamedTuple):
+    """A volume mount as the fake sandbox resolves paths through it."""
+
+    volume_id: str
+    mount_path: str
+    subpath: Optional[str]
+    read_only: bool
+
+
 class FakeWorld:
     """A fake Daytona project: sandboxes, secrets and volumes."""
 
@@ -81,8 +90,8 @@ class FakeWorld:
         self.pulled_images: list[tuple[str, Optional[str]]] = []
         self.deleted_images: list[str] = []
         self.image_waits: list[tuple[object, object]] = []
-        # Each sandbox's (volume id, mount path) pairs, and each volume's files.
-        self.mounts: list[tuple[tuple[str, str], ...]] = []
+        # Each sandbox's mounts, and each volume's files.
+        self.mounts: list[tuple[Mount, ...]] = []
         self.volume_files: dict[str, dict[str, list[str]]] = {}
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
@@ -179,18 +188,32 @@ class FakeWorld:
             str(kwargs.get("name")), self._sandbox_env(kwargs), dockerfile="", mounts=self._mounts(kwargs)
         )
 
-    def _mounts(self, kwargs: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
-        """The (volume id, mount path) pairs a create asks for; the API
-        rejects a mount of a volume the project lacks."""
+    def _mounts(self, kwargs: Mapping[str, object]) -> tuple[Mount, ...]:
+        """The mounts a create asks for (mount path without a trailing slash);
+        the API rejects a mount of a volume the project lacks."""
         requested = kwargs.get("volumes") or []
         assert isinstance(requested, list)
-        mounts: list[tuple[str, str]] = []
+        mounts: list[Mount] = []
         for mount in requested:
             assert isinstance(mount, VolumeMount)
             if mount.volume_id not in self.created_volumes:
                 raise LookupError(f"volume {mount.volume_id} not found")
-            mounts.append((mount.volume_id, mount.mount_path.rstrip("/")))
+            mounts.append(
+                Mount(mount.volume_id, mount.mount_path.rstrip("/"), mount.subpath, mount.read_only is True)
+            )
         return tuple(mounts)
+
+    def file_store(
+        self, path: str, mounts: tuple[Mount, ...], disk: dict[str, list[str]]
+    ) -> tuple[dict[str, list[str]], str, bool]:
+        """Where a path lives: under a mount, in that volume below its subpath
+        (and read-only when the mount is); else on the sandbox's own disk."""
+        mount = next((m for m in mounts if path == m.mount_path or path.startswith(m.mount_path + "/")), None)
+        if mount is None:
+            return disk, path, False
+        below = "" if mount.subpath is None else "/" + mount.subpath.strip("/")
+        store = self.volume_files.setdefault(mount.volume_id, {})
+        return store, below + path[len(mount.mount_path) :], mount.read_only
 
     def _sandbox_env(self, kwargs: Mapping[str, object]) -> dict[str, str]:
         env = kwargs.get("env") or {}
@@ -239,7 +262,7 @@ class FakeWorld:
 
     # -- sandbox ----------------------------------------------------------
     def _sandbox(
-        self, name: str, env: Mapping[str, str], *, dockerfile: str, mounts: tuple[tuple[str, str], ...] = ()
+        self, name: str, env: Mapping[str, str], *, dockerfile: str, mounts: tuple[Mount, ...] = ()
     ) -> MagicMock:
         sandbox: MagicMock = create_autospec(Sandbox, instance=True)
         self.mounts.append(mounts)
@@ -288,7 +311,7 @@ class FakeWorld:
         command: str,
         env: Mapping[str, str],
         dockerfile: str,
-        mounts: tuple[tuple[str, str], ...] = (),
+        mounts: tuple[Mount, ...] = (),
         disk: Optional[dict[str, list[str]]] = None,
     ) -> ProcessResult:
         for pattern, exit_code, output in self.overrides:
@@ -661,17 +684,18 @@ def _volume_world(read_fails: bool = False) -> FakeWorld:
         command: str,
         env: Mapping[str, str],
         dockerfile: str,
-        mounts: tuple[tuple[str, str], ...] = (),
+        mounts: tuple[Mount, ...] = (),
         disk: Optional[dict[str, list[str]]] = None,
     ) -> ProcessResult:
         path = "/data/message.txt"
         if path not in command:
             return original(command, env, dockerfile, mounts, disk)
-        mount = next(((v, p) for v, p in mounts if path == p or path.startswith(p + "/")), None)
-        store = disk if mount is None else world.volume_files.setdefault(mount[0], {})
-        key = path if mount is None else path[len(mount[1]) :]
-        assert store is not None
-        if match := re.search(r"echo (\S+) (>>?) /data/message\.txt", command):
+        assert disk is not None
+        store, key, read_only = world.file_store(path, mounts, disk)
+        match = re.search(r"echo (\S+) (>>?) /data/message\.txt", command)
+        if match and read_only:
+            return _result(1, "sh: can't create /data/message.txt: Read-only file system")
+        if match:
             store[key] = [*(store.get(key, []) if match.group(2) == ">>" else []), match.group(1)]
             return _result(0, "")
         if read_fails and command.endswith("then cat /data/message.txt; fi"):
@@ -690,7 +714,30 @@ def test_volumes_share_round_trip_succeeds(monkeypatch: pytest.MonkeyPatch) -> N
     world = _volume_world()
     assert _patch_volumes_share(monkeypatch, world).main() == 0
     assert len(world.deleted_volumes) == 1
-    assert world.mounts == [((world.created_volumes[0], "/data"),)] * len(world.sandboxes)
+    assert world.mounts == [(Mount(world.created_volumes[0], "/data", None, False),)] * len(world.sandboxes)
+
+
+def test_the_fake_applies_a_mount_subpath_and_read_only() -> None:
+    # The fake resolves a path below the mount's subpath, and refuses a write
+    # through a read-only mount, as the sandbox does (twin in examples.test.ts).
+    world = _volume_world()
+    volume = world.client.volumes.create(name="mounts")
+
+    def box(subpath: str, read_only: Optional[bool] = None) -> MagicMock:
+        mount = VolumeMount(volume_id=volume.id, mount_path="/data", subpath=subpath, read_only=read_only)
+        return world._create_from_build(ImageBuilder.from_registry("python:3.12"), name=subpath, volumes=[mount])
+
+    def run(sandbox: MagicMock, command: str) -> tuple[int, str]:
+        result = sandbox.process.run(command)
+        return result.exit_code, result.output
+
+    assert run(box("a"), "echo from-a > /data/message.txt") == (0, "")
+    missing = "if [ -e /data/message.txt ]; then cat /data/message.txt; else echo '<missing>'; fi"
+    assert run(box("b"), missing) == (0, "<missing>")
+    reader = box("a", read_only=True)
+    assert run(reader, "cat /data/message.txt") == (0, "from-a")
+    code, output = run(reader, "echo again > /data/message.txt")
+    assert code == 1 and output.endswith("Read-only file system")
 
 
 def test_volumes_share_reports_a_failed_write_at_its_source(monkeypatch: pytest.MonkeyPatch) -> None:
