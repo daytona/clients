@@ -575,11 +575,13 @@ jobs:
           # ref names, so a cleaned name never looks like a real branch.
           clean() { printf '%s' "$1" | tr '`|<' '???'; }
           source_ref=$(clean "$SOURCE_REF")
+          workflow_ref=$(clean "$GITHUB_REF_NAME")
+          version_input=$(clean "$VERSION_INPUT")
           if [ -n "$IN_V0_TAG" ]; then v0_cell="\`$(clean "$IN_V0_TAG")\`"; else v0_cell='— (the pin)'; fi
           requested="**@${TRIGGERING_ACTOR}**"
           [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
           {
-            echo "## Publish plan — \`${VERSION:-${VERSION_INPUT}}\`"
+            echo "## Publish plan — \`${VERSION:-${version_input}}\`"
             echo
             if [ "$GATE_STATUS" = success ]; then
               echo "Gate **passed**. The registry check and the builds run next; the \`release\` approval is requested only once they are green."
@@ -592,7 +594,7 @@ jobs:
             echo
             echo "| Input | Value |"
             echo "|---|---|"
-            echo "| \`version\` | \`${VERSION_INPUT}\` |"
+            echo "| \`version\` | \`${version_input}\` |"
             echo "| \`source_ref\` | \`${source_ref}\` |"
             echo "| \`publish_pypi\` | \`${IN_PYPI}\` |"
             echo "| \`publish_npm\` | \`${IN_NPM}\` |"
@@ -603,7 +605,7 @@ jobs:
             echo "| \`force_republish\` | \`${IN_FORCE}\` |"
             echo
             echo "- **Source to build:** \`${source_ref}\` → $([ -n "$SOURCE_SHA" ] && echo "[\`${SOURCE_SHA}\`](${SERVER}/${REPO}/commit/${SOURCE_SHA})" || echo unresolved)"
-            echo "- **Workflow logic from:** \`${GITHUB_REF_NAME}\` → [\`${GITHUB_SHA}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})"
+            echo "- **Workflow logic from:** \`${workflow_ref}\` → [\`${GITHUB_SHA}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})"
             echo "- **Channel:** \`${CHANNEL:-—}\`"
             echo "- **v0 namespace:** \`${V0_TAG:-—}\`${V0_SHA:+ → [\`${V0_SHA:0:12}\`](${SERVER}/${REPO}/commit/${V0_SHA})}${V0_UNVERIFIED:+ — **UNVERIFIED** (v0_tag override, not the pinned release)}"
             echo "- **Tag recorded on success:** \`${TAG:-—}\`"

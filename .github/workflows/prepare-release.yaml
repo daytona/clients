@@ -41,23 +41,27 @@ jobs:
           SERVER: ${{ github.server_url }}
         run: |
           set -euo pipefail
-          version=${VERSION_INPUT#v}
+          # Git allows ` | < in ref names and the version is unchecked here;
+          # `?` is in neither, so a cleaned value never looks like a real one.
+          clean() { printf '%s' "$1" | tr '`|<' '???'; }
+          version=$(clean "${VERSION_INPUT#v}")
+          base=$(clean "$GITHUB_REF_NAME")
           requested="**@${TRIGGERING_ACTOR}**"
           [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
           {
             echo "## Prepare Release plan — \`v${version}\`"
             echo
-            echo "Requested by ${requested} from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})."
+            echo "Requested by ${requested} from \`${base}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})."
             echo
             echo "| Input | Value |"
             echo "|---|---|"
-            echo "| \`version\` | \`${VERSION_INPUT}\` |"
+            echo "| \`version\` | \`v${version}\` |"
             echo
             echo "After approval of the \`release\` environment, \`prepare\`:"
             echo
             echo "1. validates \`v${version}\` for this line (no 0.x, stable only from \`main\` and above the highest stable 2.x tag, tag not taken). This plan does not check these rules; a refused version fails at this step, before anything is pushed;"
             echo "2. folds every \`changelog.d/\` fragment into \`CHANGELOG.md\` under a new \`## [${version}]\` heading and deletes the fragments;"
-            echo "3. pushes branch \`prepare-release-v${version}\` and opens PR **chore: prepare release v${version}** into \`${GITHUB_REF_NAME}\` as daytonaBot."
+            echo "3. pushes branch \`prepare-release-v${version}\` and opens PR **chore: prepare release v${version}** into \`${base}\` as daytonaBot."
             echo
             echo "Nothing is published; after merging, run SDK Publish from the merge commit with \`v${version}\`."
           } >> "$GITHUB_STEP_SUMMARY"
