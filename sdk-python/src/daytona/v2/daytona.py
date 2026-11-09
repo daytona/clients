@@ -10,7 +10,6 @@ import hashlib
 import json
 import math
 import os
-import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -62,6 +61,7 @@ from ._core import (
     parse_timestamp,
     path_segment,
     region_selector,
+    rfc3339_timestamp,
     sandbox_state,
     search_params,
     wait_budget_seconds,
@@ -786,7 +786,7 @@ class AsyncDaytona:
         raw_token = data.get("access_token")
         access_token = raw_token if _sendable_token(raw_token) else None
         raw_expiry = data.get("access_token_expires_at")
-        access_token_expires_at = parse_timestamp(raw_expiry) if _rfc3339_timestamp(raw_expiry) else None
+        access_token_expires_at = parse_timestamp(raw_expiry) if rfc3339_timestamp(raw_expiry) else None
         create_toolbox_base = (
             str(data.get("toolbox_proxy_url")) if isinstance(data.get("toolbox_proxy_url"), str) else None
         )
@@ -1537,32 +1537,6 @@ _BUILD_POLL_INTERVAL_S: Final = 1.0
 
 # Omitted macOS sizes use the server defaults. Supplied sizes must be within
 # the accepted range; GiB converts to MiB exactly, never rounded.
-# An RFC 3339 date-time: date, time and an offset (`Z` or `±hh:mm`), as
-# TypeScript's `isRfc3339Timestamp` reads it.
-_RFC3339 = re.compile(
-    r"(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|[+-](\d{2}):(\d{2}))"
-)
-
-
-def _rfc3339_timestamp(value: object) -> bool:
-    """Whether ``value`` is an RFC 3339 date-time with an offset and real
-    calendar and clock values (no leap second); anything else, a bare date or
-    a time without an offset included, is not."""
-    if not isinstance(value, str):
-        return False
-    match = _RFC3339.fullmatch(value)
-    if match is None:
-        return False
-    offset_hours, offset_minutes = match.group(7), match.group(8)
-    if offset_hours is not None and (int(offset_hours) > 23 or int(offset_minutes) > 59):
-        return False
-    try:
-        datetime(*(int(part) for part in match.groups()[:6]))
-    except ValueError:
-        return False
-    return True
-
-
 def _sendable_token(value: object) -> TypeGuard[str]:
     """Whether a create response's token can be sent as a bearer header:
     non-empty printable ASCII with no leading or trailing space (the header

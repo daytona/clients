@@ -564,6 +564,8 @@ it.each([
   ['tok', '2030-01-01T00:00:60Z', true, false],
   ['tok', '2030-01-01T00:00:00+24:00', true, false],
   ['tok', '2030-01-01T02:00:00+02:00', true, true],
+  // ASCII digits only: Arabic-Indic digits are not a timestamp.
+  ['tok', '\u0662\u0660\u0663\u0660-01-01T00:00:00Z', true, false],
   ['tok', '2030-01-01T00:00:00Z', true, true],
 ] as const)('reads a create token %j expiring %j only when it can be used', async (token, expiry, keptToken, keptExpiry) => {
   const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status: 'pending', access_token: token, access_token_expires_at: expiry } }])

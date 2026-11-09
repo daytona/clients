@@ -1479,19 +1479,23 @@ def _wire_statuses(states: object) -> str:
     return ",".join(wire)
 
 
+# ASCII digits only (`[0-9]`), as TypeScript's pattern reads them.
 _RFC3339 = re.compile(
-    r"(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d"
-    r"(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)",
-    re.ASCII,
+    r"([0-9]{4})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])[Tt](?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
+    r"(?:\.[0-9]+)?(?:[Zz]|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])",
 )
 
 
-def _rfc3339(value: str) -> bool:
-    """An RFC 3339 timestamp without a leap second, as TypeScript checks it: year 0001-9999,
+def rfc3339_timestamp(value: object) -> bool:
+    """Whether ``value`` is an RFC 3339 timestamp without a leap second, as
+    TypeScript's ``isRfc3339`` checks it (search bounds, a create response's
+    token expiry): a string with ASCII digits, year 0001-9999,
     the day within its month (Feb 29 only in a leap year), hour 00-23, minute
     and second 00-59 (no leap second: neither a ``datetime`` nor a ``Date``
     can express one), an optional fraction, and ``Z`` or an offset within
     +-23:59."""
+    if not isinstance(value, str):
+        return False
     match = _RFC3339.fullmatch(value)
     if match is None:
         return False
@@ -1527,11 +1531,11 @@ def search_timestamp(value: SearchTimestamp) -> str:
             rendered = aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
         except Exception as error:
             raise invalid from error
-        if isinstance(rendered, str) and _rfc3339(rendered):
+        if isinstance(rendered, str) and rfc3339_timestamp(rendered):
             return rendered
         raise invalid
     # An RFC 3339 timestamp without a leap second (the contract's date-time), the same rule TypeScript checks.
-    if isinstance(value, str) and _rfc3339(value):
+    if isinstance(value, str) and rfc3339_timestamp(value):
         return value
     raise invalid
 

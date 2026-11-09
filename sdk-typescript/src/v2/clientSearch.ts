@@ -36,14 +36,17 @@ export function searchTimestamp(value: SearchTimestamp): string {
   throw createDaytonaError('timestamp bounds must be a valid Date or an RFC 3339 timestamp without a leap second (year 0001-9999, a real calendar date)', 400, 'BAD_REQUEST', 'SDK')
 }
 
-const RFC3339 = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
+// ASCII digits only (`[0-9]`), as Python's pattern reads them.
+const RFC3339 = /^([0-9]{4})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])[Tt](?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]+)?(?:[Zz]|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$/
 
-// An RFC 3339 timestamp without a leap second, as Python checks it: year 0001-9999, the day
+// An RFC 3339 timestamp without a leap second, as Python's `rfc3339_timestamp`
+// checks it (search bounds, a create response's token expiry): year 0001-9999, the day
 // within its month (Feb 29 only in a leap year; explicit arithmetic, since
 // `Date.UTC` maps years 0-99 to 1900-1999), hour 00-23, minute and second
 // 00-59 (no leap second: neither a `Date` nor a Python `datetime` can express
 // one), an optional fraction, and `Z` or an offset within ±23:59.
-function isRfc3339(value: string): boolean {
+/** @internal */
+export function isRfc3339(value: string): boolean {
   const match = RFC3339.exec(value)
   if (match === null) return false
   const year = Number(match[1]), month = Number(match[2]), day = Number(match[3])

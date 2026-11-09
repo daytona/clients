@@ -921,6 +921,8 @@ async def test_a_create_response_with_mistyped_optional_fields_returns_the_handl
         ("tok", "2030-01-01T00:00:60Z", True, False),
         ("tok", "2030-01-01T00:00:00+24:00", True, False),
         ("tok", "2030-01-01T02:00:00+02:00", True, True),
+        # ASCII digits only: Arabic-Indic digits are not a timestamp.
+        ("tok", "\u0662\u0660\u0663\u0660-01-01T00:00:00Z", True, False),
         ("tok", "2030-01-01T00:00:00Z", True, True),
     ],
 )
