@@ -110,6 +110,30 @@ describe('process tags', () => {
     })
   })
 
+  // Shared with the Python SDK's test_process_tags.py: pid and exitCode are
+  // int32 in the contract; a value outside it is a malformed response.
+  it.each([
+    ['pid', 2 ** 31 - 1, true],
+    ['pid', 2 ** 31, false],
+    ['exitCode', -(2 ** 31), true],
+    ['exitCode', -(2 ** 31) - 1, false],
+    ['exitCode', 2 ** 31, false],
+  ] as const)('range-checks the int32 %s %p', async (field, value, ok) => {
+    const transport = new HttpTransport('http://toolbox.invalid')
+    jest.spyOn(transport, 'get').mockImplementation(async (path: string) => (path.endsWith('/wait') ? { reason: 'exited', [field]: value } : { ...terminal, [field]: value }) as never)
+    const process = service(transport)
+    if (ok) {
+      const info = await process.get('process-1')
+      expect(field === 'pid' ? info.pid : info.exitCode).toBe(value)
+      if (field === 'exitCode') expect((await process.connect('process-1').wait()).exitCode).toBe(value)
+      return
+    }
+    await expect(process.get('process-1')).rejects.toMatchObject({ constructor: BadRequestError, message: `expected process response: ${field} must be a signed 32-bit integer` })
+    if (field === 'exitCode') {
+      await expect(process.connect('process-1').wait()).rejects.toMatchObject({ constructor: BadRequestError, message: 'expected wait result: exitCode must be a signed 32-bit integer' })
+    }
+  })
+
   it('leaves session command tags to server inheritance', async () => {
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockResolvedValue(terminal)

@@ -23,6 +23,13 @@ describe('v2 error surface', () => {
     expect(new v2.ClientTimeoutError('x')).not.toBeInstanceOf(v2.RequestTimeoutError)
     expect(new v2.GitAuthFailedError('x')).toBeInstanceOf(v2.AuthenticationError)
     expect(errorFromEnvelopeBody('{}', 'application/json', 401, 'x').constructor).toBe(v2.AuthenticationError)
+    // Shared with the Python SDK's test_build_logs.py: a JSON body nested past
+    // 600 levels is unreadable, as on the axios and fetch paths.
+    const nested = (depth: number) => `{"code":"NOT_FOUND","message":"gone","details":${'['.repeat(depth - 1)}${']'.repeat(depth - 1)}}`
+    expect(errorFromEnvelopeBody(nested(600), 'application/json', 404, 'build log HTTP 404')).toMatchObject({ code: 'NOT_FOUND', message: 'gone' })
+    const tooDeep = errorFromEnvelopeBody(nested(601), 'application/json', 404, 'build log HTTP 404')
+    expect(tooDeep).toBeInstanceOf(v2.NotFoundError)
+    expect(tooDeep).toMatchObject({ statusCode: 404, code: undefined, message: 'HTTP 404: the response body was nested too deeply to read (over 600 levels of JSON)' })
     expect(errorFromEnvelopeBody('{}', 'application/json', 403, 'x').constructor).toBe(v2.ForbiddenError)
   })
 

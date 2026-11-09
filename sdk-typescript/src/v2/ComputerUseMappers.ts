@@ -198,7 +198,12 @@ export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessSt
 }
 
 export function mapComputerUseProcessStatusMap(statusMap: unknown): Readonly<Record<string, ComputerUseProcessStatus>> {
-  const map = record(statusMap, 'computer-use process status map')
+  const d = 'computer-use process status map'
+  const map = record(statusMap, d)
+  // A map keyed by process name: a symbol key is no name (JSON has none).
+  for (const symbol of Object.getOwnPropertySymbols(map)) {
+    if (Object.prototype.propertyIsEnumerable.call(map, symbol)) throw malformedResponse(`${d}: unexpected key ${String(symbol)}`)
+  }
   return deepFrozen(Object.fromEntries(
     Object.entries(map).map(([name, status]) => [name, mapComputerUseProcessStatus(status as toolbox.ComputerUseProcessStatus)]),
   ))

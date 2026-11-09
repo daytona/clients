@@ -494,18 +494,18 @@ export class FileSystemService {
     // most WATCH_MAX_EVENTS_BEFORE_START of them are held.
     const held: (() => void | Promise<void>)[] = []
     let earlyEvents = 0
-    let earlyBytes = 0
-    // The stream's bytes are counted as they arrive: before start its events
-    // may not pass WATCH_MAX_BYTES_BEFORE_START in all, after it each event
-    // is bounded by the client's maxResponseBytes.
+    // The stream's bytes are counted as they arrive: before start the whole
+    // stream (every frame, data-less and comment-only ones too) may not pass
+    // WATCH_MAX_BYTES_BEFORE_START, after it each event is bounded by the
+    // client's maxResponseBytes.
     const clientLimit = this.transport.maxResponseBytes
-    const remainingBeforeStart = (): number => WATCH_MAX_BYTES_BEFORE_START - earlyBytes
+    const remainingBeforeStart = (completed: number): number => WATCH_MAX_BYTES_BEFORE_START - completed
     const eventBound = {
-      limit: (): number | undefined => {
+      limit: (completed: number): number | undefined => {
         if (started) return clientLimit > 0 ? clientLimit : undefined
-        return clientLimit > 0 ? Math.min(remainingBeforeStart(), clientLimit) : remainingBeforeStart()
+        return clientLimit > 0 ? Math.min(remainingBeforeStart(completed), clientLimit) : remainingBeforeStart(completed)
       },
-      tooLarge: (): Error => started || (clientLimit > 0 && clientLimit < remainingBeforeStart())
+      tooLarge: (completed: number): Error => started || (clientLimit > 0 && clientLimit < remainingBeforeStart(completed))
         ? streamEventTooLarge('filesystem watch stream', clientLimit)
         : malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_BYTES_BEFORE_START} bytes before start`),
     }
@@ -568,7 +568,6 @@ export class FileSystemService {
         })
         for await (const message of sseMessages(response, eventBound)) {
           if (stopRequested) break
-          if (!started) earlyBytes += message.size
           try {
             if (message.event === 'start') {
               if (!started) {

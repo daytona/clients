@@ -510,15 +510,34 @@ class AsyncResponseStream:
         self._closed = True
         try:
             with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
-                try:
-                    await self._stream.__aexit__(None, None, None)
-                finally:
-                    if self._owned_client is not None:
-                        await self._owned_client.aclose()
+                await self._stream.__aexit__(None, None, None)
         finally:
+            # The client close runs in a window of its own: inside the release's
+            # window, once that has run out, it would be cancelled before it
+            # closed anything, leaving the connection held.
+            if self._owned_client is not None:
+                await self._close_owned_client(self._owned_client)
+            # Released only now that the client is closed (or closed hard).
             self._released = True
             self._finish_span_ok()
             self._notify_closed()
+
+    @staticmethod
+    async def _close_owned_client(client: httpx.AsyncClient) -> None:
+        """Close the stream's own client; one whose graceful close fails or
+        runs out its grace window is closed hard (no waiting on the peer), so
+        its connections are freed for real."""
+        closed = False
+        try:
+            with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
+                await client.aclose()
+                closed = True
+        except Exception:
+            closed = False
+        if not closed:
+            with anyio.CancelScope(shield=True):
+                with contextlib.suppress(Exception):
+                    await anyio.aclose_forcefully(client)
 
     def _notify_closed(self) -> None:
         if self._on_close is not None:

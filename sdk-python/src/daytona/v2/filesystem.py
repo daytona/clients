@@ -677,19 +677,19 @@ class AsyncFileSystemService:
         callback_error: list[Exception] = []
 
         # The stream's bytes are counted as they arrive: before start the
-        # whole stream may not pass WATCH_MAX_BYTES_BEFORE_START, after it
-        # each event is bounded by the client's max_response_bytes.
+        # whole stream (every frame, data-less and comment-only ones too) may
+        # not pass WATCH_MAX_BYTES_BEFORE_START, after it each event is
+        # bounded by the client's max_response_bytes.
         started = False
-        early_bytes = 0
 
-        def event_limit() -> Optional[int]:
+        def event_limit(completed: int) -> Optional[int]:
             if started:
                 return client_limit or None
-            remaining = WATCH_MAX_BYTES_BEFORE_START - early_bytes
+            remaining = WATCH_MAX_BYTES_BEFORE_START - completed
             return remaining if client_limit <= 0 else min(remaining, client_limit)
 
-        def event_too_large() -> Exception:
-            remaining = WATCH_MAX_BYTES_BEFORE_START - early_bytes
+        def event_too_large(completed: int) -> Exception:
+            remaining = WATCH_MAX_BYTES_BEFORE_START - completed
             if started or 0 < client_limit < remaining:
                 return stream_event_too_large("filesystem watch stream", client_limit)
             return create_error(
@@ -723,18 +723,16 @@ class AsyncFileSystemService:
         client_limit = self._transport.max_response_bytes
 
         async def read_events() -> None:
-            nonlocal early_bytes, started
+            nonlocal started
             early_events = 0
             exit_error: Exception | None = None
             try:
-                async for event_name, data, _id, size in parse_sse_events_bounded(
+                async for event_name, data, _id, _size in parse_sse_events_bounded(
                     stream.iter_bytes(), limit=event_limit, too_large=event_too_large
                 ):
                     if handle._stopped:
                         break
                     callback: Callable[[], None | Awaitable[None]] | None = None
-                    if not started:
-                        early_bytes += size
                     if event_name in ("fs", "overflow") and not started:
                         # Every listed event before start counts toward the
                         # cap, whether or not a callback handles it.

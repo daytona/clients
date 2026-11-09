@@ -27,6 +27,7 @@ import { ImagesService } from '../src/v2/Images'
 import { ComputerUseService, type ComputerUseTransport } from '../src/v2/ComputerUse'
 import {
   mapComputerUseLifecycleResponse,
+  mapComputerUseProcessStatusMap,
   mapComputerUseRestartResponse,
   mapComputerUseStatusResponse,
 } from '../src/v2/ComputerUseMappers'
@@ -7530,6 +7531,23 @@ describe('toolbox service request shaping', () => {
     await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, message, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
+  // Shared with the Python SDK's test_core.py: read as JSON only when the
+  // exchange declares application/json (case-insensitive, parameters ignored).
+  it.each([
+    ['application/json', true],
+    ['Application/JSON; charset=utf-8', true],
+    ['application/jsonl', false],
+    ['text/plain', false],
+    [undefined, false],
+  ] as const)('reads a token exchange as JSON only when declared (%p)', async (contentType, accepted) => {
+    const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
+    clientInstance(client).defaults.adapter = async (config) => ({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config })
+    const body = new TextEncoder().encode('{"access_token": "t", "expires_in": 60}')
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, contentType === undefined ? {} : { headers: { 'content-type': contentType } }))
+    if (accepted) await expect(client.listAuditActions()).resolves.toBeDefined()
+    else await expect(client.listAuditActions()).rejects.toMatchObject({ constructor: BadRequestError, message: 'token exchange response is not a JSON object' })
+  })
+
   // Decoded strictly, as the Python SDK's test_core.py asserts for the same
   // bytes: invalid UTF-8 and a leading byte-order mark are no JSON object.
   it.each([
@@ -12086,7 +12104,8 @@ describe('computer-use namespace', () => {
       },
     )
 
-    it.each(cases)('accepts %s above 2**53 that a double carries', async (kind) => {
+    // A pid is int32 (process-tags.test.ts checks its range).
+    it.each(cases.filter(([kind]) => kind !== 'process pid'))('accepts %s above 2**53 that a double carries', async (kind) => {
       await expect(read(kind, String(2 ** 60))).resolves.toBeDefined()
     })
   })
@@ -12354,6 +12373,19 @@ describe('toolbox surface', () => {
     transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce(payload)
     const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
     await expect(server.completions('u', { line: 0, character: 0 })).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  it('refuses an enumerable symbol key in a computer-use process status map', () => {
+    const status = {
+      Name: 'x', Running: true, Priority: 1, AutoRestart: false, Failed: false, RestartAttempts: 0, RestartBackoffMs: 0, Status: 'ok',
+    }
+    const key = Symbol('extra')
+    expect(() => mapComputerUseProcessStatusMap({ x: status, [key]: status })).toThrow(expect.objectContaining({
+      constructor: BadRequestError, message: 'expected computer-use process status map: unexpected key Symbol(extra)', code: 'BAD_REQUEST', source: 'SDK',
+    }))
+    const hidden: Record<string, unknown> = { x: status }
+    Object.defineProperty(hidden, key, { value: status, enumerable: false })
+    expect(Object.keys(mapComputerUseProcessStatusMap(hidden))).toEqual(['x'])
   })
 
   it('keeps an unknown process-status key named __proto__ as an own, frozen extraFields property', async () => {
@@ -12945,14 +12977,48 @@ describe('toolbox surface', () => {
       for await (const message of sseMessages(sseResponse(chunks), { limit: () => limit, tooLarge })) sizes.push(message.size)
       return sizes
     }
+    // Every byte counts once, toward the event it belongs to, however the
+    // body is split (the LF of a split CRLF included).
     for (let split = 1; split < body.length; split++) {
-      const sizes = await read([body.slice(0, split), body.slice(split)])
-      expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(body.length)
-      expect([[23, 23], [22, 24]]).toContainEqual(sizes)
+      await expect(read([body.slice(0, split), body.slice(split)])).resolves.toEqual([23, 23])
     }
-    const event = 'event: fs\ndata: ab\n\n'
-    await expect(read([...event], 20)).resolves.toEqual([20])
-    await expect(read([...event], 19)).rejects.toThrow('too large')
+    // An event of exactly the limit passes; one byte more is refused as it
+    // arrives, for LF and for CRLF framing split at every byte.
+    for (const event of ['event: fs\ndata: ab\n\n', 'event: fs\r\ndata: ab\r\n\r\n']) {
+      for (let split = 0; split <= event.length; split++) {
+        const chunks = [event.slice(0, split), event.slice(split)].filter((chunk) => chunk !== '')
+        await expect(read(chunks, event.length)).resolves.toEqual([event.length])
+        await expect(read(chunks, event.length - 1)).rejects.toThrow('too large')
+      }
+    }
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: data-less and
+  // comment-only frames count toward the bytes a whole-stream budget sees.
+  it('counts heartbeat frames toward the completed bytes', async () => {
+    const seen: number[] = []
+    const tooLarge = () => new Error('too large')
+    const limit = (completed: number) => {
+      seen.push(completed)
+      return undefined
+    }
+    for await (const _message of sseMessages(sseResponse([':\n\n:\n\n\ndata: x\n\n']), { limit, tooLarge })) { /* drain */ }
+    expect(seen).toContain(7)
+    expect(Math.max(...seen)).toBe(7)
+  })
+
+  // One fetch chunk far past the bound is refused before its line is copied
+  // or its remainder buffered.
+  it('checks an SSE bound before copying a line or buffering a remainder', async () => {
+    for (const chunk of [`data: ${'x'.repeat(100_000)}\n`, `data: ${'x'.repeat(100_000)}`]) {
+      const decode = jest.spyOn(TextDecoder.prototype, 'decode')
+      const read = async () => {
+        for await (const _message of sseMessages(sseResponse([chunk]), { limit: () => 1024, tooLarge: () => new Error('too large') })) { /* drain */ }
+      }
+      await expect(read()).rejects.toThrow('too large')
+      expect(decode).not.toHaveBeenCalled()
+      decode.mockRestore()
+    }
   })
 
   it('refuses an interpreter output nested deeper than 600 levels', async () => {

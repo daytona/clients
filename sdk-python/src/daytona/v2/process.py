@@ -355,8 +355,8 @@ class AsyncProcessHandle:
             transport.stream_bytes(
                 logs_spec(self.id, cursor=cursor, limit=limit, encoding=encoding, follow=True)
             ),
-            limit=lambda: event_limit or None,
-            too_large=lambda: stream_event_too_large("process log stream", event_limit),
+            limit=lambda _completed: event_limit or None,
+            too_large=lambda _completed: stream_event_too_large("process log stream", event_limit),
         ):
             parsed = _stream_log_event(event, data, message_id)
             if parsed is not None:

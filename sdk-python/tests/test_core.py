@@ -11915,6 +11915,49 @@ async def test_project_token_exchange_reads_only_the_fields_it_uses() -> None:
     assert (exchange.access_token, exchange.expires_in) == ("t", 9007199254740991)
 
 
+# Shared with the TypeScript SDK's unit.test.ts: a token exchange is read as
+# JSON only when it declares application/json (case-insensitive, parameters
+# ignored); a valid token object under any other media type is refused.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("content_type", "accepted"),
+    [
+        ("application/json", True),
+        ("Application/JSON; charset=utf-8", True),
+        ("application/jsonl", False),
+        ("text/plain", False),
+        (None, False),
+    ],
+)
+async def test_project_token_exchange_reads_json_only_when_declared(
+    content_type: Optional[str], accepted: bool
+) -> None:
+    headers = {} if content_type is None else {"content-type": content_type}
+    http = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                200, content=b'{"access_token": "t", "expires_in": 60}', headers=headers
+            )
+        ),
+        base_url="http://api.invalid",
+    )
+    auth = ProjectTokenAuth(
+        api_url="http://api.invalid",
+        jwt_token="jwt",
+        project_id="project-1",
+        source="sdk-python-async",
+        client=http,
+    )
+    try:
+        if accepted:
+            assert (await auth._exchange_token()).access_token == "t"
+        else:
+            with pytest.raises(BadRequestError, match="^token exchange response is not a JSON object$"):
+                await auth._exchange_token()
+    finally:
+        await http.aclose()
+
+
 @pytest.mark.anyio
 @pytest.mark.parametrize("raw", [b"60", b"60.0", b"1e2"])
 async def test_project_token_exchange_takes_an_integral_float_like_typescript(raw: bytes) -> None:
@@ -11922,7 +11965,11 @@ async def test_project_token_exchange_takes_an_integral_float_like_typescript(ra
     # TypeScript SDK's unit.test.ts pins the same cases.
     http = httpx.AsyncClient(
         transport=httpx.MockTransport(
-            lambda _request: httpx.Response(200, content=b'{"access_token": "t", "expires_in": ' + raw + b"}")
+            lambda _request: httpx.Response(
+                200,
+                content=b'{"access_token": "t", "expires_in": ' + raw + b"}",
+                headers={"content-type": "application/json"},
+            )
         ),
         base_url="http://api.invalid",
     )
@@ -11947,7 +11994,9 @@ async def test_project_token_exchange_nested_past_the_json_decoder_limit_is_the_
 ):
     body = b'{"a":' * 100_000 + b"1" + b"}" * 100_000
     http = httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _request: httpx.Response(200, content=body)),
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, content=body, headers={"content-type": "application/json"})
+        ),
         base_url="http://api.invalid",
     )
     auth = ProjectTokenAuth(
@@ -11971,7 +12020,9 @@ async def test_project_token_exchange_nested_past_the_json_decoder_limit_is_the_
 @pytest.mark.parametrize(("body", "message"), _TOKEN_EXCHANGE_CASES)
 async def test_project_token_exchange_names_what_is_wrong(body: bytes, message: str) -> None:
     http = httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _request: httpx.Response(200, content=body)),
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, content=body, headers={"content-type": "application/json"})
+        ),
         base_url="http://api.invalid",
     )
     auth = ProjectTokenAuth(

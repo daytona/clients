@@ -157,7 +157,26 @@ describe('JSON response bodies', () => {
 
   it('does not read application/jsonl as JSON', async () => {
     await expect(fs('bad', 'jsonl').remove('/a')).resolves.toBeUndefined()
-    await expect(new HttpTransport(`${base}/bad/jsonl`, 'k', 5_000).get('/x')).resolves.toBe('{bad')
+    // A body that is valid JSON comes back as its raw text: it was not decoded as JSON.
+    const raw = String(BODIES.valid)
+    await expect(new HttpTransport(`${base}/valid/jsonl`, 'k', 5_000).get('/x')).resolves.toBe(raw)
+    await expect(new HttpTransport(`${base}/valid/json`, 'k', 5_000).get('/x')).resolves.toEqual(FILE_INFO)
+  })
+
+  // An explicit responseType 'text' (the sandbox entrypoint log) still goes
+  // through the SDK's decoding: a 2xx body that declares JSON is checked
+  // strictly, as in Python; the text comes back.
+  it('checks a JSON body asked for as text strictly and hands back the text', async () => {
+    const text = (body: string, type: string) => new HttpTransport(`${base}/${body}/${type}`, 'k', 5_000).get('/x', { responseType: 'text' })
+    for (const body of ['bad', 'utf8', 'nan']) {
+      await expect(text(body, 'json')).rejects.toMatchObject({
+        constructor: BadRequestError, message: 'expected JSON response: the body is not valid JSON', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+      })
+    }
+    await expect(text('deep601', 'json')).rejects.toMatchObject({ constructor: BadRequestError, message: 'expected JSON response: the JSON is nested too deeply' })
+    await expect(text('valid', 'json')).resolves.toBe(String(BODIES.valid))
+    await expect(text('bad', 'text')).resolves.toBe('{bad')
+    await expect(text('bomtext', 'text')).resolves.toBe('hello')
   })
 
   it('decodes a text body as before, a leading byte-order mark dropped', async () => {

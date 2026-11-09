@@ -174,6 +174,8 @@ type DaytonaAxiosRequestConfig = InternalAxiosRequestConfig & {
   daytona?: DaytonaRequestMeta
   /** The SDK reads this body as bytes and decodes it itself (`decodeResponseBody`). */
   daytonaDecodesBody?: boolean
+  /** The caller asked for text (`responseType: 'text'`): the decoded text is handed back. */
+  daytonaWantsText?: boolean
   /** Set on a 2xx response that declares JSON and does not decode. */
   daytonaUndecodableBody?: boolean
   /** Set on a 2xx JSON response nested deeper than `JSON_MAX_DEPTH`. */
@@ -883,7 +885,9 @@ async function finishAxiosError(
  * `BadRequestError` naming what is wrong (the Python SDK's messages for the
  * same body). A non-positive lifetime is a broken exchange, not a token to cache.
  */
-function tokenExchange(body: string): { readonly accessToken: string; readonly expiresIn: number } | BadRequestError {
+function tokenExchange(body: string, contentType: string | null): { readonly accessToken: string; readonly expiresIn: number } | BadRequestError {
+  // Read as JSON only when declared `application/json`, as every other body.
+  if (!isJsonMediaType(contentType)) return badRequest('token exchange response is not a JSON object')
   let payload: unknown
   try {
     payload = JSON.parse(body)
@@ -1039,7 +1043,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
       } catch {
         body = ''
       }
-      const exchange = tokenExchange(body)
+      const exchange = tokenExchange(body, response.headers.get('content-type'))
       if (exchange instanceof BadRequestError) {
         finalize(response.status, exchange)
         throw exchange
@@ -1212,11 +1216,12 @@ function declaresJson(headers: AxiosResponseHeaders | undefined): boolean {
 
 /**
  * The SDK's own response decoding, for requests that set no `responseType`
- * (read as bytes): a body that declares JSON is decoded strictly (UTF-8, a
+ * or ask for `'text'` (read as bytes; text is handed back as text): a body
+ * that declares JSON is decoded strictly (UTF-8, a
  * byte-order mark kept, `JSON.parse`), as the Python SDK does, and a 2xx one
  * that does not decode is marked for the response interceptor to refuse. Any
- * other body is decoded as axios would (text, parsed when it happens to be
- * JSON). An error response's body is left to the error mapping.
+ * other body is its text (a leading byte-order mark dropped), never parsed,
+ * as Python hands it back undecoded. An error response's body is left to the error mapping.
  */
 function decodeResponseBody(this: DaytonaAxiosRequestConfig, data: unknown, headers: AxiosResponseHeaders | undefined, status?: number): unknown {
   if (this.daytonaDecodesBody !== true) return data
@@ -1237,7 +1242,10 @@ function decodeResponseBody(this: DaytonaAxiosRequestConfig, data: unknown, head
   } else {
     text = TEXT_UTF8.decode(bytes)
   }
-  if (text === '') return text
+  // Only a body declared application/json is JSON (as in Python, which hands
+  // any other body back undecoded): anything else is its text, even when it
+  // happens to parse as JSON.
+  if (text === '' || !json) return text
   let value: unknown
   try {
     value = JSON.parse(text)
@@ -1246,7 +1254,7 @@ function decodeResponseBody(this: DaytonaAxiosRequestConfig, data: unknown, head
     return text
   }
   if (json && ok && nestedDeeperThan(value)) this.daytonaTooDeepBody = true
-  return value
+  return this.daytonaWantsText === true ? text : value
 }
 
 function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions): AxiosInstance {
@@ -1281,6 +1289,12 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
     if (daytonaConfig.responseType === undefined || daytonaConfig.daytonaDecodesBody === true) {
       daytonaConfig.responseType = 'arraybuffer'
       daytonaConfig.daytonaDecodesBody = true
+    } else if (daytonaConfig.responseType === 'text') {
+      // Text too goes through the SDK's decoding: a 2xx body that declares
+      // JSON is still checked strictly (as in Python); the text comes back.
+      daytonaConfig.responseType = 'arraybuffer'
+      daytonaConfig.daytonaDecodesBody = true
+      daytonaConfig.daytonaWantsText = true
     }
     const armed = armRequestDeadline(daytonaConfig, instance)
     try {
@@ -1870,13 +1884,16 @@ export interface SizedSseMessage extends SseMessage {
 
 /**
  * The bound on each event of an SSE stream, counted in bytes as they arrive:
- * once the event being read passes `limit()` (`undefined` = no limit), the
- * stream is refused with `tooLarge()`. Read for every check, so it may
- * change between events.
+ * once the event being read passes `limit(completed)` (`undefined` = no
+ * limit), the stream is refused with `tooLarge(completed)`. `completed` is
+ * every byte of the frames a blank line has ended so far, data-less and
+ * comment-only frames included, so a caller can bound the whole stream
+ * (`budget - completed`) as well as each event (as the Python SDK's
+ * `SseLineSplitter`). Read for every check, so it may change between events.
  */
 export interface SseBound {
-  readonly limit: () => number | undefined
-  readonly tooLarge: () => Error
+  readonly limit: (completed: number) => number | undefined
+  readonly tooLarge: (completed: number) => Error
 }
 
 /** The error for one event over the client's `maxResponseBytes`, which bounds every event of a stream. */
@@ -1891,14 +1908,17 @@ const LF = 0x0a
  * Splits an event-stream body's bytes into lines (CRLF, LF or CR) and lines
  * into messages, counting the bytes of the event being read as they arrive
  * (as the Python SDK's `SseLineSplitter`), so one huge or never-terminated
- * event holds no more than its bound.
+ * event holds no more than its bound: the bound is checked before a line is
+ * copied or a remainder buffered, and a line a CR ends at a chunk's end waits
+ * for the next chunk, so the LF of a split CRLF counts toward its event.
  */
 class SseReader {
   private line: Uint8Array[] = []
   private lineBytes = 0
   private received = 0
   private eventStart = 0
-  private skipLf = false
+  // A line ended by a CR at a chunk's end, and where it ends.
+  private held: { readonly text: string; readonly end: number } | undefined
   private atStreamStart = true
   private event = 'message'
   private id: string | undefined
@@ -1915,39 +1935,64 @@ class SseReader {
     const base = this.received
     this.received += chunk.byteLength
     let start = 0
-    // The LF of a CRLF split across chunks (after a blank line's CR, it
-    // counts toward the next event).
-    if (this.skipLf && chunk[0] === LF) start = 1
-    this.skipLf = false
+    if (this.held !== undefined) {
+      const held = this.held
+      this.held = undefined
+      let end = held.end
+      // The LF of a CRLF split across chunks: part of that line, so it
+      // counts toward the event it ends.
+      if (chunk[0] === LF) {
+        start = 1
+        end = base + 1
+      }
+      const message = this.endLine(held.text, end)
+      if (message !== undefined) yield message
+    }
     while (start < chunk.byteLength) {
       let end = start
       while (end < chunk.byteLength && chunk[end] !== CR && chunk[end] !== LF) end++
       if (end === chunk.byteLength) {
+        // Checked before the remainder is buffered.
+        this.check(this.received)
         this.line.push(chunk.slice(start))
         this.lineBytes += chunk.byteLength - start
-        break
+        return
       }
+      const terminator = chunk[end] === CR && chunk[end + 1] === LF ? 2 : 1
+      // Checked before the line is copied out of the chunk and decoded.
+      this.check(base + end + terminator)
       const text = this.takeLine(chunk.subarray(start, end))
-      if (chunk[end] === CR) {
-        if (end + 1 < chunk.byteLength) {
-          if (chunk[end + 1] === LF) end++
-        } else {
-          this.skipLf = true
-        }
+      const isCr = chunk[end] === CR
+      start = end + terminator
+      if (terminator === 1 && isCr && start === chunk.byteLength) {
+        // A CR at the chunk's end: wait for the next chunk's LF, if any.
+        this.held = { text, end: base + start }
+        return
       }
-      start = end + 1
-      this.check(base + start)
-      const message = this.feedLine(text, base + start)
+      const message = this.endLine(text, base + start)
       if (message !== undefined) yield message
     }
-    this.check(this.received)
+  }
+
+  /** The line a CR ended at the body's very end, if any. */
+  *finish(): Generator<SizedSseMessage> {
+    if (this.held === undefined) return
+    const { text, end } = this.held
+    this.held = undefined
+    const message = this.endLine(text, end)
+    if (message !== undefined) yield message
+  }
+
+  private endLine(text: string, end: number): SizedSseMessage | undefined {
+    this.check(end)
+    return this.feedLine(text, end)
   }
 
   private check(position: number): void {
     const bound = this.bound
     if (bound === undefined) return
-    const limit = bound.limit()
-    if (limit !== undefined && position - this.eventStart > limit) throw bound.tooLarge()
+    const limit = bound.limit(this.eventStart)
+    if (limit !== undefined && position - this.eventStart > limit) throw bound.tooLarge(this.eventStart)
   }
 
   private takeLine(tail: Uint8Array): string {
@@ -2029,6 +2074,7 @@ export async function* sseMessages(response: Response, bound?: SseBound): AsyncI
       }
       yield* sse.feed(value)
     }
+    yield* sse.finish()
     // An unterminated final block is discarded, as the event-stream format
     // (and the Python SDK) does: it may be a message cut off mid-way.
   } finally {

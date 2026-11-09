@@ -320,3 +320,46 @@ async def test_a_record_tag_that_is_not_a_string_is_a_bad_request_naming_it(
     with pytest.raises(BadRequestError, match="process response: tag") as raised:
         await AsyncProcessService("sandbox", transport).get("p_tagged")
     assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+# Shared with the TypeScript SDK's process-tags.test.ts: pid and exitCode are
+# int32 in the contract; a value outside it is a malformed response.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("field", "value", "ok"),
+    [
+        ("pid", 2**31 - 1, True),
+        ("pid", 2**31, False),
+        ("exitCode", -(2**31), True),
+        ("exitCode", -(2**31) - 1, False),
+        ("exitCode", 2**31, False),
+    ],
+)
+async def test_process_int32_fields_are_range_checked(
+    transport: AsyncTransport,
+    payload: JsonObject,
+    respx_mock: respx.MockRouter,
+    field: str,
+    value: int,
+    ok: bool,
+) -> None:
+    from daytona.v2 import BadRequestError
+
+    respx_mock.get(f"{BASE}/processes/p_tagged").respond(200, json=payload | {field: value})
+    respx_mock.get(f"{BASE}/processes/p_tagged/wait").respond(200, json={"reason": "exited", field: value})
+    process = AsyncProcessService("sandbox", transport)
+    if ok:
+        info = await process.get("p_tagged")
+        assert (info.pid if field == "pid" else info.exit_code) == value
+        if field == "exitCode":
+            assert (await process.connect("p_tagged").wait()).exit_code == value
+        return
+    with pytest.raises(
+        BadRequestError, match=f"^expected process response: {field} must be a signed 32-bit integer$"
+    ):
+        await process.get("p_tagged")
+    if field == "exitCode":
+        with pytest.raises(
+            BadRequestError, match="^expected wait result: exitCode must be a signed 32-bit integer$"
+        ):
+            await process.connect("p_tagged").wait()

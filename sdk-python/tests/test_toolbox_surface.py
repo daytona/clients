@@ -2241,7 +2241,8 @@ async def test_an_integer_a_double_cannot_carry_is_refused_naming_the_field(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize(("case", "field"), _INTEGER_CASES)
+# A pid is int32 (test_process_tags.py checks its range).
+@pytest.mark.parametrize(("case", "field"), [case for case in _INTEGER_CASES if case[1] != "pid"])
 async def test_an_integer_above_2_53_that_a_double_carries_is_accepted(case: str, field: str) -> None:
     assert await _read_integer_field(case, 2**60) is not None
 
@@ -2722,10 +2723,17 @@ async def test_each_log_stream_event_is_bounded_by_the_client_max_response_bytes
 
 
 def test_the_sse_splitter_counts_every_byte_of_an_event_across_chunks() -> None:
+    # Shared with the TypeScript SDK's unit.test.ts.
     from daytona.v2._core import SseLineSplitter
 
     class TooLarge(Exception):
         pass
+
+    def none(_completed: int) -> None:
+        return None
+
+    def too_large(_completed: int) -> Exception:
+        return TooLarge()
 
     body = b"event: fs\r\ndata: ab\r\n\r\nevent: start\ndata: {}\n\n"
     for split in range(1, len(body)):
@@ -2733,23 +2741,53 @@ def test_the_sse_splitter_counts_every_byte_of_an_event_across_chunks() -> None:
         lines: list[str] = []
         sizes: list[int] = []
         for chunk in (body[:split], body[split:]):
-            for line in splitter.feed(chunk, lambda: None, TooLarge):
+            for line in splitter.feed(chunk, none, too_large):
                 lines.append(line)
                 if not line:
                     sizes.append(splitter.last_event_bytes)
+        lines += splitter.finish(none, too_large)
         assert lines == ["event: fs", "data: ab", "", "event: start", "data: {}", ""], split
-        # Every byte counts once; a CRLF split after a blank line's CR
-        # counts its LF toward the next event.
-        assert sum(sizes) == len(body) and sizes in ([23, 23], [22, 24]), split
+        # Every byte counts once, toward the event it belongs to, however the
+        # body is split (the LF of a split CRLF included).
+        assert sizes == [23, 23], split
 
-    # An event of exactly the limit passes; one byte more is refused as it arrives.
-    event = b"event: fs\ndata: ab\n\n"
-    for limit, refused in ((20, False), (19, True)):
+    # An event of exactly the limit passes; one byte more is refused as it
+    # arrives, for LF and for CRLF framing split at every byte.
+    for event in (b"event: fs\ndata: ab\n\n", b"event: fs\r\ndata: ab\r\n\r\n"):
+        for limit, refused in ((len(event), False), (len(event) - 1, True)):
+            for split in range(len(event) + 1):
+                splitter = SseLineSplitter()
+                try:
+                    for chunk in (event[:split], event[split:]):
+                        list(splitter.feed(chunk, lambda _completed, limit=limit: limit, too_large))
+                    list(splitter.finish(lambda _completed, limit=limit: limit, too_large))
+                except TooLarge:
+                    assert refused, (event, split)
+                else:
+                    assert not refused, (event, split)
+                    assert splitter.completed_bytes == len(event)
+
+
+def test_the_sse_splitter_counts_data_less_frames_toward_the_completed_bytes() -> None:
+    # Heartbeat comments and blank frames dispatch nothing but are part of the
+    # stream: a whole-stream budget counts them.
+    from daytona.v2._core import SseLineSplitter
+
+    splitter = SseLineSplitter()
+    lines = list(splitter.feed(b":\n\n:\n\n\n", lambda _c: None, lambda _c: Exception()))
+    assert lines == [":", "", ":", "", ""]
+    assert splitter.completed_bytes == 7
+
+
+def test_the_sse_splitter_checks_before_copying_a_line_or_buffering_a_remainder() -> None:
+    # One chunk far past the bound is refused before any of it is copied.
+    from daytona.v2._core import SseLineSplitter
+
+    class TooLarge(Exception):
+        pass
+
+    for chunk in (b"data: " + b"x" * 100_000 + b"\n", b"data: " + b"x" * 100_000):
         splitter = SseLineSplitter()
-        try:
-            for byte in event:
-                list(splitter.feed(bytes([byte]), lambda limit=limit: limit, TooLarge))
-        except TooLarge:
-            assert refused
-        else:
-            assert not refused
+        with pytest.raises(TooLarge):
+            list(splitter.feed(chunk, lambda _c: 1024, lambda _c: TooLarge()))
+        assert len(splitter._pending) == 0

@@ -11,7 +11,7 @@ import httpx
 
 from . import _clock
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, send_buffered
-from ._core import error_from_response, loads_json
+from ._core import error_from_response, is_json_media_type, loads_json
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, DaytonaError, create_error
 
@@ -156,7 +156,7 @@ class ProjectTokenAuth:
                 response.status_code, response.content, content_type=response.headers.get("content-type")
             )
         try:
-            exchange = _token_exchange(response.content)
+            exchange = _token_exchange(response.content, response.headers.get("content-type"))
         except BaseException as error:
             if span is not None:
                 span.finish(status_code=response.status_code, error=error)
@@ -178,13 +178,16 @@ class _TokenExchange:
     expires_in: int
 
 
-def _token_exchange(body: bytes) -> _TokenExchange:
+def _token_exchange(body: bytes, content_type: Optional[str]) -> _TokenExchange:
     """The token and its lifetime, or ``BadRequestError`` naming what is wrong.
 
     Only the fields the SDK reads are checked (``token_type`` and
     ``issued_token_type`` are informational); the messages match the
     TypeScript SDK's for the same response.
     """
+    if not is_json_media_type(content_type):
+        # Read as JSON only when declared application/json, as every other body.
+        raise _bad_exchange("is not a JSON object")
     try:
         # Decoded strictly, as every other response body is and as the
         # TypeScript SDK does: invalid UTF-8 or a leading byte-order mark is

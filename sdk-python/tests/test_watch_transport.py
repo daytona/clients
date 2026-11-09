@@ -108,6 +108,16 @@ class _Handler(BaseHTTPRequestHandler):
                 self.rfile.read(1)
             _closed(self.path.split("?")[0]).set()
             return
+        if case == "heartbeats":
+            # Comment-only frames before start, endlessly (4 MiB of them),
+            # then the stream waits for the client to close it.
+            with contextlib.suppress(OSError):
+                for _ in range(64):
+                    self.wfile.write(b":\n\n" * 21846)
+                self.wfile.flush()
+                self.rfile.read(1)
+            _closed(self.path.split("?")[0]).set()
+            return
         if case == "endless":
             # One fs event whose data line never ends: 4 MiB of it, then the
             # stream waits for the client to close it.
@@ -703,9 +713,9 @@ def test_the_sse_splitter_holds_no_more_than_its_budget_of_an_endless_line() -> 
     splitter = SseLineSplitter()
     chunk = b"x" * 65536
     with pytest.raises(TooLarge):
-        list(splitter.feed(b"data: ", lambda: 1_048_576, TooLarge))
+        list(splitter.feed(b"data: ", lambda _c: 1_048_576, lambda _c: TooLarge()))
         for _ in range(64):
-            list(splitter.feed(chunk, lambda: 1_048_576, TooLarge))
+            list(splitter.feed(chunk, lambda _c: 1_048_576, lambda _c: TooLarge()))
     assert len(splitter._pending) <= 1_048_576 + len(chunk)
 
 
@@ -838,3 +848,70 @@ async def test_a_log_stream_whose_gzip_data_stops_short_raises_a_connection_erro
     finally:
         await transport.close()
     assert seen == ["log"]
+
+
+# Shared with the TypeScript SDK's watch-transport.test.ts: every frame before
+# start counts toward the 1 MiB budget, comment-only heartbeats included.
+@pytest.mark.anyio
+async def test_endless_heartbeats_before_start_are_refused_at_the_budget(base: str) -> None:
+    from daytona.v2.errors import BadRequestError
+
+    path = "/heartbeats/budget"
+    transport = AsyncTransport(f"{base}{path}")
+    exits: list[Optional[Exception]] = []
+    try:
+        with pytest.raises(BadRequestError, match="more than 1048576 bytes before start"):
+            await asyncio.wait_for(
+                AsyncFileSystemService(transport).watch_dir("/", lambda _event: None, on_exit=exits.append),
+                30,
+            )
+        assert await asyncio.to_thread(_closed(path + "/files/watch").wait, 10)
+    finally:
+        await transport.close()
+    assert exits == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("client_close", ["completes", "fails"])
+async def test_an_owned_stream_whose_release_times_out_still_frees_its_connection(
+    base: str, monkeypatch: pytest.MonkeyPatch, client_close: str
+) -> None:
+    # The response's own cleanup hangs past its grace window: the stream's
+    # client is still closed (in a window of its own, or hard when that close
+    # fails), so its connection is freed before the stream counts as released,
+    # and a 1-connection transport keeps working.
+    from daytona.v2 import _transport as transport_module
+
+    monkeypatch.setattr(transport_module, "_STREAM_RELEASE_GRACE_SECONDS", 0.2)
+    path = f"/bytes-200/release-{client_close}"
+    transport = AsyncTransport(f"{base}{path}", connection_pool_maxsize=1)
+    try:
+        stream = await transport.open_exclusive_stream(RequestSpec("GET", "/"))
+        owned = stream._owned_client
+        assert owned is not None
+
+        async def hang(*_args: object) -> None:
+            await asyncio.sleep(3600)
+
+        stream._stream.__aexit__ = hang  # type: ignore[method-assign]
+        if client_close == "fails":
+            original = owned.aclose
+            calls = 0
+
+            async def failing_once() -> None:
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    raise RuntimeError("client close failed")
+                await original()
+
+            owned.aclose = failing_once  # type: ignore[method-assign]
+        await asyncio.wait_for(stream.close(), timeout=10)
+        assert owned.is_closed
+        assert stream._released
+        # The server sees the connection closed.
+        assert await asyncio.to_thread(_closed(path + "/").wait, 10)
+        follow = await transport.open_exclusive_stream(RequestSpec("GET", "/"))
+        await follow.close()
+    finally:
+        await transport.close()

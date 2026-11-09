@@ -1043,7 +1043,7 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         system=payload.system is True,
         name=payload.name,
         tag=payload.tag,
-        pid=payload.pid,
+        pid=_int32(payload.pid, "pid", "process response"),
         session_id=payload.session_id,
         shell_command=payload.shell_command,
         argv=payload.argv,
@@ -1055,7 +1055,7 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         user=payload.user,
         execution_timeout=timeout_seconds_from_millis(_exact_timeout_ms(payload.timeout_ms)),
         terminal=_parse_terminal(payload.terminal),
-        exit_code=payload.exit_code,
+        exit_code=_int32(payload.exit_code, "exitCode", "process response"),
         signal=bare_signal(payload.signal),
         reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else None,
         raw_reason=raw_reason,
@@ -1256,11 +1256,21 @@ def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = Fa
     )
 
 
+def _int32(value: Optional[int], field: str, description: str) -> Optional[int]:
+    """An int32 field (``pid``, ``exitCode``), as the contract types it; a
+    value outside it is the malformed-response error, as in TypeScript."""
+    if value is not None and not -(2**31) <= value <= 2**31 - 1:
+        raise create_error(
+            f"expected {description}: {field} must be a signed 32-bit integer", 400, "BAD_REQUEST", "SDK"
+        )
+    return value
+
+
 def parse_wait(payload: WaitPayload) -> WaitResult:
     raw_reason = enum_str(payload.reason) if payload.reason is not None else None
     return WaitResult(
         reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else "unknown",
-        exit_code=payload.exit_code,
+        exit_code=_int32(payload.exit_code, "exitCode", "wait result"),
         signal=bare_signal(payload.signal),
         raw_reason=raw_reason,
     )
@@ -1400,79 +1410,114 @@ def sse_json(event: str, data: str, description: str) -> JsonObject:
 _SSE_LINE_END: Final = re.compile(rb"[\r\n]")
 
 
+SseLimit = Callable[[int], Optional[int]]
+"""An event's byte bound, given the bytes of every frame completed so far
+(``None``: no bound); read for every check, so it may change between events."""
+SseTooLarge = Callable[[int], Exception]
+"""The error for an event past its bound, given the same completed bytes."""
+
+
 class SseLineSplitter:
     """Sans-I/O splitter of an event-stream body's bytes into lines (CRLF, LF
     or CR), counting the bytes of the event being read as they arrive: once
-    they pass ``limit()`` (``None`` = no limit) it raises ``too_large()``, so one
-    huge or never-terminated event cannot hold more than that.
-    ``last_event_bytes`` is the size of the event a blank line just ended,
-    terminators included."""
+    they pass ``limit(completed)`` it raises ``too_large(completed)``, so one
+    huge or never-terminated event cannot hold more than that. ``completed``
+    is every byte of the frames a blank line has ended so far, data-less and
+    comment-only frames included, so a caller can bound the whole stream
+    (``limit = budget - completed``) as well as each event. The check comes
+    before a line is copied or a remainder buffered; a line ended by a CR at
+    a chunk's end waits for the next chunk, so the LF of a split CRLF counts
+    toward the event it ends. ``last_event_bytes`` is the size of the event a
+    blank line just ended, terminators included."""
 
     def __init__(self) -> None:
         self._pending = bytearray()
         self._received = 0  # bytes consumed so far
         self._event_start = 0  # where the current event's bytes begin
-        self._skip_lf = False
+        # A line ended by a CR at a chunk's end, and where it ends.
+        self._held: Optional[Tuple[bytes, int]] = None
         self.last_event_bytes = 0
 
-    def feed(
-        self, chunk: bytes, limit: Callable[[], Optional[int]], too_large: Callable[[], Exception]
-    ) -> Iterator[str]:
+    @property
+    def completed_bytes(self) -> int:
+        """Every byte of the frames completed so far."""
+        return self._event_start
+
+    def feed(self, chunk: bytes, limit: SseLimit, too_large: SseTooLarge) -> Iterator[str]:
         if not chunk:
             return
         base = self._received
         self._received += len(chunk)
         start = 0
-        if self._skip_lf and chunk[:1] == b"\n":
-            # The LF of a CRLF split across chunks (after a blank line's CR,
-            # it counts toward the next event).
-            start = 1
-        self._skip_lf = False
+        if self._held is not None:
+            line, end = self._held
+            self._held = None
+            if chunk[:1] == b"\n":
+                # The LF of a CRLF split across chunks: part of that line.
+                start, end = 1, base + 1
+            yield from self._line(line, end, limit, too_large)
         while start < len(chunk):
             found = _SSE_LINE_END.search(chunk, start)
             if found is None:
+                # Checked before the remainder is buffered.
+                self._check(self._received, limit, too_large)
                 self._pending += chunk[start:]
-                break
+                return
             end = found.start()
-            self._pending += chunk[start:end]
-            line = bytes(self._pending)
+            terminator = 1
+            if chunk[end : end + 1] == b"\r" and chunk[end + 1 : end + 2] == b"\n":
+                terminator = 2
+            # Checked before the line is copied out of the chunk.
+            self._check(base + end + terminator, limit, too_large)
+            line = bytes(self._pending) + chunk[start:end]
             self._pending.clear()
-            if chunk[end : end + 1] == b"\r":
-                if end + 1 < len(chunk):
-                    if chunk[end + 1 : end + 2] == b"\n":
-                        end += 1
-                else:
-                    self._skip_lf = True
-            start = end + 1
-            self._check(base + start, limit, too_large)
-            if not line:
-                self.last_event_bytes = base + start - self._event_start
-                self._event_start = base + start
-            yield line.decode("utf-8", errors="replace")
-        self._check(self._received, limit, too_large)
+            start = end + terminator
+            if terminator == 1 and chunk[end : end + 1] == b"\r" and start == len(chunk):
+                self._held = (line, base + start)
+                return
+            yield from self._line(line, base + start, limit, too_large)
 
-    def _check(
-        self, position: int, limit: Callable[[], Optional[int]], too_large: Callable[[], Exception]
-    ) -> None:
-        bound = limit()
+    def finish(self, limit: SseLimit, too_large: SseTooLarge) -> Iterator[str]:
+        """The line a CR ended at the body's very end, if any."""
+        if self._held is not None:
+            line, end = self._held
+            self._held = None
+            yield from self._line(line, end, limit, too_large)
+
+    def _line(self, line: bytes, end: int, limit: SseLimit, too_large: SseTooLarge) -> Iterator[str]:
+        self._check(end, limit, too_large)
+        if not line:
+            self.last_event_bytes = end - self._event_start
+            self._event_start = end
+        yield line.decode("utf-8", errors="replace")
+
+    def _check(self, position: int, limit: SseLimit, too_large: SseTooLarge) -> None:
+        bound = limit(self._event_start)
         if bound is not None and position - self._event_start > bound:
-            raise too_large()
+            raise too_large(self._event_start)
 
 
 async def parse_sse_events_bounded(
-    chunks: AsyncIterable[bytes], *, limit: Callable[[], Optional[int]], too_large: Callable[[], Exception]
+    chunks: AsyncIterable[bytes], *, limit: SseLimit, too_large: SseTooLarge
 ) -> AsyncIterator[Tuple[str, str, Optional[str], int]]:
     """SSE messages as ``(event, data, id, size)`` from an event-stream
-    body's bytes, each event bounded by ``limit()`` bytes as they arrive (see
-    :class:`SseLineSplitter`); ``size`` is the event's bytes, terminators
-    included; the data unparsed (see :func:`sse_json`)."""
+    body's bytes, each event bounded by ``limit(completed)`` bytes as they
+    arrive (see :class:`SseLineSplitter`); ``size`` is the event's bytes,
+    terminators included; the data unparsed (see :func:`sse_json`)."""
     splitter = SseLineSplitter()
     parser = SseParser()
-    async for chunk in chunks:
-        for line in splitter.feed(chunk, limit, too_large):
+
+    def messages(lines: Iterator[str]) -> Iterator[Tuple[str, str, Optional[str], int]]:
+        for line in lines:
             message = parser.feed_message(line)
             if message is not None:
                 yield (*message, splitter.last_event_bytes)
+
+    async for chunk in chunks:
+        for message in messages(splitter.feed(chunk, limit, too_large)):
+            yield message
+    for message in messages(splitter.finish(limit, too_large)):
+        yield message
 
 
 def stream_event_too_large(description: str, limit: int) -> DaytonaError:

@@ -123,10 +123,19 @@ export function bareSignal(signal: unknown): string | undefined {
   return signal.startsWith('SIG') ? signal.slice(3) : signal
 }
 
+const MIN_INT32 = -(2 ** 31)
+
+/** An int32 field (`pid`, `exitCode`), as the contract types it; outside it is malformed. */
+function int32(input: WireRecord, field: string, description: string): number {
+  const value = int(input, field, description)
+  if (value < MIN_INT32 || value > MAX_INT32) throw malformedResponse(`${description}: ${field} must be a signed 32-bit integer`)
+  return value
+}
+
 export function waitResult(input: toolbox.ExitResult): WaitResult {
   const raw = record(input, 'wait result')
   const rawReason = optional(raw, 'reason', str, 'wait result')
-  const exitCode = optional(raw, 'exitCode', int, 'wait result')
+  const exitCode = optional(raw, 'exitCode', int32, 'wait result')
   const signal = bareSignal(optional(raw, 'signal', str, 'wait result'))
   return deepFrozen({
     reason: rawReason === undefined ? 'unknown' : knownOrUnknown(rawReason, PROCESS_REASONS),
@@ -284,7 +293,7 @@ export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
     system: optional(raw, 'system', bool, PROCESS) === true,
     name: optional(raw, 'name', str, PROCESS),
     tag: optional(raw, 'tag', str, PROCESS),
-    pid: optional(raw, 'pid', int, PROCESS),
+    pid: optional(raw, 'pid', int32, PROCESS),
     sessionId: optional(raw, 'sessionId', str, PROCESS),
     argv,
     shellCommand: optional(raw, 'shellCommand', str, PROCESS),
@@ -296,7 +305,7 @@ export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
     user: optional(raw, 'user', str, PROCESS),
     executionTimeoutSeconds: timeoutMs === undefined ? undefined : timeoutMs / 1000,
     terminal: terminalFromWire(raw),
-    exitCode: optional(raw, 'exitCode', int, PROCESS),
+    exitCode: optional(raw, 'exitCode', int32, PROCESS),
     signal: bareSignal(optional(raw, 'signal', str, PROCESS)),
     reason: rawReason === undefined ? undefined : knownOrUnknown(rawReason, PROCESS_REASONS),
     rawReason,

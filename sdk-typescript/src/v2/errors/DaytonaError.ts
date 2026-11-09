@@ -907,7 +907,10 @@ export function errorFromEnvelopeBody(
   fallbackMessage: string,
   emptyProseIsAbsent = false,
 ): DaytonaError {
-  return errorFromEnvelope(isJsonMediaType(contentType) ? parsedBody(body) : undefined, status, fallbackMessage, emptyProseIsAbsent)
+  const parsed = isJsonMediaType(contentType) ? parsedBody(body) : undefined
+  // Nested past JSON_MAX_DEPTH: unreadable, as on the axios and fetch paths.
+  if (nestedDeeperThan(parsed)) return tooDeepErrorBody(status)
+  return errorFromEnvelope(parsed, status, fallbackMessage, emptyProseIsAbsent)
 }
 
 function parsedBody(body: string): unknown {

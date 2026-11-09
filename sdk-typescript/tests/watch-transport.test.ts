@@ -75,6 +75,14 @@ describe('watch stream drops', () => {
         response.on('close', () => clientClosed.resolve())
         return
       }
+      if (request.url?.startsWith('/heartbeats') === true) {
+        // Comment-only frames before start, endlessly (4 MiB of them), then
+        // the stream waits for the client to close it.
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        for (let index = 0; index < 64; index++) response.write(':\n\n'.repeat(21846))
+        response.on('close', () => clientClosed.resolve())
+        return
+      }
       if (request.url?.startsWith('/endless') === true) {
         // One fs event whose data line never ends: 4 MiB of it, then the
         // stream waits for the client to close it.
@@ -236,6 +244,19 @@ describe('watch stream drops', () => {
   it('refuses a never-ending event before start at the budget, without onExit, and closes it', async () => {
     const exits: unknown[] = []
     const error = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/endless`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit: (exit) => { exits.push(exit) } })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ message: 'expected filesystem watch stream: it sent more than 1048576 bytes before start' })
+    await clientClosed.promise
+    expect(exits).toEqual([])
+  })
+
+  // Shared with the Python SDK's test_watch_transport.py: every frame before
+  // start counts toward the 1 MiB budget, comment-only heartbeats included.
+  it('refuses endless heartbeats before start at the budget, without onExit, and closes it', async () => {
+    const exits: unknown[] = []
+    const error = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/heartbeats`, 'k', 5_000))
       .watchDir('/', () => undefined, { onExit: (exit) => { exits.push(exit) } })
       .then(() => undefined, (caught: unknown) => caught)
     expect(error).toBeInstanceOf(BadRequestError)
