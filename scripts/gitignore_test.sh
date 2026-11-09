@@ -30,6 +30,7 @@ ignored=(
   cli/.DS_Store
   .idea/workspace.xml
   .vscode/settings.json
+  .oasdiff/oasdiff-1.35.0
 )
 for path in "${ignored[@]}"; do
   git check-ignore -q --no-index "$path" || fail "$path is not ignored"

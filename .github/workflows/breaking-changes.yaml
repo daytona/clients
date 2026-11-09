@@ -1,0 +1,55 @@
+name: Breaking changes
+
+# Compares the committed public-surface snapshots (sdk-typescript/api-surface,
+# sdk-python/api-surface, cli/api-surface, upgrade/api-surface) and
+# contract/*.json with the last stable release tag (the highest vX.Y.Z,
+# X >= 2, without a pre-release suffix). A breaking change fails unless a changelog.d/*.breaking.md
+# fragment announces it; on a pull request only the breaks the pull request
+# adds count, and the fragment must come with it. A reported change that is
+# in fact compatible is acknowledged, with a reason, in
+# scripts/breaking/compatible-changes.txt. Passes with "no stable release
+# yet" until the first stable tag exists.
+# Logic: scripts/breaking/breaking_changes.py. That the snapshots match the
+# code is checked where the code is built (SDK CI, CLI CI, Upgrade tool CI).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: breaking-changes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  breaking-changes:
+    name: no unannounced breaking change since the last stable release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The pull request's merge commit and its base (HEAD^1); the release
+          # tag is fetched on its own by --fetch.
+          fetch-depth: 2
+      - name: Install oasdiff (pinned, checksum-verified)
+        run: echo "OASDIFF=$(bash scripts/breaking/install-oasdiff.sh "$RUNNER_TEMP/oasdiff")" >> "$GITHUB_ENV"
+      - name: Unit tests
+        run: python3 -m unittest discover -s scripts/breaking -v
+      # --github-repo: a vX.Y.Z tag whose release is flagged pre-release is
+      # not a stable baseline (the installers skip it too); listing releases
+      # needs only contents: read.
+      - name: Compare with the last stable release
+        env:
+          EVENT: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            python3 scripts/breaking/breaking_changes.py --fetch origin --github-repo "$REPO" --base HEAD^1
+          else
+            python3 scripts/breaking/breaking_changes.py --fetch origin --github-repo "$REPO"
+          fi

@@ -322,6 +322,58 @@ rest around them) — the first rc that ships will be `v2.0.0-rc.2` or later. De
 rc (`npm deprecate`) or yanking the PyPI one is the maintainers' call and is
 not done by any workflow.
 
+## Breaking-change check
+
+From the first stable release on, every pull request is compared with the
+latest stable release tag (the highest `vX.Y.Z` with X ≥ 2 and no pre-release
+suffix, skipping any release GitHub flags as a pre-release) by the
+`Breaking changes` workflow (`scripts/breaking/breaking_changes.py`).
+It diffs the committed public-surface snapshots (`sdk-typescript/api-surface/`,
+`sdk-python/api-surface/`, `cli/api-surface/`, and `upgrade/api-surface/` for
+the migration tool's flags and `--json` report fields and values; each kept
+current by its CI) and `contract/*.json` (oasdiff for the OpenAPI contracts;
+values may be added to enums the contract marks open). A removed or
+incompatibly changed export, signature, command, flag, environment variable,
+report field or value, endpoint or error code fails the check, and so does a
+new required member of a type callers pass in. In the SDK and CLI surfaces,
+every type position has a direction. A value callers supply (a parameter of
+an SDK function, a member of a type only passed in, the return value of a
+callback they implement) may widen but not narrow. A value the SDK supplies
+(a return value, a member of a returned type, an argument the SDK passes to
+a callers' callback) may narrow (an optional member may become always
+present), and may widen only by adding an enum value or a member to an
+existing union, because clients must handle values they do not know; it may
+never gain `undefined`, `null` or `None` (`Literal[None]` included). A
+position used both ways, or whose direction the check cannot tell (a type
+alias), may only gain enum values or union members. In any of them, an
+object type written inline may gain optional members. Overloads: a call
+resolves against the first overload it matches. For a function callers call
+(one the SDK implements, or a method of a type that goes both ways), the
+existing overloads keep their order, a new overload may only come after them,
+only the last overload may widen, an earlier one may only narrow its return
+type (renaming a TypeScript parameter aside), and none may be dropped: when the
+later overload a dropped one's calls now reach (the first that accepts them)
+takes all of them and returns the same or a narrower type, acknowledge the
+finding. For a signature callers implement (a callback, the methods of a type
+they pass in), no overload or call signature may be added or dropped: every
+implementation would have to change. In
+`contract/*.json`, oasdiff compares the
+contracts as they are; the only finding the `x-daytona-open-enum` tag drops is
+a value added on the response side to an enum tagged open both at the release
+and now. Removing a value callers
+send stays a break wherever they send it, and an enum the contract does not
+mark open may not gain a response value. The migration
+tool's report fields keep their types: it may only gain fields, values, flags
+and short aliases for its flags. A real break
+needs a `changelog.d/<id>.breaking.md` fragment in the pull request; the
+maintainer publishing the next release then decides the MAJOR bump. A change
+the check misreads as breaking is acknowledged in
+`scripts/breaking/compatible-changes.txt` instead, with a one-line reason, and
+puts nothing in the changelog. A pull request counts only the breaks it adds,
+so one that deletes a breaking fragment while the base branch already carries
+that break is caught by the run on `main` after it merges. Until a stable tag
+exists the check reports "no stable release yet" and passes.
+
 ## See also
 
 - [CHANGELOG.md](../CHANGELOG.md) — what changed in each version; unreleased

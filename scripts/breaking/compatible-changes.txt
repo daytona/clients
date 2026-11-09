@@ -1,0 +1,24 @@
+# Changes the breaking-change check (scripts/breaking/breaking_changes.py)
+# reports that are in fact compatible. A real break needs a
+# changelog.d/<id>.breaking.md fragment instead.
+#
+# Copy the entry exactly as the check prints it and add a one-line reason.
+# Matching is exact: an entry never covers a different change to the same
+# declaration. An entry that no longer matches a finding (for example once a
+# later stable release is the baseline) is reported as stale and may be
+# removed.
+#
+# Snapshot finding (one `new:` per added line, `new: (removed)` when none):
+#
+#   - area: sdk-typescript/api-surface/v2.api.txt
+#     old: Sandbox.fork: method (options?: ForkOptions): Promise<Sandbox>
+#     new: Sandbox.fork: method (options?: ForkOptions | string): Promise<Sandbox>
+#     reason: widened the parameter type; every existing call still type-checks
+#
+# Contract finding (oasdiff rule id, or the catalog/events rule; `text` as printed):
+#
+#   - area: contract/api-openapi.json
+#     rule: response-property-type-changed
+#     at: GET /sandboxes
+#     text: ...
+#     reason: ...

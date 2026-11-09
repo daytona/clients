@@ -66,8 +66,17 @@ new contract files; this skill turns them into a working SDK change.
    (`changelog.d/README.md`). A contract refresh that changes nothing a user
    can see needs none.
 
-6. **Verify once:** the full `AGENTS.md` "Verification" block, then
-   `scripts/gen-contract-types.sh --check`.
+6. **Verify once:** the full `AGENTS.md` "Verification" block (regenerate
+   the public-surface snapshots it lists when the SDK or CLI surface moved),
+   then `scripts/gen-contract-types.sh --check` and the breaking-change check
+   against this PR's base, so only the breaks this refresh adds count:
+
+   ```bash
+   git fetch origin main
+   OASDIFF=$(scripts/breaking/install-oasdiff.sh) \
+     python3 scripts/breaking/breaking_changes.py --fetch origin --github-repo daytona/clients \
+       --base "$(git merge-base HEAD origin/main)"
+   ```
 
 ## PR
 

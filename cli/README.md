@@ -564,7 +564,18 @@ go build ./... && go test ./...
 golangci-lint run ./...
 ./hack/gen.sh      # regenerate wire types from ../contract/*.json
 ./hack/build.sh    # six release binaries + SHA256SUMS into dist/
+go test ./cmd -run TestPublicSurface -update   # regenerate api-surface/daytona.api.txt
 ```
+
+`api-surface/daytona.api.txt` lists the CLI's public surface: every command
+path with its aliases, positional arguments, the argument counts it accepts
+and the flag groups cobra enforces on it (mutually exclusive, one required,
+required together); every flag with its type, shorthand and default and its
+hidden, persistent and deprecated state and whether cobra marks it required;
+and the environment variables the CLI reads. A requirement the command checks
+itself (such as `image create` needing `--ref` unless `--file` supplies the
+image) is not in the snapshot. `go test` fails when it is stale;
+regenerate it after changing any of them and commit the result.
 
 Wire types are generated from the public `contract/` OpenAPI artifacts and
 must not be edited by hand.

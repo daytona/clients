@@ -168,6 +168,12 @@ jobs:
           set -euo pipefail
           uv run ruff check .
           uv run ruff format --check .
+      # The committed surface (upgrade/api-surface/): report fields and values
+      # from the schema, both tools' flags from their argument parsers. The
+      # Breaking changes workflow compares it with the last stable release.
+      - name: Public surface snapshot is up to date
+        if: matrix.python == '3.13'
+        run: uv run python ../scripts/api_surface.py --check
       - name: Type-check, test and build
         run: |
           set -euo pipefail

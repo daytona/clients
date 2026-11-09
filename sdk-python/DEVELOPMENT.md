@@ -180,6 +180,55 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
 uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q
 ```
 
+### Public-surface snapshot
+
+`api-surface/daytona.api.txt` and `api-surface/daytona.v2.api.txt` list every
+name in `daytona.__all__` / `daytona.v2.__all__` with its kind and signature
+(classes with their constructor, methods marked `def` / `async def`,
+properties, attributes, dataclass fields, enum members and TypedDict keys),
+one declaration per line, sorted, except that the overloads of one name keep
+their declaration order (calls resolve against the first overload that
+matches, and the breaking-change check compares them in that order: for a
+function callers call, the existing overloads keep their order, a new one
+comes after them, only the last may widen, an earlier one may only narrow its
+return type, and none may be dropped (acknowledge it only when the later
+overload its calls now reach takes them all and returns the same or a narrower
+type); a protocol method callers implement gains or loses no
+overload; see `docs/VERSIONING.md`, "Breaking-change check"). A
+`daytona` class or type alias that a listed
+signature uses but neither namespace exports (the v2 clients behind the
+root's `.v2`, a `Literal` alias, a generated model) is listed as `~Name`
+(`~Name@module` when the name is taken), in the file of the first namespace
+that reaches it. Constructors are `internal-constructor` except the root
+client's and its config's, the error classes', and those of dataclasses users
+build to pass in (a dataclass that types a parameter of a method users call,
+or a field of one; a dataclass whose fields are all private is built by a
+factory). A TypedDict or protocol callers pass in gets a `Name: passed-in`
+line (`passed-in also-returned` when users also read it): a new required key
+or member of it is a breaking change, and a key of a type only passed in may
+become optional (required-ness
+of TypedDict keys is read from `Required[...]` / `NotRequired[...]` and
+`total=` in the source, and the key's annotation is printed without the
+`Required[...]` / `NotRequired[...]` wrapper). Directions follow who
+implements a function: the parameters of a function the SDK implements are
+passed in and its return type is returned; for a callback the caller
+implements (a `Callable[...]` parameter or field, or the methods and
+`__call__` of a protocol the caller passes in) it is the other way round: its
+arguments are returned and its return type is passed in. Class lines carry their generic parameters
+(`ListResult: dataclass frozen <T>`). Annotations, defaults and type alias
+values come from the source (an alias used inside another one appears by its
+name and is listed on its own), so the text is the
+same on every supported Python. Regenerate after any change
+to the public surface and commit the result; CI runs the check:
+
+```bash
+.venv/bin/python gen/api_surface.py            # regenerate
+.venv/bin/python gen/api_surface.py --check    # exit 1 when stale
+```
+
+The `Breaking changes` workflow compares the snapshot with the last stable
+release (see `docs/VERSIONING.md`, "Breaking-change check").
+
 ## Streaming response ownership
 
 Build-log discovery, follow and one-shot reads go through

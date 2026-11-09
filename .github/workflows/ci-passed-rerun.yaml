@@ -12,6 +12,7 @@ name: CI passed re-run
 on:
   workflow_run:
     workflows:
+      - Breaking changes
       - Changelog fragments
       - CLI CI
       - Contract types

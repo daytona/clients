@@ -149,6 +149,63 @@ spellings so resource checks do not reject valid responses.
 npm install && npm run typecheck && npm test && npm run build
 ```
 
+### Public-surface snapshot
+
+`api-surface/index.api.txt` (`@daytona/sdk`) and `api-surface/v2.api.txt`
+(`@daytona/sdk/v2`) list the declaration surface of the entry points, one
+declaration per line: every export with its kind and full type signature, the
+members of exported classes, interfaces and object types, enum members, and
+long unions one member per line. Lines are sorted, except that the overloads
+of one name keep their declaration order (calls resolve against the first
+overload that matches, and the breaking-change check compares them in that
+order: for a function callers call, the existing overloads keep their order, a
+new one comes after them, only the last may widen, an earlier one may only
+narrow its return type (parameter names aside), and none may be dropped
+(acknowledge it only when the later overload its calls now reach takes them
+all and returns the same or a narrower type); a signature
+callers implement gains or loses no overload; see
+`docs/VERSIONING.md`, "Breaking-change check"). A declaration of this package that a listed
+signature uses but no entry point exports (the v2 client behind the root's
+`.v2`, an options type that is not exported) is listed as `~Name`
+(`~Name@path` when the name is taken), in the file of the first entry point
+that reaches it, with its members. Union members are printed in sorted
+order, so the output does not depend on the order the compiler checks files.
+An object type callers pass in (named in a parameter of a listed signature, or
+in a property of such a type, and never returned by the SDK) gets a
+`Name: passed-in` line: a new required member of it is a breaking change. So
+do the base interfaces of such a type, whose members are listed under the base
+(`passed-in also-returned` when the SDK also returns the base). Directions
+follow who implements a function: the parameters of a function the SDK
+implements are passed in and its return type is returned; for a callback the
+caller implements and passes in (a function-typed parameter or property, or a
+method of an interface or object type the caller passes in) it is the other
+way round: its parameters are returned and its return type is passed in.
+Who implements an interface's or object type's methods is solved from the
+known directions up: once the type is passed in, callers do; once it is
+handed out, the SDK does; a type reached neither way counts as the SDK's.
+Callers also pass in the constraint of every type parameter of a function the
+SDK implements (`f<T extends Opts>()`: callers choose `T`, which must satisfy
+`Opts`, whether or not a parameter uses it); for a callback callers
+implement, the SDK chooses the type argument, so the constraint is returned.
+They also pass in
+the parameters of an exported function value (`export const f = (o: Opts) =>`)
+and the type of a settable class property, which they may assign. Any other
+object type (an interface or an object type alias; other declarations carry
+no marker) that is both passed in and returned gets
+`Name: returned also-passed-in`. A member of a type that is only passed in may
+become optional; one of a type that goes both ways may not. `scripts/api-surface.mjs` reads it with the
+TypeScript compiler API (`@internal` exports, members and overloads excluded,
+as `stripInternal` does for the published declarations). Regenerate after any change to the public surface and commit
+the result; CI runs the check:
+
+```bash
+npm run api-surface          # regenerate
+npm run api-surface:check    # exit 1 when stale
+```
+
+The `Breaking changes` workflow compares the snapshot with the last stable
+release (see `docs/VERSIONING.md`, "Breaking-change check").
+
 The live toolbox test requires `DAYTONA_SDKTS_TOOLBOX_URL` and skips when
 it is unset or the configured endpoint is unavailable.
 
