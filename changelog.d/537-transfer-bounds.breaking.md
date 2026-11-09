@@ -34,3 +34,9 @@ share one hub. Streamed bodies
 (`download_file` / `downloadFile`, log, event and build-log streams, watches)
 are not capped: use `download_file` / `downloadFile` for large files or
 content from a sandbox you don't trust.
+The Python SDK reads a capped body's wire bytes and decodes gzip and deflate
+itself in steps of at most 64 KiB, so a small compressed response cannot
+expand past the cap in memory; its clients now send `Accept-Encoding: gzip,
+deflate` only (httpx added `br` and `zstd` when their packages were
+installed), and a capped response in any other content encoding is refused
+without being decoded.
