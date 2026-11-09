@@ -41,7 +41,67 @@ env:
 permissions: {}
 
 jobs:
+  # Off the environment, so its summary is on the run page while `publish`
+  # waits for approval.
+  plan:
+    name: Show the plan
+    if: github.repository == 'daytona/clients'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Show the inputs and what approval will publish
+        env:
+          PUBLISH_CLI: ${{ inputs.publish_cli }}
+          V0_CUTOVER: ${{ vars.DAYTONA_V0_CUTOVER }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          or_dash() { if [ -n "$1" ]; then printf "\`%s\`" "$1"; else printf '—'; fi; }
+          target() { # label version destination
+            if [ -n "$2" ]; then printf "| %s | \`%s\` | %s |\n" "$1" "$2" "$3"; else printf '| %s | — | skipped |\n' "$1"; fi
+          }
+          if [ "$PUBLISH_CLI" != true ]; then
+            tap="skipped (\`publish_cli\` off)"
+          elif [ "$GITHUB_REF" = refs/heads/release/v0 ]; then
+            if [ "$V0_CUTOVER" = true ]; then tap="\`daytona@0\` (and \`daytona\` while no stable 2.x release exists)"
+            else tap="skipped (release/v0 updates the tap only after the cutover, \`DAYTONA_V0_CUTOVER\`)"; fi
+          elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
+            tap="skipped (${GITHUB_REF_NAME} never updates the tap)"
+          elif [ "$NPM_TAG" = latest ]; then
+            tap="\`daytona\`"
+          else
+            tap="skipped (\`npm_tag\` is \`${NPM_TAG}\`, not \`latest\`)"
+          fi
+          {
+            echo "## SDK and CLI Publish plan — \`${VERSION}\`"
+            echo
+            echo "Requested by **@${ACTOR}** from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA}); every leg publishes this commit."
+            echo
+            echo "| Input | Value |"
+            echo "|---|---|"
+            echo "| \`version\` | $(or_dash "$VERSION") |"
+            echo "| \`publish_cli\` | \`${PUBLISH_CLI}\` |"
+            echo "| \`pypi_pkg_version\` | $(or_dash "$PYPI_PKG_VERSION") |"
+            echo "| \`npm_pkg_version\` | $(or_dash "$NPM_PKG_VERSION") |"
+            echo "| \`npm_tag\` | $(or_dash "$NPM_TAG") |"
+            echo "| \`rubygems_pkg_version\` | $(or_dash "$RUBYGEMS_PKG_VERSION") |"
+            echo "| \`maven_pkg_version\` | $(or_dash "$MAVEN_PKG_VERSION") |"
+            echo
+            echo "After approval of the \`release\` environment, the \`publish\` legs run in parallel:"
+            echo
+            echo "| Leg | Version | Goes to |"
+            echo "|---|---|---|"
+            target "TypeScript SDK" "$NPM_PKG_VERSION" "npm, dist-tag \`${NPM_TAG}\`"
+            target "Python SDK" "$PYPI_PKG_VERSION" "PyPI"
+            target "Ruby SDK" "$RUBYGEMS_PKG_VERSION" "RubyGems"
+            target "Java SDK" "$MAVEN_PKG_VERSION" "Maven Central"
+            echo "| CLI (Homebrew tap) | $(or_dash "$VERSION") | ${tap} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   publish:
+    needs: plan
     if: github.repository == 'daytona/clients'
     runs-on: ubuntu-latest
     # Publish credentials live in the `release` environment: every run waits

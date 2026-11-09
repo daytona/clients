@@ -17,7 +17,41 @@ env:
   BASE_BRANCH: ${{ startsWith(github.ref, 'refs/heads/release/') && github.ref_name || 'main' }}
 
 jobs:
+  # Off the environment, so its summary is on the run page while `prepare`
+  # waits for approval.
+  plan:
+    name: Show the plan
+    if: github.repository == 'daytona/clients'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Show the inputs and what approval will run
+        env:
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Prepare Release plan — \`${VERSION}\`"
+            echo
+            echo "Requested by **@${ACTOR}** from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})."
+            echo
+            echo "| Input | Value |"
+            echo "|---|---|"
+            echo "| \`version\` | \`${VERSION}\` |"
+            echo
+            echo "After approval of the \`release\` environment, \`prepare\`:"
+            echo
+            echo "1. validates \`${VERSION}\` (vX.Y.Z[-suffix]; on a release/vN branch, only vN.x);"
+            echo "2. runs \`yarn prepare-release\` on branch \`prepare-release-${VERSION}\` (the nx \`prepare-release\` targets commit the version bumps);"
+            echo "3. pushes the branch and opens PR **chore: prepare clients release ${VERSION}** into \`${BASE_BRANCH}\` as daytonaBot."
+            echo
+            echo "Nothing is published or tagged."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   prepare:
+    needs: plan
     if: github.repository == 'daytona/clients'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     # GITHUBBOT_TOKEN lives only in the `release` environment; the run waits
