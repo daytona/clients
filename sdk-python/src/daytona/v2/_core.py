@@ -19,6 +19,7 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Dict,
+    Final,
     Iterable,
     Iterator,
     List,
@@ -134,7 +135,6 @@ _CONTENT_DISPOSITION_NAME_RE = re.compile(r'name="([^"]+)"', re.IGNORECASE)
 _CONTENT_DISPOSITION_FILENAME_RE = re.compile(r'filename="([^"]*)"', re.IGNORECASE)
 _CONTENT_DISPOSITION_FILENAME_STAR_RE = re.compile(r"filename\*=utf-8''([^;]+)", re.IGNORECASE)
 ModelT = TypeVar("ModelT")
-_NumberT = TypeVar("_NumberT", int, float)
 
 
 @dataclass(frozen=True)
@@ -212,16 +212,65 @@ def _refuse_json_constant(name: str) -> JsonValue:
     raise ValueError(f"invalid JSON constant {name}")
 
 
+# The deepest nesting of arrays and objects a JSON response may have, the
+# same in both SDKs: the stdlib decoder's own limit depends on the Python
+# version and, from 3.12, on the thread's stack size, so the SDK sets one.
+# Deep enough for every contract shape (a 256-level accessibility tree is
+# 516 levels of JSON).
+JSON_MAX_DEPTH: Final = 600
+
+
+def _nested_deeper_than(value: JsonValue, limit: int) -> bool:
+    """Whether arrays and objects in ``value`` nest more than ``limit`` deep
+    (a top-level one is depth 1). Iterative, visiting containers only."""
+    pending: List[Tuple[JsonValue, int]] = [(value, 1)]
+    while pending:
+        item, depth = pending.pop()
+        children = item.values() if isinstance(item, dict) else item if isinstance(item, list) else None
+        if children is None:
+            continue
+        if depth > limit:
+            return True
+        pending.extend((child, depth + 1) for child in children if isinstance(child, (list, dict)))
+    return False
+
+
 def loads_json(text: Union[str, bytes], description: str = "JSON response") -> JsonValue:
-    """``json.loads`` for a response body: a body nested deeper than the
-    decoder's recursion limit is the malformed-response error, never a raw
-    ``RecursionError``. Invalid JSON, including the non-standard constants
-    ``NaN``, ``Infinity`` and ``-Infinity``, raises ``ValueError``."""
+    """``json.loads`` for a response body: a body nested deeper than
+    :data:`JSON_MAX_DEPTH`, or than the decoder's recursion limit, is the
+    malformed-response error, never a raw ``RecursionError``. Invalid JSON,
+    including the non-standard constants ``NaN``, ``Infinity`` and
+    ``-Infinity``, raises ``ValueError``."""
     try:
         value: JsonValue = json.loads(text, parse_constant=_refuse_json_constant)
     except RecursionError:
         raise _too_deep(description) from None
+    if _nested_deeper_than(value, JSON_MAX_DEPTH):
+        raise _too_deep(description)
     return value
+
+
+def is_json_media_type(content_type: Optional[str]) -> bool:
+    """Whether a response's media type is exactly ``application/json`` (type
+    and subtype compared case-insensitively, parameters ignored), as the
+    TypeScript SDK's ``isJsonMediaType``: ``application/jsonl`` is not JSON."""
+    if content_type is None:
+        return False
+    return content_type.split(";", 1)[0].strip().lower() == "application/json"
+
+
+def refuse_dot_segment(value: str, name: str) -> None:
+    """``.`` and ``..`` are no ids: as a request-path segment the HTTP client
+    resolves them away, so the request would reach another route."""
+    if value in (".", ".."):
+        raise create_error(f"{name} must not be '.' or '..'", 400, "BAD_REQUEST", "SDK")
+
+
+def toolbox_path_id(value: str, name: str) -> str:
+    """A toolbox id or name as one percent-encoded request-path segment (see
+    :func:`refuse_dot_segment`)."""
+    refuse_dot_segment(value, name)
+    return quote(value, safe="")
 
 
 def parse_json_bytes(content: bytes) -> JsonValue:
@@ -902,7 +951,10 @@ def process_create_spec(
     if terminal is not None:
         if not isinstance(terminal, TerminalSize):
             raise create_error("terminal must be a TerminalSize", 400, "BAD_REQUEST", "SDK")
-        optional["terminal"] = {"cols": terminal.cols, "rows": terminal.rows}
+        optional["terminal"] = {
+            "cols": terminal_dimension(terminal.cols, "cols"),
+            "rows": terminal_dimension(terminal.rows, "rows"),
+        }
     body.update({key: value for key, value in optional.items() if value is not None})
     if wait_ms is None:
         return RequestSpec(
@@ -970,9 +1022,7 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         resolved_shell=payload.resolved_shell,
         login=payload.login,
         user=payload.user,
-        execution_timeout=timeout_seconds_from_millis(
-            _finite_or_refuse(payload.timeout_ms, "process response: timeoutMs", "a non-negative integer")
-        ),
+        execution_timeout=timeout_seconds_from_millis(_exact_timeout_ms(payload.timeout_ms)),
         terminal=_parse_terminal(payload.terminal),
         exit_code=payload.exit_code,
         signal=bare_signal(payload.signal),
@@ -1086,11 +1136,17 @@ def finite_number(value: object) -> TypeGuard[Union[int, float]]:
         return False
 
 
-def _finite_or_refuse(value: Optional[_NumberT], description: str, expected: str) -> Optional[_NumberT]:
-    """A response number the SDK converts: a non-finite one is the
-    malformed-response error naming the field."""
-    if value is not None and not finite_number(value):
-        raise create_error(f"expected {description} must be {expected}", 400, "BAD_REQUEST", "SDK")
+def _exact_timeout_ms(value: Optional[int]) -> Optional[int]:
+    """A process record's ``timeoutMs``: converted to seconds, so it must be
+    an integer a double carries exactly (up to 2^53 - 1), as TypeScript reads
+    it; anything larger is the malformed-response error."""
+    if value is not None and not 0 <= value <= 2**53 - 1:
+        raise create_error(
+            "expected process response: timeoutMs must be a non-negative safe integer",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
     return value
 
 
@@ -1111,7 +1167,7 @@ def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = Fa
     bounded = None if unbounded or timeout is None or timeout == 0 else timeout + WAIT_READ_SLACK_SECONDS
     return RequestSpec(
         "GET",
-        f"/processes/{quote(process_id, safe='')}/wait",
+        f"/processes/{toolbox_path_id(process_id, 'process id')}/wait",
         params=params,
         timeout=bounded,
         unbounded_read=bounded is None,
@@ -1150,7 +1206,7 @@ def logs_spec(
             headers["Last-Event-ID"] = cursor
     return RequestSpec(
         "GET",
-        f"/processes/{quote(process_id, safe='')}/logs",
+        f"/processes/{toolbox_path_id(process_id, 'process id')}/logs",
         params=params,
         timeout=None,
         headers=headers,
@@ -1285,7 +1341,9 @@ def stdin_spec(process_id: str, data: Union[str, bytes], *, eof: bool) -> Reques
         body["encoding"] = "base64"
     else:
         body["data"] = data
-    return RequestSpec("POST", f"/processes/{quote(process_id, safe='')}/stdin", json_body=body)
+    return RequestSpec(
+        "POST", f"/processes/{toolbox_path_id(process_id, 'process id')}/stdin", json_body=body
+    )
 
 
 def signal_spec(
@@ -1301,17 +1359,34 @@ def signal_spec(
     if escalate_after_ms is not None:
         body["escalateAfterMs"] = escalate_after_ms
         body["escalateTo"] = f"SIG{escalate_to}"
-    return RequestSpec("POST", f"/processes/{quote(process_id, safe='')}/signals", json_body=body)
+    return RequestSpec(
+        "POST", f"/processes/{toolbox_path_id(process_id, 'process id')}/signals", json_body=body
+    )
+
+
+_MAX_INT32: Final = 2**31 - 1
+
+
+def terminal_dimension(value: object, name: str) -> int:
+    """A terminal's ``cols`` / ``rows``: an int32 of at least 1, as the
+    contract states."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= _MAX_INT32:
+        raise create_error(f"{name} must be an integer between 1 and {_MAX_INT32}", 400, "BAD_REQUEST", "SDK")
+    return value
 
 
 def resize_spec(process_id: str, *, cols: int, rows: int) -> RequestSpec:
+    cols = terminal_dimension(cols, "cols")
+    rows = terminal_dimension(rows, "rows")
     return RequestSpec(
-        "POST", f"/processes/{quote(process_id, safe='')}/resize", json_body={"cols": cols, "rows": rows}
+        "POST",
+        f"/processes/{toolbox_path_id(process_id, 'process id')}/resize",
+        json_body={"cols": cols, "rows": rows},
     )
 
 
 def delete_process_spec(process_id: str) -> RequestSpec:
-    return RequestSpec("DELETE", f"/processes/{quote(process_id, safe='')}")
+    return RequestSpec("DELETE", f"/processes/{toolbox_path_id(process_id, 'process id')}")
 
 
 def file_download_spec(path: str, *, timeout: Optional[float]) -> RequestSpec:

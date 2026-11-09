@@ -137,6 +137,16 @@ def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
 # that call and inherited by the tasks it starts, so a ``stop()`` /
 # ``wait_for_exit()`` the callback makes, directly or from a child task, is
 # told apart from an external one.
+class _Delivery:
+    """One callback delivery's token: it names its watch, so a task the
+    callback started is still the watch's own after the callback returned."""
+
+    __slots__ = ("watch",)
+
+    def __init__(self, watch: AsyncWatchHandle) -> None:
+        self.watch = watch
+
+
 _WATCH_DELIVERY: contextvars.ContextVar[object | None] = contextvars.ContextVar(
     "_WATCH_DELIVERY", default=None
 )
@@ -217,7 +227,7 @@ class AsyncWatchHandle:
 
     async def _deliver(self, callback: Callable[[], None | Awaitable[None]]) -> None:
         """Run one callback as a delivery of this watch (see ``_WATCH_DELIVERY``)."""
-        token = object()
+        token = _Delivery(self)
         self._active_delivery = token
         reset = _WATCH_DELIVERY.set(token)
         try:
@@ -273,8 +283,15 @@ class AsyncWatchHandle:
         if self._exited.is_set() or self._active_delivery is not None:
             await self._exit_done.wait()
 
+    def _owns_caller(self) -> bool:
+        """Whether the caller runs in a delivery of this watch, or in a task
+        one started, even after that delivery returned (the token travels in
+        the task's context)."""
+        token = _WATCH_DELIVERY.get()
+        return isinstance(token, _Delivery) and token.watch is self
+
     def _refuse_other_watch(self, method: str) -> None:
-        if not self._own_call():
+        if not self._owns_caller():
             raise BridgeError(
                 f"a synchronous watch callback runs on the SDK's event-loop thread, where only its own "
                 f"watch's stop() / wait_for_exit() work; {method}() on another watch cannot block there. "

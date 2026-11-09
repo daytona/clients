@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import AsyncIterator, List, Optional, Sequence, Union
-from urllib.parse import quote
 
 from . import _clock
 from . import _codes as codes
@@ -25,11 +24,13 @@ from ._core import (
     parse_wait,
     process_create_spec,
     process_list_spec,
+    refuse_dot_segment,
     resize_spec,
     signal_spec,
     sse_json,
     stdin_spec,
     timeout_millis_from_seconds,
+    toolbox_path_id,
     wait_budget,
     wait_spec,
 )
@@ -209,6 +210,8 @@ def _required_id(value: object, field: str) -> str:
         raise create_error(
             f"process handle identity needs a non-empty string {field}", 400, "BAD_REQUEST", "SDK"
         )
+    if field == "processId":
+        refuse_dot_segment(value, "process id")
     return value
 
 
@@ -245,7 +248,9 @@ class AsyncProcessHandle:
     async def get(self) -> ProcessInfo:
         """Fetch current process metadata."""
         return parse_process(
-            expect_process_dto(await self._send(RequestSpec("GET", f"/processes/{quote(self.id, safe='')}")))
+            expect_process_dto(
+                await self._send(RequestSpec("GET", f"/processes/{toolbox_path_id(self.id, 'process id')}"))
+            )
         )
 
     async def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
@@ -288,7 +293,7 @@ class AsyncProcessHandle:
                     await self._send(
                         RequestSpec(
                             "GET",
-                            f"/processes/{quote(self.id, safe='')}",
+                            f"/processes/{toolbox_path_id(self.id, 'process id')}",
                             timeout=None
                             if deadline is None
                             else deadline - _clock.monotonic() + WAIT_READ_SLACK_SECONDS,
@@ -758,7 +763,9 @@ class AsyncProcessService:
         """Fetch current process metadata by id or live name alias."""
         return parse_process(
             expect_process_dto(
-                await self._transport.send(RequestSpec("GET", f"/processes/{quote(process_id, safe='')}"))
+                await self._transport.send(
+                    RequestSpec("GET", f"/processes/{toolbox_path_id(process_id, 'process id')}")
+                )
             )
         )
 

@@ -26,6 +26,7 @@ import { assertKnownOptions, optionKeys } from './options.js'
 import type { OptionKeys } from './options.js'
 import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str, strList } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 
 export type { BulkReadError, BulkReadResult, BulkWriteFile, BulkWriteResult }
 export type { DownloadFileOptions, TransferProgressCallback, UploadFileOptions }
@@ -204,6 +205,7 @@ function parseFilesystemEvent(data: string): FilesystemEvent {
   } catch {
     throw malformedResponse(`${WATCH_EVENT}: the data is not JSON`)
   }
+  if (nestedDeeperThan(parsed)) throw malformedResponse(`${WATCH_EVENT}: the JSON is nested too deeply`)
   const raw = record(parsed, WATCH_EVENT)
   return deepFrozen({
     type: str(raw, 'type', WATCH_EVENT),

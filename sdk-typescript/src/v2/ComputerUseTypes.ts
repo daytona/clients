@@ -22,35 +22,35 @@ export interface ComputerUseDesktopFailure {
   readonly code: ComputerUseDesktopFailureCode
   readonly rawCode: string
   readonly message: string
-  readonly extraFields?: Record<string, unknown>
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseNotStartedStatus {
   readonly status: 'inactive'
   readonly desktop: 'not_started'
   readonly cause?: never
-  readonly extraFields?: Record<string, unknown>
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseStartingStatus {
   readonly status: 'inactive'
   readonly desktop: 'starting'
   readonly cause?: never
-  readonly extraFields?: Record<string, unknown>
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseReadyStatus {
   readonly status: 'active'
   readonly desktop: 'ready'
   readonly cause?: never
-  readonly extraFields?: Record<string, unknown>
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseFailedStatus {
   readonly status: 'inactive'
   readonly desktop: 'failed'
   readonly cause: ComputerUseDesktopFailure
-  readonly extraFields?: Record<string, unknown>
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 /**
@@ -65,7 +65,7 @@ export interface ComputerUseUnknownStatus {
   readonly rawDesktop: string
   /** The failure attached to the unrecognized state, when present. */
   readonly cause?: ComputerUseDesktopFailure
-  readonly extraFields?: Record<string, unknown>
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export type ComputerUseStatusResponse =
@@ -79,7 +79,7 @@ export interface ComputerUseRestartResponse {
   readonly message: string
   readonly status: 'active'
   readonly desktop: 'ready'
-  readonly extraFields?: Record<string, unknown>
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseProcessStatus {
@@ -92,12 +92,12 @@ export interface ComputerUseProcessStatus {
   /** The current restart backoff, in seconds. */
   readonly restartBackoffSeconds: number
   readonly status: string
-  readonly extraFields?: Record<string, unknown>
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseLifecycleResponse {
   readonly message: string
-  readonly status: Record<string, ComputerUseProcessStatus>
+  readonly status: Readonly<Record<string, ComputerUseProcessStatus>>
 }
 
 export interface ComputerUseProcessRunningStatus {

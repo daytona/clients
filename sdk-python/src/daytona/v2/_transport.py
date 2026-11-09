@@ -38,7 +38,7 @@ from ._body_limit import (
     send_buffered,
     send_buffered_sync,
 )
-from ._core import MultipartPart, RequestSpec, error_from_response, parse_json_bytes
+from ._core import MultipartPart, RequestSpec, error_from_response, is_json_media_type, parse_json_bytes
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
@@ -382,6 +382,10 @@ class AsyncResponseStream:
         self._stream = stream
         self._response = response
         self._closed = False
+        # True once a release has completed. Separate from _closed, which an
+        # owned stream sets before its release, so that a concurrent close()
+        # waits for that release instead of returning while it runs.
+        self._released = False
         self._close_lock = anyio.Lock()
         # A client created for this response alone (open_exclusive_stream).
         # Closing the stream closes it; a borrowed client is never closed here.
@@ -449,7 +453,7 @@ class AsyncResponseStream:
             raise
 
     async def close(self) -> None:
-        if self._closed:
+        if self._released:
             return
         # Single-flight: a second close() (a stop() racing the reader's own
         # close) waits for the release in progress instead of re-entering the
@@ -458,7 +462,7 @@ class AsyncResponseStream:
         # cancelled reader still reaches the release.
         with anyio.CancelScope(shield=True):
             async with self._close_lock:
-                if not self._closed:
+                if not self._released:
                     await self._close_once()
 
     async def _close_once(self) -> None:
@@ -483,6 +487,7 @@ class AsyncResponseStream:
         # ran out its grace window leaves the stream re-closable, so a later
         # attempt (the reader's finally, a caller's close) can still free it.
         self._closed = not scope.cancel_called
+        self._released = self._closed
         if self._closed:
             self._finish_span_ok()
             self._notify_closed()
@@ -502,6 +507,7 @@ class AsyncResponseStream:
                     if self._owned_client is not None:
                         await self._owned_client.aclose()
         finally:
+            self._released = True
             self._finish_span_ok()
             self._notify_closed()
 
@@ -1223,9 +1229,7 @@ def _request_headers(
 def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
     if response.status_code >= 400:
         raise error_from_response(response.status_code, response.content)
-    # Media types are case-insensitive (``Application/JSON``).
-    content_type = response.headers.get("content-type", "").lower()
-    if "application/json" in content_type:
+    if is_json_media_type(response.headers.get("content-type")):
         try:
             return parse_json_bytes(response.content)
         except ValueError:

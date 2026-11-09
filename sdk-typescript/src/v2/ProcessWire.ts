@@ -13,10 +13,11 @@ import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROC
 import { UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
-import { bool, int, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
+import { bool, int, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, nonNegativeSafeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 
 export type LogFrameWire = toolbox.LogFrameDto
 export type LogsWire = { items?: LogFrameWire[] } | toolbox.ProcessLogsResponse
@@ -172,9 +173,19 @@ export function commandSpec(command: ProcessCommand): ProcessSpec {
   return { cmd: command.cmd }
 }
 
+const MAX_INT32 = 2 ** 31 - 1
+
+/** A terminal's `cols` / `rows`: an int32 of at least 1, as the contract states. */
+export function terminalDimension(value: unknown, name: 'cols' | 'rows'): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > MAX_INT32) {
+    throw badRequest(`${name} must be an integer between 1 and ${MAX_INT32}`)
+  }
+  return value
+}
+
 export function terminalSpec(terminal: TerminalSize): TerminalSize {
   assertKnownOptions('TerminalSize', terminal, TERMINAL_SIZE_KEYS)
-  return { cols: terminal.cols, rows: terminal.rows }
+  return { cols: terminalDimension(terminal.cols, 'cols'), rows: terminalDimension(terminal.rows, 'rows') }
 }
 
 /** `run()` reads the output back from the retained log, so it cannot honour `'none'`. */
@@ -233,7 +244,7 @@ export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {
   const rawStdin = str(raw, 'stdin', PROCESS)
   const rawKeepLogs = str(raw, 'keepLogs', PROCESS)
   const rawReason = optional(raw, 'reason', str, PROCESS)
-  const timeoutMs = optional(raw, 'timeoutMs', nonNegativeInt, PROCESS)
+  const timeoutMs = optional(raw, 'timeoutMs', nonNegativeSafeInt, PROCESS)
   const argv = optional(raw, 'argv', strList, PROCESS)
   const info: ProcessInfo = {
     id: nonEmptyStr(raw, 'id', PROCESS),
@@ -285,6 +296,7 @@ export function streamEvent(message: SseMessage): StreamLogEvent | undefined {
   } catch {
     throw malformedResponse(`${description}: the data is not JSON`)
   }
+  if (nestedDeeperThan(parsed)) throw malformedResponse(`${description}: the JSON is nested too deeply`)
   const payload = record(parsed, description)
   if (message.event === 'error') {
     // The stream's own error is thrown as its typed error; its cursor is

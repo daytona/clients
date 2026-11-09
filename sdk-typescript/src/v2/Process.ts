@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { encodeQuery, HttpTransport, strictUriEncode } from './http.js'
+import { encodeQuery, HttpTransport } from './http.js'
 import type {
   ListResult, ProcessCommand, ProcessHandleJSON, ProcessInfo, ProcessListOptions, ProcessResult,
   ProcessStartOptions, PtyStartOptions, RunOptions,
@@ -22,6 +22,7 @@ import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
+import { refuseDotSegment, toolboxPathId } from './toolboxPath.js'
 
 // Preserve internal import paths used by the interpreter and other namespaces.
 export { ProcessHandle } from './ProcessHandle.js'
@@ -57,6 +58,7 @@ function requireProcessId(value: unknown, field: 'sandboxId' | 'processId'): str
   if (typeof value !== 'string' || value === '') {
     throw new BadRequestError(`process handle identity needs a non-empty string ${field}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
+  if (field === 'processId') refuseDotSegment(value, 'process id')
   return value
 }
 
@@ -176,7 +178,7 @@ export class ProcessService {
 
   /** Fetch current process metadata by id or live name alias. */
   public async get(id: string): Promise<ProcessInfo> {
-    return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${strictUriEncode(id)}`))
+    return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${toolboxPathId(id, 'process id')}`))
   }
 
   public async list(options: ProcessListOptions = {}): Promise<ListResult<ProcessInfo>> {

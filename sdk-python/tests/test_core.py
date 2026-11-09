@@ -11737,6 +11737,10 @@ async def test_project_token_exchange_invalid_model_raises_typed_bad_request() -
 # The TypeScript SDK's unit.test.ts asserts the same messages for the same bodies.
 _TOKEN_EXCHANGE_CASES = [
     (b"not json", "token exchange response is not a JSON object"),
+    (
+        b'{"a":' + b"[" * 601 + b"]" * 601 + b"}",
+        "expected token exchange response: the JSON is nested too deeply",
+    ),
     # Decoded strictly: invalid UTF-8, and a leading byte-order mark.
     (b'{"access_token": "t\xffk", "expires_in": 60}', "token exchange response is not a JSON object"),
     (

@@ -23,6 +23,7 @@ import { INTERNAL } from '../src/v2/internal'
 import { envelopeList, fileMatchFromWire, gitCommitFromWire, gitRemoteFromWire, logFrameFromWire, replaceResultFromWire, systemMetricsFromWire } from '../src/v2/toolboxModels'
 import { mapComputerUseProcessStatus } from '../src/v2/ComputerUseMappers'
 import { deepFrozen } from '../src/v2/frozen'
+import { parseBulkReadResult } from '../src/v2/filesystemWire'
 import type * as toolbox from '../src/v2/gen/toolbox-types'
 
 const CREATED_AT = '2026-01-01T00:00:00Z'
@@ -360,6 +361,16 @@ describe('toolbox results are frozen at run time', () => {
     const result = await fs().readMany(['/a', '/b'], { maxResponseBytes: 1_000_000 })
     expectDeeplyFrozen(result)
     expect(new TextDecoder().decode(result.files['/a'])).toBe('hi')
+  })
+
+  it('keeps a file named __proto__ as an own, frozen property of a bulk read', () => {
+    const body = new TextEncoder().encode('--B\r\nContent-Disposition: form-data; name="file"; filename="__proto__"\r\nContent-Type: application/octet-stream\r\n\r\nhi\r\n--B--\r\n')
+    const result = parseBulkReadResult(body, 'multipart/form-data; boundary=B')
+    expect(Object.keys(result.files)).toEqual(['__proto__'])
+    expect(Object.prototype.hasOwnProperty.call(result.files, '__proto__')).toBe(true)
+    expect(Object.getPrototypeOf(result.files)).toBe(Object.prototype)
+    expect(new TextDecoder().decode(result.files.__proto__ as unknown as Uint8Array)).toBe('hi')
+    expect(Object.isFrozen(result.files)).toBe(true)
   })
 
   it('leaves the bytes of a bulk read live while freezing the result around them', async () => {

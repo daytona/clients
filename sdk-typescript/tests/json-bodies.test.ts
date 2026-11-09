@@ -25,6 +25,9 @@ const FILE_INFO = {
 
 const BODIES: Record<string, Buffer> = {
   bad: Buffer.from('{bad'),
+  deep600: Buffer.from('['.repeat(600) + ']'.repeat(600)),
+  deep601: Buffer.from('['.repeat(601) + ']'.repeat(601)),
+  bomtext: Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('hello')]),
   bigbad: Buffer.from(`{bad${'x'.repeat(4096)}`),
   utf8: Buffer.concat([Buffer.from('{"a":"'), Buffer.from([0xff]), Buffer.from('"}')]),
   nan: Buffer.from('{"a": NaN}'),
@@ -41,7 +44,7 @@ describe('JSON response bodies', () => {
       request.resume()
       // /<body>/<content type: json | text>/...
       const [, body = 'valid', type = 'json'] = (request.url ?? '').split('/')
-      const contentType = type === 'json' ? 'application/json; charset=utf-8' : type === 'mixed' ? 'Application/JSON; charset=UTF-8' : 'text/plain'
+      const contentType = type === 'json' ? 'application/json; charset=utf-8' : type === 'mixed' ? 'Application/JSON; charset=UTF-8' : type === 'jsonl' ? 'application/jsonl' : 'text/plain'
       response.writeHead(200, { 'Content-Type': contentType })
       response.end(BODIES[body])
     })
@@ -102,5 +105,24 @@ describe('JSON response bodies', () => {
         constructor: PayloadTooLargeError, statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK',
       })
     }
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: JSON nests at most
+  // 600 deep; the media type must be exactly application/json.
+  it('accepts JSON nested 600 deep and refuses 601', async () => {
+    const transport = (body: string) => new HttpTransport(`${base}/${body}/json`, 'k', 5_000)
+    await expect(transport('deep600').get('/x')).resolves.toBeDefined()
+    await expect(transport('deep601').get('/x')).rejects.toMatchObject({
+      constructor: BadRequestError, message: 'expected JSON response: the JSON is nested too deeply', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+    })
+  })
+
+  it('does not read application/jsonl as JSON', async () => {
+    await expect(fs('bad', 'jsonl').remove('/a')).resolves.toBeUndefined()
+    await expect(new HttpTransport(`${base}/bad/jsonl`, 'k', 5_000).get('/x')).resolves.toBe('{bad')
+  })
+
+  it('decodes a text body as before, a leading byte-order mark dropped', async () => {
+    await expect(new HttpTransport(`${base}/bomtext/text`, 'k', 5_000).get('/x')).resolves.toBe('hello')
   })
 })

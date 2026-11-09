@@ -195,7 +195,7 @@ export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessSt
   return deepFrozen(mapped)
 }
 
-export function mapComputerUseProcessStatusMap(statusMap: unknown): Record<string, ComputerUseProcessStatus> {
+export function mapComputerUseProcessStatusMap(statusMap: unknown): Readonly<Record<string, ComputerUseProcessStatus>> {
   const map = record(statusMap, 'computer-use process status map')
   return deepFrozen(Object.fromEntries(
     Object.entries(map).map(([name, status]) => [name, mapComputerUseProcessStatus(status as toolbox.ComputerUseProcessStatus)]),

@@ -111,10 +111,17 @@ class AsyncGitService:
         )
         raw = payload.get("remotes")
         if not isinstance(raw, list):
-            raise create_error(
-                "expected git remotes response: remotes is required", 400, "BAD_REQUEST", "SDK"
-            )
-        return ListResult([_git_remote(expect_object(remote)) for remote in raw], None)
+            problem = "is required" if raw is None else "must be a list"
+            raise create_error(f"expected git remotes response: remotes {problem}", 400, "BAD_REQUEST", "SDK")
+        for index, remote in enumerate(raw):
+            if not isinstance(remote, dict):
+                raise create_error(
+                    f"expected git remotes response: remotes[{index}] must be an object",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
+        return ListResult([_git_remote(remote) for remote in raw], None)
 
     async def history(self, path: str) -> ListResult[GitCommit]:
         """List commits, newest first."""

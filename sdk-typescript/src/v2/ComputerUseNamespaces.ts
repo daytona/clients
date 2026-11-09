@@ -64,8 +64,8 @@ import type {
   ComputerUseScrollResponse,
   ComputerUseStatusResponse,
 } from './ComputerUseTypes.js'
-import { strictUriEncode } from './http.js'
 import { maxResponseBytesOption } from './bodyLimit.js'
+import { toolboxPathId } from './toolboxPath.js'
 
 /** Options of `recording.download()`; see its documentation. */
 export interface RecordingDownloadOptions {
@@ -113,28 +113,28 @@ export class AddonProcessesService {
     this.transport = transport
   }
 
-  public async status(): Promise<Record<string, ComputerUseProcessStatus>>
+  public async status(): Promise<Readonly<Record<string, ComputerUseProcessStatus>>>
   public async status(name: string): Promise<ComputerUseProcessRunningStatus>
-  public async status(name?: string): Promise<Record<string, ComputerUseProcessStatus> | ComputerUseProcessRunningStatus> {
+  public async status(name?: string): Promise<Readonly<Record<string, ComputerUseProcessStatus>> | ComputerUseProcessRunningStatus> {
     return name === undefined
       ? mapComputerUseProcessStatusMap(
           await this.transport.get<toolbox.ComputerUseProcessStatusMap>('/computeruse/process-status'),
         )
       : mapComputerUseProcessRunningStatus(
-          await this.transport.get<toolbox.ComputerUseProcessRunningStatus>(`/computeruse/process/${strictUriEncode(name)}/status`),
+          await this.transport.get<toolbox.ComputerUseProcessRunningStatus>(`/computeruse/process/${toolboxPathId(name, 'process name')}/status`),
         )
   }
 
   public async restart(name: string): Promise<ComputerUseProcessRestartResponse> {
-    return mapComputerUseProcessRestartResponse(await this.transport.post<toolbox.ComputerUseProcessRestartResponse>(`/computeruse/process/${strictUriEncode(name)}/restart`))
+    return mapComputerUseProcessRestartResponse(await this.transport.post<toolbox.ComputerUseProcessRestartResponse>(`/computeruse/process/${toolboxPathId(name, 'process name')}/restart`))
   }
 
   public async logs(name: string): Promise<ComputerUseProcessLogsResponse> {
-    return mapComputerUseProcessLogsResponse(await this.transport.get<toolbox.ComputerUseProcessLogsResponse>(`/computeruse/process/${strictUriEncode(name)}/logs`))
+    return mapComputerUseProcessLogsResponse(await this.transport.get<toolbox.ComputerUseProcessLogsResponse>(`/computeruse/process/${toolboxPathId(name, 'process name')}/logs`))
   }
 
   public async errors(name: string): Promise<ComputerUseProcessErrorsResponse> {
-    return mapComputerUseProcessErrorsResponse(await this.transport.get<toolbox.ComputerUseProcessErrorsResponse>(`/computeruse/process/${strictUriEncode(name)}/errors`))
+    return mapComputerUseProcessErrorsResponse(await this.transport.get<toolbox.ComputerUseProcessErrorsResponse>(`/computeruse/process/${toolboxPathId(name, 'process name')}/errors`))
   }
 }
 
@@ -344,7 +344,7 @@ export class RecordingService {
   }
 
   public async get(id: string): Promise<ComputerUseRecording> {
-    return mapComputerUseRecording(await this.transport.get<toolbox.ComputerUseRecording>(`/computeruse/recordings/${strictUriEncode(id)}`))
+    return mapComputerUseRecording(await this.transport.get<toolbox.ComputerUseRecording>(`/computeruse/recordings/${toolboxPathId(id, 'recording id')}`))
   }
 
   /**
@@ -361,12 +361,12 @@ export class RecordingService {
   public async download(id: string, options?: RecordingDownloadOptions): Promise<Uint8Array> {
     assertKnownOptions('RecordingDownloadOptions', options, RECORDING_DOWNLOAD_OPTION_KEYS)
     const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes)
-    const path = `/computeruse/recordings/${strictUriEncode(id)}/download`
+    const path = `/computeruse/recordings/${toolboxPathId(id, 'recording id')}/download`
     return new Uint8Array(await this.transport.getBytes(path, maxResponseBytes === undefined ? undefined : { maxResponseBytes }))
   }
 
   public async delete(id: string): Promise<void> {
-    await this.transport.delete<void>(`/computeruse/recordings/${strictUriEncode(id)}`)
+    await this.transport.delete<void>(`/computeruse/recordings/${toolboxPathId(id, 'recording id')}`)
   }
 }
 

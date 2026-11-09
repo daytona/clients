@@ -9,6 +9,7 @@ import { ConnectionError, createAxiosDaytonaError, createDaytonaError, Authentic
 import { DISABLED } from './types.js'
 import { boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 export { forceFetchAdapterForTests, maxContentLengthFor, transferRequest } from './boundedAdapter.js'
 import { BodyTooLarge, DEFAULT_MAX_RESPONSE_BYTES, declaresMoreThan, IdleWatchdog, isSmallRequestBody, readCappedBody, tooLargeMessage } from './bodyLimit.js'
 import { boundedAdapter } from './boundedAdapter.js'
@@ -175,6 +176,8 @@ type DaytonaAxiosRequestConfig = InternalAxiosRequestConfig & {
   daytonaDecodesBody?: boolean
   /** Set on a 2xx response that declares JSON and does not decode. */
   daytonaUndecodableBody?: boolean
+  /** Set on a 2xx JSON response nested deeper than `JSON_MAX_DEPTH`. */
+  daytonaTooDeepBody?: boolean
 }
 
 const AXIOS_TRANSPORT_CONFIG = Symbol('daytonaAxiosTransportConfig')
@@ -886,6 +889,7 @@ function tokenExchange(body: string): { readonly accessToken: string; readonly e
   } catch {
     payload = undefined
   }
+  if (nestedDeeperThan(payload)) return badRequest('expected token exchange response: the JSON is nested too deeply')
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return badRequest('token exchange response is not a JSON object')
   const { access_token: accessToken, expires_in: expiresIn } = payload as TokenExchangeResponse
   if (typeof accessToken !== 'string' || accessToken === '') return badRequest('token exchange response access_token must be a non-empty string')
@@ -1191,6 +1195,9 @@ export function resetFetchCacheModeProbeForTests(): void {
 
 const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 const LENIENT_UTF8 = new TextDecoder('utf-8', { ignoreBOM: true })
+// A body that is not JSON decodes as axios decoded it: UTF-8, a leading
+// byte-order mark dropped.
+const TEXT_UTF8 = new TextDecoder('utf-8')
 
 function responseBytes(data: unknown): Uint8Array | undefined {
   if (data instanceof ArrayBuffer) return new Uint8Array(data)
@@ -1198,9 +1205,18 @@ function responseBytes(data: unknown): Uint8Array | undefined {
   return undefined
 }
 
+/**
+ * Whether a response's media type is exactly `application/json` (type and
+ * subtype compared case-insensitively, parameters ignored), as the Python
+ * SDK's `is_json_media_type`: `application/jsonl` is not JSON.
+ */
+export function isJsonMediaType(contentType: unknown): boolean {
+  if (typeof contentType !== 'string') return false
+  return (contentType.split(';')[0] ?? '').trim().toLowerCase() === 'application/json'
+}
+
 function declaresJson(headers: AxiosResponseHeaders | undefined): boolean {
-  const value = headers?.['content-type']
-  return typeof value === 'string' && value.toLowerCase().includes('application/json')
+  return isJsonMediaType(headers?.['content-type'])
 }
 
 /**
@@ -1228,15 +1244,18 @@ function decodeResponseBody(this: DaytonaAxiosRequestConfig, data: unknown, head
       return LENIENT_UTF8.decode(bytes)
     }
   } else {
-    text = LENIENT_UTF8.decode(bytes)
+    text = TEXT_UTF8.decode(bytes)
   }
   if (text === '') return text
+  let value: unknown
   try {
-    return JSON.parse(text) as unknown
+    value = JSON.parse(text)
   } catch {
     if (json && ok) this.daytonaUndecodableBody = true
     return text
   }
+  if (json && ok && nestedDeeperThan(value)) this.daytonaTooDeepBody = true
+  return value
 }
 
 function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions): AxiosInstance {
@@ -1296,6 +1315,11 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
           new AxiosError('Request failed with status code 401', AxiosError.ERR_BAD_REQUEST, response.config, response.request, response),
           options,
         ) as Promise<AxiosResponse>
+      }
+      if ((response.config as DaytonaAxiosRequestConfig).daytonaTooDeepBody === true) {
+        const error = badRequest('expected JSON response: the JSON is nested too deeply')
+        finishAxiosFailure(response, error, options)
+        throw error
       }
       if ((response.config as DaytonaAxiosRequestConfig).daytonaUndecodableBody === true) {
         // A 2xx body that declares JSON and does not decode is malformed,

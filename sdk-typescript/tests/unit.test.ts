@@ -7497,6 +7497,7 @@ describe('toolbox service request shaping', () => {
   // The Python SDK's test_core.py asserts the same messages for the same bodies.
   it.each([
     ['not json', 'token exchange response is not a JSON object'],
+    [`{"a":${'['.repeat(601)}${']'.repeat(601)}}`, 'expected token exchange response: the JSON is nested too deeply'],
     ['[]', 'token exchange response is not a JSON object'],
     ['', 'token exchange response is not a JSON object'],
     ['{"expires_in": 300}', 'token exchange response access_token must be a non-empty string'],
@@ -12285,6 +12286,76 @@ describe('toolbox surface', () => {
     return stream
   }
 
+  // Shared with the Python SDK's test_toolbox_surface.py.
+  it.each([
+    [{ remotes: [{ name: 'o', url: 'u' }, 'x'] }, 'expected git remotes response: remotes[1] must be an object'],
+    [{ remotes: {} }, 'expected git remotes response: remotes must be a list'],
+    [{}, 'expected git remotes response: remotes is required'],
+  ])('names the malformed part of a git remotes response %p', async (payload, message) => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce(payload)
+    await expect(new GitService(INTERNAL, transport.object).listRemotes('/r')).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  it.each([[2 ** 53 - 1, true], [2 ** 53, false]] as const)('reads a process timeoutMs of %p only when a double carries it exactly', async (timeoutMs, accepted) => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce(createdWire({ id: 'p', kind: 'exec', timeoutMs }))
+    const call = new ProcessService(INTERNAL, transport.object, 'sbx').get('p')
+    if (accepted) await expect(call).resolves.toMatchObject({ executionTimeoutSeconds: timeoutMs / 1000 })
+    else await expect(call).rejects.toMatchObject({ message: 'expected process response: timeoutMs must be a non-negative safe integer', code: 'BAD_REQUEST' })
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: terminal cols / rows
+  // are int32 values of at least 1, on pty.start() and resize().
+  it.each([0, -1, 1.5, true, 2 ** 31, '80'].flatMap((bad) => (['cols', 'rows'] as const).map((field) => [field, bad] as const)))(
+    'refuses terminal %s %p before any request',
+    async (field, bad) => {
+      const transport = transportStub()
+      const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+      const sizes = { cols: 80, rows: 24, [field]: bad } as unknown as { cols: number; rows: number }
+      const message = `${field} must be an integer between 1 and 2147483647`
+      await expect(new PtyService(INTERNAL, process, transport.object).start(undefined, { terminal: sizes })).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
+      const handle = process.connect({ sandboxId: 'sbx', processId: 'p', kind: 'pty' })
+      await expect(handle.resize(sizes.cols, sizes.rows)).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
+      expect(transport.post).not.toHaveBeenCalled()
+    },
+  )
+
+  // Shared with the Python SDK's test_toolbox_surface.py: `.` and `..` are no path ids.
+  it.each(['.', '..'].flatMap((dots) => ([
+    ['process.connect', 'process id'], ['process.connect(json)', 'process id'], ['process.get', 'process id'],
+    ['pty.delete', 'process id'], ['process.connectSession', 'session id'], ['interpreter.deleteContext', 'interpreter context id'],
+    ['interpreter.connectContext', 'interpreter context id'], ['service.status', 'process name'], ['service.restart', 'process name'],
+    ['service.logs', 'process name'], ['service.errors', 'process name'], ['recording.get', 'recording id'],
+    ['recording.download', 'recording id'], ['recording.delete', 'recording id'],
+  ] as const).map(([call, name]) => [call, name, dots] as const)))('refuses %s with a dot segment (%s %p) before any request', async (call, name, dots) => {
+    const transport = transportStub()
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    const cu = new ComputerUseService(INTERNAL, transport.computerUseObject)
+    const calls: Record<typeof call, () => unknown> = {
+      'process.connect': () => process.connect(dots),
+      'process.connect(json)': () => process.connect({ sandboxId: 'sbx', processId: dots }),
+      'process.get': () => process.get(dots),
+      'pty.delete': () => new PtyService(INTERNAL, process, transport.object).delete(dots),
+      'process.connectSession': () => process.connectSession(dots),
+      'interpreter.deleteContext': () => interpreter.deleteContext(dots),
+      'interpreter.connectContext': () => interpreter.connectContext(dots, 'python'),
+      'service.status': () => cu.service.status(dots),
+      'service.restart': () => cu.service.restart(dots),
+      'service.logs': () => cu.service.logs(dots),
+      'service.errors': () => cu.service.errors(dots),
+      'recording.get': () => cu.recording.get(dots),
+      'recording.download': () => cu.recording.download(dots),
+      'recording.delete': () => cu.recording.delete(dots),
+    }
+    const outcome = await Promise.resolve().then(() => calls[call]()).then(() => undefined, (error: unknown) => error)
+    expect(outcome).toMatchObject({ message: `${name} must not be '.' or '..'`, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    expect(transport.get).not.toHaveBeenCalled()
+    expect(transport.post).not.toHaveBeenCalled()
+    expect(transport.delete).not.toHaveBeenCalled()
+  })
+
   it('builds toolbox services only through the SDK', () => {
     const transport = transportStub()
     const construct = (factory: () => unknown) => expect(factory).toThrow(TypeError)
@@ -12749,6 +12820,30 @@ describe('toolbox surface', () => {
   // Shared with the Python SDK's test_toolbox_surface.py: the event-stream
   // format drops one U+FEFF at the very start of the stream; a BOM anywhere
   // else is data.
+  // Shared with the Python SDK: JSON in a stream event or an interpreter
+  // output nests at most 600 deep (JSON_MAX_DEPTH).
+  it('refuses a log stream event nested deeper than 600 levels', async () => {
+    const transport = transportStub()
+    const deep = `${'['.repeat(601)}${']'.repeat(601)}`
+    transport.fetch.mockResolvedValue(sseResponse([`event: log\ndata: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1,"extra":${deep}}\n\n`]))
+    const drain = async () => {
+      for await (const _event of new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').streamLogs()) { /* drain */ }
+    }
+    await expect(drain()).rejects.toMatchObject({ message: 'expected process log log event: the JSON is nested too deeply', code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  it('refuses an interpreter output nested deeper than 600 levels', async () => {
+    const transport = transportStub()
+    const deep = `${'['.repeat(601)}${']'.repeat(601)}`
+    transport.post.mockResolvedValueOnce(createdWire({ id: 'p' }))
+    transport.get
+      .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
+      .mockResolvedValueOnce({ frames: [{ cursor: 'c1', channel: 'execute_result', data: `{"text/plain":${deep}}`, timestamp: 1 }], nextCursor: 'c1', truncatedHead: false, eof: true })
+    await expect(new InterpreterService(INTERNAL, transport.object, 'sbx').run('x')).rejects.toMatchObject({
+      message: 'expected interpreter output: the JSON is nested too deeply', code: 'BAD_REQUEST', source: 'SDK',
+    })
+  })
+
   it('drops one byte-order mark at the start of a log stream and keeps one inside data', async () => {
     const transport = transportStub()
     transport.fetch.mockResolvedValue(sseResponse([

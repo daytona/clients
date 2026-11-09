@@ -100,7 +100,7 @@ function symbolFromWire(value: unknown): LspSymbol {
   }
 }
 
-function symbolsFromWire(value: unknown): LspSymbol[] {
+function symbolsFromWire(value: unknown): readonly LspSymbol[] {
   if (!Array.isArray(value)) throw malformedResponse('LSP symbol list')
   return deepFrozen(value.map(symbolFromWire))
 }
@@ -211,12 +211,12 @@ export class LspServer {
     return completionListFromWire(await this.transport.post<toolbox.CompletionList>('/lsp/completions', body))
   }
 
-  public async documentSymbols(uri: string): Promise<LspSymbol[]> {
+  public async documentSymbols(uri: string): Promise<readonly LspSymbol[]> {
     const query = encodeQuery({ languageId: this.languageId, pathToProject: this.pathToProject, uri })
     return symbolsFromWire(await this.transport.get<toolbox.SymbolInfo[]>(`/lsp/document-symbols${query}`))
   }
 
-  public async workspaceSymbols(query: string): Promise<LspSymbol[]> {
+  public async workspaceSymbols(query: string): Promise<readonly LspSymbol[]> {
     const search = encodeQuery({ query, languageId: this.languageId, pathToProject: this.pathToProject })
     return symbolsFromWire(await this.transport.get<toolbox.SymbolInfo[]>(`/lsp/workspacesymbols${search}`))
   }

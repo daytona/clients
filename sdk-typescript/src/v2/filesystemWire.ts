@@ -7,6 +7,7 @@ import { createDaytonaError, DaytonaError } from './errors/DaytonaError.js'
 import type { BulkReadError, BulkReadResult } from './types.js'
 import { malformedResponse, optional, record, str } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 
 const DAYTONA_FILE_BOUNDARY = 'DAYTONA-FILE-BOUNDARY'
 const MULTIPART_BOUNDARY_RE = /\bboundary\s*=\s*(?:"([^"]+)"|([^;]+))/i
@@ -26,7 +27,9 @@ export function parseBulkReadResult(body: Uint8Array, contentType?: string): Bul
         if (path === undefined) {
           throw createDaytonaError('multipart file part missing filename', 400, 'BAD_REQUEST', 'SDK')
         }
-        files[path] = part.body
+        // An own data property even for a file named `__proto__` (plain
+        // assignment would set the object's prototype instead).
+        Object.defineProperty(files, path, { value: part.body, enumerable: true, writable: true, configurable: true })
         break
       }
       case 'error': {
@@ -127,6 +130,7 @@ function bulkReadErrorFromPart(body: Uint8Array): BulkReadError {
   } catch {
     throw malformedResponse(`${ERROR_PART}: the data is not JSON`)
   }
+  if (nestedDeeperThan(parsed)) throw malformedResponse(`${ERROR_PART}: the JSON is nested too deeply`)
   const payload = record(parsed, ERROR_PART)
   const path = str(payload, 'path', ERROR_PART)
   const message = str(payload, 'message', ERROR_PART)

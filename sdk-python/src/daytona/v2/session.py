@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Mapping, Optional
 
 from typing_extensions import Self
 
+from ._core import refuse_dot_segment
 from ._transport import AsyncTransport
 from .errors import DaytonaError, ProcessNotFoundError, SessionNotFoundError, create_error
 from .types import KeepLogs, ProcessInfo, ProcessResult, RunKeepLogs, SessionJSON, StdinMode
@@ -20,6 +21,8 @@ if TYPE_CHECKING:
 def _require_id(value: object, field: str) -> str:
     if not isinstance(value, str) or not value:
         raise create_error(f"session identity needs a non-empty string {field}", 400, "BAD_REQUEST", "SDK")
+    if field == "sessionId":
+        refuse_dot_segment(value, "session id")
     return value
 
 

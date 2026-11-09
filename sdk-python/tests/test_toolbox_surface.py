@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import inspect
 import json
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -542,8 +543,13 @@ async def test_a_wait_budget_above_the_timer_maximum_is_no_limit() -> None:
 
 @pytest.mark.anyio
 async def test_list_remotes_rejects_a_response_without_remotes() -> None:
-    for payload in ({}, {"remotes": None}, {"remotes": "origin"}):
-        with pytest.raises(BadRequestError, match="remotes is required"):
+    # A present non-list "must be a list", as in the TypeScript SDK.
+    for payload, problem in (
+        ({}, "is required"),
+        ({"remotes": None}, "is required"),
+        ({"remotes": "origin"}, "must be a list"),
+    ):
+        with pytest.raises(BadRequestError, match=f"remotes {problem}"):
             await AsyncGitService(Transport([payload])).list_remotes("/repo")  # type: ignore[arg-type]
 
 
@@ -2359,3 +2365,195 @@ async def test_read_many_takes_a_per_call_cap_and_returns_a_frozen_result_under_
     assert result.files == {"/a": b"hi"}
     with pytest.raises(dataclasses.FrozenInstanceError):
         result.files = {}  # type: ignore[misc]
+
+
+# Shared with the TypeScript SDK's json-bodies.test.ts: arrays and objects may
+# nest 600 deep in a JSON response; one level more is the malformed-response
+# error, whatever the Python version or the thread's stack size.
+@pytest.mark.parametrize(("depth", "accepted"), [(600, True), (601, False)])
+def test_a_json_response_nests_at_most_600_deep(depth: int, accepted: bool) -> None:
+    from daytona.v2._core import JSON_MAX_DEPTH, parse_json_bytes
+
+    assert JSON_MAX_DEPTH == 600
+    body = ("[" * depth + "]" * depth).encode()
+    if accepted:
+        parse_json_bytes(body)
+    else:
+        with pytest.raises(BadRequestError, match="expected JSON response: the JSON is nested too deeply"):
+            parse_json_bytes(body)
+
+
+def test_a_256_level_accessibility_tree_decodes_from_json() -> None:
+    from daytona.v2._core import parse_json_bytes
+    from daytona.v2.computer_use_core import parse_computer_use_a11y_tree_payload
+
+    node = '"id":"n","role":"r","name":"n","bounds":{"x":0,"y":0,"width":1,"height":1},"states":[]'
+    body = (
+        '{"truncated":true,"root":'
+        + ("{" + node + ',"children":[') * 256
+        + "{"
+        + node
+        + "}"
+        + "]}" * 256
+        + "}"
+    ).encode()
+    tree = parse_computer_use_a11y_tree_payload(parse_json_bytes(body), max_depth=256)
+    assert tree.truncated is True
+
+
+# Shared with the TypeScript SDK's unit.test.ts: `.` and `..` are no path ids.
+@pytest.mark.anyio
+@pytest.mark.parametrize("dots", [".", ".."])
+@pytest.mark.parametrize(
+    ("call", "name"),
+    [
+        ("process.connect", "process id"),
+        ("process.connect(json)", "process id"),
+        ("process.get", "process id"),
+        ("pty.delete", "process id"),
+        ("process.connect_session", "session id"),
+        ("interpreter.delete_context", "interpreter context id"),
+        ("interpreter.connect_context", "interpreter context id"),
+        ("service.status", "process name"),
+        ("service.restart", "process name"),
+        ("service.logs", "process name"),
+        ("service.errors", "process name"),
+        ("recording.get", "recording id"),
+        ("recording.download", "recording id"),
+        ("recording.delete", "recording id"),
+    ],
+)
+async def test_dot_segments_are_refused_as_path_ids_before_any_request(
+    call: str, name: str, dots: str
+) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    class RawTransport(Transport):
+        async def raw(self, spec: RequestSpec) -> bytes:
+            self.specs.append(spec)
+            return b""
+
+    transport = RawTransport()
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    interpreter = AsyncInterpreterService("sbx", transport, process)  # type: ignore[arg-type]
+    cu = AsyncComputerUseService(transport)  # type: ignore[arg-type]
+    calls = {
+        "process.connect": lambda: process.connect(dots),
+        "process.connect(json)": lambda: process.connect({"sandboxId": "sbx", "processId": dots}),
+        "process.get": lambda: process.get(dots),
+        "pty.delete": lambda: AsyncPtyService(process).delete(dots),
+        "process.connect_session": lambda: process.connect_session(dots),
+        "interpreter.delete_context": lambda: interpreter.delete_context(dots),
+        "interpreter.connect_context": lambda: interpreter.connect_context(dots, language="python"),
+        "service.status": lambda: cu.service.status(dots),
+        "service.restart": lambda: cu.service.restart(dots),
+        "service.logs": lambda: cu.service.logs(dots),
+        "service.errors": lambda: cu.service.errors(dots),
+        "recording.get": lambda: cu.recording.get(dots),
+        "recording.download": lambda: cu.recording.download(dots),
+        "recording.delete": lambda: cu.recording.delete(dots),
+    }
+    with pytest.raises(BadRequestError, match=f"{name} must not be '.' or '..'") as info:
+        result = calls[call]()
+        if inspect.isawaitable(result):
+            await result
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert transport.specs == []
+
+
+# Shared with the TypeScript SDK's unit.test.ts: terminal cols / rows are
+# int32 values of at least 1, on pty.start() and resize().
+@pytest.mark.anyio
+@pytest.mark.parametrize("bad", [0, -1, 1.5, True, 2**31, "80"])
+@pytest.mark.parametrize("field", ["cols", "rows"])
+async def test_terminal_dimensions_are_positive_int32(bad: object, field: str) -> None:
+    from daytona.v2.types import TerminalSize
+
+    sizes = {"cols": 80, "rows": 24, field: bad}
+    transport = Transport()
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    message = rf"{field} must be an integer between 1 and 2147483647"
+    with pytest.raises(BadRequestError, match=message):
+        await AsyncPtyService(process).start(terminal=TerminalSize(**sizes))  # type: ignore[arg-type]
+    handle = process.connect({"sandboxId": "sbx", "processId": "p", "kind": "pty"})
+    with pytest.raises(BadRequestError, match=message):
+        await handle.resize(sizes["cols"], sizes["rows"])  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.anyio
+async def test_terminal_dimensions_up_to_int32_are_sent() -> None:
+    from daytona.v2.types import TerminalSize
+
+    transport = Transport([_process(kind="pty")])
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    await AsyncPtyService(process).start(terminal=TerminalSize(cols=1, rows=2**31 - 1))
+    body = transport.specs[0].json_body
+    assert isinstance(body, dict) and body["terminal"] == {"cols": 1, "rows": 2**31 - 1}
+
+
+@pytest.mark.parametrize(
+    ("content_type", "json"),
+    [
+        ("application/json", True),
+        ("Application/JSON; charset=UTF-8", True),
+        (" application/json ;q=1", True),
+        ("application/jsonl", False),
+        ("application/problem+json", False),
+        ("text/plain", False),
+        (None, False),
+    ],
+)
+def test_only_the_application_json_media_type_is_json(content_type: Optional[str], json: bool) -> None:
+    from daytona.v2._core import is_json_media_type
+
+    assert is_json_media_type(content_type) is json
+
+
+@pytest.mark.anyio
+async def test_an_application_jsonl_body_is_not_decoded_as_json() -> None:
+    fs = AsyncFileSystemService(_file_transport(b"{bad", "application/jsonl"))  # type: ignore[arg-type]
+    await fs.remove("/a")
+
+
+def test_a_bulk_read_file_named_proto_is_an_ordinary_key() -> None:
+    """The TypeScript SDK keeps it as an own property; in Python it is a key."""
+    from daytona.v2._core import parse_bulk_read_result
+
+    body = b'--B\r\nContent-Disposition: form-data; name="file"; filename="__proto__"\r\n\r\nhi\r\n--B--\r\n'
+    assert parse_bulk_read_result(body, content_type="multipart/form-data; boundary=B").files == {
+        "__proto__": b"hi"
+    }
+
+
+# Shared with the TypeScript SDK's unit.test.ts: a process record's timeoutMs
+# must be an integer a double carries exactly.
+@pytest.mark.anyio
+@pytest.mark.parametrize(("timeout_ms", "accepted"), [(2**53 - 1, True), (2**53, False)])
+async def test_a_process_timeout_ms_must_be_a_safe_integer(timeout_ms: int, accepted: bool) -> None:
+    transport = Transport([_process(timeoutMs=timeout_ms)])
+    call = AsyncProcessService("sbx", transport).get("p")  # type: ignore[arg-type]
+    if accepted:
+        assert (await call).execution_timeout == timeout_ms / 1000
+    else:
+        with pytest.raises(BadRequestError, match="timeoutMs must be a non-negative safe integer"):
+            await call
+
+
+# Shared with the TypeScript SDK's unit.test.ts.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        (
+            {"remotes": [{"name": "o", "url": "u"}, "x"]},
+            "expected git remotes response: remotes[1] must be an object",
+        ),
+        ({"remotes": {}}, "expected git remotes response: remotes must be a list"),
+        ({}, "expected git remotes response: remotes is required"),
+    ],
+)
+async def test_list_remotes_names_the_malformed_part(payload: JsonValue, message: str) -> None:
+    with pytest.raises(BadRequestError) as info:
+        await AsyncGitService(Transport([payload])).list_remotes("/r")  # type: ignore[arg-type]
+    assert str(info.value) == message

@@ -118,6 +118,33 @@ async def test_a_stop_racing_the_readers_close_ends_the_watch_without_an_error(b
 
 
 @pytest.mark.anyio
+async def test_a_close_racing_an_owned_streams_release_waits_for_it(base: str) -> None:
+    """An exclusive stream marks itself closed before its release; a second
+    close() must still wait for that release, not return while it runs."""
+    transport = AsyncTransport(f"{base}/eof")
+    try:
+        stream = await transport.open_exclusive_stream(RequestSpec("GET", "/"))
+        owned = stream._owned_client
+        assert owned is not None
+        original = owned.aclose
+        released: list[str] = []
+
+        async def slow_aclose() -> None:
+            await asyncio.sleep(0.1)
+            await original()
+            released.append("released")
+
+        owned.aclose = slow_aclose  # type: ignore[method-assign]
+        first = asyncio.ensure_future(stream.close())
+        await asyncio.sleep(0.01)  # the first close() is inside its release
+        await stream.close()
+        assert released == ["released"]
+        await first
+    finally:
+        await transport.close()
+
+
+@pytest.mark.anyio
 async def test_concurrent_closes_of_one_response_stream_share_one_release(base: str) -> None:
     transport = AsyncTransport(f"{base}/eof")
     try:
@@ -468,3 +495,48 @@ async def test_overflow_events_before_start_count_toward_the_cap_without_an_over
     finally:
         await transport.close()
     assert exits == [None]
+
+
+def test_a_task_a_sync_callback_started_can_stop_its_watch_after_the_callback_returned(base: str) -> None:
+    """The task carries the delivery's token: it is still the watch's own, so
+    its stop() / wait_for_exit() work on the loop thread instead of raising."""
+    from daytona.v2._bridge import SyncBridge
+    from daytona.v2._sync.filesystem import FileSystemService
+
+    bridge = SyncBridge()
+    try:
+        transport = bridge.call(lambda: _transport(f"{base}/burst"))
+        box: dict[str, object] = {}
+        outcomes: list[object] = []
+        done = threading.Event()
+        exits: list[Optional[Exception]] = []
+        started = threading.Event()
+
+        async def later() -> None:
+            await asyncio.sleep(0.05)  # the callback has returned by now
+            handle = box["h"]
+            try:
+                outcomes.append(handle.wait_for_exit())  # type: ignore[attr-defined]
+                handle.stop()  # type: ignore[attr-defined]
+                outcomes.append("stopped")
+            except Exception as error:
+                outcomes.append(error)
+            done.set()
+
+        def on_event(_event: object) -> None:
+            if not started.is_set():
+                started.set()
+                asyncio.get_running_loop().create_task(later())
+
+        box["h"] = FileSystemService(AsyncFileSystemService(transport), bridge).watch_dir(
+            "/", on_event, on_exit=exits.append
+        )
+        assert done.wait(5)
+        deadline = time.monotonic() + 5
+        while not exits and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert outcomes == [None, "stopped"]
+        assert exits == [None]
+        bridge.call(transport.close)
+    finally:
+        bridge.close()

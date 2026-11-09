@@ -11,12 +11,14 @@ import { BadRequestError, ProcessNotFoundError, SessionNotFoundError } from './e
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
+import { refuseDotSegment } from './toolboxPath.js'
 
 /** A missing id must never degrade a session command into a plain, stateless exec. */
 export function requireSessionId(value: unknown, field: 'sandboxId' | 'sessionId'): string {
   if (typeof value !== 'string' || value === '') {
     throw new BadRequestError(`session identity needs a non-empty string ${field}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
+  if (field === 'sessionId') refuseDotSegment(value, 'session id')
   return value
 }
 

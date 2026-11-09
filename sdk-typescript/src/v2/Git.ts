@@ -161,7 +161,14 @@ export class GitService {
   /** List the configured remotes; URLs come back with any credentials removed. */
   public async listRemotes(path: string): Promise<ListResult<GitRemote>> {
     const data = await this.transport.get<toolbox.ListRemotesResponse>('/git/remotes', { params: { path } })
-    return deepFrozen({ items: envelopeList(data, 'remotes', 'git remotes response', gitRemoteFromWire) })
+    const d = 'git remotes response'
+    const remotes = record(data, d).remotes
+    if (Array.isArray(remotes)) {
+      remotes.forEach((remote: unknown, index) => {
+        if (typeof remote !== 'object' || remote === null || Array.isArray(remote)) throw malformedResponse(`${d}: remotes[${index}] must be an object`)
+      })
+    }
+    return deepFrozen({ items: envelopeList(data, 'remotes', d, gitRemoteFromWire) })
   }
 
   public async addRemote(path: string, name: string, url: string): Promise<void> {

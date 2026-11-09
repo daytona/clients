@@ -7,7 +7,6 @@ import asyncio
 import json
 import uuid
 from typing import Awaitable, Callable, Mapping, Optional
-from urllib.parse import quote
 
 from . import _clock
 from . import _codes as codes
@@ -17,7 +16,9 @@ from ._core import (
     expect_object,
     is_json_value,
     loads_json,
+    refuse_dot_segment,
     timeout_millis_from_seconds,
+    toolbox_path_id,
     wait_budget,
 )
 from ._transport import AsyncTransport
@@ -292,7 +293,9 @@ class AsyncInterpreterService:
                 "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
             )
         try:
-            await self._transport.send(RequestSpec("DELETE", f"/sessions/{quote(context_id, safe='')}"))
+            await self._transport.send(
+                RequestSpec("DELETE", f"/sessions/{toolbox_path_id(context_id, 'interpreter context id')}")
+            )
         except DaytonaError as error:
             if error.code == codes.SESSION_NOT_FOUND:
                 self._evict_gate_when_drained(context_id)
@@ -404,6 +407,7 @@ class AsyncInterpreterService:
             raise create_error(
                 "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
             )
+        refuse_dot_segment(context_id, "interpreter context id")
         if not isinstance(language, str) or not language:
             raise create_error(
                 "interpreter context language must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"

@@ -19,13 +19,14 @@ import type {
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
-import { strictUriEncode } from './http.js'
 import { secondsToMs } from './ProcessWire.js'
-import { envelopeList, interpreterSessionFromWire } from './toolboxModels.js'
+import { envelopeList, interpreterSessionFromWire, malformedResponse } from './toolboxModels.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
+import { refuseDotSegment, toolboxPathId } from './toolboxPath.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 
 const RUN_OPTION_KEYS = optionKeys<InterpreterRunOptions>()({
   language: true, context: true, isolated: true, cwd: true, env: true, timeoutSeconds: true,
@@ -269,7 +270,7 @@ function timedOutInterpreterResult(): InterpreterResult {
 }
 
 function parseInterpreterOutput(frame: LogFrame): InterpreterOutput | undefined {
-  const parsed = parseJsonRecord(frame.data)
+  const parsed = parseJsonRecord(frame.data, 'interpreter output')
   if (parsed === undefined) return undefined
   const data = mimeBundle(parsed)
   if (data === undefined) return undefined
@@ -285,7 +286,7 @@ function parseInterpreterOutput(frame: LogFrame): InterpreterOutput | undefined 
 }
 
 function parseInterpreterError(frame: LogFrame): InterpreterError | undefined {
-  const parsed = parseJsonRecord(frame.data)
+  const parsed = parseJsonRecord(frame.data, 'interpreter error')
   if (parsed === undefined) return undefined
   const traceback = Array.isArray(parsed.traceback) ? parsed.traceback.map((line) => String(line)) : []
   return {
@@ -295,14 +296,21 @@ function parseInterpreterError(frame: LogFrame): InterpreterError | undefined {
   }
 }
 
-function parseJsonRecord(payload: string): Record<string, unknown> | undefined {
+/**
+ * An interpreter output or error frame's JSON object, `undefined` for one
+ * that is not JSON (dropped, as in Python); one nested deeper than
+ * `JSON_MAX_DEPTH` is the malformed-response error, as in Python.
+ */
+function parseJsonRecord(payload: string, description: string): Record<string, unknown> | undefined {
+  let parsed: unknown
   try {
-    const parsed: unknown = JSON.parse(payload)
-    return isJsonRecord(parsed) ? parsed : undefined
+    parsed = JSON.parse(payload)
   } catch (error) {
     if (error instanceof SyntaxError) return undefined
     throw error
   }
+  if (nestedDeeperThan(parsed)) throw malformedResponse(`${description}: the JSON is nested too deeply`)
+  return isJsonRecord(parsed) ? parsed : undefined
 }
 
 function mimeBundle(parsed: Record<string, unknown>): Record<string, unknown> | undefined {
@@ -460,7 +468,7 @@ export class InterpreterService {
     ignoreMissing: boolean,
   ): Promise<void> {
     try {
-      await this.transport.delete<void>(`/sessions/${strictUriEncode(sessionId)}`)
+      await this.transport.delete<void>(`/sessions/${toolboxPathId(sessionId, 'interpreter context id')}`)
     } catch (error) {
       if (isSessionNotFoundError(error)) {
         this.evictQueueWhenDrained(sessionId, queue)
@@ -483,6 +491,7 @@ export class InterpreterService {
     // Every context identity round-trips through toJSON(): a non-string id or
     // language would be written in a shape neither SDK reads back.
     if (typeof contextId !== 'string' || contextId === '') throw badRequest('interpreter context id must be a non-empty string')
+    refuseDotSegment(contextId, 'interpreter context id')
     if (typeof language !== 'string' || language === '') throw badRequest('interpreter context language must be a non-empty string')
     const queue = this.queueFor(contextId)
     return new InterpreterContext(
