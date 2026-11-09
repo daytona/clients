@@ -710,7 +710,9 @@ Use `sandbox.wait({ until: 'started', timeout: 120 })` for the create-style
 wait budget in seconds, or `sandbox.waitForState(states, { terminalStates,
 timeout })` for the strict lifecycle waiter in milliseconds. `wait()` waits up
 to 60 seconds by default, `timeout: 0` waits unbounded, and timeout raises
-`RequestTimeoutError`; `waitForState()` throws when a terminal state wins first.
+`RequestTimeoutError`; `waitForState()` throws `SandboxTerminalStateError`
+when a terminal state wins first. When the server explains that state, the
+explanation is `error.reason` and ends the error message.
 
 ### Sandbox deletion is asynchronous
 
@@ -718,12 +720,22 @@ to 60 seconds by default, `timeout: 0` waits unbounded, and timeout raises
 deletion and refresh the sandbox once; they do not wait for teardown to
 finish. The handle can still report `destroying` when the call returns.
 
-`await sandbox.waitForState(['destroyed'], { timeout: 60_000 })` waits for
-the observed lifecycle state, but does not guarantee that deleting an image or
-snapshot will succeed. Deleting the image or snapshot
-immediately afterwards can still throw `ConflictError` (409). A missing
-sandbox during a state wait throws `NotFoundError`; only the delete
-method's follow-up refresh maps a 404 to `destroyed`.
+`await sandbox.waitForState(['destroyed'], { timeout: 600_000 })` waits for
+the observed lifecycle state. A sandbox with volumes attached stays
+`destroying` until the platform has finished with its volumes: usually
+seconds, but minutes when a lot of volume data is written at the end. If that
+takes too long, the sandbox reports `error` and the wait throws
+`SandboxTerminalStateError`; when the server explains why the deletion did
+not finish, that is its `reason`. Such a sandbox can still reach `destroyed` later. To keep waiting
+for it, catch the error, pause for a few seconds and call
+`waitForState(['destroyed'])` again: while the sandbox still reports `error`,
+the call throws again at once.
+
+Reaching `destroyed` does not guarantee that deleting an image or snapshot
+will succeed: deleting the image or snapshot immediately afterwards can still
+throw `ConflictError` (409). A missing sandbox during a state wait throws
+`NotFoundError`; only the delete method's follow-up refresh maps a 404 to
+`destroyed`.
 
 ## Errors
 

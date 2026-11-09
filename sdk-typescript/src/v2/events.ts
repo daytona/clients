@@ -386,6 +386,25 @@ function predicateFallbackWaitState(predicate: Predicate): string | undefined {
   return undefined
 }
 
+/** The terminal states the exact `wait_exact=deleted` long poll still answers
+ *  on: `deleted` itself and `failed`/`lost` (public `error`). */
+const EXACT_DELETED_ANSWERS: ReadonlySet<SandboxState> = new Set<SandboxState>(['destroyed', 'error'])
+
+/**
+ * The query parameter that long-polls for `wireState` in a wait that rejects
+ * on `terminalStates`. `deleted` uses the exact form: the loose
+ * `wait=deleted` is already met by `deleting`, so a deletion that takes a
+ * while to finish would answer every poll at once instead of holding it. The
+ * exact form answers on `failed` and `lost` too, but on no other state, so a
+ * wait that also rejects on another state keeps the loose form and sees it at
+ * once.
+ */
+export function waitQueryKey(wireState: string, terminalStates: Iterable<SandboxState>): 'wait' | 'wait_exact' {
+  if (wireState !== 'deleted') return 'wait'
+  for (const state of terminalStates) if (!EXACT_DELETED_ANSWERS.has(state)) return 'wait'
+  return 'wait_exact'
+}
+
 // ---------------------------------------------------------------------------
 // Waiter
 // ---------------------------------------------------------------------------
@@ -1122,7 +1141,7 @@ export class WaitHub {
 
       const params: Record<string, string | number> = {}
       if (waitWire !== undefined) {
-        params['wait'] = waitWire
+        params[waitQueryKey(waitWire, predicate.terminalStates)] = waitWire
         params['timeout_ms'] = sliceMs
       }
 
@@ -1156,7 +1175,10 @@ export class WaitHub {
 
       const result = evaluate(predicate, state)
       if (result === 'resolve') return { state, rawState: status }
-      if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, state, status)
+      if (result === 'reject') {
+        const reason = typeof record['error'] === 'string' ? record['error'] : undefined
+        throw new SandboxTerminalStateError(sandboxId, state, status, reason)
+      }
 
       const elapsed = Date.now() - pollStart
       if (elapsed < FALLBACK_MIN_INTERVAL_MS) {

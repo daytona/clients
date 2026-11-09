@@ -307,4 +307,11 @@ comment continuations so their contents remain intact.
   (without `--allow-newer-v0`), bad arguments, or no Daytona code or
   dependency found.
 
+From `2.0.0` on, within a major version the flags, these exit codes and the
+fields and values of the `--json` report ([`report.schema.json`](https://github.com/daytona/clients/blob/main/upgrade/mapping/report.schema.json))
+stay compatible. A minor release can add flags, report fields and values to
+the `language`, `mode`, `kind`, `refused.reason` and `suggestion.category`
+vocabularies, rewrite more calls, report new manual items and refuse a case it
+newly recognizes as unsafe. Ignore fields and values you don't know.
+
 Licensed under Apache-2.0.

@@ -80,10 +80,66 @@ The stability contract covers everything exported from the package entry point:
   The pin fixes v0's source and its generated API clients (exact versions); v0's
   third-party dependencies keep the ranges that release declares, so they float
   within those ranges exactly as for a standalone 0.x install.
+  Within 2.x the pin moves only to a 0.x release that stays compatible for
+  `.v0` callers: code that works against the bundled release keeps working,
+  and the new release needs no newer Python or Node.js than the 2.x SDK
+  supports (see [Supported runtimes](#supported-runtimes)). A release that
+  moves the pin is at least a MINOR.
+
+Two rules narrow what that covers:
+
+- **Constructors of exported classes are not public API.** Instances come from
+  the client and its services (`d.v2.create()`, `d.v2.get(id)`,
+  `sandbox.process.connect(...)`, `ImageBuilder.from_registry(...)` /
+  `ImageBuilder.fromRegistry(...)`); the class names are public for type annotations
+  and `isinstance` / `instanceof` checks, but their constructor parameters may
+  change in any release. The exceptions are the only classes you build
+  yourself; their constructor parameters are public signatures like any
+  other:
+  - the root client (`Daytona`, Python's `AsyncDaytona`) and Python's
+    `DaytonaConfig` (in TypeScript the config is a plain object);
+  - the error classes;
+  - in Python, the option dataclasses you build to pass to a public method,
+    such as `Resources`, `VolumeMount`, `TerminalSize` and
+    `ComputerUseRegion` (TypeScript takes plain objects for these). Some of
+    them also appear as fields of results (`TerminalSize` in a process's
+    info); that doesn't change their status.
+
+  Every other exported class is built by the SDK: by the client, a service, or
+  a factory such as `ImageBuilder.from_registry(...)`. That includes the
+  handles, builders and models a method returns, even when another method
+  accepts them back, such as an interpreter context, an `ImageBuilder` or an
+  `Image`.
+
+- **Generated wire types are never public.** The types generated from the
+  contracts under [`contract/`](../contract/) (Python `daytona.v2._gen`,
+  TypeScript `src/v2/gen/`, the CLI's `cli/gen/`) change whenever a contract
+  does. From `2.0.0` on, no public export or public signature uses one: every
+  type the SDKs expose is written in the SDK, so a contract change reaches you
+  only through the surface described here.
 
 Not covered (may change in any release): anything under an `_`-prefixed name,
 internal modules not re-exported from the entry point, the `X-Daytona-Source` /
 `X-Daytona-SDK-Version` / `User-Agent` header values, test/build tooling, and examples.
+
+### The migration tool
+
+The migration tool (`npx @daytona/upgrade`, `uvx daytona-upgrade`) is covered
+too. From `2.0.0` on (pre-releases may still break, see
+[Pre-stable](#pre-stable-alpha)), within a major version these stay compatible:
+
+- its flags, and what the exit codes `0`, `1` and `2` mean;
+- its `--json` report: every field and value in
+  [`report.schema.json`](../upgrade/mapping/report.schema.json) keeps its name,
+  type and meaning.
+
+A minor release can add flags, add fields to the report and add values to its
+`language`, `mode`, `kind`, `refused.reason` and `suggestion.category`
+vocabularies. A program that reads the report must ignore fields and values it
+doesn't know; the schema accepts them. What the tool does to a project can also
+improve in a minor release: it can rewrite more calls, report new manual items
+(which `--strict` counts), and refuse a case it newly recognizes as unsafe,
+with a new `refused.reason`.
 
 <a id="pre-stable-alpha"></a>
 
@@ -153,6 +209,57 @@ across alpha numbers of `2.0.0`, with the caveat that alphas could break.
 The skew is observable: every SDK request carries `X-Daytona-Source` and
 `X-Daytona-SDK-Version` (and `User-Agent: <source>/<version>`), so the API
 can see which SDK version each call came from.
+
+**The API operations a stable 2.x SDK calls stay valid for all of 2.x.** From
+`2.0.0` until `3.0.0`, neither the Daytona API nor the toolbox API removes or
+renames an operation (a method and its path) that any stable 2.x SDK release
+calls (pre-releases may still break, see [Pre-stable](#pre-stable-alpha)). An
+older 2.x SDK outside the window above can miss newer behavior, but it does not
+start failing because an operation it uses went away.
+
+## Supported runtimes
+
+| Package | Runtime |
+|---|---|
+| Python `daytona` | Python 3.10 or later (`requires-python = ">=3.10"`) |
+| TypeScript `@daytona/sdk` | Node.js 22.15 or later (`engines.node`) |
+| `daytona` CLI | none: a static binary for Linux, macOS and Windows on amd64 and arm64 |
+| Migration tool, PyPI `daytona-upgrade` | Python 3.9 or later |
+| Migration tool, npm `@daytona/upgrade` | Node.js 20 or later |
+
+The TypeScript SDK also runs in browsers with `WebSocket` and in other
+JavaScript runtimes such as Bun, Deno and edge workers. CI tests them against
+the packed package, but they have no versioned floor.
+
+A runtime version here means a release line: a Python `3.x` version, or a
+Node.js major version. A MINOR release may drop a release line that has reached
+its upstream end of life, or require a later release within a line that upstream
+still supports (for example Node.js 22.15 → 22.18) when a dependency needs it;
+the changelog announces either. Dropping a release line that upstream still
+supports takes a MAJOR. The floor covers the bundled `v0` namespace too: the
+[v0 pin](#public-api-surface) never moves to a 0.x release that needs a newer
+runtime than the SDK declares.
+
+## The CLI
+
+The `daytona` CLI has no import surface; its stability contract is what
+scripts depend on. From `2.0.0` on (pre-releases may still break, see
+[Pre-stable](#pre-stable-alpha)), within a major version these stay compatible:
+
+- command paths (`daytona sandbox create`, `daytona volume list`, …);
+- flags: their names, the values they accept, and what they do;
+- the fields of `--output json` (and `yaml`) output: every field keeps its
+  name, type and meaning;
+- exit codes and what each one means;
+- the environment variables the CLI reads;
+- its configuration files: a newer CLI reads what an older one of the same
+  major wrote;
+- the request bodies `--file` / `-f` accepts.
+
+A MINOR release can add commands, flags, output fields and values; a script
+that reads JSON or YAML output must ignore fields it doesn't know. Not covered (may
+change in any release): the layout of `--output table`, help text, and
+progress output.
 
 ## API replacement
 

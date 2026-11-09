@@ -2,24 +2,25 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/daytona/clients/upgrade/mapping/report.schema.json",
   "title": "daytona-upgrade JSON report",
-  "description": "The --json output of both daytona-upgrade tools (npm and PyPI). Both must validate against this schema.",
+  "description": "The --json output of both daytona-upgrade tools (npm and PyPI). From 2.0.0 on, within a major version every field and value listed here keeps its name, type and meaning. A minor release can add fields and add values to the vocabularies (each lists its values under `examples`), so this schema accepts both and a reader must ignore what it doesn't know. Both tools' tests validate their output against a strict copy: no unlisted fields, only the listed values.",
   "type": "object",
-  "additionalProperties": false,
   "required": ["tool", "version", "language", "mode", "root", "dryRun", "changedFiles", "dependencies", "items", "nextSteps"],
   "properties": {
     "tool": { "const": "daytona-upgrade" },
     "version": { "type": "string" },
-    "language": { "enum": ["py", "ts"] },
-    "mode": { "enum": ["upgrade", "suggest-v2", "remove-suggestions"] },
+    "language": { "type": "string", "examples": ["py", "ts"] },
+    "mode": { "type": "string", "examples": ["upgrade", "suggest-v2", "remove-suggestions"] },
     "root": { "type": "string" },
     "dryRun": { "type": "boolean" },
     "refused": {
       "description": "Present when the tool refused to run (exit code 2).",
       "type": "object",
-      "additionalProperties": false,
       "required": ["reason", "message"],
       "properties": {
-        "reason": { "enum": ["dirty-tree", "custom-api-url", "no-daytona", "bad-arguments", "local-sdk-module", "newer-v0"] },
+        "reason": {
+          "type": "string",
+          "examples": ["dirty-tree", "custom-api-url", "no-daytona", "bad-arguments", "local-sdk-module", "newer-v0"]
+        },
         "message": { "type": "string" }
       }
     },
@@ -28,7 +29,6 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
         "required": ["file", "from", "to"],
         "properties": {
           "file": { "type": "string" },
@@ -41,14 +41,14 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
         "required": ["file", "line", "column", "kind", "message"],
         "properties": {
           "file": { "type": "string", "description": "Path relative to root, forward slashes." },
           "line": { "type": "integer", "minimum": 0, "description": "1-based line in the ORIGINAL file; 0 when not applicable." },
           "column": { "type": "integer", "minimum": 0, "description": "1-based column; 0 when not applicable." },
           "kind": {
-            "enum": [
+            "type": "string",
+            "examples": [
               "fixme", "config-field", "deprecated-target", "custom-api-url", "env-api-url",
               "private-import", "dynamic-import", "mock-target", "peer-dependency",
               "unsupported-file", "types-unresolved", "suggestion", "workflow", "other-ecosystem", "manual-dependency"
@@ -57,14 +57,13 @@
           "message": { "type": "string" },
           "suggestion": {
             "type": "object",
-            "additionalProperties": false,
             "required": ["id", "receiver", "v0", "v2", "category", "notes", "docs"],
             "properties": {
               "id": { "type": "string" },
               "receiver": { "type": "string" },
               "v0": { "type": "string", "description": "The v0 call as written in the code, e.g. sandbox.fs.create_folder." },
               "v2": { "type": ["string", "null"] },
-              "category": { "enum": ["direct", "differs", "none"] },
+              "category": { "type": "string", "examples": ["direct", "differs", "none"] },
               "notes": { "type": "array", "items": { "type": "string" } },
               "docs": { "type": "string" }
             }
@@ -79,7 +78,6 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "additionalProperties": false,
         "required": ["file", "message"],
         "properties": {
           "file": { "type": "string", "description": "Path relative to root, forward slashes." },

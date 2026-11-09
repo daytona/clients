@@ -10,8 +10,8 @@ from functools import partial
 from pathlib import Path
 from time import perf_counter
 
-import jsonschema
 import pytest
+from report_schema import validate_report
 
 from daytona_upgrade import cli
 from daytona_upgrade.cli import main
@@ -31,9 +31,6 @@ SOURCE = "from daytona import Daytona\nd = Daytona()\nd.create()\n"
 PINNED = load_mapping().v0_version or ""
 _MAJOR, _MINOR, _PATCH = (int(part) for part in PINNED.split("."))
 NEWER_PATCH = f"{_MAJOR}.{_MINOR}.{_PATCH + 1}"
-SCHEMA = json.loads(
-    (Path(__file__).parents[2] / "mapping/report.schema.json").read_text()
-)
 
 
 def _run(
@@ -41,7 +38,7 @@ def _run(
 ) -> tuple[int, dict[str, object]]:
     code = main([str(root), "--json", "--yes", "--force", *flags])
     report = json.loads(capsys.readouterr().out)
-    jsonschema.validate(report, SCHEMA)
+    validate_report(report)
     return code, report
 
 

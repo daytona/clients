@@ -13,13 +13,55 @@ import { contents, fixture, here, invoke } from './helpers.js';
 import { suggestionMapping } from './suggestion-mapping.js';
 
 const schemaPath = join(here, '../../mapping/report.schema.json');
-function report(output: string): Report {
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+function publishedSchema(): Readonly<Record<string, unknown>> {
   const schema: unknown = JSON.parse(readFileSync(schemaPath, 'utf8'));
-  if (typeof schema !== 'object' || schema === null) throw new UpgradeError('Invalid report schema');
-  const validator = new Ajv2020({ allErrors: true }).compile<Report>(schema);
+  if (!isRecord(schema)) throw new UpgradeError('Invalid report schema');
+  return schema;
+}
+// The published schema stays open so reports from later 2.x releases validate;
+// the tool's own output is held to this strict copy: no unlisted fields and only
+// the values listed under `examples` (mirrored in Python's tests/report_schema.py).
+function tightened(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(tightened);
+  if (!isRecord(node)) return node;
+  const copy: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) copy[key] = key === 'examples' ? value : tightened(value);
+  if ('properties' in copy) copy['additionalProperties'] = false;
+  if (Array.isArray(copy['examples'])) copy['enum'] = copy['examples'];
+  return copy;
+}
+function strictSchema(): Readonly<Record<string, unknown>> {
+  const schema = tightened(publishedSchema());
+  if (!isRecord(schema)) throw new UpgradeError('Invalid report schema');
+  return schema;
+}
+function report(output: string): Report {
+  const validator = new Ajv2020({ allErrors: true }).compile<Report>(strictSchema());
   const value: unknown = JSON.parse(output);
   if (!validator(value)) throw new UpgradeError(JSON.stringify(validator.errors));
   return value;
+}
+const laterReport = {
+  tool: 'daytona-upgrade', version: '2.1.0', language: 'later-language', mode: 'later-mode', root: '/project', dryRun: false,
+  changedFiles: [], nextSteps: [], laterField: true,
+  dependencies: [{ file: 'package.json', from: '^0.230.0', to: '^2.1.0', laterDependencyField: 'x' }],
+  items: [{
+    file: 'app.ts', line: 1, column: 1, kind: 'later-kind', message: 'Review this call.', laterItemField: 'x',
+    suggestion: {
+      id: 'sandbox.process.executeCommand', receiver: 'sandbox.process', v0: 'sandbox.process.executeCommand',
+      v2: 'sandbox.process.run', category: 'later-category', notes: [], docs: 'https://www.daytona.io/docs', laterSuggestionField: 'x',
+    },
+  }],
+  refused: { reason: 'later-reason', message: 'Refused.', laterRefusedField: 'x' },
+  warnings: [{ file: 'app.ts', message: 'Review this.', laterWarningField: 'x' }],
+};
+function schemaNodes(node: unknown): Readonly<Record<string, unknown>>[] {
+  if (Array.isArray(node)) return node.flatMap(schemaNodes);
+  if (!isRecord(node)) return [];
+  return [node, ...Object.entries(node).filter(([key]) => key !== 'examples').flatMap(([, value]) => schemaNodes(value))];
 }
 it.skipIf(!existsSync(schemaPath))('validates upgrade JSON when manual items remain', async () => {
   // Given
@@ -89,6 +131,48 @@ it.skipIf(!existsSync(schemaPath))('reports the Python command when another ecos
   // Then
   expect(report(result.output).items.filter(item => item.kind === 'other-ecosystem')).toEqual([
     expect.objectContaining({ file: 'pyproject.toml', message: expect.stringContaining('uvx daytona-upgrade') }),
+  ]);
+});
+it.skipIf(!existsSync(schemaPath))('accepts fields and values a later 2.x release adds', () => {
+  // Given
+  const validator = new Ajv2020({ allErrors: true }).compile(publishedSchema());
+  // When
+  const valid = validator(laterReport);
+  // Then
+  expect(validator.errors ?? []).toEqual([]);
+  expect(valid).toBe(true);
+});
+it.skipIf(!existsSync(schemaPath))('publishes no closed object or vocabulary', () => {
+  // Given
+  const nodes = schemaNodes(publishedSchema());
+  // When
+  const closed = nodes.filter(node => node['additionalProperties'] === false || node['unevaluatedProperties'] === false);
+  const enums = nodes.filter(node => 'enum' in node);
+  const untyped = nodes.filter(node => 'examples' in node && node['type'] !== 'string');
+  // Then
+  expect(closed).toEqual([]);
+  expect(enums).toEqual([]);
+  expect(untyped).toEqual([]);
+});
+it.skipIf(!existsSync(schemaPath))('holds the tool output to the listed fields and values', () => {
+  // Given
+  const validator = new Ajv2020({ allErrors: true }).compile(strictSchema());
+  // When
+  const valid = validator(laterReport);
+  // Then
+  expect(valid).toBe(false);
+  expect((validator.errors ?? []).map(error => `${error.instancePath} ${error.keyword}`).sort()).toEqual([
+    ' additionalProperties',
+    '/dependencies/0 additionalProperties',
+    '/items/0 additionalProperties',
+    '/items/0/kind enum',
+    '/items/0/suggestion additionalProperties',
+    '/items/0/suggestion/category enum',
+    '/language enum',
+    '/mode enum',
+    '/refused additionalProperties',
+    '/refused/reason enum',
+    '/warnings/0 additionalProperties',
   ]);
 });
 it('keeps the bundled mapping byte-identical when the source mapping is available', context => {

@@ -7673,12 +7673,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description SSE stream when `follow=true`: `log` carries `LogFrameDto`, `state` carries `ProcessStateEventDto`, `warning` carries `ProcessWarningEventDto`, `error` carries `ProcessErrorEventDto`, and `eof` carries `ProcessEofEventDto`. */
+            /** @description JSON log page (`application/json`) when `follow` is absent or false; SSE stream (`text/event-stream`) when `follow=true`: `log` carries `LogFrameDto`, `state` carries `ProcessStateEventDto`, `warning` carries `ProcessWarningEventDto`, `error` carries `ProcessErrorEventDto`, and `eof` carries `ProcessEofEventDto`. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["ProcessLogsResponse"];
                     "text/event-stream": unknown;
                 };
             };
