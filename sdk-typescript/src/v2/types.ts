@@ -845,6 +845,8 @@ export type TerminalSize = toolbox.TerminalSize
 export interface ProcessDto {
   id: string
   name?: string
+  /** Immutable tag; session commands inherit their session's tag. */
+  readonly tag?: string
   pid?: number
   kind: ProcessReportedKind
   rawKind: string
@@ -899,6 +901,8 @@ export interface ProcessStartOptions {
   cmd?: string
   argv?: string[]
   name?: string
+  /** Optional safe identifier grouping this process for list() and killAll(). */
+  readonly tag?: string
   cwd?: string
   env?: Record<string, string>
   user?: string
@@ -963,6 +967,7 @@ export interface KillOptions {
 }
 
 export interface ProcessListOptions {
+  readonly tag?: string
   state?: 'running' | 'terminal' | 'all'
   kind?: ProcessKind
   sessionId?: string

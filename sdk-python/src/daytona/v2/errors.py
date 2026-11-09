@@ -315,6 +315,10 @@ class ProcessExecutionTimeoutError(RequestTimeoutError):
     """PROCESS_EXECUTION_TIMEOUT."""
 
 
+class ProcessKillIncompleteError(RequestTimeoutError):
+    """PROCESS_KILL_INCOMPLETE."""
+
+
 class NameConflictError(ConflictError):
     """NAME_CONFLICT."""
 
@@ -649,6 +653,7 @@ DAEMON_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.PROCESS_START_FAILED: ProcessStartFailedError,
     codes.PROCESS_TERMINAL: ProcessTerminalError,
     codes.PROCESS_EXECUTION_TIMEOUT: ProcessExecutionTimeoutError,
+    codes.PROCESS_KILL_INCOMPLETE: ProcessKillIncompleteError,
     codes.NAME_CONFLICT: NameConflictError,
     codes.INVALID_CURSOR: InvalidCursorError,
     codes.CURSOR_EXPIRED: CursorExpiredError,

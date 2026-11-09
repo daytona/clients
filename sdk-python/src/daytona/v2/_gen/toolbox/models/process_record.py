@@ -64,11 +64,12 @@ class ProcessRecord(BaseModel):
     state: State
     stdin: StdinMode
     system: Optional[StrictBool] = Field(default=None, description="Whether this is a protected system process.")
+    tag: Optional[StrictStr] = Field(default=None, description="The tag the process was created with, omitted when it has none. A command run in a session carries the session's tag. Never changes.")
     terminal: Optional[TerminalSize] = None
     timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Process timeout in milliseconds, omitted when unset.", alias="timeoutMs")
     user: Optional[StrictStr] = Field(default=None, description="Requested user, omitted when the API runs as its default user.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["argv", "code", "createdAt", "cwd", "exitCode", "exitedAt", "id", "keepLogs", "kind", "language", "login", "name", "pid", "reason", "resolvedShell", "sessionId", "shell", "shellCommand", "signal", "startedAt", "state", "stdin", "system", "terminal", "timeoutMs", "user"]
+    __properties: ClassVar[List[str]] = ["argv", "code", "createdAt", "cwd", "exitCode", "exitedAt", "id", "keepLogs", "kind", "language", "login", "name", "pid", "reason", "resolvedShell", "sessionId", "shell", "shellCommand", "signal", "startedAt", "state", "stdin", "system", "tag", "terminal", "timeoutMs", "user"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -191,6 +192,11 @@ class ProcessRecord(BaseModel):
         if self.started_at is None and "started_at" in self.model_fields_set:
             _dict['startedAt'] = None
 
+        # set to None if tag (nullable) is None
+        # and model_fields_set contains the field
+        if self.tag is None and "tag" in self.model_fields_set:
+            _dict['tag'] = None
+
         # set to None if terminal (nullable) is None
         # and model_fields_set contains the field
         if self.terminal is None and "terminal" in self.model_fields_set:
@@ -241,6 +247,7 @@ class ProcessRecord(BaseModel):
             "state": obj.get("state"),
             "stdin": obj.get("stdin"),
             **({"system": obj["system"]} if "system" in obj else {}),
+            **({"tag": obj["tag"]} if "tag" in obj else {}),
             **({"terminal": TerminalSize.from_dict(obj["terminal"]) if obj["terminal"] is not None else None} if "terminal" in obj else {}),
             **({"timeoutMs": obj["timeoutMs"]} if "timeoutMs" in obj else {}),
             **({"user": obj["user"]} if "user" in obj else {})

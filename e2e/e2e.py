@@ -30,7 +30,7 @@ import uuid
 
 from daytona import Daytona as RootDaytona
 from daytona import DaytonaConfig, DaytonaV2Client
-from daytona.v2 import DaytonaError, ImageBuilder
+from daytona.v2 import DaytonaError, ImageBuilder, UnsupportedOperationError
 
 IMAGE = os.environ.get("SMOKE_IMAGE", "python:3.12-slim")
 RUN = uuid.uuid4().hex[:8]
@@ -169,6 +169,66 @@ def main() -> int:
                 r.exit_code == 0 and "daytona-42" in r.output,
                 (r.output or "").strip(),
             )
+
+            # Given two blocked roots sharing a tag and one independent root.
+            tag = f"sdk-py-{RUN}"
+            other_tag = f"sdk-py-other-{RUN}"
+            first = box.process.start("read line", stdin="open", tag=tag)
+            second = box.process.start("read line", stdin="open", tag=tag)
+            unrelated = box.process.start("read line", stdin="open", tag=other_tag)
+            tagged = box.process.list(tag=tag).items
+            check(
+                "process.list filters shared tag",
+                {entry.id for entry in tagged} == {first.id, second.id}
+                and all(entry.tag == tag for entry in tagged),
+            )
+            check(
+                "process.list filters unrelated tag",
+                {entry.id for entry in box.process.list(tag=other_tag).items}
+                == {unrelated.id},
+            )
+
+            # A tagged command that leaves a detached child behind and exits.
+            box.process.run(
+                f"setsid sh -c 'echo $$ > /tmp/dtn-tag-{RUN}; exec sleep 300' >/dev/null 2>&1 & sleep 0.5",
+                tag=tag,
+            )
+            detached = box.process.run(f"cat /tmp/dtn-tag-{RUN}").output.strip()
+            check("detached child started", detached.isdigit(), repr(detached))
+
+            # When the shared tag is killed, both roots exit but the other can finish.
+            # A sandbox without process containment refuses the tag-wide kill.
+            try:
+                killed: list[str] | None = box.process.kill_all(tag=tag, timeout=10)
+            except UnsupportedOperationError:
+                killed = None
+                skip("process.kill_all tag-kill checks", "no process containment on this sandbox")
+                for root in (first, second, unrelated):
+                    root.kill()
+                # Without containment kill() does not reach the detached child either.
+                if detached:
+                    box.process.run(f"kill -9 {detached} 2>/dev/null; true")
+            if killed is not None:
+                check("process.kill_all returns root ids", {first.id, second.id} <= set(killed))
+                alive = box.process.run(f"kill -0 {detached} 2>/dev/null && echo alive || echo gone")
+                check("detached descendant killed", alive.output.strip() == "gone", detached)
+                for root in (first, second):
+                    stopped = root.wait(timeout=5)
+                    check(
+                        "tagged root killed",
+                        stopped.reason == "signaled" and stopped.signal == "KILL",
+                        root.id,
+                    )
+                unrelated.write_stdin("finish\n")  # read returns; the root exits 0
+                survivor = unrelated.wait(timeout=5)
+                check(
+                    "unrelated root completes normally",
+                    survivor.reason == "exited" and survivor.exit_code == 0,
+                )
+
+                # A fresh command with the killed tag is new work, not fenced out.
+                reused = box.process.run("echo tag-reused", tag=tag, timeout=5)
+                check("process tag reusable", reused.exit_code == 0 and "tag-reused" in reused.output)
 
         if df_image is not None:
             log("sandboxes: boot the Dockerfile-built image -> RUN layer applied")
