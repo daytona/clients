@@ -573,7 +573,7 @@ jobs:
           # Git allows ` | < in ref names; they would break out of the code
           # span or the table cell the approver reads. `?` is not allowed in
           # ref names, so a cleaned name never looks like a real branch.
-          clean() { printf '%s' "$1" | tr '`|<' '???'; }
+          clean() { printf '%s' "$1" | tr '`|<\n\r' '?????'; }
           source_ref=$(clean "$SOURCE_REF")
           workflow_ref=$(clean "$GITHUB_REF_NAME")
           version_input=$(clean "$VERSION_INPUT")
