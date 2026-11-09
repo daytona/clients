@@ -3126,6 +3126,8 @@ async def test_client_identity_headers_match_the_v0_sdk_triple_for_sync_and_asyn
         "X-Daytona-Source": "sdk-python",
         "X-Daytona-SDK-Version": SDK_VERSION,
         "User-Agent": f"sdk-python/{SDK_VERSION}",
+        # Only the encodings the capped readers decode in bounded steps.
+        "Accept-Encoding": "gzip, deflate",
     }
     sync_transport = SyncTransport("http://api.invalid")
     async_transport = AsyncTransport("http://api.invalid")
@@ -3135,6 +3137,8 @@ async def test_client_identity_headers_match_the_v0_sdk_triple_for_sync_and_asyn
         assert async_transport._client.headers["x-daytona-source"] == "sdk-python-async"
         assert async_transport._client.headers["x-daytona-sdk-version"] == SDK_VERSION
         assert async_transport._client.headers["user-agent"] == f"sdk-python-async/{SDK_VERSION}"
+        assert sync_transport._client.headers["accept-encoding"] == "gzip, deflate"
+        assert async_transport._client.headers["accept-encoding"] == "gzip, deflate"
     finally:
         sync_transport.close()
         await async_transport.close()
@@ -8869,7 +8873,9 @@ async def test_open_stream_closes_stream_context_when_error_body_read_fails():
             self.request = httpx.Request("GET", "http://api.invalid/fail")
             self.headers = httpx.Headers()
 
-        def iter_bytes(self) -> Iterator[bytes]:
+        is_stream_consumed = False
+
+        def iter_raw(self) -> Iterator[bytes]:
             raise httpx.ReadError("broken body", request=self.request)
 
         def close(self) -> None:
