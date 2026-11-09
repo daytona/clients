@@ -15,7 +15,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Daytona } from '../src/v2/Daytona'
-import { BadRequestError, ClientTimeoutError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
+import { BadRequestError, ClientTimeoutError, FileNotFoundError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport, forceFetchAdapterForTests, transferRequest } from '../src/v2/http'
 import { attachHub, detachHub, eventsHubConfig } from '../src/v2/events'
 import { BodyBuffer, MAX_PREALLOCATION } from '../src/v2/bodyBuffer'
@@ -243,15 +243,15 @@ describe.each(['http', 'fetch'] as const)('the transfer idle bound (%s adapter)'
   })
 
   it('keeps a transfer\'s moving error body going past the idle bound', async () => {
-    // A 404 whose body trickles 12 chunks 200 ms apart: 2.4 s, five times the idle bound.
-    const errorBody = JSON.stringify({ code: 'NOT_FOUND', message: 'gone' }).padEnd(48, ' ')
+    // A 404 whose body trickles 12 chunks 200 ms apart: 2.4 s, about five times the idle bound.
+    const errorBody = JSON.stringify({ code: 'FILE_NOT_FOUND', message: 'gone', source: 'DAYTONA_DAEMON' }).padEnd(72, ' ')
     route = (request, response) => {
       request.resume()
       response.writeHead(404, { 'Content-Type': 'application/json', 'Content-Length': String(errorBody.length) })
       response.flushHeaders()
       let sent = 0
       const timer = setInterval(() => {
-        response.write(errorBody.slice(sent * 4, sent * 4 + 4))
+        response.write(errorBody.slice(sent * 6, sent * 6 + 6))
         if (++sent === 12) {
           clearInterval(timer)
           response.end()
@@ -263,7 +263,8 @@ describe.each(['http', 'fetch'] as const)('the transfer idle bound (%s adapter)'
     const transport = new HttpTransport(base, 't', IDLE_SECONDS * 1000)
     try {
       for (const call of [() => sandbox.fs.readBytes('/a'), () => transport.fetch('/files/download?path=a', { transfer: true })]) {
-        await expect(call()).rejects.toMatchObject({ constructor: NotFoundError, statusCode: 404, message: 'gone' })
+        // The server's code and message, though the file read asked for bytes.
+        await expect(call()).rejects.toMatchObject({ constructor: FileNotFoundError, code: 'FILE_NOT_FOUND', statusCode: 404, message: 'gone' })
       }
     } finally {
       await client.close()
