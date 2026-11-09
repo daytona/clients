@@ -165,12 +165,13 @@ export class VolumesService {
     assertOptionsObject('CreateVolumeOptions', options)
     assertKnownOptions('CreateVolumeOptions', options, CREATE_VOLUME_KEYS)
     if (typeof options.name !== 'string' || isBlank(options.name)) throw badRequest('name must be a non-empty string')
+    // The type before the size, as Python checks them.
+    if (options.type !== undefined && !(VOLUME_TYPES as readonly unknown[]).includes(options.type)) {
+      throw badRequest(`type must be one of ${VOLUME_TYPES.join(', ')}`)
+    }
     // The contract's int32.
     if (options.sizeGib !== undefined && (!Number.isInteger(options.sizeGib) || options.sizeGib <= 0 || options.sizeGib > MAX_INT32)) {
       throw badRequest(`sizeGib must be a positive integer up to ${MAX_INT32}`)
-    }
-    if (options.type !== undefined && !(VOLUME_TYPES as readonly unknown[]).includes(options.type)) {
-      throw badRequest(`type must be one of ${VOLUME_TYPES.join(', ')}`)
     }
     const body: api.CreateVolumeRequest = { name: options.name, type: options.type, size_gib: options.sizeGib }
     const { data } = await this.api.post<api.Volume>('/volumes', body)

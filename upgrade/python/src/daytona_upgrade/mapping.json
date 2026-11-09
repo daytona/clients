@@ -4204,11 +4204,11 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Looks up a v2 volume by name or ID; create=True creates a disk volume if missing",
+          "Looks up a v2 volume by name or ID; create=True creates a volume of the server's default type if missing",
           "Migrate v0 volume data separately; on AsyncDaytona this call must be awaited"
         ],
         "ts": [
-          "Looks up a v2 volume by name or ID; create: true creates a disk volume if missing",
+          "Looks up a v2 volume by name or ID; create: true creates a volume of the server's default type if missing",
           "Migrate v0 volume data separately"
         ]
       },

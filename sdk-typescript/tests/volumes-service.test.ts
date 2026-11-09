@@ -100,7 +100,8 @@ describe('platform volumes', () => {
 
   it.each(['', 'DISK', 'unknown', 'nfs', 1, ['disk'], null])('refuses type %j before any request', async (type) => {
     // SAFETY: a plain-JS caller can pass any value.
-    const pending = service.create({ name: 'data', type: type as never })
+    // An invalid size too: the type is checked first, as in Python.
+    const pending = service.create({ name: 'data', sizeGib: 0, type: type as never })
     await expect(pending).rejects.toMatchObject({
       statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'type must be one of disk, bucket',
     })
