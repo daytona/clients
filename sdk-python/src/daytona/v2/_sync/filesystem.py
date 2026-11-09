@@ -92,17 +92,17 @@ class FileSystemService:
             lambda: self._impl.presigned_upload_url(path, expires_in_seconds=expires_in_seconds)
         )
 
-    def read_bytes(self, path: str) -> bytes:
+    def read_bytes(self, path: str, *, max_response_bytes: Optional[int] = None) -> bytes:
         """Read a file as bytes."""
-        return self._bridge.call(lambda: self._impl.read_bytes(path))
+        return self._bridge.call(lambda: self._impl.read_bytes(path, max_response_bytes=max_response_bytes))
 
-    def read_many(self, paths: Sequence[str]) -> BulkReadResult:
+    def read_many(self, paths: Sequence[str], *, max_response_bytes: Optional[int] = None) -> BulkReadResult:
         """Read multiple files, buffering each returned file in memory before returning."""
-        return self._bridge.call(lambda: self._impl.read_many(paths))
+        return self._bridge.call(lambda: self._impl.read_many(paths, max_response_bytes=max_response_bytes))
 
-    def read_text(self, path: str) -> str:
-        """Read a UTF-8 text file."""
-        return self._bridge.call(lambda: self._impl.read_text(path))
+    def read_text(self, path: str, *, max_response_bytes: Optional[int] = None) -> str:
+        """Read a UTF-8 text file (see :meth:`read_bytes` for its bounds)."""
+        return self._bridge.call(lambda: self._impl.read_text(path, max_response_bytes=max_response_bytes))
 
     def remove(self, path: str, *, recursive: bool = False) -> None:
         """Remove a file, or a directory with ``recursive=True``."""

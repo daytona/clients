@@ -366,7 +366,12 @@ class DaytonaConfig:
     ``request_timeout`` is the total time one ordinary request may take, in
     seconds (default 60; ``0`` = no limit). Waits and long polls use their own
     budget, streams are bounded only until their response headers arrive, and
-    file transfers are not bounded.  ``shared_hub`` controls whether this instance
+    file transfers have no total bound but fail when no bytes move for that
+    long. ``max_response_bytes`` (default 1 GiB, ``0`` = no limit; an integer
+    up to 2**53 - 1) caps every response body the SDK holds in memory whole: a
+    body over it raises ``PayloadTooLargeError`` (an error response's status
+    error for an error status). The in-memory file reads take
+    ``max_response_bytes=`` per call too.  ``shared_hub`` controls whether this instance
     shares the shared :class:`~daytona.v2._events.WaitHub` for its event loop and
     hub identity (default) or gets its own private one.  ``events`` customises
     that identity and the hub's behaviour; ``None`` uses defaults.
@@ -380,6 +385,7 @@ class DaytonaConfig:
     request_timeout: Optional[float] = None
     shared_hub: bool = True
     events: Optional[SandboxEventsConfig] = None
+    max_response_bytes: Optional[int] = field(default=None, kw_only=True)
 
 
 @dataclass(frozen=True)

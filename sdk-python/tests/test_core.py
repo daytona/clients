@@ -20,7 +20,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Final, Mapping, Optional
+from typing import Final, Iterator, Mapping, Optional
 
 import httpx
 import pytest
@@ -8853,9 +8853,13 @@ async def test_open_stream_closes_stream_context_when_error_body_read_fails():
         def __init__(self) -> None:
             self.status_code = 409
             self.request = httpx.Request("GET", "http://api.invalid/fail")
+            self.headers = httpx.Headers()
 
-        def read(self) -> bytes:
+        def iter_bytes(self) -> Iterator[bytes]:
             raise httpx.ReadError("broken body", request=self.request)
+
+        def close(self) -> None:
+            pass
 
     class RecordingStreamContext:
         def __init__(self) -> None:

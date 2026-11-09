@@ -29,6 +29,7 @@ from ._api_core import (
     expect_sandbox_detail,
 )
 from ._auth import ProjectTokenAuth
+from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, validated_max_response_bytes
 from ._core import (
     RequestSpec,
     _optional_int,
@@ -132,6 +133,7 @@ class _ResolvedConfig:
     otel_enabled: bool
     connection_pool_maxsize: Optional[int]
     request_timeout: float
+    max_response_bytes: int
 
 
 class _UnsetNetworkPolicy:
@@ -188,6 +190,7 @@ class AsyncDaytona:
                 source=_source,
                 otel=otel,
                 request_timeout=resolved.request_timeout,
+                max_response_bytes=resolved.max_response_bytes,
             )
         self._api = AsyncTransport(
             self._api_url,
@@ -197,6 +200,7 @@ class AsyncDaytona:
             connection_pool_maxsize=resolved.connection_pool_maxsize,
             auth=auth,
             otel=otel,
+            max_response_bytes=resolved.max_response_bytes,
         )
         self._auth = auth
         self._toolbox = AsyncTransport.shared(
@@ -205,6 +209,7 @@ class AsyncDaytona:
             connection_pool_maxsize=resolved.connection_pool_maxsize,
             auth=auth,
             otel=otel,
+            max_response_bytes=resolved.max_response_bytes,
         )
         self.images = AsyncImageService(self._api)
         self.snapshots = AsyncSnapshotService(self._api)
@@ -1344,6 +1349,9 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
         project_id=project_id,
         otel_enabled=otel_enabled,
         connection_pool_maxsize=_resolve_connection_pool_maxsize(config.connection_pool_maxsize),
+        max_response_bytes=DEFAULT_MAX_RESPONSE_BYTES
+        if config.max_response_bytes is None
+        else validated_max_response_bytes("max_response_bytes", config.max_response_bytes),
         request_timeout=_resolve_request_timeout(config.request_timeout),
     )
 
