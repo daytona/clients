@@ -27,13 +27,17 @@ whose `platform`, `default` or `deprecated` is missing or not a boolean, and a
 sandbox whose `region_id` is missing or `null`, with `BadRequestError` naming
 the field, as the contract requires them (released versions read a missing
 flag as `false` and derived a missing `region_id` from the sandbox id); only
-an empty `region_id` is derived from the id. A required field the contract
-allows to be null (for example the project budget's `monthly_limit_cents`,
-`period_start_date`, `created_at` and `updated_at`) must be present, while an
-explicit `null` stays valid. A sandbox's `lifecycle_policy` is checked field
-by field in TypeScript as Python's model checks it: integer `timeout_seconds`
-/ `idle_expiry_seconds`, string actions (an unknown one is kept), a string
-activity source, and deadlines that are RFC 3339 timestamps (see the
-timestamps entry; TypeScript read a malformed field as absent). A create or
-fork response is the exception: once its `id` came back the sandbox exists, so
-the call returns the handle (see the `create*()` and `fork()` entry).
+an empty `region_id` is derived from the id. TypeScript `get_limits()` /
+`getLimits()` now maps the organization limits into the SDK's model (it
+returned the response as sent), reading an optional `members` or
+`sandbox_resources` that is `null` as absent, as Python does. A required field
+the contract allows to be null (for example the project budget's
+`monthly_limit_cents`, `period_start_date`, `created_at` and `updated_at`)
+must be present, while an explicit `null` stays valid. A sandbox's
+`lifecycle_policy` is checked field by field in TypeScript as Python's model
+checks it: integer `timeout_seconds` / `idle_expiry_seconds`, string actions
+(an unknown one is kept), a string activity source, and deadlines that are RFC
+3339 timestamps (see the timestamps entry; TypeScript read a malformed field
+as absent). A create or fork response is the exception: once its `id` came
+back the sandbox exists, so the call returns the handle (see the `create*()`
+and `fork()` entry).

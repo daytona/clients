@@ -113,7 +113,7 @@ export class SecretsService {
     // The options are required: an omitted value is refused like any non-object.
     assertOptionsObject('SetSecretOptions', options)
     assertKnownOptions('SetSecretOptions', options, SET_SECRET_KEYS)
-    // The same order as Python: the name, the value, then the options.
+    // The name, the options object and its keys, then the value and each option.
     const given: unknown = value
     if (typeof given !== 'string') throw badRequest('value must be a string')
     const description: unknown = options.description
@@ -125,6 +125,8 @@ export class SecretsService {
     if (!Array.isArray(allowedDomains)) throw badRequest('allowedDomains must be an array of strings')
     const domains: unknown[] = [...allowedDomains]
     if (!domains.every((domain): domain is string => typeof domain === 'string')) throw badRequest('allowedDomains must be an array of strings')
+    // The API rejects an empty list (`['*']` is any verified host), as in Python.
+    if (domains.length === 0) throw badRequest('allowedDomains must not be empty')
     const body: api.PutSecretRequest = { value, allowed_domains: domains }
     if (typeof description === 'string') body.description = description
     const config = ifNotExists === true ? { headers: { 'If-None-Match': '*' } } : undefined

@@ -64,7 +64,7 @@ _CALLS: list[tuple[str, Call, str, int]] = [
     ("volumes.get", lambda d: d.volumes.get("data"), "id", 0),
     ("volumes.create", lambda d: d.volumes.create(name="data"), "id", 0),
     ("secrets.get", lambda d: d.secrets.get("KEY"), "name", 0),
-    ("secrets.set", lambda d: d.secrets.set("KEY", "value", allowed_domains=[]), "name", 0),
+    ("secrets.set", lambda d: d.secrets.set("KEY", "value", allowed_domains=["*"]), "name", 0),
     ("reservations.get", lambda d: d.reservations.get("res"), "id", 0),
     ("reservations.create", lambda d: d.reservations.create(region="mac"), "id", 0),
     ("reservations.create_bulk", lambda d: d.reservations.create_bulk(region="mac", count=2), "requested", 0),
@@ -1295,3 +1295,14 @@ async def test_a_project_budget_period_start_is_a_calendar_date(value: str, refu
             else:
                 budget = await root.v2.get_project_budget()
                 assert str(budget.period_start_date) == value
+
+
+@pytest.mark.parametrize("volume_id", ["", "  "], ids=["empty", "blank"])
+async def test_a_volume_create_response_with_a_blank_id_is_refused(volume_id: str) -> None:
+    # The TypeScript twin is in malformed-responses.test.ts.
+    with FakeApi([PlannedResponse(200, {**_VOLUME, "id": volume_id})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("^volume response is missing its id$"):
+                await root.v2.volumes.create(name="data")
+    assert len(api.requests) == 1

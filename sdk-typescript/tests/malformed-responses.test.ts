@@ -32,7 +32,7 @@ const CALLS: readonly (readonly [string, Call, string])[] = [
   ['volumes.get', (client) => client.v2.volumes.get('data'), 'volume response is missing its id'],
   ['volumes.create', (client) => client.v2.volumes.create({ name: 'data' }), 'volume response is missing its id'],
   ['secrets.get', (client) => client.v2.secrets.get('KEY'), 'secret response is missing its name'],
-  ['secrets.set', (client) => client.v2.secrets.set('KEY', 'value', { allowedDomains: [] }), 'secret response is missing its name'],
+  ['secrets.set', (client) => client.v2.secrets.set('KEY', 'value', { allowedDomains: ['*'] }), 'secret response is missing its name'],
   ['reservations.get', (client) => client.v2.reservations.get('res'), 'reservation response is missing its id'],
   ['reservations.create', (client) => client.v2.reservations.create({ region: 'mac' }), 'reservation response is missing its id'],
   ['reservations.createBulk', (client) => client.v2.reservations.createBulk({ region: 'mac', count: 2 }), 'reservation batch response is missing its requested'],
@@ -842,6 +842,19 @@ it('reads secrets.set allowedDomains once', async () => {
     await client.v2.secrets.set('K', 'v', options as never)
     expect(reads).toBe(1)
     expect(JSON.parse(api.requests[0]?.body ?? '{}')).toMatchObject({ allowed_domains: ['*'] })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// As in Python.
+it.each(['', '  '])('refuses a volumes.create() response whose id is %j', async (id) => {
+  const api = await startFakeApi([{ status: 200, body: { ...VOLUME, id } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.volumes.create({ name: 'data' })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'volume response is missing its id' })
+    expect(api.requests).toHaveLength(1)
   } finally {
     await client.close()
     await api.close()

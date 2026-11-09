@@ -168,7 +168,10 @@ export class VolumesService {
     }
     const body: api.CreateVolumeRequest = { name: options.name, type: 'disk', size_gib: options.sizeGib }
     const { data } = await this.api.post<api.Volume>('/volumes', body)
-    return mapVolume(data)
+    const created = mapVolume(data)
+    // A volume without a usable id cannot be mounted or deleted, as in Python.
+    if (isBlank(created.id)) throw badRequest('volume response is missing its id')
+    return created
   }
 
   /** Requests deletion and returns once the API accepts it. */

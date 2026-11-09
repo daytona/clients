@@ -185,6 +185,8 @@ _REFUSED: list[tuple[str, Call]] = [
     ("volumes.create name U+001C", lambda d, _url: d.volumes.create(name="\u001c")),
     # The contract's size_gib is an int32 (twin in argument-checks.test.ts).
     ("volumes.create size_gib above int32", lambda d, _url: d.volumes.create(name="v", size_gib=2**31)),
+    # The API rejects an empty allowed_domains (twin in argument-checks.test.ts).
+    ("secrets.set allowed_domains empty", lambda d, _url: d.secrets.set("K", "v", allowed_domains=[])),
     (
         "create volumes[].volume_id U+001C",
         lambda d, _url: d.create(volumes=[VolumeMount(volume_id="\u001c", mount_path="/m")]),

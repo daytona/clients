@@ -563,9 +563,13 @@ class AsyncVolumesService:
         body: JsonObject = {"name": name, "type": "disk"}
         if size_gib is not None:
             body["size_gib"] = size_gib
-        return _volume(
+        created = _volume(
             expect_volume(await self._transport.send(RequestSpec("POST", "/volumes", json_body=body)))
         )
+        if not created.id.strip():
+            # A volume without a usable id cannot be mounted or deleted.
+            raise create_error("volume response is missing its id", 400, "BAD_REQUEST", "SDK")
+        return created
 
     async def delete(self, name_or_id: str, *, id_only: bool = False) -> None:
         """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
@@ -949,6 +953,9 @@ class AsyncSecretsService:
             or not all(isinstance(domain, str) for domain in allowed_domains)
         ):
             raise create_error("allowed_domains must be a list of strings", 400, "BAD_REQUEST", "SDK")
+        if not allowed_domains:
+            # The API rejects an empty list (`["*"]` is any verified host).
+            raise create_error("allowed_domains must not be empty", 400, "BAD_REQUEST", "SDK")
         body: JsonObject = {"value": value, "allowed_domains": list(allowed_domains)}
         if description is not None:
             body["description"] = description
