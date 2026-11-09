@@ -22,7 +22,14 @@ async function main(): Promise<void> {
   const writeThenRead = async (volumeId: string): Promise<string> => {
     box = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { volumes: [{ volumeId, mountPath: '/data' }] })
     const before = await box.process.run(read)
-    await box.process.run('echo written > /data/message.txt')
+    // The write must land, through the command and the fs alike.
+    const written = await box.process.run('echo written > /data/message.txt')
+    if (written.exitCode !== 0) throw new Error(`write failed: ${written.output}`)
+    const back = await box.fs.readText('/data/message.txt')
+    if (back !== 'written\n') throw new Error(`read back ${JSON.stringify(back)}`)
+    await box.fs.writeText('/data/note.txt', 'note')
+    const listed = (await box.fs.list('/data')).items.map((entry) => entry.name).sort()
+    if (listed.join(',') !== 'message.txt,note.txt') throw new Error(`listed ${listed.join(',')}`)
     return before.output
   }
   const first = await daytona.volumes.create({ name: 'reused' })

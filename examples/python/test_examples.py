@@ -98,7 +98,7 @@ class FakeWorld:
         self.image_waits: list[tuple[object, object]] = []
         # Each sandbox's mounts, and each volume's files.
         self.mounts: list[tuple[Mount, ...]] = []
-        self.volume_files: dict[str, dict[str, list[str]]] = {}
+        self.volume_files: dict[str, dict[str, bytes]] = {}
         self.volumes: dict[str, SimpleNamespace] = {}
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
@@ -260,8 +260,8 @@ class FakeWorld:
         return tuple(mounts)
 
     def file_store(
-        self, path: str, mounts: tuple[Mount, ...], disk: dict[str, list[str]]
-    ) -> tuple[dict[str, list[str]], str, bool]:
+        self, path: str, mounts: tuple[Mount, ...], disk: dict[str, bytes]
+    ) -> tuple[dict[str, bytes], str, bool]:
         """Where a path lives: under a mount, in that volume below its subpath
         (and read-only when the mount is); else on the sandbox's own disk."""
         mount = next((m for m in mounts if path == m.mount_path or path.startswith(m.mount_path + "/")), None)
@@ -327,13 +327,29 @@ class FakeWorld:
     ) -> MagicMock:
         sandbox: MagicMock = create_autospec(Sandbox, instance=True)
         self.mounts.append(mounts)
-        disk: dict[str, list[str]] = {}
+        # One store for the commands and the fs alike: a mounted path lives in
+        # its volume, any other on this sandbox's own disk.
+        disk: dict[str, bytes] = {}
         sandbox.id = f"sbx-{len(self.sandboxes)}"
         sandbox.name = name
         sandbox.state = self.sandbox_state
         sandbox.cpu = 1
         sandbox.memory = 1
-        files: dict[str, bytes] = {}
+
+        def write(path: str, data: bytes) -> None:
+            store, key, read_only = self.file_store(path, mounts, disk)
+            if read_only:
+                raise OSError(f"sh: can't create {path}: Read-only file system")
+            store[key] = data
+
+        def read(path: str) -> bytes:
+            held, at, _ = self.file_store(path, mounts, disk)
+            return held[at]
+
+        def list_dir(path: str, **_: object) -> ListResult[SimpleNamespace]:
+            held, at, _read_only = self.file_store(path.rstrip("/"), mounts, disk)
+            names = {p[len(at) + 1 :].split("/")[0] for p in held if p.startswith(at + "/")}
+            return ListResult(items=[SimpleNamespace(name=name) for name in sorted(names)])
 
         process = create_autospec(ProcessService, instance=True)
         process.run.side_effect = lambda command=None, **_: self._run(str(command), env, dockerfile, mounts, disk)
@@ -344,22 +360,20 @@ class FakeWorld:
         sandbox.interpreter = interpreter
 
         fs = create_autospec(FileSystemService, instance=True)
-        fs.write_bytes.side_effect = lambda path, data, **_: files.__setitem__(
-            path, data
-        )
-        fs.read_bytes.side_effect = lambda path, **_: files[path]
+        fs.write_bytes.side_effect = lambda path, data, **_: write(path, data)
+        fs.read_bytes.side_effect = lambda path, **_: read(path)
 
         def replace(
             paths: list[str], pattern: str, new_value: str, **_: object
         ) -> ListResult[ReplaceResult]:
             for path in paths:
-                files[path] = files[path].decode().replace(pattern, new_value).encode()
+                write(path, read(path).decode().replace(pattern, new_value).encode())
             return ListResult(
                 items=[ReplaceResult(file=path, success=True) for path in paths]
             )
 
         fs.replace.side_effect = replace
-        fs.list.return_value = ListResult(items=[])
+        fs.list.side_effect = list_dir
         fs.glob.return_value = ListResult(items=[])
         sandbox.fs = fs
 
@@ -386,7 +400,7 @@ class FakeWorld:
         env: Mapping[str, str],
         dockerfile: str,
         mounts: tuple[Mount, ...] = (),
-        disk: Optional[dict[str, list[str]]] = None,
+        disk: Optional[dict[str, bytes]] = None,
     ) -> ProcessResult:
         for pattern, exit_code, output in self.overrides:
             if re.search(pattern, command):
@@ -823,7 +837,7 @@ def _volume_world(read_fails: bool = False) -> FakeWorld:
         env: Mapping[str, str],
         dockerfile: str,
         mounts: tuple[Mount, ...] = (),
-        disk: Optional[dict[str, list[str]]] = None,
+        disk: Optional[dict[str, bytes]] = None,
     ) -> ProcessResult:
         path = "/data/message.txt"
         if path not in command:
@@ -834,13 +848,14 @@ def _volume_world(read_fails: bool = False) -> FakeWorld:
         if match and read_only:
             return _result(1, "sh: can't create /data/message.txt: Read-only file system")
         if match:
-            store[key] = [*(store.get(key, []) if match.group(2) == ">>" else []), match.group(1)]
+            kept = store.get(key, b"") if match.group(2) == ">>" else b""
+            store[key] = kept + f"{match.group(1)}\n".encode()
             return _result(0, "")
         if read_fails and command.endswith("then cat /data/message.txt; fi"):
             return _result(1, "Input/output error")
         if key not in store:
             return _result(0, "<missing>" if "echo '<missing>'" in command else "")
-        return _result(0, "\n".join(store[key]))
+        return _result(0, store[key].decode().removesuffix("\n"))
 
     world._run = run  # type: ignore[method-assign]
     return world
@@ -868,7 +883,11 @@ def test_the_fake_volumes_follow_the_sdk() -> None:
         mount = VolumeMount(volume_id=volume_id, mount_path="/data")
         box = world._create_from_build(ImageBuilder.from_registry("python:3.12"), name="b", volumes=[mount])
         before = box.process.run("if [ -e /data/message.txt ]; then cat /data/message.txt; else echo '<missing>'; fi")
-        box.process.run("echo written > /data/message.txt")
+        # The write must land, through the command and the fs alike.
+        assert box.process.run("echo written > /data/message.txt").exit_code == 0
+        assert box.fs.read_bytes("/data/message.txt") == b"written\n"
+        box.fs.write_bytes("/data/note.txt", b"note")
+        assert [entry.name for entry in box.fs.list("/data").items] == ["message.txt", "note.txt"]
         output: str = before.output
         return output
 

@@ -93,9 +93,11 @@ const volumes = new Map<string, FakeVolume>()
 let nextImage = 0
 const newImage = (name: string, status: string, waits: string[] = ['ready'], error?: string) => ({ id: `img-${nextImage++}`, name, status, waits, error })
 const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(name, status, waits))
-// Each volume's files (path inside the volume → lines); a sandbox reads and
-// writes a path through the volume mounted over it, else its own disk.
-const volumeFiles = new Map<string, Map<string, string[]>>()
+// Each volume's files (path inside the volume → bytes); a sandbox reads and
+// writes a path, through its commands and its `fs` alike, in the volume
+// mounted over it, else on its own disk.
+type FileStore = Map<string, Uint8Array>
+const volumeFiles = new Map<string, FileStore>()
 type Mount = { readonly volumeId: string; readonly mountPath: string; readonly subpath?: string; readonly readOnly?: boolean }
 
 function mountsOf(requested: CreateSandboxOptions['volumes']): Mount[] {
@@ -115,10 +117,10 @@ function mountsOf(requested: CreateSandboxOptions['volumes']): Mount[] {
  * Where a path lives: under a mount, in that volume below its subpath (and
  * read-only when the mount is); else on the sandbox's own disk.
  */
-function fileStore(path: string, mounts: readonly Mount[], disk: Map<string, string[]>): { store: Map<string, string[]>; key: string; readOnly: boolean } {
+function fileStore(path: string, mounts: readonly Mount[], disk: FileStore): { store: FileStore; key: string; readOnly: boolean } {
   const mount = mounts.find(({ mountPath }) => path === mountPath || path.startsWith(`${mountPath}/`))
   if (mount === undefined) return { store: disk, key: path, readOnly: false }
-  const store = volumeFiles.get(mount.volumeId) ?? new Map<string, string[]>()
+  const store = volumeFiles.get(mount.volumeId) ?? new Map<string, Uint8Array>()
   volumeFiles.set(mount.volumeId, store)
   const below = mount.subpath === undefined ? '' : `/${mount.subpath.replace(/^\/+|\/+$/g, '')}`
   return { store, key: `${below}${path.slice(mount.mountPath.length)}`, readOnly: mount.readOnly === true }
@@ -131,20 +133,24 @@ const result = (exitCode: number, output: string) => ({
   logs: output === '' ? [] : [{ cursor: '1', channel: 'stdout', data: output, timestampMs: 0 }],
 })
 
-function run(command: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[], disk: Map<string, string[]>) {
+const encode = (text: string): Uint8Array => new TextEncoder().encode(text)
+const decode = (bytes: Uint8Array | undefined): string => new TextDecoder().decode(bytes ?? new Uint8Array())
+const readOnlyFailure = (path: string) => `sh: can't create ${path}: Read-only file system`
+
+function run(command: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[], disk: FileStore) {
   for (const [pattern, exitCode, output] of scenario.overrides ?? []) {
     if (new RegExp(pattern).test(command)) return result(exitCode, output)
   }
   if (scenario.volumeData && command.includes('/data/message.txt')) {
     const { store, key, readOnly } = fileStore('/data/message.txt', mounts, disk)
     const write = /echo (\S+) (>>?) \/data\/message\.txt/.exec(command)
-    if (write && readOnly) return result(1, `sh: can't create /data/message.txt: Read-only file system`)
+    if (write && readOnly) return result(1, readOnlyFailure('/data/message.txt'))
     if (write) {
-      store.set(key, [...(write[2] === '>>' ? store.get(key) ?? [] : []), write[1]])
+      store.set(key, encode(`${write[2] === '>>' ? decode(store.get(key)) : ''}${write[1]}\n`))
       return result(0, '')
     }
-    const lines = store.get(key)
-    return result(0, lines === undefined ? (command.includes("echo '<missing>'") ? '<missing>' : '') : lines.join('\n'))
+    const bytes = store.get(key)
+    return result(0, bytes === undefined ? (command.includes("echo '<missing>'") ? '<missing>' : '') : decode(bytes).replace(/\n$/, ''))
   }
   const variable = /^printf %s "\$(\w+)"$/.exec(command)
   if (variable) return result(0, env[variable[1]] ?? '')
@@ -160,8 +166,14 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
   const id = `sbx-${record.sandboxes.length}`
   record.sandboxes.push(id)
   record.mounts.push({ sandboxId: id, mounts: [...mounts] })
-  const files = new Map<string, Uint8Array>()
-  const disk = new Map<string, string[]>()
+  const disk: FileStore = new Map()
+  // The `fs` calls go through the same mount-aware store as the commands.
+  const at = (path: string) => fileStore(path, mounts, disk)
+  const write = (path: string, data: Uint8Array): void => {
+    const { store, key, readOnly } = at(path)
+    if (readOnly) throw new Error(readOnlyFailure(path))
+    store.set(key, data)
+  }
   const box = {
     id,
     name,
@@ -182,16 +194,22 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     },
     fs: {
       mkdir: async () => undefined,
-      list: async () => ({ items: [] }),
+      list: async (dir: string) => {
+        // The entries directly below `dir`, from the store that holds `dir`.
+        const { store, key } = at(dir.replace(/\/+$/, ''))
+        const prefix = `${key}/`
+        const names = [...store.keys()].filter((path) => path.startsWith(prefix)).map((path) => path.slice(prefix.length).split('/')[0])
+        return { items: [...new Set(names)].map((name) => ({ name })) }
+      },
       glob: async () => ({ items: [] }),
-      writeBytes: async (path: string, data: Uint8Array) => void files.set(path, data),
-      writeText: async (path: string, text: string) => void files.set(path, new TextEncoder().encode(text)),
-      readBytes: async (path: string) => files.get(path) ?? new Uint8Array(),
-      readText: async (path: string) => new TextDecoder().decode(files.get(path) ?? new Uint8Array()),
+      writeBytes: async (path: string, data: Uint8Array) => write(path, data),
+      writeText: async (path: string, text: string) => write(path, encode(text)),
+      readBytes: async (path: string) => { const { store, key } = at(path); return store.get(key) ?? new Uint8Array() },
+      readText: async (path: string) => { const { store, key } = at(path); return decode(store.get(key)) },
       replace: async (paths: string[], pattern: string, value: string) => {
         for (const path of paths) {
-          const text = new TextDecoder().decode(files.get(path))
-          files.set(path, new TextEncoder().encode(text.replace(pattern, value)))
+          const { store, key } = at(path)
+          write(path, encode(decode(store.get(key)).replace(pattern, value)))
         }
         return { items: paths.map((file) => ({ file, success: true })) }
       },
