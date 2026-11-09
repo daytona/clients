@@ -6,7 +6,7 @@
 // File transfers have no total deadline, through each public call. Every call
 // below runs against a toolbox that takes longer than the client's request
 // timeout (100 ms) to answer in full, but keeps bytes moving (a chunk every
-// 50 ms, inside the transfer's idle bound), so each would fail with
+// 20 ms, well inside the transfer's idle bound), so each would fail with
 // ClientTimeoutError if its transfer opt-out were dropped. An ordinary call on
 // the same client is cut, which proves the timeout is armed.
 // tests/transfer-bounds.test.ts pins the idle bound itself.
@@ -24,7 +24,10 @@ import { ClientTimeoutError } from '../src/v2/errors/DaytonaError'
 import { lazySandbox } from './lazySandbox'
 
 const SLOW_MS = 350
-const GAP_MS = 50
+// A chunk every 20 ms: a fifth of the 100 ms idle bound, so a loaded runner
+// keeps a wide margin, while each response still lasts SLOW_MS in all.
+const GAP_MS = 20
+const CHUNKS = Math.ceil(SLOW_MS / GAP_MS)
 const BOUNDARY = 'transfer-boundary'
 
 let server: Server
@@ -58,21 +61,21 @@ function toolbox(request: IncomingMessage, response: ServerResponse): void {
     response.on('close', () => clearTimeout(timer))
   }
   // A JSON answer trickled a byte at a time, padded to outlast SLOW_MS.
-  const trickledJson = (payload: unknown): void => trickle([...JSON.stringify(payload).padEnd(SLOW_MS / GAP_MS, ' ')], 'application/json')
+  const trickledJson = (payload: unknown): void => trickle([...JSON.stringify(payload).padEnd(CHUNKS, ' ')], 'application/json')
   switch (url.pathname) {
     case '/files/upload':
       return trickledJson({})
     case '/files/bulk-upload':
       return trickledJson({ files: [{ path: '/a', bytes: 1 }], errors: [] })
     case '/files/download':
-      return trickle(['x', 'x', 'x', 'x', 'x', 'x', 'x'], 'application/octet-stream')
+      return trickle(Array.from({ length: CHUNKS }, () => 'x'), 'application/octet-stream')
     case '/files/bulk-download': {
       const part = `--${BOUNDARY}\r\nContent-Disposition: form-data; name="file"; filename="/a"\r\nContent-Type: application/octet-stream\r\n\r\nxyz\r\n--${BOUNDARY}--\r\n`
-      const size = Math.ceil(part.length / 7)
-      return trickle(Array.from({ length: 7 }, (_, i) => part.slice(i * size, (i + 1) * size)), `multipart/form-data; boundary=${BOUNDARY}`)
+      const size = Math.ceil(part.length / CHUNKS)
+      return trickle(Array.from({ length: CHUNKS }, (_, i) => part.slice(i * size, (i + 1) * size)), `multipart/form-data; boundary=${BOUNDARY}`)
     }
     case '/computeruse/recordings/rec-1/download':
-      return trickle(['r', 'r', 'r', 'r', 'r', 'r', 'r'], 'video/mp4')
+      return trickle(Array.from({ length: CHUNKS }, () => 'r'), 'video/mp4')
     default:
       return later(() => json({ items: [] }))
   }
@@ -112,7 +115,7 @@ describe('file transfers outlast the request timeout', () => {
     const { client, sandbox } = slowToolboxSandbox()
     const local = join(dir, 'down.bin')
     await sandbox.fs.downloadFile('/remote.bin', local)
-    expect(await readFile(local, 'utf8')).toBe('xxxxxxx')
+    expect(await readFile(local, 'utf8')).toBe('x'.repeat(CHUNKS))
     await client.close()
   })
 
@@ -132,7 +135,7 @@ describe('file transfers outlast the request timeout', () => {
 
   it('computerUse.recording.download', async () => {
     const { client, sandbox } = slowToolboxSandbox()
-    expect(new TextDecoder().decode(await sandbox.computerUse.recording.download('rec-1'))).toBe('rrrrrrr')
+    expect(new TextDecoder().decode(await sandbox.computerUse.recording.download('rec-1'))).toBe('r'.repeat(CHUNKS))
     await client.close()
   })
 
