@@ -204,6 +204,9 @@ def main() -> int:
                 skip("process.kill_all tag-kill checks", "no process containment on this sandbox")
                 for root in (first, second, unrelated):
                     root.kill()
+                # Without containment kill() does not reach the detached child either.
+                if detached:
+                    box.process.run(f"kill -9 {detached} 2>/dev/null; true")
             if killed is not None:
                 check("process.kill_all returns root ids", {first.id, second.id} <= set(killed))
                 alive = box.process.run(f"kill -0 {detached} 2>/dev/null && echo alive || echo gone")

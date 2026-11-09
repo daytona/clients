@@ -137,6 +137,8 @@ async function main(): Promise<number> {
         skipped++
         console.log('SKIP process.killAll tag-kill checks (no process containment on this sandbox)')
         for (const root of [first, second, unrelated]) await root.kill()
+        // Without containment kill() does not reach the detached child either.
+        if (detached) await box.process.run(`kill -9 ${detached} 2>/dev/null; true`)
       }
       if (killed) {
         check('process.killAll returns root ids', killed.has(first.id) && killed.has(second.id))
