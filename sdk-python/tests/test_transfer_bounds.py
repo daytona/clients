@@ -487,6 +487,40 @@ async def test_the_events_hub_is_capped_by_the_client_limit(
             await root.close()
 
 
+@pytest.mark.anyio
+async def test_clients_with_different_limits_get_their_own_shared_hub(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    big = b'{"id":"sbx","status":"started","pad":"' + b"p" * 4000 + b'"}'
+    token = b'{"access_token":"t","expires_in":3600}'
+    routes: dict[str, Handler] = {
+        "/auth/token": lambda r: (_drain(r), _json(r, token)),  # type: ignore[func-returns-value]
+        "/sandboxes": lambda r: (_drain(r), _json(r, big)),  # type: ignore[func-returns-value]
+    }
+    with _server(routes) as base:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", base)
+        tight = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=1000))
+        roomy = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=100_000))
+        twin = AsyncDaytona(DaytonaConfig(api_key="k", max_response_bytes=1000))
+        jwt_a = AsyncDaytona(DaytonaConfig(jwt_token="j", project_id="p", request_timeout=5))
+        jwt_b = AsyncDaytona(DaytonaConfig(jwt_token="j", project_id="p", request_timeout=9))
+        try:
+            hubs = [client.v2._acquire_hub() for client in (tight, roomy, twin, jwt_a, jwt_b)]  # type: ignore[attr-defined]
+            # Same credentials, same limits: one hub; a different cap or token
+            # exchange timeout: a hub of its own.
+            assert hubs[0] is hubs[2]
+            assert hubs[0] is not hubs[1]
+            assert hubs[3] is not hubs[4]
+            assert hubs[3]._api._auth._request_timeout == 5
+            assert hubs[4]._api._auth._request_timeout == 9
+            with pytest.raises(PayloadTooLargeError):
+                await hubs[0]._api.send(RequestSpec("GET", "/sandboxes/sbx"))
+            assert isinstance(await hubs[1]._api.send(RequestSpec("GET", "/sandboxes/sbx")), dict)
+        finally:
+            for client in (tight, roomy, twin, jwt_a, jwt_b):
+                await client.close()
+
+
 @pytest.mark.parametrize(
     ("declared", "too_large"),
     [

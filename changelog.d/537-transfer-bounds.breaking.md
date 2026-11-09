@@ -27,7 +27,10 @@ an error response raises its status's typed error saying its body was too
 large to read. `read_bytes` / `readBytes`, `read_text` / `readText`,
 `read_many` / `readMany` (for the whole multipart body) and the recording
 `download` take the same option per call (`max_response_bytes=` /
-`{ maxResponseBytes }`) to raise, lower or lift the cap. Streamed bodies
+`{ maxResponseBytes }`) to raise, lower or lift the cap. The sandbox events
+hub's own requests (ticket mint, long-poll fallback) are capped by the client
+that attached it; clients with different caps or request timeouts no longer
+share one hub. Streamed bodies
 (`download_file` / `downloadFile`, log, event and build-log streams, watches)
 are not capped: use `download_file` / `downloadFile` for large files or
 content from a sandbox you don't trust.

@@ -469,6 +469,26 @@ describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', 
     }
   })
 
+  it('gives clients with different limits their own shared events hub', async () => {
+    route = body(JSON.stringify({ id: 'sbx', status: 'started', pad: 'p'.repeat(4000) }), { contentType: 'application/json' })
+    type HubOf = { acquireHub(): { api: { get(path: string): Promise<unknown> } } }
+    const tight = new Daytona({ apiKey: 'k', maxResponseBytes: 1000 })
+    const roomy = new Daytona({ apiKey: 'k', maxResponseBytes: 100_000 })
+    const twin = new Daytona({ apiKey: 'k', maxResponseBytes: 1000 })
+    const slow = new Daytona({ apiKey: 'k', maxResponseBytes: 1000, requestTimeoutSeconds: 9 })
+    try {
+      const [a, b, c, d] = [tight, roomy, twin, slow].map((client) => (client as unknown as HubOf).acquireHub())
+      // Same credentials, same limits: one hub; a different cap or request timeout: a hub of its own.
+      expect(a).toBe(c)
+      expect(a).not.toBe(b)
+      expect(a).not.toBe(d)
+      expectTooLarge(await rejection(() => a.api.get('/sandboxes/sbx')), 1000)
+      await expect(b.api.get('/sandboxes/sbx')).resolves.toBeDefined()
+    } finally {
+      for (const client of [tight, roomy, twin, slow]) await client.close()
+    }
+  })
+
   it('never caps downloadFile', async () => {
     route = body('d'.repeat(50_000))
     const { client, sandbox } = sandboxFor({ maxResponseBytes: 1000 })
