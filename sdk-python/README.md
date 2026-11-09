@@ -974,7 +974,8 @@ from positional identity arguments instead:
 `SandboxCreateTimeoutError(sandbox_id)`,
 `SandboxCreateRequestTimeoutError(idempotency_key)`,
 `SandboxCreateConnectionError(idempotency_key, detail)`,
-`DockerWaitTimeoutError(status)` and `DockerNotReadyError(status)`.
+`DockerWaitTimeoutError(status)` (`status` may be `None`) and
+`DockerNotReadyError(status)`.
 
 A request refused because your organization has hit one of its limits (for
 example the maximum number of concurrent sandboxes) raises

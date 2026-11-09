@@ -21,5 +21,6 @@ Each event is bounded by the client's `max_response_bytes` /
 `null`, it keeps the configured cap, 1 GiB by default; `0` means no limit; any
 other value is a `BadRequestError`), counted as its bytes arrive: one event
 over it raises `PayloadTooLargeError` (413, `PAYLOAD_TOO_LARGE`, source
-`SDK`); with `0` events are unbounded. Python yielded bare `LogFrame`s and
-gains `limit=`.
+`SDK`); with `0` events are unbounded. A stream that is cut short, or that
+ends before `eof`, raises `ConnectionError` (source `SDK`) in both SDKs.
+Python yielded bare `LogFrame`s and gains `limit=`.

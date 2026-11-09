@@ -13,6 +13,7 @@ characters, not `.` or `..`); anything else raises `BadRequestError` (400,
 for Python's `0`, a request the toolbox refused. `killAll()` returns a frozen
 `readonly string[]`, the tag-filtered `list()` page is frozen like every
 other, and a kill response without a string `processIds` list, or a process
-record whose `tag` is not a string, is `BadRequestError` naming the field. On
-macOS and on sandboxes without process containment, `kill_all()` / `killAll()`
-raises `UnsupportedOperationError` (tags and filtering still work).
+record with a present non-null `tag` of the wrong type, is `BadRequestError`
+naming the field. On macOS and on sandboxes without process containment,
+`kill_all()` / `killAll()` raises `UnsupportedOperationError` (tags and
+filtering still work).

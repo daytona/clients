@@ -888,11 +888,12 @@ per source (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`,
 message plus an `ErrorOptions` object (`statusCode`, `code`, `source`,
 `traceId`, `cause`, …), so tests can build the errors your code handles. A few
 specialised errors build their own message from what identifies them instead:
-`SandboxTerminalStateError(sandboxId, state, { rawState?, reason? })`,
+`SandboxTerminalStateError(sandboxId, state, options?)` (`options`:
+`{ rawState?, reason? }`),
 `SandboxCreateTimeoutError(sandboxId)`,
 `SandboxCreateRequestTimeoutError(idempotencyKey)`,
 `SandboxCreateConnectionError(idempotencyKey, detail)`,
-`DockerWaitTimeoutError(status)` and `DockerNotReadyError(status)`.
+`DockerWaitTimeoutError(status?)` and `DockerNotReadyError(status)`.
 
 ```ts
 import { DaytonaError } from '@daytona/sdk'
