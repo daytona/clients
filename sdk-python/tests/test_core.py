@@ -119,6 +119,7 @@ from daytona.v2.errors import (
     DaytonaError,
     DockerNotReadyError,
     DockerWaitTimeoutError,
+    ForbiddenError,
     InternalServerError,
     LimitExceededError,
     NotFoundError,
@@ -11768,6 +11769,35 @@ async def test_project_token_exchange_names_what_is_wrong(body: bytes, message: 
         "BAD_REQUEST",
         "SDK",
     )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("content_type", "code"), [("text/plain", None), ("application/json; charset=utf-8", "FORBIDDEN")]
+)
+async def test_project_token_exchange_error_carries_a_code_only_from_an_application_json_body(
+    content_type: str, code: str | None
+) -> None:
+    body = b'{"code":"FORBIDDEN","message":"no access"}'
+    http = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(403, content=body, headers={"content-type": content_type})
+        ),
+        base_url="http://api.invalid",
+    )
+    auth = ProjectTokenAuth(
+        api_url="http://api.invalid",
+        jwt_token="jwt",
+        project_id="project-1",
+        source="sdk-python-async",
+        client=http,
+    )
+    try:
+        with pytest.raises(ForbiddenError) as exc_info:
+            await auth._exchange_token()
+    finally:
+        await http.aclose()
+    assert exc_info.value.code == code
 
 
 @pytest.mark.anyio

@@ -18,7 +18,17 @@ from contextlib import aclosing
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-from typing import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Literal, Mapping, TypeGuard
+from typing import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Literal,
+    Mapping,
+    Optional,
+    TypeGuard,
+)
 from urllib.parse import unquote, urlsplit
 
 import anyio
@@ -30,6 +40,7 @@ from ._core import (
     JSON_MAX_DEPTH,
     RequestSpec,
     _nested_deeper_than,
+    is_json_media_type,
     non_string_timestamp,
     parse_error_payload,
     query_text,
@@ -617,7 +628,7 @@ def _retry_after(headers: Mapping[str, str]) -> float:
         return 0
 
 
-async def _http_error(status: int, chunks: AsyncIterator[bytes]) -> DaytonaError:
+async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: Optional[str]) -> DaytonaError:
     body = bytearray()
     try:
         async for chunk in chunks:
@@ -630,6 +641,9 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes]) -> DaytonaError
             body.extend(chunk)
     except (ConnectionError, ClientTimeoutError):
         # A known 401/403/etc remains terminal even if its diagnostic body fails.
+        return create_error(f"build log HTTP {status}", status)
+    if not is_json_media_type(content_type):
+        # Only a body declared as application/json carries a code.
         return create_error(f"build log HTTP {status}", status)
     try:
         # UTF-8 with the BOM stripped and bad bytes replaced, as TypeScript's
@@ -656,7 +670,7 @@ async def _finite_http_error(stream: AsyncResponseStream, deadline: float | None
         return create_error(f"build log HTTP {stream.status_code}", stream.status_code)
     with anyio.move_on_after(budget):
         async with aclosing(stream.iter_bytes()) as chunks:
-            return await _http_error(stream.status_code, chunks)
+            return await _http_error(stream.status_code, chunks, stream.headers.get("content-type"))
     # The deadline cut the body short: the status is still the answer.
     return create_error(f"build log HTTP {stream.status_code}", stream.status_code)
 

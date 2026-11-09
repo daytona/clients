@@ -317,7 +317,7 @@ export class FileSystemService {
       ...limit,
     }))
     const body = toUint8Array(response.data)
-    if (response.status !== 200) throw bulkReadHttpError(response.status, body)
+    if (response.status !== 200) throw bulkReadHttpError(response.status, body, contentTypeHeader(response.headers))
     return parseBulkReadResult(body, contentTypeHeader(response.headers))
   }
 

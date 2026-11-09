@@ -326,7 +326,9 @@ class SyncTransport:
                 raise ConnectionError(str(exc)) from exc
             finally:
                 stream.__exit__(None, None, None)
-            raise error_from_response(response.status_code, body)
+            raise error_from_response(
+                response.status_code, body, content_type=response.headers.get("content-type")
+            )
         return SyncResponseStream(stream, response)
 
     def close(self) -> None:
@@ -351,7 +353,9 @@ class SyncTransport:
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 400:
-            raise error_from_response(response.status_code, response.content)
+            raise error_from_response(
+                response.status_code, response.content, content_type=response.headers.get("content-type")
+            )
         return response
 
     def get(self, path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response:
@@ -821,7 +825,9 @@ class AsyncTransport:
             finally:
                 with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
                     await stream.__aexit__(None, None, None)
-            typed_error = error_from_response(response.status_code, body)
+            typed_error = error_from_response(
+                response.status_code, body, content_type=response.headers.get("content-type")
+            )
             if span is not None:
                 span.finish(status_code=response.status_code, error=typed_error)
             raise typed_error
@@ -1015,7 +1021,9 @@ class AsyncTransport:
         if span is not None:
             span.finish(status_code=response.status_code)
         if response.status_code >= 400:
-            raise error_from_response(response.status_code, response.content)
+            raise error_from_response(
+                response.status_code, response.content, content_type=response.headers.get("content-type")
+            )
         return response
 
     async def _stream_enter(
@@ -1213,7 +1221,9 @@ def _request_headers(
 
 def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
     if response.status_code >= 400:
-        raise error_from_response(response.status_code, response.content)
+        raise error_from_response(
+            response.status_code, response.content, content_type=response.headers.get("content-type")
+        )
     content_type = response.headers.get("content-type", "")
     if "application/json" in content_type:
         return parse_json_bytes(response.content)

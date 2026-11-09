@@ -300,10 +300,26 @@ def parse_json_response(content: bytes, *, what: str) -> JsonValue:
         raise create_error(f"{what} is not JSON", 400, "BAD_REQUEST", "SDK") from error
 
 
-def error_from_response(status_code: int, body: bytes) -> DaytonaError:
-    try:
-        payload = expect_object(parse_json_bytes(body))
-    except Exception:
+def is_json_media_type(content_type: Optional[str]) -> bool:
+    """Whether a response's media type is exactly ``application/json`` (type
+    and subtype compared case-insensitively, parameters ignored), as the
+    TypeScript SDK's ``isJsonMediaType``: ``application/jsonl`` is not JSON."""
+    if content_type is None:
+        return False
+    return content_type.split(";", 1)[0].strip().lower() == "application/json"
+
+
+def error_from_response(status_code: int, body: bytes, *, content_type: Optional[str]) -> DaytonaError:
+    """The status's typed error, with the code and details of the body when
+    it is a JSON object declared as ``application/json``; any other body is
+    only the message."""
+    payload: Optional[JsonObject] = None
+    if is_json_media_type(content_type):
+        try:
+            payload = expect_object(parse_json_bytes(body))
+        except Exception:
+            payload = None
+    if payload is None:
         payload = {"message": body.decode("utf-8", errors="replace") or f"HTTP {status_code}"}
     return parse_error_payload(status_code, payload)
 

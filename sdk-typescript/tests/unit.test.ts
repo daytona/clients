@@ -954,7 +954,7 @@ describe('V2 model', () => {
 
 
   test('API envelopes surface their message', async () => {
-    const response = new Response(JSON.stringify({ code: 'CONFLICT', message: 'conflict: fork is unavailable for this sandbox', source: 'DAYTONA_API' }), { status: 409 })
+    const response = new Response(JSON.stringify({ code: 'CONFLICT', message: 'conflict: fork is unavailable for this sandbox', source: 'DAYTONA_API' }), { status: 409, headers: { 'content-type': 'application/json' } })
     const err = await errorFromFetchResponse(response)
     expect(err.message).toContain('fork is unavailable')
   })
@@ -1018,7 +1018,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://logs.example/build-logs/sandboxes/sbx' }), { headers: { 'content-type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'the region is not known', source: 'DAYTONA_ROUTER', trace_id: '4bf92f3577b34da6a3ce929d0e0e4736' }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'the region is not known', source: 'DAYTONA_ROUTER', trace_id: '4bf92f3577b34da6a3ce929d0e0e4736' }), { status: 404, headers: { 'content-type': 'application/json' } }))
     const sandbox = lazySandbox(client, 'sbx')
     try {
       const error = await sandbox.buildLogs().then(() => { throw new Error('expected rejection') }, (e: unknown) => e as DaytonaError)
@@ -1031,11 +1031,24 @@ describe('V2 model', () => {
     } finally { get.mockRestore() }
   })
 
+  it.each(['text/plain', 'application/jsonl'])('reads no code from a build-log error body declared as %s (parity: Python)', async (contentType) => {
+    const client = new Daytona({ apiKey: 'key' })
+    const get = jest.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://logs.example/build-logs/sandboxes/sbx' }), { headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'gone', source: 'DAYTONA_ROUTER' }), { status: 404, headers: { 'content-type': contentType } }))
+    const sandbox = lazySandbox(client, 'sbx')
+    try {
+      const error = await sandbox.buildLogs().then(() => { throw new Error('expected rejection') }, (e: unknown) => e as DaytonaError)
+      expect(error.constructor).toBe(NotFoundError)
+      expect([error.statusCode, error.code, error.message]).toEqual([404, undefined, 'build log HTTP 404'])
+    } finally { get.mockRestore() }
+  })
+
   it('reads an error message and code on a build-log HTTP failure', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://logs.example/build-logs/sandboxes/sbx' }), { headers: { 'content-type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'service is unavailable', code: 'SERVICE_UNAVAILABLE' }), { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'service is unavailable', code: 'SERVICE_UNAVAILABLE' }), { status: 503, headers: { 'content-type': 'application/json' } }))
     const sandbox = lazySandbox(client, 'sbx')
     try {
       const error = await sandbox.buildLogs().then(() => { throw new Error('expected rejection') }, (e: unknown) => e as DaytonaError)
@@ -1050,7 +1063,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://logs.example/build-logs/sandboxes/sbx' }), { headers: { 'content-type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'INTERNAL_SERVER_ERROR' }), { status: 500 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'INTERNAL_SERVER_ERROR' }), { status: 500, headers: { 'content-type': 'application/json' } }))
     const sandbox = lazySandbox(client, 'sbx')
     try {
       const error = await sandbox.buildLogs().then(() => { throw new Error('expected rejection') }, (e: unknown) => e as DaytonaError)
@@ -1068,7 +1081,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://logs.example/build-logs/sandboxes/sbx' }), { headers: { 'content-type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(bodyObj), { status: 500 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(bodyObj), { status: 500, headers: { 'content-type': 'application/json' } }))
     const sandbox = lazySandbox(client, 'sbx')
     try {
       const error = await sandbox.buildLogs().then(() => { throw new Error('expected rejection') }, (e: unknown) => e as DaytonaError)
@@ -1082,7 +1095,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://logs.example/build-logs/sandboxes/sbx' }), { headers: { 'content-type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: '', error: 'the real diagnostic text', code: 'NOT_FOUND' }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: '', error: 'the real diagnostic text', code: 'NOT_FOUND' }), { status: 404, headers: { 'content-type': 'application/json' } }))
     const sandbox = lazySandbox(client, 'sbx')
     try {
       const error = await sandbox.buildLogs().then(() => { throw new Error('expected rejection') }, (e: unknown) => e as DaytonaError)
@@ -1092,10 +1105,10 @@ describe('V2 model', () => {
   })
 
   it('surfaces region on UNKNOWN_REGION and drops a non-string region (parity: Python)', () => {
-    const ok = errorFromEnvelopeBody('{"code":"UNKNOWN_REGION","message":"nope","source":"DAYTONA_ROUTER","region":"narnia"}', 400, 'build log HTTP 400')
+    const ok = errorFromEnvelopeBody('{"code":"UNKNOWN_REGION","message":"nope","source":"DAYTONA_ROUTER","region":"narnia"}', 'application/json', 400, 'build log HTTP 400')
     expect(ok).toBeInstanceOf(BadRequestError)
     expect(ok.region).toBe('narnia')
-    const nonString = errorFromEnvelopeBody('{"code":"UNKNOWN_REGION","message":"nope","source":"DAYTONA_ROUTER","region":5}', 400, 'build log HTTP 400')
+    const nonString = errorFromEnvelopeBody('{"code":"UNKNOWN_REGION","message":"nope","source":"DAYTONA_ROUTER","region":5}', 'application/json', 400, 'build log HTTP 400')
     expect(nonString.region).toBeUndefined()
   })
 
@@ -1103,7 +1116,7 @@ describe('V2 model', () => {
     const client = new Daytona({ apiKey: 'key' })
     const get = jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://logs.example/build-logs/sandboxes/sbx' }), { headers: { 'content-type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'REGION_MISMATCH', message: 'two regions', source: 'DAYTONA_ROUTER', stated: 'region-a', actual: 'region-b' }), { status: 400 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'REGION_MISMATCH', message: 'two regions', source: 'DAYTONA_ROUTER', stated: 'region-a', actual: 'region-b' }), { status: 400, headers: { 'content-type': 'application/json' } }))
     const sandbox = lazySandbox(client, 'sbx')
     try {
       const error = await sandbox.buildLogs().then(() => { throw new Error('expected rejection') }, (e: unknown) => e as DaytonaError)
@@ -8024,7 +8037,7 @@ describe('toolbox service request shaping', () => {
     const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     const originalFetch = globalThis.fetch
-    globalThis.fetch = jest.fn(async () => new Response('{"code":"NOT_FOUND"}', { status: 404 })) as never
+    globalThis.fetch = jest.fn(async () => new Response('{"code":"NOT_FOUND"}', { status: 404, headers: { 'content-type': 'application/json' } })) as never
     try {
       const transport = new HttpTransport('https://proxy.example/sandbox-api/sbx', 'key', undefined, { otelEnabled: true, otelApi })
       const response = await transport.fetch('/processes/proc/logs', {}, false)
@@ -9013,7 +9026,7 @@ describe('typed error mapping', () => {
 
     const axiosErr = createAxiosDaytonaError({
       message: 'Request failed',
-      response: { status: 409, data: { message: 'name exists', code: 'NAME_CONFLICT', source: 'DAYTONA_DAEMON' } },
+      response: { status: 409, data: { message: 'name exists', code: 'NAME_CONFLICT', source: 'DAYTONA_DAEMON' }, headers: { 'content-type': 'application/json' } },
       isAxiosError: true,
       name: 'AxiosError',
       toJSON: () => ({}),
@@ -9025,7 +9038,7 @@ describe('typed error mapping', () => {
     expect(createAxiosDaytonaError({ message: 'timeout of 10ms exceeded', code: 'ECONNABORTED', isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never)).toBeInstanceOf(ClientTimeoutError)
     expect(createAxiosDaytonaError({ message: 'socket hang up', code: 'ECONNRESET', request: {}, isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never).name).toBe('ConnectionError')
 
-    await expect(errorFromFetchResponse(new Response(JSON.stringify({ message: 'old cursor', code: 'CURSOR_EXPIRED', source: 'DAYTONA_DAEMON', firstAvailableCursor: 'c1' }), { status: 409 }))).resolves.toBeInstanceOf(CursorExpiredError)
+    await expect(errorFromFetchResponse(new Response(JSON.stringify({ message: 'old cursor', code: 'CURSOR_EXPIRED', source: 'DAYTONA_DAEMON', firstAvailableCursor: 'c1' }), { status: 409, headers: { 'content-type': 'application/json' } }))).resolves.toBeInstanceOf(CursorExpiredError)
     await expect(errorFromFetchResponse(new Response('plain text failure', { status: 500, statusText: 'Server Error' }))).resolves.toMatchObject({ message: 'plain text failure', statusCode: 500 })
   })
 
@@ -9046,6 +9059,7 @@ describe('typed error mapping', () => {
           firstAvailableCursor: 'cursor-1',
           error: 'secondary_message_must_be_ignored',
         },
+        headers: { 'content-type': 'application/json' },
       },
       isAxiosError: true,
       name: 'AxiosError',
@@ -9065,7 +9079,7 @@ describe('typed error mapping', () => {
   })
 
   it('surfaces an error-only body as prose on the fetch path without promoting it to a code', async () => {
-    const errorOnly = await errorFromFetchResponse(new Response(JSON.stringify({ error: 'coupon not found' }), { status: 404 }))
+    const errorOnly = await errorFromFetchResponse(new Response(JSON.stringify({ error: 'coupon not found' }), { status: 404, headers: { 'content-type': 'application/json' } }))
     expect(errorOnly).toBeInstanceOf(NotFoundError)
     expect(errorOnly).toMatchObject({ message: 'coupon not found', code: undefined })
   })
@@ -9083,7 +9097,7 @@ describe('typed error mapping', () => {
     expect(wrongSource).toBeInstanceOf(NotFoundError)
     expect(wrongSource).not.toBeInstanceOf(publicSdk.ProcessNotFoundError)
     expect(createDaytonaError('down', 503, 'SERVICE_UNAVAILABLE', 'DAYTONA_API')).toBeInstanceOf(ServiceUnavailableError)
-    const errorOnly = createAxiosDaytonaError({ message: 'Request failed', response: { status: 400, data: { error: 'Search is unavailable' } }, isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never)
+    const errorOnly = createAxiosDaytonaError({ message: 'Request failed', response: { status: 400, data: { error: 'Search is unavailable' }, headers: { 'content-type': 'application/json' } }, isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never)
     expect(errorOnly).toMatchObject({ message: 'Search is unavailable', code: undefined })
   })
 
@@ -9100,6 +9114,7 @@ describe('typed error mapping', () => {
           source: 'DAYTONA_DAEMON',
           code: 'DESKTOP_NOT_READY',
         },
+        headers: { 'content-type': 'application/json' },
       },
       isAxiosError: true,
       name: 'AxiosError',
@@ -9140,7 +9155,7 @@ describe('typed error mapping', () => {
       message: 'atomic upload is not supported on this filesystem',
       source: 'DAYTONA_DAEMON',
       code: 'ATOMIC_UPLOAD_UNSUPPORTED',
-    }), { status: 409 }))
+    }), { status: 409, headers: { 'content-type': 'application/json' } }))
 
     expect(err).toBeInstanceOf(AtomicUploadUnsupportedError)
     expect(err).toBeInstanceOf(ConflictError)
@@ -9154,7 +9169,7 @@ describe('typed error mapping', () => {
     const fetchErr = await errorFromFetchResponse(
       new Response(
         JSON.stringify({ code: 'LIMIT_EXCEEDED', message: 'organization limit reached: 25 of 25 (max_concurrent_sandboxes)', source: 'DAYTONA_API', limit: 'max_concurrent_sandboxes', current: 25, max: 25, trace_id: 'tr-1' }),
-        { status: 429 },
+        { status: 429, headers: { 'content-type': 'application/json' } },
       ),
     )
     expect(fetchErr).toBeInstanceOf(LimitExceededError)
@@ -9163,7 +9178,7 @@ describe('typed error mapping', () => {
 
     const axiosErr = createAxiosDaytonaError({
       message: 'Request failed with status code 429',
-      response: { status: 429, data: { code: 'LIMIT_EXCEEDED', message: 'organization limit reached', source: 'DAYTONA_API', limit: 'max_concurrent_sandboxes', current: 3, max: 3, trace_id: 'tr-2' } },
+      response: { status: 429, data: { code: 'LIMIT_EXCEEDED', message: 'organization limit reached', source: 'DAYTONA_API', limit: 'max_concurrent_sandboxes', current: 3, max: 3, trace_id: 'tr-2' }, headers: { 'content-type': 'application/json' } },
       isAxiosError: true,
       name: 'AxiosError',
       toJSON: () => ({}),
@@ -9191,7 +9206,7 @@ describe('typed error mapping', () => {
     // An envelope-less lowercase prose body is a message
     // fallback only — never promoted to a code, never refined.
     const prose = await errorFromFetchResponse(
-      new Response(JSON.stringify({ error: 'Too many requests' }), { status: 429 }),
+      new Response(JSON.stringify({ error: 'Too many requests' }), { status: 429, headers: { 'content-type': 'application/json' } }),
     )
     expect(prose).toBeInstanceOf(RateLimitError)
     expect(prose).not.toBeInstanceOf(LimitExceededError)
@@ -9211,12 +9226,12 @@ describe('typed error mapping', () => {
     // classify identically in both SDKs.
     const forgedBody = { code: 'LIMIT_EXCEEDED', statusCode: 429, message: 'organization limit reached', source: 'DAYTONA_API', limit: 'max_concurrent_sandboxes', current: 9, max: 9 }
 
-    const forgedFetch = await errorFromFetchResponse(new Response(JSON.stringify(forgedBody), { status: 500 }))
+    const forgedFetch = await errorFromFetchResponse(new Response(JSON.stringify(forgedBody), { status: 500, headers: { 'content-type': 'application/json' } }))
     expect(forgedFetch.code).toBe('LIMIT_EXCEEDED')
     expect(forgedFetch).toMatchObject({ statusCode: 500, message: 'organization limit reached' })
 
     const plain = await errorFromFetchResponse(
-      new Response(JSON.stringify({ code: 'LIMIT_EXCEEDED', message: 'organization limit reached: 25 of 25 (max_concurrent_sandboxes)', source: 'DAYTONA_API', limit: 'max_concurrent_sandboxes', current: 25, max: 25 }), { status: 429 }),
+      new Response(JSON.stringify({ code: 'LIMIT_EXCEEDED', message: 'organization limit reached: 25 of 25 (max_concurrent_sandboxes)', source: 'DAYTONA_API', limit: 'max_concurrent_sandboxes', current: 25, max: 25 }), { status: 429, headers: { 'content-type': 'application/json' } }),
     )
     expect(plain).toBeInstanceOf(LimitExceededError)
     expect(plain).toMatchObject({ statusCode: 429, code: 'LIMIT_EXCEEDED', limit: 'max_concurrent_sandboxes', current: 25, max: 25 })
@@ -9617,7 +9632,7 @@ function rawAxiosError(status: number, body: Record<string, unknown>, config: In
     undefined,
     config,
     undefined,
-    { data: body, status, statusText: String(status), headers: {}, config },
+    { data: body, status, statusText: String(status), headers: { 'content-type': 'application/json' }, config },
   )
 }
 
@@ -9632,7 +9647,7 @@ describe('sandbox search', () => {
       isAxiosError: true,
       message: `Request failed with status code ${status}`,
       name: 'AxiosError',
-      response: { status, data: body },
+      response: { status, data: body, headers: { 'content-type': 'application/json' } },
     } as unknown as import('axios').AxiosError)
   }
 
@@ -10204,7 +10219,7 @@ describe('macOS sandboxes and reservations', () => {
         isAxiosError: true,
         message: `Request failed with status code ${status}`,
         name: 'AxiosError',
-        response: { status, data: { code, message: `refused: ${code}`, source: 'DAYTONA_API' } },
+        response: { status, data: { code, message: `refused: ${code}`, source: 'DAYTONA_API' }, headers: { 'content-type': 'application/json' } },
       } as unknown as AxiosError))
       const error = await client.createMacos('base-macos').catch((caught: unknown) => caught)
       expect(error).toMatchObject({ statusCode: status, code, message: `refused: ${code}`, source: 'DAYTONA_API' })

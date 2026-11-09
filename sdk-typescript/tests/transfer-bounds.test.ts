@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Daytona } from '../src/v2/Daytona'
 import { BadRequestError, ClientTimeoutError, FileNotFoundError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
-import { HttpTransport, forceFetchAdapterForTests, transferRequest } from '../src/v2/http'
+import { HttpTransport, createPlatformTokenProvider, forceFetchAdapterForTests, transferRequest } from '../src/v2/http'
 import { attachHub, detachHub, eventsHubConfig } from '../src/v2/events'
 import { BodyBuffer, MAX_PREALLOCATION } from '../src/v2/bodyBuffer'
 import { readFetchText } from '../src/v2/errors/DaytonaError'
@@ -354,6 +354,54 @@ async function rejection(call: () => Promise<unknown>): Promise<unknown> {
 describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', (adapter) => {
   beforeAll(() => forceFetchAdapterForTests(adapter === 'fetch'))
   afterAll(() => forceFetchAdapterForTests(false))
+
+  describe('error bodies', () => {
+    const envelope = JSON.stringify({ code: 'FILE_NOT_FOUND', message: 'gone', source: 'DAYTONA_DAEMON' })
+    const errorWith = (contentType: string | undefined): Handler => (request, response) => {
+      request.resume()
+      response.writeHead(404, { 'Content-Length': String(envelope.length), ...(contentType === undefined ? {} : { 'Content-Type': contentType }) })
+      response.end(envelope)
+    }
+    // Every error mapping path: a byte read (the bounded adapter), the fetch
+    // transport, an ordinary JSON call, and the multipart bulk read.
+    const calls = (sandbox: ReturnType<typeof sandboxFor>['sandbox'], transport: HttpTransport) => [
+      () => sandbox.fs.readBytes('/a'),
+      () => transport.fetch('/files/download?path=a'),
+      () => transport.get('/files/info?path=a'),
+      () => sandbox.fs.readMany(['/a']),
+      // The project-token exchange.
+      () => createPlatformTokenProvider({ baseURL: base, jwtToken: 'jwt', projectId: 'p' }).authorizationHeader(),
+    ]
+
+    it.each(['text/plain', 'application/jsonl', 'application/problem+json', undefined])('reads no code from an error body declared as %s', async (contentType) => {
+      route = errorWith(contentType)
+      const { client, sandbox } = sandboxFor()
+      const transport = new HttpTransport(base, 't', 5_000)
+      try {
+        for (const call of calls(sandbox, transport)) {
+          const error = await rejection(call)
+          // The status's own error, its message the body as sent.
+          expect(error?.constructor).toBe(NotFoundError)
+          expect(error).toMatchObject({ statusCode: 404, code: undefined, message: envelope })
+        }
+      } finally {
+        await client.close()
+      }
+    })
+
+    it.each(['application/json', 'Application/JSON ; charset=utf-8'])('reads the code of an error body declared as %s', async (contentType) => {
+      route = errorWith(contentType)
+      const { client, sandbox } = sandboxFor()
+      const transport = new HttpTransport(base, 't', 5_000)
+      try {
+        for (const call of calls(sandbox, transport)) {
+          await expect(call()).rejects.toMatchObject({ constructor: FileNotFoundError, code: 'FILE_NOT_FOUND', source: 'DAYTONA_DAEMON', message: 'gone' })
+        }
+      } finally {
+        await client.close()
+      }
+    })
+  })
 
   it('refuses a declared length over the cap before reading the body', async () => {
     route = declaredThenSlow(10_000)

@@ -12,7 +12,7 @@
 import axios, { AxiosError } from 'axios'
 import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { BodyTooLarge, IdleWatchdog, bytesAs, declaresMoreThan, discardBody, isSmallRequestBody, readCappedBody, tooLargeErrorStatusMessage, tooLargeMessage } from './bodyLimit.js'
-import { PAYLOAD_TOO_LARGE_AXIOS_CODE, createDaytonaError } from './errors/DaytonaError.js'
+import { PAYLOAD_TOO_LARGE_AXIOS_CODE, axiosResponseHeader, createDaytonaError, isJsonMediaType } from './errors/DaytonaError.js'
 import { declaredLength } from './bodyBuffer.js'
 import { boundedTimerDelay } from './options.js'
 
@@ -294,10 +294,12 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
     const settled: AxiosResponse = { ...response, config, data: bytesAs(bytes, responseType) }
     const validateStatus = config.validateStatus
     if (validateStatus === null || validateStatus === undefined || validateStatus(settled.status)) return settled
-    // A refused status carries its error envelope whatever `responseType` the
-    // success body would have had (a file read asks for bytes), so the typed
-    // error keeps the server's code and message.
-    throw settleError(config, { ...settled, data: errorEnvelopeData(bytes) ?? settled.data })
+    // A refused status declared as application/json carries its error
+    // envelope whatever `responseType` the success body would have had (a file
+    // read asks for bytes), so the typed error keeps the server's code and
+    // message; any other body is only the message.
+    const envelope = isJsonMediaType(axiosResponseHeader(response.headers, 'content-type')) ? errorEnvelopeData(bytes) : undefined
+    throw settleError(config, { ...settled, data: envelope ?? settled.data })
   } finally {
     watchdog?.dispose()
   }
