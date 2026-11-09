@@ -440,7 +440,8 @@ class AsyncRecordingService:
         """Download a recording, holding the whole file in memory.
 
         No total deadline (it fails only when no bytes move for the client's
-        ``request_timeout``). ``max_response_bytes`` replaces the client's cap
+        ``request_timeout``; with a ``request_timeout`` of ``0``, nothing
+        bounds it). ``max_response_bytes`` replaces the client's cap
         on the body for this call (``0`` = no limit); a larger recording raises
         ``PayloadTooLargeError`` before it is read in full. For a large
         recording, or one from a sandbox you do not trust, download its

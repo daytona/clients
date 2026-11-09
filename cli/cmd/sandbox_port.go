@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"strconv"
@@ -23,7 +24,8 @@ import (
 )
 
 func newSandboxPortSubcommand() *cobra.Command {
-	cmd := &cobra.Command{Use: "port", Short: "Inspect sandbox ports"}
+	cmd := &cobra.Command{Use: "port", Short: "Inspect sandbox ports and mint preview URLs"}
+	cmd.AddCommand(newSandboxPreviewURLCommand())
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list <sandbox-id>",
 		Short: "List listening ports inside a sandbox",
@@ -94,17 +96,27 @@ func sandboxTimeout(a *app.App) (time.Duration, error) {
 	return workload.ParseTimeout(a.Globals.Timeout)
 }
 
-func processStdinReader(a *app.App) (io.Reader, error) {
-	if a.Globals.File == "-" {
-		return nil, nil
-	}
+// processStdinReader returns the CLI's stdin when it is not a terminal: a
+// piped stdin is the process's input.
+func processStdinReader() io.Reader {
 	if term.IsTerminal(int(os.Stdin.Fd())) {
-		return nil, nil
+		return nil
 	}
-	return os.Stdin, nil
+	return os.Stdin
 }
 
+// exitError maps a process's end to the CLI's exit status (the process
+// exit code passes through); its error source is PROCESS.
 func exitError(result tbgen.ExitResult) error {
+	err := processExitError(result)
+	var ce *cerr.Error
+	if errors.As(err, &ce) {
+		ce.Source = cerr.SourceProcess
+	}
+	return err
+}
+
+func processExitError(result tbgen.ExitResult) error {
 	if result.Reason == nil {
 		return exitCodeError(result)
 	}

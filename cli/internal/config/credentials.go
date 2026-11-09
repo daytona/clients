@@ -23,8 +23,9 @@ type WorkloadKey struct {
 	Name      string    `yaml:"name"`
 	ExpiresAt time.Time `yaml:"expires_at"`
 	Ceiling   string    `yaml:"ceiling"`
-	// Empty for login-minted keys; otherwise a fingerprint of (API, static
-	// bearer). Static credentials never reuse the login's keys or each other's.
+	// Empty for login-minted keys. Earlier releases also cached keys they
+	// exchanged from a static credential, marked with a fingerprint here;
+	// nothing uses them any more and SaveCredentials leaves them out.
 	Source string `yaml:"source,omitempty"`
 	// Cleanup goes to this issuing API, never an invocation's URL override.
 	// Login keys without it belong to the saved profile URL.
@@ -52,4 +53,22 @@ type PlatformToken struct {
 
 type Credentials struct {
 	Profiles map[string]ProfileCredentials `yaml:"profiles"`
+}
+
+// withoutLegacyKeys returns a copy of c without the keys earlier releases
+// exchanged from a static credential (a non-empty Source); c is unchanged.
+// Those keys expire server-side within 24 hours.
+func (c *Credentials) withoutLegacyKeys() *Credentials {
+	out := &Credentials{Profiles: make(map[string]ProfileCredentials, len(c.Profiles))}
+	for name, pc := range c.Profiles {
+		var kept []WorkloadKey
+		for _, k := range pc.WorkloadKeys {
+			if k.Source == "" {
+				kept = append(kept, k)
+			}
+		}
+		pc.WorkloadKeys = kept
+		out.Profiles[name] = pc
+	}
+	return out
 }

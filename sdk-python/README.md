@@ -16,6 +16,10 @@ pip install 'daytona[otel]==X.Y.ZaN'  # adds OpenTelemetry request spans
 pip install 'daytona[v0-sdk]==X.Y.ZaN'    # adds the v0 namespace (Daytona().v0)
 ```
 
+The legacy package name `daytona-sdk` (`daytona_sdk`) is published only from
+the 0.x line: installing or upgrading it never gives you 2.x. Install
+`daytona`.
+
 Python 3.10+.
 
 ## Quickstart
@@ -131,7 +135,8 @@ Set `request_timeout=` **(seconds; default 60; `0`, or a value above 2,147,483.6
 the total time one ordinary request may take before it raises
 `ClientTimeoutError`. Waits and long polls use their own budget, streams are
 bounded only until their response arrives, and file transfers have no total
-limit but fail with `ClientTimeoutError` once no bytes move for that long.
+limit but fail with `ClientTimeoutError` once no bytes move for that long
+(with `request_timeout=0` they are not bounded at all).
 Set `max_response_bytes=` **(default 1 GiB; `0` means no limit)** to cap every
 response body the SDK holds in memory whole: a larger body raises
 `PayloadTooLargeError` before it is read in full (an error response keeps its

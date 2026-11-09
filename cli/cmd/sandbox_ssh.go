@@ -58,7 +58,7 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if err := runSSHCommand(cmd.Context(), sshBinary, invocation.Args); err != nil {
 				var exitErr *exec.ExitError
 				if errors.As(err, &exitErr) {
-					return cerr.New(exitErr.ExitCode(), "ssh exited with code %d", exitErr.ExitCode())
+					return cerr.New(exitErr.ExitCode(), "ssh exited with code %d", exitErr.ExitCode()).WithSource(cerr.SourceSSH)
 				}
 				return err
 			}
@@ -250,7 +250,7 @@ func interactiveAttachAndWait(ctx context.Context, toolClient *toolboxclient.Cli
 		}
 		return err
 	}
-	return exitError(result)
+	return exitError(result.V)
 }
 
 func kindPtr(v tbgen.Kind) *tbgen.Kind             { return &v }

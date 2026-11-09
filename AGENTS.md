@@ -175,13 +175,25 @@ service manages them, `volumes` attaches them on create, and `sandbox.volumes`
 provides pull operations. The CLI exposes `volume` and `sandbox create --volume`
 (also on `create-macos`). Keep these surfaces in parity across the SDKs.
 
+The CLI's own API URL order, whatever the endpoint notes under "Version
+namespaces" say about the SDKs: `--api-url`, then `DAYTONA_V2_API_URL`, then
+the profile's saved URL, then `app.DefaultAPIURL` (equal to the SDKs'
+`DEFAULT_V2_API_URL`). The CLI never reads `DAYTONA_API_URL` or
+`DAYTONA_REGION` (regions come from `--region` only).
+
 The `daytona` CLI (Go) shares the SDKs' version line but is not part of the
 Python↔TS parity contract. Its wire types (`cli/gen/`) are generated from
 `contract/*.json` by `cli/hack/gen.sh`; its README is public-facing. Verify:
 `(cd cli && go vet ./... && go test ./...)`, lint with `golangci-lint run`
 (config `cli/.golangci.yml`). Release binaries: `cli/hack/build.sh` (six
-targets + `SHA256SUMS`), consumed by `install.sh` / `install.ps1` and the
-Homebrew formulae (`cli/hack/homebrew/`).
+targets + `SHA256SUMS`, each binary checked with `go version -m` against
+`cli/go.mod`'s `go` line), consumed by `install.sh` / `install.ps1` (highest
+stable 2.x by default; pre-releases only with a channel or version, except
+the highest pre-release while no stable 2.x release exists) and the
+Homebrew formulae of the `daytonaio/homebrew-cli` tap
+(`cli/hack/homebrew/README.md`). A release's channel (npm dist-tag, GitHub
+Release kind, formula) comes from its version through
+`scripts/release-channel.sh`.
 
 ## Version namespaces
 
@@ -418,6 +430,14 @@ skipping exist only in the TypeScript tool).
   a pin bump that adds 0.x surface needs mapping rows.
   `node upgrade/scripts/check-v2-surface.mjs` checks every v2 suggestion's call
   and argument names against the SDK sources in this repository.
+- **The `--json` report is public.** `upgrade/mapping/report.schema.json`
+  stays open so reports from later 2.x releases still validate: no
+  `additionalProperties: false`, and each vocabulary lists its values under
+  `examples`. Both suites validate the tools' output against a strict copy
+  derived from it (`tightened` in `upgrade/typescript/tests/report.test.ts`,
+  `upgrade/python/tests/report_schema.py`), so a new field or value must be
+  added to the schema in the same PR. Renaming or removing a field or value
+  needs a major version ([VERSIONING.md](docs/VERSIONING.md), "The migration tool").
 - **Runtime guard.** The moved client members are also the root clients'
   runtime guard (`_MOVED_TO_V0` in `sdk-python/src/daytona/_client.py`,
   `MOVED_TO_V0` in `sdk-typescript/src/Daytona.ts`); a test in each SDK pins them

@@ -449,6 +449,7 @@ export class Daytona {
   private keyOrganization?: Promise<string>
   private readonly apiUrl: string
   private readonly httpOptions: HttpClientOptions
+  private readonly maxResponseBytes: number
   private readonly hubShared: boolean
   private readonly hubEventsConfig: EventsHubConfig
   private readonly hubIdentityKey: string
@@ -493,6 +494,7 @@ export class Daytona {
     const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
     const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
     const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', config.maxResponseBytes) ?? DEFAULT_MAX_RESPONSE_BYTES
+    this.maxResponseBytes = maxResponseBytes
     if (!apiKey && !jwtToken) {
       throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
     }
@@ -549,7 +551,10 @@ export class Daytona {
         target: undefined,
         shared: this.hubShared,
         config: this.hubEventsConfig,
+        // The client's own instance: its maxResponseBytes caps the hub's
+        // ticket mint and long-poll fallback (neither is a file transfer).
         _api: this.api,
+        maxResponseBytes: this.maxResponseBytes,
       })
     }
     return this.hub

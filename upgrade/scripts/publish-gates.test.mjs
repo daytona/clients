@@ -15,7 +15,15 @@ const testUpgrade = readFileSync(new URL('../../scripts/test-upgrade.sh', import
 
 function fixture(context) {
   const root = mkdtempSync(join(tmpdir(), 'upgrade-build-'));
-  context.after(() => rmSync(root, { recursive: true, force: true }));
+  // A tool on the host may still write into a fixture's .git while it is
+  // removed; a leftover temporary directory is not a test failure.
+  context.after(() => {
+    try {
+      rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    } catch (error) {
+      if (error.code !== 'ENOTEMPTY') throw error;
+    }
+  });
   mkdirSync(join(root, 'bin'));
   return root;
 }
@@ -55,12 +63,17 @@ for (const tag of ['alpha', 'beta', 'next', 'latest', '', 'stable', 'latest\ninj
     // When: running the credential-bearing publish step with the supplied dist-tag.
     const result = spawnSync('bash', ['-c', step('Publish the migration tool to npm (OIDC)')], {
       cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
-        NPM_DIST_TAG: tag, NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log },
+        NPM_DIST_TAG: tag, NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log,
+        // The npm latest guard has its own tests (publish-channels.test.mjs).
+        NPM_LATEST_GUARD: 'echo "guard $*" >> "$GUARD_LOG"', GUARD_LOG: join(root, 'guard') },
     });
     // Then: only an allowed dist-tag reaches npm.
     assert.equal(result.status, valid ? 0 : 1, result.stderr);
     if (valid) assert.equal(readFileSync(log, 'utf8'), 'published\n');
     else assert.throws(() => readFileSync(log), { code: 'ENOENT' });
+    // A publish under `latest` is checked before and verified after.
+    if (tag === 'latest') assert.equal(readFileSync(join(root, 'guard'), 'utf8'), 'guard check @daytona/upgrade 2.0.0-alpha.8\nguard verify @daytona/upgrade 2.0.0-alpha.8\n');
+    else assert.throws(() => readFileSync(join(root, 'guard')), { code: 'ENOENT' });
   });
 }
 
@@ -241,11 +254,13 @@ for (const [tagged, expected] of [[false, 1], [true, 0]]) {
     writeFileSync(join(root, '.publish-tools/scripts/sdk-version.sh'),
       '#!/bin/bash\nprintf "version=2.0.0-alpha.8\\nnpm=2.0.0-alpha.8\\ncli=2.0.0-alpha.8\\npypi=2.0.0a8\\n"\n');
     chmodSync(join(root, '.publish-tools/scripts/sdk-version.sh'), 0o755);
+    writeFileSync(join(root, '.publish-tools/scripts/release-channel.sh'), readFileSync(new URL('../../scripts/release-channel.sh', import.meta.url)));
+    chmodSync(join(root, '.publish-tools/scripts/release-channel.sh'), 0o755);
     const output = join(root, 'output');
     writeFileSync(output, '');
     // When: the gate derives versions for a tool-only run.
     // The gate's step starts with its id, so it is cut out by its name line.
-    const block = workflow.split('        name: Derive registry versions (branch rule + alpha-only gate)\n')[1].split('\n      - ')[0];
+    const block = workflow.split('        name: Derive registry versions and the release channel (branch rule + gate)\n')[1].split('\n      - ')[0];
     const lines = block.split('        run: |\n')[1].split('\n');
     const end = lines.findIndex((line) => line.trim() !== '' && !line.startsWith(' '.repeat(10)));
     const script = lines.slice(0, end === -1 ? undefined : end).map((line) => line.slice(10)).join('\n');

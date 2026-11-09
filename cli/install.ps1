@@ -1,6 +1,18 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: AGPL-3.0
+
 # Install the daytona CLI on Windows.
 #
-#   irm https://github.com/daytona/clients/releases/download/v2.0.0-alpha.3/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/daytona/clients/main/cli/install.ps1 | iex
+#   $env:DAYTONA_CHANNEL = "rc"; irm … | iex              # highest release candidate or stable release
+#   $env:DAYTONA_VERSION = "2.1.0-alpha.2"; irm … | iex   # an exact version
+#
+# Without DAYTONA_VERSION it installs the highest stable 2.x release (vX.Y.Z),
+# by version, not by publication date. Pre-releases only come with a channel
+# (DAYTONA_CHANNEL): `rc` is the highest release candidate or stable release,
+# `alpha` the highest alpha, release candidate or stable release. Until the
+# first stable 2.x release exists, the default installs the highest
+# pre-release and says so; DAYTONA_CHANNEL=stable never does.
 #
 # Downloads the release binary for this architecture from GitHub Releases,
 # verifies it against the release's SHA256SUMS, and installs daytona.exe.
@@ -12,6 +24,9 @@ $ErrorActionPreference = "Stop"
 
 $Repo = if ($env:DAYTONA_RELEASE_REPO) { $env:DAYTONA_RELEASE_REPO } else { "daytona/clients" }
 $Version = $env:DAYTONA_VERSION
+$Channel = $env:DAYTONA_CHANNEL
+if ($Channel -and $Channel -cnotin @("stable", "rc", "alpha")) { throw "unknown DAYTONA_CHANNEL: $Channel (stable, rc or alpha)" }
+if ($Version -and $Channel) { throw "set either DAYTONA_VERSION or DAYTONA_CHANNEL, not both" }
 $InstallDir = if ($env:DAYTONA_INSTALL_DIR) { $env:DAYTONA_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA "Daytona\bin" }
 
 $rawArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
@@ -22,12 +37,40 @@ $arch = switch ($rawArch) {
 }
 
 if (-not $Version) {
-	# Newest tag of the CLI's own 2.x line, not the newest release of any kind
-	# (the repo also carries V0 stable and SDK releases).
-	$releases = @(Invoke-RestMethod "https://api.github.com/repos/$Repo/releases?per_page=100" -UseBasicParsing)
-	$cli = @($releases | Where-Object { $_.tag_name -like "v2.*" })
-	$Version = if ($cli.Count -gt 0) { $cli[0].tag_name } else { $null }
-	if (-not $Version) { throw "could not determine the newest 2.x CLI release; set DAYTONA_VERSION" }
+  # Every published release of the repository (it also carries the 0.x line).
+  # GitHub lists drafts only to maintainers.
+  $tags = @()
+  for ($page = 1; ; $page++) {
+    # Invoke-RestMethod writes a JSON array as ONE object: the inner
+    # parentheses enumerate it, so $releases holds one entry per release.
+    $releases = @((Invoke-RestMethod "https://api.github.com/repos/$Repo/releases?per_page=100&page=$page" -UseBasicParsing))
+    if ($releases.Count -eq 0) { break }
+    # At most 50 pages (5,000 releases) are read; a longer list is an error,
+    # never a truncated one.
+    if ($page -gt 50) { throw "$Repo has more than 5000 releases, more than this installer reads; set DAYTONA_VERSION" }
+    # Drafts never count, and a stable-looking tag GitHub marks as a
+    # pre-release is not stable.
+    $tags += @($releases | Where-Object { -not $_.draft -and -not ($_.prerelease -and "$($_.tag_name)" -notlike "*-*") } | ForEach-Object { $_.tag_name })
+  }
+  # 2.x CLI tags only, ordered by version: alpha (0) < rc (1) < stable (2).
+  $n = "(0|[1-9][0-9]*)"
+  $ranked = @(foreach ($tag in $tags) {
+    if ("$tag" -cmatch "^v2\.$n\.$n(-(alpha|rc)\.$n)?$") {
+      $stage = switch ($Matches[4]) { "alpha" { 0 } "rc" { 1 } default { 2 } }
+      $num = if ($Matches[5]) { [int64]$Matches[5] } else { 0 }
+      [pscustomobject]@{ Tag = $tag; Minor = [int64]$Matches[1]; Patch = [int64]$Matches[2]; Stage = $stage; Num = $num }
+    }
+  }) | Sort-Object Minor, Patch, Stage, Num
+  $min = switch ($Channel) { "rc" { 1 } "alpha" { 0 } default { 2 } }
+  $Version = @($ranked | Where-Object { $_.Stage -ge $min }) | Select-Object -Last 1 -ExpandProperty Tag
+  if (-not $Version -and -not $Channel) {
+    $Version = @($ranked) | Select-Object -Last 1 -ExpandProperty Tag
+    if ($Version) { Write-Host "note: no stable 2.x release yet, so installing the highest pre-release, $Version; from 2.0.0 on the default is the highest stable release (DAYTONA_CHANNEL=alpha or rc opts into pre-releases)" }
+  }
+  if (-not $Version) {
+    $wanted = if ($Channel) { $Channel } else { "stable" }
+    throw "found no $wanted 2.x CLI release of $Repo; set DAYTONA_CHANNEL=alpha or DAYTONA_VERSION"
+  }
 }
 $Version = $Version.TrimStart("v")
 

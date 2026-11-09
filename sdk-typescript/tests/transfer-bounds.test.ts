@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import { Daytona } from '../src/v2/Daytona'
 import { BadRequestError, ClientTimeoutError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport, forceFetchAdapterForTests } from '../src/v2/http'
+import { attachHub, detachHub, eventsHubConfig } from '../src/v2/events'
 import { lazySandbox } from './lazySandbox'
 
 jest.setTimeout(30_000)
@@ -199,6 +200,45 @@ describe.each(['http', 'fetch'] as const)('the transfer idle bound (%s adapter)'
     }
   })
 
+  it('bounds a buffered upload to a server that stops reading, small from the start and large from its answer', async () => {
+    const { client, sandbox } = sandboxFor({ requestTimeoutSeconds: IDLE_SECONDS })
+    const transport = new HttpTransport(base, 't', IDLE_SECONDS * 1000)
+    // Small (1 KiB): the server never reads and never answers.
+    route = stopReading
+    const small = new Uint8Array(1024)
+    try {
+      for (const call of [
+        () => sandbox.fs.writeBytes('/a', small),
+        () => sandbox.fs.writeText('/a', 'x'.repeat(1024)),
+        () => sandbox.fs.writeMany({ '/a': small }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: small, transfer: true }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: new Blob([small]), transfer: true }),
+      ]) {
+        expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+      }
+      // Large (4 MiB): the server stops reading and answers; the answer
+      // stalls mid body. Where the runtime reports no upload progress (the
+      // fetch transports) the bound starts at that answer; with Node's http
+      // adapter it was running all along.
+      route = (request, response) => {
+        response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': '2000', Connection: 'close' })
+        response.write('{')
+        stallThenHangUp(response)
+        request.pause()
+      }
+      const large = new Uint8Array(4 << 20)
+      for (const call of [
+        () => sandbox.fs.writeBytes('/a', large),
+        () => sandbox.fs.writeMany({ '/a': large }),
+        () => transport.fetch('/files/upload?path=%2Fa', { method: 'POST', body: new Blob([large]), transfer: true }).then((response) => response.text()),
+      ]) {
+        expect(await timesOut(call)).toBeLessThan(STALL_MS - 1000)
+      }
+    } finally {
+      await client.close()
+    }
+  })
+
   it('keeps a transfer that keeps moving bytes going past the idle bound', async () => {
     // 12 bytes 200 ms apart: 2.4 s in all, five times the idle bound.
     route = trickle(12, 200)
@@ -375,6 +415,25 @@ describe.each(['http', 'fetch'] as const)('the buffered body cap (%s adapter)', 
       }
     } finally {
       await client.close()
+    }
+  })
+
+  it('caps the events hub\'s ticket mint and long-poll fallback by the client\'s limit', async () => {
+    route = body(JSON.stringify({ id: 'sbx', status: 'started', pad: 'p'.repeat(4000) }), { contentType: 'application/json' })
+    // The hub a client attaches uses the client's own API instance...
+    const client = new Daytona({ apiKey: 'k', maxResponseBytes: 1000, sharedHub: false })
+    const hub = (client as unknown as { acquireHub(): { api: { get(path: string): Promise<unknown> } } }).acquireHub()
+    try {
+      expectTooLarge(await rejection(() => hub.api.get('/sandboxes/sbx')), 1000)
+    } finally {
+      await client.close()
+    }
+    // ...and one that builds its own takes the cap it is given.
+    const own = attachHub({ apiUrl: base, apiKey: 'k', target: undefined, shared: false, config: eventsHubConfig(undefined), maxResponseBytes: 1000 })
+    try {
+      expectTooLarge(await rejection(() => (own as unknown as { api: { get(path: string): Promise<unknown> } }).api.get('/sandboxes/sbx')), 1000)
+    } finally {
+      await detachHub(own, { apiUrl: base, apiKey: 'k', target: undefined, shared: false })
     }
   })
 

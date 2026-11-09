@@ -13,6 +13,7 @@ import (
 	"net/url"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 )
 
@@ -23,7 +24,7 @@ type followProcessLogsOptions struct {
 	cursor    string
 	encoding  string
 	limit     int
-	onFrame   func(tbgen.LogFrameDto) error
+	onFrame   func(api.Raw[tbgen.LogFrameDto]) error
 	onWarning func(LogWarning)
 }
 
@@ -58,7 +59,7 @@ type LogWarning struct {
 	Message              string
 }
 
-func (c *Client) FollowProcessLogFrames(ctx context.Context, processID, cursor, encoding string, limit int, onFrame func(tbgen.LogFrameDto) error) (tbgen.ExitResult, string, bool, error) {
+func (c *Client) FollowProcessLogFrames(ctx context.Context, processID, cursor, encoding string, limit int, onFrame func(api.Raw[tbgen.LogFrameDto]) error) (tbgen.ExitResult, string, bool, error) {
 	return c.followProcessLogs(ctx, followProcessLogsOptions{
 		processID: processID,
 		cursor:    cursor,
@@ -75,8 +76,8 @@ func (c *Client) FollowProcessLogs(ctx context.Context, processID, cursor, encod
 		cursor:    cursor,
 		encoding:  encoding,
 		limit:     limit,
-		onFrame: func(frame tbgen.LogFrameDto) error {
-			return WriteLogFrames([]tbgen.LogFrameDto{frame}, encoding, stdout, stderr)
+		onFrame: func(frame api.Raw[tbgen.LogFrameDto]) error {
+			return WriteLogFrames([]tbgen.LogFrameDto{frame.V}, encoding, stdout, stderr)
 		},
 		onWarning: c.OnLogWarning,
 	})
@@ -106,12 +107,12 @@ func (c *Client) followProcessLogs(ctx context.Context, opts followProcessLogsOp
 		}
 		switch msg.Event {
 		case "log", "message":
-			var frame tbgen.LogFrameDto
+			var frame api.Raw[tbgen.LogFrameDto]
 			if err := json.Unmarshal([]byte(msg.Data), &frame); err != nil {
 				return fmt.Errorf("decode log frame: %w", err)
 			}
-			if frame.Cursor != "" {
-				lastCursor = frame.Cursor
+			if frame.V.Cursor != "" {
+				lastCursor = frame.V.Cursor
 			}
 			return opts.onFrame(frame)
 		case "state":

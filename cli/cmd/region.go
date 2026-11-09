@@ -5,8 +5,8 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"math"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -21,12 +21,18 @@ func init() {
 	Register(newRegionCommand)
 }
 
-// regionListRow is one `region list` row: the catalog row plus the price
-// multiplier a create naming the region is billed at, or null when the
-// multipliers could not be read.
+// regionListRow is one `region list` row: the catalog row as the API sent it
+// plus the price multiplier a create naming the region is billed at, or null
+// when the multipliers could not be read.
 type regionListRow struct {
 	gen.Region
 	PriceMultiplier *float64 `json:"price_multiplier"`
+	raw             json.RawMessage
+}
+
+// MarshalJSON prints the API's region object with price_multiplier added.
+func (r regionListRow) MarshalJSON() ([]byte, error) {
+	return withField(r.raw, "price_multiplier", r.PriceMultiplier)
 }
 
 func newRegionCommand() *cobra.Command {
@@ -42,14 +48,14 @@ func newRegionCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var page gen.RegionList
-			if err := client.Do(cmd.Context(), http.MethodGet, "/regions", nil, nil, &page); err != nil {
+			page, err := getRawWhole[gen.Region](cmd.Context(), client, "/regions", nil, "regions")
+			if err != nil {
 				return err
 			}
 			multipliers := regionMultipliers(cmd.Context(), a)
-			rows := make([]regionListRow, 0, len(page.Regions))
-			for _, region := range page.Regions {
-				rows = append(rows, regionListRow{Region: region, PriceMultiplier: multiplierFor(multipliers, region.Id)})
+			rows := make([]regionListRow, 0, len(page.Items))
+			for _, region := range page.Items {
+				rows = append(rows, regionListRow{Region: region.V, PriceMultiplier: multiplierFor(multipliers, region.V.Id), raw: region.JSON})
 			}
 			return output.ListOut(a.Printer(), wholeList(rows), func(items []regionListRow) output.Table {
 				table := make([][]string, 0, len(items))

@@ -369,7 +369,7 @@ class DaytonaConfig:
     seconds (default 60; ``0`` = no limit). Waits and long polls use their own
     budget, streams are bounded only until their response headers arrive, and
     file transfers have no total bound but fail when no bytes move for that
-    long. ``max_response_bytes`` (default 1 GiB, ``0`` = no limit; an integer
+    long (with ``0``, transfers are not bounded at all). ``max_response_bytes`` (default 1 GiB, ``0`` = no limit; an integer
     up to 2**53 - 1) caps every response body the SDK holds in memory whole: a
     body over it raises ``PayloadTooLargeError`` (an error response's status
     error for an error status). The in-memory file reads take

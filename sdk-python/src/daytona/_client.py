@@ -180,7 +180,7 @@ class DaytonaConfig:
     ``request_timeout`` (seconds; default 60, ``0`` = no limit) is the total
     time one ordinary v2 request may take; waits and streams are not cut by
     it, and file transfers are bounded by it only while idle (no bytes moving
-    for that long). ``max_response_bytes`` (default 1 GiB, ``0`` = no limit)
+    for that long; with ``0``, not at all). ``max_response_bytes`` (default 1 GiB, ``0`` = no limit)
     caps every v2 response body the SDK holds in memory whole; the in-memory
     file reads take it per call too. ``request_timeout``, ``connection_pool_maxsize`` and
     ``otel_enabled`` tune the v2 client's HTTP transport;

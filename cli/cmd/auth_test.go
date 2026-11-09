@@ -5,9 +5,9 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -475,10 +475,10 @@ func TestDestructiveRefusalPrecedesNetwork(t *testing.T) {
 			t.Errorf("%v: exit %d (want 2 before any network call): %s", c, code, errb)
 		}
 	}
-	// --preview on member remove is read-only and must not be gated.
-	_, errb, code := run(t, d, nil, "member", "remove", "u-1", "--preview", "--api-url", dead, "--api-key", "k", "--org", "o-1")
-	if code == cerr.ExitUsage && has(errb, "--yes") {
-		t.Fatalf("--preview must not require --yes: %s", errb)
+	// --dry-run on member remove is read-only and must not be gated.
+	_, errb, code := run(t, d, nil, "member", "remove", "u-1", "--dry-run", "--api-url", dead, "--api-key", "k", "--org", "o-1")
+	if code == cerr.ExitUsage {
+		t.Fatalf("--dry-run must not require --yes: %s", errb)
 	}
 }
 
@@ -660,7 +660,7 @@ func TestWhoamiResolvesNameOverridesToIDs(t *testing.T) {
 	require.Equal(t, "lab", out["project_ref"])
 }
 
-func TestWhoamiFallsBackToRawOverridesWhenResolutionFails(t *testing.T) {
+func TestWhoamiReportsUnresolvedNamesOnlyAsRefs(t *testing.T) {
 	f := newFakeAPI(t)
 	f.on("GET", "/orgs", 502, `{"code":"BAD_GATEWAY","message":"service unavailable","source":"DAYTONA_API"}`)
 	d := cfgDir(t)
@@ -669,10 +669,11 @@ func TestWhoamiFallsBackToRawOverridesWhenResolutionFails(t *testing.T) {
 	stdout, stderr, code := run(t, d, nil, "--org", "Acme", "--project", "lab", "whoami", "-o", "json")
 	require.Equal(t, 0, code, stderr)
 	out := mustJSON(t, stdout)
-	require.Equal(t, "Acme", out["org_id"])
-	require.Equal(t, "lab", out["project_id"])
+	require.NotContains(t, out, "org_id", "an unresolved name is not an ID")
+	require.NotContains(t, out, "project_id")
 	require.Equal(t, "Acme", out["org_ref"])
 	require.Equal(t, "lab", out["project_ref"])
+	require.Equal(t, false, out["context_resolved"])
 }
 
 // A login that lands on an account with no organizations clears a stale
@@ -831,103 +832,6 @@ func TestLoginInSSHSessionUsesDeviceFlow(t *testing.T) {
 	}
 }
 
-// A static credential refused on a sandbox route gets ONE mint attempt with
-// that same credential; the minted key is used for
-// the retry and cached. If the mint is refused, the original 401 stands.
-func TestStaticCredentialOneShotExchange(t *testing.T) {
-	f := newFakeAPI(t)
-	var mu sync.Mutex
-	var sandboxAuth []string
-	f.handle("GET", "/sandboxes", func(w http.ResponseWriter, r *http.Request) {
-		a := r.Header.Get("Authorization")
-		mu.Lock()
-		sandboxAuth = append(sandboxAuth, a)
-		mu.Unlock()
-		if a != "Bearer dtn_minted" {
-			w.WriteHeader(401)
-			_, _ = w.Write([]byte(`{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`))
-			return
-		}
-		_, _ = w.Write([]byte(`{"sandboxes":[],"next_cursor":null}`))
-	})
-	f.on("GET", "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})
-	f.on("GET", "/orgs", 200, organizationsFixture())
-	f.on("POST", "/projects/"+testProjP1+"/api-keys", 201, apiKeyFixture("8", testProjP1, "dtn_minted", []string{"write:sandboxes", "read:sandboxes"}))
-	d := cfgDir(t)
-	_, errb, code := run(t, d, nil, "sandbox", "list", "-o", "json", "--api-url", f.srv.URL, "--api-key", "dtno_orgkey", "--org", testOrgP, "--project", testProjP1)
-	if code != 0 {
-		t.Fatalf("%d %s", code, errb)
-	}
-	mu.Lock()
-	got := append([]string(nil), sandboxAuth...)
-	mu.Unlock()
-	if len(got) != 2 || got[0] != "Bearer dtno_orgkey" || got[1] != "Bearer dtn_minted" {
-		t.Fatalf("expected original then minted bearer, got %v", got)
-	}
-	// A second invocation reuses the exchanged key up front: no 401, no mint.
-	before := len(f.requests)
-	_, errb, code = run(t, d, nil, "sandbox", "list", "-o", "json", "--api-url", f.srv.URL, "--api-key", "dtno_orgkey", "--org", testOrgP, "--project", testProjP1)
-	if code != 0 {
-		t.Fatalf("second run: %d %s", code, errb)
-	}
-	for _, r := range f.requests[before:] {
-		if r.Method == "POST" {
-			t.Fatal("second invocation must reuse the cached exchanged key, not mint again")
-		}
-		if r.Path == "/sandboxes" && r.Auth != "Bearer dtn_minted" {
-			t.Fatalf("second invocation should send the cached key up front, got %q", r.Auth)
-		}
-	}
-	// Mint refused → the 401 stands, exit 3, exactly one mint attempt.
-	f2 := newFakeAPI(t)
-	f2.on("GET", "/sandboxes", 401, `{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`)
-	f2.on("GET", "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})
-	f2.on("GET", "/orgs", 200, organizationsFixture())
-	f2.on("POST", "/projects/"+testProjP1+"/api-keys", 403, `{"code":"FORBIDDEN","message":"permission denied","source":"DAYTONA_API"}`)
-	// A single-resource command surfaces the standing 401 as exit 3; a fan-out
-	// list reports it per region as a partial result (exit 7) — both are the
-	// documented contracts, and neither invents a fallback.
-	f2.on("GET", "/sandboxes/"+"7fJk2mQpXv9dLc3RtY", 401, `{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`)
-	_, errb, code = run(t, cfgDir(t), nil, "sandbox", "get", "7fJk2mQpXv9dLc3RtY", "-o", "json", "--api-url", f2.srv.URL, "--api-key", "dtno_orgkey", "--org", testOrgP, "--project", testProjP1)
-	if code != cerr.ExitAuth {
-		t.Fatalf("get: %d %s", code, errb)
-	}
-	_, errb, code = run(t, cfgDir(t), nil, "sandbox", "list", "-o", "json", "--api-url", f2.srv.URL, "--api-key", "dtno_orgkey", "--org", testOrgP, "--project", testProjP1)
-	if code != cerr.ExitPartial {
-		t.Fatalf("list: %d %s", code, errb)
-	}
-	mints := 0
-	for _, r := range f2.requests {
-		if r.Method == "POST" {
-			mints++
-		}
-	}
-	if mints != 2 {
-		t.Fatalf("exactly one mint attempt per invocation (two invocations), got %d", mints)
-	}
-}
-
-// --org <name> works for the static-credential exchange too (resolved via the
-// caller's orgs), and --browser keeps the loopback flow inside SSH.
-func TestStaticExchangeResolvesOrgName(t *testing.T) {
-	f := newFakeAPI(t)
-	f.handle("GET", "/sandboxes/7fJk2mQpXv9dLc3RtY", func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer dtn_minted" {
-			w.WriteHeader(401)
-			_, _ = w.Write([]byte(`{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`))
-			return
-		}
-		_, _ = w.Write([]byte(sandboxDetailFixture("7fJk2mQpXv9dLc3RtY", "linux", "running")))
-	})
-	f.on("GET", "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})
-	f.on("GET", "/orgs", 200, organizationsFixture())
-	f.on("POST", "/projects/"+testProjA1+"/api-keys", 201, apiKeyFixture("8", testProjA1, "dtn_minted", []string{"write:sandboxes"}))
-	_, errb, code := run(t, cfgDir(t), nil, "sandbox", "get", "7fJk2mQpXv9dLc3RtY", "-o", "json", "--api-url", f.srv.URL, "--api-key", "dtno_orgkey", "--org", "Acme", "--project", testProjA1)
-	if code != 0 {
-		t.Fatalf("%d %s", code, errb)
-	}
-}
-
 func TestLoginBrowserFlagOverridesSSHDetection(t *testing.T) {
 	tty := true
 	app.ForceTTY = &tty
@@ -990,145 +894,6 @@ func TestLoginBrowserFlagOverridesSSHDetection(t *testing.T) {
 	}
 }
 
-// A cached exchanged key the server now rejects (401 revoked, or 403 because
-// the ceiling widened since it was minted) is dropped and re-minted once; a
-// cached key is never reused across a different --api-url.
-func TestStaticExchangeRejectedCachedKeyIsReminted(t *testing.T) {
-	for _, status := range []int{401, 403} {
-		t.Run(fmt.Sprint(status), func(t *testing.T) {
-			d := cfgDir(t)
-			f := newFakeAPI(t)
-			var mu sync.Mutex
-			var seen []string
-			mint, minted1Uses := 0, 0
-			f.handle("GET", "/sandboxes", func(w http.ResponseWriter, r *http.Request) {
-				a := r.Header.Get("Authorization")
-				mu.Lock()
-				defer mu.Unlock()
-				seen = append(seen, a)
-				switch a {
-				case "Bearer dtn_minted2":
-					_, _ = w.Write([]byte(`{"sandboxes":[],"next_cursor":null}`))
-				case "Bearer dtn_minted1":
-					// Accepted right after minting; "revoked"/"ceiling widened"
-					// from the second invocation on.
-					if minted1Uses++; minted1Uses == 1 {
-						_, _ = w.Write([]byte(`{"sandboxes":[],"next_cursor":null}`))
-						return
-					}
-					w.WriteHeader(status)
-					if status == http.StatusForbidden {
-						_, _ = w.Write([]byte(`{"code":"FORBIDDEN","message":"rejected","source":"DAYTONA_API"}`))
-						return
-					}
-					_, _ = w.Write([]byte(`{"code":"UNAUTHORIZED","message":"rejected","source":"DAYTONA_API"}`))
-				default:
-					w.WriteHeader(401)
-					_, _ = w.Write([]byte(`{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`))
-				}
-			})
-			f.on("GET", "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})
-			f.on("GET", "/orgs", 200, organizationsFixture())
-			f.handle("POST", "/projects/"+testProjP1+"/api-keys", func(w http.ResponseWriter, _ *http.Request) {
-				mu.Lock()
-				mint++
-				n := mint
-				mu.Unlock()
-				w.WriteHeader(http.StatusCreated)
-				_, _ = w.Write([]byte(apiKeyFixture(fmt.Sprint(n), testProjP1, "dtn_minted"+fmt.Sprint(n), []string{"write:sandboxes"})))
-			})
-			args := []string{"sandbox", "list", "-o", "json", "--api-url", f.srv.URL, "--api-key", "dtno_orgkey", "--org", testOrgP, "--project", testProjP1}
-			if _, errb, code := run(t, d, nil, args...); code != 0 {
-				t.Fatalf("first: %d %s", code, errb)
-			}
-			// Second invocation: cached dtn_minted1 is sent up front, the
-			// server rejects it, the entry is dropped and dtn_minted2 minted.
-			if _, errb, code := run(t, d, nil, args...); code != 0 {
-				t.Fatalf("second: %d %s", code, errb)
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			want := []string{"Bearer dtno_orgkey", "Bearer dtn_minted1", "Bearer dtn_minted1", "Bearer dtn_minted2"}
-			if fmt.Sprint(seen) != fmt.Sprint(want) {
-				t.Fatalf("bearer sequence: got %v want %v", seen, want)
-			}
-			if mint != 2 {
-				t.Fatalf("expected exactly one re-mint, got %d mints", mint)
-			}
-		})
-	}
-}
-
-func TestStaticExchangeCacheIsPerAPIOrigin(t *testing.T) {
-	d := cfgDir(t)
-	newServer := func(token string) *fakeAPI {
-		f := newFakeAPI(t)
-		f.handle("GET", "/sandboxes", func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Authorization") != "Bearer "+token {
-				w.WriteHeader(401)
-				_, _ = w.Write([]byte(`{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`))
-				return
-			}
-			_, _ = w.Write([]byte(`{"sandboxes":[],"next_cursor":null}`))
-		})
-		f.on("GET", "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})
-		f.on("GET", "/orgs", 200, organizationsFixture())
-		f.on("POST", "/projects/"+testProjP1+"/api-keys", 201, apiKeyFixture("8", testProjP1, token, []string{"write:sandboxes"}))
-		return f
-	}
-	f1, f2 := newServer("dtn_from_one"), newServer("dtn_from_two")
-	for _, f := range []*fakeAPI{f1, f2} {
-		if _, errb, code := run(t, d, nil, "sandbox", "list", "-o", "json", "--api-url", f.srv.URL, "--api-key", "dtno_orgkey", "--org", testOrgP, "--project", testProjP1); code != 0 {
-			t.Fatalf("%s: %d %s", f.srv.URL, code, errb)
-		}
-	}
-	// Server two must never have seen server one's key.
-	for _, r := range f2.requests {
-		if r.Path == "/sandboxes" && r.Auth == "Bearer dtn_from_one" {
-			t.Fatal("a key minted against one API origin was sent to another")
-		}
-	}
-}
-
-// The first sandbox command with a mint-capable static credential may
-// be a body-bearing POST (`sandbox create` on a cold cache). JSON bodies are
-// replayable, so the one-shot exchange fires there too — the same body is
-// re-sent under the minted key; there is no "run a list first" ordering rule.
-func TestStaticCredentialExchangeReplaysJSONBody(t *testing.T) {
-	f := newFakeAPI(t)
-	var mu sync.Mutex
-	var auths, bodies []string
-	f.handle("POST", "/sandboxes", func(w http.ResponseWriter, r *http.Request) {
-		b, _ := io.ReadAll(r.Body)
-		mu.Lock()
-		auths = append(auths, r.Header.Get("Authorization"))
-		bodies = append(bodies, string(b))
-		mu.Unlock()
-		if r.Header.Get("Authorization") != "Bearer dtn_minted" {
-			w.WriteHeader(401)
-			_, _ = w.Write([]byte(`{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`))
-			return
-		}
-		w.WriteHeader(http.StatusAccepted)
-		_, _ = w.Write([]byte(`{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`))
-	})
-	f.on("GET", "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})
-	f.on("GET", "/orgs", 200, organizationsFixture())
-	f.on("POST", "/projects/"+testProjP1+"/api-keys", 201, apiKeyFixture("8", testProjP1, "dtn_minted", []string{"write:sandboxes"}))
-	_, errb, code := run(t, cfgDir(t), nil, "sandbox", "create", "--image", "python:3.12", "--no-wait", "-o", "json", "--api-url", f.srv.URL, "--api-key", "dtno_orgkey", "--org", testOrgP, "--project", testProjP1)
-	if code != 0 {
-		t.Fatalf("cold create with a mint-capable org key must exchange and succeed: %d %s", code, errb)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(auths) != 2 || auths[0] != "Bearer dtno_orgkey" || auths[1] != "Bearer dtn_minted" {
-		t.Fatalf("expected original then minted bearer on POST /sandboxes, got %v", auths)
-	}
-	if bodies[0] == "" || bodies[0] != bodies[1] {
-		t.Fatalf("the retry must replay the identical JSON body: %q vs %q", bodies[0], bodies[1])
-	}
-}
-
 // apiKeyFixture is the ProjectApiKeyWithToken response from POST /projects/{project_id}/api-keys:
 // one place to change when the contract does.
 func apiKeyFixture(idSuffix, projectID, token string, perms []string) string {
@@ -1137,4 +902,59 @@ func apiKeyFixture(idSuffix, projectID, token string, perms []string) string {
 		quoted[i] = `"` + p + `"`
 	}
 	return `{"id":"88888888-8888-8888-8888-88888888888` + idSuffix + `","name":"cli-x","project_id":"` + projectID + `","key_prefix":"dtn_","key_suffix":"xyz","token":"` + token + `","project_permissions":[` + strings.Join(quoted, ",") + `],"expires_at":"2030-01-01T00:00:00Z","created_at":"2026-01-01T00:00:00Z","revoked_at":null,"last_used_at":null,"sync_to_v0":true, "sync_to_v1":true,"service_account_id":null,"service_account_name":null}`
+}
+
+// A static credential (--api-key, DAYTONA_API_KEY, `login --token`) is sent
+// as-is on every route: a 401 stands, and the CLI never mints, caches or
+// substitutes a project key for it.
+func TestStaticCredentialIsSentAsIs(t *testing.T) {
+	for _, source := range []string{"flag", "env", "login-token"} {
+		t.Run(source, func(t *testing.T) {
+			f := newFakeAPI(t)
+			f.on("GET", "/sandboxes/7fJk2mQpXv9dLc3RtY", 401, `{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`)
+			f.on("POST", "/sandboxes", 401, `{"code":"UNAUTHORIZED","message":"unauthorized","source":"DAYTONA_API"}`)
+			f.on("GET", "/orgs", 200, organizationsFixture())
+			f.on("POST", "/projects/"+testProjP1+"/api-keys", 201, apiKeyFixture("8", testProjP1, "dtn_minted", []string{"write:sandboxes"}))
+			d := cfgDir(t)
+			env := map[string]string{}
+			args := []string{"--api-url", f.srv.URL, "--org", testOrgP, "--project", testProjP1}
+			switch source {
+			case "flag":
+				args = append(args, "--api-key", "dtno_orgkey")
+			case "env":
+				env["DAYTONA_API_KEY"] = "dtno_orgkey"
+			case "login-token":
+				_, errb, code := run(t, d, nil, "login", "--token", "dtno_orgkey", "--api-url", f.srv.URL)
+				require.Equal(t, 0, code, errb)
+			}
+			_, errb, code := run(t, d, env, append([]string{"sandbox", "get", "7fJk2mQpXv9dLc3RtY", "-o", "json"}, args...)...)
+			require.Equal(t, cerr.ExitAuth, code, errb)
+			_, errb, code = run(t, d, env, append([]string{"sandbox", "create", "-o", "json"}, args...)...)
+			require.Equal(t, cerr.ExitAuth, code, errb)
+			for _, r := range f.requests {
+				require.NotEqual(t, "POST /projects/"+testProjP1+"/api-keys", r.Method+" "+r.Path, "no project key is minted for a static credential")
+				if strings.HasPrefix(r.Path, "/sandboxes") {
+					require.Equal(t, "Bearer dtno_orgkey", r.Auth)
+				}
+			}
+			creds, err := os.ReadFile(filepath.Join(d, "credentials.yaml"))
+			if err == nil {
+				require.NotContains(t, string(creds), "workload_keys", "no derived key is cached")
+			}
+		})
+	}
+}
+
+// An explicitly empty --api-key is a usage error, never a fall-through to
+// DAYTONA_API_KEY or the saved login.
+func TestEmptyAPIKeyFlagIsAUsageError(t *testing.T) {
+	d := cfgDir(t)
+	for _, value := range []string{"", "   "} {
+		_, errb, code := run(t, d, map[string]string{"DAYTONA_API_KEY": "fixture-env-key"}, "whoami", "--api-key", value, "-o", "json")
+		require.Equal(t, cerr.ExitUsage, code, errb)
+		require.Contains(t, errb, "--api-key is empty")
+	}
+	out, errb, code := run(t, d, map[string]string{"DAYTONA_API_KEY": "   "}, "whoami", "-o", "json")
+	require.Equal(t, 0, code, errb)
+	require.NotContains(t, mustJSON(t, out), "credential_source", "a blank DAYTONA_API_KEY counts as unset")
 }

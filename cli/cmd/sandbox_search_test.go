@@ -131,7 +131,7 @@ func TestSandboxSearch_includesTotalsInStructuredOutput(t *testing.T) {
 	require.Contains(t, yamlStdout, "total_relation: gte")
 }
 
-func TestSandboxSearch_usesGlobalRegionFlag(t *testing.T) {
+func TestSandboxSearch_regionFlagBeforeTheCommandName(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"--region", "region-b", "sandbox", "search", "python"}, []expectedRequest{{
 		method:   http.MethodGet,
 		path:     "/sandboxes/search",
@@ -150,4 +150,22 @@ func TestSandboxSearch_filterOnlyWithoutQuery(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, stdout)
+}
+
+// Search answers from one API: its output has no `incomplete` or `errors`.
+func TestSandboxSearch_outputShape(t *testing.T) {
+	stdout, _, err := runCLI(t, []string{"sandbox", "search", "python"}, []expectedRequest{{
+		method:   http.MethodGet,
+		path:     "/sandboxes/search",
+		status:   200,
+		query:    "q=python&limit=100",
+		response: `{"total":0,"total_relation":"eq","sandboxes":[],"next_cursor":"c2"}`,
+	}})
+	require.NoError(t, err)
+	out := requireJSONStdout(t, stdout)
+	keys := make([]string, 0, len(out))
+	for k := range out {
+		keys = append(keys, k)
+	}
+	require.ElementsMatch(t, []string{"items", "next_cursor", "total", "total_relation"}, keys)
 }

@@ -2135,11 +2135,21 @@ export interface AttachHubOptions {
   readonly shared: boolean
   readonly config: EventsHubConfig
   readonly wsFactory?: WebSocketFactory
+  /**
+   * The attaching client's API instance; its buffered-body cap
+   * (`maxResponseBytes`) then bounds the ticket mint and the long-poll
+   * fallback too. Without one the hub builds its own, under `maxResponseBytes`.
+   */
   readonly _api?: AxiosInstance
+  /** The cap on buffered bodies for a hub that builds its own API instance. */
+  readonly maxResponseBytes?: number
 }
 
 export function attachHub(options: AttachHubOptions): WaitHub {
-  const { apiUrl, apiKey, target, shared, config, wsFactory, _api } = options
+  const { apiUrl, apiKey, target, shared, config, wsFactory } = options
+  const _api = options._api ?? (options.maxResponseBytes === undefined
+    ? undefined
+    : createHttpClient(apiUrl.replace(/\/$/, ''), apiKey, 30_000, { maxResponseBytes: options.maxResponseBytes }))
 
   if (!shared) {
     const hub = new WaitHub(apiUrl, apiKey, config, wsFactory ?? defaultWsFactory, _api)

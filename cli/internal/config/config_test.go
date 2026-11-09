@@ -175,3 +175,48 @@ func TestOpenRefusesSymlinkedCredentialsFile(t *testing.T) {
 		t.Fatalf("the symlink target must be untouched, mode %o", st.Mode().Perm())
 	}
 }
+
+// Keys an earlier release exchanged from a static credential (Source set)
+// are never used again; the next write of credentials.yaml drops them.
+func TestSaveCredentials_dropsLegacyStaticExchangeKeys(t *testing.T) {
+	st, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared := []WorkloadKey{{KeyID: "login"}, {KeyID: "legacy", Key: "secret-fixture", Source: "fingerprint"}}
+	cr := &Credentials{Profiles: map[string]ProfileCredentials{"a": {WorkloadKeys: shared}, "b": {WorkloadKeys: shared}}}
+	if err := st.SaveCredentials(cr); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.LoadCredentials()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"a", "b"} {
+		keys := got.Profiles[name].WorkloadKeys
+		if len(keys) != 1 || keys[0].KeyID != "login" {
+			t.Fatalf("%s: %+v", name, keys)
+		}
+	}
+	raw, err := os.ReadFile(filepath.Join(st.Dir, "credentials.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "secret-fixture") {
+		t.Fatal("the legacy key is still on disk")
+	}
+}
+
+func TestSaveCredentials_leavesTheCallersValueUnchanged(t *testing.T) {
+	st, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cr := &Credentials{Profiles: map[string]ProfileCredentials{"a": {WorkloadKeys: []WorkloadKey{{KeyID: "legacy", Source: "x"}}}}}
+	if err := st.SaveCredentials(cr); err != nil {
+		t.Fatal(err)
+	}
+	if len(cr.Profiles["a"].WorkloadKeys) != 1 {
+		t.Fatal("SaveCredentials changed the value it was given")
+	}
+}

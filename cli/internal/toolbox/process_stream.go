@@ -157,7 +157,7 @@ func (c *Client) finishProcessLogs(ctx context.Context, processID, cursor, encod
 		if err != nil {
 			return tbgen.ExitResult{}, err
 		}
-		result = waitResult
+		result = waitResult.V
 	}
 	for {
 		query := url.Values{}
@@ -169,13 +169,13 @@ func (c *Client) finishProcessLogs(ctx context.Context, processID, cursor, encod
 		if err != nil {
 			return tbgen.ExitResult{}, err
 		}
-		if err := WriteLogFrames(page.Frames, encoding, stdout, stderr); err != nil {
+		if err := WriteLogFrames(page.V.Frames, encoding, stdout, stderr); err != nil {
 			return tbgen.ExitResult{}, err
 		}
-		if page.Eof || page.NextCursor == "" || page.NextCursor == cursor || len(page.Frames) == 0 {
+		if page.V.Eof || page.V.NextCursor == "" || page.V.NextCursor == cursor || len(page.V.Frames) == 0 {
 			return result, nil
 		}
-		cursor = page.NextCursor
+		cursor = page.V.NextCursor
 	}
 }
 

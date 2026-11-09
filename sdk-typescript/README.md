@@ -13,6 +13,9 @@ declarations. Node >= 22.15 (or a browser environment with `WebSocket`).
 npm install @daytona/sdk@alpha
 ```
 
+The legacy package `@daytonaio/sdk` is published only from the 0.x line:
+installing or upgrading it never gives you 2.x. Install `@daytona/sdk`.
+
 The package includes the v0 namespace, so installing it also installs the
 0.x SDK's runtime dependencies (AWS S3 client, OpenTelemetry, socket.io, …),
 even if you only use `daytona.v2`. In Node builds they load only on first
@@ -101,7 +104,8 @@ means no limit) is the total time one
 ordinary request may take before it throws `ClientTimeoutError`; waits and long
 polls use their own budget, streams are bounded only until their response
 arrives, and file transfers have no total limit but throw `ClientTimeoutError`
-once no bytes move for that long. `maxResponseBytes` (default 1 GiB; `0` means
+once no bytes move for that long (with `requestTimeoutSeconds: 0` they are not
+bounded at all). `maxResponseBytes` (default 1 GiB; `0` means
 no limit) caps every response body the SDK holds in memory whole: a larger
 body throws `PayloadTooLargeError` before it is read in full (an error response
 keeps its status's error).

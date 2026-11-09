@@ -282,12 +282,12 @@ export class FileSystemService {
   /**
    * Read a file as bytes, holding the whole file in memory. A file transfer:
    * no total deadline, but it fails with `ClientTimeoutError` once no bytes
-   * move for the request timeout. The body is capped by the client's
-   * `maxResponseBytes` or this call's (see {@link ReadFileOptions}). For large
-   * files, or content from a sandbox you do not trust, use `downloadFile()`,
-   * which streams to disk with progress and cancellation; it is Node.js-only,
-   * so in a browser the in-memory reads and `presignedDownloadUrl()` are the
-   * options.
+   * move for the request timeout (a request timeout of `0` leaves it
+   * unbounded). The body is capped by the client's `maxResponseBytes` or this
+   * call's (see {@link ReadFileOptions}). For large files, or content from a
+   * sandbox you do not trust, use `downloadFile()`, which streams to disk with
+   * progress and cancellation; it is Node.js-only, so in a browser the
+   * in-memory reads and `presignedDownloadUrl()` are the options.
    */
   public async readBytes(path: string, options?: ReadFileOptions): Promise<Uint8Array> {
     const limit = readLimit('ReadFileOptions', options, READ_FILE_OPTION_KEYS)

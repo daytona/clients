@@ -11,7 +11,7 @@
 
 import axios, { AxiosError } from 'axios'
 import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { BodyTooLarge, IdleWatchdog, bytesAs, declaresMoreThan, discardBody, readCappedBody, tooLargeErrorStatusMessage, tooLargeMessage } from './bodyLimit.js'
+import { BodyTooLarge, IdleWatchdog, bytesAs, declaresMoreThan, discardBody, isSmallRequestBody, readCappedBody, tooLargeErrorStatusMessage, tooLargeMessage } from './bodyLimit.js'
 import { PAYLOAD_TOO_LARGE_AXIOS_CODE } from './errors/DaytonaError.js'
 import { boundedTimerDelay } from './options.js'
 
@@ -168,33 +168,8 @@ async function fetchAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
   }
 }
 
-/**
- * A request body small enough that the runtime hands it to the socket at
- * once (64 KiB), so a wait after sending it is a wait for the response, not
- * an upload still in progress. Bodies of unknown size are not.
- */
-const SMALL_REQUEST_BODY_BYTES = 64 * 1024
-
 function smallRequestBody(config: InternalAxiosRequestConfig): boolean {
-  const data: unknown = config.data
-  if (data === undefined || data === null || ['get', 'head'].includes((config.method ?? 'get').toLowerCase())) return true
-  const size = (value: unknown): number | undefined => {
-    if (typeof value === 'string') return value.length * 3
-    if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value.byteLength
-    if (typeof Blob !== 'undefined' && value instanceof Blob) return value.size
-    if (typeof URLSearchParams !== 'undefined' && value instanceof URLSearchParams) return value.toString().length
-    return undefined
-  }
-  if (typeof FormData !== 'undefined' && data instanceof FormData) {
-    let total: number | undefined = 0
-    data.forEach((value) => {
-      const entry = size(value)
-      total = total === undefined || entry === undefined ? undefined : total + entry
-    })
-    return total !== undefined && total <= SMALL_REQUEST_BODY_BYTES
-  }
-  const bytes = size(data)
-  return bytes !== undefined && bytes <= SMALL_REQUEST_BODY_BYTES
+  return isSmallRequestBody(config.method, config.data)
 }
 
 function settleError(config: InternalAxiosRequestConfig, response: AxiosResponse): AxiosError {

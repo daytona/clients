@@ -238,21 +238,21 @@ func TestSecretInputValue_stripsExactlyOneTrailingNewlineFromFile(t *testing.T) 
 	t.Run("lf", func(t *testing.T) {
 		file := filepath.Join(t.TempDir(), "secret.txt")
 		require.NoError(t, os.WriteFile(file, []byte("v\n\n"), 0o600))
-		value, err := secretInputValue("", file, false)
+		value, err := secretInputValue("", file, true, false)
 		require.NoError(t, err)
 		require.Equal(t, "v\n", value)
 	})
 	t.Run("single newline becomes empty", func(t *testing.T) {
 		file := filepath.Join(t.TempDir(), "secret.txt")
 		require.NoError(t, os.WriteFile(file, []byte("\n"), 0o600))
-		value, err := secretInputValue("", file, false)
+		value, err := secretInputValue("", file, true, false)
 		require.NoError(t, err)
 		require.Equal(t, "", value)
 	})
 	t.Run("crlf", func(t *testing.T) {
 		file := filepath.Join(t.TempDir(), "secret.txt")
 		require.NoError(t, os.WriteFile(file, []byte("v\r\n"), 0o600))
-		value, err := secretInputValue("", file, false)
+		value, err := secretInputValue("", file, true, false)
 		require.NoError(t, err)
 		require.Equal(t, "v", value)
 	})
@@ -268,7 +268,7 @@ func TestSecretInputValue_stripsExactlyOneTrailingNewlineFromStdin(t *testing.T)
 	os.Stdin = opened
 	defer func() { os.Stdin = oldStdin }()
 
-	value, err := secretInputValue("", "", true)
+	value, err := secretInputValue("", "", false, true)
 	require.NoError(t, err)
 	require.Equal(t, "v\n", value)
 }

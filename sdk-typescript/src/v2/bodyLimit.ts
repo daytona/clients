@@ -158,6 +158,37 @@ export async function readCappedBody(data: unknown, limit: number, hooks: ReadHo
   return concat(chunks, size)
 }
 
+/**
+ * A request body small enough (64 KiB) that the runtime hands it to the
+ * socket at once, so a wait after sending it is a wait for the response, not
+ * an upload still in progress. A transfer's idle bound starts at once for
+ * one; for a larger body the runtime sends without progress events, it starts
+ * at the response headers, so a long upload that is still moving is never
+ * cut. A body of unknown size (a stream, an unknown object) is not small.
+ */
+export const SMALL_REQUEST_BODY_BYTES = 64 * 1024
+
+export function isSmallRequestBody(method: string | undefined, data: unknown): boolean {
+  if (data === undefined || data === null || ['get', 'head'].includes((method ?? 'get').toLowerCase())) return true
+  const size = (value: unknown): number | undefined => {
+    if (typeof value === 'string') return value.length * 3
+    if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value.byteLength
+    if (typeof Blob !== 'undefined' && value instanceof Blob) return value.size
+    if (typeof URLSearchParams !== 'undefined' && value instanceof URLSearchParams) return value.toString().length
+    return undefined
+  }
+  if (typeof FormData !== 'undefined' && data instanceof FormData) {
+    let total: number | undefined = 0
+    data.forEach((value) => {
+      const entry = size(value)
+      total = total === undefined || entry === undefined ? undefined : total + entry
+    })
+    return total !== undefined && total <= SMALL_REQUEST_BODY_BYTES
+  }
+  const bytes = size(data)
+  return bytes !== undefined && bytes <= SMALL_REQUEST_BODY_BYTES
+}
+
 /** Cancel a body without reading it (closing its connection). */
 export async function discardBody(data: unknown, release?: () => void): Promise<void> {
   if (isNodeReadable(data)) data.destroy()

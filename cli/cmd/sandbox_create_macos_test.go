@@ -26,7 +26,7 @@ func TestSandboxCreateMacos_sizesReservationAndPersistence(t *testing.T) {
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
 
 	// Unsized: every axis stays absent; --auto-renew rides with --reservation new.
-	_, _, err = runCLI(t, []string{"sandbox", "create-macos", "--yes", "--image", "base-macos", "--reservation", "new", "--auto-renew", "--on-timeout", "delete", "--timeout", "3600", "--no-wait"}, []expectedRequest{{
+	_, _, err = runCLI(t, []string{"sandbox", "create-macos", "--yes", "--image", "base-macos", "--reservation", "new", "--auto-renew", "--on-lifecycle-timeout", "delete", "--lifecycle-timeout", "1h", "--no-wait"}, []expectedRequest{{
 		method:   http.MethodPost,
 		path:     "/sandboxes/macos",
 		status:   202,
@@ -72,8 +72,10 @@ func TestSandboxCreateMacos_helpIsPublicAndComplete(t *testing.T) {
 		// macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
 		"--persistent keep the disk across stop/start on the same Mac; delete erases it, and reservation end saves it as an image before the Mac is erased. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged.",
 		"Each omitted size uses half of the Mac's resources, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one.",
-		"--on-timeout ACTION action when --timeout elapses: stop|delete (stop needs --persistent)",
-		"--on-idle-timeout ACTION action when --idle-timeout elapses: stop|delete (stop needs --persistent)",
+		"--on-lifecycle-timeout ACTION action when --lifecycle-timeout elapses: delete, or stop with --persistent",
+		"--on-idle-timeout ACTION action when --idle-timeout elapses: delete, or stop with --persistent",
+		"--lifecycle-timeout DURATION wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; re-arms on every start",
+		"--timeout DURATION how long to wait for the operation to finish (Go duration); the server keeps working after it (default 10m)",
 		"daytona sandbox create-macos --image base-macos",
 		"daytona sandbox create-macos --image base-macos --reservation RESERVATION_ID --cores 10 --memory 16384 --disk 163840 --persistent",
 		"daytona sandbox create-macos --image base-macos --block-all --allow-domain example.com",

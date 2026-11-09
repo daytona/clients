@@ -14,6 +14,8 @@
 # Release and publish helpers called by the workflows
 /scripts/sdk-version.sh                    @MDzaja
 /scripts/sdk-version_test.sh               @MDzaja
+/scripts/release-channel.sh                @MDzaja
+/scripts/release-channel_test.sh           @MDzaja
 /scripts/resolve-v0-tag.sh                 @MDzaja
 /scripts/v0-publish-mode.sh                @MDzaja
 /scripts/bundle-v0.sh                      @MDzaja

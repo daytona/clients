@@ -19,8 +19,8 @@ func projectBudgetPath(projectID string) string {
 // GetProjectBudget reads GET /projects/{id}/budget. A project without a
 // budget answers 200 with null monthly_limit_cents and created_at; a 404
 // means the project was not found (a caller without access gets 403).
-func GetProjectBudget(ctx context.Context, c *api.Client, projectID string) (*gen.ProjectBudget, error) {
-	var resp gen.ProjectBudget
+func GetProjectBudget(ctx context.Context, c *api.Client, projectID string) (*api.Raw[gen.ProjectBudget], error) {
+	var resp api.Raw[gen.ProjectBudget]
 	if err := c.Do(ctx, http.MethodGet, projectBudgetPath(projectID), nil, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -29,8 +29,8 @@ func GetProjectBudget(ctx context.Context, c *api.Client, projectID string) (*ge
 
 // SetProjectBudget creates or replaces the budget with PUT
 // /projects/{id}/budget.
-func SetProjectBudget(ctx context.Context, c *api.Client, projectID string, monthlyLimitCents int64) (*gen.ProjectBudget, error) {
-	var resp gen.ProjectBudget
+func SetProjectBudget(ctx context.Context, c *api.Client, projectID string, monthlyLimitCents int64) (*api.Raw[gen.ProjectBudget], error) {
+	var resp api.Raw[gen.ProjectBudget]
 	if err := c.Do(ctx, http.MethodPut, projectBudgetPath(projectID), nil, gen.SetProjectBudgetRequest{MonthlyLimitCents: monthlyLimitCents}, &resp); err != nil {
 		return nil, err
 	}

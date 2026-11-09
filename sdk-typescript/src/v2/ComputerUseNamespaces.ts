@@ -350,12 +350,13 @@ export class RecordingService {
   /**
    * Download a recording, holding the whole file in memory. A file transfer:
    * no total deadline, but it fails with `ClientTimeoutError` once no bytes
-   * move for the request timeout. `maxResponseBytes` replaces the client's cap
-   * on the body for this call (an integer, `0` = no limit; `undefined` /
-   * `null` keep the client's); a larger recording is refused with
-   * `PayloadTooLargeError`. For a large recording, or one from a sandbox you
-   * do not trust, download its `filePath` with `sandbox.fs.downloadFile()`
-   * (Node.js-only), which streams to disk with progress and cancellation.
+   * move for the request timeout (a request timeout of `0` leaves it
+   * unbounded). `maxResponseBytes` replaces the client's cap on the body for
+   * this call (an integer, `0` = no limit; `undefined` / `null` keep the
+   * client's); a larger recording is refused with `PayloadTooLargeError`. For
+   * a large recording, or one from a sandbox you do not trust, download its
+   * `filePath` with `sandbox.fs.downloadFile()` (Node.js-only), which streams
+   * to disk with progress and cancellation.
    */
   public async download(id: string, options?: RecordingDownloadOptions): Promise<Uint8Array> {
     assertKnownOptions('RecordingDownloadOptions', options, RECORDING_DOWNLOAD_OPTION_KEYS)

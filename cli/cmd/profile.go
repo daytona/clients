@@ -19,6 +19,9 @@ func newProfileCmd() *cobra.Command {
 		Use:     "profile",
 		Short:   "Manage named connections (API URL + credential + org/project context)",
 		GroupID: GroupAuth,
+		// Listing, switching and deleting profiles must work while
+		// DAYTONA_PROFILE names one that does not exist.
+		Annotations: map[string]string{annotationProfileOptional: "true"},
 	}
 	c.AddCommand(&cobra.Command{
 		Use:   "list",

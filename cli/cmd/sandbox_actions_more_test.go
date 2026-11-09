@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ func TestSandboxStop_invalidTimeoutFailsBeforeLookup(t *testing.T) {
 		"sandbox", "stop", "11111111-1111-1111-1111-111111111111",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
-	require.Contains(t, errb, "invalid --timeout")
+	require.Contains(t, errb, `invalid argument "bad" for "--timeout" flag`)
 	require.Empty(t, f.requests)
 }
 
@@ -174,9 +175,9 @@ func TestSandboxUpdate_clearLabels(t *testing.T) {
 }
 
 func TestSandboxUpdate_lifecycleOnly(t *testing.T) {
-	stdout, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--idle-timeout", "120", "--on-idle-timeout", "pause"}, []expectedRequest{
+	stdout, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--idle-timeout", "2m", "--on-idle-timeout", "delete", "--lifecycle-timeout", "1h30m"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
-		{method: http.MethodPatch, path: "/sandboxes/11111111-1111-1111-1111-111111111111/lifecycle-policy", status: 200, bodyJSON: `{"idle_expiry_seconds":120,"on_idle_timeout":"pause"}`, response: sandboxLifecycleFixture("11111111-1111-1111-1111-111111111111", 120, "pause")},
+		{method: http.MethodPatch, path: "/sandboxes/11111111-1111-1111-1111-111111111111/lifecycle-policy", status: 200, bodyJSON: `{"idle_expiry_seconds":120,"on_idle_timeout":"delete","timeout_seconds":5400}`, response: sandboxLifecycleFixture("11111111-1111-1111-1111-111111111111", 120, "delete")},
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
 	})
 	require.NoError(t, err)
@@ -191,7 +192,7 @@ func TestSandboxUpdate_rejectsMacOSPauseLifecycleBeforePatch(t *testing.T) {
 		"--api-url", f.srv.URL,
 		"--api-key", "k",
 		"--project", testProjP1,
-		"sandbox", "update", "22222222-2222-2222-2222-222222222222", "--idle-timeout", "120", "--on-idle-timeout", "pause",
+		"sandbox", "update", "22222222-2222-2222-2222-222222222222", "--idle-timeout", "2m", "--on-idle-timeout", "pause",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
 	require.Contains(t, errb, "macos")
@@ -206,12 +207,92 @@ func TestSandboxUpdate_buildsAndValidatesBothBodiesBeforeMutating(t *testing.T) 
 		"--api-url", f.srv.URL,
 		"--api-key", "k",
 		"--project", testProjP1,
-		"sandbox", "update", "22222222-2222-2222-2222-222222222222", "--label", "env=dev", "--idle-timeout", "120", "--on-idle-timeout", "pause",
+		"sandbox", "update", "22222222-2222-2222-2222-222222222222", "--label", "env=dev", "--idle-timeout", "2m", "--on-idle-timeout", "pause",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
 	require.Contains(t, errb, "macos")
 	require.Len(t, f.requests, 1)
 	require.Equal(t, "/sandboxes/22222222-2222-2222-2222-222222222222", f.requests[0].Path)
+}
+
+// The lifecycle actions follow the SDKs: delete everywhere, stop only on a
+// persistent macOS sandbox, never pause. A refused action fails before any
+// write.
+func TestSandboxUpdate_lifecycleActionMatrix(t *testing.T) {
+	cases := []struct {
+		name, class, action string
+		persistent          bool
+		ok                  bool
+	}{
+		{"linux delete", "linux", "delete", false, true},
+		{"linux stop", "linux", "stop", false, false},
+		{"linux pause", "linux", "pause", false, false},
+		{"ephemeral macos stop", "macos", "stop", false, false},
+		{"persistent macos stop", "macos", "stop", true, true},
+		{"persistent macos pause", "macos", "pause", true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			detail := mustJSON(t, sandboxDetailFixture("22222222-2222-2222-2222-222222222222", tc.class, "running"))
+			detail["persistent"] = tc.persistent
+			f := newFakeAPI(t)
+			f.on("GET", "/sandboxes/22222222-2222-2222-2222-222222222222", 200, detail)
+			f.on("PATCH", "/sandboxes/22222222-2222-2222-2222-222222222222/lifecycle-policy", 200, mustJSON(t, sandboxLifecycleFixture("22222222-2222-2222-2222-222222222222", 120, gen.LifecycleAction(tc.action))))
+			_, errb, code := run(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k",
+				"sandbox", "update", "22222222-2222-2222-2222-222222222222", "--lifecycle-timeout", "2m", "--on-lifecycle-timeout", tc.action)
+			if tc.ok {
+				require.Equal(t, 0, code, errb)
+				require.Equal(t, map[string]any{"timeout_seconds": float64(120), "on_timeout": tc.action}, findRequest(t, f, "PATCH", "/sandboxes/22222222-2222-2222-2222-222222222222/lifecycle-policy").Body)
+				return
+			}
+			require.Equal(t, cerr.ExitUsage, code, errb)
+			require.Contains(t, errb, "--on-lifecycle-timeout")
+			for _, r := range f.requests {
+				require.Equal(t, "GET", r.Method, "no write after a refused action")
+			}
+		})
+	}
+}
+
+func TestSandboxUpdate_idleTimeoutOffClearsTheIdleExpiry(t *testing.T) {
+	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--idle-timeout", "off"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
+		{method: http.MethodPatch, path: "/sandboxes/11111111-1111-1111-1111-111111111111/lifecycle-policy", status: 200, bodyJSON: `{"idle_expiry_seconds":-1}`, response: sandboxLifecycleFixture("11111111-1111-1111-1111-111111111111", 120, "delete")},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
+	})
+	require.NoError(t, err)
+}
+
+func TestSandboxUpdate_durationFlagsTakeWholeSecondGoDurations(t *testing.T) {
+	for _, args := range [][]string{
+		{"--idle-timeout", "120"},          // no unit
+		{"--idle-timeout", "1500ms"},       // not whole seconds
+		{"--lifecycle-timeout", "0s"},      // zero
+		{"--lifecycle-timeout", "-5m"},     // negative
+		{"--lifecycle-timeout", "off"},     // keyword not offered here
+		{"--lifecycle-timeout", "800000h"}, // beyond the API's range
+		{"--timeout", "30s"},               // the old lifecycle spelling is gone
+		{"--on-timeout", "delete"},         // likewise
+	} {
+		_, _, err := runCLI(t, append([]string{"sandbox", "update", "11111111-1111-1111-1111-111111111111"}, args...), nil)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), args)
+	}
+}
+
+// sandbox update --file is the CLI's composite of the two requests: only
+// `labels` and `lifecycle_policy` are accepted, and anything else is refused
+// before any request (a dropped key would silently skip a lifecycle change).
+func TestSandboxUpdate_fileRejectsUnknownTopLevelKeys(t *testing.T) {
+	for _, body := range []string{
+		`{"labels":{"env":"prod"},"timeout_seconds":60,"on_timeout":"delete"}`,
+		`{"Labels":{"env":"prod"}}`,
+	} {
+		bodyPath := filepath.Join(t.TempDir(), "update.json")
+		require.NoError(t, os.WriteFile(bodyPath, []byte(body), 0o600))
+		_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath}, nil)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), body)
+		require.ErrorContains(t, err, "unknown field")
+	}
 }
 
 func TestSandboxUpdate_rejectsExplicitNullLabelsWithoutOverride(t *testing.T) {
@@ -234,32 +315,21 @@ func TestSandboxUpdate_rejectsNullLifecycleWithoutOverride(t *testing.T) {
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 }
 
-func TestSandboxUpdate_rejectsCaseFoldedNullLifecycleField(t *testing.T) {
-	bodyPath := filepath.Join(t.TempDir(), "update.json")
-	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"lifecycle_policy":{"Timeout_Seconds":null}}`), 0o600))
-	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath}, []expectedRequest{
-		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
-	})
-	require.Error(t, err)
-	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
-	require.ErrorContains(t, err, "not nullable")
-}
-
-func TestSandboxUpdate_flagOverridesCaseFoldedNullLifecycleField(t *testing.T) {
+// A field name that differs only in case is unknown, also when a flag sets
+// that field.
+func TestSandboxUpdate_caseVariantLifecycleFieldIsUnknown(t *testing.T) {
 	bodyPath := filepath.Join(t.TempDir(), "update.json")
 	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"lifecycle_policy":{"Idle_Expiry_Seconds":null,"on_idle_timeout":"delete"}}`), 0o600))
-	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath, "--idle-timeout", "60"}, []expectedRequest{
-		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
-		{method: http.MethodPatch, path: "/sandboxes/11111111-1111-1111-1111-111111111111/lifecycle-policy", status: 200, bodyJSON: `{"idle_expiry_seconds":60,"on_idle_timeout":"delete"}`, response: sandboxLifecycleFixture("11111111-1111-1111-1111-111111111111", 60, "delete")},
-		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
-	})
-	require.NoError(t, err)
+	// Nothing is sent: the body is checked before the sandbox is looked up.
+	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath, "--idle-timeout", "1m"}, nil)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "unknown field")
 }
 
 func TestSandboxUpdate_lifecycleFlagsOverrideInvalidFileLifecycle(t *testing.T) {
 	bodyPath := filepath.Join(t.TempDir(), "update.json")
 	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"lifecycle_policy":null}`), 0o600))
-	stdout, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath, "--idle-timeout", "60", "--on-idle-timeout", "delete"}, []expectedRequest{
+	stdout, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath, "--idle-timeout", "1m", "--on-idle-timeout", "delete"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
 		{method: http.MethodPatch, path: "/sandboxes/11111111-1111-1111-1111-111111111111/lifecycle-policy", status: 200, bodyJSON: `{"idle_expiry_seconds":60,"on_idle_timeout":"delete"}`, response: sandboxLifecycleFixture("11111111-1111-1111-1111-111111111111", 60, "delete")},
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
@@ -435,4 +505,17 @@ func TestSandboxFork_macosFailedForkConflicts(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "reached failed, not running")
+}
+
+// Label keys are the user's names: keys that differ only in case are two
+// labels, sent as given.
+func TestSandboxUpdate_fileLabelsDifferingOnlyInCase(t *testing.T) {
+	body := filepath.Join(t.TempDir(), "update.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"labels":{"a":"1","A":"2"}}`), 0o600))
+	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", body}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
+		{method: http.MethodPut, path: "/sandboxes/11111111-1111-1111-1111-111111111111/labels", status: 200, bodyJSON: `{"labels":{"a":"1","A":"2"}}`, response: `{"id":"11111111-1111-1111-1111-111111111111","labels":{"a":"1","A":"2"}}`},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
+	})
+	require.NoError(t, err)
 }
