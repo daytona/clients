@@ -1,0 +1,26 @@
+examples/python/test_examples.py
+  s_ca009e77d17705::t_ff7dd4a2044d00 886-890
+  s_ca009e77d17705::t_01349c039ed5c3 101,263-264,330-332,338-345,348-349,352,363-364,370,376,403,840,851-852,858
+  s_ca009e77d17705::t_6e9d7b69a52afe 350
+  s_ca009e77d17705::t_e892fa3ae66488 346-347,351
+examples/typescript/test-support/volume-lifecycle.ts
+  s_ca009e77d17705::t_3187dc26c17cbd 25-32
+examples/typescript/test-support/fake-sdk.ts
+  s_ca009e77d17705::t_3187dc26c17cbd 96-100,120,123,136-140,147,149,152-153,169-176,197-203,205-208,211-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "537a1c8031d82185f49d7b4a9a6a5568693f7c20",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
