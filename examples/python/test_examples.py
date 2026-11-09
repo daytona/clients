@@ -31,7 +31,7 @@ import pytest
 EXAMPLES = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(EXAMPLES / "python"), str(EXAMPLES)]
 
-from _common import IMAGE, IMAGE_NAME, RUN, image_name
+from _common import IMAGE, IMAGE_NAME, IMAGE_WAIT_SECONDS, RUN, image_name
 
 from daytona.v2 import (
     ImageBuilder,
@@ -43,6 +43,7 @@ from daytona.v2 import (
     ListResult,
     NameConflictError,
     ProcessResult,
+    RequestTimeoutError,
 )
 from daytona.v2._sync.daytona import Daytona as SyncDaytona
 from daytona.v2._sync.filesystem import FileSystemService
@@ -78,6 +79,7 @@ class FakeWorld:
         self.pull_fails: Optional[str] = None
         self.pulled_images: list[tuple[str, Optional[str]]] = []
         self.deleted_images: list[str] = []
+        self.image_waits: list[tuple[object, object]] = []
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
         self.build_logs_fail_after_output = False
@@ -139,10 +141,15 @@ class FakeWorld:
         self.images.append(image)
         return image
 
-    def _image_ready(self, image_id: str, **_: object) -> SimpleNamespace:
+    def _image_ready(self, image_id: str, *, wait: object = None, timeout: object = None, **_: object) -> SimpleNamespace:
+        # As the SDK's budgeted wait: it follows the image until it settles,
+        # or raises RequestTimeoutError when it never does.
+        self.image_waits.append((wait, timeout))
         image = next(i for i in self.images if i.id == image_id)
-        if image.waits:
+        while image.status not in ("ready", "failed", "error") and image.waits:
             image.status = image.waits.pop(0)
+        if image.status not in ("ready", "failed", "error"):
+            raise RequestTimeoutError("image did not settle", status_code=408, code="REQUEST_TIMEOUT", source="SDK")
         return image
 
     def _image_pull(self, image: str, *, name: Optional[str] = None, **_: object) -> SimpleNamespace:
@@ -339,7 +346,7 @@ def test_fails_rather_than_hangs_on_a_registration_that_never_finishes(
 ) -> None:
     world = FakeWorld()
     world.add_image(IMAGE_NAME, "pending", ())
-    with pytest.raises(RuntimeError, match=f"image {IMAGE_NAME} is still pending"):
+    with pytest.raises(RuntimeError, match=f"image {IMAGE_NAME} did not settle within {IMAGE_WAIT_SECONDS} s"):
         run_example("exec_command", world=world)
     assert world.sandboxes == []
 
@@ -355,6 +362,8 @@ def test_reuses_a_registered_image(
     code, world = run_example("exec_command", world=world)
     assert code == 0
     assert world.pulled_images == []
+    # One budgeted wait for an image still registering, none for a ready one.
+    assert world.image_waits == ([] if status == "ready" else [("ready", IMAGE_WAIT_SECONDS)])
 
 
 @pytest.mark.parametrize(("status", "waits"), [("failed", ()), ("pending", ("failed",))])

@@ -19,7 +19,7 @@ import uuid
 from typing import Optional
 
 from daytona import AsyncDaytona, AsyncDaytonaV2Client, Daytona, DaytonaConfig, DaytonaV2Client
-from daytona.v2 import Image, NameConflictError, Sandbox
+from daytona.v2 import Image, NameConflictError, RequestTimeoutError, Sandbox
 
 IMAGE = os.environ.get("DAYTONA_IMAGE", "python:3.12-slim")
 # The project image IMAGE is registered as, shared by every example run. The
@@ -33,8 +33,8 @@ def image_name(ref: str) -> str:
 
 IMAGE_NAME = image_name(IMAGE)
 RUN = uuid.uuid4().hex[:8]
-# Server waits for a registering image (each returns after at most about 30 s).
-_IMAGE_WAITS = 40
+# How long a registering image may take to settle, as one budgeted wait.
+IMAGE_WAIT_SECONDS = 1200
 
 _BOLD, _GREEN, _RED, _RESET = "\033[1m", "\033[32m", "\033[31m", "\033[0m"
 
@@ -99,15 +99,16 @@ def sandbox_image(daytona: DaytonaV2Client) -> str:
                 image = daytona.images.pull(IMAGE, name=IMAGE_NAME, wait=False)
             except NameConflictError:
                 continue  # Another run registered it first: use that one.
-        # The server's wait returns after a while even when the image is not done.
-        for _ in range(_IMAGE_WAITS):
-            if image.status in ("ready", "failed", "error"):
-                break
-            image = daytona.images.get(image.id, wait="ready")
+        if image.status not in ("ready", "failed", "error"):
+            # One wait over the whole budget: it repeats the server's long poll
+            # and returns once the image settles, or raises RequestTimeoutError
+            # when the budget runs out.
+            try:
+                image = daytona.images.get(image.id, wait="ready", timeout=IMAGE_WAIT_SECONDS)
+            except RequestTimeoutError:
+                raise RuntimeError(f"image {IMAGE_NAME} did not settle within {IMAGE_WAIT_SECONDS} s") from None
         if image.status == "ready":
             return IMAGE_NAME
-        if image.status not in ("failed", "error"):
-            raise RuntimeError(f"image {IMAGE_NAME} is still {image.status}")
         # A failed registration: report why, then register again.
         cause = image.error or f"registration {image.status}"
         info(f"image {IMAGE_NAME} failed: {cause}; registering again")

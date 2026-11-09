@@ -1355,7 +1355,7 @@ class AsyncSandbox:
             self._api,
             None,
             toolbox_owner=self._toolbox_owner,
-            toolbox_base_url=data.toolbox_proxy_url,
+            toolbox_base_url=data.toolbox_proxy_url or None,
             toolbox_token=api_token,
             request_timeout=self._request_timeout,
             # The events hub IS inherited: it is per process and identity, not

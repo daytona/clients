@@ -99,8 +99,12 @@ export function checkResponse<T>(value: unknown, fields: ResponseFields, what: s
   return value as T
 }
 
-/** The `{ id, status }` acknowledgement of an accepted asynchronous operation. @internal */
-export const ASYNC_OPERATION: ResponseFields = { id: 'string', status: 'string' }
+/**
+ * The acknowledgement of an accepted asynchronous operation: only its `id` is
+ * required, as the resource exists once it came back (its `status` is not read).
+ * @internal
+ */
+export const ASYNC_OPERATION: ResponseFields = { id: 'string' }
 
 const TIMESTAMP = 'string'
 

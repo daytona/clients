@@ -23,7 +23,7 @@ from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona import AsyncDaytona, DaytonaConfig
-from daytona.v2 import BadRequestError, ImageBuilder
+from daytona.v2 import BadRequestError, Image, ImageBuilder, Snapshot
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
 from daytona.v2.sandbox import AsyncSandbox
 from daytona.v2.types import JsonObject, JsonValue
@@ -809,3 +809,96 @@ async def test_an_integer_too_large_for_a_double_in_a_mapped_field_is_a_contract
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             with _sdk_bad_request("^image detail response has a bytes that is not an integer$"):
                 await root.v2.images.get("img")
+
+
+_FORK_URL = "https://toolbox.example/fork"
+_FORK_BODIES: dict[str, JsonObject] = {
+    "id only": {"id": "f1"},
+    "no forked_from": {"id": "f1", "status": "pending", "toolbox_proxy_url": _FORK_URL},
+    "no toolbox_proxy_url": {"id": "f1", "status": "pending", "forked_from": "src"},
+    "wrong types": {"id": "f1", "status": 5, "forked_from": 7, "toolbox_proxy_url": ["x"]},
+}
+
+
+@pytest.mark.parametrize("wait_seconds", [0, 5])
+@pytest.mark.parametrize("body", list(_FORK_BODIES))
+async def test_a_fork_response_with_only_its_id_returns_the_handle(body: str, wait_seconds: int) -> None:
+    # The fork exists once its id came back: fork() returns the handle, with
+    # the source as `forked_from` and the toolbox URL from the fork's detail
+    # read, never the source's. The TypeScript twin is in
+    # malformed-responses.test.ts.
+    detail: JsonObject = {
+        **_DETAIL,
+        "id": "f1",
+        "forked_from": "src",
+        "toolbox_proxy_url": "https://toolbox.example/detail",
+    }
+    planned = [PlannedResponse(200, _FORK_BODIES[body])]
+    if wait_seconds:
+        planned = [PlannedResponse(200, _DETAIL), *planned, PlannedResponse(200, detail)]
+    with FakeApi(planned) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            fork = await lazy_sandbox(root.v2, "src").fork(wait_seconds=wait_seconds)
+    assert (fork.id, fork.forked_from) == ("f1", "src")
+    given = _FORK_BODIES[body].get("toolbox_proxy_url")
+    if isinstance(given, str):
+        assert fork._toolbox_proxy_url == f"{_FORK_URL}/f1"
+    elif wait_seconds:
+        assert fork._toolbox_proxy_url == "https://toolbox.example/detail/f1"
+    else:
+        assert fork._toolbox is None
+    assert [request.method for request in api.requests] == (
+        ["GET", "POST", "GET"] if wait_seconds else ["POST"]
+    )
+
+
+_ACCEPTED: list[tuple[str, Call, JsonObject]] = [
+    ("images.build", lambda d: d.images.build(ImageBuilder.from_registry("alpine")), {"id": "img"}),
+    ("images.pull", lambda d: d.images.pull("alpine", wait=False), {"id": "img"}),
+    ("capture_image", lambda d: lazy_sandbox(d, "src").capture_image(), {"id": "img", "status": 5}),
+    ("create_snapshot", lambda d: lazy_sandbox(d, "src").create_snapshot("snap"), {"id": "snap"}),
+]
+
+
+@pytest.mark.parametrize(("name", "call", "accepted"), _ACCEPTED, ids=[case[0] for case in _ACCEPTED])
+async def test_an_accepted_create_needs_only_its_id(name: str, call: Call, accepted: JsonObject) -> None:
+    # The artifact exists once its id came back: the call follows the id
+    # whatever the acknowledgement's status. Twin in malformed-responses.test.ts.
+    created = _SNAPSHOT if name == "create_snapshot" else _IMAGE
+    with FakeApi([PlannedResponse(200, accepted), PlannedResponse(200, created)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            result = await call(root.v2)
+    assert isinstance(result, (Image, Snapshot)) and result.id == created["id"]
+    assert len(api.requests) == 2
+
+
+async def test_a_create_response_with_mistyped_optional_fields_returns_the_handle() -> None:
+    # Only the id is required once the sandbox exists: every other field that
+    # is not a string reads as absent. The TypeScript twin is in
+    # malformed-responses.test.ts.
+    body: JsonObject = {
+        "id": "sbx",
+        "status": "pending",
+        "name": 5,
+        "toolbox_proxy_url": 7,
+        "access_token": 8,
+        "access_token_expires_at": 9,
+        "image": {"id": 5, "name": 6},
+        "reservation_id": 10,
+        "wait_cap_seconds": "x",
+    }
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = await root.v2.create("img_1", wait_seconds=0)
+    assert (sandbox.id, sandbox.state, sandbox.name, sandbox.reservation_id) == (
+        "sbx",
+        "creating",
+        None,
+        None,
+    )
+    assert sandbox._toolbox is None
+    assert len(api.requests) == 1

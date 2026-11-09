@@ -111,9 +111,10 @@ export interface UpdateEnvOptions {
 const LIFECYCLE_WAIT_KEYS = optionKeys<LifecycleWaitOptions>()({ timeoutSeconds: true })
 const WAIT_KEYS = optionKeys<WaitOptions>()({ until: true, timeoutSeconds: true })
 const FORK_KEYS = optionKeys<ForkOptions>()({ name: true, memory: true, waitSeconds: true, autoDelete: true })
-// No status: the fork exists once its id came back, so a missing or
-// non-string status reads as `unknown`, as for a create.
-const FORK_RESPONSE: ResponseFields = { id: 'string', forked_from: 'string', toolbox_proxy_url: 'string' }
+// Only the id: the fork exists once it came back, as for a create. A missing
+// or non-string status reads as `unknown`, `forked_from` falls back to the
+// source's id, and the toolbox URL comes from the fork's detail read.
+const FORK_RESPONSE: ResponseFields = { id: 'string' }
 const CAPTURE_KEYS = optionKeys<CaptureImageOptions>()({ name: true, idleExpirySeconds: true })
 const UPDATE_ENV_KEYS = optionKeys<UpdateEnvOptions>()({ unset: true })
 const LIFECYCLE_POLICY_KEYS = optionKeys<LifecyclePolicyOptions>()({ timeoutSeconds: true, onTimeout: true, idleExpirySeconds: true, onIdleTimeout: true })
@@ -800,6 +801,10 @@ export class Sandbox {
     const forked = checkResponse<api.ForkResponse>(response.data, FORK_RESPONSE, 'sandbox fork')
     const rawForkStatus: unknown = Reflect.get(forked, 'status')
     const forkStatus = typeof rawForkStatus === 'string' ? rawForkStatus : undefined
+    const rawForkedFrom: unknown = Reflect.get(forked, 'forked_from')
+    const forkedFrom = typeof rawForkedFrom === 'string' && rawForkedFrom !== '' ? rawForkedFrom : this.id
+    const rawForkToolbox: unknown = Reflect.get(forked, 'toolbox_proxy_url')
+    const forkToolbox = typeof rawForkToolbox === 'string' && rawForkToolbox !== '' ? rawForkToolbox : undefined
     // The fork's metadata comes from its detail; its toolbox from the fork
     // response, never the source's per-sandbox override.
     // 0 is one request; above the timer maximum (about 24.8 days) the fork
@@ -814,8 +819,8 @@ export class Sandbox {
         // A fork has its source's class; it names its source.
         sandboxClass,
         rawSandboxClass,
-        forkedFrom: forked.forked_from,
-        toolboxProxyUrl: scopedProxyToolboxUrl(forked.toolbox_proxy_url, forked.id),
+        forkedFrom,
+        toolboxProxyUrl: scopedProxyToolboxUrl(forkToolbox, forked.id),
       },
       api: this.api,
       apiKey: this.apiKey,
@@ -835,7 +840,7 @@ export class Sandbox {
       const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, { timeout }).then((r) => r.data)
       assertSandboxResponse(detail)
       fork.observed = metadataFromSandbox(detail)
-      fork.refreshToolbox({ ...detail, toolbox_proxy_url: forked.toolbox_proxy_url || detail.toolbox_proxy_url })
+      fork.refreshToolbox({ ...detail, toolbox_proxy_url: forkToolbox ?? detail.toolbox_proxy_url })
     } catch (error) {
       if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
       throw error

@@ -7025,18 +7025,19 @@ describe('toolbox service request shaping', () => {
     expect((await sandbox.fork({ waitSeconds: 5 })).state).toBe('started')
   })
 
-  it('refuses a fork response without its toolbox URL rather than reuse the parent URL', async () => {
-    // The contract requires the fork's toolbox URL (Python validates it too):
-    // a response without one is a contract error, never the parent's sandbox.
+  it('returns a fork whose response has no toolbox URL without reusing the parent URL', async () => {
+    // The fork exists once its id came back, so the handle is returned; it has
+    // no toolbox until a detail read supplies the fork's own, never the parent's.
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: 'http://10.0.0.7:2280' })
     const api = clientInstance(client)
     jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked', forked_from: 'source', status: 'pending' } })
     const get = jest.spyOn(api, 'get')
 
-    await expect(sandbox.fork({ waitSeconds: 0 })).rejects.toMatchObject({
-      statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox fork response is missing its toolbox_proxy_url',
-    })
+    const fork = await sandbox.fork({ waitSeconds: 0 })
+    expect(fork.id).toBe('forked')
+    expect(fork.toolboxProxyUrl).toBeUndefined()
+    expect(() => fork.fs).toThrow('sandbox handle has no toolbox URL')
     expect(get).not.toHaveBeenCalled()
   })
 

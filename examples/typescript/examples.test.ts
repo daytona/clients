@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { IMAGE, IMAGE_NAME, imageName } from './_common.js'
+import { IMAGE, IMAGE_NAME, IMAGE_WAIT_SECONDS, imageName } from './_common.js'
 import type { Record, Scenario } from './test-support/fake-sdk.js'
 
 const EXAMPLES = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -136,7 +136,7 @@ test('names distinct image references apart', () => {
 test('fails, rather than hangs, on a registration that never finishes', () => {
   const { code, record, output } = runExample(example('exec-command'), { images: [[IMAGE_NAME, 'pending', []]] })
   assert.equal(code, 1, output)
-  assert.match(output, new RegExp(`image ${IMAGE_NAME} is still pending`))
+  assert.match(output, new RegExp(`image ${IMAGE_NAME} did not settle within ${IMAGE_WAIT_SECONDS} s`))
   assert.deepEqual(record.sandboxes, [])
 })
 
@@ -145,6 +145,8 @@ test('reuses a registered image, and waits for one still registering', () => {
     const { code, record, output } = runExample(example('exec-command'), { images: [[IMAGE_NAME, status, [...waits]]] })
     assert.equal(code, 0, output)
     assert.deepEqual(record.pulledImages, [])
+    // One budgeted wait for an image still registering, none for a ready one.
+    assert.deepEqual(record.imageWaits, status === 'ready' ? [] : [{ wait: 'ready', timeoutSeconds: IMAGE_WAIT_SECONDS }])
   }
 })
 

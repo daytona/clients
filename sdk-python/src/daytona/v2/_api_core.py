@@ -217,13 +217,25 @@ def _timestamp(value: object) -> datetime:
     return parsed
 
 
+def _id_only(value: TransportPayload, fields: tuple[str, ...]) -> TransportPayload:
+    """An accepted create's response, of which only the ``id`` is required:
+    the resource exists once its id came back, so each of ``fields`` that is
+    missing or not a string reads as empty (the caller falls back), never an
+    error. TypeScript checks only the id too."""
+    if not isinstance(value, dict):
+        return value
+    return {**value, **{name: "" for name in fields if not isinstance(value.get(name), str)}}
+
+
 def expect_create_image_resp(value: TransportPayload) -> AsyncOperation:
-    return _expect_model_from_dict(value, AsyncOperation, "image create response", AsyncOperation.from_dict)
+    return _expect_model_from_dict(
+        _id_only(value, ("status",)), AsyncOperation, "image create response", AsyncOperation.from_dict
+    )
 
 
 def expect_create_snapshot_resp(value: TransportPayload) -> AsyncOperation:
     return _expect_model_from_dict(
-        value, AsyncOperation, "snapshot create response", AsyncOperation.from_dict
+        _id_only(value, ("status",)), AsyncOperation, "snapshot create response", AsyncOperation.from_dict
     )
 
 
@@ -232,12 +244,14 @@ def expect_endpoint_list_resp(value: TransportPayload) -> SandboxPortPage:
 
 
 def expect_fork_resp(value: TransportPayload) -> ForkSandboxOperation:
-    # The fork exists once its id came back: a missing or non-string status
-    # reads as `unknown`, never an error, as for a create.
-    if isinstance(value, dict) and not isinstance(value.get("status"), str):
-        value = {**value, "status": ""}
+    # The fork exists once its id came back, as for a create: a missing or
+    # non-string status reads as `unknown`, `forked_from` falls back to the
+    # source's id, and the toolbox URL comes from the fork's detail read.
     return _expect_model_from_dict(
-        value, ForkSandboxOperation, "sandbox fork response", ForkSandboxOperation.from_dict
+        _id_only(value, ("status", "forked_from", "toolbox_proxy_url")),
+        ForkSandboxOperation,
+        "sandbox fork response",
+        ForkSandboxOperation.from_dict,
     )
 
 

@@ -476,3 +476,72 @@ it('refuses an integer too large for a double in a mapped field, as Python does'
     await api.close()
   }
 })
+
+// The fork exists once its id came back: fork() returns the handle, with the
+// source as `forkedFrom` and the toolbox URL from the fork's detail read, never
+// the source's. The Python twin is in test_malformed_responses.py.
+const FORK_URL = 'https://toolbox.example/fork'
+const FORK_BODIES: Readonly<Record<string, Record<string, unknown>>> = {
+  'id only': { id: 'f1' },
+  'no forked_from': { id: 'f1', status: 'pending', toolbox_proxy_url: FORK_URL },
+  'no toolbox_proxy_url': { id: 'f1', status: 'pending', forked_from: 'src' },
+  'wrong types': { id: 'f1', status: 5, forked_from: 7, toolbox_proxy_url: ['x'] },
+}
+const SANDBOX_DETAIL = { id: 'src', class: 'linux', name: 'src', status: 'stopped', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: 'region-a', port_map: [] }
+describe.each(Object.keys(FORK_BODIES))('a fork response with %s', (body) => {
+  it.each([0, 5])('returns the handle (waitSeconds %d)', async (waitSeconds) => {
+    const detail = { ...SANDBOX_DETAIL, id: 'f1', forked_from: 'src', toolbox_proxy_url: 'https://toolbox.example/detail' }
+    const accepted = { status: 200, body: FORK_BODIES[body] }
+    const api = await startFakeApi(waitSeconds ? [{ status: 200, body: SANDBOX_DETAIL }, accepted, { status: 200, body: detail }] : [accepted])
+    try {
+      const fork = await source(api).fork({ waitSeconds })
+      expect([fork.id, fork.forkedFrom]).toEqual(['f1', 'src'])
+      const given = FORK_BODIES[body].toolbox_proxy_url
+      expect(fork.toolboxProxyUrl).toBe(typeof given === 'string' ? `${FORK_URL}/f1` : waitSeconds ? 'https://toolbox.example/detail/f1' : undefined)
+      expect(api.requests.map((request) => request.method)).toEqual(waitSeconds ? ['GET', 'POST', 'GET'] : ['POST'])
+    } finally {
+      await api.close()
+    }
+  })
+})
+
+// An accepted artifact create needs only its id: the call follows it whatever
+// the acknowledgement's status, as in Python.
+it.each([
+  ['images.build', (client: Daytona) => client.v2.images.build(ImageBuilder.fromRegistry('alpine')), { id: 'img-one' }],
+  ['images.pull', (client: Daytona) => client.v2.images.pull('alpine', { wait: false }), { id: 'img-one' }],
+  ['captureImage', (_client: Daytona, api: FakeApi) => source(api).captureImage(), { id: 'img-one', status: 5 }],
+  ['createSnapshot', (_client: Daytona, api: FakeApi) => source(api).createSnapshot('snap'), { id: 'snap-one' }],
+] as const)('%s needs only the id of its acknowledgement', async (name, call, accepted) => {
+  const created = name === 'createSnapshot' ? snapshotWire() : imageWire()
+  const api = await startFakeApi([{ status: 200, body: accepted }, { status: 200, body: created }])
+  const client = clientAt(api.url)
+  try {
+    const result = await call(client, api)
+    expect(result.id).toBe(created.id)
+    expect(api.requests).toHaveLength(2)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('returns the create handle when its optional fields are mistyped, as Python does', async () => {
+  // Only the id is required once the sandbox exists: every other field that is
+  // not a string reads as absent.
+  const body = {
+    id: 'sbx', status: 'pending', name: 5, toolbox_proxy_url: 7, access_token: 8, access_token_expires_at: 9,
+    image: { id: 5, name: 6 }, reservation_id: 10, wait_cap_seconds: 'x',
+  }
+  const api = await startFakeApi([{ status: 200, body }])
+  const client = clientAt(api.url)
+  try {
+    const sandbox = await client.v2.create('img_1', { waitSeconds: 0 })
+    expect([sandbox.id, sandbox.state, sandbox.name, sandbox.reservationId, sandbox.toolboxProxyUrl]).toEqual(['sbx', 'creating', undefined, undefined, undefined])
+    expect(sandbox.image).toEqual({ id: 'img_1', name: null })
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

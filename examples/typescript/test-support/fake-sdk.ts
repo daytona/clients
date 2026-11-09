@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs'
 
 import { Daytona } from '@daytona/sdk'
-import { ImageBuildFailedError, NameConflictError } from '@daytona/sdk/v2'
+import { ImageBuildFailedError, NameConflictError, RequestTimeoutError } from '@daytona/sdk/v2'
 import type {
   BuildLogFollowOptions,
   CreateFromBuildOptions,
@@ -64,6 +64,7 @@ export interface Record {
   followedImages: string[]
   pulledImages: { ref: string; name?: string }[]
   deletedImages: string[]
+  imageWaits: { wait?: string; timeoutSeconds?: number }[]
 }
 
 const scenario: Scenario = JSON.parse(process.env.EXAMPLE_FAKE_SCENARIO ?? '{}')
@@ -78,6 +79,7 @@ const record: Record = {
   followedImages: [],
   pulledImages: [],
   deletedImages: [],
+  imageWaits: [],
 }
 process.on('exit', () => {
   if (process.env.EXAMPLE_FAKE_RECORD) writeFileSync(process.env.EXAMPLE_FAKE_RECORD, JSON.stringify(record))
@@ -214,9 +216,15 @@ const fake = {
     iter: async function* (options: { name?: string } = {}) {
       yield* images.filter((entry) => options.name === undefined || entry.name === options.name)
     },
-    get: async (id: string) => {
+    get: async (id: string, options: { wait?: string; timeoutSeconds?: number } = {}) => {
+      // As the SDK's budgeted wait: it follows the image until it settles, or
+      // throws RequestTimeoutError when it never does.
+      record.imageWaits.push({ wait: options.wait, timeoutSeconds: options.timeoutSeconds })
       const entry = images.find((candidate) => candidate.id === id)
-      if (entry) entry.status = entry.waits.shift() ?? entry.status
+      if (entry === undefined) return entry
+      const settled = (): boolean => ['ready', 'failed', 'error'].includes(entry.status)
+      while (!settled() && entry.waits.length > 0) entry.status = entry.waits.shift() ?? entry.status
+      if (!settled()) throw new RequestTimeoutError('image did not settle', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
       return entry
     },
     pull: async (ref: string, options: { name?: string } = {}) => {

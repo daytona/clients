@@ -58,33 +58,39 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   }
   // The sandbox exists once its id came back: a missing or non-string status
   // reads as `unknown`, never an error (as `wait_cap_seconds`).
-  const rawStatus: unknown = Reflect.get(created, 'status')
-  const status = typeof rawStatus === 'string' ? rawStatus : undefined
+  // Every other field is read the same way: a missing or mistyped one is
+  // absent, as in Python.
+  const text = (from: unknown, key: string): string | undefined => {
+    const value: unknown = typeof from === 'object' && from !== null ? Reflect.get(from, key) : undefined
+    return typeof value === 'string' ? value : undefined
+  }
+  const status = text(created, 'status')
   // A create token is refreshable, unlike a caller-supplied one.
   const connectOptions: SandboxConnectOptionsFromCreate = {
-    accessToken: created.access_token ?? undefined,
+    accessToken: text(created, 'access_token'),
     accessTokenFromCreate: true,
-    accessTokenExpiresAt: created.access_token_expires_at ?? undefined,
+    accessTokenExpiresAt: text(created, 'access_token_expires_at'),
     autoDelete: metadata.autoDelete,
   }
   // The handle holds only what the response carries, plus an `img_` / `snap_`
   // id the caller passed (a name is never an id), and the class only when the
   // call fixes it (createMacos). A partial DTO would mark absent fields known.
-  const booted = created.image
+  const booted: unknown = Reflect.get(created, 'image')
+  const bootedId = text(booted, 'id')
   const sandbox = context.buildSandbox({
     sandboxId: created.id,
-    toolboxProxyUrl: scopedProxyToolboxUrl(created.toolbox_proxy_url, created.id),
-    name: created.name,
+    toolboxProxyUrl: scopedProxyToolboxUrl(text(created, 'toolbox_proxy_url'), created.id),
+    name: text(created, 'name'),
     rawState: status,
     state: sandboxState(status),
     region,
-    image: typeof booted?.id === 'string' && booted.id !== ''
-      ? { id: booted.id, name: booted.name ?? null }
+    image: bootedId !== undefined && bootedId !== ''
+      ? { id: bootedId, name: text(booted, 'name') ?? null }
       : metadata.image?.startsWith('img_') ? { id: metadata.image, name: null } : undefined,
     snapshot: metadata.snapshot?.startsWith('snap_') ? { id: metadata.snapshot, name: null } : undefined,
     sandboxClass: metadata.sandboxClass,
     rawSandboxClass: metadata.sandboxClass,
-    reservationId: created.reservation_id ?? undefined,
+    reservationId: text(created, 'reservation_id'),
   }, connectOptions)
   sandbox.learnEventDestination(createdEventDestination)
   const waitCap = typeof created.wait_cap_seconds === 'number' && Number.isFinite(created.wait_cap_seconds) ? Math.max(0, created.wait_cap_seconds) : 0
