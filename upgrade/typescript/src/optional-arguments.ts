@@ -12,11 +12,16 @@
  * may add `|literal` and `|zero` texts: for a numeric literal argument the
  * value is computed instead, `literal` with `$` as the literal (`zero` when it
  * is 0; `literal` again when no `zero` text is given). The Python tool reads
- * the same markers (optional_arguments.py).
+ * the same markers (optional_arguments.py). A text that uses the argument
+ * more than once is a conversion expression: there an argument that is not a
+ * name, a member chain or a literal is parenthesized, so its operators keep
+ * their precedence.
  */
 const MARKER = /\[\[(\w+)@(\d+)\|((?:(?!\]\]).)*)\]\]/g;
 // A decimal numeric literal, written as both languages write one.
 const NUMERIC_LITERAL = /^(?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][+-]?\d+)?$/;
+// A name or a member chain (`a`, `a.b.c`).
+const SIMPLE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
 
 export function renderOptionalArguments(
   template: string,
@@ -29,7 +34,9 @@ export function renderOptionalArguments(
     const chosen = literal !== undefined && NUMERIC_LITERAL.test(value)
       ? (Number(value.replaceAll('_', '')) === 0 ? zero ?? literal : literal)
       : text;
-    return chosen.split('$').join(value);
+    const parts = chosen.split('$');
+    const operand = parts.length > 2 && !SIMPLE.test(value) && !NUMERIC_LITERAL.test(value) ? `(${value})` : value;
+    return parts.join(operand);
   });
 }
 

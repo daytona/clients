@@ -329,6 +329,22 @@ def _lifecycle_form(call: str, entry_id: str) -> str:
             "sandbox.start",
             "box.start(timeout=0 if budget is None else budget)",
         ),
+        # An expression is parenthesized where the form computes with it.
+        (
+            "box.fork(timeout=5 if fast else 60)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400 if (5 if fast else 60) in (None, 0) else (5 if fast else 60))",
+        ),
+        (
+            "box.start(a or b)",
+            "sandbox.start",
+            "box.start(timeout=0 if (a or b) is None else (a or b))",
+        ),
+        ("box.pause(timeout=a or b)", "sandbox.pause", "box.pause(timeout=a or b)"),
+        # `sandbox` in a client form stands for the 0.x call's sandbox, as the
+        # guide says of every identifier but `{client}` / `{sandbox}`.
+        ("api.v0.stop(box)", "client.stop", "api.v2.stop(sandbox)"),
+        ("api.v0.stop(box, 30)", "client.stop", "api.v2.stop(sandbox, timeout=30)"),
         (
             "api.v0.delete(box, 30)",
             "client.delete",

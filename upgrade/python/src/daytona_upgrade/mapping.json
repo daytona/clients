@@ -3773,7 +3773,7 @@
           "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
           "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references; a v2 snapshot boots with create_from_snapshot(snapshot)",
           "Translate target to region and rebuild creation parameters, resource units (one resources=Resources(...) entry; memory and disk in GiB) and lifecycle settings",
-          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is wait_seconds (default 60), and wait_seconds=0 returns without waiting, so pass wait_seconds=0 and wait once with the original budget (sandbox.wait(until=\"started\", timeout=0 if timeout is None else timeout), where 0 waits without a deadline); wait_seconds is whole seconds; create_timeout_seconds is the server budget before it deletes a sandbox that never starts",
+          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is wait_seconds (default 60), and wait_seconds=0 returns without waiting; the suggested create keeps v2's 60-second wait, so to keep a 0.x budget, add wait_seconds=0 to it and wait once with that budget (sandbox.wait(until=\"started\", timeout=0 if timeout is None else timeout), where 0 waits without a deadline); wait_seconds is whole seconds; create_timeout_seconds is the server budget before it deletes a sandbox that never starts",
           "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error), and that single wait raises on a terminal state (await it on AsyncDaytona)",
           "Image builds use create_from_build(builder, ...) instead of passing a v0 Image",
           "A registry image string such as \"python:3.12\" is not a v2 create source (IMAGE_NOT_FOUND); use create_from_build(ImageBuilder.from_registry(...)) or register the image first"
@@ -3782,7 +3782,7 @@
           "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
           "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references; a v2 snapshot boots with createFromSnapshot(snapshot)",
           "Translate target to region and rebuild creation options, resource units (one resources entry; memory and disk in GiB) and lifecycle settings",
-          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is waitSeconds (default 60), and waitSeconds: 0 returns without waiting, so pass waitSeconds: 0 and wait once with the original budget (await sandbox.wait({ until: 'started', timeoutSeconds }), where 0 waits without a deadline); createTimeoutSeconds is the server budget before it deletes a sandbox that never starts",
+          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is waitSeconds (default 60), and waitSeconds: 0 returns without waiting; the suggested create keeps v2's 60-second wait, so to keep a 0.x budget, add waitSeconds: 0 to it and wait once with that budget (await sandbox.wait({ until: 'started', timeoutSeconds }), where 0 waits without a deadline); createTimeoutSeconds is the server budget before it deletes a sandbox that never starts",
           "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error), and that single wait throws on a terminal state",
           "Image builds use createFromBuild(builder, options) instead of passing a v0 Image",
           "A registry image string such as 'python:3.12' is not a v2 create source (IMAGE_NOT_FOUND); use createFromBuild(ImageBuilder.fromRegistry(...)) or register the image first"
@@ -3976,7 +3976,7 @@
       },
       "v2": {
         "py": "{client}.v2.stop(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$]])",
-        "ts": "{client}.v2.stop(sandbox)"
+        "ts": "{client}.v2.stop(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
       "notes": {

@@ -1,0 +1,46 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { hasLiteralArguments, hasOptionalArguments, withLiteralArguments, withNamedArguments, withoutOptionalArguments } from './optional-arguments.mjs';
+
+// The forms the guide and the surface check render, for the markers both
+// tools read (typescript/tests/optional-arguments.test.ts,
+// python/tests/test_suggestions.py render the same forms from real calls).
+const fork = '{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] })';
+const start = '{sandbox}.start([[timeout@0|timeout=0 if $ is None else $|timeout=$]])';
+const pause = '{sandbox}.pause([[timeout@0|{ timeoutSeconds: $ }]])';
+
+for (const [form, named, without, literal, zero] of [
+  [fork,
+    '{sandbox}.fork({ ...params, memory: false, waitSeconds: timeout === 0 ? 30 * 86_400 : timeout })',
+    '{sandbox}.fork({ memory: false })',
+    '{sandbox}.fork({ ...params, memory: false, waitSeconds: 5 })',
+    '{sandbox}.fork({ ...params, memory: false, waitSeconds: 30 * 86_400 })'],
+  [start,
+    '{sandbox}.start(timeout=0 if timeout is None else timeout)',
+    '{sandbox}.start()',
+    '{sandbox}.start(timeout=5)',
+    '{sandbox}.start(timeout=0)'],
+  [pause,
+    '{sandbox}.pause({ timeoutSeconds: timeout })',
+    '{sandbox}.pause()',
+    '{sandbox}.pause({ timeoutSeconds: timeout })',
+    '{sandbox}.pause({ timeoutSeconds: timeout })'],
+]) {
+  test(`renders ${form}`, () => {
+    assert.equal(hasOptionalArguments(form), true);
+    assert.equal(withNamedArguments(form), named);
+    assert.equal(withoutOptionalArguments(form), without);
+    assert.equal(withLiteralArguments(form, '5'), literal);
+    assert.equal(withLiteralArguments(form, '0'), zero);
+  });
+}
+
+test('tells forms that convert a literal from those that do not', () => {
+  assert.equal(hasLiteralArguments(fork), true);
+  assert.equal(hasLiteralArguments(start), true);
+  assert.equal(hasLiteralArguments(pause), false);
+  assert.equal(hasOptionalArguments('{sandbox}.pause()'), false);
+});

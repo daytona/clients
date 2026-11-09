@@ -10,7 +10,10 @@ so the suggestion never names a variable the call did not have. A marker
 may add ``|literal`` and ``|zero`` texts: for a numeric literal argument the
 value is computed instead, ``literal`` with ``$`` as the literal (``zero``
 when it is 0; ``literal`` again when no ``zero`` text is given). The
-TypeScript tool reads the same markers (optional-arguments.ts).
+TypeScript tool reads the same markers (optional-arguments.ts). A text that
+uses the argument more than once is a conversion expression: there an
+argument that is not a name, a member chain or a literal is parenthesized,
+so its operators keep their precedence.
 """
 
 from __future__ import annotations
@@ -22,6 +25,8 @@ from collections.abc import Callable
 _MARKER = re.compile(r"\[\[(\w+)@(\d+)\|((?:(?!\]\]).)*)\]\]")
 # A decimal numeric literal, written as both languages write one.
 _NUMERIC_LITERAL = re.compile(r"(?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][+-]?\d+)?")
+# A name or a member chain (`a`, `a.b.c`).
+_SIMPLE = re.compile(r"[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*")
 
 
 def render_optional_arguments(
@@ -37,7 +42,12 @@ def render_optional_arguments(
             literal = rest[0]
             zero = rest[1] if len(rest) > 1 else literal
             chosen = zero if float(value.replace("_", "")) == 0 else literal
-        return chosen.replace("$", value)
+        operand = value
+        if chosen.count("$") > 1 and not (
+            _SIMPLE.fullmatch(value) or _NUMERIC_LITERAL.fullmatch(value)
+        ):
+            operand = f"({value})"
+        return chosen.replace("$", operand)
 
     return _MARKER.sub(replace, template)
 

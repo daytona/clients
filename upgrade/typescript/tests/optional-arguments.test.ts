@@ -25,6 +25,14 @@ it.each([
   // A numeric literal is computed; a variable keeps the expression.
   ['box.fork(undefined, 0)', 'sandbox.fork', 'box.fork({ memory: false, waitSeconds: 30 * 86_400 })'],
   ['box.fork(undefined, budget)', 'sandbox.fork', 'box.fork({ memory: false, waitSeconds: budget === 0 ? 30 * 86_400 : budget })'],
+  // An expression is parenthesized where the form computes with it.
+  ['box.fork(undefined, budget > 0 ? budget : 60)', 'sandbox.fork', 'box.fork({ memory: false, waitSeconds: (budget > 0 ? budget : 60) === 0 ? 30 * 86_400 : (budget > 0 ? budget : 60) })'],
+  ['box.fork(undefined, budget || 60)', 'sandbox.fork', 'box.fork({ memory: false, waitSeconds: (budget || 60) === 0 ? 30 * 86_400 : (budget || 60) })'],
+  ['box.pause(budget || 60)', 'sandbox.pause', 'box.pause({ timeoutSeconds: budget || 60 })'],
+  // `sandbox` in a client form stands for the 0.x call's sandbox, as the
+  // guide says of every identifier but `{client}` / `{sandbox}`.
+  ['d.v0.stop(box)', 'client.stop', 'd.v2.stop(sandbox)'],
+  ['d.v0.stop(box, 30)', 'client.stop', 'd.v2.stop(sandbox, { timeoutSeconds: 30 })'],
   ['d.v0.delete(box, 30)', 'client.delete', 'd.v2.delete(sandbox, { timeoutSeconds: 30 })'],
 ])('suggests %s with only the timeout the call passed', async (call, id, expected) => {
   // Given

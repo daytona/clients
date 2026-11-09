@@ -4,7 +4,8 @@ passed** — the `--suggest-v2` forms of `start()`, `stop()`, `pause()`,
 call's timeout (and a fork's name or parameters) only when the call passed
 one, spelled as the call spelled it (a numeric literal timeout is converted,
 so `fork(timeout=30)` suggests `wait_seconds=30` and a literal `0` the 30-day
-no-deadline budget); a call that used the default gets a form that keeps v2's
-default, where the suggestion used to name a `timeout` / `timeoutSeconds`
-variable the code did not have. `npx @daytona/upgrade` and `uvx
-daytona-upgrade` write the same forms.
+no-deadline budget, and an expression such as a ternary is parenthesized where
+the form computes with it); a call that used the default gets a form that
+keeps v2's default, where the suggestion used to name a `timeout` /
+`timeoutSeconds` variable the code did not have. `npx @daytona/upgrade` and
+`uvx daytona-upgrade` write the same forms.
