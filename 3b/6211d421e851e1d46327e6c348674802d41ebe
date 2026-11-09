@@ -1,0 +1,43 @@
+sdk-typescript/src/v2/options.ts
+  s_9a337fd66d5341::t_da55dc64282750 77-78
+  s_9a337fd66d5341::t_cc086431b75368 7
+  s_9a337fd66d5341::t_4ddb44e1cc85c8 72-74
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_9a337fd66d5341::t_cc086431b75368 36
+  s_9a337fd66d5341::t_da55dc64282750 209
+  s_9a337fd66d5341::t_4ddb44e1cc85c8 206-207
+  s_9a337fd66d5341::t_a5719ffa9433b4 37,208
+sdk-typescript/src/v2/symbolKeys.ts
+  s_9a337fd66d5341::t_05e27a59ed7967 6-9,17-18
+  s_9a337fd66d5341::t_4ddb44e1cc85c8 11-14
+  s_9a337fd66d5341::t_da55dc64282750 1-5,10,15-16,19-24
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_9a337fd66d5341::t_a5719ffa9433b4 11,142-144
+  s_9a337fd66d5341::t_cc086431b75368 10
+  s_9a337fd66d5341::t_da55dc64282750 145-146
+  s_9a337fd66d5341::t_4ddb44e1cc85c8 137-141
+sdk-python/tests/test_transfer_bounds.py
+  s_9a337fd66d5341::t_8b619e09693820 1068-1071,1073-1082
+sdk-typescript/tests/symbol-keys.test.ts
+  s_9a337fd66d5341::t_dfe1608d6c1d71 1-5,8-35,42-43,48-54,56-58
+  s_9a337fd66d5341::t_4ddb44e1cc85c8 6-7,36-41,44-47
+  s_9a337fd66d5341::t_84b65d478ace38 55
+sdk-python/tests/test_client_config.py
+  s_9a337fd66d5341::t_5350a0475561c5 619,631-633,674,677,682,690-691
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b6211d421e851e1d46327e6c348674802d41ebe",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
