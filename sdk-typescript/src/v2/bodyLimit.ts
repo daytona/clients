@@ -121,7 +121,7 @@ export async function readCappedBody(data: unknown, limit: number, hooks: ReadHo
       release?.()
       throw error
     }
-    return body.bytes()
+    return collected(body, limit)
   }
   if (isWebStream(data)) {
     const reader = data.getReader()
@@ -140,11 +140,11 @@ export async function readCappedBody(data: unknown, limit: number, hooks: ReadHo
     } finally {
       reader.releaseLock()
     }
-    return body.bytes()
+    return collected(body, limit)
   }
   if (data === undefined || data === null || data === '') return new Uint8Array(0)
   add(chunkBytes(data))
-  return body.bytes()
+  return collected(body, limit)
 }
 
 /**
@@ -183,6 +183,13 @@ export async function discardBody(data: unknown, release?: () => void): Promise<
   if (isNodeReadable(data)) data.destroy()
   else if (isWebStream(data)) await data.cancel().catch(() => undefined)
   release?.()
+}
+
+/** The collected bytes, or `BodyTooLarge` when the runtime cannot hold them. */
+function collected(body: BodyBuffer, limit: number): Uint8Array {
+  const bytes = body.bytes()
+  if (bytes === undefined) throw new BodyTooLarge(limit)
+  return bytes
 }
 
 /**

@@ -162,6 +162,7 @@ class ProcessService:
         shell: Optional[str] = None,
         login: Optional[bool] = None,
         name: Optional[str] = None,
+        tag: Optional[str] = None,
     ) -> Session:
         """Create one persistent shell; cwd and env apply to all its commands.
 
@@ -172,7 +173,9 @@ class ProcessService:
 
         return Session(
             self._bridge.call(
-                lambda: self._impl.create_session(cwd=cwd, env=env, shell=shell, login=login, name=name)
+                lambda: self._impl.create_session(
+                    cwd=cwd, env=env, shell=shell, login=login, name=name, tag=tag
+                )
             ),
             self._bridge,
         )
@@ -180,6 +183,21 @@ class ProcessService:
     def get(self, process_id: str) -> ProcessInfo:
         """Fetch current process metadata by id or live name alias."""
         return self._bridge.call(lambda: self._impl.get(process_id))
+
+    def kill_all(self, *, tag: str, timeout: Optional[float] = None) -> List[str]:
+        """Kill every process with the tag and everything those processes started.
+
+        Returns their process ids once nothing started under the tag is running,
+        including detached descendants and survivors of exited processes. The tag
+        is reusable after this call. Records and logs are kept. Survivors of
+        deleted or expired records are killed too but not listed.
+
+        ``timeout`` is in seconds (up to 60, fractions allowed, default 10).
+        Raises ``ProcessKillIncompleteError`` on timeout; retrying is safe.
+        Raises ``UnsupportedOperationError`` on macOS and sandboxes without
+        process containment.
+        """
+        return self._bridge.call(lambda: self._impl.kill_all(tag=tag, timeout=timeout))
 
     def list(
         self,
@@ -189,9 +207,12 @@ class ProcessService:
         session_id: Optional[str] = None,
         name: Optional[str] = None,
         pid: Optional[int] = None,
+        tag: Optional[str] = None,
     ) -> ListResult[ProcessInfo]:
         return self._bridge.call(
-            lambda: self._impl.list(state=state, kind=kind, session_id=session_id, name=name, pid=pid)
+            lambda: self._impl.list(
+                state=state, kind=kind, session_id=session_id, name=name, pid=pid, tag=tag
+            )
         )
 
     def run(
@@ -210,6 +231,7 @@ class ProcessService:
         name: Optional[str] = None,
         terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
+        tag: Optional[str] = None,
     ) -> ProcessResult:
         """Start a process, wait for its shell to exit, and collect its output.
 
@@ -270,6 +292,7 @@ class ProcessService:
                 name=name,
                 terminal=terminal,
                 keep_logs=keep_logs,
+                tag=tag,
             )
         )
 
@@ -288,6 +311,7 @@ class ProcessService:
         execution_timeout: Optional[float] = None,
         terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
+        tag: Optional[str] = None,
     ) -> ProcessHandle:
         """Start a detached process and return a handle immediately.
 
@@ -333,6 +357,7 @@ class ProcessService:
                     execution_timeout=execution_timeout,
                     terminal=terminal,
                     keep_logs=keep_logs,
+                    tag=tag,
                 )
             ),
             self._bridge,
@@ -376,11 +401,12 @@ class PtyService:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
         name: Optional[str] = None,
+        tag: Optional[str] = None,
     ) -> ProcessHandle:
         """Start a detached PTY process."""
         return ProcessHandle(
             self._bridge.call(
-                lambda: self._impl.start(command, cols=cols, rows=rows, cwd=cwd, env=env, name=name)
+                lambda: self._impl.start(command, cols=cols, rows=rows, cwd=cwd, env=env, name=name, tag=tag)
             ),
             self._bridge,
         )

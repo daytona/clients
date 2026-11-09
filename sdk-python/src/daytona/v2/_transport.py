@@ -31,6 +31,7 @@ from typing_extensions import TypedDict, Unpack
 
 from ._auth import ProjectTokenAuth
 from ._body_limit import (
+    ACCEPT_ENCODING,
     DEFAULT_MAX_RESPONSE_BYTES,
     read_body,
     read_body_sync,
@@ -225,7 +226,7 @@ class SyncTransport:
         self._owns_client = client is None
         if client is None:
             kwargs: dict[str, object] = {
-                "headers": client_identity_headers(source),
+                "headers": {**client_identity_headers(source), "Accept-Encoding": ACCEPT_ENCODING},
                 "timeout": _client_timeout(self._request_timeout_seconds),
                 "http2": _HTTP2_AVAILABLE,
                 "cookies": _cookie_jar(),
@@ -601,7 +602,7 @@ class AsyncTransport:
 
     def _new_stream_client(self) -> httpx.AsyncClient:
         kwargs: dict[str, object] = {
-            "headers": client_identity_headers(self._source),
+            "headers": {**client_identity_headers(self._source), "Accept-Encoding": ACCEPT_ENCODING},
             "timeout": _client_timeout(self._request_timeout_seconds),
             "http2": _HTTP2_AVAILABLE,
             "cookies": _cookie_jar(),
@@ -1201,6 +1202,8 @@ def _request_headers(
     headers: Optional[Mapping[str, str]],
 ) -> Mapping[str, str]:
     request_headers: dict[str, str] = client_identity_headers(source)
+    # Only the encodings the capped readers decode in bounded steps.
+    request_headers["Accept-Encoding"] = ACCEPT_ENCODING
     if token:
         request_headers["Authorization"] = f"Bearer {token}"
     if headers:

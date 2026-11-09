@@ -495,7 +495,9 @@ skipping exist only in the TypeScript tool).
   (`SessionStartOptions.executionTimeout`, `SessionRunOptions.timeout`), the
   interpreter (`InterpreterRunOptions.timeout`) and git (the clone / pull /
   push `timeout`). The client, lifecycle and platform-service options
-  (images, snapshots, volumes, build logs, docker) are in seconds.
+  (images, snapshots, volumes, build logs, docker) are in seconds. The
+  computer-use keyboard `delay` between keystrokes is in milliseconds in both
+  SDKs (Python `keyboard.type(delay=...)`, TS `keyboard.type({ delay })`).
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
   `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
@@ -535,7 +537,13 @@ skipping exist only in the TypeScript tool).
   recording download. A declared `Content-Length` over the cap is refused
   before the body is read, otherwise reading stops once it passes, and the
   connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
-  `readFetchText`). A refused success response is `PayloadTooLargeError`
+  `readFetchText`). A compressed body never decodes past the cap in memory:
+  Python reads the wire bytes and decodes gzip / deflate itself in 64 KiB
+  steps, asks only for those (`Accept-Encoding: gzip, deflate`) and refuses
+  any other encoding undecoded; in TypeScript the runtime decodes the body as
+  a stream (Node's zlib streams and Node's `fetch` yield 16 KiB chunks, which
+  `tests/transfer-bounds.test.ts` checks on both adapters), and each chunk is
+  checked before it is kept. A refused success response is `PayloadTooLargeError`
   (413, `PAYLOAD_TOO_LARGE`, `SDK`); an error response keeps its status's
   error. TypeScript sends every axios request through `boundedAdapter`:
   Node's http adapter where the runtime has it, else its own `fetchAdapter`
@@ -586,7 +594,8 @@ skipping exist only in the TypeScript tool).
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
   `requestTimeout`, the 0.x `requestTimeoutMs`, `reconcileIntervalMs`,
   `idleCloseMs`) whose replacement is
-  a known key gets "`timeout` was renamed to `timeoutSeconds` (seconds)".
+  a known key gets a message naming both, for `timeout`: "`timeout` was
+  renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
   to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`) and to

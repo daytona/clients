@@ -141,6 +141,7 @@ export {
   ProcessStartFailedError,
   ProcessTerminalError,
   ProcessExecutionTimeoutError,
+  ProcessKillIncompleteError,
   NameConflictError,
   NotSupportedForClassError,
   OrgSuspendedError,

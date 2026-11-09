@@ -36,7 +36,7 @@ class InfoResponse(BaseModel):
     """ # noqa: E501
     build_sha: Optional[StrictStr] = Field(default=None, description="Toolbox build identifier, or `unknown` when unavailable. May be omitted.", alias="buildSha")
     build_time: Optional[StrictStr] = Field(default=None, description="Toolbox build time in RFC 3339 UTC, or `unknown` when unavailable. May be omitted.", alias="buildTime")
-    user_home_dir: Optional[StrictStr] = Field(default=None, description="Home directory of the configured default user. Omitted when no user or home directory is available.", alias="userHomeDir")
+    user_home_dir: Optional[StrictStr] = Field(default=None, description="Home directory of the configured default user; omitted when that user cannot be resolved. Without a configured default user, the toolbox's own home directory.", alias="userHomeDir")
     version: StrictStr = Field(description="Platform release version, for example `2.0.0-alpha.1`; `0.0.0-dev` when unavailable. Distinct from the toolbox build identifier returned by `GET /version`.")
     work_dir: StrictStr = Field(alias="workDir")
     additional_properties: Dict[str, Any] = {}

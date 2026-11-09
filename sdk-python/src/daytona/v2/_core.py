@@ -40,6 +40,7 @@ from ._gen.toolbox import (
     ExitResult,
     FileInfo,
     IsPortInUseResponse,
+    KillProcessesResponse,
     LogFrameDto,
     PortList,
     ProcessDto,
@@ -802,6 +803,12 @@ def expect_process_list_response(value: TransportPayload) -> ProcessListResponse
     )
 
 
+def expect_kill_processes_response(value: TransportPayload) -> KillProcessesResponse:
+    return _expect_model_from_dict(
+        value, KillProcessesResponse, "kill processes response", KillProcessesResponse.from_dict
+    )
+
+
 def expect_search_response(value: TransportPayload) -> SearchResponse:
     return _expect_model_from_dict(value, SearchResponse, "search response", SearchResponse.from_dict)
 
@@ -866,6 +873,7 @@ def process_create_spec(
     wait_ms: Optional[int] = None,
     inline_logs: bool = False,
     request_timeout: Optional[float] = None,
+    tag: Optional[str] = None,
 ) -> RequestSpec:
     chosen = [command is not None, argv is not None, code is not None]
     if kind in ("pty", "session") and sum(1 for item in chosen if item) == 0:
@@ -899,6 +907,7 @@ def process_create_spec(
     optional: Dict[str, JsonValue] = {
         "language": language,
         "name": name,
+        "tag": tag,
         "sessionId": session_id,
         "cwd": cwd,
         "env": dict(env) if env is not None else None,
@@ -948,6 +957,7 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
     return ProcessInfo(
         id=payload.id,
         name=payload.name,
+        tag=payload.tag,
         pid=payload.pid,
         kind=_process_info_kind_or_unknown(raw_kind),
         state=_process_state_or_unknown(raw_state),
@@ -990,6 +1000,7 @@ def process_list_spec(
     session_id: Optional[str],
     name: Optional[str],
     pid: Optional[int],
+    tag: Optional[str] = None,
 ) -> RequestSpec:
     params: Dict[str, JsonValue] = {}
     for key, value in {
@@ -998,10 +1009,23 @@ def process_list_spec(
         "sessionId": session_id,
         "name": name,
         "pid": pid,
+        "tag": tag,
     }.items():
         if value is not None:
             params[key] = value
     return RequestSpec("GET", "/processes", params=params)
+
+
+def process_kill_spec(*, tag: str, timeout: Optional[float]) -> RequestSpec:
+    body: JsonObject = {"tag": tag}
+    if timeout is not None:
+        body["timeoutMs"] = timeout_millis_from_seconds(timeout)
+    return RequestSpec(
+        "POST",
+        "/processes:kill",
+        json_body=body,
+        timeout=(10.0 if timeout is None else timeout) + WAIT_READ_SLACK_SECONDS,
+    )
 
 
 def parse_process_list(payload: ProcessPagePayload) -> List[ProcessInfo]:

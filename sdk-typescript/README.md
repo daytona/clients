@@ -69,9 +69,9 @@ types, builders and errors, but not a client (`import { Daytona } from
 `@daytona/sdk`.
 
 `daytona.v2` waits (`create`, `start`, `wait`, …) ride one WebSocket
-per regional API endpoint, shared by the v2 clients in the process that have the same API URL,
-API key or JWT identity, and effective events settings (`sharedHub` and
-`events` on the config). Closing is optional: in Node an idle socket stays open
+per regional API endpoint, shared by the v2 clients in the process with matching connection settings
+(API URL, API key or JWT identity, request timeout and response body cap) and
+events settings (`sharedHub` and `events` on the config). Closing is optional: in Node an idle socket stays open
 for the next wait but does not keep the process alive, so a script can simply
 end; a runtime where the socket cannot be released from the event loop closes
 it 10 s after the last wait instead, and `events.idleCloseSeconds` overrides
@@ -186,7 +186,7 @@ const daytona = new Daytona({ otelEnabled: true, otelApi: otel })
 
 ### Regions and safe create retries
 
-Set `DAYTONA_V2_API_URL` only when you need a non-default v2 API endpoint. `region` on each `create*()` chooses an ID returned by `GET /regions`.
+Set `DAYTONA_V2_API_URL` only when you need a non-default v2 API endpoint. `region` on each `create*()` chooses an ID listed by `daytona region list`.
 The response identifies the default region and lists region names,
 availability, and published API URLs. Omit `region` to use the default.
 Commands and files target the selected sandbox. When you select a regional
@@ -533,7 +533,7 @@ to be enabled for your organization: otherwise the API answers `403`
 `FEATURE_NOT_ENABLED` (thrown as `FeatureNotEnabledError`). Reading sandboxes
 and reservations, turning auto-renew off, `pause()` and `resume()` are not gated.
 
-Find available regions and their regional API endpoints with `GET /regions`.
+Find available regions and their regional API endpoints with `daytona region list`.
 Use `daytona.v2.macModels.catalog({ region: '<region>' })` or
 `daytona mac-model list --region '<region>'` to discover available Mac models
 and current prices. Replace `<region>` and `<model>` in the examples with
@@ -669,6 +669,47 @@ creates a replacement for a missing or ended session.
 In dash, BusyBox `sh` and mksh, an interrupt leaves only the
 innermost shell function or sourced file; bash and zsh leave the whole command
 (bash older than 4.4, macOS's `/bin/bash`, only when no DEBUG trap is set).
+
+### Tags
+
+Give related exec processes, PTYs, and shell sessions the same optional `tag`.
+Tags are safe identifiers (`A–Z`, `a–z`, `0–9`, `.`, `_`, `-`, 1–128 characters,
+not `.` or `..`) and cannot change after creation. Session commands inherit their session's
+tag; do not set one on individual session commands. Interpreter executions
+do not support tags.
+
+```ts
+await sandbox.process.start('python -m api_server', { tag: 'job-123' })
+await sandbox.process.start({ argv: ['node', 'worker.js'] }, { tag: 'job-123' })
+const shell = await sandbox.process.createSession({ cwd: '/app', tag: 'job-123' })
+await shell.run('nohup ./watcher.sh &') // inherits job-123
+
+await sandbox.process.list({ tag: 'job-123' })
+const killed = await sandbox.process.killAll({ tag: 'job-123' })
+// Everything the kill covered has stopped; a start racing the kill may run
+// afterwards. The tag can be reused immediately.
+```
+
+`process.run()`, `sandbox.exec()`, and `pty.start()` also accept `{ tag }`.
+`killAll()` keeps logs and records and returns the ids of the tagged processes
+that were running, or had running descendants, when it began; survivors of
+deleted or expired records are killed too but not listed. Its optional
+`timeout` is milliseconds (1–60000, default 10000). If processes remain, it
+throws `ProcessKillIncompleteError`; calling it again is safe.
+
+Linux and Windows support tags, filtering and tag-wide kills. macOS supports
+tags and filtering only: `killAll()` throws `UnsupportedOperationError`.
+
+Without process containment, `killAll()` throws `UnsupportedOperationError`
+before killing anything. On Linux with containment, `handle.kill()` also
+stops detached descendants (`setsid`, `nohup`, double fork), even after the
+original process exited:
+
+```ts
+const handle = await sandbox.process.start('./start-server.sh') // backgrounds a server, exits
+await handle.wait()
+await handle.kill() // Linux with process containment: also stops the server
+```
 
 ### Files
 

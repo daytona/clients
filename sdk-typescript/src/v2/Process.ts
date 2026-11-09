@@ -12,7 +12,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import type { PtyDuplex } from './ProcessHandle.js'
-import { commandSource, invalidPtyVerbError, knownProcessKind, processFromWire } from './ProcessWire.js'
+import { commandSource, invalidPtyVerbError, knownProcessKind, processFromWire, WAIT_READ_SLACK_MS } from './ProcessWire.js'
 import type { InternalProcessStartOptions } from './ProcessWire.js'
 import { runProcess, startProcess } from './ProcessRun.js'
 import { requireSessionId, Session } from './Session.js'
@@ -116,11 +116,34 @@ export class ProcessService {
   }
 
   public async list(options: ProcessListOptions = {}): Promise<ListResult<ProcessDto>> {
-    const query = encodeQuery({ state: options.state, kind: options.kind, sessionId: options.sessionId, name: options.name, pid: options.pid })
+    const query = encodeQuery({ state: options.state, kind: options.kind, sessionId: options.sessionId, name: options.name, pid: options.pid, tag: options.tag })
     const data = await this.transport.get<toolbox.ProcessDto[] | toolbox.ProcessListResponse | ListResult<toolbox.ProcessDto>>(`/processes${query}`)
-    return Array.isArray(data)
+    const page: ListResult<ProcessDto> = Array.isArray(data)
       ? { items: data.map(processFromWire) }
       : { items: data.items.map(processFromWire), nextCursor: 'nextCursor' in data ? data.nextCursor : undefined }
+    // A sandbox whose daemon predates tags ignores the filter and returns
+    // every process: keep only the tagged ones.
+    return options.tag === undefined ? page : { ...page, items: page.items.filter((item) => item.tag === options.tag) }
+  }
+
+  /**
+   * Kill every process with this tag and everything it started, keeping logs
+   * and records. Returns their ids once none is running; the tag is reusable.
+   * Survivors of deleted or expired records are killed too but not listed.
+   * Throws UnsupportedOperationError on macOS and sandboxes without process containment.
+   * @param options.timeout Exit-wait budget in milliseconds (1–60000; default 10000).
+   * @throws ProcessKillIncompleteError if processes remain; retrying is safe.
+   */
+  public async killAll(options: { readonly tag: string; readonly timeout?: number }): Promise<string[]> {
+    if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout <= 0)) {
+      throw new BadRequestError('timeout must be a positive, finite number of milliseconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    }
+    const body: toolbox.KillProcessesRequest = { tag: options.tag }
+    if (options.timeout !== undefined) body.timeoutMs = Math.ceil(options.timeout)
+    const data = await this.transport.post<toolbox.KillProcessesResponse>('/processes:kill', body, {
+      timeout: (options.timeout ?? 10_000) + WAIT_READ_SLACK_MS,
+    })
+    return data.processIds
   }
 }
 

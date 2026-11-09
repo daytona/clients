@@ -177,7 +177,8 @@ class DaytonaConfig:
     (``CreateSandboxFromSnapshotParams(target=...)``) or ``region_id`` to each
     v0 snapshot create instead. Setting it still works and emits a
     ``DeprecationWarning``.
-    ``request_timeout`` (seconds; default 60, ``0`` = no limit) is the total
+    ``request_timeout`` (seconds; default 60; ``0``, or a value above
+    2,147,483.647 (about 24.8 days), means no limit) is the total
     time one ordinary v2 request may take; waits and streams are not cut by
     it, and file transfers are bounded by it only while idle (no bytes moving
     for that long; with ``0``, not at all). ``max_response_bytes`` (an integer up to 2**53 - 1; ``None`` keeps the 1 GiB default, ``0`` means no limit, and any other value (negative, fractional, boolean, string, too large) is a ``BadRequestError``)

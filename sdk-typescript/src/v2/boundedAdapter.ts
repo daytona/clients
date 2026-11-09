@@ -182,6 +182,16 @@ function smallRequestBody(config: InternalAxiosRequestConfig): boolean {
   return isSmallRequestBody(config.method, config.data)
 }
 
+/** A JSON object error body, parsed; `undefined` for anything else. */
+function errorEnvelopeData(bytes: Uint8Array): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes))
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function settleError(config: InternalAxiosRequestConfig, response: AxiosResponse): AxiosError {
   return new AxiosError(
     `Request failed with status code ${response.status}`,
@@ -284,7 +294,10 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
     const settled: AxiosResponse = { ...response, config, data: bytesAs(bytes, responseType) }
     const validateStatus = config.validateStatus
     if (validateStatus === null || validateStatus === undefined || validateStatus(settled.status)) return settled
-    throw settleError(config, settled)
+    // A refused status carries its error envelope whatever `responseType` the
+    // success body would have had (a file read asks for bytes), so the typed
+    // error keeps the server's code and message.
+    throw settleError(config, { ...settled, data: errorEnvelopeData(bytes) ?? settled.data })
   } finally {
     watchdog?.dispose()
   }

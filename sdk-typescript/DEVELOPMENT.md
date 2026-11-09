@@ -174,9 +174,11 @@ must preserve `manifestId: null` rather than optionalizing it.
   than silently recreating state.
 - Pre-signed file URLs never expose the signing key.
   `expiresInSeconds` is validated to the range 1 to 604800
-  (`SIGNED_FILE_MAX_TTL_SECONDS`) before the request. Invalid response payloads
-  such as JSON `null`, arrays or malformed objects produce the same typed 500
-  error in both SDKs. `sandbox.rotateSigningKey()` resolves `void`; outstanding
+  (`SIGNED_FILE_MAX_TTL_SECONDS`) before the request. A response payload that
+  breaks the contract (JSON `null`, an array, a malformed object) is a
+  `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) naming the field, with
+  the same message in both SDKs; so is a malformed sandbox access-token mint
+  response. `sandbox.rotateSigningKey()` resolves `void`; outstanding
   links stop working within approximately 30 seconds.
 - Errors: status-level bases → code-specific subclasses; `src/v2/codes.ts`
   is drift-tested against the committed error catalogs under `../contract/`

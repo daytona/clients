@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { Daytona } from '../sdk-typescript/src/index'
-import { DaytonaError, ImageBuilder, RequestTimeoutError, type Image, type Sandbox } from '../sdk-typescript/src/v2/index'
+import { DaytonaError, ImageBuilder, RequestTimeoutError, UnsupportedOperationError, type Image, type ProcessDto, type Sandbox } from '../sdk-typescript/src/v2/index'
 
 const run = randomUUID().replace(/-/g, '').slice(0, 8)
 const image = process.env.SMOKE_IMAGE ?? 'python:3.12-slim'
@@ -108,6 +108,54 @@ async function main(): Promise<number> {
     if (!skipToolbox && box.state === 'started') {
       const result = await box.process.run('echo daytona-$((6*7))')
       check('process.run', result.exitCode === 0 && result.output.includes('daytona-42'), result.output.trim())
+
+      // Given two blocked roots sharing a tag and one independent root.
+      const tag = `sdk-ts-${run}`
+      const otherTag = `sdk-ts-other-${run}`
+      const first = await box.process.start('read line', { stdin: 'open', tag })
+      const second = await box.process.start('read line', { stdin: 'open', tag })
+      const unrelated = await box.process.start('read line', { stdin: 'open', tag: otherTag })
+      const tagged = await box.process.list({ tag })
+      const taggedIds = new Set(tagged.items.map((entry: ProcessDto): string => entry.id))
+      check('process.list filters shared tag', taggedIds.size === 2 && taggedIds.has(first.id) && taggedIds.has(second.id)
+        && tagged.items.every((entry: ProcessDto): boolean => entry.tag === tag))
+      const other = await box.process.list({ tag: otherTag })
+      check('process.list filters unrelated tag', other.items.length === 1 && other.items[0]?.id === unrelated.id)
+
+      // A tagged command that leaves a detached child behind and exits.
+      await box.process.run(`setsid sh -c 'echo $$ > /tmp/dtn-tag-${run}; exec sleep 300' >/dev/null 2>&1 & sleep 0.5`, { tag })
+      const detached = (await box.process.run(`cat /tmp/dtn-tag-${run}`)).output.trim()
+      check('detached child started', /^\d+$/.test(detached), JSON.stringify(detached))
+
+      // When the shared tag is killed, both roots exit but the other can finish.
+      // A sandbox without process containment refuses the tag-wide kill.
+      let killed: Set<string> | undefined
+      try {
+        killed = new Set(await box.process.killAll({ tag, timeout: 10_000 }))
+      } catch (error) {
+        if (!(error instanceof UnsupportedOperationError)) throw error
+        skipped++
+        console.log('SKIP process.killAll tag-kill checks (no process containment on this sandbox)')
+        for (const root of [first, second, unrelated]) await root.kill()
+        // Without containment kill() does not reach the detached child either.
+        if (detached) await box.process.run(`kill -9 ${detached} 2>/dev/null; true`)
+      }
+      if (killed) {
+        check('process.killAll returns root ids', killed.has(first.id) && killed.has(second.id))
+        const alive = await box.process.run(`kill -0 ${detached} 2>/dev/null && echo alive || echo gone`)
+        check('detached descendant killed', alive.output.trim() === 'gone', detached)
+        for (const root of [first, second]) {
+          const stopped = await root.wait({ timeout: 5000 })
+          check('tagged root killed', stopped.reason === 'signaled' && stopped.signal === 'KILL', root.id)
+        }
+        await unrelated.writeStdin('finish\n') // read returns; the root exits 0
+        const survivor = await unrelated.wait({ timeout: 5000 })
+        check('unrelated root completes normally', survivor.reason === 'exited' && survivor.exitCode === 0)
+
+        // A fresh command with the killed tag is new work, not fenced out.
+        const reused = await box.process.run('echo tag-reused', { tag, timeout: 5000 })
+        check('process tag reusable', reused.exitCode === 0 && reused.output.includes('tag-reused'))
+      }
     }
 
     await expectError('create(unknown image) 404', () => daytona.create(`no-such-${run}`), 404)

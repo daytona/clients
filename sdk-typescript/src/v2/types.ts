@@ -89,7 +89,8 @@ export interface DaytonaConfig {
   readonly projectId?: string
   /**
    * The total time one ordinary request may take, in seconds (default 60;
-   * `0` = no limit). Waits and long polls use their own budget, streams are
+   * `0`, or a value above 2,147,483.647 (about 24.8 days), means no limit).
+   * Waits and long polls use their own budget, streams are
    * bounded only until their response headers arrive, and file transfers have
    * no total bound but fail once no bytes move for this long (with `0`,
    * transfers are not bounded at all).
@@ -114,8 +115,9 @@ export interface DaytonaConfig {
   /** Node-only keep-alive socket pool size for axios-backed HTTP requests. */
   readonly connectionPoolMaxsize?: number
   /**
-   * When `true` (default) all `Daytona` instances with the same identity share
-   * one `WaitHub`. When `false` each instance gets its own private hub.
+   * When `true` (default) all `Daytona` instances with matching connection
+   * settings (API URL, credential identity, request timeout, response body
+   * cap) and events settings share one `WaitHub`. When `false` each instance gets its own private hub.
    */
   readonly sharedHub?: boolean
   /** Customise the sandbox-state events hub. `undefined` uses the defaults. */
@@ -898,6 +900,8 @@ export type TerminalSize = toolbox.TerminalSize
 export interface ProcessDto {
   id: string
   name?: string
+  /** Immutable tag; session commands inherit their session's tag. */
+  readonly tag?: string
   pid?: number
   kind: ProcessReportedKind
   rawKind: string
@@ -952,6 +956,8 @@ export interface ProcessStartOptions {
   cmd?: string
   argv?: string[]
   name?: string
+  /** Optional safe identifier grouping this process for list() and killAll(). */
+  readonly tag?: string
   cwd?: string
   env?: Record<string, string>
   user?: string
@@ -1016,6 +1022,7 @@ export interface KillOptions {
 }
 
 export interface ProcessListOptions {
+  readonly tag?: string
   state?: 'running' | 'terminal' | 'all'
   kind?: ProcessKind
   sessionId?: string
