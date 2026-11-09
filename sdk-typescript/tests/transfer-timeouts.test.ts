@@ -10,13 +10,19 @@
 // ClientTimeoutError if its transfer opt-out were dropped. An ordinary call on
 // the same client is cut, which proves the timeout is armed.
 // tests/transfer-bounds.test.ts pins the idle bound itself.
+// uploadFile is not here: it resolves at the response headers, and the time
+// its body takes is spent in the client's and the kernel's socket buffers,
+// out of the client's sight. It goes through the same `fetch` transfer path as
+// downloadFile below (no total deadline, the idle watchdog instead), and
+// transfer-bounds.test.ts covers its idle bound (an upload the server stops
+// reading fails, on both adapters).
 // sdk-python/tests/test_transfer_timeouts.py holds the Python transfers to the
 // same rule.
 
 import { createServer } from 'node:http'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { once } from 'node:events'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Daytona } from '../src/v2/Daytona'
@@ -103,14 +109,6 @@ function slowToolboxSandbox() {
 }
 
 describe('file transfers outlast the request timeout', () => {
-  it('uploadFile', async () => {
-    const { client, sandbox } = slowToolboxSandbox()
-    const local = join(dir, 'up.bin')
-    await writeFile(local, 'payload')
-    await expect(sandbox.fs.uploadFile(local, '/remote.bin')).resolves.toBeUndefined()
-    await client.close()
-  })
-
   it('downloadFile', async () => {
     const { client, sandbox } = slowToolboxSandbox()
     const local = join(dir, 'down.bin')
