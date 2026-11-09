@@ -28,7 +28,13 @@ import pytest
 from _handles import lazy_sandbox
 
 from daytona import AsyncDaytona, Daytona, DaytonaConfig
-from daytona.v2 import BadRequestError, ClientTimeoutError, NotFoundError, PayloadTooLargeError
+from daytona.v2 import (
+    BadRequestError,
+    ClientTimeoutError,
+    FileNotFoundError,
+    NotFoundError,
+    PayloadTooLargeError,
+)
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport
 
@@ -220,6 +226,34 @@ async def test_a_transfer_that_keeps_moving_bytes_outlasts_the_idle_bound(tmp_pa
             assert await sandbox.computer_use.recording.download("rec") == b"x" * 12
             await sandbox.fs.download_file("/a", tmp_path / "out.bin")
             assert (tmp_path / "out.bin").read_bytes() == b"x" * 12
+        finally:
+            await root.close()
+
+
+@pytest.mark.anyio
+async def test_a_transfers_moving_error_body_outlasts_the_idle_bound() -> None:
+    # A 404 whose body trickles 12 chunks 0.2 s apart, as the TypeScript suite's.
+    body = b'{"code":"FILE_NOT_FOUND","message":"gone","source":"DAYTONA_DAEMON"}'.ljust(72)
+
+    def handle(request: http.server.BaseHTTPRequestHandler) -> None:
+        _drain(request)
+        _send_head(request, 404, Content_Type="application/json", Content_Length=str(len(body)))
+        for start in range(0, len(body), 6):
+            time.sleep(0.2)
+            request.wfile.write(body[start : start + 6])
+            request.wfile.flush()
+
+    with _server({"/files/download": handle}) as base:
+        root = _client(base, request_timeout=IDLE)
+        try:
+            sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+            with pytest.raises(FileNotFoundError) as caught:
+                await sandbox.fs.read_bytes("/a")
+            assert (caught.value.status_code, caught.value.code, str(caught.value)) == (
+                404,
+                "FILE_NOT_FOUND",
+                "gone",
+            )
         finally:
             await root.close()
 
