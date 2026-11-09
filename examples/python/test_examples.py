@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import itertools
 import re
 import sys
 from collections.abc import Callable, Iterator, Mapping
@@ -30,7 +31,7 @@ import pytest
 EXAMPLES = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(EXAMPLES / "python"), str(EXAMPLES)]
 
-from _common import RUN
+from _common import IMAGE, IMAGE_NAME, RUN
 
 from daytona.v2 import (
     ImageBuilder,
@@ -40,6 +41,7 @@ from daytona.v2 import (
     InterpreterProcess,
     InterpreterResult,
     ListResult,
+    NameConflictError,
     ProcessResult,
 )
 from daytona.v2._sync.daytona import Daytona as SyncDaytona
@@ -67,6 +69,8 @@ class FakeWorld:
         self.deleted_sandboxes: list[str] = []
         self.deleted_volumes: list[str] = []
         self.images: list[SimpleNamespace] = []
+        self.image_ids = itertools.count()
+        self.pull_conflict = False
         self.pulled_images: list[tuple[str, Optional[str]]] = []
         self.deleted_images: list[str] = []
         self.fail_builds_containing: Optional[str] = None
@@ -116,16 +120,23 @@ class FakeWorld:
         client.images = images
         return client
 
+    def add_image(self, name: str, status: str, waits: tuple[str, ...] = ("ready",)) -> SimpleNamespace:
+        image = SimpleNamespace(id=f"img-{next(self.image_ids)}", name=name, status=status, waits=list(waits))
+        self.images.append(image)
+        return image
+
     def _image_ready(self, image_id: str, **_: object) -> SimpleNamespace:
         image = next(i for i in self.images if i.id == image_id)
-        image.status = "ready"
+        if image.waits:
+            image.status = image.waits.pop(0)
         return image
 
     def _image_pull(self, image: str, *, name: Optional[str] = None, **_: object) -> SimpleNamespace:
         self.pulled_images.append((image, name))
-        registered = SimpleNamespace(id=f"img-{len(self.images)}", name=name or image, status="ready")
-        self.images.append(registered)
-        return registered
+        if self.pull_conflict and len(self.pulled_images) == 1:
+            self.add_image(name or image, "ready")  # Another run registered it first.
+            raise NameConflictError("image name already exists", status_code=409, code="NAME_CONFLICT")
+        return self.add_image(name or image, "ready")
 
     def _image_delete(self, image_id: str) -> None:
         self.deleted_images.append(image_id)
@@ -135,7 +146,7 @@ class FakeWorld:
         if image is not None and not isinstance(image, str):
             raise TypeError("create() accepts an image name or img_… id string")
         # The API creates only from a project image, never a registry reference.
-        if not any(i.name == image and i.status == "ready" for i in self.images):
+        if not any(image in (i.name, i.id) and i.status == "ready" for i in self.images):
             raise LookupError(f"image not found: {image}")
         env = kwargs.get("env") or {}
         assert isinstance(env, Mapping)
@@ -296,28 +307,45 @@ def test_registers_the_image_once_when_the_project_lacks_it(
 ) -> None:
     code, world = run_example("exec_command")
     assert code == 0
-    assert world.pulled_images == [("python:3.12-slim", "examples-python-3-12-slim")]
+    assert world.pulled_images == [(IMAGE, IMAGE_NAME)]
 
 
-@pytest.mark.parametrize("status", ["ready", "pending"])
+def test_names_distinct_image_references_apart() -> None:
+    assert re.fullmatch(r"examples-[a-z0-9-]+-[0-9a-f]{8}", IMAGE_NAME)
+
+
+@pytest.mark.parametrize(
+    ("status", "waits"), [("ready", ()), ("pending", ("ready",)), ("pending", ("building", "ready"))]
+)
 def test_reuses_a_registered_image(
-    run_example: Callable[..., tuple[int, FakeWorld]], status: str
+    run_example: Callable[..., tuple[int, FakeWorld]], status: str, waits: tuple[str, ...]
 ) -> None:
     world = FakeWorld()
-    world.images.append(SimpleNamespace(id="img-0", name="examples-python-3-12-slim", status=status))
+    world.add_image(IMAGE_NAME, status, waits)
     code, world = run_example("exec_command", world=world)
     assert code == 0
     assert world.pulled_images == []
 
 
+@pytest.mark.parametrize(("status", "waits"), [("failed", ()), ("pending", ("failed",))])
 def test_registers_again_over_a_failed_registration(
-    run_example: Callable[..., tuple[int, FakeWorld]],
+    run_example: Callable[..., tuple[int, FakeWorld]], status: str, waits: tuple[str, ...]
 ) -> None:
     world = FakeWorld()
-    world.images.append(SimpleNamespace(id="img-0", name="examples-python-3-12-slim", status="failed"))
+    world.add_image(IMAGE_NAME, status, waits)
     code, world = run_example("exec_command", world=world)
     assert code == 0
     assert world.deleted_images == ["img-0"]
+    assert len(world.pulled_images) == 1
+
+
+def test_uses_the_image_another_run_registered_first(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    world = FakeWorld()
+    world.pull_conflict = True
+    code, world = run_example("exec_command", world=world)
+    assert code == 0
     assert len(world.pulled_images) == 1
 
 

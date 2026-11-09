@@ -9,13 +9,20 @@
  *     DAYTONA_IMAGE        registry image sandboxes start from (default python:3.12-slim)
  */
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 
 import { Daytona, type DaytonaV2Client } from '@daytona/sdk'
+import { NameConflictError, type Image } from '@daytona/sdk/v2'
 
 export const IMAGE = process.env.DAYTONA_IMAGE ?? 'python:3.12-slim'
-/** The project image IMAGE is registered as, shared by every example run. */
-export const IMAGE_NAME = `examples-${IMAGE.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`
+/**
+ * The project image IMAGE is registered as, shared by every example run. The
+ * digest of the full reference keeps distinct references apart (the readable
+ * part folds ':', '/' and '.' together).
+ */
+export const IMAGE_NAME = `examples-${IMAGE.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)}-${createHash('sha256').update(IMAGE).digest('hex').slice(0, 8)}`
+/** Server waits for a registering image (each returns after at most about 30 s). */
+const IMAGE_WAITS = 40
 // A CSPRNG, not Math.random(): the secrets example derives a demo secret
 // value from RUN.
 export const RUN = randomUUID().replace(/-/g, '').slice(0, 8)
@@ -50,23 +57,37 @@ export function client(): DaytonaV2Client {
   }).v2
 }
 
+async function registered(daytona: DaytonaV2Client): Promise<Image | undefined> {
+  for await (const image of daytona.images.iter({ name: IMAGE_NAME })) if (image.name === IMAGE_NAME) return image
+  return undefined
+}
+
 /**
  * The registered image to create sandboxes from. A sandbox is created from a
  * project image, not a registry reference: reuse IMAGE's registration when the
- * project has one, else register it (`images.pull`, `POST /images`) and wait
- * until it is ready.
+ * project has one (waiting while it registers), else register it
+ * (`images.pull`, `POST /images`). A failed registration is deleted and
+ * registered again.
  */
 export async function sandboxImage(daytona: DaytonaV2Client): Promise<string> {
-  for await (const image of daytona.images.iter({ name: IMAGE_NAME })) {
-    if (image.name !== IMAGE_NAME) continue
-    if (image.status === 'ready') return IMAGE_NAME
-    if (image.status !== 'failed' && image.status !== 'error') {
-      await daytona.images.get(image.id, { wait: 'ready' })
-      return IMAGE_NAME
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let image = await registered(daytona)
+    if (image === undefined) {
+      info(`registering ${IMAGE} as image ${IMAGE_NAME}`)
+      try {
+        image = await daytona.images.pull(IMAGE, { name: IMAGE_NAME })
+      } catch (error) {
+        if (error instanceof NameConflictError) continue // Another run registered it first: use that one.
+        throw error
+      }
     }
+    // The server's wait returns after a while even when the image is not done.
+    for (let wait = 0; wait < IMAGE_WAITS && !['ready', 'failed', 'error'].includes(image.status); wait += 1) {
+      image = await daytona.images.get(image.id, { wait: 'ready' })
+    }
+    if (image.status === 'ready') return IMAGE_NAME
+    if (image.status !== 'failed' && image.status !== 'error') throw new Error(`image ${IMAGE_NAME} is still ${image.status}`)
     await daytona.images.delete(image.id) // A failed registration: register again.
   }
-  info(`registering ${IMAGE} as image ${IMAGE_NAME}`)
-  await daytona.images.pull(IMAGE, { name: IMAGE_NAME })
-  return IMAGE_NAME
+  throw new Error(`could not register ${IMAGE} as image ${IMAGE_NAME}`)
 }

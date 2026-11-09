@@ -10,17 +10,29 @@ so they can all use the same Daytona deployment:
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import sys
 import uuid
+from typing import Optional
 
 from daytona import AsyncDaytona, AsyncDaytonaV2Client, Daytona, DaytonaConfig, DaytonaV2Client
+from daytona.v2 import Image, NameConflictError
 
 IMAGE = os.environ.get("DAYTONA_IMAGE", "python:3.12-slim")
-# The project image IMAGE is registered as, shared by every example run.
-IMAGE_NAME = "examples-" + re.sub(r"[^a-z0-9]+", "-", IMAGE.lower()).strip("-")
+# The project image IMAGE is registered as, shared by every example run. The
+# digest of the full reference keeps distinct references apart (the readable
+# part folds ':', '/' and '.' together).
+IMAGE_NAME = (
+    "examples-"
+    + re.sub(r"[^a-z0-9]+", "-", IMAGE.lower()).strip("-")[:40]
+    + "-"
+    + hashlib.sha256(IMAGE.encode()).hexdigest()[:8]
+)
 RUN = uuid.uuid4().hex[:8]
+# Server waits for a registering image (each returns after at most about 30 s).
+_IMAGE_WAITS = 40
 
 _BOLD, _GREEN, _RED, _RESET = "\033[1m", "\033[32m", "\033[31m", "\033[0m"
 
@@ -59,25 +71,37 @@ def _config() -> DaytonaConfig:
     return DaytonaConfig(api_key=api_key)
 
 
+def _registered(daytona: DaytonaV2Client) -> Optional[Image]:
+    return next((i for i in daytona.images.iter(name=IMAGE_NAME) if i.name == IMAGE_NAME), None)
+
+
 def sandbox_image(daytona: DaytonaV2Client) -> str:
     """The registered image to create sandboxes from.
 
     A sandbox is created from a project image, not a registry reference:
-    reuse IMAGE's registration when the project has one, else register it
-    (``images.pull``, ``POST /images``) and wait until it is ready.
+    reuse IMAGE's registration when the project has one (waiting while it
+    registers), else register it (``images.pull``, ``POST /images``). A failed
+    registration is deleted and registered again.
     """
-    for image in daytona.images.iter(name=IMAGE_NAME):
-        if image.name != IMAGE_NAME:
-            continue
+    for _ in range(3):
+        image = _registered(daytona)
+        if image is None:
+            info(f"registering {IMAGE} as image {IMAGE_NAME}")
+            try:
+                image = daytona.images.pull(IMAGE, name=IMAGE_NAME)
+            except NameConflictError:
+                continue  # Another run registered it first: use that one.
+        # The server's wait returns after a while even when the image is not done.
+        for _ in range(_IMAGE_WAITS):
+            if image.status in ("ready", "failed", "error"):
+                break
+            image = daytona.images.get(image.id, wait="ready")
         if image.status == "ready":
             return IMAGE_NAME
         if image.status not in ("failed", "error"):
-            daytona.images.get(image.id, wait="ready")
-            return IMAGE_NAME
+            raise RuntimeError(f"image {IMAGE_NAME} is still {image.status}")
         daytona.images.delete(image.id)  # A failed registration: register again.
-    info(f"registering {IMAGE} as image {IMAGE_NAME}")
-    daytona.images.pull(IMAGE, name=IMAGE_NAME)
-    return IMAGE_NAME
+    raise RuntimeError(f"could not register {IMAGE} as image {IMAGE_NAME}")
 
 
 def client() -> DaytonaV2Client:

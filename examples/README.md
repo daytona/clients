@@ -80,7 +80,7 @@ Not covered here: LSP servers and network settings.
 |---|---|---|
 | `DAYTONA_API_URL` | `https://api.daytona.com` | Daytona API |
 | `DAYTONA_API_KEY` | — (required) | `dtn_...` API key |
-| `DAYTONA_IMAGE` | `python:3.12-slim` | registry image the examples start from. Sandboxes are created from a project image, so the examples register it once as `examples-<image>` (e.g. `examples-python-3-12-slim`) and reuse that registration; the build examples use it as their `FROM` |
+| `DAYTONA_IMAGE` | `python:3.12-slim` | registry image the examples start from. A sandbox is created from a project image, so the examples that create one directly register it once as `examples-<image>-<digest>` and reuse that registration. The build and volume examples use the registry image itself as their base (`FROM` / `ImageBuilder.from_registry`) |
 
 
 Mint a project API key from the dashboard (it needs sandbox read/write permissions).
