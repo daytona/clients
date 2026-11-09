@@ -195,10 +195,15 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     fs: {
       mkdir: async () => undefined,
       list: async (dir: string) => {
-        // The entries directly below `dir`, from the store that holds `dir`.
-        const { store, key } = at(dir.replace(/\/+$/, ''))
-        const prefix = `${key}/`
-        const names = [...store.keys()].filter((path) => path.startsWith(prefix)).map((path) => path.slice(prefix.length).split('/')[0])
+        // The entries directly below `dir`, from the store that holds `dir`:
+        // `.` (or empty) is the relative root, `/` the absolute one.
+        const relative = dir.replace(/^(?:\.\/)+/, '').replace(/\/+$/, '')
+        const root = relative === '' || relative === '.'
+        const { store, key } = at(root ? (dir.startsWith('/') ? '/' : '.') : relative)
+        const prefix = root ? (dir.startsWith('/') ? '/' : '') : `${key}/`
+        const names = [...store.keys()]
+          .filter((path) => path.startsWith(prefix) && (prefix !== '' || !path.startsWith('/')))
+          .map((path) => path.slice(prefix.length).split('/')[0])
         return { items: [...new Set(names)].map((name) => ({ name })) }
       },
       glob: async () => ({ items: [] }),

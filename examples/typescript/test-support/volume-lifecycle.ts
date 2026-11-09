@@ -30,6 +30,13 @@ async function main(): Promise<void> {
     await box.fs.writeText('/data/note.txt', 'note')
     const listed = (await box.fs.list('/data')).items.map((entry) => entry.name).sort()
     if (listed.join(',') !== 'message.txt,note.txt') throw new Error(`listed ${listed.join(',')}`)
+    // The sandbox's own disk lists from its relative and absolute roots.
+    await box.fs.writeText('notes.txt', 'n')
+    await box.fs.writeText('/root.txt', 'r')
+    for (const [dir, expected] of [['.', 'notes.txt'], ['/', 'root.txt']] as const) {
+      const names = (await box.fs.list(dir)).items.map((entry) => entry.name)
+      if (names.join(',') !== expected) throw new Error(`listed ${dir}: ${names.join(',')}`)
+    }
     return before.output
   }
   const first = await daytona.volumes.create({ name: 'reused' })

@@ -347,8 +347,19 @@ class FakeWorld:
             return held[at]
 
         def list_dir(path: str, **_: object) -> ListResult[SimpleNamespace]:
-            held, at, _read_only = self.file_store(path.rstrip("/"), mounts, disk)
-            names = {p[len(at) + 1 :].split("/")[0] for p in held if p.startswith(at + "/")}
+            # `.` (or empty) is the relative root, `/` the absolute one.
+            relative = path.removeprefix("./").rstrip("/")
+            if relative in ("", "."):
+                prefix = "/" if path.startswith("/") else ""
+                held, _at, _read_only = self.file_store(prefix or ".", mounts, disk)
+            else:
+                held, at, _read_only = self.file_store(relative, mounts, disk)
+                prefix = at + "/"
+            names = {
+                p[len(prefix) :].split("/")[0]
+                for p in held
+                if p.startswith(prefix) and (prefix or not p.startswith("/"))
+            }
             return ListResult(items=[SimpleNamespace(name=name) for name in sorted(names)])
 
         process = create_autospec(ProcessService, instance=True)
@@ -595,6 +606,16 @@ def test_build_logs_fails_when_a_deliberately_broken_build_unexpectedly_succeeds
     assert code == 1
     assert re.search(r"FAIL.* the deliberately broken build unexpectedly created", capsys.readouterr().out)
     assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+def test_the_fake_lists_its_own_disk_from_the_relative_and_absolute_roots() -> None:
+    # Twin in volume-lifecycle.ts (examples.test.ts).
+    world = FakeWorld()
+    box = world._create_from_build(ImageBuilder.from_registry("python:3.12"), name="b")
+    box.fs.write_bytes("notes.txt", b"n")
+    box.fs.write_bytes("/root.txt", b"r")
+    assert [entry.name for entry in box.fs.list(".").items] == ["notes.txt"]
+    assert [entry.name for entry in box.fs.list("/").items] == ["root.txt"]
 
 
 def test_the_fake_create_from_build_carries_env_and_secrets_like_create() -> None:
