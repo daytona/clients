@@ -1278,6 +1278,7 @@ async def test_null_optional_organization_limits_read_as_absent(field: str) -> N
         ("2026-02-30", True),
         ("2026-1-1", True),
         ("2026-01-01T00:00:00Z", True),
+        ("0000-01-01", True),
         ("2026-01-01", False),
     ],
 )

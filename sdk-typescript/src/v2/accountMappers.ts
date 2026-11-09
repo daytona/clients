@@ -63,6 +63,8 @@ function isCalendarDate(value: string): boolean {
   const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(value)
   if (match === null) return false
   const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  // Year 0 is no calendar date, as Python's `date` reads it.
+  if (year < 1) return false
   const date = new Date(Date.UTC(year, month - 1, day))
   date.setUTCFullYear(year)
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day

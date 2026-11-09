@@ -817,7 +817,7 @@ it.each(['members', 'sandbox_resources'] as const)('reads a null optional organi
 })
 
 it.each([
-  ['2026-02-30', true], ['2026-1-1', true], ['2026-01-01T00:00:00Z', true], ['2026-01-01', false],
+  ['2026-02-30', true], ['2026-1-1', true], ['2026-01-01T00:00:00Z', true], ['0000-01-01', true], ['2026-01-01', false],
 ] as const)('reads a project budget period_start_date %j as a calendar date (refused: %s)', async (value, refused) => {
   const api = await startFakeApi([{ status: 200, body: { ...BUDGET_NULLS, period_start_date: value } }])
   const client = clientAt(api.url)
