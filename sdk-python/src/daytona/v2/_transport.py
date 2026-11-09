@@ -316,7 +316,9 @@ class SyncTransport:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 400:
             try:
-                body = read_body_sync(response, self._max_response_bytes)
+                body = read_body_sync(
+                    response, resolve_limit(spec.max_response_bytes, self._max_response_bytes)
+                )
             except httpx.TimeoutException as exc:
                 raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
@@ -800,7 +802,9 @@ class AsyncTransport:
         if response.status_code >= 400:
             typed_error: BaseException | None = None
             try:
-                body = await read_body(response, self._max_response_bytes)
+                body = await read_body(
+                    response, resolve_limit(spec.max_response_bytes, self._max_response_bytes)
+                )
             except httpx.TimeoutException as exc:
                 if span is not None:
                     span.finish(status_code=response.status_code, error=ClientTimeoutError())

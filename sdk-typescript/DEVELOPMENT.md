@@ -202,7 +202,7 @@ instead; other `fetch` calls are streams and are bounded only until their
 response headers arrive. The Python transport implements the same rule
 (`_request_deadline`, `RequestSpec.transfer`).
 
-Every axios request goes through `boundedAdapter` (`http.ts`): Node's http
+Every axios request goes through `boundedAdapter` (`boundedAdapter.ts`): Node's http
 adapter where the runtime has it, else the SDK's `fetchAdapter`; the response
 is opened as a stream and read by `readCappedBody` under `maxContentLength`
 (the client's `maxResponseBytes`, or the per-call `maxContentLengthFor(...)`),

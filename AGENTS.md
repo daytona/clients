@@ -503,7 +503,7 @@ skipping exist only in the TypeScript tool).
   `readText`, `read_many` / `readMany` (the whole multipart body), the
   recording download). A declared `Content-Length` over the cap is refused
   before the body is read, otherwise reading stops once it passes, and the
-  connection is closed (Python `_body_limit`, TS `boundedAdapter` /
+  connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
   `readFetchText`). A refused success response is `PayloadTooLargeError`
   (413, `PAYLOAD_TOO_LARGE`, `SDK`); an error response keeps its status's
   error. TypeScript sends every axios request through `boundedAdapter`:
