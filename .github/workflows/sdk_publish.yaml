@@ -562,6 +562,7 @@ jobs:
           V0_UNVERIFIED: ${{ steps.v0.outputs.unverified }}
           GATE_STATUS: ${{ job.status }}
           ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           REPO: ${{ github.repository }}
           SERVER: ${{ github.server_url }}
         run: |
@@ -569,6 +570,13 @@ jobs:
           target() { # label version install
             if [ -n "$2" ]; then printf "| %s | \`%s\` | %s |\n" "$1" "$2" "$3"; else printf '| %s | — | skipped |\n' "$1"; fi
           }
+          # Git allows ` | < in ref names; they would break out of the code
+          # span or the table cell the approver reads.
+          clean() { printf '%s' "$1" | tr '`|<' "'/("; }
+          source_ref=$(clean "$SOURCE_REF")
+          if [ -n "$IN_V0_TAG" ]; then v0_cell="\`$(clean "$IN_V0_TAG")\`"; else v0_cell='— (the pin)'; fi
+          requested="**@${TRIGGERING_ACTOR}**"
+          [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
           {
             echo "## Publish plan — \`${VERSION:-${VERSION_INPUT}}\`"
             echo
@@ -579,21 +587,21 @@ jobs:
               echo "> Gate **${GATE_STATUS}** — this run will not ask for approval or publish anything; see the gate log."
             fi
             echo
-            echo "Requested by **@${ACTOR}**."
+            echo "Requested by ${requested}."
             echo
             echo "| Input | Value |"
             echo "|---|---|"
             echo "| \`version\` | \`${VERSION_INPUT}\` |"
-            echo "| \`source_ref\` | \`${SOURCE_REF}\` |"
+            echo "| \`source_ref\` | \`${source_ref}\` |"
             echo "| \`publish_pypi\` | \`${IN_PYPI}\` |"
             echo "| \`publish_npm\` | \`${IN_NPM}\` |"
             echo "| \`publish_cli\` | \`${IN_CLI}\` |"
             echo "| \`publish_upgrade\` | \`${IN_UPGRADE}\` |"
-            echo "| \`v0_tag\` | ${IN_V0_TAG:+\`${IN_V0_TAG}\`}${IN_V0_TAG:-— (the pin)} |"
+            echo "| \`v0_tag\` | ${v0_cell} |"
             echo "| \`allow_unpinned_v0\` | \`${IN_ALLOW_UNPINNED_V0}\` |"
             echo "| \`force_republish\` | \`${IN_FORCE}\` |"
             echo
-            echo "- **Source to build:** \`${SOURCE_REF}\` → $([ -n "$SOURCE_SHA" ] && echo "[\`${SOURCE_SHA}\`](${SERVER}/${REPO}/commit/${SOURCE_SHA})" || echo unresolved)"
+            echo "- **Source to build:** \`${source_ref}\` → $([ -n "$SOURCE_SHA" ] && echo "[\`${SOURCE_SHA}\`](${SERVER}/${REPO}/commit/${SOURCE_SHA})" || echo unresolved)"
             echo "- **Workflow logic from:** \`${GITHUB_REF_NAME}\` → [\`${GITHUB_SHA}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})"
             echo "- **Channel:** \`${CHANNEL:-—}\`"
             echo "- **v0 namespace:** \`${V0_TAG:-—}\`${V0_SHA:+ → [\`${V0_SHA:0:12}\`](${SERVER}/${REPO}/commit/${V0_SHA})}${V0_UNVERIFIED:+ — **UNVERIFIED** (v0_tag override, not the pinned release)}"
@@ -606,7 +614,7 @@ jobs:
               target "TypeScript \`@daytona/sdk\` (npm)" "$NPM" "npm, dist-tag \`${NPM_DIST_TAG:-—}\`"
               target "Migration tool \`daytona-upgrade\` (PyPI)" "$UPGRADE_PYPI" "pypi.org/project/daytona-upgrade, once \`daytona\` is visible"
               target "Migration tool \`@daytona/upgrade\` (npm)" "$UPGRADE_NPM" "npm, once \`@daytona/sdk\` is visible"
-              target "CLI \`daytona\`" "$CLI" "GitHub Release \`v${CLI}\`$([ "$CHANNEL" = stable ] || echo ' (pre-release)') + Homebrew \`daytonaio/cli/${HOMEBREW_FORMULA:-—}\`"
+              target "CLI \`daytona\`" "$CLI" "GitHub Release \`v${CLI}\`$([ "$CHANNEL" = stable ] || echo ' (pre-release)') + Homebrew \`daytonaio/cli/${HOMEBREW_FORMULA:-—}\` (moved only forward)"
               echo
               echo "After approval the \`publish\` job runs the targets in the order above (a failed target stops the ones after it)$([ "$IN_FORCE" = true ] && echo ', skipping any already on its registry (force_republish)')."
             fi

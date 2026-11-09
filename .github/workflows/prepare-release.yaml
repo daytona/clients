@@ -36,15 +36,18 @@ jobs:
         env:
           VERSION_INPUT: ${{ inputs.version }}
           ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           REPO: ${{ github.repository }}
           SERVER: ${{ github.server_url }}
         run: |
           set -euo pipefail
           version=${VERSION_INPUT#v}
+          requested="**@${TRIGGERING_ACTOR}**"
+          [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
           {
             echo "## Prepare Release plan — \`v${version}\`"
             echo
-            echo "Requested by **@${ACTOR}** from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})."
+            echo "Requested by ${requested} from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA})."
             echo
             echo "| Input | Value |"
             echo "|---|---|"
@@ -52,8 +55,8 @@ jobs:
             echo
             echo "After approval of the \`release\` environment, \`prepare\`:"
             echo
-            echo "1. validates \`v${version}\` for this line (no 0.x, stable only from \`main\` and above the highest stable 2.x tag, tag not taken);"
-            echo "2. folds every \`changelog.d/\` fragment into \`CHANGELOG.md\` under \`v${version}\` and deletes the fragments;"
+            echo "1. validates \`v${version}\` for this line (no 0.x, stable only from \`main\` and above the highest stable 2.x tag, tag not taken) — this plan does not check them, a refused version fails here with nothing pushed;"
+            echo "2. folds every \`changelog.d/\` fragment into \`CHANGELOG.md\` under a new \`## [${version}]\` heading and deletes the fragments;"
             echo "3. pushes branch \`prepare-release-v${version}\` and opens PR **chore: prepare release v${version}** into \`${GITHUB_REF_NAME}\` as daytonaBot."
             echo
             echo "Nothing is published; after merging, run SDK Publish from the merge commit with \`v${version}\`."
