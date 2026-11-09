@@ -66,9 +66,25 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "100000")
         if case.startswith("gzip-"):
             self.send_header("Content-Encoding", "gzip")
+        if case.startswith("gzip-cut"):
+            self.send_header("Connection", "close")
         if case == "brotli":
             self.send_header("Content-Encoding", "br")
         self.end_headers()
+        if case in ("gzip-cut", "gzip-cut-logs"):
+            # A complete HTTP message (the server closes the connection after
+            # it) whose gzip data stops before its end: the last 4 bytes of
+            # the trailer are missing. gzip-cut: start and one fs event;
+            # gzip-cut-logs: one process log event and no eof.
+            if case == "gzip-cut":
+                events = "event: start\ndata: {}\n\n" + _fs_frame("a")
+            else:
+                events = 'event: log\ndata: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}\n\n'
+            with contextlib.suppress(OSError):
+                self.wfile.write(gzip.compress(events.encode())[:-4])
+                self.wfile.flush()
+            _closed(self.path.split("?")[0]).set()
+            return
         if case in ("gzip-events", "gzip-bomb", "brotli"):
             # gzip-events: start and one fs event, compressed. gzip-bomb: one
             # fs event whose data line is 64 MiB of "x" before start, which
@@ -786,3 +802,39 @@ async def test_a_watch_stream_in_an_unrequested_encoding_is_refused_undecoded(ba
     finally:
         await transport.close()
     assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+# As a capped read does (#537): compressed data that stops before its end is
+# as incomplete as a body cut short on the wire, so a stream reading it ends
+# with ConnectionError naming the encoding.
+@pytest.mark.anyio
+async def test_a_watch_stream_whose_gzip_data_stops_short_ends_with_a_connection_error(base: str) -> None:
+    names: list[str] = []
+    transport = AsyncTransport(f"{base}/gzip-cut/watch")
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir(
+            "/", lambda event: names.append(event.name)
+        )
+        error = await asyncio.wait_for(handle.wait_for_exit(), timeout=10)
+    finally:
+        await transport.close()
+    assert names == ["a"]
+    assert isinstance(error, ConnectionError)
+    assert str(error) == "the response body ended before its gzip data was complete"
+
+
+@pytest.mark.anyio
+async def test_a_log_stream_whose_gzip_data_stops_short_raises_a_connection_error(base: str) -> None:
+    from daytona.v2.process import AsyncProcessService
+
+    seen: list[str] = []
+    transport = AsyncTransport(f"{base}/gzip-cut-logs")
+    try:
+        with pytest.raises(
+            ConnectionError, match="^the response body ended before its gzip data was complete$"
+        ):
+            async for event in AsyncProcessService("sbx", transport).connect("p").stream_logs():
+                seen.append(event.type)
+    finally:
+        await transport.close()
+    assert seen == ["log"]

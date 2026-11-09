@@ -145,6 +145,14 @@ describe('JSON response bodies', () => {
     const fromFetch = await fetched('errdeep601')
     expect(fromFetch).toBeInstanceOf(NotFoundError)
     expect(fromFetch).toMatchObject(tooDeep)
+
+    // A body not declared as JSON is never read for a code, however deep (as in Python).
+    const text = String(BODIES.errdeep601)
+    const plain = await fs('errdeep601', 'text').stat('/a').then(() => undefined, (error: unknown) => error)
+    expect(plain).toBeInstanceOf(NotFoundError)
+    expect(plain).toMatchObject({ statusCode: 404, code: undefined, message: text })
+    await expect(errorFromFetchResponse(new Response(text, { status: 404, headers: { 'Content-Type': 'text/plain' } })))
+      .resolves.toMatchObject({ statusCode: 404, code: undefined, message: text })
   })
 
   it('does not read application/jsonl as JSON', async () => {

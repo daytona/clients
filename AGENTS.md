@@ -730,7 +730,8 @@ skipping exist only in the TypeScript tool).
   `maxResponseBytes`, an event over it `PayloadTooLargeError` (413,
   `PAYLOAD_TOO_LARGE`, `SDK`). Python decodes every streamed body itself
   (`AsyncResponseStream.iter_bytes()` through `_body_limit.decoded_chunks`:
-  gzip / deflate in `DECODE_STEP` pieces, any other encoding refused), never
+  gzip / deflate in `DECODE_STEP` pieces, any other encoding refused, data
+  that stops before its end a `ConnectionError`), never
   through httpx's decoders, so a compressed event is bounded too. A process log stream cut short is
   `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
   and so is one that ends without `eof`: the server ends it with `eof`, so
@@ -764,8 +765,8 @@ skipping exist only in the TypeScript tool).
   nest arrays and objects at most 600 deep (`JSON_MAX_DEPTH`, Python
   `loads_json`, TS `jsonDepth.ts`): the stdlib decoder's own limit depends on
   the Python version and the thread's stack, so the SDKs set one. An error
-  response always raises its status's typed error; a body nested past the
-  limit is unreadable (no code or details from it, the message says it was
+  response always raises its status's typed error; a body declared as
+  `application/json` and nested past the limit is unreadable (no code or details from it, the message says it was
   nested too deeply), as an oversized one is (Python `error_from_response`,
   TS `createAxiosDaytonaError` / `errorFromFetchResponse`).
   `.` and `..` are no path ids: every toolbox id or name in a request path

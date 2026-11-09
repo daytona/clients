@@ -14,6 +14,6 @@ decode the token-exchange response strictly: invalid UTF-8 or a leading
 byte-order mark is "token exchange response is not a JSON object" (Python
 stripped the BOM and took the token). An interpreter output that is not JSON,
 the constants included, is dropped as before. JSON may nest arrays and objects
-at most 600 deep in both SDKs; an error response nested deeper keeps its
-status's typed error but takes no code or details from the body, and its
-message says the body was nested too deeply.
+at most 600 deep in both SDKs; an error response declared as JSON and nested
+deeper keeps its status's typed error but takes no code or details from the
+body, and its message says the body was nested too deeply.
