@@ -602,7 +602,12 @@ skipping exist only in the TypeScript tool).
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
   `.code` only (no `error_code` / `errorCode`); `code` and `source` are open
   vocabularies (an unknown code is kept verbatim, the class falls back to the
-  HTTP status). Constructors take the message plus options: TS
+  HTTP status). An error response's body is read for a code, source and
+  details only when its media type is exactly `application/json`
+  (case-insensitive, parameters ignored: Python `is_json_media_type`, TS
+  `isJsonMediaType`), on every error path (the transports, the byte reads,
+  the bulk read, build logs, the token exchange); any other body is only the
+  message of the status's own error. Constructors take the message plus options: TS
   `new XError(message, options?: ErrorOptions)`, Python
   `XError(message, *, status_code=None, code=None, source=None, ...)`, with the
   same defaults (`TransferCancelledError()` → "file transfer cancelled", 499,
