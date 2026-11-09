@@ -184,6 +184,7 @@ function makeHub(
       earlyProbeMs?: number
       clientPingAfterMs?: number
       subscribeFlushMs?: number
+      staleResubscribeTickMs?: number
     }
   } = {},
 ): WaitHub {
@@ -1194,6 +1195,73 @@ describe('WaitHub: reconcile', () => {
     ws.inject({ type: 'event', id: SANDBOX_ID, status: 'running', version: 1 })
     await expect(prom).resolves.toMatchObject({ state: 'started' })
   }, 10_000)
+})
+
+describe('WaitHub: stale sweep', () => {
+  const subscribes = (ws: FakeWebSocket): number => ws.sentFrames().filter((f) => f['type'] === 'subscribe').length
+
+  // The server answers the subscribe with a pre-target snapshot, then sends
+  // only keepalives. Those hold the early probe off, and the reconcile timer
+  // is off; the stale sweep still asks again.
+  test('a waiter that hears no event is re-subscribed while keepalives flow', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const api = mockAxios()
+      const poll = jest.fn(async () => ({ state: 'started' as const, rawState: 'running' }))
+      const hub = makeHub(fc, { api, timings: { staleResubscribeTickMs: 100, noFrameTimeoutMs: 5_000 } })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000, sandboxPollFn: poll })
+      await drain()
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      expect(subscribes(ws)).toBe(1)
+      ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'booting', version: 1 })
+      for (let i = 0; i < 15 && subscribes(ws) < 2; i++) {
+        await jest.advanceTimersByTimeAsync(20)
+        ws.inject({ type: 'ping' })
+        await drain()
+      }
+      expect(subscribes(ws)).toBe(2)
+      ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'running', version: 2 })
+      await expect(prom).resolves.toMatchObject({ state: 'started' })
+      expect(poll).not.toHaveBeenCalled()
+      expect((api.get as jest.Mock).mock.calls).toHaveLength(0)
+      await hub.detach()
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
+  test('a waiter that keeps hearing events is not re-subscribed', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: { staleResubscribeTickMs: 100, noFrameTimeoutMs: 5_000 } })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 })
+      await drain()
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      expect(subscribes(ws)).toBe(1)
+      // Events every 30 ms for over three sweep ticks.
+      for (let version = 1; version < 14; version++) {
+        ws.inject({ type: 'event', id: SANDBOX_ID, status: 'booting', version })
+        await jest.advanceTimersByTimeAsync(30)
+        await drain()
+      }
+      ws.inject({ type: 'event', id: SANDBOX_ID, status: 'running', version: 14 })
+      await expect(prom).resolves.toMatchObject({ state: 'started' })
+      expect(subscribes(ws)).toBe(1)
+      await hub.detach()
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

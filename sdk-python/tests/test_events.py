@@ -961,6 +961,80 @@ class TestHubReconcile:
             )
             await task
 
+    async def test_a_waiter_that_hears_no_event_is_resubscribed_while_keepalives_flow(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The server answers the subscribe with a pre-target snapshot, then
+        # sends only keepalives. Those hold the early probe off, and the
+        # reconcile timer is off; the stale sweep still asks again.
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_resubscribe_tick_s = 0.1
+        polls = 0
+
+        async def poll() -> WaitOutcome:
+            nonlocal polls
+            polls += 1
+            return WaitOutcome("started", "running")
+
+        def subscribes() -> int:
+            return sum(1 for f in ws.sent_frames() if f.get("type") == "subscribe")
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(
+                hub.wait("abc-region-a", _started_predicate(), timeout=5, sandbox_poll_fn=poll)
+            )
+            await asyncio.wait_for(_wait_for(lambda: subscribes() == 1), timeout=1)
+            ws.inject({"type": "snapshot", "id": "abc-region-a", "status": "booting", "version": 1})
+
+            async def keepalives() -> None:
+                while True:
+                    await asyncio.sleep(0.02)
+                    ws.inject({"type": "ping"})
+
+            pinger = asyncio.create_task(keepalives())
+            try:
+                await asyncio.wait_for(_wait_for(lambda: subscribes() == 2), timeout=1)
+                ws.inject({"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 2})
+                result = await asyncio.wait_for(task, timeout=1)
+            finally:
+                pinger.cancel()
+
+        assert result.state == "started"
+        assert polls == 0
+
+    async def test_a_waiter_that_keeps_hearing_events_is_not_resubscribed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_resubscribe_tick_s = 0.1
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: any(f.get("type") == "subscribe" for f in ws.sent_frames())), timeout=1
+            )
+            # Events every 0.03 s for over three sweep ticks.
+            for version in range(1, 14):
+                ws.inject({"type": "event", "id": "abc-region-a", "status": "booting", "version": version})
+                await asyncio.sleep(0.03)
+            ws.inject({"type": "event", "id": "abc-region-a", "status": "running", "version": 14})
+            result = await asyncio.wait_for(task, timeout=1)
+
+        assert result.state == "started"
+        assert sum(1 for f in ws.sent_frames() if f.get("type") == "subscribe") == 1
+
     async def test_fallback_wait_uses_module_sleep_not_patched_asyncio_sleep(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

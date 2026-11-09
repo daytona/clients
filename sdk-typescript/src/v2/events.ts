@@ -108,6 +108,13 @@ const DEFAULT_CLOSE_GRACE_MS = 1_000
 const DEFAULT_EARLY_PROBE_MS = 10_000
 const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
+/**
+ * An id a waiter holds that hears no state frame for one to two of these ticks
+ * is re-subscribed; the server answers with a fresh snapshot. This bounds the
+ * delay a missed event adds to a wait, which neither the early probe (held off
+ * while the socket is live, keepalives included) nor the reconcile timer does.
+ */
+const DEFAULT_STALE_RESUBSCRIBE_TICK_MS = 5_000
 const WAITER_PIN_INTERVAL_MS = MAX_TIMER_DELAY_MS
 const WS_OPEN = 1
 const WS_CLOSING = 2
@@ -470,6 +477,7 @@ interface SocketState {
   permanentFallback: boolean
   loopRunning: boolean
   reconcileTimer: ReturnType<typeof setInterval> | undefined
+  staleTimer: ReturnType<typeof setTimeout> | undefined
   ws: WebSocket | undefined
   readonly versions: Map<string, number>
   readonly rawStates: Map<string, string>
@@ -489,6 +497,8 @@ interface SocketState {
   readonly unsubscribeReplacedIds: Set<string>
   subscribeFlushTimer: ReturnType<typeof setTimeout> | undefined
   readonly snapshotPending: Map<string, number>
+  /** Ids subscribed, or given a state frame, since the last stale sweep. */
+  readonly stateHeard: Set<string>
   /** The last decoded state per subscribed id: a new waiter on an id the
    *  socket already holds is judged against it at once (a sandbox resting in
    *  its target state emits no further event). */
@@ -561,6 +571,7 @@ export class WaitHub {
   private readonly earlyProbeMs: number
   private readonly clientPingAfterMs: number
   private readonly subscribeFlushMs: number
+  private readonly staleResubscribeTickMs: number
   private refCount: number
   private waiterPin: ReturnType<typeof setInterval> | undefined
   closed: boolean
@@ -578,6 +589,7 @@ export class WaitHub {
         readonly earlyProbeMs?: number
         readonly clientPingAfterMs?: number
         readonly subscribeFlushMs?: number
+        readonly staleResubscribeTickMs?: number
       } = {},
   ) {
     this.apiUrl = apiUrl.replace(/\/$/, '')
@@ -610,6 +622,7 @@ export class WaitHub {
     this.earlyProbeMs = timings.earlyProbeMs ?? DEFAULT_EARLY_PROBE_MS
     this.clientPingAfterMs = timings.clientPingAfterMs ?? DEFAULT_CLIENT_PING_AFTER_MS
     this.subscribeFlushMs = clampTimerDelayMs(timings.subscribeFlushMs) ?? DEFAULT_SUBSCRIBE_FLUSH_MS
+    this.staleResubscribeTickMs = timings.staleResubscribeTickMs ?? DEFAULT_STALE_RESUBSCRIBE_TICK_MS
     credentialSafeDiagnostics(this, () => ({ type: 'WaitHub' }))
   }
 
@@ -633,6 +646,7 @@ export class WaitHub {
     this.clearWaiterPin()
     for (const sock of this.sockets.values()) {
       clearReconcileTimer(sock)
+      clearStaleTimer(sock)
       this.clearIdleClose(sock)
       this.clearClientPing(sock)
       clearCloseGraceTimer(sock)
@@ -784,6 +798,7 @@ export class WaitHub {
     }
     this.ensureSocketLoop(destination)
     clearReconcileTimer(source)
+    clearStaleTimer(source)
     this.clearIdleClose(source)
     this.closeSocket(source)
     this.sockets.delete(sourceKey)
@@ -816,6 +831,7 @@ export class WaitHub {
         permanentFallback: false,
         loopRunning: false,
         reconcileTimer: undefined,
+        staleTimer: undefined,
         ws: undefined,
         versions: new Map(),
         rawStates: new Map(),
@@ -830,6 +846,7 @@ export class WaitHub {
         unsubscribeReplacedIds: new Set(),
         subscribeFlushTimer: undefined,
         snapshotPending: new Map(),
+        stateHeard: new Set(),
         states: new Map(),
         wake: undefined,
         clientClosing: false,
@@ -1364,6 +1381,8 @@ export class WaitHub {
     // open: a server that answers 101 and then says nothing must still reach
     // the fallback threshold.
     this.startReconcileTimer(sock)
+    sock.stateHeard.clear()
+    this.armStaleSweep(sock)
 
     try {
       await this.resubscribeAll(sock)
@@ -1371,6 +1390,7 @@ export class WaitHub {
       await this.runWs(sock, ws)
     } finally {
       clearReconcileTimer(sock)
+      clearStaleTimer(sock)
       clearCloseGraceTimer(sock)
       this.invalidateSocketCache(sock)
       sock.ws = undefined
@@ -1530,6 +1550,7 @@ export class WaitHub {
           // the id's waiters: they now listen elsewhere.
           if (!sock.subscriptions.has(sid)) return
           sock.versions.set(sid, version)
+          sock.stateHeard.add(sid)
 
           const decoded = sandboxState(wireState)
           sock.states.set(sid, decoded)
@@ -1835,7 +1856,10 @@ export class WaitHub {
   private async sendSubscribeIds(sock: SocketState, ids: readonly string[]): Promise<void> {
     const ws = sock.ws
     if (ws === undefined || ws.readyState !== WS_OPEN) return
-    for (const id of ids) sock.snapshotPending.set(id, sock.versions.get(id) ?? -1)
+    for (const id of ids) {
+      sock.snapshotPending.set(id, sock.versions.get(id) ?? -1)
+      sock.stateHeard.add(id)
+    }
     for (const chunk of chunks(ids, MAX_IDS_PER_FRAME)) {
       const frame = {
         type: 'subscribe',
@@ -1988,6 +2012,32 @@ export class WaitHub {
     sock.reconcileTimer = t
   }
 
+  /**
+   * Re-subscribe every waited-on id that heard nothing for a whole tick. A wait
+   * whose transition event never arrives would otherwise end only at the
+   * reconcile timer. At most one subscribe frame per tick; the frame path pays
+   * one set insert.
+   */
+  private armStaleSweep(sock: SocketState): void {
+    if (this.staleResubscribeTickMs <= 0 || sock.staleTimer !== undefined) return
+    const t = setTimeout(() => {
+      sock.staleTimer = undefined
+      const ws = sock.ws
+      if (this.closed || ws === undefined) return
+      const heard = sock.stateHeard
+      const pending = sock.pendingSubscribeIds
+      const stale: string[] = []
+      for (const sid of sock.subscriptions) {
+        if (!heard.has(sid) && !pending.has(sid) && (this.waiters.get(sid)?.length ?? 0) > 0) stale.push(sid)
+      }
+      heard.clear()
+      if (stale.length > 0 && ws.readyState === WS_OPEN) void this.sendSubscribeIds(sock, stale)
+      this.armStaleSweep(sock)
+    }, Math.round(jittered(this.staleResubscribeTickMs)))
+    unrefTimer(t)
+    sock.staleTimer = t
+  }
+
   // ------------------------------------------------------------------
   // Fallback helpers
   // ------------------------------------------------------------------
@@ -2096,6 +2146,13 @@ function clearReconcileTimer(sock: SocketState): void {
   if (sock.reconcileTimer !== undefined) {
     clearInterval(sock.reconcileTimer)
     sock.reconcileTimer = undefined
+  }
+}
+
+function clearStaleTimer(sock: SocketState): void {
+  if (sock.staleTimer !== undefined) {
+    clearTimeout(sock.staleTimer)
+    sock.staleTimer = undefined
   }
 }
 
