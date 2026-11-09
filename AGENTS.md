@@ -921,10 +921,11 @@ skipping exist only in the TypeScript tool).
   `WAIT_FINAL_READ_RESERVE_S`, TypeScript `WAIT_FINAL_READ_RESERVE_MS`; its
   probes hold no long poll past its share), and when it has decided nothing
   by then (a stream that sends no transitions decides only at its
-  reconcile), the reserve is spent on long-poll reads of the server under
-  the same deadline, which return at once if the state was reached. A
-  failed read there keeps the timeout, with the read's error as its cause,
-  except a 401 / 403, which is raised. Once the
+  reconcile), the reserve is spent on reads of the server under the same
+  deadline (long polls when the wait has one target state), which return at
+  once if the state was reached. A failed read there keeps the timeout, with
+  the read's error as its cause (a server's 408 included), except a 401 /
+  403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
   target was observed, a failed
   metadata refresh afterwards does not turn that success into an error.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`

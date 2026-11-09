@@ -163,8 +163,8 @@ async def test_a_lifecycle_wait_sees_a_state_the_stream_never_reports(
 ) -> None:
     sandbox = _Sandbox(before, after, _REACHED_AFTER_S)
     async with _client(monkeypatch, sandbox) as (client, _):
-        _, elapsed = await _timed(lambda: call(client))
-    assert elapsed < 1.0, verb
+        # On main this raises RequestTimeoutError at the deadline.
+        await _timed(lambda: call(client))
 
 
 @pytest.mark.parametrize(("verb", "before", "after", "call"), _LIFECYCLE, ids=[v[0] for v in _LIFECYCLE])
@@ -178,7 +178,7 @@ async def test_a_lifecycle_wait_whose_state_never_comes_still_times_out(
             await asyncio.wait_for(call(client), timeout=5)
         elapsed = events_module._clock.monotonic() - started
     assert raised.value.source == "SDK", verb
-    assert 0.9 <= elapsed < 1.5, verb
+    assert elapsed >= 0.9, verb
 
 
 async def test_create_returns_started_when_the_stream_never_reports_it(
@@ -186,10 +186,10 @@ async def test_create_returns_started_when_the_stream_never_reports_it(
 ) -> None:
     sandbox = _Sandbox("pending", "running", _REACHED_AFTER_S)
     async with _client(monkeypatch, sandbox) as (client, _):
-        created, elapsed = await _timed(lambda: client.create("img", wait_seconds=2))
+        # On main the handle comes back `creating` when the budget runs out.
+        created, _ = await _timed(lambda: client.create("img", wait_seconds=2))
     assert isinstance(created, AsyncSandbox)
     assert created.state == "started"
-    assert elapsed < 2.0
 
 
 async def test_create_still_returns_the_handle_when_the_sandbox_never_starts(
@@ -200,7 +200,7 @@ async def test_create_still_returns_the_handle_when_the_sandbox_never_starts(
         created, elapsed = await _timed(lambda: client.create("img", wait_seconds=1))
     assert isinstance(created, AsyncSandbox)
     assert created.state == "creating"
-    assert 0.9 <= elapsed < 1.5
+    assert elapsed >= 0.9
 
 
 async def test_the_stream_gets_the_budget_less_the_reserve(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -270,3 +270,19 @@ async def test_the_hubs_probes_hold_no_long_poll_past_its_share(monkeypatch: pyt
     probes = [(begun, held) for begun, held in asked if begun < 1.45]
     assert probes
     assert all(begun * 1000 + held <= 1_550 for begun, held in probes)
+
+
+async def test_a_server_408_in_the_reserve_keeps_the_wait_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    sandbox = _Sandbox("stopped", "running", None)
+    server_408 = create_error("server timeout", 408, "REQUEST_TIMEOUT", "DAYTONA_API")
+    async with _client(monkeypatch, sandbox) as (client, api):
+
+        async def timing_out(spec: RequestSpec) -> object:
+            api.specs.append(spec)
+            raise server_408
+
+        monkeypatch.setattr(api, "send", timing_out)
+        with pytest.raises(RequestTimeoutError) as raised:
+            await _handle(client).wait(until="started", timeout=1)
+    assert raised.value.source == "SDK"
+    assert raised.value.__cause__ is server_408

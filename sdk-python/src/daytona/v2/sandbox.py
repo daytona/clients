@@ -1045,7 +1045,8 @@ class AsyncSandbox:
                     timeout=None if remaining is None else ms / 1000,
                     wait=wait_target,
                     wait_timeout_ms=ms if wait_target is not None else None,
-                    deadline=deadline,
+                    # The read itself (its slack included) ends with the hub's share.
+                    deadline=deadline if hub_deadline is None else hub_deadline,
                     exact=exact,
                 )
                 last_poll_end = _clock.monotonic()
@@ -1087,16 +1088,15 @@ class AsyncSandbox:
                         exact,
                         last_read_end=last_poll_end,
                     )
-                except (
-                    SandboxTerminalStateError,
-                    NotFoundError,
-                    RequestTimeoutError,
-                    AuthenticationError,
-                    ForbiddenError,
-                ):
-                    # What the read decided, or a credential the API refuses
-                    # (final for the hub's own probe too).
+                except (SandboxTerminalStateError, NotFoundError, AuthenticationError, ForbiddenError):
+                    # What the read decided (a 404 outside a delete: the
+                    # sandbox is gone), or a credential the API refuses (final
+                    # for the hub's own probe too).
                     raise
+                except RequestTimeoutError as read_error:
+                    if read_error.source == "SDK":
+                        raise
+                    raise error from read_error
                 except DaytonaError as read_error:
                     # The wait ran out; a failed read in its reserve does not
                     # replace that outcome.
@@ -1176,9 +1176,9 @@ class AsyncSandbox:
         """
         if last_read_end is not None:
             pause = WAIT_FOR_STATE_MIN_INTERVAL_S - (_clock.monotonic() - last_read_end)
-            if deadline is not None:
-                pause = min(pause, max(0.0, deadline - _clock.monotonic()))
-            if pause > 0:
+            # The spacing never spends what is left: with less than it, the
+            # one read happens at once.
+            if pause > 0 and (deadline is None or deadline - _clock.monotonic() > pause):
                 await asyncio.sleep(pause)
         fresh = False
         while True:

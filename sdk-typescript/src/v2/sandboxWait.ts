@@ -92,9 +92,9 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
   const waitValue = waitQueryState(waitTarget)
   const exact = waitValue !== undefined && waitQueryKey(waitValue, effectiveTerminal) === 'wait_exact'
   const remaining = (): number | undefined => deadline === undefined ? undefined : Math.max(0, deadline - Date.now())
-  const read = async (timeoutMs?: number, wait?: SandboxWaitState): Promise<SandboxReadOutcome> => {
+  const read = async (timeoutMs?: number, wait?: SandboxWaitState, readDeadline = deadline): Promise<SandboxReadOutcome> => {
     try {
-      return await context.read(timeoutMs, wait, deadline, wait !== undefined && exact)
+      return await context.read(timeoutMs, wait, readDeadline, wait !== undefined && exact)
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
         const destroyed = { state: 'destroyed', rawState: 'deleted' } as const
@@ -122,8 +122,10 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
   // the wait's previous read ended; the first read keeps the minimum spacing.
   const pollForState = async (lastReadEnd?: number): Promise<void> => {
     if (lastReadEnd !== undefined) {
-      const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastReadEnd), remaining() ?? Infinity)
-      if (pause > 0) await sleep(pause)
+      const pause = WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastReadEnd)
+      // The spacing never spends what is left: with less than it, the one
+      // read happens at once.
+      if (pause > 0 && (remaining() ?? Infinity) > pause) await sleep(pause)
     }
     for (;;) {
       const budget = remaining()
@@ -152,7 +154,8 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       const budget = remaining()
       if (budget !== undefined && budget <= 0) throw timeoutError()
       const held = budget === undefined || hubDeadline === undefined ? budget : Math.max(1, Math.min(budget, hubDeadline - Date.now()))
-      const result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      // The read itself (its slack included) ends with the hub's share.
+      const result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
       lastPollEnd = Date.now()
       refreshedByPoll = true
       return result
@@ -191,11 +194,14 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         try {
           await pollForState(lastPollEnd)
         } catch (readError) {
-          // What the read decided, or a credential the API refuses (final for
-          // the hub's own probe too), stands. Any other failed read does not
-          // replace the wait running out; it is kept as the cause.
+          // What the read decided (a 404 outside a delete: the sandbox is
+          // gone), the wait's own deadline, or a credential the API refuses
+          // (final for the hub's own probe too), stands. Any other failed read,
+          // a server's 408 included, does not replace the wait running out; it
+          // is kept as the cause.
           if (
-            readError instanceof SandboxTerminalStateError || readError instanceof NotFoundError || readError instanceof RequestTimeoutError
+            readError instanceof SandboxTerminalStateError || readError instanceof NotFoundError
+            || (readError instanceof RequestTimeoutError && readError.source === 'SDK')
             || readError instanceof AuthenticationError || readError instanceof ForbiddenError
           ) throw readError
           if (readError instanceof DaytonaError) throw new RequestTimeoutError(error.message, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: readError })
