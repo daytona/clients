@@ -302,6 +302,28 @@ describe.each(['http', 'fetch'] as const)('the transfer idle bound (%s adapter)'
     }
   })
 
+  // Shared with the Python SDK's test_transfer_bounds.py: a transfer's own
+  // timeout replaces the request timeout as its idle bound (the stream that
+  // uploadFile() and downloadFile() open, and the axios transfers), never as
+  // a total deadline; it also bounds resolving the transfer's credential.
+  it('takes a transfer\'s own timeout as its idle bound, never as a total deadline', async () => {
+    const roomy = STALL_MS * 4
+    const transport = new HttpTransport(base, 'k', roomy)
+    // The stream opened before its response headers arrive (a stall mid
+    // body surfaces through the caller's own reader, as in downloadFile()).
+    route = stallBeforeHeaders
+    expect(await timesOut(() => transport.fetch('/files/download?path=a', { transfer: true, timeout: IDLE_SECONDS * 1000 }))).toBeLessThan(STALL_MS - 1000)
+    route = stallMidBody
+    expect(await timesOut(() => transport.get('/files/download?path=a', transferRequest({ responseType: 'arraybuffer', timeout: IDLE_SECONDS * 1000 })))).toBeLessThan(STALL_MS - 1000)
+    const auth = { bearer: (): Promise<string> => new Promise<string>(() => undefined), onUnauthorized: async (): Promise<undefined> => undefined }
+    const stalledCredential = new HttpTransport(base, undefined, roomy, { auth })
+    expect(await timesOut(() => stalledCredential.fetch('/files/download?path=a', { transfer: true, timeout: IDLE_SECONDS * 1000 }))).toBeLessThan(STALL_MS - 1000)
+    // 6 bytes 200 ms apart: 1.2 s in all, more than twice the timeout.
+    route = trickle(6, 200)
+    const moving = await transport.fetch('/files/download?path=a', { transfer: true, timeout: IDLE_SECONDS * 1000 })
+    expect(new TextDecoder().decode(await moving.arrayBuffer())).toBe('x'.repeat(6))
+  })
+
   it('keeps a transfer that keeps moving bytes going past the idle bound', async () => {
     // 12 bytes 200 ms apart: 2.4 s in all, five times the idle bound.
     route = trickle(12, 200)
@@ -736,6 +758,31 @@ describe('BodyBuffer', () => {
     // A declared length over the limit is not allocated.
     expect(new BodyBuffer(3, 1 << 30).add(bytes(1, 2, 3, 4))).toBe(false)
     expect(new BodyBuffer(0).add(new Uint8Array(10))).toBe(true)
+  })
+})
+
+describe('a refused streamed response (fetch adapter)', () => {
+  beforeAll(() => forceFetchAdapterForTests(true))
+  afterAll(() => forceFetchAdapterForTests(false))
+
+  // In runtimes without Node's http adapter, a streamed response whose
+  // status the caller refuses is cancelled, so its connection is released.
+  it('cancels the body before throwing the status error', async () => {
+    let closed!: () => void
+    const released = new Promise<void>((resolve) => { closed = resolve })
+    route = (request, response) => {
+      request.resume()
+      response.writeHead(404, { 'Content-Type': 'application/json' })
+      response.write('{"code":"FILE_NOT_FOUND"')
+      response.on('close', () => closed())
+      // Ends only when the client cancels (or after the stall, which fails the test).
+      stallThenHangUp(response)
+    }
+    const transport = new HttpTransport(base, 'k', 0)
+    const started = performance.now()
+    await expect(transport.http.get('/stream', { responseType: 'stream' })).rejects.toMatchObject({ statusCode: 404 })
+    await released
+    expect(performance.now() - started).toBeLessThan(STALL_MS - 1000)
   })
 })
 

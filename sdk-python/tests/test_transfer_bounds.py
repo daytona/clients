@@ -1007,3 +1007,65 @@ async def test_an_error_body_declared_as_application_json_carries_its_code(conte
         finally:
             await transport.close()
             sync.close()
+
+
+# The format of a deflate body (zlib-wrapped or raw) is decided from its first
+# two bytes, the zlib header, however the network splits the body: a split
+# after one byte must not commit to the wrapped decoder.
+@pytest.mark.parametrize("wrapped", [True, False])
+def test_a_deflate_body_decodes_whatever_its_early_chunk_boundaries(wrapped: bool) -> None:
+    from daytona.v2._body_limit import _BoundedDecoder
+
+    payload = b"daytona " * 4096
+    body = zlib.compress(payload) if wrapped else _raw_deflate(payload)
+
+    def decode(chunks: list[bytes]) -> bytes:
+        decoder = _BoundedDecoder("deflate", 200)
+        out = b"".join(piece for chunk in chunks for piece in decoder.feed(chunk))
+        return out + b"".join(decoder.finish())
+
+    for split in range(1, 24):
+        assert decode([body[:split], body[split:]]) == payload, split
+    # One byte at a time for the first bytes, then the rest.
+    assert decode([*(body[i : i + 1] for i in range(8)), body[8:]]) == payload
+    assert decode([body]) == payload
+
+
+def test_a_deflate_body_cut_inside_its_header_is_incomplete() -> None:
+    from daytona.v2._body_limit import _BoundedDecoder
+
+    decoder = _BoundedDecoder("deflate", 200)
+    assert list(decoder.feed(zlib.compress(b"x")[:1])) == []
+    with pytest.raises(ConnectionError, match="before its deflate data was complete"):
+        list(decoder.finish())
+
+
+# Shared with the TypeScript SDK's transfer-bounds.test.ts: a transfer's own
+# timeout replaces the request timeout as its idle bound, never as a total
+# deadline. Every transfer path: send, request and open_stream.
+@pytest.mark.anyio
+async def test_a_transfers_own_timeout_replaces_its_idle_bound() -> None:
+    from daytona.v2._core import file_download_spec
+
+    with _server({"/stall": _stall_mid_body, "/files/download": _trickle(6, 0.2)}) as base:
+        transport = AsyncTransport(base, "k", request_timeout=STALL * 4)
+        try:
+            stalled = RequestSpec("GET", "/stall", transfer=True, timeout=IDLE)
+            assert await _timed(lambda: transport.send(stalled)) < STALL
+            assert (
+                await _timed(lambda: transport.request("GET", "/stall", transfer=True, timeout=IDLE)) < STALL
+            )
+
+            async def stream_all() -> None:
+                stream = await transport.open_stream(stalled)
+                try:
+                    async for _chunk in stream.iter_bytes():
+                        pass
+                finally:
+                    await stream.close()
+
+            assert await _timed(stream_all) < STALL
+            # Moving bytes: 1.2 s in all, more than twice the timeout, never cut.
+            assert await transport.raw(file_download_spec("/a", timeout=IDLE)) == b"x" * 6
+        finally:
+            await transport.close()

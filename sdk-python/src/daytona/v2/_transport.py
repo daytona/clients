@@ -693,11 +693,13 @@ class AsyncTransport:
         # One total deadline for the whole call: resolving the bearer (a token
         # exchange), the request, a 401 refresh and its retry share it.
         with _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
-            token = await self._request_token()
+            with self._credential_deadline(spec.transfer, spec.timeout):
+                token = await self._request_token()
             try:
                 return await self._send_once(spec, token)
             except Exception as exc:
-                retry_token = await self._retry_token_after_401(exc, token)
+                with self._credential_deadline(spec.transfer, spec.timeout):
+                    retry_token = await self._retry_token_after_401(exc, token)
                 if retry_token is None:
                     raise
                 return await self._send_once(spec, retry_token)
@@ -735,6 +737,20 @@ class AsyncTransport:
         if spec.on_headers is not None and response.status_code < 400:
             spec.on_headers(response.headers)
         return _decode_response(response)
+
+    def _credential_deadline(
+        self, transfer: bool, timeout: Optional[float] = None
+    ) -> contextlib.AbstractContextManager[None]:
+        """The bound on resolving a bearer or answering a 401 with a fresh one.
+
+        A transfer has no total deadline, but no bytes move while a credential
+        resolves, so each of those steps is bounded by the transfer's idle
+        bound (:func:`_transfer_idle_seconds`; ``0``: none), as the TypeScript
+        SDK does. An ordinary call's steps are already inside its total deadline.
+        """
+        if not transfer:
+            return _request_deadline(0.0)
+        return _request_deadline(_transfer_idle_seconds(timeout, self._request_timeout_seconds))
 
     async def _request_token(self) -> Optional[str]:
         if self.auth_provider is not None:
@@ -799,11 +815,13 @@ class AsyncTransport:
         # retry, until the response headers arrive), never the stream itself;
         # a transfer has no total bound (it is idle-bounded per phase).
         with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
-            token = await self._request_token()
+            with self._credential_deadline(spec.transfer, spec.timeout):
+                token = await self._request_token()
             try:
                 return await self._open_stream_once(spec, token)
             except Exception as exc:
-                retry_token = await self._retry_token_after_401(exc, token)
+                with self._credential_deadline(spec.transfer, spec.timeout):
+                    retry_token = await self._retry_token_after_401(exc, token)
                 if retry_token is None:
                     raise
                 return await self._open_stream_once(spec, retry_token)
@@ -974,18 +992,25 @@ class AsyncTransport:
 
         Contract: any status >= 400 raises the typed SDK error; callers that
         need undecoded bodies (e.g. multipart bulk reads) rely on this.
-        ``transfer=True`` marks a file transfer: no total deadline, whatever
-        timeout it carries, but the request timeout bounds every idle phase
-        (connecting, each write and read gap). An explicit ``timeout`` in
+        ``transfer=True`` marks a file transfer: no total deadline, but its
+        idle bound (an explicit ``timeout`` in seconds, else the request
+        timeout) bounds every idle phase (connecting, each write and read gap)
+        and resolving its credential. An explicit ``timeout`` in
         seconds replaces the request timeout as a total bound (``0`` or above
         the timer maximum: none). ``max_response_bytes`` replaces the client's
         cap on the buffered body for this call.
         """
         limit = resolve_limit(max_response_bytes, self._max_response_bytes)
         explicit = kwargs.get("timeout")
+        transfer_timeout: Optional[float] = None
         if transfer:
-            # No total deadline, whatever timeout it carries; idle-bounded.
-            kwargs["timeout"] = _client_timeout(self._request_timeout_seconds)
+            # No total deadline; idle-bounded by its own timeout, else the
+            # request timeout.
+            if isinstance(explicit, (int, float)) and not isinstance(explicit, bool):
+                transfer_timeout = explicit
+            kwargs["timeout"] = _client_timeout(
+                _transfer_idle_seconds(transfer_timeout, self._request_timeout_seconds)
+            )
             total = 0.0
         elif isinstance(explicit, (int, float)) and not isinstance(explicit, bool):
             # A per-call timeout in seconds: a total bound, like the request timeout.
@@ -1002,13 +1027,15 @@ class AsyncTransport:
             kwargs["content"] = content_factory(0)
         # One total deadline for the bearer, the request, a 401 refresh and its retry.
         with _request_deadline(total):
-            token = await self._request_token()
+            with self._credential_deadline(transfer, transfer_timeout):
+                token = await self._request_token()
             try:
                 return await self._request_once(method, path, token, caller_headers, kwargs, limit)
             except Exception as exc:
                 if one_shot_body:
                     raise
-                retry_token = await self._retry_token_after_401(exc, token)
+                with self._credential_deadline(transfer, transfer_timeout):
+                    retry_token = await self._retry_token_after_401(exc, token)
                 if retry_token is None:
                     raise
                 if content_factory is not None:
@@ -1139,6 +1166,14 @@ def _per_call_seconds(seconds: float) -> float:
     return 0.0 if seconds <= 0 or seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
 
 
+def _transfer_idle_seconds(timeout: Optional[float], request_timeout_seconds: float) -> float:
+    """A file transfer's idle bound, in seconds (``0``: none): its own
+    ``timeout`` replaces the request timeout, as for any call, but as the
+    longest stretch with no bytes moving, never a total deadline (``0`` or
+    above the timer maximum: no bound), as in the TypeScript SDK."""
+    return _per_call_seconds(request_timeout_seconds if timeout is None else timeout)
+
+
 def _stream_open_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
     """The total-time bound on opening a stream, until its headers (``0``: none).
 
@@ -1156,11 +1191,12 @@ def _stream_open_seconds(spec: RequestSpec, request_timeout_seconds: float) -> f
 def _stream_timeout(spec: RequestSpec, request_timeout_seconds: float) -> httpx.Timeout:
     """httpx's per-phase timeouts for a stream: the opening bound, no idle-read bound.
 
-    A streamed file transfer is the exception: the request timeout bounds each
-    idle phase (connecting, each write and read gap), never its total time.
+    A streamed file transfer is the exception: its idle bound
+    (:func:`_transfer_idle_seconds`) bounds each idle phase (connecting, each
+    write and read gap), never its total time.
     """
     if spec.transfer:
-        return _client_timeout(request_timeout_seconds)
+        return _client_timeout(_transfer_idle_seconds(spec.timeout, request_timeout_seconds))
     return _timeout_with_unbounded_read(_stream_open_seconds(spec, request_timeout_seconds))
 
 
@@ -1191,9 +1227,9 @@ def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _Reque
     }
     if spec.transfer:
         # No total deadline (``_total_seconds``), but every idle phase is
-        # bounded by the request timeout: a transfer that keeps moving bytes
-        # runs on, a stalled one fails.
-        kwargs["timeout"] = _client_timeout(request_timeout_seconds)
+        # bounded by its idle bound: a transfer that keeps moving bytes runs
+        # on, a stalled one fails.
+        kwargs["timeout"] = _client_timeout(_transfer_idle_seconds(spec.timeout, request_timeout_seconds))
     elif spec.timeout is not None:
         # httpx's per-phase bound; ``_total_seconds`` holds the whole request to it.
         kwargs["timeout"] = spec.timeout if _per_call_seconds(spec.timeout) else httpx.Timeout(None)

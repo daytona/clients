@@ -113,9 +113,12 @@ describe('codes namespace', () => {
   })
 
   it('replaces the flat catalog exports', () => {
-    for (const name of ['API_ERROR_CODES', 'CODE_STATUS', 'isKnownErrorCode', 'API_CODE_EXTRAS']) {
-      expect(Object.keys(v2)).not.toContain(name)
-    }
+    // Every member the codes namespace exposes, so a catalog array or extras
+    // table re-exported at the top level fails here.
+    const members = Object.keys(v2.codes)
+    expect(members.length).toBeGreaterThan(0)
+    for (const name of members) expect(Object.keys(v2)).not.toContain(name)
+    expect(Object.keys(v2)).toContain('codes')
   })
 
   it('holds frozen data', () => {
@@ -172,6 +175,21 @@ describe('error constructors refuse a value that is not an options object', () =
     expect(new ErrorClass('x')).toBeInstanceOf(v2.DaytonaError)
     expect(new ErrorClass('x', undefined)).toBeInstanceOf(v2.DaytonaError)
     expect(new ErrorClass('x', { statusCode: 418 } as never)).toMatchObject({ statusCode: 418 })
+  })
+
+  it.each(constructors)('%s refuses an enumerable symbol key, own or inherited', (_name, ErrorClass) => {
+    const key = Symbol('extra')
+    const own = { statusCode: 418, [key]: true }
+    const inherited = Object.create({ [key]: true }) as object
+    for (const options of [own, inherited]) {
+      expect(() => new ErrorClass('x', options as never)).toThrow(expect.objectContaining({
+        constructor: v2.BadRequestError, message: 'ErrorOptions has no option `Symbol(extra)`', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+      }))
+    }
+    // A non-enumerable symbol (a class's own bookkeeping) is not an option.
+    const hidden = { statusCode: 418 }
+    Object.defineProperty(hidden, key, { value: true, enumerable: false })
+    expect(new ErrorClass('x', hidden as never)).toMatchObject({ statusCode: 418 })
   })
 })
 

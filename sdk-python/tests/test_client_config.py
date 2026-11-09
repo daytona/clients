@@ -15,6 +15,7 @@ import threading
 import time
 from typing import AsyncIterator, Iterator, Optional
 
+import anyio
 import httpx
 import pytest
 import respx
@@ -281,7 +282,9 @@ async def test_image_submissions_are_bounded_by_the_request_timeout(monkeypatch:
 
 @pytest.mark.anyio
 @respx.mock
-async def test_a_transfer_ignores_a_per_call_timeout_too() -> None:
+async def test_a_transfer_per_call_timeout_replaces_its_idle_bound_never_a_total_deadline() -> None:
+    # 6 bytes, one every 50 ms (300 ms in all): a 0.1 s per-call timeout is
+    # no total deadline (test_transfer_bounds.py shows it is the idle bound).
     respx.get(f"{BASE}/files/download").mock(side_effect=lambda _request: _trickle(chunks=6, every=0.05))
     transport = AsyncTransport(BASE, "k", request_timeout=0.1)
     assert await transport.raw(file_download_spec("/a", timeout=0.1)) == b"xxxxxx"
@@ -577,3 +580,107 @@ def test_oversized_events_durations_clamp_to_the_timer_maximum_like_typescript(h
     assert events.idle_close == 2_147_483.647
     small = _v2(DaytonaConfig(api_key="k", events=SandboxEventsConfig(reconcile_interval=5, idle_close=7)))
     assert (small._hub_events_config.reconcile_interval, small._hub_events_config.idle_close) == (5, 7)  # type: ignore[attr-defined]
+
+
+class _StalledAuth:
+    """A bearer source that never answers (``step="bearer"``) or answers the
+    401 refresh never (``step="refresh"``)."""
+
+    def __init__(self, step: str) -> None:
+        self.step = step
+
+    async def bearer(self) -> Optional[str]:
+        if self.step == "bearer":
+            await asyncio.sleep(3600)
+        return "stale"
+
+    async def on_unauthorized(self, failed_token: Optional[str]) -> Optional[str]:
+        await asyncio.sleep(3600)
+        return "fresh"
+
+
+async def _unauthorized_for_stale(request: httpx.Request) -> httpx.Response:
+    if request.headers.get("authorization") == "Bearer stale":
+        return httpx.Response(401, json={"code": "UNAUTHORIZED", "message": "expired"})
+    return httpx.Response(200, json={"ok": True})
+
+
+# A transfer has no total deadline, but resolving its bearer and a 401 refresh
+# are each bounded by its idle bound, the request timeout, as in TypeScript: a
+# stalled credential source cannot hang a transfer.
+@pytest.mark.anyio
+@respx.mock
+@pytest.mark.parametrize("step", ["bearer", "refresh"])
+@pytest.mark.parametrize("path", ["send", "request", "open_stream"])
+async def test_a_transfer_bounds_a_stalled_credential_by_its_idle_bound(path: str, step: str) -> None:
+    respx.get(f"{BASE}/thing").mock(side_effect=_unauthorized_for_stale)
+    transport = AsyncTransport(BASE, None, request_timeout=0.2)
+    transport.auth_provider = _StalledAuth(step)
+    try:
+        with pytest.raises(ClientTimeoutError):
+            with anyio.fail_after(10):  # a hang fails the test, it does not stall the suite
+                if path == "send":
+                    await transport.send(RequestSpec("GET", "/thing", transfer=True))
+                elif path == "request":
+                    await transport.get("/thing", transfer=True)
+                else:
+                    await transport.open_stream(RequestSpec("GET", "/thing", transfer=True))
+    finally:
+        await transport.close()
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_a_transfer_credential_bound_is_none_with_a_request_timeout_of_zero() -> None:
+    class SlowAuth:
+        async def bearer(self) -> Optional[str]:
+            await asyncio.sleep(0.3)
+            return "fresh"
+
+        async def on_unauthorized(self, failed_token: Optional[str]) -> Optional[str]:
+            return None
+
+    respx.get(f"{BASE}/thing").mock(side_effect=_unauthorized_for_stale)
+    transport = AsyncTransport(BASE, None, request_timeout=0)
+    transport.auth_provider = SlowAuth()  # type: ignore[assignment]
+    try:
+        assert (await transport.get("/thing", transfer=True)).json() == {"ok": True}
+    finally:
+        await transport.close()
+
+
+def test_a_sync_transfer_bounds_a_stalled_credential_by_its_idle_bound() -> None:
+    # The synchronous client runs on the same async transport, through the bridge.
+    from daytona.v2._bridge import SyncBridge
+    from daytona.v2._sync.filesystem import FileSystemService
+    from daytona.v2.filesystem import AsyncFileSystemService
+
+    bridge = SyncBridge()
+    transport = AsyncTransport(
+        BASE,
+        None,
+        request_timeout=0.2,
+        client=httpx.AsyncClient(transport=httpx.MockTransport(lambda _r: httpx.Response(200))),
+    )
+    transport.auth_provider = _StalledAuth("bearer")
+    worker: Optional[threading.Thread] = None
+    try:
+        fs = FileSystemService(AsyncFileSystemService(transport), bridge)
+        outcome: list[BaseException] = []
+
+        def read() -> None:
+            try:
+                fs.read_bytes("/a")
+            except BaseException as error:
+                outcome.append(error)
+
+        # On a worker thread, so a hang fails the test instead of stalling the suite.
+        worker = threading.Thread(target=read, daemon=True)
+        worker.start()
+        worker.join(10)
+        assert not worker.is_alive(), "the transfer hung on its stalled credential"
+        assert len(outcome) == 1 and isinstance(outcome[0], ClientTimeoutError)
+    finally:
+        # A hung transfer would keep the bridge busy: leave it to the daemon thread.
+        if worker is None or not worker.is_alive():
+            bridge.close(transport.close)

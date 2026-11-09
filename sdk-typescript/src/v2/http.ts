@@ -246,14 +246,15 @@ export interface FetchRequestInit extends RequestInit {
   readonly bodyFactory?: () => BodyInit | Promise<BodyInit>
   /**
    * A file transfer: no total deadline (only the caller's `signal` ends it),
-   * but it fails with `ClientTimeoutError` once no bytes move for the request
-   * timeout (`0` = no idle bound).
+   * but it fails with `ClientTimeoutError` once no bytes move for its
+   * `timeout`, else the request timeout (`0` = no idle bound).
    */
   readonly transfer?: boolean
   /**
    * Replaces the request timeout (milliseconds) for this call, with the same
    * meaning: it bounds the call until the response headers arrive (a stream's
-   * body is never bounded); `0` or above the timer maximum is no limit.
+   * body is never bounded), and on a transfer it is the idle bound instead;
+   * `0` or above the timer maximum is no limit.
    */
   readonly timeout?: number
 }
@@ -1364,10 +1365,12 @@ const callerSignals = new WeakMap<AbortSignal, AbortSignalLike | undefined>()
 function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, instance: AxiosInstance): T {
   disarmRequestDeadline(config)
   if (config.daytona?.transfer === true) {
-    // A file transfer: no total deadline; the instance's request timeout is
-    // its idle bound, which boundedAdapter enforces.
+    // A file transfer: no total deadline; its own timeout, else the
+    // instance's request timeout, is its idle bound, which boundedAdapter
+    // enforces (as in the Python SDK).
+    const idleTimeoutMs = config.daytona.idleTimeoutMs ?? boundedTimerDelay(timeoutFromAxiosInstance(instance) ?? DEFAULT_REQUEST_TIMEOUT_MS)
     config.timeout = 0
-    config.daytona = { ...config.daytona, idleTimeoutMs: boundedTimerDelay(timeoutFromAxiosInstance(instance) ?? DEFAULT_REQUEST_TIMEOUT_MS) }
+    config.daytona = { ...config.daytona, idleTimeoutMs }
   }
   // axios hands its timeout to a platform timer too: one above the timer
   // maximum would fire at once, so it means no bound there as well.
@@ -1565,8 +1568,9 @@ export class HttpTransport {
     const deadlineAt = budget === 0 ? undefined : nowMs() + budget
     // A transfer has no total deadline, but minting its bearer is bounded by
     // its idle bound (no bytes move while it waits).
-    const transfer = (config as DaytonaAxiosRequestConfig | undefined)?.daytona?.transfer === true
-    const idleMs = boundedTimerDelay(this.defaultTimeout)
+    const transferMeta = (config as DaytonaAxiosRequestConfig | undefined)?.daytona
+    const transfer = transferMeta?.transfer === true
+    const idleMs = transferMeta?.idleTimeoutMs ?? boundedTimerDelay(this.defaultTimeout)
     const credentialDeadline = (): number | undefined => (transfer ? (idleMs === 0 ? undefined : nowMs() + idleMs) : deadlineAt)
     const bounded = (requestConfig: AxiosRequestConfig | undefined): AxiosRequestConfig | undefined =>
       deadlineAt === undefined
@@ -1647,8 +1651,10 @@ export class HttpTransport {
     // the call's own timeout or else the request timeout. A file transfer has
     // no total bound but an idle one instead: the request timeout with no
     // bytes moving (a streamed request body, the headers, each body chunk).
+    // The call's own timeout replaces the request timeout there too, as the
+    // idle bound (never a total deadline), as in the Python SDK.
     const idle = init?.transfer === true
-      ? new IdleWatchdog(boundedTimerDelay(this.defaultTimeout), init.signal ?? undefined, () => new DOMException('no bytes moved', 'AbortError'))
+      ? new IdleWatchdog(boundedTimerDelay(perCallTimeoutMs(init.timeout) ?? this.defaultTimeout), init.signal ?? undefined, () => new DOMException('no bytes moved', 'AbortError'))
       : undefined
     const timeout = idle !== undefined
       ? { signal: idle.signal, clearTimer: () => idle.pause(), timedOut: () => idle.fired(), detach: () => idle.dispose() }

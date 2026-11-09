@@ -121,14 +121,24 @@ export function nonOptionsDescription(value: unknown): string | undefined {
  * plain JavaScript) would otherwise lose the status silently. The copy holds
  * every enumerable key, own or inherited (`for...in`), as the client
  * configuration reads them, so a prototype-based options object keeps its
- * fields through the spreads the constructors do. Internal: every error
- * constructor that reads options runs it first.
+ * fields through the spreads the constructors do; an enumerable symbol key
+ * is refused. Internal: every error constructor that reads options runs it
+ * first.
  */
 export function errorOptions<T extends object>(options: T | undefined): T | undefined {
   if (options === undefined) return undefined
   const given = nonOptionsDescription(options)
   if (given !== undefined) {
     throw new BadRequestError(`error options must be an options object, got ${given}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  // No error options type declares a symbol key: an enumerable one, own or
+  // inherited, is refused, as the options guard (`enumerableKeys`) does.
+  for (let level: object | null = options; level !== null && level !== Object.prototype; level = Object.getPrototypeOf(level) as object | null) {
+    for (const symbol of Object.getOwnPropertySymbols(level)) {
+      if (Object.prototype.propertyIsEnumerable.call(level, symbol)) {
+        throw new BadRequestError(`ErrorOptions has no option \`${String(symbol)}\``, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+      }
+    }
   }
   const copy: Record<string, unknown> = {}
   for (const key in options) copy[key] = (options as Record<string, unknown>)[key]
