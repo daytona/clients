@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Daytona } from '../src/v2/Daytona'
 import { BadRequestError, ClientTimeoutError, NotFoundError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
-import { HttpTransport, forceFetchAdapterForTests } from '../src/v2/http'
+import { HttpTransport, forceFetchAdapterForTests, transferRequest } from '../src/v2/http'
 import { attachHub, detachHub, eventsHubConfig } from '../src/v2/events'
 import { BodyBuffer } from '../src/v2/bodyBuffer'
 import { lazySandbox } from './lazySandbox'
@@ -527,5 +527,20 @@ describe('BodyBuffer', () => {
     // A declared length over the limit is not allocated.
     expect(new BodyBuffer(3, 1 << 30).add(bytes(1, 2, 3, 4))).toBe(false)
     expect(new BodyBuffer(0).add(new Uint8Array(10))).toBe(true)
+  })
+})
+
+describe('transferRequest', () => {
+  it('refuses a streamed response before anything is sent (no SDK transfer streams through axios)', async () => {
+    expect(() => transferRequest({ responseType: 'stream' })).toThrow(expect.objectContaining({ statusCode: 500, source: 'SDK' }))
+    let hits = 0
+    route = (request, response) => {
+      hits += 1
+      body('x')(request, response)
+    }
+    const transport = new HttpTransport(base, 't', 5_000)
+    // Marked as a transfer some other way, the adapter refuses it too.
+    await expect(transport.http.get('/files/download', { responseType: 'stream', daytona: { transfer: true } } as never)).rejects.toMatchObject({ statusCode: 500, source: 'SDK' })
+    expect(hits).toBe(0)
   })
 })
