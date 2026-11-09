@@ -661,21 +661,28 @@ class _SignedFileUrl(NamedTuple):
 
 
 def _signed_file_url_from_payload(payload: TransportPayload) -> _SignedFileUrl:
-    # Takes the raw decoded body, whatever JSON type it is: a ``null``, a list,
-    # a string or a malformed object all answer the same invalid-payload error
-    # (parity with the TS SDK's ``readSignedFileUrl``).
+    # Takes the raw decoded body, whatever JSON type it is: a response that
+    # breaks the contract is ``BadRequestError`` naming the field, with the TS
+    # SDK's messages (``readSignedFileUrl``).
     if not isinstance(payload, dict):
-        raise create_error("API returned an invalid signed file URL payload", 500, None, "SDK")
+        raise create_error("signed file URL response is not a JSON object", 400, "BAD_REQUEST", "SDK")
     signature = payload.get("signature")
     expires_at = payload.get("expires_at")
-    if isinstance(signature, str) and signature and isinstance(expires_at, str):
+    if not isinstance(signature, str) or not signature:
+        raise create_error(
+            "signed file URL response signature must be a non-empty string", 400, "BAD_REQUEST", "SDK"
+        )
+    parsed_expiry = None
+    if isinstance(expires_at, str):
         try:
             parsed_expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
         except ValueError:
             parsed_expiry = None
-        if parsed_expiry is not None and parsed_expiry.tzinfo is not None:
-            return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
-    raise create_error("API returned an invalid signed file URL payload", 500, None, "SDK")
+    if parsed_expiry is None or parsed_expiry.tzinfo is None:
+        raise create_error(
+            "signed file URL response expires_at must be an RFC 3339 timestamp", 400, "BAD_REQUEST", "SDK"
+        )
+    return _SignedFileUrl(signature=signature, expires=int(parsed_expiry.timestamp()))
 
 
 def _multipart_boundary() -> str:

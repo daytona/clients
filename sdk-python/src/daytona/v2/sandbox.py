@@ -1498,10 +1498,8 @@ class AsyncSandbox:
             if not isinstance(ttl_seconds, int) or isinstance(ttl_seconds, bool) or ttl_seconds <= 0:
                 raise create_error("ttl_seconds must be a positive integer", 400, "BAD_REQUEST", "SDK")
             body["ttl_seconds"] = ttl_seconds
-        payload = expect_object(
-            await self._require_api().send(
-                RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/access-token", json_body=body)
-            )
+        payload = await self._require_api().send(
+            RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/access-token", json_body=body)
         )
         return _sandbox_access_token_from_payload(payload)
 
@@ -1948,11 +1946,19 @@ def _known_sandbox_class(value: str) -> Optional[SandboxClass]:
     return None
 
 
-def _sandbox_access_token_from_payload(payload: JsonObject) -> SandboxAccessToken:
+def _sandbox_access_token_from_payload(payload: object) -> SandboxAccessToken:
+    """The minted token, or ``BadRequestError`` naming the field that breaks the
+    response contract (the TypeScript SDK's messages for the same body)."""
+    if not isinstance(payload, dict):
+        raise create_error("access token response is not a JSON object", 400, "BAD_REQUEST", "SDK")
     access_token = payload.get("access_token")
     expires_at = payload.get("expires_at")
-    if not isinstance(access_token, str) or not access_token or not isinstance(expires_at, str):
-        raise create_error("API returned an invalid access token payload", 500, None, "SDK")
+    if not isinstance(access_token, str) or not access_token:
+        raise create_error(
+            "access token response access_token must be a non-empty string", 400, "BAD_REQUEST", "SDK"
+        )
+    if not isinstance(expires_at, str):
+        raise create_error("access token response expires_at must be a string", 400, "BAD_REQUEST", "SDK")
     token_type = payload.get("token_type")
     raw_operations = payload.get("operations")
     operations = (

@@ -6654,27 +6654,25 @@ describe('toolbox service request shaping', () => {
   })
 
   // Parity matrix with the Python suite (`test_presigned_urls_reject_a_malformed_sign_payload`):
-  // every non-object body and every malformed object answer the same 500.
+  // a body that breaks the contract is BadRequestError naming the field, with the same messages.
   it.each([
-    null,
-    {},
-    [],
-    'str',
-    { signature: '', expires_at: '2026-06-12T03:22:47Z' },
-    { signature: 'v1_x', expires_at: 'invalid' },
-    { signature: '', expires_at: 'invalid' },
-    { signature: 'v1_ok' },
-    { signature: 'v1_ok', expires_at: 1_781_234_567 },
-    { signature: 'v1_ok', expires_at: 'invalid' },
-    { signature: 7, expires_at: '2026-06-12T03:22:47Z' },
-  ])('reports a malformed files/sign payload (%p) as the documented invalid-payload error', async (data) => {
+    [null, 'signed file URL response is not a JSON object'],
+    [[], 'signed file URL response is not a JSON object'],
+    ['str', 'signed file URL response is not a JSON object'],
+    [{}, 'signed file URL response signature must be a non-empty string'],
+    [{ signature: '', expires_at: '2026-06-12T03:22:47Z' }, 'signed file URL response signature must be a non-empty string'],
+    [{ signature: 7, expires_at: '2026-06-12T03:22:47Z' }, 'signed file URL response signature must be a non-empty string'],
+    [{ signature: 'v1_ok' }, 'signed file URL response expires_at must be an RFC 3339 timestamp'],
+    [{ signature: 'v1_ok', expires_at: 1_781_234_567 }, 'signed file URL response expires_at must be an RFC 3339 timestamp'],
+    [{ signature: 'v1_ok', expires_at: 'invalid' }, 'signed file URL response expires_at must be an RFC 3339 timestamp'],
+    [{ signature: 'v1_ok', expires_at: true }, 'signed file URL response expires_at must be an RFC 3339 timestamp'],
+  ])('reports a malformed files/sign payload (%p) as a BadRequestError naming the field', async (data, message) => {
     const { sandbox, post, now } = presignedSandbox()
-    // JSON `null` is a valid axios body; it must surface as DaytonaError, not a TypeError.
+    // JSON `null` is a valid axios body; it must surface as the SDK's error, not a TypeError.
     post.mockResolvedValueOnce({ data } as never)
     try {
       const pending = sandbox.fs.presignedDownloadUrl('/f.txt')
-      await expect(pending).rejects.toBeInstanceOf(DaytonaError)
-      await expect(pending).rejects.toMatchObject({ message: 'API returned an invalid signed file URL payload', statusCode: 500 })
+      await expect(pending).rejects.toMatchObject({ constructor: BadRequestError, message, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     } finally {
       now.mockRestore()
     }
@@ -10512,6 +10510,21 @@ describe('sandbox access tokens', () => {
     expect(minted.ports).toEqual([3000])
     expect(post).toHaveBeenCalledWith(`${base}/sbx/access-token`, { operations: ['toolbox:fs', 'ssh'], ports: [3000], ttl_seconds: 900 })
     expect(get).not.toHaveBeenCalled()
+  })
+
+  // The Python SDK's test_sandbox_tokens.py asserts the same messages for the same bodies.
+  it.each([
+    [null, 'access token response is not a JSON object'],
+    [[], 'access token response is not a JSON object'],
+    [{ expires_at: '2030-01-01T00:00:00Z' }, 'access token response access_token must be a non-empty string'],
+    [{ access_token: '', expires_at: '2030-01-01T00:00:00Z' }, 'access token response access_token must be a non-empty string'],
+    [{ access_token: 'jwt' }, 'access token response expires_at must be a string'],
+    [{ access_token: 'jwt', expires_at: 5 }, 'access token response expires_at must be a string'],
+  ])('createAccessToken names what breaks the response contract (%p)', async (data, message) => {
+    const client = new Daytona({ apiKey: 'key' })
+    const sandbox = lazySandbox(client, 'sbx')
+    jest.spyOn(clientInstance(client), 'post').mockResolvedValueOnce({ data })
+    await expect(sandbox.createAccessToken()).rejects.toMatchObject({ constructor: BadRequestError, message, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   it('createAccessToken sends an empty body for the full default mint and maps null ports to undefined', async () => {

@@ -599,8 +599,9 @@ skipping exist only in the TypeScript tool).
   contract is `BadRequestError` 400 `BAD_REQUEST` `SDK` naming the field (the
   rule; known exceptions at this point, which still raise
   `InternalServerError` 500 with no code: network policy, sandbox secrets,
-  the computer-use status mappers, and the filesystem signed URL and watch
-  events, until their areas adopt it). Python callers should not star-import
+  the computer-use status mappers, and the filesystem watch events, until
+  their areas adopt it; the sandbox access-token mint and the pre-signed file
+  URL follow the rule). Python callers should not star-import
   `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
   built-ins.
 - **Generated wire types must not reach the public surface** (the rule; the
