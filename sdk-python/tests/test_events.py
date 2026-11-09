@@ -1008,15 +1008,21 @@ class TestHubReconcile:
         assert result.state == "started"
         assert polls == 0
 
-    async def test_one_tick_resubscribes_at_most_the_burst_budget_oldest_first(
+    def test_the_sweep_stays_within_the_subscribe_rate(self) -> None:
+        # The server takes 2,000 subscribe ids per second per socket.
+        hub = make_hub(FakeConnector())
+        assert hub._stale_sweep_max_ids == 1_500
+        assert hub._stale_sweep_max_ids / hub._stale_sweep_tick_s <= 0.75 * 2_000
+
+    async def test_one_tick_resubscribes_at_most_its_cap_oldest_first(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import daytona.v2._events as events_module
 
         monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
-        monkeypatch.setattr(events_module, "_STALE_SWEEP_MAX_IDS", 2)
         fc = FakeConnector()
         hub = make_hub(fc)
+        hub._stale_sweep_max_ids = 2
         hub._stale_after_s, hub._stale_sweep_tick_s = 0.2, 10.0
         ids = ["a-region-a", "b-region-a", "c-region-a"]
 
@@ -1040,7 +1046,7 @@ class TestHubReconcile:
             sock.stale_task = asyncio.create_task(hub._stale_resubscribe_loop(sock))
             await asyncio.wait_for(_wait_for(lambda: len(ws.sent_frames()) > before), timeout=1)
             sock.stale_task.cancel()
-            swept = subscribed(ws.sent_frames()[before:before + 1])
+            swept = subscribed(ws.sent_frames()[before : before + 1])
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)

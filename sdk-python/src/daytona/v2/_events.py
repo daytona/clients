@@ -94,9 +94,10 @@ _SUBSCRIBE_FLUSH_S: Final = 0.05
 #: is live, keepalives included) nor the reconcile timer does.
 _STALE_AFTER_S: Final = 3.0
 _STALE_SWEEP_TICK_S: Final = 1.0
-#: Ids one sweep tick re-subscribes at most: the per-socket subscribe burst.
-#: The oldest go first, so the rest go on the next ticks.
-_STALE_SWEEP_MAX_IDS: Final = 10_000
+#: Ids per second the sweep re-subscribes at most: 75 % of the server's
+#: per-socket subscribe rate (2,000 ids/s), leaving room for fresh subscribes
+#: and refused retries. Past it the oldest go first and the rest wait a tick.
+_STALE_SWEEP_IDS_PER_S: Final = 1_500
 
 # ---------------------------------------------------------------------------
 # Utilities
@@ -427,6 +428,7 @@ class WaitHub:
         self._subscribe_flush_s: float = _SUBSCRIBE_FLUSH_S
         self._stale_after_s: float = _STALE_AFTER_S
         self._stale_sweep_tick_s: float = _STALE_SWEEP_TICK_S
+        self._stale_sweep_max_ids: int = int(_STALE_SWEEP_IDS_PER_S * _STALE_SWEEP_TICK_S)
 
         # The hub's own API transport (the SDK's, not a bare HTTP
         # client): the ticket mint and the long-poll fallback carry the same
@@ -1588,9 +1590,10 @@ class WaitHub:
                     for sid in sock.subscriptions
                     if heard_at.get(sid, 0.0) <= cutoff and sid not in pending and self._waiters.get(sid)
                 ]
-                if len(stale) > _STALE_SWEEP_MAX_IDS:
+                max_ids = self._stale_sweep_max_ids
+                if len(stale) > max_ids:
                     stale.sort(key=lambda sid: heard_at.get(sid, 0.0))
-                    del stale[_STALE_SWEEP_MAX_IDS:]
+                    del stale[max_ids:]
                 if stale and sock.ws is not None:
                     await self._send_subscribe_ids(sock, stale)
 

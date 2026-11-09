@@ -186,6 +186,7 @@ function makeHub(
       subscribeFlushMs?: number
       staleAfterMs?: number
       staleSweepTickMs?: number
+      staleSweepMaxIds?: number
     }
   } = {},
 ): WaitHub {
@@ -1236,14 +1237,24 @@ describe('WaitHub: stale sweep', () => {
     }
   })
 
-  test('one tick re-subscribes at most the burst budget, oldest first', async () => {
+  test('the sweep stays within the subscribe rate', () => {
+    // The server takes 2,000 subscribe ids per second per socket.
+    const hub = makeHub(makeFakeConnector())
+    const { staleSweepMaxIds, staleSweepTickMs } = hub as unknown as { staleSweepMaxIds: number; staleSweepTickMs: number }
+    expect(staleSweepMaxIds).toBe(1_500)
+    expect(staleSweepMaxIds / (staleSweepTickMs / 1_000)).toBeLessThanOrEqual(0.75 * 2_000)
+  })
+
+  test('one tick re-subscribes at most its cap, oldest first', async () => {
     jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
     try {
       const fc = makeFakeConnector()
-      const hub = makeHub(fc, { timings: { staleAfterMs: 100, staleSweepTickMs: 300, noFrameTimeoutMs: 60_000 } })
+      const hub = makeHub(fc, {
+        timings: { staleAfterMs: 100, staleSweepTickMs: 300, staleSweepMaxIds: 2, noFrameTimeoutMs: 60_000 },
+      })
       const ws = fc.prepare()
-      const ids = Array.from({ length: 10_001 }, (_, i) => `id${i}-regiona`)
+      const ids = ['a-regiona', 'b-regiona', 'c-regiona']
       const waits = ids.map((id) => hub.wait(id, startedPredicate(), { timeout: 30_000 }).catch(() => undefined))
       await drain()
       await jest.advanceTimersByTimeAsync(60)
@@ -1254,17 +1265,16 @@ describe('WaitHub: stale sweep', () => {
           .slice(from)
           .filter((f) => f['type'] === 'subscribe')
           .flatMap((f) => (f['ids'] as Array<{ id: string }>).map((e) => e.id))
-      expect(new Set(subscribed(0)).size).toBe(10_001)
-      // Make the last id the oldest: every other id hears a snapshot later.
+      expect(new Set(subscribed(0)).size).toBe(3)
+      // `c` is the oldest: the others hear a snapshot later.
       await jest.advanceTimersByTimeAsync(10)
-      for (const id of ids.slice(0, -1)) ws.inject({ type: 'snapshot', id, status: 'booting', version: 1 })
+      ws.inject({ type: 'snapshot', id: 'a-regiona', status: 'booting', version: 1 })
+      ws.inject({ type: 'snapshot', id: 'b-regiona', status: 'booting', version: 1 })
       const before = ws.sent.length
       // One tick (at 300 ms) finds every id stale.
       await jest.advanceTimersByTimeAsync(240)
       await drain()
-      const swept = subscribed(before)
-      expect(swept.length).toBe(10_000)
-      expect(swept[0]).toBe(ids[ids.length - 1])
+      expect(subscribed(before)).toEqual(['c-regiona', 'a-regiona'])
       await hub.detach()
       await Promise.all(waits)
     } finally {

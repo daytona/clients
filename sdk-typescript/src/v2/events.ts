@@ -117,9 +117,10 @@ const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
  */
 const DEFAULT_STALE_AFTER_MS = 3_000
 const DEFAULT_STALE_SWEEP_TICK_MS = 1_000
-/** Ids one sweep tick re-subscribes at most: the per-socket subscribe burst.
- *  The oldest go first, so the rest go on the next ticks. */
-const STALE_SWEEP_MAX_IDS = 10_000
+/** Ids per second the sweep re-subscribes at most: 75 % of the server's
+ *  per-socket subscribe rate (2,000 ids/s), leaving room for fresh subscribes
+ *  and refused retries. Past it the oldest go first and the rest wait a tick. */
+const STALE_SWEEP_IDS_PER_SECOND = 1_500
 const WAITER_PIN_INTERVAL_MS = MAX_TIMER_DELAY_MS
 const WS_OPEN = 1
 const WS_CLOSING = 2
@@ -578,6 +579,7 @@ export class WaitHub {
   private readonly subscribeFlushMs: number
   private readonly staleAfterMs: number
   private readonly staleSweepTickMs: number
+  private readonly staleSweepMaxIds: number
   private refCount: number
   private waiterPin: ReturnType<typeof setInterval> | undefined
   closed: boolean
@@ -597,6 +599,7 @@ export class WaitHub {
         readonly subscribeFlushMs?: number
         readonly staleAfterMs?: number
         readonly staleSweepTickMs?: number
+        readonly staleSweepMaxIds?: number
       } = {},
   ) {
     this.apiUrl = apiUrl.replace(/\/$/, '')
@@ -631,6 +634,8 @@ export class WaitHub {
     this.subscribeFlushMs = clampTimerDelayMs(timings.subscribeFlushMs) ?? DEFAULT_SUBSCRIBE_FLUSH_MS
     this.staleAfterMs = timings.staleAfterMs ?? DEFAULT_STALE_AFTER_MS
     this.staleSweepTickMs = timings.staleSweepTickMs ?? DEFAULT_STALE_SWEEP_TICK_MS
+    this.staleSweepMaxIds =
+      timings.staleSweepMaxIds ?? Math.floor((STALE_SWEEP_IDS_PER_SECOND * DEFAULT_STALE_SWEEP_TICK_MS) / 1_000)
     credentialSafeDiagnostics(this, () => ({ type: 'WaitHub' }))
   }
 
@@ -2051,8 +2056,8 @@ export class WaitHub {
           stale.push(sid)
         }
       }
-      if (stale.length > STALE_SWEEP_MAX_IDS) {
-        stale = stale.sort((a, b) => (heardAt.get(a) ?? 0) - (heardAt.get(b) ?? 0)).slice(0, STALE_SWEEP_MAX_IDS)
+      if (stale.length > this.staleSweepMaxIds) {
+        stale = stale.sort((a, b) => (heardAt.get(a) ?? 0) - (heardAt.get(b) ?? 0)).slice(0, this.staleSweepMaxIds)
       }
       if (stale.length > 0 && ws.readyState === WS_OPEN) void this.sendSubscribeIds(sock, stale)
       this.armStaleSweep(sock)
