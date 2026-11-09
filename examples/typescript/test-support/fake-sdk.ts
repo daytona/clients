@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs'
 
 import { Daytona } from '@daytona/sdk'
-import { ImageBuildFailedError } from '@daytona/sdk/v2'
+import { ImageBuildFailedError, NameConflictError } from '@daytona/sdk/v2'
 
 import { RUN } from '../_common'
 
@@ -35,6 +35,12 @@ export interface Scenario {
   leakSecrets?: boolean
   /** Keep /data/message.txt writes and serve them back (volumes_share). */
   volumeData?: boolean
+  /** Project images that exist before the run: [name, status, statuses its waits return (default ['ready'])]. */
+  images?: [string, string, string[]?][]
+  /** Every registration fails during its wait, with this error. */
+  pullFails?: string
+  /** Another run registers the image first: pull finds the name taken (409). */
+  pullConflict?: boolean
 }
 
 export interface Record {
@@ -44,6 +50,8 @@ export interface Record {
   deletedSecrets: string[]
   deletedVolumes: string[]
   followedImages: string[]
+  pulledImages: { ref: string; name?: string }[]
+  deletedImages: string[]
 }
 
 const scenario: Scenario = JSON.parse(process.env.EXAMPLE_FAKE_SCENARIO ?? '{}')
@@ -54,12 +62,17 @@ const record: Record = {
   deletedSecrets: [],
   deletedVolumes: [],
   followedImages: [],
+  pulledImages: [],
+  deletedImages: [],
 }
 process.on('exit', () => {
   if (process.env.EXAMPLE_FAKE_RECORD) writeFileSync(process.env.EXAMPLE_FAKE_RECORD, JSON.stringify(record))
 })
 
 const secrets = new Map<string, string>()
+let nextImage = 0
+const newImage = (name: string, status: string, waits: string[] = ['ready'], error?: string) => ({ id: `img-${nextImage++}`, name, status, waits, error })
+const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(name, status, waits))
 const volumeLines: string[] = []
 
 const result = (exitCode: number, output: string) => ({ exitCode, output, stdout: output, stderr: '' })
@@ -143,6 +156,8 @@ const boxes: Box[] = []
 
 const fake = {
   create: async (image: string, options: { name?: string; env?: { [k: string]: string }; envVars?: { [k: string]: string }; secrets?: string[] } = {}) => {
+    // The API creates only from a project image, never a registry reference.
+    if (!images.some((entry) => (entry.name === image || entry.id === image) && entry.status === 'ready')) throw new Error(`image not found: ${image}`)
     const env = { ...options.env, ...options.envVars }
     for (const name of options.secrets ?? []) {
       // The API rejects a create that attaches a secret the project lacks.
@@ -169,6 +184,28 @@ const fake = {
   },
   images: {
     list: async () => ({ items: [], nextCursor: undefined }),
+    iter: async function* (options: { name?: string } = {}) {
+      yield* images.filter((entry) => options.name === undefined || entry.name === options.name)
+    },
+    get: async (id: string) => {
+      const entry = images.find((candidate) => candidate.id === id)
+      if (entry) entry.status = entry.waits.shift() ?? entry.status
+      return entry
+    },
+    pull: async (ref: string, options: { name?: string } = {}) => {
+      record.pulledImages.push({ ref, name: options.name })
+      if (scenario.pullConflict && record.pulledImages.length === 1) {
+        images.push(newImage(options.name ?? ref, 'ready'))
+        throw new NameConflictError('image name already exists', 409, 'NAME_CONFLICT', 'API')
+      }
+      const entry = scenario.pullFails ? newImage(options.name ?? ref, 'pending', ['failed'], scenario.pullFails) : newImage(options.name ?? ref, 'ready')
+      images.push(entry)
+      return entry
+    },
+    delete: async (id: string) => {
+      record.deletedImages.push(id)
+      images.splice(images.findIndex((entry) => entry.id === id), 1)
+    },
     followBuildLogs: async (imageId: string, options: { onLogs: (chunk: string) => void }) => {
       record.followedImages.push(imageId)
       if (!scenario.emptyBuildLogs) options.onLogs(`intentional-build-failure-${RUN}\n`)

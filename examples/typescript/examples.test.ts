@@ -18,6 +18,7 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
+import { IMAGE, IMAGE_NAME, imageName } from './_common.js'
 import type { Record, Scenario } from './test-support/fake-sdk.js'
 
 const EXAMPLES = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -37,6 +38,7 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
           // DAYTONA_KEEP would make volumes_share skip its cleanup.
           DAYTONA_KEEP: '',
           DAYTONA_API_KEY: 'test-key',
+          DAYTONA_IMAGE: IMAGE,
           EXAMPLE_FAKE_SCENARIO: JSON.stringify(scenario),
           EXAMPLE_FAKE_RECORD: recordPath,
           EXAMPLE_SYNC_WAIT_SECONDS: '0',
@@ -69,6 +71,56 @@ for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secr
     assertCleanedUp(record)
   })
 }
+
+test('registers the image once when the project lacks it', () => {
+  const { code, record, output } = runExample(example('exec-command'))
+  assert.equal(code, 0, output)
+  assert.deepEqual(record.pulledImages, [{ ref: IMAGE, name: IMAGE_NAME }])
+})
+
+test('names distinct image references apart', () => {
+  assert.match(IMAGE_NAME, /^examples-[a-z0-9-]+-[0-9a-f]{8}$/)
+  const names = ['foo:bar', 'foo/bar', 'foo.bar'].map(imageName)
+  assert.equal(new Set(names).size, 3, names.join(' '))
+})
+
+test('fails, rather than hangs, on a registration that never finishes', () => {
+  const { code, record, output } = runExample(example('exec-command'), { images: [[IMAGE_NAME, 'pending', []]] })
+  assert.equal(code, 1, output)
+  assert.match(output, new RegExp(`image ${IMAGE_NAME} is still pending`))
+  assert.deepEqual(record.sandboxes, [])
+})
+
+test('reuses a registered image, and waits for one still registering', () => {
+  for (const [status, waits] of [['ready', []], ['pending', ['ready']], ['pending', ['building', 'ready']]] as const) {
+    const { code, record, output } = runExample(example('exec-command'), { images: [[IMAGE_NAME, status, [...waits]]] })
+    assert.equal(code, 0, output)
+    assert.deepEqual(record.pulledImages, [])
+  }
+})
+
+test('registers again over a registration that failed, before or during the wait', () => {
+  for (const [status, waits] of [['failed', []], ['pending', ['failed']]] as const) {
+    const { code, record, output } = runExample(example('exec-command'), { images: [[IMAGE_NAME, status, [...waits]]] })
+    assert.equal(code, 0, output)
+    assert.deepEqual(record.deletedImages, ['img-0'])
+    assert.equal(record.pulledImages.length, 1)
+  }
+})
+
+test('reports why the registration failed after its retries', () => {
+  const { code, record, output } = runExample(example('exec-command'), { pullFails: 'manifest unknown' })
+  assert.equal(code, 1, output)
+  assert.match(output, new RegExp(`could not register .* as image ${IMAGE_NAME}: manifest unknown`))
+  assert.equal(record.pulledImages.length, 3)
+  assert.deepEqual(record.sandboxes, [])
+})
+
+test('uses the image another run registered first', () => {
+  const { code, record, output } = runExample(example('exec-command'), { pullConflict: true })
+  assert.equal(code, 0, output)
+  assert.equal(record.pulledImages.length, 1)
+})
 
 // Each case names the FAIL line the injected failure must produce, so an
 // unrelated crash (also exit 1) cannot pass the test.

@@ -10,11 +10,11 @@
  *       npx tsx typescript/file-operations/index.ts
  */
 
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
 
 async function main() {
   const daytona = client()
-  const sandbox = await daytona.create(IMAGE, { name: `files-${RUN}`, waitSeconds: 200 })
+  const sandbox = await daytona.create(await sandboxImage(daytona), { name: `files-${RUN}`, waitSeconds: 200 })
   info(`created sandbox id=${sandbox.id}`)
 
   let ok = true

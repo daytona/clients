@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
+from _common import RUN, client, failed, info, passed, sandbox_image, section
 
 from daytona.v2 import Sandbox
 
@@ -70,7 +70,7 @@ def main() -> int:
 
         section("create a sandbox with BOTH env vars and the secret attached")
         sandbox = daytona.create(
-            IMAGE,
+            sandbox_image(daytona),
             name=f"secrets-env-{RUN}",
             env={"APP_ENV": "production", "LOG_LEVEL": "debug", "GREETING": f"hello-{RUN}"},
             secrets=[env_var_name],
