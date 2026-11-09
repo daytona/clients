@@ -174,7 +174,7 @@ module Daytona
     def run_commands(*commands)
       commands.each do |command|
         if command.is_a?(Array)
-          escaped = command.map { |c| c.gsub('"', '\\"').gsub("'", "\\'") }
+          escaped = command.map { |c| c.gsub('"', '\\"') }
           @dockerfile += "RUN #{escaped.map { |c| "\"#{c}\"" }.join(' ')}\n"
         else
           @dockerfile += "RUN #{command}\n"
@@ -597,6 +597,15 @@ module Daytona
     private
 
     def dockerfile_json_array(args)
+      legacy = args.map { |arg| "\"#{arg}\"" }.join(', ')
+      begin
+        parsed = JSON.parse("[#{legacy}]")
+        if parsed.is_a?(Array) && parsed.length == args.length && parsed.all? { |item| item.is_a?(String) }
+          return legacy
+        end
+      rescue JSON::ParserError
+        nil
+      end
       args.map { |arg| JSON.generate(arg) }.join(', ')
     end
 

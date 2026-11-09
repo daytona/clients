@@ -217,6 +217,16 @@ func TestImageCmdJSONEncoding(t *testing.T) {
 	assert.Equal(t, []string{"python", "print(\"hi\")", "a\\b", ""}, decoded)
 }
 
+func TestImageCmdKeepsCompatibleLines(t *testing.T) {
+	dockerfile := Base("python:3.11").Cmd([]string{"python", "print(\\\"hi\\\")", "café", "a && b"}).Dockerfile()
+	assert.Contains(t, dockerfile, `CMD ["python", "print(\"hi\")", "café", "a && b"]`)
+	assert.NotContains(t, dockerfile, `\u0026`)
+	payload := strings.TrimPrefix(strings.Split(dockerfile, "\n")[1], "CMD ")
+	var decoded []string
+	require.NoError(t, json.Unmarshal([]byte(payload), &decoded))
+	assert.Equal(t, []string{"python", "print(\"hi\")", "café", "a && b"}, decoded)
+}
+
 func TestImageEntrypointJSONEncoding(t *testing.T) {
 	dockerfile := Base("python:3.11").Entrypoint([]string{"python", "print(\"hi\")", "a\\b", ""}).Dockerfile()
 	assert.Contains(t, dockerfile, `ENTRYPOINT ["python","print(\"hi\")","a\\b",""]`)
@@ -332,7 +342,8 @@ func TestImageAdditionalEdgeCases(t *testing.T) {
 		img := Base("alpine").Entrypoint([]string{}).Cmd([]string{})
 		dockerfile := img.Dockerfile()
 		assert.Contains(t, dockerfile, `ENTRYPOINT []`)
-		assert.Contains(t, dockerfile, `CMD []`)
+		assert.Contains(t, dockerfile, `CMD [""]`)
+		assert.Contains(t, Base("alpine").Cmd(nil).Dockerfile(), `CMD [""]`)
 	})
 
 	t.Run("volume preserves order", func(t *testing.T) {

@@ -297,7 +297,8 @@ class Image(BaseModel):
         """
         for command in commands:
             if isinstance(command, list):
-                self._dockerfile += f"RUN {self.__json_array(command)}\n"
+                quoted = ['"' + c.replace('"', '\\"') + '"' for c in command]
+                self._dockerfile += f"RUN {' '.join(quoted)}\n"
             else:
                 self._dockerfile += f"RUN {command}\n"
 
@@ -759,8 +760,21 @@ class Image(BaseModel):
 
     @staticmethod
     def __json_array(args: Sequence[str]) -> str:
-        """Encodes arguments as a JSON array for a Dockerfile exec form."""
-        return json.dumps(list(args))
+        """Encodes arguments as a Dockerfile exec-form JSON array.
+
+        A legacy line that already parses as a JSON array of the same length is
+        kept, so callers who escaped quotes by hand keep the same bytes.
+        """
+        legacy = "[" + ", ".join(f'"{arg}"' for arg in args) + "]"
+        try:
+            parsed = cast(object, json.loads(legacy))
+        except ValueError:
+            parsed = None
+        if isinstance(parsed, list):
+            items = cast(list[object], parsed)
+            if len(items) == len(args) and all(isinstance(item, str) for item in items):
+                return legacy
+        return json.dumps(list(args), ensure_ascii=False)
 
     @staticmethod
     def __format_pip_install_args(

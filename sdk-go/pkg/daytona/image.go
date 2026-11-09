@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -234,16 +235,27 @@ func (img *DockerImage) Cmd(cmd []string) *DockerImage {
 	return img
 }
 
-// dockerfileJSONArray encodes args as a JSON array with a space after each comma.
-// json.Marshal of the whole slice omits those spaces. A nil slice encodes as [].
+// dockerfileJSONArray encodes a CMD argv as a JSON array with a space after each comma.
+// A legacy line that already parses as a JSON array of the same length is kept, so
+// callers who escaped quotes by hand keep the same Dockerfile bytes. Empty input
+// stays [""]. The fallback encoder does not escape &, <, or >.
 func dockerfileJSONArray(args []string) string {
 	if len(args) == 0 {
-		return "[]"
+		return `[""]`
+	}
+	legacy := `["` + strings.Join(args, `", "`) + `"]`
+	var parsed []string
+	if err := json.Unmarshal([]byte(legacy), &parsed); err == nil && len(parsed) == len(args) {
+		return legacy
 	}
 	parts := make([]string, len(args))
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
 	for i, arg := range args {
-		encoded, _ := json.Marshal(arg)
-		parts[i] = string(encoded)
+		buf.Reset()
+		_ = enc.Encode(arg)
+		parts[i] = strings.TrimSuffix(buf.String(), "\n")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

@@ -135,22 +135,20 @@ class TestImageRunCommands:
         assert "RUN" in df
         assert "bash" in df
 
-    def test_list_command_json(self):
+    def test_list_command_shell_quoting(self):
         img = Image.base("ubuntu:22.04").run_commands(
             ["sh", "-c", 'say "hi"'],
+            ["sh", "-c", "say 'hi'"],
+            ["echo", "$HOME"],
             ["echo", "a\\b"],
             ["echo", ""],
-            ["echo", "hello"],
         )
-        payloads = [line[len("RUN ") :] for line in img.dockerfile().splitlines() if line.startswith("RUN ")]
-        assert json.loads(payloads[0]) == ["sh", "-c", 'say "hi"']
-        assert payloads[0] == '["sh", "-c", "say \\"hi\\""]'
-        assert json.loads(payloads[1]) == ["echo", "a\\b"]
-        assert payloads[1] == '["echo", "a\\\\b"]'
-        assert json.loads(payloads[2]) == ["echo", ""]
-        assert payloads[2] == '["echo", ""]'
-        assert json.loads(payloads[3]) == ["echo", "hello"]
-        assert payloads[3] == '["echo", "hello"]'
+        lines = [line for line in img.dockerfile().splitlines() if line.startswith("RUN ")]
+        assert lines[0] == 'RUN "sh" "-c" "say \\"hi\\""'
+        assert lines[1] == 'RUN "sh" "-c" "say \'hi\'"'
+        assert lines[2] == 'RUN "echo" "$HOME"'
+        assert lines[3] == 'RUN "echo" "a\\b"'
+        assert lines[4] == 'RUN "echo" ""'
 
 
 class TestImageEnv:
@@ -203,6 +201,12 @@ class TestImageCmd:
         payload = img.dockerfile().split("CMD ", 1)[1].strip()
         assert json.loads(payload) == ["python", 'print("hi")', "a\\b", ""]
         assert payload == '["python", "print(\\"hi\\")", "a\\\\b", ""]'
+
+    def test_keeps_hand_escaped_quotes(self):
+        img = Image.base("python:3.12").cmd(["python", "-c", 'print(\\"hi\\")', "café", "a && b"])
+        line = next(item for item in img.dockerfile().splitlines() if item.startswith("CMD "))
+        assert line == 'CMD ["python", "-c", "print(\\"hi\\")", "café", "a && b"]'
+        assert json.loads(line.removeprefix("CMD ")) == ["python", "-c", 'print("hi")', "café", "a && b"]
 
 
 class TestImageFromDockerfile:

@@ -52,13 +52,19 @@ describe('Image', () => {
     expect(image.dockerfile).toContain('CMD')
   })
 
-  it('encodes cmd, entrypoint, and list-form run as JSON', async () => {
+  it('encodes invalid cmd and entrypoint lines and keeps shell-form run', async () => {
     const { Image } = await import('../Image')
 
     const image = Image.base('python:3.12')
       .cmd(['python', 'print("hi")', 'a\\b', ''])
       .entrypoint(['/bin/bash'])
-      .runCommands(['sh', '-c', 'say "hi"'], ['echo', 'a\\b'], ['echo', ''], ['echo', 'hello'])
+      .runCommands(
+        ['sh', '-c', 'say "hi"'],
+        ['sh', '-c', "say 'hi'"],
+        ['echo', '$HOME'],
+        ['echo', 'a\\b'],
+        ['echo', ''],
+      )
 
     const dockerfile = image.dockerfile
     const payload = (instruction: string) => {
@@ -73,11 +79,24 @@ describe('Image', () => {
     expect(dockerfile).toContain('CMD ["python", "print(\\"hi\\")", "a\\\\b", ""]')
     expect(payload('ENTRYPOINT')).toEqual(['/bin/bash'])
     expect(dockerfile).toContain('ENTRYPOINT ["/bin/bash"]')
-    expect(payload('RUN')).toEqual(['sh', '-c', 'say "hi"'])
-    expect(dockerfile).toContain('RUN ["sh", "-c", "say \\"hi\\""]')
-    expect(dockerfile).toContain('RUN ["echo", "a\\\\b"]')
-    expect(dockerfile).toContain('RUN ["echo", ""]')
-    expect(dockerfile).toContain('RUN ["echo", "hello"]')
+    expect(dockerfile).toContain('RUN "sh" "-c" "say \\"hi\\""')
+    expect(dockerfile).toContain(`RUN "sh" "-c" "say 'hi'"`)
+    expect(dockerfile).toContain('RUN "echo" "$HOME"')
+    expect(dockerfile).toContain('RUN "echo" "a\\b"')
+    expect(dockerfile).toContain('RUN "echo" ""')
+  })
+
+  it('keeps a hand-escaped cmd line byte for byte', async () => {
+    const { Image } = await import('../Image')
+
+    const dockerfile = Image.base('python:3.12').cmd(['python', 'print(\\"hi\\")', 'café', 'a && b']).dockerfile
+
+    expect(dockerfile).toContain('CMD ["python", "print(\\"hi\\")", "café", "a && b"]')
+    const line = dockerfile.split('\n').find((entry) => entry.startsWith('CMD '))
+    if (line === undefined) {
+      throw new Error('missing CMD')
+    }
+    expect(JSON.parse(line.slice('CMD '.length))).toEqual(['python', 'print("hi")', 'café', 'a && b'])
   })
 
   it('formats pip install options and sorts package names', async () => {
