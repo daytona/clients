@@ -6,7 +6,7 @@
 import { ClientTimeoutError, ConnectionError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, TransferCancelledError } from './errors/DaytonaError.js'
 import { sandboxState, sleep } from './http.js'
 import { eventDestinationFromHeaders } from './events.js'
-import { isContractError, scopedProxyToolboxUrl } from './Sandbox.js'
+import { scopedProxyToolboxUrl } from './Sandbox.js'
 import { isBlank } from './pyText.js'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import { imageOptionsBody, isImageBuilder } from './Image.js'
@@ -110,7 +110,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   try {
     return await sandbox.wait({ until: 'started', timeoutSeconds: remainingWait })
   } catch (error) {
-    if (error instanceof DaytonaError && !(error instanceof TransferCancelledError) && !isContractError(error)) return sandbox
+    if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return sandbox
     throw error
   }
 }

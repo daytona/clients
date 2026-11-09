@@ -298,16 +298,6 @@ function checkLifecycleEcho(data: unknown): { lifecycle_policy: SandboxLifecycle
   return checkResponse<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(data, LIFECYCLE_ECHO, 'sandbox lifecycle policy')
 }
 
-/**
- * A response that breaks the contract (the SDK's own `BadRequestError`): it
- * says the API answered wrongly, not that a wait or read failed, so a create
- * or fork throws it rather than returning a handle built on it, as in Python.
- * @internal
- */
-export function isContractError(error: DaytonaError): boolean {
-  return error instanceof BadRequestError && error.source === 'SDK'
-}
-
 export class Sandbox {
   private readonly sandboxId: string
   /** The sandbox id, fixed for the handle's lifetime (read-only at run time too). */
@@ -853,9 +843,7 @@ export class Sandbox {
       fork.observed = metadataFromSandbox(detail)
       fork.refreshToolbox({ ...detail, toolbox_proxy_url: forkToolbox ?? detail.toolbox_proxy_url })
     } catch (error) {
-      // The fork exists; a failed read never costs the caller its handle, but
-      // a detail that breaks the contract is thrown.
-      if (error instanceof DaytonaError && !(error instanceof TransferCancelledError) && !isContractError(error)) return fork
+      if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
       throw error
     }
     const states: readonly SandboxWaitState[] = sandboxClass === 'macos' ? ['started', 'stopped']
@@ -867,7 +855,7 @@ export class Sandbox {
       try {
         await fork.waitForState(states, { timeoutSeconds: remainingSeconds })
       } catch (error) {
-        if (!(error instanceof DaytonaError) || error instanceof TransferCancelledError || isContractError(error)) throw error
+        if (!(error instanceof DaytonaError) || error instanceof TransferCancelledError) throw error
       }
     }
     return fork

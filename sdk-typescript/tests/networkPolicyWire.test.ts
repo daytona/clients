@@ -20,22 +20,19 @@ function withApiUrl<T>(apiUrl: string, callback: () => T): T {
   }
 }
 
-// A detail the create wait reads: it must keep the contract, or the create throws.
-const runningDetail = (id: string) => ({ id, class: 'linux', name: id, status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: 'region-a', port_map: [] })
-
 describe('network policy wire contract', () => {
   it('preserves missing, null, and empty create shapes', async () => {
     const api = await startFakeApi([
       { status: 200, body: { id: 'sbx-a' } },
-      { status: 200, body: runningDetail('sbx-a') },
+      { status: 200, body: { id: 'sbx-a', status: 'running' } },
       { status: 200, body: { id: 'sbx-b' } },
-      { status: 200, body: runningDetail('sbx-b') },
+      { status: 200, body: { id: 'sbx-b', status: 'running' } },
       { status: 200, body: { id: 'sbx-c' } },
-      { status: 200, body: runningDetail('sbx-c') },
+      { status: 200, body: { id: 'sbx-c', status: 'running' } },
       { status: 200, body: { id: 'sbx-d' } },
-      { status: 200, body: runningDetail('sbx-d') },
+      { status: 200, body: { id: 'sbx-d', status: 'running' } },
       { status: 200, body: { id: 'sbx-e' } },
-      { status: 200, body: runningDetail('sbx-e') },
+      { status: 200, body: { id: 'sbx-e', status: 'running' } },
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
@@ -87,7 +84,7 @@ describe('network policy wire contract', () => {
   it('treats networkPolicy undefined like omission on linux creates', async () => {
     const api = await startFakeApi([
       { status: 200, body: { id: 'sbx-u' } },
-      { status: 200, body: runningDetail('sbx-u') },
+      { status: 200, body: { id: 'sbx-u', status: 'running' } },
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {

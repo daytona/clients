@@ -596,9 +596,10 @@ it.each([
   }
 })
 
-// The handle is returned however the wait ends, except when the API answers
-// against the contract: that is thrown, not hidden behind a handle (as in Python).
-it.each(['create', 'fork'] as const)('throws a detail that breaks the contract during a %s wait', async (call) => {
+// Once the request succeeded the handle is returned however the wait ends: a
+// read whose response breaks the contract is a failed read like any other (as
+// in Python).
+it.each(['create', 'fork'] as const)('returns the handle when a detail breaks the contract during a %s wait', async (call) => {
   const accepted = call === 'fork' ? { id: 'f1', status: 'pending', forked_from: 'src', toolbox_proxy_url: 'https://toolbox.example/fork' } : { id: 'f1', status: 'pending' }
   const broken = { ...SANDBOX_DETAIL, id: 'f1', class: null }
   const planned = call === 'fork'
@@ -608,7 +609,7 @@ it.each(['create', 'fork'] as const)('throws a detail that breaks the contract d
   const client = clientAt(api.url, { events: { enabled: false } })
   try {
     const pending = call === 'create' ? client.v2.create('img_1', { waitSeconds: 5 }) : source(api).fork({ waitSeconds: 5 })
-    await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('class') })
+    await expect(pending).resolves.toMatchObject({ id: 'f1' })
   } finally {
     await client.close()
     await api.close()

@@ -72,7 +72,6 @@ from .build_logs import (
 from .computer_use import AsyncComputerUseService
 from .docker import AsyncDockerService
 from .errors import (
-    BadRequestError,
     ClientTimeoutError,
     DaytonaError,
     NotFoundError,
@@ -1337,11 +1336,8 @@ class AsyncSandbox:
                             RequestSpec("GET", f"/sandboxes/{quote(fork_id, safe='')}")
                         )
                     )
-            except DaytonaError as error:
-                # The fork exists; a failed read never costs the caller its
-                # handle, but a detail that breaks the contract is raised.
-                if _is_contract_error(error):
-                    raise
+            except DaytonaError:
+                # The fork exists; a failed read never costs the caller its handle.
                 detail = None
         accepted = data.to_dict()
         # The fork gets its own toolbox URL from the API; inheriting the
@@ -1947,23 +1943,12 @@ async def _wait_without_raising_for_its_end(
 
     The create and fork contract: once the create or fork request succeeded,
     the sandbox exists, so a spent budget, a terminal state or a failed read
-    during the wait (any :class:`DaytonaError`) is not an error, except a
-    response that breaks the contract (see :func:`_is_contract_error`). How
-    the wait ended is the caller's to read from ``sandbox.state``.
-    Cancellation still propagates.
+    during the wait (any :class:`DaytonaError`) is not an error. How the wait
+    ended is the caller's to read from ``sandbox.state``. Cancellation still
+    propagates.
     """
-    try:
+    with contextlib.suppress(DaytonaError):
         await sandbox._wait_for_state(states, timeout=timeout)
-    except DaytonaError as error:
-        if _is_contract_error(error):
-            raise
-
-
-def _is_contract_error(error: DaytonaError) -> bool:
-    """A response that breaks the contract (the SDK's own ``BadRequestError``):
-    it says the API answered wrongly, not that a wait or read failed, so a
-    create or fork raises it rather than returning a handle built on it."""
-    return isinstance(error, BadRequestError) and error.source == "SDK"
 
 
 def _json_number(number: float) -> Union[int, float]:

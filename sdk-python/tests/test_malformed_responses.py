@@ -967,10 +967,12 @@ async def test_a_create_or_fork_response_with_an_empty_id_has_no_id(call: str, s
 
 
 @pytest.mark.parametrize("call", ["create", "fork"])
-async def test_a_detail_that_breaks_the_contract_during_a_create_or_fork_wait_is_raised(call: str) -> None:
-    # The handle is returned however the wait ends, except when the API
-    # answers against the contract: that is raised, not hidden behind a
-    # handle. The TypeScript twin is in malformed-responses.test.ts.
+async def test_a_detail_that_breaks_the_contract_during_a_create_or_fork_wait_keeps_the_handle(
+    call: str,
+) -> None:
+    # Once the request succeeded the handle is returned however the wait
+    # ends: a read whose response breaks the contract is a failed read like
+    # any other. The TypeScript twin is in malformed-responses.test.ts.
     accepted: JsonObject = {"id": "f1", "status": "pending"}
     if call == "fork":
         accepted.update({"forked_from": "src", "toolbox_proxy_url": "https://toolbox.example/fork"})
@@ -982,11 +984,11 @@ async def test_a_detail_that_breaks_the_contract_during_a_create_or_fork_wait_is
         os.environ["DAYTONA_V2_API_URL"] = api.url
         os.environ["DAYTONA_SANDBOX_EVENTS"] = "0"
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with _sdk_bad_request("class"):
-                if call == "create":
-                    await root.v2.create("img_1", wait_seconds=5)
-                else:
-                    await lazy_sandbox(root.v2, "src").fork(wait_seconds=5)
+            if call == "create":
+                sandbox = await root.v2.create("img_1", wait_seconds=5)
+            else:
+                sandbox = await lazy_sandbox(root.v2, "src").fork(wait_seconds=5)
+    assert sandbox.id == "f1"
 
 
 @pytest.mark.parametrize("stamp", ["nope", "2026-01-01", "2026-01-01T00:00:00", "2026-01-01 00:00:00Z"])
