@@ -122,7 +122,7 @@ async def _client(
     # The production reconcile (60 s) never fires within these budgets.
     client = AsyncDaytona(DaytonaConfig(api_key=_API_KEY, events=SandboxEventsConfig(reconcile_interval=60)))
     api = _Api(sandbox)
-    bind_api(client, api)  # type: ignore[arg-type]
+    bind_api(client, api)
     hub = client._acquire_hub()
     assert hub is not None
     # On a live socket the hub's keepalive frames keep its early probe from
