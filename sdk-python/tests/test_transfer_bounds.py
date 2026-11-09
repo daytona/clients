@@ -31,6 +31,7 @@ from daytona import AsyncDaytona, Daytona, DaytonaConfig
 from daytona.v2 import (
     BadRequestError,
     ClientTimeoutError,
+    ConnectionError,
     FileNotFoundError,
     NotFoundError,
     PayloadTooLargeError,
@@ -802,6 +803,106 @@ async def test_an_error_status_with_a_compressed_body_past_the_cap_keeps_its_typ
             assert sum(sizes[:-1]) <= _CAP
         finally:
             await root.close()
+
+
+def _raw_deflate(payload: bytes) -> bytes:
+    raw = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+    return raw.compress(payload) + raw.flush()
+
+
+_TRUNCATED_PAYLOAD = b'{"code":"FILE_NOT_FOUND","message":"gone"}' + b" " * 4000
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("status", [200, 404])
+@pytest.mark.parametrize("encoding", ["gzip", "deflate"])
+async def test_a_compressed_body_whose_data_stops_early_is_refused_as_cut_short(
+    encoding: str, status: int
+) -> None:
+    # The HTTP message is complete (its Content-Length matches), the compressed
+    # data in it is not: the same ConnectionError as a body cut short on the wire.
+    wire = gzip.compress(_TRUNCATED_PAYLOAD) if encoding == "gzip" else zlib.compress(_TRUNCATED_PAYLOAD)
+    routes: dict[str, Handler] = {
+        "/files/download": _encoded(wire[:-6], encoding, status),
+        "/raw": _encoded(_raw_deflate(_TRUNCATED_PAYLOAD)[:-3], "deflate", status),
+    }
+    with _server(routes) as base:
+        root = _client(base)
+        try:
+            sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+            calls = [
+                (encoding, lambda: sandbox.fs.read_bytes("/a")),
+                ("deflate", lambda: sandbox._toolbox.raw(RequestSpec("GET", "/raw"))),  # type: ignore[attr-defined]
+            ]
+            for name, call in calls:
+                with pytest.raises(
+                    ConnectionError, match=f"ended before its {name} data was complete"
+                ) as caught:
+                    await call()
+                assert type(caught.value) is ConnectionError
+                assert (caught.value.status_code, caught.value.code, caught.value.source) == (
+                    None,
+                    None,
+                    "SDK",
+                )
+        finally:
+            await root.close()
+
+
+def test_the_sync_client_refuses_a_compressed_body_whose_data_stops_early_too() -> None:
+    wire = gzip.compress(_TRUNCATED_PAYLOAD)[:-6]
+    with (
+        _server({"/files/download": _encoded(wire, "gzip", 404)}) as base,
+        Daytona(DaytonaConfig(api_key="k")) as root,
+    ):
+        sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+        with pytest.raises(ConnectionError, match="ended before its gzip data was complete"):
+            sandbox.fs.read_bytes("/a")
+
+
+def _decode(encoding: str, wire: bytes, step: int = 1) -> bytes:
+    from daytona.v2._body_limit import _BoundedDecoder
+
+    decoder = _BoundedDecoder(encoding, 200)
+    out = bytearray()
+    for offset in range(0, len(wire), step):
+        for piece in decoder.feed(wire[offset : offset + step]):
+            out.extend(piece)
+    for piece in decoder.finish():
+        out.extend(piece)
+    return bytes(out)
+
+
+@pytest.mark.parametrize("encoding", ["gzip", "deflate", "raw deflate"])
+def test_every_early_end_of_the_compressed_data_is_refused(encoding: str) -> None:
+    payload = b"daytona " * 300
+    wire = {
+        "gzip": gzip.compress(payload),
+        "deflate": zlib.compress(payload),
+        "raw deflate": _raw_deflate(payload),
+    }[encoding]
+    name = "gzip" if encoding == "gzip" else "deflate"
+    assert _decode(name, wire, step=7) == payload
+    # An empty body has nothing to decode.
+    assert _decode(name, b"") == b""
+    for end in range(1, len(wire)):
+        with pytest.raises(ConnectionError, match="data was complete"):
+            _decode(name, wire[:end], step=5)
+
+
+def test_gzip_members_are_all_decoded_and_other_trailing_bytes_ignored() -> None:
+    one, two = gzip.compress(b"first "), gzip.compress(b"second")
+    for step in (1, 3, 1000):
+        assert _decode("gzip", one + two, step) == b"first second"
+        # Bytes after the last member that start no member are ignored, as
+        # httpx and Node's zlib ignore them; a lone 0x1f too.
+        assert _decode("gzip", one + two + b"\x00 trailing", step) == b"first second"
+        assert _decode("gzip", one + b"\x1f", step) == b"first "
+        assert _decode("x-gzip", one + b"junk" + two, step) == b"first "
+        assert _decode("deflate", zlib.compress(b"deflated") + b"junk", step) == b"deflated"
+    # A member that starts but stops early is still refused.
+    with pytest.raises(ConnectionError, match="gzip data was complete"):
+        _decode("gzip", one + two[:5])
 
 
 @pytest.mark.anyio
