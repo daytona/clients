@@ -1,0 +1,38 @@
+upgrade/python/src/daytona_upgrade/optional_arguments.py
+  s_ca009e77d17705::t_8ccb4cec768385 9-12,23-24,32-40
+upgrade/typescript/src/mapping.json
+  s_ca009e77d17705::t_f4ec51189ed2ce 3824,3852,3876,3953,3978,4601,4678-4679,4705-4706,5246,5271,5450,5475
+upgrade/typescript/tests/optional-arguments.test.ts
+  s_ca009e77d17705::t_f4ec51189ed2ce 31
+  s_ca009e77d17705::t_9a27d07c4913d2 24-27
+upgrade/typescript/src/optional-arguments.ts
+  s_ca009e77d17705::t_8ccb4cec768385 11-15,18-19,25,27-32
+upgrade/mapping/mapping.json
+  s_ca009e77d17705::t_472acee5c0a881 3824,3852,3876,3953,3978,4601,4678-4679,4705-4706,5246,5271,5450,5475
+upgrade/python/tests/test_suggestions.py
+  s_ca009e77d17705::t_9a27d07c4913d2 308,314-330,335
+changelog.d/539-upgrade-lifecycle-timeouts.changed.md
+  s_ca009e77d17705::t_7cd20e06327ca5 5-10
+upgrade/scripts/check-v2-surface.mjs
+  s_ca009e77d17705::t_8ccb4cec768385 12,66-71,75
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_ca009e77d17705::t_f4ec51189ed2ce 3824,3852,3876,3953,3978,4601,4678-4679,4705-4706,5246,5271,5450,5475
+upgrade/scripts/optional-arguments.mjs
+  s_ca009e77d17705::t_8ccb4cec768385 6-7,13-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72ca1a0a38e6e7d1408fe0b8df2f40bd0cc3bcb9",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
