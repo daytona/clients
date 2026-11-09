@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List, Literal, Optional, TypeGuard, Union
 
 from . import _gen
@@ -60,15 +61,15 @@ def _computer_use_desktop_failure_code_or_unknown(value: str) -> ComputerUseDesk
     return "unknown"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseDesktopFailure:
     code: ComputerUseDesktopFailureCode
+    raw_code: str
     message: str
     extra_fields: Optional[Dict[str, JsonValue]] = None
-    raw_code: Optional[str] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseNotStartedStatus:
     status: Literal["inactive"] = "inactive"
     desktop: Literal["not_started"] = "not_started"
@@ -76,7 +77,7 @@ class ComputerUseNotStartedStatus:
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseStartingStatus:
     status: Literal["inactive"] = "inactive"
     desktop: Literal["starting"] = "starting"
@@ -84,7 +85,7 @@ class ComputerUseStartingStatus:
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseReadyStatus:
     status: Literal["active"] = "active"
     desktop: Literal["ready"] = "ready"
@@ -92,7 +93,7 @@ class ComputerUseReadyStatus:
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseFailedStatus:
     cause: ComputerUseDesktopFailure
     status: Literal["inactive"] = "inactive"
@@ -100,7 +101,7 @@ class ComputerUseFailedStatus:
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseUnknownStatus:
     """A (status, desktop) pair this SDK release does not recognize.
     raw_status / raw_desktop carry the API values or combination;
@@ -125,7 +126,7 @@ ComputerUseStatusResponse = Union[
 ]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRestartResponse:
     message: str
     status: Literal["active"] = "active"
@@ -133,20 +134,21 @@ class ComputerUseRestartResponse:
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseProcessStatus:
-    running: Optional[bool] = None
-    priority: Optional[int] = None
-    auto_restart: Optional[bool] = None
+    running: bool
+    priority: int
+    auto_restart: bool
+    failed: bool
+    restart_attempts: int
+    restart_backoff: float
+    """The current restart backoff, in seconds."""
+    status: str
     pid: Optional[int] = None
-    failed: Optional[bool] = None
-    restart_attempts: Optional[int] = None
-    restart_backoff_ms: Optional[int] = None
-    status: Optional[str] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseLifecycleResult:
     message: str
     status: Dict[str, ComputerUseProcessStatus]
@@ -155,13 +157,13 @@ class ComputerUseLifecycleResult:
 ComputerUseLifecycleResponse = ComputerUseLifecycleResult
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseProcessRunningStatus:
     process_name: str
     running: bool
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseProcessRestartResult:
     message: str
     process_name: str
@@ -170,7 +172,7 @@ class ComputerUseProcessRestartResult:
 ComputerUseProcessRestartResponse = ComputerUseProcessRestartResult
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseProcessLogs:
     process_name: str
     logs: str
@@ -179,7 +181,7 @@ class ComputerUseProcessLogs:
 ComputerUseProcessLogsResponse = ComputerUseProcessLogs
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseProcessErrors:
     process_name: str
     errors: str
@@ -188,13 +190,13 @@ class ComputerUseProcessErrors:
 ComputerUseProcessErrorsResponse = ComputerUseProcessErrors
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUsePoint:
     x: int
     y: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRegion:
     """A screen rectangle for ``screen.screenshot(region=...)``."""
 
@@ -204,17 +206,18 @@ class ComputerUseRegion:
     height: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseScreenshot:
     screenshot: str
+    """The image, base64-encoded."""
+    size_bytes: int
     cursor_position: Optional[ComputerUsePoint] = None
-    size_bytes: Optional[int] = None
 
 
 ComputerUseScreenshotResponse = ComputerUseScreenshot
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseScrollResult:
     success: bool
 
@@ -222,7 +225,7 @@ class ComputerUseScrollResult:
 ComputerUseScrollResponse = ComputerUseScrollResult
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseDisplay:
     id: int
     x: int
@@ -232,7 +235,7 @@ class ComputerUseDisplay:
     is_active: bool
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseDisplayInfo:
     displays: List[ComputerUseDisplay]
 
@@ -240,7 +243,7 @@ class ComputerUseDisplayInfo:
 ComputerUseDisplayInfoResponse = ComputerUseDisplayInfo
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseWindow:
     id: int
     title: str
@@ -251,7 +254,7 @@ class ComputerUseWindow:
     is_active: bool
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseDisplayWindows:
     windows: List[ComputerUseWindow]
 
@@ -259,7 +262,7 @@ class ComputerUseDisplayWindows:
 ComputerUseDisplayWindowsResponse = ComputerUseDisplayWindows
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseAccessibilityBounds:
     x: int
     y: int
@@ -267,7 +270,7 @@ class ComputerUseAccessibilityBounds:
     height: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseAccessibilityNode:
     id: str
     role: str
@@ -283,7 +286,7 @@ class ComputerUseAccessibilityNode:
     value_truncated: bool = False
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseA11yTree:
     root: ComputerUseAccessibilityNode
     truncated: bool
@@ -292,7 +295,7 @@ class ComputerUseA11yTree:
 ComputerUseA11yTreeResponse = ComputerUseA11yTree
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseA11yFindResult:
     matches: List[ComputerUseAccessibilityNode]
     truncated: bool
@@ -301,19 +304,19 @@ class ComputerUseA11yFindResult:
 ComputerUseA11yFindResponse = ComputerUseA11yFindResult
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRecording:
     id: str
     file_name: str
     file_path: str
-    start_time: str
+    start_time: datetime
     status: str
-    end_time: Optional[str] = None
+    end_time: Optional[datetime] = None
     duration_seconds: Optional[float] = None
     size_bytes: Optional[int] = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRecordingList:
     recordings: List[ComputerUseRecording]
 

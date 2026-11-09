@@ -16,7 +16,6 @@ from typing import Optional
 from .. import filesystem as _async
 from .._bridge import SyncBridge
 from ..filesystem import *
-from ..filesystem import _ExitCallback, _OverflowCallback, _WatchCallback
 
 
 class FileSystemService:
@@ -56,6 +55,7 @@ class FileSystemService:
         on_progress: TransferProgressCallback | None = None,
         cancel: TransferCancelSignal | None = None,
     ) -> None:
+        """Stream ``remote_path`` to ``local_path`` without holding it in memory."""
         return self._bridge.call(
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
         )
@@ -64,7 +64,7 @@ class FileSystemService:
         """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
         return self._bridge.call(lambda: self._impl.glob(path, pattern))
 
-    def grep(self, path: str, pattern: str) -> ListResult:
+    def grep(self, path: str, pattern: str) -> ListResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``."""
         return self._bridge.call(lambda: self._impl.grep(path, pattern))
 
@@ -72,7 +72,7 @@ class FileSystemService:
         """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``)."""
         return self._bridge.call(lambda: self._impl.list(path, depth=depth))
 
-    def mkdir(self, path: str, *, mode: str = "755") -> None:
+    def mkdir(self, path: str, *, mode: str = "0755") -> None:
         """Create a directory."""
         return self._bridge.call(lambda: self._impl.mkdir(path, mode=mode))
 
@@ -93,7 +93,7 @@ class FileSystemService:
         )
 
     def read_bytes(self, path: str, *, max_response_bytes: Optional[int] = None) -> bytes:
-        """Read a file as bytes."""
+        """Read a file as bytes, holding the whole file in memory."""
         return self._bridge.call(lambda: self._impl.read_bytes(path, max_response_bytes=max_response_bytes))
 
     def read_many(self, paths: Sequence[str], *, max_response_bytes: Optional[int] = None) -> BulkReadResult:
@@ -108,8 +108,8 @@ class FileSystemService:
         """Remove a file, or a directory with ``recursive=True``."""
         return self._bridge.call(lambda: self._impl.remove(path, recursive=recursive))
 
-    def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult:
-        """Replace text in files."""
+    def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult[ReplaceResult]:
+        """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
         return self._bridge.call(lambda: self._impl.replace(files, pattern, new_value))
 
     def stat(self, path: str) -> FileInfo:
@@ -135,13 +135,14 @@ class FileSystemService:
     def watch_dir(
         self,
         path: str,
-        on_event: Optional[_WatchCallback] = None,
+        on_event: WatchEventCallback,
         *,
         recursive: bool = False,
-        on_overflow: Optional[_OverflowCallback] = None,
-        on_exit: Optional[_ExitCallback] = None,
+        on_overflow: Optional[WatchOverflowCallback] = None,
+        on_exit: Optional[WatchExitCallback] = None,
     ) -> WatchHandle:
-        return WatchHandle(
+        """Watch ``path`` for changes, calling ``on_event`` for each one."""
+        result = WatchHandle(
             self._bridge.call(
                 lambda: self._impl.watch_dir(
                     path, on_event, recursive=recursive, on_overflow=on_overflow, on_exit=on_exit
@@ -149,6 +150,8 @@ class FileSystemService:
             ),
             self._bridge,
         )
+        self._bridge.post(result._impl._publish)
+        return result
 
     def write_bytes(self, path: str, content: bytes, *, atomic: bool = False) -> None:
         """Write bytes to a file, optionally via temp-file + rename."""
@@ -164,7 +167,7 @@ class FileSystemService:
 
 
 class WatchHandle:
-    """A running directory watch."""
+    """A running directory watch, returned by ``fs.watch_dir()``."""
 
     _async_type = _async.AsyncWatchHandle
 
@@ -181,35 +184,19 @@ class WatchHandle:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def attach_reader(self, reader: asyncio.Task[None]) -> None:
-        return self._bridge.call_sync(lambda: self._impl.attach_reader(reader))
-
-    def get_new_events(self) -> list[FilesystemEvent]:
-        return self._bridge.call_sync(lambda: self._impl.get_new_events())
-
-    def record_callback_error(self, error: Exception) -> None:
-        return self._bridge.call_sync(lambda: self._impl.record_callback_error(error))
-
-    def record_exit(self, error: Exception | None) -> None:
-        return self._bridge.call(lambda: self._impl.record_exit(error))
-
-    def record_overflow(self) -> None:
-        return self._bridge.call_sync(lambda: self._impl.record_overflow())
-
     def stop(self) -> None:
+        """Stop the watch, once a running callback and ``on_exit`` finish (its own callback: at once)."""
+        if self._bridge.on_loop_thread():
+            return self._impl._stop_nowait()
         return self._bridge.call(lambda: self._impl.stop())
 
     def wait_for_exit(self) -> Exception | None:
+        """Wait until the watch ends and return :attr:`exit_error` (its own callback: at once)."""
+        if self._bridge.on_loop_thread():
+            return self._impl._exit_error_now()
         return self._bridge.call(lambda: self._impl.wait_for_exit())
 
     @property
     def exit_error(self) -> Exception | None:
+        """Why the watch ended: ``None`` while running or after ``stop()``."""
         return self._bridge.call_sync(lambda: self._impl.exit_error)
-
-    @property
-    def last_callback_error(self) -> Exception | None:
-        return self._bridge.call_sync(lambda: self._impl.last_callback_error)
-
-    @property
-    def overflow_count(self) -> int:
-        return self._bridge.call_sync(lambda: self._impl.overflow_count)

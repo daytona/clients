@@ -30,8 +30,8 @@ seconds in both SDKs: Python keeps the bare name (`timeout`,
 `request_timeout`), TypeScript adds the unit to it (`timeoutSeconds`,
 `requestTimeoutSeconds`), and a TypeScript options object rejects a key it does
 not define at runtime, naming the replacement of a renamed one. The client
-configuration follows this rule today; the TypeScript per-call `timeout`
-options that still take milliseconds adopt the seconds convention area by
+configuration and the in-sandbox toolbox follow this rule today; TypeScript
+per-call `timeout` options that still take milliseconds move to it area by
 area. These are spelling
 differences, not shape differences: `sandbox.run_code(...)` and
 `sandbox.runCode(...)` take the same inputs and return the same result. The
@@ -41,6 +41,11 @@ included. Waits and long polls are bounded by their own budget, streams only
 until their response headers arrive, and file transfers have no total
 deadline but are idle-bounded by the request timeout (they fail once no bytes
 move for that long; `0` leaves them unbounded).
+Timestamps are not durations; the toolbox's Unix-millisecond ones carry the
+unit in the name (`timestamp_ms` / `timestampMs`). Serialized identities
+(`ProcessHandleJSON`, `SessionJSON`, `InterpreterContextJSON`) are one
+camelCase JSON shape that both SDKs write and read, so a handle stored by a
+Python worker reconnects in TypeScript and the reverse.
 
 **One error hierarchy.** Both SDKs root every error at `DaytonaError`. Below
 it sits one base class per HTTP status category (`NotFoundError`,

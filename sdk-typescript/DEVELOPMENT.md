@@ -112,11 +112,15 @@ must preserve `manifestId: null` rather than optionalizing it.
   `Last-Event-ID` resume, `wait()` long-poll; PTY `attach()` relies on Node's
   built-in global `WebSocket` (Node 22.4+); the package's floor is Node 22.15,
   which the bundled v0's OpenTelemetry 3.x dependencies declare. Public
-  `executionTimeout` is translated to the API's `timeoutMs` only on the
+  `executionTimeoutSeconds` is translated to the API's `timeoutMs` (whole
+  milliseconds, rounded up, by `exactMs` in `ProcessWire.ts`; a value above
+  the timer maximum, checked first by `aboveTimerMaximum`, omits it: no
+  deadline) only on the
   process routes that support a server-managed kill deadline; code execution
   stays client-timed and interrupts on expiry instead.
 - `interpreter`: one-shot `run()` (`kind:"code"`) and stateful contexts.
-  Public `timeout` is client-side only. Context-free runs share per-language
+  Public `timeoutSeconds` is client-side only; an explicit `0` also leaves the
+  setup requests (context creation, the code POST) unbounded. Context-free runs share per-language
   state whose `env` is fixed on first use; `isolated: true` creates a throwaway
   context. Explicit contexts surface `SessionNotFoundError` when lost, rather
   than silently recreating state.
@@ -175,18 +179,25 @@ public async create(image: string, options: CreateSandboxOptions = {}): Promise<
   \`timeoutSeconds\` (seconds)`". The table covers `timeout`,
   `executionTimeout`, `escalateAfter`, `requestTimeout`, the 0.x client
   configuration's `requestTimeoutMs`, `reconcileIntervalMs` and
-  `idleCloseMs`; add a row when another option is renamed.
+  `idleCloseMs`, and the `keyboard.type()` option `delay`; add a row when
+  another option is renamed.
 - Check the options object itself, and nested SDK-defined option objects
-  (the root checks `config.events` as `SandboxEventsConfig`); never a
-  pass-through map (`env`, `labels`, request headers).
+  (the root checks `config.events` as `SandboxEventsConfig`, `pty.start()`
+  checks `terminal` as `TerminalSize`); never a pass-through map (`env`,
+  `labels`, request headers).
 - A duration option in seconds that the SDK converts itself (the request
   timeout, the events durations) is validated with `optionalSeconds(name,
   value)` (finite, non-negative) and converted to milliseconds where it is
   used. A request-timeout delay goes through `boundedTimerDelay` (above
   `MAX_TIMER_DELAY_MS` means no bound); the events hub instead clamps its
   timer delays to `MAX_TIMER_DELAY_MS` (the reconcile interval to that less
-  its 10 % jitter), and Python clamps the same way. Per-call options keep
-  their own validation until their area moves to seconds.
+  its 10 % jitter), and Python clamps the same way. The toolbox converts
+  process and interpreter caller budgets with `secondsToMs` (`ProcessWire.ts`)
+  on the request timeout's rule (above the maximum means no limit); the kill
+  escalation and the keyboard typing delay go through `exactMs`, which sends a
+  positive sub-millisecond value as 1 ms and refuses one above 2^53 − 1 ms
+  (an execution timeout above the timer maximum is no limit, else `exactMs`). Per-call options of other
+  areas keep their own validation until their area moves to seconds.
 - A nested options object the SDK keeps (the root's `events`) is copied with
   `snapshotOptions`, so later changes to the caller's object do not reach the
   client.
@@ -234,6 +245,24 @@ bearer and the refresh with the same timeout signal.
   `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
   `DAYTONA_DOCKER_START`. The API rejects the create with `400` naming the
   key.
+
+### Construction of toolbox handles and services
+
+`ProcessService`, `ProcessHandle`, `Session`, `PtyService`,
+`InterpreterService`, `InterpreterContext`, `FileSystemService`, `GitService`,
+`LspService`, `LspServer` and the computer-use services take `INTERNAL`
+(`src/v2/internal.ts`) as their first constructor argument and throw a
+`TypeError` without it. The module is not reachable through the package
+`exports`, so callers get these objects from a sandbox; tests import the token
+directly (`new ProcessService(INTERNAL, transport, 'sbx')`). The real
+signature is an `/** @internal */` overload (removed by `stripInternal`); the
+published one is `constructor(token: Internal, ...init: never[])`, so no
+declaration names `HttpTransport`, `ComputerUseTransport` or another internal
+input. `tests/public-declarations.test.ts` emits the declarations and fails
+when a public class member names one of a selected set of leaked types (the
+transports and their options, axios types, `ProcessBinding`,
+`ContextExecutionQueue`, generated `api.` / `toolbox.` types); classes of
+other areas that still do are on its `ALLOWED` list, which only shrinks.
 
 ## Verification
 

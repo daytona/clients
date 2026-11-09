@@ -4,15 +4,13 @@
 from __future__ import annotations
 
 from typing import Optional, Sequence, overload
-from urllib.parse import quote
 
 from ._body_limit import validated_max_response_bytes
-from ._core import RequestSpec
+from ._core import RequestSpec, timeout_millis_from_seconds, toolbox_path_id
 from ._transport import AsyncTransport
 from .computer_use_core import (
+    a11y_max_depth,
     computer_use_params,
-    expect_computer_use_a11y_find_response,
-    expect_computer_use_a11y_tree_response,
     expect_computer_use_display_info_response,
     expect_computer_use_display_windows_response,
     expect_computer_use_point,
@@ -25,8 +23,8 @@ from .computer_use_core import (
     expect_computer_use_recordings_response,
     expect_computer_use_screenshot_response,
     expect_computer_use_scroll_response,
-    parse_computer_use_a11y_find_result,
-    parse_computer_use_a11y_tree,
+    parse_computer_use_a11y_find_payload,
+    parse_computer_use_a11y_tree_payload,
     parse_computer_use_displays,
     parse_computer_use_point,
     parse_computer_use_process_errors,
@@ -66,13 +64,13 @@ from .computer_use_types import (
 from .types import JsonValue
 
 
-def _quote_path_segment(value: str) -> str:
-    return quote(value, safe="")
+def _quote_path_segment(value: str, name: str) -> str:
+    return toolbox_path_id(value, name)
 
 
 class AsyncAddonProcessesService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     @overload
     async def status(self) -> dict[str, ComputerUseProcessStatus]: ...
@@ -95,7 +93,7 @@ class AsyncAddonProcessesService:
                 await self._transport.send(
                     RequestSpec(
                         "GET",
-                        f"/computeruse/process/{_quote_path_segment(name)}/status",
+                        f"/computeruse/process/{_quote_path_segment(name, 'process name')}/status",
                     )
                 )
             )
@@ -107,7 +105,7 @@ class AsyncAddonProcessesService:
                 await self._transport.send(
                     RequestSpec(
                         "POST",
-                        f"/computeruse/process/{_quote_path_segment(name)}/restart",
+                        f"/computeruse/process/{_quote_path_segment(name, 'process name')}/restart",
                     )
                 )
             )
@@ -119,7 +117,7 @@ class AsyncAddonProcessesService:
                 await self._transport.send(
                     RequestSpec(
                         "GET",
-                        f"/computeruse/process/{_quote_path_segment(name)}/logs",
+                        f"/computeruse/process/{_quote_path_segment(name, 'process name')}/logs",
                     )
                 )
             )
@@ -131,7 +129,7 @@ class AsyncAddonProcessesService:
                 await self._transport.send(
                     RequestSpec(
                         "GET",
-                        f"/computeruse/process/{_quote_path_segment(name)}/errors",
+                        f"/computeruse/process/{_quote_path_segment(name, 'process name')}/errors",
                     )
                 )
             )
@@ -139,8 +137,8 @@ class AsyncAddonProcessesService:
 
 
 class AsyncMouseService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def position(self) -> ComputerUsePoint:
         return parse_computer_use_point(
@@ -227,15 +225,16 @@ class AsyncMouseService:
 
 
 class AsyncKeyboardService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
-    async def type(self, *, text: str, delay: int | None = None) -> None:
+    async def type(self, *, text: str, delay: float | None = None) -> None:
+        """Type ``text``; ``delay`` is the pause between key presses in seconds."""
         await self._transport.send(
             RequestSpec(
                 "POST",
                 "/computeruse/keyboard/type",
-                json_body=computer_use_params(text=text, delay=delay),
+                json_body=computer_use_params(text=text, delay=timeout_millis_from_seconds(delay, "delay")),
             )
         )
 
@@ -257,8 +256,8 @@ class AsyncKeyboardService:
 
 
 class AsyncScreenService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def screenshot(
         self,
@@ -296,8 +295,8 @@ class AsyncScreenService:
 
 
 class AsyncDisplayService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def info(self) -> ComputerUseDisplayInfo:
         return ComputerUseDisplayInfo(
@@ -319,8 +318,8 @@ class AsyncDisplayService:
 
 
 class AsyncA11yService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def tree(
         self,
@@ -329,16 +328,22 @@ class AsyncA11yService:
         pid: int | None = None,
         max_depth: int | None = None,
     ) -> ComputerUseA11yTree:
-        return parse_computer_use_a11y_tree(
-            expect_computer_use_a11y_tree_response(
-                await self._transport.send(
-                    RequestSpec(
-                        "GET",
-                        "/computeruse/a11y/tree",
-                        params=computer_use_params(scope=scope, pid=pid, maxDepth=max_depth),
-                    )
+        """Read the accessibility tree, at most 256 levels below the root.
+
+        ``max_depth`` is how many levels below the root to return: an integer
+        from 0 to 256 (the SDK's cap), default 256. A deeper UI comes back cut
+        at that depth with ``truncated`` set; ``-1`` (unbounded) is refused.
+        """
+        depth = a11y_max_depth(max_depth)
+        return parse_computer_use_a11y_tree_payload(
+            await self._transport.send(
+                RequestSpec(
+                    "GET",
+                    "/computeruse/a11y/tree",
+                    params=computer_use_params(scope=scope, pid=pid, maxDepth=depth),
                 )
-            )
+            ),
+            max_depth=depth,
         )
 
     async def find(
@@ -362,10 +367,8 @@ class AsyncA11yService:
         )
         if states is not None:
             body["states"] = list(states)
-        return parse_computer_use_a11y_find_result(
-            expect_computer_use_a11y_find_response(
-                await self._transport.send(RequestSpec("POST", "/computeruse/a11y/find", json_body=body))
-            )
+        return parse_computer_use_a11y_find_payload(
+            await self._transport.send(RequestSpec("POST", "/computeruse/a11y/find", json_body=body))
         )
 
     async def focus(self, *, id: str) -> None:
@@ -387,8 +390,8 @@ class AsyncA11yService:
 
 
 class AsyncRecordingService:
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def start(self, *, label: str | None = None) -> ComputerUseRecording:
         return parse_computer_use_recording(
@@ -427,19 +430,24 @@ class AsyncRecordingService:
         return parse_computer_use_recording(
             expect_computer_use_recording(
                 await self._transport.send(
-                    RequestSpec("GET", f"/computeruse/recordings/{_quote_path_segment(id)}")
+                    RequestSpec("GET", f"/computeruse/recordings/{_quote_path_segment(id, 'recording id')}")
                 )
             )
         )
 
     async def download(self, id: str, *, max_response_bytes: Optional[int] = None) -> bytes:
-        """Download a recording into memory.
+        """Download a recording, holding the whole file in memory.
 
         No total deadline (it fails only when no bytes move for the client's
         ``request_timeout``; with a ``request_timeout`` of ``0``, nothing
         bounds it). ``max_response_bytes`` replaces the client's cap
-        on the body for this call (``None`` keeps the client's cap, ``0`` means no limit, and any other value (negative, fractional, boolean, string, above 2**53 - 1) is a ``BadRequestError``); a larger recording raises
-        ``PayloadTooLargeError`` before it is read in full.
+        on the body for this call (``None`` keeps the client's cap, ``0`` means
+        no limit, and any other value (negative, fractional, boolean, string,
+        above 2**53 - 1) is a ``BadRequestError``); a larger recording raises
+        ``PayloadTooLargeError`` before it is read in full. For a large
+        recording, or one from a sandbox you do not trust, download its
+        ``file_path`` with ``sandbox.fs.download_file()``, which streams to disk
+        with progress and cancellation.
         """
         limit = (
             None
@@ -449,7 +457,7 @@ class AsyncRecordingService:
         return await self._transport.raw(
             RequestSpec(
                 "GET",
-                f"/computeruse/recordings/{_quote_path_segment(id)}/download",
+                f"/computeruse/recordings/{_quote_path_segment(id, 'recording id')}/download",
                 transfer=True,
                 max_response_bytes=limit,
             )
@@ -457,5 +465,5 @@ class AsyncRecordingService:
 
     async def delete(self, id: str) -> None:
         await self._transport.send(
-            RequestSpec("DELETE", f"/computeruse/recordings/{_quote_path_segment(id)}")
+            RequestSpec("DELETE", f"/computeruse/recordings/{_quote_path_segment(id, 'recording id')}")
         )

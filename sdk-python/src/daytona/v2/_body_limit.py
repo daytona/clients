@@ -95,6 +95,7 @@ def _unreadable(status_code: int, detail: str) -> DaytonaError:
 
 
 _GZIP_MAGIC: Final = b"\x1f\x8b"
+_ZLIB_HEADER_BYTES: Final = 2
 
 
 class _BoundedDecoder:
@@ -118,6 +119,10 @@ class _BoundedDecoder:
         # another member starts; ``None`` while a member is being decoded.
         self._between: Optional[bytes] = None
         self._trailing = False
+        # A deflate body's first bytes, held until there are two: the zlib
+        # header is two bytes, and only both tell a zlib-wrapped stream from
+        # a raw one, however the network splits the body.
+        self._head: Optional[bytes] = None if self._gzip else b""
         self._z = self._new()
 
     def _new(self) -> "zlib._Decompress":  # noqa: UP037
@@ -156,6 +161,11 @@ class _BoundedDecoder:
         if not data or self._trailing:
             return
         self._fed = True
+        if self._head is not None:
+            self._head += data
+            if len(self._head) < _ZLIB_HEADER_BYTES:
+                return
+            data, self._head = self._head, None
         pending: Optional[bytes] = data
         if self._between is not None:
             pending = self._after_end(self._between + data)
@@ -237,6 +247,28 @@ def _start(response: httpx.Response, limit: int) -> _Collector:
 async def _raw_async(response: httpx.Response) -> AsyncIterator[bytes]:
     async for data in response.aiter_raw():
         yield data
+
+
+async def decoded_chunks(response: httpx.Response) -> AsyncIterator[bytes]:
+    """A streamed body's decoded bytes as they arrive, never decoded by httpx:
+    a gzip or deflate body in steps of at most ``DECODE_STEP`` bytes, so a
+    stream's readers bound what they hold as the bytes arrive; any other
+    encoding is refused undecoded, as for a capped read."""
+    if response.is_stream_consumed:
+        # Built in memory with its (decoded) content, as a test double is.
+        if response.content:
+            yield response.content
+        return
+    decoder = _decoder(response)
+    async for raw in _raw_async(response):
+        if decoder is None:
+            yield raw
+            continue
+        for piece in decoder.feed(raw):
+            yield piece
+    if decoder is not None:
+        for piece in decoder.finish():
+            yield piece
 
 
 async def read_body(response: httpx.Response, limit: int) -> bytes:

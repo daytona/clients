@@ -141,8 +141,58 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
 
 - Interpreter runs code through
   `POST /processes {kind:"code", code, language, sessionId?}`.
-  `timeout_ms` is client-side only. Context-free runs omit `sessionId` and
-  share per-language interpreter state, whose `env` is fixed on first use.
+  The caller's `timeout` (seconds) is client-side only. Context-free runs omit
+  `sessionId` and share per-language interpreter state, whose `env` is fixed on
+  first use. Isolated runs create their throwaway context with the private
+  `_create_context(..., request_timeout=)`, which spends the run's budget.
+- The async process, session, PTY, interpreter, filesystem, watch, git, LSP and
+  computer-use classes take `_`-prefixed constructor parameters
+  (`AsyncProcessService(_sandbox_id, _transport, ...)`): construction is
+  internal, and tests build them positionally. (The generated sync wrappers'
+  `(impl, bridge)` parameters come from `gen/gen_sync.py`.)
+- With the sync client, SDK callbacks (a watch's `on_event`, `on_overflow`,
+  `on_exit`) run on the bridge's event-loop thread, where `SyncBridge.call()`
+  refuses to block. A class lists the coroutine methods that must still work
+  there in `_SYNC_LOOP_VARIANTS` (`AsyncWatchHandle`: `stop` →
+  `_stop_nowait`, `wait_for_exit` → `_exit_error_now`); the generator makes
+  their sync twins call the non-blocking variant when
+  `SyncBridge.on_loop_thread()` is true. `call_sync()` (property reads) runs
+  directly on that thread; another watch's `stop()` / `wait_for_exit()`
+  there raises `BridgeError`. Whether a call is a watch's own callback's is
+  decided by the per-delivery token in `_WATCH_DELIVERY` (a `ContextVar`, so
+  tasks the callback starts inherit it), never by the current task.
+- A watch delivers nothing before `watch_dir()` has handed out its handle
+  (`AsyncWatchHandle._published`). The async `watch_dir()` releases it as its
+  last step, unless it runs on a sync client's bridge loop
+  (`_bridge.on_a_bridge_loop()`); there the sync twin, listed in the async
+  class's `_SYNC_AFTER_WRAP` (`AsyncFileSystemService`: `watch_dir` →
+  `_publish`), posts the release to the loop with `SyncBridge.post()` once it
+  has built its `WatchHandle`. Events read before `start` are held until
+  `start` arrives, at most `WATCH_MAX_EVENTS_BEFORE_START` (4096). The caller holds the handle first only after a direct
+  `await watch_dir(...)`: wrapped in another task (`gather`, `create_task`,
+  `wait_for` on 3.10–3.11), or on the sync client, the first events can win,
+  which is why the docs lead with signalling the handle's holder.
+- Generated models decode through `_expect_model_from_dict`, in two steps.
+  First `_check_container_fields` (an explicit stack, no recursion) reads the
+  model's field types and checks shapes on the raw payload, nested
+  models included: a list field holds a list, a map field an object, a
+  nested-model field an object (oneOf wrappers, which may hold a string, are
+  skipped), each refused by name, so the generated `from_dict` never iterates
+  a `{}` or `""` as an empty list or a number as a raw `TypeError`. It also
+  refuses, in every int- or float-typed field (in lists and maps too), a
+  number `finite_number` rejects: an `int` beyond the float range or a float
+  that decoded to infinity, which TypeScript's `JSON.parse` reads as
+  `Infinity` ("must be an integer" / "must be a number", TypeScript's
+  wording). Hand-written decoders of response numbers (the watch `fs`
+  event) use `finite_number` directly. Then the
+  model's own pydantic validation checks the values (types, required fields,
+  enums), and its `ValidationError` becomes the malformed-response
+  `BadRequestError` too. Contract rules pydantic does not know (non-empty ids,
+  RFC 3339 timestamps, ranges) are the `parse_*` mappers' job.
+- SSE: `SseParser.feed_message()` yields the raw `data:` text; a consumer
+  parses only the events it knows, with `sse_json()` (the malformed-response
+  error for non-JSON data). Handles reconnect through their namespace
+  (`process.connect`, `process.connect_session`, `interpreter.connect_context`).
 - Pre-signed file URLs are minted server-side: the SDK POSTs
   `{method, path, expires_at}` to `/sandboxes/{id}/files/sign`
   and composes the link from its own toolbox
@@ -187,14 +237,16 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   max_response_bytes=)` per call) is checked against the declared
   `Content-Length` before reading and against the bytes read, and the
   response is closed when refused. It reads the wire bytes (`aiter_raw`) and
-  decodes gzip / deflate itself, at most `DECODE_STEP` (64 KiB) per step: the
+  decodes gzip (also sent as `x-gzip`) / deflate itself, at most
+  `DECODE_STEP` (64 KiB) per step: the
   kept body never exceeds the cap, and at most one step beyond it is ever
   produced in memory. Compressed data that stops before its end is a
   `ConnectionError`, as a body cut short on the wire is; gzip members that
   follow one another are all decoded, and other bytes after the last member
-  are ignored. The clients send
-  `Accept-Encoding: gzip, deflate` only, and any other `Content-Encoding` is
-  refused undecoded; streams (`open_stream`, `open_exclusive_stream`) are
+  are ignored. A deflate body's format (zlib-wrapped or raw) is decided from
+  its first two bytes, however the network splits them. The clients send
+  `Accept-Encoding: gzip, deflate` only, and any other `Content-Encoding`
+  than `gzip`, `x-gzip` or `deflate` is refused undecoded; streams (`open_stream`, `open_exclusive_stream`) are
   bounded only until their response headers arrive, by the spec's own
   `timeout` when it has one, else the request timeout
   (`_transport._stream_open_seconds`; `0` or above the timer maximum =

@@ -17,42 +17,57 @@ import type {
 } from './types.js'
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
-import { encodeQuery, HttpTransport, isAbortError, maxContentLengthFor, sseMessages, strictUriEncode, transferRequest } from './http.js'
+import { encodeQuery, HttpTransport, isAbortError, maxContentLengthFor, sseMessages, streamEventTooLarge, strictUriEncode, transferRequest } from './http.js'
 import { maxResponseBytesOption } from './bodyLimit.js'
+import { BadRequestError, ConnectionError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
+import { assertInternal } from './internal.js'
+import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 import type { OptionKeys } from './options.js'
-import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
+import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str, strList } from './toolboxModels.js'
+import { deepFrozen } from './frozen.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 
-export type Match = FileMatch
-export type SearchFilesResponse = ListResult<string>
-export type FilePermissionsParams = FilePermissionsOptions
 export type { BulkReadError, BulkReadResult, BulkWriteFile, BulkWriteResult }
 export type { DownloadFileOptions, TransferProgressCallback, UploadFileOptions }
 
-export enum FilesystemEventType {
-  CREATE = 'create',
-  WRITE = 'write',
-  REMOVE = 'remove',
-  RENAME = 'rename',
-  CHMOD = 'chmod',
-}
+/**
+ * What changed in a watched directory. An open vocabulary: a kind a later
+ * sandbox reports is passed through as its string.
+ */
+export type FilesystemEventType = 'create' | 'write' | 'remove' | 'rename' | 'chmod' | (string & {})
 
 export interface FilesystemEvent {
-  type: FilesystemEventType
-  name: string
-  isDir: boolean
-  timestamp: number
+  readonly type: FilesystemEventType
+  readonly name: string
+  readonly isDir: boolean
+  /** When the change happened, in Unix milliseconds. */
+  readonly timestampMs: number
 }
 
+/**
+ * A running directory watch, returned by `fs.watchDir()`. Callbacks run one
+ * at a time, in order, and are awaited. A failing `onEvent` or `onOverflow`
+ * ends the watch: that error becomes `exitError` and is passed to `onExit`.
+ */
 export interface WatchHandle {
+  /**
+   * Stop the watch. Resolves once a callback already running, and `onExit`,
+   * have finished; a callback (or `onExit`) may call `stop()` on its own
+   * watch without waiting for itself. In runtimes without `AsyncLocalStorage`
+   * (browsers), a callback or `onExit` that stops its own watch after an
+   * `await` must not await that `stop()`.
+   */
   stop(): Promise<void>
+  /** Wait until the watch ends; resolves with `exitError`. */
   waitForExit(): Promise<Error | undefined>
+  /** Why the watch ended: `undefined` while running or after `stop()`. */
   readonly exitError: Error | undefined
 }
 
 export interface WriteFileOptions {
-  mode?: string
-  atomic?: boolean
+  /** Write to a temporary file and rename it into place. */
+  readonly atomic?: boolean
 }
 
 /**
@@ -69,7 +84,8 @@ export interface ReadFileOptions {
 }
 
 export interface WriteManyOptions {
-  atomic?: boolean
+  /** Write each file to a temporary file and rename it into place. */
+  readonly atomic?: boolean
 }
 
 /**
@@ -89,10 +105,71 @@ function readLimit(typeName: string, options: ReadFileOptions | ReadManyOptions 
   return maxContentLengthFor(maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes))
 }
 
+export interface ListFilesOptions {
+  /** How many directory levels to list; the sandbox default is 1. */
+  readonly depth?: number
+}
+
+export interface MkdirOptions {
+  /** Octal permission bits; default `'0755'`. */
+  readonly mode?: string
+}
+
+export interface RemoveOptions {
+  /** Remove a directory and everything in it. */
+  readonly recursive?: boolean
+}
+
 export interface WatchDirOptions {
-  recursive?: boolean
-  onExit?: (err?: Error) => void
-  onOverflow?: () => void
+  readonly recursive?: boolean
+  /**
+   * Runs once when a watch `watchDir()` returned ends: no error after `stop()`,
+   * else the error that ended it. Its own failure is ignored.
+   */
+  readonly onExit?: (error?: Error) => void | Promise<void>
+  /** The sandbox dropped events. */
+  readonly onOverflow?: () => void | Promise<void>
+}
+
+/**
+ * The most fs / overflow events a watch holds before its stream's `start`
+ * (delivered after it); one more is a malformed stream. Raising it is additive.
+ */
+const WATCH_MAX_EVENTS_BEFORE_START = 4096
+/**
+ * The most bytes of events a watch's stream may send before `start` (every
+ * byte of each event, its framing included, counted as it arrives, so one
+ * never-ending event is bounded too): 4096 events of 256 bytes, about twice a
+ * typical event. One byte more is a malformed stream, like the count cap.
+ */
+const WATCH_MAX_BYTES_BEFORE_START = 1_048_576
+const WRITE_FILE_OPTION_KEYS = optionKeys<WriteFileOptions>()({ atomic: true })
+const WRITE_MANY_OPTION_KEYS = optionKeys<WriteManyOptions>()({ atomic: true })
+const LIST_FILES_OPTION_KEYS = optionKeys<ListFilesOptions>()({ depth: true })
+const MKDIR_OPTION_KEYS = optionKeys<MkdirOptions>()({ mode: true })
+const REMOVE_OPTION_KEYS = optionKeys<RemoveOptions>()({ recursive: true })
+const WATCH_DIR_OPTION_KEYS = optionKeys<WatchDirOptions>()({ recursive: true, onExit: true, onOverflow: true })
+const FILE_PERMISSIONS_OPTION_KEYS = optionKeys<FilePermissionsOptions>()({ mode: true, owner: true, group: true })
+const UPLOAD_FILE_OPTION_KEYS = optionKeys<UploadFileOptions>()({ onProgress: true, signal: true, atomic: true })
+const DOWNLOAD_FILE_OPTION_KEYS = optionKeys<DownloadFileOptions>()({ onProgress: true, signal: true })
+
+interface AsyncLocalStorageLike<T> {
+  getStore(): T | undefined
+  run<R>(store: T, callback: () => R): R
+}
+
+/**
+ * Where the runtime has one (Node, Bun, Deno, workerd with Node
+ * compatibility), an AsyncLocalStorage tells a `stop()` / `waitForExit()`
+ * made by a watch's own running callback from an external one; looked up at
+ * run time so bundlers do not pull Node modules into a browser build.
+ */
+function deliveryScope(): AsyncLocalStorageLike<object> | undefined {
+  const processRef = (globalThis as { readonly process?: { readonly getBuiltinModule?: (id: string) => unknown } }).process
+  const loaded = processRef?.getBuiltinModule?.('node:async_hooks') as
+    | { readonly AsyncLocalStorage?: new () => AsyncLocalStorageLike<object> }
+    | undefined
+  return loaded?.AsyncLocalStorage === undefined ? undefined : new loaded.AsyncLocalStorage()
 }
 
 /** The `Headers`-shaped part of a fetch response we actually depend on. */
@@ -126,47 +203,50 @@ function contentTypeHeader(headers: unknown): string | undefined {
   return typeof upper === 'string' ? upper : undefined
 }
 
-function filesystemEventType(value: unknown): FilesystemEventType {
-  switch (value) {
-    case FilesystemEventType.CREATE:
-    case FilesystemEventType.WRITE:
-    case FilesystemEventType.REMOVE:
-    case FilesystemEventType.RENAME:
-    case FilesystemEventType.CHMOD:
-      return value
-    default:
-      throw new DaytonaError(`invalid filesystem event type: ${String(value)}`, { source: 'SDK' })
-  }
-}
+const WATCH_EVENT = 'filesystem watch event'
 
 function parseFilesystemEvent(data: string): FilesystemEvent {
   let parsed: unknown
   try {
     parsed = data ? JSON.parse(data) : {}
-  } catch (error) {
-    throw new DaytonaError(error instanceof Error ? error.message : String(error), { source: 'SDK' })
+  } catch {
+    throw malformedResponse(`${WATCH_EVENT}: the data is not JSON`)
   }
-  if (typeof parsed !== 'object' || parsed === null) {
-    throw new DaytonaError('filesystem watch event must be an object', { source: 'SDK' })
-  }
-  const raw = parsed as Record<string, unknown>
-  if (typeof raw.name !== 'string') throw new DaytonaError('filesystem watch event name must be a string', { source: 'SDK' })
-  if (typeof raw.isDir !== 'boolean') throw new DaytonaError('filesystem watch event isDir must be a boolean', { source: 'SDK' })
-  if (typeof raw.timestamp !== 'number' || !Number.isFinite(raw.timestamp)) {
-    throw new DaytonaError('filesystem watch event timestamp must be a finite number', { source: 'SDK' })
-  }
-  return {
-    type: filesystemEventType(raw.type),
-    name: raw.name,
-    isDir: raw.isDir,
-    timestamp: raw.timestamp,
-  }
+  if (nestedDeeperThan(parsed)) throw malformedResponse(`${WATCH_EVENT}: the JSON is nested too deeply`)
+  const raw = record(parsed, WATCH_EVENT)
+  return deepFrozen({
+    type: str(raw, 'type', WATCH_EVENT),
+    name: str(raw, 'name', WATCH_EVENT),
+    isDir: bool(raw, 'isDir', WATCH_EVENT),
+    timestampMs: int(raw, 'timestamp', WATCH_EVENT),
+  })
 }
 
+const OVERFLOW_EVENT = 'filesystem watch overflow event'
+
+/**
+ * An `overflow` event carries `{ "dropped": <boolean> }`; anything else is the
+ * malformed-response error, whether or not a callback handles it (as the
+ * Python SDK's `_check_overflow_event`).
+ */
+function checkOverflowEvent(data: string): void {
+  let parsed: unknown
+  try {
+    parsed = data ? JSON.parse(data) : {}
+  } catch {
+    throw malformedResponse(`${OVERFLOW_EVENT}: the data is not JSON`)
+  }
+  if (nestedDeeperThan(parsed)) throw malformedResponse(`${OVERFLOW_EVENT}: the JSON is nested too deeply`)
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw malformedResponse(`${OVERFLOW_EVENT}: the data is not a JSON object`)
+  bool(record(parsed, OVERFLOW_EVENT), 'dropped', OVERFLOW_EVENT)
+}
 
 export interface PresignedUrlOptions {
-  expiresInSeconds?: number
+  /** Whole seconds, 1 to {@link SIGNED_FILE_MAX_TTL_SECONDS}; default 3600. */
+  readonly expiresInSeconds?: number
 }
+
+const PRESIGNED_URL_OPTION_KEYS = optionKeys<PresignedUrlOptions>()({ expiresInSeconds: true })
 
 /**
  * Server ceiling on a pre-signed file URL's lifetime (7 days). The API rejects
@@ -212,18 +292,30 @@ function expiresAt(expiresInSeconds: number): string {
 
 export { strictUriEncode } from './http.js'
 
+/** Sandbox filesystem namespace (`sandbox.fs`). */
 export class FileSystemService {
-  constructor(
-    private readonly transport: HttpTransport,
-    private readonly fileUrlSigner?: FileUrlSigner,
-  ) {}
+  private readonly transport: HttpTransport
+  private readonly fileUrlSigner?: FileUrlSigner
+
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport, fileUrlSigner?: FileUrlSigner)
+  /** Built by the SDK: get it from `sandbox.fs`. */
+  constructor(token: Internal, ...init: never[])
+  constructor(token: Internal, transport: HttpTransport, fileUrlSigner?: FileUrlSigner) {
+    assertInternal(token, 'FileSystemService')
+    this.transport = transport
+    if (fileUrlSigner !== undefined) this.fileUrlSigner = fileUrlSigner
+  }
 
   /**
-   * Read a file into memory. A file transfer: no total deadline, but it fails
-   * with `ClientTimeoutError` once no bytes move for the request timeout (a
-   * request timeout of `0` leaves it unbounded). The
-   * body is capped by the client's `maxResponseBytes` or this call's (see
-   * {@link ReadFileOptions}).
+   * Read a file as bytes, holding the whole file in memory. A file transfer:
+   * no total deadline, but it fails with `ClientTimeoutError` once no bytes
+   * move for the request timeout (a request timeout of `0` leaves it
+   * unbounded). The body is capped by the client's `maxResponseBytes` or this
+   * call's (see {@link ReadFileOptions}). For large files, or content from a
+   * sandbox you do not trust, use `downloadFile()`, which streams to disk with
+   * progress and cancellation; it is Node.js-only, so in a browser the
+   * in-memory reads and `presignedDownloadUrl()` are the options.
    */
   public async readBytes(path: string, options?: ReadFileOptions): Promise<Uint8Array> {
     const limit = readLimit('ReadFileOptions', options, READ_FILE_OPTION_KEYS)
@@ -239,35 +331,42 @@ export class FileSystemService {
     return new Uint8Array(data)
   }
 
-  /** Read a UTF-8 text file into memory; the bounds of {@link readBytes}. */
+  /**
+   * Read a UTF-8 text file into memory, with the bounds of {@link readBytes}.
+   * Decoding is strict (invalid UTF-8 throws a `TypeError`) and a leading
+   * byte-order mark is kept as `\uFEFF`.
+   */
   public async readText(path: string, options?: ReadFileOptions): Promise<string> {
-    return new TextDecoder().decode(await this.readBytes(path, options))
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await this.readBytes(path, options))
   }
 
+  /** Write bytes to a file, optionally via a temporary file and rename (`atomic`). */
   public async writeBytes(path: string, data: Uint8Array, options: WriteFileOptions = {}): Promise<void> {
+    assertKnownOptions('WriteFileOptions', options, WRITE_FILE_OPTION_KEYS)
     // JavaScript callers migrating from the old write(path, string) get a named error, not a RangeError from TypedArray.set.
     if (typeof data === 'string') throw new BadRequestError('writeBytes() takes a Uint8Array; use writeText() for strings', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     const form = new FormData()
     form.append('path', path)
-    if (options.mode) form.append('mode', options.mode)
     const ab = new ArrayBuffer(data.byteLength)
     new Uint8Array(ab).set(data)
     form.append('file', new Blob([ab]), path.split('/').pop() || 'file')
     await this.transport.post('/files/upload', form, transferRequest({ params: uploadQuery(path, options.atomic) }))
-    if (options.mode) await this.chmod(path, { mode: options.mode })
   }
 
+  /** Write a UTF-8 text file. */
   public async writeText(path: string, text: string, options: WriteFileOptions = {}): Promise<void> {
     await this.writeBytes(path, new TextEncoder().encode(text), options)
   }
 
   /** Stream a local file to the sandbox without buffering the full body in memory. Progress callback errors are swallowed. Node.js only. */
   public async uploadFile(localPath: string, remotePath: string, options: UploadFileOptions = {}): Promise<void> {
+    assertKnownOptions('UploadFileOptions', options, UPLOAD_FILE_OPTION_KEYS)
     await uploadFile(this.transport, localPath, remotePath, options)
   }
 
   /** Stream a sandbox file to disk via an exclusive random temp file in the destination directory, renaming on success. Progress callback errors are swallowed. Node.js only. */
   public async downloadFile(remotePath: string, localPath: string, options: DownloadFileOptions = {}): Promise<void> {
+    assertKnownOptions('DownloadFileOptions', options, DOWNLOAD_FILE_OPTION_KEYS)
     await downloadFile(this.transport, remotePath, localPath, options)
   }
 
@@ -277,6 +376,7 @@ export class FileSystemService {
    * {@link SIGNED_FILE_MAX_TTL_SECONDS} (7 days).
    */
   public async presignedDownloadUrl(path: string, options: PresignedUrlOptions = {}): Promise<string> {
+    assertKnownOptions('PresignedUrlOptions', options, PRESIGNED_URL_OPTION_KEYS)
     return this.presignedUrl('GET', '/files/download', path, expiresInSecondsOrDefault(options))
   }
 
@@ -286,26 +386,31 @@ export class FileSystemService {
    * {@link SIGNED_FILE_MAX_TTL_SECONDS} (7 days).
    */
   public async presignedUploadUrl(path: string, options: PresignedUrlOptions = {}): Promise<string> {
+    assertKnownOptions('PresignedUrlOptions', options, PRESIGNED_URL_OPTION_KEYS)
     return this.presignedUrl('POST', '/files/upload', path, expiresInSecondsOrDefault(options))
   }
 
-  public async writeMany(files: Record<string, Uint8Array>, options: WriteManyOptions = {}): Promise<BulkWriteResult> {
+  /** Write several files in one request. */
+  public async writeMany(files: Readonly<Record<string, Uint8Array>>, options: WriteManyOptions = {}): Promise<BulkWriteResult> {
+    assertKnownOptions('WriteManyOptions', options, WRITE_MANY_OPTION_KEYS)
     const form = new FormData()
     Object.entries(files).forEach(([path, data], index) => {
       form.append(`files[${index}].path`, path)
       form.append(`files[${index}].file`, new Blob([copyArrayBuffer(data)]), path.split('/').pop() || 'file')
     })
     const atomicParams = uploadManyQuery(options.atomic)
-    const data = await this.transport.post<BulkWriteResult>('/files/bulk-upload', form, transferRequest(atomicParams !== undefined ? { params: atomicParams } : {}))
-    return {
-      files: Array.isArray(data.files) ? data.files : [],
-      errors: Array.isArray(data.errors) ? data.errors.filter((item): item is string => typeof item === 'string') : [],
-    }
+    const data = await this.transport.post<toolbox.BulkUploadResponse>('/files/bulk-upload', form, transferRequest(atomicParams !== undefined ? { params: atomicParams } : {}))
+    return bulkWriteResultFromWire(data)
   }
 
   /**
-   * Read several files into memory, in one multipart response. The bounds of
-   * {@link readBytes}; `maxResponseBytes` caps the whole multipart body.
+   * Read several files in one multipart response; a missing file is an entry
+   * in `errors`, not a failure. The whole response is held in memory, with the
+   * bounds of {@link readBytes}; `maxResponseBytes` caps the whole multipart
+   * body. For large files, or content from a sandbox you do not trust, use
+   * `downloadFile()`, which streams to disk with progress and cancellation;
+   * it is Node.js-only, so in a browser the in-memory reads and
+   * `presignedDownloadUrl()` are the options.
    */
   public async readMany(paths: readonly string[], options?: ReadManyOptions): Promise<BulkReadResult> {
     const limit = readLimit('ReadManyOptions', options, READ_MANY_OPTION_KEYS)
@@ -321,24 +426,29 @@ export class FileSystemService {
     return parseBulkReadResult(body, contentTypeHeader(response.headers))
   }
 
-  /** List a directory; response always has `{items,nextCursor}`. */
-  public async list(path: string, options: { depth?: number } = {}): Promise<ListResult<FileInfo>> {
+  /** List a directory: one page of `{ items, nextCursor }`. */
+  public async list(path: string, options: ListFilesOptions = {}): Promise<ListResult<FileInfo>> {
+    assertKnownOptions('ListFilesOptions', options, LIST_FILES_OPTION_KEYS)
     const params: { path: string; depth?: number } = { path }
     if (options.depth !== undefined) params.depth = options.depth
-    const response = await this.transport.get<FileInfo[] | ListResult<FileInfo>>('/files', {
+    const response = await this.transport.get<toolbox.FileInfo[] | ListResult<toolbox.FileInfo>>('/files', {
       params,
     })
-    return Array.isArray(response) ? { items: response } : response
-  }
-  public async stat(path: string): Promise<FileInfo> {
-    return this.transport.get<toolbox.FileInfo>('/files/info', { params: { path } })
+    return listItems(response, 'items', 'file list response', fileInfoFromWire)
   }
 
-  public async mkdir(path: string, options: { mode?: string } = {}): Promise<void> {
+  /** Return file metadata. */
+  public async stat(path: string): Promise<FileInfo> {
+    return fileInfoFromWire(await this.transport.get<toolbox.FileInfo>('/files/info', { params: { path } }))
+  }
+
+  public async mkdir(path: string, options: MkdirOptions = {}): Promise<void> {
+    assertKnownOptions('MkdirOptions', options, MKDIR_OPTION_KEYS)
     await this.transport.post<void>('/files/folder', undefined, { params: { path, mode: options.mode ?? '0755' } })
   }
 
-  public async remove(path: string, options: { recursive?: boolean } = {}): Promise<void> {
+  public async remove(path: string, options: RemoveOptions = {}): Promise<void> {
+    assertKnownOptions('RemoveOptions', options, REMOVE_OPTION_KEYS)
     await this.transport.delete<void>('/files', { params: { path, recursive: options.recursive } })
   }
 
@@ -349,39 +459,125 @@ export class FileSystemService {
   /** Search file contents under `path` for the literal substring `pattern`; returns matches with one-based line numbers. */
   public async grep(path: string, pattern: string): Promise<ListResult<FileMatch>> {
     const data = await this.transport.get<toolbox.Match[] | ListResult<toolbox.Match>>('/files/find', { params: { path, pattern } })
-    return Array.isArray(data) ? { items: data } : data
+    return listItems(data, 'items', 'grep response', fileMatchFromWire)
   }
 
+  /**
+   * Watch `path` for changes, calling `onEvent` for each one. Resolves once
+   * the watch is established. Callbacks run one at a time, in order, and are
+   * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
+   * error. `onExit` runs once when the watch ends; its own failure is ignored.
+   * A failure before the watch starts rejects this call and does not call
+   * `onExit`. Callbacks are held until this call has returned its handle, so
+   * after a direct `await watchDir(...)` a callback can call `stop()` on it;
+   * when the promise is not awaited directly (inside `Promise.all`, or awaited
+   * later), signal the code that holds the handle and call `stop()` there. A
+   * stream that sends more than 4096 events, or more than 1 MiB, before
+   * `start` rejects this call with `BadRequestError`. After `start` an event
+   * larger than the client's `maxResponseBytes` ends the watch with
+   * `PayloadTooLargeError`.
+   */
   public async watchDir(
     path: string,
     onEvent: (event: FilesystemEvent) => void | Promise<void>,
     options: WatchDirOptions = {},
   ): Promise<WatchHandle> {
+    assertKnownOptions('WatchDirOptions', options, WATCH_DIR_OPTION_KEYS)
     const controller = new AbortController()
+    const scope = deliveryScope()
     let stopRequested = false
     let exitNotified = false
     let exitError: Error | undefined
     let started = false
+    // The token of the callback delivery in progress: set for exactly that
+    // delivery and cleared when it settles, so a call the callback schedules
+    // for later (a timer) no longer counts as its own.
+    let activeDelivery: object | undefined
+    // True while a callback runs its synchronous part: a call made then is the
+    // callback's own, even where no AsyncLocalStorage can tell.
+    let deliveringSync = false
     let resolveStarted!: () => void
     let rejectStarted!: (error: Error) => void
     const startedPromise = new Promise<void>((resolve, reject) => {
       resolveStarted = resolve
       rejectStarted = reject
     })
+    // Released once watchDir() has returned the handle (or the watch is
+    // stopped): no callback, onExit included, runs before the caller holds it.
+    let releaseDeliveries!: () => void
+    const published = new Promise<void>((resolve) => {
+      releaseDeliveries = resolve
+    })
+    // Events read before `start` (none from a well-behaved toolbox), delivered
+    // after it: the stream must keep being read until `start` arrives, but at
+    // most WATCH_MAX_EVENTS_BEFORE_START of them are held.
+    const held: (() => void | Promise<void>)[] = []
+    let earlyEvents = 0
+    // The stream's bytes are counted as they arrive: before start the whole
+    // stream (every frame, data-less and comment-only ones too) may not pass
+    // WATCH_MAX_BYTES_BEFORE_START, after it each event is bounded by the
+    // client's maxResponseBytes.
+    const clientLimit = this.transport.maxResponseBytes
+    const remainingBeforeStart = (completed: number): number => WATCH_MAX_BYTES_BEFORE_START - completed
+    const eventBound = {
+      limit: (completed: number): number | undefined => {
+        if (started) return clientLimit > 0 ? clientLimit : undefined
+        return clientLimit > 0 ? Math.min(remainingBeforeStart(completed), clientLimit) : remainingBeforeStart(completed)
+      },
+      tooLarge: (completed: number): Error => started || (clientLimit > 0 && clientLimit < remainingBeforeStart(completed))
+        ? streamEventTooLarge('filesystem watch stream', clientLimit)
+        : malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_BYTES_BEFORE_START} bytes before start`),
+    }
     let resolveExit!: (error: Error | undefined) => void
     const exitPromise = new Promise<Error | undefined>((resolve) => {
       resolveExit = resolve
     })
-    let resolveStopRequested!: () => void
-    const stopRequestedPromise = new Promise<void>((resolve) => {
-      resolveStopRequested = resolve
-    })
-    const notifyExit = (error?: Error): void => {
+    const calledFromOwnCallback = (): boolean =>
+      deliveringSync || (activeDelivery !== undefined && scope !== undefined && scope.getStore() === activeDelivery)
+    const notifyExit = async (error?: Error): Promise<void> => {
       if (exitNotified) return
       exitNotified = true
       exitError = error
+      // Resolved before onExit runs, so onExit can await waitForExit().
       resolveExit(error)
-      options.onExit?.(error)
+      // The exit callback belongs to a watch watchDir() returned: a failure
+      // before start is thrown from watchDir() instead (as in Python).
+      const onExit = started ? options.onExit : undefined
+      if (onExit === undefined) return
+      await published
+      // onExit runs as a delivery, so its own stop() / waitForExit() calls do
+      // not wait for it; its failure is contained: the watch has already ended.
+      try {
+        await deliver(() => onExit(error))
+      } catch {
+        // ignored
+      }
+    }
+    const deliver = async (callback: () => void | Promise<void>): Promise<void> => {
+      const token = {}
+      activeDelivery = token
+      let result: void | Promise<void>
+      deliveringSync = true
+      try {
+        result = scope === undefined ? callback() : scope.run(token, callback)
+      } finally {
+        deliveringSync = false
+      }
+      try {
+        await result
+      } finally {
+        activeDelivery = undefined
+      }
+    }
+    // Runs the held events and then `callback` once the handle is published;
+    // a watch stopped meanwhile delivers nothing more.
+    const deliverEvents = async (callback?: () => void | Promise<void>): Promise<void> => {
+      await published
+      const pending = callback === undefined ? held.splice(0) : [...held.splice(0), callback]
+      for (const next of pending) {
+        if (stopRequested) return
+        await deliver(next)
+      }
     }
     const streamTask = (async () => {
       try {
@@ -389,62 +585,72 @@ export class FileSystemService {
           headers: { Accept: 'text/event-stream' },
           signal: controller.signal,
         })
-        let stoppedMidCallback = false
-        for await (const message of sseMessages(response)) {
-          switch (message.event) {
-            case 'start':
+        for await (const message of sseMessages(response, eventBound)) {
+          if (stopRequested) break
+          try {
+            if (message.event === 'start') {
               if (!started) {
                 started = true
                 resolveStarted()
+                if (held.length > 0) await deliverEvents()
               }
-              break
-            case 'fs': {
-              // Race the callback against stop(): a re-entrant stop() from
-              // inside the callback must not deadlock (the stream task would await
-              // a callback that awaits the stream task), while an external stop()
-              // still awaits full stream closure because stop() always awaits
-              // the stream task below.
-              const callbackResult = Promise.resolve().then(() => onEvent(parseFilesystemEvent(message.data)))
-              const winner = await Promise.race([
-                callbackResult.then(
-                  () => 'done' as const,
-                  (error: unknown) => ({ error }),
-                ),
-                stopRequestedPromise.then(() => 'stopped' as const),
-              ])
-              if (winner === 'stopped') {
-                callbackResult.catch(() => undefined)
-                stoppedMidCallback = true
-                break
-              }
-              if (winner !== 'done') throw winner.error instanceof Error ? winner.error : new DaytonaError(String(winner.error), { source: 'SDK' })
-              break
+              continue
             }
-            case 'overflow':
-              options.onOverflow?.()
-              break
-            default:
-              break
+            if (!started && (message.event === 'fs' || message.event === 'overflow')) {
+              // Every listed event before start counts toward the cap, whether
+              // or not a callback handles it.
+              earlyEvents++
+              if (earlyEvents > WATCH_MAX_EVENTS_BEFORE_START) {
+                throw malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_EVENTS_BEFORE_START} events before start`)
+              }
+            }
+            let callback: (() => void | Promise<void>) | undefined
+            if (message.event === 'fs') {
+              const event = parseFilesystemEvent(message.data)
+              callback = () => onEvent(event)
+            } else if (message.event === 'overflow') {
+              checkOverflowEvent(message.data)
+              const onOverflow = options.onOverflow
+              if (onOverflow !== undefined) callback = () => onOverflow()
+            }
+            if (callback === undefined) continue
+            if (started) await deliverEvents(callback)
+            else held.push(callback)
+          } catch (error) {
+            // A failing callback (or a malformed event) ends the watch with
+            // its error, even when stop() was called while it ran.
+            controller.abort()
+            const normalized = error instanceof Error ? error : createDaytonaError(String(error), undefined, undefined, 'SDK')
+            if (!started) rejectStarted(normalized)
+            await notifyExit(normalized)
+            return
           }
-          if (stoppedMidCallback) break
         }
+        // A stream that ends on its own is a dropped connection, as a
+        // truncated body is: ConnectionError, as in the Python SDK.
         if (started) {
-          if (!stopRequested) notifyExit(new DaytonaError('filesystem watch stream ended unexpectedly', { source: 'SDK' }))
-          else notifyExit()
+          await notifyExit(stopRequested ? undefined : new ConnectionError('filesystem watch stream ended unexpectedly'))
           return
         }
-        const error = new DaytonaError('filesystem watch stream ended before start', { source: 'SDK' })
+        const error = stopRequested
+          ? createDaytonaError('filesystem watch stopped before start', undefined, undefined, 'SDK')
+          : new ConnectionError('filesystem watch stream ended before start')
         rejectStarted(error)
-        notifyExit(error)
+        await notifyExit(stopRequested ? undefined : error)
       } catch (error) {
         if (isAbortError(error) && stopRequested) {
-          if (!started) rejectStarted(new DaytonaError('filesystem watch stopped before start', { source: 'SDK' }))
-          notifyExit()
+          if (!started) rejectStarted(createDaytonaError('filesystem watch stopped before start', undefined, undefined, 'SDK'))
+          await notifyExit()
           return
         }
-        const normalized = error instanceof Error ? error : new DaytonaError(String(error))
+        // The SDK's own errors pass through; anything else from opening or
+        // reading the stream (undici's "terminated" on a truncated body) is a
+        // dropped connection, as the Python transport reports it.
+        const normalized = error instanceof DaytonaError
+          ? error
+          : new ConnectionError(error instanceof Error ? error.message : String(error))
         if (!started) rejectStarted(normalized)
-        notifyExit(normalized)
+        await notifyExit(normalized)
       }
     })()
     const handle: WatchHandle = {
@@ -452,32 +658,45 @@ export class FileSystemService {
         return exitError
       },
       stop: async () => {
+        const ownCallback = calledFromOwnCallback()
         stopRequested = true
-        resolveStopRequested()
+        releaseDeliveries()
         controller.abort()
-      await streamTask
+        // The watch's own callback (or onExit) must not wait for itself; any
+        // other stop() waits for the stream task, onExit included, in every
+        // runtime. Without AsyncLocalStorage only a callback's (or onExit's)
+        // synchronous part is recognised as its own.
+        if (ownCallback) return
+        await streamTask
       },
-      waitForExit: async () => exitPromise,
+      waitForExit: async () => (calledFromOwnCallback() ? exitError : exitPromise),
     }
     await startedPromise
+    // Released one promise job from now: returning queues the caller's
+    // `await watchDir()` continuation first, so the caller has stored the
+    // handle before any callback runs. A promise job, not a timer, so fake
+    // timers in the caller's tests cannot hold the watch back.
+    void Promise.resolve().then(releaseDeliveries)
     return handle
   }
 
   /** Return the paths of files under `path` whose base name matches the glob `pattern`. */
   public async glob(path: string, pattern: string): Promise<ListResult<string>> {
-    const data = await this.transport.get<toolbox.SearchResponse | string[] | ListResult<string>>('/files/search', { params: { path, pattern } })
-    if (Array.isArray(data)) return { items: data }
-    if ('items' in data) return data
-    return { items: data.files ?? [] }
+    // The contract's SearchResponse: { files } only.
+    const data = await this.transport.get<toolbox.SearchResponse>('/files/search', { params: { path, pattern } })
+    return deepFrozen({ items: strList(record(data, 'glob response'), 'files', 'glob response') })
   }
 
-  public async replace(files: string[], pattern: string, newValue: string): Promise<ListResult<ReplaceResult>> {
-    const body: toolbox.ReplaceRequest = { files, pattern, newValue }
+  /** Replace the literal substring `pattern` with `newValue` in `files`. */
+  public async replace(files: readonly string[], pattern: string, newValue: string): Promise<ListResult<ReplaceResult>> {
+    const body: toolbox.ReplaceRequest = { files: [...files], pattern, newValue }
     const data = await this.transport.post<toolbox.ReplaceResult[] | ListResult<toolbox.ReplaceResult>>('/files/replace', body)
-    return Array.isArray(data) ? { items: data } : data
+    return listItems(data, 'items', 'replace response', replaceResultFromWire)
   }
 
+  /** Set file permissions and ownership. */
   public async chmod(path: string, permissions: FilePermissionsOptions): Promise<void> {
+    assertKnownOptions('FilePermissionsOptions', permissions, FILE_PERMISSIONS_OPTION_KEYS)
     await this.transport.post<void>('/files/permissions', undefined, {
       params: { path, mode: permissions.mode, owner: permissions.owner, group: permissions.group },
     })
@@ -498,7 +717,7 @@ export class FileSystemService {
 
   private requireFileUrlSigner(): FileUrlSigner {
     if (this.fileUrlSigner === undefined) {
-      throw createDaytonaError('filesystem handle has no pre-signed URL signer', 400, 'BAD_REQUEST', 'SDK')
+      throw new BadRequestError('filesystem handle has no pre-signed URL signer', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     return this.fileUrlSigner
   }

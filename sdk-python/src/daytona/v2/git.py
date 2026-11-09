@@ -3,13 +3,15 @@
 
 from __future__ import annotations
 
-import math
+import dataclasses
 from typing import Dict, Final, Optional, Sequence
 
 from ._core import (
     RequestSpec,
     TransportPayload,
     _expect_model_from_dict,
+    above_timer_maximum,
+    checked_seconds,
     expect_branch_list,
     expect_commit_response,
     expect_object,
@@ -17,9 +19,19 @@ from ._core import (
     list_shape,
 )
 from ._gen.toolbox import CommitInfo
+from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
 from .errors import create_error
-from .types import GitCommitResponse, GitStatus, JsonObject, JsonValue, ListResult
+from .types import (
+    GitCommit,
+    GitCommitResponse,
+    GitConfigScope,
+    GitRemote,
+    GitStatus,
+    JsonObject,
+    JsonValue,
+    ListResult,
+)
 
 GIT_REMOTE_TIMEOUT_SECONDS: Final[float] = 30 * 60
 
@@ -34,8 +46,8 @@ async def _json_payload(transport: AsyncTransport, spec: RequestSpec) -> JsonVal
 class AsyncGitService:
     """Sandbox git namespace."""
 
-    def __init__(self, transport: AsyncTransport) -> None:
-        self._transport = transport
+    def __init__(self, _transport: AsyncTransport) -> None:
+        self._transport = _transport
 
     async def clone(
         self,
@@ -64,9 +76,7 @@ class AsyncGitService:
             body["depth"] = _git_clone_depth(depth)
         if _git_insecure_skip_tls(insecure_skip_tls):
             body["insecureSkipTls"] = True
-        await self._transport.send(
-            RequestSpec("POST", "/git/clone", json_body=body, timeout=_git_remote_timeout(timeout))
-        )
+        await _send_remote(self._transport, RequestSpec("POST", "/git/clone", json_body=body), timeout)
 
     async def init(
         self,
@@ -87,27 +97,39 @@ class AsyncGitService:
         )
         return expect_status_response(response)
 
-    async def list_branches(self, path: str) -> ListResult:
+    async def list_branches(self, path: str) -> ListResult[str]:
         """List branch names as {items, next_cursor}."""
         payload = expect_branch_list(
             await _json_payload(self._transport, RequestSpec("GET", "/git/branches", params={"path": path}))
         )
         return ListResult(list(payload.branches), None)
 
-    async def list_remotes(self, path: str) -> ListResult[JsonObject]:
+    async def list_remotes(self, path: str) -> ListResult[GitRemote]:
+        """List the configured remotes; URLs come back with any credentials removed."""
         payload = expect_object(
             await _json_payload(self._transport, RequestSpec("GET", "/git/remotes", params={"path": path}))
         )
         raw = payload.get("remotes")
-        items = [expect_object(remote) for remote in raw] if isinstance(raw, list) else []
-        return ListResult(items, None)
+        if not isinstance(raw, list):
+            problem = "is required" if raw is None else "must be a list"
+            raise create_error(f"expected git remotes response: remotes {problem}", 400, "BAD_REQUEST", "SDK")
+        for index, remote in enumerate(raw):
+            if not isinstance(remote, dict):
+                raise create_error(
+                    f"expected git remotes response: remotes[{index}] must be an object",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
+        return ListResult([_git_remote(remote) for remote in raw], None)
 
-    async def history(self, path: str) -> ListResult:
+    async def history(self, path: str) -> ListResult[GitCommit]:
         """List commits, newest first."""
         items, next_cursor = list_shape(
             await _json_payload(self._transport, RequestSpec("GET", "/git/history", params={"path": path})),
+            description="git history response",
         )
-        return ListResult([_commit_info_to_json(_expect_commit_info(item)) for item in items], next_cursor)
+        return ListResult([_git_commit(_expect_commit_info(item)) for item in items], next_cursor)
 
     async def create_branch(self, path: str, name: str) -> None:
         """Create a branch."""
@@ -251,16 +273,20 @@ class AsyncGitService:
         key: str,
         *,
         path: Optional[str] = None,
-        scope: str = "global",
+        scope: GitConfigScope = "global",
     ) -> Optional[str]:
-        params: Dict[str, JsonValue] = {"key": key, "scope": scope}
+        params: Dict[str, JsonValue] = {"key": key, "scope": _config_scope(scope)}
         if path is not None:
             params["path"] = path
         payload = expect_object(
             await _json_payload(self._transport, RequestSpec("GET", "/git/config", params=params))
         )
         value = payload.get("value")
-        return value if isinstance(value, str) else None
+        if value is not None and not isinstance(value, str):
+            raise create_error(
+                "expected git config response: value must be a string or null", 400, "BAD_REQUEST", "SDK"
+            )
+        return value
 
     async def set_config(
         self,
@@ -268,9 +294,9 @@ class AsyncGitService:
         value: str,
         *,
         path: Optional[str] = None,
-        scope: str = "global",
+        scope: GitConfigScope = "global",
     ) -> None:
-        body: Dict[str, JsonValue] = {"key": key, "value": value, "scope": scope}
+        body: Dict[str, JsonValue] = {"key": key, "value": value, "scope": _config_scope(scope)}
         if path is not None:
             body["path"] = path
         await self._transport.send(RequestSpec("POST", "/git/config", json_body=body))
@@ -298,17 +324,34 @@ class AsyncGitService:
             body["remote"] = remote
         if set_upstream:
             body["setUpstream"] = True
-        await self._transport.send(
-            RequestSpec("POST", route, json_body=body, timeout=_git_remote_timeout(timeout))
-        )
+        await _send_remote(self._transport, RequestSpec("POST", route, json_body=body), timeout)
+
+
+def _config_scope(scope: object) -> str:
+    """The wire scope: a ``str`` subclass (a ``str`` enum) is sent as its plain
+    value, never its ``str()``."""
+    for known in ("global", "local"):
+        if isinstance(scope, str) and scope == known:
+            return known
+    raise create_error("scope must be 'global' or 'local'", 400, "BAD_REQUEST", "SDK")
 
 
 def _git_remote_timeout(timeout: Optional[float]) -> float:
+    """The total deadline of a remote git operation in seconds. The toolbox
+    takes no timeout on these routes, so the deadline is the SDK's own:
+    ``0``, or a value above the timer maximum, is no limit, as for every 2.x
+    timeout."""
     if timeout is None:
         return GIT_REMOTE_TIMEOUT_SECONDS
-    if not math.isfinite(timeout) or timeout <= 0:
-        raise create_error("timeout must be a positive finite number", 400, "BAD_REQUEST", "SDK")
-    return timeout
+    seconds = checked_seconds(timeout)
+    return 0 if seconds == 0 or above_timer_maximum(seconds) else float(seconds)
+
+
+async def _send_remote(transport: AsyncTransport, spec: RequestSpec, timeout: Optional[float]) -> None:
+    """Send a clone / pull / push bounded by one total deadline for the whole
+    request (a per-call timeout replaces the client's request timeout), as the
+    TypeScript SDK does."""
+    await transport.send(dataclasses.replace(spec, timeout=_git_remote_timeout(timeout)))
 
 
 def _git_clone_depth(depth: int) -> int:
@@ -327,11 +370,22 @@ def _expect_commit_info(value: TransportPayload) -> CommitInfo:
     return _expect_model_from_dict(value, CommitInfo, "commit history entry", CommitInfo.from_dict)
 
 
-def _commit_info_to_json(payload: CommitInfo) -> JsonObject:
-    return {
-        "author": payload.author,
-        "email": payload.email,
-        "hash": payload.hash,
-        "message": payload.message,
-        "timestamp": payload.timestamp,
-    }
+def _git_commit(payload: CommitInfo) -> GitCommit:
+    return GitCommit(
+        hash=payload.hash,
+        message=payload.message,
+        author=payload.author,
+        email=payload.email,
+        timestamp=parse_timestamp(payload.timestamp, "commit history entry: timestamp"),
+    )
+
+
+def _git_remote(payload: JsonObject) -> GitRemote:
+    values: Dict[str, str] = {}
+    for field in ("name", "url"):
+        value = payload.get(field)
+        if not isinstance(value, str):
+            problem = "is required" if value is None else "must be a string"
+            raise create_error(f"expected git remote: {field} {problem}", 400, "BAD_REQUEST", "SDK")
+        values[field] = value
+    return GitRemote(name=values["name"], url=values["url"])

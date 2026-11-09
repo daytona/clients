@@ -8,7 +8,6 @@ import { optionKeys } from './options.js'
 /** Public V2 SDK types. */
 
 import type * as api from './gen/api-types.js'
-import type * as toolbox from './gen/toolbox-types.js'
 import {
   BuildLogDoneReason as API_BUILD_LOG_DONE_REASONS,
   BuildLogGapReason as API_BUILD_LOG_GAP_REASONS,
@@ -177,10 +176,11 @@ export interface SandboxInfo {
 
 export type SandboxHandleJSON = SandboxInfo
 
+/** A process handle's serialized identity (`handle.toJSON()`), the same shape the Python SDK writes. Reconnect with `sandbox.process.connect(value)`. */
 export interface ProcessHandleJSON {
-  sandboxId: string
-  processId: string
-  kind?: ProcessKind
+  readonly sandboxId: string
+  readonly processId: string
+  readonly kind?: ProcessKind
 }
 
 export interface ListResult<T> {
@@ -890,54 +890,71 @@ export type ComputerUseDesktopState = 'not_started' | 'starting' | 'ready' | 'fa
 export const COMPUTER_USE_DESKTOP_STATES = TOOLBOX_COMPUTER_USE_DESKTOP_STATES
 type _ComputerUseDesktopStatesMatchContract = AssertExact<IsExact<Exclude<ComputerUseDesktopState, 'unknown'>, (typeof TOOLBOX_COMPUTER_USE_DESKTOP_STATES)[number]>>
 
-export type TerminalSize = toolbox.TerminalSize
-
-export interface ProcessDto {
-  id: string
-  name?: string
-  /** Immutable tag; session commands inherit their session's tag. */
-  readonly tag?: string
-  pid?: number
-  kind: ProcessReportedKind
-  rawKind: string
-  state: ProcessState
-  rawState: string
-  system: boolean
-  sessionId?: string
-  argv?: string[]
-  shellCommand?: string
-  code?: string
-  language?: string
-  shell?: string
-  resolvedShell?: string
-  login?: boolean
-  cwd?: string
-  user?: string
-  stdin?: ProcessStdinMode
-  rawStdin?: string
-  /** Server-managed process deadline in milliseconds. */
-  executionTimeout?: number
-  terminal?: TerminalSize
-  keepLogs?: ProcessKeepLogs
-  rawKeepLogs?: string
-  exitCode?: number
-  signal?: string
-  reason?: ProcessReason
-  rawReason?: string
-  createdAt?: string
-  startedAt?: string
-  exitedAt?: string
-  truncatedHead?: boolean
-  firstAvailableCursor?: string
-  lastCursor?: string
+/** PTY terminal dimensions, in character cells. */
+export interface TerminalSize {
+  readonly cols: number
+  readonly rows: number
 }
 
-export type WaitResult =
-  | { reason: 'exited'; exitCode: number; signal?: undefined; rawReason?: string }
-  | { reason: 'signaled'; signal: string; exitCode?: undefined; rawReason?: string }
-  | { reason: 'timed_out'; exitCode?: undefined; signal?: undefined; rawReason?: string }
-  | { reason: 'lost' | 'failed'; exitCode?: number; signal?: string; rawReason?: string }
-  | { reason: 'unknown'; exitCode?: number; signal?: string; rawReason: string }
+/**
+ * Process metadata, as `process.get()` / `process.list()` report it.
+ * Enum-backed fields are normalized to the values this release knows plus
+ * `'unknown'`; the wire value is kept on the `raw*` sibling. `signal` is a
+ * bare name (`'TERM'`), like {@link WaitResult.signal}. Timestamps are
+ * RFC 3339 strings.
+ */
+export interface ProcessInfo {
+  readonly id: string
+  readonly kind: ProcessReportedKind
+  readonly rawKind: string
+  readonly state: ProcessState
+  readonly rawState: string
+  readonly cwd: string
+  readonly stdin: ProcessStdinMode
+  readonly rawStdin: string
+  readonly keepLogs: ProcessKeepLogs
+  readonly rawKeepLogs: string
+  readonly createdAt: string
+  readonly system: boolean
+  readonly name?: string
+  /** The tag the process was created with; a session command carries its session's tag. Never changes. */
+  readonly tag?: string
+  readonly pid?: number
+  readonly sessionId?: string
+  readonly argv?: readonly string[]
+  readonly shellCommand?: string
+  readonly code?: string
+  readonly language?: string
+  readonly shell?: string
+  readonly resolvedShell?: string
+  readonly login?: boolean
+  readonly user?: string
+  /** Server-side deadline in seconds. */
+  readonly executionTimeoutSeconds?: number
+  readonly terminal?: TerminalSize
+  readonly exitCode?: number
+  readonly signal?: string
+  readonly reason?: ProcessReason
+  readonly rawReason?: string
+  readonly startedAt?: string
+  readonly exitedAt?: string
+  readonly truncatedHead: boolean
+  readonly firstAvailableCursor?: string
+  readonly lastCursor?: string
+}
+
+/**
+ * How a process ended, or `reason: 'timed_out'` when the wait expired first.
+ * `exitCode` and `signal` are set only when the sandbox reported them; the
+ * SDK never fills them in. `reason` is normalized (`'unknown'` for a value
+ * this release does not know, kept on `rawReason`).
+ */
+export interface WaitResult {
+  readonly reason: ProcessReason
+  readonly exitCode?: number
+  readonly signal?: string
+  readonly rawReason?: string
+}
 
 /**
  * What to execute, as the first argument of `process.start()` / `process.run()` /
@@ -945,211 +962,338 @@ export type WaitResult =
  * `cmd` (shell) or `argv` (exec, no shell — the safe form for untrusted
  * arguments). Mirrors Python's `command=` / `argv=` keywords.
  */
-export type ProcessCommand = string | { cmd: string; argv?: never } | { argv: readonly string[]; cmd?: never }
+export type ProcessCommand = string | { readonly cmd: string; readonly argv?: never } | { readonly argv: readonly string[]; readonly cmd?: never }
+
+/** Retention for `run()` / `session.run()` / `sandbox.exec()`: the output is read back from the log, so `'none'` is not accepted. */
+export type RunKeepLogs = Exclude<KeepLogs, 'none'>
 
 export interface ProcessStartOptions {
-  cmd?: string
-  argv?: string[]
-  name?: string
-  /** Optional safe identifier grouping this process for list() and killAll(). */
+  readonly name?: string
+  /** Groups this process for `list({ tag })` and `killAll({ tag })`: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`). */
   readonly tag?: string
-  cwd?: string
-  env?: Record<string, string>
-  user?: string
-  shell?: string
-  login?: boolean
-  stdin?: 'closed' | 'open'
-  /** Server-managed process deadline in milliseconds. */
-  executionTimeout?: number
-  terminal?: TerminalSize
-  keepLogs?: KeepLogs
+  readonly cwd?: string
+  readonly env?: Readonly<Record<string, string>>
+  readonly user?: string
+  readonly shell?: string
+  readonly login?: boolean
+  readonly stdin?: StdinMode
+  /** Server-side deadline in seconds; the sandbox kills the process tree when it expires. */
+  readonly executionTimeoutSeconds?: number
+  readonly keepLogs?: KeepLogs
 }
 
-export type RunOptions = Omit<ProcessStartOptions, 'kind'> & {
-  /** Caller wait budget in milliseconds; `0` waits unbounded. */
-  timeout?: number
-  /** `run()` only creates exec processes; PTYs come from `sandbox.pty.start()` / `attach()`. */
-  kind?: 'exec'
+export interface RunOptions extends Omit<ProcessStartOptions, 'keepLogs'> {
+  /** How long the sandbox keeps the process log (default `'on_exit_ttl'`). */
+  readonly keepLogs?: RunKeepLogs
+  /** Caller wait budget in seconds; omitted or `0` waits until the process ends. Expiry does not kill the process. */
+  readonly timeoutSeconds?: number
 }
 
-export type RunResult = WaitResult & {
-  processId: string
-  output: string
-  stdout: string
-  stderr: string
-  logs: LogFrame[]
+/** Options of `pty.start()` / `pty.attach()`. */
+export interface PtyStartOptions {
+  /** Terminal size; 80 columns by 24 rows when omitted. */
+  readonly terminal?: TerminalSize
+  readonly cwd?: string
+  readonly env?: Readonly<Record<string, string>>
+  readonly name?: string
+  readonly user?: string
+  readonly shell?: string
+  readonly login?: boolean
+  /** Default `'open'`. */
+  readonly stdin?: StdinMode
+  /** Server-side deadline in seconds. */
+  readonly executionTimeoutSeconds?: number
+  /** Default `'until_cleanup'`. */
+  readonly keepLogs?: KeepLogs
+  /** Groups the PTY for `list({ tag })` and `killAll({ tag })` (a safe identifier, as for `tag` on start). */
+  readonly tag?: string
 }
 
+export type StdinMode = 'closed' | 'open'
+
+/** `process.run()` result: how the process ended plus its collected output. */
+export interface ProcessResult extends WaitResult {
+  readonly processId: string
+  readonly output: string
+  readonly stdout: string
+  readonly stderr: string
+  /** The log frames the output was collected from. */
+  readonly logs: readonly LogFrame[]
+}
+
+/** One replayable process log frame. */
 export interface LogFrame {
-  cursor: string
-  channel: 'stdout' | 'stderr' | 'pty' | 'setup' | string
-  data: string
-  encoding?: 'text' | 'base64' | string
-  timestamp?: number
+  readonly cursor: string
+  readonly channel: 'stdout' | 'stderr' | 'pty' | 'setup' | (string & {})
+  readonly data: string
+  /** When the frame was written, in Unix milliseconds. */
+  readonly timestampMs: number
 }
 
-export interface LogsPage extends ListResult<LogFrame> {
-  truncatedHead?: boolean
-  firstAvailableCursor?: string
+/** One page of a process log (`logs()`). */
+export interface LogPage {
+  /** The frames in this page. */
+  readonly items: readonly LogFrame[]
+  /** The cursor to pass to the next `logs()` call to continue after this page. */
+  readonly nextCursor: string
+  /** Whether retention removed frames older than this page. */
+  readonly truncatedHead: boolean
+  /** Whether the process has ended and no frame follows this page. */
+  readonly eof: boolean
+  /** The cursor of the oldest frame still kept, when older ones were removed. */
+  readonly firstAvailableCursor?: string
 }
 
-export type StreamLogEvent =
-  | { type: 'log'; cursor?: string; frame: LogFrame }
-  | { type: 'state'; cursor?: string; result: WaitResult }
-  | { type: 'warning'; cursor?: string; message: string; firstAvailableCursor?: string }
-  | { type: 'eof'; cursor?: string }
-  | { type: 'error'; cursor?: string; error: Error }
+/** `streamLogs()`: one log frame. */
+export interface StreamLogFrameEvent {
+  readonly type: 'log'
+  readonly cursor: string
+  readonly frame: LogFrame
+}
+
+/** `streamLogs()`: the process became terminal. */
+export interface StreamLogStateEvent {
+  readonly type: 'state'
+  readonly cursor: string
+  readonly result: WaitResult
+}
+
+/** `streamLogs()`: frames before `firstAvailableCursor` were evicted. */
+export interface StreamLogWarningEvent {
+  readonly type: 'warning'
+  readonly cursor: string
+  readonly message: string
+  readonly firstAvailableCursor: string
+}
+
+/** `streamLogs()`: the log is complete; the stream ends after this event. */
+export interface StreamLogEofEvent {
+  readonly type: 'eof'
+  readonly cursor: string
+}
+
+export type StreamLogEvent = StreamLogFrameEvent | StreamLogStateEvent | StreamLogWarningEvent | StreamLogEofEvent
 
 export interface LogsOptions {
-  cursor?: string
-  limit?: number
-  encoding?: 'text' | 'base64'
+  readonly cursor?: string
+  readonly limit?: number
+  readonly encoding?: 'text' | 'base64'
 }
 
 export interface StreamLogsOptions extends LogsOptions {
-  signal?: AbortSignal
+  readonly signal?: AbortSignal
+}
+
+/** Options of `process.killAll()`. */
+export interface KillAllOptions {
+  /** The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`). */
+  readonly tag: string
+  /** How long to wait for them to exit, in seconds: more than 0 and at most 60 (default 10). */
+  readonly timeoutSeconds?: number
+}
+
+export interface WaitProcessOptions {
+  /** Caller wait budget in seconds; omitted or `0` waits until the process ends. */
+  readonly timeoutSeconds?: number
 }
 
 export interface KillOptions {
-  signal?: ProcessSignal
-  escalateAfter?: number
-  escalateTo?: ProcessSignal
+  /** Default `'TERM'`. */
+  readonly signal?: ProcessSignal
+  /** Send `escalateTo` if the process is still running this many seconds later. */
+  readonly escalateAfterSeconds?: number
+  /** Default `'KILL'`. */
+  readonly escalateTo?: ProcessSignal
 }
 
 export interface ProcessListOptions {
+  /** Only processes created with this tag (a safe identifier, as for `tag` on start). */
   readonly tag?: string
-  state?: 'running' | 'terminal' | 'all'
-  kind?: ProcessKind
-  sessionId?: string
-  name?: string
-  pid?: number
+  readonly state?: 'running' | 'terminal' | 'all'
+  readonly kind?: ProcessKind
+  readonly sessionId?: string
+  readonly name?: string
+  readonly pid?: number
 }
 
+/** One filesystem entry (`fs.list()` / `fs.stat()`). */
 export interface FileInfo {
-  name: string
-  path?: string
-  isDir: boolean
-  size: number
-  modTime?: string
-  modifiedAt?: string
-  mode?: string
-  permissions?: string
-  owner?: string
-  group?: string
+  readonly name: string
+  readonly path: string
+  readonly size: number
+  readonly isDir: boolean
+  /** Symbolic file mode, e.g. `-rw-r--r--`. */
+  readonly mode: string
+  /** Octal permission bits, e.g. `0644`. */
+  readonly permissions: string
+  readonly owner: string
+  readonly group: string
+  /** RFC 3339 modification time. */
+  readonly modifiedAt: string
+  /** The modification time as the sandbox formats it; prefer `modifiedAt`. */
+  readonly modTime: string
 }
 
-export type FileMatch = toolbox.Match
+/** One matching line from `fs.grep()`. */
+export interface FileMatch {
+  readonly file: string
+  /** One-based line number. */
+  readonly line: number
+  readonly content: string
+}
 
+/** One file's outcome from `fs.replace()`. */
 export interface ReplaceResult {
-  file: string
-  success?: boolean
-  error?: string
+  readonly file: string
+  readonly success: boolean
+  readonly error?: string
 }
 
 export interface FilePermissionsOptions {
-  mode?: string
-  owner?: string
-  group?: string
+  readonly mode?: string
+  readonly owner?: string
+  readonly group?: string
 }
 
 export interface BulkWriteFile {
-  path: string
-  bytes: number
+  readonly path: string
+  readonly bytes: number
 }
 
 export interface BulkWriteResult {
-  files: BulkWriteFile[]
-  errors: string[]
+  readonly files: readonly BulkWriteFile[]
+  readonly errors: readonly string[]
 }
 
 export interface BulkReadError {
-  path: string
-  code?: string
-  message: string
-  source?: string
+  readonly path: string
+  readonly code?: string
+  readonly message: string
+  readonly source?: string
 }
 
 export interface BulkReadResult {
-  files: Record<string, Uint8Array>
-  errors: BulkReadError[]
+  readonly files: Readonly<Record<string, Uint8Array>>
+  readonly errors: readonly BulkReadError[]
+}
+
+/** One entry of {@link GitStatus.fileStatus}. */
+export interface GitFileStatus {
+  readonly name: string
+  readonly staging: string
+  readonly worktree: string
+  /** For a rename, the original path; otherwise empty. */
+  readonly extra: string
 }
 
 export interface GitStatus {
-  currentBranch: string
-  ahead?: number
-  behind?: number
-  branchPublished?: boolean
-  fileStatus?: Array<{ name: string; staging?: string; worktree?: string }>
+  readonly currentBranch: string
+  readonly ahead: number
+  readonly behind: number
+  readonly branchPublished: boolean
+  readonly fileStatus: readonly GitFileStatus[]
 }
 
-export type GitCommitResponse = toolbox.CommitResponse
+export interface GitCommitResponse {
+  readonly hash: string
+}
+
+/** One commit from `git.history()`. */
+export interface GitCommit {
+  readonly hash: string
+  readonly message: string
+  readonly author: string
+  readonly email: string
+  /** RFC 3339 author timestamp. */
+  readonly timestamp: string
+}
+
 export type GitConfigScope = 'global' | 'local'
 
 export interface GitRemote {
-  name: string
-  url: string
+  readonly name: string
+  readonly url: string
 }
 
+/**
+ * Options of `interpreter.run()` / `sandbox.runCode()`. Without `context` (or
+ * `isolated`) runs share kernel state per `language` (default `'python'`).
+ * `context` selects an interpreter context by handle, `toJSON()` identity or
+ * id; an id needs `language`. `env` applies to context-free and isolated
+ * runs; a context takes its environment when it is created.
+ */
 export interface InterpreterRunOptions {
-  language?: 'python' | 'typescript' | 'javascript' | string
-  sessionId?: string
-  context?: InterpreterContextReference | InterpreterContextJSON
-  isolated?: boolean
-  cwd?: string
-  env?: Record<string, string>
-  /** Caller wait budget in milliseconds; `0` waits unbounded. */
-  timeout?: number
+  readonly language?: 'python' | 'typescript' | 'javascript' | (string & {})
+  readonly context?: string | InterpreterContextReference | InterpreterContextJSON
+  readonly isolated?: boolean
+  readonly cwd?: string
+  readonly env?: Readonly<Record<string, string>>
+  /** Caller wait budget in seconds; omitted or `0` waits unbounded. */
+  readonly timeoutSeconds?: number
 }
 
+/** Options of `context.run()`: the context fixes the language and environment. */
+export interface InterpreterContextRunOptions {
+  readonly cwd?: string
+  /** Caller wait budget in seconds; omitted or `0` waits unbounded. */
+  readonly timeoutSeconds?: number
+}
+
+/** An interpreter context's serialized identity (`context.toJSON()`), the same shape the Python SDK writes. */
 export interface InterpreterContextJSON {
   readonly sandboxId: string
   readonly contextId: string
   readonly language: string
 }
 
+/** Anything that names an interpreter context (an `InterpreterContext` handle is one). */
 export interface InterpreterContextReference {
   readonly sandboxId: string
-  readonly id: string
+  readonly contextId: string
   readonly language: string
 }
 
 export interface InterpreterContextOptions {
-  id?: string
-  language: 'python' | 'typescript' | 'javascript' | string
-  cwd?: string
-  env?: Record<string, string>
+  readonly language: 'python' | 'typescript' | 'javascript' | (string & {})
+  readonly contextId?: string
+  readonly cwd?: string
+  readonly env?: Readonly<Record<string, string>>
 }
 
-export type InterpreterProcess = WaitResult & {
-  processId: string
+export interface InterpreterProcess extends WaitResult {
+  /**
+   * The code execution's process; absent when the run timed out while queued
+   * behind earlier runs of its context and was never submitted.
+   */
+  readonly processId?: string
 }
 
 export interface InterpreterLogs {
-  stdout: string
-  stderr: string
+  readonly stdout: string
+  readonly stderr: string
 }
 
 export interface InterpreterError {
-  name: string
-  value: string
-  traceback: string[]
+  readonly name: string
+  readonly value: string
+  readonly traceback: readonly string[]
 }
 
 export interface InterpreterOutput {
-  data: Record<string, unknown>
-  isMainResult: boolean
-  text?: string
-  html?: string
-  png?: string
-  svg?: string
-  json?: unknown
+  readonly data: Readonly<Record<string, unknown>>
+  readonly isMainResult: boolean
+  readonly text?: string
+  readonly html?: string
+  readonly png?: string
+  readonly svg?: string
+  readonly json?: unknown
 }
 
 export interface InterpreterResult {
-  process: InterpreterProcess
-  results: InterpreterOutput[]
-  logs: InterpreterLogs
-  error?: InterpreterError
+  readonly process: InterpreterProcess
+  readonly results: readonly InterpreterOutput[]
+  readonly logs: InterpreterLogs
+  readonly error?: InterpreterError
 }
 
 export type SandboxStateSnapshot = api.Snapshot

@@ -19,38 +19,38 @@ export type ComputerUseA11yScope = 'focused' | 'pid' | 'all'
 export type ComputerUseA11yNameMatch = 'exact' | 'substring' | 'regex'
 
 export interface ComputerUseDesktopFailure {
-  code: ComputerUseDesktopFailureCode
-  rawCode: string
-  message: string
-  extraFields?: Record<string, unknown>
+  readonly code: ComputerUseDesktopFailureCode
+  readonly rawCode: string
+  readonly message: string
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseNotStartedStatus {
-  status: 'inactive'
-  desktop: 'not_started'
-  cause?: never
-  extraFields?: Record<string, unknown>
+  readonly status: 'inactive'
+  readonly desktop: 'not_started'
+  readonly cause?: never
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseStartingStatus {
-  status: 'inactive'
-  desktop: 'starting'
-  cause?: never
-  extraFields?: Record<string, unknown>
+  readonly status: 'inactive'
+  readonly desktop: 'starting'
+  readonly cause?: never
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseReadyStatus {
-  status: 'active'
-  desktop: 'ready'
-  cause?: never
-  extraFields?: Record<string, unknown>
+  readonly status: 'active'
+  readonly desktop: 'ready'
+  readonly cause?: never
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseFailedStatus {
-  status: 'inactive'
-  desktop: 'failed'
-  cause: ComputerUseDesktopFailure
-  extraFields?: Record<string, unknown>
+  readonly status: 'inactive'
+  readonly desktop: 'failed'
+  readonly cause: ComputerUseDesktopFailure
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 /**
@@ -59,13 +59,13 @@ export interface ComputerUseFailedStatus {
  * their typed values are the wire values.
  */
 export interface ComputerUseUnknownStatus {
-  status: 'unknown'
-  desktop: 'unknown'
-  rawStatus: string
-  rawDesktop: string
+  readonly status: 'unknown'
+  readonly desktop: 'unknown'
+  readonly rawStatus: string
+  readonly rawDesktop: string
   /** The failure attached to the unrecognized state, when present. */
-  cause?: ComputerUseDesktopFailure
-  extraFields?: Record<string, unknown>
+  readonly cause?: ComputerUseDesktopFailure
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export type ComputerUseStatusResponse =
@@ -76,215 +76,224 @@ export type ComputerUseStatusResponse =
   | ComputerUseUnknownStatus
 
 export interface ComputerUseRestartResponse {
-  message: string
-  status: 'active'
-  desktop: 'ready'
-  extraFields?: Record<string, unknown>
+  readonly message: string
+  readonly status: 'active'
+  readonly desktop: 'ready'
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseProcessStatus {
-  running?: boolean
-  priority?: number
-  autoRestart?: boolean
-  pid?: number
-  failed?: boolean
-  restartAttempts?: number
-  restartBackoffMs?: number
-  status?: string
-  extraFields?: Record<string, unknown>
+  readonly running: boolean
+  readonly priority: number
+  readonly autoRestart: boolean
+  readonly pid?: number
+  readonly failed: boolean
+  readonly restartAttempts: number
+  /** The current restart backoff, in seconds. */
+  readonly restartBackoffSeconds: number
+  readonly status: string
+  readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
 export interface ComputerUseLifecycleResponse {
-  message: string
-  status: Record<string, ComputerUseProcessStatus>
+  readonly message: string
+  readonly status: Readonly<Record<string, ComputerUseProcessStatus>>
 }
 
 export interface ComputerUseProcessRunningStatus {
-  processName: string
-  running: boolean
+  readonly processName: string
+  readonly running: boolean
 }
 
 export interface ComputerUseProcessRestartResponse {
-  message: string
-  processName: string
+  readonly message: string
+  readonly processName: string
 }
 
 export interface ComputerUseProcessLogsResponse {
-  processName: string
-  logs: string
+  readonly processName: string
+  readonly logs: string
 }
 
 export interface ComputerUseProcessErrorsResponse {
-  processName: string
-  errors: string
+  readonly processName: string
+  readonly errors: string
 }
 
 export interface ComputerUsePoint {
-  x: number
-  y: number
+  readonly x: number
+  readonly y: number
 }
 
 export interface ComputerUseScreenshotResponse {
-  screenshot: string
-  cursorPosition?: ComputerUsePoint
-  sizeBytes?: number
+  /** The image, base64-encoded. */
+  readonly screenshot: string
+  readonly sizeBytes: number
+  readonly cursorPosition?: ComputerUsePoint
 }
 
 export interface ComputerUseMouseMoveRequest extends ComputerUsePoint {}
 
 export interface ComputerUseMouseClickRequest extends ComputerUsePoint {
-  button?: ComputerUseMouseButton
-  double?: boolean
+  readonly button?: ComputerUseMouseButton
+  readonly double?: boolean
 }
 
 export interface ComputerUseMouseDragRequest {
-  startX: number
-  startY: number
-  endX: number
-  endY: number
-  button: ComputerUseMouseButton
+  readonly startX: number
+  readonly startY: number
+  readonly endX: number
+  readonly endY: number
+  /** Default `'left'`. */
+  readonly button?: ComputerUseMouseButton
 }
 
 export interface ComputerUseMouseScrollRequest extends ComputerUsePoint {
-  direction: ComputerUseScrollDirection
-  amount?: number
+  readonly direction: ComputerUseScrollDirection
+  readonly amount?: number
 }
 
 export interface ComputerUseScrollResponse {
-  success: boolean
+  readonly success: boolean
 }
 
 export interface ComputerUseKeyboardTypeRequest {
-  text: string
-  delay?: number
+  readonly text: string
+  /** Pause between key presses, in seconds. */
+  readonly delaySeconds?: number
 }
 
 export interface ComputerUseKeyboardKeyRequest {
-  key: string
-  modifiers?: ComputerUseKeyboardModifier[]
+  readonly key: string
+  readonly modifiers?: ComputerUseKeyboardModifier[]
 }
 
 export interface ComputerUseKeyboardHotkeyRequest {
-  keys: string
+  readonly keys: string
 }
 
 export interface ComputerUseDisplay {
-  id: number
-  x: number
-  y: number
-  width: number
-  height: number
-  isActive: boolean
+  readonly id: number
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+  readonly isActive: boolean
 }
 
 export interface ComputerUseDisplayInfoResponse {
-  displays: ComputerUseDisplay[]
+  readonly displays: readonly ComputerUseDisplay[]
 }
 
 export interface ComputerUseWindow {
-  id: number
-  title: string
-  x: number
-  y: number
-  width: number
-  height: number
-  isActive: boolean
+  readonly id: number
+  readonly title: string
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+  readonly isActive: boolean
 }
 
 export interface ComputerUseDisplayWindowsResponse {
-  windows: ComputerUseWindow[]
+  readonly windows: readonly ComputerUseWindow[]
 }
 
 export interface ComputerUseAccessibilityBounds {
-  x: number
-  y: number
-  width: number
-  height: number
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
 }
 
 export interface ComputerUseAccessibilityNode {
-  id: string
-  role: string
-  name: string
-  description?: string
+  readonly id: string
+  readonly role: string
+  readonly name: string
+  readonly description?: string
   /** A control's current value (macOS). Never set for password fields. */
-  value?: string
+  readonly value?: string
   /** `value` was cut at the platform's cap. `false` when uncut or not reported; the SDK always fills it. */
-  valueTruncated: boolean
-  bounds: ComputerUseAccessibilityBounds
-  states: string[]
-  actions?: string[]
-  children?: ComputerUseAccessibilityNode[]
+  readonly valueTruncated: boolean
+  readonly bounds: ComputerUseAccessibilityBounds
+  readonly states: readonly string[]
+  readonly actions?: readonly string[]
+  readonly children?: readonly ComputerUseAccessibilityNode[]
 }
 
 export interface ComputerUseA11yTreeOptions {
-  scope: ComputerUseA11yScope
-  pid?: number
-  maxDepth?: number
+  readonly scope: ComputerUseA11yScope
+  readonly pid?: number
+  /**
+   * How many levels below the root to return: an integer from 0 to 256 (the
+   * SDK's cap), default 256. A deeper UI comes back cut at that depth with
+   * `truncated` set; `-1` (unbounded) is refused.
+   */
+  readonly maxDepth?: number
 }
 
 export interface ComputerUseA11yTreeResponse {
-  root: ComputerUseAccessibilityNode
-  truncated: boolean
+  readonly root: ComputerUseAccessibilityNode
+  readonly truncated: boolean
 }
 
 export interface ComputerUseA11yFindRequest {
-  scope: ComputerUseA11yScope
-  pid?: number
-  role?: string
-  name?: string
-  nameMatch?: ComputerUseA11yNameMatch
-  states?: string[]
-  limit?: number
+  readonly scope: ComputerUseA11yScope
+  readonly pid?: number
+  readonly role?: string
+  readonly name?: string
+  readonly nameMatch?: ComputerUseA11yNameMatch
+  readonly states?: string[]
+  readonly limit?: number
 }
 
 export interface ComputerUseA11yFindResponse {
-  matches: ComputerUseAccessibilityNode[]
-  truncated: boolean
+  readonly matches: readonly ComputerUseAccessibilityNode[]
+  readonly truncated: boolean
 }
 
 export interface ComputerUseA11yFocusRequest {
-  id: string
+  readonly id: string
 }
 
 export interface ComputerUseA11yInvokeRequest {
-  id: string
-  action?: string
+  readonly id: string
+  readonly action?: string
 }
 
 export interface ComputerUseA11ySetValueRequest {
-  id: string
-  value: string
+  readonly id: string
+  readonly value: string
 }
 
 export interface ComputerUseRecording {
-  id: string
-  fileName: string
-  filePath: string
-  startTime: string
-  endTime?: string
-  status: string
-  durationSeconds?: number
-  sizeBytes?: number
+  readonly id: string
+  readonly fileName: string
+  readonly filePath: string
+  readonly startTime: string
+  readonly endTime?: string
+  readonly status: string
+  readonly durationSeconds?: number
+  readonly sizeBytes?: number
 }
 
 export interface ComputerUseRecordingStartRequest {
-  label?: string
+  readonly label?: string
 }
 
 export interface ComputerUseRecordingStopRequest {
-  id: string
+  readonly id: string
 }
 
 export interface ComputerUseRecordingsResponse {
-  recordings: ComputerUseRecording[]
+  readonly recordings: readonly ComputerUseRecording[]
 }
 
 export interface ComputerUseRegion {
-  x: number
-  y: number
-  width: number
-  height: number
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
 }
 
 /**
@@ -292,9 +301,9 @@ export interface ComputerUseRegion {
  * any of `format` / `quality` / `scale` returns a compressed image.
  */
 export interface ComputerUseScreenshotOptions {
-  region?: ComputerUseRegion
-  format?: ComputerUseScreenshotFormat
-  quality?: number
-  scale?: number
-  showCursor?: boolean
+  readonly region?: ComputerUseRegion
+  readonly format?: ComputerUseScreenshotFormat
+  readonly quality?: number
+  readonly scale?: number
+  readonly showCursor?: boolean
 }

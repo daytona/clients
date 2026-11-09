@@ -6,6 +6,7 @@
 // Client configuration: option keys, the environment, the request timeout and
 // its meaning. sdk-python/tests/test_client_config.py asserts the same behaviour.
 
+import { INTERNAL } from '../src/v2/internal'
 import { createServer } from 'node:http'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { once } from 'node:events'
@@ -170,6 +171,7 @@ describe('option keys', () => {
       escalateAfter: 'escalateAfterSeconds',
       requestTimeout: 'requestTimeoutSeconds',
       requestTimeoutMs: 'requestTimeoutSeconds',
+      delay: 'delaySeconds',
       reconcileIntervalMs: 'reconcileIntervalSeconds',
       idleCloseMs: 'idleCloseSeconds',
     })
@@ -345,6 +347,21 @@ describe('request timeout meaning', () => {
     await expect(transport.get('/hold', { timeout: 0 })).resolves.toEqual({ ok: true })
   })
 
+  it('bounds a git pull / push by its own total deadline, whatever the request timeout', async () => {
+    // The body trickles in well inside a per-read timeout; only a total
+    // deadline ends it. timeoutSeconds replaces the 1 s request timeout.
+    const { GitService } = await import('../src/v2/Git')
+    // Shorter than the request timeout: with a 30 s request timeout and a 1 s
+    // trickling body, only the 0.2 s per-call deadline can end the pull.
+    handle = trickle(20, 50)
+    await expect(new GitService(INTERNAL, new HttpTransport(base, 'k', 30_000)).pull('/repo', { timeoutSeconds: 0.2 }))
+      .rejects.toBeInstanceOf(ClientTimeoutError)
+    // Longer than the request timeout: the push answers after 1.3 s, past the
+    // 0.5 s request timeout, and succeeds inside its own 3 s deadline.
+    handle = late(1_300)
+    await expect(new GitService(INTERNAL, new HttpTransport(base, 'k', 500)).push('/repo', { timeoutSeconds: 3 })).resolves.toBeUndefined()
+  })
+
   it('treats a per-call timeout as a total bound that replaces the request timeout', async () => {
     // Every chunk arrives well inside 150 ms; the body takes 400 ms.
     handle = trickle(8, 50)
@@ -403,7 +420,7 @@ describe('request timeout meaning', () => {
     // timeout in all, while each gap stays a twelfth of the transfer idle
     // bound, so a loaded runner keeps a wide margin (tests/transfer-bounds.test.ts).
     const transport = new HttpTransport(base, 'k', 250)
-    const fs = new FileSystemService(transport)
+    const fs = new FileSystemService(INTERNAL, transport)
     handle = trickle(40, 20)
     expect(new TextDecoder().decode(await fs.readBytes('/a'))).toBe('x'.repeat(40))
     await expect(fs.writeBytes('/a', new Uint8Array([1, 2, 3]))).resolves.toBeUndefined()

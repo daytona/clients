@@ -17,7 +17,7 @@ import time
 import typing
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import asdict, dataclass, fields
+from dataclasses import dataclass, fields
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Final, Iterator, Mapping, Optional
@@ -160,6 +160,8 @@ from daytona.v2.types import (
     DISABLED,
     DaytonaConfig,
     FileInfo,
+    FileMatch,
+    GitRemote,
     ImageRef,
     InterpreterLogs,
     InterpreterProcess,
@@ -170,7 +172,9 @@ from daytona.v2.types import (
     MacReservationBatch,
     PortMapping,
     PreviewLink,
+    ProcessReason,
     ProcessState,
+    ReplaceResult,
     Resources,
     SandboxClass,
     SandboxInfo,
@@ -183,7 +187,6 @@ from daytona.v2.types import (
     TerminalSize,
     TransferProgressCallback,
     VolumeMount,
-    WaitReason,
     WaitResult,
 )
 
@@ -1419,7 +1422,7 @@ def test_package_all_symbols_resolve_and_computer_use_names_match_typescript_exp
     assert module.ProcessState == ProcessState
     assert module.SandboxWaitState == SandboxWaitState
     assert module.TransferProgressCallback == TransferProgressCallback
-    assert module.WaitReason == WaitReason
+    assert module.ProcessReason == ProcessReason
 
 
 @pytest.mark.anyio
@@ -1720,6 +1723,22 @@ async def test_presigned_urls_surface_the_server_400_and_403_as_typed_errors(mon
         ),
         (
             {"signature": "v1_ok", "expires_at": True},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_x", "expires_at": 1.5},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": "1781234567"},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": "Jan 1 2026"},
+            "signed file URL response expires_at must be an RFC 3339 timestamp",
+        ),
+        (
+            {"signature": "v1_ok", "expires_at": "2026-06-12T03:22:47Z\n"},
             "signed file URL response expires_at must be an RFC 3339 timestamp",
         ),
     ],
@@ -2164,6 +2183,8 @@ async def test_filesystem_watch_dir_waits_for_start_and_drains_events():
         def __init__(self) -> None:
             self.specs: list[RequestSpec] = []
 
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             self.specs.append(spec)
             return stream
@@ -2171,10 +2192,12 @@ async def test_filesystem_watch_dir_waits_for_start_and_drains_events():
     transport = Transport()
     fs = AsyncFileSystemService(transport)  # type: ignore[arg-type]
     seen: list[tuple[FilesystemEventType, str]] = []
+    events: list[FilesystemEvent] = []
     callback_done = asyncio.Event()
 
     def on_event(event: FilesystemEvent) -> None:
         seen.append((event.type, event.name))
+        events.append(event)
         callback_done.set()
 
     watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_event, recursive=True))
@@ -2195,11 +2218,8 @@ async def test_filesystem_watch_dir_waits_for_start_and_drains_events():
     stream.push("")
     await asyncio.wait_for(callback_done.wait(), timeout=1)
 
-    assert seen == [(FilesystemEventType.CREATE, "a.txt")]
-    assert handle.get_new_events() == [
-        FilesystemEvent(type=FilesystemEventType.CREATE, name="a.txt", is_dir=False, timestamp=1)
-    ]
-    assert handle.get_new_events() == []
+    assert seen == [("create", "a.txt")]
+    assert events == [FilesystemEvent(type="create", name="a.txt", is_dir=False, timestamp_ms=1)]
 
     await handle.stop()
     await handle.stop()
@@ -2211,23 +2231,32 @@ async def test_filesystem_watch_dir_raises_setup_error_before_returning_handle()
     setup_error = create_error("missing path", 404, code_names.FILE_NOT_FOUND, "DAYTONA_DAEMON")
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             raise setup_error
 
     fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
 
     with pytest.raises(type(setup_error)) as exc_info:
-        await fs.watch_dir("/missing")
+        await fs.watch_dir("/missing", lambda _event: None)
 
     assert exc_info.value.code == code_names.FILE_NOT_FOUND
     assert exc_info.value.status_code == 404
 
 
 @pytest.mark.anyio
-async def test_filesystem_watch_dir_pre_start_stream_failure_reaches_exit_error_and_on_exit():
+async def test_filesystem_watch_dir_pre_start_stream_failure_is_raised_without_on_exit():
+    # The exit callback belongs to a watch watch_dir() returned; a failure
+    # before start is raised from watch_dir() instead, as in the TypeScript SDK.
     stream_error = RuntimeError("socket reset before the start frame")
 
     class FailingStream:
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
+
         async def iter_lines(self):
             raise stream_error
             yield  # pragma: no cover - makes this a generator
@@ -2236,6 +2265,8 @@ async def test_filesystem_watch_dir_pre_start_stream_failure_reaches_exit_error_
             pass
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> FailingStream:
             return FailingStream()
 
@@ -2243,10 +2274,10 @@ async def test_filesystem_watch_dir_pre_start_stream_failure_reaches_exit_error_
     fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
 
     with pytest.raises(RuntimeError) as exc_info:
-        await fs.watch_dir("/tmp", on_exit=seen.append)
+        await fs.watch_dir("/tmp", lambda _event: None, on_exit=seen.append)
 
     assert exc_info.value is stream_error
-    assert seen == [stream_error]
+    assert seen == []
 
 
 @pytest.mark.anyio
@@ -2261,6 +2292,11 @@ async def test_filesystem_watch_dir_stop_suppresses_frames_already_buffered_with
             self.closed_event = asyncio.Event()
             self.first_line_read = asyncio.Event()
             self.release = asyncio.Event()
+
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
 
         async def iter_lines(self):
             for index, line in enumerate(self._lines):
@@ -2286,12 +2322,14 @@ async def test_filesystem_watch_dir_stop_suppresses_frames_already_buffered_with
     )
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> PreloadedStream:
             return stream
 
     delivered: list[FilesystemEvent] = []
     fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
-    handle = await fs.watch_dir("/w", on_event=delivered.append)
+    handle = await fs.watch_dir("/w", delivered.append)
     await asyncio.wait_for(stream.first_line_read.wait(), timeout=1)
 
     stopper = asyncio.create_task(handle.stop())
@@ -2303,7 +2341,6 @@ async def test_filesystem_watch_dir_stop_suppresses_frames_already_buffered_with
     assert await handle.wait_for_exit() is None
 
     assert delivered == []
-    assert handle.get_new_events() == []
     assert stream.closed is True
 
 
@@ -2351,21 +2388,16 @@ async def test_filesystem_watch_dir_stop_against_a_real_one_packet_sse_server_de
     transport = AsyncTransport(f"http://127.0.0.1:{port}")
     delivered: list[FilesystemEvent] = []
     try:
-        handle = await AsyncFileSystemService(transport).watch_dir("/w", on_event=delivered.append)
+        handle = await AsyncFileSystemService(transport).watch_dir("/w", delivered.append)
         await handle.stop()
         # Snapshot at the instant stop() returns: this is the contract boundary.
         delivered_at_stop = list(delivered)
-        queued_at_stop = handle.get_new_events()
         stop_returned.set()
         assert await handle.wait_for_exit() is None
         # Whatever reached the caller did so before stop() returned; the buffered
-        # fs frame must not surface afterwards through either path.
+        # fs frame must not surface afterwards.
         assert list(delivered) == delivered_at_stop
-        assert handle.get_new_events() == []
-        # The one buffered frame either reached both the callback and the queue
-        # before stop() (delivered as a pair, by design) or neither — never one
-        # without the other, and never partially after stop().
-        assert len(delivered_at_stop) == len(queued_at_stop) <= 1
+        assert len(delivered_at_stop) <= 1
     finally:
         stop_returned.set()
         server.join(timeout=5)
@@ -2373,10 +2405,12 @@ async def test_filesystem_watch_dir_stop_against_a_real_one_packet_sse_server_de
 
 
 @pytest.mark.anyio
-async def test_filesystem_watch_dir_invokes_overflow_callback_and_tracks_count():
+async def test_filesystem_watch_dir_invokes_overflow_callback():
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2389,7 +2423,7 @@ async def test_filesystem_watch_dir_invokes_overflow_callback_and_tracks_count()
         overflow_count += 1
         overflow_done.set()
 
-    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_overflow=on_overflow))
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", lambda _event: None, on_overflow=on_overflow))
     await asyncio.sleep(0)
     stream.push("event: start")
     stream.push("data: {}")
@@ -2402,7 +2436,7 @@ async def test_filesystem_watch_dir_invokes_overflow_callback_and_tracks_count()
     stream.push("")
     await asyncio.wait_for(overflow_done.wait(), timeout=1)
     assert overflow_count == 1
-    assert handle.overflow_count == 1
+    assert handle.exit_error is None
 
     await handle.stop()
 
@@ -2412,6 +2446,8 @@ async def test_filesystem_watch_dir_notifies_exit_once_on_stop_and_wait_for_exit
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2423,7 +2459,7 @@ async def test_filesystem_watch_dir_notifies_exit_once_on_stop_and_wait_for_exit
         exit_calls.append(error)
         exit_done.set()
 
-    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_exit=on_exit))
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", lambda _event: None, on_exit=on_exit))
     await asyncio.sleep(0)
     stream.push("event: start")
     stream.push("data: {}")
@@ -2441,65 +2477,23 @@ async def test_filesystem_watch_dir_notifies_exit_once_on_stop_and_wait_for_exit
 
 
 @pytest.mark.anyio
-async def test_filesystem_watch_dir_tracks_overflow_without_callback():
+async def test_filesystem_watch_dir_without_overflow_callback_keeps_delivering_events():
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
     fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
-    watch_task = asyncio.create_task(fs.watch_dir("/workspace"))
+    delivered = asyncio.Event()
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", lambda _event: delivered.set()))
     await asyncio.sleep(0)
     stream.push("event: start")
     stream.push("data: {}")
     stream.push("")
     handle = await asyncio.wait_for(watch_task, timeout=1)
-    assert isinstance(handle, AsyncWatchHandle)
-
-    stream.push("event: overflow")
-    stream.push('data: {"dropped":true}')
-    stream.push("")
-
-    async def wait_for_overflow() -> None:
-        while handle.overflow_count != 1:
-            await asyncio.sleep(0)
-
-    await asyncio.wait_for(wait_for_overflow(), timeout=1)
-    assert handle.overflow_count == 1
-    assert handle.get_new_events() == []
-
-    await handle.stop()
-
-
-@pytest.mark.anyio
-async def test_filesystem_watch_dir_overflow_callback_errors_do_not_stop_future_events():
-    stream = ControlledSseStream()
-
-    class Transport:
-        async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
-            return stream
-
-    fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
-    overflow_calls = 0
-    callback_done = asyncio.Event()
-
-    def on_overflow() -> None:
-        nonlocal overflow_calls
-        overflow_calls += 1
-        raise RuntimeError("overflow boom")
-
-    def on_event(event: FilesystemEvent) -> None:
-        if event.name == "b.txt":
-            callback_done.set()
-
-    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_event=on_event, on_overflow=on_overflow))
-    await asyncio.sleep(0)
-    stream.push("event: start")
-    stream.push("data: {}")
-    stream.push("")
-    handle = await asyncio.wait_for(watch_task, timeout=1)
-    assert isinstance(handle, AsyncWatchHandle)
 
     stream.push("event: overflow")
     stream.push('data: {"dropped":true}')
@@ -2508,23 +2502,63 @@ async def test_filesystem_watch_dir_overflow_callback_errors_do_not_stop_future_
     stream.push('data: {"type":"write","name":"b.txt","isDir":false,"timestamp":2}')
     stream.push("")
 
-    await asyncio.wait_for(callback_done.wait(), timeout=1)
-    assert overflow_calls == 1
-    assert isinstance(handle.last_callback_error, RuntimeError)
-    assert str(handle.last_callback_error) == "overflow boom"
-    assert handle.overflow_count == 1
-    assert handle.get_new_events() == [
-        FilesystemEvent(type=FilesystemEventType.WRITE, name="b.txt", is_dir=False, timestamp=2),
-    ]
-
+    await asyncio.wait_for(delivered.wait(), timeout=1)
+    assert handle.exit_error is None
     await handle.stop()
 
 
 @pytest.mark.anyio
-async def test_filesystem_watch_dir_stop_reports_a_close_failure_even_when_the_reader_exits_cleanly() -> None:
-    """stop() closes the stream best-effort; if that close raises but the
-    reader then exits normally (its own close is idempotent and quiet), the
-    failure must still reach exit_error/on_exit rather than vanish."""
+async def test_filesystem_watch_dir_overflow_callback_error_ends_the_watch():
+    stream = ControlledSseStream()
+
+    class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
+        async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
+            return stream
+
+    fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
+    delivered: list[str] = []
+    exits: list[Exception | None] = []
+
+    def on_overflow() -> None:
+        raise RuntimeError("overflow boom")
+
+    watch_task = asyncio.create_task(
+        fs.watch_dir(
+            "/workspace",
+            lambda event: delivered.append(event.name),
+            on_overflow=on_overflow,
+            on_exit=exits.append,
+        )
+    )
+    await asyncio.sleep(0)
+    stream.push("event: start")
+    stream.push("data: {}")
+    stream.push("")
+    handle = await asyncio.wait_for(watch_task, timeout=1)
+
+    stream.push("event: overflow")
+    stream.push('data: {"dropped":true}')
+    stream.push("")
+    stream.push("event: fs")
+    stream.push('data: {"type":"write","name":"b.txt","isDir":false,"timestamp":2}')
+    stream.push("")
+
+    error = await asyncio.wait_for(handle.wait_for_exit(), timeout=1)
+    assert isinstance(error, RuntimeError) and str(error) == "overflow boom"
+    assert exits == [error]
+    assert handle.exit_error is error
+    assert delivered == []
+    assert stream.closed is True
+    await handle.stop()
+
+
+@pytest.mark.anyio
+async def test_filesystem_watch_dir_stop_ends_without_an_error_when_its_close_fails() -> None:
+    """stop() closes the stream best-effort; a close that raises after the
+    caller's own stop() is not an exit error: the watch ends cleanly, as in
+    the TypeScript SDK."""
 
     class FailsOnceStream(ControlledSseStream):
         def __init__(self) -> None:
@@ -2540,6 +2574,8 @@ async def test_filesystem_watch_dir_stop_reports_a_close_failure_even_when_the_r
     stream = FailsOnceStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2548,12 +2584,12 @@ async def test_filesystem_watch_dir_stop_reports_a_close_failure_even_when_the_r
     stream.push("data: {}")
     stream.push("")
     exits: list[Exception | None] = []
-    handle = await fs.watch_dir("/workspace", on_exit=exits.append)
+    handle = await fs.watch_dir("/workspace", lambda _event: None, on_exit=exits.append)
 
     await asyncio.wait_for(handle.stop(), timeout=2)
 
-    assert isinstance(handle.exit_error, OSError)
-    assert [type(error) for error in exits] == [OSError]
+    assert handle.exit_error is None
+    assert exits == [None]
 
 
 @pytest.mark.anyio
@@ -2588,8 +2624,8 @@ async def test_daytona_aexit_closes_transports_even_when_the_body_is_cancelled()
 async def test_filesystem_watch_dir_stop_survives_a_stream_that_fails_to_close() -> None:
     """The reader closes the stream in its `finally`. If close() raises, the
     task must still record exit (waking stop()/wait_for_exit() and firing
-    on_exit) and stop() must return cleanly — a failed teardown is reported
-    through exit_error, not thrown at whoever called stop()."""
+    on_exit) and stop() must return cleanly. After the caller's stop() the
+    failed teardown is no exit error; a watch that ends on its own reports it."""
 
     class ExplodingCloseStream(ControlledSseStream):
         async def close(self) -> None:
@@ -2599,6 +2635,8 @@ async def test_filesystem_watch_dir_stop_survives_a_stream_that_fails_to_close()
     stream = ExplodingCloseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2607,13 +2645,24 @@ async def test_filesystem_watch_dir_stop_survives_a_stream_that_fails_to_close()
     stream.push("data: {}")
     stream.push("")
     exits: list[Exception | None] = []
-    handle = await fs.watch_dir("/workspace", on_exit=exits.append)
+    handle = await fs.watch_dir("/workspace", lambda _event: None, on_exit=exits.append)
 
     await asyncio.wait_for(handle.stop(), timeout=2)  # neither raises nor hangs on a missed exit
 
-    assert isinstance(handle.exit_error, OSError)
-    assert isinstance(await handle.wait_for_exit(), OSError)
-    assert [type(error) for error in exits] == [OSError]
+    assert handle.exit_error is None
+    assert await handle.wait_for_exit() is None
+    assert exits == [None]
+
+    # A watch that ends on its own: the stream drop wins over the close failure.
+    stream = ExplodingCloseStream()
+    stream.push("event: start")
+    stream.push("data: {}")
+    stream.push("")
+    handle = await fs.watch_dir("/workspace", lambda _event: None)
+    stream._lines.put_nowait(None)  # the server ends the stream
+    error = await asyncio.wait_for(handle.wait_for_exit(), timeout=2)
+    assert isinstance(error, ConnectionError)
+    assert str(error) == "filesystem watch stream ended unexpectedly"
 
 
 @pytest.mark.anyio
@@ -2621,6 +2670,8 @@ async def test_filesystem_watch_dir_reports_unexpected_exit_through_handle_and_c
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2632,7 +2683,7 @@ async def test_filesystem_watch_dir_reports_unexpected_exit_through_handle_and_c
         exit_calls.append(error)
         exit_done.set()
 
-    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_exit=on_exit))
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", lambda _event: None, on_exit=on_exit))
     await asyncio.sleep(0)
     stream.push("event: start")
     stream.push("data: {}")
@@ -2656,6 +2707,8 @@ async def test_filesystem_watch_dir_stop_from_callback_returns_without_awaiting_
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2669,7 +2722,7 @@ async def test_filesystem_watch_dir_stop_from_callback_returns_without_awaiting_
         await handle.stop()
         callback_done.set()
 
-    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_event=on_event))
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_event))
     await asyncio.sleep(0)
     stream.push("event: start")
     stream.push("data: {}")
@@ -2683,29 +2736,29 @@ async def test_filesystem_watch_dir_stop_from_callback_returns_without_awaiting_
     stream.push("")
 
     await asyncio.wait_for(callback_done.wait(), timeout=1)
-    assert handle.last_callback_error is None
     assert await handle.wait_for_exit() is None
 
 
 @pytest.mark.anyio
-async def test_filesystem_watch_dir_callback_errors_do_not_stop_future_events():
+async def test_filesystem_watch_dir_callback_error_ends_the_watch_with_that_error():
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
     fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
     callback_seen: list[str] = []
-    callback_done = asyncio.Event()
+    exits: list[Exception | None] = []
 
     def on_event(event: FilesystemEvent) -> None:
         callback_seen.append(event.name)
         if event.name == "a.txt":
             raise RuntimeError("boom")
-        callback_done.set()
 
-    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_event=on_event))
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_event, on_exit=exits.append))
     await asyncio.sleep(0)
     stream.push("event: start")
     stream.push("data: {}")
@@ -2720,23 +2773,106 @@ async def test_filesystem_watch_dir_callback_errors_do_not_stop_future_events():
     stream.push('data: {"type":"write","name":"b.txt","isDir":false,"timestamp":2}')
     stream.push("")
 
-    await asyncio.wait_for(callback_done.wait(), timeout=1)
-    assert callback_seen == ["a.txt", "b.txt"]
-    assert isinstance(handle.last_callback_error, RuntimeError)
-    assert str(handle.last_callback_error) == "boom"
-    assert handle.get_new_events() == [
-        FilesystemEvent(type=FilesystemEventType.CREATE, name="a.txt", is_dir=False, timestamp=1),
-        FilesystemEvent(type=FilesystemEventType.WRITE, name="b.txt", is_dir=False, timestamp=2),
-    ]
+    error = await asyncio.wait_for(handle.wait_for_exit(), timeout=1)
+    assert isinstance(error, RuntimeError) and str(error) == "boom"
+    assert exits == [error]
+    assert callback_seen == ["a.txt"]
+    assert stream.closed is True
+    await handle.stop()
+    assert handle.exit_error is error
 
+
+@pytest.mark.anyio
+async def test_filesystem_watch_dir_awaits_async_callbacks_one_at_a_time():
+    stream = ControlledSseStream()
+
+    class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
+        async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
+            return stream
+
+    fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
+    active = 0
+    overlaps = 0
+    order: list[str] = []
+    second_done = asyncio.Event()
+
+    async def on_event(event: FilesystemEvent) -> None:
+        nonlocal active, overlaps
+        active += 1
+        overlaps = max(overlaps, active)
+        await asyncio.sleep(0.01)
+        order.append(event.name)
+        active -= 1
+        if event.name == "b.txt":
+            second_done.set()
+
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_event))
+    await asyncio.sleep(0)
+    stream.push("event: start")
+    stream.push("data: {}")
+    stream.push("")
+    handle = await asyncio.wait_for(watch_task, timeout=1)
+    for name in ("a.txt", "b.txt"):
+        stream.push("event: fs")
+        stream.push(f'data: {{"type":"write","name":"{name}","isDir":false,"timestamp":1}}')
+        stream.push("")
+
+    await asyncio.wait_for(second_done.wait(), timeout=1)
+    assert order == ["a.txt", "b.txt"]
+    assert overlaps == 1
     await handle.stop()
 
 
 @pytest.mark.anyio
-async def test_filesystem_watch_dir_records_exit_callback_errors_without_crashing_the_reader():
+async def test_filesystem_watch_dir_external_stop_returns_after_the_active_callback_finishes():
     stream = ControlledSseStream()
 
     class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
+        async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
+            return stream
+
+    fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    finished = False
+
+    async def on_event(_event: FilesystemEvent) -> None:
+        nonlocal finished
+        entered.set()
+        await release.wait()
+        finished = True
+
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_event))
+    await asyncio.sleep(0)
+    stream.push("event: start")
+    stream.push("data: {}")
+    stream.push("")
+    handle = await asyncio.wait_for(watch_task, timeout=1)
+    stream.push("event: fs")
+    stream.push('data: {"type":"create","name":"a.txt","isDir":false,"timestamp":1}')
+    stream.push("")
+    await asyncio.wait_for(entered.wait(), timeout=1)
+
+    stopper = asyncio.create_task(handle.stop())
+    await asyncio.sleep(0.02)
+    assert stopper.done() is False
+    release.set()
+    await asyncio.wait_for(stopper, timeout=1)
+    assert finished is True
+    assert handle.exit_error is None
+
+
+@pytest.mark.anyio
+async def test_filesystem_watch_dir_contains_exit_callback_errors():
+    stream = ControlledSseStream()
+
+    class Transport:
+        max_response_bytes = 0  # the client's cap (0 = no limit)
+
         async def open_stream(self, spec: RequestSpec) -> ControlledSseStream:
             return stream
 
@@ -2747,7 +2883,7 @@ async def test_filesystem_watch_dir_records_exit_callback_errors_without_crashin
         exit_done.set()
         raise RuntimeError("exit boom")
 
-    watch_task = asyncio.create_task(fs.watch_dir("/workspace", on_exit=on_exit))
+    watch_task = asyncio.create_task(fs.watch_dir("/workspace", lambda _event: None, on_exit=on_exit))
     await asyncio.sleep(0)
     stream.push("event: start")
     stream.push("data: {}")
@@ -2759,8 +2895,7 @@ async def test_filesystem_watch_dir_records_exit_callback_errors_without_crashin
 
     await asyncio.wait_for(exit_done.wait(), timeout=1)
     assert await handle.wait_for_exit() is None
-    assert isinstance(handle.last_callback_error, RuntimeError)
-    assert str(handle.last_callback_error) == "exit boom"
+    assert handle.exit_error is None
 
 
 def test_parse_sse_lines_accepts_cr_only_framing_from_httpx_iter_lines():
@@ -2785,6 +2920,11 @@ async def test_watch_handle_stop_is_reentrant_on_reader_task():
         def __init__(self) -> None:
             self.closed = False
 
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
+
         async def iter_lines(self):
             if False:
                 yield ""
@@ -2793,10 +2933,10 @@ async def test_watch_handle_stop_is_reentrant_on_reader_task():
             self.closed = True
 
     stream = Stream()
-    handle = AsyncWatchHandle(stream, asyncio.Queue())
+    handle = AsyncWatchHandle(stream)
     current = asyncio.current_task()
     assert current is not None
-    handle.attach_reader(current)
+    handle._reader = current
 
     await handle.stop()
     await handle.stop()
@@ -2813,6 +2953,11 @@ async def test_watch_handle_stop_keeps_shutdown_bounded_when_reader_does_not_exi
             self.closed = False
             self.release = asyncio.Event()
 
+        async def iter_bytes(self):
+            """The bytes of iter_lines, one LF per line."""
+            async for line in self.iter_lines():
+                yield (line + "\n").encode()
+
         async def iter_lines(self):
             await self.release.wait()
             if False:
@@ -2824,17 +2969,17 @@ async def test_watch_handle_stop_keeps_shutdown_bounded_when_reader_does_not_exi
     monkeypatch.setattr(filesystem_module, "WATCH_STOP_JOIN_TIMEOUT_SECONDS", 0.01)
 
     stream = BlockingStream()
-    handle = AsyncWatchHandle(stream, asyncio.Queue())
+    handle = AsyncWatchHandle(stream)
 
     async def reader_target() -> None:
         try:
             async for _line in stream.iter_lines():
                 pass
         finally:
-            await handle.record_exit(None)
+            await handle._record_exit(None)
 
     reader = asyncio.create_task(reader_target())
-    handle.attach_reader(reader)
+    handle._reader = reader
 
     await handle.stop()
     assert stream.closed is True
@@ -3291,13 +3436,15 @@ def test_parsers_tolerate_unknown_fields():
     assert process.id == "p"
     page = parse_log_page(
         {
-            "items": [{"cursor": "c1", "channel": "stdout", "data": "hi", "timestamp": 42, "extra": True}],
+            "frames": [{"cursor": "c1", "channel": "stdout", "data": "hi", "timestamp": 42, "extra": True}],
             "nextCursor": "c2",
+            "truncatedHead": False,
+            "eof": True,
             "new": 1,
         }
     )
     assert page.items[0].data == "hi"
-    assert page.items[0].timestamp == 42
+    assert page.items[0].timestamp_ms == 42
     assert page.next_cursor == "c2"
 
 
@@ -3408,7 +3555,7 @@ async def test_computer_use_namespace_shapes_requests_and_parses_results():
     assert status["wm"].priority == 5
     assert (await namespace.service.status("wm")).running is True
     screenshot = await namespace.screen.screenshot(show_cursor=True)
-    assert screenshot.cursor_position == ComputerUsePoint(1, 2)
+    assert screenshot.cursor_position == ComputerUsePoint(x=1, y=2)
     assert (await namespace.display.info()).displays[0].id == 0
     assert (await namespace.display.windows()).windows[0].id == 14680067
     assert (await namespace.a11y.tree(scope="pid", pid=77, max_depth=2)).root.role == "window"
@@ -3676,16 +3823,42 @@ async def test_ports_is_in_use_rejects_non_integer_segments_before_request() -> 
 
 
 def test_process_handle_is_json_rehydratable():
-    handle = AsyncProcessHandle("s", "p")
+    process = AsyncProcessService("s", RecordingTransport([]))  # type: ignore[arg-type]
+    handle = process.connect("p")
     assert handle.to_json() == {"sandboxId": "s", "processId": "p"}
-    assert AsyncProcessHandle.from_json(handle.to_json()).ref().process_id == "p"
+    reconnected = process.connect(handle.to_json())
+    assert (reconnected.sandbox_id, reconnected.id, reconnected.kind) == ("s", "p", None)
+    pty = process.connect({"sandboxId": "s", "processId": "t", "kind": "pty"})
+    assert pty.to_json() == {"sandboxId": "s", "processId": "t", "kind": "pty"}
 
 
-def test_process_handle_from_json_drops_unlisted_kind_strings() -> None:
-    handle = AsyncProcessHandle.from_json({"sandboxId": "s", "processId": "p", "kind": "future-kind"})
+def test_process_connect_drops_unlisted_kind_strings() -> None:
+    process = AsyncProcessService("s", RecordingTransport([]))  # type: ignore[arg-type]
+    handle = process.connect({"sandboxId": "s", "processId": "p", "kind": "future-kind"})  # type: ignore[typeddict-item]
 
     assert handle.kind is None
     assert handle.to_json() == {"sandboxId": "s", "processId": "p"}
+
+
+@pytest.mark.parametrize(
+    "identity",
+    [
+        {"sandboxId": "s"},
+        {"sandboxId": "s", "processId": ""},
+        {"sandboxId": "s", "processId": 7},
+        {"processId": "p"},
+        "",
+    ],
+)
+def test_process_connect_refuses_malformed_identity_before_any_request(identity: object) -> None:
+    transport = RecordingTransport([])
+    process = AsyncProcessService("s", transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError):
+        process.connect(identity)  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError):
+        process.connect({"sandboxId": "other", "processId": "p"})
+    assert transport.specs == []
 
 
 @pytest.mark.anyio
@@ -5364,8 +5537,8 @@ async def test_resource_service_iterators_use_iter_everywhere() -> None:
 
 
 @pytest.mark.anyio
-async def test_git_clone_pull_push_use_remote_deadline_defaults_and_positive_overrides():
-    transport = RecordingTransport([{}, {}, {}, {}, {}, {}])
+async def test_git_clone_pull_push_bound_the_whole_request_by_one_total_deadline():
+    transport = RecordingTransport([{}, {}, {}, {}, {}, {}, {}])
     git = AsyncGitService(transport)  # type: ignore[arg-type]
 
     await git.clone("https://example.invalid/repo.git", "/repo")
@@ -5374,19 +5547,13 @@ async def test_git_clone_pull_push_use_remote_deadline_defaults_and_positive_ove
     await git.clone("https://example.invalid/repo.git", "/repo", timeout=12.5)
     await git.pull("/repo", timeout=3.0)
     await git.push("/repo", timeout=7.0)
+    await git.pull("/repo", timeout=10**9)
 
-    assert transport.specs[0].path == "/git/clone"
-    assert transport.specs[0].unbounded_read is False
-    assert transport.specs[0].timeout == 1800
-    assert transport.specs[1].path == "/git/pull"
-    assert transport.specs[1].unbounded_read is False
-    assert transport.specs[1].timeout == 1800
-    assert transport.specs[2].path == "/git/push"
-    assert transport.specs[2].unbounded_read is False
-    assert transport.specs[2].timeout == 1800
-    assert transport.specs[3].timeout == 12.5
-    assert transport.specs[4].timeout == 3.0
-    assert transport.specs[5].timeout == 7.0
+    assert [spec.path for spec in transport.specs[:3]] == ["/git/clone", "/git/pull", "/git/push"]
+    # A per-call timeout is a total deadline replacing the client's request
+    # timeout: a default 30 minutes, an override, above the timer maximum none.
+    assert [spec.timeout for spec in transport.specs] == [1800, 1800, 1800, 12.5, 3.0, 7.0, 0]
+    assert not any(spec.unbounded_read for spec in transport.specs)
 
 
 def test_request_kwargs_keeps_plain_requests_on_transport_defaults():
@@ -5421,7 +5588,7 @@ async def test_git_init_remotes_and_config_shape_transport_requests():
     }
 
     assert (await git.list_remotes("/repo")).items == [
-        {"name": "origin", "url": "https://example.invalid/repo.git"}
+        GitRemote(name="origin", url="https://example.invalid/repo.git")
     ]
     assert transport.specs[1].params == {"path": "/repo"}
 
@@ -5463,31 +5630,51 @@ async def test_git_reset_and_restore_allow_minimal_request_shapes():
     assert transport.specs[1].json_body == {"path": "/repo", "files": ["README.md"]}
 
 
-def test_filesystem_items_tolerate_absent_optional_fields_and_prefer_explicit_metadata() -> None:
+def test_filesystem_items_require_the_contract_metadata() -> None:
     from daytona.v2._core import expect_file_info
 
-    minimal_payload = {"name": "a", "isDir": False, "size": 1, "mode": "-rw-r--r--", "modTime": _DEFAULT_TIME}
-    # Listing context: path is derived from the directory that was listed —
-    # real information, not a fabricated absolute path.
-    listed = expect_file_info(minimal_payload, parent="/tmp/dir/")
-    assert (listed.name, listed.path, listed.is_dir) == ("a", "/tmp/dir/a", False)
-    # Missing metadata stays empty rather than copying a differently formatted field.
-    assert (listed.modified_at, listed.owner, listed.group, listed.permissions) == ("", "", "", "")
-    assert listed.mod_time == _DEFAULT_TIME
-    # stat() context: no parent → path stays empty rather than the bare name.
-    assert expect_file_info(minimal_payload).path == ""
-
     full_payload = {
-        **minimal_payload,
+        "name": "a",
         "path": "/tmp/a",
-        "modifiedAt": "later",
-        "owner": "me",
-        "group": "us",
-        "permissions": "600",
+        "isDir": False,
+        "size": 1,
+        "mode": "-rw-r--r--",
+        "modTime": "Mon Aug 24 00:00:00 2026",
+        "modifiedAt": "2026-08-24T00:00:00.123456789Z",
+        "owner": "1000",
+        "group": "1000",
+        "permissions": "0600",
     }
-    full = expect_file_info(full_payload, parent="/elsewhere")
-    assert (full.path, full.modified_at, full.owner, full.permissions) == ("/tmp/a", "later", "me", "600")
-
+    full = expect_file_info(full_payload)
+    assert full == FileInfo(
+        name="a",
+        path="/tmp/a",
+        size=1,
+        is_dir=False,
+        mode="-rw-r--r--",
+        permissions="0600",
+        owner="1000",
+        group="1000",
+        modified_at=datetime(2026, 8, 24, 0, 0, 0, 123456, tzinfo=timezone.utc),
+        mod_time="Mon Aug 24 00:00:00 2026",
+    )
+    # Contract-required metadata is never filled with a placeholder.
+    for missing in (
+        "name",
+        "path",
+        "size",
+        "isDir",
+        "mode",
+        "modTime",
+        "modifiedAt",
+        "owner",
+        "group",
+        "permissions",
+    ):
+        with pytest.raises(BadRequestError, match=f"expected file info response: {missing}"):
+            expect_file_info({key: value for key, value in full_payload.items() if key != missing})
+    with pytest.raises(DaytonaError, match="RFC 3339"):
+        expect_file_info({**full_payload, "modifiedAt": "later"})
     with pytest.raises(DaytonaError):
         expect_file_info({"name": "no-size"})
 
@@ -5615,20 +5802,24 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
             {},
             {},
             {},
-            {"items": [{"path": "/tmp/a"}], "nextCursor": "fn"},
+            {"items": [{"file": "/tmp/a", "line": 3, "content": "a needle"}], "nextCursor": "fn"},
             {"files": ["/tmp/a"]},
-            {"items": [{"file": "/tmp/a", "replacements": 1}]},
+            [{"file": "/tmp/a", "success": True}],
             {},
             _process_payload("proc", "exec", "running"),
             {"reason": "signaled", "signal": "SIGTERM"},
-            {"items": [_log_frame_payload("c1", "out")], "nextCursor": "c1"},
-            {"items": [], "nextCursor": "c1"},
-            [_process_payload("proc", "exec", "running")],
+            {
+                "frames": [_log_frame_payload("c1", "out")],
+                "nextCursor": "c1",
+                "truncatedHead": False,
+                "eof": False,
+            },
+            {"frames": [], "nextCursor": "c1", "truncatedHead": False, "eof": True},
+            {"items": [_process_payload("proc", "exec", "running")]},
             _session_payload("ctx", kernel="javascript"),
             _process_payload("code", "code", "running", language="javascript"),
             {"reason": "timed_out"},
             _process_payload("code", "code", "running", language="javascript"),
-            {},
             {"reason": "exited", "exitCode": 130},
             {
                 "frames": [
@@ -5665,7 +5856,9 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
     }
     assert (await git.status("/repo")).current_branch == "main"
     assert (await git.list_branches("/repo")).items == ["main", "dev"]
-    assert (await git.history("/repo")).items[0]["hash"] == "h"
+    history = (await git.history("/repo")).items
+    assert history[0].hash == "h"
+    assert history[0].timestamp.tzinfo is not None
     await git.create_branch("/repo", "feature")
     await git.delete_branch("/repo", "feature")
     await git.checkout_branch("/repo", "main")
@@ -5714,9 +5907,11 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
     await fs.mkdir("/tmp/new", mode="0700")
     await fs.remove("/tmp/a", recursive=True)
     await fs.move("/tmp/a", "/tmp/b")
-    assert (await fs.grep("/tmp", "needle")).next_cursor == "fn"
+    matches = await fs.grep("/tmp", "needle")
+    assert matches.next_cursor == "fn"
+    assert matches.items == [FileMatch(file="/tmp/a", line=3, content="a needle")]
     assert (await fs.glob("/tmp", "*.txt")).items == ["/tmp/a"]
-    assert (await fs.replace(["/tmp/a"], "old", "new")).items == [{"file": "/tmp/a", "replacements": 1}]
+    assert (await fs.replace(["/tmp/a"], "old", "new")).items == [ReplaceResult(file="/tmp/a", success=True)]
     await fs.chmod("/tmp/a", mode="0644", owner="me", group="staff")
     assert transport.specs[13].path == "/files/download"
     assert transport.specs[14].path == "/files/upload"
@@ -5814,7 +6009,7 @@ async def test_pty_start_uses_requested_kind_when_response_kind_is_unrecognized(
 @pytest.mark.anyio
 async def test_process_code_start_uses_namespace_default_language():
     transport = RecordingTransport([_process_payload("code", "code", "running", language="javascript")])
-    await AsyncProcessService("sbx", transport, language="javascript")._start_process(code="1 + 1")  # type: ignore[arg-type]
+    await AsyncProcessService("sbx", transport, "javascript")._start_process(code="1 + 1")  # type: ignore[arg-type]
     assert transport.specs[0].json_body == {
         "kind": "code",
         "code": "1 + 1",
@@ -5884,7 +6079,7 @@ async def test_interpreter_context_free_runs_serialize_concurrent_runs_before_su
             first_started.set()
             await asyncio.wait_for(release_first.wait(), timeout=1)
         return InterpreterResult(
-            process=InterpreterProcess(f"proc-{code}", 0, None, "exited"),
+            process=InterpreterProcess(process_id=f"proc-{code}", exit_code=0, reason="exited"),
             logs=InterpreterLogs(stdout=code),
         )
 
@@ -5905,7 +6100,7 @@ async def test_interpreter_context_free_runs_serialize_concurrent_runs_before_su
 
 
 @pytest.mark.anyio
-async def test_interpreter_context_asdict_is_identity_only_and_rebinds_cleanly():
+async def test_interpreter_context_to_json_is_identity_only_and_rebinds_cleanly():
     transport = RecordingTransport(
         [
             _session_payload("ctx", kernel="python"),
@@ -5917,9 +6112,13 @@ async def test_interpreter_context_asdict_is_identity_only_and_rebinds_cleanly()
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))
     context = await interpreter.create_context(language="python", context_id="ctx")
 
-    serialized = asdict(context)
-    assert serialized == {"sandbox_id": "sbx", "context_id": "ctx", "language": "python"}
+    serialized = context.to_json()
+    # The camelCase identity the TypeScript SDK writes and reads too.
+    assert serialized == {"sandboxId": "sbx", "contextId": "ctx", "language": "python"}
     assert json.loads(json.dumps(serialized)) == serialized
+    # A snake_case identity from an earlier pre-release still reconnects.
+    legacy = interpreter.connect_context({"sandbox_id": "sbx", "context_id": "ctx", "language": "python"})  # type: ignore[arg-type]
+    assert legacy == context
 
     rebound = interpreter.connect_context(serialized)
     result = await rebound.run("print(1)")
@@ -6557,7 +6756,7 @@ async def test_daytona_create_running_response_returns_without_follow_up_get() -
 
 
 def test_interpreter_result_json_check_survives_deeply_nested_sandbox_output() -> None:
-    from daytona.v2.interpreter import _is_json_value
+    from daytona.v2._core import is_json_value as _is_json_value
 
     # A sandbox-controlled result nested deeper than the interpreter stack must
     # neither crash the caller nor be misclassified.
@@ -6576,6 +6775,56 @@ def test_interpreter_result_json_check_survives_deeply_nested_sandbox_output() -
     assert _is_json_value(poisoned) is False
     assert _is_json_value({"ok": [1, 2.5, "s", None, True]}) is True
     assert _is_json_value({"bad": object()}) is False
+
+
+def _is_json_value_within(value: object, seconds: float = 5.0) -> bool:
+    """is_json_value(value), run in a thread so a walk that never ends fails
+    the test instead of hanging it."""
+    import threading
+
+    from daytona.v2._core import is_json_value
+
+    outcome: list[bool] = []
+    worker = threading.Thread(target=lambda: outcome.append(is_json_value(value)), daemon=True)
+    worker.start()
+    worker.join(seconds)
+    assert outcome, f"is_json_value did not finish within {seconds} s"
+    return outcome[0]
+
+
+def test_is_json_value_refuses_a_cycle_and_accepts_shared_acyclic_values() -> None:
+    import json
+    import time
+
+    cyclic_list: list[object] = [1]
+    cyclic_list.append(cyclic_list)
+    cyclic_dict: dict[str, object] = {"a": 1}
+    cyclic_dict["self"] = {"inner": [cyclic_dict]}
+    assert _is_json_value_within(cyclic_list) is False
+    assert _is_json_value_within(cyclic_dict) is False
+
+    shared: dict[str, object] = {"x": [1, 2]}
+    value = {"a": shared, "b": shared, "c": [shared, shared]}
+    json.dumps(value)  # valid JSON: a shared sub-value is not a cycle
+    assert _is_json_value_within(value) is True
+
+    # 24 dicts each referencing the next twice: 2^24 paths, checked once each.
+    chain: dict[str, object] = {"leaf": True}
+    for _ in range(24):
+        chain = {"left": chain, "right": chain}
+    started = time.monotonic()
+    assert _is_json_value_within(chain) is True
+    assert time.monotonic() - started < 1
+
+
+def test_interpreter_output_nested_past_the_json_decoder_limit_is_the_malformed_response_error() -> None:
+    from daytona.v2.interpreter import _parse_error, _parse_output
+
+    body = '{"text/plain":' + "[" * 100_000 + "]" * 100_000 + "}"
+    for parse in (lambda: _parse_output(body, is_main_result=True), lambda: _parse_error(body)):
+        with pytest.raises(BadRequestError, match="nested too deeply") as info:
+            parse()
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 @pytest.mark.anyio
@@ -8163,13 +8412,20 @@ async def test_process_run_falls_back_to_split_wait_when_the_wait_window_elapses
 
 
 @pytest.mark.anyio
-async def test_process_list_returns_sdk_list_result_shape_with_cursor():
+async def test_process_list_returns_one_contract_page():
+    # ProcessListResponse is one page with no cursor; anything but its
+    # ``items`` list is the malformed-response error.
     transport = RecordingTransport(
-        [{"items": [_process_payload("proc", "exec", "running")], "nextCursor": "n"}]
+        [{"items": [_process_payload("proc", "exec", "running")], "nextCursor": "n"}, {}, {"items": None}, []]
     )
-    page = await AsyncProcessService("sbx", transport).list()  # type: ignore[arg-type]
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    page = await process.list()
     assert [item.id for item in page.items] == ["proc"]
-    assert page.next_cursor == "n"
+    assert page.next_cursor is None
+    for message in ("items", "items", "process list response"):
+        with pytest.raises(BadRequestError, match=message) as info:
+            await process.list()
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
 
 
 @pytest.mark.anyio
@@ -8217,7 +8473,7 @@ async def test_process_wait_timeout_zero_sends_unbounded_poll_and_waits_for_term
 @pytest.mark.anyio
 async def test_process_stdin_rejects_known_code_handles_without_a_wire_call() -> None:
     transport = RecordingTransport([])
-    handle = AsyncProcessHandle("sbx", "proc", transport, kind="code")  # type: ignore[arg-type]
+    handle = AsyncProcessHandle("sbx", "proc", transport, "code")  # type: ignore[arg-type]
 
     with pytest.raises(UnsupportedOperationError) as stdin_exc:
         await handle.write_stdin("print(1)")
@@ -8232,7 +8488,7 @@ async def test_process_stdin_rejects_known_code_handles_without_a_wire_call() ->
 @pytest.mark.anyio
 async def test_process_stdin_allows_exec_and_unknown_handles_to_call_the_wire() -> None:
     exec_transport = RecordingTransport([{}])
-    exec_handle = AsyncProcessHandle("sbx", "exec-proc", exec_transport, kind="exec")  # type: ignore[arg-type]
+    exec_handle = AsyncProcessHandle("sbx", "exec-proc", exec_transport, "exec")  # type: ignore[arg-type]
 
     await exec_handle.write_stdin("hello")
     assert exec_transport.specs == [
@@ -8347,7 +8603,7 @@ async def test_interpreter_rebinds_explicit_contexts_to_the_current_service_tran
         [
             _process_payload("proc", "code", "running", language="python"),
             {"reason": "exited", "exitCode": 0},
-            {"frames": [], "nextCursor": None},
+            {"frames": [], "nextCursor": "c0", "truncatedHead": False, "eof": True},
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -8380,7 +8636,7 @@ async def test_interpreter_timeout_does_not_turn_an_expired_budget_into_an_unbou
             _process_payload("proc", "code", "running", language="python"),
             {},
             {"reason": "exited", "exitCode": 130},
-            {"frames": [], "nextCursor": None},
+            {"frames": [], "nextCursor": "c0", "truncatedHead": False, "eof": True},
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -8429,7 +8685,9 @@ async def test_interpreter_rejects_env_on_explicit_context_before_posting_proces
         DaytonaError,
         match="env is only supported when creating a context or running without an explicit context",
     ):
-        await context.run("print(1)", env={"A": "B"})
+        await interpreter.run("print(1)", context=context, env={"A": "B"})
+    with pytest.raises(TypeError):
+        await context.run("print(1)", env={"A": "B"})  # type: ignore[call-arg]
 
     assert transport.specs == []
 
@@ -8450,8 +8708,10 @@ async def test_interpreter_recomputes_wait_budget_after_process_creation():
             {
                 "frames": [{"cursor": "1", "channel": "stdout", "data": "ok", "timestamp": 1}],
                 "nextCursor": "1",
+                "truncatedHead": False,
+                "eof": False,
             },
-            {"frames": [], "nextCursor": "1"},
+            {"frames": [], "nextCursor": "1", "truncatedHead": False, "eof": True},
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -8553,7 +8813,6 @@ async def test_interpreter_context_serializes_concurrent_runs_before_submitting_
         language: str,
         code: str,
         cwd: Optional[str],
-        env: Optional[Mapping[str, str]],
         timeout: Optional[float],
     ) -> InterpreterResult:
         assert context_id == "ctx"
@@ -8565,7 +8824,7 @@ async def test_interpreter_context_serializes_concurrent_runs_before_submitting_
         if code == "second":
             second_submitted.set()
         return InterpreterResult(
-            process=InterpreterProcess(f"proc-{code}", 0, None, "exited"),
+            process=InterpreterProcess(process_id=f"proc-{code}", exit_code=0, reason="exited"),
             logs=InterpreterLogs(stdout=code),
         )
 
@@ -8633,7 +8892,6 @@ async def test_interpreter_context_run_returns_timed_out_without_submitting_when
         language: str,
         code: str,
         cwd: Optional[str],
-        env: Optional[Mapping[str, str]],
         timeout: Optional[float],
     ) -> InterpreterResult:
         assert context_id == "ctx"
@@ -8645,7 +8903,7 @@ async def test_interpreter_context_run_returns_timed_out_without_submitting_when
         if code == "second":
             second_submitted.set()
         return InterpreterResult(
-            process=InterpreterProcess(f"proc-{code}", 0, None, "exited"),
+            process=InterpreterProcess(process_id=f"proc-{code}", exit_code=0, reason="exited"),
             logs=InterpreterLogs(stdout=code),
         )
 
@@ -8657,7 +8915,7 @@ async def test_interpreter_context_run_returns_timed_out_without_submitting_when
     timed_out = await context.run("second", timeout=0.01)
 
     assert timed_out.process.reason == "timed_out"
-    assert timed_out.process.process_id == ""
+    assert timed_out.process.process_id is None
     assert submitted == [("first", None)]
     assert second_submitted.is_set() is False
 
@@ -8686,7 +8944,6 @@ async def test_interpreter_failed_close_keeps_the_original_gate_for_reconnects(m
         language: str,
         code: str,
         cwd: Optional[str],
-        env: Optional[Mapping[str, str]],
         timeout: Optional[float],
     ) -> InterpreterResult:
         assert context_id == "ctx"
@@ -8698,7 +8955,7 @@ async def test_interpreter_failed_close_keeps_the_original_gate_for_reconnects(m
         if code == "second":
             second_submitted.set()
         return InterpreterResult(
-            process=InterpreterProcess(f"proc-{code}", 0, None, "exited"),
+            process=InterpreterProcess(process_id=f"proc-{code}", exit_code=0, reason="exited"),
             logs=InterpreterLogs(stdout=code),
         )
 
@@ -8744,7 +9001,6 @@ async def test_interpreter_delete_context_waits_to_evict_the_gate_until_queued_r
         language: str,
         code: str,
         cwd: Optional[str],
-        env: Optional[Mapping[str, str]],
         timeout: Optional[float],
     ) -> InterpreterResult:
         assert context_id == "ctx"
@@ -8756,7 +9012,7 @@ async def test_interpreter_delete_context_waits_to_evict_the_gate_until_queued_r
         if code == "second":
             second_submitted.set()
         return InterpreterResult(
-            process=InterpreterProcess(f"proc-{code}", 0, None, "exited"),
+            process=InterpreterProcess(process_id=f"proc-{code}", exit_code=0, reason="exited"),
             logs=InterpreterLogs(stdout=code),
         )
 
@@ -8807,11 +9063,10 @@ async def test_interpreter_isolated_runs_do_not_leak_gate_entries(monkeypatch) -
         language: str,
         code: str,
         cwd: Optional[str],
-        env: Optional[Mapping[str, str]],
         timeout: Optional[float],
     ) -> InterpreterResult:
         return InterpreterResult(
-            process=InterpreterProcess(context_id, 0, None, "exited"),
+            process=InterpreterProcess(process_id=context_id, exit_code=0, reason="exited"),
             logs=InterpreterLogs(stdout=code),
         )
 
@@ -8926,7 +9181,8 @@ def test_root_exports_interpreter_context_json_and_lsp_completion_item() -> None
     from daytona.v2 import InterpreterContextJSON, LspCompletionItem
 
     assert InterpreterContextJSON.__name__ == "InterpreterContextJSON"
-    assert LspCompletionItem.__name__ == "CompletionItem"
+    assert LspCompletionItem.__name__ == "LspCompletionItem"
+    assert LspCompletionItem.__module__ == "daytona.v2.lsp"
 
 
 @pytest.mark.anyio
@@ -9332,6 +9588,13 @@ class RecordingTransport:
         assert isinstance(value, bytes)
         return value
 
+    max_response_bytes = 0  # the client's cap (0 = no limit)
+
+    async def stream_bytes(self, spec: RequestSpec):
+        """The bytes of stream_lines, one LF per line."""
+        async for line in self.stream_lines(spec):
+            yield (line + "\n").encode()
+
     async def stream_lines(self, spec: RequestSpec):
         self.specs.append(spec)
         yield "event: log"
@@ -9351,6 +9614,11 @@ class ControlledSseStream:
 
     def push(self, line: str) -> None:
         self._lines.put_nowait(line)
+
+    async def iter_bytes(self):
+        """The bytes of iter_lines, one LF per line."""
+        async for line in self.iter_lines():
+            yield (line + "\n").encode()
 
     async def iter_lines(self):
         while True:
@@ -9422,11 +9690,11 @@ def test_public_known_vocab_literals_match_generated_contract_enums() -> None:
     from daytona.v2.types import (
         DockerOwner,
         DockerState,
-        ProcessInfoKind,
         ProcessKeepLogs,
+        ProcessReason,
+        ProcessReportedKind,
         ProcessState,
         ProcessStdinMode,
-        WaitReason,
     )
 
     def literal_values(alias: object) -> set[str]:
@@ -9445,11 +9713,11 @@ def test_public_known_vocab_literals_match_generated_contract_enums() -> None:
     def enum_values(enum_type: type[Enum]) -> set[str]:
         return {str(member.value) for member in enum_type if member.name != "UNKNOWN_DEFAULT_OPEN_API"}
 
-    assert literal_values(ProcessInfoKind) == enum_values(KindEnum)
+    assert literal_values(ProcessReportedKind) == enum_values(KindEnum)
     assert literal_values(ProcessState) == enum_values(StateEnum)
     assert literal_values(ProcessStdinMode) == enum_values(StdinModeEnum)
     assert literal_values(ProcessKeepLogs) == enum_values(KeepLogsEnum)
-    assert literal_values(WaitReason) == enum_values(ReasonEnum)
+    assert literal_values(ProcessReason) == enum_values(ReasonEnum)
     assert literal_values(DockerState) == enum_values(DockerStateEnum)
     assert literal_values(DockerOwner) == enum_values(DockerOwnerEnum)
     assert literal_values(PullVolumeStatus) == enum_values(PullVolumeStatusEnum)
@@ -9491,7 +9759,7 @@ async def test_interpreter_run_keeps_unknown_wait_reason_and_raw_reason() -> Non
         [
             _process_payload("proc", "code", "running", language="python"),
             {"exitCode": 0, "reason": "vanished"},
-            _log_page_payload([], next_cursor=None),
+            _log_page_payload([], next_cursor="0", eof=True),
         ]
     )
     interpreter = AsyncInterpreterService("sbx", transport, AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
@@ -9532,7 +9800,7 @@ def test_sync_interpreter_run_keeps_unknown_wait_reason_and_raw_reason() -> None
         [
             _process_payload("proc", "code", "running", language="python"),
             {"exitCode": 0, "reason": "vanished"},
-            _log_page_payload([], next_cursor=None),
+            _log_page_payload([], next_cursor="0", eof=True),
         ]
     )
     bridge = SyncBridge(name="InterpreterService")
@@ -9588,13 +9856,13 @@ def test_new_public_aliases_are_exported_from_v2_namespace() -> None:
     import daytona.v2 as daytona
     from daytona.v2 import (
         BuildLogGapReason,
-        ProcessInfoKind,
         ProcessKeepLogs,
+        ProcessReportedKind,
         ProcessStdinMode,
         PullVolumeStatus,
     )
 
-    assert daytona.ProcessInfoKind is ProcessInfoKind
+    assert daytona.ProcessReportedKind is ProcessReportedKind
     assert daytona.ProcessKeepLogs is ProcessKeepLogs
     assert daytona.ProcessStdinMode is ProcessStdinMode
     assert daytona.PullVolumeStatus is PullVolumeStatus
@@ -9612,14 +9880,29 @@ def test_input_vocabularies_are_exported_from_v2_namespace() -> None:
 
 
 @pytest.mark.anyio
-async def test_computer_use_status_maps_invalid_payloads_to_sdk_internal_errors():
+async def test_computer_use_status_maps_invalid_payloads_to_the_malformed_response_error():
     class Transport:
         async def send(self, spec):
             assert spec.path == "/computeruse/status"
             return {"desktop": "ready"}
 
-    with pytest.raises(InternalServerError, match="Invalid computer-use status response"):
+    with pytest.raises(BadRequestError, match="Invalid computer-use status response") as info:
         await AsyncComputerUseService(Transport()).status()  # type: ignore[arg-type]
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_keyboard_type_delay_is_in_seconds_and_sent_in_milliseconds() -> None:
+    transport = RecordingTransport([{}, {}])
+    keyboard = AsyncComputerUseService(transport).keyboard  # type: ignore[arg-type]
+
+    await keyboard.type(text="hi", delay=0.05)
+    await keyboard.type(text="hi")
+
+    assert transport.specs[0].json_body == {"text": "hi", "delay": 50}
+    assert transport.specs[1].json_body == {"text": "hi"}
+    with pytest.raises(BadRequestError, match="delay must be a non-negative"):
+        await keyboard.type(text="hi", delay=-1)
 
 
 def test_generated_oneof_variants_discriminate_and_models_serialize() -> None:
@@ -11555,6 +11838,16 @@ async def test_project_token_exchange_invalid_model_raises_typed_bad_request() -
 # The TypeScript SDK's unit.test.ts asserts the same messages for the same bodies.
 _TOKEN_EXCHANGE_CASES = [
     (b"not json", "token exchange response is not a JSON object"),
+    (
+        b'{"a":' + b"[" * 601 + b"]" * 601 + b"}",
+        "expected token exchange response: the JSON is nested too deeply",
+    ),
+    # Decoded strictly: invalid UTF-8, and a leading byte-order mark.
+    (b'{"access_token": "t\xffk", "expires_in": 60}', "token exchange response is not a JSON object"),
+    (
+        b'\xef\xbb\xbf{"access_token": "tok", "expires_in": 60}',
+        "token exchange response is not a JSON object",
+    ),
     (b"[]", "token exchange response is not a JSON object"),
     (b"", "token exchange response is not a JSON object"),
     (b'{"expires_in": 300}', "token exchange response access_token must be a non-empty string"),
@@ -11622,6 +11915,49 @@ async def test_project_token_exchange_reads_only_the_fields_it_uses() -> None:
     assert (exchange.access_token, exchange.expires_in) == ("t", 9007199254740991)
 
 
+# Shared with the TypeScript SDK's unit.test.ts: a token exchange is read as
+# JSON only when it declares application/json (case-insensitive, parameters
+# ignored); a valid token object under any other media type is refused.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("content_type", "accepted"),
+    [
+        ("application/json", True),
+        ("Application/JSON; charset=utf-8", True),
+        ("application/jsonl", False),
+        ("text/plain", False),
+        (None, False),
+    ],
+)
+async def test_project_token_exchange_reads_json_only_when_declared(
+    content_type: Optional[str], accepted: bool
+) -> None:
+    headers = {} if content_type is None else {"content-type": content_type}
+    http = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                200, content=b'{"access_token": "t", "expires_in": 60}', headers=headers
+            )
+        ),
+        base_url="http://api.invalid",
+    )
+    auth = ProjectTokenAuth(
+        api_url="http://api.invalid",
+        jwt_token="jwt",
+        project_id="project-1",
+        source="sdk-python-async",
+        client=http,
+    )
+    try:
+        if accepted:
+            assert (await auth._exchange_token()).access_token == "t"
+        else:
+            with pytest.raises(BadRequestError, match="^token exchange response is not a JSON object$"):
+                await auth._exchange_token()
+    finally:
+        await http.aclose()
+
+
 @pytest.mark.anyio
 @pytest.mark.parametrize("raw", [b"60", b"60.0", b"1e2"])
 async def test_project_token_exchange_takes_an_integral_float_like_typescript(raw: bytes) -> None:
@@ -11629,7 +11965,11 @@ async def test_project_token_exchange_takes_an_integral_float_like_typescript(ra
     # TypeScript SDK's unit.test.ts pins the same cases.
     http = httpx.AsyncClient(
         transport=httpx.MockTransport(
-            lambda _request: httpx.Response(200, content=b'{"access_token": "t", "expires_in": ' + raw + b"}")
+            lambda _request: httpx.Response(
+                200,
+                content=b'{"access_token": "t", "expires_in": ' + raw + b"}",
+                headers={"content-type": "application/json"},
+            )
         ),
         base_url="http://api.invalid",
     )
@@ -11649,10 +11989,40 @@ async def test_project_token_exchange_takes_an_integral_float_like_typescript(ra
 
 
 @pytest.mark.anyio
+async def test_project_token_exchange_nested_past_the_json_decoder_limit_is_the_malformed_response_error() -> (
+    None
+):
+    body = b'{"a":' * 100_000 + b"1" + b"}" * 100_000
+    http = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, content=body, headers={"content-type": "application/json"})
+        ),
+        base_url="http://api.invalid",
+    )
+    auth = ProjectTokenAuth(
+        api_url="http://api.invalid",
+        jwt_token="jwt",
+        project_id="project-1",
+        source="sdk-python-async",
+        client=http,
+    )
+    try:
+        with pytest.raises(
+            BadRequestError, match="token exchange response: the JSON is nested too deeply"
+        ) as info:
+            await auth._exchange_token()
+    finally:
+        await http.aclose()
+    assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(("body", "message"), _TOKEN_EXCHANGE_CASES)
 async def test_project_token_exchange_names_what_is_wrong(body: bytes, message: str) -> None:
     http = httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _request: httpx.Response(200, content=body)),
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, content=body, headers={"content-type": "application/json"})
+        ),
         base_url="http://api.invalid",
     )
     auth = ProjectTokenAuth(

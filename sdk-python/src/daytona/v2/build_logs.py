@@ -37,7 +37,7 @@ from pydantic import BaseModel
 from typing_extensions import Unpack
 
 from . import _clock
-from ._core import RequestSpec, is_json_media_type, parse_error_payload
+from ._core import JSON_MAX_DEPTH, RequestSpec, is_json_media_type, loads_json, parse_error_payload
 from ._gen.api import (
     BuildLogChunk,
     BuildLogDone,
@@ -594,8 +594,14 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: O
         # Only a body declared as application/json carries a code.
         return create_error(f"build log HTTP {status}", status)
     try:
-        payload = _object(json.loads(body, parse_constant=_invalid_json_constant))
-    except (ValueError, RecursionError, _ProtocolError):
+        payload = _object(loads_json(bytes(body), "build log error response"))
+    except DaytonaError:
+        # Nested past JSON_MAX_DEPTH: unreadable, as on the transport's error path.
+        return create_error(
+            f"HTTP {status}: the response body was nested too deeply to read (over {JSON_MAX_DEPTH} levels of JSON)",
+            status,
+        )
+    except (ValueError, _ProtocolError):
         return create_error(f"build log HTTP {status}", status)
     # No usable prose (absent, empty or malformed) keeps the build-log status
     # fallback, still dispatched on code/source — and never raises on a bad type.

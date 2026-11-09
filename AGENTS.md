@@ -485,16 +485,19 @@ skipping exist only in the TypeScript tool).
   `reconcile_interval`, `idle_close`, ...); API-stored durations keep their
   `_seconds` names. TypeScript names end in `Seconds` (`timeoutSeconds`,
   `executionTimeoutSeconds`, `requestTimeoutSeconds`,
-  `reconcileIntervalSeconds`, `idleCloseSeconds`, ...). Fractions are allowed
-  unless the wire needs whole seconds (then they are validated). The wire
-  keeps its own units (`timeoutMs` for toolbox process execs/waits).
-  Timestamps are not durations. Known exceptions at this point, all in
-  milliseconds: the per-call TypeScript `timeout` / `executionTimeout` /
-  `escalateAfter` options (process, interpreter, docker, build-log, image,
-  snapshot and volume calls; `escalateAfter` is the process kill escalation
-  delay) until their area is renamed, and the computer-use keyboard `delay`
-  between keystrokes in both SDKs (Python `keyboard.type(delay=...)`, TS
-  `keyboard.type({ delay })`).
+  `reconcileIntervalSeconds`, `idleCloseSeconds`, `escalateAfterSeconds`,
+  ...). Fractions are allowed unless the wire needs whole seconds (then they
+  are validated). The wire keeps its own units (`timeoutMs` for toolbox
+  process execs/waits). Timestamps are not durations: the toolbox's Unix
+  millisecond timestamps are named `timestamp_ms` / `timestampMs` (log frames,
+  filesystem events). The toolbox namespaces follow the rule: a positive
+  value is sent as at least 1 ms (TypeScript `exactMs` in `ProcessWire.ts`,
+  Python `timeout_millis_from_seconds`), and a caller budget or deadline
+  above the longest timer is no limit (TypeScript `secondsToMs` /
+  `aboveTimerMaximum`, Python `wait_budget` / `above_timer_maximum`). Known exceptions at this point: the
+  per-call TypeScript `timeout` options of the docker, build-log, image,
+  snapshot and volume calls still take milliseconds until their area is
+  renamed.
 - **The request timeout is a total-time bound, the same in both SDKs.**
   Configured once on the root client (`DaytonaConfig.request_timeout` /
   `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
@@ -550,11 +553,15 @@ skipping exist only in the TypeScript tool).
   (never axios' xhr or fetch adapters, which buffer before checking in some
   runtimes); the runtime suite's `capOk` check holds every runtime to it.
   Streamed bodies (`download_file` / `downloadFile`, log, event and
-  build-log streams, watches) are never capped. For large files, or content
+  build-log streams, watches) are never buffered whole, so their total size is
+  never capped; each event of an SSE stream (process logs, watches) is
+  bounded, though (see "Watches are callback-only" below). For large files, or content
   from a sandbox you don't trust, use `download_file` / `downloadFile`, which
   stream to disk with progress and cancellation. TypeScript's `downloadFile`
-  is Node.js-only (a browser build throws `NotSupportedError`), so in a
-  browser the in-memory reads, under their cap, are the only option.
+  is Node.js-only (a browser build throws `NotSupportedError`); in a
+  browser, the in-memory reads (under their cap) and a pre-signed download
+  URL (`presignedDownloadUrl`), which the browser fetches directly, are the
+  options.
   A per-call timeout (a wait's budget plus its slack, a git remote call, the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
@@ -576,9 +583,12 @@ skipping exist only in the TypeScript tool).
   after the headers. Callers may bound a body themselves: Python's build-log
   discovery (`_discover`) and one-shot read (`read_build_logs`) wrap their
   body read in `anyio.move_on_after` with a deadline from their timeout. A
-  transfer ignores any timeout it carries.
+  transfer's own timeout replaces the request timeout as its idle bound
+  (Python `_transfer_idle_seconds`, TS `transferRequest` / `fetch`'s
+  `timeout`), never as a total deadline; resolving a transfer's credential
+  (the bearer, a 401 refresh) is bounded by that idle bound too.
 - **TypeScript rejects unknown option keys at runtime** (the rule; applied so
-  far to the client configuration, see below). A covered options object
+  far to the client configuration and the toolbox, see below). A covered options object
   declares its known keys once, with
   `optionKeys<T>()({ ... })` from `src/v2/options.ts` (a compile error when the
   list misses a key of `T` or names one `T` lacks), and its entry point calls
@@ -589,14 +599,18 @@ skipping exist only in the TypeScript tool).
   argument; a built-in such as a `Date` or a `Map`) is refused (the root
   constructor alone reads `null` as no configuration, as Python does `None`). A key in
   `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
-  `requestTimeout`, the 0.x `requestTimeoutMs`, `reconcileIntervalMs`,
+  `requestTimeout`, the 0.x `requestTimeoutMs`, `delay`, `reconcileIntervalMs`,
   `idleCloseMs`) whose replacement is
   a known key gets a message naming both, for `timeout`: "`timeout` was
   renamed to `timeoutSeconds` (seconds)".
   Pass-through maps inside options (`env`, `labels`, ...) are never checked.
   Python needs no helper: unknown keywords already raise `TypeError`. Applied
-  so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`);
-  per-call options adopt it area by area, each with its duration renames.
+  so far to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`)
+  and to every toolbox options object (process, session, PTY, interpreter,
+  filesystem, git, LSP, computer use, including nested `TerminalSize` /
+  `ComputerUseRegion` / `LspCompletionContext` and the `{ cmd }` / `{ argv }`
+  command); the other per-call options adopt it area by area, each with its
+  duration renames.
 - **Errors have one shape.** v2 category names are identical in both SDKs
   (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
@@ -621,12 +635,13 @@ skipping exist only in the TypeScript tool).
   status, code, 'SDK')`, never `new DaytonaError(...)`, which a TS guard test,
   `tests/sdk-raised-errors.test.ts`, holds to a shrinking list); local
   I/O and protocol failures carry the source only. A response that breaks the
-  contract is `BadRequestError` 400 `BAD_REQUEST` `SDK` naming the field (the
-  rule; known exceptions at this point, which still raise
-  `InternalServerError` 500 with no code: network policy, sandbox secrets,
-  the computer-use status mappers, and the filesystem watch events, until
-  their areas adopt it; the sandbox access-token mint and the pre-signed file
-  URL follow the rule). Python callers should not star-import
+  contract in a field the SDK reads or returns is `BadRequestError` 400
+  `BAD_REQUEST` `SDK` naming the field (fields it neither reads nor returns,
+  such as a pre-signed URL response's `url`, are not checked; the sandbox
+  access-token mint and the pre-signed file URL follow the rule; known
+  exceptions to the rule at this point, which still raise
+  `InternalServerError` 500 with no code: network policy and sandbox
+  secrets, until their areas adopt it). Python callers should not star-import
   `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
   built-ins.
 - **Generated wire types must not reach the public surface** (the rule; the
@@ -639,7 +654,134 @@ skipping exist only in the TypeScript tool).
   `ALLOWED` lists, which only shrink.
 - **Signals are bare names on the surface, `SIG*` on the wire** — the mapping
   lives in exactly one place per SDK (`signal_spec` / `signalWire`), and wait
-  results strip the prefix on the way back.
+  results and process metadata strip the prefix on the way back
+  (`bare_signal` / `bareSignal`).
+- **Process tags are checked before any request.** A `tag` (every create,
+  `list()`, `kill_all()` / `killAll()`) is a safe identifier
+  (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`; Python
+  `process_tag`, TS `processTag`); the kill timeout is seconds, more than 0
+  and at most 60 (Python `timeout`, TS `timeoutSeconds`): the toolbox takes
+  1-60000 ms and has no unbounded wait, so no value means "no limit", and an
+  omitted one uses the toolbox's 10-second default. `kill_all()` /
+  `killAll()` raises `UnsupportedOperationError` on macOS and on sandboxes
+  without process containment.
+- **Process results report what the sandbox reported.** `WaitResult` (and
+  `ProcessResult`, `InterpreterProcess`, which extend it) always has a
+  normalized `reason` (`unknown` + `raw_reason` / `rawReason` for an unlisted
+  or absent one); `exit_code` / `exitCode` and `signal` are optional in every
+  case and never filled in by the SDK. `run()` / `session.run()` / `exec()`
+  take `RunKeepLogs` and refuse `none`, since they read the output back from
+  the log. `stream_logs()` / `streamLogs()` yield the tagged
+  `StreamLogEvent` union (`log`, `state`, `warning`, `eof`) and raise the
+  typed error of a stream `error` event.
+- **Toolbox identities are one camelCase JSON in both SDKs.**
+  `ProcessHandleJSON` `{sandboxId, processId, kind?}`, `SessionJSON`
+  `{sandboxId, sessionId}`, `InterpreterContextJSON`
+  `{sandboxId, contextId, language}` (Python's `connect_context` also reads
+  the snake_case `InterpreterContextJSON` keys of earlier pre-releases; the
+  other identities are camelCase only). Handles reconnect through their namespace
+  (`process.connect`, `process.connect_session` / `connectSession`,
+  `interpreter.connect_context` / `connectContext`), never through a
+  constructor or a `from_json`.
+- **Construction of toolbox services and handles is internal.** Python
+  constructor parameters are `_`-prefixed; TypeScript constructors take the
+  `INTERNAL` token from `src/v2/internal.ts` (not reachable through the
+  package `exports`) and throw a `TypeError` without it; their published
+  declaration is `constructor(token: Internal, ...init: never[])` (the real
+  signature is `@internal`): it names only the opaque `Internal` token type,
+  never the internal transport or wire inputs (`HttpTransport`,
+  `ComputerUseTransport`, axios, generated types), which
+  `tests/public-declarations.test.ts` checks in the emitted declarations,
+  with an `ALLOWED` list for classes of other areas. Tests import the token
+  from the module.
+- **Watches are callback-only.** `watch_dir(path, on_event, ...)` /
+  `watchDir(path, onEvent, ...)`: callbacks run one at a time and are
+  awaited; a failing event or overflow callback ends the watch with that
+  error (`exit_error` / `exitError`); a failing exit callback is contained;
+  an external `stop()` returns after an active delivery and the exit
+  callback finish; a callback (or the exit callback) stopping its own watch,
+  or awaiting `wait_for_exit()` / `waitForExit()`, directly or from a task it
+  started, does not wait for itself (a per-delivery token: Python a
+  `contextvars.ContextVar`, which child tasks inherit, and on the sync client
+  the generated twins' `_SYNC_LOOP_VARIANTS` on the bridge loop thread; TS an
+  AsyncLocalStorage where the runtime has one, else only the synchronous part
+  of a callback or of the exit callback counts: in runtimes without
+  `AsyncLocalStorage` (browsers), a callback or `onExit` that stops its own
+  watch after an `await` must not await that `stop()`; an external `stop()`
+  always waits, in every runtime). The event `type` is an open string (the contract
+  declares no enum); an unknown SSE event is skipped without parsing its
+  data, and a known one whose data is not JSON is the malformed-response
+  error; an SSE block without a `data:` line, or an unterminated final one,
+  dispatches nothing. A watch whose stream ends on its own (or is cut short)
+  ends with `ConnectionError` (source `SDK`), and a close failure after the
+  caller's own `stop()` is not an exit error. The exit callback belongs to a
+  watch `watch_dir()` / `watchDir()` returned and runs exactly once; any
+  failure before that call returns (a refused connection, an HTTP error, a
+  stream that ends or breaks before `start`, a cancellation) is raised from
+  it and never calls the exit callback. Callbacks are held until
+  `watch_dir()` / `watchDir()` has returned its handle, so after a direct
+  `await` a callback can stop the watch through it; when the call runs inside
+  another task (Python `gather`, `create_task`, `wait_for` on 3.10–3.11; TS
+  `Promise.all` or a later await) or on the sync Python client (its twin
+  releases the callbacks once it has built its handle, `_SYNC_AFTER_WRAP`),
+  the first events can reach a callback before the caller holds the handle.
+  The documented way to stop a watch from an event, in every case, is to
+  signal the code that holds the handle and call `stop()` there. Events read
+  before `start` are held and delivered after it, at most 4096 events, and the
+  stream may send at most 1 MiB before `start`
+  (`WATCH_MAX_EVENTS_BEFORE_START` / `WATCH_MAX_BYTES_BEFORE_START`); more
+  fails the call with `BadRequestError`. Every SSE reader counts an event's
+  bytes as they arrive (Python `SseLineSplitter` over the body's bytes, TS
+  `sseMessages` with an `SseBound`), so one never-ending event is bounded:
+  before `start` by the watch's remaining budget (every frame counts,
+  comment-only heartbeats included; Python `SseLineSplitter.completed_bytes`,
+  TS `SseBound.limit(completed)`), otherwise (after `start`,
+  process log streams) by the client's `max_response_bytes` /
+  `maxResponseBytes`, an event over it `PayloadTooLargeError` (413,
+  `PAYLOAD_TOO_LARGE`, `SDK`). Python decodes every streamed body itself
+  (`AsyncResponseStream.iter_bytes()` through `_body_limit.decoded_chunks`:
+  gzip (also sent as `x-gzip`) / deflate in `DECODE_STEP` pieces, any other
+  encoding refused; compressed data that stops before its end raises a
+  `ConnectionError`), never
+  through httpx's decoders, so a compressed event is bounded too. A process log stream cut short is
+  `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
+  and so is one that ends without `eof`: the server ends it with `eof`, so
+  an iteration that ends normally always has the whole log.
+- **Toolbox results are SDK-owned models.** File info, grep / replace items,
+  git status / commits / remotes, system metrics, the LSP types and the
+  computer-use results are hand-written (Python frozen keyword-only
+  dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
+  frozen at run time at every depth with `deepFrozen` from `frozen.ts`
+  (live handles, bytes and streams are not), timestamps as RFC 3339
+  strings, except the Unix-millisecond numbers `timestamp_ms` / `timestampMs`
+  of log frames and filesystem events), as are log pages and bulk-write results; a value a callback
+  receives (a watch event) is frozen too,
+  with every field the contract requires
+  required: a response that breaks the contract in a field the SDK reads or
+  returns (a missing required field, a wrong type, a value outside the
+  contract's `minimum` / `maximum`, a malformed timestamp, a list or map shape
+  the contract does not have, an unparsable bulk-download error part, a
+  number a double cannot carry, which `JSON.parse` reads as `Infinity`:
+  Python checks every number field at the typed-model boundary with the
+  shared `finite_number`) is the malformed-response
+  `BadRequestError` (400, `BAD_REQUEST`, source `SDK`, naming the field),
+  never a placeholder value; unknown fields are dropped (computer-use keeps
+  them in its named `extraFields` bags). A 2xx response that declares JSON
+  and does not decode (invalid JSON, invalid UTF-8, the non-standard `NaN` /
+  `Infinity` constants) is that error at the transport, whether or not the
+  call reads the body (TS reads such bodies as bytes and decodes them
+  itself, `decodeResponseBody` in `http.ts`). Only the media type
+  `application/json` is JSON (case-insensitive, parameters ignored:
+  Python `is_json_media_type`, TS `isJsonMediaType`), and a JSON value may
+  nest arrays and objects at most 600 deep (`JSON_MAX_DEPTH`, Python
+  `loads_json`, TS `jsonDepth.ts`): the stdlib decoder's own limit depends on
+  the Python version and the thread's stack, so the SDKs set one. An error
+  response always raises its status's typed error; a body declared as
+  `application/json` and nested past the limit is unreadable (no code or details from it, the message says it was
+  nested too deeply), as an oversized one is (Python `error_from_response`,
+  TS `createAxiosDaytonaError` / `errorFromFetchResponse`).
+  `.` and `..` are no path ids: every toolbox id or name in a request path
+  goes through Python `toolbox_path_id` / TS `toolboxPathId`.
 - **Output is channel-filtered.** `stdout`/`stderr` come from their frame
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are
@@ -653,7 +795,8 @@ skipping exist only in the TypeScript tool).
   `sandbox.runCode(...)` delegates to `interpreter.run(...)`.
 - **Context-free interpreter runs share state.** `interpreter.run()` /
   `sandbox.run_code()` / `sandbox.runCode()` send no `sessionId` unless the
-  caller names one or asks for `isolated`. Repeated runs share state within
+  caller selects a `context` (handle, JSON identity, or id plus `language`)
+  or asks for `isolated`. Repeated runs share state within
   each language. `create_context` / `createContext` is how callers get independent
   state.
 - **Explicit interpreter contexts surface loss, they do not self-heal.** If a

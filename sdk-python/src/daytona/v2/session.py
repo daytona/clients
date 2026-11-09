@@ -5,26 +5,24 @@ from __future__ import annotations
 
 import warnings
 from types import TracebackType
-from typing import TYPE_CHECKING, Mapping, Optional, TypedDict
+from typing import TYPE_CHECKING, Mapping, Optional
 
 from typing_extensions import Self
 
+from ._core import refuse_dot_segment
 from ._transport import AsyncTransport
 from .errors import DaytonaError, ProcessNotFoundError, SessionNotFoundError, create_error
-from .types import KeepLogs, ProcessInfo, ProcessResult, StdinMode
+from .types import KeepLogs, ProcessInfo, ProcessResult, RunKeepLogs, SessionJSON, StdinMode
 
 if TYPE_CHECKING:
     from .process import AsyncProcessHandle, AsyncProcessService
 
 
-class _SessionIdentity(TypedDict):
-    sandboxId: str
-    sessionId: str
-
-
 def _require_id(value: object, field: str) -> str:
     if not isinstance(value, str) or not value:
         raise create_error(f"session identity needs a non-empty string {field}", 400, "BAD_REQUEST", "SDK")
+    if field == "sessionId":
+        refuse_dot_segment(value, "session id")
     return value
 
 
@@ -37,29 +35,35 @@ class AsyncSession:
     Sessions do not survive a sandbox stop/start. After ``set -x`` or
     ``set -v``, later commands' stderr also includes the session's command
     execution traces.
+
+    Returned by ``process.create_session()`` / ``process.connect_session()``,
+    never constructed directly.
     """
 
     def __init__(
         self,
-        sandbox_id: str,
-        session_id: str,
-        transport: Optional[AsyncTransport] = None,
+        _sandbox_id: str,
+        _session_id: str,
+        _transport: Optional[AsyncTransport] = None,
     ) -> None:
         from .process import AsyncProcessHandle
 
         # A missing id must never degrade a session command into a plain,
         # stateless exec: refuse it before any request can be built.
-        self.sandbox_id: str = _require_id(sandbox_id, "sandboxId")
-        self.id: str = _require_id(session_id, "sessionId")
-        self._handle = AsyncProcessHandle(sandbox_id, session_id, transport, "session")
+        self.sandbox_id: str = _require_id(_sandbox_id, "sandboxId")
+        self.id: str = _require_id(_session_id, "sessionId")
+        self._handle = AsyncProcessHandle(_sandbox_id, _session_id, _transport, "session")
 
-    def to_json(self) -> _SessionIdentity:
+    def __repr__(self) -> str:
+        return f"AsyncSession(sandbox_id={self.sandbox_id!r}, id={self.id!r})"
+
+    def to_json(self) -> SessionJSON:
         """Return a JSON-safe identity for ``process.connect_session()``."""
         return {"sandboxId": self.sandbox_id, "sessionId": self.id}
 
     @classmethod
-    def from_json(cls, value: Mapping[str, object]) -> AsyncSession:
-        """Rehydrate an unbound identity without making a request."""
+    def _from_json(cls, value: Mapping[str, object]) -> AsyncSession:
+        """An unbound session for a serialized identity, without a request."""
         return cls(
             _require_id(value.get("sandboxId"), "sandboxId"), _require_id(value.get("sessionId"), "sessionId")
         )
@@ -72,7 +76,7 @@ class AsyncSession:
         timeout: Optional[float] = None,
         execution_timeout: Optional[float] = None,
         name: Optional[str] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: Optional[RunKeepLogs] = None,
     ) -> ProcessResult:
         """Run a command in this shell and collect output; timeouts are seconds.
 

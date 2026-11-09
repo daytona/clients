@@ -6,6 +6,9 @@
 import type { AxiosError } from 'axios'
 import { CODE_STATUS } from '../codes.js'
 import { BodyBuffer, declaredLength } from '../bodyBuffer.js'
+import { JSON_MAX_DEPTH, nestedDeeperThan } from '../jsonDepth.js'
+import { enumerableSymbolKey } from '../symbolKeys.js'
+import type { KeyedObject } from '../symbolKeys.js'
 import type { ApiErrorCode, DaemonErrorCode, ErrorCode, GenericErrorCode, ProxyErrorCode, RouterErrorCode } from '../codes.js'
 import type { DockerStatus, SandboxState } from '../types.js'
 import {
@@ -120,14 +123,27 @@ export function nonOptionsDescription(value: unknown): string | undefined {
  * plain JavaScript) would otherwise lose the status silently. The copy holds
  * every enumerable key, own or inherited (`for...in`), as the client
  * configuration reads them, so a prototype-based options object keeps its
- * fields through the spreads the constructors do. Internal: every error
- * constructor that reads options runs it first.
+ * fields through the spreads the constructors do; an enumerable symbol key
+ * is refused. Internal: every error constructor that reads options runs it
+ * first.
  */
 export function errorOptions<T extends object>(options: T | undefined): T | undefined {
   if (options === undefined) return undefined
   const given = nonOptionsDescription(options)
   if (given !== undefined) {
     throw new BadRequestError(`error options must be an options object, got ${given}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  // No error options type declares a symbol key: an enumerable one, own or
+  // inherited, is refused, as the options guard (`enumerableKeys`) does. The
+  // walk stops before Object.prototype: every options literal the SDK builds
+  // itself inherits from it (this function's own BadRequestError included),
+  // so a key there would turn every error into this one, and a string key
+  // there is not refused either (it is copied, as `for...in` reads it).
+  // SAFETY: nonOptionsDescription has established an options object (an
+  // object literal, a class instance or a prototype-based object).
+  const symbol = enumerableSymbolKey(options as unknown as KeyedObject, Object.prototype as KeyedObject)
+  if (symbol !== undefined) {
+    throw new BadRequestError(`ErrorOptions has no option \`${String(symbol)}\``, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const copy: Record<string, unknown> = {}
   for (const key in options) copy[key] = (options as Record<string, unknown>)[key]
@@ -268,7 +284,7 @@ export class ConflictError extends DaytonaError {}
 export class DockerWaitTimeoutError extends RequestTimeoutError {
   public readonly status?: DockerStatus
 
-  constructor(status: DockerStatus | undefined) {
+  constructor(status?: DockerStatus) {
     super(`docker did not become ready within the requested timeout${status ? ` (last state: ${status.rawState || status.state})` : ''}`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     this.status = status
   }
@@ -856,12 +872,25 @@ export function responseTooLargeError(message: string): PayloadTooLargeError {
   return new PayloadTooLargeError(message, { statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK' })
 }
 
+/**
+ * An error response whose JSON body nests deeper than `JSON_MAX_DEPTH`: the
+ * body is unreadable, as an oversized one is, so the error keeps its status's
+ * class and carries no code or details from it (as in the Python SDK).
+ */
+function tooDeepErrorBody(status: number): DaytonaError {
+  return createDaytonaError(
+    `HTTP ${status}: the response body was nested too deeply to read (over ${JSON_MAX_DEPTH} levels of JSON)`,
+    status,
+  )
+}
+
 export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   if (error.code === PAYLOAD_TOO_LARGE_AXIOS_CODE) return responseTooLargeError(error.message)
   // Only a body declared as application/json carries a code.
   const json = isJsonMediaType(axiosResponseHeader(error.response?.headers, 'content-type'))
-  const envelope = json ? dataObject(error.response?.data) : undefined
   const status = error.response?.status
+  if (json && status !== undefined && nestedDeeperThan(error.response?.data)) return tooDeepErrorBody(status)
+  const envelope = json ? dataObject(error.response?.data) : undefined
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
   if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
@@ -883,15 +912,27 @@ export function errorFromEnvelopeBody(
   fallbackMessage: string,
   emptyProseIsAbsent = false,
 ): DaytonaError {
-  let parsed: ErrorEnvelope | undefined
-  // Only a body declared as application/json carries a code.
-  if (isJsonMediaType(contentType)) {
-    try {
-      parsed = dataObject(JSON.parse(body) as unknown)
-    } catch {
-      parsed = undefined
-    }
+  const parsed = isJsonMediaType(contentType) ? parsedBody(body) : undefined
+  // Nested past JSON_MAX_DEPTH: unreadable, as on the axios and fetch paths.
+  if (nestedDeeperThan(parsed)) return tooDeepErrorBody(status)
+  return errorFromEnvelope(parsed, status, fallbackMessage, emptyProseIsAbsent)
+}
+
+function parsedBody(body: string): unknown {
+  try {
+    return JSON.parse(body) as unknown
+  } catch {
+    return undefined
   }
+}
+
+function errorFromEnvelope(
+  body: unknown,
+  status: number,
+  fallbackMessage: string,
+  emptyProseIsAbsent: boolean,
+): DaytonaError {
+  const parsed = dataObject(body)
   const code = typeof parsed?.code === 'string' ? parsed.code : undefined
   const source = typeof parsed?.source === 'string' ? parsed.source : undefined
   // emptyProseIsAbsent picks the first non-empty of message/error before the
@@ -916,7 +957,10 @@ export async function errorFromFetchResponse(response: Response, limit = 0, onCh
       response.status,
     )
   }
-  return errorFromEnvelopeBody(text, response.headers.get('content-type'), response.status, text || response.statusText)
+  // Only a body declared as application/json carries a code.
+  const parsed = isJsonMediaType(response.headers.get('content-type')) ? parsedBody(text) : undefined
+  if (nestedDeeperThan(parsed)) return tooDeepErrorBody(response.status)
+  return errorFromEnvelope(parsed, response.status, text || response.statusText, false)
 }
 
 /**

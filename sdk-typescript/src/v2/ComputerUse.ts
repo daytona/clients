@@ -19,7 +19,10 @@ import {
   ScreenService,
   type ComputerUseTransport,
 } from './ComputerUseNamespaces.js'
+import { assertInternal, INTERNAL } from './internal.js'
+import type { Internal } from './internal.js'
 
+/** Sandbox computer-use namespace (`sandbox.computerUse`): the desktop and its input devices. */
 export class ComputerUseService {
   public readonly service: AddonProcessesService
   public readonly mouse: MouseService
@@ -31,15 +34,20 @@ export class ComputerUseService {
 
   private readonly lifecycle: ComputerUseLifecycleService
 
-  constructor(transport: ComputerUseTransport) {
-    this.lifecycle = new ComputerUseLifecycleService(transport)
-    this.service = new AddonProcessesService(transport)
-    this.mouse = new MouseService(transport)
-    this.keyboard = new KeyboardService(transport)
-    this.screen = new ScreenService(transport)
-    this.display = new DisplayService(transport)
-    this.a11y = new A11yService(transport)
-    this.recording = new RecordingService(transport)
+  /** @internal */
+  constructor(token: Internal, transport: ComputerUseTransport)
+  /** Built by the SDK: get it from `sandbox.computerUse`. */
+  constructor(token: Internal, ...init: never[])
+  constructor(token: Internal, transport: ComputerUseTransport) {
+    assertInternal(token, 'ComputerUseService')
+    this.lifecycle = new ComputerUseLifecycleService(INTERNAL, transport)
+    this.service = new AddonProcessesService(INTERNAL, transport)
+    this.mouse = new MouseService(INTERNAL, transport)
+    this.keyboard = new KeyboardService(INTERNAL, transport)
+    this.screen = new ScreenService(INTERNAL, transport)
+    this.display = new DisplayService(INTERNAL, transport)
+    this.a11y = new A11yService(INTERNAL, transport)
+    this.recording = new RecordingService(INTERNAL, transport)
   }
 
   public async status(): Promise<ComputerUseStatusResponse> {

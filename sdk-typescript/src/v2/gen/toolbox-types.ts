@@ -76,6 +76,7 @@ export type ComputerUseStatusResponse = Omit<OptionalizeNullable<Schema<"Compute
   cause?: ComputerUseDesktopFailure
 }
 export type ComputerUseWindow = OptionalizeNullable<Schema<"ComputerUseWindow">>
+export type CompletionContext = OptionalizeNullable<Schema<"CompletionContext">>
 export type CompletionItem = OptionalizeNullable<Schema<"CompletionItem">>
 export type CompletionList = Omit<OptionalizeNullable<Schema<"CompletionList">>, 'items'> & {
   items: CompletionItem[]
@@ -94,7 +95,12 @@ export type ExitResult = OptionalizeNullable<Schema<"ExitResult">>
 export type FileInfo = OptionalizeNullable<Schema<"FileInfo">>
 export type GitStatus = OptionalizeNullable<Schema<"StatusResponse">>
 export type LogFrameDto = OptionalizeNullable<Schema<"LogFrameDto">>
+export type GitRemote = OptionalizeNullable<Schema<"GitRemote">>
+export type ListRemotesResponse = OptionalizeNullable<Schema<"ListRemotesResponse">>
+export type MarkupContent = OptionalizeNullable<Schema<"MarkupContent">>
 export type Match = OptionalizeNullable<Schema<"Match">>
+export type Metrics = OptionalizeNullable<Schema<"Metrics">>
+export type BulkUploadResponse = OptionalizeNullable<Schema<"BulkUploadResponse">>
 export type PortInUseResponse = OptionalizeNullable<Schema<"IsPortInUseResponse">>
 export type PortList = OptionalizeNullable<Schema<"PortList">>
 type ProcessRecord = Simplify<

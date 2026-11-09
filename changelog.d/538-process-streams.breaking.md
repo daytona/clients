@@ -1,0 +1,26 @@
+**One process log stream in both SDKs** — `stream_logs()` / `streamLogs()`
+yield a tagged `StreamLogEvent`: `log` (a frame), `state` (the process ended,
+with its `WaitResult`), `warning` (older frames were evicted) and `eof`, with
+named member types (`StreamLogFrameEvent`, `StreamLogStateEvent`,
+`StreamLogWarningEvent`, `StreamLogEofEvent`). A stream error raises the typed
+error for its code instead of being yielded (TypeScript) as an untyped event,
+and reading stops after `eof`; a `state` event is checked as the whole process
+record it carries. Every yielded event (`log`, `state`, `warning`, `eof`)
+carries its resume `cursor` (the payload's, else, only when the payload has no
+`cursor` key, the SSE `id:` line's, in both SDKs; a payload cursor that is not
+a non-empty string, `null` included, is refused) and a warning its
+`first_available_cursor` / `firstAvailableCursor`; an event missing one, or a
+warning or error without its message, raises `BadRequestError` (400,
+`BAD_REQUEST`, source `SDK`); an `error` event raises its typed error whether
+or not it carries a cursor. In both SDKs an SSE block without a `data:` line,
+or an unterminated final block, dispatches nothing (TypeScript dispatched
+both), and one byte-order mark at the very start of a stream is dropped
+(Python kept it, so the stream's first event lost its type and was skipped).
+Each event is bounded by the client's `max_response_bytes` /
+`maxResponseBytes` (left unset, Python `None` / TypeScript `undefined` or
+`null`, it keeps the configured cap, 1 GiB by default; `0` means no limit; any
+other value is a `BadRequestError`), counted as its bytes arrive: one event
+over it raises `PayloadTooLargeError` (413, `PAYLOAD_TOO_LARGE`, source
+`SDK`); with `0` events are unbounded. A stream that is cut short, or that
+ends before `eof`, raises `ConnectionError` (source `SDK`) in both SDKs.
+Python yielded bare `LogFrame`s and gains `limit=`.

@@ -818,6 +818,26 @@ async def test_http_error_reads_a_code_only_from_an_application_json_body(conten
     assert (error.status_code, error.code, error.message) == (404, None, "build log HTTP 404")
 
 
+# Shared with the TypeScript SDK's errors-contract.test.ts: a JSON error body
+# nested past 600 levels is unreadable, as on the transport's error path.
+@pytest.mark.parametrize(("depth", "readable"), [(600, True), (601, False)])
+async def test_a_build_log_error_body_nested_past_the_limit_keeps_only_its_status(depth, readable):
+    nest = depth - 1
+    body = ('{"code":"NOT_FOUND","message":"gone","details":' + "[" * nest + "]" * nest + "}").encode()
+    api, _, _ = setup([httpx.Response(404, content=body, headers={"content-type": "application/json"})])
+    with pytest.raises(NotFoundError) as failure:
+        await read_build_logs(api, DISCOVERY)
+    error = failure.value
+    if readable:
+        assert (error.code, error.message) == ("NOT_FOUND", "gone")
+    else:
+        assert (error.status_code, error.code, error.message) == (
+            404,
+            None,
+            "HTTP 404: the response body was nested too deeply to read (over 600 levels of JSON)",
+        )
+
+
 async def test_http_error_reads_error_and_code_fields():
     api, _, _ = setup(
         [httpx.Response(409, json={"error": "sandbox is not running", "code": "SANDBOX_NOT_RUNNING"})]

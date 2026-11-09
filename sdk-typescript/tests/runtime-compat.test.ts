@@ -6,6 +6,7 @@
 // Transport behavior that differs between JavaScript runtimes. The
 // runtime-tests/ suite proves these in the runtimes themselves.
 
+import { INTERNAL } from '../src/v2/internal'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -55,7 +56,7 @@ describe('aborts rejected by a fetch polyfill', () => {
 
   it('treats watchDir().stop() as a clean exit', async () => {
     polyfillFetch('event: start\ndata: {}\n\nevent: fs\ndata: {"type":"create","name":"a.txt","isDir":false,"timestamp":1}\n\n')
-    const fs = new FileSystemService(new HttpTransport('http://toolbox.invalid/sandbox', 'key'))
+    const fs = new FileSystemService(INTERNAL, new HttpTransport('http://toolbox.invalid/sandbox', 'key'))
     const onExit = jest.fn()
     const seen: string[] = []
 
@@ -92,7 +93,7 @@ describe('aborts rejected by a fetch polyfill', () => {
 
   it('reports an aborted download as TransferCancelledError', async () => {
     const transport = new HttpTransport('http://toolbox.invalid/sandbox', 'key')
-    const fs = new FileSystemService(transport)
+    const fs = new FileSystemService(INTERNAL, transport)
     const dir = await mkdtemp(join(tmpdir(), 'daytona-sdk-polyfill-abort-'))
     jest.spyOn(transport, 'fetch').mockRejectedValue(new PolyfillAbortError())
     try {

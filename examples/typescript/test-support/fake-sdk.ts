@@ -75,7 +75,12 @@ const newImage = (name: string, status: string, waits: string[] = ['ready'], err
 const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(name, status, waits))
 const volumeLines: string[] = []
 
-const result = (exitCode: number, output: string) => ({ exitCode, output, stdout: output, stderr: '' })
+// Every field the SDK's ProcessResult requires, so an example reading any of them sees a real shape:
+// non-empty output is one stdout log frame, as the sandbox reports it.
+const result = (exitCode: number, output: string) => ({
+  processId: 'p', reason: 'exited' as const, exitCode, output, stdout: output, stderr: '',
+  logs: output === '' ? [] : [{ cursor: '1', channel: 'stdout', data: output, timestampMs: 0 }],
+})
 
 function run(command: string, env: { [name: string]: string }, dockerfile: string) {
   for (const [pattern, exitCode, output] of scenario.overrides ?? []) {
@@ -112,7 +117,7 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     process: { run: async (command: string) => run(command, env, dockerfile) },
     interpreter: {
       run: async () => ({
-        process: { exitCode: scenario.interpreterExitCode ?? 0 },
+        process: { processId: 'p', reason: 'exited' as const, exitCode: scenario.interpreterExitCode ?? 0 },
         logs: { stdout: 'Hello World from code!\n', stderr: '' },
         results: [],
         error: scenario.interpreterError ? { name: scenario.interpreterError, value: '', traceback: [] } : undefined,
@@ -130,11 +135,12 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
           const text = new TextDecoder().decode(files.get(path))
           files.set(path, new TextEncoder().encode(text.replace(pattern, value)))
         }
+        return { items: paths.map((file) => ({ file, success: true })) }
       },
     },
     git: {
       clone: async () => undefined,
-      status: async () => ({ currentBranch: 'master' }),
+      status: async () => ({ currentBranch: 'master', ahead: 0, behind: 0, branchPublished: false, fileStatus: [] }),
       add: async () => undefined,
       commit: async () => ({ hash: 'abc1234' }),
       createBranch: async () => undefined,
@@ -196,7 +202,7 @@ const fake = {
       record.pulledImages.push({ ref, name: options.name })
       if (scenario.pullConflict && record.pulledImages.length === 1) {
         images.push(newImage(options.name ?? ref, 'ready'))
-        throw new NameConflictError('image name already exists', 409, 'NAME_CONFLICT', 'API')
+        throw new NameConflictError('image name already exists', { statusCode: 409, code: 'NAME_CONFLICT', source: 'API' })
       }
       const entry = scenario.pullFails ? newImage(options.name ?? ref, 'pending', ['failed'], scenario.pullFails) : newImage(options.name ?? ref, 'ready')
       images.push(entry)

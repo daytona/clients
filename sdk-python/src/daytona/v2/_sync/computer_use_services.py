@@ -65,6 +65,7 @@ class A11yService:
     def tree(
         self, *, scope: ComputerUseA11yScope, pid: int | None = None, max_depth: int | None = None
     ) -> ComputerUseA11yTree:
+        """Read the accessibility tree, at most 256 levels below the root."""
         return self._bridge.call(lambda: self._impl.tree(scope=scope, pid=pid, max_depth=max_depth))
 
 
@@ -156,7 +157,8 @@ class KeyboardService:
     def key(self, *, key: str, modifiers: Sequence[ComputerUseKeyboardModifier] | None = None) -> None:
         return self._bridge.call(lambda: self._impl.key(key=key, modifiers=modifiers))
 
-    def type(self, *, text: str, delay: int | None = None) -> None:
+    def type(self, *, text: str, delay: float | None = None) -> None:
+        """Type ``text``; ``delay`` is the pause between key presses in seconds."""
         return self._bridge.call(lambda: self._impl.type(text=text, delay=delay))
 
 
@@ -230,7 +232,7 @@ class RecordingService:
         return self._bridge.call(lambda: self._impl.delete(id))
 
     def download(self, id: str, *, max_response_bytes: Optional[int] = None) -> bytes:
-        """Download a recording into memory."""
+        """Download a recording, holding the whole file in memory."""
         return self._bridge.call(lambda: self._impl.download(id, max_response_bytes=max_response_bytes))
 
     def get(self, id: str) -> ComputerUseRecording:

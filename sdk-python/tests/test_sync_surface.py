@@ -46,7 +46,7 @@ from daytona.v2._bridge import BridgeError, SyncBridge
 from daytona.v2._sync import Daytona
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.daytona import AsyncDaytona
-from daytona.v2.process import AsyncProcessHandle, AsyncProcessService
+from daytona.v2.process import AsyncProcessService
 from daytona.v2.types import DaytonaConfig, ListResult
 
 
@@ -430,7 +430,7 @@ def test_handle_shape_wraps_returned_sdk_objects_recursively(server: _Server, sy
     handle = sandbox.process.start("true")
     assert type(handle).__name__ == "ProcessHandle"
     assert type(sandbox.process).__name__ == "ProcessService"
-    assert handle.process_id == "p-1"
+    assert handle.id == "p-1"
     assert handle.to_json() == {"sandboxId": "sb-1", "processId": "p-1", "kind": "exec"}
 
 
@@ -639,9 +639,6 @@ def test_rehydration_shape_round_trips_across_surfaces(server: _Server, sync_cli
     server.routes[("POST", "/sandboxes/sb-1/processes")] = _process("p-1")
     serialized = sync_client.get("sb-1").process.start("true").to_json()
 
-    async_handle = AsyncProcessHandle.from_json(serialized)
-    assert async_handle.process_id == "p-1"
-
     rehydrated = sync_client.get("sb-1").process.connect(serialized)
     assert type(rehydrated).__name__ == "ProcessHandle"
     assert rehydrated.to_json() == serialized
@@ -690,22 +687,14 @@ def test_unwrap_reaches_handles_nested_in_every_container_shape(
         )
 
 
-def test_rehydrated_sync_handles_need_no_bridge_until_connected(
-    server: _Server, sync_client: Daytona
-) -> None:
-    """`ProcessHandle.from_json(...)` mirrors the async classmethod exactly:
-    identity round-trips with no client; I/O before connecting raises the
-    SDK's own not-bound error; connecting through a client binds it."""
-    from daytona.v2 import ProcessHandle
-    from daytona.v2.errors import BadRequestError
+def test_serialized_identities_reconnect_through_the_namespace(server: _Server, sync_client: Daytona) -> None:
+    """Process and session identities reconnect only through the process
+    namespace; the sync handles have no unbound rehydration path."""
+    from daytona.v2 import ProcessHandle, Session
 
+    assert not hasattr(ProcessHandle, "from_json")
+    assert not hasattr(Session, "from_json")
     serialized = {"sandboxId": "sb-1", "processId": "p-1", "kind": "exec"}
-    unbound = ProcessHandle.from_json(serialized)
-    assert unbound.to_json() == serialized
-    assert unbound.ref().process_id == "p-1"
-    with pytest.raises(BadRequestError, match="not bound"):
-        unbound.wait(timeout=1)
-
     server.routes[("GET", "/sandboxes/sb-1/processes/p-1")] = {
         "id": "p-1",
         "kind": "exec",
@@ -717,8 +706,12 @@ def test_rehydrated_sync_handles_need_no_bridge_until_connected(
         "truncatedHead": False,
     }
     server.routes[("GET", "/sandboxes/sb-1")] = _sandbox("sb-1")
-    bound = sync_client.get("sb-1").process.connect(unbound.to_json())
+    process = sync_client.get("sb-1").process
+    bound = process.connect(serialized)  # type: ignore[arg-type]
+    assert bound.to_json() == serialized
     assert bound.get().id == "p-1"
+    session = process.connect_session({"sandboxId": "sb-1", "sessionId": "s-1"})
+    assert session.to_json() == {"sandboxId": "sb-1", "sessionId": "s-1"}
 
 
 def test_close_from_a_loop_thread_callback_still_releases_http_pools() -> None:

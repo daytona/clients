@@ -3,17 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ProcessDto, KeepLogs, RunResult } from './types.js'
+import type { KeepLogs, ProcessInfo, ProcessResult, RunKeepLogs, StdinMode } from './types.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import { runProcess, startProcess } from './ProcessRun.js'
 import type { ProcessBinding } from './ProcessRun.js'
-import { BadRequestError, ProcessNotFoundError } from './errors/DaytonaError.js'
+import { BadRequestError, ProcessNotFoundError, SessionNotFoundError } from './errors/DaytonaError.js'
+import { assertInternal, INTERNAL } from './internal.js'
+import type { Internal } from './internal.js'
+import { assertKnownOptions, optionKeys } from './options.js'
+import { refuseDotSegment } from './toolboxPath.js'
 
 /** A missing id must never degrade a session command into a plain, stateless exec. */
 export function requireSessionId(value: unknown, field: 'sandboxId' | 'sessionId'): string {
   if (typeof value !== 'string' || value === '') {
     throw new BadRequestError(`session identity needs a non-empty string ${field}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
+  if (field === 'sessionId') refuseDotSegment(value, 'session id')
   return value
 }
 
@@ -33,9 +38,9 @@ export interface CreateSessionOptions {
 }
 
 export interface SessionStartOptions {
-  readonly stdin?: 'closed' | 'open'
+  readonly stdin?: StdinMode
   /**
-   * Server-side command deadline in milliseconds. The clock starts when the
+   * Server-side command deadline in seconds. The clock starts when the
    * command starts, after any queued commands ahead of it.
    * The command is stopped and the session survives; a command that has not
    * stopped 5 s after its timeout ends the session instead of blocking it.
@@ -43,16 +48,24 @@ export interface SessionStartOptions {
    * function or sourced file, as it does in bash older than 4.4 (macOS's
    * `/bin/bash`) when a DEBUG trap is set.
    */
-  readonly executionTimeout?: number
+  readonly executionTimeoutSeconds?: number
   readonly name?: string
   readonly keepLogs?: KeepLogs
 }
 
-export interface SessionRunOptions extends SessionStartOptions {
-  /** Caller wait budget in milliseconds; omitted or 0 waits unbounded. */
-  readonly timeout?: number
+export interface SessionRunOptions extends Omit<SessionStartOptions, 'keepLogs'> {
+  /** How long the sandbox keeps the command's log (default `'on_exit_ttl'`). */
+  readonly keepLogs?: RunKeepLogs
+  /** Caller wait budget in seconds; omitted or 0 waits unbounded. Expiry does not stop the command. */
+  readonly timeoutSeconds?: number
 }
 
+const SESSION_START_OPTION_KEYS = optionKeys<SessionStartOptions>()({ stdin: true, executionTimeoutSeconds: true, name: true, keepLogs: true })
+const SESSION_RUN_OPTION_KEYS = optionKeys<SessionRunOptions>()({
+  stdin: true, executionTimeoutSeconds: true, name: true, keepLogs: true, timeoutSeconds: true,
+})
+
+/** A shell session's serialized identity (`session.toJSON()`), the same shape the Python SDK writes. */
 export interface SessionJSON {
   readonly sandboxId: string
   readonly sessionId: string
@@ -64,36 +77,53 @@ export interface SessionJSON {
  * Interrupt a command with `handle.kill({ signal: 'INT' })`: the session
  * survives. Sessions survive pause/resume, but not a sandbox stop/start.
  * After `set -x` or `set -v` in a session, later commands' stderr also includes
- * the shell wrapper used to run each command.
+ * the shell wrapper used to run each command. Returned by
+ * `process.createSession()` / `process.connectSession()`, never constructed
+ * directly.
  */
 export class Session {
   public readonly sandboxId: string
 
   public readonly id: string
 
-  constructor(private readonly binding: ProcessBinding, id: string) {
+  private readonly binding: ProcessBinding
+
+  /** @internal */
+  constructor(token: Internal, binding: ProcessBinding, id: string)
+  /** Built by the SDK: get it from `sandbox.process.createSession()` or `connectSession()`. */
+  constructor(token: Internal, ...init: never[])
+  constructor(token: Internal, binding: ProcessBinding, id: string) {
+    assertInternal(token, 'Session')
+    this.binding = binding
     this.sandboxId = binding.sandboxId
     this.id = requireSessionId(id, 'sessionId')
   }
 
   /** Run in this shell, wait, and collect output using the process run path. */
-  public async run(command: string, options: SessionRunOptions = {}): Promise<RunResult> {
-    return runProcess(this.binding, command, { ...options, sessionId: this.id })
+  public async run(command: string, options: SessionRunOptions = {}): Promise<ProcessResult> {
+    assertKnownOptions('SessionRunOptions', options, SESSION_RUN_OPTION_KEYS)
+    const { timeoutSeconds, keepLogs, ...start } = options
+    return runProcess(this.binding, { ...start, cmd: command, kind: 'exec', sessionId: this.id }, { timeoutSeconds, keepLogs })
   }
 
   /** Queue a command and return its handle without waiting for completion. */
   public async start(command: string, options: SessionStartOptions = {}): Promise<ProcessHandle> {
-    return startProcess(this.binding.transport, this.sandboxId, command, { ...options, sessionId: this.id })
+    assertKnownOptions('SessionStartOptions', options, SESSION_START_OPTION_KEYS)
+    return startProcess(this.binding.transport, this.sandboxId, { ...options, cmd: command, kind: 'exec', sessionId: this.id })
   }
 
   /** Read the shell process, including its current working directory. */
-  public async get(): Promise<ProcessDto> {
-    return new ProcessHandle(this.binding.transport, this.sandboxId, this.id, 'session').get()
+  public async get(): Promise<ProcessInfo> {
+    return this.handle().get()
   }
 
   /** End the shell and delete it and all its command records. */
   public async delete(): Promise<void> {
-    await new ProcessHandle(this.binding.transport, this.sandboxId, this.id, 'session').delete()
+    await this.handle().delete()
+  }
+
+  private handle(): ProcessHandle {
+    return new ProcessHandle(INTERNAL, this.binding.transport, this.sandboxId, this.id, 'session')
   }
 
   /** Deletes the session on scope exit; one already deleted in the scope is fine. */
@@ -101,11 +131,12 @@ export class Session {
     try {
       await this.delete()
     } catch (error) {
-      if (error instanceof ProcessNotFoundError) return
+      if (error instanceof ProcessNotFoundError || error instanceof SessionNotFoundError) return
       throw error
     }
   }
 
+  /** The session's JSON-safe identity, for `sandbox.process.connectSession()`. */
   public toJSON(): SessionJSON {
     return { sandboxId: this.sandboxId, sessionId: this.id }
   }

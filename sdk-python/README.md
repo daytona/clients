@@ -627,17 +627,44 @@ the macOS fork is `started` or `stopped`.
 ### Processes
 
 `sandbox.exec()` is the root alias of `process.run()`. `process.run()` executes
-a command and awaits the result. `process.start()` returns a detached,
-serializable `ProcessHandle(sandbox_id, process_id)` with `logs()`,
+a command and returns a `ProcessResult`: `stdout`, `stderr`, `output`, the log
+frames it read them from (`logs`), and how the process ended (`reason`,
+`exit_code`, `signal`). `exit_code` and `signal` are set only when the sandbox
+reported them; `reason` is always set (`"unknown"` with the value on
+`raw_reason` for one this release does not know). `run()` reads the output
+back from the process log, so its `keep_logs=` takes `"on_exit_ttl"` (default)
+or `"until_cleanup"`, not `"none"`.
+
+`process.start()` returns a detached `ProcessHandle` with `logs()`,
 `stream_logs()`, `wait()`, `write_stdin()`, `close_stdin()`, signal-aware `kill()`,
 `delete()` and `resize()`. `write_stdin()` / `close_stdin()` are for exec and
-PTY handles only. `timeout=` is the caller wait budget **(seconds)**, and
-`timeout=0` means wait unbounded. `execution_timeout=` is the process deadline
-**(seconds)** for server-managed runs that support one. Rehydrated `kind='code'`
+PTY handles only. `stream_logs()` yields one `StreamLogEvent` per server
+event of a supported type (an event of another type is skipped), each
+carrying its resume `cursor`, and stops after the `eof` event: `StreamLogFrameEvent` (a
+`LogFrame` on `.frame`), `StreamLogStateEvent` (the process ended),
+`StreamLogWarningEvent` (older frames were evicted) and `StreamLogEofEvent`;
+a stream error raises its typed error. The sandbox ends the stream with
+`eof`, so an iteration that ends normally has the whole log; a stream cut
+short, or one that ends without `eof`, raises `ConnectionError`: call
+`stream_logs(cursor=...)` again with the last event's cursor. `timeout=` is the
+caller wait budget **(seconds)**, and `timeout=0` means wait unbounded.
+`execution_timeout=` is the process deadline **(seconds)** for server-managed
+runs that support one; `kill(escalate_after=)` is in seconds too. Signals are
+bare names (`"TERM"`), in `kill()` and in what `wait()` and `get()` report.
+
+Handles come from the SDK, never from a constructor: `handle.to_json()` returns
+a `ProcessHandleJSON` (the sandbox and process ids, plus the process `kind`
+when it is known; the same JSON the TypeScript SDK writes), and `sandbox.process.connect(value)` reconnects it, or a
+bare process id, on any worker without a request. Reconnected `kind='code'`
 handles remain replay/control handles (`logs()` / `wait()` / `kill()`), not a
-way to recover a parsed `InterpreterResult` on another worker. `pty.list()` is
-the PTY-only view of `process.list(kind="pty")`, and `pty.delete(id)` kills
-then cleans up that PTY record.
+way to recover a parsed `InterpreterResult` on another worker.
+
+`pty.start(command=None, *, terminal=TerminalSize(cols=..., rows=...), ...)`
+starts an interactive terminal (80×24 when `terminal` is omitted); it also
+takes `cwd`, `env`, `name`, `user`, `shell`, `login`, `stdin` (default
+`"open"`), `execution_timeout` and `keep_logs` (default `"until_cleanup"`).
+`pty.list()` is the PTY-only view of `process.list(kind="pty")`, and
+`pty.delete(id)` kills then cleans up that PTY record.
 
 On `AsyncDaytona`, `process.start()` returns `AsyncProcessHandle` and methods
 that return results require `await`.
@@ -663,8 +690,8 @@ and await `AsyncSession` network methods. `timeout` bounds the caller's wait;
 `execution_timeout` stops the command without ending the session (both seconds);
 a command that has not stopped 5 seconds after its timeout ends the session
 instead of blocking it.
-Use `session.to_json()` and `sandbox.process.connect_session(identity)` to
-reconnect without a request. `process.list(kind="session")` lists sessions;
+Use `session.to_json()` (a `SessionJSON`) and
+`sandbox.process.connect_session(identity)` to reconnect without a request. `process.list(kind="session")` lists sessions;
 `process.list(session_id=session.id)` lists their commands. Sessions survive
 pause/resume but not a sandbox stop/start. In dash, BusyBox `sh` and mksh, an interrupt leaves only the
 innermost shell function or sourced file; bash and zsh leave the whole command
@@ -697,8 +724,10 @@ session commands inherit it, and interpreter code executions cannot be tagged.
 `ProcessInfo.tag` exposes it. `kill_all()` keeps records and logs and returns
 the ids of the tagged processes that were running, or had running descendants,
 when it began; survivors of deleted or expired records are killed too but not
-listed. Its `timeout` is in seconds (1 ms to 60 s, fractions allowed, default 10); `ProcessKillIncompleteError` means the timeout expired before all
-work stopped, and retrying is safe. A start racing the kill either precedes it
+listed. Its `timeout` is in seconds (more than 0 and at most 60, fractions
+allowed, default 10). A tag or timeout outside those rules raises
+`BadRequestError` before any request. `ProcessKillIncompleteError` means the
+timeout expired before all work stopped, and retrying is safe. A start racing the kill either precedes it
 and is killed, or starts afterwards and keeps running.
 
 Linux and Windows support tags, filtering and tag-wide kills. macOS supports
@@ -712,22 +741,55 @@ immediately after `kill_all()`.
 
 `read_text` / `write_text`, `read_bytes` / `write_bytes`, `upload_file()` /
 `download_file()`, bulk `read_many` / `write_many`, `remove()`, `grep()` (file
-contents) / `glob()` (file names), `watch_dir()` for directory
-watches (`get_new_events()`, a single exit notification via `on_exit=` /
-`wait_for_exit()`), and
-`presigned_download_url` / `presigned_upload_url` for direct transfers.
-`read_bytes`, `read_text`, `read_many` and the computer-use recording
-`download()` hold the whole response in memory: they take
-`max_response_bytes=` to replace the client's cap for one call (`None` keeps
-the client's cap, `0` means no limit, any other non-integer is a
-`BadRequestError`). For large files, or content from a sandbox you don't trust, use
-`download_file()`, which streams to disk. The
+contents) / `glob()` (file names), `watch_dir()` for directory watches, and
+`presigned_download_url` / `presigned_upload_url` for direct transfers. The
 platform mints the link; `expires_in_seconds` (default 3600) must be between 1
 and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
 `sandbox.rotate_signing_key()` retires every pre-signed URL minted so far;
 new URLs use the new key, which is never
-returned to the client. List-like APIs return `{items, next_cursor}` objects;
-`iter()` lazily drains every page.
+returned to the client. `list()`, `grep()`, `glob()` and `replace()` return one
+`ListResult` page (of `FileInfo`, `FileMatch`, path strings and
+`ReplaceResult`, iterable over its items); these methods have no
+page-draining iterator and take no cursor argument. `read_text()`
+decodes strictly as UTF-8 and keeps a leading byte-order mark.
+
+`watch_dir(path, on_event, *, recursive=False, on_overflow=None, on_exit=None)`
+calls `on_event` for each change (a `FilesystemEvent`; `timestamp_ms` is Unix
+milliseconds; `type` is `"create"`, `"write"`, `"remove"`, `"rename"`,
+`"chmod"` or a kind a later sandbox adds, passed through as its string). Callbacks may be plain or coroutine functions; they run one at
+a time and are awaited. A failing `on_event` or `on_overflow` ends the watch
+with that error, which `exit_error` / `wait_for_exit()` report and `on_exit`
+receives; a failing `on_exit` is ignored. A watch whose stream drops ends with
+`ConnectionError`. `on_exit` runs exactly once for a watch `watch_dir()`
+returned; a failure before the watch starts (a refused connection, an HTTP
+error, a stream that ends before `start`) is raised from `watch_dir()` and
+does not call it. `stop()` returns once a callback that is already running,
+and `on_exit`, have finished.
+
+To stop a watch from an event, signal the code that holds the handle (an
+`asyncio.Event`, or a `threading.Event` with the synchronous client) and call
+`stop()` there; this works in every case. As a shorthand, after a direct
+`await watch_dir(...)` a callback (or `on_exit`, or a task it started) can call
+`stop()` on the returned handle itself: callbacks are held until `watch_dir()`
+has returned its handle. When `watch_dir()` runs inside another task
+(`asyncio.gather`, `asyncio.create_task`, or `asyncio.wait_for` on Python
+3.10–3.11), or with the synchronous client, the first events can reach the
+callback before the caller holds the handle.
+
+With the synchronous `Daytona` client the callbacks run on the SDK's
+event-loop thread. There a callback may call its own watch's `stop()` (which
+returns without waiting), `wait_for_exit()` and `exit_error`. Any other
+synchronous SDK call, including another watch's methods, raises a
+`DaytonaError` (source `SDK`, no code), which ends the watch.
+
+`read_bytes()`, `read_text()`, `read_many()` and the computer-use recording
+`download()` hold the whole response in memory: they take
+`max_response_bytes=` to replace the client's cap for one call (`None`, the
+default, keeps the client's configured cap, 1 GiB unless set; `0` means no
+limit; any other value, a negative, fractional or oversized number, a
+boolean or a string included, is a `BadRequestError`). For large files, or content from a sandbox you don't trust, use `download_file()`, which streams to disk
+with progress and cancellation (for a recording, pass its `file_path`, not its
+id).
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
@@ -747,8 +809,13 @@ partial-success contract and reports those entries in the returned `errors`
 `sandbox.run_code()` is the root alias of `interpreter.run()`. Runs without an
 explicit context share one per-language interpreter state inside the sandbox,
 and that state's `env` is fixed when it is first created. Pass `isolated=True`
-for a throwaway run or use `create_context()` / `connect_context()` /
-`list_contexts()` for an independent named context. If an explicit named
+for a throwaway run or use `create_context(language=..., context_id=None,
+cwd=None, env=None)` / `connect_context()` / `list_contexts()` for an
+independent named context. Select a context with `run(..., context=...)`: a
+handle, its `to_json()` identity (an `InterpreterContextJSON`) or a context
+id with `language=`.
+A context's `run(code, *, cwd=None, timeout=None)` takes no `env`: set it when
+the context is created. If an explicit named
 context vanished, `interpreter.run(..., context=...)` / `context.run()` surface
 the typed `SessionNotFoundError`; recreate the context yourself and decide what
 to rerun. `timeout=` is enforced client-side **(seconds)**: on expiry the kernel
@@ -760,14 +827,18 @@ recreate it.
 ### Git
 
 `clone()`, `pull()` and `push()` use a dedicated **30-minute** remote-operation
-deadline by default, and each accepts a positive per-call `timeout=` override
-**(seconds)**.
+deadline by default, and each accepts a per-call `timeout=` override
+**(seconds)**: one total deadline for the whole request (`0` means no limit,
+as for every timeout).
 `clone()` also accepts `depth=` for shallow clones and
 `insecure_skip_tls=True` for one clone operation. `pull()` and `push()` accept
 `branch=` and `remote=`; `push()` also accepts `set_upstream=True`.
 `commit(path, message, *, author=..., email=...)` keeps the identity fields
 keyword-only. Pass `allow_empty=True` to create an empty commit when Git would
-otherwise refuse it.
+otherwise refuse it. `status()` returns a `GitStatus`; `history()`,
+`list_remotes()` and `list_branches()` return one `ListResult` page of
+`GitCommit`, `GitRemote` and branch-name items. A clone, pull or push
+`timeout=` bounds the whole request.
 
 ### Ports, LSP, computer use
 
@@ -781,13 +852,17 @@ To skip the preview warning page when a headless browser opens a preview URL,
 send `{PREVIEW_WARNING_SKIP_HEADER: PREVIEW_WARNING_SKIP_HEADER_VALUE}` (both
 exported from `daytona.v2`) with its requests.
 `lsp.start(language_id, path_to_project)` returns an `LspServer` handle with
-`open_document(uri)`, `close_document(uri)`, `completions(uri, position)`,
-`document_symbols(uri)`, `workspace_symbols(query)` and `stop()`.
-`computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
+`open_document(uri)`, `close_document(uri)`, `completions(uri, position,
+context=LspCompletionContext(...))`, `document_symbols(uri)`,
+`workspace_symbols(query)` and `stop()`. A completion item's `documentation`
+is `None`, a plain string or an `LspMarkupContent`.
+`computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
 `region=ComputerUseRegion(...)`; any of `format=`, `quality=` or `scale=`
-returns a compressed image.
+returns a compressed image. `a11y.tree(scope="focused")` returns at most 256 levels below
+the root (`max_depth`, an integer from 0 to 256, default 256); a deeper UI
+comes back cut at that depth with `truncated` set.
 
 ### Docker
 
@@ -891,9 +966,16 @@ Import the v2 errors by name rather than with `from daytona.v2 import *`:
 shadow Python's built-ins. Version-specific errors are imported from
 `daytona.v2` (or `daytona.v0`).
 
-The constructors take the message plus keyword-only fields (`status_code`,
-`code`, `source`, `trace_id`, …), so tests can build the errors your code
-handles.
+The standard errors' constructors take the message plus keyword-only fields
+(`status_code`, `code`, `source`, `trace_id`, …), so tests can build the
+errors your code handles. A few specialised errors build their own message
+from positional identity arguments instead:
+`SandboxTerminalStateError(sandbox_id, state, *, raw_state=None, reason=None)`,
+`SandboxCreateTimeoutError(sandbox_id)`,
+`SandboxCreateRequestTimeoutError(idempotency_key)`,
+`SandboxCreateConnectionError(idempotency_key, detail)`,
+`DockerWaitTimeoutError(status)` (`status` may be `None`) and
+`DockerNotReadyError(status)`.
 
 A request refused because your organization has hit one of its limits (for
 example the maximum number of concurrent sandboxes) raises
