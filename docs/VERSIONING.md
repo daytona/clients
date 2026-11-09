@@ -82,6 +82,25 @@ Not covered (may change in any release): anything under an `_`-prefixed name,
 internal modules not re-exported from the entry point, the `X-Daytona-Source` /
 `X-Daytona-SDK-Version` / `User-Agent` header values, test/build tooling, and examples.
 
+### The migration tool
+
+The migration tool (`npx @daytona/upgrade`, `uvx daytona-upgrade`) is covered
+too. From `2.0.0` on (pre-releases may still break, see
+[Pre-stable](#pre-stable-alpha)), within a major version these stay compatible:
+
+- its flags, and what the exit codes `0`, `1` and `2` mean;
+- its `--json` report: every field and value in
+  [`report.schema.json`](../upgrade/mapping/report.schema.json) keeps its name,
+  type and meaning.
+
+A minor release can add flags, add fields to the report and add values to its
+`language`, `mode`, `kind`, `refused.reason` and `suggestion.category`
+vocabularies. A program that reads the report must ignore fields and values it
+doesn't know; the schema accepts them. What the tool does to a project can also
+improve in a minor release: it can rewrite more calls, report new manual items
+(which `--strict` counts), and refuse a case it newly recognizes as unsafe,
+with a new `refused.reason`.
+
 ## Pre-stable (alpha)
 
 Until the platform cuts `2.0.0`, every release is a `2.0.0-alpha.N`

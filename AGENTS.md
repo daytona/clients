@@ -404,6 +404,14 @@ skipping exist only in the TypeScript tool).
   a pin bump that adds 0.x surface needs mapping rows.
   `node upgrade/scripts/check-v2-surface.mjs` checks every v2 suggestion's call
   and argument names against the SDK sources in this repository.
+- **The `--json` report is public.** `upgrade/mapping/report.schema.json`
+  stays open so reports from later 2.x releases still validate: no
+  `additionalProperties: false`, and each vocabulary lists its values under
+  `examples`. Both suites validate the tools' output against a strict copy
+  derived from it (`tightened` in `upgrade/typescript/tests/report.test.ts`,
+  `upgrade/python/tests/report_schema.py`), so a new field or value must be
+  added to the schema in the same PR. Renaming or removing a field or value
+  needs a major version ([VERSIONING.md](docs/VERSIONING.md), "The migration tool").
 - **Runtime guard.** The moved client members are also the root clients'
   runtime guard (`_MOVED_TO_V0` in `sdk-python/src/daytona/_client.py`,
   `MOVED_TO_V0` in `sdk-typescript/src/Daytona.ts`); a test in each SDK pins them

@@ -8,8 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import jsonschema
 import pytest
+from report_schema import validate_report
 
 from daytona_upgrade.cli import main
 
@@ -56,8 +56,7 @@ def test_dry_succeeds_when_sdk_name_is_outside_import_roots(
         )
     if local.suffix not in {".py", ".pyi"}:
         assert report["items"] == []
-    schema = Path(__file__).parents[2] / "mapping/report.schema.json"
-    jsonschema.validate(report, json.loads(schema.read_text()))
+    validate_report(report)
 
 
 @pytest.mark.parametrize("flag", ["--dry", "--print", "--force"])
