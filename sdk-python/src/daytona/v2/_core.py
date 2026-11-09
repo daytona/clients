@@ -5,9 +5,13 @@ from __future__ import annotations
 
 import base64
 import calendar
+import collections.abc
+import functools
 import json
 import math
 import re
+import types
+import typing
 from collections.abc import Callable
 from dataclasses import dataclass, field, fields
 from datetime import date, datetime, timezone
@@ -31,14 +35,13 @@ from typing import (
 )
 from urllib.parse import quote, unquote
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from ._gen.api import LifecyclePolicy
 from ._gen.toolbox import (
     BranchList,
-    CommitResponse,
+    BulkUploadResponse,
     ExitResult,
-    FileInfo,
     IsPortInUseResponse,
     KillProcessesResponse,
     LogFrameDto,
@@ -49,14 +52,33 @@ from ._gen.toolbox import (
     SearchResponse,
     SessionDto,
     SessionListResponse,
-    StatusResponse,
+)
+from ._gen.toolbox import (
+    CommitResponse as CommitResponseModel,
 )
 from ._gen.toolbox import (
     DockerStatus as DockerStatusModel,
 )
 from ._gen.toolbox import (
+    FileInfo as FileInfoModel,
+)
+from ._gen.toolbox import (
+    Match as MatchModel,
+)
+from ._gen.toolbox import (
+    Metrics as MetricsModel,
+)
+from ._gen.toolbox import (
+    ReplaceResult as ReplaceResultModel,
+)
+from ._gen.toolbox import (
+    StatusResponse as StatusResponseModel,
+)
+from ._gen.toolbox import (
     TerminalSize as ToolboxTerminalSize,
 )
+from ._timestamps import parse_optional_timestamp
+from ._timestamps import parse_timestamp as parse_wire_timestamp
 from .errors import DaytonaError, UnsupportedOperationError, create_error
 from .types import (
     DISABLED,
@@ -67,6 +89,11 @@ from .types import (
     BulkWriteResult,
     DockerfileImageSource,
     DockerStatus,
+    FileInfo,
+    FileMatch,
+    GitCommitResponse,
+    GitFileStatus,
+    GitStatus,
     Image,
     ImageRef,
     ImageSource,
@@ -82,6 +109,7 @@ from .types import (
     ProcessKind,
     ProcessStateFilter,
     RegistryImageSource,
+    ReplaceResult,
     SandboxLifecycle,
     SandboxState,
     SearchOrder,
@@ -93,6 +121,7 @@ from .types import (
     SnapshotKind,
     SnapshotRef,
     StdinMode,
+    SystemMetrics,
     TerminalSize,
     WaitResult,
     _docker_owner_or_unknown,
@@ -106,7 +135,7 @@ from .types import (
 
 TransportPayload = Union[JsonValue, bytes]
 ProcessPagePayload = Union[TransportPayload, List[ProcessDto], ProcessListResponse]
-ProcessLogPayload = Union[TransportPayload, List[LogFrameDto], ProcessLogsResponse]
+ProcessLogPayload = Union[TransportPayload, ProcessLogsResponse]
 WaitPayload = ExitResult | ProcessDto
 MultipartPart = Tuple[Optional[str], Union[str, bytes]]
 DAYTONA_FILE_BOUNDARY = "DAYTONA-FILE-BOUNDARY"
@@ -230,12 +259,6 @@ def loads_json(text: Union[str, bytes], description: str = "JSON response") -> J
     return value
 
 
-def parse_json_bytes(content: bytes) -> JsonValue:
-    if not content:
-        return {}
-    return loads_json(content.decode("utf-8"))
-
-
 _CPU_ARCHITECTURES = ("amd64", "arm64")
 
 
@@ -309,16 +332,53 @@ def is_json_media_type(content_type: Optional[str]) -> bool:
     return content_type.split(";", 1)[0].strip().lower() == "application/json"
 
 
+def refuse_dot_segment(value: str, name: str) -> None:
+    """``.`` and ``..`` are no ids: as a request-path segment the HTTP client
+    resolves them away, so the request would reach another route."""
+    if value in (".", ".."):
+        raise create_error(f"{name} must not be '.' or '..'", 400, "BAD_REQUEST", "SDK")
+
+
+def toolbox_path_id(value: str, name: str) -> str:
+    """A toolbox id or name as one percent-encoded request-path segment (see
+    :func:`refuse_dot_segment`). A surrogate code point has no UTF-8 form, so
+    it is refused too, as TypeScript's ``toolboxPathId`` does. A Python string
+    holds code points, so two surrogate code points are no astral character
+    and are refused as well; astral characters are kept. Anything but a string
+    is refused first, as in TypeScript."""
+    if not isinstance(value, str):
+        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
+    refuse_dot_segment(value, name)
+    if any("\ud800" <= char <= "\udfff" for char in value):
+        raise create_error(f"{name} must not contain a surrogate code point", 400, "BAD_REQUEST", "SDK")
+    return quote(value, safe="")
+
+
+def parse_json_bytes(content: bytes) -> JsonValue:
+    if not content:
+        return {}
+    return loads_json(content.decode("utf-8"))
+
+
 def error_from_response(status_code: int, body: bytes, *, content_type: Optional[str]) -> DaytonaError:
     """The status's typed error, with the code and details of the body when
     it is a JSON object declared as ``application/json``; any other body is
-    only the message."""
+    only the message. A JSON body nested deeper than :data:`JSON_MAX_DEPTH`
+    is unreadable, as an oversized one is: the error carries no code or
+    details from it."""
     payload: Optional[JsonObject] = None
     if is_json_media_type(content_type):
         try:
-            payload = expect_object(parse_json_bytes(body))
-        except Exception:
-            payload = None
+            decoded: Optional[JsonValue] = parse_json_bytes(body)
+        except DaytonaError:  # loads_json: nested deeper than JSON_MAX_DEPTH
+            return create_error(
+                f"HTTP {status_code}: the response body was nested too deeply to read "
+                f"(over {JSON_MAX_DEPTH} levels of JSON)",
+                status_code,
+            )
+        except ValueError:  # not JSON, or not UTF-8
+            decoded = None
+        payload = decoded if isinstance(decoded, dict) else None
     if payload is None:
         payload = {"message": body.decode("utf-8", errors="replace") or f"HTTP {status_code}"}
     return parse_error_payload(status_code, payload)
@@ -498,6 +558,7 @@ def _expect_model_from_dict(
         violation = field_violation(value, model_type)
         if violation is not None:
             raise create_error(f"{description} {violation}", 400, "BAD_REQUEST", "SDK")
+    _check_container_fields(value, model_type, description)
     try:
         parsed = from_dict(value)
     except ValidationError as exc:
@@ -510,6 +571,157 @@ def _expect_model_from_dict(
     if parsed is None:
         raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
     return parsed
+
+
+# (wire key, "list" | "dict" | "model", the generated model inside it or None)
+# (wire key, "list" | "dict" | "model" | "number", the generated model inside
+# it or None, "integer" | "number" for a number field or a list / map of
+# numbers, else None)
+_ContainerField = Tuple[str, str, Optional[type], Optional[str]]
+
+
+def _number_kind(annotation: object) -> Optional[str]:
+    """``"integer"`` for an int-typed annotation, ``"number"`` for a float
+    (or float-or-int) one, else ``None``; ``Optional`` and ``Annotated``
+    wrappers are looked through."""
+    if typing.get_origin(annotation) is typing.Annotated:
+        annotation = typing.get_args(annotation)[0]
+    if typing.get_origin(annotation) in (Union, types.UnionType):
+        kinds = {_number_kind(arg) for arg in typing.get_args(annotation) if arg is not type(None)}
+        if kinds == {"integer"}:
+            return "integer"
+        return "number" if kinds and kinds <= {"integer", "number"} else None
+    if annotation is bool:
+        return None
+    if annotation is int:
+        return "integer"
+    return "number" if annotation is float else None
+
+
+@functools.cache
+def _container_fields(model_type: type) -> Tuple[_ContainerField, ...]:
+    """The list, map, nested-model and number fields of a generated model,
+    read from its field types. A oneOf wrapper (a model holding
+    ``actual_instance``) is no nested object: its value may be a string or a
+    list, which the model itself decides."""
+    found: List[_ContainerField] = []
+    model_fields = getattr(model_type, "model_fields", {})
+    for name, info in model_fields.items():
+        if name == "additional_properties":
+            continue
+        key = info.alias or name
+        annotation = info.annotation
+        number = _number_kind(annotation)
+        if number is not None:
+            found.append((key, "number", None, number))
+            continue
+        if typing.get_origin(annotation) in (Union, types.UnionType):
+            present = [arg for arg in typing.get_args(annotation) if arg is not type(None)]
+            if len(present) != 1:
+                continue
+            annotation = present[0]
+        origin = typing.get_origin(annotation)
+        args = typing.get_args(annotation)
+        inner = args[-1] if args else None
+        inner_model = inner if _plain_model(inner) else None
+        if origin is list:
+            found.append((key, "list", inner_model, _number_kind(inner)))
+        elif origin is dict:
+            found.append((key, "dict", inner_model, _number_kind(inner)))
+        elif _plain_model(annotation):
+            found.append((key, "model", annotation, None))
+    return tuple(found)
+
+
+def _refuse_non_finite(item: object, kind: Optional[str], path: _FieldPath, description: str) -> None:
+    """A number a double cannot carry (an ``int`` beyond the float range, a
+    float decoded to infinity) is malformed, as ``JSON.parse`` reads it as
+    ``Infinity``; worded as the TypeScript SDK words it."""
+    if kind is None or isinstance(item, bool) or not isinstance(item, (int, float)) or finite_number(item):
+        return
+    expected = "an integer" if kind == "integer" else "a number"
+    raise create_error(
+        f"expected {description}: {_render_path(path)} must be {expected}", 400, "BAD_REQUEST", "SDK"
+    )
+
+
+def _plain_model(annotation: object) -> TypeGuard[type]:
+    return (
+        isinstance(annotation, type)
+        and issubclass(annotation, BaseModel)
+        and "actual_instance" not in annotation.model_fields
+    )
+
+
+# A field's path as a parent-linked chain, rendered only for an error, so a
+# deeply nested payload costs no per-level string copies.
+_FieldPath = Optional[Tuple[str, "_FieldPath"]]
+
+
+def _render_path(path: _FieldPath) -> str:
+    """The path, its innermost 16 segments only (``…`` marks a cut)."""
+    parts: List[str] = []
+    while path is not None and len(parts) < 16:
+        parts.append(path[0])
+        path = path[1]
+    return ("…" if path is not None else "") + "".join(reversed(parts))
+
+
+def _check_container_fields(value: JsonObject, model_type: type, description: str) -> None:
+    """Every list, map, nested-object and number field of a generated model,
+    nested models included, has its JSON shape before the model decodes it,
+    named in the error: the generated ``from_dict`` iterates whatever is
+    there (``{}`` or ``""`` would become ``[]``, a number a raw
+    ``TypeError``), a nested model's own error would not name the field, and
+    a number a double cannot carry is refused (see :func:`finite_number`).
+    Other values are left to the models. Walks the payload with an explicit
+    stack, never recursing."""
+    stack: List[Tuple[Mapping[str, JsonValue], type, _FieldPath]] = [(value, model_type, None)]
+    while stack:
+        raw, model, parent = stack.pop()
+        for key, shape, inner, number in _container_fields(model):
+            item = raw.get(key)
+            if item is None:
+                continue
+            path: _FieldPath = (key if parent is None else f".{key}", parent)
+            if shape == "number":
+                _refuse_non_finite(item, number, path, description)
+            elif shape == "list":
+                if not isinstance(item, list):
+                    raise create_error(
+                        f"expected {description}: {_render_path(path)} must be a list",
+                        400,
+                        "BAD_REQUEST",
+                        "SDK",
+                    )
+                for index, element in enumerate(item):
+                    if inner is not None and isinstance(element, dict):
+                        stack.append((element, inner, (f"[{index}]", path)))
+                    else:
+                        _refuse_non_finite(element, number, (f"[{index}]", path), description)
+            elif shape == "dict":
+                if not isinstance(item, dict):
+                    raise create_error(
+                        f"expected {description}: {_render_path(path)} must be an object",
+                        400,
+                        "BAD_REQUEST",
+                        "SDK",
+                    )
+                for name, element in item.items():
+                    if inner is not None and isinstance(element, dict):
+                        stack.append((element, inner, (f".{name}", path)))
+                    else:
+                        _refuse_non_finite(element, number, (f".{name}", path), description)
+            elif isinstance(item, dict):
+                if inner is not None:
+                    stack.append((item, inner, path))
+            else:
+                raise create_error(
+                    f"expected {description}: {_render_path(path)} must be an object",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
 
 
 LIFECYCLE_DURATION_FIELDS: Tuple[str, ...] = ("timeout_seconds", "idle_expiry_seconds")
@@ -748,42 +960,53 @@ def expect_branch_list(value: TransportPayload) -> BranchList:
     return _expect_model_from_dict(value, BranchList, "branch list response", BranchList.from_dict)
 
 
-def expect_commit_response(value: TransportPayload) -> CommitResponse:
-    return _expect_model_from_dict(value, CommitResponse, "commit response", CommitResponse.from_dict)
+def expect_commit_response(value: TransportPayload) -> GitCommitResponse:
+    model = _expect_model_from_dict(
+        value, CommitResponseModel, "commit response", CommitResponseModel.from_dict
+    )
+    return GitCommitResponse(hash=model.hash)
 
 
 def expect_exit_result(value: TransportPayload) -> ExitResult:
     return _expect_model_from_dict(value, ExitResult, "wait result", ExitResult.from_dict)
 
 
-def expect_file_info(value: TransportPayload, *, parent: Optional[str] = None) -> FileInfo:
-    return _expect_model_from_dict(
-        value, FileInfo, "file info response", lambda obj: _file_info_from_wire(obj, parent=parent)
+def expect_file_info(value: TransportPayload) -> FileInfo:
+    model = _expect_model_from_dict(value, FileInfoModel, "file info response", FileInfoModel.from_dict)
+    return FileInfo(
+        name=model.name,
+        path=model.path,
+        size=model.size,
+        is_dir=model.is_dir,
+        mode=model.mode,
+        permissions=model.permissions,
+        owner=model.owner,
+        group=model.group,
+        modified_at=parse_wire_timestamp(model.modified_at, "file info response: modifiedAt"),
+        mod_time=model.mod_time,
     )
 
 
-# Optional file metadata is represented by the empty string when unavailable,
-# never by a value
-# in another field's representation (``mode`` is symbolic, ``permissions``
-# octal; ``modTime`` and ``modifiedAt`` differ in format).
-_OPTIONAL_FILE_INFO_FIELDS = ("modifiedAt", "owner", "group", "permissions")
+def _cpu_utilization(value: float) -> float:
+    """A fraction between 0 and 1 inclusive, as the contract states."""
+    if not 0 <= value <= 1:
+        raise create_error(
+            "expected system metrics: cpuUtilization must be between 0 and 1", 400, "BAD_REQUEST", "SDK"
+        )
+    return value
 
 
-def _file_info_from_wire(obj: JsonObject, *, parent: Optional[str]) -> FileInfo | None:
-    """Parse file information, allowing optional metadata to be unavailable.
-
-    ``path`` is the one field that CAN be derived faithfully: a listing knows
-    the directory it asked for, so ``parent/name`` is the entry's real
-    location. Without a parent (``stat``), a missing path stays empty.
-    """
-    filled = dict(obj)
-    if not filled.get("path"):
-        name = filled.get("name")
-        filled["path"] = f"{parent.rstrip('/')}/{name}" if parent and isinstance(name, str) and name else ""
-    for key in _OPTIONAL_FILE_INFO_FIELDS:
-        if filled.get(key) is None:
-            filled[key] = ""
-    return FileInfo.from_dict(filled)
+def expect_system_metrics(value: TransportPayload) -> SystemMetrics:
+    model = _expect_model_from_dict(value, MetricsModel, "system metrics", MetricsModel.from_dict)
+    return SystemMetrics(
+        timestamp=parse_wire_timestamp(model.timestamp, "system metrics: timestamp"),
+        cpu_count=model.cpu_count,
+        cpu_utilization=_cpu_utilization(model.cpu_utilization),
+        memory_usage_bytes=model.memory_usage_bytes,
+        memory_total_bytes=model.memory_total_bytes,
+        disk_usage_bytes=model.disk_usage_bytes,
+        disk_total_bytes=model.disk_total_bytes,
+    )
 
 
 def expect_is_port_in_use_response(value: TransportPayload) -> IsPortInUseResponse:
@@ -854,8 +1077,22 @@ def expect_docker_status(value: TransportPayload) -> DockerStatus:
     )
 
 
-def expect_status_response(value: TransportPayload) -> StatusResponse:
-    return _expect_model_from_dict(value, StatusResponse, "git status response", StatusResponse.from_dict)
+def expect_status_response(value: TransportPayload) -> GitStatus:
+    # Checked before the generated model, which iterates the field first.
+    _require_list_field(value, "fileStatus", "git status response")
+    model = _expect_model_from_dict(
+        value, StatusResponseModel, "git status response", StatusResponseModel.from_dict
+    )
+    return GitStatus(
+        current_branch=model.current_branch,
+        ahead=model.ahead,
+        behind=model.behind,
+        branch_published=model.branch_published,
+        file_status=[
+            GitFileStatus(name=item.name, staging=item.staging, worktree=item.worktree, extra=item.extra)
+            for item in model.file_status
+        ],
+    )
 
 
 # Slack added to a bounded long-poll read (/processes?waitMs, /processes/{id}/wait) so the server's long-poll expiry
@@ -917,19 +1154,31 @@ def process_create_spec(
             "SDK",
         )
     execution_timeout_ms = None
-    if execution_timeout is not None:
-        execution_timeout_ms = timeout_millis_from_seconds(execution_timeout)
+    if execution_timeout is not None and not above_timer_maximum(
+        checked_seconds(execution_timeout, "execution_timeout")
+    ):
+        execution_timeout_ms = timeout_millis_from_seconds(execution_timeout, "execution_timeout")
+    # Above the timer maximum the process has no deadline (timeoutMs omitted).
     body: JsonObject = {"kind": kind}
     if command is not None:
         body["shellCommand"] = command
     if argv is not None:
+        # A Sequence of strings, but not a str / bytes (a Sequence too), a
+        # mapping or a one-shot iterable, refused before any request.
+        if (
+            not isinstance(argv, collections.abc.Sequence)
+            or isinstance(argv, (str, bytes))
+            or not argv
+            or not all(isinstance(item, str) for item in argv)
+        ):
+            raise create_error("argv must be a non-empty sequence of strings", 400, "BAD_REQUEST", "SDK")
         body["argv"] = list(argv)
     if code is not None:
         body["code"] = code
     optional: Dict[str, JsonValue] = {
         "language": language,
         "name": name,
-        "tag": tag,
+        "tag": None if tag is None else process_tag(tag),
         "sessionId": session_id,
         "cwd": cwd,
         "env": dict(env) if env is not None else None,
@@ -942,7 +1191,12 @@ def process_create_spec(
         "keepLogs": keep_logs,
     }
     if terminal is not None:
-        optional["terminal"] = {"cols": terminal.cols, "rows": terminal.rows}
+        if not isinstance(terminal, TerminalSize):
+            raise create_error("terminal must be a TerminalSize", 400, "BAD_REQUEST", "SDK")
+        optional["terminal"] = {
+            "cols": terminal_dimension(terminal.cols, "cols"),
+            "rows": terminal_dimension(terminal.rows, "rows"),
+        }
     body.update({key: value for key, value in optional.items() if value is not None})
     if wait_ms is None:
         return RequestSpec(
@@ -970,7 +1224,17 @@ def process_create_spec(
     )
 
 
+def bare_signal(signal: Optional[str]) -> Optional[str]:
+    """The SDK spells signals without the wire's ``SIG`` prefix."""
+    if signal is not None and signal.startswith("SIG"):
+        return signal[3:]
+    return signal
+
+
 def parse_process(payload: ProcessDto) -> ProcessInfo:
+    # An id the SDK builds paths and identities from: empty is malformed.
+    if not payload.id:
+        raise create_error("expected process response: id is required", 400, "BAD_REQUEST", "SDK")
     raw_kind = enum_str(payload.kind)
     raw_state = enum_str(payload.state)
     raw_stdin = enum_str(payload.stdin)
@@ -978,12 +1242,20 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
     raw_reason = enum_str(payload.reason) if payload.reason is not None else None
     return ProcessInfo(
         id=payload.id,
+        kind=_process_info_kind_or_unknown(raw_kind),
+        raw_kind=raw_kind,
+        state=_process_state_or_unknown(raw_state),
+        raw_state=raw_state,
+        cwd=payload.cwd,
+        stdin=_process_stdin_mode_or_unknown(raw_stdin),
+        raw_stdin=raw_stdin,
+        keep_logs=_process_keep_logs_or_unknown(raw_keep_logs),
+        raw_keep_logs=raw_keep_logs,
+        created_at=parse_wire_timestamp(payload.created_at, "process response: createdAt"),
+        system=payload.system is True,
         name=payload.name,
         tag=payload.tag,
-        pid=payload.pid,
-        kind=_process_info_kind_or_unknown(raw_kind),
-        state=_process_state_or_unknown(raw_state),
-        system=payload.system is True,
+        pid=int32_field(payload.pid, "pid", "process response"),
         session_id=payload.session_id,
         shell_command=payload.shell_command,
         argv=payload.argv,
@@ -992,26 +1264,18 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         shell=payload.shell,
         resolved_shell=payload.resolved_shell,
         login=payload.login,
-        cwd=payload.cwd,
         user=payload.user,
-        stdin=_process_stdin_mode_or_unknown(raw_stdin),
-        execution_timeout=timeout_seconds_from_millis(payload.timeout_ms),
+        execution_timeout=timeout_seconds_from_millis(_exact_timeout_ms(payload.timeout_ms)),
         terminal=_parse_terminal(payload.terminal),
-        keep_logs=_process_keep_logs_or_unknown(raw_keep_logs),
-        exit_code=payload.exit_code,
-        signal=payload.signal,
+        exit_code=int32_field(payload.exit_code, "exitCode", "process response"),
+        signal=bare_signal(payload.signal),
         reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else None,
-        created_at=payload.created_at,
-        started_at=payload.started_at,
-        exited_at=payload.exited_at,
-        truncated_head=payload.truncated_head,
+        raw_reason=raw_reason,
+        started_at=parse_optional_timestamp(payload.started_at, "process response: startedAt"),
+        exited_at=parse_optional_timestamp(payload.exited_at, "process response: exitedAt"),
+        truncated_head=payload.truncated_head is True,
         first_available_cursor=payload.first_available_cursor,
         last_cursor=payload.last_cursor,
-        raw_kind=raw_kind,
-        raw_state=raw_state,
-        raw_stdin=raw_stdin,
-        raw_keep_logs=raw_keep_logs,
-        raw_reason=raw_reason,
     )
 
 
@@ -1031,86 +1295,132 @@ def process_list_spec(
         "sessionId": session_id,
         "name": name,
         "pid": pid,
-        "tag": tag,
+        "tag": None if tag is None else process_tag(tag),
     }.items():
         if value is not None:
             params[key] = value
     return RequestSpec("GET", "/processes", params=params)
 
 
+_PROCESS_TAG: Final = re.compile(r"[A-Za-z0-9._-]{1,128}")
+
+# ``kill_all()``'s default ``timeout`` and the longest the toolbox takes
+# (``timeoutMs`` 1-60000), in seconds.
+KILL_ALL_DEFAULT_TIMEOUT_SECONDS: Final = 10
+KILL_ALL_MAX_TIMEOUT_SECONDS: Final = 60
+
+
+def process_tag(value: object) -> str:
+    """A process tag, as the toolbox takes it: a safe identifier
+    (``[A-Za-z0-9._-]``, 1-128 characters, not ``.`` or ``..``). Anything else
+    is the SDK's ``BadRequestError`` before any request (as TypeScript's
+    ``processTag``)."""
+    if not isinstance(value, str) or _PROCESS_TAG.fullmatch(value) is None or value in (".", ".."):
+        raise create_error(
+            "tag must be 1-128 of the characters A-Z, a-z, 0-9, '.', '_' and '-', and not '.' or '..'",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return value
+
+
 def process_kill_spec(*, tag: str, timeout: Optional[float]) -> RequestSpec:
-    body: JsonObject = {"tag": tag}
+    """``POST /processes:kill``. ``timeout`` is more than 0 and at most 60
+    seconds, sent as whole milliseconds rounded up; ``None`` keeps the
+    toolbox default (10 s). The toolbox has no unbounded wait, so nothing
+    above 60 seconds means no limit."""
+    body: JsonObject = {"tag": process_tag(tag)}
+    wait = float(KILL_ALL_DEFAULT_TIMEOUT_SECONDS)
     if timeout is not None:
-        body["timeoutMs"] = timeout_millis_from_seconds(timeout)
-    return RequestSpec(
-        "POST",
-        "/processes:kill",
-        json_body=body,
-        timeout=(10.0 if timeout is None else timeout) + WAIT_READ_SLACK_SECONDS,
-    )
-
-
-def parse_process_list(payload: ProcessPagePayload) -> List[ProcessInfo]:
-    if isinstance(payload, ProcessListResponse):
-        return [parse_process(item) for item in payload.items]
-    if isinstance(payload, list):
-        if all(isinstance(item, ProcessDto) for item in payload):
-            return [parse_process(item) for item in payload]
-        return [parse_process(expect_process_dto(item)) for item in payload]
-    if isinstance(payload, dict):
-        obj = payload
-    else:
-        obj = expect_object(payload)
-    raw_items = obj.get("items") or obj.get("processes") or []
-    if not isinstance(raw_items, list):
-        return []
-    return [parse_process(expect_process_dto(item)) for item in raw_items]
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, (int, float))
+            or not 0 < timeout <= KILL_ALL_MAX_TIMEOUT_SECONDS
+        ):
+            raise create_error(
+                f"timeout must be greater than 0 and at most {KILL_ALL_MAX_TIMEOUT_SECONDS} seconds",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        # Rounded up as timeout_millis_from_seconds does: at least 1 ms.
+        milliseconds = max(1, math.ceil(round(timeout * 1000, 6)))
+        body["timeoutMs"] = milliseconds
+        wait = milliseconds / 1000
+    return RequestSpec("POST", "/processes:kill", json_body=body, timeout=wait + WAIT_READ_SLACK_SECONDS)
 
 
 def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
-    if isinstance(payload, ProcessListResponse):
-        return ListResult(items=[parse_process(item) for item in payload.items], next_cursor=None)
-    if isinstance(payload, list):
-        if all(isinstance(item, ProcessDto) for item in payload):
-            return ListResult(items=[parse_process(item) for item in payload], next_cursor=None)
-        return ListResult(
-            items=[parse_process(expect_process_dto(item)) for item in payload], next_cursor=None
-        )
-    if isinstance(payload, dict):
-        obj = payload
-    else:
-        obj = expect_object(payload)
-    raw_items = obj.get("items") or obj.get("processes") or []
-    items = (
-        [parse_process(expect_process_dto(item)) for item in raw_items] if isinstance(raw_items, list) else []
-    )
-    cursor = obj.get("nextCursor") or obj.get("next_cursor")
-    return ListResult(items=items, next_cursor=str(cursor) if isinstance(cursor, str) else None)
+    """A ``ProcessListResponse``: ``items`` is required; anything else is the
+    malformed-response error."""
+    if not isinstance(payload, ProcessListResponse):
+        _require_list_field(payload, "items", "process list response")
+        payload = expect_process_list_response(payload)
+    return ListResult(items=[parse_process(item) for item in payload.items], next_cursor=None)
 
 
-#: The longest delay a timer can arm, as the transport's bound: a wait budget
-#: above it means no deadline.
-MAX_WAIT_BUDGET_SECONDS: float = 2_147_483.647
+# The longest duration that is still a bound, in seconds (about 24.8 days):
+# the TypeScript SDK's timers cannot arm a longer one, so both SDKs read a
+# longer caller budget as no limit, like the client's request timeout.
+MAX_BOUNDED_TIMEOUT_SECONDS = 2_147_483.647
+
 #: The same bound in whole seconds: the largest wait a request body carries
 #: (both SDKs send this for a wait with no deadline).
 MAX_WIRE_WAIT_SECONDS: int = 2_147_483
 #: The contract's int32 ceiling (MiB sizes, ports).
 INT32_MAX: int = 2_147_483_647
-#: The largest integer both SDKs represent exactly (an int64 the API accepts).
+#: The largest integer both SDKs represent exactly (JavaScript's safe
+#: integers): an int64 the API accepts, and the largest millisecond value the
+#: SDKs put on the wire, so both SDKs refuse the same durations.
 MAX_SAFE_INTEGER: int = 2**53 - 1
 
 
-def finite_number(value: object) -> TypeGuard[Union[int, float]]:
-    """Whether ``value`` is a number a double can carry: an ``int`` or
-    ``float`` (not a ``bool``) that is finite. An ``int`` too large for a
-    float, which ``JSON.parse`` reads as ``Infinity``, is not; the check
-    converts as ``float()`` does, so it never raises ``OverflowError``."""
+def checked_seconds(value: object, name: str = "timeout") -> float | int:
+    """A finite, non-negative number of seconds, or the SDK's ``BadRequestError``.
+
+    An integer is checked without converting it to float, so one too large
+    for a float is still accepted (and then capped by the caller), never an
+    ``OverflowError``.
+    """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return False
-    try:
-        return math.isfinite(value)
-    except OverflowError:
-        return False
+        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+    # Narrowed to int | float from here on.
+    if (isinstance(value, float) and not math.isfinite(value)) or value < 0:
+        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+    return value
+
+
+def timeout_millis_from_seconds(timeout: Optional[float], name: str = "timeout") -> Optional[int]:
+    """Whole wire milliseconds for a duration in seconds, rounded up: a
+    positive duration is at least 1 ms, so it never reads as ``0``. A duration
+    too large to send in milliseconds is the SDK's ``BadRequestError``."""
+    if timeout is None:
+        return None
+    seconds = checked_seconds(timeout, name)
+    if seconds == 0:
+        return 0
+    # The largest wire value both SDKs send exactly (a JavaScript safe integer).
+    if seconds * 1000 > MAX_SAFE_INTEGER:
+        raise create_error(f"{name} is too large", 400, "BAD_REQUEST", "SDK")
+    if isinstance(seconds, int):
+        return seconds * 1000
+    return max(1, math.ceil(round(seconds * 1000, 6)))
+
+
+def above_timer_maximum(seconds: float) -> bool:
+    """Whether a (checked) duration exceeds the longest bound both SDKs keep:
+    such a caller budget or deadline means no limit."""
+    return seconds > MAX_BOUNDED_TIMEOUT_SECONDS
+
+
+def wait_budget(timeout: Optional[float]) -> Optional[float]:
+    """A caller wait budget in seconds, validated: ``None`` and ``0`` keep their
+    meaning, a budget above :data:`MAX_BOUNDED_TIMEOUT_SECONDS` is no limit (``0``)."""
+    if timeout is None:
+        return None
+    seconds = checked_seconds(timeout)
+    return 0 if above_timer_maximum(seconds) else timeout
 
 
 def wait_budget_seconds(value: object, *, name: str = "timeout") -> float:
@@ -1131,18 +1441,34 @@ def wait_budget_seconds(value: object, *, name: str = "timeout") -> float:
             f"{name} must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
         )
     assert isinstance(value, (int, float))
-    return 0.0 if value > MAX_WAIT_BUDGET_SECONDS else float(value)
+    return 0.0 if above_timer_maximum(value) else float(value)
 
 
-def timeout_millis_from_seconds(timeout: Optional[float]) -> Optional[int]:
-    if timeout is None:
-        return None
-    if not math.isfinite(timeout) or timeout < 0:
-        raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
-    milliseconds = timeout * 1000
-    if not math.isfinite(milliseconds) or milliseconds < 0:
-        raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
-    return math.ceil(round(milliseconds, 6))
+def finite_number(value: object) -> TypeGuard[Union[int, float]]:
+    """Whether ``value`` is a number a double can carry: an ``int`` or
+    ``float`` (not a ``bool``) that is finite. An ``int`` too large for a
+    float, which ``JSON.parse`` reads as ``Infinity``, is not; the check
+    converts as ``float()`` does, so it never raises ``OverflowError``."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
+def _exact_timeout_ms(value: Optional[int]) -> Optional[int]:
+    """A process record's ``timeoutMs``: converted to seconds, so it must be
+    an integer a double carries exactly (up to 2^53 - 1), as TypeScript reads
+    it; anything larger is the malformed-response error."""
+    if value is not None and not 0 <= value <= MAX_SAFE_INTEGER:
+        raise create_error(
+            "expected process response: timeoutMs must be a non-negative safe integer",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return value
 
 
 def timeout_seconds_from_millis(timeout_millis: JsonValue | None) -> Optional[float]:
@@ -1162,22 +1488,41 @@ def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = Fa
     bounded = None if unbounded or timeout is None or timeout == 0 else timeout + WAIT_READ_SLACK_SECONDS
     return RequestSpec(
         "GET",
-        f"/processes/{quote(process_id, safe='')}/wait",
+        f"/processes/{toolbox_path_id(process_id, 'process id')}/wait",
         params=params,
         timeout=bounded,
         unbounded_read=bounded is None,
     )
 
 
+def int32_field(
+    value: Optional[int], field: str, description: str, *, non_negative: bool = False
+) -> Optional[int]:
+    """An int32 field (``pid``, ``exitCode``, computer-use geometry), as the
+    contract types it; a value outside it is the malformed-response error,
+    with TypeScript's messages (``int32`` / ``nonNegativeInt32``)."""
+    if value is None:
+        return value
+    if non_negative and not 0 <= value <= 2**31 - 1:
+        raise create_error(
+            f"expected {description}: {field} must be a non-negative 32-bit integer",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    if not -(2**31) <= value <= 2**31 - 1:
+        raise create_error(
+            f"expected {description}: {field} must be a signed 32-bit integer", 400, "BAD_REQUEST", "SDK"
+        )
+    return value
+
+
 def parse_wait(payload: WaitPayload) -> WaitResult:
-    signal = payload.signal
-    if signal is not None and signal.startswith("SIG"):
-        signal = signal[3:]
     raw_reason = enum_str(payload.reason) if payload.reason is not None else None
     return WaitResult(
-        exit_code=payload.exit_code,
-        signal=signal,
-        reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else None,
+        reason=_wait_reason_or_unknown(raw_reason) if raw_reason is not None else "unknown",
+        exit_code=int32_field(payload.exit_code, "exitCode", "wait result"),
+        signal=bare_signal(payload.signal),
         raw_reason=raw_reason,
     )
 
@@ -1195,50 +1540,47 @@ def logs_spec(
         params["cursor"] = cursor
     if limit is not None:
         params["limit"] = limit
+    headers: Dict[str, str] = {}
     if follow:
         params["follow"] = "true"
-    return RequestSpec("GET", f"/processes/{quote(process_id, safe='')}/logs", params=params, timeout=None)
+        # The same headers the TypeScript SDK sends on a followed log.
+        headers["Accept"] = "text/event-stream"
+        if cursor:
+            headers["Last-Event-ID"] = cursor
+    return RequestSpec(
+        "GET",
+        f"/processes/{toolbox_path_id(process_id, 'process id')}/logs",
+        params=params,
+        timeout=None,
+        headers=headers,
+    )
+
+
+def _require_list_field(payload: object, field: str, description: str) -> None:
+    """A present list field that is not a list, named before the generated
+    model iterates it (its own error would not name the field)."""
+    if isinstance(payload, dict) and field in payload and not isinstance(payload[field], list):
+        raise create_error(f"expected {description}: {field} must be a list", 400, "BAD_REQUEST", "SDK")
 
 
 def parse_log_page(payload: ProcessLogPayload) -> LogPage:
-    if isinstance(payload, ProcessLogsResponse):
-        frames = [_parse_log_frame(item) for item in payload.frames]
-        return LogPage(
-            items=frames,
-            next_cursor=payload.next_cursor or (frames[-1].cursor if frames else None),
-            truncated_head=payload.truncated_head,
-            first_available_cursor=payload.first_available_cursor,
-        )
-    if isinstance(payload, list):
-        if all(isinstance(item, LogFrameDto) for item in payload):
-            frames = [_parse_log_frame(item) for item in payload]
-        else:
-            frames = [_parse_log_frame(expect_log_frame_dto(item)) for item in payload]
-        return LogPage(items=frames, next_cursor=frames[-1].cursor if frames else None)
-    if isinstance(payload, dict) and "frames" in payload:
-        try:
-            return parse_log_page(expect_process_log_page(payload))
-        except DaytonaError:
-            pass
-    if isinstance(payload, dict):
-        obj = payload
-    else:
-        obj = expect_object(payload)
-    raw_items = obj.get("items") or obj.get("frames") or obj.get("logs") or []
-    frames = (
-        [_parse_log_frame(expect_log_frame_dto(item)) for item in raw_items]
-        if isinstance(raw_items, list)
-        else []
-    )
-    cursor_value = obj.get("nextCursor") or obj.get("next_cursor")
-    next_cursor = cursor_value if isinstance(cursor_value, str) else None
-    first_available_cursor = obj.get("firstAvailableCursor")
+    """A ``ProcessLogsResponse`` page, checked strictly: ``frames``,
+    ``nextCursor``, ``truncatedHead`` and ``eof`` are required, with their
+    types; anything else is the malformed-response error."""
+    _require_list_field(payload, "frames", "process log page")
+    page = payload if isinstance(payload, ProcessLogsResponse) else expect_process_log_page(payload)
     return LogPage(
-        items=frames,
-        next_cursor=next_cursor or (frames[-1].cursor if frames else None),
-        truncated_head=bool(obj.get("truncatedHead", False)),
-        first_available_cursor=first_available_cursor if isinstance(first_available_cursor, str) else None,
+        items=[_parse_log_frame(item) for item in page.frames],
+        next_cursor=page.next_cursor,
+        truncated_head=page.truncated_head,
+        eof=page.eof,
+        first_available_cursor=page.first_available_cursor,
     )
+
+
+def parse_log_frame(payload: TransportPayload) -> LogFrame:
+    """One ``LogFrameDto``, checked strictly."""
+    return _parse_log_frame(expect_log_frame_dto(payload))
 
 
 class SseParser:
@@ -1249,18 +1591,34 @@ class SseParser:
 
     def __init__(self) -> None:
         self._event = "message"
+        self._id: Optional[str] = None
         self._data_parts: List[str] = []
+        # The event-stream format drops one U+FEFF at the very start of the
+        # stream (TypeScript's TextDecoder does the same); elsewhere it is data.
+        self._at_stream_start = True
 
     def feed(self, raw: str) -> Optional[Tuple[str, JsonObject]]:
+        message = self.feed_message(raw)
+        return None if message is None else (message[0], expect_object(loads_json(message[1], "SSE event")))
+
+    def feed_message(self, raw: str) -> Optional[Tuple[str, str, Optional[str]]]:
+        """A complete message as ``(event, data, id)``: the raw ``data:`` text,
+        unparsed, so a consumer parses only the events it knows, and the
+        message's ``id:`` line (``None`` without one)."""
         line = raw.rstrip("\r\n")
+        if self._at_stream_start:
+            self._at_stream_start = False
+            line = line.removeprefix("\ufeff")
         if not line:
             if not self._data_parts:
                 self._event = "message"
+                self._id = None
                 return None
-            event = (self._event, expect_object(json.loads("\n".join(self._data_parts))))
+            message = (self._event, "\n".join(self._data_parts), self._id)
             self._event = "message"
+            self._id = None
             self._data_parts = []
-            return event
+            return message
         if line.startswith(":"):
             return None
         name, _, value = line.partition(":")
@@ -1269,6 +1627,8 @@ class SseParser:
             self._event = value
         elif name == "data":
             self._data_parts.append(value)
+        elif name == "id":
+            self._id = value
         return None
 
 
@@ -1278,6 +1638,148 @@ def parse_sse_lines(lines: Iterable[str]) -> Iterator[Tuple[str, JsonObject]]:
         event = parser.feed(raw)
         if event is not None:
             yield event
+
+
+def sse_json(event: str, data: str, description: str) -> JsonObject:
+    """The JSON object a known SSE event carries (empty data reads as ``{}``);
+    anything else is the malformed-response error naming the event."""
+    if not data:
+        return {}
+    try:
+        payload = loads_json(data, description)
+    except ValueError:
+        raise create_error(
+            f"expected {description}: the data is not JSON", 400, "BAD_REQUEST", "SDK"
+        ) from None
+    if not isinstance(payload, dict):
+        raise create_error(
+            f"expected {description}: the data is not a JSON object", 400, "BAD_REQUEST", "SDK"
+        )
+    return payload
+
+
+_SSE_LINE_END: Final = re.compile(rb"[\r\n]")
+
+
+SseLimit = Callable[[int], Optional[int]]
+"""An event's byte bound, given the bytes of every frame completed so far
+(``None``: no bound); read for every check, so it may change between events."""
+SseTooLarge = Callable[[int], Exception]
+"""The error for an event past its bound, given the same completed bytes."""
+
+
+class SseLineSplitter:
+    """Sans-I/O splitter of an event-stream body's bytes into lines (CRLF, LF
+    or CR), counting the bytes of the event being read as they arrive: once
+    they pass ``limit(completed)`` it raises ``too_large(completed)``, so one
+    huge or never-terminated event cannot hold more than that. ``completed``
+    is every byte of the frames a blank line has ended so far, data-less and
+    comment-only frames included, so a caller can bound the whole stream
+    (``limit = budget - completed``) as well as each event. The check comes
+    before a line is copied or a remainder buffered; a line ended by a CR at
+    a chunk's end waits for the next chunk, so the LF of a split CRLF counts
+    toward the event it ends. ``last_event_bytes`` is the size of the event a
+    blank line just ended, terminators included."""
+
+    def __init__(self) -> None:
+        self._pending = bytearray()
+        self._received = 0  # bytes consumed so far
+        self._event_start = 0  # where the current event's bytes begin
+        # A line ended by a CR at a chunk's end, and where it ends.
+        self._held: Optional[Tuple[bytes, int]] = None
+        self.last_event_bytes = 0
+
+    @property
+    def completed_bytes(self) -> int:
+        """Every byte of the frames completed so far."""
+        return self._event_start
+
+    def feed(self, chunk: bytes, limit: SseLimit, too_large: SseTooLarge) -> Iterator[str]:
+        if not chunk:
+            return
+        base = self._received
+        self._received += len(chunk)
+        start = 0
+        if self._held is not None:
+            line, end = self._held
+            self._held = None
+            if chunk[:1] == b"\n":
+                # The LF of a CRLF split across chunks: part of that line.
+                start, end = 1, base + 1
+            yield from self._line(line, end, limit, too_large)
+        while start < len(chunk):
+            found = _SSE_LINE_END.search(chunk, start)
+            if found is None:
+                # Checked before the remainder is buffered.
+                self._check(self._received, limit, too_large)
+                self._pending += chunk[start:]
+                return
+            end = found.start()
+            terminator = 1
+            if chunk[end : end + 1] == b"\r" and chunk[end + 1 : end + 2] == b"\n":
+                terminator = 2
+            # Checked before the line is copied out of the chunk.
+            self._check(base + end + terminator, limit, too_large)
+            line = bytes(self._pending) + chunk[start:end]
+            self._pending.clear()
+            start = end + terminator
+            if terminator == 1 and chunk[end : end + 1] == b"\r" and start == len(chunk):
+                self._held = (line, base + start)
+                return
+            yield from self._line(line, base + start, limit, too_large)
+
+    def finish(self, limit: SseLimit, too_large: SseTooLarge) -> Iterator[str]:
+        """The line a CR ended at the body's very end, if any."""
+        if self._held is not None:
+            line, end = self._held
+            self._held = None
+            yield from self._line(line, end, limit, too_large)
+
+    def _line(self, line: bytes, end: int, limit: SseLimit, too_large: SseTooLarge) -> Iterator[str]:
+        self._check(end, limit, too_large)
+        if not line:
+            self.last_event_bytes = end - self._event_start
+            self._event_start = end
+        yield line.decode("utf-8", errors="replace")
+
+    def _check(self, position: int, limit: SseLimit, too_large: SseTooLarge) -> None:
+        bound = limit(self._event_start)
+        if bound is not None and position - self._event_start > bound:
+            raise too_large(self._event_start)
+
+
+async def parse_sse_events_bounded(
+    chunks: AsyncIterable[bytes], *, limit: SseLimit, too_large: SseTooLarge
+) -> AsyncIterator[Tuple[str, str, Optional[str], int]]:
+    """SSE messages as ``(event, data, id, size)`` from an event-stream
+    body's bytes, each event bounded by ``limit(completed)`` bytes as they
+    arrive (see :class:`SseLineSplitter`); ``size`` is the event's bytes,
+    terminators included; the data unparsed (see :func:`sse_json`)."""
+    splitter = SseLineSplitter()
+    parser = SseParser()
+
+    def messages(lines: Iterator[str]) -> Iterator[Tuple[str, str, Optional[str], int]]:
+        for line in lines:
+            message = parser.feed_message(line)
+            if message is not None:
+                yield (*message, splitter.last_event_bytes)
+
+    async for chunk in chunks:
+        for message in messages(splitter.feed(chunk, limit, too_large)):
+            yield message
+    for message in messages(splitter.finish(limit, too_large)):
+        yield message
+
+
+def stream_event_too_large(description: str, limit: int) -> DaytonaError:
+    """One stream event over the client's ``max_response_bytes``, which bounds
+    every event of a stream as it bounds every buffered response."""
+    return create_error(
+        f"expected {description}: an event is larger than the {limit}-byte max_response_bytes limit",
+        413,
+        "PAYLOAD_TOO_LARGE",
+        "SDK",
+    )
 
 
 async def parse_sse_lines_async(lines: AsyncIterable[str]) -> AsyncIterator[Tuple[str, JsonObject]]:
@@ -1295,7 +1797,9 @@ def stdin_spec(process_id: str, data: Union[str, bytes], *, eof: bool) -> Reques
         body["encoding"] = "base64"
     else:
         body["data"] = data
-    return RequestSpec("POST", f"/processes/{quote(process_id, safe='')}/stdin", json_body=body)
+    return RequestSpec(
+        "POST", f"/processes/{toolbox_path_id(process_id, 'process id')}/stdin", json_body=body
+    )
 
 
 def signal_spec(
@@ -1311,17 +1815,34 @@ def signal_spec(
     if escalate_after_ms is not None:
         body["escalateAfterMs"] = escalate_after_ms
         body["escalateTo"] = f"SIG{escalate_to}"
-    return RequestSpec("POST", f"/processes/{quote(process_id, safe='')}/signals", json_body=body)
+    return RequestSpec(
+        "POST", f"/processes/{toolbox_path_id(process_id, 'process id')}/signals", json_body=body
+    )
+
+
+_MAX_INT32: Final = 2**31 - 1
+
+
+def terminal_dimension(value: object, name: str) -> int:
+    """A terminal's ``cols`` / ``rows``: an int32 of at least 1, as the
+    contract states."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= _MAX_INT32:
+        raise create_error(f"{name} must be an integer between 1 and {_MAX_INT32}", 400, "BAD_REQUEST", "SDK")
+    return value
 
 
 def resize_spec(process_id: str, *, cols: int, rows: int) -> RequestSpec:
+    cols = terminal_dimension(cols, "cols")
+    rows = terminal_dimension(rows, "rows")
     return RequestSpec(
-        "POST", f"/processes/{quote(process_id, safe='')}/resize", json_body={"cols": cols, "rows": rows}
+        "POST",
+        f"/processes/{toolbox_path_id(process_id, 'process id')}/resize",
+        json_body={"cols": cols, "rows": rows},
     )
 
 
 def delete_process_spec(process_id: str) -> RequestSpec:
-    return RequestSpec("DELETE", f"/processes/{quote(process_id, safe='')}")
+    return RequestSpec("DELETE", f"/processes/{toolbox_path_id(process_id, 'process id')}")
 
 
 def file_download_spec(path: str, *, timeout: Optional[float]) -> RequestSpec:
@@ -1368,24 +1889,28 @@ def bulk_download_spec(paths: Sequence[str], *, timeout: Optional[float]) -> Req
 
 
 def parse_bulk_write_result(payload: JsonValue) -> BulkWriteResult:
-    obj = expect_object(payload)
-    raw_files = obj.get("files")
-    files = (
-        [
-            BulkWriteFile(
-                path=str(expect_object(item).get("path", "")),
-                bytes=_optional_int(expect_object(item).get("bytes")) or 0,
-            )
-            for item in raw_files
-        ]
-        if isinstance(raw_files, list)
-        else []
+    """A ``BulkUploadResponse``: ``files`` (each with ``path`` and ``bytes``)
+    and ``errors`` are required; anything else is the malformed-response error."""
+    _require_list_field(payload, "files", "bulk upload response")
+    model = _expect_model_from_dict(
+        payload, BulkUploadResponse, "bulk upload response", BulkUploadResponse.from_dict
     )
-    raw_errors = obj.get("errors")
-    errors = (
-        [str(item) for item in raw_errors if isinstance(item, str)] if isinstance(raw_errors, list) else []
+    return BulkWriteResult(
+        files=[BulkWriteFile(path=item.path, bytes=item.bytes) for item in model.files],
+        errors=list(model.errors),
     )
-    return BulkWriteResult(files=files, errors=errors)
+
+
+def parse_file_match(payload: JsonValue) -> FileMatch:
+    model = _expect_model_from_dict(payload, MatchModel, "grep match", MatchModel.from_dict)
+    return FileMatch(file=model.file, line=model.line, content=model.content)
+
+
+def parse_replace_result(payload: JsonValue) -> ReplaceResult:
+    model = _expect_model_from_dict(
+        payload, ReplaceResultModel, "replace result", ReplaceResultModel.from_dict
+    )
+    return ReplaceResult(file=model.file, success=model.success, error=model.error)
 
 
 def parse_bulk_read_result(content: bytes, *, content_type: Optional[str] = None) -> BulkReadResult:
@@ -1401,31 +1926,61 @@ def parse_bulk_read_result(content: bytes, *, content_type: Optional[str] = None
             files[path] = body
             continue
         if part_name == "error":
-            payload = expect_object(parse_json_bytes(body))
-            errors.append(
-                BulkReadError(
-                    path=_optional_str(payload.get("path")) or "",
-                    message=str(payload.get("message") or ""),
-                    code=_optional_str(payload.get("code")),
-                    source=_optional_str(payload.get("source")),
-                )
-            )
+            errors.append(_bulk_read_error(body))
     return BulkReadResult(files=files, errors=errors)
 
 
-def list_shape(payload: TransportPayload, *keys: str) -> Tuple[List[JsonObject], Optional[str]]:
+def _bulk_read_error(body: bytes) -> BulkReadError:
+    """One bulk-download error part: a JSON object with string ``path`` and
+    ``message`` (``code`` / ``source`` strings when present)."""
+    description = "bulk download error part"
+    try:
+        payload = loads_json(body.decode("utf-8"), description)
+    except (UnicodeDecodeError, ValueError):
+        raise create_error(
+            f"expected {description}: the data is not JSON", 400, "BAD_REQUEST", "SDK"
+        ) from None
+    if not isinstance(payload, dict):
+        raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    for name in ("path", "message"):
+        if not isinstance(payload.get(name), str):
+            raise create_error(f"expected {description}: {name} must be a string", 400, "BAD_REQUEST", "SDK")
+    for name in ("code", "source"):
+        if payload.get(name) is not None and not isinstance(payload.get(name), str):
+            raise create_error(f"expected {description}: {name} must be a string", 400, "BAD_REQUEST", "SDK")
+    return BulkReadError(
+        path=payload["path"],
+        message=payload["message"],
+        code=_optional_str(payload.get("code")),
+        source=_optional_str(payload.get("source")),
+    )
+
+
+def list_shape(
+    payload: TransportPayload, *, description: str = "list response"
+) -> Tuple[List[JsonObject], Optional[str]]:
+    """The items of a list response: a bare array or an envelope whose
+    ``items`` is an array; anything else is malformed."""
     if isinstance(payload, list):
-        return [expect_object(item) for item in payload], None
-    obj = expect_object(payload)
-    raw_items: JsonValue = []
-    for key in ("items", *keys):
-        candidate = obj.get(key)
-        if isinstance(candidate, list):
-            raw_items = candidate
-            break
-    items = [expect_object(item) for item in raw_items] if isinstance(raw_items, list) else []
-    cursor = obj.get("nextCursor") or obj.get("next_cursor")
-    return items, str(cursor) if isinstance(cursor, str) else None
+        items: JsonValue = payload
+        cursor_holder: JsonObject = {}
+    else:
+        cursor_holder = expect_object(payload)
+        items = cursor_holder.get("items")
+        if not isinstance(items, list):
+            problem = "is required" if items is None else "must be a list"
+            raise create_error(f"expected {description}: items {problem}", 400, "BAD_REQUEST", "SDK")
+    obj = cursor_holder
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise create_error(
+                f"expected {description}: items[{index}] must be an object", 400, "BAD_REQUEST", "SDK"
+            )
+    # A present cursor of the wrong type would silently end pagination.
+    cursor = obj.get("nextCursor")
+    if cursor is not None and not isinstance(cursor, str):
+        raise create_error(f"expected {description}: nextCursor must be a string", 400, "BAD_REQUEST", "SDK")
+    return [expect_object(item) for item in items], cursor or None
 
 
 _SEARCH_LIST_FIELDS = ("sandbox_class", "region")
@@ -1944,13 +2499,23 @@ def _parse_log_frame(payload: LogFrameDto) -> LogFrame:
         cursor=payload.cursor,
         channel=payload.channel,
         data=payload.data,
-        timestamp=payload.timestamp,
+        timestamp_ms=payload.timestamp,
     )
 
 
 def _parse_terminal(value: ToolboxTerminalSize | None) -> Optional[TerminalSize]:
+    """A process record's terminal: int32 dimensions of at least 1, as the
+    request's (:func:`terminal_dimension`); anything else is malformed."""
     if value is None:
         return None
+    for name, dimension in (("cols", value.cols), ("rows", value.rows)):
+        if not 1 <= dimension <= _MAX_INT32:
+            raise create_error(
+                f"expected process response: terminal: {name} must be an integer between 1 and {_MAX_INT32}",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
     return TerminalSize(cols=value.cols, rows=value.rows)
 
 
@@ -2030,6 +2595,18 @@ def _content_disposition_name(header: str) -> Optional[str]:
 def _content_disposition_filename(header: str) -> Optional[str]:
     filename_star = _CONTENT_DISPOSITION_FILENAME_STAR_RE.search(header)
     if filename_star is not None:
-        return unquote(filename_star.group(1), encoding="utf-8", errors="replace")
+        encoded = filename_star.group(1)
+        # Bad percent-encoding or invalid UTF-8 is malformed, as in the TypeScript SDK.
+        try:
+            if re.search(r"%(?![0-9A-Fa-f]{2})", encoded):
+                raise ValueError(encoded)
+            return unquote(encoded, encoding="utf-8", errors="strict")
+        except ValueError:
+            raise create_error(
+                "expected bulk download file part: filename* is not valid percent-encoded UTF-8",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            ) from None
     filename = _CONTENT_DISPOSITION_FILENAME_RE.search(header)
     return filename.group(1) if filename is not None else None

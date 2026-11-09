@@ -33,13 +33,14 @@ from ._auth import ProjectTokenAuth
 from ._body_limit import (
     ACCEPT_ENCODING,
     DEFAULT_MAX_RESPONSE_BYTES,
+    decoded_chunks,
     read_body,
     read_body_sync,
     resolve_limit,
     send_buffered,
     send_buffered_sync,
 )
-from ._core import MultipartPart, RequestSpec, error_from_response, parse_json_bytes
+from ._core import MultipartPart, RequestSpec, error_from_response, is_json_media_type, parse_json_bytes
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
@@ -387,6 +388,11 @@ class AsyncResponseStream:
         self._stream = stream
         self._response = response
         self._closed = False
+        # True once a release has completed. Separate from _closed, which an
+        # owned stream sets before its release, so that a concurrent close()
+        # waits for that release instead of returning while it runs.
+        self._released = False
+        self._close_lock = anyio.Lock()
         # A client created for this response alone (open_exclusive_stream).
         # Closing the stream closes it; a borrowed client is never closed here.
         self._owned_client = owned_client
@@ -402,9 +408,12 @@ class AsyncResponseStream:
         return self._response.headers
 
     async def iter_bytes(self) -> AsyncGenerator[bytes, None]:
-        """Incremental bytes; unlike iter_lines, never buffers an unbounded line."""
+        """The decoded body as it arrives; unlike iter_lines, never buffers an
+        unbounded line. A gzip or deflate body is decoded here in bounded
+        steps (``decoded_chunks``), never by httpx, whose decoders can expand
+        one small chunk without bound; another encoding is refused."""
         try:
-            async for chunk in self._response.aiter_bytes():
+            async for chunk in decoded_chunks(self._response):
                 yield chunk
             self._finish_span_ok()
         except httpx.TimeoutException as exc:
@@ -453,8 +462,19 @@ class AsyncResponseStream:
             raise
 
     async def close(self) -> None:
-        if self._closed:
+        if self._released:
             return
+        # Single-flight: a second close() (a stop() racing the reader's own
+        # close) waits for the release in progress instead of re-entering the
+        # response's context manager, which raises RuntimeError. Shielded like
+        # the release itself (each bounded by its grace window), so a
+        # cancelled reader still reaches the release.
+        with anyio.CancelScope(shield=True):
+            async with self._close_lock:
+                if not self._released:
+                    await self._close_once()
+
+    async def _close_once(self) -> None:
         if self._owned_client is not None:
             await self._close_owned()
             return
@@ -476,6 +496,7 @@ class AsyncResponseStream:
         # ran out its grace window leaves the stream re-closable, so a later
         # attempt (the reader's finally, a caller's close) can still free it.
         self._closed = not scope.cancel_called
+        self._released = self._closed
         if self._closed:
             self._finish_span_ok()
             self._notify_closed()
@@ -489,14 +510,34 @@ class AsyncResponseStream:
         self._closed = True
         try:
             with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
-                try:
-                    await self._stream.__aexit__(None, None, None)
-                finally:
-                    if self._owned_client is not None:
-                        await self._owned_client.aclose()
+                await self._stream.__aexit__(None, None, None)
         finally:
+            # The client close runs in a window of its own: inside the release's
+            # window, once that has run out, it would be cancelled before it
+            # closed anything, leaving the connection held.
+            if self._owned_client is not None:
+                await self._close_owned_client(self._owned_client)
+            # Released only now that the client is closed (or closed hard).
+            self._released = True
             self._finish_span_ok()
             self._notify_closed()
+
+    @staticmethod
+    async def _close_owned_client(client: httpx.AsyncClient) -> None:
+        """Close the stream's own client; one whose graceful close fails or
+        runs out its grace window is closed hard (no waiting on the peer), so
+        its connections are freed for real."""
+        closed = False
+        try:
+            with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
+                await client.aclose()
+                closed = True
+        except Exception:
+            closed = False
+        if not closed:
+            with anyio.CancelScope(shield=True):
+                with contextlib.suppress(Exception):
+                    await anyio.aclose_forcefully(client)
 
     def _notify_closed(self) -> None:
         if self._on_close is not None:
@@ -671,11 +712,13 @@ class AsyncTransport:
         # One total deadline for the whole call: resolving the bearer (a token
         # exchange), the request, a 401 refresh and its retry share it.
         with _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
-            token = await self._request_token()
+            with self._credential_deadline(spec.transfer, spec.timeout):
+                token = await self._request_token()
             try:
                 return await self._send_once(spec, token)
             except Exception as exc:
-                retry_token = await self._retry_token_after_401(exc, token)
+                with self._credential_deadline(spec.transfer, spec.timeout):
+                    retry_token = await self._retry_token_after_401(exc, token)
                 if retry_token is None:
                     raise
                 return await self._send_once(spec, retry_token)
@@ -713,6 +756,20 @@ class AsyncTransport:
         if spec.on_headers is not None and response.status_code < 400:
             spec.on_headers(response.headers)
         return _decode_response(response)
+
+    def _credential_deadline(
+        self, transfer: bool, timeout: Optional[float] = None
+    ) -> contextlib.AbstractContextManager[None]:
+        """The bound on resolving a bearer or answering a 401 with a fresh one.
+
+        A transfer has no total deadline, but no bytes move while a credential
+        resolves, so each of those steps is bounded by the transfer's idle
+        bound (:func:`_transfer_idle_seconds`; ``0``: none), as the TypeScript
+        SDK does. An ordinary call's steps are already inside its total deadline.
+        """
+        if not transfer:
+            return _request_deadline(0.0)
+        return _request_deadline(_transfer_idle_seconds(timeout, self._request_timeout_seconds))
 
     async def _request_token(self) -> Optional[str]:
         if self.auth_provider is not None:
@@ -754,6 +811,15 @@ class AsyncTransport:
             return value
         return json.dumps(value).encode("utf-8")
 
+    async def stream_bytes(self, spec: RequestSpec) -> AsyncIterator[bytes]:
+        """A streamed body's bytes as they arrive (never a buffered line)."""
+        stream = await self.open_stream(spec)
+        try:
+            async for chunk in stream.iter_bytes():
+                yield chunk
+        finally:
+            await stream.close()
+
     async def stream_lines(self, spec: RequestSpec) -> AsyncIterator[str]:
         stream = await self.open_stream(spec)
         try:
@@ -768,11 +834,13 @@ class AsyncTransport:
         # retry, until the response headers arrive), never the stream itself;
         # a transfer has no total bound (it is idle-bounded per phase).
         with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
-            token = await self._request_token()
+            with self._credential_deadline(spec.transfer, spec.timeout):
+                token = await self._request_token()
             try:
                 return await self._open_stream_once(spec, token)
             except Exception as exc:
-                retry_token = await self._retry_token_after_401(exc, token)
+                with self._credential_deadline(spec.transfer, spec.timeout):
+                    retry_token = await self._retry_token_after_401(exc, token)
                 if retry_token is None:
                     raise
                 return await self._open_stream_once(spec, retry_token)
@@ -943,18 +1011,25 @@ class AsyncTransport:
 
         Contract: any status >= 400 raises the typed SDK error; callers that
         need undecoded bodies (e.g. multipart bulk reads) rely on this.
-        ``transfer=True`` marks a file transfer: no total deadline, whatever
-        timeout it carries, but the request timeout bounds every idle phase
-        (connecting, each write and read gap). An explicit ``timeout`` in
+        ``transfer=True`` marks a file transfer: no total deadline, but its
+        idle bound (an explicit ``timeout`` in seconds, else the request
+        timeout) bounds every idle phase (connecting, each write and read gap)
+        and resolving its credential. An explicit ``timeout`` in
         seconds replaces the request timeout as a total bound (``0`` or above
         the timer maximum: none). ``max_response_bytes`` replaces the client's
         cap on the buffered body for this call.
         """
         limit = resolve_limit(max_response_bytes, self._max_response_bytes)
         explicit = kwargs.get("timeout")
+        transfer_timeout: Optional[float] = None
         if transfer:
-            # No total deadline, whatever timeout it carries; idle-bounded.
-            kwargs["timeout"] = _client_timeout(self._request_timeout_seconds)
+            # No total deadline; idle-bounded by its own timeout, else the
+            # request timeout.
+            if isinstance(explicit, (int, float)) and not isinstance(explicit, bool):
+                transfer_timeout = explicit
+            kwargs["timeout"] = _client_timeout(
+                _transfer_idle_seconds(transfer_timeout, self._request_timeout_seconds)
+            )
             total = 0.0
         elif isinstance(explicit, (int, float)) and not isinstance(explicit, bool):
             # A per-call timeout in seconds: a total bound, like the request timeout.
@@ -971,13 +1046,15 @@ class AsyncTransport:
             kwargs["content"] = content_factory(0)
         # One total deadline for the bearer, the request, a 401 refresh and its retry.
         with _request_deadline(total):
-            token = await self._request_token()
+            with self._credential_deadline(transfer, transfer_timeout):
+                token = await self._request_token()
             try:
                 return await self._request_once(method, path, token, caller_headers, kwargs, limit)
             except Exception as exc:
                 if one_shot_body:
                     raise
-                retry_token = await self._retry_token_after_401(exc, token)
+                with self._credential_deadline(transfer, transfer_timeout):
+                    retry_token = await self._retry_token_after_401(exc, token)
                 if retry_token is None:
                     raise
                 if content_factory is not None:
@@ -1108,6 +1185,14 @@ def _per_call_seconds(seconds: float) -> float:
     return 0.0 if seconds <= 0 or seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
 
 
+def _transfer_idle_seconds(timeout: Optional[float], request_timeout_seconds: float) -> float:
+    """A file transfer's idle bound, in seconds (``0``: none): its own
+    ``timeout`` replaces the request timeout, as for any call, but as the
+    longest stretch with no bytes moving, never a total deadline (``0`` or
+    above the timer maximum: no bound), as in the TypeScript SDK."""
+    return _per_call_seconds(request_timeout_seconds if timeout is None else timeout)
+
+
 def _stream_open_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
     """The total-time bound on opening a stream, until its headers (``0``: none).
 
@@ -1125,11 +1210,12 @@ def _stream_open_seconds(spec: RequestSpec, request_timeout_seconds: float) -> f
 def _stream_timeout(spec: RequestSpec, request_timeout_seconds: float) -> httpx.Timeout:
     """httpx's per-phase timeouts for a stream: the opening bound, no idle-read bound.
 
-    A streamed file transfer is the exception: the request timeout bounds each
-    idle phase (connecting, each write and read gap), never its total time.
+    A streamed file transfer is the exception: its idle bound
+    (:func:`_transfer_idle_seconds`) bounds each idle phase (connecting, each
+    write and read gap), never its total time.
     """
     if spec.transfer:
-        return _client_timeout(request_timeout_seconds)
+        return _client_timeout(_transfer_idle_seconds(spec.timeout, request_timeout_seconds))
     return _timeout_with_unbounded_read(_stream_open_seconds(spec, request_timeout_seconds))
 
 
@@ -1160,9 +1246,9 @@ def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _Reque
     }
     if spec.transfer:
         # No total deadline (``_total_seconds``), but every idle phase is
-        # bounded by the request timeout: a transfer that keeps moving bytes
-        # runs on, a stalled one fails.
-        kwargs["timeout"] = _client_timeout(request_timeout_seconds)
+        # bounded by its idle bound: a transfer that keeps moving bytes runs
+        # on, a stalled one fails.
+        kwargs["timeout"] = _client_timeout(_transfer_idle_seconds(spec.timeout, request_timeout_seconds))
     elif spec.timeout is not None:
         # httpx's per-phase bound; ``_total_seconds`` holds the whole request to it.
         kwargs["timeout"] = spec.timeout if _per_call_seconds(spec.timeout) else httpx.Timeout(None)
@@ -1224,9 +1310,16 @@ def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
         raise error_from_response(
             response.status_code, response.content, content_type=response.headers.get("content-type")
         )
-    content_type = response.headers.get("content-type", "")
-    if "application/json" in content_type:
-        return parse_json_bytes(response.content)
+    if is_json_media_type(response.headers.get("content-type")):
+        try:
+            return parse_json_bytes(response.content)
+        except ValueError:
+            # Invalid JSON, invalid UTF-8 (UnicodeDecodeError is a ValueError)
+            # or a non-standard constant: malformed, whether or not the caller
+            # reads the body.
+            raise create_error(
+                "expected JSON response: the body is not valid JSON", 400, "BAD_REQUEST", "SDK"
+            ) from None
     if not response.content:
         return b""
     return response.content

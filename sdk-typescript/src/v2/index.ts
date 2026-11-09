@@ -16,16 +16,17 @@ export type { OtelApiLike } from './http.js'
 export { Sandbox } from './Sandbox.js'
 export { Sandbox as SandboxV2 } from './Sandbox.js'
 export { FileSystemService } from './FileSystem.js'
-export { FilesystemEventType, SIGNED_FILE_MAX_TTL_SECONDS } from './FileSystem.js'
+export { SIGNED_FILE_MAX_TTL_SECONDS } from './FileSystem.js'
+export type { FilesystemEventType } from './FileSystem.js'
 export type {
   DownloadFileOptions,
-  FilePermissionsParams,
   FilesystemEvent,
-  Match,
+  ListFilesOptions,
+  MkdirOptions,
   PresignedUrlOptions,
   ReadFileOptions,
   ReadManyOptions,
-  SearchFilesResponse,
+  RemoveOptions,
   TransferProgressCallback,
   UploadFileOptions,
   WatchDirOptions,
@@ -38,15 +39,14 @@ export type {
   CloneOptions,
   CommitOptions,
   CredentialOptions,
-  GitCommit,
-  ListBranchResponse,
+  GitConfigOptions,
+  InitOptions,
   PushOptions,
   ResetOptions,
   RestoreOptions,
 } from './Git.js'
 export { InterpreterContext, InterpreterService } from './Interpreter.js'
 export { ComputerUseService } from './ComputerUse.js'
-export type { ComputerUseTransport } from './ComputerUse.js'
 export {
   AddonProcessesService,
   A11yService,
@@ -268,19 +268,28 @@ export type {
   ProcessKeepLogs,
   ProcessStdinMode,
   TerminalSize,
-  ProcessDto,
+  ProcessInfo,
   WaitResult,
+  StdinMode,
   ProcessStartOptions,
   ProcessCommand,
+  PtyStartOptions,
+  RunKeepLogs,
   RunOptions,
-  RunResult,
+  ProcessResult,
   LogFrame,
-  LogsPage,
+  LogPage,
   StreamLogEvent,
+  StreamLogEofEvent,
+  StreamLogFrameEvent,
+  StreamLogStateEvent,
+  StreamLogWarningEvent,
   LogsOptions,
   StreamLogsOptions,
+  WaitProcessOptions,
   KillOptions,
   ProcessListOptions,
+  KillAllOptions,
   FileInfo,
   FileMatch,
   ReplaceResult,
@@ -289,7 +298,9 @@ export type {
   BulkWriteResult,
   BulkReadError,
   BulkReadResult,
+  GitCommit,
   GitConfigScope,
+  GitFileStatus,
   GitRemote,
   GitStatus,
   GitCommitResponse,
@@ -298,6 +309,7 @@ export type {
   InterpreterOutput,
   InterpreterProcess,
   InterpreterRunOptions,
+  InterpreterContextRunOptions,
   InterpreterContextJSON,
   InterpreterContextOptions,
   InterpreterContextReference,
@@ -387,8 +399,10 @@ export type {
 } from './Ports.js'
 export type {
   LspCompletionsOptions,
+  LspCompletionContext,
   LspCompletionItem,
   LspCompletionList,
+  LspMarkupContent,
   LspLocation,
   LspPosition,
   LspRange,

@@ -219,3 +219,48 @@ def test_workflow_includes_client_calls_that_receive_the_sandbox() -> None:
         "workflow `other`: these calls require a different lifecycle workflow in SDK 2.x; keep this workflow on .v0: daytona.v0.stop"
         in headers
     )
+
+
+@pytest.mark.parametrize(
+    ("method", "call"),
+    [
+        # Each 0.x method's own call shape (daytona 0.x _async/git.py).
+        (
+            "clone",
+            "clone('https://example.test/r.git', '/repo', branch='main', request_timeout=0)",
+        ),
+        ("pull", "pull('/repo', username='u', password='p', request_timeout=0)"),
+        (
+            "push",
+            "push('/repo', username='u', password='p', set_upstream=True, request_timeout=0)",
+        ),
+    ],
+)
+def test_git_remote_calls_carry_request_timeout_into_the_v2_timeout(
+    method: str, call: str
+) -> None:
+    # Given a 0.x git call with request_timeout=0 (no limit).
+    source = (
+        "from daytona import Daytona\napi = Daytona()\nbox = api.v0.create()\n"
+        f"box.git.{call}\n"
+    )
+    # When producing guidance from the published mapping.
+    mapping = load_mapping()
+    result = transform_source(
+        source,
+        TransformOptions(mapping, "suggest-v2"),
+        SourceContext("app.py", "app", build_index({"app": source}, mapping)),
+    )
+    # Then the v2 form passes the deadline on, and 0 keeps meaning no limit.
+    entry = next(
+        item["suggestion"]
+        for item in result.items
+        if "suggestion" in item and item["suggestion"]["id"] == f"sandbox.git.{method}"
+    )
+    form = entry["v2"]
+    assert form is not None and form.endswith(", timeout=request_timeout)")
+    assert any(
+        "request_timeout=0 (no limit) becomes timeout=0" in note
+        for note in entry["notes"]
+    )
+    assert "timeout=request_timeout" in result.source

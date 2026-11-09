@@ -18,8 +18,6 @@ from typing_extensions import Self
 from .. import session as _async
 from .._bridge import SyncBridge
 from ..session import *
-from ..session import _SessionIdentity
-from . import _runtime as _rt
 
 if TYPE_CHECKING:
     from .process import ProcessHandle
@@ -34,6 +32,9 @@ class Session:
     Sessions do not survive a sandbox stop/start. After ``set -x`` or
     ``set -v``, later commands' stderr also includes the session's command
     execution traces.
+
+    Returned by ``process.create_session()`` / ``process.connect_session()``,
+    never constructed directly.
     """
 
     _async_type = _async.AsyncSession
@@ -70,11 +71,6 @@ class Session:
         """End this shell and remove it and all its commands."""
         return self._bridge.call(lambda: self._impl.delete())
 
-    @classmethod
-    def from_json(cls, value: Mapping[str, object]) -> Session:
-        """Rehydrate an unbound identity without making a request."""
-        return Session(_async.AsyncSession.from_json(value), _rt.UNBOUND)
-
     def get(self) -> ProcessInfo:
         """Fetch session metadata, including the shell's live cwd."""
         return self._bridge.call(lambda: self._impl.get())
@@ -87,7 +83,7 @@ class Session:
         timeout: Optional[float] = None,
         execution_timeout: Optional[float] = None,
         name: Optional[str] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: Optional[RunKeepLogs] = None,
     ) -> ProcessResult:
         """Run a command in this shell and collect output; timeouts are seconds.
 
@@ -136,6 +132,6 @@ class Session:
             self._bridge,
         )
 
-    def to_json(self) -> _SessionIdentity:
+    def to_json(self) -> SessionJSON:
         """Return a JSON-safe identity for ``process.connect_session()``."""
         return self._impl.to_json()

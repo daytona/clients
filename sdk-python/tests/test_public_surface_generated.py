@@ -41,39 +41,7 @@ def _is_v2_sdk(module: str) -> bool:
 
 # Today's violations, as "<owner>.<member>: <generated class>" or
 # "export <name>". Remove an entry when its type becomes SDK-owned.
-ALLOWED = frozenset(
-    {
-        # Toolbox namespaces.
-        "AsyncSandbox.metrics: Metrics",
-        "Sandbox.metrics: Metrics",
-        "AsyncFileSystemService.list: FileInfo",
-        "AsyncFileSystemService.stat: FileInfo",
-        "FileSystemService.list: FileInfo",
-        "FileSystemService.stat: FileInfo",
-        "AsyncGitService.commit: CommitResponse",
-        "AsyncGitService.status: StatusResponse",
-        "GitService.commit: CommitResponse",
-        "GitService.status: StatusResponse",
-        "AsyncLspServer.completions(position): SymbolPosition",
-        "AsyncLspServer.completions: CompletionList",
-        "AsyncLspServer.document_symbols: SymbolInfo",
-        "AsyncLspServer.workspace_symbols: SymbolInfo",
-        "LspServer.completions(position): SymbolPosition",
-        "LspServer.completions: CompletionList",
-        "LspServer.document_symbols: SymbolInfo",
-        "LspServer.workspace_symbols: SymbolInfo",
-        "export FileInfo",
-        "export GitCommitResponse",
-        "export GitStatus",
-        "export LspCompletionItem",
-        "export LspCompletionList",
-        "export LspLocation",
-        "export LspPosition",
-        "export LspRange",
-        "export LspSymbol",
-        "export SystemMetrics",
-    }
-)
+ALLOWED: frozenset[str] = frozenset()
 
 # Names the generic typing machinery needs when an annotation string refers to
 # them from another module (a callback alias defined elsewhere).

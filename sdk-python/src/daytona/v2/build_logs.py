@@ -41,6 +41,7 @@ from ._core import (
     RequestSpec,
     _nested_deeper_than,
     is_json_media_type,
+    loads_json,
     parse_error_payload,
     query_text,
     wait_budget_seconds,
@@ -643,8 +644,15 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: O
     try:
         # UTF-8 with the BOM stripped and bad bytes replaced, as TypeScript's
         # TextDecoder reads it: json.loads would also detect UTF-16 and UTF-32.
-        payload = _object(_json(bytes(body).decode("utf-8", errors="replace").removeprefix("\ufeff")))
-    except (ValueError, RecursionError, _ProtocolError):
+        text = bytes(body).decode("utf-8", errors="replace").removeprefix("\ufeff")
+        payload = _object(loads_json(text, "build log error response"))
+    except DaytonaError:
+        # Nested past JSON_MAX_DEPTH: unreadable, as on the transport's error path.
+        return create_error(
+            f"HTTP {status}: the response body was nested too deeply to read (over {JSON_MAX_DEPTH} levels of JSON)",
+            status,
+        )
+    except (ValueError, _ProtocolError):
         return create_error(f"build log HTTP {status}", status)
     # No usable prose (absent, empty or malformed) keeps the build-log status
     # fallback, still dispatched on code/source — and never raises on a bad type.

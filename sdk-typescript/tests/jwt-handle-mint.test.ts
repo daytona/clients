@@ -34,7 +34,7 @@ async function listFiles(answers: readonly PlannedResponse[], accessToken?: stri
 }
 
 it('mints on a JWT handle and sends the minted bearer', async () => {
-  const api = await listFiles([{ status: 200, body: MINTED }, { status: 200, body: { files: [] } }])
+  const api = await listFiles([{ status: 200, body: MINTED }, { status: 200, body: { items: [] } }])
   expect(sent(api).slice(1)).toEqual([
     ['GET', '/sandboxes/sbx', 'Bearer project-token'],
     ['POST', '/sandboxes/sbx/access-token', 'Bearer project-token'],
@@ -43,7 +43,7 @@ it('mints on a JWT handle and sends the minted bearer', async () => {
 })
 
 it('falls back to the project token when the mint route answers 405', async () => {
-  const api = await listFiles([{ status: 405, body: { message: 'no mint' } }, { status: 200, body: { files: [] } }])
+  const api = await listFiles([{ status: 405, body: { message: 'no mint' } }, { status: 200, body: { items: [] } }])
   expect(sent(api).slice(2)).toEqual([
     ['POST', '/sandboxes/sbx/access-token', 'Bearer project-token'],
     ['GET', '/toolbox/sbx/files', 'Bearer project-token'],
@@ -51,7 +51,7 @@ it('falls back to the project token when the mint route answers 405', async () =
 })
 
 it('sends a caller token unchanged on a JWT handle and never mints', async () => {
-  const api = await listFiles([{ status: 200, body: { files: [] } }], 'caller-token')
+  const api = await listFiles([{ status: 200, body: { items: [] } }], 'caller-token')
   expect(sent(api).slice(1)).toEqual([
     ['GET', '/sandboxes/sbx', 'Bearer project-token'],
     ['GET', '/toolbox/sbx/files', 'Bearer caller-token'],

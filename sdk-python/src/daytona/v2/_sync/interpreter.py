@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class InterpreterService:
-    """Synchronous InterpreterService."""
+    """Sandbox interpreter namespace: run code in language kernels."""
 
     _async_type = _async.AsyncInterpreterService
 
@@ -43,6 +43,7 @@ class InterpreterService:
     def connect_context(
         self, context: str | InterpreterContext | InterpreterContextJSON, *, language: str | None = None
     ) -> InterpreterContext:
+        """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request."""
         from .types import InterpreterContext
 
         return InterpreterContext(
@@ -59,35 +60,22 @@ class InterpreterService:
         context_id: Optional[str] = None,
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
-        request_timeout: Optional[float] = None,
     ) -> InterpreterContext:
+        """Create an interpreter context: kernel state of its own.
+
+        ``cwd`` and ``env`` apply to every run in the context.
+        """
         from .types import InterpreterContext
 
         return InterpreterContext(
             self._bridge.call(
-                lambda: self._impl.create_context(
-                    language=language,
-                    context_id=context_id,
-                    cwd=cwd,
-                    env=env,
-                    request_timeout=request_timeout,
-                )
+                lambda: self._impl.create_context(language=language, context_id=context_id, cwd=cwd, env=env)
             ),
             self._bridge,
         )
 
     def delete_context(self, context: InterpreterContext | InterpreterContextJSON | str) -> None:
         return self._bridge.call(lambda: self._impl.delete_context(_rt.unwrap(context)))
-
-    def get_context(
-        self, context: str | InterpreterContext | InterpreterContextJSON, *, language: str | None = None
-    ) -> InterpreterContext:
-        from .types import InterpreterContext
-
-        return InterpreterContext(
-            self._bridge.call_sync(lambda: self._impl.get_context(_rt.unwrap(context), language=language)),
-            self._bridge,
-        )
 
     def list_contexts(self) -> list[InterpreterContext]:
         from .types import InterpreterContext
@@ -100,14 +88,21 @@ class InterpreterService:
         self,
         code: str,
         *,
-        language: str = "python",
-        context: Optional[InterpreterContext] = None,
+        language: Optional[str] = None,
+        context: str | InterpreterContext | InterpreterContextJSON | None = None,
         isolated: bool = False,
         timeout: Optional[float] = None,
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
         """Execute code and return the parsed interpreter result.
+
+        Without ``context`` (or ``isolated``) runs share kernel state per
+        ``language`` (default ``"python"``). ``context`` selects an interpreter
+        context by handle, ``to_json()`` identity or id; an id needs
+        ``language``. ``isolated=True`` runs in a throwaway context. ``env``
+        applies to context-free and isolated runs; a context takes its
+        environment when it is created.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on

@@ -21,7 +21,12 @@ from ..types import *
 
 
 class InterpreterContext:
-    """Serializable interpreter context handle."""
+    """An interpreter context: kernel state of its own in one sandbox.
+
+    Built by the interpreter service (``create_context()``,
+    ``connect_context()``, ``list_contexts()``), never directly. Serialize it
+    with :meth:`to_json` and reconnect with ``interpreter.connect_context()``.
+    """
 
     _async_type = _async.AsyncInterpreterContext
 
@@ -58,22 +63,22 @@ class InterpreterContext:
         self._bridge.call(lambda: self._impl.__aexit__(*exc))
 
     def close(self) -> None:
+        """Delete this context and its kernel state."""
         return self._bridge.call(lambda: self._impl.close())
 
     def run(
-        self,
-        code: str,
-        *,
-        cwd: Optional[str] = None,
-        env: Optional[Mapping[str, str]] = None,
-        timeout: Optional[float] = None,
+        self, code: str, *, cwd: Optional[str] = None, timeout: Optional[float] = None
     ) -> InterpreterResult:
-        """Execute code inside this explicit interpreter context.
+        """Execute code inside this interpreter context.
 
-        If the named context vanished, the API's typed
-        ``SESSION_NOT_FOUND`` error surfaces unchanged so the caller can
-        recreate the context and decide what code, if any, is safe to rerun.
-        ``timeout`` is the caller wait budget in seconds; ``0`` waits
-        unbounded.
+        Environment variables are set when the context is created. If the
+        context vanished, the API's typed ``SESSION_NOT_FOUND`` error surfaces
+        unchanged so the caller can recreate the context and decide what code,
+        if any, is safe to rerun. ``timeout`` is the caller wait budget in
+        seconds; ``0`` waits unbounded.
         """
-        return self._bridge.call(lambda: self._impl.run(code, cwd=cwd, env=env, timeout=timeout))
+        return self._bridge.call(lambda: self._impl.run(code, cwd=cwd, timeout=timeout))
+
+    def to_json(self) -> InterpreterContextJSON:
+        """Return the context's JSON-safe identity for ``interpreter.connect_context()``."""
+        return self._impl.to_json()

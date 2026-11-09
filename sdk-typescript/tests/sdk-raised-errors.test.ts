@@ -52,7 +52,7 @@ describe('SDK-raised invalid-argument errors are BadRequestError', () => {
   it('on sandbox and interpreter options', async () => {
     const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: 'http://127.0.0.1:9', accessToken: 'token' })
     await badRequest(() => sandbox.setLabels({ a: 5 } as never))
-    await badRequest(() => sandbox.interpreter.run('1', { timeout: -1 }))
+    await badRequest(() => sandbox.interpreter.run('1', { timeoutSeconds: -1 }))
     await badRequest(() => sandbox.wait({ until: [] }))
   })
 })
@@ -70,10 +70,8 @@ describe('error construction guard', () => {
 
   it('builds SDK errors through the catalog, never on the base class', () => {
     // Build them with `badRequest(...)` or `createDaytonaError(message, status,
-    // code, 'SDK')`, which pick the catalog class. Remaining exceptions only
-    // shrink: the filesystem watch's malformed-event and stream errors, which
-    // move to the malformed-response rule with their area.
-    expect(counts(/new DaytonaError\(/g)).toEqual({ 'FileSystem.ts': 11 })
+    // code, 'SDK')`, which pick the catalog class.
+    expect(counts(/new DaytonaError\(/g)).toEqual({})
   })
 
   it('throws no plain JavaScript errors beyond the deliberate ones', () => {

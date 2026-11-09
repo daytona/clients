@@ -3,32 +3,99 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { encodeQuery, HttpTransport, strictUriEncode } from './http.js'
+import { encodeQuery, HttpTransport } from './http.js'
 import type {
-  ListResult, ProcessCommand, ProcessDto, ProcessHandleJSON, ProcessListOptions,
-  ProcessStartOptions, RunOptions, RunResult, TerminalSize,
+  KillAllOptions, ListResult, ProcessCommand, ProcessHandleJSON, ProcessInfo, ProcessListOptions, ProcessResult,
+  ProcessStartOptions, PtyStartOptions, RunOptions,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { BadRequestError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import type { PtyDuplex } from './ProcessHandle.js'
-import { commandSource, invalidPtyVerbError, knownProcessKind, processFromWire, WAIT_READ_SLACK_MS } from './ProcessWire.js'
-import type { InternalProcessStartOptions } from './ProcessWire.js'
+import {
+  bodyFor, commandSpec, invalidPtyVerbError, KILL_ALL_DEFAULT_TIMEOUT_SECONDS, KILL_ALL_MAX_TIMEOUT_SECONDS, knownProcessKind,
+  processFromWire, processTag, terminalSpec, WAIT_READ_SLACK_MS,
+} from './ProcessWire.js'
+import { envelopeList, record, strList } from './toolboxModels.js'
 import { runProcess, startProcess } from './ProcessRun.js'
+import type { ProcessBinding } from './ProcessRun.js'
 import { requireSessionId, Session } from './Session.js'
 import type { CreateSessionOptions, SessionJSON } from './Session.js'
+import { assertInternal, INTERNAL } from './internal.js'
+import type { Internal } from './internal.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { deepFrozen } from './frozen.js'
+import { refuseDotSegment, toolboxPathId } from './toolboxPath.js'
 
 // Preserve internal import paths used by the interpreter and other namespaces.
 export { ProcessHandle } from './ProcessHandle.js'
-export type { PtyDuplex, WaitProcessOptions } from './ProcessHandle.js'
+export type { PtyDuplex } from './ProcessHandle.js'
 export { WAIT_READ_SLACK_MS, base64Encode } from './ProcessWire.js'
 export { TIMED_OUT_LOG_PAGE_LIMIT, collectAllLogs, startProcess } from './ProcessRun.js'
 
+const START_OPTION_KEYS = optionKeys<ProcessStartOptions>()({
+  name: true, tag: true, cwd: true, env: true, user: true, shell: true, login: true, stdin: true,
+  executionTimeoutSeconds: true, keepLogs: true,
+})
+const RUN_OPTION_KEYS = optionKeys<RunOptions>()({
+  name: true, tag: true, cwd: true, env: true, user: true, shell: true, login: true, stdin: true,
+  executionTimeoutSeconds: true, keepLogs: true, timeoutSeconds: true,
+})
+const CREATE_SESSION_OPTION_KEYS = optionKeys<CreateSessionOptions>()({ tag: true, cwd: true, env: true, shell: true, login: true, name: true })
+const LIST_OPTION_KEYS = optionKeys<ProcessListOptions>()({ state: true, kind: true, sessionId: true, name: true, pid: true, tag: true })
+const KILL_ALL_OPTION_KEYS = optionKeys<KillAllOptions>()({ tag: true, timeoutSeconds: true })
+const PTY_START_OPTION_KEYS = optionKeys<PtyStartOptions>()({
+  terminal: true, cwd: true, env: true, name: true, user: true, shell: true, login: true, stdin: true,
+  executionTimeoutSeconds: true, keepLogs: true, tag: true,
+})
+
+const KILL_PROCESSES = 'kill processes response'
+
+/**
+ * `killAll()`'s `timeoutSeconds` as wire milliseconds: more than 0 and at
+ * most 60 seconds (the toolbox takes 1-60000 ms), rounded up to whole
+ * milliseconds; omitted keeps the toolbox default of 10 seconds. The toolbox
+ * has no unbounded wait, so nothing above 60 seconds means "no limit".
+ */
+function killAllTimeoutMs(timeoutSeconds: number | undefined): number | undefined {
+  if (timeoutSeconds === undefined) return undefined
+  if (typeof timeoutSeconds !== 'number' || !Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > KILL_ALL_MAX_TIMEOUT_SECONDS) {
+    throw badRequest(`timeoutSeconds must be greater than 0 and at most ${KILL_ALL_MAX_TIMEOUT_SECONDS} seconds`)
+  }
+  return Math.max(1, Math.ceil(Math.round(timeoutSeconds * 1000 * 1e6) / 1e6))
+}
+const DEFAULT_TERMINAL_SIZE = { cols: 80, rows: 24 } as const
+
+/** A serialized handle's optional `kind`: anything present but a string is refused. */
+function requireOptionalKind(value: unknown): unknown {
+  if (value !== undefined && value !== null && typeof value !== 'string') {
+    throw new BadRequestError('process handle identity kind must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  return value
+}
+
+function requireProcessId(value: unknown, field: 'sandboxId' | 'processId'): string {
+  if (typeof value !== 'string' || value === '') {
+    throw new BadRequestError(`process handle identity needs a non-empty string ${field}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  if (field === 'processId') refuseDotSegment(value, 'process id')
+  return value
+}
+
+/** Sandbox process namespace (`sandbox.process`). */
 export class ProcessService {
-  constructor(
-    public readonly transport: HttpTransport,
-    public readonly sandboxId: string,
-  ) {}
+  public readonly sandboxId: string
+  private readonly transport: HttpTransport
+
+  /** @internal */
+  constructor(token: Internal, transport: HttpTransport, sandboxId: string)
+  /** Built by the SDK: get it from `sandbox.process`. */
+  constructor(token: Internal, ...init: never[])
+  constructor(token: Internal, transport: HttpTransport, sandboxId: string) {
+    assertInternal(token, 'ProcessService')
+    this.transport = transport
+    this.sandboxId = sandboxId
+  }
 
   /**
    * Start a detached process and return a handle immediately.
@@ -44,11 +111,12 @@ export class ProcessService {
    * {@link createSession} for a persistent shell.
    *
    * @param command Shell command string, `{ cmd }`, or shell-free `{ argv }`.
-   * @param options.executionTimeout Server-side deadline in milliseconds;
+   * @param options.executionTimeoutSeconds Server-side deadline in seconds;
    *   kills the process tree on expiry.
    */
   public async start(command: ProcessCommand, options: ProcessStartOptions = {}): Promise<ProcessHandle> {
-    return startProcess(this.transport, this.sandboxId, commandSource(command), options)
+    assertKnownOptions('ProcessStartOptions', options, START_OPTION_KEYS)
+    return startProcess(this.transport, this.sandboxId, { ...options, ...commandSpec(command) })
   }
 
   /**
@@ -70,113 +138,165 @@ export class ProcessService {
    * (`nohup cmd > server.log 2>&1 &`).
    *
    * @param command Shell command string, `{ cmd }`, or shell-free `{ argv }`.
-   * @param options.timeout Caller wait budget in milliseconds; omitted or 0
+   * @param options.timeoutSeconds Caller wait budget in seconds; omitted or 0
    *   waits unbounded. Expiry does not kill the process.
-   * @param options.executionTimeout Server-side deadline in milliseconds;
+   * @param options.executionTimeoutSeconds Server-side deadline in seconds;
    *   kills the process tree on expiry.
+   * @param options.keepLogs `'on_exit_ttl'` (default) or `'until_cleanup'`;
+   *   the output is read back from the log, so `'none'` is refused.
    * @returns Output, stdout, stderr, logs and the exit result.
    */
-  public async run(command: ProcessCommand, options: RunOptions = {}): Promise<RunResult> {
-    return runProcess(this, command, options)
-  }
-
-  /** Create one persistent shell. Set its cwd/env here, not on its commands. */
-  public async createSession(options: CreateSessionOptions = {}): Promise<Session> {
-    const body: toolbox.CreateProcessRequest = { ...options, kind: 'session' }
-    const data = await this.transport.post<toolbox.ProcessDto>('/processes', body)
-    return this.connectSession(data.id)
-  }
-
-  /** Rebind a shell session by id or serialized identity, without a request. */
-  public connectSession(sessionIdOrJSON: string | SessionJSON): Session {
-    if (typeof sessionIdOrJSON === 'string') return new Session(this, sessionIdOrJSON)
-    const sandboxId = requireSessionId(sessionIdOrJSON?.sandboxId, 'sandboxId')
-    const sessionId = requireSessionId(sessionIdOrJSON?.sessionId, 'sessionId')
-    if (sandboxId !== this.sandboxId) {
-      throw new BadRequestError('session belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
-    return new Session(this, sessionId)
-  }
-
-  public connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle {
-    if (typeof idOrHandle !== 'string' && idOrHandle.sandboxId !== this.sandboxId) {
-      throw createDaytonaError('process handle belongs to a different sandbox', 400, 'BAD_REQUEST', 'SDK')
-    }
-    return new ProcessHandle(
-      this.transport,
-      this.sandboxId,
-      typeof idOrHandle === 'string' ? idOrHandle : idOrHandle.processId,
-      // Unknown serialized kinds read as absent; the API validates operations.
-      typeof idOrHandle === 'string' ? undefined : knownProcessKind(idOrHandle.kind),
-    )
-  }
-
-  public async get(id: string): Promise<ProcessDto> {
-    return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${strictUriEncode(id)}`))
-  }
-
-  public async list(options: ProcessListOptions = {}): Promise<ListResult<ProcessDto>> {
-    const query = encodeQuery({ state: options.state, kind: options.kind, sessionId: options.sessionId, name: options.name, pid: options.pid, tag: options.tag })
-    const data = await this.transport.get<toolbox.ProcessDto[] | toolbox.ProcessListResponse | ListResult<toolbox.ProcessDto>>(`/processes${query}`)
-    const page: ListResult<ProcessDto> = Array.isArray(data)
-      ? { items: data.map(processFromWire) }
-      : { items: data.items.map(processFromWire), nextCursor: 'nextCursor' in data ? data.nextCursor : undefined }
-    // A sandbox whose daemon predates tags ignores the filter and returns
-    // every process: keep only the tagged ones.
-    return options.tag === undefined ? page : { ...page, items: page.items.filter((item) => item.tag === options.tag) }
+  public async run(command: ProcessCommand, options: RunOptions = {}): Promise<ProcessResult> {
+    assertKnownOptions('RunOptions', options, RUN_OPTION_KEYS)
+    const { timeoutSeconds, keepLogs, ...start } = options
+    return runProcess(this.binding(), { ...start, ...commandSpec(command), kind: 'exec' }, { timeoutSeconds, keepLogs })
   }
 
   /**
-   * Kill every process with this tag and everything it started, keeping logs
-   * and records. Returns their ids once none is running; the tag is reusable.
-   * Survivors of deleted or expired records are killed too but not listed.
-   * Throws UnsupportedOperationError on macOS and sandboxes without process containment.
-   * @param options.timeout Exit-wait budget in milliseconds (1–60000; default 10000).
-   * @throws ProcessKillIncompleteError if processes remain; retrying is safe.
+   * Create one persistent shell; cwd and env apply to all its commands.
+   * `shell` must be a POSIX shell (bash, sh, dash, zsh, ksh) on Linux and
+   * macOS; another shell is refused when the session is created.
    */
-  public async killAll(options: { readonly tag: string; readonly timeout?: number }): Promise<string[]> {
-    if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout <= 0)) {
-      throw new BadRequestError('timeout must be a positive, finite number of milliseconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  public async createSession(options: CreateSessionOptions = {}): Promise<Session> {
+    assertKnownOptions('CreateSessionOptions', options, CREATE_SESSION_OPTION_KEYS)
+    const data = await this.transport.post<toolbox.ProcessDto>('/processes', bodyFor({ ...options, kind: 'session' }))
+    return this.connectSession(processFromWire(data).id)
+  }
+
+  /** Reconnect a shell session by id or by `session.toJSON()`, without a request. */
+  public connectSession(session: string | SessionJSON): Session {
+    if (typeof session === 'string') return new Session(INTERNAL, this.binding(), requireSessionId(session, 'sessionId'))
+    const sandboxId = requireSessionId(session?.sandboxId, 'sandboxId')
+    const sessionId = requireSessionId(session?.sessionId, 'sessionId')
+    if (sandboxId !== this.sandboxId) {
+      throw new BadRequestError('session belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
-    const body: toolbox.KillProcessesRequest = { tag: options.tag }
-    if (options.timeout !== undefined) body.timeoutMs = Math.ceil(options.timeout)
+    return new Session(INTERNAL, this.binding(), sessionId)
+  }
+
+  /** Reconnect a process by id or by `handle.toJSON()`, without a request. */
+  public connect(process: string | ProcessHandleJSON): ProcessHandle {
+    if (typeof process === 'string') {
+      return new ProcessHandle(INTERNAL, this.transport, this.sandboxId, requireProcessId(process, 'processId'))
+    }
+    if (requireProcessId(process?.sandboxId, 'sandboxId') !== this.sandboxId) {
+      throw new BadRequestError('process handle belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    }
+    return new ProcessHandle(
+      INTERNAL,
+      this.transport,
+      this.sandboxId,
+      requireProcessId(process.processId, 'processId'),
+      // Unknown serialized kinds read as absent; the API validates operations.
+      knownProcessKind(requireOptionalKind(process.kind)),
+    )
+  }
+
+  private binding(): ProcessBinding {
+    return { transport: this.transport, sandboxId: this.sandboxId }
+  }
+
+  /** Fetch current process metadata by id or live name alias. */
+  public async get(id: string): Promise<ProcessInfo> {
+    return processFromWire(await this.transport.get<toolbox.ProcessDto>(`/processes/${toolboxPathId(id, 'process id')}`))
+  }
+
+  /** List processes; `tag` keeps only the processes created with that tag. */
+  public async list(options: ProcessListOptions = {}): Promise<ListResult<ProcessInfo>> {
+    assertKnownOptions('ProcessListOptions', options, LIST_OPTION_KEYS)
+    const tag = options.tag === undefined ? undefined : processTag(options.tag)
+    const query = encodeQuery({ state: options.state, kind: options.kind, sessionId: options.sessionId, name: options.name, pid: options.pid, tag })
+    const data = await this.transport.get<toolbox.ProcessListResponse>(`/processes${query}`)
+    const items = envelopeList(data, 'items', 'process list response', processFromWire)
+    // A sandbox whose daemon predates tags ignores the filter and returns
+    // every process: keep only the tagged ones.
+    return deepFrozen({ items: tag === undefined ? items : items.filter((item) => item.tag === tag) })
+  }
+
+  /**
+   * Kill every process created with `tag` and everything those processes
+   * started, including detached descendants and the survivors of tagged
+   * processes that already exited, keeping their records and logs. Returns
+   * the ids of the tagged processes it stopped once none of them is running;
+   * the tag can be used again right away. Processes whose records were
+   * deleted or expired are stopped too but not listed.
+   *
+   * @param options.tag A safe identifier (`[A-Za-z0-9._-]`, 1-128
+   *   characters, not `.` or `..`).
+   * @param options.timeoutSeconds How long to wait for them to exit, in
+   *   seconds: more than 0 and at most 60 (default 10).
+   * @throws ProcessKillIncompleteError when some were still running at the
+   *   timeout, or another start or kill under the tag was in progress; calling
+   *   again is safe.
+   * @throws UnsupportedOperationError on macOS and on sandboxes without
+   *   process containment.
+   */
+  public async killAll(options: KillAllOptions): Promise<readonly string[]> {
+    assertKnownOptions('KillAllOptions', options, KILL_ALL_OPTION_KEYS)
+    const tag = processTag(options.tag)
+    const timeoutMs = killAllTimeoutMs(options.timeoutSeconds)
+    const body: toolbox.KillProcessesRequest = timeoutMs === undefined ? { tag } : { tag, timeoutMs }
     const data = await this.transport.post<toolbox.KillProcessesResponse>('/processes:kill', body, {
-      timeout: (options.timeout ?? 10_000) + WAIT_READ_SLACK_MS,
+      timeout: (timeoutMs ?? KILL_ALL_DEFAULT_TIMEOUT_SECONDS * 1000) + WAIT_READ_SLACK_MS,
     })
-    return data.processIds
+    return deepFrozen(strList(record(data, KILL_PROCESSES), 'processIds', KILL_PROCESSES))
   }
 }
 
+/** PTY namespace (`sandbox.pty`): interactive terminals. */
 export class PtyService {
-  constructor(private readonly process: ProcessService) {}
+  private readonly process: ProcessService
+  private readonly transport: HttpTransport
 
-  public async start(command?: string, options: Omit<ProcessStartOptions, 'cmd'> & { terminal?: TerminalSize } = {}): Promise<ProcessHandle> {
-    const ptyOptions: InternalProcessStartOptions = { ...options, kind: 'pty', stdin: options.stdin ?? 'open', keepLogs: options.keepLogs ?? 'until_cleanup' }
-    return command === undefined
-      ? startProcess(this.process.transport, this.process.sandboxId, ptyOptions)
-      : startProcess(this.process.transport, this.process.sandboxId, command, ptyOptions)
+  /** @internal */
+  constructor(token: Internal, process: ProcessService, transport: HttpTransport)
+  /** Built by the SDK: get it from `sandbox.pty`. */
+  constructor(token: Internal, ...init: never[])
+  constructor(token: Internal, process: ProcessService, transport: HttpTransport) {
+    assertInternal(token, 'PtyService')
+    this.process = process
+    this.transport = transport
   }
 
-  public async attach(command?: string, options: Omit<ProcessStartOptions, 'cmd'> & { terminal?: TerminalSize } = {}): Promise<{ handle: ProcessHandle; connection: PtyDuplex }> {
+  /** Start a detached PTY process; without `command` it runs the sandbox shell. The terminal defaults to 80×24. */
+  public async start(command?: string, options: PtyStartOptions = {}): Promise<ProcessHandle> {
+    assertKnownOptions('PtyStartOptions', options, PTY_START_OPTION_KEYS)
+    // Omitted starts the default shell; anything but a string is refused.
+    if (command !== undefined && typeof command !== 'string') throw badRequest('command must be a string')
+    const { terminal, stdin, keepLogs, ...rest } = options
+    return startProcess(this.transport, this.process.sandboxId, {
+      ...rest,
+      ...(command === undefined ? {} : { cmd: command }),
+      kind: 'pty',
+      terminal: terminalSpec(terminal ?? DEFAULT_TERMINAL_SIZE),
+      stdin: stdin ?? 'open',
+      keepLogs: keepLogs ?? 'until_cleanup',
+    })
+  }
+
+  /** Start a PTY and connect to its terminal; if the connection fails, the SDK attempts to delete the PTY (best effort). */
+  public async attach(command?: string, options: PtyStartOptions = {}): Promise<Readonly<{ handle: ProcessHandle; connection: PtyDuplex }>> {
     const handle = await this.start(command, options)
     try {
-      return { handle, connection: await handle.attach() }
+      return Object.freeze({ handle, connection: await handle.attach() })
     } catch (error) {
       await handle.delete().catch(() => undefined)
       throw error
     }
   }
 
-  public connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle {
-    return this.process.connect(idOrHandle)
+  /** Reconnect a PTY by id or by `handle.toJSON()`, without a request. */
+  public connect(process: string | ProcessHandleJSON): ProcessHandle {
+    return this.process.connect(process)
   }
 
-  public async list(): Promise<ListResult<ProcessDto>> {
+  public async list(): Promise<ListResult<ProcessInfo>> {
     return this.process.list({ kind: 'pty' })
   }
 
-  public async delete(idOrHandle: string | ProcessHandleJSON): Promise<void> {
-    const handle = this.connect(idOrHandle)
+  /** Stop a PTY and delete it and its log. */
+  public async delete(process: string | ProcessHandleJSON): Promise<void> {
+    const handle = this.connect(process)
     // Check kind before the destructive action: this namespace only owns PTYs.
     const info = await handle.get()
     if (info.kind !== 'pty') throw invalidPtyVerbError('delete', info.kind)

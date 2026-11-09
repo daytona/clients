@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { Daytona } from '../sdk-typescript/src/index'
-import { DaytonaError, ImageBuilder, RequestTimeoutError, UnsupportedOperationError, type Image, type ProcessDto, type Sandbox } from '../sdk-typescript/src/v2/index'
+import { DaytonaError, ImageBuilder, RequestTimeoutError, UnsupportedOperationError, type Image, type ProcessInfo, type Sandbox } from '../sdk-typescript/src/v2/index'
 
 const run = randomUUID().replace(/-/g, '').slice(0, 8)
 const image = process.env.SMOKE_IMAGE ?? 'python:3.12-slim'
@@ -116,9 +116,9 @@ async function main(): Promise<number> {
       const second = await box.process.start('read line', { stdin: 'open', tag })
       const unrelated = await box.process.start('read line', { stdin: 'open', tag: otherTag })
       const tagged = await box.process.list({ tag })
-      const taggedIds = new Set(tagged.items.map((entry: ProcessDto): string => entry.id))
+      const taggedIds = new Set(tagged.items.map((entry: ProcessInfo): string => entry.id))
       check('process.list filters shared tag', taggedIds.size === 2 && taggedIds.has(first.id) && taggedIds.has(second.id)
-        && tagged.items.every((entry: ProcessDto): boolean => entry.tag === tag))
+        && tagged.items.every((entry: ProcessInfo): boolean => entry.tag === tag))
       const other = await box.process.list({ tag: otherTag })
       check('process.list filters unrelated tag', other.items.length === 1 && other.items[0]?.id === unrelated.id)
 
@@ -131,7 +131,7 @@ async function main(): Promise<number> {
       // A sandbox without process containment refuses the tag-wide kill.
       let killed: Set<string> | undefined
       try {
-        killed = new Set(await box.process.killAll({ tag, timeout: 10_000 }))
+        killed = new Set(await box.process.killAll({ tag, timeoutSeconds: 10 }))
       } catch (error) {
         if (!(error instanceof UnsupportedOperationError)) throw error
         skipped++
@@ -145,15 +145,15 @@ async function main(): Promise<number> {
         const alive = await box.process.run(`kill -0 ${detached} 2>/dev/null && echo alive || echo gone`)
         check('detached descendant killed', alive.output.trim() === 'gone', detached)
         for (const root of [first, second]) {
-          const stopped = await root.wait({ timeout: 5000 })
+          const stopped = await root.wait({ timeoutSeconds: 5 })
           check('tagged root killed', stopped.reason === 'signaled' && stopped.signal === 'KILL', root.id)
         }
         await unrelated.writeStdin('finish\n') // read returns; the root exits 0
-        const survivor = await unrelated.wait({ timeout: 5000 })
+        const survivor = await unrelated.wait({ timeoutSeconds: 5 })
         check('unrelated root completes normally', survivor.reason === 'exited' && survivor.exitCode === 0)
 
         // A fresh command with the killed tag is new work, not fenced out.
-        const reused = await box.process.run('echo tag-reused', { tag, timeout: 5000 })
+        const reused = await box.process.run('echo tag-reused', { tag, timeoutSeconds: 5 })
         check('process tag reusable', reused.exitCode === 0 && reused.output.includes('tag-reused'))
       }
     }

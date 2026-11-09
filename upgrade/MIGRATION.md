@@ -320,11 +320,11 @@ Python and TypeScript: v2 filesystem transfers do not accept the v0 positional t
 | `sandbox.fs.download_file(...)` | `{sandbox}.fs.download_file(remote_path, local_path)` | differs; The disk-transfer form requires local_path; timeout is removed; For the bytes-returning overload use fs.read_bytes(remote_path); v2 does not create missing local parent directories; create them first |
 | `sandbox.fs.download_file_stream(...)` | None | none; No chunk-iterator download method; Use fs.download_file(remote_path, local_path) for streaming to disk; For a custom HTTP stream use fs.presigned_download_url(remote_path) |
 | `sandbox.fs.download_files(...)` | `{sandbox}.fs.read_many(paths)` | differs; Convert FileDownloadRequest objects to remote path strings; timeout is removed; Returns BulkReadResult with files and errors, buffering contents in memory; For local destinations call fs.download_file(remote_path, local_path) per file; v0 created missing local parent directories; v2 does not, so create them first |
-| `sandbox.fs.find_files(...)` | `{sandbox}.fs.grep(path, pattern)` | differs; Read matches from result.items; each match is a dict with file, line and content keys, not an object with attributes; request_timeout is removed |
+| `sandbox.fs.find_files(...)` | `{sandbox}.fs.grep(path, pattern)` | differs; Read matches from result.items; each match is a FileMatch with file, line and content attributes; request_timeout is removed |
 | `sandbox.fs.get_file_info(...)` | `{sandbox}.fs.stat(path)` | differs; request_timeout is removed |
 | `sandbox.fs.list_files(...)` | `{sandbox}.fs.list(path, depth=depth)` | differs; Read entries from result.items; depth becomes keyword-only; request_timeout is removed |
 | `sandbox.fs.move_files(...)` | `{sandbox}.fs.move(source, destination)` | differs; request_timeout is removed |
-| `sandbox.fs.replace_in_files(...)` | `{sandbox}.fs.replace(files, pattern, new_value)` | differs; Read replacement results from result.items; each result is a dict, not an object with attributes; request_timeout is removed |
+| `sandbox.fs.replace_in_files(...)` | `{sandbox}.fs.replace(files, pattern, new_value)` | differs; Read replacement results from result.items; each result is a ReplaceResult with file, success and error attributes; request_timeout is removed |
 | `sandbox.fs.search_files(...)` | `{sandbox}.fs.glob(path, pattern)` | differs; Read matching paths from result.items; request_timeout is removed |
 | `sandbox.fs.set_file_permissions(...)` | `{sandbox}.fs.chmod(path, mode=mode, owner=owner, group=group)` | differs; mode, owner and group become keyword-only; request_timeout is removed |
 | `sandbox.fs.upload_file(...)` | `{sandbox}.fs.upload_file(local_path, remote_path)` | differs; For the bytes overload use fs.write_bytes(remote_path, content); timeout is removed |
@@ -367,7 +367,7 @@ TypeScript: v2 groups optional Git arguments into options objects
 | `sandbox.git.add(...)` | `{sandbox}.git.add(path, files)` | differs; request_timeout is removed |
 | `sandbox.git.branches(...)` | `{sandbox}.git.list_branches(path)` | differs; Read branch names from result.items; request_timeout is removed |
 | `sandbox.git.checkout_branch(...)` | `{sandbox}.git.checkout_branch(path, branch)` | differs; request_timeout is removed |
-| `sandbox.git.clone(...)` | `{sandbox}.git.clone(url, path, branch=branch, commit_id=commit_id, username=username, password=password, insecure_skip_tls=insecure_skip_tls, depth=depth)` | differs; Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations; Use False rather than None for an omitted insecure_skip_tls value |
+| `sandbox.git.clone(...)` | `{sandbox}.git.clone(url, path, branch=branch, commit_id=commit_id, username=username, password=password, insecure_skip_tls=insecure_skip_tls, depth=depth, timeout=request_timeout)` | differs; Optional arguments become keyword-only; request_timeout is replaced by timeout (seconds, one deadline for the whole operation); v0 request_timeout=0 (no limit) becomes timeout=0, and omitting timeout selects the 30-minute default; Use False rather than None for an omitted insecure_skip_tls value |
 | `sandbox.git.commit(...)` | `{sandbox}.git.commit(path, message, author=author, email=email, allow_empty=allow_empty)` | differs; author, email and allow_empty become keyword-only; request_timeout is removed; The commit result field changes from .sha to .hash |
 | `sandbox.git.configure_user(...)` | `{sandbox}.git.set_config("user.name", name, scope=scope, path=path); {sandbox}.git.set_config("user.email", email, scope=scope, path=path)` | differs; Two separate config writes replace configure_user; await each with the async SDK; scope and path become keyword-only; request_timeout is removed; The "system" scope is gone: v2 accepts only "global" and "local" |
 | `sandbox.git.create_branch(...)` | `{sandbox}.git.create_branch(path, name)` | differs; request_timeout is removed |
@@ -375,11 +375,11 @@ TypeScript: v2 groups optional Git arguments into options objects
 | `sandbox.git.delete_branch(...)` | `{sandbox}.git.delete_branch(path, name)` | differs; request_timeout is removed |
 | `sandbox.git.get_config(...)` | `{sandbox}.git.get_config(key, scope=scope, path=path)` | differs; scope and path become keyword-only; request_timeout is removed; The "system" scope is gone: v2 accepts only "global" and "local" |
 | `sandbox.git.init(...)` | `{sandbox}.git.init(path, bare=bare, initial_branch=initial_branch)` | differs; bare and initial_branch become keyword-only; request_timeout is removed |
-| `sandbox.git.pull(...)` | `{sandbox}.git.pull(path, username=username, password=password, branch=branch, remote=remote)` | differs; Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations |
-| `sandbox.git.push(...)` | `{sandbox}.git.push(path, username=username, password=password, branch=branch, remote=remote, set_upstream=set_upstream)` | differs; Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations |
+| `sandbox.git.pull(...)` | `{sandbox}.git.pull(path, username=username, password=password, branch=branch, remote=remote, timeout=request_timeout)` | differs; Optional arguments become keyword-only; request_timeout is replaced by timeout (seconds, one deadline for the whole operation); v0 request_timeout=0 (no limit) becomes timeout=0, and omitting timeout selects the 30-minute default |
+| `sandbox.git.push(...)` | `{sandbox}.git.push(path, username=username, password=password, branch=branch, remote=remote, set_upstream=set_upstream, timeout=request_timeout)` | differs; Optional arguments become keyword-only; request_timeout is replaced by timeout (seconds, one deadline for the whole operation); v0 request_timeout=0 (no limit) becomes timeout=0, and omitting timeout selects the 30-minute default |
 | `sandbox.git.remote_add(...)` | `{sandbox}.git.add_remote(path, name, url)` | differs; fetch, overwrite and request_timeout are not accepted; Use process.run for Git CLI behavior requiring fetch or overwrite |
 | `sandbox.git.remote_get(...)` | `{sandbox}.git.get_config(f"remote.{name}.url", scope="local", path=path)` | differs; Reads the remote URL from repository-local Git config; Missing values return None; request_timeout is removed |
-| `sandbox.git.remotes(...)` | `{sandbox}.git.list_remotes(path)` | differs; Read remotes from result.items; each item is a dict, so use remote["name"] and remote["url"] instead of attributes; request_timeout is removed |
+| `sandbox.git.remotes(...)` | `{sandbox}.git.list_remotes(path)` | differs; Read remotes from result.items; each item is a GitRemote with name and url attributes; request_timeout is removed |
 | `sandbox.git.reset(...)` | `{sandbox}.git.reset(path, mode=mode, target=target, files=files)` | differs; Optional arguments become keyword-only; request_timeout is removed |
 | `sandbox.git.restore(...)` | `{sandbox}.git.restore(path, files, staged=staged, worktree=worktree, source=source)` | differs; Optional arguments become keyword-only; request_timeout is removed |
 | `sandbox.git.set_config(...)` | `{sandbox}.git.set_config(key, value, scope=scope, path=path)` | differs; scope and path become keyword-only; request_timeout is removed; The "system" scope is gone: v2 accepts only "global" and "local" |
@@ -415,7 +415,7 @@ TypeScript: v2 groups optional Git arguments into options objects
 
 Python: async and sync method names match; async PTY create/connect require on_data while sync variants do not
 
-TypeScript: v0 process timeouts use seconds; v2 timeout and executionTimeout use milliseconds
+TypeScript: v0 and v2 process timeouts both take seconds; v2 names them timeoutSeconds and executionTimeoutSeconds
 
 TypeScript: getSessionCommandLogs and getEntrypointLogs each have collected and callback-streaming overloads
 
@@ -425,19 +425,19 @@ TypeScript: getSessionCommandLogs and getEntrypointLogs each have collected and 
 | --- | --- | --- |
 | `sandbox.process.code_run(...)` | `{sandbox}.interpreter.run(code, language=language, isolated=True, env=env, timeout=timeout)` | differs; Select the language explicitly rather than relying on the v0 sandbox language; CodeRunParams.env becomes env; argv has no interpreter equivalent; Returns InterpreterResult rather than ExecuteResponse and execution artifacts |
 | `sandbox.process.connect_pty_session(...)` | `handle = {sandbox}.pty.connect(pty_id)` | differs; connect returns a process handle without opening a WebSocket; Use handle.stream_logs() for output and handle.write_stdin(data) for input; Python v2 has no bundled PTY attach; supply a custom WebSocket adapter if you need a socket |
-| `sandbox.process.create_pty_session(...)` | `handle = {sandbox}.pty.start(name=pty_name, cwd=cwd, env=envs, cols=cols, rows=rows)` | differs; v0 id becomes a name alias; the process receives a new generated id; Expand pty_size into cols and rows; defaults are 80 by 24; Replace on_data or handle iteration with handle.stream_logs(); On AsyncDaytona this call must be awaited |
+| `sandbox.process.create_pty_session(...)` | `handle = {sandbox}.pty.start(name=pty_name, cwd=cwd, env=envs, terminal=TerminalSize(cols=cols, rows=rows))` | differs; v0 id becomes a name alias; the process receives a new generated id; pty_size becomes terminal=TerminalSize(cols=..., rows=...) (import TerminalSize from daytona.v2); omitted, it is 80 by 24; Replace on_data or handle iteration with handle.stream_logs(); On AsyncDaytona this call must be awaited |
 | `sandbox.process.create_session(...)` | `session = {sandbox}.process.create_session(name=session_id)` | differs; Returns a Session handle instead of None; request_timeout is removed; The supplied id becomes a name alias; retain session.id; Set shared cwd and env when creating the session; On AsyncDaytona this call must be awaited |
 | `sandbox.process.delete_session(...)` | `{sandbox}.process.connect_session(session_id).delete()` | differs; Ends the shell and removes its command records; request_timeout is removed; Prefer the retained Session handle's delete() |
 | `sandbox.process.exec(...)` | `{sandbox}.process.run(command, cwd=cwd, env=env, execution_timeout=timeout)` | differs; cwd and env become keyword-only; timeout becomes execution_timeout, not the caller wait timeout; Read output or stdout instead of result; Check the returned reason as well as exit_code |
-| `sandbox.process.execute_session_command(...)` | `{sandbox}.process.connect_session(session_id).run(command, timeout=timeout)` | differs; Extract command from SessionExecuteRequest; suppress_input_echo has no matching option; For run_async=True use session.start(command), which returns a ProcessHandle; timeout bounds the caller wait; execution_timeout stops the command; The result is a ProcessResult: v0 cmd_id becomes process_id |
+| `sandbox.process.execute_session_command(...)` | `{sandbox}.process.connect_session(session_id).run(command, timeout=timeout)` | differs; Extract command from SessionExecuteRequest; suppress_input_echo has no matching option; For run_async=True use session.start(command), which returns a ProcessHandle; v0 timeout bounded only the wait and maps to timeout; 0.x had no command deadline, so pass execution_timeout to stop the command; The result is a ProcessResult: v0 cmd_id becomes process_id |
 | `sandbox.process.get_entrypoint_logs(...)` | `{sandbox}.entrypoint_logs()` | differs; Moved from process to the sandbox handle; Returns the combined entrypoint output as one text; v0 returned separate stdout/stderr fields |
-| `sandbox.process.get_entrypoint_logs_async(...)` | None | none; No dedicated v2 entrypoint-session log stream; For a process you start use handle.stream_logs() and route frames by channel |
+| `sandbox.process.get_entrypoint_logs_async(...)` | None | none; No dedicated v2 entrypoint-session log stream; For a process you start iterate handle.stream_logs(): a StreamLogFrameEvent (type "log") carries the frame, routed by frame.channel |
 | `sandbox.process.get_entrypoint_session(...)` | None | none; No dedicated v2 entrypoint shell-session resource; Create an explicit session with process.create_session() when persistent shell state is needed |
 | `sandbox.process.get_pty_session_info(...)` | `{sandbox}.pty.connect(pty_id).get()` | differs; Returns ProcessInfo rather than PtySessionInfo; request_timeout is removed |
 | `sandbox.process.get_session(...)` | `{sandbox}.process.connect_session(session_id).get()` | differs; Returns shell ProcessInfo rather than command history; request_timeout is removed; For commands use process.list(session_id=session.id); connect_session only binds identity; get() fetches metadata |
 | `sandbox.process.get_session_command(...)` | `{sandbox}.process.get(command_id)` | differs; Use the v2 command handle's id; no session_id argument is needed; Returns ProcessInfo rather than Command; request_timeout is removed |
 | `sandbox.process.get_session_command_logs(...)` | `{sandbox}.process.connect(command_id).logs()` | differs; Returns a cursor-based page of channel-tagged log frames; session_id and request_timeout are removed |
-| `sandbox.process.get_session_command_logs_async(...)` | `{sandbox}.process.connect(command_id).stream_logs()` | differs; Iterate channel-tagged LogFrame values instead of passing output callbacks; Use async for with AsyncProcessHandle and for with its sync twin; No session_id argument is needed |
+| `sandbox.process.get_session_command_logs_async(...)` | `{sandbox}.process.connect(command_id).stream_logs()` | differs; Iterate StreamLogEvent values instead of passing output callbacks: type "log" events carry a LogFrame on .frame, routed by frame.channel; state, warning and eof events follow; Use async for with AsyncProcessHandle and for with its sync twin; No session_id argument is needed |
 | `sandbox.process.kill_pty_session(...)` | `{sandbox}.pty.delete(pty_id)` | differs; Stops the PTY and removes its process record and retained logs; request_timeout is removed |
 | `sandbox.process.list_pty_sessions(...)` | `{sandbox}.pty.list()` | differs; Read ProcessInfo rows from result.items; request_timeout is removed |
 | `sandbox.process.list_sessions(...)` | `{sandbox}.process.list(kind="session")` | differs; Read shell process metadata from result.items; request_timeout is removed; Bind an item with process.connect_session(item.id) |
@@ -448,21 +448,21 @@ TypeScript: getSessionCommandLogs and getEntrypointLogs each have collected and 
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.process.codeRun(...)` | `{sandbox}.interpreter.run(code, { language, isolated: true, env, timeout: timeoutSeconds * 1000 })` | differs; Select the language explicitly rather than relying on the v0 sandbox language; CodeRunParams.env becomes env; argv has no interpreter equivalent; Returns InterpreterResult; convert timeout seconds to milliseconds |
+| `sandbox.process.codeRun(...)` | `{sandbox}.interpreter.run(code, { language, isolated: true, env, timeoutSeconds: timeout })` | differs; Select the language explicitly rather than relying on the v0 sandbox language; CodeRunParams.env becomes env; argv has no interpreter equivalent; Returns InterpreterResult; timeout becomes timeoutSeconds (still seconds) |
 | `sandbox.process.connectPty(...)` | `const handle = {sandbox}.pty.connect(ptyId); const connection = await handle.attach()` | differs; connect returns a process handle without opening a WebSocket; Replace onData with iteration over connection.readable; Connection options are not accepted by pty.connect |
 | `sandbox.process.createPty(...)` | `const handle = await {sandbox}.pty.start(undefined, { name: ptyName, cwd, env: envs, terminal: { cols, rows } }); const connection = await handle.attach()` | differs; v0 id becomes a name alias; the process receives a new generated id; Terminal dimensions move into terminal; Replace onData with iteration over connection.readable |
 | `sandbox.process.createSession(...)` | `const session = await {sandbox}.process.createSession({ name: sessionId })` | differs; Returns a Session handle instead of void; The supplied id becomes a name alias; retain session.id; Set shared cwd and env when creating the session |
 | `sandbox.process.deleteSession(...)` | `{sandbox}.process.connectSession(sessionId).delete()` | differs; Ends the shell and removes its command records; Prefer the retained Session handle's delete() |
-| `sandbox.process.executeCommand(...)` | `{sandbox}.process.run(command, { cwd, env, executionTimeout: timeoutSeconds * 1000 })` | differs; Move cwd and env into options; convert timeout seconds to executionTimeout milliseconds; Read output or stdout instead of result; Check the returned reason as well as exitCode |
-| `sandbox.process.executeSessionCommand(...)` | `{sandbox}.process.connectSession(sessionId).run(command, { timeout: timeoutSeconds * 1000 })` | differs; Extract command from SessionExecuteRequest; For runAsync=true use session.start(command), which returns a ProcessHandle; timeout and executionTimeout use milliseconds; suppressInputEcho has no matching option; The result is a ProcessResult: v0 cmdId becomes processId |
+| `sandbox.process.executeCommand(...)` | `{sandbox}.process.run(command, { cwd, env, executionTimeoutSeconds: timeout })` | differs; Move cwd and env into options; timeout becomes executionTimeoutSeconds (still seconds), not the caller wait timeout; Read output or stdout instead of result; Check the returned reason as well as exitCode |
+| `sandbox.process.executeSessionCommand(...)` | `{sandbox}.process.connectSession(sessionId).run(command, { timeoutSeconds: timeout })` | differs; Extract command from SessionExecuteRequest; For runAsync=true use session.start(command), which returns a ProcessHandle; v0 timeout bounded only the wait and maps to timeoutSeconds (seconds); 0.x had no command deadline, so pass executionTimeoutSeconds to stop the command; suppressInputEcho has no matching option; The result is a ProcessResult: v0 cmdId becomes processId |
 | `sandbox.process.getEntrypointLogs(...)` | `{sandbox}.entrypointLogs()` | differs; Moved from process to the sandbox handle; Returns the combined entrypoint output as one text; v0 returned separate stdout/stderr fields; The callback-streaming overload has no v2 equivalent; v2 returns the log once as a string |
 | `sandbox.process.getEntrypointSession(...)` | None | none; No dedicated v2 entrypoint shell-session resource; Create an explicit session with process.createSession() when persistent shell state is needed |
-| `sandbox.process.getPtySessionInfo(...)` | `{sandbox}.pty.connect(ptyId).get()` | differs; Returns ProcessDto rather than PtySessionInfo |
-| `sandbox.process.getSession(...)` | `{sandbox}.process.connectSession(sessionId).get()` | differs; Returns shell ProcessDto rather than a session containing command history; For commands use process.list({ sessionId: session.id }); connectSession only binds identity; get() fetches metadata |
-| `sandbox.process.getSessionCommand(...)` | `{sandbox}.process.get(commandId)` | differs; Use the v2 command handle's id; no sessionId argument is needed; Returns ProcessDto rather than Command |
+| `sandbox.process.getPtySessionInfo(...)` | `{sandbox}.pty.connect(ptyId).get()` | differs; Returns ProcessInfo rather than PtySessionInfo |
+| `sandbox.process.getSession(...)` | `{sandbox}.process.connectSession(sessionId).get()` | differs; Returns shell ProcessInfo rather than a session containing command history; For commands use process.list({ sessionId: session.id }); connectSession only binds identity; get() fetches metadata |
+| `sandbox.process.getSessionCommand(...)` | `{sandbox}.process.get(commandId)` | differs; Use the v2 command handle's id; no sessionId argument is needed; Returns ProcessInfo rather than Command |
 | `sandbox.process.getSessionCommandLogs(...)` | `{sandbox}.process.connect(commandId).logs()` | differs; Returns a cursor-based page of channel-tagged log frames; For the callback-streaming overload use handle.streamLogs(); Route log events by frame.channel instead of onStdout and onStderr callbacks |
 | `sandbox.process.killPtySession(...)` | `{sandbox}.pty.delete(ptyId)` | differs; Stops the PTY and removes its process record and retained logs |
-| `sandbox.process.listPtySessions(...)` | `{sandbox}.pty.list()` | differs; Read ProcessDto rows from result.items |
+| `sandbox.process.listPtySessions(...)` | `{sandbox}.pty.list()` | differs; Read ProcessInfo rows from result.items |
 | `sandbox.process.listSessions(...)` | `{sandbox}.process.list({ kind: 'session' })` | differs; Read shell process metadata from result.items; Bind an item with process.connectSession(item.id) |
 | `sandbox.process.resizePtySession(...)` | `{sandbox}.pty.connect(ptyId).resize(cols, rows)` | differs; Returns void rather than PtySessionInfo |
 | `sandbox.process.sendSessionCommandInput(...)` | `{sandbox}.process.connect(commandId).writeStdin(data)` | differs; Start the command with session.start(command, { stdin: 'open' }); Use the returned command handle's id, not the shell session id; Open stdin when starting the command before sending input |
@@ -474,7 +474,7 @@ Python: AsyncCodeInterpreter exposes the same method names with await
 
 Python and TypeScript: v0 contexts are generated metadata DTOs rather than executable SDK handles
 
-TypeScript: v0 interpreter timeouts use seconds; v2 uses milliseconds
+TypeScript: v0 and v2 interpreter timeouts both take seconds; v2 names it timeoutSeconds
 
 ### Python
 
@@ -492,7 +492,7 @@ TypeScript: v0 interpreter timeouts use seconds; v2 uses milliseconds
 | `sandbox.codeInterpreter.createContext(...)` | `{sandbox}.interpreter.createContext({ language: 'python', cwd })` | differs; Language is explicit and cwd moves into an options object; Returns an executable InterpreterContext handle |
 | `sandbox.codeInterpreter.deleteContext(...)` | `{sandbox}.interpreter.deleteContext(context)` | differs; Pass a v2 context handle, serialized identity or context id |
 | `sandbox.codeInterpreter.listContexts(...)` | `{sandbox}.interpreter.listContexts()` | differs; Returns executable context handles rather than v0 metadata DTOs; Lists language-kernel contexts, including default contexts that exist |
-| `sandbox.codeInterpreter.runCode(...)` | `{sandbox}.interpreter.run(code, { language: 'python', context, timeout: timeoutSeconds * 1000 })` | differs; Pass a v2 context handle; convert timeout seconds to milliseconds; No onStdout, onStderr or onError callbacks; inspect InterpreterResult; envs becomes env, but per-run env is refused with an explicit context |
+| `sandbox.codeInterpreter.runCode(...)` | `{sandbox}.interpreter.run(code, { language: 'python', context, timeoutSeconds: timeout })` | differs; Pass a v2 context handle; timeout becomes timeoutSeconds (still seconds); No onStdout, onStderr or onError callbacks; inspect InterpreterResult; envs becomes env, but per-run env is refused with an explicit context |
 
 <a id="sandbox-computer-use"></a>
 ## `sandbox.computer_use` / `sandbox.computerUse`
@@ -557,7 +557,7 @@ v2 has no down/up methods, click counts, mouse modifiers or horizontal scrolling
 | `sandbox.computerUse.mouse.down(...)` | None | none; v2 has no method for holding a mouse button down; click or drag cannot preserve arbitrary down/move/up sequences |
 | `sandbox.computerUse.mouse.up(...)` | None | none; v2 has no method for releasing a held mouse button |
 | `sandbox.computerUse.mouse.click(...)` | `{sandbox}.computerUse.mouse.click({ x, y, button, double })` | differs; Arguments move into a request object; v2 has no clicks or modifiers parameters; Returned coordinates are required |
-| `sandbox.computerUse.mouse.drag(...)` | `{sandbox}.computerUse.mouse.drag({ startX, startY, endX, endY, button })` | differs; Arguments move into a request object whose button field is required; v2 has no modifiers parameter; Returned coordinates are required |
+| `sandbox.computerUse.mouse.drag(...)` | `{sandbox}.computerUse.mouse.drag({ startX, startY, endX, endY, button })` | differs; Arguments move into a request object; button is optional and defaults to 'left'; v2 has no modifiers parameter; Returned coordinates are required |
 | `sandbox.computerUse.mouse.scroll(...)` | `{sandbox}.computerUse.mouse.scroll({ x, y, direction, amount })` | differs; Arguments move into a request object; Only up/down are supported and modifiers are unavailable; Returns an object with success instead of boolean |
 
 <a id="sandbox-computer-use-keyboard"></a>
@@ -573,7 +573,7 @@ v2 has no persistent key-down or key-up methods
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computer_use.keyboard.type(...)` | `{sandbox}.computer_use.keyboard.type(text=text, delay=delay)` | differs; Arguments become keyword-only and request_timeout is removed |
+| `sandbox.computer_use.keyboard.type(...)` | `{sandbox}.computer_use.keyboard.type(text=text, delay=None if delay is None else delay / 1000)` | differs; Arguments become keyword-only and request_timeout is removed; delay is in seconds (v0 took milliseconds) |
 | `sandbox.computer_use.keyboard.press(...)` | `{sandbox}.computer_use.keyboard.key(key=key, modifiers=modifiers)` | differs; Renamed to key with keyword-only arguments and no request_timeout; Modifier types are restricted to ctrl, alt, shift and cmd |
 | `sandbox.computer_use.keyboard.hotkey(...)` | `{sandbox}.computer_use.keyboard.hotkey(keys=keys)` | differs; keys becomes keyword-only and request_timeout is removed |
 | `sandbox.computer_use.keyboard.down(...)` | None | none; v2 has no method for holding a key down across operations |
@@ -583,7 +583,7 @@ v2 has no persistent key-down or key-up methods
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computerUse.keyboard.type(...)` | `{sandbox}.computerUse.keyboard.type({ text, delay })` | differs; Text and delay move into a request object |
+| `sandbox.computerUse.keyboard.type(...)` | `{sandbox}.computerUse.keyboard.type({ text, delaySeconds: delay === undefined ? undefined : delay / 1000 })` | differs; Text and delay move into a request object; delay becomes delaySeconds, in seconds (v0 took milliseconds) |
 | `sandbox.computerUse.keyboard.press(...)` | `{sandbox}.computerUse.keyboard.key({ key, modifiers })` | differs; Renamed to key with a request object; Modifier types are restricted to ctrl, alt, shift and cmd |
 | `sandbox.computerUse.keyboard.hotkey(...)` | `{sandbox}.computerUse.keyboard.hotkey({ keys })` | differs; The chord string moves into a request object's keys field |
 | `sandbox.computerUse.keyboard.down(...)` | None | none; v2 has no method for holding a key down across operations |

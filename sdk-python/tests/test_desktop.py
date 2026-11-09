@@ -60,7 +60,6 @@ _INVALID_STATUS_CASES = (
         },
         "cause on ready",
     ),
-    ({"status": "active", "desktop": "ready", "cause": None}, "null cause on ready"),
     (
         {
             "status": "inactive",
@@ -276,13 +275,14 @@ def test_status_parser_rejects_invalid_wire_invariants(
     description: str,
 ) -> None:
     from daytona.v2.computer_use_core import parse_computer_use_status
-    from daytona.v2.errors import DaytonaError, InternalServerError
+    from daytona.v2.errors import BadRequestError, DaytonaError
 
-    with pytest.raises(InternalServerError) as exc_info:
+    with pytest.raises(BadRequestError) as exc_info:
         parse_computer_use_status(payload)
 
     assert isinstance(exc_info.value, DaytonaError)
-    assert exc_info.value.status_code == 500
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "BAD_REQUEST"
     assert exc_info.value.source == "SDK"
     assert (
         "Invalid computer-use status response" in exc_info.value.message
@@ -339,13 +339,14 @@ def test_restart_parser_rejects_invalid_wire_invariants(
     description: str,
 ) -> None:
     from daytona.v2.computer_use_core import parse_computer_use_restart
-    from daytona.v2.errors import DaytonaError, InternalServerError
+    from daytona.v2.errors import BadRequestError, DaytonaError
 
-    with pytest.raises(InternalServerError) as exc_info:
+    with pytest.raises(BadRequestError) as exc_info:
         parse_computer_use_restart(payload)
 
     assert isinstance(exc_info.value, DaytonaError)
-    assert exc_info.value.status_code == 500
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == "BAD_REQUEST"
     assert exc_info.value.source == "SDK"
     assert "Invalid computer-use restart response" in exc_info.value.message, description
 
@@ -513,3 +514,102 @@ def test_sync_computer_use_status_and_restart_go_through_the_bridge() -> None:
         ]
     finally:
         bridge.close()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"status": "inactive", "desktop": "not_started", "cause": None},
+        {"status": "inactive", "desktop": "starting", "cause": None},
+        {"status": "active", "desktop": "ready", "cause": None},
+    ],
+)
+def test_status_parser_reads_an_explicit_null_cause_outside_the_failed_state_as_absent(
+    payload: dict[str, Any],
+) -> None:
+    from daytona.v2.computer_use_core import parse_computer_use_status
+
+    status = parse_computer_use_status(payload)
+
+    assert (status.status, status.desktop, status.cause) == (payload["status"], payload["desktop"], None)
+
+
+# Shared with the TypeScript SDK's unit.test.ts: each malformed status or
+# restart response names its field, with the same message in both SDKs.
+_STATUS_FIELD_CASES = [
+    (None, "the body must be an object"),
+    ([], "the body must be an object"),
+    ("inactive", "the body must be an object"),
+    ({"desktop": "ready"}, "status must be a string"),
+    ({"status": 123, "desktop": "ready"}, "status must be a string"),
+    ({"status": "active"}, "desktop must be a string"),
+    ({"status": "active", "desktop": True}, "desktop must be a string"),
+    ({"status": "inactive", "desktop": "rebooting", "cause": "crashed"}, "cause must be null or an object"),
+    ({"status": "inactive", "desktop": "failed", "cause": []}, "cause must be null or an object"),
+    ({"status": "inactive", "desktop": "failed", "cause": {"message": "m"}}, "cause.code must be a string"),
+    (
+        {"status": "inactive", "desktop": "rebooting", "cause": {"code": 123, "message": "x"}},
+        "cause.code must be a string",
+    ),
+    (
+        {"status": "inactive", "desktop": "failed", "cause": {"code": "addon_crashed"}},
+        "cause.message must be a string",
+    ),
+    (
+        {"status": "inactive", "desktop": "failed", "cause": {"code": "c", "message": 456}},
+        "cause.message must be a string",
+    ),
+    (
+        {"status": "inactive", "desktop": "failed"},
+        "cause is required when status is 'inactive' and desktop is 'failed'",
+    ),
+    (
+        {"status": "inactive", "desktop": "failed", "cause": None},
+        "cause is required when status is 'inactive' and desktop is 'failed'",
+    ),
+    (
+        {"status": "active", "desktop": "ready", "cause": {"code": "desktop_exited", "message": "m"}},
+        "cause must be absent when status is 'active' and desktop is 'ready'",
+    ),
+    (
+        {"status": "inactive", "desktop": "starting", "cause": {"code": "desktop_exited", "message": "m"}},
+        "cause must be absent when status is 'inactive' and desktop is 'starting'",
+    ),
+]
+_RESTART_FIELD_CASES = [
+    (None, "the body must be an object"),
+    ([], "the body must be an object"),
+    ({"status": "active", "desktop": "ready"}, "message must be a string"),
+    ({"message": 123, "status": "active", "desktop": "ready"}, "message must be a string"),
+    ({"message": "m", "desktop": "ready"}, "status must be 'active'"),
+    ({"message": "m", "status": "inactive", "desktop": "ready"}, "status must be 'active'"),
+    ({"message": "m", "status": 123, "desktop": "ready"}, "status must be 'active'"),
+    ({"message": "m", "status": "active"}, "desktop must be 'ready'"),
+    ({"message": "m", "status": "active", "desktop": "starting"}, "desktop must be 'ready'"),
+    ({"message": "m", "status": "active", "desktop": True}, "desktop must be 'ready'"),
+]
+
+
+@pytest.mark.parametrize(("payload", "detail"), _STATUS_FIELD_CASES)
+def test_a_malformed_status_response_names_its_field(payload: object, detail: str) -> None:
+    from daytona.v2.computer_use_core import parse_computer_use_status
+    from daytona.v2.errors import BadRequestError
+
+    with pytest.raises(BadRequestError) as exc_info:
+        parse_computer_use_status(payload)
+    assert exc_info.value.message == f"Invalid computer-use status response: {detail}"
+    assert (exc_info.value.status_code, exc_info.value.code, exc_info.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
+
+
+@pytest.mark.parametrize(("payload", "detail"), _RESTART_FIELD_CASES)
+def test_a_malformed_restart_response_names_its_field(payload: object, detail: str) -> None:
+    from daytona.v2.computer_use_core import parse_computer_use_restart
+    from daytona.v2.errors import BadRequestError
+
+    with pytest.raises(BadRequestError) as exc_info:
+        parse_computer_use_restart(payload)
+    assert exc_info.value.message == f"Invalid computer-use restart response: {detail}"

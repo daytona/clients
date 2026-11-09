@@ -11,9 +11,9 @@ it.each([404, 405, 501])('retries minting only for transient HTTP %s', async (st
   // Given a mint failure followed by a successful API-credential fallback.
   const api = await startFakeApi([
     { status, body: { message: 'mint unavailable' } },
-    { status: 200, body: { files: [] } },
+    { status: 200, body: { items: [] } },
     ...(status === 404 ? [{ status: 200, body: { access_token: 'minted-bearer', expires_at: '2040-01-01T00:00:00Z', token_type: 'Bearer', operations: [] } }] : []),
-    { status: 200, body: { files: [] } },
+    { status: 200, body: { items: [] } },
   ])
   const sandbox = createSandbox('sandbox', createHttpClient(api.url, 'key'), undefined, 'key', undefined, { toolboxUrl: `${api.url}/toolbox` })
   try {

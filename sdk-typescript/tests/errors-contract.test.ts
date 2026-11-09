@@ -6,6 +6,7 @@
 // The v2 error surface: names, constructors, defaults and the codes catalog.
 // sdk-python/tests/test_error_contract.py asserts the same facts.
 
+import { INTERNAL } from '../src/v2/internal'
 import * as root from '../src/index'
 import * as v2 from '../src/v2/index'
 import { errorFromEnvelopeBody } from '../src/v2/errors/DaytonaError'
@@ -22,6 +23,13 @@ describe('v2 error surface', () => {
     expect(new v2.ClientTimeoutError('x')).not.toBeInstanceOf(v2.RequestTimeoutError)
     expect(new v2.GitAuthFailedError('x')).toBeInstanceOf(v2.AuthenticationError)
     expect(errorFromEnvelopeBody('{}', 'application/json', 401, 'x').constructor).toBe(v2.AuthenticationError)
+    // Shared with the Python SDK's test_build_logs.py: a JSON body nested past
+    // 600 levels is unreadable, as on the axios and fetch paths.
+    const nested = (depth: number) => `{"code":"NOT_FOUND","message":"gone","details":${'['.repeat(depth - 1)}${']'.repeat(depth - 1)}}`
+    expect(errorFromEnvelopeBody(nested(600), 'application/json', 404, 'build log HTTP 404')).toMatchObject({ code: 'NOT_FOUND', message: 'gone' })
+    const tooDeep = errorFromEnvelopeBody(nested(601), 'application/json', 404, 'build log HTTP 404')
+    expect(tooDeep).toBeInstanceOf(v2.NotFoundError)
+    expect(tooDeep).toMatchObject({ statusCode: 404, code: undefined, message: 'HTTP 404: the response body was nested too deeply to read (over 600 levels of JSON)' })
     expect(errorFromEnvelopeBody('{}', 'application/json', 403, 'x').constructor).toBe(v2.ForbiddenError)
   })
 
@@ -112,9 +120,12 @@ describe('codes namespace', () => {
   })
 
   it('replaces the flat catalog exports', () => {
-    for (const name of ['API_ERROR_CODES', 'CODE_STATUS', 'isKnownErrorCode', 'API_CODE_EXTRAS']) {
-      expect(Object.keys(v2)).not.toContain(name)
-    }
+    // Every member the codes namespace exposes, so a catalog array or extras
+    // table re-exported at the top level fails here.
+    const members = Object.keys(v2.codes)
+    expect(members.length).toBeGreaterThan(0)
+    for (const name of members) expect(Object.keys(v2)).not.toContain(name)
+    expect(Object.keys(v2)).toContain('codes')
   })
 
   it('holds frozen data', () => {
@@ -134,10 +145,10 @@ describe('codes namespace', () => {
 describe('errors the SDK raises itself', () => {
   it('carry source SDK and the catalog status, code and class', async () => {
     const transport = new HttpTransport('http://toolbox.invalid')
-    const git = new GitService(transport)
+    const git = new GitService(INTERNAL, transport)
     await expect(git.commit('/repo', 'msg', { author: '', email: '' })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     await expect(git.commit('/repo', 'msg', { author: '', email: '' })).rejects.toBeInstanceOf(v2.BadRequestError)
-    const processes = new ProcessService(transport, 'sbx-1')
+    const processes = new ProcessService(INTERNAL, transport, 'sbx-1')
     const foreign = () => processes.connect({ sandboxId: 'sbx-2', processId: 'p', kind: 'exec' } as never)
     expect(foreign).toThrow(v2.BadRequestError)
     expect(foreign).toThrow(expect.objectContaining({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }))
@@ -172,6 +183,21 @@ describe('error constructors refuse a value that is not an options object', () =
     expect(new ErrorClass('x', undefined)).toBeInstanceOf(v2.DaytonaError)
     expect(new ErrorClass('x', { statusCode: 418 } as never)).toMatchObject({ statusCode: 418 })
   })
+
+  it.each(constructors)('%s refuses an enumerable symbol key, own or inherited', (_name, ErrorClass) => {
+    const key = Symbol('extra')
+    const own = { statusCode: 418, [key]: true }
+    const inherited = Object.create({ [key]: true }) as object
+    for (const options of [own, inherited]) {
+      expect(() => new ErrorClass('x', options as never)).toThrow(expect.objectContaining({
+        constructor: v2.BadRequestError, message: 'ErrorOptions has no option `Symbol(extra)`', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+      }))
+    }
+    // A non-enumerable symbol (a class's own bookkeeping) is not an option.
+    const hidden = { statusCode: 418 }
+    Object.defineProperty(hidden, key, { value: true, enumerable: false })
+    expect(new ErrorClass('x', hidden as never)).toMatchObject({ statusCode: 418 })
+  })
 })
 
 describe('error constructor options', () => {
@@ -181,6 +207,11 @@ describe('error constructor options', () => {
     expect(new v2.ImageBuildFailedError('x', Object.create({ statusCode: 418, imageId: 'img' }) as never)).toMatchObject({ statusCode: 418, imageId: 'img' })
     expect(new v2.ClientTimeoutError('x', Object.create({ statusCode: 504 }) as never)).toMatchObject({ statusCode: 504, code: 'REQUEST_TIMEOUT' })
     expect(new v2.BuildLogInterruptedError('x', Object.create({ cursor: 'c-1' }) as never)).toMatchObject({ cursor: 'c-1', code: 'BUILD_LOG_INTERRUPTED' })
+  })
+
+  it('documents the optional arguments of the specialised constructors as optional', () => {
+    expect(new v2.DockerWaitTimeoutError()).toMatchObject({ statusCode: 408, message: 'docker did not become ready within the requested timeout' })
+    expect(new v2.SandboxTerminalStateError('sbx', 'destroyed')).toMatchObject({ state: 'destroyed', statusCode: 409 })
   })
 
   it('SandboxTerminalStateError takes rawState as an option, like Python raw_state=', () => {

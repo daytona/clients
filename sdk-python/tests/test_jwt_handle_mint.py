@@ -67,7 +67,7 @@ async def _list_files(
 
 async def test_a_jwt_handle_mints_and_sends_the_minted_bearer(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = await _list_files(
-        monkeypatch, [PlannedResponse(200, _MINTED), PlannedResponse(200, {"files": []})]
+        monkeypatch, [PlannedResponse(200, _MINTED), PlannedResponse(200, {"items": []})]
     )
     assert _sent(fake)[1:] == [
         ("GET", "/sandboxes/sbx", "Bearer project-token"),
@@ -80,7 +80,7 @@ async def test_a_jwt_handle_whose_mint_route_answers_405_falls_back_to_the_proje
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake = await _list_files(
-        monkeypatch, [PlannedResponse(405, {"message": "no mint"}), PlannedResponse(200, {"files": []})]
+        monkeypatch, [PlannedResponse(405, {"message": "no mint"}), PlannedResponse(200, {"items": []})]
     )
     assert _sent(fake)[2:] == [
         ("POST", "/sandboxes/sbx/access-token", "Bearer project-token"),
@@ -91,7 +91,7 @@ async def test_a_jwt_handle_whose_mint_route_answers_405_falls_back_to_the_proje
 async def test_a_jwt_handle_sends_a_caller_token_unchanged_and_never_mints(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake = await _list_files(monkeypatch, [PlannedResponse(200, {"files": []})], access_token="caller-token")
+    fake = await _list_files(monkeypatch, [PlannedResponse(200, {"items": []})], access_token="caller-token")
     assert _sent(fake)[1:] == [
         ("GET", "/sandboxes/sbx", "Bearer project-token"),
         ("GET", "/toolbox/sbx/files", "Bearer caller-token"),

@@ -19,7 +19,7 @@ it('reads null connect options as omitted, so the handle mints its own token', a
   // The fake shifts from this array, so answers that name its URL go in after it starts.
   const planned: PlannedResponse[] = []
   const api = await startFakeApi(planned)
-  planned.push({ status: 200, body: detail(api.url) }, { status: 200, body: MINTED }, { status: 200, body: { files: [] } })
+  planned.push({ status: 200, body: detail(api.url) }, { status: 200, body: MINTED }, { status: 200, body: { items: [] } })
   const client = clientAt(api.url)
   try {
     const sandbox = await client.v2.get('sbx', { toolboxUrl: null as never, accessToken: null as never })
@@ -58,7 +58,7 @@ it('keeps a valid caller token verbatim and never mints', async () => {
   // The fake shifts from this array, so answers that name its URL go in after it starts.
   const planned: PlannedResponse[] = []
   const api = await startFakeApi(planned)
-  planned.push({ status: 200, body: detail(api.url) }, { status: 200, body: { files: [] } })
+  planned.push({ status: 200, body: detail(api.url) }, { status: 200, body: { items: [] } })
   const client = clientAt(api.url)
   try {
     const sandbox = await client.v2.get('sbx', { accessToken: 'caller-token' })

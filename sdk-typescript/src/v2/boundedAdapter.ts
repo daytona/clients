@@ -39,15 +39,27 @@ function unrefTimer(timer: ReturnType<typeof setTimeout>): void {
 
 /**
  * Mark an axios request as a file transfer: no total deadline, but it fails
- * with `ClientTimeoutError` once no bytes move for the instance's request
- * timeout (connecting, the request body, the response headers and every gap
- * in the response body). `0` request timeout = no idle bound.
+ * with `ClientTimeoutError` once no bytes move for its own `timeout`, else
+ * the instance's request timeout (connecting, the request body, the response
+ * headers and every gap in the response body). `0` = no idle bound.
  */
 export function transferRequest<T extends AxiosRequestConfig>(config: T): T {
   if (config.responseType === 'stream') throw streamTransferError()
+  const own = config.timeout
   const marked = { ...config, timeout: 0 } as T & { daytona?: TransferMeta }
-  marked.daytona = { ...marked.daytona, transfer: true }
+  marked.daytona = {
+    ...marked.daytona,
+    transfer: true,
+    // The call's own timeout replaces the request timeout as its idle bound.
+    ...(typeof own === 'number' ? { idleTimeoutMs: boundedIdleMs(own) } : {}),
+  }
   return marked
+}
+
+/** A per-call idle bound in ms: `0`, or one above the longest timer, is none. */
+function boundedIdleMs(timeoutMs: number): number {
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 0) throw createDaytonaError('timeout must be a non-negative finite number of milliseconds (0 = no limit)', 400, 'BAD_REQUEST', 'SDK')
+  return boundedTimerDelay(timeoutMs)
 }
 
 /**
@@ -226,6 +238,9 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
     const streamed = await fetchAdapter(config)
     const accepts = config.validateStatus
     if (accepts === null || accepts === undefined || accepts(streamed.status)) return streamed
+    // Nobody reads a refused stream: cancel it, so the reader releases the
+    // connection and its timer (Node's http adapter frees its own).
+    await discardBody(streamed.data)
     throw settleError(config, streamed)
   }
   const limit = typeof config.maxContentLength === 'number' && config.maxContentLength > 0 ? config.maxContentLength : 0

@@ -11,19 +11,23 @@ sync twins. Regenerate with ``python gen/gen_sync.py``;
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator, Literal, Optional
+from typing import TYPE_CHECKING, Iterator, Optional
 
 from .. import process as _async
 from .._bridge import SyncBridge
 from ..process import *
-from . import _runtime as _rt
 
 if TYPE_CHECKING:
     from .session import Session
 
 
 class ProcessHandle:
-    """Serializable handle for one sandbox process."""
+    """Handle for one sandbox process.
+
+    Returned by ``process.start()`` / ``process.connect()`` and the PTY and
+    session namespaces, never constructed directly. :meth:`to_json` gives a
+    JSON-safe identity that ``sandbox.process.connect()`` accepts on any worker.
+    """
 
     _async_type = _async.AsyncProcessHandle
 
@@ -45,15 +49,11 @@ class ProcessHandle:
         return self._impl.sandbox_id
 
     @property
-    def process_id(self) -> str:
-        return self._impl.process_id
-
-    @property
     def id(self) -> str:
         return self._impl.id
 
     @property
-    def kind(self) -> Literal["exec", "pty", "code", "session"] | None:
+    def kind(self) -> Optional[ProcessKind]:
         return self._impl.kind
 
     def close_stdin(self) -> None:
@@ -68,11 +68,6 @@ class ProcessHandle:
         """
         return self._bridge.call(lambda: self._impl.delete())
 
-    @classmethod
-    def from_json(cls, value: Mapping[str, str]) -> ProcessHandle:
-        """Rehydrate a handle identity without making a network request."""
-        return ProcessHandle(_async.AsyncProcessHandle.from_json(value), _rt.UNBOUND)
-
     def get(self) -> ProcessInfo:
         """Fetch current process metadata."""
         return self._bridge.call(lambda: self._impl.get())
@@ -80,9 +75,9 @@ class ProcessHandle:
     def kill(
         self,
         *,
-        signal: SignalName = "TERM",
+        signal: ProcessSignal = "TERM",
         escalate_after: Optional[float] = None,
-        escalate_to: SignalName = "KILL",
+        escalate_to: ProcessSignal = "KILL",
     ) -> None:
         """Send a signal and optional escalation signal."""
         return self._bridge.call(
@@ -95,22 +90,27 @@ class ProcessHandle:
         """Read a cursor-replayable process log page."""
         return self._bridge.call(lambda: self._impl.logs(cursor=cursor, limit=limit, encoding=encoding))
 
-    def ref(self) -> ProcessHandleRef:
-        """Return a typed handle identity."""
-        return self._impl.ref()
-
     def resize(self, cols: int, rows: int) -> None:
         """Resize a PTY process."""
         return self._bridge.call(lambda: self._impl.resize(cols, rows))
 
     def stream_logs(
-        self, *, cursor: Optional[str] = None, encoding: LogEncoding = "text"
-    ) -> Iterator[LogFrame]:
-        """Follow process logs with SSE while retaining cursor replay semantics."""
-        return self._bridge.iterate(self._impl.stream_logs(cursor=cursor, encoding=encoding))
+        self, *, cursor: Optional[str] = None, limit: Optional[int] = None, encoding: LogEncoding = "text"
+    ) -> Iterator[StreamLogEvent]:
+        """Follow the process log as it is written, replaying from ``cursor``.
 
-    def to_json(self) -> Dict[str, str]:
-        """Return a JSON-safe handle identity."""
+        Yields one :data:`StreamLogEvent` per server event: ``log`` (a frame),
+        ``state`` (the process became terminal), ``warning`` (frames before
+        ``first_available_cursor`` were evicted) and ``eof``. A stream error
+        raises the typed error for its code. The server ends the stream with
+        ``eof``, so an iteration that ends normally has the whole log; a stream
+        cut short, or one that ends without ``eof``, raises ``ConnectionError``:
+        resume with ``stream_logs(cursor=...)`` from the last event's cursor.
+        """
+        return self._bridge.iterate(self._impl.stream_logs(cursor=cursor, limit=limit, encoding=encoding))
+
+    def to_json(self) -> ProcessHandleJSON:
+        """Return the handle's JSON-safe identity for ``process.connect()``."""
         return self._impl.to_json()
 
     def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
@@ -144,15 +144,15 @@ class ProcessService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def connect(self, process_id: Union[str, Mapping[str, str]]) -> ProcessHandle:
-        """Create a bound process handle without fetching metadata."""
-        return ProcessHandle(self._impl.connect(process_id), self._bridge)
+    def connect(self, process: Union[str, ProcessHandleJSON]) -> ProcessHandle:
+        """Reconnect a process by id or by ``handle.to_json()``, without a request."""
+        return ProcessHandle(self._impl.connect(process), self._bridge)
 
-    def connect_session(self, session_id: str | Mapping[str, object]) -> Session:
-        """Bind a session id or serialized identity without making a request."""
+    def connect_session(self, session: str | SessionJSON) -> Session:
+        """Reconnect a shell session by id or by ``session.to_json()``, without a request."""
         from .session import Session
 
-        return Session(self._bridge.call_sync(lambda: self._impl.connect_session(session_id)), self._bridge)
+        return Session(self._bridge.call_sync(lambda: self._impl.connect_session(session)), self._bridge)
 
     def create_session(
         self,
@@ -192,10 +192,14 @@ class ProcessService:
         is reusable after this call. Records and logs are kept. Survivors of
         deleted or expired records are killed too but not listed.
 
-        ``timeout`` is in seconds (up to 60, fractions allowed, default 10).
-        Raises ``ProcessKillIncompleteError`` on timeout; retrying is safe.
-        Raises ``UnsupportedOperationError`` on macOS and sandboxes without
-        process containment.
+        ``tag`` is a safe identifier (``[A-Za-z0-9._-]``, 1-128 characters, not
+        ``.`` or ``..``). ``timeout`` is how long to wait for them to exit, in
+        seconds: more than 0 and at most 60 (fractions allowed, default 10).
+        Anything else raises ``BadRequestError`` before any request.
+        Raises ``ProcessKillIncompleteError`` when some were still running at
+        the timeout, or another start or kill under the tag was in progress;
+        retrying is safe. Raises ``UnsupportedOperationError`` on macOS and
+        sandboxes without process containment.
         """
         return self._bridge.call(lambda: self._impl.kill_all(tag=tag, timeout=timeout))
 
@@ -229,8 +233,7 @@ class ProcessService:
         timeout: Optional[float] = None,
         execution_timeout: Optional[float] = None,
         name: Optional[str] = None,
-        terminal: Optional[TerminalSize] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: Optional[RunKeepLogs] = None,
         tag: Optional[str] = None,
     ) -> ProcessResult:
         """Start a process, wait for its shell to exit, and collect its output.
@@ -268,8 +271,11 @@ class ProcessService:
             ends. Does not kill the process on expiry.
         :param execution_timeout: Server-side deadline in seconds. The sandbox kills
             the process tree when this expires.
+        :param keep_logs: How long the sandbox keeps the process log: ``"on_exit_ttl"``
+            (default) or ``"until_cleanup"``. ``"none"`` is not accepted: the output is
+            read back from the log; use :meth:`start` for a process without one.
         :returns: :class:`~daytona.v2.types.ProcessResult` with ``stdout``, ``stderr``,
-            ``output``, ``exit_code``, and ``reason``.
+            ``output``, ``logs``, ``exit_code``, and ``reason``.
 
         Example::
 
@@ -290,7 +296,6 @@ class ProcessService:
                 timeout=timeout,
                 execution_timeout=execution_timeout,
                 name=name,
-                terminal=terminal,
                 keep_logs=keep_logs,
                 tag=tag,
             )
@@ -309,7 +314,6 @@ class ProcessService:
         login: Optional[bool] = None,
         stdin: StdinMode = "closed",
         execution_timeout: Optional[float] = None,
-        terminal: Optional[TerminalSize] = None,
         keep_logs: Optional[KeepLogs] = None,
         tag: Optional[str] = None,
     ) -> ProcessHandle:
@@ -355,7 +359,6 @@ class ProcessService:
                     login=login,
                     stdin=stdin,
                     execution_timeout=execution_timeout,
-                    terminal=terminal,
                     keep_logs=keep_logs,
                     tag=tag,
                 )
@@ -365,7 +368,7 @@ class ProcessService:
 
 
 class PtyService:
-    """PTY convenience namespace."""
+    """PTY namespace: interactive terminals."""
 
     _async_type = _async.AsyncPtyService
 
@@ -382,12 +385,13 @@ class PtyService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def connect(self, process_id: str) -> ProcessHandle:
-        """Create a bound PTY handle."""
-        return ProcessHandle(self._impl.connect(process_id), self._bridge)
+    def connect(self, process: Union[str, ProcessHandleJSON]) -> ProcessHandle:
+        """Reconnect a PTY by id or by ``handle.to_json()``, without a request."""
+        return ProcessHandle(self._impl.connect(process), self._bridge)
 
-    def delete(self, process_id: str) -> None:
-        return self._bridge.call(lambda: self._impl.delete(process_id))
+    def delete(self, process: Union[str, ProcessHandleJSON]) -> None:
+        """Stop a PTY and delete it and its log."""
+        return self._bridge.call(lambda: self._impl.delete(process))
 
     def list(self) -> ListResult[ProcessInfo]:
         return self._bridge.call(lambda: self._impl.list())
@@ -396,17 +400,39 @@ class PtyService:
         self,
         command: Optional[str] = None,
         *,
-        cols: int = 80,
-        rows: int = 24,
+        terminal: Optional[TerminalSize] = None,
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
         name: Optional[str] = None,
+        user: Optional[str] = None,
+        shell: Optional[str] = None,
+        login: Optional[bool] = None,
+        stdin: StdinMode = "open",
+        execution_timeout: Optional[float] = None,
+        keep_logs: KeepLogs = "until_cleanup",
         tag: Optional[str] = None,
     ) -> ProcessHandle:
-        """Start a detached PTY process."""
+        """Start a detached PTY process; without ``command`` it runs the sandbox shell.
+
+        ``terminal`` defaults to 80 columns by 24 rows. ``execution_timeout`` is
+        a server-side deadline in seconds.
+        """
         return ProcessHandle(
             self._bridge.call(
-                lambda: self._impl.start(command, cols=cols, rows=rows, cwd=cwd, env=env, name=name, tag=tag)
+                lambda: self._impl.start(
+                    command,
+                    terminal=terminal,
+                    cwd=cwd,
+                    env=env,
+                    name=name,
+                    user=user,
+                    shell=shell,
+                    login=login,
+                    stdin=stdin,
+                    execution_timeout=execution_timeout,
+                    keep_logs=keep_logs,
+                    tag=tag,
+                )
             ),
             self._bridge,
         )

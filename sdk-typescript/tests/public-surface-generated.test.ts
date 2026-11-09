@@ -19,32 +19,6 @@ import ts from 'typescript'
 // Today's violations, as "<owner>.<member>: <generated type>" or
 // "export <name>". Remove an entry when its type becomes SDK-owned.
 const ALLOWED: ReadonlySet<string> = new Set([
-  // Toolbox namespaces.
-  'FileSystemService.grep: Match',
-  'GitService.commit: CommitResponse',
-  'GitService.history: CommitInfo',
-  'LspCompletionsOptions.context: CompletionRequest',
-  'LspServer.completions(position): SymbolPosition',
-  'LspServer.completions: CompletionList',
-  'LspServer.documentSymbols: SymbolInfo',
-  'LspServer.workspaceSymbols: SymbolInfo',
-  'ProcessDto.terminal: TerminalSize',
-  'ProcessStartOptions.terminal: TerminalSize',
-  'PtyService.attach(options): TerminalSize',
-  'PtyService.start(options): TerminalSize',
-  'RunOptions.terminal: TerminalSize',
-  'export FileMatch',
-  'export GitCommit',
-  'export GitCommitResponse',
-  'export ListBranchResponse',
-  'export LspCompletionItem',
-  'export LspCompletionList',
-  'export LspLocation',
-  'export LspPosition',
-  'export LspRange',
-  'export LspSymbol',
-  'export Match',
-  'export TerminalSize',
 ])
 
 const root = join(__dirname, '..')

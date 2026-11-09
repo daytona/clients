@@ -177,3 +177,189 @@ async def test_list_keeps_only_tagged_items_when_the_daemon_ignores_the_filter(
     page = await AsyncProcessService("sandbox", transport).list(tag="job-1")
     # Then only the tagged process is returned.
     assert [item.id for item in page.items] == ["p_tagged"]
+
+
+# Shared with the TypeScript SDK's process-tags.test.ts: a tag is a safe
+# identifier ([A-Za-z0-9._-], 1-128 characters, not '.' or '..'), refused
+# before any request on every entry point that takes one.
+BAD_TAGS = ["", ".", "..", "a b", "a/b", "ü", "x" * 129, "tag\n", "tag\r\n", "\ntag"]
+TAG_MESSAGE = "tag must be 1-128 of the characters A-Z, a-z, 0-9, '.', '_' and '-', and not '.' or '..'"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("operation", ["start", "run", "session", "pty", "exec", "list", "kill_all"])
+@pytest.mark.parametrize("tag", [*BAD_TAGS, 7])
+async def test_a_tag_that_is_not_a_safe_identifier_is_refused_before_any_request(
+    transport: AsyncTransport,
+    respx_mock: respx.MockRouter,
+    operation: str,
+    tag: object,
+) -> None:
+    from daytona.v2 import BadRequestError
+
+    process = AsyncProcessService("sandbox", transport)
+    with pytest.raises(BadRequestError, match="^tag must be 1-128") as raised:
+        match operation:
+            case "start":
+                await process.start("echo ok", tag=tag)  # type: ignore[arg-type]
+            case "run":
+                await process.run("echo ok", tag=tag)  # type: ignore[arg-type]
+            case "session":
+                await process.create_session(tag=tag)  # type: ignore[arg-type]
+            case "pty":
+                await AsyncPtyService(process).start("sh", tag=tag)  # type: ignore[arg-type]
+            case "exec":
+                await AsyncSandbox(sandbox_info_from_id("sandbox"), None, transport).exec("echo ok", tag=tag)  # type: ignore[arg-type]
+            case "list":
+                await process.list(tag=tag)  # type: ignore[arg-type]
+            case _:
+                await process.kill_all(tag=tag)  # type: ignore[arg-type]
+    assert str(raised.value) == TAG_MESSAGE
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert respx_mock.calls.call_count == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("tag", ["a", "x" * 128, "Job_1.2-3", "..."])
+async def test_a_safe_identifier_tag_is_sent(
+    transport: AsyncTransport, respx_mock: respx.MockRouter, tag: str
+) -> None:
+    route = respx_mock.post(f"{BASE}/processes:kill").respond(200, json={"processIds": []})
+    await AsyncProcessService("sandbox", transport).kill_all(tag=tag)
+    assert json.loads(route.calls.last.request.content) == {"tag": tag}
+
+
+# Shared with the TypeScript SDK: the kill timeout is in seconds, more than 0
+# and at most 60 (the toolbox takes 1-60000 ms); a positive one is at least
+# 1 ms. Nothing above 60 means "no limit": the toolbox has no unbounded wait.
+@pytest.mark.anyio
+@pytest.mark.parametrize("timeout", [0, -1, 60.0001, 61, 3_000_000, float("nan"), float("inf"), True, "5"])
+async def test_a_kill_timeout_outside_0_to_60_seconds_is_refused_before_any_request(
+    transport: AsyncTransport, respx_mock: respx.MockRouter, timeout: object
+) -> None:
+    from daytona.v2 import BadRequestError
+
+    with pytest.raises(BadRequestError) as raised:
+        await AsyncProcessService("sandbox", transport).kill_all(tag="job", timeout=timeout)  # type: ignore[arg-type]
+    assert str(raised.value) == "timeout must be greater than 0 and at most 60 seconds"
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert respx_mock.calls.call_count == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("timeout", "milliseconds"), [(0.0001, 1), (0.0011, 2), (1, 1000), (0.1, 100), (60, 60_000)]
+)
+async def test_a_kill_timeout_is_sent_as_whole_milliseconds_rounded_up(
+    transport: AsyncTransport, respx_mock: respx.MockRouter, timeout: float, milliseconds: int
+) -> None:
+    route = respx_mock.post(f"{BASE}/processes:kill").respond(200, json={"processIds": []})
+    await AsyncProcessService("sandbox", transport).kill_all(tag="job", timeout=timeout)
+    request = route.calls.last.request
+    assert json.loads(request.content) == {"tag": "job", "timeoutMs": milliseconds}
+    assert request.extensions["timeout"]["read"] == pytest.approx(
+        milliseconds / 1000 + WAIT_READ_SLACK_SECONDS
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        ({}, "processIds"),
+        ({"processIds": None}, "processIds"),
+        ({"processIds": "p1"}, "processIds"),
+        ({"processIds": [1]}, "processIds"),
+        ([], "kill processes response"),
+    ],
+)
+async def test_a_malformed_kill_response_is_a_bad_request_naming_the_field(
+    transport: AsyncTransport, respx_mock: respx.MockRouter, body: object, message: str
+) -> None:
+    from daytona.v2 import BadRequestError
+
+    respx_mock.post(f"{BASE}/processes:kill").respond(200, json=body)
+    with pytest.raises(BadRequestError, match=message) as raised:
+        await AsyncProcessService("sandbox", transport).kill_all(tag="job")
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.anyio
+async def test_a_kill_incomplete_error_has_the_catalog_shape(
+    transport: AsyncTransport, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.post(f"{BASE}/processes:kill").respond(
+        408, json={"code": "PROCESS_KILL_INCOMPLETE", "source": "DAYTONA_DAEMON", "message": "still running"}
+    )
+    with pytest.raises(ProcessKillIncompleteError) as raised:
+        await AsyncProcessService("sandbox", transport).kill_all(tag="job")
+    assert (str(raised.value), raised.value.status_code, raised.value.code, raised.value.source) == (
+        "still running",
+        408,
+        "PROCESS_KILL_INCOMPLETE",
+        "DAYTONA_DAEMON",
+    )
+
+
+def test_process_info_with_a_tag_is_frozen() -> None:
+    import dataclasses
+
+    from daytona.v2.types import ProcessInfo
+
+    assert ProcessInfo.__dataclass_params__.frozen  # type: ignore[attr-defined]
+    assert "tag" in {field.name for field in dataclasses.fields(ProcessInfo)}
+
+
+@pytest.mark.anyio
+async def test_a_record_tag_that_is_not_a_string_is_a_bad_request_naming_it(
+    transport: AsyncTransport, payload: JsonObject, respx_mock: respx.MockRouter
+) -> None:
+    from daytona.v2 import BadRequestError
+
+    respx_mock.get(f"{BASE}/processes/p_tagged").respond(200, json=payload | {"tag": 5})
+    with pytest.raises(BadRequestError, match="process response: tag") as raised:
+        await AsyncProcessService("sandbox", transport).get("p_tagged")
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+# Shared with the TypeScript SDK's process-tags.test.ts: pid and exitCode are
+# int32 in the contract; a value outside it is a malformed response.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("field", "value", "ok"),
+    [
+        ("pid", 2**31 - 1, True),
+        ("pid", 2**31, False),
+        ("exitCode", -(2**31), True),
+        ("exitCode", -(2**31) - 1, False),
+        ("exitCode", 2**31, False),
+    ],
+)
+async def test_process_int32_fields_are_range_checked(
+    transport: AsyncTransport,
+    payload: JsonObject,
+    respx_mock: respx.MockRouter,
+    field: str,
+    value: int,
+    ok: bool,
+) -> None:
+    from daytona.v2 import BadRequestError
+
+    respx_mock.get(f"{BASE}/processes/p_tagged").respond(200, json=payload | {field: value})
+    respx_mock.get(f"{BASE}/processes/p_tagged/wait").respond(200, json={"reason": "exited", field: value})
+    process = AsyncProcessService("sandbox", transport)
+    if ok:
+        info = await process.get("p_tagged")
+        assert (info.pid if field == "pid" else info.exit_code) == value
+        if field == "exitCode":
+            assert (await process.connect("p_tagged").wait()).exit_code == value
+        return
+    with pytest.raises(
+        BadRequestError, match=f"^expected process response: {field} must be a signed 32-bit integer$"
+    ):
+        await process.get("p_tagged")
+    if field == "exitCode":
+        with pytest.raises(
+            BadRequestError, match="^expected wait result: exitCode must be a signed 32-bit integer$"
+        ):
+            await process.connect("p_tagged").wait()

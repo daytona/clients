@@ -5,6 +5,9 @@
 
 import { createDaytonaError, DaytonaError, isJsonMediaType } from './errors/DaytonaError.js'
 import type { BulkReadError, BulkReadResult } from './types.js'
+import { malformedResponse, optional, record, str } from './toolboxModels.js'
+import { deepFrozen } from './frozen.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 
 const DAYTONA_FILE_BOUNDARY = 'DAYTONA-FILE-BOUNDARY'
 const MULTIPART_BOUNDARY_RE = /\bboundary\s*=\s*(?:"([^"]+)"|([^;]+))/i
@@ -24,24 +27,20 @@ export function parseBulkReadResult(body: Uint8Array, contentType?: string): Bul
         if (path === undefined) {
           throw createDaytonaError('multipart file part missing filename', 400, 'BAD_REQUEST', 'SDK')
         }
-        files[path] = part.body
+        // An own data property even for a file named `__proto__` (plain
+        // assignment would set the object's prototype instead).
+        Object.defineProperty(files, path, { value: part.body, enumerable: true, writable: true, configurable: true })
         break
       }
       case 'error': {
-        const payload = parseJsonObject(part.body)
-        errors.push({
-          path: stringField(payload.path),
-          code: optionalStringField(payload.code),
-          message: stringField(payload.message),
-          source: optionalStringField(payload.source),
-        })
+        errors.push(bulkReadErrorFromPart(part.body))
         break
       }
       default:
         break
     }
   }
-  return { files, errors }
+  return deepFrozen({ files, errors })
 }
 
 function multipartBoundary(contentType?: string): string {
@@ -91,7 +90,8 @@ function parseMultipart(body: Uint8Array, boundary: string): ReadonlyArray<{ rea
 }
 
 function parseMultipartHeaders(rawHeaders: Uint8Array): Record<string, string> {
-  const headers: Record<string, string> = {}
+  // No prototype: a part header named `__proto__` is an ordinary entry.
+  const headers = Object.create(null) as Record<string, string>
   for (const line of HEADER_DECODER.decode(rawHeaders).split('\r\n')) {
     const separator = line.indexOf(':')
     if (separator < 0) {
@@ -109,29 +109,40 @@ function contentDispositionName(header: string): string | undefined {
 function contentDispositionFilename(header: string): string | undefined {
   const filenameStar = /filename\*=utf-8''([^;]+)/i.exec(header)?.[1]
   if (filenameStar !== undefined) {
-    return decodeURIComponent(filenameStar)
+    try {
+      return decodeURIComponent(filenameStar)
+    } catch {
+      // Bad percent-encoding or invalid UTF-8: malformed, as in the Python SDK.
+      throw malformedResponse('bulk download file part: filename* is not valid percent-encoded UTF-8')
+    }
   }
   return /filename="([^"]*)"/i.exec(header)?.[1]
 }
 
-function parseJsonObject(body: Uint8Array): Record<string, unknown> {
-  const payload: unknown = JSON.parse(BODY_DECODER.decode(body))
-  if (isRecord(payload)) {
-    return payload
+const ERROR_PART = 'bulk download error part'
+
+/** One error part: a JSON object with string `path` and `message` (`code` / `source` strings when present). */
+function bulkReadErrorFromPart(body: Uint8Array): BulkReadError {
+  let parsed: unknown
+  try {
+    // Fatal: invalid UTF-8 is malformed, never replaced by U+FFFD (as in Python).
+    // ignoreBOM keeps a leading byte-order mark, so JSON.parse refuses it (as Python does).
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(body))
+  } catch {
+    throw malformedResponse(`${ERROR_PART}: the data is not JSON`)
   }
-  throw createDaytonaError('expected JSON object', 400, 'BAD_REQUEST', 'SDK')
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function stringField(value: unknown): string {
-  return typeof value === 'string' ? value : ''
-}
-
-function optionalStringField(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined
+  if (nestedDeeperThan(parsed)) throw malformedResponse(`${ERROR_PART}: the JSON is nested too deeply`)
+  const payload = record(parsed, ERROR_PART)
+  const path = str(payload, 'path', ERROR_PART)
+  const message = str(payload, 'message', ERROR_PART)
+  const code = optional(payload, 'code', str, ERROR_PART)
+  const source = optional(payload, 'source', str, ERROR_PART)
+  return {
+    path,
+    message,
+    ...(code === undefined ? {} : { code }),
+    ...(source === undefined ? {} : { source }),
+  }
 }
 
 function asciiBytes(value: string): Uint8Array {

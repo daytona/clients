@@ -31,11 +31,8 @@ from typing import (
 from typing_extensions import NotRequired, Required, Self
 
 from . import _gen
+from .errors import create_error
 
-GitCommitResponse = _gen.toolbox.CommitResponse
-GitStatus = _gen.toolbox.StatusResponse
-FileInfo = _gen.toolbox.FileInfo
-SystemMetrics = _gen.toolbox.Metrics
 MacReservationStatus = Literal[
     "pending_charge", "pending_mac", "active", "ending", "released", "failed", "unknown"
 ]
@@ -124,16 +121,19 @@ def _enum_values(enum_type: type[Enum]) -> tuple[str, ...]:
 
 
 ProcessKind = Literal["exec", "pty", "code", "session"]
-ProcessInfoKind = Literal["exec", "pty", "code", "session", "unknown"]
+ProcessReportedKind = Literal["exec", "pty", "code", "session", "unknown"]
 ProcessStateFilter = Literal["running", "terminal", "all"]
 ProcessState = Literal["starting", "provisioning", "running", "terminal", "unknown"]
 LogEncoding = Literal["text", "base64"]
 KeepLogs = Literal["until_cleanup", "on_exit_ttl", "none"]
+# Retention for run() / session.run() / sandbox.exec(): they read the output
+# back from the retained log, so "none" is not accepted.
+RunKeepLogs = Literal["until_cleanup", "on_exit_ttl"]
 StdinMode = Literal["closed", "open"]
 ProcessKeepLogs = Literal["until_cleanup", "on_exit_ttl", "none", "unknown"]
 ProcessStdinMode = Literal["closed", "open", "unknown"]
-WaitReason = Literal["exited", "signaled", "timed_out", "lost", "failed", "unknown"]
-SignalName = Literal["TERM", "KILL", "INT", "HUP", "QUIT", "USR1", "USR2"]
+ProcessReason = Literal["exited", "signaled", "timed_out", "lost", "failed", "unknown"]
+ProcessSignal = Literal["TERM", "KILL", "INT", "HUP", "QUIT", "USR1", "USR2"]
 SandboxClass = Literal["linux", "macos"]
 SnapshotClass = Literal["linux", "unknown"]
 ArtifactRetention = Literal["permanent", "idle", "unknown"]
@@ -199,7 +199,7 @@ def _is_docker_owner_known(value: str) -> TypeGuard[Literal["daemon", "entrypoin
     return value in _DOCKER_OWNER_VALUES
 
 
-def _process_info_kind_or_unknown(value: str) -> ProcessInfoKind:
+def _process_info_kind_or_unknown(value: str) -> ProcessReportedKind:
     if _is_process_info_kind_known(value):
         return value
     return "unknown"
@@ -223,7 +223,7 @@ def _process_stdin_mode_or_unknown(value: str) -> ProcessStdinMode:
     return "unknown"
 
 
-def _wait_reason_or_unknown(value: str) -> WaitReason:
+def _wait_reason_or_unknown(value: str) -> ProcessReason:
     if _is_wait_reason_known(value):
         return value
     return "unknown"
@@ -241,13 +241,16 @@ def _docker_owner_or_unknown(value: str) -> DockerOwner:
     return "unknown"
 
 
-class FilesystemEventType(str, Enum):
-    CREATE = "create"
-    WRITE = "write"
-    REMOVE = "remove"
-    RENAME = "rename"
-    CHMOD = "chmod"
+FilesystemEventType = Union[Literal["create", "write", "remove", "rename", "chmod"], str]
+"""What changed in a watched directory: ``"create"``, ``"write"``, ``"remove"``,
+``"rename"`` or ``"chmod"`` today. An open vocabulary: a kind a later sandbox
+reports is passed through as its string."""
 
+
+GitConfigScope = Literal["global", "local"]
+"""Which git configuration ``get_config`` / ``set_config`` read or write:
+``"global"`` (the default) or ``"local"`` (a repository's, which needs
+``path``)."""
 
 LifecycleAction = Literal["stop", "pause", "delete"]
 """The action a lifecycle trigger fires: ``on_timeout`` / ``on_idle_timeout``.
@@ -993,16 +996,39 @@ class SandboxLifecycle:
     last_activity_source: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
+class TerminalSize:
+    """PTY terminal dimensions, in character cells."""
+
+    cols: int
+    rows: int
+
+
+@dataclass(frozen=True, kw_only=True)
 class ProcessInfo:
-    """Serializable process information."""
+    """Process metadata, as ``process.get()`` / ``process.list()`` report it.
+
+    Enum-backed fields are normalized to the values this release knows plus
+    ``"unknown"``; the wire value is kept on the ``raw_*`` sibling.
+    ``signal`` is a bare name (``"TERM"``), like ``WaitResult.signal``.
+    """
 
     id: str
-    kind: ProcessInfoKind
+    kind: ProcessReportedKind
+    raw_kind: str
     state: ProcessState
-    name: Optional[str] = None
-    pid: Optional[int] = None
+    raw_state: str
+    cwd: str
+    stdin: ProcessStdinMode
+    raw_stdin: str
+    keep_logs: ProcessKeepLogs
+    raw_keep_logs: str
+    created_at: datetime
     system: bool = False
+    name: Optional[str] = None
+    tag: Optional[str] = None
+    """The tag the process was created with; a session command carries its session's tag. Never changes."""
+    pid: Optional[int] = None
     session_id: Optional[str] = None
     shell_command: Optional[str] = None
     argv: Optional[List[str]] = None
@@ -1011,45 +1037,55 @@ class ProcessInfo:
     shell: Optional[str] = None
     resolved_shell: Optional[str] = None
     login: Optional[bool] = None
-    cwd: Optional[str] = None
     user: Optional[str] = None
-    stdin: Optional[ProcessStdinMode] = None
     execution_timeout: Optional[float] = None
+    """Server-side deadline in seconds."""
     terminal: Optional[TerminalSize] = None
-    keep_logs: Optional[ProcessKeepLogs] = None
     exit_code: Optional[int] = None
     signal: Optional[str] = None
-    reason: Optional[WaitReason] = None
-    created_at: Optional[str] = None
-    started_at: Optional[str] = None
-    exited_at: Optional[str] = None
+    reason: Optional[ProcessReason] = None
+    raw_reason: Optional[str] = None
+    started_at: Optional[datetime] = None
+    exited_at: Optional[datetime] = None
     truncated_head: bool = False
     first_available_cursor: Optional[str] = None
     last_cursor: Optional[str] = None
-    raw_kind: Optional[str] = None
-    raw_state: Optional[str] = None
-    raw_stdin: Optional[str] = None
-    raw_keep_logs: Optional[str] = None
-    raw_reason: Optional[str] = None
-    tag: Optional[str] = None
 
 
-@dataclass(frozen=True)
-class ProcessHandleRef:
-    """JSON-safe process handle identity."""
+class ProcessHandleJSON(TypedDict):
+    """A process handle's serialized identity (``handle.to_json()``).
 
-    sandbox_id: str
-    process_id: str
-    kind: Optional[ProcessKind] = None
+    Reconnect with ``sandbox.process.connect(value)``; the same camelCase
+    shape the TypeScript SDK produces and reads.
+    """
+
+    sandboxId: str
+    processId: str
+    kind: NotRequired[ProcessKind]
 
 
-@dataclass(frozen=True)
+class SessionJSON(TypedDict):
+    """A shell session's serialized identity (``session.to_json()``).
+
+    Reconnect with ``sandbox.process.connect_session(value)``.
+    """
+
+    sandboxId: str
+    sessionId: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class WaitResult:
-    """Result returned by process wait."""
+    """How a process ended, or ``reason="timed_out"`` when the wait expired first.
 
+    ``exit_code`` and ``signal`` are set only when the sandbox reported them;
+    the SDK never fills them in. ``reason`` is normalized (``"unknown"`` for a
+    value this release does not know, kept on ``raw_reason``).
+    """
+
+    reason: ProcessReason
     exit_code: Optional[int] = None
     signal: Optional[str] = None
-    reason: Optional[WaitReason] = None
     raw_reason: Optional[str] = None
 
 
@@ -1064,52 +1100,105 @@ class DockerStatus:
 
 
 class InterpreterContextJSON(TypedDict):
-    sandbox_id: str
-    context_id: str
+    """An interpreter context's serialized identity (``context.to_json()``).
+
+    The same camelCase shape the TypeScript SDK produces and reads.
+    """
+
+    sandboxId: str
+    contextId: str
     language: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class LogFrame:
-    """One replayable process event."""
+    """One replayable process log frame."""
 
     cursor: str
     channel: str
     data: str
-    timestamp: Optional[int] = None
+    timestamp_ms: int
+    """When the frame was written, in Unix milliseconds."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
+class StreamLogFrameEvent:
+    """``stream_logs()``: one log frame."""
+
+    frame: LogFrame
+    cursor: str
+    type: Literal["log"] = "log"
+
+
+@dataclass(frozen=True, kw_only=True)
+class StreamLogStateEvent:
+    """``stream_logs()``: the process became terminal."""
+
+    result: WaitResult
+    cursor: str
+    type: Literal["state"] = "state"
+
+
+@dataclass(frozen=True, kw_only=True)
+class StreamLogWarningEvent:
+    """``stream_logs()``: frames before ``first_available_cursor`` were evicted."""
+
+    message: str
+    cursor: str
+    first_available_cursor: str
+    type: Literal["warning"] = "warning"
+
+
+@dataclass(frozen=True, kw_only=True)
+class StreamLogEofEvent:
+    """``stream_logs()``: the log is complete; the stream ends after this event."""
+
+    cursor: str
+    type: Literal["eof"] = "eof"
+
+
+StreamLogEvent = Union[StreamLogFrameEvent, StreamLogStateEvent, StreamLogWarningEvent, StreamLogEofEvent]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class FilesystemEvent:
     type: FilesystemEventType
     name: str
     is_dir: bool
-    timestamp: int
+    timestamp_ms: int
+    """When the change happened, in Unix milliseconds."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class LogPage:
     """A cursor-addressed process log page."""
 
     items: List[LogFrame]
-    next_cursor: Optional[str] = None
-    truncated_head: bool = False
+    next_cursor: str
+    """The cursor to pass to the next ``logs()`` call to continue after this page."""
+    truncated_head: bool
+    """Whether retention removed frames older than this page."""
+    eof: bool
+    """Whether the process has ended and no frame follows this page."""
     first_available_cursor: Optional[str] = None
+    """The cursor of the oldest frame still kept, when older ones were removed."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BulkWriteFile:
     path: str
     bytes: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BulkWriteResult:
     files: List[BulkWriteFile]
-    errors: List[str] = field(default_factory=list)
+    """The files written."""
+    errors: List[str]
+    """One message per file that was not written."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BulkReadError:
     path: str
     message: str
@@ -1117,65 +1206,139 @@ class BulkReadError:
     source: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BulkReadResult:
     files: Dict[str, bytes]
     errors: List[BulkReadError] = field(default_factory=list)
 
 
-@dataclass(frozen=True)
-class ProcessResult:
-    """Process run result with collected output."""
+@dataclass(frozen=True, kw_only=True)
+class FileInfo:
+    """One filesystem entry (``fs.list()`` / ``fs.stat()``)."""
+
+    name: str
+    path: str
+    size: int
+    is_dir: bool
+    mode: str
+    """Symbolic file mode, e.g. ``-rw-r--r--``."""
+    permissions: str
+    """Octal permission bits, e.g. ``0644``."""
+    owner: str
+    group: str
+    modified_at: datetime
+    mod_time: str
+    """The modification time as the sandbox formats it; prefer ``modified_at``."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class FileMatch:
+    """One matching line from ``fs.grep()``."""
+
+    file: str
+    line: int
+    """One-based line number."""
+    content: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReplaceResult:
+    """One file's outcome from ``fs.replace()``."""
+
+    file: str
+    success: bool
+    error: Optional[str] = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class GitFileStatus:
+    """One entry of ``GitStatus.file_status``."""
+
+    name: str
+    staging: str
+    worktree: str
+    extra: str
+    """For a rename, the original path; otherwise empty."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class GitStatus:
+    current_branch: str
+    ahead: int
+    behind: int
+    branch_published: bool
+    file_status: List[GitFileStatus]
+
+
+@dataclass(frozen=True, kw_only=True)
+class GitCommitResponse:
+    hash: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class GitCommit:
+    """One commit from ``git.history()``."""
+
+    hash: str
+    message: str
+    author: str
+    email: str
+    timestamp: datetime
+
+
+@dataclass(frozen=True, kw_only=True)
+class GitRemote:
+    name: str
+    url: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class SystemMetrics:
+    """One snapshot of the sandbox's resource usage (``sandbox.metrics()``)."""
+
+    timestamp: datetime
+    cpu_count: int
+    cpu_utilization: float
+    """Fraction of total CPU capacity in use, between 0 and 1."""
+    memory_usage_bytes: int
+    memory_total_bytes: int
+    disk_usage_bytes: int
+    disk_total_bytes: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class ProcessResult(WaitResult):
+    """``process.run()`` result: how the process ended plus its collected output."""
 
     process_id: str
-    exit_code: Optional[int]
-    signal: Optional[str]
-    reason: Optional[WaitReason]
     stdout: str = ""
     stderr: str = ""
     output: str = ""
-    raw_reason: Optional[str] = None
+    logs: List[LogFrame] = field(default_factory=list)
+    """The log frames the output was collected from."""
 
 
-@dataclass(frozen=True)
-class TerminalSize:
-    """PTY terminal dimensions."""
-
-    cols: int
-    rows: int
-
-
-@dataclass(frozen=True)
-class InterpreterDisplay:
-    """One rich interpreter output bundle."""
-
-    mime: str
-    data: str
+@dataclass(frozen=True, kw_only=True)
+class InterpreterProcess(WaitResult):
+    process_id: Optional[str] = None
+    """The code execution's process; ``None`` when the run timed out while
+    queued behind earlier runs of its context and was never submitted."""
 
 
-@dataclass(frozen=True)
-class InterpreterProcess:
-    process_id: str
-    exit_code: Optional[int]
-    signal: Optional[str]
-    reason: Optional[WaitReason]
-    raw_reason: Optional[str] = None
-
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class InterpreterLogs:
     stdout: str = ""
     stderr: str = ""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class InterpreterError:
     name: str
     value: str
     traceback: List[str] = field(default_factory=list)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class InterpreterOutput:
     data: JsonObject
     is_main_result: bool
@@ -1186,7 +1349,7 @@ class InterpreterOutput:
     json: Optional[JsonValue] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class InterpreterResult:
     """Interpreter run result."""
 
@@ -1198,39 +1361,58 @@ class InterpreterResult:
 
 @dataclass(frozen=True, slots=True)
 class _InterpreterContextBinding:
-    runner: Callable[
-        [str, Optional[str], Optional[Mapping[str, str]], Optional[float]], Awaitable[InterpreterResult]
-    ]
+    runner: Callable[[str, Optional[str], Optional[float]], Awaitable[InterpreterResult]]
     closer: Callable[[], Awaitable[None]]
 
 
-@dataclass(frozen=True)
 class AsyncInterpreterContext:
-    """Serializable interpreter context handle."""
+    """An interpreter context: kernel state of its own in one sandbox.
 
-    sandbox_id: str
-    context_id: str
-    language: str
+    Built by the interpreter service (``create_context()``,
+    ``connect_context()``, ``list_contexts()``), never directly. Serialize it
+    with :meth:`to_json` and reconnect with ``interpreter.connect_context()``.
+    """
 
-    def bind(
+    def __init__(self, _sandbox_id: str, _context_id: str, _language: str) -> None:
+        self.sandbox_id: str = _sandbox_id
+        self.context_id: str = _context_id
+        self.language: str = _language
+        self._binding: Optional[_InterpreterContextBinding] = None
+
+    def __repr__(self) -> str:
+        return (
+            f"AsyncInterpreterContext(sandbox_id={self.sandbox_id!r}, "
+            f"context_id={self.context_id!r}, language={self.language!r})"
+        )
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, AsyncInterpreterContext) and (
+            other.sandbox_id,
+            other.context_id,
+            other.language,
+        ) == (self.sandbox_id, self.context_id, self.language)
+
+    def __hash__(self) -> int:
+        return hash((self.sandbox_id, self.context_id, self.language))
+
+    def _bind(
         self,
-        runner: Callable[
-            [str, Optional[str], Optional[Mapping[str, str]], Optional[float]], Awaitable[InterpreterResult]
-        ],
+        runner: Callable[[str, Optional[str], Optional[float]], Awaitable[InterpreterResult]],
         closer: Callable[[], Awaitable[None]],
     ) -> Self:
-        object.__setattr__(self, "_binding", _InterpreterContextBinding(runner=runner, closer=closer))
+        self._binding = _InterpreterContextBinding(runner=runner, closer=closer)
         return self
 
     def _require_binding(self) -> _InterpreterContextBinding:
-        binding = getattr(self, "_binding", None)
-        if not isinstance(binding, _InterpreterContextBinding):
-            from .errors import create_error
-
+        if self._binding is None:
             raise create_error(
                 "interpreter context is not bound to a sandbox transport", 400, "BAD_REQUEST", "SDK"
             )
-        return binding
+        return self._binding
+
+    def to_json(self) -> InterpreterContextJSON:
+        """Return the context's JSON-safe identity for ``interpreter.connect_context()``."""
+        return {"sandboxId": self.sandbox_id, "contextId": self.context_id, "language": self.language}
 
     async def __aenter__(self) -> Self:
         return self
@@ -1248,20 +1430,20 @@ class AsyncInterpreterContext:
         code: str,
         *,
         cwd: Optional[str] = None,
-        env: Optional[Mapping[str, str]] = None,
         timeout: Optional[float] = None,
     ) -> InterpreterResult:
-        """Execute code inside this explicit interpreter context.
+        """Execute code inside this interpreter context.
 
-        If the named context vanished, the API's typed
-        ``SESSION_NOT_FOUND`` error surfaces unchanged so the caller can
-        recreate the context and decide what code, if any, is safe to rerun.
-        ``timeout`` is the caller wait budget in seconds; ``0`` waits
-        unbounded.
+        Environment variables are set when the context is created. If the
+        context vanished, the API's typed ``SESSION_NOT_FOUND`` error surfaces
+        unchanged so the caller can recreate the context and decide what code,
+        if any, is safe to rerun. ``timeout`` is the caller wait budget in
+        seconds; ``0`` waits unbounded.
         """
-        return await self._require_binding().runner(code, cwd, env, timeout)
+        return await self._require_binding().runner(code, cwd, timeout)
 
     async def close(self) -> None:
+        """Delete this context and its kernel state."""
         await self._require_binding().closer()
 
 

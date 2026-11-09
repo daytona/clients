@@ -65,6 +65,12 @@ class A11yService:
     def tree(
         self, *, scope: ComputerUseA11yScope, pid: int | None = None, max_depth: int | None = None
     ) -> ComputerUseA11yTree:
+        """Read the accessibility tree, at most 256 levels below the root.
+
+        ``max_depth`` is how many levels below the root to return: an integer
+        from 0 to 256 (the SDK's cap), default 256. A deeper UI comes back cut
+        at that depth with ``truncated`` set; ``-1`` (unbounded) is refused.
+        """
         return self._bridge.call(lambda: self._impl.tree(scope=scope, pid=pid, max_depth=max_depth))
 
 
@@ -156,7 +162,8 @@ class KeyboardService:
     def key(self, *, key: str, modifiers: Sequence[ComputerUseKeyboardModifier] | None = None) -> None:
         return self._bridge.call(lambda: self._impl.key(key=key, modifiers=modifiers))
 
-    def type(self, *, text: str, delay: int | None = None) -> None:
+    def type(self, *, text: str, delay: float | None = None) -> None:
+        """Type ``text``; ``delay`` is the pause between key presses in seconds."""
         return self._bridge.call(lambda: self._impl.type(text=text, delay=delay))
 
 
@@ -230,13 +237,18 @@ class RecordingService:
         return self._bridge.call(lambda: self._impl.delete(id))
 
     def download(self, id: str, *, max_response_bytes: Optional[int] = None) -> bytes:
-        """Download a recording into memory.
+        """Download a recording, holding the whole file in memory.
 
         No total deadline (it fails only when no bytes move for the client's
         ``request_timeout``; with a ``request_timeout`` of ``0``, nothing
         bounds it). ``max_response_bytes`` replaces the client's cap
-        on the body for this call (``None`` keeps the client's cap, ``0`` means no limit, and any other value (negative, fractional, boolean, string, above 2**53 - 1) is a ``BadRequestError``); a larger recording raises
-        ``PayloadTooLargeError`` before it is read in full.
+        on the body for this call (``None`` keeps the client's cap, ``0`` means
+        no limit, and any other value (negative, fractional, boolean, string,
+        above 2**53 - 1) is a ``BadRequestError``); a larger recording raises
+        ``PayloadTooLargeError`` before it is read in full. For a large
+        recording, or one from a sandbox you do not trust, download its
+        ``file_path`` with ``sandbox.fs.download_file()``, which streams to disk
+        with progress and cancellation.
         """
         return self._bridge.call(lambda: self._impl.download(id, max_response_bytes=max_response_bytes))
 

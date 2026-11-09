@@ -108,6 +108,9 @@ class UnboundBridge(SyncBridge):
 
     call_sync = call  # type: ignore[assignment]
 
+    def on_loop_thread(self) -> bool:
+        return False
+
     def iterate(self, agen: object) -> Iterator[object]:  # type: ignore[override]
         self.call(agen)
         return iter(())

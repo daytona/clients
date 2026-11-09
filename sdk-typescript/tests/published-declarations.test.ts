@@ -15,18 +15,11 @@ import ts from 'typescript'
 // still do so, with their count of offending lines, until their area adopts
 // the rule. It only shrinks: a new offender and a stale entry both fail.
 const ALLOWED: Readonly<Record<string, number>> = {
-  // The toolbox namespaces' declarations (wire types in toolbox signatures).
-  'v2/FileSystem.d.ts': 2,
-  'v2/Git.d.ts': 5,
-  'v2/Interpreter.d.ts': 3,
-  'v2/Lsp.d.ts': 11,
-  'v2/Process.d.ts': 3,
-  'v2/ProcessHandle.d.ts': 2,
+  // The process wire and run helpers, and the filesystem transfer helpers
+  // (reached through the toolbox namespaces' declarations).
   'v2/ProcessRun.d.ts': 3,
   'v2/ProcessWire.d.ts': 7,
   'v2/filesystemTransfers.d.ts': 3,
-  // The toolbox aliases in the shared types: TerminalSize, FileMatch, GitCommitResponse.
-  'v2/types.d.ts': 4,
   // The shared transport module (reached through the exported OtelApiLike) and
   // the error hierarchy's AxiosError import.
   'v2/http.d.ts': 6,

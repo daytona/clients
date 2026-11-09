@@ -53,7 +53,7 @@ const CALLS: readonly (readonly [string, Call, string])[] = [
   ['docker.waitUntilReady', (_client, api) => withToolbox(api).docker.waitUntilReady({ timeoutSeconds: 30 }), 'docker status response is missing its owner'],
   ['volumes.pull', (_client, api) => withToolbox(api).volumes.pull('vol1', { requestId: 'r1' }), 'volume pull response is missing its requestId'],
   ['ports.isInUse', (_client, api) => withToolbox(api).ports.isInUse(3000), 'port in use response is missing its isInUse'],
-  ['metrics', (_client, api) => withToolbox(api).metrics(), 'system metrics response is missing its timestamp'],
+  ['metrics', (_client, api) => withToolbox(api).metrics(), 'expected system metrics: timestamp is required'],
   ['updateLifecyclePolicy', (_client, api) => source(api).updateLifecyclePolicy({ timeoutSeconds: 60 }), 'sandbox lifecycle policy response is missing its id'],
   ['resetIdleTimer', (_client, api) => source(api).resetIdleTimer(), 'sandbox lifecycle policy response is missing its id'],
 ]

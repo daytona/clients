@@ -4,6 +4,7 @@
  */
 
 import { BadRequestError, nonOptionsDescription } from './errors/DaytonaError.js'
+import { enumerableSymbolKey } from './symbolKeys.js'
 
 /**
  * Runtime validation of the options objects the SDK defines.
@@ -57,6 +58,7 @@ export const RENAMED_OPTIONS: Readonly<Record<string, string>> = Object.freeze({
   requestTimeoutMs: 'requestTimeoutSeconds',
   reconcileIntervalMs: 'reconcileIntervalSeconds',
   idleCloseMs: 'idleCloseSeconds',
+  delay: 'delaySeconds',
 })
 
 /** The SDK's own invalid-input error: status 400, code `BAD_REQUEST`, source `SDK`. */
@@ -146,15 +148,13 @@ export function assertLabels(labels: unknown): asserts labels is Readonly<Record
 /**
  * Every enumerable string key of `options`, own or inherited (`for...in`), so
  * an unknown key on a prototype is reported like an own one. No options type
- * declares a symbol key: an enumerable symbol key, own or inherited, is a
- * `BadRequestError` naming `typeName`.
+ * declares a symbol key: an enumerable symbol key, own or inherited (the
+ * whole chain, `Object.prototype` included, as `for...in` reads string keys),
+ * is a `BadRequestError` naming `typeName`.
  */
 export function enumerableKeys<T>(typeName: string, options: NonNullable<T>): string[] {
-  for (let level: object | null = options; level !== null && level !== Object.prototype; level = Object.getPrototypeOf(level) as object | null) {
-    for (const symbol of Object.getOwnPropertySymbols(level)) {
-      if (Object.prototype.propertyIsEnumerable.call(level, symbol)) throw badRequest(`${typeName} has no option \`${String(symbol)}\``)
-    }
-  }
+  const symbol = enumerableSymbolKey(options)
+  if (symbol !== undefined) throw badRequest(`${typeName} has no option \`${String(symbol)}\``)
   const keys: string[] = []
   for (const key in options) keys.push(key)
   return keys

@@ -53,7 +53,7 @@ async def test_none_connect_options_are_omitted_so_the_handle_mints_its_own_toke
             [
                 PlannedResponse(200, _detail(fake.url)),
                 PlannedResponse(200, _MINTED),
-                PlannedResponse(200, {"files": []}),
+                PlannedResponse(200, {"items": []}),
             ]
         )
         monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
@@ -104,7 +104,7 @@ async def test_a_valid_caller_token_is_kept_verbatim_and_never_minted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with FakeApi([]) as fake:
-        fake._responses.extend([PlannedResponse(200, _detail(fake.url)), PlannedResponse(200, {"files": []})])
+        fake._responses.extend([PlannedResponse(200, _detail(fake.url)), PlannedResponse(200, {"items": []})])
         monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             sandbox = await root.v2.get("sbx", access_token="caller-token")

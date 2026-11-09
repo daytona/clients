@@ -83,7 +83,8 @@ class SyncBridge:
         self._idle = threading.Condition(self._inflight_lock)
         self._owner_pid = os.getpid()
         self._closed = False
-        _LIVE_BRIDGES.add(self)
+        with _LIVE_BRIDGES_LOCK:
+            _LIVE_BRIDGES.add(self)
 
     def _portal_locked(self) -> BlockingPortal:
         current_pid = os.getpid()
@@ -198,10 +199,49 @@ class SyncBridge:
         on the loop keeps that state single-threaded.
         """
 
+        if self._on_own_loop():
+            # Already on the loop (a callback the SDK runs): the state is
+            # single-threaded here, so read it directly.
+            return operation()
+
         async def on_loop() -> T:
             return operation()
 
         return self.call(on_loop)
+
+    def post(self, operation: Callable[[], object]) -> None:
+        """Schedule a plain callable on the bridge loop and return at once.
+
+        The caller's thread keeps running (and normally keeps the GIL) while
+        the loop picks it up: a watch's synchronous twin posts the release of
+        its callbacks this way, so the caller has usually stored the returned
+        handle before the first callback runs. Runs it at once when called on
+        the loop itself. A post after ``close()`` raises ``BridgeError``, as
+        every call does, whichever thread makes it.
+        """
+        if self._on_own_loop():
+            # The loop thread never takes self._lock (see call()): a caller
+            # holding it may be waiting for this loop. close() sets _closed
+            # under the lock, and reading one bool needs none. A close() that
+            # starts after this check has not stopped the loop yet, so the
+            # operation runs as a post that won the race would.
+            if self._closed:
+                raise BridgeError(f"{self._name} is closed")
+            operation()
+            return
+        # Scheduled under the lock close() takes before it stops the loop
+        # (call_soon_threadsafe does not block), so a post() either lands on
+        # a running loop or finds the bridge closed.
+        with self._lock:
+            self._portal_locked()
+            loop = self._loop
+            assert loop is not None  # set when the portal started
+            loop.call_soon_threadsafe(operation)
+
+    def on_loop_thread(self) -> bool:
+        """Whether the caller runs on this bridge's own event-loop thread, as
+        the callbacks the SDK invokes (a watch's ``on_event``) do."""
+        return self._on_own_loop()
 
     def iterate(self, agen: AsyncIterator[T]) -> Iterator[T]:
         """Drain an async iterator from synchronous code.
@@ -375,11 +415,36 @@ async def _bounded(finalizer: Callable[[], Awaitable[None]]) -> None:
 
 
 _LIVE_BRIDGES: weakref.WeakSet[SyncBridge] = weakref.WeakSet()
+# Guards _LIVE_BRIDGES: a thread creating a client must not change the set
+# while another copies it.
+_LIVE_BRIDGES_LOCK = threading.Lock()
+
+
+def _live_bridges() -> list[SyncBridge]:
+    with _LIVE_BRIDGES_LOCK:
+        return list(_LIVE_BRIDGES)
+
+
+def on_a_bridge_loop() -> bool:
+    """Whether the running coroutine runs on a synchronous client's bridge
+    loop, where only a synchronous twin can have called it (a synchronous call
+    made on that loop raises ``BridgeError``)."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return any(bridge._loop is loop for bridge in _live_bridges())
+
+
 _ORPHANED_BY_FORK: list[object] = []
 
 
 def _reset_live_bridges_after_fork() -> None:
-    for bridge in list(_LIVE_BRIDGES):
+    # The child has one thread, but may have inherited the lock held by a
+    # thread that no longer exists: replace it before taking it.
+    global _LIVE_BRIDGES_LOCK
+    _LIVE_BRIDGES_LOCK = threading.Lock()
+    for bridge in _live_bridges():
         bridge._reset_after_fork()
 
 
@@ -390,7 +455,7 @@ def _close_live_bridges_at_exit() -> None:
     # torn down — forever. Closing here, while the loop thread is still fully
     # alive, is the ordinary orderly shutdown; close() is idempotent, so a
     # program that did close pays nothing.
-    for bridge in list(_LIVE_BRIDGES):
+    for bridge in _live_bridges():
         if bridge._closed:
             continue
         with contextlib.suppress(Exception):

@@ -4,13 +4,14 @@
  */
 
 import axios, { AxiosError } from 'axios'
-import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
-import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, readFetchText, responseTooLargeError } from './errors/DaytonaError.js'
+import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
+import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, responseTooLargeError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
 import { boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
+import { nestedDeeperThan } from './jsonDepth.js'
 export { forceFetchAdapterForTests, maxContentLengthFor, transferRequest } from './boundedAdapter.js'
-import { DEFAULT_MAX_RESPONSE_BYTES, IdleWatchdog, isSmallRequestBody, tooLargeMessage } from './bodyLimit.js'
+import { BodyTooLarge, DEFAULT_MAX_RESPONSE_BYTES, declaresMoreThan, IdleWatchdog, isSmallRequestBody, readCappedBody, tooLargeMessage } from './bodyLimit.js'
 import { boundedAdapter } from './boundedAdapter.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
@@ -171,6 +172,14 @@ type DaytonaRequestMeta = {
 
 type DaytonaAxiosRequestConfig = InternalAxiosRequestConfig & {
   daytona?: DaytonaRequestMeta
+  /** The SDK reads this body as bytes and decodes it itself (`decodeResponseBody`). */
+  daytonaDecodesBody?: boolean
+  /** The caller asked for text (`responseType: 'text'`): the decoded text is handed back. */
+  daytonaWantsText?: boolean
+  /** Set on a 2xx response that declares JSON and does not decode. */
+  daytonaUndecodableBody?: boolean
+  /** Set on a 2xx JSON response nested deeper than `JSON_MAX_DEPTH`. */
+  daytonaTooDeepBody?: boolean
 }
 
 const AXIOS_TRANSPORT_CONFIG = Symbol('daytonaAxiosTransportConfig')
@@ -239,14 +248,15 @@ export interface FetchRequestInit extends RequestInit {
   readonly bodyFactory?: () => BodyInit | Promise<BodyInit>
   /**
    * A file transfer: no total deadline (only the caller's `signal` ends it),
-   * but it fails with `ClientTimeoutError` once no bytes move for the request
-   * timeout (`0` = no idle bound).
+   * but it fails with `ClientTimeoutError` once no bytes move for its
+   * `timeout`, else the request timeout (`0` = no idle bound).
    */
   readonly transfer?: boolean
   /**
    * Replaces the request timeout (milliseconds) for this call, with the same
    * meaning: it bounds the call until the response headers arrive (a stream's
-   * body is never bounded); `0` or above the timer maximum is no limit.
+   * body is never bounded), and on a transfer it is the idle bound instead;
+   * `0` or above the timer maximum is no limit.
    */
   readonly timeout?: number
 }
@@ -795,6 +805,16 @@ function finishAxiosSuccess(response: { readonly status: number; readonly config
   })
 }
 
+/** Ends a response's span with the SDK's own error (a body it refuses). */
+function finishAxiosFailure(response: { readonly config: AxiosRequestConfig }, error: DaytonaError, options: HttpClientOptions | undefined): void {
+  if (!options?.otelEnabled) return
+  const span = (response.config as DaytonaAxiosRequestConfig).daytona?.span
+  if (!span) return
+  loadOtelBundle(options.otelApi).then((bundle) => finalizeSpan(bundle, span, error.statusCode, error)).catch(() => {
+    span.end()
+  })
+}
+
 async function finishAxiosError(
   instance: AxiosInstance,
   error: unknown,
@@ -865,13 +885,16 @@ async function finishAxiosError(
  * `BadRequestError` naming what is wrong (the Python SDK's messages for the
  * same body). A non-positive lifetime is a broken exchange, not a token to cache.
  */
-function tokenExchange(body: string): { readonly accessToken: string; readonly expiresIn: number } | BadRequestError {
+function tokenExchange(body: string, contentType: string | null): { readonly accessToken: string; readonly expiresIn: number } | BadRequestError {
+  // Read as JSON only when declared `application/json`, as every other body.
+  if (!isJsonMediaType(contentType)) return badRequest('token exchange response is not a JSON object')
   let payload: unknown
   try {
     payload = JSON.parse(body)
   } catch {
     payload = undefined
   }
+  if (nestedDeeperThan(payload)) return badRequest('expected token exchange response: the JSON is nested too deeply')
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return badRequest('token exchange response is not a JSON object')
   const { access_token: accessToken, expires_in: expiresIn } = payload as TokenExchangeResponse
   if (typeof accessToken !== 'string' || accessToken === '') return badRequest('token exchange response access_token must be a non-empty string')
@@ -995,13 +1018,32 @@ class PlatformTokenProvider implements HttpAuthProvider {
         finalize(response.status, error)
         throw error
       }
-      const text = await readFetchText(response, this.maxResponseBytes)
-      if (text === undefined) {
+      // Read under the client's cap before buffering (a declared length over
+      // it is refused unread), then decoded strictly, as the Python SDK does:
+      // a body that is not UTF-8, or starts with a byte-order mark, is no
+      // JSON object.
+      let bytes: Uint8Array | undefined
+      if (declaresMoreThan(response.headers.get('content-length'), this.maxResponseBytes)) {
+        await response.body?.cancel().catch(() => undefined)
+      } else {
+        try {
+          bytes = await readCappedBody(response.body, this.maxResponseBytes)
+        } catch (error) {
+          if (!(error instanceof BodyTooLarge)) throw error
+        }
+      }
+      if (bytes === undefined) {
         const error = responseTooLargeError(tooLargeMessage(this.maxResponseBytes))
         finalize(response.status, error)
         throw error
       }
-      const exchange = tokenExchange(text)
+      let body: string
+      try {
+        body = STRICT_UTF8.decode(bytes)
+      } catch {
+        body = ''
+      }
+      const exchange = tokenExchange(body, response.headers.get('content-type'))
       if (exchange instanceof BadRequestError) {
         finalize(response.status, exchange)
         throw exchange
@@ -1156,6 +1198,65 @@ export function resetFetchCacheModeProbeForTests(): void {
   fetchCacheModeOverride = undefined
 }
 
+const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+const LENIENT_UTF8 = new TextDecoder('utf-8', { ignoreBOM: true })
+// A body that is not JSON decodes as axios decoded it: UTF-8, a leading
+// byte-order mark dropped.
+const TEXT_UTF8 = new TextDecoder('utf-8')
+
+function responseBytes(data: unknown): Uint8Array | undefined {
+  if (data instanceof ArrayBuffer) return new Uint8Array(data)
+  if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+  return undefined
+}
+
+function declaresJson(headers: AxiosResponseHeaders | undefined): boolean {
+  return isJsonMediaType(headers?.['content-type'])
+}
+
+/**
+ * The SDK's own response decoding, for requests that set no `responseType`
+ * or ask for `'text'` (read as bytes; text is handed back as text): a body
+ * that declares JSON is decoded strictly (UTF-8, a
+ * byte-order mark kept, `JSON.parse`), as the Python SDK does, and a 2xx one
+ * that does not decode is marked for the response interceptor to refuse. Any
+ * other body is its text (a leading byte-order mark dropped), never parsed,
+ * as Python hands it back undecoded. An error response's body is left to the error mapping.
+ */
+function decodeResponseBody(this: DaytonaAxiosRequestConfig, data: unknown, headers: AxiosResponseHeaders | undefined, status?: number): unknown {
+  if (this.daytonaDecodesBody !== true) return data
+  const bytes = responseBytes(data)
+  const json = declaresJson(headers)
+  const ok = status !== undefined && status >= 200 && status < 300
+  let text: string
+  if (bytes === undefined) {
+    if (typeof data !== 'string') return data
+    text = data
+  } else if (json) {
+    try {
+      text = STRICT_UTF8.decode(bytes)
+    } catch {
+      if (ok) this.daytonaUndecodableBody = true
+      return LENIENT_UTF8.decode(bytes)
+    }
+  } else {
+    text = TEXT_UTF8.decode(bytes)
+  }
+  // Only a body declared application/json is JSON (as in Python, which hands
+  // any other body back undecoded): anything else is its text, even when it
+  // happens to parse as JSON.
+  if (text === '' || !json) return text
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch {
+    if (json && ok) this.daytonaUndecodableBody = true
+    return text
+  }
+  if (json && ok && nestedDeeperThan(value)) this.daytonaTooDeepBody = true
+  return this.daytonaWantsText === true ? text : value
+}
+
 function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions): AxiosInstance {
   const maxResponseBytes = options?.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES
   const instance = axios.create({
@@ -1168,6 +1269,11 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
     maxContentLength: maxResponseBytes > 0 ? maxResponseBytes : -1,
     adapter: boundedAdapter,
   })
+  const axiosTransforms = instance.defaults.transformResponse
+  instance.defaults.transformResponse = [
+    decodeResponseBody,
+    ...(axiosTransforms === undefined ? [] : Array.isArray(axiosTransforms) ? axiosTransforms : [axiosTransforms]),
+  ]
   credentialSafeDiagnostics(instance, () => ({ type: 'HttpClient' }))
   credentialSafeDiagnostics(instance.defaults, () => ({ timeout: instance.defaults.timeout }))
   credentialSafeDiagnostics(instance.defaults.headers, () => ({ type: 'HttpHeaders' }))
@@ -1177,7 +1283,20 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
     configurable: true,
   })
   instance.interceptors.request.use(async (config) => {
-    const armed = armRequestDeadline(config as DaytonaAxiosRequestConfig, instance)
+    const daytonaConfig = config as DaytonaAxiosRequestConfig
+    // No responseType: the SDK reads the bytes and decodes them itself (kept
+    // on a retry, whose config already says arraybuffer).
+    if (daytonaConfig.responseType === undefined || daytonaConfig.daytonaDecodesBody === true) {
+      daytonaConfig.responseType = 'arraybuffer'
+      daytonaConfig.daytonaDecodesBody = true
+    } else if (daytonaConfig.responseType === 'text') {
+      // Text too goes through the SDK's decoding: a 2xx body that declares
+      // JSON is still checked strictly (as in Python); the text comes back.
+      daytonaConfig.responseType = 'arraybuffer'
+      daytonaConfig.daytonaDecodesBody = true
+      daytonaConfig.daytonaWantsText = true
+    }
+    const armed = armRequestDeadline(daytonaConfig, instance)
     try {
       return await prepareAxiosRequest(armed, instance.defaults.baseURL, instance, options)
     } catch (error) {
@@ -1201,6 +1320,18 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
           new AxiosError('Request failed with status code 401', AxiosError.ERR_BAD_REQUEST, response.config, response.request, response),
           options,
         ) as Promise<AxiosResponse>
+      }
+      if ((response.config as DaytonaAxiosRequestConfig).daytonaTooDeepBody === true) {
+        const error = badRequest('expected JSON response: the JSON is nested too deeply')
+        finishAxiosFailure(response, error, options)
+        throw error
+      }
+      if ((response.config as DaytonaAxiosRequestConfig).daytonaUndecodableBody === true) {
+        // A 2xx body that declares JSON and does not decode is malformed,
+        // whether or not the caller reads it (as in the Python SDK).
+        const error = badRequest('expected JSON response: the body is not valid JSON')
+        finishAxiosFailure(response, error, options)
+        throw error
       }
       finishAxiosSuccess(response, options)
       return response
@@ -1248,10 +1379,12 @@ const callerSignals = new WeakMap<AbortSignal, AbortSignalLike | undefined>()
 function armRequestDeadline<T extends DaytonaAxiosRequestConfig>(config: T, instance: AxiosInstance): T {
   disarmRequestDeadline(config)
   if (config.daytona?.transfer === true) {
-    // A file transfer: no total deadline; the instance's request timeout is
-    // its idle bound, which boundedAdapter enforces.
+    // A file transfer: no total deadline; its own timeout, else the
+    // instance's request timeout, is its idle bound, which boundedAdapter
+    // enforces (as in the Python SDK).
+    const idleTimeoutMs = config.daytona.idleTimeoutMs ?? boundedTimerDelay(timeoutFromAxiosInstance(instance) ?? DEFAULT_REQUEST_TIMEOUT_MS)
     config.timeout = 0
-    config.daytona = { ...config.daytona, idleTimeoutMs: boundedTimerDelay(timeoutFromAxiosInstance(instance) ?? DEFAULT_REQUEST_TIMEOUT_MS) }
+    config.daytona = { ...config.daytona, idleTimeoutMs }
   }
   // axios hands its timeout to a platform timer too: one above the timer
   // maximum would fire at once, so it means no bound there as well.
@@ -1394,7 +1527,8 @@ export class HttpTransport {
   private readonly apiKey?: string
   private readonly requestTimeout?: number
   private readonly options?: HttpClientOptions
-  private readonly maxResponseBytes: number
+  /** The client's cap on a buffered body (`0` = no limit), which also bounds each event of an event stream. */
+  public readonly maxResponseBytes: number
 
   constructor(baseUrl: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions) {
     this.maxResponseBytes = options?.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES
@@ -1448,8 +1582,9 @@ export class HttpTransport {
     const deadlineAt = budget === 0 ? undefined : nowMs() + budget
     // A transfer has no total deadline, but minting its bearer is bounded by
     // its idle bound (no bytes move while it waits).
-    const transfer = (config as DaytonaAxiosRequestConfig | undefined)?.daytona?.transfer === true
-    const idleMs = boundedTimerDelay(this.defaultTimeout)
+    const transferMeta = (config as DaytonaAxiosRequestConfig | undefined)?.daytona
+    const transfer = transferMeta?.transfer === true
+    const idleMs = transferMeta?.idleTimeoutMs ?? boundedTimerDelay(this.defaultTimeout)
     const credentialDeadline = (): number | undefined => (transfer ? (idleMs === 0 ? undefined : nowMs() + idleMs) : deadlineAt)
     const bounded = (requestConfig: AxiosRequestConfig | undefined): AxiosRequestConfig | undefined =>
       deadlineAt === undefined
@@ -1530,8 +1665,10 @@ export class HttpTransport {
     // the call's own timeout or else the request timeout. A file transfer has
     // no total bound but an idle one instead: the request timeout with no
     // bytes moving (a streamed request body, the headers, each body chunk).
+    // The call's own timeout replaces the request timeout there too, as the
+    // idle bound (never a total deadline), as in the Python SDK.
     const idle = init?.transfer === true
-      ? new IdleWatchdog(boundedTimerDelay(this.defaultTimeout), init.signal ?? undefined, () => new DOMException('no bytes moved', 'AbortError'))
+      ? new IdleWatchdog(boundedTimerDelay(perCallTimeoutMs(init.timeout) ?? this.defaultTimeout), init.signal ?? undefined, () => new DOMException('no bytes moved', 'AbortError'))
       : undefined
     const timeout = idle !== undefined
       ? { signal: idle.signal, clearTimer: () => idle.pause(), timedOut: () => idle.fired(), detach: () => idle.dispose() }
@@ -1740,79 +1877,214 @@ export interface SseMessage {
   id?: string
 }
 
-function normalizeSseNewlines(value: string): string {
-  return value.replace(/\r\n|\r/g, '\n')
+/** A dispatched SSE message and its size: every byte of its block, terminators included. */
+export interface SizedSseMessage extends SseMessage {
+  readonly size: number
 }
 
-export async function* sseMessages(response: Response): AsyncIterable<SseMessage> {
+/**
+ * The bound on each event of an SSE stream, counted in bytes as they arrive:
+ * once the event being read passes `limit(completed)` (`undefined` = no
+ * limit), the stream is refused with `tooLarge(completed)`. `completed` is
+ * every byte of the frames a blank line has ended so far, data-less and
+ * comment-only frames included, so a caller can bound the whole stream
+ * (`budget - completed`) as well as each event (as the Python SDK's
+ * `SseLineSplitter`). Read for every check, so it may change between events.
+ */
+export interface SseBound {
+  readonly limit: (completed: number) => number | undefined
+  readonly tooLarge: (completed: number) => Error
+}
+
+/** The error for one event over the client's `maxResponseBytes`, which bounds every event of a stream. */
+export function streamEventTooLarge(description: string, limit: number): Error {
+  return responseTooLargeError(`expected ${description}: an event is larger than the ${limit}-byte maxResponseBytes limit`)
+}
+
+const CR = 0x0d
+const LF = 0x0a
+
+/**
+ * Splits an event-stream body's bytes into lines (CRLF, LF or CR) and lines
+ * into messages, counting the bytes of the event being read as they arrive
+ * (as the Python SDK's `SseLineSplitter`), so one huge or never-terminated
+ * event holds no more than its bound: the bound is checked before a line is
+ * copied or a remainder buffered, and a line a CR ends at a chunk's end waits
+ * for the next chunk, so the LF of a split CRLF counts toward its event.
+ */
+class SseReader {
+  private line: Uint8Array[] = []
+  private lineBytes = 0
+  private received = 0
+  private eventStart = 0
+  // A line ended by a CR at a chunk's end, and where it ends.
+  private held: { readonly text: string; readonly end: number } | undefined
+  private atStreamStart = true
+  private event = 'message'
+  private id: string | undefined
+  private data: string[] = []
+  // Each line is decoded whole (a line never splits a character); one
+  // leading byte-order mark of the stream is dropped below, as the
+  // event-stream format does.
+  private readonly decoder = new TextDecoder('utf-8', { ignoreBOM: true })
+
+  constructor(private readonly bound: SseBound | undefined) {}
+
+  *feed(chunk: Uint8Array): Generator<SizedSseMessage> {
+    if (chunk.byteLength === 0) return
+    const base = this.received
+    this.received += chunk.byteLength
+    let start = 0
+    if (this.held !== undefined) {
+      const held = this.held
+      this.held = undefined
+      let end = held.end
+      // The LF of a CRLF split across chunks: part of that line, so it
+      // counts toward the event it ends.
+      if (chunk[0] === LF) {
+        start = 1
+        end = base + 1
+      }
+      const message = this.endLine(held.text, end)
+      if (message !== undefined) yield message
+    }
+    while (start < chunk.byteLength) {
+      let end = start
+      while (end < chunk.byteLength && chunk[end] !== CR && chunk[end] !== LF) end++
+      if (end === chunk.byteLength) {
+        // Checked before the remainder is buffered.
+        this.check(this.received)
+        this.line.push(chunk.slice(start))
+        this.lineBytes += chunk.byteLength - start
+        return
+      }
+      const terminator = chunk[end] === CR && chunk[end + 1] === LF ? 2 : 1
+      // Checked before the line is copied out of the chunk and decoded.
+      this.check(base + end + terminator)
+      const text = this.takeLine(chunk.subarray(start, end))
+      const isCr = chunk[end] === CR
+      start = end + terminator
+      if (terminator === 1 && isCr && start === chunk.byteLength) {
+        // A CR at the chunk's end: wait for the next chunk's LF, if any.
+        this.held = { text, end: base + start }
+        return
+      }
+      const message = this.endLine(text, base + start)
+      if (message !== undefined) yield message
+    }
+  }
+
+  /** The line a CR ended at the body's very end, if any. */
+  *finish(): Generator<SizedSseMessage> {
+    if (this.held === undefined) return
+    const { text, end } = this.held
+    this.held = undefined
+    const message = this.endLine(text, end)
+    if (message !== undefined) yield message
+  }
+
+  private endLine(text: string, end: number): SizedSseMessage | undefined {
+    this.check(end)
+    return this.feedLine(text, end)
+  }
+
+  private check(position: number): void {
+    const bound = this.bound
+    if (bound === undefined) return
+    const limit = bound.limit(this.eventStart)
+    if (limit !== undefined && position - this.eventStart > limit) throw bound.tooLarge(this.eventStart)
+  }
+
+  private takeLine(tail: Uint8Array): string {
+    let bytes = tail
+    if (this.lineBytes > 0) {
+      bytes = new Uint8Array(this.lineBytes + tail.byteLength)
+      let offset = 0
+      for (const part of this.line) {
+        bytes.set(part, offset)
+        offset += part.byteLength
+      }
+      bytes.set(tail, offset)
+      this.line = []
+      this.lineBytes = 0
+    }
+    let text = this.decoder.decode(bytes)
+    if (this.atStreamStart) {
+      this.atStreamStart = false
+      if (text.startsWith('\uFEFF')) text = text.slice(1)
+    }
+    return text
+  }
+
+  private feedLine(line: string, position: number): SizedSseMessage | undefined {
+    if (line === '') {
+      const size = position - this.eventStart
+      this.eventStart = position
+      const { event, id, data } = this
+      this.event = 'message'
+      this.id = undefined
+      this.data = []
+      // A block without a `data:` line dispatches nothing (the event-stream format, as in Python).
+      if (data.length === 0) return undefined
+      return { event, ...(id === undefined ? {} : { id }), data: data.join('\n'), size }
+    }
+    if (line.startsWith(':')) return undefined
+    const colon = line.indexOf(':')
+    const field = colon >= 0 ? line.slice(0, colon) : line
+    const value = colon >= 0 ? line.slice(colon + 1).replace(/^ /, '') : ''
+    if (field === 'event') this.event = value
+    if (field === 'id') this.id = value
+    if (field === 'data') this.data.push(value)
+    return undefined
+  }
+}
+
+/**
+ * One read of an SSE body. A failure of the body itself (a truncated body or a
+ * reset socket: undici's "terminated") is a dropped connection, so every SSE
+ * consumer sees `ConnectionError` (source `SDK`, the runtime's error as its
+ * cause), as the Python transport reports it. An abort and the SDK's own
+ * errors pass through unchanged.
+ */
+async function readSseChunk(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<ReadableStreamReadResult<Uint8Array>> {
+  try {
+    return await reader.read()
+  } catch (error) {
+    if (error instanceof DaytonaError || isAbortError(error)) throw error
+    throw new ConnectionError(error instanceof Error ? error.message : String(error), { cause: error })
+  }
+}
+
+/**
+ * The messages of an SSE body. With a `bound`, each event is bounded by it
+ * as its bytes arrive (see {@link SseBound}).
+ */
+export async function* sseMessages(response: Response, bound?: SseBound): AsyncIterable<SizedSseMessage> {
   const body = response.body
   if (!body) return
   const reader = body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
+  const sse = new SseReader(bound)
   let streamDone = false
   try {
     for (;;) {
-      const { value, done } = await reader.read()
+      const { value, done } = await readSseChunk(reader)
       if (done) {
         streamDone = true
         break
       }
-      buffer += decoder.decode(value, { stream: true })
-      let boundary = findSseBoundary(buffer)
-      while (boundary) {
-        const raw = buffer.slice(0, boundary.index)
-        buffer = buffer.slice(boundary.index + boundary.length)
-        const message = parseSseMessage(raw)
-        if (message) yield message
-        boundary = findSseBoundary(buffer)
-      }
+      yield* sse.feed(value)
     }
-    const tail = buffer.replace(/\r$/, '')
-    if (tail.trim()) {
-      const message = parseSseMessage(tail)
-      if (message) yield message
-    }
+    yield* sse.finish()
+    // An unterminated final block is discarded, as the event-stream format
+    // (and the Python SDK) does: it may be a message cut off mid-way.
   } finally {
     if (!streamDone) {
-      await reader.cancel()
+      // An errored body rejects cancel() with its stored error, which would
+      // replace the error already being thrown; that one wins.
+      await reader.cancel().catch(() => undefined)
     }
     reader.releaseLock()
   }
-}
-
-function parseSseMessage(raw: string): SseMessage | undefined {
-  let event = 'message'
-  let id: string | undefined
-  const data: string[] = []
-  for (const line of normalizeSseNewlines(raw).split('\n')) {
-    if (!line || line.startsWith(':')) continue
-    const colon = line.indexOf(':')
-    const field = colon >= 0 ? line.slice(0, colon) : line
-    const value = colon >= 0 ? line.slice(colon + 1).replace(/^ /, '') : ''
-    if (field === 'event') event = value
-    if (field === 'id') id = value
-    if (field === 'data') data.push(value)
-  }
-  if (!data.length && !id) return undefined
-  return { event, id, data: data.join('\n') }
-}
-
-function findSseBoundary(buffer: string): { readonly index: number; readonly length: number } | undefined {
-  for (let index = 0; index < buffer.length; index += 1) {
-    const first = lineTerminatorLength(buffer, index)
-    if (!first) continue
-    const second = lineTerminatorLength(buffer, index + first)
-    if (second) return { index, length: first + second }
-    index += first - 1
-  }
-  return undefined
-}
-
-function lineTerminatorLength(buffer: string, index: number): number {
-  const char = buffer[index]
-  if (char === '\r') return buffer[index + 1] === '\n' ? 2 : 1
-  return char === '\n' ? 1 : 0
 }
 
 export function sandboxState(status: string | undefined): SandboxState {

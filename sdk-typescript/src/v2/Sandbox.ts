@@ -27,6 +27,7 @@ import { PortsService } from './Ports.js'
 import { SandboxVolumesService } from './SandboxVolumes.js'
 import { parseSandboxSecretsResponse, serializeSandboxSecretsInput } from './SandboxSecrets.js'
 import { ProcessService, PtyService, WAIT_READ_SLACK_MS } from './Process.js'
+import { isRfc3339, systemMetricsFromWire } from './toolboxModels.js'
 import type * as api from './gen/api-types.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import {
@@ -61,7 +62,7 @@ import type {
   NetworkPolicyInput,
   SandboxSecretsInfo,
   RunOptions,
-  RunResult,
+  ProcessResult,
   MacBootMode,
   SandboxAccessToken,
   SandboxConnectOptions,
@@ -296,11 +297,6 @@ function checkLifecycleEcho(data: unknown): { lifecycle_policy: SandboxLifecycle
   return checkResponse<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(data, LIFECYCLE_ECHO, 'sandbox lifecycle policy')
 }
 
-const SYSTEM_METRICS: ResponseFields = {
-  timestamp: 'string', cpuCount: 'integer', cpuUtilization: 'number', memoryUsageBytes: 'integer',
-  memoryTotalBytes: 'integer', diskUsageBytes: 'integer', diskTotalBytes: 'integer',
-}
-
 export class Sandbox {
   private readonly sandboxId: string
   /** The sandbox id, fixed for the handle's lifetime (read-only at run time too). */
@@ -434,32 +430,32 @@ export class Sandbox {
   }
 
   public get fs(): FileSystemService {
-    this.fsNamespace ??= new FileSystemService(this.requireToolbox(), (method, path, expiresAt) => this.signFileUrl(method, path, expiresAt))
+    this.fsNamespace ??= new FileSystemService(INTERNAL, this.requireToolbox(), (method, path, expiresAt) => this.signFileUrl(method, path, expiresAt))
     return this.fsNamespace
   }
 
   public get git(): GitService {
-    this.gitNamespace ??= new GitService(this.requireToolbox())
+    this.gitNamespace ??= new GitService(INTERNAL, this.requireToolbox())
     return this.gitNamespace
   }
 
   public get process(): ProcessService {
-    this.processNamespace ??= new ProcessService(this.requireToolbox(), this.id)
+    this.processNamespace ??= new ProcessService(INTERNAL, this.requireToolbox(), this.id)
     return this.processNamespace
   }
 
   public get interpreter(): InterpreterService {
-    this.interpreterNamespace ??= new InterpreterService(this.requireToolbox(), this.process)
+    this.interpreterNamespace ??= new InterpreterService(INTERNAL, this.requireToolbox(), this.id)
     return this.interpreterNamespace
   }
 
   public get pty(): PtyService {
-    this.ptyNamespace ??= new PtyService(this.process)
+    this.ptyNamespace ??= new PtyService(INTERNAL, this.process, this.requireToolbox())
     return this.ptyNamespace
   }
 
   public get computerUse(): ComputerUseService {
-    this.computerUseNamespace ??= new ComputerUseService(this.requireToolbox())
+    this.computerUseNamespace ??= new ComputerUseService(INTERNAL, this.requireToolbox())
     return this.computerUseNamespace
   }
 
@@ -475,14 +471,14 @@ export class Sandbox {
   }
 
   public get lsp(): LspService {
-    this.lspNamespace ??= new LspService(this.requireToolbox())
+    this.lspNamespace ??= new LspService(INTERNAL, this.requireToolbox())
     return this.lspNamespace
   }
 
 
+  /** A snapshot of the sandbox's CPU, memory and disk usage. */
   public async metrics(): Promise<SystemMetrics> {
-    const data: unknown = await this.requireToolbox().get<unknown>('/system/metrics')
-    return deepFrozen(checkResponse<SystemMetrics>(data, SYSTEM_METRICS, 'system metrics'))
+    return systemMetricsFromWire(await this.requireToolbox().get<toolbox.Metrics>('/system/metrics'))
   }
 
   public get volumes(): SandboxVolumesService {
@@ -514,16 +510,17 @@ export class Sandbox {
    *
    * @param command Shell command string, or `{ argv }` for shell-free execution.
    * @param options.shell Shell binary to use (e.g. `'bash'`); overrides auto-detection.
-   * @param options.timeout Caller wait budget in milliseconds. Omit to wait until
+   * @param options.timeoutSeconds Caller wait budget in seconds. Omit to wait until
    *   the process ends. Does not kill the process on expiry.
-   * @param options.executionTimeout Server-side deadline in milliseconds. Execution
+   * @param options.executionTimeoutSeconds Server-side deadline in seconds. Execution
    *   kills the process tree when this expires.
-   * @returns {@link RunResult} with `stdout`, `stderr`, `output`, and `exitCode`.
+   * @returns {@link ProcessResult} with `stdout`, `stderr`, `output`, `logs`, and `exitCode`.
    */
-  public async exec(command: ProcessCommand, options: RunOptions = {}): Promise<RunResult> {
+  public async exec(command: ProcessCommand, options: RunOptions = {}): Promise<ProcessResult> {
     return this.process.run(command, options)
   }
 
+  /** Execute code and return its result: an alias for {@link InterpreterService.run}, same options. */
   public async runCode(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterResult> {
     return this.interpreter.run(code, options)
   }
@@ -1136,6 +1133,6 @@ function readSignedFileUrl(payload: api.SignedFileUrlResponse | unknown): Signed
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) throw badRequest('signed file URL response is not a JSON object')
   const { signature, expires_at: expiresAt } = payload as { readonly signature?: unknown; readonly expires_at?: unknown }
   if (typeof signature !== 'string' || signature.length === 0) throw badRequest('signed file URL response signature must be a non-empty string')
-  if (typeof expiresAt !== 'string' || rfc3339EpochMs(expiresAt) === undefined) throw badRequest('signed file URL response expires_at must be an RFC 3339 timestamp')
+  if (typeof expiresAt !== 'string' || !isRfc3339(expiresAt)) throw badRequest('signed file URL response expires_at must be an RFC 3339 timestamp')
   return { signature, expiresAt }
 }

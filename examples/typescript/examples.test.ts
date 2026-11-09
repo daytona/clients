@@ -121,6 +121,12 @@ for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secr
   })
 }
 
+test('the test double reports a command\'s output as a stdout log frame', () => {
+  const { code, output } = runExample('typescript/test-support/probe-logs.ts', { images: [[IMAGE, 'ready']] })
+  assert.equal(code, 0, output)
+  assert.match(output, /LOGS \[\["stdout","abc1234 add daytona-note"\]\]/)
+})
+
 test('registers the image once when the project lacks it', () => {
   const { code, record, output } = runExample(example('exec-command'))
   assert.equal(code, 0, output)

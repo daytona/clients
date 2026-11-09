@@ -35,11 +35,11 @@ from ._core import (
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     TransportPayload,
-    _expect_model_from_dict,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
     enum_str,
     expect_object,
+    expect_system_metrics,
     finite_number,
     header_text,
     image_options_body,
@@ -95,16 +95,17 @@ from .types import (
     AsyncInterpreterContext,
     Image,
     ImageRef,
+    InterpreterContextJSON,
     InterpreterResult,
     JsonObject,
     JsonValue,
-    KeepLogs,
     LifecycleAction,
     LifecyclePolicyOptions,
     MacBootMode,
     NetworkPolicyInfo,
     NetworkPolicyInput,
     ProcessResult,
+    RunKeepLogs,
     SandboxAccessToken,
     SandboxClass,
     SandboxHandleJSON,
@@ -117,7 +118,6 @@ from .types import (
     SnapshotRef,
     StdinMode,
     SystemMetrics,
-    TerminalSize,
     _SandboxInfo,
 )
 
@@ -574,7 +574,7 @@ class AsyncSandbox:
     @property
     def fs(self) -> AsyncFileSystemService:
         if self._fs is None:
-            self._fs = AsyncFileSystemService(self._require_toolbox(), file_url_signer=self._sign_file_url)
+            self._fs = AsyncFileSystemService(self._require_toolbox(), _file_url_signer=self._sign_file_url)
         return self._fs
 
     @property
@@ -632,11 +632,9 @@ class AsyncSandbox:
         return self._volumes
 
     async def metrics(self) -> SystemMetrics:
-        return _expect_model_from_dict(
-            await self._require_toolbox().send(RequestSpec("GET", "/system/metrics")),
-            SystemMetrics,
-            "system metrics",
-            SystemMetrics.from_dict,
+        """A snapshot of the sandbox's CPU, memory and disk usage."""
+        return expect_system_metrics(
+            await self._require_toolbox().send(RequestSpec("GET", "/system/metrics"))
         )
 
     async def exec(
@@ -653,8 +651,7 @@ class AsyncSandbox:
         timeout: Optional[float] = None,
         execution_timeout: Optional[float] = None,
         name: Optional[str] = None,
-        terminal: Optional[TerminalSize] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: Optional[RunKeepLogs] = None,
         tag: Optional[str] = None,
     ) -> ProcessResult:
         """Run a command, wait for its shell to exit, and collect its output.
@@ -687,8 +684,10 @@ class AsyncSandbox:
             ends. Does not kill the process; use ``execution_timeout`` for that.
         :param execution_timeout: Server-side deadline in seconds. The sandbox kills
             the process tree when this expires.
+        :param keep_logs: How long the sandbox keeps the process log: ``"on_exit_ttl"``
+            (default) or ``"until_cleanup"``.
         :returns: :class:`~daytona.v2.types.ProcessResult` with ``stdout``, ``stderr``,
-            ``output``, ``exit_code``, and ``reason``.
+            ``output``, ``logs``, ``exit_code``, and ``reason``.
         """
         return await self.process.run(
             command,
@@ -702,7 +701,6 @@ class AsyncSandbox:
             timeout=timeout,
             execution_timeout=execution_timeout,
             name=name,
-            terminal=terminal,
             keep_logs=keep_logs,
             tag=tag,
         )
@@ -711,13 +709,14 @@ class AsyncSandbox:
         self,
         code: str,
         *,
-        language: str = "python",
-        context: Optional[AsyncInterpreterContext] = None,
+        language: Optional[str] = None,
+        context: str | AsyncInterpreterContext | InterpreterContextJSON | None = None,
         isolated: bool = False,
         timeout: Optional[float] = None,
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
+        """Execute code and return its result: an alias for ``interpreter.run()``, same parameters."""
         return await self.interpreter.run(
             code,
             language=language,

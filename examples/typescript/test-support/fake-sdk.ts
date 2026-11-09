@@ -124,7 +124,12 @@ function fileStore(path: string, mounts: readonly Mount[], disk: Map<string, str
   return { store, key: `${below}${path.slice(mount.mountPath.length)}`, readOnly: mount.readOnly === true }
 }
 
-const result = (exitCode: number, output: string) => ({ exitCode, output, stdout: output, stderr: '' })
+// Every field the SDK's ProcessResult requires, so an example reading any of them sees a real shape:
+// non-empty output is one stdout log frame, as the sandbox reports it.
+const result = (exitCode: number, output: string) => ({
+  processId: 'p', reason: 'exited' as const, exitCode, output, stdout: output, stderr: '',
+  logs: output === '' ? [] : [{ cursor: '1', channel: 'stdout', data: output, timestampMs: 0 }],
+})
 
 function run(command: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[], disk: Map<string, string[]>) {
   for (const [pattern, exitCode, output] of scenario.overrides ?? []) {
@@ -169,7 +174,7 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     } },
     interpreter: {
       run: async () => ({
-        process: { exitCode: scenario.interpreterExitCode ?? 0 },
+        process: { processId: 'p', reason: 'exited' as const, exitCode: scenario.interpreterExitCode ?? 0 },
         logs: { stdout: 'Hello World from code!\n', stderr: '' },
         results: [],
         error: scenario.interpreterError ? { name: scenario.interpreterError, value: '', traceback: [] } : undefined,
@@ -188,11 +193,12 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
           const text = new TextDecoder().decode(files.get(path))
           files.set(path, new TextEncoder().encode(text.replace(pattern, value)))
         }
+        return { items: paths.map((file) => ({ file, success: true })) }
       },
     },
     git: {
       clone: async () => undefined,
-      status: async () => ({ currentBranch: 'master' }),
+      status: async () => ({ currentBranch: 'master', ahead: 0, behind: 0, branchPublished: false, fileStatus: [] }),
       add: async () => undefined,
       commit: async () => ({ hash: 'abc1234' }),
       createBranch: async () => undefined,

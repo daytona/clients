@@ -209,9 +209,11 @@ describe('deepFrozen', () => {
     }
   }, 10_000)
 
-  it('freezes a volume whose options are nested 10,000 levels deep', async () => {
-    // Sent as text: the fake server's JSON.stringify would itself recurse.
-    const options = `${'{"child":'.repeat(10_000)}{"leaf":true}${'}'.repeat(10_000)}`
+  it('freezes a volume whose options are nested to the JSON depth limit', async () => {
+    // The volume (depth 1) and its options nested to JSON_MAX_DEPTH (600) in
+    // all; a deeper body is refused before any mapper (the 10,000-level value
+    // above is frozen directly). Sent as text, as the fake would stringify it.
+    const options = `${'{"child":'.repeat(598)}{"leaf":true}${'}'.repeat(598)}`
     const body = JSON.stringify({ ...VOLUME, options: null }).replace('"options":null', `"options":${options}`)
     const api = await startFakeApi([{ status: 200, body }])
     const client = clientAt(api.url)
