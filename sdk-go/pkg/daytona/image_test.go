@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -207,6 +208,24 @@ func TestImageCmd(t *testing.T) {
 	assert.Contains(t, img.Dockerfile(), `CMD ["python", "app.py"]`)
 }
 
+func TestImageCmdJSONEncoding(t *testing.T) {
+	dockerfile := Base("python:3.11").Cmd([]string{"python", "print(\"hi\")", "a\\b", ""}).Dockerfile()
+	assert.Contains(t, dockerfile, `CMD ["python", "print(\"hi\")", "a\\b", ""]`)
+	payload := strings.TrimPrefix(strings.Split(dockerfile, "\n")[1], "CMD ")
+	var decoded []string
+	require.NoError(t, json.Unmarshal([]byte(payload), &decoded))
+	assert.Equal(t, []string{"python", "print(\"hi\")", "a\\b", ""}, decoded)
+}
+
+func TestImageEntrypointJSONEncoding(t *testing.T) {
+	dockerfile := Base("python:3.11").Entrypoint([]string{"python", "print(\"hi\")", "a\\b", ""}).Dockerfile()
+	assert.Contains(t, dockerfile, `ENTRYPOINT ["python","print(\"hi\")","a\\b",""]`)
+	payload := strings.TrimPrefix(strings.Split(dockerfile, "\n")[1], "ENTRYPOINT ")
+	var decoded []string
+	require.NoError(t, json.Unmarshal([]byte(payload), &decoded))
+	assert.Equal(t, []string{"python", "print(\"hi\")", "a\\b", ""}, decoded)
+}
+
 // TestImageUser tests the User method
 func TestImageUser(t *testing.T) {
 	img := Base("python:3.11").User("appuser")
@@ -313,7 +332,7 @@ func TestImageAdditionalEdgeCases(t *testing.T) {
 		img := Base("alpine").Entrypoint([]string{}).Cmd([]string{})
 		dockerfile := img.Dockerfile()
 		assert.Contains(t, dockerfile, `ENTRYPOINT []`)
-		assert.True(t, strings.Contains(dockerfile, `CMD [""]`) || strings.Contains(dockerfile, `CMD []`))
+		assert.Contains(t, dockerfile, `CMD []`)
 	})
 
 	t.Run("volume preserves order", func(t *testing.T) {

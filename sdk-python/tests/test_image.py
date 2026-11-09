@@ -135,6 +135,23 @@ class TestImageRunCommands:
         assert "RUN" in df
         assert "bash" in df
 
+    def test_list_command_json(self):
+        img = Image.base("ubuntu:22.04").run_commands(
+            ["sh", "-c", 'say "hi"'],
+            ["echo", "a\\b"],
+            ["echo", ""],
+            ["echo", "hello"],
+        )
+        payloads = [line[len("RUN ") :] for line in img.dockerfile().splitlines() if line.startswith("RUN ")]
+        assert json.loads(payloads[0]) == ["sh", "-c", 'say "hi"']
+        assert payloads[0] == '["sh", "-c", "say \\"hi\\""]'
+        assert json.loads(payloads[1]) == ["echo", "a\\b"]
+        assert payloads[1] == '["echo", "a\\\\b"]'
+        assert json.loads(payloads[2]) == ["echo", ""]
+        assert payloads[2] == '["echo", ""]'
+        assert json.loads(payloads[3]) == ["echo", "hello"]
+        assert payloads[3] == '["echo", "hello"]'
+
 
 class TestImageEnv:
     def test_set_env_vars(self):
@@ -163,6 +180,12 @@ class TestImageEntrypoint:
         assert "python" in df
         assert "app.py" in df
 
+    def test_json_encoding(self):
+        img = Image.base("python:3.12").entrypoint(["python", 'print("hi")', "a\\b", ""])
+        payload = img.dockerfile().split("ENTRYPOINT ", 1)[1].strip()
+        assert json.loads(payload) == ["python", 'print("hi")', "a\\b", ""]
+        assert payload == '["python", "print(\\"hi\\")", "a\\\\b", ""]'
+
 
 class TestImageCmd:
     def test_set_cmd(self):
@@ -174,6 +197,12 @@ class TestImageCmd:
         df = img.dockerfile()
         assert "CMD" in df
         assert "python" in df
+
+    def test_json_encoding(self):
+        img = Image.base("python:3.12").cmd(["python", 'print("hi")', "a\\b", ""])
+        payload = img.dockerfile().split("CMD ", 1)[1].strip()
+        assert json.loads(payload) == ["python", 'print("hi")', "a\\b", ""]
+        assert payload == '["python", "print(\\"hi\\")", "a\\\\b", ""]'
 
 
 class TestImageFromDockerfile:

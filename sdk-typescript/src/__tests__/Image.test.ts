@@ -52,6 +52,34 @@ describe('Image', () => {
     expect(image.dockerfile).toContain('CMD')
   })
 
+  it('encodes cmd, entrypoint, and list-form run as JSON', async () => {
+    const { Image } = await import('../Image')
+
+    const image = Image.base('python:3.12')
+      .cmd(['python', 'print("hi")', 'a\\b', ''])
+      .entrypoint(['/bin/bash'])
+      .runCommands(['sh', '-c', 'say "hi"'], ['echo', 'a\\b'], ['echo', ''], ['echo', 'hello'])
+
+    const dockerfile = image.dockerfile
+    const payload = (instruction: string) => {
+      const line = dockerfile.split('\n').find((entry) => entry.startsWith(`${instruction} `))
+      if (line === undefined) {
+        throw new Error(`missing ${instruction}`)
+      }
+      return JSON.parse(line.slice(instruction.length + 1))
+    }
+
+    expect(payload('CMD')).toEqual(['python', 'print("hi")', 'a\\b', ''])
+    expect(dockerfile).toContain('CMD ["python", "print(\\"hi\\")", "a\\\\b", ""]')
+    expect(payload('ENTRYPOINT')).toEqual(['/bin/bash'])
+    expect(dockerfile).toContain('ENTRYPOINT ["/bin/bash"]')
+    expect(payload('RUN')).toEqual(['sh', '-c', 'say "hi"'])
+    expect(dockerfile).toContain('RUN ["sh", "-c", "say \\"hi\\""]')
+    expect(dockerfile).toContain('RUN ["echo", "a\\\\b"]')
+    expect(dockerfile).toContain('RUN ["echo", ""]')
+    expect(dockerfile).toContain('RUN ["echo", "hello"]')
+  })
+
   it('formats pip install options and sorts package names', async () => {
     const { Image } = await import('../Image')
 

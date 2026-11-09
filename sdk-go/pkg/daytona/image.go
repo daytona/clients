@@ -230,9 +230,22 @@ func (img *DockerImage) Entrypoint(cmd []string) *DockerImage {
 //	image := daytona.Base("python:3.11").
 //	    Cmd([]string{"python", "app.py"})
 func (img *DockerImage) Cmd(cmd []string) *DockerImage {
-	cmdStr := strings.Join(cmd, "\", \"")
-	img.instructions = append(img.instructions, fmt.Sprintf("CMD [\"%s\"]", cmdStr))
+	img.instructions = append(img.instructions, fmt.Sprintf("CMD %s", dockerfileJSONArray(cmd)))
 	return img
+}
+
+// dockerfileJSONArray encodes args as a JSON array with a space after each comma.
+// json.Marshal of the whole slice omits those spaces. A nil slice encodes as [].
+func dockerfileJSONArray(args []string) string {
+	if len(args) == 0 {
+		return "[]"
+	}
+	parts := make([]string, len(args))
+	for i, arg := range args {
+		encoded, _ := json.Marshal(arg)
+		parts[i] = string(encoded)
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 // User sets the user for subsequent instructions and container runtime.
