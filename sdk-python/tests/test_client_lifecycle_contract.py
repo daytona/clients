@@ -346,27 +346,48 @@ async def test_client_accessors_and_service_classes_are_plural() -> None:
         assert not hasattr(v2, hidden), hidden
 
 
+def _volume_payload(volume_type: str) -> dict[str, object]:
+    return {
+        "id": "vol_1",
+        "name": "data",
+        "type": volume_type,
+        "status": "ready",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+
+
 @pytest.mark.anyio
-async def test_volumes_create_disk_volumes_explicitly_and_delete_by_name_or_id() -> None:
+async def test_volumes_create_leaves_the_type_to_the_server_and_deletes_by_name_or_id() -> None:
     api = _Api(
         [
-            {
-                "id": "vol_1",
-                "name": "data",
-                "type": "disk",
-                "status": "ready",
-                "created_at": "2026-01-01T00:00:00Z",
-                "updated_at": "2026-01-01T00:00:00Z",
-            },
+            _volume_payload("bucket"),
+            create_error("absent", 404, "NOT_FOUND", "DAYTONA_API"),
+            _volume_payload("bucket"),
+            _volume_payload("disk"),
+            _volume_payload("bucket"),
             {},
         ]
     )
     volumes = AsyncVolumesService(api)  # type: ignore[arg-type]
-    created = await volumes.create(name="data", size_gib=10)
+    created = await volumes.create(name="data")
+    await volumes.get("data", create=True)
+    explicit_disk = await volumes.create(name="data", size_gib=10, type="disk")
+    explicit_bucket = await volumes.create(name="data", type="bucket")
     await volumes.delete("data", id_only=False)
-    assert api.specs[0].json_body == {"name": "data", "type": "disk", "size_gib": 10}
+    # No type is sent unless the caller names one: the server chooses it, and
+    # the volume reports what it chose.
+    assert [spec.json_body for spec in api.specs[:5]] == [
+        {"name": "data"},
+        None,
+        {"name": "data"},
+        {"name": "data", "type": "disk", "size_gib": 10},
+        {"name": "data", "type": "bucket"},
+    ]
+    assert (created.type, created.raw_type) == ("bucket", "bucket")
+    assert (explicit_disk.type, explicit_bucket.type) == ("disk", "bucket")
     assert created.created_at == datetime(2026, 1, 1, tzinfo=timezone.utc)
-    assert api.specs[1].path == "/volumes/data"
+    assert api.specs[5].path == "/volumes/data"
     assert list(inspect.signature(AsyncVolumesService.delete).parameters)[1] == "name_or_id"
 
 

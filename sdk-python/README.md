@@ -470,8 +470,9 @@ through `update_env()`, not image-level environment entries.
 ### Volumes
 
 Manage volumes with `d.v2.volumes.list()`, `iter()`, `get()`, `create()` and
-`delete()`. `create(name=..., size_gib=...)` and `get(name, create=True)`
-create disk volumes; `id_only=True` on `get()` or `delete(name_or_id)`
+`delete()`. `create(name=...)` and `get(name, create=True)` let the server
+choose the volume's type; pass `type="disk"` (sized with `size_gib`) or
+`type="bucket"` to choose it. `id_only=True` on `get()` or `delete(name_or_id)`
 disables name fallback. Deletion returns when the API accepts the request,
 not when deletion finishes.
 
@@ -486,8 +487,9 @@ sandbox = d.v2.create(
 ```
 
 `create_from_build(..., volumes=[...])` accepts the same mounts. To mount an
-S3 bucket, create a bucket volume in the dashboard or with `POST /volumes`,
-then attach it through `volumes`. `VolumeMount(..., read_only=True)` is
+S3 bucket you own, create a bucket volume for it in the dashboard or with
+`daytona volume create NAME --type bucket --bucket ...`, then attach it
+through `volumes`. `VolumeMount(..., read_only=True)` is
 supported for bucket volumes; disk volumes reject it.
 
 `create_macos(..., volumes=[...])` accepts disk volumes read-write. A macOS

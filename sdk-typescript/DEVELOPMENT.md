@@ -82,8 +82,8 @@ exception to the one-page list rule.
 mapping absent optional fields to undefined and normalizing unknown states and types to
 `unknown` with the original value in `rawStatus` / `rawType`. `list()` reads
 one cursor page; `iter()` traverses pages with a cursor-cycle guard. `get()`
-takes `{ create?, idOnly? }`, `create()` takes `{ name, sizeGib? }` and sends
-`type: 'disk'`, and `delete()` takes a name or ID plus `{ idOnly? }`.
+takes `{ create?, idOnly? }`, `create()` takes `{ name, sizeGib?, type? }` and
+sends `type` only when the caller passes one (the server chooses otherwise), and `delete()` takes a name or ID plus `{ idOnly? }`.
 
 `create`, `createFromBuild` and `createMacos` accept `VolumeMount` entries
 through `volumes`. Request mapping uses `volume`, `mount_path`, `subpath`

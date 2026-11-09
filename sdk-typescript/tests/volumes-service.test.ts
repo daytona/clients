@@ -44,7 +44,7 @@ describe('platform volumes', () => {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
   })
 
-  it('creates a disk when an optional name lookup returns 404', async () => {
+  it('creates a volume of the server-chosen type when an optional name lookup returns 404', async () => {
     // Given
     responses.push({ status: 404, body: { code: 'NOT_FOUND', message: 'absent' } }, { status: 201, body: volume })
     // When
@@ -53,7 +53,7 @@ describe('platform volumes', () => {
     expect(result.id).toBe('vol_1')
     expect(requests).toEqual([
       { method: 'GET', path: '/volumes/data%2Fname', body: undefined },
-      { method: 'POST', path: '/volumes', body: { name: 'data/name', type: 'disk' } },
+      { method: 'POST', path: '/volumes', body: { name: 'data/name' } },
     ])
   })
 
@@ -78,14 +78,33 @@ describe('platform volumes', () => {
     expect(requests).toEqual([{ method: 'GET', path: '/volumes/vol_missing?id_only=true', body: undefined }])
   })
 
-  it('sends disk capacity when creating a volume', async () => {
+  it('sends no type when the caller names none, so the server chooses it', async () => {
     // Given
-    responses.push({ status: 201, body: { ...volume, size_gib: 8 } })
+    responses.push({ status: 201, body: { ...volume, type: 'bucket' } })
     // When
-    const result = await service.create({ name: 'data', sizeGib: 8 })
+    const result = await service.create({ name: 'data' })
     // Then
-    expect(result.sizeGib).toBe(8)
-    expect(requests).toEqual([{ method: 'POST', path: '/volumes', body: { name: 'data', type: 'disk', size_gib: 8 } }])
+    expect([result.type, result.rawType]).toEqual(['bucket', 'bucket'])
+    expect(requests).toEqual([{ method: 'POST', path: '/volumes', body: { name: 'data' } }])
+  })
+
+  it.each(['disk', 'bucket'] as const)('sends an explicit %s type as given', async (type) => {
+    // Given
+    responses.push({ status: 201, body: { ...volume, type, size_gib: 8 } })
+    // When
+    const result = await service.create({ name: 'data', sizeGib: 8, type })
+    // Then
+    expect(result.type).toBe(type)
+    expect(requests).toEqual([{ method: 'POST', path: '/volumes', body: { name: 'data', type, size_gib: 8 } }])
+  })
+
+  it.each(['', 'DISK', 'unknown', 'nfs', 1, ['disk'], null])('refuses type %j before any request', async (type) => {
+    // SAFETY: a plain-JS caller can pass any value.
+    const pending = service.create({ name: 'data', type: type as never })
+    await expect(pending).rejects.toMatchObject({
+      statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'type must be one of disk, bucket',
+    })
+    expect(requests).toEqual([])
   })
 
   it('preserves nested JSON options while normalizing nullable metadata and unknown enums', async () => {

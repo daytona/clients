@@ -15,12 +15,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The server chooses a volume's type when --type is omitted, so the help
+// names no client-side default for it or for --size-gib.
+func TestVolumeCreate_helpNamesNoClientDefaults(t *testing.T) {
+	help, _, err := runCLI(t, []string{"volume", "create", "--help"}, nil)
+	require.NoError(t, err)
+	require.Contains(t, help, "default: chosen by the server")
+	require.NotContains(t, help, `(default "disk")`)
+	require.NotContains(t, help, "(default 100)")
+}
+
 func TestVolumeCreate_rejectsShapesTheServerWouldRefuse(t *testing.T) {
 	cases := map[string][]string{
 		"size-gib on a bucket volume":     {"volume", "create", "v", "--size-gib", "50", "--type", "bucket"},
 		"customer bucket without creds":   {"volume", "create", "v", "--type", "bucket", "--bucket", "corp"},
 		"customer bucket with half creds": {"volume", "create", "v", "--type", "bucket", "--bucket", "corp", "--access-key-secret", "K"},
-		"bucket options on a disk volume": {"volume", "create", "v", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
+		"bucket options without a type":   {"volume", "create", "v", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
+		"bucket options on a disk volume": {"volume", "create", "v", "--type", "disk", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {

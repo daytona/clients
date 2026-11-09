@@ -260,6 +260,11 @@ async def test_platform_inputs_are_validated_before_any_request() -> None:
     for size in (0, -1, 1.5, True, float("nan"), float("inf")):
         with pytest.raises(BadRequestError, match="size_gib must be a positive integer"):
             await volumes.create(name="v", size_gib=size)  # type: ignore[arg-type]
+    # Values a caller outside the type checker can pass.
+    invalid_types: tuple[object, ...] = ("", "DISK", "unknown", "nfs", 1, ["disk"])
+    for volume_type in invalid_types:
+        with pytest.raises(BadRequestError, match="type must be one of disk, bucket"):
+            await volumes.create(name="v", type=volume_type)
     client = _client(api)
     with pytest.raises(BadRequestError, match="create_timeout_seconds must be an integer from -1"):
         await client.create("img", create_timeout_seconds=-2)

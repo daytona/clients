@@ -46,7 +46,10 @@ export interface GetVolumeOptions {
 
 export interface CreateVolumeOptions {
   readonly name: string
+  /** Disk volumes only; omitted uses the server default. */
   readonly sizeGib?: number
+  /** Omitted lets the server choose the volume's type. */
+  readonly type?: Exclude<VolumeType, 'unknown'>
 }
 
 export interface DeleteVolumeOptions {
@@ -59,7 +62,7 @@ export interface ListVolumesOptions {
 }
 
 const GET_VOLUME_KEYS = optionKeys<GetVolumeOptions>()({ create: true, idOnly: true })
-const CREATE_VOLUME_KEYS = optionKeys<CreateVolumeOptions>()({ name: true, sizeGib: true })
+const CREATE_VOLUME_KEYS = optionKeys<CreateVolumeOptions>()({ name: true, sizeGib: true, type: true })
 const DELETE_VOLUME_KEYS = optionKeys<DeleteVolumeOptions>()({ idOnly: true })
 const LIST_VOLUMES_KEYS = optionKeys<ListVolumesOptions>()({ cursor: true, limit: true })
 
@@ -156,7 +159,7 @@ export class VolumesService {
     }
   }
 
-  /** Creates a disk volume (ready immediately). */
+  /** Creates a volume; without `type` the server chooses its type. */
   public async create(options: CreateVolumeOptions): Promise<Volume> {
     // The options are required: an omitted value is refused like any non-object.
     assertOptionsObject('CreateVolumeOptions', options)
@@ -166,7 +169,10 @@ export class VolumesService {
     if (options.sizeGib !== undefined && (!Number.isInteger(options.sizeGib) || options.sizeGib <= 0 || options.sizeGib > MAX_INT32)) {
       throw badRequest(`sizeGib must be a positive integer up to ${MAX_INT32}`)
     }
-    const body: api.CreateVolumeRequest = { name: options.name, type: 'disk', size_gib: options.sizeGib }
+    if (options.type !== undefined && !(VOLUME_TYPES as readonly unknown[]).includes(options.type)) {
+      throw badRequest(`type must be one of ${VOLUME_TYPES.join(', ')}`)
+    }
+    const body: api.CreateVolumeRequest = { name: options.name, type: options.type, size_gib: options.sizeGib }
     const { data } = await this.api.post<api.Volume>('/volumes', body)
     const created = mapVolume(data)
     // A volume without a usable id cannot be mounted or deleted, as in Python.

@@ -4154,12 +4154,12 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Creates a v2 disk volume; migrate v0 volume data separately",
-          "Optional size_gib sets capacity in GiB; on AsyncDaytona this call must be awaited"
+          "Creates a v2 volume of the server's default type; migrate v0 volume data separately",
+          "Optional type chooses disk or bucket, and size_gib sets a disk volume's capacity in GiB; on AsyncDaytona this call must be awaited"
         ],
         "ts": [
-          "Creates a v2 disk volume; migrate v0 volume data separately",
-          "Optional sizeGib in the options object sets capacity in GiB"
+          "Creates a v2 volume of the server's default type; migrate v0 volume data separately",
+          "Optional type in the options object chooses disk or bucket, and sizeGib sets a disk volume's capacity in GiB"
         ]
       },
       "anchor": "client-volume",

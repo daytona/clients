@@ -84,9 +84,10 @@ func validateVolumeCreateRequest(req gen.CreateVolumeRequest) error {
 	return nil
 }
 
+// volumeType is the type the request names, "" when it leaves the choice to the server.
 func volumeType(req gen.CreateVolumeRequest) string {
-	if req.Type == nil || strings.TrimSpace(string(*req.Type)) == "" {
-		return "disk"
+	if req.Type == nil {
+		return ""
 	}
 	return strings.TrimSpace(string(*req.Type))
 }

@@ -1,6 +1,6 @@
 **Volumes** — TypeScript `volumes.create(name, sizeGib)` becomes
-`volumes.create({ name, sizeGib })` (`sizeGib` a positive integer), and
-creates a disk volume, as Python's `create(name=..., size_gib=...)` does;
+`volumes.create({ name, sizeGib })` (`sizeGib` a positive integer), as in
+Python's `create(name=..., size_gib=...)`;
 TypeScript `volumes.get(nameOrId, create, { idOnly })` becomes `get(nameOrId,
 { create, idOnly })` (Python keeps `get(name_or_id, create=...,
 id_only=...)`); `volumes.delete()` takes a name or id: Python's first argument
