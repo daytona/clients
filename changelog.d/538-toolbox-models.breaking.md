@@ -42,8 +42,8 @@ with empty strings, and leave the optional `code` / `source` absent / `None`
 when not sent; a part of any other type, or that is not valid UTF-8 JSON, is
 refused, as is a file part whose `filename*` is not valid percent-encoded
 UTF-8), a window id up to 2^53 - 1 and a `cpuUtilization` between 0 and 1, an
-RFC 3339 timestamp with the same field ranges (hour 00-23, no leap second,
-offset within ±23:59), a created process record's non-empty `id`, the record a
+RFC 3339 timestamp with the same field ranges (date and time joined by `T`,
+hour 00-23, no leap second, offset within ±23:59), a created process record's non-empty `id`, the record a
 timed-out `wait()` re-reads, in full (Python checked only its generated model,
 so an empty `id` or a bad `createdAt` still returned a result), every list,
 map and nested-object field of a response before Python decodes it (Python
