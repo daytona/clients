@@ -155,10 +155,13 @@ class FakeWorld:
         return image
 
     def _image_ready(self, image_id: str, *, wait: object = None, timeout: object = None, **_: object) -> SimpleNamespace:
-        # As the SDK's budgeted wait: it follows the image until it settles,
-        # or raises RequestTimeoutError when it never does.
+        # Without wait="ready", the image as it is now. With it, as the SDK's
+        # budgeted wait: it follows the image until it settles, or raises
+        # RequestTimeoutError when it never does.
         self.image_waits.append((wait, timeout))
         image = next(i for i in self.images if i.id == image_id)
+        if wait != "ready":
+            return image
         while image.status not in ("ready", "failed", "error") and image.waits:
             image.status = image.waits.pop(0)
         if image.status not in ("ready", "failed", "error"):
@@ -388,6 +391,15 @@ def test_registers_the_image_once_when_the_project_lacks_it(
     code, world = run_example("exec_command")
     assert code == 0
     assert world.pulled_images == [(IMAGE, IMAGE_NAME)]
+
+
+def test_the_fake_images_get_waits_only_when_asked() -> None:
+    # As the SDK: get() without wait="ready" returns the image as it is now;
+    # with it, the image once it settles (twin in examples.test.ts).
+    world = FakeWorld()
+    image = world.add_image("img", "pending", ("ready",))
+    assert world.client.images.get(image.id).status == "pending"
+    assert world.client.images.get(image.id, wait="ready", timeout=5).status == "ready"
 
 
 def test_names_distinct_image_references_apart() -> None:

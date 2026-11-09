@@ -253,11 +253,12 @@ const fake = {
       yield* images.filter((entry) => options.name === undefined || entry.name === options.name)
     },
     get: async (id: string, options: { wait?: string; timeoutSeconds?: number } = {}) => {
-      // As the SDK's budgeted wait: it follows the image until it settles, or
-      // throws RequestTimeoutError when it never does.
+      // Without wait: 'ready', the image as it is now. With it, as the SDK's
+      // budgeted wait: it follows the image until it settles, or throws
+      // RequestTimeoutError when it never does.
       record.imageWaits.push({ wait: options.wait, timeoutSeconds: options.timeoutSeconds })
       const entry = images.find((candidate) => candidate.id === id)
-      if (entry === undefined) return entry
+      if (entry === undefined || options.wait !== 'ready') return entry
       const settled = (): boolean => ['ready', 'failed', 'error'].includes(entry.status)
       while (!settled() && entry.waits.length > 0) entry.status = entry.waits.shift() ?? entry.status
       if (!settled()) throw new RequestTimeoutError('image did not settle', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })

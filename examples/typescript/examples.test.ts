@@ -127,6 +127,15 @@ test('registers the image once when the project lacks it', () => {
   assert.deepEqual(record.pulledImages, [{ ref: IMAGE, name: IMAGE_NAME }])
 })
 
+test('the fake images.get waits only when asked', () => {
+  // As the SDK: get() without wait: 'ready' returns the image as it is now;
+  // with it, the image once it settles (twin in test_examples.py).
+  const { code, output } = runExample('typescript/test-support/image-get.ts', { images: [[IMAGE_NAME, 'pending', ['ready']]] })
+  assert.equal(code, 0, output)
+  assert.match(output, /^get: pending$/m)
+  assert.match(output, /^get ready: ready$/m)
+})
+
 test('names distinct image references apart', () => {
   assert.match(IMAGE_NAME, /^examples-[a-z0-9-]+-[0-9a-f]{8}$/)
   const names = ['foo:bar', 'foo/bar', 'foo.bar'].map(imageName)
