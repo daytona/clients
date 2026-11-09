@@ -17,7 +17,7 @@ import { GitService } from '../src/v2/Git'
 import { InterpreterService } from '../src/v2/Interpreter'
 import { LspService } from '../src/v2/Lsp'
 import { ProcessService, PtyService } from '../src/v2/Process'
-import { BadRequestError } from '../src/v2/errors/DaytonaError'
+import { BadRequestError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
 import { envelopeList, fileMatchFromWire, gitCommitFromWire, gitRemoteFromWire, logFrameFromWire, replaceResultFromWire, systemMetricsFromWire } from '../src/v2/toolboxModels'
@@ -351,6 +351,15 @@ describe('toolbox results are frozen at run time', () => {
     expect(Object.isFrozen(cyclic)).toBe(true)
     expect(Object.isFrozen(bytes)).toBe(false)
     expect(Object.isFrozen(handle)).toBe(false)
+  })
+
+  it('applies a per-call readMany cap: too small is PayloadTooLargeError, large enough a frozen result', async () => {
+    await expect(fs().readMany(['/a', '/b'], { maxResponseBytes: 16 })).rejects.toMatchObject({
+      constructor: PayloadTooLargeError, statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK',
+    })
+    const result = await fs().readMany(['/a', '/b'], { maxResponseBytes: 1_000_000 })
+    expectDeeplyFrozen(result)
+    expect(new TextDecoder().decode(result.files['/a'])).toBe('hi')
   })
 
   it('leaves the bytes of a bulk read live while freezing the result around them', async () => {

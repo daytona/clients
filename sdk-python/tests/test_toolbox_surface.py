@@ -2326,3 +2326,36 @@ def test_a_mixed_case_multipart_boundary_parameter_is_read() -> None:
     )
     result = parse_bulk_read_result(body, content_type='Multipart/Form-Data; Boundary="XyZ"')
     assert result.files == {"/a": b"hi"}
+
+
+@pytest.mark.anyio
+async def test_read_many_takes_a_per_call_cap_and_returns_a_frozen_result_under_it() -> None:
+    import httpx
+
+    from daytona.v2._transport import AsyncTransport
+    from daytona.v2.errors import PayloadTooLargeError
+
+    body = (
+        b"--B\r\n"
+        b'Content-Disposition: form-data; name="file"; filename="/a"\r\n'
+        b"Content-Type: application/octet-stream\r\n\r\n"
+        b"hi\r\n--B--\r\n"
+    )
+
+    def respond(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body, headers={"content-type": "multipart/form-data; boundary=B"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        fs = AsyncFileSystemService(AsyncTransport("http://toolbox.invalid", client=client))
+        with pytest.raises(PayloadTooLargeError) as info:
+            await fs.read_many(["/a"], max_response_bytes=16)
+        assert (info.value.status_code, info.value.code, info.value.source) == (
+            413,
+            "PAYLOAD_TOO_LARGE",
+            "SDK",
+        )
+        result = await fs.read_many(["/a"], max_response_bytes=1_000_000)
+
+    assert result.files == {"/a": b"hi"}
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        result.files = {}  # type: ignore[misc]

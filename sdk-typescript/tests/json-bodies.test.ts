@@ -13,7 +13,7 @@ import { createServer } from 'node:http'
 import type { Server } from 'node:http'
 import { once } from 'node:events'
 import { FileSystemService } from '../src/v2/FileSystem'
-import { BadRequestError } from '../src/v2/errors/DaytonaError'
+import { BadRequestError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
 import { parseBulkReadResult } from '../src/v2/filesystemWire'
@@ -25,6 +25,7 @@ const FILE_INFO = {
 
 const BODIES: Record<string, Buffer> = {
   bad: Buffer.from('{bad'),
+  bigbad: Buffer.from(`{bad${'x'.repeat(4096)}`),
   utf8: Buffer.concat([Buffer.from('{"a":"'), Buffer.from([0xff]), Buffer.from('"}')]),
   nan: Buffer.from('{"a": NaN}'),
   valid: Buffer.from(JSON.stringify(FILE_INFO)),
@@ -89,5 +90,17 @@ describe('JSON response bodies', () => {
     )
     const result = parseBulkReadResult(body, 'Multipart/Form-Data; Boundary="XyZ"')
     expect(new TextDecoder().decode(result.files['/a'])).toBe('hi')
+  })
+
+  // The client cap is checked by the adapter while it reads the bytes, before
+  // decodeResponseBody runs: an undecodable JSON body over the cap is refused
+  // as too large, never as invalid JSON.
+  it('refuses a JSON body over the client cap before decoding it', async () => {
+    for (const body of ['valid', 'bigbad']) {
+      const capped = new FileSystemService(INTERNAL, new HttpTransport(`${base}/${body}/json`, 'k', 5_000, { maxResponseBytes: 64 }))
+      await expect(capped.stat('/d/a')).rejects.toMatchObject({
+        constructor: PayloadTooLargeError, statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK',
+      })
+    }
   })
 })
