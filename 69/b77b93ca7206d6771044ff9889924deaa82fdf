@@ -1,0 +1,25 @@
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_c2dda084cb70b0 24-55
+sdk-python/tests/test_events.py
+  s_ca009e77d17705::t_aa354cafe01e8b 2991-3032
+sdk-python/tests/test_sandbox_tokens.py
+  s_ca009e77d17705::t_e2df2280242f92 1180-1192
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_e2df2280242f92 3104-3126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69b77b93ca7206d6771044ff9889924deaa82fdf",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
