@@ -35,7 +35,7 @@ from .errors import (
 )
 from .types import JsonObject
 
-BuildContext = Union[bytes, bytearray, memoryview, str, "os.PathLike[str]"]
+BuildContext = Union[bytes, bytearray, memoryview, str, os.PathLike[str]]
 """A build-context tar: its bytes, or the path of a ``.tar`` file."""
 
 MAX_CONTEXT_BYTES = 1 << 30
@@ -181,17 +181,21 @@ class _Part:
         return f"_Part(number={self.number}, bytes={self.bytes}, url=<redacted>)"
 
 
+def _malformed(message: str) -> BadRequestError:
+    return BadRequestError(message, status_code=400, code="BAD_REQUEST", source="SDK")
+
+
 def _parts(payload: Mapping[str, object]) -> list[_Part]:
     raw = payload.get("parts")
     if not isinstance(raw, list):
-        raise DaytonaError("build context upload response has no parts", source="SDK")
+        raise _malformed("build context upload response has no parts")
     parts: list[_Part] = []
     for item in raw:
         if not isinstance(item, Mapping):
-            raise DaytonaError("build context upload response has a malformed part", source="SDK")
+            raise _malformed("build context upload response has a malformed part")
         number, size, url = item.get("part_number"), item.get("bytes"), item.get("url")
         if not isinstance(number, int) or not isinstance(size, int) or not isinstance(url, str):
-            raise DaytonaError("build context upload response has a malformed part", source="SDK")
+            raise _malformed("build context upload response has a malformed part")
         parts.append(_Part(number, size, url))
     return parts
 
@@ -199,7 +203,7 @@ def _parts(payload: Mapping[str, object]) -> list[_Part]:
 def _text(payload: Mapping[str, object], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or value == "":
-        raise DaytonaError(f"build context upload response has no {key}", source="SDK")
+        raise _malformed(f"build context upload response has no {key}")
     return value
 
 
@@ -270,7 +274,7 @@ async def upload_build_context(
         body["region_id"] = region
     created = await transport.send(RequestSpec("POST", "/build-contexts", json_body=body))
     if not isinstance(created, Mapping):
-        raise DaytonaError("build context upload response is not an object", source="SDK")
+        raise _malformed("build context upload response is not an object")
     upload_id = _text(created, "id")
     region_id = _text(created, "region_id")
     if created.get("state") == "ready":
@@ -280,7 +284,7 @@ async def upload_build_context(
         any(part.number != index + 1 or part.bytes <= 0 for index, part in enumerate(parts))
         or sum(part.bytes for part in parts) != source.size
     ):
-        raise DaytonaError("build context upload parts do not cover the archive", source="SDK")
+        raise _malformed("build context upload parts do not cover the archive")
     with _redact_part_urls.active([part.url for part in parts]):
         async with httpx.AsyncClient(
             timeout=_PART_TIMEOUT_SECONDS, follow_redirects=False, trust_env=True

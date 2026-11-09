@@ -29,7 +29,6 @@ from daytona.v2.errors import (
     BadRequestError,
     ConflictError,
     ConnectionError,
-    DaytonaError,
     InternalServerError,
     ServiceUnavailableError,
 )
@@ -341,7 +340,7 @@ async def test_a_malformed_part_layout_is_refused_before_any_upload(
     # Given a declaration answered with parts out of order, or with an empty part.
     with storage_peer(part_size=4096, rewrite_parts=rewrite) as peer:
         # When it is built from the context.
-        with pytest.raises(DaytonaError, match="do not cover the archive"):
+        with pytest.raises(BadRequestError, match="do not cover the archive"):
             await build(peer, archive(10_000), sync)
         # Then nothing is uploaded, completed or built.
         assert not [
@@ -572,4 +571,4 @@ async def test_the_build_request_takes_the_timeout(
         await build(peer, archive(), False, timeout=timeout)
     [spec] = [spec for spec in sent if getattr(spec, "path", None) == "/images" and spec.method == "POST"]  # type: ignore[attr-defined]
     assert spec.timeout == expected  # type: ignore[attr-defined]
-    assert spec.unbounded_read is (timeout in (None, 0))  # type: ignore[attr-defined]
+    assert spec.unbounded_read is False  # type: ignore[attr-defined]

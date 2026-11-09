@@ -248,7 +248,6 @@ class AsyncImagesService:
                     "/images",
                     json_body=body,
                     timeout=timeout or None,
-                    unbounded_read=timeout in (None, 0),
                 )
             )
         )
