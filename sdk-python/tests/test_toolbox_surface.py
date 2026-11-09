@@ -2407,8 +2407,11 @@ def test_an_error_body_nested_past_the_limit_keeps_only_its_status(depth: int, r
 
     nest = depth - 1  # the envelope object is one level
     body = ('{"code":"FILE_NOT_FOUND","message":"gone","details":' + "[" * nest + "]" * nest + "}").encode()
-    error = error_from_response(404, body)
+    error = error_from_response(404, body, content_type="application/json; charset=utf-8")
     assert isinstance(error, NotFoundError)
+    # A body not declared as JSON is never read for a code, however deep.
+    plain = error_from_response(404, body, content_type="text/plain")
+    assert (plain.code, str(plain)) == (None, body.decode())
     if readable:
         assert (str(error), error.status_code, error.code) == ("gone", 404, "FILE_NOT_FOUND")
     else:

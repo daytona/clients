@@ -5,7 +5,7 @@
 
 import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
-import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, responseTooLargeError } from './errors/DaytonaError.js'
+import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, responseTooLargeError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
 import { boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
@@ -1203,16 +1203,6 @@ function responseBytes(data: unknown): Uint8Array | undefined {
   if (data instanceof ArrayBuffer) return new Uint8Array(data)
   if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
   return undefined
-}
-
-/**
- * Whether a response's media type is exactly `application/json` (type and
- * subtype compared case-insensitively, parameters ignored), as the Python
- * SDK's `is_json_media_type`: `application/jsonl` is not JSON.
- */
-export function isJsonMediaType(contentType: unknown): boolean {
-  if (typeof contentType !== 'string') return false
-  return (contentType.split(';')[0] ?? '').trim().toLowerCase() === 'application/json'
 }
 
 function declaresJson(headers: AxiosResponseHeaders | undefined): boolean {

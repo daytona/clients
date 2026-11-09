@@ -90,6 +90,11 @@ records it). Both roots copy the config's fields once, when the client is
 built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
 caller's object have no effect, and URL fields are refused before and after
 the copy (a getter or property could otherwise add one while it is read).
+Another deliberate difference, in compressed response bodies: a body cut short
+on the wire is caught by `Content-Length` / chunked framing in both SDKs, but
+incomplete compressed data inside a complete HTTP message is refused by Python
+(`ConnectionError`; it decodes itself) and passed through by TypeScript, whose
+runtimes decode it and accept it.
 
 Versions are NOT bumped per PR, nor anywhere else in git: the tracked
 `version` fields in `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and
@@ -532,13 +537,16 @@ skipping exist only in the TypeScript tool).
   recording download. A declared `Content-Length` over the cap is refused
   before the body is read, otherwise reading stops once it passes, and the
   connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
-  `readFetchText`). A compressed body never decodes past the cap in memory:
-  Python reads the wire bytes and decodes gzip / deflate itself in 64 KiB
-  steps, asks only for those (`Accept-Encoding: gzip, deflate`) and refuses
-  any other encoding undecoded; in TypeScript the runtime decodes the body as
-  a stream (Node's zlib streams and Node's `fetch` yield 16 KiB chunks, which
-  `tests/transfer-bounds.test.ts` checks on both adapters), and each chunk is
-  checked before it is kept. A refused success response is `PayloadTooLargeError`
+  `readFetchText`). A compressed body is capped on its decoded bytes:
+  Python reads the wire bytes and decodes gzip (also sent as `x-gzip`) /
+  deflate itself in steps of at most 64 KiB (`DECODE_STEP`), so at most one
+  step past the cap is ever produced, asks only for those
+  (`Accept-Encoding: gzip, deflate`), refuses any other encoding undecoded, and refuses compressed data that stops before
+  its end as a `ConnectionError`, like a body cut short on the wire; in
+  TypeScript the runtime decodes the body, and every decoded chunk is checked
+  against the cap before it is kept (on Node both adapters decode in chunks
+  of at most 16 KiB, measured by `tests/transfer-bounds.test.ts`; other
+  runtimes use their own chunk sizes). A refused success response is `PayloadTooLargeError`
   (413, `PAYLOAD_TOO_LARGE`, `SDK`); an error response keeps its status's
   error. TypeScript sends every axios request through `boundedAdapter`:
   Node's http adapter where the runtime has it, else its own `fetchAdapter`
@@ -603,7 +611,12 @@ skipping exist only in the TypeScript tool).
   the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
   `.code` only (no `error_code` / `errorCode`); `code` and `source` are open
   vocabularies (an unknown code is kept verbatim, the class falls back to the
-  HTTP status). Constructors take the message plus options: TS
+  HTTP status). An error response's body is read for a code, source and
+  details only when its media type is exactly `application/json`
+  (case-insensitive, parameters ignored: Python `is_json_media_type`, TS
+  `isJsonMediaType`), on every error path (the transports, the byte reads,
+  the bulk read, build logs, the token exchange); any other body is only the
+  message of the status's own error. Constructors take the message plus options: TS
   `new XError(message, options?: ErrorOptions)`, Python
   `XError(message, *, status_code=None, code=None, source=None, ...)`, with the
   same defaults (`TransferCancelledError()` → "file transfer cancelled", 499,

@@ -19,7 +19,7 @@ from typing import AsyncIterator, Final, Iterator, Optional
 
 import httpx
 
-from .errors import DaytonaError, create_error
+from .errors import ConnectionError, DaytonaError, create_error
 
 #: The default cap on a buffered response body: 1 GiB.
 DEFAULT_MAX_RESPONSE_BYTES: Final = 1 << 30
@@ -94,16 +94,30 @@ def _unreadable(status_code: int, detail: str) -> DaytonaError:
     return create_error(f"the response body {detail}", 400, "BAD_REQUEST", "SDK")
 
 
+_GZIP_MAGIC: Final = b"\x1f\x8b"
+
+
 class _BoundedDecoder:
     """Decodes a gzip or deflate body incrementally, at most ``DECODE_STEP``
     decoded bytes at a time, so a small compressed chunk never expands into a
-    large decoded one (a decompression bomb) before the cap is checked."""
+    large decoded one (a decompression bomb) before the cap is checked.
+
+    A body whose compressed data stops before its end is refused, as a body
+    cut short on the wire is. Gzip members that follow one another are all
+    decoded; other bytes after the last member (or after a deflate stream) are
+    ignored, as httpx and Node's zlib do.
+    """
 
     def __init__(self, encoding: str, status_code: int) -> None:
         self._encoding = encoding
         self._status_code = status_code
         self._gzip = encoding in ("gzip", "x-gzip")
         self._first = True
+        self._fed = False
+        # Bytes after a finished gzip member, too few yet to tell whether
+        # another member starts; ``None`` while a member is being decoded.
+        self._between: Optional[bytes] = None
+        self._trailing = False
         self._z = self._new()
 
     def _new(self) -> "zlib._Decompress":  # noqa: UP037
@@ -122,25 +136,48 @@ class _BoundedDecoder:
         self._first = False
         return out
 
+    def _after_end(self, rest: bytes) -> Optional[bytes]:
+        """What to decode next once a member or stream has ended: the next
+        gzip member, or ``None`` (wait for more bytes, or ignore the rest)."""
+        if not self._gzip:
+            self._trailing = True
+            return None
+        if len(rest) < len(_GZIP_MAGIC) and _GZIP_MAGIC.startswith(rest):
+            self._between = rest
+            return None
+        self._between = None
+        if not rest.startswith(_GZIP_MAGIC):
+            self._trailing = True
+            return None
+        self._z = self._new()
+        return rest
+
     def feed(self, data: bytes) -> Iterator[bytes]:
-        pending = data
-        while True:
+        if not data or self._trailing:
+            return
+        self._fed = True
+        pending: Optional[bytes] = data
+        if self._between is not None:
+            pending = self._after_end(self._between + data)
+        while pending is not None:
             out = self._decompress(pending)
             if out:
                 yield out
-            pending = self._z.unconsumed_tail
-            if self._z.eof and self._z.unused_data:
-                # Another gzip member follows.
-                pending = self._z.unused_data
-                self._z = self._new()
+            if self._z.eof:
+                pending = self._after_end(self._z.unused_data)
                 continue
+            pending = self._z.unconsumed_tail
             if not pending and len(out) < DECODE_STEP:
                 return
 
     def finish(self) -> Iterator[bytes]:
-        tail = self._z.flush()
-        for offset in range(0, len(tail), DECODE_STEP):
-            yield tail[offset : offset + DECODE_STEP]
+        if not self._fed or self._trailing or self._between is not None:
+            return
+        if not self._z.eof:
+            # The compressed data stops before its end: as incomplete as a
+            # body cut short on the wire, whatever the status.
+            raise ConnectionError(f"the response body ended before its {self._encoding} data was complete")
+        yield from ()
 
 
 def _decoder(response: httpx.Response) -> Optional[_BoundedDecoder]:

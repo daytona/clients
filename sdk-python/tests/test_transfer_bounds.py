@@ -20,7 +20,7 @@ import time
 import tracemalloc
 import zlib
 from pathlib import Path
-from typing import AsyncIterator, Callable, Iterator
+from typing import AsyncIterator, Awaitable, Callable, Iterator
 
 import anyio
 import httpx
@@ -31,12 +31,13 @@ from daytona import AsyncDaytona, Daytona, DaytonaConfig
 from daytona.v2 import (
     BadRequestError,
     ClientTimeoutError,
+    ConnectionError,
     FileNotFoundError,
     NotFoundError,
     PayloadTooLargeError,
 )
 from daytona.v2._core import RequestSpec
-from daytona.v2._transport import AsyncTransport
+from daytona.v2._transport import AsyncTransport, SyncTransport
 
 IDLE = 0.5
 STALL = 5.0
@@ -804,6 +805,106 @@ async def test_an_error_status_with_a_compressed_body_past_the_cap_keeps_its_typ
             await root.close()
 
 
+def _raw_deflate(payload: bytes) -> bytes:
+    raw = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+    return raw.compress(payload) + raw.flush()
+
+
+_TRUNCATED_PAYLOAD = b'{"code":"FILE_NOT_FOUND","message":"gone"}' + b" " * 4000
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("status", [200, 404])
+@pytest.mark.parametrize("encoding", ["gzip", "deflate"])
+async def test_a_compressed_body_whose_data_stops_early_is_refused_as_cut_short(
+    encoding: str, status: int
+) -> None:
+    # The HTTP message is complete (its Content-Length matches), the compressed
+    # data in it is not: the same ConnectionError as a body cut short on the wire.
+    wire = gzip.compress(_TRUNCATED_PAYLOAD) if encoding == "gzip" else zlib.compress(_TRUNCATED_PAYLOAD)
+    routes: dict[str, Handler] = {
+        "/files/download": _encoded(wire[:-6], encoding, status),
+        "/raw": _encoded(_raw_deflate(_TRUNCATED_PAYLOAD)[:-3], "deflate", status),
+    }
+    with _server(routes) as base:
+        root = _client(base)
+        try:
+            sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+            calls = [
+                (encoding, lambda: sandbox.fs.read_bytes("/a")),
+                ("deflate", lambda: sandbox._toolbox.raw(RequestSpec("GET", "/raw"))),  # type: ignore[attr-defined]
+            ]
+            for name, call in calls:
+                with pytest.raises(
+                    ConnectionError, match=f"ended before its {name} data was complete"
+                ) as caught:
+                    await call()
+                assert type(caught.value) is ConnectionError
+                assert (caught.value.status_code, caught.value.code, caught.value.source) == (
+                    None,
+                    None,
+                    "SDK",
+                )
+        finally:
+            await root.close()
+
+
+def test_the_sync_client_refuses_a_compressed_body_whose_data_stops_early_too() -> None:
+    wire = gzip.compress(_TRUNCATED_PAYLOAD)[:-6]
+    with (
+        _server({"/files/download": _encoded(wire, "gzip", 404)}) as base,
+        Daytona(DaytonaConfig(api_key="k")) as root,
+    ):
+        sandbox = lazy_sandbox(root.v2, "sbx", toolbox_url=base, access_token="t")
+        with pytest.raises(ConnectionError, match="ended before its gzip data was complete"):
+            sandbox.fs.read_bytes("/a")
+
+
+def _decode(encoding: str, wire: bytes, step: int = 1) -> bytes:
+    from daytona.v2._body_limit import _BoundedDecoder
+
+    decoder = _BoundedDecoder(encoding, 200)
+    out = bytearray()
+    for offset in range(0, len(wire), step):
+        for piece in decoder.feed(wire[offset : offset + step]):
+            out.extend(piece)
+    for piece in decoder.finish():
+        out.extend(piece)
+    return bytes(out)
+
+
+@pytest.mark.parametrize("encoding", ["gzip", "deflate", "raw deflate"])
+def test_every_early_end_of_the_compressed_data_is_refused(encoding: str) -> None:
+    payload = b"daytona " * 300
+    wire = {
+        "gzip": gzip.compress(payload),
+        "deflate": zlib.compress(payload),
+        "raw deflate": _raw_deflate(payload),
+    }[encoding]
+    name = "gzip" if encoding == "gzip" else "deflate"
+    assert _decode(name, wire, step=7) == payload
+    # An empty body has nothing to decode.
+    assert _decode(name, b"") == b""
+    for end in range(1, len(wire)):
+        with pytest.raises(ConnectionError, match="data was complete"):
+            _decode(name, wire[:end], step=5)
+
+
+def test_gzip_members_are_all_decoded_and_other_trailing_bytes_ignored() -> None:
+    one, two = gzip.compress(b"first "), gzip.compress(b"second")
+    for step in (1, 3, 1000):
+        assert _decode("gzip", one + two, step) == b"first second"
+        # Bytes after the last member that start no member are ignored, as
+        # httpx and Node's zlib ignore them; a lone 0x1f too.
+        assert _decode("gzip", one + two + b"\x00 trailing", step) == b"first second"
+        assert _decode("gzip", one + b"\x1f", step) == b"first "
+        assert _decode("x-gzip", one + b"junk" + two, step) == b"first "
+        assert _decode("deflate", zlib.compress(b"deflated") + b"junk", step) == b"deflated"
+    # A member that starts but stops early is still refused.
+    with pytest.raises(ConnectionError, match="gzip data was complete"):
+        _decode("gzip", one + two[:5])
+
+
 @pytest.mark.anyio
 async def test_only_bounded_encodings_are_asked_for_and_any_other_is_refused_undecoded() -> None:
     seen: list[str] = []
@@ -832,3 +933,77 @@ async def test_only_bounded_encodings_are_asked_for_and_any_other_is_refused_und
         finally:
             await transport.close()
     assert seen == ["gzip, deflate"] * 4
+
+
+# --- error bodies -------------------------------------------------------------
+
+_ENVELOPE = b'{"code":"FILE_NOT_FOUND","message":"gone","source":"DAYTONA_DAEMON"}'
+
+
+def _error_body(content_type: str | None) -> Handler:
+    def handle(request: http.server.BaseHTTPRequestHandler) -> None:
+        _drain(request)
+        headers = {"Content_Length": str(len(_ENVELOPE))}
+        if content_type is not None:
+            headers["Content_Type"] = content_type
+        _send_head(request, 404, **headers)
+        request.wfile.write(_ENVELOPE)
+
+    return handle
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "content_type", ["text/plain", "application/jsonl", "application/problem+json", None]
+)
+async def test_only_an_error_body_declared_as_application_json_carries_a_code(
+    content_type: str | None,
+) -> None:
+    # A body that looks like an envelope but is not declared as JSON is only
+    # the message: the status's own error, no server code.
+    with _server({"/": _error_body(content_type)}) as base:
+        transport = AsyncTransport(base, "t", request_timeout=10)
+        sync = SyncTransport(base, "t", request_timeout=10)
+        try:
+            calls: list[Callable[[], Awaitable[object]]] = [
+                lambda: transport.send(RequestSpec("GET", "/a")),
+                lambda: transport.raw(RequestSpec("GET", "/files/download")),
+                lambda: transport.open_stream(RequestSpec("GET", "/stream")),
+            ]
+            for call in calls:
+                with pytest.raises(NotFoundError) as caught:
+                    await call()
+                assert type(caught.value) is NotFoundError
+                assert (caught.value.code, str(caught.value)) == (None, _ENVELOPE.decode())
+            with pytest.raises(NotFoundError) as caught_sync:
+                sync.send(RequestSpec("GET", "/a"))
+            assert type(caught_sync.value) is NotFoundError and caught_sync.value.code is None
+        finally:
+            await transport.close()
+            sync.close()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("content_type", ["application/json", "Application/JSON ; charset=utf-8"])
+async def test_an_error_body_declared_as_application_json_carries_its_code(content_type: str) -> None:
+    with _server({"/": _error_body(content_type)}) as base:
+        transport = AsyncTransport(base, "t", request_timeout=10)
+        sync = SyncTransport(base, "t", request_timeout=10)
+        try:
+            for call in (
+                lambda: transport.send(RequestSpec("GET", "/a")),
+                lambda: transport.raw(RequestSpec("GET", "/files/download")),
+                lambda: transport.open_stream(RequestSpec("GET", "/stream")),
+            ):
+                with pytest.raises(FileNotFoundError) as caught:
+                    await call()
+                assert (caught.value.code, caught.value.source, str(caught.value)) == (
+                    "FILE_NOT_FOUND",
+                    "DAYTONA_DAEMON",
+                    "gone",
+                )
+            with pytest.raises(FileNotFoundError):
+                sync.send(RequestSpec("GET", "/a"))
+        finally:
+            await transport.close()
+            sync.close()

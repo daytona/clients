@@ -285,23 +285,26 @@ def parse_json_bytes(content: bytes) -> JsonValue:
     return loads_json(content.decode("utf-8"))
 
 
-def error_from_response(status_code: int, body: bytes) -> DaytonaError:
-    """The status's typed error, with the code and details of a JSON error
-    body. A body nested deeper than :data:`JSON_MAX_DEPTH` is unreadable, as
-    an oversized one is: the error carries no code or details from it."""
-    try:
-        decoded = parse_json_bytes(body)
-    except DaytonaError:  # nested deeper than JSON_MAX_DEPTH
-        return create_error(
-            f"HTTP {status_code}: the response body was nested too deeply to read "
-            f"(over {JSON_MAX_DEPTH} levels of JSON)",
-            status_code,
-        )
-    except Exception:
-        decoded = None
-    try:
-        payload = expect_object(decoded)
-    except Exception:
+def error_from_response(status_code: int, body: bytes, *, content_type: Optional[str]) -> DaytonaError:
+    """The status's typed error, with the code and details of the body when
+    it is a JSON object declared as ``application/json``; any other body is
+    only the message. A JSON body nested deeper than :data:`JSON_MAX_DEPTH`
+    is unreadable, as an oversized one is: the error carries no code or
+    details from it."""
+    payload: Optional[JsonObject] = None
+    if is_json_media_type(content_type):
+        try:
+            decoded: Optional[JsonValue] = parse_json_bytes(body)
+        except DaytonaError:  # loads_json: nested deeper than JSON_MAX_DEPTH
+            return create_error(
+                f"HTTP {status_code}: the response body was nested too deeply to read "
+                f"(over {JSON_MAX_DEPTH} levels of JSON)",
+                status_code,
+            )
+        except ValueError:  # not JSON, or not UTF-8
+            decoded = None
+        payload = decoded if isinstance(decoded, dict) else None
+    if payload is None:
         payload = {"message": body.decode("utf-8", errors="replace") or f"HTTP {status_code}"}
     return parse_error_payload(status_code, payload)
 
