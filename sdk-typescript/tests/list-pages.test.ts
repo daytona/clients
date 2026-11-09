@@ -39,13 +39,16 @@ async function refusal(body: unknown, list: Lister): Promise<unknown> {
 }
 
 describe.each(LISTS)('the %s list', (_name, field, list) => {
-  it.each([
+  const cases: ReadonlyArray<readonly [string, unknown, string]> = [
     ['a body without the array', { items: [], nextCursor: null }, `missing the ${field} array`],
     ['a non-array field', { [field]: {} }, `missing the ${field} array`],
     ['a non-object entry', { [field]: [3] }, `${field} entry that is not an object`],
     ['a non-string cursor', { [field]: [], next_cursor: 5 }, 'next_cursor that is not a string'],
     ['a non-object body', [], 'not a JSON object'],
-  ])('refuses %s with BadRequestError', async (_case, body, message) => {
+  // The Mac model registry is not paged: a next_cursor there is an unknown
+  // field, ignored (tests/malformed-responses.test.ts pins it).
+  ]
+  it.each(cases.filter(([name]) => !(field === 'mac_models' && name === 'a non-string cursor')))('refuses %s with BadRequestError', async (_case, body, message) => {
     const error = await refusal(body, list)
     expect(error).toBeInstanceOf(BadRequestError)
     expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(message) })

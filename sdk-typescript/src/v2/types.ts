@@ -573,7 +573,7 @@ export interface SandboxConnectOptions {
   /**
    * Token override for this sandbox's toolbox requests. A caller-supplied token is
    * used verbatim and never silently replaced: its expiry surfaces as a 401.
-   * Without one, a handle with a project API key mints and refreshes
+   * Without one, a handle with an API key or a JWT client's project token mints and refreshes
    * short-lived sandbox access tokens transparently.
    */
   readonly accessToken?: string

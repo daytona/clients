@@ -63,7 +63,7 @@ export class SnapshotsService {
   }
 
   public async get(snapshotId: string, options: GetArtifactOptions = {}): Promise<Snapshot> {
-    return getArtifact(this.http, `/snapshots/${pathSegment(snapshotId, 'snapshotId')}`, options, 
+    return getArtifact(this.http, `/snapshots/${pathSegment(snapshotId, 'snapshotId')}`, options,
       // SAFETY: the Snapshot constructor checks the response against the contract.
       (data) => new Snapshot(INTERNAL, data as api.Snapshot))
   }

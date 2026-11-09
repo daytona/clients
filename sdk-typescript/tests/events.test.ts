@@ -2171,6 +2171,52 @@ describe('eventDestinationFromHeaders', () => {
 })
 
 describe('a terminal state the hub reports, on the real hub', () => {
+  // A wait that rejects from a state the hub already holds for the sandbox
+  // carries the wire status the hub holds with it. The Python twin is in
+  // tests/test_terminal_report.py.
+  async function hold(state: string, api?: AxiosInstance) {
+    const fc = makeFakeConnector()
+    const ws = fc.prepare()
+    const hub = makeHub(fc, api === undefined ? {} : { api })
+    // A waiter that treats nothing as terminal keeps the subscription, and so
+    // the state the hub holds, alive.
+    const keeper = hub.wait(SANDBOX_ID, targetPredicate(new Set(['started']), new Set()), { timeout: 30_000 }).catch(() => undefined)
+    await drain()
+    ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: state, version: 1 })
+    await drain()
+    return { hub, keeper }
+  }
+
+  test.each(['failed', 'lost'])('a wait rejected from a held %s state carries its wire status', async (state) => {
+    const { hub, keeper } = await hold(state)
+    try {
+      const error: unknown = await hub.wait(SANDBOX_ID, targetPredicate(new Set(['started']), new Set(['destroying', 'destroyed', 'error'])), { timeout: 5_000 }).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(SandboxTerminalStateError)
+      expect(error).toMatchObject({ state: 'error', rawState: state })
+    } finally {
+      await hub.detach()
+      await keeper
+    }
+  })
+
+  test('a held terminal state keeps its wire status when the confirming read fails', async () => {
+    const { createSandbox } = await import('./helpers/sandbox')
+    const api = mockAxios({ getStatus: 503 })
+    const { hub, keeper } = await hold('lost', api)
+    try {
+      const sandbox = createSandbox({ id: SANDBOX_ID, class: 'linux', status: 'running', region_id: 'regiona' }, api, undefined, 'key', undefined, {}, undefined, undefined, hub)
+      const error: unknown = await sandbox.wait({ until: 'started', timeoutSeconds: 5 }).catch((caught: unknown) => caught)
+      // The confirming read was made, failed, and the held report stands.
+      expect((api.get as jest.Mock).mock.calls).toHaveLength(1)
+      expect(error).toBeInstanceOf(SandboxTerminalStateError)
+      expect(error).toMatchObject({ state: 'error', rawState: 'lost' })
+      expect((error as { reason?: string }).reason).toBeUndefined()
+    } finally {
+      await hub.detach()
+      await keeper
+    }
+  })
+
   test('a stale error snapshot ends a delete once the sandbox is gone', async () => {
     // delete() sends the DELETE, subscribes, and the snapshot still says
     // `failed` (taken before the DELETE moved the sandbox on). The hub reports

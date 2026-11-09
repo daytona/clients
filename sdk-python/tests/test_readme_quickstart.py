@@ -44,7 +44,7 @@ def test_readme_quickstart_waits_for_import_and_deletion(
                     "updated_at": "2026-01-01T00:00:00Z",
                     "class": "linux",
                     "retention": "permanent",
-                    "format_version": 1,
+                    "format_version": 2,
                     "format_outdated": False,
                     "platform": False,
                     "default": False,
@@ -73,7 +73,7 @@ def test_readme_quickstart_waits_for_import_and_deletion(
                 "access_token": "toolbox-jwt",
                 "token_type": "Bearer",
                 "expires_at": "2099-01-01T00:00:00Z",
-                "operations": [],
+                "operations": ["toolbox"],
             },
         )
         command = wire.post("http://toolbox.invalid/sbx-quickstart/processes").respond(

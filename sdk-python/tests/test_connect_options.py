@@ -21,7 +21,7 @@ _MINTED: JsonObject = {
     "access_token": "minted-bearer",
     "expires_at": "2040-01-01T00:00:00Z",
     "token_type": "Bearer",
-    "operations": [],
+    "operations": ["toolbox"],
 }
 
 

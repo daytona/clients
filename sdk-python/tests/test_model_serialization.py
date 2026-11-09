@@ -159,6 +159,10 @@ def test_a_model_is_a_plain_dataclass(model: object) -> None:
     assert isinstance(as_dict, dict)
     assert copy.deepcopy(model) == model
     assert pickle.loads(pickle.dumps(model)) == model
+    # Frozen: assigning any field raises.
+    field = dataclasses.fields(model)[0].name
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        setattr(model, field, getattr(model, field))
 
 
 def test_volume_options_are_json() -> None:

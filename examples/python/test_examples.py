@@ -66,6 +66,10 @@ class FakeWorld:
         self.sandboxes: list[MagicMock] = []
         self.deleted_sandboxes: list[str] = []
         self.deleted_volumes: list[str] = []
+        self.created_volumes: list[str] = []
+        # The state every create hands back (a create whose wait ended before
+        # the sandbox started returns it in "creating").
+        self.sandbox_state = "started"
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
         self.build_logs_fail_after_output = False
@@ -96,8 +100,13 @@ class FakeWorld:
         client.secrets = secret
 
         volume = create_autospec(VolumesService, instance=True)
-        volume.create.side_effect = lambda *, name, size_gib=None: SimpleNamespace(
-            id=f"vol-{name}", name=name, status="ready"
+        def create_volume(*, name: str, size_gib: Optional[int] = None) -> SimpleNamespace:
+            self.created_volumes.append(f"vol-{name}")
+            return SimpleNamespace(id=f"vol-{name}", name=name, status="ready")
+
+        volume.create.side_effect = create_volume
+        volume.get.side_effect = lambda name, *, create=False, **_: (
+            create_volume(name=name) if create else SimpleNamespace(id=f"vol-{name}", name=name, status="ready")
         )
         volume.delete.side_effect = lambda name_or_id, **_: self.deleted_volumes.append(name_or_id)
         client.volumes = volume
@@ -160,7 +169,7 @@ class FakeWorld:
         sandbox: MagicMock = create_autospec(Sandbox, instance=True)
         sandbox.id = f"sbx-{len(self.sandboxes)}"
         sandbox.name = name
-        sandbox.state = "started"
+        sandbox.state = self.sandbox_state
         sandbox.cpu = 1
         sandbox.memory = 1
         files: dict[str, bytes] = {}
@@ -529,3 +538,35 @@ def test_volumes_share_reports_a_failed_read_instead_of_a_partial_result(
     with pytest.raises(RuntimeError, match=r"failed \(exit=1\): Input/output error"):
         volumes_share.main()
     assert len(world.deleted_volumes) == 1
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "exec_command",
+        "file_operations",
+        "git_ops",
+        "secrets_env",
+        "dynamic_build",
+        "dockerfile_sandbox",
+        "volumes",
+        "lifecycle",
+    ],
+)
+def test_an_example_skips_work_and_cleans_up_when_create_returns_a_non_started_sandbox(
+    run_example: Callable[..., tuple[int, FakeWorld]], name: str
+) -> None:
+    # The TypeScript twin is the non-started loop in typescript/examples.test.ts.
+    world = FakeWorld()
+    world.sandbox_state = "creating"
+    code, _ = run_example(name, world=world)
+    assert code == 1
+    assert len(world.sandboxes) == 1
+    assert all(sandbox.process.run.call_count == 0 for sandbox in world.sandboxes)
+    assert sorted(world.deleted_sandboxes) == sorted(sandbox.id for sandbox in world.sandboxes)
+    # The other resources the example acquired are cleaned up too.
+    if name == "secrets_env":
+        assert world.deleted_secrets == [f"EXAMPLE_API_KEY_{RUN.upper()}"]
+    if name == "volumes":
+        assert len(world.created_volumes) == 1
+        assert world.deleted_volumes == world.created_volumes

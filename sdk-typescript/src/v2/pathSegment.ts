@@ -9,12 +9,15 @@ import { isBlank } from './pyText.js'
 
 /**
  * A caller's id or name as one request-path segment: a string that is not
- * blank by Python's whitespace rules, else `BadRequestError` naming `name`,
- * before any request (as Python's `_path`).
+ * blank by Python's whitespace rules, has no lone surrogate and is not `.` or
+ * `..` (dot segments, which URL resolution removes, so the request would reach
+ * another route), else `BadRequestError` naming `name`, before any request
+ * (as Python's `path_segment`).
  * @internal
  */
 export function pathSegment(value: unknown, name: string): string {
   if (typeof value !== 'string' || isBlank(value)) throw badRequest(`${name} must be a non-empty string`)
+  if (value === '.' || value === '..') throw badRequest(`${name} must not be '.' or '..'`)
   // A lone surrogate has no UTF-8 form (encodeURIComponent would throw URIError).
   if (hasLoneSurrogate(value)) throw badRequest(`${name} must not contain a lone surrogate`)
   return strictUriEncode(value)

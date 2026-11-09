@@ -276,7 +276,7 @@ function imageResponse(overrides: Record<string, unknown> = {}): Record<string, 
     region_id: 'region-a',
     retention: 'permanent',
     status: 'ready',
-    format_version: 1,
+    format_version: 2,
     format_outdated: false,
     platform: false,
     default: false,
@@ -5855,6 +5855,9 @@ describe('toolbox service request shaping', () => {
 
     try {
       const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
+      // A JWT handle mints its own sandbox token; on a deployment without the
+      // mint route (405) it falls back to the exchanged platform token.
+      jest.spyOn(clientInstance(client), 'post').mockRejectedValue(createDaytonaError('method not allowed', 405, 'METHOD_NOT_ALLOWED', 'DAYTONA_API'))
       const duplex = await lazySandbox(client, 'sbx', { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' }).process.connect('proc').attach()
       duplex.close()
     } finally {
@@ -7055,7 +7058,11 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ jwtToken: 'jwt-token', projectId: 'project-1' })
     const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' })
     const api = clientInstance(client)
-    jest.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', status: 'pending' } })
+    jest.spyOn(api, 'post')
+      .mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', toolbox_proxy_url: 'https://proxy.example/sandbox-api', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], forked_from: 'source', status: 'pending' } })
+      // The fork's handle mints its own sandbox token; without the mint route
+      // (405) it falls back to the exchanged platform token.
+      .mockRejectedValueOnce(createDaytonaError('method not allowed', 405, 'METHOD_NOT_ALLOWED', 'DAYTONA_API'))
     jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { id: 'forked', class: 'linux', status: 'running', name: 'forked', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     try {
@@ -7362,6 +7369,8 @@ describe('toolbox service request shaping', () => {
     const toolboxAuth: string[] = []
     clientInstance(client).defaults.adapter = async (config) => {
       apiAuth.push(responseHeaders(config).get('authorization') ?? '')
+      // The handle's mint, answered 405 (no mint route): it falls back to the platform token.
+      if (config.url?.endsWith('/access-token')) throw createDaytonaError('method not allowed', 405, 'METHOD_NOT_ALLOWED', 'DAYTONA_API')
       return { data: CURRENT_KEY_WIRE, status: 200, statusText: 'OK', headers: {}, config }
     }
     toolboxInstance(sandbox).defaults.adapter = async (config) => {
@@ -7384,7 +7393,8 @@ describe('toolbox service request shaping', () => {
     }))
 
     await expect(pending).resolves.toEqual([CURRENT_KEY, { currentBranch: 'main' }])
-    expect(apiAuth).toEqual(['Bearer platform-1'])
+    // The key read and the mint attempt share the one exchange.
+    expect(apiAuth).toEqual(['Bearer platform-1', 'Bearer platform-1'])
     expect(toolboxAuth).toEqual(['Bearer platform-1'])
   })
 

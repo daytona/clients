@@ -52,6 +52,15 @@ const ARTIFACT_REF: ResponseFields = { id: 'string', name: 'string?' }
 // The contract fields the handle reads, required ones without `?` (Python
 // validates the same body against the generated model). An empty
 // `region_id` is derived from the id, as in Python; a missing one is malformed.
+// The detail's lifecycle policy, field by field as Python's generated model
+// reads it: integers of any width, actions any string (an unknown one kept),
+// the activity source a string and the deadlines strings (Python's model also
+// refuses a string it cannot read as a date-time). Unknown fields pass.
+const LIFECYCLE_POLICY: ResponseFields = {
+  timeout_seconds: 'integer?', idle_expiry_seconds: 'integer?', on_timeout: 'string?', on_idle_timeout: 'string?',
+  timeout_at: 'string?', idle_timeout_at: 'string?', last_activity_at: 'string?', last_activity_source: 'string?',
+}
+
 const SANDBOX: ResponseFields = {
   id: 'string', class: 'string', name: 'string', status: 'string', cpu: 'number', cores_max: 'number',
   memory_mib: 'integer', disk_mib: 'integer',
@@ -59,7 +68,7 @@ const SANDBOX: ResponseFields = {
   region_id: 'string', memory_max_mib: 'integer?', disk_max_mib: 'integer?', labels: 'object?',
   image: nested(ARTIFACT_REF, true), snapshot: nested(ARTIFACT_REF, true), error: 'string?', mac_boot_mode: 'string?',
   image_build_id: 'string?', persistent: 'boolean?', user: 'string?', spot: 'boolean?', spot_evicted_at: 'string?',
-  lifecycle_policy: 'object?', forked_from: 'string?', reservation_id: 'string?', toolbox_proxy_url: 'string?',
+  lifecycle_policy: nested(LIFECYCLE_POLICY, true), forked_from: 'string?', reservation_id: 'string?', toolbox_proxy_url: 'string?',
   created_at: 'string?', updated_at: 'string?', started_at: 'string?', stopped_at: 'string?',
   last_activity_at: 'string?', create_timeout_at: 'string?',
 }

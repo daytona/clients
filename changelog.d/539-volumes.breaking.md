@@ -1,7 +1,10 @@
-**Volumes** — `volumes.create()` takes `name` and `size_gib` / `sizeGib`
-(TypeScript `{ name, sizeGib }`, a positive integer) and creates a disk
-volume; `volumes.get(name_or_id, create=…, id_only=…)` / `get(nameOrId, {
-create, idOnly })`; `volumes.delete()` takes a name or id. Python
-`Volume.options` is a plain `dict` owned by the volume (`Mapping` to type
-checkers), so `dataclasses.asdict`, `copy.deepcopy`, `pickle` and `json.dumps`
-work on it.
+**Volumes** — TypeScript `volumes.create(name, sizeGib)` becomes
+`volumes.create({ name, sizeGib })` (`sizeGib` a positive integer), and
+creates a disk volume, as Python's `create(name=..., size_gib=...)` does;
+TypeScript `volumes.get(nameOrId, create, { idOnly })` becomes `get(nameOrId,
+{ create, idOnly })` (Python keeps `get(name_or_id, create=...,
+id_only=...)`); `volumes.delete()` takes a name or id: Python's first argument
+is now `name_or_id` (it was `volume_id`), and TypeScript no longer takes a
+`Volume` (`delete(volume.id)`). Python `Volume.options` is a plain `dict`
+owned by the volume (`Mapping` to type checkers), so `dataclasses.asdict`,
+`copy.deepcopy`, `pickle` and `json.dumps` work on it.

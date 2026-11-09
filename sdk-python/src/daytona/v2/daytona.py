@@ -1707,6 +1707,11 @@ def _create_body(config: CreateConfig) -> CreateBody:
                 raise create_error(
                     f"resources.{label} must be a positive number of cores", 400, "BAD_REQUEST", "SDK"
                 )
+            # The contract's cores_max is a positive multiple of 0.5.
+            if wire == "cores_max" and not float(cores * 2).is_integer():
+                raise create_error(
+                    "resources.cpu_max must be a positive multiple of 0.5 cores", 400, "BAD_REQUEST", "SDK"
+                )
             body[wire] = cores
         for gib, wire, label in (
             (resources.memory, "memory_mib", "resources.memory"),

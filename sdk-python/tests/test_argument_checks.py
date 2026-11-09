@@ -359,7 +359,7 @@ _IMAGE: JsonObject = {
     "origin": "registry",
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-01T00:00:00Z",
-    "format_version": 1,
+    "format_version": 2,
     "format_outdated": False,
     "platform": False,
     "default": False,
@@ -625,13 +625,27 @@ _PATH_VALUES: list[tuple[str, object]] = [
     ("number", 5),
     ("empty", ""),
     ("blank", " \t\u2028"),
+    # Dot segments, which the HTTP client resolves away to another route.
+    ("dot", "."),
+    ("dot-dot", ".."),
 ]
-# get_limits(organization_id=None) is the key's own organization, not a refusal.
+# get_limits(organization_id=None) is the key's own organization, not a refusal;
+# the names promote() and create_snapshot() send go in a body, not a path, so a
+# dot segment is a valid name there.
+_BODY_NAMES = ("images.promote name", "create_snapshot")
+
+
+def _path_case(call_name: str, label: str) -> bool:
+    if call_name == "get_limits" and label == "None":
+        return False
+    return not (call_name in _BODY_NAMES and label in ("dot", "dot-dot"))
+
+
 _PATH_CASES = [
     (call_name, argument, call, value)
     for call_name, argument, call in _PATH_CALLS
     for label, value in _PATH_VALUES
-    if not (call_name == "get_limits" and label == "None")
+    if _path_case(call_name, label)
 ]
 
 
@@ -642,7 +656,7 @@ _PATH_CASES = [
         f"{case[0]}-{label}"
         for case in _PATH_CALLS
         for label, _ in _PATH_VALUES
-        if not (case[0] == "get_limits" and label == "None")
+        if _path_case(case[0], label)
     ],
 )
 async def test_a_path_id_or_name_must_be_a_non_blank_string(
@@ -864,6 +878,29 @@ async def test_an_id_with_a_lone_surrogate_is_refused_on_the_client_paths(
     assert api.requests == []
 
 
+@pytest.mark.parametrize(
+    ("argument", "call"),
+    [
+        ("name", lambda d: d.secrets.delete("..")),
+        ("name_or_id", lambda d: d.volumes.get(".")),
+        ("sandbox", lambda d: d.stop("..")),
+        ("sandbox", lambda d: d.delete(".")),
+        ("sandbox_id", lambda d: d.get("..")),
+    ],
+    ids=["secrets.delete ..", "volumes.get .", "stop ..", "delete .", "get .."],
+)
+async def test_a_dot_segment_id_is_refused_before_any_request(
+    api: FakeApi, argument: str, call: Callable[[AsyncDaytonaV2], Awaitable[object]]
+) -> None:
+    # `secrets.delete("..")` would otherwise go to another route: the HTTP
+    # client resolves the dot segment away.
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        with pytest.raises(BadRequestError) as raised:
+            await call(root.v2)
+    assert str(raised.value) == f"{argument} must not be '.' or '..'"
+    assert api.requests == []
+
+
 @pytest.mark.parametrize("arch", ["x86_64", 5, "", " "])
 @pytest.mark.parametrize("route", ["create", "create_from_build"])
 async def test_a_create_cpu_arch_outside_the_platform_architectures_is_refused(
@@ -1066,6 +1103,7 @@ async def test_an_image_call_sends_a_named_region(route: str) -> None:
 # one is named alike (the TypeScript twin pins the same rows).
 _ORDER: list[tuple[str, Callable[[AsyncDaytonaV2], Awaitable[object]], str]] = [
     ("volumes.get", lambda d: d.volumes.get("", create="x"), "name_or_id"),  # type: ignore[arg-type]
+    ("volumes.delete", lambda d: d.volumes.delete("", id_only="x"), "name_or_id"),  # type: ignore[arg-type]
     ("reservations.renew", lambda d: d.reservations.renew("", idempotency_key=" k"), "reservation_id"),
     ("reservations.update", lambda d: d.reservations.update("", auto_renew="x"), "reservation_id"),  # type: ignore[arg-type]
     ("secrets.set", lambda d: d.secrets.set("K", 5, allowed_domains=5), "value"),  # type: ignore[arg-type]

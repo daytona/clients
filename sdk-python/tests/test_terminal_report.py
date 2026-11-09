@@ -13,6 +13,7 @@ The hub can report a state it held before the new request's frames arrive: an
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections.abc import Callable
 
 import pytest
@@ -305,3 +306,108 @@ async def test_a_reason_read_for_one_wire_status_never_labels_the_other(
                 await sandbox.wait(until="started", timeout=5)
     assert len(fake.requests) == 1
     assert (raised.value.raw_state, raised.value.reason) == (reported, None)
+
+
+# The hub's held state: a wait that rejects from a state the hub already holds
+# for the sandbox carries the wire status the hub holds with it.
+
+
+async def _hold(state: str) -> tuple[object, object, asyncio.Task[WaitOutcome]]:
+    from test_events import make_hub
+
+    from daytona.v2._events import _TargetPredicate
+
+    connector = FakeConnector()
+    hub = make_hub(connector)
+    ws = connector.prepare()
+    # A waiter that treats nothing as terminal keeps the subscription, and so
+    # the state the hub holds, alive.
+    keeper = asyncio.create_task(
+        hub.wait(
+            "abc-region-a",
+            _TargetPredicate(states=frozenset({"started"}), terminal_states=frozenset()),
+            timeout=30,
+        )
+    )
+    await drain()
+    ws.inject({"type": "snapshot", "id": "abc-region-a", "status": state, "version": 1, "error": None})
+    await asyncio.wait_for(
+        _until(lambda: any(sock.states.get("abc-region-a") == "error" for sock in hub._sockets.values())),
+        timeout=1,
+    )
+    return hub, ws, keeper
+
+
+@pytest.mark.parametrize("state", ["failed", "lost"])
+async def test_a_wait_rejected_from_a_held_state_carries_its_wire_status(
+    monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    from daytona.v2._events import _TargetPredicate
+
+    monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "1")
+
+    with respx.mock:
+        ticket_mock("region-a")
+        hub, _ws, keeper = await _hold(state)
+        try:
+            with pytest.raises(SandboxTerminalStateError) as raised:
+                await hub.wait(  # type: ignore[attr-defined]
+                    "abc-region-a",
+                    _TargetPredicate(
+                        states=frozenset({"started"}),
+                        terminal_states=frozenset({"destroying", "destroyed", "error"}),
+                    ),
+                    timeout=5,
+                )
+            assert (raised.value.state, raised.value.raw_state) == ("error", state)
+        finally:
+            keeper.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await keeper
+            await hub._close_hub()  # type: ignore[attr-defined]
+
+
+async def test_a_held_terminal_state_keeps_its_wire_status_when_the_confirming_read_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
+    from daytona.v2.errors import create_error
+    from daytona.v2.types import DaytonaConfig as DaytonaConfigV2
+
+    class FailingTransport:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        async def send(self, spec: object) -> object:
+            self.calls.append(spec.method)
+            raise create_error("busy", 503, "SERVICE_UNAVAILABLE", "DAYTONA_API")
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("DAYTONA_V2_API_URL", "https://api.test")
+    monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "1")
+    client = AsyncDaytonaV2(DaytonaConfigV2(api_key=_API_KEY))
+    api = FailingTransport()
+    bind_api(client, api)  # type: ignore[arg-type]
+    with respx.mock:
+        ticket_mock("region-a")
+        hub, _ws, keeper = await _hold("lost")
+        try:
+            sandbox = lazy_sandbox(client, "abc-region-a")
+            sandbox._hub = hub  # type: ignore[assignment]
+            with pytest.raises(SandboxTerminalStateError) as raised:
+                await sandbox.wait(until="started", timeout=5)
+            # The confirming read was made, failed, and the held report stands.
+            assert api.calls == ["GET"]
+            assert (raised.value.state, raised.value.raw_state, raised.value.reason) == (
+                "error",
+                "lost",
+                None,
+            )
+        finally:
+            keeper.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await keeper
+            await hub._close_hub()  # type: ignore[attr-defined]
+            await client.close()

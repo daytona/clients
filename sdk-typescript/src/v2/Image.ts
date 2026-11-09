@@ -10,7 +10,7 @@ import type * as api from './gen/api-types.js'
 import { ImageRetention as IMAGE_RETENTIONS, SnapshotClass as SNAPSHOT_CLASSES, SnapshotKind as SNAPSHOT_KINDS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { badRequest, isPlainRecord } from './options.js'
-import { isBlank, strip } from './pyText.js'
+import { hasSpace, isBlank, strip } from './pyText.js'
 import type { ArtifactRetention, CpuArch, ImageOrigin, ImageSource, ImageStatus, SnapshotClass, SnapshotKind } from './types.js'
 import type { ImageModel } from './imageModel.js'
 import { assertInternal } from './internal.js'
@@ -46,10 +46,11 @@ type BuilderStep =
 
 // One rule in both SDKs: every value must be a string that is not blank by
 // Python's whitespace set, and text rendered raw into a Dockerfile line (the
-// registry ref, the Dockerfile, commands, packages, env keys, the workdir, the
-// user) is stripped with that set; an env value and the cmd / entrypoint
-// arguments, rendered as JSON strings, are kept as given. Python applies the
-// same rule.
+// registry ref, the Dockerfile, commands, packages, env keys, the workdir) is
+// stripped with that set; an env value, rendered as a JSON string, is kept as
+// given. Python applies the same rule to those. `user()`, `cmd()` and
+// `entrypoint()` are TypeScript-only for now: the user is stripped, and the
+// cmd / entrypoint arguments, rendered as JSON strings, are kept as given.
 function assertText(value: unknown, label: string): string {
   if (typeof value !== 'string' || isBlank(value)) throw badRequest(`${label} must be a non-empty string`)
   // A Dockerfile is UTF-8 text: a lone surrogate has no UTF-8 form, and the two
@@ -100,6 +101,19 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`
 }
 
+/**
+ * An env name, stripped: it renders as `ENV name=value`, so `=`, whitespace
+ * (Python's set) or a control character (C0 or DEL) would change the
+ * instruction, or add one. Python refuses the same names.
+ */
+function envName(value: string, label: string): string {
+  const name = rawText(value, label)
+  if (/[=\x00-\x1f\x7f]/.test(name) || hasSpace(name)) {
+    throw badRequest(`${label} ${JSON.stringify(name)} must not contain '=', whitespace or a control character`)
+  }
+  return name
+}
+
 export class ImageBuilder {
   private constructor(
     private readonly source: BuilderSource,
@@ -135,8 +149,8 @@ export class ImageBuilder {
       throw badRequest('ImageBuilder.env takes a name and a value, or a mapping of names to values')
     }
     const pairs: ReadonlyArray<readonly [string, string]> = typeof nameOrValues === 'string'
-      ? [[rawText(nameOrValues, 'ImageBuilder.env name'), assertText(value, 'ImageBuilder.env value')]]
-      : Object.entries(nameOrValues).map(([key, entryValue]) => [rawText(key, 'ImageBuilder.env key'), assertText(entryValue, 'ImageBuilder.env value')] as const)
+      ? [[envName(nameOrValues, 'ImageBuilder.env name'), assertText(value, 'ImageBuilder.env value')]]
+      : Object.entries(nameOrValues).map(([key, entryValue]) => [envName(key, 'ImageBuilder.env key'), assertText(entryValue, 'ImageBuilder.env value')] as const)
     // Keys are stripped: two that collide afterwards would silently keep one.
     const seen = new Set<string>()
     for (const [key] of pairs) {

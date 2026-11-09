@@ -221,6 +221,12 @@ _EXPLICIT_NULLS: list[tuple[str, Call, JsonObject]] = [
     ("budget", lambda d: d.get_project_budget(), _BUDGET_NULLS),
     ("limits", lambda d: d.get_limits(organization_id="org"), _LIMITS),
     ("Mac models", lambda d: d.mac_models.list(), {"mac_models": [_MODEL]}),
+    # The registry is not paged: a next_cursor there is an unknown field, ignored.
+    (
+        "Mac models with an unknown next_cursor",
+        lambda d: d.mac_models.list(),
+        {"mac_models": [_MODEL], "next_cursor": 5},
+    ),
     (
         "Mac catalog",
         lambda d: d.mac_models.catalog(),
@@ -505,6 +511,18 @@ async def test_a_search_total_a_double_cannot_carry_is_a_contract_error() -> Non
                 await root.v2.search()
 
 
+@pytest.mark.parametrize("call", ["search", "find_by_name"])
+async def test_a_negative_search_total_is_a_contract_error(call: str) -> None:
+    # The contract's total is an int64 with minimum 0.
+    body = {"sandboxes": [], "total": -1, "total_relation": "eq", "next_cursor": None}
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request("search response has a negative total"):
+                await (root.v2.search() if call == "search" else root.v2.find_by_name("n"))
+    assert len(api.requests) == 1
+
+
 async def test_a_search_total_above_2_53_that_a_double_carries_is_accepted() -> None:
     body = {"sandboxes": [], "total": 2**60, "total_relation": "eq", "next_cursor": None}
     with FakeApi([PlannedResponse(200, body)]) as api:
@@ -572,3 +590,39 @@ async def test_an_image_without_a_required_flag_is_a_contract_error(flag: str, b
                 await root.v2.images.get("img")
             with _sdk_bad_request(flag):
                 await root.v2.images.list()
+
+
+# A sandbox detail's lifecycle policy is checked field by field, as
+# TypeScript checks it (tests/malformed-responses.test.ts): integers, actions
+# any string (an unknown one kept), deadlines strings.
+@pytest.mark.parametrize(
+    ("policy", "field"),
+    [
+        ({"timeout_seconds": "60"}, "timeout_seconds"),
+        ({"on_timeout": 5}, "on_timeout"),
+        ({"timeout_at": 5}, "lifecycle_policy.timeout_at"),
+    ],
+    ids=["string timeout_seconds", "numeric on_timeout", "numeric timeout_at"],
+)
+@pytest.mark.parametrize("call", ["get", "list"])
+async def test_a_malformed_lifecycle_policy_field_is_a_contract_error(
+    policy: JsonObject, field: str, call: str
+) -> None:
+    detail = {**_DETAIL, "lifecycle_policy": policy}
+    body: JsonObject = detail if call == "get" else {"sandboxes": [detail], "next_cursor": None}
+    with FakeApi([PlannedResponse(200, body)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request(field):
+                await (root.v2.get("src") if call == "get" else root.v2.list())
+    assert len(api.requests) == 1
+
+
+async def test_an_unknown_lifecycle_action_is_accepted() -> None:
+    detail = {**_DETAIL, "lifecycle_policy": {"on_timeout": "hibernate", "timeout_seconds": 60}}
+    with FakeApi([PlannedResponse(200, detail)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = await root.v2.get("src")
+    policy = sandbox.lifecycle_policy
+    assert policy is not None and policy.on_timeout == "hibernate"

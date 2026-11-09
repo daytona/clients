@@ -12,7 +12,7 @@ import type { FakeApi, PlannedResponse } from './networkPolicyTestServer'
 // access token that breaks the header rule are BadRequestError naming the
 // option before any request. The Python twin is tests/test_connect_options.py.
 const detail = (url: string) => ({ id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], region_id: 'region-a', toolbox_proxy_url: `${url}/toolbox` })
-const MINTED = { access_token: 'minted-bearer', expires_at: '2040-01-01T00:00:00Z', token_type: 'Bearer', operations: [] }
+const MINTED = { access_token: 'minted-bearer', expires_at: '2040-01-01T00:00:00Z', token_type: 'Bearer', operations: ['toolbox'] }
 const paths = (api: FakeApi) => api.requests.map((request) => `${request.method} ${request.path.split('?')[0]}`)
 
 it('reads null connect options as omitted, so the handle mints its own token', async () => {

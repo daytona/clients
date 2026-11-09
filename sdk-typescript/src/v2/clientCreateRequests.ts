@@ -51,6 +51,10 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
     if (cores !== undefined && (typeof cores !== 'number' || !Number.isFinite(cores) || cores <= 0)) {
       throw badRequest(`resources.${axis} must be a positive number of cores`)
     }
+    // The contract's cores_max is a positive multiple of 0.5.
+    if (axis === 'cpuMax' && cores !== undefined && !Number.isInteger((cores as number) * 2)) {
+      throw badRequest('resources.cpuMax must be a positive multiple of 0.5 cores')
+    }
   }
   const route = 'linux'
   const lifecyclePolicy = lifecycleBody(options.lifecyclePolicy, { creating: true }) as api.CreateSandboxRequest['lifecycle_policy']

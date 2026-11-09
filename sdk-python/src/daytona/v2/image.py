@@ -90,14 +90,14 @@ class ImageBuilder:
         if isinstance(name_or_values, str):
             entries = (
                 (
-                    self._require_text(name_or_values, "ImageBuilder.env name", strip=True),
+                    self._env_name(name_or_values, "ImageBuilder.env name"),
                     self._require_text(value, "ImageBuilder.env value"),
                 ),
             )
         elif isinstance(name_or_values, Mapping):
             entries = tuple(
                 (
-                    self._require_text(key, "ImageBuilder.env key", strip=True),
+                    self._env_name(key, "ImageBuilder.env key"),
                     self._require_text(entry_value, "ImageBuilder.env value"),
                 )
                 for key, entry_value in name_or_values.items()
@@ -160,6 +160,21 @@ class ImageBuilder:
             raise AssertionError("image builder has no source")
         layers = [base, *self._steps]
         return "\n".join(layers).rstrip() + "\n"
+
+    @classmethod
+    def _env_name(cls, value: object, label: str) -> str:
+        """An env name, stripped: it renders as ``ENV name=value``, so ``=``,
+        whitespace (Python's set) or a control character (C0 or DEL) would
+        change the instruction, or add one. TypeScript refuses the same names."""
+        name = cls._require_text(value, label, strip=True)
+        if any(char == "=" or char.isspace() or char < " " or char == "\x7f" for char in name):
+            raise create_error(
+                f"{label} {json.dumps(name, ensure_ascii=False)} must not contain '=', whitespace or a control character",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return name
 
     @staticmethod
     def _require_text(value: object, label: str, *, strip: bool = False) -> str:

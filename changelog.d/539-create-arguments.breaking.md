@@ -18,3 +18,5 @@ protocol, mount id or path is refused. TypeScript: `autoDelete` must be a
 boolean; inherited option keys are forwarded as they are validated; and a name
 that needs hashing where there is no Web Crypto (a browser page outside a
 secure context) is `UNSUPPORTED_OPERATION` (400, source `SDK`).
+`resources.cpu_max` / `cpuMax` must be a positive multiple of 0.5 cores, as
+the contract's `cores_max` is (both SDKs sent any number).

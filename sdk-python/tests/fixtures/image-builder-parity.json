@@ -194,6 +194,113 @@
       ],
       "error": "ImageBuilder.env value must not contain a lone surrogate",
       "tsError": "ImageBuilder.env value must not contain a lone surrogate"
+    },
+    {
+      "name": "env key with an equals sign",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A=B": "v"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env key \"A=B\" must not contain '=', whitespace or a control character"
+    },
+    {
+      "name": "env key with whitespace",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "MY VAR": "v"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env key \"MY VAR\" must not contain '=', whitespace or a control character"
+    },
+    {
+      "name": "env key with a newline that would add an instruction",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A\nRUN x": "v"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env key \"A\\nRUN x\" must not contain '=', whitespace or a control character"
+    },
+    {
+      "name": "env key with NUL",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A\u0000": "v"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env key \"A\\u0000\" must not contain '=', whitespace or a control character"
+    },
+    {
+      "name": "env key with DEL",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A\u007f": "v"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env key \"A\u007f\" must not contain '=', whitespace or a control character"
+    },
+    {
+      "name": "env name with an equals sign",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-name",
+          [
+            "A=B",
+            "v"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.env name \"A=B\" must not contain '=', whitespace or a control character"
+    },
+    {
+      "name": "env name with U+0085 inside",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-name",
+          [
+            "A\u0085B",
+            "v"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.env name \"A\u0085B\" must not contain '=', whitespace or a control character"
     }
   ]
 }

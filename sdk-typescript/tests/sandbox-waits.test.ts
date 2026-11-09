@@ -41,6 +41,41 @@ describe('sandbox wait budgets', () => {
     }
   }, 10_000)
 
+  it('bounds a stalled delete long poll, held with wait_exact, by its wait deadline', async () => {
+    // Given a server that accepts the DELETE and holds every read after it.
+    // The Python twin is test_a_stalled_long_poll_ends_at_the_wait_deadline_async[delete].
+    const held: string[] = []
+    const server = createServer((request, response) => {
+      if (request.method === 'DELETE') {
+        response.writeHead(200, { 'Content-Type': 'application/json' })
+        response.end('{}')
+        return
+      }
+      held.push(request.url ?? '')
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    try {
+      const address = server.address()
+      if (address === null || typeof address === 'string') throw new Error('missing HTTP server address')
+      const sandbox = createSandbox('sbx', createHttpClient(`http://127.0.0.1:${address.port}`))
+      const started = performance.now()
+      const error = await sandbox.delete({ timeoutSeconds: 0.05 }).catch((failure: unknown) => failure)
+      const elapsedMs = performance.now() - started
+      expect(error).toBeInstanceOf(RequestTimeoutError)
+      expect(error).toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      expect(elapsedMs).toBeGreaterThanOrEqual(25)
+      expect(elapsedMs).toBeLessThan(5000)
+      // The deadline cut the held long poll for `deleted`, held exactly.
+      expect(held).toHaveLength(1)
+      const query = new URL(held[0] ?? '', 'http://localhost').searchParams
+      expect([query.get('wait_exact'), query.get('wait')]).toEqual(['deleted', null])
+    } finally {
+      server.closeAllConnections()
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+    }
+  }, 10_000)
+
   it('bounds each finite slice by what is left of the wait budget', async () => {
     // Given a wait that sees a non-target state first, then the target.
     jest.useFakeTimers({ now: 0 })

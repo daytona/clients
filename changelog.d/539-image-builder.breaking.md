@@ -14,4 +14,8 @@ and the rendered Dockerfile is byte-identical. An env mapping whose keys
 collide once stripped (`{"A": "1", " A": "2"}`) is refused (both SDKs rendered
 both entries, so the build kept the later value). `env()` takes a name and a
 value, or a mapping; in TypeScript it takes only a plain object, so a `Map`, a
-`Date`, a class instance or an object with only inherited keys is refused.
+`Date`, a class instance or an object with only inherited keys is refused. An
+env name, by name and value or in a mapping, must contain no `=`, no
+whitespace (Python's set) and no control character (C0 or DEL): it renders as
+`ENV name=value`, so such a name changed the instruction or added one (both
+SDKs rendered it as given).

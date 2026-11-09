@@ -5,7 +5,6 @@
 
 import { optionalQueryText } from './pageParams.js'
 import { deepFrozen } from './frozen.js'
-import { listPage } from './listPage.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { assertInternal } from './internal.js'
@@ -13,7 +12,7 @@ import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { MacCatalog, MacCatalogOptions, MacModel } from './macTypes.js'
 import { mapMacModel } from './macMappers.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { arrayOf, checkResponse, MAC_MODEL, nested } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 
@@ -45,8 +44,17 @@ export class MacModelsService {
   /** Every registered Mac model, ordered by `id`. */
   public async list(): Promise<readonly MacModel[]> {
     const { data } = await this.http.get<api.MacModelList>('/mac-models')
-    // The registry is not paged: `mac_models` is its whole envelope.
-    return Object.freeze(listPage<api.MacModel>(data, 'mac_models', 'Mac model list').items.map(mapMacModel))
+    // The registry is not paged: an object with a `mac_models` array of
+    // objects, other fields ignored (a `next_cursor` there is unknown), as
+    // Python's generated `MacModelList` reads it.
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) throw badRequest('Mac model list response is not a JSON object')
+    const models: unknown = Reflect.get(data, 'mac_models')
+    if (!Array.isArray(models)) throw badRequest('Mac model list response is missing the mac_models array')
+    for (const model of models) {
+      if (typeof model !== 'object' || model === null || Array.isArray(model)) throw badRequest('Mac model list response has a mac_models entry that is not an object')
+    }
+    // SAFETY: the envelope is checked above; mapMacModel checks each entry's fields.
+    return Object.freeze((models as api.MacModel[]).map(mapMacModel))
   }
 
   /** Free Macs and prices per model. Availability is advisory; price is absent when unavailable. */

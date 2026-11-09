@@ -36,6 +36,7 @@ function build(testCase: Pick<Case, 'source' | 'steps'>): ImageBuilder {
     if (op === 'run') builder = builder.runCommands(...(argument as string[]))
     else if (op === 'pip') builder = builder.pipInstall(...(argument as string[]))
     else if (op === 'env') builder = builder.env(argument as Record<string, string>)
+    else if (op === 'env-name') builder = builder.env(...(argument as [string, string]))
     // A Map is not a plain object, as Python refuses a non-mapping.
     else if (op === 'env-map') builder = builder.env(new Map(argument as Array<[string, string]>) as never)
     else builder = builder.workdir(argument as string)

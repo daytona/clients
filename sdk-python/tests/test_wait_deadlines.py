@@ -17,6 +17,7 @@ import threading
 import time
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -38,11 +39,15 @@ _DETAIL = {
 
 
 class _StallingApi:
-    """Answers lifecycle requests at once and holds every `wait=` read for 30 s."""
+    """Answers lifecycle requests at once and holds every long-poll read
+    (`wait=` or `wait_exact=`) for 30 s."""
 
     def __init__(self, post_hold: float = 0) -> None:
         stop = threading.Event()
         self.stop = stop
+        # The query keys of every read held (a delete's wait holds `wait_exact`).
+        self.held: list[str] = []
+        held = self.held
 
         class Handler(BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.1"
@@ -64,7 +69,10 @@ class _StallingApi:
                 length = int(self.headers.get("Content-Length") or 0)
                 if length:
                     self.rfile.read(length)
-                if self.command == "GET" and "wait=" in self.path:
+                query = parse_qs(urlparse(self.path).query)
+                key = next((name for name in ("wait", "wait_exact") if name in query), None)
+                if self.command == "GET" and key is not None:
+                    held.append(key)
                     stop.wait(30)
                     return
                 if self.command == "POST" and self.path == "/sandboxes":
@@ -126,6 +134,8 @@ async def test_a_stalled_long_poll_ends_at_the_wait_deadline_async(api: _Stallin
         "SDK",
     )
     assert 0.4 <= elapsed < 0.5 + _SLACK
+    # The deadline cut a held long poll: `wait_exact=deleted` for delete.
+    assert api.held == ["wait_exact" if verb == "delete" else "wait"]
 
 
 @pytest.mark.anyio
@@ -147,6 +157,7 @@ def test_a_stalled_long_poll_ends_at_the_wait_deadline_sync(api: _StallingApi, v
         elapsed = time.monotonic() - started
     assert not isinstance(raised.value, ClientTimeoutError)
     assert 0.4 <= elapsed < 0.5 + _SLACK
+    assert api.held == ["wait_exact" if verb == "delete" else "wait"]
 
 
 # A create POST that asks the server to hold is a long poll: a request timeout

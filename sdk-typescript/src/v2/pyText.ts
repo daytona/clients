@@ -22,6 +22,12 @@ export function isBlank(value: string): boolean {
   return true
 }
 
+/** Whether any character is in Python's whitespace set. @internal */
+export function hasSpace(value: string): boolean {
+  for (let index = 0; index < value.length; index++) if (isSpace(value, index)) return true
+  return false
+}
+
 /** Python's `value.strip()`, in linear time. @internal */
 export function strip(value: string): string {
   let start = 0

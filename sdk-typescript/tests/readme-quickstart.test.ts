@@ -23,14 +23,14 @@ it('runs the README quickstart through registry readiness, named create, exec an
     : getSourceFile(path, languageVersion)
   const program = ts.createProgram([fixture], { ...parsed.options, noEmit: true }, host)
   expect(ts.getPreEmitDiagnostics(program).map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))).toEqual([])
-  const image = { id: 'img-pull', name: 'py312', region_ids: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', anonymous: false, class: 'linux', origin: 'registry', region_id: 'region-a', retention: 'permanent', format_version: 1, format_outdated: false, platform: false, default: false, deprecated: false }
+  const image = { id: 'img-pull', name: 'py312', region_ids: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', anonymous: false, class: 'linux', origin: 'registry', region_id: 'region-a', retention: 'permanent', format_version: 2, format_outdated: false, platform: false, default: false, deprecated: false }
   const responses = [
     { id: 'img-pull', status: 'pending' },
     { ...image, status: 'pending' },
     { ...image, status: 'pending' },
     { ...image, status: 'ready' },
     { id: 'sbx-quickstart', status: 'running' },
-    { access_token: 'toolbox-jwt', token_type: 'Bearer', expires_at: '2099-01-01T00:00:00Z', operations: [] },
+    { access_token: 'toolbox-jwt', token_type: 'Bearer', expires_at: '2099-01-01T00:00:00Z', operations: ['toolbox'] },
     {
       id: 'proc-quickstart', kind: 'exec', state: 'terminal', reason: 'exited', exitCode: 0,
       logs: { frames: [{ cursor: 'c1', channel: 'stdout', data: 'Python 3.12.9\n', timestamp: 1 }], eof: true },

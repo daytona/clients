@@ -78,8 +78,9 @@ export class SandboxAuth {
     this.token = options.accessToken
     this.expiry = options.accessTokenFromCreate ? options.accessTokenExpiresAt : undefined
     const callerSupplied = options.accessToken !== undefined && options.accessTokenFromCreate !== true
-    const hasCreationToken = options.accessTokenFromCreate === true && options.accessToken !== undefined
-    const hasApiCredential = (apiKey !== undefined && apiKey.length > 0) || (httpOptions?.authProvider !== undefined && hasCreationToken)
+    // Any API credential mints, as in Python: an API key, or the auth provider
+    // of a JWT client (its project token authenticates the mint).
+    const hasApiCredential = (apiKey !== undefined && apiKey.length > 0) || httpOptions?.authProvider !== undefined
     this.mintable = !callerSupplied && api !== undefined && hasApiCredential
     if (this.mintable) this.transportAuth = { bearer: () => this.bearer(), onUnauthorized: (failedToken) => this.remint(failedToken) }
   }

@@ -612,7 +612,12 @@ skipping exist only in the TypeScript tool).
   checked before that request; known exceptions at this point, in the
   toolbox area, which still raise `InternalServerError` 500 with no code: the
   computer-use status mappers, and the filesystem signed URL and watch
-  events, until their area adopts it). Python callers should not star-import
+  events, until their area adopts it). Integers match between the SDKs except
+  in one case: a JSON number written with a zero fraction (`3.0`) is not an
+  integer in Python, which refuses it, while TypeScript's `JSON.parse` cannot
+  tell it from `3`, so only Python can refuse it. An id or name a call puts
+  into a request path is a non-blank string with no lone surrogate that is not
+  `.` or `..` (Python `path_segment`, TypeScript `pathSegment`). Python callers should not star-import
   `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
   built-ins.
 - **Generated wire types must not reach the public surface** (the rule; the

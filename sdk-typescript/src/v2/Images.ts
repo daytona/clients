@@ -133,7 +133,7 @@ export class ImagesService {
   }
 
   public async get(imageId: string, options: GetArtifactOptions = {}): Promise<Image> {
-    return getArtifact(this.http, `/images/${pathSegment(imageId, 'imageId')}`, options, 
+    return getArtifact(this.http, `/images/${pathSegment(imageId, 'imageId')}`, options,
       // SAFETY: the Image constructor checks the response against the contract.
       (data) => new Image(INTERNAL, data as api.ImageListItem))
   }

@@ -135,6 +135,8 @@ it.each([
   ['project budget', (client: Daytona) => client.v2.getProjectBudget(), BUDGET_NULLS],
   ['organization limits', (client: Daytona) => client.v2.getLimits({ organizationId: 'org' }), LIMITS],
   ['Mac models', (client: Daytona) => client.v2.macModels.list(), { mac_models: [MODEL] }],
+  // The registry is not paged: a next_cursor there is an unknown field, ignored.
+  ['Mac models with an unknown next_cursor', (client: Daytona) => client.v2.macModels.list(), { mac_models: [MODEL], next_cursor: 5 }],
   ['Mac catalog', (client: Daytona) => client.v2.macModels.catalog(), { regions: [{ id: 'r', default_model: 'm4', models: [{ model: MODEL, available: 1, price: null }] }] }],
 ] as const)('reads a %s response whose nullable keys are explicit nulls', async (_name, call, body) => {
   const api = await startFakeApi([{ status: 200, body }])
@@ -249,6 +251,19 @@ it.each([
   }
 })
 
+it.each(['search', 'findByName'] as const)('refuses a negative search total (%s)', async (call) => {
+  // The contract's total is an int64 with minimum 0.
+  const api = await startFakeApi([{ status: 200, body: { sandboxes: [], total: -1, total_relation: 'eq', next_cursor: null } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(call === 'search' ? client.v2.search() : client.v2.findByName('n')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'search response has a negative total' })
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
 it('refuses a search total a double cannot carry, and accepts one above 2^53 that it carries', async () => {
   const api = await startFakeApi([
     { status: 200, body: `{"sandboxes": [], "total": ${HUGE}, "total_relation": "eq", "next_cursor": null}` },
@@ -321,6 +336,40 @@ it.each([['missing'], ['null']] as const)('refuses a sandbox whose region_id is 
   const client = clientAt(api.url)
   try {
     await expect(client.v2.get('sbx-region-a')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('region_id') })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// A sandbox detail's lifecycle policy is checked field by field, as Python's
+// generated model reads it (tests/test_malformed_responses.py): integers,
+// actions any string (an unknown one kept), deadlines strings.
+const LIFECYCLE_DETAIL = { id: 'src', class: 'linux', name: 'src', status: 'stopped', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], region_id: 'region-a' }
+it.each([
+  ['a string timeout_seconds', { timeout_seconds: '60' }, 'lifecycle_policy.timeout_seconds'],
+  ['a numeric on_timeout', { on_timeout: 5 }, 'lifecycle_policy.on_timeout'],
+  ['a numeric timeout_at', { timeout_at: 5 }, 'lifecycle_policy.timeout_at'],
+] as const)('refuses a lifecycle policy with %s on get and list', async (_name, policy, field) => {
+  const detail = { ...LIFECYCLE_DETAIL, lifecycle_policy: policy }
+  const api = await startFakeApi([{ status: 200, body: detail }, { status: 200, body: { sandboxes: [detail], next_cursor: null } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.get('src')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(field) })
+    await expect(client.v2.list()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(field) })
+    expect(api.requests).toHaveLength(2)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('accepts an unknown lifecycle action', async () => {
+  const api = await startFakeApi([{ status: 200, body: { ...LIFECYCLE_DETAIL, lifecycle_policy: { on_timeout: 'hibernate', timeout_seconds: 60 } } }])
+  const client = clientAt(api.url)
+  try {
+    const sandbox = await client.v2.get('src')
+    expect(sandbox.lifecyclePolicy).toMatchObject({ onTimeout: 'hibernate', timeoutSeconds: 60 })
   } finally {
     await client.close()
     await api.close()

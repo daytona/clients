@@ -1491,11 +1491,14 @@ def region_selector(region: object) -> Optional[str]:
 def path_segment(value: object, name: str) -> str:
     """A caller's id or name as one request-path segment: a string that is not
     blank (Python's whitespace) and has no surrogate code point (no UTF-8
-    form; ``quote()`` would raise ``UnicodeEncodeError``), else
-    :class:`BadRequestError` naming ``name``, before any request, as
-    TypeScript's ``pathSegment``."""
+    form; ``quote()`` would raise ``UnicodeEncodeError``) and is not ``.`` or
+    ``..`` (dot segments, which the HTTP client resolves away, so the request
+    would reach another route), else :class:`BadRequestError` naming
+    ``name``, before any request, as TypeScript's ``pathSegment``."""
     if not isinstance(value, str) or not value.strip():
         raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    if value in (".", ".."):
+        raise create_error(f"{name} must not be '.' or '..'", 400, "BAD_REQUEST", "SDK")
     if has_surrogate(value):
         raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
     return quote(value, safe="")
@@ -1591,8 +1594,8 @@ def parse_search_page(
     """Split a ``GET /sandboxes/search`` body into items, cursor, total, and relation.
 
     The search contract is an object with a ``sandboxes`` array of sandbox
-    objects (each checked by ``check_sandbox``, as a detail is), an integer
-    ``total``, a string ``total_relation`` and a string or null
+    objects (each checked by ``check_sandbox``, as a detail is), a
+    non-negative integer ``total``, a string ``total_relation`` and a string or null
     ``next_cursor``. Anything else is the SDK's own :class:`BadRequestError`
     naming the field, never an empty or truncated page — an ``items`` array is
     NOT accepted as a stand-in. Unknown extra fields are tolerated.
@@ -1614,6 +1617,9 @@ def parse_search_page(
         raise malformed("is missing its total")
     if not isinstance(total, int) or not finite_number(total):
         raise malformed("has a total that is not an integer")
+    if total < 0:
+        # The contract's int64 with minimum 0.
+        raise malformed("has a negative total")
     raw_total_relation = payload.get("total_relation")
     if raw_total_relation is None:
         raise malformed("is missing its total_relation")

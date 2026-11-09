@@ -172,8 +172,9 @@ export class VolumesService {
 
   /** Requests deletion and returns once the API accepts it. */
   public async delete(nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> {
-    assertKnownOptions('DeleteVolumeOptions', options, DELETE_VOLUME_KEYS)
+    // The id first, then the options, as Python checks them.
     const path = `/volumes/${pathSegment(nameOrId, 'nameOrId')}`
+    assertKnownOptions('DeleteVolumeOptions', options, DELETE_VOLUME_KEYS)
     if (options.idOnly !== undefined && typeof options.idOnly !== 'boolean') throw badRequest('idOnly must be a boolean')
     await this.api.delete(path, refConfig(options))
   }

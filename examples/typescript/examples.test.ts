@@ -69,6 +69,15 @@ for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dy
     assert.equal(record.sandboxes.length, 1)
     assert.deepEqual(record.commands, [])
     assertCleanedUp(record)
+    // The other resources the example acquired are cleaned up too.
+    if (name === 'secrets-env') {
+      assert.equal(record.secretSets.length, 1)
+      assert.deepEqual(record.deletedSecrets, record.secretSets.map((set) => set.name))
+    }
+    if (name === 'volumes') {
+      assert.equal(record.createdVolumes.length, 1)
+      assert.deepEqual(record.deletedVolumes, record.createdVolumes)
+    }
   })
 }
 

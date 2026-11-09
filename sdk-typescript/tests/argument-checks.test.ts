@@ -376,11 +376,16 @@ const PATH_CALLS: ReadonlyArray<readonly [string, string, (client: Daytona, api:
   ['createSnapshot', 'name', (_client, api, value) => handle(api).createSnapshot(value)],
   ['sandbox.volumes.pull', 'volumeId', (_client, api, value) => withToolbox(api).volumes.pull(value, { requestId: 'r' })],
 ]
-const PATH_VALUES: ReadonlyArray<readonly [string, unknown]> = [['null', null], ['undefined', undefined], ['a number', 5], ['empty', ''], ['blank', ' \t\u2028']]
+// Dot segments too: URL resolution removes them, so the request would reach another route.
+const PATH_VALUES: ReadonlyArray<readonly [string, unknown]> = [['null', null], ['undefined', undefined], ['a number', 5], ['empty', ''], ['blank', ' \t\u2028'], ['a dot', '.'], ['a dot-dot', '..']]
 // `getLimits({ organizationId: undefined | null })` is the key's own
-// organization (Python's `None`), not a refusal.
+// organization (Python's `None`), not a refusal; the names `promote()` and
+// `createSnapshot()` send go in a body, not a path, so a dot segment is a
+// valid name there.
+const BODY_NAMES = new Set(['images.promote name', 'createSnapshot'])
 const PATH_CASES = PATH_CALLS.flatMap(([name, argument, call]) => PATH_VALUES
   .filter(([label]) => !(name === 'getLimits' && (label === 'undefined' || label === 'null')))
+  .filter(([label]) => !(BODY_NAMES.has(name) && label.includes('dot')))
   .map(([label, value]) => [`${name} with ${label}`, argument, call, value] as const))
 
 it.each(PATH_CASES)('refuses %s as the path id or name before any request', async (_name, argument, call, value) => {
@@ -559,6 +564,26 @@ it.each([
   }
 })
 
+it.each([
+  ['secrets.delete ..', 'name', (client: Daytona) => client.v2.secrets.delete('..')],
+  ['volumes.get .', 'nameOrId', (client: Daytona) => client.v2.volumes.get('.')],
+  ['stop ..', 'sandbox', (client: Daytona) => client.v2.stop('..')],
+  ['delete .', 'sandbox', (client: Daytona) => client.v2.delete('.')],
+  ['get ..', 'sandboxId', (client: Daytona) => client.v2.get('..')],
+] as const)('refuses the dot segment id of %s before any request', async (_name, argument, call) => {
+  // `secrets.delete('..')` would otherwise go to another route: URL
+  // resolution removes the dot segment.
+  const api = await startFakeApi([])
+  const client = clientAt(api.url)
+  try {
+    await expect(call(client)).rejects.toMatchObject({ name: 'BadRequestError', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: `${argument} must not be '.' or '..'` })
+    expect(api.requests).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
 it.each([['create', 'x86_64'], ['create', 5], ['create', ''], ['createFromBuild', 'x86_64'], ['createFromBuild', 5], ['createFromBuild', '']] as const)('%s refuses cpuArch %j before any request', async (route, arch) => {
   const api = await startFakeApi([])
   const client = clientAt(api.url)
@@ -706,6 +731,9 @@ it.each(['build', 'pull'] as const)('images.%s sends a named region', async (rou
 // one is named alike (the Python twin pins the same rows).
 it.each([
   ['volumes.get', (client: Daytona) => client.v2.volumes.get('', { create: 'x' as never }), 'nameOrId'],
+  ['volumes.delete', (client: Daytona) => client.v2.volumes.delete('', { idOnly: 'x' as never }), 'nameOrId'],
+  // An unknown key too: Python has no such check (an unknown keyword is a TypeError).
+  ['volumes.delete with an unknown key', (client: Daytona) => client.v2.volumes.delete('', { bogus: 1 } as never), 'nameOrId'],
   ['reservations.renew', (client: Daytona) => client.v2.reservations.renew('', { idempotencyKey: ' k' }), 'id'],
   ['reservations.update', (client: Daytona) => client.v2.reservations.update('', { autoRenew: 'x' as never }), 'id'],
   ['secrets.set', (client: Daytona) => client.v2.secrets.set('K', 5 as never, { allowedDomains: 5 as never }), 'value'],

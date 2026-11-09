@@ -202,7 +202,7 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
 
 /**
  * The `GET /sandboxes/search` contract: an object with a `sandboxes` array of
- * sandbox objects (each checked as a detail is), an integer `total`, a string
+ * sandbox objects (each checked as a detail is), a non-negative integer `total`, a string
  * `total_relation` and a string or null `next_cursor`. Anything else is the
  * SDK's own {@link BadRequestError} naming the field, never an empty or
  * truncated page — an `items` array is NOT accepted as a stand-in. Unknown
@@ -215,6 +215,8 @@ export function searchPageSandboxes(data: unknown): { readonly sandboxes: Sandbo
   if (!Array.isArray(sandboxes)) throw badRequest('search response is missing the sandboxes array')
   sandboxes.forEach(assertSandboxResponse)
   if (!Number.isInteger(data.total)) throw badRequest(data.total == null ? 'search response is missing its total' : 'search response has a total that is not an integer')
+  // The contract's int64 with minimum 0.
+  if ((data.total as number) < 0) throw badRequest('search response has a negative total')
   if (typeof data.total_relation !== 'string') throw badRequest(data.total_relation == null ? 'search response is missing its total_relation' : 'search response has a total_relation that is not a string')
   // A cursor of the wrong type would silently end search() / findByName() early.
   if (data.next_cursor != null && typeof data.next_cursor !== 'string') throw badRequest('search response has a next_cursor that is not a string')

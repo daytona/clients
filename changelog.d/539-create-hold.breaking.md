@@ -7,5 +7,5 @@ timeout shorter than the hold no longer turns a healthy create into
 wait above the timer maximum (about 24.8 days) means no limit: the request
 body carries 2147483 seconds in both SDKs, and the POST has no client
 deadline. Both SDKs read the server's `wait_cap_seconds` the same way, never
-refusing it once the sandbox exists: a finite number, a negative one as `0`,
-anything else as `0`.
+refusing it once the sandbox exists: a finite number is used as given, a
+negative one counts as `0`, and any other value counts as `0`.

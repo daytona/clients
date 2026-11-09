@@ -64,8 +64,11 @@ def _required_string_list(value: JsonValue, *, field_name: str) -> list[str]:
 
 
 def _required_int(value: JsonValue, *, field_name: str) -> int:
-    # An integer too large for a double is refused, as in TypeScript, whose
-    # JSON.parse reads it as Infinity, which its integer check then refuses.
+    # What matches TypeScript: an integer too large for a double is refused
+    # (its JSON.parse reads it as Infinity, which its integer check refuses).
+    # A number written with a zero fraction (`3.0`) is a float here and is
+    # refused, as every Python integer check refuses it; TypeScript cannot
+    # tell `3.0` from `3`, so only Python refuses it.
     if isinstance(value, int) and finite_number(value):
         return value
     raise create_error(f"{field_name} must be an integer", 400, "BAD_REQUEST", "SDK")

@@ -257,7 +257,8 @@ class AsyncSandbox:
             or getattr(api, "_auth", None) is not None
         )
         # A caller-supplied token is NEVER silently replaced; everything else
-        # with a project key mints and refreshes sandbox access tokens
+        # with an API credential (a key, or a JWT client's project token)
+        # mints and refreshes sandbox access tokens
         # transparently.
         self._sandbox_token_mintable = not access_token_caller_supplied and api_transport_has_credential
         self._sandbox_token_lock = asyncio.Lock()
@@ -1423,11 +1424,15 @@ class AsyncSandbox:
             raise create_error(
                 "update_lifecycle_policy requires at least one lifecycle field", 400, "BAD_REQUEST", "SDK"
             )
-        if self.sandbox_class is None or self.persistent is None:
+        # One read when the class is unknown, and for a macOS sandbox whose
+        # persistence is unknown, as TypeScript reads it; never for a known
+        # Linux sandbox (persistence is macOS-only).
+        sandbox_class = await self._require_sandbox_class()
+        if sandbox_class == "macos" and self.persistent is None:
             await self.refresh_data()
         assert_lifecycle_class_support(
             body,
-            sandbox_class=await self._require_sandbox_class(),
+            sandbox_class=sandbox_class,
             persistent=True if self.persistent is None else self.persistent,
             action="update_lifecycle_policy",
         )

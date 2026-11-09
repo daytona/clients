@@ -342,7 +342,37 @@ def expect_signed_preview_url_resp(value: TransportPayload) -> SignedPreviewUrl:
     )
 
 
+_SANDBOX_TIMESTAMPS = (
+    "create_timeout_at",
+    "created_at",
+    "last_activity_at",
+    "spot_evicted_at",
+    "started_at",
+    "stopped_at",
+    "updated_at",
+)
+_LIFECYCLE_TIMESTAMPS = ("idle_timeout_at", "last_activity_at", "timeout_at")
+
+
+def _check_timestamp_strings(value: TransportPayload) -> None:
+    """The contract's timestamps are strings: the generated model would also
+    read a number as a Unix time, which TypeScript refuses. A string the
+    model cannot read as a date-time is refused by the model."""
+    if not isinstance(value, dict):
+        return
+    fields = [(name, value.get(name)) for name in _SANDBOX_TIMESTAMPS]
+    policy = value.get("lifecycle_policy")
+    if isinstance(policy, dict):
+        fields += [(f"lifecycle_policy.{name}", policy.get(name)) for name in _LIFECYCLE_TIMESTAMPS]
+    for name, timestamp in fields:
+        if timestamp is not None and not isinstance(timestamp, str):
+            raise create_error(
+                f"sandbox detail response has a {name} that is not a string", 400, "BAD_REQUEST", "SDK"
+            )
+
+
 def expect_sandbox_detail(value: TransportPayload) -> Sandbox:
+    _check_timestamp_strings(value)
     return _expect_model_from_dict(_with_region(value), Sandbox, "sandbox detail response", Sandbox.from_dict)
 
 

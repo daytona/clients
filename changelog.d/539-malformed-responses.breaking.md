@@ -35,4 +35,12 @@ missing `region_id` from the sandbox id); only an empty `region_id` is derived
 from the id. A required field the contract allows to be null (for example the
 project budget's `monthly_limit_cents`, `period_start_date`, `created_at` and
 `updated_at`) must be present, while an explicit `null` stays valid. Python no
-longer requires the per-item `cursor` of a list page; neither SDK reads it.
+longer requires the per-item `cursor` of a list page; neither SDK reads it. A
+search page's `total` must be a non-negative integer (the contract's minimum
+of 0; both SDKs read a negative one as given). A sandbox's `lifecycle_policy`
+is checked field by field in TypeScript as Python's model checks it: integer
+`timeout_seconds` / `idle_expiry_seconds`, string actions (an unknown one is
+kept), string deadlines and activity source (TypeScript read a malformed field
+as absent). Python also refuses a number where the contract has a timestamp
+string, on the sandbox and its lifecycle policy (its model read it as a Unix
+time).
