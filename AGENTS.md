@@ -518,10 +518,12 @@ skipping exist only in the TypeScript tool).
   **Every response body the SDK buffers whole is capped**, through both
   transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,
   error bodies): `max_response_bytes` / `maxResponseBytes` on the client
-  config (default 1 GiB, `0` = no limit, an integer up to 2^53 − 1) and per
-  call on the in-memory reads (`read_bytes` / `readBytes`, `read_text` /
+  config (an integer up to 2^53 − 1; Python `None` / TypeScript `undefined`
+  or `null` keep the 1 GiB default, `0` means no limit, any other value is a
+  `BadRequestError`) and per call on the in-memory reads (the same values;
+  unset keeps the client's cap): `read_bytes` / `readBytes`, `read_text` /
   `readText`, `read_many` / `readMany` (the whole multipart body), the
-  recording download). A declared `Content-Length` over the cap is refused
+  recording download. A declared `Content-Length` over the cap is refused
   before the body is read, otherwise reading stops once it passes, and the
   connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
   `readFetchText`). A refused success response is `PayloadTooLargeError`

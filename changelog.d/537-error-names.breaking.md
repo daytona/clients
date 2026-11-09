@@ -16,4 +16,5 @@ category as well as `daytona.v0`). Python callers should import the v2 errors by
 (not `from daytona.v2 import *`): `ConnectionError` and `FileNotFoundError`
 mirror the SDK's categories and shadow the built-ins of the same name.
 The migration tool's `daytona-v2:` note on a 0.x import of either former root
-alias names the root category to catch instead.
+alias names the root category to catch instead, and its constructor guidance treats a
+catch of either as a catch of that category.

@@ -454,7 +454,7 @@ class AsyncDaytona:
         the SDK sends the new sandbox's toolbox credential there, so pass only
         a URL you trust — never one read from stored or user-supplied data.
 
-        Find regions and their regional API endpoints with ``GET /regions``;
+        Find regions and their regional API endpoints with ``daytona region list`` (the CLI);
         discover Mac models and prices with ``mac_models.catalog(region="<region>")``.
         To select a regional API endpoint, set ``DAYTONA_V2_API_URL`` before
         creating the client. An API that does not serve the region answers

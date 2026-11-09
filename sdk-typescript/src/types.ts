@@ -44,7 +44,7 @@ export type DaytonaConfig = {
   readonly requestTimeoutSeconds?: number
   /**
    * v2 only: the cap on a response body the SDK holds in memory whole, in
-   * bytes (an integer, `0` = no limit; default 1 GiB). See the v2
+   * bytes (an integer up to `Number.MAX_SAFE_INTEGER`; `undefined` or `null` keep the 1 GiB default, `0` means no limit, and any other value (negative, fractional, boolean, string, too large) is a `BadRequestError`). See the v2
    * `DaytonaConfig.maxResponseBytes`.
    */
   readonly maxResponseBytes?: number | null

@@ -84,8 +84,8 @@ The root client reads `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 Environment values are trimmed, and a blank one counts as unset; values you
 pass in the config are used as given, and an empty one (`apiKey: ''`, …)
 throws `BadRequestError` instead of falling back to the environment.
-`DAYTONA_V2_API_URL` selects another v2 API endpoint (a regional endpoint from
-`GET /regions`, or a test environment);
+`DAYTONA_V2_API_URL` selects another v2 API endpoint (a regional endpoint, as
+`daytona region list` in the CLI shows them, or a test environment);
 when it is unset the SDK uses its built-in default API URL. `daytona.v0`
 always targets Daytona's v0 API URL. SDK 2.x never reads `DAYTONA_API_URL`, the
 0.x SDK's variable.
@@ -105,8 +105,8 @@ ordinary request may take before it throws `ClientTimeoutError`; waits and long
 polls use their own budget, streams are bounded only until their response
 arrives, and file transfers have no total limit but throw `ClientTimeoutError`
 once no bytes move for that long (with `requestTimeoutSeconds: 0` they are not
-bounded at all). `maxResponseBytes` (default 1 GiB; `0` means
-no limit) caps every response body the SDK holds in memory whole: a larger
+bounded at all). `maxResponseBytes` (an integer; `undefined` or `null` keep the
+1 GiB default, `0` means no limit, and any other value is a `BadRequestError`) caps every response body the SDK holds in memory whole: a larger
 body throws `PayloadTooLargeError` before it is read in full (an error response
 keeps its status's error).
 
@@ -620,7 +620,8 @@ overflow hook, exactly-once `onExit`, `waitForExit()` / `exitError`), and
 `presignedDownloadUrl` / `presignedUploadUrl` for direct transfers.
 `readBytes`, `readText`, `readMany` and the computer-use `recording.download()`
 hold the whole response in memory: they take `{ maxResponseBytes }` to replace
-the client's cap for one call (`0` = no limit). For large files, or content
+the client's cap for one call (`undefined` or `null` keep the client's cap, `0`
+means no limit, any other non-integer is a `BadRequestError`). For large files, or content
 from a sandbox you don't trust, use `downloadFile()` (Node.js), which streams
 to disk. The
 platform mints the link; `expiresInSeconds` (default 3600) must be between 1

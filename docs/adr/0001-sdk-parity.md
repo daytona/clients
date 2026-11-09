@@ -30,14 +30,17 @@ seconds in both SDKs: Python keeps the bare name (`timeout`,
 `request_timeout`), TypeScript adds the unit to it (`timeoutSeconds`,
 `requestTimeoutSeconds`), and a TypeScript options object rejects a key it does
 not define at runtime, naming the replacement of a renamed one. The client
-configuration follows this rule today; TypeScript per-call `timeout` options
-that still take milliseconds move to it area by area. These are spelling
+configuration follows this rule today; the TypeScript per-call `timeout`
+options that still take milliseconds adopt the seconds convention area by
+area. These are spelling
 differences, not shape differences: `sandbox.run_code(...)` and
 `sandbox.runCode(...)` take the same inputs and return the same result. The
 client's request timeout means the same in both: the total time one ordinary
 call may take (default 60 s), the credential exchange and a 401 retry
 included. Waits and long polls are bounded by their own budget, streams only
-until their response headers arrive, and file transfers not at all.
+until their response headers arrive, and file transfers have no total
+deadline but are idle-bounded by the request timeout (they fail once no bytes
+move for that long; `0` leaves them unbounded).
 
 **One error hierarchy.** Both SDKs root every error at `DaytonaError`. Below
 it sits one base class per HTTP status category (`NotFoundError`,
