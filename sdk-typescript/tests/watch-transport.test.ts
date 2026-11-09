@@ -29,6 +29,13 @@ async function refusedUrl(): Promise<string> {
   return `http://127.0.0.1:${address.port}`
 }
 
+/** Two fs event payloads (`e0`, `e1` padded) of `total` UTF-8 bytes together (as Python's test). */
+function eventDataTotalling(total: number): string[] {
+  const payload = (name: string) => JSON.stringify({ type: 'create', name, isDir: false, timestamp: 1 })
+  const first = payload('e0')
+  return [first, payload(`e1${'x'.repeat(total - first.length - payload('e1').length)}`)]
+}
+
 describe('watch stream drops', () => {
   let server: Server
   let base: string
@@ -55,6 +62,15 @@ describe('watch stream drops', () => {
         response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Content-Length': '100000' })
         response.write('event: log\ndata: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}\n\n')
         setTimeout(() => response.socket?.destroy(), 20)
+        return
+      }
+      const bytes = /^\/bytes-(\d+)/.exec(request.url ?? '')
+      if (bytes !== null) {
+        // Two fs events before start whose data adds up to exactly N UTF-8
+        // bytes, then start; the stream stays open as for flood-.
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write(`${eventDataTotalling(Number(bytes[1])).map((data) => `event: fs\ndata: ${data}\n\n`).join('')}event: start\ndata: {}\n\n`)
+        response.on('close', () => clientClosed.resolve())
         return
       }
       const flood = /^\/(o?)flood-(\d+)/.exec(request.url ?? '')
@@ -161,6 +177,31 @@ describe('watch stream drops', () => {
     await clientClosed.promise
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect({ exits, seen }).toEqual({ exits: [], seen: [] })
+  })
+
+  it('holds at most 1 MiB of event data before start, whatever the count', async () => {
+    const seen: string[] = []
+    let both!: () => void
+    const done = new Promise<void>((resolve) => { both = resolve })
+    const handle = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/bytes-1048576`, 'k', 5_000)).watchDir('/', (event) => {
+      seen.push(event.name.slice(0, 2))
+      if (seen.length === 2) both()
+    })
+    await done
+    await handle.stop()
+    expect(seen).toEqual(['e0', 'e1'])
+  })
+
+  it('refuses a stream with more than 1 MiB of event data before start, without onExit, and closes it', async () => {
+    const exits: unknown[] = []
+    const error = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/bytes-1048577`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit: (exit) => { exits.push(exit) } })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ message: 'expected filesystem watch stream: it sent more than 1048576 bytes of events before start', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    await clientClosed.promise
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(exits).toEqual([])
   })
 
   it('counts overflow events before start toward the cap without an onOverflow callback', async () => {

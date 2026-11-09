@@ -233,8 +233,15 @@ const PROCESS = 'process response'
 function terminalFromWire(input: WireRecord): TerminalSize | undefined {
   const value = input.terminal
   if (value === undefined || value === null) return undefined
-  const terminal = record(value, `${PROCESS}: terminal`)
-  return { cols: positiveInt(terminal, 'cols', `${PROCESS}: terminal`), rows: positiveInt(terminal, 'rows', `${PROCESS}: terminal`) }
+  const d = `${PROCESS}: terminal`
+  const terminal = record(value, d)
+  // int32 dimensions of at least 1, as the request's (terminalDimension).
+  const dimension = (field: 'cols' | 'rows'): number => {
+    const size = positiveInt(terminal, field, d)
+    if (size > MAX_INT32) throw malformedResponse(`${d}: ${field} must be an integer between 1 and ${MAX_INT32}`)
+    return size
+  }
+  return { cols: dimension('cols'), rows: dimension('rows') }
 }
 
 export function processFromWire(input: toolbox.ProcessDto): ProcessInfo {

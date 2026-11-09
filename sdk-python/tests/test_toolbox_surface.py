@@ -2557,3 +2557,69 @@ async def test_list_remotes_names_the_malformed_part(payload: JsonValue, message
     with pytest.raises(BadRequestError) as info:
         await AsyncGitService(Transport([payload])).list_remotes("/r")  # type: ignore[arg-type]
     assert str(info.value) == message
+
+
+# Shared with the TypeScript SDK's unit.test.ts: a lone surrogate has no
+# UTF-8 form, so it is no path id; an astral character is kept.
+@pytest.mark.anyio
+@pytest.mark.parametrize("bad", ["\ud800", "a\udfffb", "\udc00\ud800"])
+async def test_a_lone_surrogate_is_refused_as_a_path_id(bad: str) -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    transport = Transport()
+    with pytest.raises(BadRequestError, match="process id must not contain a lone surrogate"):
+        await AsyncProcessService("sbx", transport).get(bad)  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="recording id must not contain a lone surrogate"):
+        await AsyncComputerUseService(transport).recording.get(bad)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.anyio
+async def test_an_astral_character_in_a_path_id_is_percent_encoded() -> None:
+    transport = Transport([_process(id="p\U0001f600")])
+    await AsyncProcessService("sbx", transport).get("p\U0001f600")  # type: ignore[arg-type]
+    assert transport.specs[0].path == "/processes/p%F0%9F%98%80"
+
+
+# Shared with the TypeScript SDK's unit.test.ts.
+@pytest.mark.anyio
+@pytest.mark.parametrize(("cols", "accepted"), [(2**31, False), (2**31 - 1, True)])
+async def test_a_process_record_terminal_is_read_only_within_int32(cols: int, accepted: bool) -> None:
+    transport = Transport([_process(kind="pty", terminal={"cols": cols, "rows": 1})])
+    call = AsyncProcessService("sbx", transport).get("p")  # type: ignore[arg-type]
+    if accepted:
+        info = await call
+        assert info.terminal is not None and info.terminal.cols == cols
+    else:
+        with pytest.raises(
+            BadRequestError, match="terminal: cols must be an integer between 1 and 2147483647"
+        ):
+            await call
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("items", [{}, "x"])
+async def test_a_completion_list_whose_items_are_not_a_list_is_named(items: JsonValue) -> None:
+    transport = Transport([{"isIncomplete": False, "items": items}])
+    server = AsyncLspServer(transport, "python", "/p")  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError, match="expected LSP completion list: items must be a list"):
+        await server.completions("u", LspPosition(line=0, character=0))
+
+
+@pytest.mark.anyio
+async def test_an_unknown_process_status_key_named_proto_is_an_ordinary_extra_field() -> None:
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    status: JsonValue = {
+        "Running": True,
+        "Priority": 1,
+        "AutoRestart": True,
+        "Pid": 5,
+        "Failed": False,
+        "RestartAttempts": 0,
+        "RestartBackoffMs": 1500,
+        "Status": "RUNNING",
+        "__proto__": {"x": 1},
+    }
+    statuses = await AsyncComputerUseService(Transport([{"xvfb": status}])).service.status()  # type: ignore[arg-type]
+    assert statuses["xvfb"].extra_fields.get("__proto__") == {"x": 1}

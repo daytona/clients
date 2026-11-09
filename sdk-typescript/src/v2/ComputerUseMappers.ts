@@ -175,7 +175,9 @@ export function mapComputerUseProcessStatus(status: toolbox.ComputerUseProcessSt
   const wire = record(status, d)
   const extraFields: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(wire)) {
-    if (!PROCESS_STATUS_FIELDS.has(key)) extraFields[wireKeyToSdkKey(key)] = value
+    // An own data property even for a key named `__proto__` (assignment would
+    // set the bag's prototype instead).
+    if (!PROCESS_STATUS_FIELDS.has(key)) Object.defineProperty(extraFields, wireKeyToSdkKey(key), { value, enumerable: true, writable: true, configurable: true })
   }
   const pid = optional(wire, 'Pid', int, d)
   const mapped: Mutable<ComputerUseProcessStatus> = {

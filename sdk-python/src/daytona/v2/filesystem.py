@@ -70,6 +70,10 @@ WATCH_STOP_JOIN_TIMEOUT_SECONDS: Final[float] = 5.0
 # The most fs / overflow events a watch holds before its stream's `start`
 # (delivered after it); one more is a malformed stream. Raising it is additive.
 WATCH_MAX_EVENTS_BEFORE_START: Final[int] = 4096
+# The most event data, in UTF-8 bytes, a watch holds before `start`: 4096
+# events of 256 bytes, about twice a typical event. One byte more is a
+# malformed stream, like the count cap.
+WATCH_MAX_BYTES_BEFORE_START: Final[int] = 1_048_576
 _FILE_TRANSFER_CHUNK_BYTES: Final[int] = 64 * 1024
 _T = TypeVar("_T")
 _TRANSFER_CANCEL_POLL_SECONDS: Final[float] = 0.05
@@ -657,8 +661,8 @@ class AsyncFileSystemService:
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
         when the watch ends, and its own failure is ignored. A failure before
         the watch starts is raised from this call and does not call ``on_exit``;
-        a stream that sends more than 4096 events before ``start`` is one
-        (``BadRequestError``).
+        a stream that sends more than 4096 events, or more than 1 MiB of event
+        data, before ``start`` is one (``BadRequestError``).
         """
         stream = await self._transport.open_stream(_watch_spec(path, recursive=recursive))
         handle = AsyncWatchHandle(stream, on_exit)
@@ -690,6 +694,7 @@ class AsyncFileSystemService:
         async def read_events() -> None:
             started = False
             early_events = 0
+            early_bytes = 0
             exit_error: Exception | None = None
             try:
                 async for event_name, data, _id in parse_sse_messages_async(stream.iter_lines()):
@@ -700,10 +705,19 @@ class AsyncFileSystemService:
                         # Every listed event before start counts toward the
                         # cap, whether or not a callback handles it.
                         early_events += 1
+                        early_bytes += len(data.encode("utf-8"))
                         if early_events > WATCH_MAX_EVENTS_BEFORE_START:
                             raise create_error(
                                 f"expected filesystem watch stream: it sent more than "
                                 f"{WATCH_MAX_EVENTS_BEFORE_START} events before start",
+                                400,
+                                "BAD_REQUEST",
+                                "SDK",
+                            )
+                        if early_bytes > WATCH_MAX_BYTES_BEFORE_START:
+                            raise create_error(
+                                f"expected filesystem watch stream: it sent more than "
+                                f"{WATCH_MAX_BYTES_BEFORE_START} bytes of events before start",
                                 400,
                                 "BAD_REQUEST",
                                 "SDK",

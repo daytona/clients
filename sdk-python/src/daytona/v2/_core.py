@@ -268,8 +268,12 @@ def refuse_dot_segment(value: str, name: str) -> None:
 
 def toolbox_path_id(value: str, name: str) -> str:
     """A toolbox id or name as one percent-encoded request-path segment (see
-    :func:`refuse_dot_segment`)."""
+    :func:`refuse_dot_segment`). A lone surrogate code point has no UTF-8
+    form, so it is refused too, as TypeScript's ``toolboxPathId`` does;
+    astral characters are kept."""
     refuse_dot_segment(value, name)
+    if any("\ud800" <= char <= "\udfff" for char in value):
+        raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
     return quote(value, safe="")
 
 
@@ -1803,8 +1807,18 @@ def _parse_log_frame(payload: LogFrameDto) -> LogFrame:
 
 
 def _parse_terminal(value: ToolboxTerminalSize | None) -> Optional[TerminalSize]:
+    """A process record's terminal: int32 dimensions of at least 1, as the
+    request's (:func:`terminal_dimension`); anything else is malformed."""
     if value is None:
         return None
+    for name, dimension in (("cols", value.cols), ("rows", value.rows)):
+        if not 1 <= dimension <= _MAX_INT32:
+            raise create_error(
+                f"expected process response: terminal: {name} must be an integer between 1 and {_MAX_INT32}",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
     return TerminalSize(cols=value.cols, rows=value.rows)
 
 

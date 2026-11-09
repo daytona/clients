@@ -30,6 +30,19 @@ _EVENT = json.dumps({"type": "create", "name": "a", "isDir": False, "timestamp":
 _CLOSED_BY_CLIENT = threading.Event()
 
 
+def _event_data_totalling(total: int) -> list[str]:
+    """Two fs event payloads (``e0``, ``e1`` padded) of ``total`` UTF-8 bytes together."""
+
+    def payload(name: str) -> str:
+        return json.dumps(
+            {"type": "create", "name": name, "isDir": False, "timestamp": 1}, separators=(",", ":")
+        )
+
+    first = payload("e0")
+    padding = total - len(first.encode()) - len(payload("e1").encode())
+    return [first, payload("e1" + "x" * padding)]
+
+
 class _Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -41,6 +54,21 @@ class _Handler(BaseHTTPRequestHandler):
         if case == "truncated":
             self.send_header("Content-Length", "100000")
         self.end_headers()
+        if case.startswith("bytes-"):
+            # Two fs events before start whose data adds up to exactly N
+            # UTF-8 bytes, then start; the stream stays open as for flood-.
+            frames = _event_data_totalling(int(case.removeprefix("bytes-")))
+            with contextlib.suppress(OSError):
+                self.wfile.write(
+                    (
+                        "".join(f"event: fs\ndata: {data}\n\n" for data in frames)
+                        + "event: start\ndata: {}\n\n"
+                    ).encode()
+                )
+                self.wfile.flush()
+                self.rfile.read(1)
+            _CLOSED_BY_CLIENT.set()
+            return
         if case.startswith(("flood-", "oflood-")):
             # N fs (oflood: overflow) events before start, then start; the
             # stream stays open until the client closes it, which the test is
@@ -540,3 +568,38 @@ def test_a_task_a_sync_callback_started_can_stop_its_watch_after_the_callback_re
         bridge.call(transport.close)
     finally:
         bridge.close()
+
+
+# Shared with the TypeScript SDK's watch-transport.test.ts: at most 1 MiB of
+# event data before start, whatever the count.
+@pytest.mark.anyio
+async def test_a_watch_holds_at_most_one_mib_of_event_data_before_start(base: str) -> None:
+    from daytona.v2.errors import BadRequestError
+
+    seen: list[str] = []
+    exits: list[Optional[Exception]] = []
+    transport = AsyncTransport(f"{base}/bytes-1048576")
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir(
+            "/", lambda event: seen.append(event.name[:2])
+        )
+        for _ in range(500):
+            if len(seen) == 2:
+                break
+            await asyncio.sleep(0.01)
+        await handle.stop()
+    finally:
+        await transport.close()
+    assert seen == ["e0", "e1"]
+
+    _CLOSED_BY_CLIENT.clear()
+    transport = AsyncTransport(f"{base}/bytes-1048577")
+    try:
+        with pytest.raises(BadRequestError, match="more than 1048576 bytes of events before start") as info:
+            await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None, on_exit=exits.append)
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+        assert await asyncio.to_thread(_CLOSED_BY_CLIENT.wait, 10)
+    finally:
+        await transport.close()
+    await asyncio.sleep(0.05)
+    assert exits == []

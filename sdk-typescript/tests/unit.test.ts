@@ -12305,6 +12305,55 @@ describe('toolbox surface', () => {
     else await expect(call).rejects.toMatchObject({ message: 'expected process response: timeoutMs must be a non-negative safe integer', code: 'BAD_REQUEST' })
   })
 
+  // Shared with the Python SDK's test_toolbox_surface.py.
+  it.each([[2 ** 31, false], [2 ** 31 - 1, true]] as const)('reads a process record terminal cols of %p only within int32', async (cols, accepted) => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce(createdWire({ id: 'p', kind: 'pty', terminal: { cols, rows: 1 } }))
+    const call = new ProcessService(INTERNAL, transport.object, 'sbx').get('p')
+    if (accepted) await expect(call).resolves.toMatchObject({ terminal: { cols, rows: 1 } })
+    else await expect(call).rejects.toMatchObject({ message: 'expected process response: terminal: cols must be an integer between 1 and 2147483647', code: 'BAD_REQUEST' })
+  })
+
+  it.each([
+    [{ isIncomplete: false, items: {} }, 'expected LSP completion list: items must be a list'],
+    [{ isIncomplete: false, items: 'x' }, 'expected LSP completion list: items must be a list'],
+    [{ isIncomplete: false }, 'expected LSP completion list: items is required'],
+    [{ isIncomplete: false, items: null }, 'expected LSP completion list: items is required'],
+  ])('names a malformed LSP completion list %p', async (payload, message) => {
+    const transport = transportStub()
+    transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce(payload)
+    const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
+    await expect(server.completions('u', { line: 0, character: 0 })).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  it('keeps an unknown process-status key named __proto__ as an own, frozen extraFields property', async () => {
+    const transport = transportStub()
+    const status = JSON.parse('{"Running":true,"Priority":1,"AutoRestart":true,"Pid":5,"Failed":false,"RestartAttempts":0,"RestartBackoffMs":1500,"Status":"RUNNING","__proto__":{"x":1}}') as unknown
+    transport.get.mockResolvedValueOnce({ xvfb: status })
+    const map = await new ComputerUseService(INTERNAL, transport.computerUseObject).service.status()
+    const extra = map.xvfb?.extraFields
+    expect(extra).toBeDefined()
+    expect(Object.prototype.hasOwnProperty.call(extra, '__proto__')).toBe(true)
+    expect(Object.getPrototypeOf(extra)).toBe(Object.prototype)
+    expect(Object.isFrozen(extra)).toBe(true)
+    expect(Object.isFrozen((extra as Record<string, unknown>).__proto__)).toBe(true)
+  })
+
+  // Shared with the Python SDK: a lone surrogate is no path id; an astral character is kept.
+  it.each(['\ud800', 'a\udfffb', '\udc00\ud800'])('refuses a path id with a lone surrogate %p before any request', async (bad) => {
+    const transport = transportStub()
+    await expect(new ProcessService(INTERNAL, transport.object, 'sbx').get(bad)).rejects.toMatchObject({ message: 'process id must not contain a lone surrogate', code: 'BAD_REQUEST' })
+    await expect(new ComputerUseService(INTERNAL, transport.computerUseObject).recording.get(bad)).rejects.toMatchObject({ message: 'recording id must not contain a lone surrogate', code: 'BAD_REQUEST' })
+    expect(transport.get).not.toHaveBeenCalled()
+  })
+
+  it('percent-encodes an astral character in a path id', async () => {
+    const transport = transportStub()
+    transport.get.mockResolvedValueOnce(createdWire({ id: 'p\u{1F600}', kind: 'exec' }))
+    await new ProcessService(INTERNAL, transport.object, 'sbx').get('p\u{1F600}')
+    expect(transport.get.mock.calls[0]?.[0]).toBe('/processes/p%F0%9F%98%80')
+  })
+
   // Shared with the Python SDK's test_toolbox_surface.py: terminal cols / rows
   // are int32 values of at least 1, on pty.start() and resize().
   it.each([0, -1, 1.5, true, 2 ** 31, '80'].flatMap((bad) => (['cols', 'rows'] as const).map((field) => [field, bad] as const)))(

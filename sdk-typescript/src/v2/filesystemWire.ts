@@ -90,7 +90,8 @@ function parseMultipart(body: Uint8Array, boundary: string): ReadonlyArray<{ rea
 }
 
 function parseMultipartHeaders(rawHeaders: Uint8Array): Record<string, string> {
-  const headers: Record<string, string> = {}
+  // No prototype: a part header named `__proto__` is an ordinary entry.
+  const headers = Object.create(null) as Record<string, string>
   for (const line of HEADER_DECODER.decode(rawHeaders).split('\r\n')) {
     const separator = line.indexOf(':')
     if (separator < 0) {

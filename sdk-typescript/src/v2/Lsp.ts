@@ -135,7 +135,8 @@ function completionListFromWire(value: toolbox.CompletionList): LspCompletionLis
   const d = 'LSP completion list'
   const wire = record(value, d)
   const items = wire.items
-  if (!Array.isArray(items)) throw malformedResponse(`${d}: items is required`)
+  if (items === undefined || items === null) throw malformedResponse(`${d}: items is required`)
+  if (!Array.isArray(items)) throw malformedResponse(`${d}: items must be a list`)
   return deepFrozen({ isIncomplete: bool(wire, 'isIncomplete', d), items: items.map(completionItemFromWire) })
 }
 

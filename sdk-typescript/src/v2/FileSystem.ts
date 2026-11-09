@@ -136,6 +136,13 @@ export interface WatchDirOptions {
  * (delivered after it); one more is a malformed stream. Raising it is additive.
  */
 const WATCH_MAX_EVENTS_BEFORE_START = 4096
+/**
+ * The most event data, in UTF-8 bytes, a watch holds before `start`: 4096
+ * events of 256 bytes, about twice a typical event. One byte more is a
+ * malformed stream, like the count cap.
+ */
+const WATCH_MAX_BYTES_BEFORE_START = 1_048_576
+const UTF8 = new TextEncoder()
 const WRITE_FILE_OPTION_KEYS = optionKeys<WriteFileOptions>()({ atomic: true })
 const WRITE_MANY_OPTION_KEYS = optionKeys<WriteManyOptions>()({ atomic: true })
 const LIST_FILES_OPTION_KEYS = optionKeys<ListFilesOptions>()({ depth: true })
@@ -446,8 +453,8 @@ export class FileSystemService {
    * after a direct `await watchDir(...)` a callback can call `stop()` on it;
    * when the promise is not awaited directly (inside `Promise.all`, or awaited
    * later), signal the code that holds the handle and call `stop()` there. A
-   * stream that sends more than 4096 events before `start` rejects this call
-   * with `BadRequestError`.
+   * stream that sends more than 4096 events, or more than 1 MiB of event data,
+   * before `start` rejects this call with `BadRequestError`.
    */
   public async watchDir(
     path: string,
@@ -485,6 +492,7 @@ export class FileSystemService {
     // most WATCH_MAX_EVENTS_BEFORE_START of them are held.
     const held: (() => void | Promise<void>)[] = []
     let earlyEvents = 0
+    let earlyBytes = 0
     let resolveExit!: (error: Error | undefined) => void
     const exitPromise = new Promise<Error | undefined>((resolve) => {
       resolveExit = resolve
@@ -557,8 +565,12 @@ export class FileSystemService {
               // Every listed event before start counts toward the cap, whether
               // or not a callback handles it.
               earlyEvents++
+              earlyBytes += UTF8.encode(message.data).byteLength
               if (earlyEvents > WATCH_MAX_EVENTS_BEFORE_START) {
                 throw malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_EVENTS_BEFORE_START} events before start`)
+              }
+              if (earlyBytes > WATCH_MAX_BYTES_BEFORE_START) {
+                throw malformedResponse(`filesystem watch stream: it sent more than ${WATCH_MAX_BYTES_BEFORE_START} bytes of events before start`)
               }
             }
             let callback: (() => void | Promise<void>) | undefined
