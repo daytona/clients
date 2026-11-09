@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -234,5 +235,11 @@ func withRemoteStderr(exitErr error, stderr string) error {
 	if message == "" {
 		return exitErr
 	}
-	return cerr.New(cerr.ExitCode(exitErr), "%s: %s", exitErr.Error(), message)
+	e := cerr.New(cerr.ExitCode(exitErr), "%s: %s", exitErr.Error(), message)
+	// The status is the remote process's: keep the source it was reported with.
+	var ce *cerr.Error
+	if errors.As(exitErr, &ce) {
+		e.Source = ce.Source
+	}
+	return e
 }

@@ -167,8 +167,11 @@ func (s *Store) LoadCredentials() (*Credentials, error) {
 	return &c, nil
 }
 
-// SaveCredentials writes credentials.yaml atomically.
-func (s *Store) SaveCredentials(c *Credentials) error { return writeYAML(s.credsPath(), c) }
+// SaveCredentials writes credentials.yaml atomically, without the keys
+// earlier releases exchanged from static credentials.
+func (s *Store) SaveCredentials(c *Credentials) error {
+	return writeYAML(s.credsPath(), c.withoutLegacyKeys())
+}
 
 // Update runs fn under the lock with fresh copies of both files and persists
 // whatever fn returns (nil = leave that file untouched).

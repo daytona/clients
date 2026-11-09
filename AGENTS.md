@@ -175,6 +175,12 @@ service manages them, `volumes` attaches them on create, and `sandbox.volumes`
 provides pull operations. The CLI exposes `volume` and `sandbox create --volume`
 (also on `create-macos`). Keep these surfaces in parity across the SDKs.
 
+The CLI's own API URL order, whatever the endpoint notes under "Version
+namespaces" say about the SDKs: `--api-url`, then `DAYTONA_V2_API_URL`, then
+the profile's saved URL, then `app.DefaultAPIURL` (equal to the SDKs'
+`DEFAULT_V2_API_URL`). The CLI never reads `DAYTONA_API_URL` or
+`DAYTONA_REGION` (regions come from `--region` only).
+
 The `daytona` CLI (Go) shares the SDKs' version line but is not part of the
 Python↔TS parity contract. Its wire types (`cli/gen/`) are generated from
 `contract/*.json` by `cli/hack/gen.sh`; its README is public-facing. Verify:

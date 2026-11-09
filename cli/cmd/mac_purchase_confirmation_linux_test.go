@@ -61,7 +61,7 @@ func TestMacPurchase_promptsBeforeHTTP_when_atTerminal(t *testing.T) {
 				command := exec.CommandContext(ctx, os.Args[0], append([]string{"-test.run=^TestMacPurchaseTerminalProcess$", "--"}, args...)...)
 				command.Env = append(os.Environ(),
 					"DAYTONA_CONFIG_DIR="+cfgDir(t), "DAYTONA_TEST_MAC_PURCHASE_TTY=1",
-					"DAYTONA_API_URL="+f.srv.URL, "DAYTONA_V2_API_URL=", "DAYTONA_API_KEY=k",
+					"DAYTONA_API_URL=", "DAYTONA_V2_API_URL="+f.srv.URL, "DAYTONA_API_KEY=k",
 					"DAYTONA_YES=", "DAYTONA_ORG=", "DAYTONA_PROJECT=", "DAYTONA_REGION=", "DAYTONA_PROFILE=",
 					"CI=", "TERM=xterm-256color", "NO_COLOR=1")
 				command.Stdin, command.Stdout, command.Stderr = slave, slave, slave

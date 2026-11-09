@@ -110,7 +110,7 @@ func TestBillingCharges_forwardsCursorAndSurfacesContinuationHint(t *testing.T) 
 		"charges":     []map[string]any{{"id": "ch_123", "amount_cents": 1000, "currency": "usd", "description": "charge", "has_pdf": false, "has_invoice": false, "invoice_url": nil, "receipt_url": nil, "failure_message": nil, "created_at": "2026-09-01T00:00:00Z", "status": "succeeded"}},
 		"next_cursor": "ch_456",
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "charges", "--limit", "5", "--cursor", "ch_0")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "charges", "--limit", "5", "--cursor", "ch_0", "-o", "table")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, "cursor=ch_0&limit=5", api.requests[0].Query)
 	require.Contains(t, stdout, "--cursor ch_456")
@@ -122,7 +122,7 @@ func TestBillingInvoices_surfaceTruncatedAndPageHint(t *testing.T) {
 		"invoices":    []map[string]any{invoiceFixture("inv_123")},
 		"next_cursor": "invoice_2",
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "--limit", "1", "--cursor", "invoice_1")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "--limit", "1", "--cursor", "invoice_1", "-o", "table")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, "cursor=invoice_1&limit=1", api.requests[0].Query)
 	require.Contains(t, stdout, "--cursor invoice_2")
@@ -134,7 +134,7 @@ func TestBillingInvoices_lastPageDoesNotHintNextPageWhenTruncated(t *testing.T) 
 		"invoices":    []map[string]any{invoiceFixture("inv_123")},
 		"next_cursor": nil,
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "-o", "table")
 	require.Equal(t, 0, code, stderr)
 	require.NotContains(t, stdout, "--cursor")
 }

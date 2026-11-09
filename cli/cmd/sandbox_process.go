@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
@@ -61,7 +62,7 @@ func newSandboxProcessListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), output.List[tbgen.ProcessDto]{Items: items}, func(items []tbgen.ProcessDto) output.Table {
+			return printToolboxList(a, output.List[api.Raw[tbgen.ProcessDto]]{Items: items}, func(items []tbgen.ProcessDto) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					pidValue := ""
@@ -97,13 +98,13 @@ func newSandboxProcessGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(proc, processKV(proc))
+			return printToolboxObject(a, proc, processKV(proc.V))
 		},
 	}
 }
 
 func newSandboxProcessWaitCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "wait <sandbox-id> <process-id>",
 		Short: "Wait for a process to exit",
 		Args:  cobra.ExactArgs(2),
@@ -128,12 +129,14 @@ func newSandboxProcessWaitCommand() *cobra.Command {
 				}
 				return err
 			}
-			if err := a.Printer().Object(result, nil); err != nil {
+			if err := printToolboxObject(a, result, exitResultKV(args[1], result.V)); err != nil {
 				return err
 			}
-			return exitError(result)
+			return exitError(result.V)
 		},
 	}
+	addTimeoutFlag(cmd, defaultWaitTimeout, "how long to wait for the process to exit (Go duration)")
+	return cmd
 }
 
 func newSandboxProcessSignalCommand() *cobra.Command {
@@ -175,10 +178,11 @@ func newSandboxProcessSignalCommand() *cobra.Command {
 			if err := toolClient.SignalProcess(cmd.Context(), args[1], signalName, after, escalateTo); err != nil {
 				return err
 			}
-			return a.Printer().Object(map[string]any{"id": args[1], "signal": signalName}, nil)
+			return a.Printer().Object(map[string]any{"id": args[1], "signal": signalName}, [][2]string{{"id", args[1]}, {"signal", signalName}})
 		},
 	}
-	cmd.Flags().StringVar(&escalateAfter, "escalate-after", "", "escalate after this duration, e.g. 5s")
+	cmd.Flags().StringVar(&escalateAfter, "escalate-after", "", "escalate after this duration (Go duration, e.g. 5s)")
+	flagPlaceholder(cmd.Flags(), "escalate-after", "DURATION")
 	cmd.Flags().StringVar(&escalateTo, "escalate-to", "", "signal to escalate to, e.g. KILL")
 	return cmd
 }
@@ -197,7 +201,7 @@ func newSandboxProcessKillCommand() *cobra.Command {
 			if err := toolClient.SignalProcess(cmd.Context(), args[1], "KILL", 0, ""); err != nil {
 				return err
 			}
-			return a.Printer().Object(map[string]any{"id": args[1], "signal": "KILL"}, nil)
+			return a.Printer().Object(map[string]any{"id": args[1], "signal": "KILL"}, [][2]string{{"id", args[1]}, {"signal", "KILL"}})
 		},
 	}
 }
@@ -226,6 +230,21 @@ func derefString(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+// exitResultKV is the table form of a process wait result.
+func exitResultKV(processID string, result tbgen.ExitResult) [][2]string {
+	kv := [][2]string{{"id", processID}}
+	if result.Reason != nil {
+		kv = append(kv, [2]string{"exit_reason", string(*result.Reason)})
+	}
+	if result.ExitCode != nil {
+		kv = append(kv, [2]string{"exit_code", strconv.Itoa(int(*result.ExitCode))})
+	}
+	if result.Signal != nil {
+		kv = append(kv, [2]string{"signal", *result.Signal})
+	}
+	return kv
 }
 
 func processKV(proc tbgen.ProcessDto) [][2]string {

@@ -8,7 +8,7 @@ import (
 	"net/url"
 
 	gen "github.com/daytona/clients/cli/gen/api"
-	"github.com/daytona/clients/cli/internal/mgmt"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +31,7 @@ func newAuditCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		fetch := func(ctx context.Context, cursor string) (output.List[gen.AuditLogEntry], error) {
+		fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.AuditLogEntry]], error) {
 			query := url.Values{}
 			if flags.limit > 0 {
 				query.Set("limit", toString(flags.limit))
@@ -63,13 +63,9 @@ func newAuditCmd() *cobra.Command {
 			if endAt != "" {
 				query.Set("end_at", endAt)
 			}
-			page, err := mgmt.ListAuditLogs(ctx, mc, orgID, query)
-			if err != nil {
-				return output.List[gen.AuditLogEntry]{}, err
-			}
-			return output.List[gen.AuditLogEntry]{Items: page.AuditLogs, NextCursor: formatPtr(page.NextCursor)}, nil
+			return getRawList[gen.AuditLogEntry](ctx, mc, "/orgs/"+url.PathEscape(orgID)+"/audit-logs", query, "audit_logs")
 		}
-		var list output.List[gen.AuditLogEntry]
+		var list output.List[api.Raw[gen.AuditLogEntry]]
 		if flags.all {
 			list, err = collectPaged(ctx, flags.cursor, fetch)
 		} else {
@@ -78,7 +74,7 @@ func newAuditCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), list, func(rows []gen.AuditLogEntry) output.Table {
+		return listOutRaw(a.Printer(), list, func(rows []gen.AuditLogEntry) output.Table {
 			tableRows := make([][]string, 0, len(rows))
 			for _, row := range rows {
 				tableRows = append(tableRows, []string{row.Action, toString(row.StatusCode), row.TargetType, formatPtr(row.TargetId), formatUUIDPtr(row.ActorKeyId), formatUUIDPtr(row.ActorUserId), row.CreatedAt.Format("2006-01-02T15:04:05Z07:00")})

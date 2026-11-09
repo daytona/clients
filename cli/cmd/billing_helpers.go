@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"time"
 
-	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/auth"
@@ -35,27 +34,6 @@ func openHTTPSURL(raw string) error {
 		return cerr.New(cerr.ExitFailure, "refusing to open %q: not an https URL", raw)
 	}
 	return auth.OpenBrowser(u.String())
-}
-
-// billingSessionView is what the session commands render. The generated wire
-// type tags `expires_at` `omitempty`, so re-marshaling it for output would
-// drop the `null` the API sends when the provider does not bound the session;
-// this view keeps the field, so JSON and YAML match the response.
-type billingSessionView struct {
-	ExpiresAt *time.Time `json:"expires_at"`
-	URL       string     `json:"url"`
-}
-
-func renderBillingSession(a *app.App, session gen.BillingSession) error {
-	return renderDynamicValue(a, billingSessionView{ExpiresAt: session.ExpiresAt, URL: session.Url}, "")
-}
-
-func billingPage[T any](items []T, next *string) output.List[T] {
-	page := output.List[T]{Items: items}
-	if next != nil {
-		page.NextCursor = *next
-	}
-	return page
 }
 
 func renderBillingList[T any](a *app.App, page output.List[T], err error) error {
@@ -92,11 +70,6 @@ type billingUsagePeriod struct {
 	TotalAmountCents int64                `json:"total_amount_cents"`
 }
 
-type billingUsagePeriodPage struct {
-	NextCursor   *string              `json:"next_cursor"`
-	UsagePeriods []billingUsagePeriod `json:"usage_periods"`
-}
-
 func renderDynamicValue(a *app.App, payload any, listKey string) error {
 	generic, err := toDynamicValue(payload)
 	if err != nil {
@@ -105,12 +78,19 @@ func renderDynamicValue(a *app.App, payload any, listKey string) error {
 	if items, ok := rowsFromDynamic(generic); ok {
 		return renderDynamicRows(a.Printer(), items)
 	}
-	if node, ok := generic.(map[string]any); ok {
-		if raw, ok := node[listKey]; ok {
-			if items, ok := rowsFromDynamic(raw); ok {
-				return renderDynamicRows(a.Printer(), items)
-			}
+	if listKey != "" {
+		// A list command always prints the list envelope: a missing or null
+		// list is an empty one.
+		node, _ := generic.(map[string]any)
+		if items, ok := rowsFromDynamic(node[listKey]); ok {
+			return renderDynamicRows(a.Printer(), items)
 		}
+		if node[listKey] == nil {
+			return renderDynamicRows(a.Printer(), []map[string]any{})
+		}
+		return cerr.New(cerr.ExitFailure, "the %s in the response is not a list of objects", listKey)
+	}
+	if node, ok := generic.(map[string]any); ok {
 		return a.Printer().Object(node, sortedKVFromMap(node))
 	}
 	return a.Printer().Object(payload, nil)

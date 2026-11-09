@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/spf13/pflag"
 
@@ -57,15 +56,8 @@ func Load(path string, stdin io.Reader, stdinIsPayload bool) (Body, error) {
 	return b, nil
 }
 
-// Set writes a field unconditionally. Decode matches keys
-// case-insensitively, so Set also drops any case variant of key (from --file)
-// that would otherwise compete with the value written here.
+// Set writes a field unconditionally.
 func (b Body) Set(key string, v any) {
-	for existing := range b {
-		if existing != key && strings.EqualFold(existing, key) {
-			delete(b, existing)
-		}
-	}
 	b[key] = v
 }
 
@@ -85,15 +77,12 @@ func (b Body) Require(key, flag string) error {
 	return nil
 }
 
-// RejectNulls refuses an explicit null for any of fields. Keys match
-// case-insensitively, as Decode does: `"Labels": null` would otherwise pass
-// here and then decode into the `labels` field as omitted.
+// RejectNulls refuses an explicit null for any of fields: the API
+// distinguishes null from omitted where these are used.
 func RejectNulls(b Body, fields ...string) error {
 	for _, field := range fields {
-		for key, value := range b {
-			if value == nil && strings.EqualFold(key, field) {
-				return cerr.Usage("%q is not nullable; omit it to keep the current value", key)
-			}
+		if value, ok := b[field]; ok && value == nil {
+			return cerr.Usage("%q is not nullable; omit it to keep the current value", field)
 		}
 	}
 	return nil
@@ -127,14 +116,30 @@ func (b Body) String() string {
 	return fmt.Sprintf("%s", j)
 }
 
+// CheckKeysFor checks b's keys against request type T's field names
+// (CheckKeys); Decode runs it too.
+func CheckKeysFor[T any](b Body) error {
+	var v T
+	fields, ok := requestFields[fmt.Sprintf("%T", v)]
+	if !ok {
+		return cerr.New(cerr.ExitFailure, "no field table for %T (regenerate request_fields_gen.go)", v)
+	}
+	return CheckKeys(fields, map[string]any(b))
+}
+
 // Decode marshals the merged body into a typed request struct, so the server's
 // schema (via the generated types) validates what the flags and --file
 // produced. Explicit JSON nulls are not representable once a generated
 // `omitempty` pointer field is materialized into the typed request, so callers
 // must reject them before Decode when the API distinguishes null from omitted.
+// Keys must name request fields exactly (CheckKeys); encoding/json alone
+// would also accept a key that differs only in case.
 // One implementation for every command family.
 func Decode[T any](b Body) (T, error) {
 	var out T
+	if err := CheckKeysFor[T](b); err != nil {
+		return out, err
+	}
 	raw, err := json.Marshal(b)
 	if err != nil {
 		return out, fmt.Errorf("encode request body: %w", err)

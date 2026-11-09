@@ -4,9 +4,10 @@
 package cmd
 
 import (
+	"context"
+
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/mgmt"
-	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +18,8 @@ func newProjectServiceAccountCmd() *cobra.Command {
 }
 
 func newProjectServiceAccountListCmd() *cobra.Command {
-	return &cobra.Command{Use: "list", Short: "List service accounts seated in the selected project", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	var flags pageFlags
+	cmd := &cobra.Command{Use: "list", Short: "List service accounts seated in the selected project", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
 		projectID, err := a.RequireProject(ctx, pickProject(a))
@@ -28,12 +30,16 @@ func newProjectServiceAccountListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		items, err := mgmt.ListProjectServiceAccounts(ctx, mc, projectID)
+		items, err := mgmtListPage(ctx, flags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.ProjectServiceAccount], error) {
+			return mgmt.ProjectServiceAccountsPage(ctx, mc, projectID, cursor, limit)
+		})
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), output.List[gen.ProjectServiceAccount]{Items: items}, projectServiceAccountTable)
+		return listOutRaw(a.Printer(), items, projectServiceAccountTable)
 	}}
+	addPageFlags(cmd, &flags)
+	return cmd
 }
 
 func newProjectServiceAccountAddCmd() *cobra.Command {
@@ -66,7 +72,7 @@ func newProjectServiceAccountAddCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"added_service_account_ids", joinComma(uuidStrings(resp.AddedServiceAccountIds))}})
+		return a.Printer().Object(resp, [][2]string{{"added_service_account_ids", joinComma(uuidStrings(resp.V.AddedServiceAccountIds))}})
 	}}
 }
 
@@ -103,6 +109,6 @@ func newProjectServiceAccountRemoveCmd() *cobra.Command {
 		if err := mgmt.RemoveProjectServiceAccount(ctx, mc, projectID, acct.Id.String()); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"removed": acct.Id.String()}, [][2]string{{"removed", acct.Id.String()}})
+		return printAck(a, "id", acct.Id.String(), "removed", "")
 	}}
 }

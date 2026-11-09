@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/daytona/clients/cli/gen/api"
 	apiinternal "github.com/daytona/clients/cli/internal/api"
@@ -26,7 +25,6 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 			if state.done {
 				return regions.Page[api.ImageListItem]{Items: []api.ImageListItem{}}, nil
 			}
-			var page api.ImagePage
 			query := listQuery(pageFlags{limit: request.limit}, state.cursor)
 			if filters.name != "" {
 				query.Set("name", filters.name)
@@ -40,19 +38,22 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 			if filters.sandboxID != "" {
 				query.Set("sandbox_id", filters.sandboxID)
 			}
-			err := client.Do(ctx, http.MethodGet, "/images", query, nil, &page)
-			next := ""
-			if page.NextCursor != nil {
-				next = *page.NextCursor
+			page, err := getRawList[api.ImageListItem](ctx, client, "/images", query, "images")
+			if err != nil {
+				return regions.Page[api.ImageListItem]{}, err
 			}
-			if err == nil && scope.streams != nil {
-				rows := make(map[string]string, len(page.Images))
-				for _, item := range page.Images {
+			items := apiinternal.Values(page.Items)
+			for _, item := range page.Items {
+				addRaw(source.raws, item)
+			}
+			if scope.streams != nil {
+				rows := make(map[string]string, len(items))
+				for _, item := range items {
 					rows[item.Id] = item.Cursor
 				}
-				scope.recordStream(currentRegion, rows, next != "")
+				scope.recordStream(currentRegion, rows, page.NextCursor != "")
 			}
-			return regions.Page[api.ImageListItem]{Items: page.Images, NextCursor: next}, err
+			return regions.Page[api.ImageListItem]{Items: items, NextCursor: page.NextCursor}, nil
 		},
 		func(a, b api.ImageListItem) bool {
 			if a.CreatedAt.Equal(b.CreatedAt) {

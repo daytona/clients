@@ -5,7 +5,6 @@ package cmd
 
 import (
 	gen "github.com/daytona/clients/cli/gen/api"
-	"github.com/daytona/clients/cli/internal/mgmt"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -22,11 +21,11 @@ func newRoleCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		catalog, err := mgmt.ListRoles(cmd.Context(), mc)
+		catalog, err := getRawWhole[gen.Role](cmd.Context(), mc, "/roles", nil, "roles")
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), output.List[gen.Role]{Items: catalog.Roles}, func(items []gen.Role) output.Table {
+		return listOutRaw(a.Printer(), catalog, func(items []gen.Role) output.Table {
 			rows := make([][]string, 0, len(items))
 			for _, item := range items {
 				rows = append(rows, []string{item.Id, item.Name, joinComma(item.Permissions), item.Description})

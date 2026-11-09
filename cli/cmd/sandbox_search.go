@@ -65,11 +65,7 @@ func newSandboxSearchCommand() *cobra.Command {
 			flags.maxMemorySet = cmd.Flags().Changed("max-memory")
 			flags.minDiskSet = cmd.Flags().Changed("min-disk")
 			flags.maxDiskSet = cmd.Flags().Changed("max-disk")
-			region := strings.TrimSpace(a.Globals.Region)
-			if region == "" {
-				region = strings.TrimSpace(a.Getenv("DAYTONA_REGION"))
-			}
-			if region != "" {
+			if region := strings.TrimSpace(a.Globals.Region); region != "" {
 				flags.regions = []string{region}
 			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
@@ -87,13 +83,11 @@ func newSandboxSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := writeSandboxSearchResult(a.Printer(), list); err != nil {
-				return err
-			}
-			return sandboxSearchPartialError(list)
+			return writeSandboxSearchResult(a.Printer(), list)
 		},
 	}
 	addPageFlags(cmd, &flags.pageFlags)
+	addRegionFlag(cmd, "search only this region")
 	cmd.Flags().StringVar(&flags.namePrefix, "name-prefix", "", "filter by sandbox name prefix")
 	cmd.Flags().StringVar(&flags.idPrefix, "id-prefix", "", "filter by sandbox id prefix")
 	cmd.Flags().StringSliceVar(&flags.status, "status", nil, "filter by status (queued|pending|assigned|booting|running|pausing|paused|stopping|stopped|deleting|deleted|failed|lost; repeatable or comma-separated)")

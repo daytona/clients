@@ -25,6 +25,9 @@ func TestResolve(t *testing.T) {
 		{"--yes", Options{OutputFormat: "table", YesFlag: true, Getenv: env(nil), StdoutTTY: b(false), StdinTTY: b(false)}, Mode{AssumeYes: true}},
 		{"DAYTONA_YES", Options{OutputFormat: "table", Getenv: env(map[string]string{"DAYTONA_YES": "true"}), StdoutTTY: b(false), StdinTTY: b(false)}, Mode{AssumeYes: true}},
 		{"confirm=false", Options{OutputFormat: "table", ConfirmOff: true, Getenv: env(nil), StdoutTTY: b(true), StdinTTY: b(true)}, Mode{Interactive: true, Color: true, AssumeYes: true}},
+		{"confirm=false off a terminal", Options{OutputFormat: "table", ConfirmOff: true, Getenv: env(nil), StdoutTTY: b(false), StdinTTY: b(false)}, Mode{}},
+		{"confirm=false with json", Options{OutputFormat: "json", ConfirmOff: true, Getenv: env(nil), StdoutTTY: b(true), StdinTTY: b(true)}, Mode{}},
+		{"confirm=false in CI", Options{OutputFormat: "table", ConfirmOff: true, Getenv: env(map[string]string{"CI": "1"}), StdoutTTY: b(true), StdinTTY: b(true)}, Mode{}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
