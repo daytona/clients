@@ -1,0 +1,14 @@
+AGENTS.md
+  h_e7759ddd73fa65 999
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c669527af4741982f4b2a703af146fd5a85e8f90",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
